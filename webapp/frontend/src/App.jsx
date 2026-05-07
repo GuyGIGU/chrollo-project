@@ -20,6 +20,27 @@ const fmtMoney = (v) => {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// IBKR option symbols look like "AAPL 03JUN26 200 C" — space + DDMMMYY date + strike + C/P.
+// Bare tickers ("AAPL") are stocks. This is the same format that comes through CSV import
+// and live IBKR fills, so it works for both.
+const OPTION_SYMBOL_RE = /^[A-Z.]+\s+\d{1,2}[A-Z]{3}\d{2}\s+[\d.]+\s+[CP]$/;
+export const isOptionSymbol = (sym) => !!sym && OPTION_SYMBOL_RE.test(String(sym).trim());
+
+// Direction in the DB is "L"/"S" for IBKR-imported trades and "LONG"/"SHORT" for manual.
+// Falls back to inferring from the stop position relative to entry: stop below entry → LONG,
+// stop above entry → SHORT. Returns 'LONG' as last resort.
+export const inferDirection = (t) => {
+  const d = String(t?.direction || '').toUpperCase();
+  if (d === 'L' || d === 'LONG') return 'LONG';
+  if (d === 'S' || d === 'SHORT') return 'SHORT';
+  const entry = Number(t?.entry_price);
+  const stop = Number(t?.stop_loss);
+  if (Number.isFinite(entry) && Number.isFinite(stop) && stop !== 0) {
+    return stop < entry ? 'LONG' : 'SHORT';
+  }
+  return 'LONG';
+};
+
 function App() {
   const ibkrStatus = useIBKRStatus(10000);
   const isLive = ibkrStatus?.mode === 'live';
@@ -38,9 +59,55 @@ function App() {
   const [detailTrade, setDetailTrade] = useState(null);
   const [switchingMode, setSwitchingMode] = useState(false);
   const [switchingClient, setSwitchingClient] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const reconnectIbkr = async () => {
+    if (reconnecting) return;
+    setReconnecting(true);
+    try {
+      const res = await fetch(`${API_BASE}/ibkr/reconnect`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.text();
+        alert(`Reconnect failed: ${body}`);
+      }
+    } catch (err) {
+      alert(`Reconnect error: ${err.message || err}`);
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   // null = no filter; 'wins' | 'losses' | 'open' | 'wash'
   const [tradeFilter, setTradeFilter] = useState(null);
+
+  const csvInputRef = React.useRef(null);
+  const [importingCsv, setImportingCsv] = useState(false);
+
+  const handleCsvImport = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setImportingCsv(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_BASE}/ibkr/import-csv`, { method: 'POST', body: form });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Import failed: ${body.detail || res.statusText}`);
+      } else {
+        alert(
+          `Imported ${body.imported} new fills (${body.skipped} duplicates skipped).\n` +
+          `Trade logs rebuilt for ${body.trade_logs_rebuilt} symbols.`
+        );
+        fetchDashboardData();
+      }
+    } catch (err) {
+      alert(`Import error: ${err.message || err}`);
+    } finally {
+      setImportingCsv(false);
+    }
+  };
 
   const toggleIbkrMode = async () => {
     if (switchingMode) return;
@@ -94,9 +161,29 @@ function App() {
     }
   };
 
+  // Master sort: newest opening_date first, ties broken by id desc so a same-day
+  // re-import keeps a stable order. Applied once here; downstream filters preserve it.
+  const sortedTrades = useMemo(() => {
+    return [...trades].sort((a, b) => {
+      const da = a.opening_date || '';
+      const db = b.opening_date || '';
+      if (da !== db) return da < db ? 1 : -1;
+      return (b.id || 0) - (a.id || 0);
+    });
+  }, [trades]);
+
+  const stockTrades = useMemo(
+    () => sortedTrades.filter(t => !isOptionSymbol(t.ticker)),
+    [sortedTrades],
+  );
+  const optionTrades = useMemo(
+    () => sortedTrades.filter(t => isOptionSymbol(t.ticker)),
+    [sortedTrades],
+  );
+
   const filteredTrades = useMemo(() => {
-    if (!tradeFilter) return trades;
-    return trades.filter(t => {
+    if (!tradeFilter) return stockTrades;
+    return stockTrades.filter(t => {
       const closed = t.pnl !== null && t.pnl !== undefined;
       if (tradeFilter === 'open') return !closed;
       if (tradeFilter === 'wins') return closed && t.pnl > 0;
@@ -104,7 +191,7 @@ function App() {
       if (tradeFilter === 'wash') return closed && t.pnl === 0;
       return true;
     });
-  }, [trades, tradeFilter]);
+  }, [stockTrades, tradeFilter]);
 
   const fetchDashboardData = async () => {
     try {
@@ -144,7 +231,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand" style={{gap: '12px', fontSize: '1.4rem', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '0.8rem'}}>
           <img src={logoUrl} alt="Chrollo" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
-          Chrollo
+          <span className="brand-text">Chrollo</span>
         </div>
 
         <div style={{ padding: '0 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '8px' }}>
@@ -219,7 +306,24 @@ function App() {
                 Session Conflict
               </div>
               <div style={{fontSize: '1.2rem', fontWeight: '700', color: '#fff', opacity: 0.7}}>${fmtMoney(acct.values?.NetLiquidation)}</div>
-              <div style={{fontSize: '10px', color: 'var(--danger)'}}>Another platform has the session</div>
+              <div style={{fontSize: '10px', color: 'var(--danger)', marginBottom: '6px'}}>Paused — TradingView/TWS has the session</div>
+              <button
+                type="button"
+                onClick={reconnectIbkr}
+                disabled={reconnecting}
+                title="Force a fresh connection. Will bump whatever else is logged into IBKR with this username."
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+                  padding: '3px 10px', borderRadius: 'var(--radius-pill, 999px)',
+                  background: 'rgba(229,72,77,0.15)', color: 'var(--danger)',
+                  border: '1px solid var(--danger)',
+                  cursor: reconnecting ? 'wait' : 'pointer',
+                  opacity: reconnecting ? 0.6 : 1,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {reconnecting ? 'Reconnecting…' : 'Reconnect'}
+              </button>
             </>
           ) : ibkrStatus?.daily_restart ? (
             <>
@@ -253,6 +357,17 @@ function App() {
 
         <nav className="nav-menu">
           <div className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</div>
+          <div className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>
+            <span style={{ flex: 1 }}>Options</span>
+            {optionTrades.length > 0 && (
+              <span style={{
+                fontSize: '10px', fontWeight: 600,
+                background: 'var(--accent-blue-soft)', color: '#DCE6FF',
+                padding: '1px 7px', borderRadius: 'var(--radius-pill)',
+                border: '1px solid rgba(74, 122, 255, 0.30)',
+              }}>{optionTrades.length}</span>
+            )}
+          </div>
           <div className={`nav-link ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Portfolio</div>
           <div className={`nav-link ${activeTab === 'screener' ? 'active' : ''}`} onClick={() => setActiveTab('screener')}>Screener Grid</div>
           <div className={`nav-link ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => setActiveTab('archive')}>Setup Archive</div>
@@ -261,6 +376,31 @@ function App() {
 
         <div className="action-buttons">
           <button className="btn-action btn-trade" onClick={() => setTradeModalOpen(true)}><span>+</span> New Trade</button>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={handleCsvImport}
+          />
+          <button
+            type="button"
+            className="btn-action"
+            disabled={importingCsv}
+            onClick={() => csvInputRef.current?.click()}
+            title="Upload an IBKR Activity Statement CSV (Performance & Reports → Activity → CSV) to bulk-import historical fills"
+            style={{
+              marginTop: '8px',
+              background: 'transparent',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-muted)',
+              fontSize: '11px',
+              cursor: importingCsv ? 'wait' : 'pointer',
+              opacity: importingCsv ? 0.6 : 1,
+            }}
+          >
+            {importingCsv ? 'Importing…' : '⇪ Import IBKR CSV'}
+          </button>
         </div>
       </aside>
 
@@ -269,12 +409,14 @@ function App() {
         <header className="topbar" style={{justifyContent: 'space-between'}}>
           <div style={{color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '1px'}}>
             {activeTab === 'dashboard' ? 'Trading Journal Analytics'
+              : activeTab === 'options' ? 'Options Trades'
               : activeTab === 'portfolio' ? 'Live IBKR Portfolio'
               : activeTab === 'archive' ? 'Setup Archive & Calibration'
               : 'Wyckoff Screener Scans'}
           </div>
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-             {activeTab === 'dashboard' && <span style={{color: 'var(--text-muted)'}}>{trades.length} trades loaded.</span>}
+             {activeTab === 'dashboard' && <span style={{color: 'var(--text-muted)'}}>{stockTrades.length} stock trades loaded.</span>}
+             {activeTab === 'options' && <span style={{color: 'var(--text-muted)'}}>{optionTrades.length} option trades loaded.</span>}
              <span style={{cursor: 'pointer'}}>🔔</span>
              <span style={{background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-pink))', borderRadius: '50%', width:'24px', height:'24px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'}}></span>
           </div>
@@ -293,11 +435,22 @@ function App() {
                 trades={filteredTrades}
                 onEditClick={(trade) => setEditingTrade(trade)}
                 onDetailClick={(trade) => setDetailTrade(trade)}
+                onTradeUpdate={fetchDashboardData}
               />
               <ErrorBoundary>
                 <AnalyticsPanel />
               </ErrorBoundary>
             </>
+          )}
+          {activeTab === 'options' && (
+            <ErrorBoundary>
+              <TradeTable
+                trades={optionTrades}
+                onEditClick={(trade) => setEditingTrade(trade)}
+                onDetailClick={(trade) => setDetailTrade(trade)}
+                onTradeUpdate={fetchDashboardData}
+              />
+            </ErrorBoundary>
           )}
           {activeTab === 'portfolio' && (
             <ErrorBoundary>

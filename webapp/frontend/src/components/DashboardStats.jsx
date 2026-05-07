@@ -72,18 +72,23 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
     onFilterChange(activeFilter === key ? null : key);
   };
 
-  const filterBtnStyle = (key) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.6rem',
-    background: activeFilter === key ? 'var(--bg-hover)' : 'transparent',
-    border: 'none',
-    padding: '0.3rem 0.5rem',
-    borderRadius: 'var(--radius-sm, 6px)',
-    cursor: 'pointer',
-    color: 'inherit',
-    textAlign: 'left',
-  });
+  const filterBtnStyle = (key, accent) => {
+    const active = activeFilter === key;
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.6rem',
+      background: active ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent',
+      border: `1px solid ${active ? `color-mix(in srgb, ${accent} 35%, transparent)` : 'transparent'}`,
+      padding: '0.3rem 0.5rem',
+      borderRadius: 'var(--radius-sm, 6px)',
+      cursor: 'pointer',
+      color: 'inherit',
+      textAlign: 'left',
+      boxShadow: active ? `0 0 12px -4px ${accent}` : 'none',
+      transition: 'background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+    };
+  };
 
   return (
     <div className="stats-header">
@@ -100,12 +105,12 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
 
       <div className="kpi-row">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <button type="button" onClick={() => toggle('wins')} style={filterBtnStyle('wins')}>
+          <button type="button" onClick={() => toggle('wins')} style={filterBtnStyle('wins', 'var(--success)')}>
             <span style={{ color: 'var(--text-muted)', width: '45px' }}>WINS</span>
             <span style={{ color: 'var(--success)', fontWeight: 'bold', width: '20px' }}>{data.winning_trades}</span>
             <RingClock pct={winPct} color="var(--success)" label={`wins ${winPct}%`} active={activeFilter === 'wins'} />
           </button>
-          <button type="button" onClick={() => toggle('losses')} style={filterBtnStyle('losses')}>
+          <button type="button" onClick={() => toggle('losses')} style={filterBtnStyle('losses', 'var(--danger)')}>
             <span style={{ color: 'var(--text-muted)', width: '45px' }}>LOSSES</span>
             <span style={{ color: 'var(--danger)', fontWeight: 'bold', width: '20px' }}>{data.losing_trades}</span>
             <RingClock pct={lossPct} color="var(--danger)" label={`losses ${lossPct}%`} active={activeFilter === 'losses'} />
@@ -113,12 +118,12 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <button type="button" onClick={() => toggle('open')} style={filterBtnStyle('open')}>
+          <button type="button" onClick={() => toggle('open')} style={filterBtnStyle('open', 'var(--accent-blue)')}>
             <span style={{ color: 'var(--text-muted)', width: '40px' }}>OPEN</span>
             <span style={{ color: 'var(--accent-blue)', fontWeight: 'bold', width: '20px' }}>{openCount}</span>
             <RingClock pct={openPct} color="var(--accent-blue)" label={`open ${openPct}%`} active={activeFilter === 'open'} muted={openCount === 0} />
           </button>
-          <button type="button" onClick={() => toggle('wash')} style={filterBtnStyle('wash')}>
+          <button type="button" onClick={() => toggle('wash')} style={filterBtnStyle('wash', 'var(--accent-yellow)')}>
             <span style={{ color: 'var(--text-muted)', width: '40px' }}>WASH</span>
             <span style={{ color: 'var(--text-muted)', fontWeight: 'bold', width: '20px' }}>{washCount}</span>
             <RingClock pct={washPct} color="var(--text-muted)" label={`wash ${washPct}%`} active={activeFilter === 'wash'} muted={washCount === 0} />
@@ -140,12 +145,17 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
           <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '0.5rem' }}>PnL</span>
           <div
             style={{
-              background: data.total_pnl >= 0 ? 'var(--success-bg)' : 'var(--danger-bg)',
+              background: data.total_pnl >= 0
+                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.08))'
+                : 'linear-gradient(135deg, rgba(239, 79, 88, 0.22), rgba(239, 79, 88, 0.08))',
               color: data.total_pnl >= 0 ? 'var(--success)' : 'var(--danger)',
-              padding: '0.4rem 1.2rem',
+              padding: '0.45rem 1.3rem',
               borderRadius: 'var(--radius-pill)',
               fontWeight: 'bold',
               border: `1px solid ${data.total_pnl >= 0 ? 'var(--success)' : 'var(--danger)'}`,
+              boxShadow: data.total_pnl >= 0
+                ? '0 0 0 1px rgba(34, 197, 94, 0.10), 0 6px 20px -6px rgba(34, 197, 94, 0.55)'
+                : '0 0 0 1px rgba(239, 79, 88, 0.10), 0 6px 20px -6px rgba(239, 79, 88, 0.55)',
             }}
           >
             ${data.total_pnl.toFixed(2)}

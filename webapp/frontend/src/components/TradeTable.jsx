@@ -2,9 +2,50 @@ import React, { useState, useEffect, useMemo } from 'react';
 import useSSE from '../hooks/useSSE';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import { API_BASE } from '../api';
+import { isOptionSymbol, inferDirection } from '../App';
 
-const TradeTable = ({ trades = [], onEditClick, onDetailClick }) => {
+const TradeTable = ({ trades = [], onEditClick, onDetailClick, onTradeUpdate }) => {
   const [yfPrices, setYfPrices] = useState({});
+
+  // Inline R-multiplier editing. Track the slot too (t1 vs t2) so only one input
+  // renders at a time — otherwise both T1 and T2 chips become autoFocus inputs and
+  // they steal focus from each other, firing onBlur immediately.
+  const [editingR, setEditingR] = useState(null); // { tradeId, slot } | null
+  const [rDraft, setRDraft] = useState('');
+  const [rSaving, setRSaving] = useState(false);
+
+  const beginEditR = (trade, slot) => {
+    setEditingR({ tradeId: trade.id, slot });
+    setRDraft(String(trade.target_r ?? 3));
+  };
+
+  const cancelEditR = () => {
+    setEditingR(null);
+    setRDraft('');
+  };
+
+  const commitEditR = async (tradeId) => {
+    const next = parseFloat(rDraft);
+    if (!Number.isFinite(next) || next <= 0) {
+      cancelEditR();
+      return;
+    }
+    setRSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/trades/${tradeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_r: next }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      if (onTradeUpdate) onTradeUpdate();
+    } catch (err) {
+      console.error('Failed to update target_r:', err);
+    } finally {
+      setRSaving(false);
+      cancelEditR();
+    }
+  };
 
   const displayTrades = trades;
 
@@ -81,20 +122,11 @@ const TradeTable = ({ trades = [], onEditClick, onDetailClick }) => {
     return null;
   };
 
-  const calculateHoldDays = (start, end) => {
-    if (!start) return null;
-    const s = new Date(start);
-    const e = end ? new Date(end) : new Date();
-    const diff = e.getTime() - s.getTime();
-    if (diff < 0) return 0;
-    return Math.ceil(diff / (1000 * 3600 * 24));
-  };
-
   const calculateTargets = (entry, stop, r, direction) => {
     if (!entry || !stop || !r) return { t1: null, t2: null };
     const rDist = Math.abs(entry - stop);
     if (rDist === 0) return { t1: null, t2: null };
-    
+
     if (direction === 'LONG') {
       return {
         t1: entry + (rDist * r),
@@ -108,50 +140,46 @@ const TradeTable = ({ trades = [], onEditClick, onDetailClick }) => {
     }
   };
 
+  // True once price has reached/crossed `level` in the trade's favourable direction.
+  const reachedLevel = (current, level, direction) => {
+    if (current == null || level == null) return false;
+    return direction === 'LONG' ? current >= level : current <= level;
+  };
+
   return (
     <div style={{ marginTop: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
-      <table style={{ width: '100%', minWidth: '1000px', borderSpacing: 0 }}>
+      <table className="trade-table">
         <thead>
-          <tr style={{ background: 'var(--bg-hover)' }}>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left', borderTopLeftRadius: '8px', borderBottomLeftRadius: '8px'}}>Date</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Symbol</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Status</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Hold</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Curr Prc</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Target R</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>T1 Price</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>T2 Price</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Qty</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Entry</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>Exit</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>P&L ($)</th>
-            <th style={{padding: '12px 14px', fontSize: '11px', fontWeight: '600', color: '#8b8b9c', textAlign: 'left'}}>P&L (%)</th>
-            <th style={{padding: '12px 14px', borderTopRightRadius: '8px', borderBottomRightRadius: '8px'}}></th>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Ticker</th>
+            <th>Entry</th>
+            <th>Stop</th>
+            <th>Qty</th>
+            <th>Current / Exit</th>
+            <th>Trade $</th>
+            <th>T1</th>
+            <th>T2</th>
+            <th>Exit Date</th>
+            <th>P&L</th>
+            <th>R</th>
+            <th></th>
           </tr>
         </thead>
-        <tbody style={{ borderSpacing: '0 8px' }}>
-          
+        <tbody>
           {displayTrades.map((t) => {
-            const isWin = t.pnl > 0;
-            const isLoss = t.pnl < 0;
-            const isWash = t.pnl === 0 && t.closing_date;
             const isOpen = !t.closing_date && (t.pnl === null || t.pnl === undefined);
-            
-            let statusStr = 'OPEN';
-            if (isWin) statusStr = 'WIN';
-            if (isLoss) statusStr = 'LOSS';
-            if (isWash) statusStr = 'WASH';
-
-            const entTot = (t.entry_price * t.quantity) || 0;
-            const holdDays = calculateHoldDays(t.opening_date, t.closing_date);
+            const isOpt = isOptionSymbol(t.ticker);
+            const direction = inferDirection(t);
+            const isLong = direction === 'LONG';
 
             const rMultiplier = t.target_r || 3.0;
-            const targets = calculateTargets(t.entry_price, t.stop_loss, rMultiplier, t.direction);
+            const targets = calculateTargets(t.entry_price, t.stop_loss, rMultiplier, direction);
 
-            // Unrealized P&L logic
+            // Unrealized P&L: use live price for open trades.
             let currentPrice = null;
             let displayPnl = t.pnl;
-            let isUnrealized = false;
             let priceSource = null;
 
             if (isOpen) {
@@ -159,97 +187,215 @@ const TradeTable = ({ trades = [], onEditClick, onDetailClick }) => {
               if (price != null) {
                 currentPrice = price;
                 priceSource = source;
-                isUnrealized = true;
-                if (t.direction === 'LONG') {
-                  displayPnl = (currentPrice - t.entry_price) * t.quantity;
-                } else {
-                  displayPnl = (t.entry_price - currentPrice) * t.quantity;
-                }
+                displayPnl = isLong
+                  ? (currentPrice - t.entry_price) * t.quantity
+                  : (t.entry_price - currentPrice) * t.quantity;
               }
             }
 
+            const exitPrice = !isOpen ? deriveExitPrice(t) : null;
+            // Single "Current / Exit" column: live price for open, exit price for closed.
+            const outcomePrice = isOpen ? currentPrice : exitPrice;
+            const outcomeMove = (outcomePrice != null && t.entry_price)
+              ? (isLong ? outcomePrice >= t.entry_price : outcomePrice <= t.entry_price)
+              : null;
+
+            // Notional ("Trade $") — entry × quantity, ×100 for option contracts.
+            const multiplier = isOpt ? 100 : 1;
+            const notional = (t.entry_price && t.quantity)
+              ? Number(t.entry_price) * Number(t.quantity) * multiplier
+              : null;
+
+            const entTot = (t.entry_price * t.quantity * multiplier) || 0;
             const returnPct = (entTot > 0 && displayPnl != null) ? ((displayPnl / entTot) * 100) : null;
             const pnlColor = (displayPnl > 0) ? 'var(--success)' : ((displayPnl < 0) ? 'var(--danger)' : 'var(--text-muted)');
+
+            // Stop + entry-to-stop %.
+            const stopVal = (t.stop_loss && Number(t.stop_loss) !== 0) ? Number(t.stop_loss) : null;
+            const stopPctFromEntry = (stopVal != null && t.entry_price)
+              ? Math.abs(Number(t.entry_price) - stopVal) / Number(t.entry_price) * 100
+              : null;
+
+            // R: dynamic — uses current price for open, exit for closed.
+            const rDist = (stopVal != null && t.entry_price) ? Math.abs(Number(t.entry_price) - stopVal) : null;
+            const rValue = (rDist && rDist > 0 && t.quantity && displayPnl != null)
+              ? (displayPnl / (rDist * Number(t.quantity) * multiplier))
+              : null;
+            const rColor = rValue == null ? 'var(--text-muted)'
+              : rValue > 0 ? 'var(--success)'
+              : rValue < 0 ? 'var(--danger)' : 'var(--text-muted)';
+
+            // Target-hit ticks for open rows.
+            const t1Hit = isOpen && reachedLevel(currentPrice, targets.t1, direction);
+            const t2Hit = isOpen && reachedLevel(currentPrice, targets.t2, direction);
+
+            // T1 = R, T2 = 2R.
+            const t1RLabel = `${rMultiplier}R`;
+            const t2RLabel = `${rMultiplier * 2}R`;
+
+            const renderRChip = (slot, label) => {
+              const isEditingThisSlot = editingR && editingR.tradeId === t.id && editingR.slot === slot;
+              if (isEditingThisSlot) {
+                return (
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    autoFocus
+                    disabled={rSaving}
+                    className="r-chip-input"
+                    value={rDraft}
+                    onChange={e => setRDraft(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitEditR(t.id);
+                      if (e.key === 'Escape') cancelEditR();
+                    }}
+                    onBlur={() => commitEditR(t.id)}
+                  />
+                );
+              }
+              return (
+                <span
+                  className="r-chip"
+                  title="Click to change this trade's R-multiplier (affects both T1 and T2)"
+                  onClick={(e) => { e.stopPropagation(); beginEditR(t, slot); }}
+                >{label}</span>
+              );
+            };
 
             return (
               <tr
                 key={t.id}
-                style={{
-                  background: 'var(--bg-main)', 
-                  cursor: 'pointer',
-                  borderBottom: '1px solid rgba(42, 42, 54, 0.4)',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-panel)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                className="trade-row"
                 onClick={() => { if(onEditClick) onEditClick(t) }}
               >
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)'}}>{t.opening_date}</td>
-                
-                <td style={{padding: '12px 14px', color: 'var(--accent-blue)', fontWeight: '600', fontSize: '12px'}}>
-                   {t.ticker}
-                   <span style={{fontSize: '9px', color: 'var(--text-muted)', border:'1px solid var(--border-color)', borderRadius:'2px', padding:'0 2px', marginLeft:'5px'}}>S</span>
-                </td>
-                
-                <td style={{padding: '12px 14px'}}>
-                  <span style={{
-                    padding: '2px 8px', borderRadius: '12px', fontSize: '9px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    background: isOpen ? 'rgba(255,255,255,0.1)' : (isWin ? 'var(--success-bg)' : (isLoss ? 'var(--danger-bg)' : 'rgba(202, 159, 60, 0.15)')),
-                    color: isOpen ? '#fff' : (isWin ? 'var(--success)' : (isLoss ? 'var(--danger)' : 'var(--accent-yellow)')),
-                  }}>
-                    {statusStr}
-                  </span>
-                </td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-main)'}}>
-                  {holdDays !== null ? `${holdDays}d` : '-'}
-                </td>
-                
-                <td style={{padding: '12px 14px', fontSize: '12px', color: 'var(--accent-blue)', fontWeight: '500'}}>
-                   {currentPrice ? `$${currentPrice.toFixed(2)}` : '-'}
-                </td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)'}}>{rMultiplier}R</td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-main)'}}>
-                  {targets.t1 ? `$${targets.t1.toFixed(2)}` : '-'}
-                </td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-main)'}}>
-                  {targets.t2 ? `$${targets.t2.toFixed(2)}` : '-'}
+                {/* Date */}
+                <td style={{color: 'var(--text-muted)'}}>{t.opening_date}</td>
+
+                {/* Type (LONG/SHORT) */}
+                <td>
+                  <span className={`type-pill ${isLong ? 'long' : 'short'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
                 </td>
 
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-main)'}}>{t.quantity}</td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)'}}>${Number(t.entry_price).toFixed(2)}</td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)'}}>{(() => { const ex = deriveExitPrice(t); return ex != null ? '$' + ex.toFixed(2) : '-'; })()}</td>
-                
-                <td style={{padding: '12px 14px', fontSize: '12px', fontWeight: '600', color: pnlColor}}>
-                  {isUnrealized && (
-                    <span style={{
-                      fontSize: '9px', opacity: 0.85, marginRight: '4px',
-                      color: priceSource === 'ibkr' ? 'var(--accent-blue)' : 'var(--text-muted)',
-                    }}>
-                      {priceSource === 'ibkr' ? 'IBKR' : 'LIVE'}
-                    </span>
+                {/* Ticker + STK/OPT */}
+                <td style={{color: 'var(--accent-blue)', fontWeight: 600, fontSize: '12px'}}>
+                  {t.ticker}
+                  <span className={`asset-pill ${isOpt ? 'opt' : 'stk'}`}>{isOpt ? 'OPT' : 'STK'}</span>
+                </td>
+
+                {/* Entry */}
+                <td style={{color: 'var(--text-main)'}}>${Number(t.entry_price).toFixed(2)}</td>
+
+                {/* Stop + entry-to-stop % */}
+                <td>
+                  {stopVal != null ? (
+                    <div className="cell-stack">
+                      <span style={{color: 'var(--text-main)'}}>${stopVal.toFixed(2)}</span>
+                      <span className="secondary">
+                        {stopPctFromEntry != null ? `${stopPctFromEntry.toFixed(2)}% risk` : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{color: 'var(--text-faint)'}} title="Stop not set">—</span>
                   )}
-                  {displayPnl != null ? `$${Number(displayPnl).toFixed(2)}` : '-'}
                 </td>
-                
-                <td style={{padding: '12px 14px', fontSize: '11px', color: pnlColor, fontWeight: '500'}}>
-                  {returnPct != null ? `${returnPct.toFixed(2)}%` : '-'}
+
+                {/* Qty */}
+                <td style={{color: 'var(--text-main)'}}>{t.quantity}</td>
+
+                {/* Current / Exit Price */}
+                <td>
+                  {outcomePrice != null ? (
+                    <span className={outcomeMove === true ? '' : outcomeMove === false ? '' : ''}
+                          style={{
+                            color: outcomeMove === true ? 'var(--success)'
+                                 : outcomeMove === false ? 'var(--danger)'
+                                 : 'var(--text-main)',
+                            fontWeight: 500,
+                          }}>
+                      ${outcomePrice.toFixed(2)}
+                      {isOpen && priceSource && (
+                        <span style={{
+                          fontSize: '8px', marginLeft: 5, opacity: 0.7,
+                          color: priceSource === 'ibkr' ? 'var(--accent-blue)' : 'var(--text-muted)',
+                        }}>{priceSource === 'ibkr' ? 'IBKR' : 'LIVE'}</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{color: 'var(--text-faint)'}}>—</span>
+                  )}
                 </td>
-                
+
+                {/* Trade $ (notional) */}
+                <td style={{color: 'var(--text-main)'}}>
+                  {notional != null
+                    ? `$${notional.toLocaleString('en-US', {maximumFractionDigits: 0})}`
+                    : '—'}
+                </td>
+
+                {/* T1 */}
+                <td>
+                  <div className="cell-stack">
+                    <span style={{color: t1Hit ? 'var(--success)' : 'var(--text-main)'}}>
+                      {targets.t1 ? `$${targets.t1.toFixed(2)}` : '—'}
+                      {t1Hit && <span title="Current price reached T1" style={{marginLeft: 4}}>✓</span>}
+                    </span>
+                    {renderRChip('t1', t1RLabel)}
+                  </div>
+                </td>
+
+                {/* T2 */}
+                <td>
+                  <div className="cell-stack">
+                    <span style={{color: t2Hit ? 'var(--success)' : 'var(--text-main)'}}>
+                      {targets.t2 ? `$${targets.t2.toFixed(2)}` : '—'}
+                      {t2Hit && <span title="Current price reached T2" style={{marginLeft: 4}}>✓</span>}
+                    </span>
+                    {renderRChip('t2', t2RLabel)}
+                  </div>
+                </td>
+
+                {/* Exit Date */}
+                <td style={{color: 'var(--text-muted)'}}>
+                  {t.closing_date || <span style={{color: 'var(--text-faint)'}}>—</span>}
+                </td>
+
+                {/* P&L combined ($ + %) */}
+                <td>
+                  <div className="cell-stack">
+                    <span style={{color: pnlColor, fontWeight: 600, fontSize: '12px'}}>
+                      {displayPnl != null
+                        ? `${displayPnl >= 0 ? '+' : '-'}$${Math.abs(Number(displayPnl)).toFixed(2)}`
+                        : '—'}
+                    </span>
+                    <span className="secondary" style={{color: pnlColor, opacity: 0.85}}>
+                      {returnPct != null
+                        ? `${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`
+                        : ''}
+                    </span>
+                  </div>
+                </td>
+
+                {/* R */}
                 <td
-                  style={{padding: '12px 14px', textAlign: 'right', color: 'var(--text-muted)', letterSpacing: '2px', cursor: 'pointer'}}
+                  style={{color: rColor, fontWeight: 600}}
+                  title={rValue == null && !stopVal ? 'Set a stop to see R' : 'P&L in initial-risk units (entry → stop distance)'}
+                >
+                  {rValue != null
+                    ? `${rValue >= 0 ? '+' : ''}${rValue.toFixed(2)}R`
+                    : <span style={{color: 'var(--text-faint)', fontWeight: 400}}>—</span>}
+                </td>
+
+                {/* Detail drawer */}
+                <td
+                  style={{textAlign: 'right', color: 'var(--text-muted)', letterSpacing: '2px', cursor: 'pointer'}}
                   onClick={(e) => { e.stopPropagation(); if (onDetailClick) onDetailClick(t); }}
                   title="Open detail drawer"
                 >•••</td>
               </tr>
-            )
+            );
           })}
-
         </tbody>
       </table>
 
@@ -257,7 +403,7 @@ const TradeTable = ({ trades = [], onEditClick, onDetailClick }) => {
         <div style={{
           marginTop: '2rem', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', width: '50%', margin: '3rem auto'
         }}>
-          No trades yet. Use the <strong style={{color: 'var(--text-main)'}}>+ New Trade</strong> button to log your first trade.
+          No trades to display. Log a trade with <strong style={{color: 'var(--text-main)'}}>+ New Trade</strong>, or import an IBKR Activity Statement.
         </div>
       )}
     </div>
