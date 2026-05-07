@@ -5,7 +5,7 @@ import asyncio
 import json
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -14,8 +14,13 @@ import models
 from database import get_db
 from ibkr import get_ibkr_service
 from ibkr.broadcaster import broadcaster
+from services import csv_import
 
 router = APIRouter(prefix="", tags=["portfolio"])
+
+# Reject statement uploads larger than this — a typical multi-year statement is
+# under 1 MB; anything bigger is almost certainly the wrong file.
+_MAX_CSV_BYTES = 5 * 1024 * 1024
 
 
 SUMMARY_KEYS = (
@@ -178,6 +183,31 @@ async def stream_portfolio(request: Request) -> StreamingResponse:
                 yield f"data: {json.dumps(_snapshot_payload(), default=str)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@router.post("/ibkr/import-csv")
+async def import_ibkr_csv(file: UploadFile = File(...)) -> Dict[str, Any]:
+    """One-shot bulk import of an IBKR Activity Statement CSV.
+
+    Idempotent: re-uploading the same statement skips already-ingested fills.
+    The Trades section is parsed and each fill is fed through the same
+    auto-import pipeline that handles live IBKR executions, so the resulting
+    TradeLog rows are identical in shape to what live trading would produce.
+    """
+    raw = await file.read()
+    if len(raw) > _MAX_CSV_BYTES:
+        raise HTTPException(status_code=413, detail=f"CSV too large (>{_MAX_CSV_BYTES // (1024 * 1024)} MB)")
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+    try:
+        # IBKR statements are UTF-8 with a BOM; latin-1 fallback covers exotic broker exports.
+        try:
+            content = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            content = raw.decode("latin-1")
+        return csv_import.import_activity_statement(content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/stream/executions")
