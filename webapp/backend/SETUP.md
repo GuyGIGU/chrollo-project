@@ -1,0 +1,69 @@
+# Chrollo Backend — Setup
+
+## TWS / IB Gateway configuration
+
+Chrollo connects to Interactive Brokers over the TWS API (`ib_async`). Before starting the backend, enable the API in TWS (or IB Gateway):
+
+1. **File → Global Configuration → API → Settings**
+2. Check **"Enable ActiveX and Socket Clients"**
+3. Uncheck **"Read-Only API"** only if you later need order placement (Chrollo is read-only today)
+4. **Socket port**:
+   - Paper: **7497** (TWS) / **4002** (Gateway)
+   - Live:  **7496** (TWS) / **4001** (Gateway)
+5. **Trusted IP Addresses**: add `127.0.0.1`
+6. Uncheck **"Download open orders on connection"** if you see duplicate order events
+7. Click **OK** and restart TWS
+
+## Environment variables
+
+| Variable              | Default       | Notes                                          |
+|-----------------------|---------------|------------------------------------------------|
+| `IBKR_HOST`           | `127.0.0.1`   | TWS host                                       |
+| `IBKR_PORT`           | auto          | Defaults to 7497 (paper) or 7496 (live)        |
+| `IBKR_CLIENT_ID`      | `137`         | Must be unique across connected clients        |
+| `IBKR_MODE`           | `paper`       | Set to `live` to switch ports + show LIVE UI   |
+| `IBKR_AUTO_CONNECT`   | `true`        | Set `false` to connect only via API action     |
+
+When `IBKR_MODE=live`, the sidebar shows a red **LIVE** badge. Default stays on paper — the backend refuses nothing on its own, so treat `live` as a deliberate opt-in.
+
+## Running
+
+```bash
+cd webapp/backend
+uvicorn main:app --reload --port 8000
+```
+
+Visit [http://localhost:8000/ibkr/status](http://localhost:8000/ibkr/status) — if `connected: true`, everything is wired.
+
+## Database migrations
+
+`trade_logs` schema evolves additively. Two migration paths exist:
+
+- **Automatic**: on startup, `main.py` runs a list of `ALTER TABLE … ADD COLUMN` statements wrapped in try/except so existing databases upgrade in place (see `_MIGRATIONS` in [main.py](main.py)).
+- **One-off**: [migrate.py](migrate.py) for standalone scripts (currently adds `target_r`).
+
+New tables (`Execution`, `Tag`, `TradeTag`, `TradePlan`, `TradeNote`, `TradeAttachment`) are created via `models.Base.metadata.create_all(...)` on first run.
+
+To start from a fresh DB: delete `trading_journal.db` and restart the backend.
+
+## Live-mode guardrail
+
+Chrollo is read-only against IBKR. If any future endpoint places orders, it must assert:
+
+```python
+from config import is_live_mode
+if not is_live_mode():
+    raise HTTPException(400, "Order placement disabled in paper mode")
+```
+
+…and the matching port must be set. The red LIVE badge is the operator-facing reminder that real money is connected.
+
+## Logging
+
+Every HTTP request is tagged with an 8-char `x-request-id` (round-tripped as a response header). Logs look like:
+
+```
+2026-04-19 12:00:01 INFO [chrollo.request] rid=a1b2c3d4 POST /trades/ -> 200 (12.3 ms)
+```
+
+Clients can pass their own `x-request-id` header to correlate frontend actions with backend logs.

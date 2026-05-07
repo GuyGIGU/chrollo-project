@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data caches & big binaries (regenerable, large)
+*.parquet
+*.h5
+*.pkl
+market_data_cache_*.parquet
+
+# Generated output — keep .py code in output/, exclude bulky generated data
+output/*.json
+output/*.log
+output/logs/
+*.log
+
+# Personal trading data — NEVER commit
+*.db
+*.db-wal
+*.db-shm
+*.db.bak*
+*.sqlite
+*.sqlite3
+trading_journal.db
+
+# webapp frontend build artifacts
+webapp/frontend/node_modules/
+webapp/frontend/dist/
+webapp/frontend/.next/
+webapp/frontend/build/
+
+# Secrets / local config
+.env
+.env.local
+*.key
+*.pem
+config/secrets.py
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code working files
+.claude/

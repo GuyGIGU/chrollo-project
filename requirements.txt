@@ -1,0 +1,16 @@
+# Wyckoff VCP/LPS Screener — Python Dependencies
+pandas
+numpy
+yfinance
+matplotlib
+scipy
+lxml
+pyarrow
+
+# Webapp / IBKR
+fastapi
+uvicorn[standard]
+sqlalchemy
+ib_async
+python-multipart
+aiofiles
