@@ -74,11 +74,14 @@ LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
 # ============================================================
 # PHASE 4 — SCORING & RANKING
 # ============================================================
-# Tier thresholds
-TIER_S = 85
-TIER_A = 70
-TIER_B = 55
-TIER_C = 40
+# Tier thresholds — calibrated against the live archive distribution
+# (avg ~95, max ~126 under prior weights). With the 52w-high proximity
+# bonus added, S sits at roughly the top quartile rather than catching
+# 75% of all setups.
+TIER_S = 110
+TIER_A = 95
+TIER_B = 75
+TIER_C = 55
 # Below TIER_C = Tier D
 
 # Scoring component maximum points (Total ~ 128 pts)
@@ -103,6 +106,14 @@ SCORE_UPTREND_BONUS = 15
 SCORE_RS_BONUS = 15
 RS_LOOKBACK_BARS = 126            # ~6 months of trading days
 RS_MAX_EXCESS_RETURN = 0.30       # Stock 6m − SPY 6m saturation
+
+# 52-week high proximity bonus — Wyckoff bases that consolidate near recent
+# highs break out more reliably than those rebuilding from deep drawdowns.
+# Linear ramp from HIGH_PROXIMITY_ZERO_PCT (0 pts) to HIGH_PROXIMITY_FULL_PCT
+# (full points). dist_52w_high_pct is negative: e.g. -0.07 = 7% below 52w high.
+SCORE_52W_HIGH_PROXIMITY = 8
+HIGH_PROXIMITY_FULL_PCT = -0.05   # within 5% of 52w high → full points
+HIGH_PROXIMITY_ZERO_PCT = -0.20   # 20%+ below → zero points
 
 # Touch density bonus trigger
 TOUCH_BONUS_INDIVIDUAL = 3       # Need >= 3 touches on EACH side

@@ -234,7 +234,11 @@ def _detect_lps(df: pd.DataFrame, latest: pd.Series,
                     continue
 
             vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
-            assert vol_contraction > 0, f"vol_contraction non-positive after gate: {vol_contraction}"
+            # The volume gate above guarantees this mathematically, but use a
+            # runtime check rather than assert so `python -O` can't strip it.
+            if vol_contraction <= 0:
+                if diagnose: rejects['vol_contraction_post'] += 1
+                continue
             tightness_ratio = tight_spread / base_range_threshold
             quality = vol_contraction * (1 - tightness_ratio)
 
@@ -275,14 +279,17 @@ def _score_setup(box_width: float, r_touches: int, s_touches: int,
                  res_avg: float, sup_avg: float, base_df: pd.DataFrame,
                  atr_ratio: float, tightness_ratio: float,
                  vol_contraction: float, base_len: int,
-                 yearly_return: float, excess_return: float = 0.0) -> dict:
+                 yearly_return: float, excess_return: float = 0.0,
+                 dist_52w_high_pct: Optional[float] = None) -> dict:
     """
-    Calculate a composite quality score (0–158) from structural metrics.
+    Calculate a composite quality score from structural metrics.
 
     Returns a dict with the total score and each sub-score component,
     enabling downstream regression analysis in the setup archive.
 
     excess_return: stock 6m return − SPY 6m return. Drives the soft RS bonus.
+    dist_52w_high_pct: negative number (e.g. -0.07 = 7% below 52w high) used
+    to award the 52w-high proximity bonus.
     """
     touches = r_touches + s_touches
 
@@ -344,7 +351,22 @@ def _score_setup(box_width: float, r_touches: int, s_touches: int,
     else:
         s_rs = 0.0
 
-    total = round(s_box + s_touch + s_osc + s_atr + s_lps + s_vol + s_age + s_uptrend + s_rs, 1)
+    # 52-week high proximity — bases near recent highs hold breakouts more
+    # reliably. Linear ramp; null distance contributes zero (e.g. tickers
+    # without sufficient history).
+    s_high = 0.0
+    if dist_52w_high_pct is not None:
+        full = settings.HIGH_PROXIMITY_FULL_PCT
+        zero = settings.HIGH_PROXIMITY_ZERO_PCT
+        if dist_52w_high_pct >= full:
+            s_high = float(settings.SCORE_52W_HIGH_PROXIMITY)
+        elif dist_52w_high_pct <= zero:
+            s_high = 0.0
+        else:
+            progress = (dist_52w_high_pct - zero) / (full - zero)
+            s_high = progress * settings.SCORE_52W_HIGH_PROXIMITY
+
+    total = round(s_box + s_touch + s_osc + s_atr + s_lps + s_vol + s_age + s_uptrend + s_rs + s_high, 1)
 
     return {
         'total': total,
@@ -357,6 +379,7 @@ def _score_setup(box_width: float, r_touches: int, s_touches: int,
         'base_age': round(s_age, 2),
         'uptrend_bonus': round(s_uptrend, 2),
         'rs_bonus': round(s_rs, 2),
+        'high_proximity': round(s_high, 2),
     }
 
 
@@ -401,15 +424,14 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
 
         latest = df.iloc[-1]
 
-        df_with_indicators = df.copy()
-        df_with_indicators['ATR_10'] = calculate_atr(df_with_indicators, 10)
-        df_with_indicators['ATR_50'] = calculate_atr(df_with_indicators, 50)
+        # ATR_10 / ATR_50 are pre-computed in the orchestrator and flow
+        # through the baseline filter's df.copy(), so we use them directly.
 
         # PHASE 2: Consolidation base (extreme-anchored, BC or SC)
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
             is_inner_box = \
-            find_consolidation(df_with_indicators, min_days=settings.MIN_BASE_DAYS)
+            find_consolidation(df, min_days=settings.MIN_BASE_DAYS)
 
         if base_len == 0:
             return None
@@ -417,7 +439,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # ATR snapshot at bar -6 aligns with the `:-5` exclusion inside the
         # consolidation detector — the last 5 bars are treated as edge noise
         # and not used for structural regime classification.
-        atr_eval = df_with_indicators.iloc[-6]
+        atr_eval = df.iloc[-6]
         atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
 
         if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):
@@ -444,11 +466,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # find_consolidation into df-positional indices so the LPS gate
         # can compare against `eval_idx`. (Dashboard/archive consumers keep
         # using the unconverted, base-relative anchor values via _r/_s_anchor_bar.)
-        phase_b_start = len(df_with_indicators) - base_len
+        phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
         lps_result = _detect_lps(
-            df_with_indicators, latest, sup_avg, res_avg,
+            df, latest, sup_avg, res_avg,
             atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
         )
 
@@ -491,7 +513,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         score_result = _score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
-            excess_return_6m,
+            excess_return_6m, dist_52w_high_pct,
         )
         score = score_result['total']
         tier = _calculate_tier(score)
@@ -549,7 +571,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_base_date_end': str(base_df.index[-1])[:10],
         }
 
-    except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
+    except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         # Log and drop so a single malformed ticker doesn't abort the batch,
         # but still surfaces real bugs instead of silently hiding them.
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
@@ -574,7 +596,12 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
 
     multi_ticker = len(tickers) > 1
 
-    # Pre-extract per-ticker DataFrames (serializable for worker processes)
+    # Pre-extract per-ticker DataFrames (serializable for worker processes).
+    # ATR_10 / ATR_50 are computed here once per ticker so the worker doesn't
+    # repeat the work — the EWM smoothing is O(n) and at universe scale it
+    # noticeably dwarfs the per-ticker fixed cost. Frames shorter than the
+    # baseline minimum (200 bars) skip the ATR step; the worker's baseline
+    # filter will drop them via its own len(df) < 200 check.
     ticker_frames: dict[str, pd.DataFrame] = {}
     for ticker in tickers:
         try:
@@ -584,6 +611,10 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
                 df = data[ticker].dropna()
             else:
                 df = data.dropna()
+            df = df.copy()
+            if len(df) >= 200:
+                df['ATR_10'] = calculate_atr(df, 10)
+                df['ATR_50'] = calculate_atr(df, 50)
             ticker_frames[ticker] = df
         except (KeyError, AttributeError) as e:
             print(f"  [skip {ticker}] extract failed: {type(e).__name__}: {e}",
@@ -615,11 +646,15 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
         breadth_count = 0
         breadth_total = 0
         for tdf in ticker_frames.values():
-            if len(tdf) >= 50:
-                sma_50 = tdf['Close'].rolling(window=50).mean().iloc[-1]
-                if pd.notna(sma_50):
+            close = tdf['Close']
+            if len(close) >= 50:
+                # Just the last 50 closes — no need for a full rolling pass;
+                # baseline filter inside each worker recomputes SMA_50 anyway,
+                # this is observation only.
+                last_50_mean = float(close.iloc[-50:].mean())
+                if pd.notna(last_50_mean):
                     breadth_total += 1
-                    if tdf['Close'].iloc[-1] > sma_50:
+                    if float(close.iloc[-1]) > last_50_mean:
                         breadth_count += 1
         if breadth_total > 0:
             breadth_pct = breadth_count / breadth_total
