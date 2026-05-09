@@ -162,3 +162,12 @@ class TradeAttachment(Base):
     uploaded_at = Column(DateTime, nullable=True)
 
     trade_log = relationship("TradeLog", back_populates="attachments")
+
+
+class Watchlist(Base):
+    """User-curated tickers saved from the screener for later review."""
+
+    __tablename__ = "watchlist"
+
+    ticker = Column(String, primary_key=True, index=True)
+    created_at = Column(DateTime, nullable=True)

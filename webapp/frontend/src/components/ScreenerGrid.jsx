@@ -30,7 +30,33 @@ const EarningsChip = ({ info }) => {
 };
 
 
-const ScreenerCard = React.memo(({ ticker, data, earnings, onClick }) => {
+// Star toggle for adding/removing the ticker from the user's watchlist.
+// Stops click propagation so toggling the star doesn't also open the modal.
+const WatchlistStar = ({ active, onToggle }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onToggle(); }}
+    title={active ? 'Remove from watchlist' : 'Save to watchlist'}
+    style={{
+      pointerEvents: 'auto',
+      background: 'transparent',
+      border: 'none',
+      padding: '0 2px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      lineHeight: 1,
+      color: active ? '#e3b341' : '#6b6b7a',
+      transition: 'color 0.15s, transform 0.15s',
+      fontFamily: 'inherit',
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+  >
+    {active ? '★' : '☆'}
+  </button>
+);
+
+
+const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, onClick }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const [chartError, setChartError] = useState(false);
@@ -177,7 +203,10 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, onClick }) => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <span style={{fontWeight: '700', fontSize: '16px', color: getTierColor(data.tier)}}>{ticker}</span>
+        <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+          <WatchlistStar active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
+          <span style={{fontWeight: '700', fontSize: '16px', color: getTierColor(data.tier)}}>{ticker}</span>
+        </span>
         <div style={{fontSize: '11px', color: 'var(--text-main)', display: 'flex', gap: '8px', alignItems: 'center'}}>
           <EarningsChip info={earnings} />
           <span style={{padding: '2px 8px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)'}}>{data.tier} TIER</span>
@@ -225,6 +254,9 @@ const ScreenerGrid = () => {
   // also keep results per-session to avoid re-requesting on every page flip.
   const [earningsByTicker, setEarningsByTicker] = useState({});
 
+  // User-curated watchlist (persisted to backend). Stored as a Set for O(1) lookups.
+  const [watchlist, setWatchlist] = useState(() => new Set());
+
   const [activeModalTicker, setActiveModalTicker] = useState(null);
 
   const fetchScreener = async () => {
@@ -243,16 +275,49 @@ const ScreenerGrid = () => {
     fetchScreener();
   }, []);
 
+  useEffect(() => {
+    fetch(`${API_BASE}/watchlist/`)
+      .then(r => r.ok ? r.json() : [])
+      .then(items => setWatchlist(new Set(items.map(it => it.ticker))))
+      .catch(() => {});
+  }, []);
+
+  const toggleWatchlist = useCallback((ticker) => {
+    setWatchlist(prev => {
+      const next = new Set(prev);
+      const isOn = next.has(ticker);
+      if (isOn) next.delete(ticker); else next.add(ticker);
+      // Optimistic; revert on failure
+      const url = `${API_BASE}/watchlist/${encodeURIComponent(ticker)}`;
+      fetch(url, { method: isOn ? 'DELETE' : 'POST' })
+        .then(r => {
+          if (!r.ok) throw new Error('watchlist write failed');
+        })
+        .catch(err => {
+          console.error('Watchlist toggle failed, reverting', err);
+          setWatchlist(curr => {
+            const rolled = new Set(curr);
+            if (isOn) rolled.add(ticker); else rolled.delete(ticker);
+            return rolled;
+          });
+        });
+      return next;
+    });
+  }, []);
+
   const filteredTickers = useMemo(() => {
     if (!screenerData || !screenerData.ordered_tickers) return [];
     return screenerData.ordered_tickers.filter(ticker => {
       const d = screenerData.chart_data[ticker];
       if (!d) return false;
       const matchesSearch = ticker.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTier = tierFilter === 'ALL' || d.tier === tierFilter;
+      const matchesTier =
+        tierFilter === 'ALL' ? true
+        : tierFilter === 'WATCHLIST' ? watchlist.has(ticker)
+        : d.tier === tierFilter;
       return matchesSearch && matchesTier;
     });
-  }, [screenerData, searchTerm, tierFilter]);
+  }, [screenerData, searchTerm, tierFilter, watchlist]);
 
   const totalPages = Math.max(1, Math.ceil(filteredTickers.length / itemsPerPage));
   const paginatedTickers = filteredTickers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -449,9 +514,13 @@ const ScreenerGrid = () => {
           display: 'flex', gap: '8px', alignItems: 'center'
         }}>
           <span style={{fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px'}}>Filter:</span>
-          {['ALL', 'S', 'A', 'B', 'C'].map(tier => (
+          {['ALL', 'S', 'A', 'B', 'C', 'WATCHLIST'].map(tier => (
             <button key={tier} onClick={() => {setTierFilter(tier); setCurrentPage(1);}} style={getTierBtnStyle(tier)}>
-              {tier === 'ALL' ? 'All Tiers' : `${tier} Tier`}
+              {tier === 'ALL'
+                ? 'All Tiers'
+                : tier === 'WATCHLIST'
+                  ? `★ Watchlist (${watchlist.size})`
+                  : `${tier} Tier`}
             </button>
           ))}
           <input 
@@ -592,6 +661,8 @@ const ScreenerGrid = () => {
                 ticker={ticker}
                 data={screenerData.chart_data[ticker]}
                 earnings={earningsByTicker[ticker]}
+                watchlisted={watchlist.has(ticker)}
+                onToggleWatchlist={toggleWatchlist}
                 onClick={handleCardClick}
               />
             ))}

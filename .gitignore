@@ -22,6 +22,14 @@ output/*.log
 output/logs/
 *.log
 
+# Generated screener / backtest CSVs — regenerated on every run, no value in git history.
+# (Files under experiments/dead_ends/**/*.csv stay tracked — intentionally frozen evidence.)
+output/watchlists/*.csv
+output/backtest/*.csv
+
+# Ticker universe cache — auto-refreshed from NASDAQ FTP when stale (see core/data.py)
+config/tickers.csv
+
 # Personal trading data — NEVER commit
 *.db
 *.db-wal

@@ -28,6 +28,7 @@ from routers import tags as tags_router
 from routers import analytics as analytics_router
 from routers import journal as journal_router
 from routers import archive as archive_router
+from routers import watchlist as watchlist_router
 from services import auto_import
 
 # ── Bootstrap ────────────────────────────────────────────────────
@@ -166,6 +167,7 @@ app.include_router(tags_router.router)
 app.include_router(analytics_router.router)
 app.include_router(journal_router.router)
 app.include_router(archive_router.router)
+app.include_router(watchlist_router.router)
 
 # Resolve the project root once at startup
 _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
