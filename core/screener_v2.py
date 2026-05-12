@@ -19,7 +19,7 @@ import pandas as pd
 
 from config import settings
 from core.consolidation import find_consolidation
-from core.data import fetch_data, get_tickers
+from core.data import fetch_data, get_market_context, get_tickers
 from core.indicators import calculate_atr
 
 
@@ -424,8 +424,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
 
         latest = df.iloc[-1]
 
-        # ATR_10 / ATR_50 are pre-computed in the orchestrator and flow
-        # through the baseline filter's df.copy(), so we use them directly.
+        # ATR is computed here (after baseline) so the work parallelizes across
+        # ProcessPool workers and is skipped for the ~95% of tickers that fail
+        # the baseline filter.
+        df['ATR_10'] = calculate_atr(df, 10)
+        df['ATR_50'] = calculate_atr(df, 50)
 
         # PHASE 2: Consolidation base (extreme-anchored, BC or SC)
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
@@ -597,13 +600,14 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
     multi_ticker = len(tickers) > 1
 
     # Pre-extract per-ticker DataFrames (serializable for worker processes).
-    # ATR_10 / ATR_50 are computed here once per ticker so the worker doesn't
-    # repeat the work — the EWM smoothing is O(n) and at universe scale it
-    # noticeably dwarfs the per-ticker fixed cost. Frames shorter than the
-    # baseline minimum (200 bars) skip the ATR step; the worker's baseline
-    # filter will drop them via its own len(df) < 200 check.
+    # ATR is computed inside each worker after the baseline filter — pushing
+    # that O(n) EWM work into the ProcessPool keeps the main thread off the
+    # critical path and skips it entirely for tickers that fail baseline.
+    # SPY lives in the parquet alongside the universe but is never screened.
     ticker_frames: dict[str, pd.DataFrame] = {}
     for ticker in tickers:
+        if ticker == settings.SPY_SYMBOL:
+            continue
         try:
             if multi_ticker:
                 if ticker not in data:
@@ -611,55 +615,15 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
                 df = data[ticker].dropna()
             else:
                 df = data.dropna()
-            df = df.copy()
-            if len(df) >= 200:
-                df['ATR_10'] = calculate_atr(df, 10)
-                df['ATR_50'] = calculate_atr(df, 50)
             ticker_frames[ticker] = df
         except (KeyError, AttributeError) as e:
             print(f"  [skip {ticker}] extract failed: {type(e).__name__}: {e}",
                   file=sys.stderr)
             continue
 
-    # SPY 6m return — used for the soft RS bonus. Computed once and broadcast
-    # to every worker. SPY isn't in the NASDAQ universe so we fetch it standalone.
-    spy_6m_return = 0.0
-    try:
-        import yfinance as yf
-        spy_df = yf.download('SPY', period=settings.DOWNLOAD_PERIOD,
-                             progress=False, auto_adjust=True, threads=True)
-        if not spy_df.empty and len(spy_df) > settings.RS_LOOKBACK_BARS:
-            spy_close = spy_df['Close']
-            if hasattr(spy_close, 'columns'):
-                spy_close = spy_close.iloc[:, 0]
-            spy_6m_return = float(
-                spy_close.iloc[-1] / spy_close.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0
-            )
-            print(f"SPY 6m return: {spy_6m_return*100:.2f}% (RS reference)")
-    except Exception as e:
-        print(f"  [SPY fetch failed: {type(e).__name__}: {e}] — RS bonus disabled this run",
-              file=sys.stderr)
-
-    # Market breadth — % of universe with Close > 50d SMA. Observation only.
-    breadth_pct = None
-    if ticker_frames:
-        breadth_count = 0
-        breadth_total = 0
-        for tdf in ticker_frames.values():
-            close = tdf['Close']
-            if len(close) >= 50:
-                # Just the last 50 closes — no need for a full rolling pass;
-                # baseline filter inside each worker recomputes SMA_50 anyway,
-                # this is observation only.
-                last_50_mean = float(close.iloc[-50:].mean())
-                if pd.notna(last_50_mean):
-                    breadth_total += 1
-                    if float(close.iloc[-1]) > last_50_mean:
-                        breadth_count += 1
-        if breadth_total > 0:
-            breadth_pct = breadth_count / breadth_total
-            print(f"Market breadth (Close > SMA_50): {breadth_pct*100:.1f}% "
-                  f"({breadth_count}/{breadth_total})")
+    # Market context — SPY 6m return + breadth. Cached in a JSON sidecar
+    # next to the parquet; SPY data itself rides in the same parquet.
+    spy_6m_return, breadth_pct = get_market_context(data, ticker_frames)
 
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")

@@ -128,10 +128,30 @@ BREAKOUT_DEFAULT_TIGHTNESS = 0.7
 # DATA & CACHING
 # ============================================================
 CACHE_FILENAME = "market_data_cache_2y.parquet"
+CACHE_META_FILENAME = "cache_meta.json"
+MARKET_CONTEXT_FILENAME = "market_context.json"
 PARQUET_ENGINE = "pyarrow"
-CACHE_MAX_AGE_HOURS = 12
+CACHE_MAX_AGE_HOURS = 12          # Legacy fallback TTL (used only if meta sidecar missing)
 DOWNLOAD_PERIOD = "2y"
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
+
+# Incremental fetch tuning
+TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars if cache is older than this during market hours
+TTL_FRESH_HOURS_OFFHOURS = 12     # ...or this outside market hours
+FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 2y refetch at least weekly
+INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
+INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
+
+# Split-detection probe (defends against yfinance's auto_adjust=True silently rescaling history)
+SPLIT_PROBE_SAMPLE_SIZE = 30                 # Number of cached tickers (+ SPY) to probe for split-induced drift
+SPLIT_PROBE_DRIFT_THRESHOLD = 0.005          # Ticker-level: ratio (fresh/cached) deviating by > 0.5% on overlap = split
+SPLIT_PROBE_UNIVERSE_DRIFT_PCT = 0.02        # If > 2% of probed tickers drift → cold refetch
+SPLIT_PROBE_REFERENCE_SYMBOL = "SPY"         # Always included in the probe sample if present in cache
+
+# Market context cache
+SPY_SYMBOL = "SPY"                # Stored in the parquet alongside the universe (not screened)
+MARKET_CONTEXT_TTL_HOURS_MARKET = 1
+MARKET_CONTEXT_TTL_HOURS_OFFHOURS = 12
 
 # ============================================================
 # DASHBOARD
