@@ -23,6 +23,16 @@ const QUALITY_LABELS = ['perfect', 'good', 'noise', 'miss'];
 const TIERS = ['ALL', 'S', 'A', 'B', 'C', 'D'];
 const SETUP_TYPES = ['ALL', 'LPS', 'REBOUND', 'BREAKOUT'];
 
+// Archive sources. "Curated" = seed + manual (the cherry-picked regression
+// suite). Default to curated so daily noise stays hidden.
+const SOURCE_FILTERS = [
+  ['curated', 'Curated', 'seed,manual'],
+  ['all',     'All',     null],
+  ['seed',    'Seed',    'seed'],
+  ['manual',  'Manual',  'manual'],
+  ['screener','Screener','screener'],
+];
+
 // ── Sub components ───────────────────────────────────────────────
 
 // Summary panel rendered beneath the chart inside the modal — surfaces all
@@ -427,6 +437,7 @@ const ArchiveTab = () => {
   // Filters
   const [tierFilter, setTierFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const [sourceFilter, setSourceFilter] = useState('curated');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('scan_date');
   const [sortDir, setSortDir] = useState('desc');
@@ -439,8 +450,13 @@ const ArchiveTab = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      const sourceParam = SOURCE_FILTERS.find(([k]) => k === sourceFilter)?.[2];
+      const params = new URLSearchParams({ limit: '500', sort_by: sortBy, sort_dir: sortDir });
+      if (tierFilter !== 'ALL') params.set('tier', tierFilter);
+      if (typeFilter !== 'ALL') params.set('setup_type', typeFilter);
+      if (sourceParam) params.set('source', sourceParam);
       const [setupsRes, statsRes, calRes, eqRes] = await Promise.all([
-        fetch(`${API_BASE}/archive/setups?limit=500&sort_by=${sortBy}&sort_dir=${sortDir}${tierFilter !== 'ALL' ? `&tier=${tierFilter}` : ''}${typeFilter !== 'ALL' ? `&setup_type=${typeFilter}` : ''}`),
+        fetch(`${API_BASE}/archive/setups?${params.toString()}`),
         fetch(`${API_BASE}/archive/stats`),
         fetch(`${API_BASE}/archive/calibration`),
         fetch(`${API_BASE}/archive/calibration/equity-curve`),
@@ -453,7 +469,7 @@ const ArchiveTab = () => {
       console.error('Failed to fetch archive data:', err);
     }
     setLoading(false);
-  }, [sortBy, sortDir, tierFilter, typeFilter]);
+  }, [sortBy, sortDir, tierFilter, typeFilter, sourceFilter]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -884,7 +900,13 @@ const ArchiveTab = () => {
         padding: '10px 16px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
         borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '4px' }}>Tier:</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '4px' }}>Source:</span>
+        {SOURCE_FILTERS.map(([key, label]) => (
+          <button key={key} onClick={() => { setSourceFilter(key); setCurrentPage(1); }} style={btnStyle(sourceFilter === key)}>
+            {label}
+          </button>
+        ))}
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginLeft: '8px', marginRight: '4px' }}>Tier:</span>
         {TIERS.map(t => (
           <button key={t} onClick={() => { setTierFilter(t); setCurrentPage(1); }} style={btnStyle(tierFilter === t)}>
             {t === 'ALL' ? 'All' : t}

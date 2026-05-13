@@ -54,19 +54,20 @@ def _ensure_new_columns(engine) -> None:
                 conn.execute(text(f"ALTER TABLE setup_archive ADD COLUMN {name} {sql_type}"))
 
 
-def archive_scan_results(results_df: pd.DataFrame, scan_date_str: str | None = None) -> int:
+def archive_scan_results(
+    results_df: pd.DataFrame,
+    scan_date_str: str | None = None,
+    enable: bool = False,
+) -> int:
     """Persist every row in results_df to the setup_archive table.
 
-    Uses upsert (INSERT OR REPLACE) so re-running the screener on the same day
-    updates rather than duplicates.
-
-    Args:
-        results_df: DataFrame from ``run_screener()`` — each row is one ticker.
-        scan_date_str: Override scan date (YYYY-MM-DD).  Defaults to today.
-
-    Returns:
-        Number of rows written/updated.
+    Disabled by default: the archive is a curated regression suite for
+    seed/manual setups (see core/seed_archive.py and /archive/add-setup),
+    not a log of every daily scan. Pass enable=True to opt back in.
     """
+    if not enable:
+        return 0
+
     if results_df is None or results_df.empty:
         log.info("No results to archive.")
         return 0

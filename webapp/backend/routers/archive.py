@@ -133,7 +133,11 @@ def list_setups(
     if setup_type:
         q = q.filter(SetupArchive.setup_type == setup_type.upper())
     if source:
-        q = q.filter(SetupArchive.source == source)
+        sources = [s.strip() for s in source.split(",") if s.strip()]
+        if len(sources) == 1:
+            q = q.filter(SetupArchive.source == sources[0])
+        elif sources:
+            q = q.filter(SetupArchive.source.in_(sources))
     if quality_label:
         q = q.filter(SetupArchive.quality_label == quality_label)
     if min_score is not None:

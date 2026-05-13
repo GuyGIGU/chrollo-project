@@ -357,17 +357,7 @@ function App() {
 
         <nav className="nav-menu">
           <div className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</div>
-          <div className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>
-            <span style={{ flex: 1 }}>Options</span>
-            {optionTrades.length > 0 && (
-              <span style={{
-                fontSize: '10px', fontWeight: 600,
-                background: 'var(--accent-blue-soft)', color: '#DCE6FF',
-                padding: '1px 7px', borderRadius: 'var(--radius-pill)',
-                border: '1px solid rgba(74, 122, 255, 0.30)',
-              }}>{optionTrades.length}</span>
-            )}
-          </div>
+          <div className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>Options</div>
           <div className={`nav-link ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Portfolio</div>
           <div className={`nav-link ${activeTab === 'screener' ? 'active' : ''}`} onClick={() => setActiveTab('screener')}>Screener Grid</div>
           <div className={`nav-link ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => setActiveTab('archive')}>Setup Archive</div>
@@ -417,8 +407,6 @@ function App() {
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
              {activeTab === 'dashboard' && <span style={{color: 'var(--text-muted)'}}>{stockTrades.length} stock trades loaded.</span>}
              {activeTab === 'options' && <span style={{color: 'var(--text-muted)'}}>{optionTrades.length} option trades loaded.</span>}
-             <span style={{cursor: 'pointer'}}>🔔</span>
-             <span style={{background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-pink))', borderRadius: '50%', width:'24px', height:'24px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'}}></span>
           </div>
         </header>
 
