@@ -1,40 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surfaces — cool blue-tinted dark to match Lucien */
-  --bg-main: #0B0F1E;
-  --bg-sidebar: #0F1424;
-  --bg-panel: #141A2C;
-  --bg-hover: #1B2238;
-  --bg-elevated: #182037;
+  /* Surfaces — warm slate, lighter dark mode (Linear / GitHub-dimmed direction) */
+  --bg-main: #1A1D26;
+  --bg-sidebar: #1E2230;
+  --bg-panel: #232735;
+  --bg-hover: #2A2F3E;
+  --bg-elevated: #303547;
 
   /* Text */
-  --text-main: #E5E9F2;
-  --text-muted: #7E8AA3;
-  --text-faint: #5A647B;
+  --text-main: #E8EAF0;
+  --text-muted: #9AA1B2;
+  --text-faint: #6C7488;
 
   /* Borders */
-  --border-color: #232B44;
-  --border-strong: #2D3654;
+  --border-color: #2F3447;
+  --border-strong: #3B4159;
 
-  /* Brand & accents */
-  --accent-blue: #4A7AFF;
-  --accent-blue-soft: rgba(74, 122, 255, 0.15);
-  --accent-blue-glow: rgba(74, 122, 255, 0.35);
-  --accent-purple: #8B5CF6;
+  /* Brand & accents — slightly warmer blue to sit on the new bg */
+  --accent-blue: #5B8AFF;
+  --accent-blue-soft: rgba(91, 138, 255, 0.16);
+  --accent-blue-glow: rgba(91, 138, 255, 0.35);
+  --accent-purple: #9B70F7;
   --accent-pink: #E07AA0;
   --accent-yellow: #D4B85A;
   --accent-orange: #E0A05A;
 
-  /* Status */
-  --success: #22C55E;
-  --success-bg: rgba(34, 197, 94, 0.12);
+  /* Status — slightly brighter to read clearly on the lighter bg */
+  --success: #3DD37A;
+  --success-bg: rgba(61, 211, 122, 0.14);
 
-  --danger: #EF4F58;
-  --danger-bg: rgba(239, 79, 88, 0.12);
+  --danger: #F26770;
+  --danger-bg: rgba(242, 103, 112, 0.14);
 
-  --warning: #EAB308;
-  --warning-bg: rgba(234, 179, 8, 0.12);
+  --warning: #F0BE3C;
+  --warning-bg: rgba(240, 190, 60, 0.14);
 
   /* Severity pills (Lucien-style: tinted bg + matching fg) */
   --pill-critical-bg: rgba(224, 122, 160, 0.12);
@@ -218,49 +218,146 @@ body {
   padding: 1.5rem 2rem;
 }
 
-/* STATS ROW */
+/* STATS ROW — calm horizontal strip */
 .stats-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2rem;
-}
-
-.chart-area {
-  flex: 1;
-  height: 120px;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.5fr) minmax(280px, 1.2fr) minmax(150px, 0.8fr) minmax(140px, 0.8fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  margin-right: 1rem;
+  padding: 14px 18px;
+  align-items: center;
+}
+
+.chart-area {
+  height: 140px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  padding-right: 1rem;
   position: relative;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: var(--text-muted);
 }
 
-.kpi-row {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
+/* KPI tile group — 2x2 grid of small horizontal bar tiles */
+.kpi-tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  padding-right: 0.5rem;
+  border-right: 1px solid rgba(255,255,255,0.05);
 }
 
-.kpi-block {
+.kpi-tile {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+.kpi-tile:hover { background: rgba(255,255,255,0.025); }
+.kpi-tile.active { background: rgba(255,255,255,0.035); border-color: rgba(255,255,255,0.08); }
+
+.kpi-tile .kpi-tile-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.kpi-tile .kpi-tile-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.kpi-tile .kpi-tile-count {
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+.kpi-tile .kpi-tile-pct {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-tile .kpi-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.kpi-tile .kpi-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
 }
 
-.kpi-circ {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--border-color);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: bold;
+/* AVG W/L stack */
+.avg-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 0.5rem;
+  border-right: 1px solid rgba(255,255,255,0.05);
 }
-.circ-green { border-color: var(--success); color: var(--success); }
-.circ-red { border-color: var(--danger); color: var(--danger); }
+.avg-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.avg-line .avg-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.avg-line .avg-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PnL block */
+.pnl-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pnl-block .pnl-label {
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.pnl-block .pnl-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.pnl-block .pnl-trend {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
 
 /* TABLE */
 table {
@@ -470,52 +567,277 @@ td {
   border-radius: var(--radius-sm);
 }
 
-/* TRADE TABLE — Lucien-style card rows */
+/* TRADE TABLE — calm dark journal style */
 .trade-table {
   width: 100%;
-  min-width: 1080px;
-  border-collapse: separate;
-  border-spacing: 0 6px;
+  min-width: 1000px;
+  border-collapse: collapse;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
 }
 
-.trade-table thead th {
+/* Group header row (PLAN | EXECUTION) — quiet, almost invisible */
+.trade-table thead tr.group-row th {
+  background: transparent;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  font-weight: 600;
+  padding: 10px 12px 4px;
+  border-bottom: none;
+  text-align: left;
+  opacity: 0.5;
+}
+.trade-table thead tr.group-row th.group-execution {
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.trade-table thead tr.col-row th {
   background: transparent;
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--text-faint);
-  font-weight: 600;
-  padding: 8px 14px;
-  border: none;
+  font-weight: 500;
+  padding: 8px 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   text-align: left;
   white-space: nowrap;
 }
+.trade-table thead tr.col-row th.col-divider {
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+.trade-table thead tr.col-row th.num,
+.trade-table tbody td.num { text-align: right; }
 
-.trade-row {
-  cursor: pointer;
-}
 .trade-row td {
-  background: var(--bg-panel);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 12px 14px;
-  font-size: 11px;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  padding: 0;
+  height: 46px;
+  font-size: 12px;
   color: var(--text-main);
-  transition: background-color 0.18s ease, border-color 0.18s ease;
+  font-family: inherit;
+  transition: background-color 0.12s ease;
+  vertical-align: middle;
 }
-.trade-row td:first-child {
-  border-left: 1px solid var(--border-color);
-  border-top-left-radius: var(--radius-sm);
-  border-bottom-left-radius: var(--radius-sm);
-}
-.trade-row td:last-child {
-  border-right: 1px solid var(--border-color);
-  border-top-right-radius: var(--radius-sm);
-  border-bottom-right-radius: var(--radius-sm);
+.trade-row td.col-divider {
+  border-left: 1px solid rgba(255, 255, 255, 0.035);
 }
 .trade-row:hover td {
+  background: rgba(255, 255, 255, 0.018);
+}
+.trade-row.draft td {
+  background: rgba(74, 122, 255, 0.04);
+  border-bottom-color: rgba(74, 122, 255, 0.15);
+}
+
+/* Cell interaction surface */
+.cell-shell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: text;
+}
+.cell-shell.num { justify-content: flex-end; }
+.cell-shell.center { justify-content: center; }
+.cell-shell.readonly { cursor: default; }
+.cell-shell .sub {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+/* Editable cells: no resting tint — just a faint hover hint */
+td.cell-editable:hover {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.cell-shell.editable-hint {
+  position: relative;
+}
+/* No tint on computed cells either — they're distinguished by lack of hover */
+td.cell-computed { background: transparent; }
+
+/* Inline edit input */
+.cell-input {
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
   background: var(--bg-elevated);
-  border-color: rgba(74, 122, 255, 0.30);
+  border: 1px solid var(--accent-blue);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 122, 255, 0.20);
+  box-sizing: border-box;
+}
+.cell-input.num { text-align: right; }
+
+/* Side arrow — quiet, faint border, colored arrow only */
+.side-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.side-arrow.long  { color: var(--success); }
+.side-arrow.short { color: var(--danger); }
+.side-arrow:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* Symbol cell — bright cyan accent like Stonk Journal */
+.symbol-cell {
+  color: #6EA8FF;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Expand chevron */
+.expand-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.expand-chev:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+.expand-chev.open { transform: rotate(90deg); color: var(--accent-blue); }
+
+/* Fills sub-row (expanded) */
+.fills-row td {
+  padding: 0;
+  background: rgba(0, 0, 0, 0.18);
+  border-bottom: 1px solid var(--border-color);
+  height: auto;
+}
+.fills-panel {
+  padding: 12px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fills-panel .fills-head {
+  display: grid;
+  grid-template-columns: 28px 72px 1.2fr 0.8fr 0.8fr 0.8fr 28px;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 600;
+  padding: 0 2px;
+}
+.fills-panel .fill-row {
+  display: grid;
+  grid-template-columns: 28px 72px 1.2fr 0.8fr 0.8fr 0.8fr 28px;
+  gap: 8px;
+  align-items: center;
+}
+.fills-panel .fill-input {
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  outline: none;
+}
+.fills-panel .fill-input:focus { border-color: var(--accent-blue); }
+.fills-panel .fill-side-btn {
+  height: 26px;
+  border: none;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  color: #fff;
+}
+.fills-panel .fill-side-btn.buy  { background: var(--success); }
+.fills-panel .fill-side-btn.sell { background: var(--danger); }
+.fills-panel .fill-del {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 14px;
+}
+.fills-panel .fill-del:hover { color: var(--danger); background: rgba(239,79,88,0.10); }
+.fills-panel .fill-add {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+.fills-panel .fill-add:hover { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+/* Status badge — Stonk-Journal-style solid filled pill */
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+  min-width: 52px;
+  border: 1px solid transparent;
+}
+.status-cell.open    { background: rgba(74, 122, 255, 0.14); color: #7FA3FF; border-color: rgba(74, 122, 255, 0.28); }
+.status-cell.partial { background: rgba(212, 184, 90, 0.14); color: #E0CB7A; border-color: rgba(212, 184, 90, 0.28); }
+.status-cell.win     { background: rgba(34, 197, 94, 0.14);  color: #4FE08A; border-color: rgba(34, 197, 94, 0.28); }
+.status-cell.loss    { background: rgba(239, 79, 88, 0.14);  color: #FF7882; border-color: rgba(239, 79, 88, 0.28); }
+.status-cell.wash    { background: rgba(126, 138, 163, 0.14); color: var(--text-muted); border-color: rgba(126, 138, 163, 0.20); }
+.status-cell.draft   { background: rgba(126, 138, 163, 0.10); color: var(--text-faint); border-color: rgba(126, 138, 163, 0.18); }
+
+/* Hold-time pill (small, faint blue chip) — for date columns */
+.hold-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(74, 122, 255, 0.08);
+  color: #8CADFF;
+  font-weight: 500;
 }
 
 /* Status pill with embedded dot — Lucien style */

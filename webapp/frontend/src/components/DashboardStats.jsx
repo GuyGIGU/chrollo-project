@@ -1,53 +1,6 @@
 import React from 'react';
 import EquityCurve from './EquityCurve';
 
-const RING_R = 18;
-const RING_C = 2 * Math.PI * RING_R;
-
-function RingClock({ pct, color, label, active, muted }) {
-  const clamped = Math.max(0, Math.min(100, pct || 0));
-  const dash = (clamped / 100) * RING_C;
-  const stroke = muted ? 'var(--border-color)' : color;
-  const textColor = muted ? 'var(--text-muted)' : color;
-  return (
-    <div
-      className="kpi-circ"
-      style={{
-        position: 'relative',
-        width: 44,
-        height: 44,
-        border: 'none',
-        background: 'transparent',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: active ? `0 0 0 2px ${stroke}, 0 0 10px ${stroke}` : 'none',
-        borderRadius: '50%',
-        transition: 'box-shadow 120ms ease',
-      }}
-      aria-label={label}
-    >
-      <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="22" cy="22" r={RING_R} fill="none" stroke="var(--border-color)" strokeWidth="3" opacity="0.5" />
-        <circle
-          cx="22"
-          cy="22"
-          r={RING_R}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${RING_C}`}
-          style={{ transition: 'stroke-dasharray 250ms ease' }}
-        />
-      </svg>
-      <span style={{ position: 'absolute', fontSize: 10, fontWeight: 600, color: textColor }}>
-        {Math.round(clamped)}%
-      </span>
-    </div>
-  );
-}
-
 const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) => {
   const data = stats || {
     winning_trades: 0,
@@ -65,102 +18,67 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
   const openPct = total ? (openCount / total) * 100 : 0;
   const washPct = total ? (washCount / total) * 100 : 0;
   const winPct = data.win_rate || 0;
-  const lossPct = data.win_rate > 0 || data.losing_trades > 0 ? 100 - data.win_rate : 0;
+  const lossPct = total ? (data.losing_trades / total) * 100 : 0;
 
   const toggle = (key) => {
     if (typeof onFilterChange !== 'function') return;
     onFilterChange(activeFilter === key ? null : key);
   };
 
-  const filterBtnStyle = (key, accent) => {
-    const active = activeFilter === key;
-    return {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.6rem',
-      background: active ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent',
-      border: `1px solid ${active ? `color-mix(in srgb, ${accent} 35%, transparent)` : 'transparent'}`,
-      padding: '0.3rem 0.5rem',
-      borderRadius: 'var(--radius-sm, 6px)',
-      cursor: 'pointer',
-      color: 'inherit',
-      textAlign: 'left',
-      boxShadow: active ? `0 0 12px -4px ${accent}` : 'none',
-      transition: 'background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-    };
-  };
+  const Tile = ({ filterKey, label, count, pct, color }) => (
+    <button
+      type="button"
+      className={`kpi-tile ${activeFilter === filterKey ? 'active' : ''}`}
+      onClick={() => toggle(filterKey)}
+    >
+      <div className="kpi-tile-head">
+        <span>
+          <span className="kpi-tile-label">{label}</span>
+          <span className="kpi-tile-count" style={{ color }}>{count}</span>
+        </span>
+        <span className="kpi-tile-pct">{pct.toFixed(1)}%</span>
+      </div>
+      <div className="kpi-bar">
+        <div className="kpi-bar-fill" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
+      </div>
+    </button>
+  );
+
+  const pnlPositive = data.total_pnl >= 0;
+  const pnlColor = pnlPositive ? 'var(--success)' : 'var(--danger)';
 
   return (
     <div className="stats-header">
-      <div
-        className="chart-area"
-        style={{
-          background: 'linear-gradient(180deg, var(--bg-hover) 0%, var(--bg-panel) 100%)',
-          padding: '0.5rem 0.75rem',
-          position: 'relative',
-        }}
-      >
+      <div className="chart-area">
         <EquityCurve />
       </div>
 
-      <div className="kpi-row">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <button type="button" onClick={() => toggle('wins')} style={filterBtnStyle('wins', 'var(--success)')}>
-            <span style={{ color: 'var(--text-muted)', width: '45px' }}>WINS</span>
-            <span style={{ color: 'var(--success)', fontWeight: 'bold', width: '20px' }}>{data.winning_trades}</span>
-            <RingClock pct={winPct} color="var(--success)" label={`wins ${winPct}%`} active={activeFilter === 'wins'} />
-          </button>
-          <button type="button" onClick={() => toggle('losses')} style={filterBtnStyle('losses', 'var(--danger)')}>
-            <span style={{ color: 'var(--text-muted)', width: '45px' }}>LOSSES</span>
-            <span style={{ color: 'var(--danger)', fontWeight: 'bold', width: '20px' }}>{data.losing_trades}</span>
-            <RingClock pct={lossPct} color="var(--danger)" label={`losses ${lossPct}%`} active={activeFilter === 'losses'} />
-          </button>
-        </div>
+      <div className="kpi-tile-grid">
+        <Tile filterKey="wins" label="Wins" count={data.winning_trades} pct={winPct} color="var(--success)" />
+        <Tile filterKey="open" label="Open" count={openCount} pct={openPct} color="var(--accent-blue)" />
+        <Tile filterKey="losses" label="Losses" count={data.losing_trades} pct={lossPct} color="var(--danger)" />
+        <Tile filterKey="wash" label="Wash" count={washCount} pct={washPct} color="var(--text-muted)" />
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <button type="button" onClick={() => toggle('open')} style={filterBtnStyle('open', 'var(--accent-blue)')}>
-            <span style={{ color: 'var(--text-muted)', width: '40px' }}>OPEN</span>
-            <span style={{ color: 'var(--accent-blue)', fontWeight: 'bold', width: '20px' }}>{openCount}</span>
-            <RingClock pct={openPct} color="var(--accent-blue)" label={`open ${openPct}%`} active={activeFilter === 'open'} muted={openCount === 0} />
-          </button>
-          <button type="button" onClick={() => toggle('wash')} style={filterBtnStyle('wash', 'var(--accent-yellow)')}>
-            <span style={{ color: 'var(--text-muted)', width: '40px' }}>WASH</span>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 'bold', width: '20px' }}>{washCount}</span>
-            <RingClock pct={washPct} color="var(--text-muted)" label={`wash ${washPct}%`} active={activeFilter === 'wash'} muted={washCount === 0} />
-          </button>
+      <div className="avg-stack">
+        <div className="avg-line">
+          <span className="avg-label">Avg W</span>
+          <span className="avg-value" style={{ color: 'var(--success)' }}>${data.avg_win.toFixed(2)}</span>
         </div>
+        <div className="avg-line">
+          <span className="avg-label">Avg L</span>
+          <span className="avg-value" style={{ color: 'var(--danger)' }}>−${data.avg_loss.toFixed(2)}</span>
+        </div>
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-          <div className="kpi-block">
-            <span style={{ color: 'var(--text-muted)', width: '40px' }}>AVG W</span>
-            <span style={{ color: 'var(--success)', fontWeight: 'bold', width: '40px' }}>${data.avg_win.toFixed(2)}</span>
-          </div>
-          <div className="kpi-block">
-            <span style={{ color: 'var(--text-muted)', width: '40px' }}>AVG L</span>
-            <span style={{ color: 'var(--danger)', fontWeight: 'bold', width: '40px' }}>-${data.avg_loss.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginLeft: '1rem' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '0.5rem' }}>PnL</span>
-          <div
-            style={{
-              background: data.total_pnl >= 0
-                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.08))'
-                : 'linear-gradient(135deg, rgba(239, 79, 88, 0.22), rgba(239, 79, 88, 0.08))',
-              color: data.total_pnl >= 0 ? 'var(--success)' : 'var(--danger)',
-              padding: '0.45rem 1.3rem',
-              borderRadius: 'var(--radius-pill)',
-              fontWeight: 'bold',
-              border: `1px solid ${data.total_pnl >= 0 ? 'var(--success)' : 'var(--danger)'}`,
-              boxShadow: data.total_pnl >= 0
-                ? '0 0 0 1px rgba(34, 197, 94, 0.10), 0 6px 20px -6px rgba(34, 197, 94, 0.55)'
-                : '0 0 0 1px rgba(239, 79, 88, 0.10), 0 6px 20px -6px rgba(239, 79, 88, 0.55)',
-            }}
-          >
-            ${data.total_pnl.toFixed(2)}
-          </div>
-        </div>
+      <div className="pnl-block">
+        <span className="pnl-label">PnL</span>
+        <span className="pnl-value" style={{ color: pnlColor }}>
+          {pnlPositive ? '' : '−'}${Math.abs(data.total_pnl).toFixed(2)}
+        </span>
+        <span className="pnl-trend" style={{ color: pnlColor }}>
+          {pnlPositive ? '↗' : '↘'} {total > 0 ? `${data.total_trades} trades` : 'no trades yet'}
+        </span>
       </div>
     </div>
   );

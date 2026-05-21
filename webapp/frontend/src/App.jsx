@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardStats from './components/DashboardStats';
 import TradeTable from './components/TradeTable';
-import LogTradeForm from './components/LogTradeForm';
 import PositionCalculator from './components/PositionCalculator';
 import ScreenerGrid from './components/ScreenerGrid';
 import ErrorBoundary from './components/ErrorBoundary';
-import EditTradeModal from './components/EditTradeModal';
 import PortfolioTab from './components/PortfolioTab';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ArchiveTab from './components/ArchiveTab';
@@ -53,10 +51,22 @@ function App() {
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
 
-  const [isTradeModalOpen, setTradeModalOpen] = useState(false);
   const [isCalcModalOpen, setCalcModalOpen] = useState(false);
-  const [editingTrade, setEditingTrade] = useState(null);
+  const [draftRow, setDraftRow] = useState(null);
   const [detailTrade, setDetailTrade] = useState(null);
+
+  const todayIso = () => new Date().toISOString().split('T')[0];
+  const startNewTrade = () => {
+    if (activeTab !== 'dashboard') setActiveTab('dashboard');
+    setDraftRow({
+      opening_date: todayIso(),
+      direction: 'LONG',
+      ticker: '',
+      entry_price: '',
+      stop_loss: '',
+      quantity: '',
+    });
+  };
   const [switchingMode, setSwitchingMode] = useState(false);
   const [switchingClient, setSwitchingClient] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -215,16 +225,6 @@ function App() {
     fetchDashboardData();
   }, []);
 
-  const handleTradeSaved = () => {
-    setTradeModalOpen(false);
-    fetchDashboardData();
-  };
-
-  const handleTradeEdited = () => {
-    setEditingTrade(null);
-    fetchDashboardData();
-  };
-
   return (
     <div className="app-layout">
       {/* SIDEBAR */}
@@ -365,7 +365,7 @@ function App() {
         </nav>
 
         <div className="action-buttons">
-          <button className="btn-action btn-trade" onClick={() => setTradeModalOpen(true)}><span>+</span> New Trade</button>
+          <button className="btn-action btn-trade" onClick={startNewTrade}><span>+</span> New Trade</button>
           <input
             ref={csvInputRef}
             type="file"
@@ -421,7 +421,8 @@ function App() {
               />
               <TradeTable
                 trades={filteredTrades}
-                onEditClick={(trade) => setEditingTrade(trade)}
+                draftRow={draftRow}
+                setDraftRow={setDraftRow}
                 onDetailClick={(trade) => setDetailTrade(trade)}
                 onTradeUpdate={fetchDashboardData}
               />
@@ -434,7 +435,8 @@ function App() {
             <ErrorBoundary>
               <TradeTable
                 trades={optionTrades}
-                onEditClick={(trade) => setEditingTrade(trade)}
+                draftRow={null}
+                setDraftRow={() => {}}
                 onDetailClick={(trade) => setDetailTrade(trade)}
                 onTradeUpdate={fetchDashboardData}
               />
@@ -459,18 +461,6 @@ function App() {
       </main>
 
       {/* MODALS */}
-      {isTradeModalOpen && (
-        <div className="modal-overlay" onClick={() => setTradeModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 style={{fontSize: '1.2rem', margin: 0}}>Log New Trade</h2>
-              <button className="modal-close" onClick={() => setTradeModalOpen(false)}>×</button>
-            </div>
-            <LogTradeForm onSave={handleTradeSaved} />
-          </div>
-        </div>
-      )}
-
       {isCalcModalOpen && (
         <div className="modal-overlay" onClick={() => setCalcModalOpen(false)}>
           <div className="modal-content" style={{maxWidth: '600px'}} onClick={e => e.stopPropagation()}>
@@ -481,14 +471,6 @@ function App() {
             <PositionCalculator />
           </div>
         </div>
-      )}
-
-      {editingTrade && (
-        <EditTradeModal
-          trade={editingTrade}
-          onClose={() => setEditingTrade(null)}
-          onSave={handleTradeEdited}
-        />
       )}
 
       {detailTrade && (
