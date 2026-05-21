@@ -23,6 +23,8 @@ Chrollo connects to Interactive Brokers over the TWS API (`ib_async`). Before st
 | `IBKR_CLIENT_ID`      | `137`         | Must be unique across connected clients        |
 | `IBKR_MODE`           | `paper`       | Set to `live` to switch ports + show LIVE UI   |
 | `IBKR_AUTO_CONNECT`   | `true`        | Set `false` to connect only via API action     |
+| `ALPACA_KEY_ID`       | _(unset)_     | Alpaca Market Data API key. If set together with `ALPACA_SECRET_KEY`, the `/live-prices/` endpoint serves real-time IEX quotes via Alpaca's batch endpoint instead of polling yfinance one-symbol-at-a-time. Missing keys → silently falls back to yfinance. |
+| `ALPACA_SECRET_KEY`   | _(unset)_     | Alpaca Market Data API secret (paired with `ALPACA_KEY_ID`). Free signup at [alpaca.markets](https://alpaca.markets); the Market Data v2 endpoint is included on the free tier (real-time IEX, 200 req/min). |
 
 When `IBKR_MODE=live`, the sidebar shows a red **LIVE** badge. Default stays on paper — the backend refuses nothing on its own, so treat `live` as a deliberate opt-in.
 

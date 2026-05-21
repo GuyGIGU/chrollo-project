@@ -570,11 +570,12 @@ td {
 /* TRADE TABLE — calm dark journal style */
 .trade-table {
   width: 100%;
-  min-width: 1000px;
+  min-width: 1286px;
   border-collapse: collapse;
   background: transparent;
   font-variant-numeric: tabular-nums;
   font-family: inherit;
+  table-layout: fixed;
 }
 
 /* Group header row (PLAN | EXECUTION) — quiet, almost invisible */
@@ -669,8 +670,10 @@ td.cell-computed { background: transparent; }
 /* Inline edit input */
 .cell-input {
   width: 100%;
-  height: 100%;
-  padding: 0 12px;
+  min-width: 0;
+  height: calc(100% - 8px);
+  margin: 4px 6px;
+  padding: 0 8px;
   background: var(--bg-elevated);
   border: 1px solid var(--accent-blue);
   border-radius: 4px;
@@ -679,10 +682,13 @@ td.cell-computed { background: transparent; }
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(74, 122, 255, 0.20);
+  box-shadow: 0 0 0 2px rgba(91, 138, 255, 0.18);
   box-sizing: border-box;
+  display: block;
 }
 .cell-input.num { text-align: right; }
+/* Keep the input contained inside the column so it never widens the cell */
+td.cell-editable { overflow: hidden; }
 
 /* Side arrow — quiet, faint border, colored arrow only */
 .side-arrow {

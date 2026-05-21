@@ -29,7 +29,7 @@ from routers import analytics as analytics_router
 from routers import journal as journal_router
 from routers import archive as archive_router
 from routers import watchlist as watchlist_router
-from services import auto_import
+from services import auto_import, alpaca_prices
 
 # ── Bootstrap ────────────────────────────────────────────────────
 models.Base.metadata.create_all(bind=engine)
@@ -494,14 +494,24 @@ def run_screener_scan_stream():
     return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
 
 # ── Live Prices ──────────────────────────────────────────────────
+# Primary source: Alpaca Market Data v2 (real-time IEX, batch endpoint — one
+# HTTP call per poll cycle). Fallback when Alpaca isn't configured or returned
+# nothing for a symbol: yfinance per-ticker. The fallback path is the same
+# code as before, kept so the endpoint still works without setting any env vars.
 @app.get("/live-prices/")
 def get_live_prices(tickers: str = Query("")):
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not ticker_list:
         return {}
-    
-    prices = {}
-    for t in ticker_list:
+
+    prices: dict[str, float] = {}
+
+    alpaca = alpaca_prices.fetch_quotes(ticker_list)
+    if alpaca:
+        prices.update(alpaca)
+
+    missing = [t for t in ticker_list if t not in prices]
+    for t in missing:
         try:
             ticker_obj = yf.Ticker(t)
             val = ticker_obj.fast_info.get('lastPrice') or ticker_obj.info.get('currentPrice')

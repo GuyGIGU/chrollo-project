@@ -147,10 +147,14 @@ def _trade_to_exec_dict(trade: Dict[str, Any], account: str) -> Dict[str, Any]:
 def import_activity_statement(content: str) -> Dict[str, Any]:
     """Parse + ingest in one shot. Returns a summary suitable for the API response.
 
-    Idempotent on re-upload (dedupe key is the synthetic exec_id). Trade-log
-    rebuild is batched: one ``rebuild_trade_logs_for`` call per affected
-    (account, symbol) pair after all executions are persisted, instead of one
-    per fill.
+    Idempotent on re-upload (dedupe key is the synthetic exec_id).
+
+    Rebuild policy: **every** (account, symbol) pair with executions in the DB
+    gets re-derived, not just pairs that received new fills. This is the
+    "uploading the latest CSV refreshes all my fills" contract — manual edits
+    to ``entry_price``/``quantity``/``actions_json``/etc. on previously-imported
+    trades are rolled back to IBKR's truth, while user-set ``stop_loss`` and
+    ``planned_stop`` survive (the rebuild loop only fills these when empty).
     """
     parsed = parse_activity_statement(content)
     account = parsed["account"]
@@ -206,7 +210,16 @@ def import_activity_statement(content: str) -> Dict[str, Any]:
 
         db.commit()
 
-        for acct, sym in affected_pairs:
+        # Rebuild every pair in the account, not just newly-affected ones, so a
+        # CSV upload always re-derives all fills from executions. Pairs not in
+        # this CSV but still in the DB still get refreshed — that's the point.
+        all_pairs: Set[Tuple[str, str]] = set(
+            db.query(models.Execution.account, models.Execution.symbol)
+            .filter(models.Execution.account == account)
+            .distinct()
+            .all()
+        )
+        for acct, sym in all_pairs:
             try:
                 auto_import.rebuild_trade_logs_for(db, acct, sym)
             except Exception:
@@ -216,9 +229,9 @@ def import_activity_statement(content: str) -> Dict[str, Any]:
             "account": account,
             "imported": imported,
             "skipped": skipped,
-            "trade_logs_rebuilt": len(affected_pairs),
+            "trade_logs_rebuilt": len(all_pairs),
             "parse_errors": parsed["errors"],
-            "message": f"Imported {imported} new fills ({skipped} duplicates skipped) across {len(affected_pairs)} symbols.",
+            "message": f"Imported {imported} new fills ({skipped} duplicates skipped); refreshed {len(all_pairs)} symbol(s).",
         }
     finally:
         db.close()

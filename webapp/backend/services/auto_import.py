@@ -161,13 +161,16 @@ def rebuild_trade_logs_for(db: Session, account: Optional[str], symbol: Optional
             except Exception:
                 continue
 
+    auto_stop_tls: List[models.TradeLog] = []
     for trip in trips:
         opener_exec_id = trip["legs"][0].exec_id
         tl = existing.get(opener_exec_id)
         if tl is None:
             tl = models.TradeLog(source="ibkr", ticker=symbol, ibkr_account=account)
             db.add(tl)
-        _apply_trip_to_trade_log(tl, trip)
+        flags = _apply_trip_to_trade_log(tl, trip)
+        if flags.get("auto_stop"):
+            auto_stop_tls.append(tl)
         # Track new entries by opener so we can resolve IDs after flush
         existing[opener_exec_id] = tl
         # Link executions back to this trade log
@@ -185,7 +188,22 @@ def rebuild_trade_logs_for(db: Session, account: Optional[str], symbol: Optional
         for leg in trip["legs"]:
             if leg.trade_log_id != tl.id:
                 leg.trade_log_id = tl.id
+    # Attach the auto-stop tag to any trade where we inferred a stop. Done after
+    # flush so newly-created tl rows already have IDs for the m2m link.
+    for tl in auto_stop_tls:
+        _ensure_and_attach_tag(db, tl, "auto-stop")
     db.commit()
+
+
+def _ensure_and_attach_tag(db: Session, tl: models.TradeLog, name: str, category: str = "custom") -> None:
+    """Idempotent: create the named tag if missing, attach if not already on tl."""
+    tag = db.query(models.Tag).filter(models.Tag.name == name).one_or_none()
+    if tag is None:
+        tag = models.Tag(name=name, category=category)
+        db.add(tag)
+        db.flush()
+    if tag not in tl.tags:
+        tl.tags.append(tag)
 
 
 def _find_tl_by_opener(db: Session, account: Optional[str], symbol: str, opener_exec_id: str):
@@ -244,58 +262,120 @@ def _group_round_trips(rows: Iterable[models.Execution]) -> List[Dict[str, Any]]
     return trips
 
 
-def _apply_trip_to_trade_log(tl: models.TradeLog, trip: Dict[str, Any]) -> None:
+def _apply_trip_to_trade_log(tl: models.TradeLog, trip: Dict[str, Any]) -> Dict[str, Any]:
+    """Populate a TradeLog from a round-trip's legs.
+
+    Returns a flag dict (e.g. ``{"auto_stop": True}``) so the caller can run
+    post-processing — currently the auto-stop tag attachment.
+
+    Smart bits beyond a naive opener=first-leg implementation:
+    - **Entry VWAP**: ``entry_price`` is the volume-weighted average of all
+      opener-side legs, not just the first fill. Matters for scale-ins.
+    - **Total opening qty**: ``quantity`` is the sum of opener-side qty, so a
+      scaled-in 50+50+50+50 entry reports as 200, not 50.
+    - **Exit VWAP**: ``exit_price`` on closed trips is the VWAP of closer-side
+      legs (was the last leg's price).
+    - **Auto-stop heuristic**: when a trip closes at a loss, was held under
+      24h, and the user has set neither ``stop_loss`` nor ``planned_stop``,
+      we infer the stop as the exit VWAP and the caller tags the trade
+      ``auto-stop`` so the inferred value is distinguishable from a typed
+      planned stop. Idempotent — once ``stop_loss`` is non-zero, subsequent
+      rebuilds skip the inference.
+    """
     legs: List[models.Execution] = trip["legs"]
     direction = trip["direction"]
+    opener_side = "BUY" if direction == "L" else "SELL"
+    closer_side = "SELL" if direction == "L" else "BUY"
+
+    # Walk opener / closer legs separately to compute VWAPs and timestamps.
+    opener_qty = 0.0
+    opener_cost = 0.0
+    opener_times: List[datetime] = []
+    closer_qty = 0.0
+    closer_cost = 0.0
+    closer_times: List[datetime] = []
+    commissions = 0.0
+    mult_seen: Optional[float] = None
+    for leg in legs:
+        q = float(leg.quantity)
+        p = float(leg.price)
+        if mult_seen is None and leg.multiplier:
+            mult_seen = float(leg.multiplier)
+        if leg.side == opener_side:
+            opener_qty += q
+            opener_cost += q * p
+            if isinstance(leg.time, datetime):
+                opener_times.append(leg.time)
+        elif leg.side == closer_side:
+            closer_qty += q
+            closer_cost += q * p
+            if isinstance(leg.time, datetime):
+                closer_times.append(leg.time)
+        commissions += float(leg.commission or 0)
+
+    mult = mult_seen if mult_seen is not None else 1.0
+    entry_vwap = (opener_cost / opener_qty) if opener_qty > 0 else float(legs[0].price)
+    exit_vwap = (closer_cost / closer_qty) if closer_qty > 0 else None
 
     opening_leg = legs[0]
     tl.direction = direction
-    tl.opening_date = opening_leg.time.date().isoformat() if isinstance(opening_leg.time, datetime) else str(opening_leg.time)
-    tl.entry_price = float(opening_leg.price)
-    tl.quantity = int(abs(float(opening_leg.quantity)))
-    if not tl.stop_loss:
-        tl.stop_loss = 0.0
-    if tl.position_size is None:
-        tl.position_size = float(tl.entry_price or 0) * float(tl.quantity or 0)
+    tl.opening_date = (
+        opening_leg.time.date().isoformat() if isinstance(opening_leg.time, datetime) else str(opening_leg.time)
+    )
+    tl.entry_price = entry_vwap
+    tl.quantity = int(round(opener_qty)) if opener_qty > 0 else int(abs(float(opening_leg.quantity)))
+    tl.position_size = entry_vwap * opener_qty * mult
+    tl.commissions = commissions
 
-    # Compute net P&L and remaining qty
-    sign = 1 if direction == "L" else -1
-    net_qty = 0.0
-    cash = 0.0  # cash flow; + for money received, - for money paid
-    commissions = 0.0
+    # Net signed qty across all legs determines whether the trip is closed.
+    net_qty = opener_qty - closer_qty  # magnitude; sign comes from direction
+    tl.remaining_qty = int(round(net_qty)) if direction == "L" else -int(round(net_qty))
+
+    # P&L from cash flow (commissions netted)
+    cash = 0.0
     for leg in legs:
         leg_sign = 1 if leg.side == "BUY" else -1
-        mult = float(leg.multiplier) if leg.multiplier else 1.0
-        qty = float(leg.quantity) * leg_sign
-        net_qty += qty
-        cash += -qty * float(leg.price) * mult
-        commissions += float(leg.commission or 0)
+        leg_mult = float(leg.multiplier) if leg.multiplier else 1.0
+        cash += -float(leg.quantity) * leg_sign * float(leg.price) * leg_mult
 
-    mults = [float(l.multiplier) for l in legs if l.multiplier]
-    mult = mults[0] if mults else 1.0
-    tl.position_size = float(abs(opening_leg.quantity) * opening_leg.price * mult)
-    tl.commissions = commissions
-    tl.remaining_qty = int(abs(net_qty)) if direction == "L" else -int(abs(net_qty))
-
-    if net_qty == 0:
-        # Closed round-trip: P&L = cash flow − commissions
+    flags: Dict[str, Any] = {}
+    if abs(net_qty) < 1e-9:
+        # Closed round-trip
         tl.pnl = cash - commissions
-        last_leg = legs[-1]
-        tl.exit_price = float(last_leg.price)
+        tl.exit_price = exit_vwap
+        last_close = max(closer_times) if closer_times else None
         tl.closing_date = (
-            last_leg.time.date().isoformat() if isinstance(last_leg.time, datetime) else str(last_leg.time)
+            last_close.date().isoformat() if isinstance(last_close, datetime) else None
         )
+
+        # Auto-stop heuristic — only when truly empty and the trip was a quick loser.
+        held_seconds = (
+            (max(closer_times) - min(opener_times)).total_seconds()
+            if opener_times and closer_times else float("inf")
+        )
+        already_set = bool((tl.stop_loss and tl.stop_loss > 0) or (tl.planned_stop and tl.planned_stop > 0))
+        if (
+            tl.pnl is not None
+            and tl.pnl < 0
+            and exit_vwap is not None
+            and held_seconds <= 24 * 3600
+            and not already_set
+        ):
+            tl.stop_loss = exit_vwap
+            flags["auto_stop"] = True
+        elif not tl.stop_loss:
+            tl.stop_loss = 0.0
     else:
         tl.pnl = None
         tl.exit_price = None
         tl.closing_date = None
+        if not tl.stop_loss:
+            tl.stop_loss = 0.0
 
     # Rebuild actions_json so the frontend shows every leg
     actions: List[Dict[str, Any]] = []
     for leg in legs:
-        is_opener = (leg is opening_leg) or (
-            (leg.side == "BUY" and direction == "L") or (leg.side == "SELL" and direction == "S")
-        )
+        is_opener = leg.side == opener_side
         actions.append({
             "id": leg.id,
             "exec_id": leg.exec_id,
@@ -308,8 +388,7 @@ def _apply_trip_to_trade_log(tl: models.TradeLog, trip: Dict[str, Any]) -> None:
         })
     tl.actions_json = json.dumps(actions)
 
-    # Ignore `sign` if unused — kept for readability
-    _ = sign
+    return flags
 
 
 def backfill_from_db() -> None:

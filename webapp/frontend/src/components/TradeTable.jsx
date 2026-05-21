@@ -120,11 +120,22 @@ const TradeTable = ({
     const openSide = isLong ? 'BUY' : 'SELL';
     const closeSide = isLong ? 'SELL' : 'BUY';
 
-    const extras = parseActions(t.actions_json);
+    // actions_json comes in two shapes:
+    //   - Backend (IBKR auto-import): every leg, with `side` ∈ {BUY,SELL} and
+    //     `type` ∈ {ENTRY,EXIT}. The opener leg is INCLUDED here.
+    //   - Frontend (manual entry via saveFills): only extras after the first
+    //     leg, with `type` ∈ {BUY,SELL} (no `side` field).
+    // We normalize each row to a single `side` field, then auto-detect: if any
+    // normalized row has side === openSide, treat actions_json as the full leg
+    // set and don't synthesize an initial leg from trade.entry_price/quantity.
+    const rawActions = parseActions(t.actions_json);
+    const extras = rawActions.map(a => ({ ...a, side: (a.side || a.type || '').toUpperCase() }));
+    const includesOpener = extras.some(a => a.side === openSide);
     const initialQty = Number(t.quantity) || 0;
-    let openQty = initialQty;
-    let openCash = (Number(t.entry_price) || 0) * initialQty * multiplier;
-    let openFees = Number(t.commissions) || 0;
+
+    let openQty = includesOpener ? 0 : initialQty;
+    let openCash = includesOpener ? 0 : (Number(t.entry_price) || 0) * initialQty * multiplier;
+    let openFees = includesOpener ? 0 : Number(t.commissions) || 0;
     let closeQty = 0;
     let closeCash = 0;
     let closeFees = 0;
@@ -134,17 +145,18 @@ const TradeTable = ({
       const q = parseFloat(a.quantity) || 0;
       const p = parseFloat(a.price) || 0;
       const f = parseFloat(a.fee) || 0;
-      if (a.type === openSide) {
+      if (a.side === openSide) {
         openQty += q;
         openCash += q * p * multiplier;
         openFees += f;
-      } else if (a.type === closeSide) {
+      } else if (a.side === closeSide) {
         closeQty += q;
         closeCash += q * p * multiplier;
         closeFees += f;
         if (a.date) {
-          if (!firstCloseDate || a.date < firstCloseDate) firstCloseDate = a.date;
-          if (!lastCloseDate || a.date > lastCloseDate) lastCloseDate = a.date;
+          const day = String(a.date).slice(0, 10);
+          if (!firstCloseDate || day < firstCloseDate) firstCloseDate = day;
+          if (!lastCloseDate || day > lastCloseDate) lastCloseDate = day;
         }
       }
     }
@@ -207,15 +219,13 @@ const TradeTable = ({
       ? (pnl / (rDist * openQty * multiplier))
       : null;
 
-    // Status
+    // Status — three visible states only: open / win / loss (+ draft on empty rows).
+    // "partial" (still holding after a scale-out) collapses to open. "wash" (pnl
+    // exactly 0, rare once commissions are netted) collapses to loss.
     let status = 'draft';
-    if (position > 0 && closeQty === 0) status = 'open';
-    else if (position > 0 && closeQty > 0) status = 'partial';
-    else if (position <= 0 && closeQty > 0) {
-      if (pnl > 0) status = 'win';
-      else if (pnl < 0) status = 'loss';
-      else status = 'wash';
-    } else if (initialQty > 0) status = 'open';
+    if (position > 0) status = 'open';
+    else if (closeQty > 0) status = (pnl != null && pnl > 0) ? 'win' : 'loss';
+    else if (initialQty > 0) status = 'open';
 
     return {
       direction, isLong, isOpt, multiplier,
@@ -352,21 +362,36 @@ const TradeTable = ({
       if (next.has(tradeId)) next.delete(tradeId);
       else {
         next.add(tradeId);
-        // Initialize buffer if absent
+        // Initialize buffer if absent. Normalize each parsed leg so the drawer
+        // always shows BUY/SELL — backend stores side=BUY/SELL + type=ENTRY/EXIT,
+        // FE-saved trades use type=BUY/SELL with no side field. We coalesce to a
+        // single `type` ∈ {BUY,SELL}. If the normalized legs already include the
+        // opener (IBKR convention) we use them as-is; otherwise we prepend a
+        // synthesized initial leg built from trade.entry_price/quantity.
         setFillsBuffer(b => {
           if (b[tradeId]) return b;
           const trade = trades.find(t => t.id === tradeId);
           if (!trade) return b;
+          const direction = inferDirection(trade);
+          const openSide = direction === 'LONG' ? 'BUY' : 'SELL';
+          const parsed = parseActions(trade.actions_json).map(a => ({
+            ...a,
+            type: (a.side || a.type || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
+          }));
+          const hasOpener = parsed.some(a => a.type === openSide);
+          if (hasOpener) {
+            return { ...b, [tradeId]: parsed };
+          }
           const initial = {
             id: 'initial',
-            type: inferDirection(trade) === 'LONG' ? 'BUY' : 'SELL',
+            type: openSide,
             date: trade.opening_date || '',
             quantity: trade.quantity || '',
             price: trade.entry_price || '',
             fee: trade.commissions || 0,
             isInitial: true,
           };
-          return { ...b, [tradeId]: [initial, ...parseActions(trade.actions_json)] };
+          return { ...b, [tradeId]: [initial, ...parsed] };
         });
       }
       return next;
@@ -666,10 +691,26 @@ const TradeTable = ({
       <tr className="fills-row">
         <td colSpan={15}>
           <div className="fills-panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 16 }}>
               <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 Fills · {t.ticker}
               </span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginLeft: 'auto', marginRight: 8 }}>
+                Stop loss
+                <input
+                  type="number"
+                  step="0.01"
+                  className="fill-input"
+                  defaultValue={t.stop_loss && Number(t.stop_loss) !== 0 ? t.stop_loss : ''}
+                  placeholder="0.00"
+                  style={{ width: 90, textTransform: 'none' }}
+                  onBlur={(e) => {
+                    const v = parseFloat(e.target.value);
+                    const next = Number.isFinite(v) ? v : 0;
+                    if (Number(t.stop_loss || 0) !== next) commitTradeCell(t, 'stop_loss', next);
+                  }}
+                />
+              </label>
               <button
                 onClick={() => saveFills(t)}
                 style={{
@@ -721,6 +762,23 @@ const TradeTable = ({
   return (
     <div style={{ marginTop: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
       <table className="trade-table">
+        <colgroup>
+          <col style={{ width: 30 }} />   {/* expand */}
+          <col style={{ width: 80 }} />   {/* date */}
+          <col style={{ width: 88 }} />   {/* symbol */}
+          <col style={{ width: 86 }} />   {/* status */}
+          <col style={{ width: 54 }} />   {/* side */}
+          <col style={{ width: 92 }} />   {/* entry */}
+          <col style={{ width: 110 }} />  {/* stop */}
+          <col style={{ width: 78 }} />   {/* qty */}
+          <col style={{ width: 108 }} />  {/* total $ */}
+          <col style={{ width: 80 }} />   {/* pos */}
+          <col style={{ width: 118 }} />  {/* current/exit */}
+          <col style={{ width: 130 }} />  {/* P&L */}
+          <col style={{ width: 108 }} />  {/* total exit */}
+          <col style={{ width: 86 }} />   {/* exit date */}
+          <col style={{ width: 38 }} />   {/* detail ⋯ */}
+        </colgroup>
         <thead>
           <tr className="group-row">
             <th colSpan={9}>Plan</th>
