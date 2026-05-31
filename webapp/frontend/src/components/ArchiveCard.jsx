@@ -16,6 +16,7 @@ const subScoresFromSetup = (s) => ({
   high_proximity:  s.score_high_proximity,
   breadth_bonus:   s.score_breadth_bonus,
   contraction:     s.score_contraction,
+  ascending_support: s.score_ascending_support,
 });
 
 const tierColor = (t) => ({ S: '#ff8c00', A: '#bb86fc', B: '#58a6ff', C: '#3fb950', D: '#8b949e' }[t] || '#8b949e');

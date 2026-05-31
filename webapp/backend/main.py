@@ -67,6 +67,10 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN contraction_quality FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN final_contraction_depth FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_contraction FLOAT",
+    # Ascending support / higher-lows footprint
+    "ALTER TABLE setup_archive ADD COLUMN support_slope_atr FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN ascending_support_quality FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN score_ascending_support FLOAT",
 ]
 _mig_log = logging.getLogger("chrollo.migrate")
 with engine.connect() as _conn:

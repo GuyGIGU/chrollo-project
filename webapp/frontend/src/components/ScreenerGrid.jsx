@@ -269,6 +269,11 @@ const ScreenerGrid = () => {
       if (res.ok) {
         const data = await res.json();
         setScreenerData(data);
+      } else {
+        // Surface backend failures (e.g. a 500 serving screener_data.json)
+        // instead of silently sitting on the "Loading…" placeholder forever.
+        const body = await res.text().catch(() => '');
+        console.error(`screener-data ${res.status}: ${body.slice(0, 200)}`);
       }
     } catch (err) {
       console.error("Failed to load screener data", err);
@@ -442,21 +447,34 @@ const ScreenerGrid = () => {
     setScanPhase('Initializing pipeline…');
 
     const eventSource = new EventSource(`${API_BASE}/run-scan-stream/`);
-    
+
+    // Reveal results as soon as the dashboard JSON is written — which happens
+    // BEFORE the (slow, network-bound) archive/market-context step. Otherwise a
+    // slow SPY/VIX/sector fetch during archiving gatekeeps the grid behind the
+    // final [DONE], making a finished scan look frozen. We still keep the stream
+    // open until [DONE] so archiving completes cleanly in the background.
+    let resultsRevealed = false;
+    const revealResults = async () => {
+      if (resultsRevealed) return;
+      resultsRevealed = true;
+      setIsScanning(false);
+      setScanProgress(0);
+      setScanPhase('');
+      await fetchScreener();
+    };
+
     eventSource.onmessage = async (e) => {
       if (e.data === '[DONE]') {
-        setScanProgress(100);
-        setScanPhase('Complete!');
         eventSource.close();
-        // Brief pause so user sees 100%
-        setTimeout(async () => {
-          setIsScanning(false);
-          setScanProgress(0);
-          setScanPhase('');
-          await fetchScreener();
-        }, 600);
-      } else {
-        parseScanProgress(e.data);
+        await revealResults();   // no-op if the export line already revealed
+        return;
+      }
+      parseScanProgress(e.data);
+      if (/Data exported to|UI update available/i.test(e.data)) {
+        await revealResults();
+        return;
+      }
+      if (!resultsRevealed) {
         setScanLogs(prev => {
           const newLogs = [...prev, e.data];
           return newLogs.slice(-4);

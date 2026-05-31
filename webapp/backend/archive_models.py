@@ -103,6 +103,11 @@ class SetupArchive(Base):
     final_contraction_depth = Column(Float, nullable=True)   # depth of the last (rightmost) contraction, fractional
     score_contraction = Column(Float, nullable=True)         # contraction-quality sub-score (raw points)
 
+    # ── Ascending support / higher-lows footprint ────────────────
+    support_slope_atr = Column(Float, nullable=True)         # ATR-normalized slope of zigzag valley lows (positive = rising support)
+    ascending_support_quality = Column(Float, nullable=True) # [0,1] composite: slope ramp + higher-low consistency
+    score_ascending_support = Column(Float, nullable=True)   # ascending-support sub-score (raw points)
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)
@@ -134,12 +139,33 @@ _SECTOR_TO_ETF = {
 }
 
 
+_SECTOR_INFO_TIMEOUT_S = 12  # hard wall-clock bound for the (untimed) .info scrape
+
+
 def get_sector_etf(ticker: str) -> str | None:
     """Resolve a ticker to its SPDR sector ETF using yfinance.
 
     Returns the ETF symbol (e.g. 'XLK') or None on failure.
-    Cached in-memory per session since sector doesn't change.
+
+    Hard-bounded with a daemon thread: yfinance's ``.info`` makes an untimed
+    page scrape that routinely hangs for tens of seconds or wedges entirely.
+    The archive writer also caches the result to disk so this is only hit for
+    tickers it has never resolved before.
     """
+    import threading
+
+    holder: dict = {}
+
+    def _run():
+        holder["r"] = _sector_etf_impl(ticker)
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=_SECTOR_INFO_TIMEOUT_S)
+    return holder.get("r")
+
+
+def _sector_etf_impl(ticker: str) -> str | None:
     try:
         import yfinance as yf
         info = yf.Ticker(ticker).info
@@ -149,11 +175,33 @@ def get_sector_etf(ticker: str) -> str | None:
         return None
 
 
+_MARKET_CONTEXT_TIMEOUT_S = 45  # hard wall-clock bound for the SPY+VIX fetch
+
+
 def get_market_context(scan_date: str) -> dict:
     """Fetch SPY trend and VIX level for a given date.
 
-    Returns dict with 'spy_trend' and 'vix_level'.
+    Hard-bounded with a daemon thread: yfinance's per-request ``timeout`` is
+    unreliable, and a hung SPY/VIX download here would block the whole screener
+    subprocess from finishing — which is what gatekeeps the webapp's scan from
+    ever surfacing results. On timeout we return an empty context and move on;
+    market context is non-critical archive metadata, never worth a hang.
     """
+    import threading
+
+    holder: dict = {}
+
+    def _run():
+        holder["r"] = _market_context_impl(scan_date)
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=_MARKET_CONTEXT_TIMEOUT_S)
+    return holder.get("r", {"spy_trend": None, "vix_level": None})
+
+
+def _market_context_impl(scan_date: str) -> dict:
+    """Actual SPY-trend + VIX fetch. Returns {'spy_trend', 'vix_level'}."""
     import pandas as pd
     import yfinance as yf
 

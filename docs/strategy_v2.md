@@ -182,7 +182,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **12 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **186**.
+`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **13 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **194**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -198,6 +198,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 | **52w-high proximity** | Linear ramp from `0` at −20% below 52w high to full at −5% (or higher). Bases that consolidate near recent highs hold their breakouts more reliably than ones rebuilding from deep drawdowns. | `SCORE_52W_HIGH_PROXIMITY = 8`, `HIGH_PROXIMITY_FULL_PCT = -0.05`, `HIGH_PROXIMITY_ZERO_PCT = -0.20` |
 | **Market-breadth bonus** | Linear ramp on % of universe with `Close > SMA_50`. Zero below 35%, full at 60%+. Same value for every setup in a run (it's a market-wide scalar), but a strong-tape setup is structurally a better trade than the same chart in a defensive regime where most stocks are under their SMA_50. | `SCORE_BREADTH_BONUS = 8`, `BREADTH_FULL_PCT = 0.60`, `BREADTH_ZERO_PCT = 0.35` |
 | **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
+| **Ascending support** | `support_quality × 8`, where quality ∈ [0,1] from `measure_support_slope()` (see below) = `0.6·slope_score + 0.4·higher_low_frac`. Rewards a base whose swing lows stair-step *up* (rising support / tennis-ball action). Bonus-only — a flat or sagging floor earns 0, never penalized. | `SCORE_ASCENDING_SUPPORT = 8`, `ASCENDING_SUPPORT_FULL_SLOPE = 0.10` |
 
 **Tier mapping** — `_calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
@@ -223,6 +224,20 @@ It reuses the Phase B zigzag machinery over the base window: each peak→valley 
 - **final_tight** — ramp on the rightmost contraction depth: full ≤ 3%, zero ≥ 12%.
 
 Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, and the `score_contraction` sub-score. Fires the 🌀 **VCP Coil** tag chip when `quality ≥ CONTRACTION_QUALITY_TAG` (0.70). Scored, not gated — measure-first, like the touch-volume signature.
+
+---
+
+## Ascending Support / Higher-Lows Footprint
+
+`measure_support_slope()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
+
+It reuses the same Phase B zigzag as the contraction metric, but reads the **valley** sequence. It fits a least-squares line through the `(bar_index, valley_low)` points and ATR-normalizes the slope so it's comparable across price levels and tickers.
+
+`quality ∈ [0,1] = 0.6·slope_score + 0.4·higher_low_frac`:
+- **slope_score** — linear ramp of the ATR-normalized slope from 0 (flat/descending → 0) to `ASCENDING_SUPPORT_FULL_SLOPE` (0.10 ATR/bar → 1.0).
+- **higher_low_frac** — fraction of consecutive valley pairs that actually step up (consistency of the higher-lows).
+
+Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. Fires the 📈 **Ascending Support** tag chip when `quality ≥ ASCENDING_SUPPORT_TAG` (0.70). **Bonus-only / measure-first** — a flat or descending floor earns 0 points and is never penalized.
 
 ---
 

@@ -34,7 +34,8 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 yearly_return: float, excess_return: float = 0.0,
                 dist_52w_high_pct: Optional[float] = None,
                 breadth_pct: Optional[float] = None,
-                contraction_quality: float = 0.0) -> dict:
+                contraction_quality: float = 0.0,
+                support_quality: float = 0.0) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -144,8 +145,14 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_contraction = _clamp(contraction_quality * settings.SCORE_CONTRACTION,
                            settings.SCORE_CONTRACTION)
 
+    # Ascending support / higher lows — rewards a base whose swing lows are
+    # stair-stepping up (rising demand). Bonus-only; flat/sagging floor = 0.
+    s_ascending = _clamp(support_quality * settings.SCORE_ASCENDING_SUPPORT,
+                         settings.SCORE_ASCENDING_SUPPORT)
+
     total = round(s_box + s_touch + s_osc + s_atr + s_lps + s_vol + s_age
-                  + s_uptrend + s_rs + s_high + s_breadth + s_contraction, 1)
+                  + s_uptrend + s_rs + s_high + s_breadth + s_contraction
+                  + s_ascending, 1)
 
     return {
         'total': total,
@@ -161,6 +168,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'high_proximity': round(s_high, 2),
         'breadth_bonus': round(s_breadth, 2),
         'contraction': round(s_contraction, 2),
+        'ascending_support': round(s_ascending, 2),
     }
 
 

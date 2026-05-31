@@ -4,10 +4,30 @@ Generates a JSON data file for the React dashboard to consume.
 """
 import os
 import json
+import math
 
 from config import settings
 
 OUTPUT_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output'))
+
+
+def _json_safe(obj):
+    """Recursively replace NaN/Inf floats with None so the written JSON is
+    strictly RFC-compliant.
+
+    Starlette's JSONResponse serves /screener-data/ with allow_nan=False, so a
+    single NaN/Inf anywhere in the payload makes the endpoint 500 — and the
+    frontend silently stays on "Loading Screener Data...". Sanitizing here, at
+    the one place the file is written, guarantees the served file is always
+    serveable regardless of which metric produced a degenerate value.
+    """
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
@@ -59,6 +79,7 @@ def _extract_chart_data(data, results_df, tickers):
                     'atr_squeeze', 'lps_tightness', 'vol_contraction',
                     'base_age', 'uptrend_bonus', 'rs_bonus',
                     'high_proximity', 'breadth_bonus', 'contraction',
+                    'ascending_support',
                 )
             }
 
@@ -88,6 +109,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'contraction_count': row.get('_contraction_count'),
                 'contraction_quality': row.get('_contraction_quality'),
                 'final_contraction_depth': row.get('_final_contraction_depth'),
+                # Ascending-support / higher-lows footprint (for tooltips / tag)
+                'support_slope_atr': row.get('_support_slope_atr'),
+                'ascending_support_quality': row.get('_ascending_support_quality'),
+                'higher_low_frac': row.get('_support_higher_low_frac'),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")
@@ -112,11 +137,15 @@ def generate_dashboard(results_df, data=None, tickers=None):
     json_path = os.path.join(OUTPUT_DIR, "screener_data.json")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
         
+    payload = _json_safe({
+        "chart_data": chart_data,
+        "ordered_tickers": ordered_tickers,
+    })
     with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump({
-            "chart_data": chart_data,
-            "ordered_tickers": ordered_tickers
-        }, f)
+        json.dump(payload, f)
     
-    print(f"Data exported to: {json_path}")
-    print("UI update available on local webapp.")
+    # flush=True so the webapp's scan stream receives these sentinels immediately
+    # — the frontend reveals results on "UI update available" without waiting for
+    # the slow archive step that runs after this.
+    print(f"Data exported to: {json_path}", flush=True)
+    print("UI update available on local webapp.", flush=True)

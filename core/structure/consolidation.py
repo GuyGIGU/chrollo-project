@@ -223,6 +223,87 @@ def measure_contractions(base_df, order=None):
 
 
 # ---------------------------------------------------------------------------
+# Ascending support / higher-lows footprint
+# ---------------------------------------------------------------------------
+
+def measure_support_slope(base_df, atr_val, order=None):
+    """Measure whether the base's swing lows are stair-stepping UP (rising support).
+
+    A flat box with a *rising floor* is a much stronger coil than a flat box with
+    a flat/sagging floor — demand is getting more aggressive into each pullback.
+    This is the Minervini "tennis-ball action" / Qullamaggie "higher lows" footprint
+    that the static box-width and ATR-squeeze metrics cannot see.
+
+    Reuses the same Phase B zigzag as measure_contractions, but reads the VALLEY
+    sequence (the swing lows) and fits a line through them. The slope is ATR-
+    normalized so it's comparable across price levels and tickers.
+
+    Bonus-only / measure-first: a flat or descending floor returns quality 0 — it
+    is never penalized, only rewarded when genuinely ascending.
+
+    Returns dict:
+        n_valleys:       int     number of zigzag valley lows used in the fit
+        slope_atr:       float|None  rise per bar in ATRs (positive = ascending); None if < 2 valleys
+        higher_low_frac: float   fraction of consecutive valley pairs that step up [0,1]
+        quality:         float in [0,1]  composite: 0.6*slope_score + 0.4*higher_low_frac
+    """
+    empty = {"n_valleys": 0, "slope_atr": None, "higher_low_frac": 0.0, "quality": 0.0}
+    if atr_val is None or atr_val <= 0:
+        return empty
+    highs = base_df["High"].values
+    lows = base_df["Low"].values
+    n = len(highs)
+    if order is None:
+        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
+                 else settings.PIVOT_ORDER_SHORT)
+    if n < 2 * order + 1:
+        return empty
+
+    peaks, valleys = _find_pivots(highs, lows, order)
+    if not peaks or not valleys:
+        return empty
+    zigzag = _build_zigzag(peaks, valleys, highs, lows)
+
+    # Pull the valley points (bar index + low price) in chronological order.
+    valley_pts = [(idx, price) for (idx, kind, price) in zigzag if kind == "valley"]
+    if len(valley_pts) < 2:
+        return empty
+
+    xs = np.array([p[0] for p in valley_pts], dtype=float)
+    ys = np.array([p[1] for p in valley_pts], dtype=float)
+
+    # Least-squares slope (price per bar) through the valley lows, then ATR-normalize.
+    slope = float(np.polyfit(xs, ys, 1)[0])
+    # polyfit can return a non-finite slope on a degenerate / poorly-conditioned
+    # fit; bail to neutral rather than propagate a NaN downstream (a single NaN
+    # float poisons the JSON the /screener-data/ endpoint serves).
+    if not np.isfinite(slope):
+        return empty
+    slope_atr = slope / atr_val
+
+    # Consistency: fraction of consecutive valleys that actually step up.
+    higher = sum(1 for i in range(1, len(ys)) if ys[i] > ys[i - 1])
+    higher_low_frac = higher / (len(ys) - 1)
+
+    # Slope score — linear ramp from flat/descending (0) to FULL_SLOPE ATRs/bar (1).
+    full = settings.ASCENDING_SUPPORT_FULL_SLOPE
+    if slope_atr <= 0:
+        slope_score = 0.0
+    elif slope_atr >= full:
+        slope_score = 1.0
+    else:
+        slope_score = slope_atr / full
+
+    quality = 0.6 * slope_score + 0.4 * higher_low_frac
+    return {
+        "n_valleys": len(valley_pts),
+        "slope_atr": round(slope_atr, 4),
+        "higher_low_frac": round(higher_low_frac, 4),
+        "quality": round(quality, 4),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Measurement: Volume signature at the R/S touch bars
 # ---------------------------------------------------------------------------
 

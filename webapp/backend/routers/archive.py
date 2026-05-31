@@ -107,6 +107,10 @@ class SetupOut(BaseModel):
     contraction_quality: Optional[float] = None
     final_contraction_depth: Optional[float] = None
     score_contraction: Optional[float] = None
+    # Ascending support / higher-lows footprint
+    support_slope_atr: Optional[float] = None
+    ascending_support_quality: Optional[float] = None
+    score_ascending_support: Optional[float] = None
     # Curation
     quality_label: Optional[str] = None
     notes: Optional[str] = None

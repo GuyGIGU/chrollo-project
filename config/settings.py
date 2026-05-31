@@ -143,6 +143,15 @@ CONTRACTION_FINAL_TIGHT_PCT = 0.03  # final contraction ≤ 3% drawdown → full
 CONTRACTION_FINAL_LOOSE_PCT = 0.12  # final contraction ≥ 12% → zero
 CONTRACTION_QUALITY_TAG = 0.70    # quality ≥ this fires the "VCP Coil" tag chip
 
+# Ascending support / higher lows (Minervini "tennis-ball action", Qullamaggie
+# "higher lows surfing the rising EMA"): are the swing-low valleys stair-stepping
+# UP across the base? Measured by core.structure.consolidation.measure_support_slope
+# (ATR-normalized least-squares slope through the zigzag valley lows). Bonus-only,
+# measure-first — a flat or sagging floor simply earns zero, never penalized.
+SCORE_ASCENDING_SUPPORT = 8          # cap for the ascending-support sub-score
+ASCENDING_SUPPORT_FULL_SLOPE = 0.10  # valley lows rising ≥ 0.10 ATR/bar → full slope credit
+ASCENDING_SUPPORT_TAG = 0.70         # quality ≥ this fires the "Ascending Support" tag chip
+
 # Volume signature at R/S touches — z-score of touch-bar volume vs the base's
 # own volume distribution. Drives the no-supply / spring-strength /
 # heavy-resistance tags. Negative z at R = no supply (textbook); positive z at

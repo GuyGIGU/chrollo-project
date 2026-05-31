@@ -7,6 +7,7 @@ sector) is fetched and attached to each record.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -24,6 +25,28 @@ if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
 log = logging.getLogger("chrollo.archive")
+
+# Persistent ticker -> sector-ETF map. Sector membership is stable, so we cache
+# it to disk and only pay the (slow, hang-prone) yfinance .info lookup for
+# tickers we have never resolved. Lives under output/ (gitignored — regenerable).
+_SECTOR_ETF_CACHE_PATH = os.path.join(_PROJECT_ROOT, "output", "sector_etf_cache.json")
+
+
+def _load_sector_etf_cache() -> dict:
+    try:
+        with open(_SECTOR_ETF_CACHE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_sector_etf_cache(cache: dict) -> None:
+    try:
+        os.makedirs(os.path.dirname(_SECTOR_ETF_CACHE_PATH), exist_ok=True)
+        with open(_SECTOR_ETF_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f)
+    except Exception:
+        pass
 
 
 # Columns added after the initial schema. SQLAlchemy's create_all only
@@ -49,6 +72,10 @@ _NEW_COLUMNS: dict[str, str] = {
     "contraction_quality":      "FLOAT",
     "final_contraction_depth":  "FLOAT",
     "score_contraction":        "FLOAT",
+    # Ascending support / higher-lows footprint
+    "support_slope_atr":            "FLOAT",
+    "ascending_support_quality":    "FLOAT",
+    "score_ascending_support":      "FLOAT",
 }
 
 
@@ -90,27 +117,19 @@ def archive_scan_results(
     from archive_models import SetupArchive, get_market_context, get_sector_etf, get_sector_trend
     from database import make_sqlite_engine
 
-    def _rs_vs_sector(sector: str | None, base_start: str | None, base_end: str | None,
-                      stock_start_close: float, stock_end_close: float) -> float | None:
-        """Stock base-window return minus sector ETF base-window return.
-
-        Positive = stock outperformed its sector during the base. RS leaders
-        are statistically the breakouts that hold.
+    def _rs_from_series(close, base_start, base_end,
+                        stock_start_close: float, stock_end_close: float) -> float | None:
+        """Stock base-window return minus sector ETF base-window return, using a
+        PRE-DOWNLOADED ETF close series sliced to the base window (no per-ticker
+        download). Positive = stock outperformed its sector during the base.
         """
-        if not sector or not base_start or not base_end or stock_start_close <= 0:
+        if close is None or not base_start or not base_end or stock_start_close <= 0:
             return None
         try:
-            data = yf.download(
-                sector, start=base_start, end=base_end, progress=False, timeout=20, auto_adjust=True,
-            )
-            if data is None or data.empty:
+            seg = close.loc[base_start:base_end]
+            if len(seg) < 2:
                 return None
-            close = data["Close"]
-            if hasattr(close, "columns"):
-                close = close.iloc[:, 0]
-            if len(close) < 2:
-                return None
-            sec_ret = (float(close.iloc[-1]) - float(close.iloc[0])) / float(close.iloc[0])
+            sec_ret = (float(seg.iloc[-1]) - float(seg.iloc[0])) / float(seg.iloc[0])
             stock_ret = (stock_end_close - stock_start_close) / stock_start_close
             return round(stock_ret - sec_ret, 5)
         except Exception:
@@ -136,12 +155,65 @@ def archive_scan_results(
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
 
-    # Fetch market context once for the whole scan
+    # Fetch market context once for the whole scan (hard-bounded internally).
     print(f"  Fetching market context for {scan_dt}...", flush=True)
     market_ctx = get_market_context(scan_dt)
 
-    # Cache sector lookups to avoid repeated API calls
-    sector_cache: dict[str, tuple[str | None, str | None]] = {}
+    # ── Sector / RS enrichment: resolve once, batch once ─────────────────
+    # The old code did 3 network round-trips PER TICKER (sector .info, sector
+    # trend, RS-vs-sector download) — ~440 calls for a 150-ticker scan, which is
+    # what made archiving crawl. Instead:
+    #   1. ticker -> sector-ETF is cached to disk (sector membership is stable),
+    #      so .info is only hit for tickers we've never resolved;
+    #   2. each UNIQUE sector ETF is downloaded ONCE over the scan's whole base
+    #      window and reused for every ticker in that sector;
+    #   3. sector trend is computed once per unique ETF.
+    rows = [r for _, r in results_df.iterrows() if r.get("Ticker")]
+
+    print("  Resolving sector ETFs...", flush=True)
+    sector_etf_cache = _load_sector_etf_cache()       # ticker -> "XLK" | "" (persisted)
+    newly_resolved = False
+    for r in rows:
+        tk = str(r.get("Ticker"))
+        if tk not in sector_etf_cache:
+            sector_etf_cache[tk] = get_sector_etf(tk) or ""
+            newly_resolved = True
+    if newly_resolved:
+        _save_sector_etf_cache(sector_etf_cache)
+
+    unique_etfs: set[str] = set()
+    starts: list[str] = []
+    ends: list[str] = []
+    for r in rows:
+        etf = sector_etf_cache.get(str(r.get("Ticker")), "")
+        if etf:
+            unique_etfs.add(etf)
+        if r.get("_base_date_start"):
+            starts.append(r["_base_date_start"])
+        if r.get("_base_date_end"):
+            ends.append(r["_base_date_end"])
+
+    # Batch-download each unique sector ETF ONCE over the global base window.
+    etf_close: dict[str, "pd.Series"] = {}
+    if unique_etfs and starts and ends:
+        g_start, g_end = min(starts), max(ends)
+        print(f"  Fetching {len(unique_etfs)} sector ETF series...", flush=True)
+        for etf in unique_etfs:
+            try:
+                d = yf.download(etf, start=g_start, end=g_end, progress=False,
+                                timeout=20, auto_adjust=True)
+                if d is not None and not d.empty:
+                    c = d["Close"]
+                    if hasattr(c, "columns"):
+                        c = c.iloc[:, 0]
+                    etf_close[etf] = c
+            except Exception:
+                pass
+
+    # Sector trend once per unique ETF (not per ticker).
+    sector_trend_memo: dict[str, str | None] = {
+        etf: get_sector_trend(etf, scan_dt) for etf in unique_etfs
+    }
 
     written = 0
     for _, row in results_df.iterrows():
@@ -149,18 +221,12 @@ def archive_scan_results(
         if not ticker:
             continue
 
-        # Sector ETF + trend (cached per ticker)
-        if ticker not in sector_cache:
-            etf = get_sector_etf(ticker)
-            trend = get_sector_trend(etf, scan_dt) if etf else None
-            sector_cache[ticker] = (etf, trend)
-        sector_etf, sector_trend = sector_cache[ticker]
-
-        # RS vs sector during the base window. Endpoints come from the
-        # screener; we just diff against the sector's performance over the
-        # same dates.
-        rs_vs_sector = _rs_vs_sector(
-            sector_etf,
+        # Sector ETF + trend + RS — all served from the pre-built caches above
+        # (zero per-ticker network calls).
+        sector_etf = sector_etf_cache.get(ticker) or None
+        sector_trend = sector_trend_memo.get(sector_etf) if sector_etf else None
+        rs_vs_sector = _rs_from_series(
+            etf_close.get(sector_etf) if sector_etf else None,
             row.get("_base_date_start"), row.get("_base_date_end"),
             float(row.get("_base_close_start") or 0),
             float(row.get("_base_close_end") or 0),
@@ -220,6 +286,10 @@ def archive_scan_results(
             contraction_quality=row.get("_contraction_quality"),
             final_contraction_depth=row.get("_final_contraction_depth"),
             score_contraction=sub.get("contraction"),
+            # Ascending-support / higher-lows footprint
+            support_slope_atr=row.get("_support_slope_atr"),
+            ascending_support_quality=row.get("_ascending_support_quality"),
+            score_ascending_support=sub.get("ascending_support"),
             # Market context
             spy_trend=market_ctx.get("spy_trend"),
             vix_level=market_ctx.get("vix_level"),

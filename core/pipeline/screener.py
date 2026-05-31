@@ -31,6 +31,7 @@ from core.structure import (
     detect_lps,
     find_consolidation,
     measure_contractions,
+    measure_support_slope,
     measure_touch_volume,
 )
 
@@ -204,11 +205,14 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # VCP progressive-contraction footprint over the base window.
         contraction = measure_contractions(base_df)
 
+        # Ascending-support / higher-lows footprint over the base window.
+        support = measure_support_slope(base_df, atr_for_zone)
+
         score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct, breadth_pct,
-            contraction['quality'],
+            contraction['quality'], support['quality'],
         )
         score = score_result['total']
         tier = calculate_tier(score)
@@ -267,6 +271,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_contraction_quality': float(contraction['quality']),
             '_final_contraction_depth': (float(contraction['final_depth'])
                                          if contraction['final_depth'] is not None else None),
+            # Ascending-support / higher-lows footprint
+            '_support_slope_atr': (float(support['slope_atr'])
+                                   if support['slope_atr'] is not None else None),
+            '_support_higher_low_frac': float(support['higher_low_frac']),
+            '_ascending_support_quality': float(support['quality']),
             # Base-window endpoints for RS-vs-sector computation in the writer
             # (avoids fetching sector ETF data inside per-ticker workers).
             '_base_close_start': float(base_df['Close'].iloc[0]),
