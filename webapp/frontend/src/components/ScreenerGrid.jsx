@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 import ScreenerModal from './ScreenerModal';
-import { TagRow } from './SetupTags';
+import { TagRow, TagLegend, TAG_CATALOG, deriveTags } from './SetupTags';
 import { API_BASE } from '../api';
 
 // Earnings within ~10 days = high blow-up risk on a breakout play. We surface
@@ -225,6 +225,11 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)', fontSize: '11px', color: 'var(--text-muted)'
       }}>
         <span>{data.setup}</span>
+        {data.trigger && data.price && (
+          <span title="Distance from current price to the breakout trigger (room left before entry fires)">
+            ↗ {(((data.trigger - data.price) / data.price) * 100).toFixed(1)}% to trigger
+          </span>
+        )}
         <span>Base: {data.base_len}d</span>
       </div>
       <TagRow
@@ -251,6 +256,9 @@ const ScreenerGrid = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [tierFilter, setTierFilter] = useState('ALL');
+  const [setupFilter, setSetupFilter] = useState('ALL');     // setup-type dropdown
+  const [tagFilter, setTagFilter] = useState(() => new Set()); // active "why-ranked" tag ids
+  const [sortBy, setSortBy] = useState('score');             // score | base | trigger | rs
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 24;
 
@@ -314,9 +322,47 @@ const ScreenerGrid = () => {
     });
   }, []);
 
+  // Which "why-ranked" tags fire for each ticker — computed once per data load
+  // (the same derivation the card chips use) so tag-filtering is O(1) per card.
+  const tagIdsByTicker = useMemo(() => {
+    const map = {};
+    if (!screenerData || !screenerData.chart_data) return map;
+    for (const [ticker, d] of Object.entries(screenerData.chart_data)) {
+      const tags = deriveTags(d.sub_scores, {
+        phaseDInner: d.phase_d_inner,
+        rTouchVolZ: d.r_touch_vol_z,
+        sTouchVolZ: d.s_touch_vol_z,
+      });
+      map[ticker] = new Set(tags.map(t => t.id));
+    }
+    return map;
+  }, [screenerData]);
+
+  // Distinct setup types present in the current scan (for the setup dropdown).
+  const availableSetups = useMemo(() => {
+    if (!screenerData || !screenerData.chart_data) return [];
+    const seen = new Set();
+    for (const d of Object.values(screenerData.chart_data)) {
+      if (d.setup) seen.add(d.setup);
+    }
+    return Array.from(seen).sort();
+  }, [screenerData]);
+
+  // Tags actually present in this scan — only show filter chips that can match.
+  const availableTagIds = useMemo(() => {
+    const seen = new Set();
+    for (const ids of Object.values(tagIdsByTicker)) {
+      ids.forEach(id => seen.add(id));
+    }
+    return seen;
+  }, [tagIdsByTicker]);
+
+  const distToTrigger = (d) =>
+    (d && d.trigger && d.price) ? (d.trigger - d.price) / d.price : Infinity;
+
   const filteredTickers = useMemo(() => {
     if (!screenerData || !screenerData.ordered_tickers) return [];
-    return screenerData.ordered_tickers.filter(ticker => {
+    const matched = screenerData.ordered_tickers.filter(ticker => {
       const d = screenerData.chart_data[ticker];
       if (!d) return false;
       const matchesSearch = ticker.toLowerCase().includes(searchTerm.toLowerCase());
@@ -324,9 +370,38 @@ const ScreenerGrid = () => {
         tierFilter === 'ALL' ? true
         : tierFilter === 'WATCHLIST' ? watchlist.has(ticker)
         : d.tier === tierFilter;
-      return matchesSearch && matchesTier;
+      const matchesSetup = setupFilter === 'ALL' ? true : d.setup === setupFilter;
+      // Tag filter is AND across selected tags (a card must carry all of them).
+      const tIds = tagIdsByTicker[ticker] || new Set();
+      const matchesTags = tagFilter.size === 0
+        || Array.from(tagFilter).every(id => tIds.has(id));
+      return matchesSearch && matchesTier && matchesSetup && matchesTags;
     });
-  }, [screenerData, searchTerm, tierFilter, watchlist]);
+
+    // ordered_tickers arrives score-desc; only re-sort when a non-default key
+    // is chosen so the default path stays a no-op.
+    if (sortBy === 'score') return matched;
+    const cd = screenerData.chart_data;
+    const sorted = [...matched];
+    if (sortBy === 'base') {
+      sorted.sort((a, b) => (cd[b].base_len || 0) - (cd[a].base_len || 0));
+    } else if (sortBy === 'trigger') {
+      sorted.sort((a, b) => distToTrigger(cd[a]) - distToTrigger(cd[b])); // nearest first
+    } else if (sortBy === 'rs') {
+      const rs = (t) => (cd[t].sub_scores && cd[t].sub_scores.rs_bonus) || 0;
+      sorted.sort((a, b) => rs(b) - rs(a));
+    }
+    return sorted;
+  }, [screenerData, searchTerm, tierFilter, setupFilter, tagFilter, sortBy, watchlist, tagIdsByTicker]);
+
+  const toggleTagFilter = useCallback((id) => {
+    setTagFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setCurrentPage(1);
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(filteredTickers.length / itemsPerPage));
   const paginatedTickers = filteredTickers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -399,8 +474,9 @@ const ScreenerGrid = () => {
       setScanPhase('Evaluating tickers…');
       return;
     }
-    // "Downloading batch 2/12 (500 tickers)..."
-    const batchMatch = trimmed.match(/Downloading batch (\d+)\/(\d+)/i);
+    // "  Download batch 2/12 (500 tickers)..." / "  Incremental batch 1/3..."
+    // (data.py prints the label "Download"/"Incremental", not "Downloading")
+    const batchMatch = trimmed.match(/(?:Download|Incremental) batch (\d+)\/(\d+)/i);
     if (batchMatch) {
       const cur = parseInt(batchMatch[1]);
       const tot = parseInt(batchMatch[2]);
@@ -504,6 +580,12 @@ const ScreenerGrid = () => {
     };
   };
 
+  const selectStyle = {
+    padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border-color)',
+    background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '12px',
+    outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
@@ -533,29 +615,97 @@ const ScreenerGrid = () => {
       {screenerData && !isScanning && (
         <div style={{
           padding: '10px 16px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px',
-          display: 'flex', gap: '8px', alignItems: 'center'
+          display: 'flex', flexDirection: 'column', gap: '12px'
         }}>
-          <span style={{fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px'}}>Filter:</span>
-          {['ALL', 'S', 'A', 'B', 'C', 'WATCHLIST'].map(tier => (
-            <button key={tier} onClick={() => {setTierFilter(tier); setCurrentPage(1);}} style={getTierBtnStyle(tier)}>
-              {tier === 'ALL'
-                ? 'All Tiers'
-                : tier === 'WATCHLIST'
-                  ? `★ Watchlist (${watchlist.size})`
-                  : `${tier} Tier`}
-            </button>
-          ))}
-          <input 
-            type="text" 
-            placeholder="Search ticker..." 
-            value={searchTerm}
-            onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-            style={{
-              marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px', border: '1px solid var(--border-color)',
-              background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '12px', width: '180px', outline: 'none',
-              fontFamily: 'inherit'
-            }}
-          />
+          {/* Row 1 — tier filter + search */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px'}}>Filter:</span>
+            {['ALL', 'S', 'A', 'B', 'C', 'WATCHLIST'].map(tier => (
+              <button key={tier} onClick={() => {setTierFilter(tier); setCurrentPage(1);}} style={getTierBtnStyle(tier)}>
+                {tier === 'ALL'
+                  ? 'All Tiers'
+                  : tier === 'WATCHLIST'
+                    ? `★ Watchlist (${watchlist.size})`
+                    : `${tier} Tier`}
+              </button>
+            ))}
+            <input
+              type="text"
+              placeholder="Search ticker..."
+              value={searchTerm}
+              onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+              style={{
+                marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '12px', width: '180px', outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+
+          {/* Row 2 — setup-type + sort dropdowns */}
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+              Setup:
+              <select
+                value={setupFilter}
+                onChange={(e) => { setSetupFilter(e.target.value); setCurrentPage(1); }}
+                style={selectStyle}
+              >
+                <option value="ALL">All setups</option>
+                {availableSetups.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+              Sort by:
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+                style={selectStyle}
+              >
+                <option value="score">Score (high → low)</option>
+                <option value="base">Base age (old → new)</option>
+                <option value="trigger">Nearest to trigger</option>
+                <option value="rs">Relative strength</option>
+              </select>
+            </label>
+            {(setupFilter !== 'ALL' || tagFilter.size > 0 || sortBy !== 'score') && (
+              <button
+                onClick={() => { setSetupFilter('ALL'); setTagFilter(new Set()); setSortBy('score'); setCurrentPage(1); }}
+                style={{
+                  fontSize: '11px', color: 'var(--text-muted)', background: 'transparent',
+                  border: '1px solid var(--border-color)', borderRadius: '12px',
+                  padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >Reset</button>
+            )}
+          </div>
+
+          {/* Row 3 — tag filter chips (only tags present in this scan) */}
+          {availableTagIds.size > 0 && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500, marginRight: '2px' }}>Tags:</span>
+              {TAG_CATALOG.filter(t => availableTagIds.has(t.id)).map(t => {
+                const active = tagFilter.has(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleTagFilter(t.id)}
+                    title={active ? 'Click to remove this tag filter' : 'Show only setups carrying this tag'}
+                    style={{
+                      fontSize: '10px', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                      padding: '3px 9px', borderRadius: '12px', cursor: 'pointer',
+                      border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+                      background: active ? 'var(--accent-blue)' : 'transparent',
+                      color: active ? '#fff' : 'var(--text-main)',
+                    }}
+                  >{t.label}</button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Row 4 — color legend */}
+          <TagLegend style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }} />
         </div>
       )}
 

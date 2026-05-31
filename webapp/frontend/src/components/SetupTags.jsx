@@ -55,6 +55,15 @@ const GROUP_TONES = {
 // trend context, and finally any risk flag.
 const GROUP_ORDER = { consolidation: 0, lps: 1, volume: 2, trend: 3, warning: 4 };
 
+// Human-readable group names for the on-screen legend / color key.
+const GROUP_LABELS = {
+  consolidation: 'Structure',
+  lps:           'LPS / launch pad',
+  volume:        'Volume',
+  trend:         'Trend',
+  warning:       'Warning',
+};
+
 // Per-tag thresholds tuned against the live distribution. The goal is for
 // a tag to fire on roughly the top quintile (15-25%) of setups for that
 // dimension — so a tag actually *means* something on a card, instead of
@@ -220,6 +229,42 @@ const chipBase = {
   fontFamily: "'JetBrains Mono', monospace",
   whiteSpace: 'nowrap',
 };
+
+// Flat catalogue of every tag (id, label, group) in display order — used to
+// build the "filter by tag" chip row on the grid. Mirrors TAG_DEFS but exposes
+// only what the filter UI needs.
+export const TAG_CATALOG = [...TAG_DEFS]
+  .sort((a, b) => (GROUP_ORDER[a.group] - GROUP_ORDER[b.group]) || (b.weight - a.weight))
+  .map(({ id, label, group }) => ({ id, label, group }));
+
+// Small always-visible color key so the chip colors are self-explanatory:
+// one swatch per group, in display order. Renders inline (flex-wrap).
+export function TagLegend({ style }) {
+  const groups = Object.keys(GROUP_LABELS).sort(
+    (a, b) => GROUP_ORDER[a] - GROUP_ORDER[b]
+  );
+  return (
+    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', ...style }}>
+      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+        Tag colors:
+      </span>
+      {groups.map(g => {
+        const tone = GROUP_TONES[g];
+        return (
+          <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{
+              width: '10px', height: '10px', borderRadius: '3px',
+              background: tone.bg, border: `1px solid ${tone.fg}`,
+            }} />
+            <span style={{ fontSize: '11px', color: tone.fg, fontWeight: 600 }}>
+              {GROUP_LABELS[g]}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 // Renders a horizontal row of tag chips. Auto-wraps if the card is narrow.
 export function TagRow({ subScores, flags, style }) {

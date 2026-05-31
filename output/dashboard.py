@@ -96,6 +96,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'tier': row['Tier'],
                 'score': row['Score'],
                 'setup': row['Setup'],
+                # Price vs. breakout trigger — lets the frontend show / sort by
+                # "% to trigger" (how much room is left before the entry fires).
+                'price': round(float(row['Current Price']), 2),
+                'trigger': round(float(row['_trigger_price']), 2),
                 'sub_scores': sub_payload,
                 'phase_d_inner': bool(row.get('_phase_d_inner', False)),
                 # Volume-around-touches signature → drives no_supply /
