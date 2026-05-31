@@ -56,6 +56,7 @@ STRUCTURAL_FEATURES = [
     "bars_since_bc", "descent_length",
     "contraction_count", "contraction_quality", "final_contraction_depth",
     "support_slope_atr", "ascending_support_quality",
+    "adr_pct",
 ]
 
 # Sub-scores (the Scoring Engine decomposition).
@@ -65,6 +66,7 @@ SUB_SCORES = [
     "score_base_age", "score_uptrend_bonus", "score_rs_bonus",
     "score_high_proximity", "score_breadth_bonus", "score_contraction",
     "score_ascending_support",
+    "score_adr",
 ]
 
 # Outcome targets (filled by update_forward_returns).

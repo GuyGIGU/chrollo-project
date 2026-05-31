@@ -76,6 +76,9 @@ _NEW_COLUMNS: dict[str, str] = {
     "support_slope_atr":            "FLOAT",
     "ascending_support_quality":    "FLOAT",
     "score_ascending_support":      "FLOAT",
+    # ADR% absolute-volatility character
+    "adr_pct":                      "FLOAT",
+    "score_adr":                    "FLOAT",
 }
 
 
@@ -290,6 +293,9 @@ def archive_scan_results(
             support_slope_atr=row.get("_support_slope_atr"),
             ascending_support_quality=row.get("_ascending_support_quality"),
             score_ascending_support=sub.get("ascending_support"),
+            # ADR% absolute-volatility character
+            adr_pct=row.get("_adr_pct"),
+            score_adr=sub.get("adr"),
             # Market context
             spy_trend=market_ctx.get("spy_trend"),
             vix_level=market_ctx.get("vix_level"),

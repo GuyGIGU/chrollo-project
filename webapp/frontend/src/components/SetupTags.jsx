@@ -23,6 +23,7 @@ const SUB_SCORE_CAPS = {
   breadth_bonus:    8,
   contraction:     12,
   ascending_support: 8,
+  adr:              8,
 };
 
 // Volume-around-touches z-score thresholds (mirror config/settings.py:
@@ -186,6 +187,14 @@ const TAG_DEFS = [
     weight: 60,
     fires: (s) => FIRE(s, 'uptrend_bonus', 0.95),
   },
+  {
+    id: 'high_adr',
+    label: '⚡ High ADR',
+    group: 'trend',
+    title: "High Average Daily Range — a volatile mover (Qullamaggie ADR% ≥ ~5%). A big-range stock resting in a tight base is prime momentum-continuation fuel.",
+    weight: 62,
+    fires: (s) => FIRE(s, 'adr', 0.80),
+  },
   // ── Warning (red) ─────────────────────────────────────────────
   {
     // WARNING: distribution-flavored resistance. R-touches printing on
@@ -209,7 +218,7 @@ const TAG_DEFS = [
 // `subScores` shape: { box_tightness, touch_density, oscillation, atr_squeeze,
 //                      lps_tightness, vol_contraction, base_age, uptrend_bonus,
 //                      rs_bonus, high_proximity, breadth_bonus, contraction,
-//                      ascending_support }
+//                      ascending_support, adr }
 // `flags` shape:     { phaseDInner: bool, rTouchVolZ: number|null, sTouchVolZ: number|null }
 export function deriveTags(subScores, flags = {}) {
   if (!subScores) return [];

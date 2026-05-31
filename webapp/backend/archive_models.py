@@ -108,6 +108,10 @@ class SetupArchive(Base):
     ascending_support_quality = Column(Float, nullable=True) # [0,1] composite: slope ramp + higher-low consistency
     score_ascending_support = Column(Float, nullable=True)   # ascending-support sub-score (raw points)
 
+    # ── ADR% absolute-volatility character ──────────────────────
+    adr_pct = Column(Float, nullable=True)                    # Average Daily Range % over 20 bars (plain percent)
+    score_adr = Column(Float, nullable=True)                  # ADR sub-score (raw points)
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)

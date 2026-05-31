@@ -111,6 +111,9 @@ class SetupOut(BaseModel):
     support_slope_atr: Optional[float] = None
     ascending_support_quality: Optional[float] = None
     score_ascending_support: Optional[float] = None
+    # ADR% absolute-volatility character
+    adr_pct: Optional[float] = None
+    score_adr: Optional[float] = None
     # Curation
     quality_label: Optional[str] = None
     notes: Optional[str] = None
@@ -897,6 +900,22 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         score_vol_contraction=sub.get("vol_contraction"),
         score_base_age=sub.get("base_age"),
         score_uptrend_bonus=sub.get("uptrend_bonus"),
+        score_rs_bonus=sub.get("rs_bonus"),
+        score_high_proximity=sub.get("high_proximity"),
+        score_breadth_bonus=sub.get("breadth_bonus"),
+        score_contraction=sub.get("contraction"),
+        score_ascending_support=sub.get("ascending_support"),
+        adr_pct=result.get("adr_pct"),
+        score_adr=sub.get("adr"),
+        r_touch_vol_z=result.get("r_touch_vol_z"),
+        s_touch_vol_z=result.get("s_touch_vol_z"),
+        lps_descent_frac=result.get("lps_descent_frac"),
+        lps_zone_type=result.get("lps_zone_type"),
+        contraction_count=result.get("contraction_count"),
+        contraction_quality=result.get("contraction_quality"),
+        final_contraction_depth=result.get("final_contraction_depth"),
+        support_slope_atr=result.get("support_slope_atr"),
+        ascending_support_quality=result.get("ascending_support_quality"),
         spy_trend=market_ctx.get("spy_trend"),
         vix_level=market_ctx.get("vix_level"),
         sector_etf=sector_etf,

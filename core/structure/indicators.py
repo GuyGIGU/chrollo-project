@@ -49,6 +49,36 @@ def calculate_atr(df, period=14):
     return pd.Series(atr, index=df.index)
 
 
+def adr_pct(df, window: int = 20) -> float:
+    """Average Daily Range % over the last ``window`` bars.
+
+    Qullamaggie ADR%: 100 * (SMA(High / Low) - 1). Returns a plain percent
+    such as 6.2 for 6.2%. Degenerate, insufficient, or non-finite input returns
+    0.0 so dashboard/archive JSON never receives NaN/Inf from this metric.
+    """
+    try:
+        if df is None or len(df) < window:
+            return 0.0
+        high = df["High"].tail(window).to_numpy(dtype=float)
+        low = df["Low"].tail(window).to_numpy(dtype=float)
+        if len(high) < window or len(low) < window:
+            return 0.0
+        if (not np.isfinite(high).all()) or (not np.isfinite(low).all()):
+            return 0.0
+        if (low <= 0).any():
+            return 0.0
+
+        ratios = high / low
+        if (not np.isfinite(ratios).all()) or (ratios < 1.0).any():
+            return 0.0
+        value = (float(np.mean(ratios)) - 1.0) * 100.0
+        if not np.isfinite(value) or value <= 0.0:
+            return 0.0
+        return float(value)
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return 0.0
+
+
 def calculate_adx(df, period=14):
     """Average Directional Index using Wilder's smoothing."""
     high = df['High'].values
@@ -73,4 +103,3 @@ def calculate_adx(df, period=14):
     adx = _fast_ewm(dx, period)
 
     return pd.Series(adx, index=df.index)
-

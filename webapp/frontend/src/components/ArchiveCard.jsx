@@ -17,6 +17,7 @@ const subScoresFromSetup = (s) => ({
   breadth_bonus:   s.score_breadth_bonus,
   contraction:     s.score_contraction,
   ascending_support: s.score_ascending_support,
+  adr:             s.score_adr,
 });
 
 const tierColor = (t) => ({ S: '#ff8c00', A: '#bb86fc', B: '#58a6ff', C: '#3fb950', D: '#8b949e' }[t] || '#8b949e');
@@ -151,7 +152,7 @@ const ArchiveCard = React.memo(({ setup, chartData, onClick, onLabelChange }) =>
       if (chart) { try { chart.remove(); } catch { /* safe */ } }
       if (container) container.innerHTML = '';
     };
-  }, [setup.id, chartData]);
+  }, [setup.id, setup.ticker, chartData]);
 
   const fwd = setup.fwd_return_20d;
   const fwdColor = fwd > 0 ? 'var(--success)' : fwd < 0 ? 'var(--danger)' : 'var(--text-muted)';

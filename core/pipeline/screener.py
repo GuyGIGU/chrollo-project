@@ -27,6 +27,7 @@ from config import settings
 from core.pipeline.data import fetch_data, get_market_context, get_tickers
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
+    adr_pct,
     calculate_atr,
     detect_lps,
     find_consolidation,
@@ -208,11 +209,18 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # Ascending-support / higher-lows footprint over the base window.
         support = measure_support_slope(base_df, atr_for_zone)
 
+        # ADR% absolute-volatility character over the latest full 20-bar tape.
+        adr_value = adr_pct(df, settings.ADR_WINDOW)
+        adr_quality = (
+            min(adr_value / settings.ADR_FULL_PCT, 1.0)
+            if settings.ADR_FULL_PCT else 0.0
+        )
+
         score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct, breadth_pct,
-            contraction['quality'], support['quality'],
+            contraction['quality'], support['quality'], adr_quality,
         )
         score = score_result['total']
         tier = calculate_tier(score)
@@ -276,6 +284,9 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                                    if support['slope_atr'] is not None else None),
             '_support_higher_low_frac': float(support['higher_low_frac']),
             '_ascending_support_quality': float(support['quality']),
+            # ADR% absolute-volatility character
+            '_adr_pct': float(adr_value),
+            '_adr_quality': float(adr_quality),
             # Base-window endpoints for RS-vs-sector computation in the writer
             # (avoids fetching sector ETF data inside per-ticker workers).
             '_base_close_start': float(base_df['Close'].iloc[0]),

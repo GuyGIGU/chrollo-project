@@ -35,6 +35,7 @@ from core.archive.forward_returns import _compute_returns
 from core.pipeline.screener import apply_baseline_filters
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
+    adr_pct,
     calculate_atr,
     detect_lps,
     find_outer_box,
@@ -207,13 +208,18 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
 
         contraction = measure_contractions(base_df)
         support = measure_support_slope(base_df, atr_for_zone)
+        adr_value = adr_pct(df, settings.ADR_WINDOW)
+        adr_quality = (
+            min(adr_value / settings.ADR_FULL_PCT, 1.0)
+            if settings.ADR_FULL_PCT else 0.0
+        )
 
         score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct,
             None,  # breadth_pct unknown for historical seed dates
-            contraction['quality'], support['quality'],
+            contraction['quality'], support['quality'], adr_quality,
         )
         score = score_result["total"]
         tier = calculate_tier(score)
@@ -273,6 +279,8 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             "support_slope_atr": (float(support["slope_atr"])
                                   if support["slope_atr"] is not None else None),
             "ascending_support_quality": float(support["quality"]),
+            "adr_pct": float(adr_value),
+            "adr_quality": float(adr_quality),
         }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
@@ -496,6 +504,9 @@ def seed_archive(
             support_slope_atr=best_result.get("support_slope_atr"),
             ascending_support_quality=best_result.get("ascending_support_quality"),
             score_ascending_support=sub.get("ascending_support"),
+            # ADR% absolute-volatility character
+            adr_pct=best_result.get("adr_pct"),
+            score_adr=sub.get("adr"),
             # Forward returns
             **fwd_returns,
             # Market context

@@ -79,7 +79,7 @@ def _extract_chart_data(data, results_df, tickers):
                     'atr_squeeze', 'lps_tightness', 'vol_contraction',
                     'base_age', 'uptrend_bonus', 'rs_bonus',
                     'high_proximity', 'breadth_bonus', 'contraction',
-                    'ascending_support',
+                    'ascending_support', 'adr',
                 )
             }
 
@@ -117,6 +117,7 @@ def _extract_chart_data(data, results_df, tickers):
                 'support_slope_atr': row.get('_support_slope_atr'),
                 'ascending_support_quality': row.get('_ascending_support_quality'),
                 'higher_low_frac': row.get('_support_higher_low_frac'),
+                'adr_pct': row.get('_adr_pct'),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")

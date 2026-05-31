@@ -152,6 +152,13 @@ SCORE_ASCENDING_SUPPORT = 8          # cap for the ascending-support sub-score
 ASCENDING_SUPPORT_FULL_SLOPE = 0.10  # valley lows rising ≥ 0.10 ATR/bar → full slope credit
 ASCENDING_SUPPORT_TAG = 0.70         # quality ≥ this fires the "Ascending Support" tag chip
 
+# ADR% absolute volatility (Qullamaggie "mover" character): does the stock
+# travel enough each day to be worth trading? Bonus-only, measure-first.
+ADR_WINDOW = 20        # bars used for the Average Daily Range %
+SCORE_ADR = 8          # cap for the ADR sub-score
+ADR_FULL_PCT = 5.0     # ADR% >= 5.0 earns full credit (~5% mover threshold)
+ADR_TAG = 0.80         # sub-score >= this*cap fires the "High ADR" tag chip
+
 # Volume signature at R/S touches — z-score of touch-bar volume vs the base's
 # own volume distribution. Drives the no-supply / spring-strength /
 # heavy-resistance tags. Negative z at R = no supply (textbook); positive z at

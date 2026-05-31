@@ -36,7 +36,7 @@ draw the consolidation accurately and measure its tightness faithfully.**
 |------|-------------------------------|
 | `consolidation.py` | Finds the trading range (the "box"): where the ceiling (R) and floor (S) are, how many times price touched them, how tight it is. Also `measure_contractions` (the VCP coil footprint) and `measure_touch_volume` (was volume heavy or light at the edges?). |
 | `lps.py` | Finds the **Last Point of Support** — the quiet, tight pullback that marks the launch pad. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
-| `indicators.py` | The math helpers — ATR (volatility) and ADX (trend strength). |
+| `indicators.py` | The math helpers — ATR (volatility), ADX (trend strength), and ADR% (absolute daily range). |
 
 **Want to change how the box or LPS is *detected*?** This folder.
 
@@ -47,7 +47,7 @@ them into a number and a letter grade (S / A / B / C / D).
 
 | File | What it does |
 |------|--------------|
-| `scoring.py` | `score_setup` adds up 12 ingredients (box tightness, touches, volume dry-up, contraction footprint, 52-week-high proximity, market breadth, ...) into a total. `calculate_tier` maps that total to a letter. |
+| `scoring.py` | `score_setup` adds up 14 ingredients (box tightness, touches, volume dry-up, contraction footprint, ADR%, 52-week-high proximity, market breadth, ...) into a total. `calculate_tier` maps that total to a letter. |
 
 **Want to change how much a factor is *worth*?** Edit the numbers in `config/settings.py`
 (the `SCORE_*` and `TIER_*` constants) — never the measurement code.

@@ -14,6 +14,7 @@ Public API:
     measure_support_slope-> the ascending-support / higher-lows footprint
     measure_touch_volume -> volume z-scores at the R/S touch bars
     detect_lps           -> the Last-Point-of-Support / spring finder
+    adr_pct              -> Qullamaggie Average Daily Range %
     calculate_atr / calculate_adx -> volatility & trend-strength math
 """
 from core.structure.consolidation import (
@@ -23,7 +24,7 @@ from core.structure.consolidation import (
     measure_support_slope,
     measure_touch_volume,
 )
-from core.structure.indicators import calculate_adx, calculate_atr
+from core.structure.indicators import adr_pct, calculate_adx, calculate_atr
 from core.structure.lps import detect_lps
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "measure_support_slope",
     "measure_touch_volume",
     "detect_lps",
+    "adr_pct",
     "calculate_atr",
     "calculate_adx",
 ]

@@ -182,7 +182,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **13 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **194**.
+`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **14 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **202**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -199,6 +199,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 | **Market-breadth bonus** | Linear ramp on % of universe with `Close > SMA_50`. Zero below 35%, full at 60%+. Same value for every setup in a run (it's a market-wide scalar), but a strong-tape setup is structurally a better trade than the same chart in a defensive regime where most stocks are under their SMA_50. | `SCORE_BREADTH_BONUS = 8`, `BREADTH_FULL_PCT = 0.60`, `BREADTH_ZERO_PCT = 0.35` |
 | **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
 | **Ascending support** | `support_quality × 8`, where quality ∈ [0,1] from `measure_support_slope()` (see below) = `0.6·slope_score + 0.4·higher_low_frac`. Rewards a base whose swing lows stair-step *up* (rising support / tennis-ball action). Bonus-only — a flat or sagging floor earns 0, never penalized. | `SCORE_ASCENDING_SUPPORT = 8`, `ASCENDING_SUPPORT_FULL_SLOPE = 0.10` |
+| **ADR% absolute volatility** | `adr_quality × 8`, where `adr_quality = min(ADR% / 5.0, 1.0)`. Rewards Qullamaggie-style volatile movers: stocks that travel enough each day to be worth trading. Bonus-only — low-ADR names earn 0, never a penalty. | `SCORE_ADR = 8`, `ADR_WINDOW = 20`, `ADR_FULL_PCT = 5.0` |
 
 **Tier mapping** — `_calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
@@ -238,6 +239,20 @@ It reuses the same Phase B zigzag as the contraction metric, but reads the **val
 - **higher_low_frac** — fraction of consecutive valley pairs that actually step up (consistency of the higher-lows).
 
 Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. Fires the 📈 **Ascending Support** tag chip when `quality ≥ ASCENDING_SUPPORT_TAG` (0.70). **Bonus-only / measure-first** — a flat or descending floor earns 0 points and is never penalized.
+
+---
+
+## ADR% Absolute Volatility
+
+`adr_pct()` ([core/structure/indicators.py](../core/structure/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
+
+```
+ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
+```
+
+This captures the stock's **absolute volatility character**: a high-ADR stock resting in a tight base is a stronger momentum-continuation candidate than a low-range stock with the same visual structure. The metric is guarded at source: insufficient history, zero lows, NaN/Inf, or malformed ranges return `0.0`, so the dashboard payload never receives non-finite values from ADR.
+
+Scoring uses `adr_quality = min(ADR% / ADR_FULL_PCT, 1.0)`, with full credit at `ADR_FULL_PCT = 5.0`. Persisted as `adr_pct` and the `score_adr` sub-score. Fires the ⚡ **High ADR** tag chip when `score_adr ≥ ADR_TAG × SCORE_ADR` (`0.80 × 8 = 6.4`). **Bonus-only / measure-first** — quiet names earn 0 points and are never filtered or penalized.
 
 ---
 
@@ -364,6 +379,8 @@ SCORE_52W_HIGH_PROXIMITY = 8; HIGH_PROXIMITY_FULL_PCT = -0.05; HIGH_PROXIMITY_ZE
 SCORE_BREADTH_BONUS = 8; BREADTH_FULL_PCT = 0.60; BREADTH_ZERO_PCT = 0.35
 SCORE_CONTRACTION = 12; CONTRACTION_IDEAL_MIN = 2; CONTRACTION_IDEAL_MAX = 6
 CONTRACTION_FINAL_TIGHT_PCT = 0.03; CONTRACTION_FINAL_LOOSE_PCT = 0.12; CONTRACTION_QUALITY_TAG = 0.70
+SCORE_ASCENDING_SUPPORT = 8; ASCENDING_SUPPORT_FULL_SLOPE = 0.10; ASCENDING_SUPPORT_TAG = 0.70
+ADR_WINDOW = 20; SCORE_ADR = 8; ADR_FULL_PCT = 5.0; ADR_TAG = 0.80
 
 # Data & cache (incremental fetch)
 CACHE_FILENAME = "market_data_cache_2y.parquet"

@@ -71,6 +71,9 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN support_slope_atr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN ascending_support_quality FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_ascending_support FLOAT",
+    # ADR% absolute-volatility character
+    "ALTER TABLE setup_archive ADD COLUMN adr_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
 ]
 _mig_log = logging.getLogger("chrollo.migrate")
 with engine.connect() as _conn:
