@@ -6,8 +6,8 @@ auto-scanner output that historically piled up. The archive is meant to
 be a hand-picked regression suite, not a scan log.
 
 Usage:
-    python -m core.purge_uncurated            # dry run, prints what would go
-    python -m core.purge_uncurated --apply    # actually delete
+    python -m core.archive.purge            # dry run, prints what would go
+    python -m core.archive.purge --apply    # actually delete
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import argparse
 import os
 import sys
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 

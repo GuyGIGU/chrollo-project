@@ -87,6 +87,22 @@ class SetupArchive(Base):
     descent_length = Column(Integer, nullable=True)   # Bars from BC to AR low (or SC to bounce high)
     phase_d_inner = Column(Integer, nullable=True)    # 1 if the hierarchical detector picked an inner sub-box (Phase D launchpad), else 0
 
+    # ── Volume-around-touches signature (Wyckoff no-supply / spring test) ──
+    r_touch_vol_z = Column(Float, nullable=True)      # z-score of avg volume at R-touches vs base volume distribution. Negative = no supply, positive = distribution warning.
+    s_touch_vol_z = Column(Float, nullable=True)      # z-score of avg volume at S-touches. Positive = spring strength (heavy hands defending), negative = weak support.
+
+    # ── LPS shape & zone detail ──────────────────────────────────
+    lps_descent_frac = Column(Float, nullable=True)   # Pair-wise descent fraction across LPS lows (0=rally, 0.5=sideways, 1=clean descent)
+    lps_zone_type = Column(String, nullable=True)     # INSIDE / OVERSHOOT_R / UNDERCUT_S — splits LPS quality by structural role
+    score_high_proximity = Column(Float, nullable=True)  # 52w-high proximity sub-score (raw points)
+    score_breadth_bonus = Column(Float, nullable=True)   # Market-breadth bonus sub-score (raw points)
+
+    # ── VCP progressive-contraction footprint ────────────────────
+    contraction_count = Column(Integer, nullable=True)       # number of peak->valley contractions in the base
+    contraction_quality = Column(Float, nullable=True)       # [0,1] composite: count + progressive tightening + final tightness
+    final_contraction_depth = Column(Float, nullable=True)   # depth of the last (rightmost) contraction, fractional
+    score_contraction = Column(Float, nullable=True)         # contraction-quality sub-score (raw points)
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)

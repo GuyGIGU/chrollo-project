@@ -15,7 +15,7 @@ from datetime import date
 import pandas as pd
 
 # Ensure project root is on path for imports
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -31,12 +31,24 @@ log = logging.getLogger("chrollo.archive")
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 _NEW_COLUMNS: dict[str, str] = {
-    "score_rs_bonus":    "FLOAT",
-    "excess_return_6m":  "FLOAT",
-    "breadth_pct":       "FLOAT",
-    "bars_since_bc":     "INTEGER",
-    "descent_length":    "INTEGER",
-    "phase_d_inner":     "INTEGER",
+    "score_rs_bonus":       "FLOAT",
+    "excess_return_6m":     "FLOAT",
+    "breadth_pct":          "FLOAT",
+    "bars_since_bc":        "INTEGER",
+    "descent_length":       "INTEGER",
+    "phase_d_inner":        "INTEGER",
+    # Phase-1 (volume signature + LPS shape/zone + new bonuses)
+    "r_touch_vol_z":        "FLOAT",
+    "s_touch_vol_z":        "FLOAT",
+    "lps_descent_frac":     "FLOAT",
+    "lps_zone_type":        "TEXT",
+    "score_high_proximity": "FLOAT",
+    "score_breadth_bonus":  "FLOAT",
+    # VCP progressive-contraction footprint
+    "contraction_count":        "INTEGER",
+    "contraction_quality":      "FLOAT",
+    "final_contraction_depth":  "FLOAT",
+    "score_contraction":        "FLOAT",
 }
 
 
@@ -62,7 +74,7 @@ def archive_scan_results(
     """Persist every row in results_df to the setup_archive table.
 
     Disabled by default: the archive is a curated regression suite for
-    seed/manual setups (see core/seed_archive.py and /archive/add-setup),
+    seed/manual setups (see core/archive/seed.py and /archive/add-setup),
     not a log of every daily scan. Pass enable=True to opt back in.
     """
     if not enable:
@@ -196,6 +208,18 @@ def archive_scan_results(
             score_base_age=sub.get("base_age"),
             score_uptrend_bonus=sub.get("uptrend_bonus"),
             score_rs_bonus=sub.get("rs_bonus"),
+            score_high_proximity=sub.get("high_proximity"),
+            score_breadth_bonus=sub.get("breadth_bonus"),
+            # Volume-around-touches signature + LPS shape/zone detail
+            r_touch_vol_z=row.get("_r_touch_vol_z"),
+            s_touch_vol_z=row.get("_s_touch_vol_z"),
+            lps_descent_frac=row.get("_lps_descent_frac"),
+            lps_zone_type=row.get("_lps_zone_type"),
+            # VCP contraction footprint
+            contraction_count=row.get("_contraction_count"),
+            contraction_quality=row.get("_contraction_quality"),
+            final_contraction_depth=row.get("_final_contraction_depth"),
+            score_contraction=sub.get("contraction"),
             # Market context
             spy_trend=market_ctx.get("spy_trend"),
             vix_level=market_ctx.get("vix_level"),

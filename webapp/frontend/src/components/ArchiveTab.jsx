@@ -417,6 +417,10 @@ const ArchiveTab = () => {
   const [equityCurve, setEquityCurve] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  // Result banner for the "Update Forward Returns" button. Without this the
+  // button silently flashed a loading state and gave the user no signal of
+  // what (if anything) happened — even when the subprocess succeeded.
+  const [updateMsg, setUpdateMsg] = useState(null);  // { ok: bool, text: str }
 
   // Add Setup Modal State
   const [addOpen, setAddOpen] = useState(false);
@@ -475,17 +479,37 @@ const ArchiveTab = () => {
 
   const handleUpdateReturns = async () => {
     setUpdating(true);
+    setUpdateMsg(null);
     try {
       const res = await fetch(`${API_BASE}/archive/update-returns`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Forward returns updated:', data);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.returncode === 0) {
+        // Python logging writes to stderr by default, so even on success the
+        // meaningful "Updated N for X setups" / "No setups need updates"
+        // line lands in stderr — not stdout. Look at both streams and pick
+        // the last line that mentions update/setup outcomes.
+        const combined = `${data.stdout || ''}\n${data.stderr || ''}`.trim();
+        const lines = combined.split('\n').filter(Boolean);
+        const summary = lines.reverse().find(l =>
+          /updated|no setups|setups need/i.test(l)
+        ) || lines[0] || 'Done.';
+        // Strip the timestamp/log-level prefix if present (e.g. "2026-... INFO ").
+        const clean = summary.replace(/^\S+\s+\S+\s+\S+\s+/, '').trim();
+        setUpdateMsg({ ok: true, text: clean });
         await fetchAll();
+      } else {
+        // Surface stderr if the script failed; otherwise show the HTTP status.
+        const errText = (data.stderr || data.detail || `HTTP ${res.status}`).trim();
+        setUpdateMsg({ ok: false, text: errText.slice(-300) || 'Update failed.' });
+        console.error('Forward returns update failed:', data);
       }
     } catch (err) {
+      setUpdateMsg({ ok: false, text: `Network error: ${err.message || err}` });
       console.error('Failed to update returns:', err);
     }
     setUpdating(false);
+    // Auto-dismiss the banner after 8s so it doesn't linger.
+    setTimeout(() => setUpdateMsg(null), 8000);
   };
 
   const handleAddSetup = async () => {
@@ -672,6 +696,25 @@ const ArchiveTab = () => {
           </button>
         </div>
       </div>
+
+      {updateMsg && (
+        <div
+          style={{
+            margin: '8px 0 12px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            background: updateMsg.ok ? 'rgba(63,185,80,0.10)' : 'rgba(248,81,73,0.10)',
+            border: `1px solid ${updateMsg.ok ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)'}`,
+            color: updateMsg.ok ? '#3fb950' : '#f85149',
+            fontSize: '12px',
+            fontFamily: 'inherit',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {updateMsg.ok ? '✓ ' : '⚠ '}{updateMsg.text}
+        </div>
+      )}
 
       {addOpen && (
         <div

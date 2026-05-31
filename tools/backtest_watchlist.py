@@ -1,15 +1,42 @@
 #!/usr/bin/env python3
-"""DEAD END — v5 watchlist harness (preserved for negative-result evidence).
+"""Backtest the live screener against a list of (ticker, added_date) pairs.
 
-This was the harness that proved the recent-first-anchor hypothesis didn't
-help. v5 = v4 (hierarchical inner-box probe) + recent-first OUTER anchor
-preference. Result: identical 31/44 = 70.5% hit rate as v4. Same 13 misses.
+For each entry, evaluates the screener on bars in a [-7, +3] day window
+around the added date and reports whether a signal would have fired on any
+bar in that window, plus the rejection reason for misses.
 
-See consolidation_v5.py in this same folder for the full negative-result
-write-up and per-ticker analysis.
+Status — banked at 28/44 hits (63.6%) against the seed watchlist (post-shape-gate).
 
-To re-run (from project root):
-    python -m experiments.dead_ends.v5_recent_first_anchor.backtest_watchlist_v5
+Two LPS-scaling adaptations live in this harness (NOT in the live screener)
+to make Phase D launchpad LPSes detectable:
+
+  1. Zone tolerance floor (gated on bw < 0.10):
+         zone_tol = max(LPS_ZONE_ATR_MULT * atr, 0.5 * box_height)
+     For tight inner boxes the LPS often forms as a breakout-retest just
+     above R (or a sellers-failing test just below S). Half-ATR alone is
+     too narrow when box_height is small. The bw < 0.10 gate prevents
+     over-loosening on wide outer boxes (where half-box-height becomes
+     several ATRs of slack). See detect_lps diagnose mode.
+
+  2. Base range threshold floor:
+         base_range_threshold = max(spread_quantile, 1.2 * atr)
+     Tight inner boxes have a tiny 50%ile spread; an ATR-typical bar in
+     the LPS window kills detection without this floor. Self-gates on
+     wide-bar bases (the percentile rule still binds). See _evaluate_with_reason.
+
+Remaining 13 misses categorize as:
+  - Anchor mis-detection (NBR, GXO, VLO, SHEL): outer-box detector picks
+    the wrong window. Not solvable by LPS tuning alone (the v5 recent-first
+    anchor experiment was tested and falsified — see experiments/dead_ends/).
+  - Marginal drop_pct edges (TRS at 1.3%, SNDX at 10.6%): structurally
+    real bounds — loosening them sacrifices selectivity for two tickers.
+  - Spread-decline strict (ST, RRBI): pre-breakout bars not contracting;
+    relaxing contradicts the LPS definition.
+  - Acceptable misses per project memory (KEYS, BRZU, NE): young-base /
+    fast-breakout patterns the screener intentionally does not catch.
+
+Run:
+    python -m tools.backtest_watchlist
 """
 from __future__ import annotations
 
@@ -22,24 +49,18 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from config import settings
-from experiments.dead_ends.v5_recent_first_anchor.consolidation_v5 import (
-    find_consolidation_v5_hier as find_consolidation_v3,
-)
-from core.indicators import calculate_adx, calculate_atr
-from core.screener_v2 import (
-    _calculate_tier,
-    _detect_lps,
-    _score_setup,
-)
+from core.scoring import calculate_tier, score_setup
+from core.structure import calculate_adx, calculate_atr, detect_lps, find_consolidation
 
-WINDOW_DAYS_BACK = 7
+WINDOW_DAYS_BACK = 7    # Look further back to catch pre-breakout state
 WINDOW_DAYS_FWD = 3
 
+# (ticker, added_date) — YYYY-MM-DD
 WATCHLIST: list[tuple[str, str]] = [
     ("DIBS", "2026-04-14"),
     ("ALB",  "2026-04-13"),
@@ -88,126 +109,19 @@ WATCHLIST: list[tuple[str, str]] = [
 ]
 
 
-def _detect_lps_diagnose(
-    df, latest, sup_avg, res_avg, atr_val,
-    base_range_threshold, base_len, swing_complete_idx,
-) -> tuple[Optional[dict], Counter]:
-    """Mirror _detect_lps with per-gate failure tally. See v4 harness for full rationale."""
-    n = len(df)
-    candidates: list[dict] = []
-    rejects: Counter = Counter()
-
-    box_height = res_avg - sup_avg
-    bw = box_height / sup_avg if sup_avg > 0 else 0.0
-    if bw < 0.10:
-        zone_tol = max(settings.LPS_ZONE_ATR_MULT * atr_val, 0.5 * box_height)
-    else:
-        zone_tol = settings.LPS_ZONE_ATR_MULT * atr_val
-    r_ceiling = res_avg + zone_tol
-    s_floor = sup_avg - zone_tol
-    max_window = base_len + settings.AR_MAX_BARS
-
-    for offset in range(0, settings.LPS_SCAN_OFFSET_MAX):
-        end = n - offset
-        eval_idx = end - 1
-
-        if eval_idx <= swing_complete_idx:
-            rejects['swing_complete'] += 1
-            continue
-
-        for length in range(settings.LPS_LENGTH_MIN, settings.LPS_LENGTH_MAX + 1):
-            start = end - length
-            if start < 0:
-                rejects['start_underflow'] += 1
-                continue
-            if offset + length > max_window:
-                rejects['window_overflow'] += 1
-                continue
-
-            pullback_period = df.iloc[start:end]
-            end_lps = pullback_period.iloc[-1]
-
-            max_high_lps = pullback_period['High'].max()
-            min_low_lps = end_lps['Low']
-
-            if max_high_lps <= 0:
-                rejects['max_high_nonpos'] += 1
-                continue
-
-            if min_low_lps < s_floor or min_low_lps > r_ceiling:
-                rejects['zone_gate'] += 1
-                continue
-
-            zone_type = (
-                "UNDERCUT_S" if min_low_lps < sup_avg
-                else "OVERSHOOT_R" if min_low_lps > res_avg
-                else "INSIDE"
-            )
-
-            drop_pct = (max_high_lps - min_low_lps) / max_high_lps
-            if not (settings.LPS_DROP_MIN <= drop_pct <= settings.LPS_DROP_MAX):
-                rejects[f'drop_pct({drop_pct:.3f})'] += 1
-                continue
-
-            if base_range_threshold <= 0:
-                rejects['base_range_nonpos'] += 1
-                continue
-            if pullback_period['Spread'].max() >= base_range_threshold:
-                rejects['spread_quantile'] += 1
-                continue
-            tight_spread = end_lps['Spread']
-
-            if settings.LPS_SPREAD_MUST_DECLINE and length >= 2:
-                prev_bar = pullback_period.iloc[-2]
-                if tight_spread > prev_bar['Spread']:
-                    rejects['spread_decline'] += 1
-                    continue
-
-            vol_50_at_lps = float(df.iloc[eval_idx]['Vol_50'])
-            if vol_50_at_lps <= 0:
-                rejects['vol50_nonpos'] += 1
-                continue
-            avg_pullback_vol = pullback_period['Volume'].mean()
-            if avg_pullback_vol >= vol_50_at_lps * settings.LPS_VOL_CONTRACTION_MAX:
-                rejects['vol_contraction'] += 1
-                continue
-
-            if latest['Close'] < (min_low_lps * settings.LPS_HOLD_TOLERANCE):
-                rejects['hold_tolerance'] += 1
-                continue
-
-            if offset > 0:
-                post_lps = df.iloc[end:n]
-                if post_lps['Low'].min() < min_low_lps * settings.LPS_HOLD_TOLERANCE:
-                    rejects['post_lps_low_breach'] += 1
-                    continue
-                if post_lps['Spread'].max() >= base_range_threshold:
-                    rejects['post_lps_spread'] += 1
-                    continue
-
-            vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
-            tightness_ratio = tight_spread / base_range_threshold
-            quality = vol_contraction * (1 - tightness_ratio)
-            setup_type = "REBOUND" if zone_type == "UNDERCUT_S" else "LPS"
-
-            candidates.append({
-                'length': length, 'offset': offset, 'trigger_price': max_high_lps,
-                'vol_contraction': vol_contraction, 'tightness_ratio': tightness_ratio,
-                'setup_type': setup_type, 'zone_type': zone_type, '_quality': quality,
-            })
-
-    if not candidates:
-        return None, rejects
-    candidates.sort(key=lambda c: c['_quality'], reverse=True)
-    best = candidates[0]
-    del best['_quality']
-    return best, rejects
-
-
+# Module-level aggregator for cross-ticker rejection counts.
 _LPS_GLOBAL_REJECTS: Counter = Counter()
 
 
+# ---------------------------------------------------------------------------
+# Diagnostic evaluator — mirrors _evaluate_ticker but surfaces reject reasons
+# ---------------------------------------------------------------------------
+
 def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[str]]:
+    """Run the full screener pipeline against df (last bar = evaluation date).
+
+    Returns (result_dict, None) on pass or (None, reason_str) on reject.
+    """
     try:
         if len(df) < 200:
             return None, f"insufficient data ({len(df)} bars)"
@@ -240,8 +154,9 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         df['ADX_14'] = calculate_adx(df, 14)
 
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
-            r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar = \
-            find_consolidation_v3(df, min_days=settings.MIN_BASE_DAYS)
+            r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
+            _is_inner = \
+            find_consolidation(df, min_days=settings.MIN_BASE_DAYS)
 
         if base_len == 0:
             return None, "no consolidation base found"
@@ -256,15 +171,21 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
 
         base_df = df.iloc[-base_len:]
         atr_for_zone = float(atr_eval['ATR_10'])
+        # Floor base_range_threshold at 1.2 * ATR. For tight inner boxes,
+        # the 50th-percentile spread can be smaller than a normal-volatility
+        # bar, which means a single ATR-sized bar in the LPS window kills
+        # detection. The floor lets ATR-typical bars pass while the
+        # percentile still bounds bases with chronically wide bars.
         base_range_threshold = max(
             float(base_df['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
             1.2 * atr_for_zone,
         )
         phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
-        lps_result, lps_rejects = _detect_lps_diagnose(
+        lps_result, lps_rejects = detect_lps(
             df, latest, sup_avg, res_avg,
             atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
+            diagnose=True,
         )
 
         if not lps_result:
@@ -284,12 +205,12 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         if distance_to_trigger <= 0:
             return None, "LPS already above trigger"
 
-        score_result = _score_setup(
+        score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
         )
         score = score_result['total']
-        tier = _calculate_tier(score)
+        tier = calculate_tier(score)
 
         return {
             'Tier': tier,
@@ -305,6 +226,10 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
         return None, f"error: {type(e).__name__}: {e}"
 
+
+# ---------------------------------------------------------------------------
+# Data loader — one yfinance batch, split per ticker
+# ---------------------------------------------------------------------------
 
 def _download_universe(tickers: list[str], start: str, end: str) -> dict[str, pd.DataFrame]:
     print(f"Downloading {len(tickers)} tickers from {start} -> {end} ...")
@@ -335,11 +260,16 @@ def _download_universe(tickers: list[str], start: str, end: str) -> dict[str, pd
     return out
 
 
+# ---------------------------------------------------------------------------
+# Main backtest driver
+# ---------------------------------------------------------------------------
+
 def run_backtest() -> None:
     unique_tickers = sorted({t for t, _ in WATCHLIST})
     earliest = min(pd.Timestamp(d) for _, d in WATCHLIST)
     latest = max(pd.Timestamp(d) for _, d in WATCHLIST)
 
+    # 2y of history before the earliest eval date (need >=200 trading bars)
     start = (earliest - pd.Timedelta(days=365 * 2 + 30)).strftime('%Y-%m-%d')
     end = (latest + pd.Timedelta(days=WINDOW_DAYS_FWD + 2)).strftime('%Y-%m-%d')
 
@@ -396,7 +326,7 @@ def run_backtest() -> None:
     no_data = df[df['Result'] == 'NO_DATA']
 
     print("\n" + "=" * 88)
-    print(f"V5 BACKTEST SUMMARY: {len(hits)}/{len(df)} hits "
+    print(f"BACKTEST SUMMARY: {len(hits)}/{len(df)} hits "
           f"({100 * len(hits) / max(len(df), 1):.1f}%)  |  "
           f"{len(misses)} misses  |  {len(no_data)} no-data")
     print("=" * 88)
@@ -406,11 +336,13 @@ def run_backtest() -> None:
         print(hits[['Ticker', 'Added', 'Offset', 'Tier', 'Setup', 'Score',
                     'Price', 'BaseLen', 'BoxW', 'Touches', 'LPSLen']].to_string(index=False))
 
+        # Tier breakdown
         tier_counts = hits['Tier'].value_counts().sort_index()
         print("\nTier distribution:")
         for tier, cnt in tier_counts.items():
             print(f"  {tier}: {cnt}")
 
+        # Setup breakdown
         setup_counts = hits['Setup'].value_counts()
         print("\nSetup distribution:")
         for setup, cnt in setup_counts.items():
@@ -420,6 +352,7 @@ def run_backtest() -> None:
         print("\n--- MISSES ---")
         print(misses[['Ticker', 'Added', 'Reason']].to_string(index=False))
 
+        # Reason categories
         def categorize(r: str) -> str:
             rl = r.lower()
             if 'sma' in rl: return 'below moving avg'
@@ -447,8 +380,9 @@ def run_backtest() -> None:
         print("\n--- NO DATA ---")
         print(no_data[['Ticker', 'Added']].to_string(index=False))
 
-    out_dir = os.path.join(os.path.dirname(__file__))
-    out_path = os.path.join(out_dir, 'watchlist_backtest_v5.csv')
+    out_dir = os.path.join(PROJECT_ROOT, 'output', 'backtest')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, 'watchlist_backtest.csv')
     df.to_csv(out_path, index=False)
     print(f"\nFull results saved to {out_path}")
 

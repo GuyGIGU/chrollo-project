@@ -6,8 +6,8 @@ runs the screener retrospectively against historical data, captures the full
 structural fingerprint, and computes actual forward returns immediately.
 
 Usage:
-    python -m core.seed_archive
-    python -m core.seed_archive --force   # overwrite existing entries
+    python -m core.archive.seed
+    python -m core.archive.seed --force   # overwrite existing entries
 
 Edit SEED_SETUPS below (or import this and call seed_archive() programmatically).
 """
@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -31,15 +31,15 @@ if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
 from config import settings
-from core.consolidation import find_outer_box
-from core.indicators import calculate_atr
-from core.screener_v2 import (
-    _apply_baseline_filters,
-    _calculate_tier,
-    _detect_lps,
-    _score_setup,
+from core.archive.forward_returns import _compute_returns
+from core.pipeline.screener import apply_baseline_filters
+from core.scoring import calculate_tier, score_setup
+from core.structure import (
+    calculate_atr,
+    detect_lps,
+    find_outer_box,
+    measure_contractions,
 )
-from core.update_forward_returns import _compute_returns
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -131,7 +131,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
     Mirrors _evaluate_ticker but works on a pre-sliced DataFrame.
     """
     try:
-        baseline = _apply_baseline_filters(df)
+        baseline = apply_baseline_filters(df)
         if baseline is None:
             return None
         df, yearly_return = baseline
@@ -161,13 +161,18 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             return None
 
         base_df = df.iloc[-base_len:]
-        base_range_threshold = float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE))
         atr_for_zone = float(atr_eval["ATR_10"])
+        # Match the live screener: floor base_range_threshold at 1.2 * ATR so
+        # tight Phase-D-style bases don't suffocate the LPS spread gate.
+        base_range_threshold = max(
+            float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
+            1.2 * atr_for_zone,
+        )
 
         phase_b_start = len(df_ind) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
-        lps_result = _detect_lps(df_ind, latest, sup_avg, res_avg, atr_for_zone, base_range_threshold, base_len, swing_complete_idx)
+        lps_result = detect_lps(df_ind, latest, sup_avg, res_avg, atr_for_zone, base_range_threshold, base_len, swing_complete_idx)
 
         if not lps_result:
             return None
@@ -192,19 +197,38 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             stock_6m_return = 0.0
         excess_return_6m = stock_6m_return - spy_6m_return
 
-        score_result = _score_setup(
-            box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
-            atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
-            excess_return_6m,
-        )
-        score = score_result["total"]
-        tier = _calculate_tier(score)
-
-        # 52w high distance + base-window endpoints (for RS-vs-sector downstream).
+        # 52w high distance — pass into scorer for the high-proximity bonus.
         last_252 = df["High"].iloc[-min(252, len(df)):]
         max_252 = float(last_252.max()) if len(last_252) else 0.0
         dist_52w_high_pct = (
             (float(current_price) - max_252) / max_252 if max_252 > 0 else None
+        )
+
+        contraction = measure_contractions(base_df)
+
+        score_result = score_setup(
+            box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
+            atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
+            excess_return_6m, dist_52w_high_pct,
+            None,  # breadth_pct unknown for historical seed dates
+            contraction['quality'],
+        )
+        score = score_result["total"]
+        tier = calculate_tier(score)
+
+        # Volume signature at R/S touch bars (mirror of _evaluate_ticker).
+        touch_band_vol = settings.TOUCH_TOLERANCE_ATR * atr_for_zone
+        r_touch_mask = (base_df["High"] - res_avg).abs() <= touch_band_vol
+        s_touch_mask = (base_df["Low"] - sup_avg).abs() <= touch_band_vol
+        vol_mean_base = float(base_df["Volume"].mean())
+        vol_std_base = float(base_df["Volume"].std())
+        r_touch_vol_z = (
+            float((base_df.loc[r_touch_mask, "Volume"].mean() - vol_mean_base) / vol_std_base)
+            if vol_std_base > 0 and r_touch_mask.any() else None
+        )
+        s_touch_vol_z = (
+            float((base_df.loc[s_touch_mask, "Volume"].mean() - vol_mean_base) / vol_std_base)
+            if vol_std_base > 0 and s_touch_mask.any() else None
         )
 
         return {
@@ -236,6 +260,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             "base_date_end": str(base_df.index[-1])[:10],
             "base_close_start": float(base_df["Close"].iloc[0]),
             "base_close_end": float(base_df["Close"].iloc[-1]),
+            "r_touch_vol_z": r_touch_vol_z,
+            "s_touch_vol_z": s_touch_vol_z,
+            "lps_descent_frac": float(lps_result.get("descent_frac", 1.0)),
+            "lps_zone_type": lps_result.get("zone_type", "INSIDE"),
+            "contraction_count": int(contraction["n_contractions"]),
+            "contraction_quality": float(contraction["quality"]),
+            "final_contraction_depth": (float(contraction["final_depth"])
+                                        if contraction["final_depth"] is not None else None),
         }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
@@ -269,14 +301,14 @@ def seed_archive(
         setups = SEED_SETUPS
 
     if not setups:
-        log.warning("No seed setups defined. Add entries to SEED_SETUPS in seed_archive.py.")
+        log.warning("No seed setups defined. Add entries to SEED_SETUPS in core/archive/seed.py.")
         return 0
 
     db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
     engine = make_sqlite_engine(db_path)
     SetupArchive.metadata.create_all(bind=engine)
     # Bring schema up to date with any post-initial columns.
-    from core.archive_writer import _ensure_new_columns
+    from core.archive.writer import _ensure_new_columns
     _ensure_new_columns(engine)
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
@@ -443,6 +475,18 @@ def seed_archive(
             score_base_age=sub.get("base_age"),
             score_uptrend_bonus=sub.get("uptrend_bonus"),
             score_rs_bonus=sub.get("rs_bonus"),
+            score_high_proximity=sub.get("high_proximity"),
+            score_breadth_bonus=sub.get("breadth_bonus"),
+            # Volume-around-touches signature + LPS shape/zone detail
+            r_touch_vol_z=best_result.get("r_touch_vol_z"),
+            s_touch_vol_z=best_result.get("s_touch_vol_z"),
+            lps_descent_frac=best_result.get("lps_descent_frac"),
+            lps_zone_type=best_result.get("lps_zone_type"),
+            # VCP contraction footprint
+            contraction_count=best_result.get("contraction_count"),
+            contraction_quality=best_result.get("contraction_quality"),
+            final_contraction_depth=best_result.get("final_contraction_depth"),
+            score_contraction=sub.get("contraction"),
             # Forward returns
             **fwd_returns,
             # Market context

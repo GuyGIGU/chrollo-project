@@ -19,8 +19,9 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from core.archive_writer import archive_scan_results
-from core.screener_v2 import run_screener
+from config import settings
+from core.archive.writer import archive_scan_results
+from core.pipeline import run_screener
 from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
@@ -42,8 +43,11 @@ def main() -> None:
     generate_dashboard(results_df, data, tickers)
 
     # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
-    # Forward returns are filled in later by core/update_forward_returns.py.
-    archive_scan_results(results_df)
+    # Forward returns are filled in later by core/archive/forward_returns.py.
+    # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
+    if settings.ARCHIVE_LIVE_SCANS:
+        n = archive_scan_results(results_df, enable=True)
+        print(f"\nArchived {n} live setups to setup_archive (source='screener').")
 
 
 if __name__ == '__main__':

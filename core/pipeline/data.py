@@ -21,7 +21,7 @@ from config import settings
 # Cache path helpers
 # ────────────────────────────────────────────────────────────────
 def _project_root() -> str:
-    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _cache_paths() -> tuple[str, str]:
@@ -166,7 +166,7 @@ def get_tickers(csv_path: str | None = None) -> list[str]:
     """
     if csv_path is None:
         csv_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), '..', 'config', 'tickers.csv'
+            os.path.dirname(os.path.abspath(__file__)), '..', '..', 'config', 'tickers.csv'
         )
         csv_path = os.path.normpath(csv_path)
 

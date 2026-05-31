@@ -17,7 +17,18 @@ const SUB_SCORE_CAPS = {
   lps_tightness:   20,
   vol_contraction: 20,
   base_age:        35,
+  uptrend_bonus:   15,
+  rs_bonus:        15,
+  high_proximity:   8,
+  breadth_bonus:    8,
+  contraction:     12,
 };
+
+// Volume-around-touches z-score thresholds (mirror config/settings.py:
+// TOUCH_VOL_Z_NO_SUPPLY, TOUCH_VOL_Z_SPRING, TOUCH_VOL_Z_HEAVY_R).
+const TOUCH_VOL_Z_NO_SUPPLY = -0.30;
+const TOUCH_VOL_Z_SPRING    = 0.30;
+const TOUCH_VOL_Z_HEAVY_R   = 0.50;
 
 const MAX_TAGS = 4;             // keep cards readable
 
@@ -60,6 +71,17 @@ const TAG_DEFS = [
     fires: (s) => FIRE(s, 'box_tightness', 0.80),
   },
   {
+    // The Minervini VCP signature: progressive contractions (e.g. 18->12->6%)
+    // tightening into the base. Distinct from Tight Box (static width) — this
+    // fires on the *process* of coiling, the strongest pre-breakout footprint.
+    id: 'vcp_coil',
+    label: '🌀 VCP Coil',
+    tone: { bg: 'rgba(187,134,252,0.18)', fg: '#bb86fc' },
+    title: 'Progressive volatility contraction — each pullback tighter than the last, ending in a tight final coil (Minervini VCP footprint)',
+    weight: 88,
+    fires: (s) => FIRE(s, 'contraction', 0.80),
+  },
+  {
     id: 'tight_lps',
     label: '🪶 Tight LPS',
     tone: { bg: 'rgba(63,185,80,0.18)',   fg: '#3fb950' },
@@ -94,6 +116,43 @@ const TAG_DEFS = [
     weight: 60,
     fires: (s) => FIRE(s, 'uptrend_bonus', 0.95),
   },
+  {
+    // Wyckoff "no supply" — buyers absorbed R-touches without driving volume.
+    // The textbook precursor to a clean breakout.
+    id: 'no_supply',
+    label: '🤫 No Supply',
+    tone: { bg: 'rgba(63,185,80,0.18)',   fg: '#3fb950' },
+    title: 'Resistance tested on below-average volume — no supply coming out. Buyers absorbing silently.',
+    weight: 78,
+    fires: (_s, flags) => typeof flags.rTouchVolZ === 'number'
+      && flags.rTouchVolZ < TOUCH_VOL_Z_NO_SUPPLY,
+  },
+  {
+    // Demand at support — high volume on S-touches INSIDE the range.
+    // Renamed from "Spring Strength" because in Wyckoff terminology a
+    // Spring is specifically a Phase C undercut BELOW the range (we
+    // already label that zone REBOUND in the setup type). This tag is
+    // about buying interest absorbing supply at the S boundary itself.
+    id: 'demand_at_s',
+    label: '💪 Demand at S',
+    tone: { bg: 'rgba(63,185,80,0.18)',   fg: '#3fb950' },
+    title: 'Support tested on above-average volume — buyers stepping in at S, selling absorbed. Note: this is demand inside the range, not a Phase C spring (which would show as a REBOUND setup type).',
+    weight: 72,
+    fires: (_s, flags) => typeof flags.sTouchVolZ === 'number'
+      && flags.sTouchVolZ > TOUCH_VOL_Z_SPRING,
+  },
+  {
+    // WARNING: distribution-flavored resistance. R-touches printing on
+    // ABOVE-average volume = supply hitting the bid every time it gets there.
+    // Not always a kill, but worth a yellow flag on the card.
+    id: 'heavy_resistance',
+    label: '⚠️ Heavy Resistance',
+    tone: { bg: 'rgba(248,81,73,0.18)',   fg: '#f85149' },
+    title: 'Resistance tested on ABOVE-average volume — supply hitting the bid at R. Distribution-flavored, breakout risk.',
+    weight: 95,  // High weight so warning surfaces even with positive tags present
+    fires: (_s, flags) => typeof flags.rTouchVolZ === 'number'
+      && flags.rTouchVolZ > TOUCH_VOL_Z_HEAVY_R,
+  },
 ];
 
 // Derive the tag list from a sub-score dict + flag bag. Returns at most
@@ -101,8 +160,8 @@ const TAG_DEFS = [
 //
 // `subScores` shape: { box_tightness, touch_density, oscillation, atr_squeeze,
 //                      lps_tightness, vol_contraction, base_age,
-//                      uptrend_bonus, rs_bonus }
-// `flags` shape:     { phaseDInner: bool }
+//                      uptrend_bonus, rs_bonus, high_proximity, breadth_bonus }
+// `flags` shape:     { phaseDInner: bool, rTouchVolZ: number|null, sTouchVolZ: number|null }
 export function deriveTags(subScores, flags = {}) {
   if (!subScores) return [];
   return TAG_DEFS

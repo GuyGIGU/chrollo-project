@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 
 const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
@@ -117,7 +117,9 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
     if (markers.length > 0) {
       // Sort by time — lightweight-charts requires markers in chronological order.
       markers.sort((a, b) => a.time.localeCompare(b.time));
-      candleSeries.setMarkers(markers);
+      // lightweight-charts v5 removed `series.setMarkers()` — markers are
+      // now attached via the `createSeriesMarkers` plugin helper.
+      createSeriesMarkers(candleSeries, markers);
     }
 
     const displayStart = Math.max(0, baseEnd - Math.max(80, data.base_len + 30));

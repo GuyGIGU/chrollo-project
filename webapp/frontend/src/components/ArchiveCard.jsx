@@ -13,6 +13,9 @@ const subScoresFromSetup = (s) => ({
   base_age:        s.score_base_age,
   uptrend_bonus:   s.score_uptrend_bonus,
   rs_bonus:        s.score_rs_bonus,
+  high_proximity:  s.score_high_proximity,
+  breadth_bonus:   s.score_breadth_bonus,
+  contraction:     s.score_contraction,
 });
 
 const tierColor = (t) => ({ S: '#ff8c00', A: '#bb86fc', B: '#58a6ff', C: '#3fb950', D: '#8b949e' }[t] || '#8b949e');
@@ -103,13 +106,25 @@ const ArchiveCard = React.memo(({ setup, chartData, onClick, onLabelChange }) =>
       }
       rSeries.setData(rData); sSeries.setData(sData); midSeries.setData(midData);
 
-      // Frame the chart so the base + a little context + the forward bars are all visible.
+      // Frame the chart on the ORIGINAL STRUCTURE — the base + its R/S — with
+      // only a modest forward window. Previously the visible range ran all the
+      // way to the last forward bar (scan_date + 45 cal days); when price made
+      // a big post-scan move (e.g. JAZZ 168→90), the price axis auto-scaled to
+      // that excursion and squished the tight base, leaving the R/S lines
+      // "floating" detached at one edge. lightweight-charts auto-scales the
+      // price axis to the *visible* range, so clamping the time window to the
+      // base + a short lead-in + a few forward bars keeps the consolidation —
+      // the actual trade structure — as the visual focus. The full forward
+      // action remains available (scrollable) in the click-through modal.
       if (chartData.candles.length > 0) {
-        const span = Math.max(80, (chartData.base_len || 0) + 15 + forwardBars);
-        const displayStart = Math.max(0, chartData.candles.length - span);
+        const baseLen = chartData.base_len || 0;
+        const LEAD_IN = 10;            // bars of pre-base context
+        const FORWARD_CONTEXT = 12;    // bars after scan_date to show on the card
+        const fromIdx = Math.max(0, baseEnd - baseLen - LEAD_IN);
+        const toIdx = Math.min(chartData.candles.length - 1, baseEnd + FORWARD_CONTEXT);
         chart.timeScale().setVisibleRange({
-          from: chartData.candles[displayStart].time,
-          to: chartData.candles[chartData.candles.length - 1].time,
+          from: chartData.candles[fromIdx].time,
+          to: chartData.candles[toIdx].time,
         });
       } else {
         chart.timeScale().fitContent();
@@ -220,7 +235,11 @@ const ArchiveCard = React.memo(({ setup, chartData, onClick, onLabelChange }) =>
       </div>
       <TagRow
         subScores={subScoresFromSetup(setup)}
-        flags={{ phaseDInner: setup.phase_d_inner === 1 }}
+        flags={{
+          phaseDInner: setup.phase_d_inner === 1,
+          rTouchVolZ: setup.r_touch_vol_z,
+          sTouchVolZ: setup.s_touch_vol_z,
+        }}
         style={{
           padding: '6px 10px',
           background: 'var(--bg-main)',

@@ -23,6 +23,8 @@ Phase B uses a zigzag structural approach:
 """
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 
@@ -118,6 +120,150 @@ def _build_zigzag(peaks_idx, valleys_idx, highs, lows):
                 zigzag[-1] = pv
 
     return zigzag
+
+
+# ---------------------------------------------------------------------------
+# VCP progressive-contraction footprint
+# ---------------------------------------------------------------------------
+
+def measure_contractions(base_df, order=None):
+    """Measure the VCP progressive-contraction footprint within a base window.
+
+    The defining feature of a Minervini VCP is a sequence of 2-6 pullbacks,
+    each TIGHTER than the last (e.g. 18% -> 12% -> 6%), ending in a very tight
+    final contraction. The engine already finds a tight *box*; box_width and
+    ATR-squeeze are STATIC tightness (how tight is it now). This measures the
+    *process* of tightening (is it coiling?) that the static metrics can't see.
+
+    Reuses the Phase B zigzag machinery. Each peak->valley downswing in the
+    zigzag is one contraction; depth = (peak - valley) / peak. We measure the
+    sequence over the base (consolidation) window only — the initial BC->AR
+    descent into the base is deliberately excluded (it's the entry into the
+    base, not a contraction within it, and it's the early-chop the cand_start
+    trim already removes from boundary/quality measurement).
+
+    Returns dict:
+        n_contractions:  int   number of peak->valley downswings
+        depths:          list[float] chronological fractional drawdowns
+        final_depth:     float|None  depth of the last (rightmost) contraction
+        quality:         float in [0,1]  composite:
+                         0.40*count + 0.35*progressive_tightening + 0.25*final_tight
+    """
+    empty = {"n_contractions": 0, "depths": [], "final_depth": None, "quality": 0.0}
+    highs = base_df["High"].values
+    lows = base_df["Low"].values
+    n = len(highs)
+    if order is None:
+        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
+                 else settings.PIVOT_ORDER_SHORT)
+    if n < 2 * order + 1:
+        return empty
+
+    peaks, valleys = _find_pivots(highs, lows, order)
+    if not peaks or not valleys:
+        return empty
+    zigzag = _build_zigzag(peaks, valleys, highs, lows)
+    if len(zigzag) < 2:
+        return empty
+
+    # Each peak->valley transition is a contraction (a pullback within the base).
+    depths = []
+    for i in range(len(zigzag) - 1):
+        a, b = zigzag[i], zigzag[i + 1]
+        if a[1] == "peak" and b[1] == "valley":
+            peak_p, val_p = a[2], b[2]
+            if peak_p > 0 and val_p < peak_p:
+                depths.append((peak_p - val_p) / peak_p)
+    if not depths:
+        return empty
+
+    n_c = len(depths)
+    final_depth = depths[-1]
+
+    # 1) Count score — Minervini's 2-6 contractions, 3-4 typical. Full credit
+    #    inside the ideal band; partial for a single contraction or a choppy
+    #    over-count (too many swings = not a clean coil).
+    lo, hi = settings.CONTRACTION_IDEAL_MIN, settings.CONTRACTION_IDEAL_MAX
+    if lo <= n_c <= hi:
+        count_score = 1.0
+    elif n_c == 1:
+        count_score = 0.4
+    elif n_c <= hi + 2:
+        count_score = 0.6
+    else:
+        count_score = 0.3
+
+    # 2) Progressive tightening — fraction of consecutive steps that don't
+    #    WIDEN (5% tolerance so a tiny uptick isn't punished). 1.0 = each
+    #    pullback <= the previous one, the textbook 18->12->6 footprint.
+    if n_c >= 2:
+        non_widening = sum(1 for i in range(1, n_c) if depths[i] <= depths[i - 1] * 1.05)
+        progressive = non_widening / (n_c - 1)
+    else:
+        progressive = 0.5  # single contraction: neutral, can't judge a trend
+
+    # 3) Final-contraction tightness — the right-most pullback should be the
+    #    tightest (max compression, no supply left). Linear ramp.
+    full = settings.CONTRACTION_FINAL_TIGHT_PCT
+    zero = settings.CONTRACTION_FINAL_LOOSE_PCT
+    if final_depth <= full:
+        final_score = 1.0
+    elif final_depth >= zero:
+        final_score = 0.0
+    else:
+        final_score = (zero - final_depth) / (zero - full)
+
+    quality = 0.40 * count_score + 0.35 * progressive + 0.25 * final_score
+    return {
+        "n_contractions": n_c,
+        "depths": [round(d, 4) for d in depths],
+        "final_depth": round(final_depth, 4),
+        "quality": round(quality, 4),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Measurement: Volume signature at the R/S touch bars
+# ---------------------------------------------------------------------------
+
+def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float,
+                         atr_val: float) -> tuple[Optional[float], Optional[float]]:
+    """
+    How heavy was volume when price visited the box's ceiling (R) and floor (S)?
+
+    Returns ``(r_touch_vol_z, s_touch_vol_z)`` — each a z-score of the touch-bar
+    volume measured against the base's own volume distribution. Either value is
+    ``None`` when there were no touches on that side or volume has no spread.
+
+    This is the Wyckoff supply/demand asymmetry the LPS gate alone can't see:
+        r_touch_vol_z < 0  -> "No Supply": price reaches R on quiet volume (bullish)
+        r_touch_vol_z > 0  -> heavy selling into R (distribution flavour; a warning)
+        s_touch_vol_z > 0  -> "Demand at S": heavy hands defending the floor
+
+    Pure measurement — it reports the numbers and assigns no score. The Scoring
+    Engine and the tag chips decide what the numbers are worth.
+    """
+    touch_band = settings.TOUCH_TOLERANCE_ATR * atr_val
+    r_touch_mask = (base_df['High'] - res_avg).abs() <= touch_band
+    s_touch_mask = (base_df['Low'] - sup_avg).abs() <= touch_band
+    vol_mean_base = float(base_df['Volume'].mean())
+    vol_std_base = float(base_df['Volume'].std())
+
+    if vol_std_base > 0 and r_touch_mask.any():
+        r_touch_vol_z: Optional[float] = float(
+            (base_df.loc[r_touch_mask, 'Volume'].mean() - vol_mean_base) / vol_std_base
+        )
+    else:
+        r_touch_vol_z = None
+
+    if vol_std_base > 0 and s_touch_mask.any():
+        s_touch_vol_z: Optional[float] = float(
+            (base_df.loc[s_touch_mask, 'Volume'].mean() - vol_mean_base) / vol_std_base
+        )
+    else:
+        s_touch_vol_z = None
+
+    return r_touch_vol_z, s_touch_vol_z
 
 
 # ---------------------------------------------------------------------------
@@ -670,10 +816,10 @@ def find_consolidation(df, min_days=None):
     inner exists) and adds true Phase D detection (inner ⊂ outer in time,
     not necessarily in price space).
 
-    The matching LPS-scaling adaptations live in core/screener_v2.py
-    (_detect_lps zone-tolerance floor and _evaluate_ticker base_range_threshold
-    floor). Both self-gate on tight boxes and leave wide-outer detections
-    untouched.
+    The matching LPS-scaling adaptations live in core/structure/lps.py
+    (detect_lps zone-tolerance floor) and core/pipeline/screener.py
+    (_evaluate_ticker base_range_threshold floor). Both self-gate on tight
+    boxes and leave wide-outer detections untouched.
 
     REMAINING MISSES — NBR / GXO / VLO / SHEL plus ST / RRBI / SNDX / TRS are
     LPS-detector limits, not anchor-detection limits. The recent-first-anchor

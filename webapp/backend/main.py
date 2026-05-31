@@ -55,6 +55,18 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN trigger_volume_ratio FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN rs_vs_sector_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN dist_52w_high_pct FLOAT",
+    # Phase 1 — volume signature at touches + LPS shape/zone + new bonuses
+    "ALTER TABLE setup_archive ADD COLUMN r_touch_vol_z FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN s_touch_vol_z FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN lps_descent_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN lps_zone_type VARCHAR",
+    "ALTER TABLE setup_archive ADD COLUMN score_high_proximity FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN score_breadth_bonus FLOAT",
+    # VCP progressive-contraction footprint
+    "ALTER TABLE setup_archive ADD COLUMN contraction_count INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN contraction_quality FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN final_contraction_depth FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN score_contraction FLOAT",
 ]
 _mig_log = logging.getLogger("chrollo.migrate")
 with engine.connect() as _conn:

@@ -1,6 +1,6 @@
 # Wyckoff-Minervini Stock Screener — Strategy & Implementation Reference
 
-This document is the **single source of truth** for what the screener actually does. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and (where useful) the line range in code.
+This document is the **single source of truth** for what the screener actually does. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
 
 The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A / Phase B structural model. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by an actual swing.
 
@@ -9,22 +9,27 @@ The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias
 ## Pipeline Overview
 
 ```
-Phase 0  Universe & data acquisition          (core/data.py)
-Phase 1  Baseline universe filter              (_apply_baseline_filters)
-Phase 2  Consolidation detection               (find_consolidation -> find_outer_box + _phase_b_zigzag, with optional _inner_zigzag refinement)
-Phase 2b Crash / extension filters             (_evaluate_ticker)
-Phase 3  LPS detection                         (_detect_lps)
-Phase 4  Scoring & tier assignment             (_score_setup, _calculate_tier)
-Archive  Persist + forward-return backfill     (archive_writer / update_forward_returns / seed_archive)
+Phase 0  Universe & data acquisition          core.pipeline.data
+Phase 1  Baseline universe filter              core.pipeline.screener   (apply_baseline_filters)
+Phase 2  Consolidation detection               core.structure           (find_consolidation -> find_outer_box + _phase_b_zigzag, with optional _inner_zigzag refinement)
+Phase 2b Crash / extension filters             core.pipeline.screener   (_evaluate_ticker)
+Phase 3  LPS detection                         core.structure           (detect_lps)
+Phase 4  Scoring & tier assignment             core.scoring             (score_setup, calculate_tier)
+Archive  Persist + forward-return backfill     core.archive             (writer / forward_returns / seed)
 ```
 
-Orchestrated by `run_screener()` in [core/screener_v2.py](../core/screener_v2.py), running per-ticker evaluation in a `ProcessPoolExecutor`.
+The code is organized as two engines plus a conductor (see [core/MAP.md](../core/MAP.md)):
+**`core/structure/`** = the Visual Structure Engine (pure geometry/measurement),
+**`core/scoring/`** = the Scoring Engine (the tunable opinion layer),
+**`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
+measuring-stick tooling. Orchestrated by `run_screener()` in
+[core/pipeline/screener.py](../core/pipeline/screener.py), running per-ticker evaluation in a `ProcessPoolExecutor`.
 
 ---
 
 ## Phase 0 — Universe & Data
 
-### Ticker universe — `get_tickers()` ([core/data.py:15](../core/data.py#L15))
+### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py))
 
 1. Read from cached `config/tickers.csv` if it exists and is younger than `TICKER_CACHE_MAX_AGE_DAYS` (1 day).
 2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'` and `ETF == 'N'`.
@@ -32,17 +37,21 @@ Orchestrated by `run_screener()` in [core/screener_v2.py](../core/screener_v2.py
 4. Dedupe (preserving order) and write back to the CSV cache.
 5. Hard fallback to a 15-stock sample if FTP fails.
 
-### Market data — `fetch_data()` ([core/data.py:182](../core/data.py#L182))
+### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py))
 
-- Reads from `market_data_cache_2y.parquet` if newer than `CACHE_MAX_AGE_HOURS` (12h).
-- Otherwise downloads from `yfinance` in batches of **500 tickers** with `period = "2y"` (`DOWNLOAD_PERIOD`), 1.5s sleep between batches, exponential-backoff retry (3 attempts: 2s/4s/8s).
+- Reads from `market_data_cache_2y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
+  - `TTL_FRESH_HOURS_MARKET = 1` (RTH) / `TTL_FRESH_HOURS_OFFHOURS = 12` — under TTL the cache is reused as-is.
+  - `FULL_REFRESH_INTERVAL_DAYS = 7` — at least once a week, force a cold 2y refetch regardless of TTL.
+  - Between those, `_incremental_fetch()` re-downloads only the last few business days (`INCREMENTAL_OVERLAP_BDAYS = 5`), with a `SPLIT_PROBE_*` guard that detects yfinance's auto-adjust silently rescaling history and falls back to a cold refetch when > 2% of probed tickers drift.
+- Cold path: downloads from `yfinance` in batches of **500 tickers** with `period = "2y"` (`DOWNLOAD_PERIOD`), 1.5s sleep between batches, exponential-backoff retry (3 attempts: 2s/4s/8s).
 - `_recover_missing_data()` re-downloads tickers that came back missing or with < 200 bars (skipped if more than half the universe is missing — likely rate-limit). Recovered batches replace the bad columns and the merged frame is written back to Parquet.
+- SPY rides in the same parquet as the screened universe but is excluded from screening — it exists only to feed `get_market_context()` (SPY 6m return + breadth).
 
 ---
 
 ## Phase 1 — Baseline Universe Filter
 
-`_apply_baseline_filters()` ([core/screener_v2.py:28](../core/screener_v2.py#L28)).
+`apply_baseline_filters()` ([core/pipeline/screener.py](../core/pipeline/screener.py)).
 
 Reject the ticker entirely if any check fails. Run in this order:
 
@@ -57,13 +66,22 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/indicators.py](../core/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/structure/indicators.py](../core/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `tools/backtest_watchlist.py` references it.
+
+### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py))
+
+Before per-ticker workers fan out, the orchestrator computes two scalars once and pickles them into every worker:
+
+- **`spy_6m_return`** — SPY close-to-close return over `RS_LOOKBACK_BARS` (126 bars). Feeds the Soft RS bonus in scoring (`excess_return_6m = stock_6m − spy_6m`).
+- **`breadth_pct`** — share of the screened universe with `Close > SMA_50`. Currently persisted to the archive (`_breadth_pct`) for regression purposes; not yet wired into a scoring gate.
+
+Cached in `market_context.json` next to the parquet with TTL 1h during market hours, 12h otherwise; invalidated when SPY's last-bar date changes.
 
 ---
 
 ## Phase 2 — Consolidation Detection
 
-`find_consolidation()` ([core/consolidation.py:653](../core/consolidation.py#L653)) is the live entry point. It calls `find_outer_box()` ([core/consolidation.py:488](../core/consolidation.py#L488)) for extreme-anchored Wyckoff base discovery, then optionally refines into a tighter inner sub-box (see "Hierarchical refinement" below). The seed-archive curator calls `find_outer_box()` directly when it wants the textbook outer box without inner refinement.
+`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) is the live entry point. It calls `find_outer_box()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) for extreme-anchored Wyckoff base discovery, then optionally refines into a tighter inner sub-box (see "Hierarchical refinement" below). The seed-archive curator calls `find_outer_box()` directly when it wants the textbook outer box without inner refinement.
 
 ### Setup
 
@@ -90,7 +108,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase B — Zigzag S/R Anchoring
 
-`_phase_b_zigzag()` ([core/consolidation.py:249](../core/consolidation.py#L249)).
+`_phase_b_zigzag()` ([core/structure/consolidation.py](../core/structure/consolidation.py)).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -98,7 +116,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 3. **ATR reference** — use the engine-aligned snapshot from `find_outer_box` if supplied; otherwise the median `ATR_10` over the last `PHASE_B_ATR_WINDOW` (30) bars; final fallback = median(High-Low).
 4. **Candidate generation** — only **strictly consecutive** zigzag pairs (peak→valley or valley→peak) are tested. The peak's High = R, the valley's Low = S.
 5. **Per-candidate validation:**
-   - **Box width:** `(R - S) / S <= MAX_BOX_WIDTH` (0.20).
+   - **Box width:** `(R - S) / S <= MAX_BOX_WIDTH` (0.25).
    - **Boundary respect** — `_is_boundary_respected()`:
      - Buffered band: `[S - 0.5·ATR, R + 0.5·ATR]` (`BOUNDARY_ATR_BUFFER = 0.5`).
      - Each bar's High vs `R + buffer` and Low vs `S - buffer` — wicks count as breaches (bars not candles).
@@ -114,7 +132,9 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 Phase B begins at the AR *low* (or the bounce *high* for SC anchors), but the structural box rarely starts there — it starts at the next zigzag pivot, which is the inner "mini BC" / "mini AR" that opens the working consolidation. Bars between the outer AR and this inner pivot are the early-chop drift, not part of the box, and including them in boundary respect / base quality measurement inflates breach counts and forgives wicks that aren't really chop. To correct this, every candidate inside `_phase_b_zigzag()` is measured on its own bar window: starting at `cand_start = min(r_anchor_bar, s_anchor_bar)` (the earlier of the two zigzag anchors that define R and S). Both `_is_boundary_respected()` and `_validate_base_quality()` run over `eq_df.iloc[cand_start:]`, so the boundary-respect % and the touch / midline-cross counts reflect the actual chop range, not the BC→AR span. The returned `base_length` is also the trimmed length (`base_length - cand_start`), and the r/s anchor bars are rebased to it. The outer BC anchor (`bc_anchor_bar`) remains df-positional — only the box window itself is trimmed.
 
-Returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
+`_phase_b_zigzag` returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
+
+`find_consolidation` and `find_outer_box` wrap that and return a **12-tuple**: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields; `is_inner_box` flags Phase D launchpads (see Hierarchical Refinement below).
 
 `r_anchor_bar` / `s_anchor_bar` are returned in **eq_df-relative** (base-relative) coordinates — the dashboard and SQLite archive consume them that way. The LPS detector translates them into df-positional indices locally.
 
@@ -129,7 +149,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ## Phase 3 — LPS Detection
 
-`_detect_lps()` ([core/screener_v2.py:63](../core/screener_v2.py#L63)). For each `(offset, length)` window in the recent tape, every gate below must pass; failing any single gate disqualifies the window. The final candidate is the one with the highest `vol_contraction × (1 - tightness_ratio)` quality.
+`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every gate below must pass; failing any single gate disqualifies the window. The final candidate is the one with the highest `vol_contraction × (1 - tightness_ratio)` quality.
 
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
@@ -139,13 +159,13 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 | 2 | **Length** | `LPS_LENGTH_MIN ≤ length ≤ LPS_LENGTH_MAX` | 2 to 7 bars |
 | 3 | **Window bound** | `offset + length ≤ base_len + AR_MAX_BARS` | redundant outer guard; never lets the LPS pre-date the box |
 | 4 | **Swing-complete** | `eval_idx > swing_complete_idx` where `swing_complete_idx = (len(df) - base_len) + max(r_anchor, s_anchor)` | LPS must sit *after* the swing pivots that defined R and S |
-| 5 | **Pullback shape** | `argmax(High) <= argmin(Low)` across the window — the highest high must occur at or before the lowest low | rejects up-march windows where lows and highs both rise; pure structural check, no retest semantics. Without this, an up-march trivially passes the drop-depth gate because the trough is the *highest* low |
+| 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` where `descent_frac` = fraction of pair-wise (i<j) low comparisons with `low[j] <= low[i]`. 1.0 = perfect descent, 0.5 = sideways, 0.0 = perfect rally. Surviving descent_frac multiplies the candidate's LPS quality, so cleaner descents outrank sloppy ones. Replaces the prior binary `argmax_high > argmin_low` reject, which dropped near-misses where most of the window was descending | `LPS_MIN_DESCENT_FRAC = 0.50` |
 | 6 | **Zone gate** | LPS low (= `min(Low)` across the window) lands in one of three buffered zones (tolerance = `0.5 × ATR_10` snapshot at bar -6) | `LPS_ZONE_ATR_MULT = 0.5` |
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
-| 7 | **Pullback depth** | `LPS_DROP_MIN ≤ (max_high - min_low) / max_high ≤ LPS_DROP_MAX`, both extremes taken across the full window | 2% to 10% |
-| 8 | **Spread (core)** | every bar's `Spread (High - Low)` < `base_range_threshold` = `base_df['Spread'].quantile(0.5)` | `LPS_RANGE_PERCENTILE = 0.5` (median) |
+| 7 | **Pullback depth (zone-conditional)** | `min_drop ≤ (max_high - min_low) / max_high ≤ LPS_DROP_MAX`, where `min_drop = LPS_DROP_MIN_OVERSHOOT_R` for OVERSHOOT_R (backtest of breakout — requires a real retest, not shallow drift above R) and `LPS_DROP_MIN` otherwise | INSIDE/UNDERCUT_S: 2%–10%, OVERSHOOT_R: 4%–10% |
+| 8 | **Spread (core)** | every bar's `Spread (High - Low)` < `base_range_threshold` = `max(base_df['Spread'].quantile(0.5), 1.2·ATR_10)` | `LPS_RANGE_PERCENTILE = 0.5` (median); ATR floor is now unconditional (no `bw` self-gate) — see note below |
 | 9 | **Declining spread** | last bar's spread ≤ prior bar's spread (when length ≥ 2) | `LPS_SPREAD_MUST_DECLINE = True` |
 | 10 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
 | 11 | **Hold tolerance** | `latest['Close'] >= min_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
@@ -154,7 +174,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 **Setup label:** `REBOUND` if zone is `UNDERCUT_S`; otherwise `LPS`.
 
-**Quality ranking:** among surviving candidates, pick the maximum of `vol_contraction × (1 - tightness_ratio)` where `tightness_ratio = end_lps_spread / base_range_threshold` and `vol_contraction = (Vol_50 - mean_pullback_vol) / Vol_50`.
+**Quality ranking:** among surviving candidates, pick the maximum of `vol_contraction × (1 - tightness_ratio) × descent_frac` where `tightness_ratio = end_lps_spread / base_range_threshold`, `vol_contraction = (Vol_50 - mean_pullback_vol) / Vol_50`, and `descent_frac` is the graded pullback-shape score (1.0 = perfect descent). Multiplying by descent_frac means a clean-shape LPS outranks a same-volume / same-tightness sloppy one.
 
 > **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `_detect_lps` is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now — `BREAKOUT_VOLUME_MULT`, `BREAKOUT_DEFAULT_VOL_CONTRACTION`, and `BREAKOUT_DEFAULT_TIGHTNESS` exist in settings but are unused.
 
@@ -162,7 +182,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`_score_setup()` ([core/screener_v2.py:226](../core/screener_v2.py#L226)). Total score is the sum of 8 components, each clamped into `[0, cap]`. Maximum possible total ≈ 143.
+`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **12 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **186**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -173,23 +193,66 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |
 | **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 35`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d | `SCORE_BASE_AGE = 35`, `BASE_AGE_CAP_DAYS = 120` |
-| **Strong-uptrend bonus** | flat `+15` if `yearly_return ≥ 0.30`, else `0`. Re-accumulation inside an established uptrend breaks out more reliably than the same structure on a flat YoY chart, so qualifying setups are elevated. The other three "uptrend conditions" the user cares about (above SMA50, above SMA200, ≥ 50K volume) are already hard baseline gates in Phase 1, so the only differentiating condition is YoY return. | `SCORE_UPTREND_BONUS = 15`, `MIN_STRONG_YEARLY_RETURN = 0.30` |
+| **Strong-uptrend bonus** | **Linear ramp**: `0` below 30% YoY return, full points at 60%+, linear between. Re-accumulation inside an established uptrend breaks out more reliably than the same structure on a flat YoY chart. The other three "uptrend conditions" (above SMA50, above SMA200, ≥ 50K volume) are already hard baseline gates in Phase 1, so YoY return is the only differentiating axis. | `SCORE_UPTREND_BONUS = 15`, `MIN_STRONG_YEARLY_RETURN = 0.30`, `MAX_STRONG_YEARLY_RETURN = 0.60` |
+| **Soft RS bonus** | `min(1, excess_return_6m / 0.30) × 15` where `excess_return_6m = stock_6m_return − spy_6m_return`. Leadership reward, no filter — laggards just earn 0. | `SCORE_RS_BONUS = 15`, `RS_LOOKBACK_BARS = 126`, `RS_MAX_EXCESS_RETURN = 0.30` |
+| **52w-high proximity** | Linear ramp from `0` at −20% below 52w high to full at −5% (or higher). Bases that consolidate near recent highs hold their breakouts more reliably than ones rebuilding from deep drawdowns. | `SCORE_52W_HIGH_PROXIMITY = 8`, `HIGH_PROXIMITY_FULL_PCT = -0.05`, `HIGH_PROXIMITY_ZERO_PCT = -0.20` |
+| **Market-breadth bonus** | Linear ramp on % of universe with `Close > SMA_50`. Zero below 35%, full at 60%+. Same value for every setup in a run (it's a market-wide scalar), but a strong-tape setup is structurally a better trade than the same chart in a defensive regime where most stocks are under their SMA_50. | `SCORE_BREADTH_BONUS = 8`, `BREADTH_FULL_PCT = 0.60`, `BREADTH_ZERO_PCT = 0.35` |
+| **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
 
-**Tier mapping** — `_calculate_tier()`:
+**Tier mapping** — `_calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
 | Tier | Threshold | Setting |
 |------|-----------|---------|
-| **S** | `score ≥ 85` | `TIER_S = 85` |
-| **A** | `score ≥ 70` | `TIER_A = 70` |
-| **B** | `score ≥ 55` | `TIER_B = 55` |
-| **C** | `score ≥ 40` | `TIER_C = 40` |
+| **S** | `score ≥ 110` | `TIER_S = 110` |
+| **A** | `score ≥ 95` | `TIER_A = 95` |
+| **B** | `score ≥ 75` | `TIER_B = 75` |
+| **C** | `score ≥ 55` | `TIER_C = 55` |
 | **D** | else | — |
+
+---
+
+## VCP Progressive-Contraction Footprint
+
+`measure_contractions()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
+
+It reuses the Phase B zigzag machinery over the base window: each peak→valley downswing is one contraction, `depth = (peak − valley) / peak`. The initial BC→AR descent into the base is excluded by design (it's the entry into the base, the early-chop the `cand_start` trim already removes).
+
+`quality ∈ [0,1] = 0.40·count_score + 0.35·progressive + 0.25·final_tight`:
+- **count_score** — full credit for 2–6 contractions (Minervini's range, 3–4 typical); partial for 1 or for an over-count (choppy, not a clean coil).
+- **progressive** — fraction of consecutive contractions that don't widen (5% tolerance); 1.0 = textbook monotonic tightening.
+- **final_tight** — ramp on the rightmost contraction depth: full ≤ 3%, zero ≥ 12%.
+
+Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, and the `score_contraction` sub-score. Fires the 🌀 **VCP Coil** tag chip when `quality ≥ CONTRACTION_QUALITY_TAG` (0.70). Scored, not gated — measure-first, like the touch-volume signature.
+
+---
+
+## Volume Signature Around Touches
+
+After the consolidation passes, `_evaluate_ticker` computes two diagnostic z-scores using the base's own volume distribution as baseline:
+
+```
+touch_band = TOUCH_TOLERANCE_ATR × ATR_10
+r_touch_vol_z = (mean_vol_at_R_touches − mean_base_vol) / std_base_vol
+s_touch_vol_z = (mean_vol_at_S_touches − mean_base_vol) / std_base_vol
+```
+
+These don't gate anything — they're persisted to the archive (`r_touch_vol_z`, `s_touch_vol_z`) and surface as Wyckoff-classic interpretation tags on the frontend card:
+
+| z-score signature | Tag chip | Meaning |
+|---|---|---|
+| `r_touch_vol_z < TOUCH_VOL_Z_NO_SUPPLY` (-0.30) | 🤫 No Supply | Resistance tested on below-average volume — buyers absorbed silently, textbook precursor to a clean breakout |
+| `s_touch_vol_z > TOUCH_VOL_Z_SPRING` (+0.30) | 💪 Demand at S | Support tested on above-average volume — buyers stepping in at S, selling absorbed. **Not a spring** — a spring is a Phase C undercut below the range (that shows up as a `REBOUND` setup type, not as this tag) |
+| `r_touch_vol_z > TOUCH_VOL_Z_HEAVY_R` (+0.50) | ⚠️ Heavy Resistance | Resistance tested on ABOVE-average volume — supply hitting the bid every time, distribution-flavored, breakout risk |
+
+The "Heavy Resistance" tag is the only *warning* tag in the system — designed to surface even when other positive tags would otherwise crowd it out (it carries higher `weight` in the tag-ordering than even Phase D).
+
+These are bookkeeping (not score gates) intentionally: the volume signature at touches is a real Wyckoff axis but its predictive power needs to be measured in the archive before we make it a hard gate or a score component. Phase 2 archive analysis will tell us which thresholds actually matter and at what magnitude.
 
 ---
 
 ## Outputs
 
-`_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields (`_R`, `_S`, `_lps_offset`, `_r_anchor_bar`, `_s_anchor_bar`, `_sub_scores`, etc.) feed the chart renderer and the archive but are not displayed.
+`_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields (`_R`, `_S`, `_lps_offset`, `_r_anchor_bar`, `_s_anchor_bar`, `_sub_scores`, `_r_touch_vol_z`, `_s_touch_vol_z`, `_lps_descent_frac`, `_lps_zone_type`, etc.) feed the chart renderer and the archive but are not displayed in the terminal.
 
 Pipeline returns `(results_df, market_data, tickers)` — `results_df` is sorted by `Score` descending.
 
@@ -199,7 +262,7 @@ Pipeline returns `(results_df, market_data, tickers)` — `results_df` is sorted
 
 The screener writes every output to a SQLite-backed setup archive (`webapp/backend/trading_journal.db`, `setup_archive` table) so we can build a regression dataset of structural fingerprints + forward outcomes.
 
-### `archive_writer.archive_scan_results()` ([core/archive_writer.py:29](../core/archive_writer.py#L29))
+### `archive.writer.archive_scan_results()` ([core/archive/writer.py](../core/archive/writer.py))
 - Called automatically after each screener run.
 - Upserts on `(ticker, scan_date)` — re-running the same day updates rather than duplicates.
 - `autoflush=False` on the session: avoids the "database is locked" path where a per-row existence query would auto-flush pending UPDATEs while the webapp holds a read lock.
@@ -211,7 +274,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - Re-runs the full Phase 1–4 pipeline at that historical date via `_evaluate_at_date()` (a ported copy of `_evaluate_ticker` that works on a pre-sliced DataFrame).
 - Computes forward returns immediately (we have the future data already).
 - Tags rows with `source="seed"`, `quality_label="perfect"` to distinguish from live scans.
-- CLI: `python -m core.seed_archive [--force]`.
+- CLI: `python -m core.archive.seed [--force]`.
 
 ### `update_forward_returns.update_forward_returns()` ([core/update_forward_returns.py:108](../core/update_forward_returns.py#L108))
 - Backfills outcome data for archive rows older than `--min-age` calendar days (default 5).
@@ -220,7 +283,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
   - **MFE/MAE:** maximum favorable / adverse excursion at 20d and 60d windows.
   - **Trigger status:** `triggered = 1` if any forward `High >= trigger_price`, plus `trigger_date`.
 - By default skips rows that already have `fwd_return_1d` populated; `--force` re-computes everything.
-- CLI: `python -m core.update_forward_returns [--min-age N] [--force]`.
+- CLI: `python -m core.archive.forward_returns [--min-age N] [--force]`.
 
 ---
 
@@ -236,7 +299,7 @@ MIN_YEARLY_RETURN = -0.20
 
 # Phase 2 — Consolidation
 MIN_BASE_DAYS = 20
-MAX_BOX_WIDTH = 0.20
+MAX_BOX_WIDTH = 0.25
 CRASH_FILTER_MULT = 0.70
 EXTENSION_FILTER_MULT = 1.15
 PIVOT_ORDER_SHORT = 1; PIVOT_ORDER_LONG = 2; PIVOT_ORDER_THRESHOLD = 40
@@ -256,7 +319,9 @@ AR_MAX_BARS = 15
 
 # Phase 3 — LPS detection
 LPS_DROP_MIN = 0.02
+LPS_DROP_MIN_OVERSHOOT_R = 0.04  # Stricter floor for backtest-of-breakout zone
 LPS_DROP_MAX = 0.10
+LPS_MIN_DESCENT_FRAC = 0.50     # Graded shape gate (pair-wise low descent fraction)
 LPS_SCAN_OFFSET_MAX = 4         # today + up to 3 days back
 LPS_LENGTH_MIN = 2; LPS_LENGTH_MAX = 7
 LPS_HOLD_TOLERANCE = 0.97
@@ -264,9 +329,12 @@ LPS_ZONE_ATR_MULT = 0.5
 LPS_RANGE_PERCENTILE = 0.5
 LPS_SPREAD_MUST_DECLINE = True
 LPS_VOL_CONTRACTION_MAX = 0.85
+TOUCH_VOL_Z_NO_SUPPLY = -0.30   # Tag: r_touch_vol_z below this → "No Supply"
+TOUCH_VOL_Z_SPRING = 0.30       # Tag: s_touch_vol_z above this → "Spring Strength"
+TOUCH_VOL_Z_HEAVY_R = 0.50      # Tag: r_touch_vol_z above this → "Heavy Resistance" (warning)
 
 # Phase 4 — Scoring
-TIER_S = 85; TIER_A = 70; TIER_B = 55; TIER_C = 40
+TIER_S = 110; TIER_A = 95; TIER_B = 75; TIER_C = 55
 SCORE_BASE_AGE = 35; BASE_AGE_CAP_DAYS = 120
 SCORE_TOUCH_DENSITY = 25
 SCORE_VOL_CONTRACTION = 20
@@ -275,13 +343,25 @@ SCORE_BOX_TIGHTNESS = 15
 SCORE_ATR_SQUEEZE = 8
 SCORE_OSCILLATION = 5
 TOUCH_BONUS_INDIVIDUAL = 3; TOUCH_BONUS_TOTAL = 6; TOUCH_BONUS_POINTS = 10
-MIN_STRONG_YEARLY_RETURN = 0.30; SCORE_UPTREND_BONUS = 15
+MIN_STRONG_YEARLY_RETURN = 0.30; MAX_STRONG_YEARLY_RETURN = 0.60; SCORE_UPTREND_BONUS = 15
+SCORE_RS_BONUS = 15; RS_LOOKBACK_BARS = 126; RS_MAX_EXCESS_RETURN = 0.30
+SCORE_52W_HIGH_PROXIMITY = 8; HIGH_PROXIMITY_FULL_PCT = -0.05; HIGH_PROXIMITY_ZERO_PCT = -0.20
+SCORE_BREADTH_BONUS = 8; BREADTH_FULL_PCT = 0.60; BREADTH_ZERO_PCT = 0.35
+SCORE_CONTRACTION = 12; CONTRACTION_IDEAL_MIN = 2; CONTRACTION_IDEAL_MAX = 6
+CONTRACTION_FINAL_TIGHT_PCT = 0.03; CONTRACTION_FINAL_LOOSE_PCT = 0.12; CONTRACTION_QUALITY_TAG = 0.70
 
-# Data & cache
+# Data & cache (incremental fetch)
 CACHE_FILENAME = "market_data_cache_2y.parquet"
-CACHE_MAX_AGE_HOURS = 12
+TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars hourly during RTH
+TTL_FRESH_HOURS_OFFHOURS = 12
+FULL_REFRESH_INTERVAL_DAYS = 7    # Forced cold 2y refetch weekly
+INCREMENTAL_OVERLAP_BDAYS = 5     # Overlap re-download for split-probe
+INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap → fall back to full refetch
 DOWNLOAD_PERIOD = "2y"
 TICKER_CACHE_MAX_AGE_DAYS = 1
+SPY_SYMBOL = "SPY"                # Stored in parquet for market context, not screened
+MARKET_CONTEXT_TTL_HOURS_MARKET = 1
+MARKET_CONTEXT_TTL_HOURS_OFFHOURS = 12
 ```
 
 ---
@@ -294,7 +374,7 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Hierarchical Refinement — Inner Sub-Box (live)
 
-`find_consolidation()` ([core/consolidation.py:653](../core/consolidation.py#L653)) wraps `find_outer_box()` with a Phase D launchpad / VCP mini-consolidation probe. After an outer box is found, it probes the recent half of that box (`_INNER_SEARCH_FRACTION = 0.5`) via `_inner_zigzag()` ([core/consolidation.py:367](../core/consolidation.py#L367)) for a tighter inner sub-box. When the inner exists and is meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) AND spans `_INNER_MIN_DAYS = 15`+ bars, the inner wins; otherwise the outer is returned unchanged.
+`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D launchpad / VCP mini-consolidation probe. After an outer box is found, it probes the recent half of that box (`_INNER_SEARCH_FRACTION = 0.5`) via `_inner_zigzag()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) for a tighter inner sub-box. When the inner exists and is meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) AND spans `_INNER_MIN_DAYS = 15`+ bars, the inner wins; otherwise the outer is returned unchanged.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 
@@ -307,7 +387,7 @@ Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../backtest_watchlis
 When the hierarchical detector returns a tight inner box, the standard LPS gates are too strict. Two scalings address this — both self-gated so they cannot over-loosen wider boxes:
 
 1. **Zone tolerance floor** — `if bw < 0.10: zone_tol = max(0.5*ATR, 0.5*box_height)` (in `_detect_lps`). Tight Phase D boxes often have the LPS forming as a breakout-retest just above R (resistance flipped to support post-breach) or a sellers-failing test just below S. Half-ATR alone is too narrow when `box_height` is small. The `bw < 0.10` gate prevents wide-outer-box over-loosening.
-2. **Base range threshold floor** — `base_range_threshold = max(spread_quantile, 1.2*ATR)` (in `_evaluate_ticker`). Inside a tight inner box the 50%ile spread can be smaller than a normally-volatile bar, killing detection on any ATR-typical day. Self-gates: chronically-wide bases keep the percentile rule.
+2. **Base range threshold floor** — `base_range_threshold = max(spread_quantile, 1.2*ATR)` (in `_evaluate_ticker`). Inside a tight inner box the 50%ile spread can be smaller than a normally-volatile bar, killing detection on any ATR-typical day. The floor is now applied **unconditionally** (no `bw` self-gate); chronically-wide bases simply have a percentile that already exceeds 1.2·ATR, so the `max(...)` resolves to the percentile and the rule is unchanged for them.
 
 ### Remaining misses
 

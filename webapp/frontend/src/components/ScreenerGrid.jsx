@@ -229,7 +229,11 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       </div>
       <TagRow
         subScores={data.sub_scores}
-        flags={{ phaseDInner: data.phase_d_inner }}
+        flags={{
+          phaseDInner: data.phase_d_inner,
+          rTouchVolZ: data.r_touch_vol_z,
+          sTouchVolZ: data.s_touch_vol_z,
+        }}
         style={{
           padding: '6px 10px',
           background: 'var(--bg-main)',

@@ -49,8 +49,16 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # ============================================================
 # PHASE 3 — LPS & BREAKOUT DETECTION
 # ============================================================
-LPS_DROP_MIN = 0.02              # Minimum pullback depth (2%)
+LPS_DROP_MIN = 0.02              # Minimum pullback depth (2%) — INSIDE / UNDERCUT_S zones
+LPS_DROP_MIN_OVERSHOOT_R = 0.04  # Stricter floor for OVERSHOOT_R: require a real backtest, not a shallow drift above R
 LPS_DROP_MAX = 0.10              # Maximum pullback depth (10%, staleness cap)
+# Graded shape gate: descent_frac is the fraction of pair-wise (i<j) low
+# comparisons where the later bar's low is <= the earlier bar's low (perfect
+# descent = 1.0, perfect rally = 0.0, ~0.5 for random/sideways). Replaces
+# the prior binary argmax-high > argmin-low reject. Setups below this floor
+# are still rejected; setups above multiply LPS quality by descent_frac so
+# cleaner descents outrank sloppy ones.
+LPS_MIN_DESCENT_FRAC = 0.50
 LPS_SCAN_OFFSET_MAX = 4         # Today + up to 3 days back (offsets 0..3) — only surface active LPS
 LPS_LENGTH_MIN = 2               # Shortest LPS formation (days)
 LPS_LENGTH_MAX = 7               # Longest LPS formation (days)
@@ -115,6 +123,34 @@ SCORE_52W_HIGH_PROXIMITY = 8
 HIGH_PROXIMITY_FULL_PCT = -0.05   # within 5% of 52w high → full points
 HIGH_PROXIMITY_ZERO_PCT = -0.20   # 20%+ below → zero points
 
+# Market-breadth bonus — % of the screened universe with Close > SMA_50 on
+# scan_date. Broadcast as a per-run scalar; same value for every setup in a
+# run, but rewards setups that form in a tape where the average stock is
+# participating (breakouts hold more reliably in broad markets than in
+# narrow / mega-cap-only rallies).
+SCORE_BREADTH_BONUS = 8
+BREADTH_FULL_PCT = 0.60           # 60%+ universe above SMA_50 → full points
+BREADTH_ZERO_PCT = 0.35           # below 35% → zero points
+
+# VCP progressive-contraction footprint (the defining Minervini pattern):
+# 2-6 pullbacks each tighter than the last (18%→12%→6%), tight final
+# contraction. Measured by core.structure.consolidation.measure_contractions over the
+# base window; scored as a sub-component. Measure-first — scored, not gated.
+SCORE_CONTRACTION = 12            # cap for the contraction-quality sub-score
+CONTRACTION_IDEAL_MIN = 2         # Minervini: 2-6 contractions, 3-4 typical
+CONTRACTION_IDEAL_MAX = 6
+CONTRACTION_FINAL_TIGHT_PCT = 0.03  # final contraction ≤ 3% drawdown → full final-tightness
+CONTRACTION_FINAL_LOOSE_PCT = 0.12  # final contraction ≥ 12% → zero
+CONTRACTION_QUALITY_TAG = 0.70    # quality ≥ this fires the "VCP Coil" tag chip
+
+# Volume signature at R/S touches — z-score of touch-bar volume vs the base's
+# own volume distribution. Drives the no-supply / spring-strength /
+# heavy-resistance tags. Negative z at R = no supply (textbook); positive z at
+# S = spring strength; positive z at R = distribution-flavored resistance.
+TOUCH_VOL_Z_NO_SUPPLY = -0.30     # r_touch_vol_z below this → "No Supply" tag
+TOUCH_VOL_Z_SPRING = 0.30         # s_touch_vol_z above this → "Spring Strength" tag
+TOUCH_VOL_Z_HEAVY_R = 0.50        # r_touch_vol_z above this → "Heavy Resistance" warning
+
 # Touch density bonus trigger
 TOUCH_BONUS_INDIVIDUAL = 3       # Need >= 3 touches on EACH side
 TOUCH_BONUS_TOTAL = 6            # OR >= 6 total touches
@@ -127,6 +163,13 @@ BREAKOUT_DEFAULT_TIGHTNESS = 0.7
 # ============================================================
 # DATA & CACHING
 # ============================================================
+# Live archiving — when True, every daily screener run upserts its full output
+# (winners AND the setups that later fizzle) into setup_archive with
+# source="screener". This is the fuel the calibration/analysis tools need:
+# without live non-winners, every outcome metric is biased by the seed gallery.
+# Idempotent per (ticker, scan_date); re-running the same day updates in place.
+ARCHIVE_LIVE_SCANS = True
+
 CACHE_FILENAME = "market_data_cache_2y.parquet"
 CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"

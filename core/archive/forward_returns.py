@@ -3,7 +3,7 @@ Forward return updater — backfills forward returns, MFE/MAE, and trigger statu
 for archived setups that are old enough to have outcome data.
 
 Run manually:
-    python -m core.update_forward_returns
+    python -m core.archive.forward_returns
 
 Or schedule via Windows Task Scheduler for nightly updates.
 """
@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 

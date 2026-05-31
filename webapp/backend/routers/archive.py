@@ -25,7 +25,11 @@ from database import get_db
 
 router = APIRouter(prefix="/archive", tags=["archive"])
 
-_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# This file lives at webapp/backend/routers/archive.py — three levels up
+# from `routers/` (routers → backend → webapp → project root) is where
+# run_screener.py and core/ live. Two levels only reached webapp/, which is
+# why the subprocess looked for webapp/core/update_forward_returns.py.
+_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 # ── Schemas ──────────────────────────────────────────────────────
@@ -88,6 +92,21 @@ class SetupOut(BaseModel):
     dist_52w_high_pct: Optional[float] = None
     # Phase A structural detail
     phase_d_inner: Optional[int] = None
+    # Volume-around-touches signature
+    r_touch_vol_z: Optional[float] = None
+    s_touch_vol_z: Optional[float] = None
+    # LPS shape & zone detail
+    lps_descent_frac: Optional[float] = None
+    lps_zone_type: Optional[str] = None
+    # New sub-scores
+    score_high_proximity: Optional[float] = None
+    score_breadth_bonus: Optional[float] = None
+    score_rs_bonus: Optional[float] = None
+    # VCP contraction footprint
+    contraction_count: Optional[int] = None
+    contraction_quality: Optional[float] = None
+    final_contraction_depth: Optional[float] = None
+    score_contraction: Optional[float] = None
     # Curation
     quality_label: Optional[str] = None
     notes: Optional[str] = None
@@ -187,10 +206,13 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
     if raw.columns.nlevels > 1:
         raw.columns = raw.columns.droplevel('Ticker')
 
+    # Re-scale stored R/S/trigger onto the freshly-adjusted candle scale.
+    ratio = _adjustment_ratio(raw, target_date, setup.current_price)
+
     candles = []
     volumes = []
     forward_bars = 0
-    
+
     for dt, row in raw.iterrows():
         dt_str = dt.strftime('%Y-%m-%d')
         if dt > target_date:
@@ -209,8 +231,8 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
         "candles": candles,
         "volumes": volumes,
         "base_len": setup.base_length or 0,
-        "R": setup.r_level,
-        "S": setup.s_level,
+        "R": (setup.r_level * ratio) if setup.r_level else setup.r_level,
+        "S": (setup.s_level * ratio) if setup.s_level else setup.s_level,
         "lps_len": setup.lps_length or 0,
         "lps_offset": 0,
         "r_anchor": setup.r_anchor,
@@ -219,20 +241,58 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
         "setup": setup.setup_type,
         "score": setup.score,
         "forward_bars": forward_bars,
-        "annotations": _build_annotations(setup),
+        "annotations": _build_annotations(setup, ratio),
     }
 
 
-def _build_annotations(setup) -> Dict[str, Any]:
-    """Per-setup overlay metadata for the chart: trigger price, MFE/MAE markers."""
+def _adjustment_ratio(raw, scan_date_ts, stored_close) -> float:
+    """Recover the split/dividend adjustment factor between scan-time and now.
+
+    yfinance `auto_adjust=True` rescales the ENTIRE price series for any split
+    or dividend that has occurred up to the download date. The R/S levels in
+    the archive were computed on the scan-time scale, so whenever an adjustment
+    happened between scan_date and today, the freshly-downloaded candles sit on
+    a different scale and the stored R/S float away from the structure.
+
+    We recover the multiplicative factor by comparing the stored scan-date
+    close (`current_price`) against the freshly-fetched close on the same bar,
+    then callers scale R/S/trigger by it so the overlays land back on the base.
+
+    Returns 1.0 when the ratio can't be trusted (missing data, absurd value).
+    """
+    if not stored_close or stored_close <= 0:
+        return 1.0
+    try:
+        on_or_before = raw[raw.index <= scan_date_ts]
+        if on_or_before.empty:
+            return 1.0
+        fetched_close = float(on_or_before.iloc[-1]["Close"])
+        if fetched_close <= 0:
+            return 1.0
+        ratio = fetched_close / float(stored_close)
+        # Sanity band — reject garbage ratios from bad data rows.
+        if 0.01 <= ratio <= 100.0:
+            return ratio
+    except Exception:
+        pass
+    return 1.0
+
+
+def _build_annotations(setup, ratio: float = 1.0) -> Dict[str, Any]:
+    """Per-setup overlay metadata for the chart: trigger price, MFE/MAE markers.
+
+    `ratio` rescales the price-space trigger line onto the freshly-adjusted
+    candle scale (see _adjustment_ratio). MFE/MAE are percentages → scale-free.
+    """
+    trig = setup.trigger_price
     return {
-        "trigger_price": setup.trigger_price,
+        "trigger_price": (trig * ratio) if trig else trig,
         "trigger_date": setup.trigger_date,
         "mfe_20d_date": setup.mfe_20d_date,
         "mfe_20d": setup.mfe_20d,
         "mae_20d_date": setup.mae_20d_date,
         "mae_20d": setup.mae_20d,
-        "scan_close": setup.current_price,
+        "scan_close": (setup.current_price * ratio) if setup.current_price else setup.current_price,
     }
 
 
@@ -286,6 +346,10 @@ def get_setup_charts_batch(payload: ChartBatchIn, db: Session = Depends(get_db))
         for s in group:
             try:
                 target = pd.Timestamp(s.scan_date)
+                # Re-scale stored R/S/trigger onto the freshly-adjusted candle
+                # scale (computed against the full ticker download `raw`, which
+                # always contains the scan_date bar).
+                ratio = _adjustment_ratio(raw, target, s.current_price)
                 # Window: 500 cal days back through scan_date + 45 cal days forward
                 lo = target - pd.Timedelta(days=500)
                 hi = target + pd.Timedelta(days=45)
@@ -309,8 +373,8 @@ def get_setup_charts_batch(payload: ChartBatchIn, db: Session = Depends(get_db))
                     "candles": candles,
                     "volumes": volumes,
                     "base_len": s.base_length or 0,
-                    "R": s.r_level,
-                    "S": s.s_level,
+                    "R": (s.r_level * ratio) if s.r_level else s.r_level,
+                    "S": (s.s_level * ratio) if s.s_level else s.s_level,
                     "lps_len": s.lps_length or 0,
                     "lps_offset": 0,
                     "r_anchor": s.r_anchor,
@@ -319,7 +383,7 @@ def get_setup_charts_batch(payload: ChartBatchIn, db: Session = Depends(get_db))
                     "setup": s.setup_type,
                     "score": s.score,
                     "forward_bars": forward_bars,
-                    "annotations": _build_annotations(s),
+                    "annotations": _build_annotations(s, ratio),
                 }
             except Exception:
                 continue
@@ -707,8 +771,8 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     if _root not in _sys.path:
         _sys.path.insert(0, _root)
 
-    from core.seed_archive import _evaluate_at_date
-    from core.update_forward_returns import _compute_returns
+    from core.archive.seed import _evaluate_at_date
+    from core.archive.forward_returns import _compute_returns
     from archive_models import (
         SetupArchive,
         get_market_context,
@@ -852,7 +916,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""
     try:
-        script = os.path.join(_ROOT_DIR, "core", "update_forward_returns.py")
+        script = os.path.join(_ROOT_DIR, "core", "archive", "forward_returns.py")
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
             [sys.executable, script],

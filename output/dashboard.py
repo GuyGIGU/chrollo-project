@@ -58,6 +58,7 @@ def _extract_chart_data(data, results_df, tickers):
                     'box_tightness', 'touch_density', 'oscillation',
                     'atr_squeeze', 'lps_tightness', 'vol_contraction',
                     'base_age', 'uptrend_bonus', 'rs_bonus',
+                    'high_proximity', 'breadth_bonus', 'contraction',
                 )
             }
 
@@ -76,6 +77,17 @@ def _extract_chart_data(data, results_df, tickers):
                 'setup': row['Setup'],
                 'sub_scores': sub_payload,
                 'phase_d_inner': bool(row.get('_phase_d_inner', False)),
+                # Volume-around-touches signature → drives no_supply /
+                # spring_strength / heavy_resistance tags on the card.
+                'r_touch_vol_z': row.get('_r_touch_vol_z'),
+                's_touch_vol_z': row.get('_s_touch_vol_z'),
+                # LPS shape detail (for tooltips / future analysis)
+                'lps_descent_frac': row.get('_lps_descent_frac'),
+                'lps_zone_type': row.get('_lps_zone_type'),
+                # VCP contraction footprint (for tooltips / tag)
+                'contraction_count': row.get('_contraction_count'),
+                'contraction_quality': row.get('_contraction_quality'),
+                'final_contraction_depth': row.get('_final_contraction_depth'),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")
