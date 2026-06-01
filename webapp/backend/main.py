@@ -2,12 +2,10 @@
 Chrollo API — FastAPI backend for Trading Journal & Wyckoff Screener.
 """
 import os
-import sys
 import json
 import time
 import uuid
 import logging
-import subprocess
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -30,7 +28,7 @@ from routers import analytics as analytics_router
 from routers import journal as journal_router
 from routers import archive as archive_router
 from routers import watchlist as watchlist_router
-from services import auto_import, alpaca_prices
+from services import auto_import, alpaca_prices, scan_runner, scheduler
 
 # ── Bootstrap ────────────────────────────────────────────────────
 models.Base.metadata.create_all(bind=engine)
@@ -96,6 +94,7 @@ with engine.connect() as _conn:
 async def lifespan(app: FastAPI):
     """Start/stop the IBKR service + auto-import writer around the app lifecycle."""
     auto_import.start_writer()
+    scheduler.start_scheduler()
     svc = get_ibkr_service()
     svc.add_execution_listener(auto_import.submit_execution)
     if settings.ibkr_auto_connect:
@@ -114,6 +113,10 @@ async def lifespan(app: FastAPI):
             auto_import.stop_writer()
         except Exception:
             logging.exception("Failed to stop auto-import writer")
+        try:
+            scheduler.stop_scheduler()
+        except Exception:
+            logging.exception("Failed to stop scan scheduler")
 
 
 logging.basicConfig(
@@ -192,7 +195,6 @@ app.include_router(watchlist_router.router)
 # Resolve the project root once at startup
 _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
-_SCREENER_SCRIPT = os.path.join(_ROOT_DIR, "run_screener.py")
 _FRONTEND_DIST = os.path.join(_ROOT_DIR, "webapp", "frontend", "dist")
 _FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
 _FRONTEND_ASSETS = os.path.join(_FRONTEND_DIST, "assets")
@@ -507,32 +509,11 @@ def run_screener_scan_stream():
 
     def execute_and_yield():
         try:
-            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-
-            process = subprocess.Popen(
-                [sys.executable, _SCREENER_SCRIPT],
-                cwd=_ROOT_DIR,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                creationflags=flags,
-            )
-
-            for line in process.stdout:
-                yield f"data: {line}\n\n"
-
-            process.stdout.close()
-            process.wait()
-
+            yield from scan_runner.stream_manual_scan()
+        finally:
             # Invalidate the screener cache so the next GET picks up new data
             _screener_cache["mtime"] = 0
             _screener_cache["data"] = None
-
-            yield "data: [DONE]\n\n"
-        except Exception as e:
-            yield f"data: ERROR: {str(e)}\n\n"
-            yield "data: [DONE]\n\n"
 
     return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
 

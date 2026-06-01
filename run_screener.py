@@ -11,43 +11,19 @@ This script is the seam between the pure screening engine (``core/``)
 and the output layer (``output/``): ``core`` stays unaware of how results
 are displayed or persisted.
 """
-import os
 import sys
+from pathlib import Path
 
 # Ensure project root is on the Python path so all imports resolve cleanly
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import settings
-from core.archive.writer import archive_scan_results
-from core.pipeline import run_screener
-from output.dashboard import generate_dashboard
-from output.terminal import print_finviz_url, print_results, save_csv
+from core.pipeline.scan_job import run_scan_and_export
 
 
 def main() -> None:
-    results_df, data, tickers = run_screener()
-
-    if results_df.empty:
-        print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
-        return
-
-    print_results(results_df)
-
-    output_dir = os.path.join(PROJECT_ROOT, 'output', 'watchlists')
-    os.makedirs(output_dir, exist_ok=True)
-    save_csv(results_df, output_dir)
-    print_finviz_url(results_df)
-
-    generate_dashboard(results_df, data, tickers)
-
-    # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
-    # Forward returns are filled in later by core/archive/forward_returns.py.
-    # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
-    if settings.ARCHIVE_LIVE_SCANS:
-        n = archive_scan_results(results_df, enable=True)
-        print(f"\nArchived {n} live setups to setup_archive (source='screener').")
+    run_scan_and_export()
 
 
 if __name__ == '__main__':

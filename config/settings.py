@@ -217,3 +217,12 @@ MARKET_CONTEXT_TTL_HOURS_OFFHOURS = 12
 # ============================================================
 DASHBOARD_CHART_TIERS = ['S', 'A', 'B', 'C', 'D']   # Default: generate chart data for all setups
 DASHBOARD_CHART_DAYS = 300           # Max candles shown per chart
+
+# ============================================================
+# SCHEDULED WEBAPP SCANS
+# ============================================================
+# The backend scheduler runs in America/New_York time, after the regular US
+# close so yfinance has time to publish the completed daily bar.
+SCAN_SCHEDULE_HOUR_ET = 18
+SCAN_SCHEDULE_MINUTE_ET = 0
+FORWARD_RETURNS_MIN_AGE_DAYS = 5
