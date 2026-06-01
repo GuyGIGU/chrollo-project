@@ -1,28 +1,195 @@
 # Chrollo
 
-Wyckoff VCP/LPS screener. The engine is split into two clean halves plus a conductor —
-see [core/MAP.md](core/MAP.md) for the plain-English tour.
+Chrollo is a **Wyckoff / VCP / LPS stock screener** wrapped in a local web app, with an optional
+Interactive Brokers (IBKR) link for portfolio snapshots. It surfaces tight, pre-breakout
+consolidation setups; the operator reviews them discretionarily and trades them by hand in
+TWS / TradingView. Chrollo is an **idea-generation and bookkeeping tool — it does not place trades.**
 
-## Layout
+> **Prime directive:** accurate detection of *visually tight structure*. The engine borrows the
+> Wyckoff vocabulary (Buying/Selling Climax, Automatic Reaction, Last Point of Support) but is
+> tuned as a **Minervini-VCP + Qullamaggie-momentum** screen, not a textbook Wyckoff/Phase-C
+> classifier. When in doubt, it favors structural correctness over catching more names.
 
-- `core/` — the screener engine, organized by role:
-  - `core/structure/` — **Visual Structure Engine**: pure geometry/measurement (boxes, LPS, contractions). No opinion.
-  - `core/scoring/` — **Scoring Engine**: turns measured facts into points + a tier. All knobs live in `config/settings.py`.
-  - `core/pipeline/` — **the conductor**: data loading + per-ticker orchestration that wires structure → scoring.
-  - `core/archive/` — **the measuring stick**: record outcomes, backfill forward returns, analyze winners.
-- `config/` — settings and ticker universe
-- `output/` — generated dashboard data, watchlists, logs (large data files are gitignored)
-- `webapp/` — FastAPI backend + frontend for trading journal / IBKR integration
-- `tools/` — dev/backtest harnesses (not part of the live run)
+New here? Read this file top-to-bottom, then:
+- [`core/MAP.md`](core/MAP.md) — plain-English tour of how `core/` is organized.
+- [`docs/strategy_v2.md`](docs/strategy_v2.md) — the **single source of truth** for the screener
+  algorithm: every gate, formula, and `config/settings.py` value, citing the function it lives in.
+- [`docs/deploy.md`](docs/deploy.md) — how the app runs unattended as a local service.
 
-## Setup
+---
 
-```powershell
-pip install -r requirements.txt
+## What it does, end to end
+
+1. **Pulls market data** for the US common-stock universe from yfinance into a 2-year parquet cache
+   (incremental daily refresh; weekly cold refetch). SPY rides along for market context.
+2. **Screens** every ticker through a 4-phase pipeline: baseline filters → consolidation/box
+   detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_v2.md`.
+3. **Renders** the survivors in a React dashboard: candlestick charts with the detected box/LPS
+   drawn on, "why-ranked" tag chips, Visual/Market score pills, filtering, sorting, and a
+   star-able watchlist.
+4. **Archives** every scan to SQLite and **backfills forward returns** over the following days, so
+   the structural fingerprint of each setup can later be regressed against what actually happened.
+5. **Optionally** connects to IBKR (manual, on-demand) to show a live portfolio snapshot. The user
+   does their real trading in TWS / TradingView.
+
+The screener half (1–4) is **fully decoupled from the broker** — automation never touches IBKR.
+
+---
+
+## Architecture
+
+```
+                          ┌─────────────────────────────────────────────┐
+   yfinance ──▶ parquet ──▶│  core/  — the screener engine               │
+                          │   structure/  Visual Structure Engine        │
+                          │              (pure geometry: boxes, LPS,      │
+                          │               contractions, ADR) — no opinion │
+                          │   scoring/    Scoring Engine                  │
+                          │              (facts → points → tier; all      │
+                          │               knobs in config/settings.py)    │
+                          │   pipeline/   the conductor (data + per-ticker │
+                          │               orchestration, ProcessPool)     │
+                          │   archive/    the measuring stick (record,    │
+                          │               forward-returns, analyze)       │
+                          └───────────────┬─────────────────────────────┘
+                                          │ writes
+                    output/screener_data.json   +   SQLite setup_archive
+                                          │
+        ┌─────────────────────────────────▼──────────────────────────────┐
+        │  webapp/backend  — FastAPI                                      │
+        │   • serves the screener JSON + archive + watchlist + trade log  │
+        │   • serves the built React app (one origin, no Vite in prod)    │
+        │   • APScheduler: daily scan + forward-returns (18:00 ET, Mon–Fri)│
+        │   • IBKR service (manual connect; portfolio snapshots only)     │
+        └─────────────────────────────────┬──────────────────────────────┘
+                                          │ HTTP / SSE
+                          webapp/frontend  — React + Vite (lightweight-charts)
 ```
 
-## Run
+**Two engines + a conductor** is the core design principle: `structure/` *measures* (it has no
+opinion and never assigns points), `scoring/` *judges* (every weight is a tunable in
+`config/settings.py`), and `pipeline/` wires them together. `archive/` exists so the opinions in
+`scoring/` can eventually be validated against real forward outcomes rather than intuition.
 
-```powershell
-python run_screener.py
+### Measure-first philosophy
+
+New signals are added as **bonus sub-scores**: never gated, never penalizing (a name that lacks the
+trait simply earns 0), with the raw measurement archived for later calibration. Tier thresholds are
+**not** recalibrated when a sub-score is added — that waits until the live archive shows the new
+distribution. GAP 1 (VCP progressive contraction), GAP 2 (ascending support), and GAP 3 (ADR%
+absolute volatility) were all added this way.
+
+---
+
+## Repository layout
+
 ```
+core/                  The screener engine (see core/MAP.md)
+  structure/           Visual Structure Engine — consolidation.py, lps.py, indicators.py
+  scoring/             Scoring Engine — scoring.py (score_setup, calculate_tier)
+  pipeline/            Conductor — data.py (fetch/cache), screener.py (run_screener,
+                         _evaluate_ticker), scan_job.py (scan → dashboard → archive)
+  archive/             writer.py, forward_returns.py, seed.py, analyze.py, purge.py
+config/                settings.py (all tunables), tickers.csv (cached universe)
+output/                Generated screener_data.json, watchlists, logs (data files gitignored)
+webapp/
+  backend/             FastAPI app — main.py, routers/, services/ (scan_runner, scheduler,
+                         scan_status), ibkr/, archive_models.py, models.py, database.py
+  frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveCard, SetupTags,
+                         ScoreBreakdown, TradeTable, charts), dist/ (built, gitignored)
+docs/                  strategy_v2.md (algorithm), deploy.md (go-live), handoff_gap3.md
+tools/ , experiments/  Dev/backtest harnesses; backtest_watchlist.py lives at repo root
+run_screener.py        CLI entry: one scan → dashboard JSON → archive
+setup.bat              One-time: install Python + frontend deps, build the frontend
+start_dashboard.bat    Manual launcher: one uvicorn process serving UI + API at :8000
+```
+
+---
+
+## The web app
+
+A single FastAPI process serves both the JSON API and the **built** React app from
+`http://127.0.0.1:8000` (no separate dev server in production). Key surfaces:
+
+- **Screener grid** — one card per surviving setup: a candlestick chart with the detected box (R/S)
+  and LPS window drawn on, the tier + score, "why-ranked" **tag chips** (e.g. 🌀 VCP Coil,
+  📈 Ascending Support, ⚡ High ADR, 🤫 No Supply, ⚠️ Heavy Resistance), **Visual / Market / Both
+  score pills**, distance-to-trigger, plus tier/setup/tag filters and sorting.
+- **Watchlist** — a user-curated star toggle persisted to SQLite; bridges the grid to manual
+  review in TWS / TradingView.
+- **Archive view** — historical setups with their forward outcomes (the regression dataset).
+- **Trade journal** — manual + IBKR-imported trades with P&L / R stats (paginated table).
+- **IBKR panel** — connection status and a manual **Reconnect** button for portfolio snapshots.
+
+Tag chips and score pills are derived on the frontend from the engine's sub-score decomposition;
+the sub-score caps mirror `config/settings.py` and live in one place
+(`webapp/frontend/src/components/setupScoreMath.js`).
+
+---
+
+## The archive (regression dataset)
+
+Every scan upserts each setup to the `setup_archive` table in
+`webapp/backend/trading_journal.db` (keyed on `ticker + scan_date`), capturing the full structural
+fingerprint (box width, touches, LPS shape, contraction/support/ADR sub-scores, market context).
+A few days later, `update_forward_returns` backfills `fwd_return_{1,5,10,20,60}d`, MFE/MAE, and
+whether/when the breakout trigger fired. `core/archive/analyze.py` turns this into a winner
+fingerprint. This is the feedback loop that will eventually justify (or reject) scoring-weight
+changes — see the measure-first note above.
+
+A **stale-data guard** refuses to archive a run whose last price bar isn't the latest completed
+trading session, so unattended scans never archive setups computed on stale data.
+
+---
+
+## Running it
+
+### One-time setup
+```powershell
+.\setup.bat          # installs Python + frontend deps, builds the React app into webapp/frontend/dist
+```
+
+### A single CLI scan (no web app)
+```powershell
+python run_screener.py     # scan → writes output/screener_data.json → archives the run
+```
+
+### The app, manually (one terminal)
+```powershell
+.\start_dashboard.bat      # one uvicorn process serving UI + API at http://127.0.0.1:8000
+```
+
+### The app, unattended (recommended)
+Run the backend as an always-on local Windows service (NSSM) with start-on-boot + auto-restart;
+APScheduler then runs the scan + forward-returns daily at **18:00 ET, Mon–Fri**, tracks run health
+(`/scan-status/latest`, surfaced in the header), and a scheduled task backs up the DB + cache.
+Full runbook: [`docs/deploy.md`](docs/deploy.md).
+
+### Archive maintenance (CLI)
+```powershell
+python -m core.archive.seed              # bootstrap known-winner setups (--force to overwrite)
+python -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
+```
+
+---
+
+## IBKR / live-trading safety
+
+This matters for any human or agent touching the code:
+
+- **The app never executes trades, moves money, or places orders.** IBKR is used *only* for
+  read-only portfolio snapshots; real trading happens in TWS / TradingView.
+- The unattended service runs **broker-free**: it does **not** set `IBKR_LIVE_CONFIRMED` and runs
+  with `IBKR_AUTO_CONNECT=false`, so it never auto-grabs the IBKR session (which would fight
+  TradingView for the single allowed login). The broker connection is a **deliberate manual
+  action** — the dashboard **Reconnect** button — taken only when a fresh snapshot is wanted.
+- `IBKR_LIVE_CONFIRMED=true` exists as a human-confirmation gate for connecting to a *live*
+  brokerage. Do **not** set it in code, scripts, service configs, or automation. The manual
+  launcher (`start_dashboard.bat`) is the human's own choice and is out of scope for automation.
+
+---
+
+## Tech stack
+
+Python (pandas, numpy, scipy, yfinance, ib_async, APScheduler) · FastAPI + Uvicorn · SQLAlchemy +
+SQLite (WAL) · React + Vite + lightweight-charts · runs locally on Windows, localhost-only.

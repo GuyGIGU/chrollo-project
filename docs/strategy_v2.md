@@ -66,7 +66,7 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/structure/indicators.py](../core/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `tools/backtest_watchlist.py` references it.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/structure/indicators.py](../core/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py))
 
@@ -298,7 +298,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - `autoflush=False` on the session: avoids the "database is locked" path where a per-row existence query would auto-flush pending UPDATEs while the webapp holds a read lock.
 - Attaches **market context** to every row: `spy_trend`, `vix_level`, `sector_etf`, `sector_trend` (sector ETF mapped per ticker, 50d trend pulled at scan_date). Sector lookups are cached per ticker within a run.
 
-### `seed_archive.seed_archive()` ([core/seed_archive.py:212](../core/seed_archive.py#L212))
+### `seed_archive()` ([core/archive/seed.py](../core/archive/seed.py))
 - Bootstrap mechanism for known-winner setups defined in `SEED_SETUPS = [(ticker, trigger_date), ...]`.
 - For each pair, scans `[trigger_date - 10d, trigger_date + 3d]` to find which day the screener actually fired (LPS is identified *before* the breakout), keeps the highest-scoring hit.
 - Re-runs the full Phase 1–4 pipeline at that historical date via `_evaluate_at_date()` (a ported copy of `_evaluate_ticker` that works on a pre-sliced DataFrame).
@@ -306,7 +306,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - Tags rows with `source="seed"`, `quality_label="perfect"` to distinguish from live scans.
 - CLI: `python -m core.archive.seed [--force]`.
 
-### `update_forward_returns.update_forward_returns()` ([core/update_forward_returns.py:108](../core/update_forward_returns.py#L108))
+### `update_forward_returns()` ([core/archive/forward_returns.py](../core/archive/forward_returns.py))
 - Backfills outcome data for archive rows older than `--min-age` calendar days (default 5).
 - For each setup, downloads OHLC after `scan_date` and computes via `_compute_returns()`:
   - **Forward returns:** `fwd_return_1d`, `5d`, `10d`, `20d`, `60d` (close-to-close from `scan_close`).
@@ -412,7 +412,7 @@ Inner ⊂ outer is enforced **temporally**, not in price space — the inner can
 
 The key difference between `_inner_zigzag` and `_phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 
-Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../backtest_watchlist.py). Of the 16 misses, 9 now fail at the LPS `shape_up_march` gate (the structural-pullback shape check added in the LPS rewrite — see "LPS Detection" above) and 5 fail at outer-box detection. None are tunable without weakening structural correctness, per the [Quality over hit-rate](../C:/Users/User/.claude/projects/c--Users-User-Screener-Project/memory/feedback_quality_over_hitrate.md) guidance.
+Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../backtest_watchlist.py). Of the 16 misses, 9 now fail at the LPS `shape_up_march` gate (the structural-pullback shape check added in the LPS rewrite — see "LPS Detection" above) and 5 fail at outer-box detection. None are tunable without weakening structural correctness, per the project's standing **quality-over-hit-rate** guidance (accurate tight structure beats catching more names).
 
 ### LPS scaling adaptations for tight inner boxes
 
