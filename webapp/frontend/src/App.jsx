@@ -13,6 +13,25 @@ import useIBKRAccountSummary from './hooks/useIBKRAccountSummary';
 import { API_BASE } from './api';
 import logoUrl from './assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 
+const fmtScanTime = (value) => {
+  if (!value) return 'none';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return 'unknown';
+  return dt.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const scanStatusColor = (status) => {
+  if (status === 'ok') return 'var(--success)';
+  if (status === 'running') return 'var(--accent-blue)';
+  if (status === 'failed' || status === 'stale_data') return 'var(--danger)';
+  return 'var(--text-muted)';
+};
+
 const fmtMoney = (v) => {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -47,6 +66,7 @@ function App() {
   const acct = useIBKRAccountSummary(isConnected);
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [scanStatus, setScanStatus] = useState(null);
 
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
@@ -221,9 +241,31 @@ function App() {
     }
   };
 
+  const fetchScanStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/scan-status/latest`);
+      if (res.ok) {
+        setScanStatus(await res.json());
+      }
+    } catch (error) {
+      console.error("Error fetching scan status:", error);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
+    fetchScanStatus();
+    const scanStatusTimer = window.setInterval(fetchScanStatus, 60000);
+    return () => window.clearInterval(scanStatusTimer);
   }, []);
+
+  const scanStatusText = useMemo(() => {
+    if (!scanStatus || scanStatus.status === 'never') return 'Last scan: none';
+    const when = fmtScanTime(scanStatus.finished_at || scanStatus.started_at);
+    const count = Number.isFinite(Number(scanStatus.n_setups)) ? Number(scanStatus.n_setups) : 0;
+    const label = scanStatus.status === 'stale_data' ? 'stale' : scanStatus.status;
+    return `Last scan: ${when} | ${count} setups | ${label}`;
+  }, [scanStatus]);
 
   return (
     <div className="app-layout">
@@ -404,7 +446,18 @@ function App() {
               : activeTab === 'archive' ? 'Setup Archive & Calibration'
               : 'Wyckoff Screener Scans'}
           </div>
-          <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+          <div style={{display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
+             <span
+               title={scanStatus?.error || ''}
+               style={{
+                 color: scanStatusColor(scanStatus?.status),
+                 fontSize: '12px',
+                 fontWeight: 600,
+                 whiteSpace: 'nowrap',
+               }}
+             >
+               {scanStatusText}
+             </span>
              {activeTab === 'dashboard' && <span style={{color: 'var(--text-muted)'}}>{stockTrades.length} stock trades loaded.</span>}
              {activeTab === 'options' && <span style={{color: 'var(--text-muted)'}}>{optionTrades.length} option trades loaded.</span>}
           </div>

@@ -28,7 +28,7 @@ from routers import analytics as analytics_router
 from routers import journal as journal_router
 from routers import archive as archive_router
 from routers import watchlist as watchlist_router
-from services import auto_import, alpaca_prices, scan_runner, scheduler
+from services import auto_import, alpaca_prices, scan_runner, scan_status, scheduler
 
 # ── Bootstrap ────────────────────────────────────────────────────
 models.Base.metadata.create_all(bind=engine)
@@ -39,6 +39,17 @@ archive_models.SetupArchive.metadata.create_all(bind=engine)
 from sqlalchemy import text as _text
 
 _MIGRATIONS = [
+    """
+    CREATE TABLE IF NOT EXISTS scan_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        started_at VARCHAR NOT NULL,
+        finished_at VARCHAR,
+        status VARCHAR NOT NULL,
+        n_setups INTEGER,
+        error TEXT,
+        trigger VARCHAR NOT NULL
+    )
+    """,
     "ALTER TABLE trade_logs ADD COLUMN actions_json TEXT",
     "ALTER TABLE trade_logs ADD COLUMN source VARCHAR DEFAULT 'manual'",
     "ALTER TABLE trade_logs ADD COLUMN ibkr_account VARCHAR",
@@ -472,6 +483,19 @@ def get_screener_data():
         _screener_cache["mtime"] = current_mtime
 
     return _screener_cache["data"]
+
+
+@app.get("/scan-status/latest")
+def get_latest_scan_status():
+    return scan_status.latest_run() or {
+        "id": None,
+        "started_at": None,
+        "finished_at": None,
+        "status": "never",
+        "n_setups": None,
+        "error": None,
+        "trigger": None,
+    }
 
 
 from pydantic import BaseModel as _BaseModel

@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import os
+import logging
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+import pandas as pd
 from config import settings
 from core.archive.writer import archive_scan_results
 from core.pipeline import run_screener
@@ -11,12 +15,63 @@ from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+log = logging.getLogger("chrollo.scan_job")
+
+
+class StaleMarketDataError(RuntimeError):
+    """Raised when a scan should not be archived because data is stale."""
 
 
 @dataclass
 class ScanExportResult:
     n_setups: int
     n_archived: int
+
+
+def _previous_business_day(day: pd.Timestamp) -> pd.Timestamp:
+    return (day - pd.tseries.offsets.BDay(1)).normalize()
+
+
+def _expected_session_date() -> str:
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    today = pd.Timestamp(now_et.date())
+    after_close = (now_et.hour, now_et.minute) >= (16, 0)
+    if now_et.weekday() < 5 and after_close:
+        expected = today
+    else:
+        expected = _previous_business_day(today)
+    return expected.strftime("%Y-%m-%d")
+
+
+def _last_bar_date(data: pd.DataFrame, tickers: list[str]) -> str | None:
+    if data is None or data.empty:
+        return None
+
+    if isinstance(data.columns, pd.MultiIndex):
+        symbols = list(data.columns.get_level_values(0).unique())
+        preferred = settings.SPY_SYMBOL if settings.SPY_SYMBOL in symbols else None
+        symbol = preferred or next((ticker for ticker in tickers if ticker in symbols), None)
+        if symbol:
+            try:
+                close = data[symbol]["Close"].dropna()
+                if not close.empty:
+                    return pd.Timestamp(close.index[-1]).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+    valid = data.dropna(how="all")
+    if valid.empty:
+        return None
+    return pd.Timestamp(valid.index[-1]).strftime("%Y-%m-%d")
+
+
+def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
+    expected = _expected_session_date()
+    last_bar = _last_bar_date(data, tickers)
+    if last_bar != expected:
+        msg = f"stale market data: last bar {last_bar or 'none'}, expected {expected}"
+        log.warning("Aborting archive write: %s", msg)
+        raise StaleMarketDataError(msg)
 
 
 def run_scan_and_export() -> ScanExportResult:
@@ -41,6 +96,7 @@ def run_scan_and_export() -> ScanExportResult:
     # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
     n_archived = 0
     if settings.ARCHIVE_LIVE_SCANS:
+        _assert_fresh_for_archive(data, tickers)
         n_archived = archive_scan_results(results_df, enable=True)
         print(f"\nArchived {n_archived} live setups to setup_archive (source='screener').")
 
