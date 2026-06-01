@@ -1,5 +1,4 @@
 // "Why ranked" tag chips for screener / archive cards.
-import { SUB_SCORE_CAPS } from './setupScoreMath';
 //
 // Each tag is a one-glance answer to "what did the engine like about this
 // setup?" — derived from the sub-score decomposition that drives the total
@@ -7,8 +6,10 @@ import { SUB_SCORE_CAPS } from './setupScoreMath';
 // > 0 for ramp-style bonuses). Phase D is its own boolean flag from the
 // hierarchical detector.
 //
-// Caps mirror config/settings.py. They change rarely; the small duplication
-// is worth keeping the frontend independent of a backend payload for caps.
+// Sub-score caps (SUB_SCORE_CAPS, mirrors config/settings.py SCORE_*) live in
+// setupScoreMath.js — the single frontend source of truth shared with the
+// Visual/Market score pills.
+import { SUB_SCORE_CAPS } from './setupScoreMath';
 
 // Volume-around-touches z-score thresholds (mirror config/settings.py:
 // TOUCH_VOL_Z_NO_SUPPLY, TOUCH_VOL_Z_SPRING, TOUCH_VOL_Z_HEAVY_R).
