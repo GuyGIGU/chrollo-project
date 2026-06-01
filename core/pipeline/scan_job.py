@@ -68,8 +68,12 @@ def _last_bar_date(data: pd.DataFrame, tickers: list[str]) -> str | None:
 def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
     expected = _expected_session_date()
     last_bar = _last_bar_date(data, tickers)
-    if last_bar != expected:
-        msg = f"stale market data: last bar {last_bar or 'none'}, expected {expected}"
+    # Stale only if the data is OLDER than the latest completed session — i.e.
+    # the feed is missing a session it should have. A bar that is current or
+    # newer (e.g. today's forming bar during an intraday manual scan) is fine.
+    # ISO "YYYY-MM-DD" strings compare chronologically, so "<" is correct here.
+    if last_bar is None or last_bar < expected:
+        msg = f"stale market data: last bar {last_bar or 'none'}, expected >= {expected}"
         log.warning("Aborting archive write: %s", msg)
         raise StaleMarketDataError(msg)
 

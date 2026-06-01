@@ -61,13 +61,16 @@ Create a small backup script:
 ```powershell
 @'
 $repo = "C:\Users\User\Documents\Projects\Chrollo Project"
+$root = Join-Path $env:USERPROFILE "ChrolloBackups"
 $stamp = Get-Date -Format "yyyy-MM-dd_HHmm"
-$dest = Join-Path $env:USERPROFILE "ChrolloBackups\$stamp"
+$dest = Join-Path $root $stamp
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item "$repo\webapp\backend\trading_journal.db*" $dest -ErrorAction SilentlyContinue
 Copy-Item "$repo\market_data_cache_2y.parquet" $dest -ErrorAction SilentlyContinue
 Copy-Item "$repo\cache_meta.json" $dest -ErrorAction SilentlyContinue
 Copy-Item "$repo\market_context.json" $dest -ErrorAction SilentlyContinue
+# Retention: keep the 14 most recent snapshots (the 108 MB parquet adds up fast).
+Get-ChildItem -Path $root -Directory | Sort-Object Name -Descending | Select-Object -Skip 14 | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 '@ | Set-Content "$env:USERPROFILE\ChrolloBackup.ps1" -Encoding UTF8
 ```
 

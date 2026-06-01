@@ -34,14 +34,25 @@ class ScanProcessResult:
 
 def _create_process() -> subprocess.Popen:
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    # Force UTF-8 on the child's stdio. Under the Windows service (and any piped
+    # subprocess) Python otherwise defaults stdout to the locale codec (cp1252),
+    # which crashes the instant the pipeline prints a non-Latin-1 char such as
+    # "→" or an emoji tag. PYTHONUTF8/PYTHONIOENCODING fix the *encode* side
+    # in the child; encoding+errors fix the *decode* side here in the parent.
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.Popen(
         [sys.executable, SCREENER_SCRIPT],
         cwd=ROOT_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         bufsize=1,
         creationflags=flags,
+        env=env,
     )
 
 
