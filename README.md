@@ -7,7 +7,7 @@ TWS / TradingView. Chrollo is an **idea-generation and bookkeeping tool — it d
 
 > **Prime directive:** accurate detection of *visually tight structure*. The engine borrows the
 > Wyckoff vocabulary (Buying/Selling Climax, Automatic Reaction, Last Point of Support) but is
-> tuned as a **Minervini-VCP + Qullamaggie-momentum** screen, not a textbook Wyckoff/Phase-C
+> tuned as a **Minervini-VCP + Qullamaggie-momentum** screen, not a textbook Wyckoff
 > classifier. When in doubt, it favors structural correctness over catching more names.
 
 New here? Read this file top-to-bottom, then:
