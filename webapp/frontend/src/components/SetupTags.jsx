@@ -1,4 +1,5 @@
 // "Why ranked" tag chips for screener / archive cards.
+import { SUB_SCORE_CAPS } from './setupScoreMath';
 //
 // Each tag is a one-glance answer to "what did the engine like about this
 // setup?" — derived from the sub-score decomposition that drives the total
@@ -8,23 +9,6 @@
 //
 // Caps mirror config/settings.py. They change rarely; the small duplication
 // is worth keeping the frontend independent of a backend payload for caps.
-
-const SUB_SCORE_CAPS = {
-  box_tightness:   15,
-  touch_density:   25,
-  oscillation:      5,
-  atr_squeeze:      8,
-  lps_tightness:   20,
-  vol_contraction: 20,
-  base_age:        35,
-  uptrend_bonus:   15,
-  rs_bonus:        15,
-  high_proximity:   8,
-  breadth_bonus:    8,
-  contraction:     12,
-  ascending_support: 8,
-  adr:              8,
-};
 
 // Volume-around-touches z-score thresholds (mirror config/settings.py:
 // TOUCH_VOL_Z_NO_SUPPLY, TOUCH_VOL_Z_SPRING, TOUCH_VOL_Z_HEAVY_R).

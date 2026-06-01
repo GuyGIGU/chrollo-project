@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 import ScreenerModal from './ScreenerModal';
 import { TagRow, TagLegend, TAG_CATALOG, deriveTags } from './SetupTags';
+import { ScoreBreakdownPills } from './ScoreBreakdown';
+import { deriveScoreBreakdown } from './setupScoreMath';
 import { API_BASE } from '../api';
 
 // Earnings within ~10 days = high blow-up risk on a breakout play. We surface
@@ -189,7 +191,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      height: '320px',
+      height: '340px',
       cursor: 'pointer',
       transition: 'border-color 0.2s',
     }}
@@ -201,16 +203,21 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'flex-start',
+        gap: '8px',
+        flexWrap: 'wrap'
       }}>
-        <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+        <span style={{display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0}}>
           <WatchlistStar active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
           <span style={{fontWeight: '700', fontSize: '16px', color: getTierColor(data.tier)}}>{ticker}</span>
         </span>
-        <div style={{fontSize: '11px', color: 'var(--text-main)', display: 'flex', gap: '8px', alignItems: 'center'}}>
-          <EarningsChip info={earnings} />
-          <span style={{padding: '2px 8px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)'}}>{data.tier} TIER</span>
-          <span>Score: {data.score}</span>
+        <div className="screener-card-score-meta">
+          <div style={{fontSize: '11px', color: 'var(--text-main)', display: 'flex', gap: '8px', alignItems: 'center'}}>
+            <EarningsChip info={earnings} />
+            <span style={{padding: '2px 8px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)'}}>{data.tier} TIER</span>
+            <span>Score: {data.score}</span>
+          </div>
+          <ScoreBreakdownPills subScores={data.sub_scores} />
         </div>
       </div>
       {chartError ? (
@@ -258,7 +265,7 @@ const ScreenerGrid = () => {
   const [tierFilter, setTierFilter] = useState('ALL');
   const [setupFilter, setSetupFilter] = useState('ALL');     // setup-type dropdown
   const [tagFilter, setTagFilter] = useState(() => new Set()); // active "why-ranked" tag ids
-  const [sortBy, setSortBy] = useState('score');             // score | base | trigger | rs
+  const [sortBy, setSortBy] = useState('score');             // score | visual | market | base | trigger | rs
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 24;
 
@@ -383,7 +390,13 @@ const ScreenerGrid = () => {
     if (sortBy === 'score') return matched;
     const cd = screenerData.chart_data;
     const sorted = [...matched];
-    if (sortBy === 'base') {
+    if (sortBy === 'visual') {
+      const visual = (t) => deriveScoreBreakdown(cd[t].sub_scores).visual.score || 0;
+      sorted.sort((a, b) => visual(b) - visual(a));
+    } else if (sortBy === 'market') {
+      const market = (t) => deriveScoreBreakdown(cd[t].sub_scores).market.score || 0;
+      sorted.sort((a, b) => market(b) - market(a));
+    } else if (sortBy === 'base') {
       sorted.sort((a, b) => (cd[b].base_len || 0) - (cd[a].base_len || 0));
     } else if (sortBy === 'trigger') {
       sorted.sort((a, b) => distToTrigger(cd[a]) - distToTrigger(cd[b])); // nearest first
@@ -663,6 +676,8 @@ const ScreenerGrid = () => {
                 style={selectStyle}
               >
                 <option value="score">Score (high → low)</option>
+                <option value="visual">Visual score (high → low)</option>
+                <option value="market">Market score (high → low)</option>
                 <option value="base">Base age (old → new)</option>
                 <option value="trigger">Nearest to trigger</option>
                 <option value="rs">Relative strength</option>
@@ -865,7 +880,7 @@ const ScreenerGrid = () => {
         <>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
             gap: '20px',
           }}>
             {paginatedTickers.map((ticker) => (

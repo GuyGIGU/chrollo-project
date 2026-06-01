@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import { ScoreBreakdownPills } from './ScoreBreakdown';
 
 const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
@@ -212,9 +213,10 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
             }}>
               {data.tier} TIER
             </span>
-            <div style={{display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", marginLeft: '12px'}}>
+            <div style={{display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", marginLeft: '12px', alignItems: 'center', flexWrap: 'wrap'}}>
                 <span><strong>Setup:</strong> {data.setup}</span>
                 <span><strong>Score:</strong> {data.score}</span>
+                <ScoreBreakdownPills subScores={data.sub_scores} includeFusion />
                 <span><strong>Curr:</strong> ${currentPrice}</span>
                 <span><strong>Base:</strong> {data.base_len}d</span>
                 <span><strong>R:</strong> ${data.R}</span>

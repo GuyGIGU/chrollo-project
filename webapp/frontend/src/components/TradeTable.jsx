@@ -6,6 +6,7 @@ import { isOptionSymbol, inferDirection } from '../App';
 
 // Editable text-input cells in tab order. Side is a toggle (not in this list).
 const EDITABLE_FIELDS = ['opening_date', 'ticker', 'entry_price', 'stop_loss', 'quantity'];
+const DEFAULT_PAGE_SIZE = 20;
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -49,11 +50,13 @@ const TradeTable = ({
   setDraftRow,
   onDetailClick,
   onTradeUpdate,
+  pageSize = DEFAULT_PAGE_SIZE,
 }) => {
   const [yfPrices, setYfPrices] = useState({});
   const [editingCell, setEditingCell] = useState(null); // {tradeId|'draft', field}
   const [cellDraft, setCellDraft] = useState('');
   const [expandedFills, setExpandedFills] = useState(() => new Set());
+  const [currentPage, setCurrentPage] = useState(1);
   // Local fills buffer while editing a trade's actions (keyed by trade id)
   const [fillsBuffer, setFillsBuffer] = useState({}); // {tradeId: [actions]}
 
@@ -87,6 +90,23 @@ const TradeTable = ({
     return [...set];
   }, [trades]);
   const openTickersString = useMemo(() => openTickers.join(','), [openTickers]);
+
+  const pageCount = Math.max(1, Math.ceil(trades.length / pageSize));
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, trades.length);
+  const pageTrades = useMemo(
+    () => trades.slice(pageStart, pageStart + pageSize),
+    [trades, pageStart, pageSize],
+  );
+
+  useEffect(() => {
+    setCurrentPage(page => Math.min(Math.max(page, 1), pageCount));
+  }, [pageCount]);
+
+  useEffect(() => {
+    if (draftRow) setCurrentPage(1);
+  }, [draftRow]);
+
   useEffect(() => {
     if (openTickers.length === 0) return;
     const missing = openTickers.filter(tk => ibkrPriceMap[tk] == null);
@@ -685,6 +705,10 @@ const TradeTable = ({
     );
   };
 
+  const goToPage = (page) => {
+    setCurrentPage(Math.min(Math.max(page, 1), pageCount));
+  };
+
   const renderFillsRow = (t) => {
     const fills = fillsBuffer[t.id] || [];
     return (
@@ -760,7 +784,8 @@ const TradeTable = ({
 
   // ── Header ──────────────────────────────────────────────────────
   return (
-    <div style={{ marginTop: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
+    <div className="trade-table-wrap">
+      <div className="trade-table-scroll">
       <table className="trade-table">
         <colgroup>
           <col style={{ width: 30 }} />   {/* expand */}
@@ -804,9 +829,25 @@ const TradeTable = ({
         </thead>
         <tbody>
           {renderDraftRow()}
-          {trades.map(renderTradeRow)}
+          {pageTrades.map(renderTradeRow)}
         </tbody>
       </table>
+      </div>
+
+      {trades.length > pageSize && (
+        <div className="table-pager">
+          <span>
+            Showing {pageStart + 1}-{pageEnd} of {trades.length}
+          </span>
+          <div className="pager-actions">
+            <button type="button" onClick={() => goToPage(1)} disabled={currentPage === 1}>First</button>
+            <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+            <span>Page {currentPage} of {pageCount}</span>
+            <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === pageCount}>Next</button>
+            <button type="button" onClick={() => goToPage(pageCount)} disabled={currentPage === pageCount}>Last</button>
+          </div>
+        </div>
+      )}
 
       {trades.length === 0 && !draftRow && (
         <div style={{

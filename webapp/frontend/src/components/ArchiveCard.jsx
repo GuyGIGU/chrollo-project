@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 import { TagRow } from './SetupTags';
+import { ScoreBreakdownPills } from './ScoreBreakdown';
 
 // Map archive row's score_* columns to the shape SetupTags expects.
 const subScoresFromSetup = (s) => ({
@@ -167,7 +168,7 @@ const ArchiveCard = React.memo(({ setup, chartData, onClick, onLabelChange }) =>
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        height: '320px',
+        height: '340px',
         cursor: 'pointer',
         transition: 'border-color 0.2s',
       }}
@@ -180,16 +181,20 @@ const ArchiveCard = React.memo(({ setup, chartData, onClick, onLabelChange }) =>
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: '8px',
+        flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
           <span style={{ fontWeight: '700', fontSize: '15px', color: tierColor(setup.tier) }}>{setup.ticker}</span>
           <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{setup.scan_date}</span>
         </div>
-        <div style={{ fontSize: '10px', color: 'var(--text-main)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <span style={{ padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>{setup.tier}</span>
-          <span style={{ whiteSpace: 'nowrap' }}>{setup.score?.toFixed(1)}</span>
+        <div className="screener-card-score-meta">
+          <div style={{ fontSize: '10px', color: 'var(--text-main)', display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
+            <span style={{ padding: '1px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>{setup.tier}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{setup.score?.toFixed(1)}</span>
+          </div>
+          <ScoreBreakdownPills subScores={subScoresFromSetup(setup)} />
         </div>
       </div>
 

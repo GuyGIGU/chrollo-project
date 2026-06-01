@@ -32,6 +32,24 @@ const scanStatusColor = (status) => {
   return 'var(--text-muted)';
 };
 
+const navSections = [
+  {
+    label: 'Trading',
+    items: [
+      { key: 'portfolio', label: 'Portfolio' },
+      { key: 'dashboard', label: 'Dashboard' },
+      { key: 'options', label: 'Options' },
+    ],
+  },
+  {
+    label: 'Research',
+    items: [
+      { key: 'screener', label: 'Screener Grid' },
+      { key: 'archive', label: 'Setup Archive' },
+    ],
+  },
+];
+
 const fmtMoney = (v) => {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -398,12 +416,25 @@ function App() {
         </div>
 
         <nav className="nav-menu">
-          <div className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</div>
-          <div className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>Options</div>
-          <div className={`nav-link ${activeTab === 'portfolio' ? 'active' : ''}`} onClick={() => setActiveTab('portfolio')}>Portfolio</div>
-          <div className={`nav-link ${activeTab === 'screener' ? 'active' : ''}`} onClick={() => setActiveTab('screener')}>Screener Grid</div>
-          <div className={`nav-link ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => setActiveTab('archive')}>Setup Archive</div>
-          <div className="nav-link" onClick={() => setCalcModalOpen(true)}>Calculator</div>
+          {navSections.map(section => (
+            <div className="nav-section" key={section.label}>
+              <div className="nav-section-label">{section.label}</div>
+              {section.items.map(item => (
+                <button
+                  type="button"
+                  key={item.key}
+                  className={`nav-link ${activeTab === item.key ? 'active' : ''}`}
+                  onClick={() => setActiveTab(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          ))}
+          <div className="nav-section">
+            <div className="nav-section-label">Tools</div>
+            <button type="button" className="nav-link" onClick={() => setCalcModalOpen(true)}>Calculator</button>
+          </div>
         </nav>
 
         <div className="action-buttons">

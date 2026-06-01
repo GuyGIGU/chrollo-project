@@ -122,11 +122,27 @@ body {
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1rem;
   padding: 0 0.75rem;
 }
 
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section-label {
+  padding: 0.35rem 0.85rem 0.25rem;
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .nav-link {
+  width: 100%;
   padding: 0.5rem 0.85rem;
   color: var(--text-muted);
   display: flex;
@@ -137,6 +153,9 @@ body {
   font-weight: 500;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  text-align: left;
 }
 
 .nav-link:hover {
@@ -418,6 +437,62 @@ td {
   position: relative;
 }
 
+.screener-card-score-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.score-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.score-pill strong {
+  color: var(--text-main);
+  font-size: 10px;
+}
+
+.score-pill-visual {
+  border-color: rgba(88, 166, 255, 0.35);
+  background: rgba(88, 166, 255, 0.12);
+  color: #58a6ff;
+}
+
+.score-pill-market {
+  border-color: rgba(63, 185, 80, 0.35);
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+}
+
+.score-pill-fusion {
+  border-color: rgba(231, 179, 65, 0.38);
+  background: rgba(231, 179, 65, 0.12);
+  color: #e3b341;
+}
+
 /* MODAL STYLES */
 .modal-overlay {
   position: fixed;
@@ -568,6 +643,15 @@ td {
 }
 
 /* TRADE TABLE — calm dark journal style */
+.trade-table-wrap {
+  margin-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.trade-table-scroll {
+  overflow-x: auto;
+}
+
 .trade-table {
   width: 100%;
   min-width: 1286px;
@@ -833,6 +917,55 @@ td.cell-editable { overflow: hidden; }
 .status-cell.loss    { background: rgba(239, 79, 88, 0.14);  color: #FF7882; border-color: rgba(239, 79, 88, 0.28); }
 .status-cell.wash    { background: rgba(126, 138, 163, 0.14); color: var(--text-muted); border-color: rgba(126, 138, 163, 0.20); }
 .status-cell.draft   { background: rgba(126, 138, 163, 0.10); color: var(--text-faint); border-color: rgba(126, 138, 163, 0.18); }
+
+.table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.9rem;
+  padding: 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pager-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pager-actions span {
+  color: var(--text-faint);
+  padding: 0 0.35rem;
+}
+
+.pager-actions button {
+  min-width: 58px;
+  height: 30px;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pager-actions button:hover:not(:disabled) {
+  color: var(--text-main);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.pager-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 
 /* Hold-time pill (small, faint blue chip) — for date columns */
 .hold-pill {
