@@ -12,7 +12,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -192,11 +193,34 @@ app.include_router(watchlist_router.router)
 _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
 _SCREENER_SCRIPT = os.path.join(_ROOT_DIR, "run_screener.py")
+_FRONTEND_DIST = os.path.join(_ROOT_DIR, "webapp", "frontend", "dist")
+_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
+_FRONTEND_ASSETS = os.path.join(_FRONTEND_DIST, "assets")
+_frontend_log = logging.getLogger("chrollo.frontend")
+
+if os.path.isdir(_FRONTEND_ASSETS):
+    app.mount("/assets", StaticFiles(directory=_FRONTEND_ASSETS), name="frontend-assets")
+else:
+    _frontend_log.warning("frontend not built - run setup.bat to create webapp/frontend/dist")
+
+
+def _serve_frontend_index():
+    if os.path.exists(_FRONTEND_INDEX):
+        return FileResponse(_FRONTEND_INDEX)
+    raise HTTPException(
+        status_code=503,
+        detail="frontend not built - run setup.bat to create webapp/frontend/dist",
+    )
 
 
 # ── Health Check ─────────────────────────────────────────────────
 @app.get("/")
 def read_root():
+    return _serve_frontend_index()
+
+
+@app.get("/health")
+def health_check():
     return {"status": "ok", "app": "Chrollo API"}
 
 
@@ -539,3 +563,9 @@ def get_live_prices(tickers: str = Query("")):
         except Exception as e:
             print(f"Error fetching live price for {t}: {e}")
     return prices
+
+
+# Registered last so API routes win. GET-only keeps POST/SSE endpoints unshadowed.
+@app.get("/{full_path:path}")
+def serve_spa(full_path: str):
+    return _serve_frontend_index()
