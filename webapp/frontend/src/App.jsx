@@ -1,9 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import AppContent from './components/AppContent';
 import AppSidebar from './components/AppSidebar';
 import AppTopbar from './components/AppTopbar';
-import CalculatorModal from './components/CalculatorModal';
-import TradeDetailDrawer from './components/TradeDetailDrawer';
 import useDashboardData from './hooks/useDashboardData';
 import useIBKRAccountSummary from './hooks/useIBKRAccountSummary';
 import useIBKRStatus from './hooks/useIBKRStatus';
@@ -12,6 +10,11 @@ import { API_BASE } from './api';
 import logoUrl from './assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 import { buildHealthPill, buildScanStatusText } from './utils/appFormat';
 import { isOptionSymbol } from './utils/tradeUtils';
+
+const CalculatorModal = lazy(() => import('./components/CalculatorModal'));
+const TradeDetailDrawer = lazy(() => import('./components/TradeDetailDrawer'));
+
+const ModalFallback = () => null;
 
 function App() {
   const ibkrStatus = useIBKRStatus(10000);
@@ -123,8 +126,10 @@ function App() {
         />
       </main>
 
-      {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
-      {detailTrade && <TradeDetailDrawer trade={detailTrade} onClose={() => setDetailTrade(null)} />}
+      <Suspense fallback={<ModalFallback />}>
+        {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
+        {detailTrade && <TradeDetailDrawer trade={detailTrade} onClose={() => setDetailTrade(null)} />}
+      </Suspense>
     </div>
   );
 }

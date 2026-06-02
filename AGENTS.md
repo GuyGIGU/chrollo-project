@@ -69,6 +69,9 @@ npm --prefix webapp\frontend run lint    # eslint
 - Keep functions small; use descriptive names; avoid deep nesting and clever abstractions.
 - No speculative features, no abstractions for single-use code, no "configurability" that wasn't asked
   for, no error handling for impossible scenarios. If 200 lines could be 50, rewrite it.
+- Treat 200 lines as a cohesion check, not a blind split rule. Going over is acceptable when a file
+  still has one clear responsibility and is simpler to read as one unit. Split files when they have
+  multiple reasons to change, mixed responsibilities, reusable/testable logic, or rising cognitive load.
 - Match the surrounding style even if you'd do it differently.
 
 ## Surgical changes

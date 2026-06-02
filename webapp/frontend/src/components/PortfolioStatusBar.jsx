@@ -76,6 +76,7 @@ const PortfolioStatusBar = ({
   sseStatus,
   lastUpdate,
   stale,
+  hasData,
   dailyRestart,
   sessionCompetition,
   onReconnect,
@@ -104,8 +105,17 @@ const PortfolioStatusBar = ({
       {dailyRestart && !sessionCompetition && (
         <Notice tone="info" title="IB Gateway daily restart" body="Data is preserved and will resume automatically." />
       )}
-      {stale && !dailyRestart && !sessionCompetition && !connected && (
+      {stale && hasData && !dailyRestart && !sessionCompetition && !connected && (
         <Notice tone="warning" title="Showing last-known data" body="The live stream is reconnecting automatically." />
+      )}
+      {stale && !hasData && !dailyRestart && !sessionCompetition && !connected && (
+        <Notice
+          tone="warning"
+          title="Waiting for portfolio data"
+          body="Connect IBKR to load a fresh account snapshot. Nothing cached is available yet."
+          action="Connect IBKR"
+          onAction={onReconnect}
+        />
       )}
 
       <section style={{

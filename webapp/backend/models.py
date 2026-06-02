@@ -171,3 +171,13 @@ class Watchlist(Base):
 
     ticker = Column(String, primary_key=True, index=True)
     created_at = Column(DateTime, nullable=True)
+
+
+class PortfolioSnapshotCache(Base):
+    """Last useful read-only IBKR Portfolio snapshot."""
+
+    __tablename__ = "portfolio_snapshot_cache"
+
+    key = Column(String, primary_key=True)
+    payload_json = Column(Text, nullable=False)
+    updated_at = Column(DateTime, nullable=True)
