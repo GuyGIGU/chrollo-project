@@ -478,7 +478,12 @@ def _safe_corr(xs: list[float], ys: list[float]) -> float:
     mask = ~(np.isnan(xs_arr) | np.isnan(ys_arr))
     if mask.sum() < 5:
         return 0.0
-    return round(float(np.corrcoef(xs_arr[mask], ys_arr[mask])[0, 1]), 4)
+    corr = float(np.corrcoef(xs_arr[mask], ys_arr[mask])[0, 1])
+    # corrcoef returns NaN when either series has zero variance (e.g. a sub-score
+    # that's constant across every archived setup). NaN isn't caught by the
+    # downstream `x or 0.0` idiom (NaN is truthy), so it poisons the weight
+    # normalization and turns every suggested weight into null. Neutralize here.
+    return round(corr, 4) if not np.isnan(corr) else 0.0
 
 
 @router.get("/stats")
