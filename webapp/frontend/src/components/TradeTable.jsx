@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import useSSE from '../hooks/useSSE';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import { API_BASE } from '../api';
-import { isOptionSymbol, inferDirection } from '../App';
+import { isOptionSymbol, inferDirection } from '../utils/tradeUtils';
 
 // Editable text-input cells in tab order. Side is a toggle (not in this list).
 const EDITABLE_FIELDS = ['opening_date', 'ticker', 'entry_price', 'stop_loss', 'quantity'];

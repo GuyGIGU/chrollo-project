@@ -1,219 +1,4 @@
-// "Why ranked" tag chips for screener / archive cards.
-//
-// Each tag is a one-glance answer to "what did the engine like about this
-// setup?" — derived from the sub-score decomposition that drives the total
-// score. A sub-score "fires" as a tag when it sits at >= 80% of its cap (or
-// > 0 for ramp-style bonuses). Phase D is its own boolean flag from the
-// hierarchical detector.
-//
-// Sub-score caps (SUB_SCORE_CAPS, mirrors config/settings.py SCORE_*) live in
-// setupScoreMath.js — the single frontend source of truth shared with the
-// Visual/Market score pills.
-import { SUB_SCORE_CAPS } from './setupScoreMath';
-
-// Volume-around-touches z-score thresholds (mirror config/settings.py:
-// TOUCH_VOL_Z_NO_SUPPLY, TOUCH_VOL_Z_SPRING, TOUCH_VOL_Z_HEAVY_R).
-const TOUCH_VOL_Z_NO_SUPPLY = -0.30;
-const TOUCH_VOL_Z_SPRING    = 0.30;
-const TOUCH_VOL_Z_HEAVY_R   = 0.50;
-
-const MAX_TAGS = 4;             // keep cards readable
-
-// ── Tag groups ───────────────────────────────────────────────────
-// Every tag belongs to a category, and the category sets BOTH its color and
-// its display position. So a glance at a card's chip colors tells you which
-// dimensions the engine liked, and the colors stay consistent across cards:
-//   consolidation — the base / structure (tight box, R/S, coil, base age) → blue
-//   lps           — the final pullback / launch pad                       → yellow
-//   volume        — supply/demand read from volume                        → lime
-//   trend         — leadership / uptrend context                          → green
-//   warning       — a risk flag                                           → red
-const GROUP_TONES = {
-  consolidation: { bg: 'rgba(88,166,255,0.18)', fg: '#58a6ff' },  // blue
-  lps:           { bg: 'rgba(231,179,65,0.18)', fg: '#e3b341' },  // yellow
-  volume:        { bg: 'rgba(166,226,46,0.18)', fg: '#a6e22e' },  // lime
-  trend:         { bg: 'rgba(63,185,80,0.18)',  fg: '#3fb950' },  // green
-  warning:       { bg: 'rgba(248,81,73,0.18)',  fg: '#f85149' },  // red
-};
-
-// Left-to-right display order of the groups. Lead with the structural story
-// (the engine's prime directive), then the launch pad, the volume read, the
-// trend context, and finally any risk flag.
-const GROUP_ORDER = { consolidation: 0, lps: 1, volume: 2, trend: 3, warning: 4 };
-
-// Human-readable group names for the on-screen legend / color key.
-const GROUP_LABELS = {
-  consolidation: 'Structure',
-  lps:           'LPS / launch pad',
-  volume:        'Volume',
-  trend:         'Trend',
-  warning:       'Warning',
-};
-
-// Per-tag thresholds tuned against the live distribution. The goal is for
-// a tag to fire on roughly the top quintile (15-25%) of setups for that
-// dimension — so a tag actually *means* something on a card, instead of
-// becoming a participation chip. Notes:
-//   - touch_density and the two ramp-bonuses (rs/uptrend) max out easily
-//     in a bull market, so they require the FULL cap (or very close).
-//   - lps_tightness similarly: most LPS bars are tight by construction;
-//     "tight LPS" should mean exceptionally so.
-//   - base_age, box_tightness already discriminate well at 80%.
-const FIRE = (s, key, frac) => (s?.[key] ?? 0) >= frac * SUB_SCORE_CAPS[key];
-
-// Tag catalogue — each entry: { id, label, group, fires(subScores, flags) → bool, weight }
-// `group` sets the color (GROUP_TONES) and the display order (GROUP_ORDER).
-// `weight` decides which tags survive when more than MAX_TAGS fire (higher = kept).
-const TAG_DEFS = [
-  // ── Consolidation / structure (blue) ──────────────────────────
-  {
-    id: 'phase_d',
-    label: '📐 Phase D',
-    group: 'consolidation',
-    title: 'A tighter, newer consolidation has formed inside the larger base — the engine swapped to this refined inner box (Wyckoff Phase D launchpad). How to read it: often the final tightening just before a move. Watch the inner-box edges for the trigger; strongest when paired with a volume dry-up.',
-    weight: 100,
-    fires: (_s, flags) => !!flags.phaseDInner,
-  },
-  {
-    id: 'old_base',
-    label: '🏛 Old Base',
-    group: 'consolidation',
-    title: 'A long-built base — the stock has spent many months forming this consolidation (lots of Wyckoff "cause"). How to read it: more time building = more stored energy for a potential move. But age alone isn\'t a trigger — still wants a tight edge and a volume dry-up to act on.',
-    weight: 90,
-    fires: (s) => FIRE(s, 'base_age', 0.80),
-  },
-  {
-    // The Minervini VCP signature: progressive contractions (e.g. 18->12->6%)
-    // tightening into the base. Distinct from Tight Box (static width) — this
-    // fires on the *process* of coiling, the strongest pre-breakout footprint.
-    id: 'vcp_coil',
-    label: '🌀 VCP Coil',
-    group: 'consolidation',
-    title: 'Progressive volatility contraction — each pullback in the base is tighter than the one before, ending in a tight final coil (Minervini\'s VCP). How to read it: the classic pre-breakout footprint of supply drying up in stages. The tighter the final coil, the closer your stop can sit — so the lower-risk the entry.',
-    weight: 88,
-    fires: (s) => FIRE(s, 'contraction', 0.80),
-  },
-  {
-    id: 'tight_box',
-    label: '🔒 Tight Box',
-    group: 'consolidation',
-    title: 'Price is compressed into a narrow resistance/support range — a tightly-wound horizontal box. How to read it: tightness means a coiled spring and a clean, close stop just under support. You want the breakout on rising volume; if it fails, the tight range keeps the loss small.',
-    weight: 85,
-    fires: (s) => FIRE(s, 'box_tightness', 0.80),
-  },
-  {
-    // Ascending support: the base's swing lows are stair-stepping UP — demand
-    // getting more aggressive into each pullback (Minervini tennis-ball action /
-    // Qullamaggie higher-lows surfing the rising EMA).
-    id: 'ascending_support',
-    label: '📈 Ascending Support',
-    group: 'consolidation',
-    title: 'The base\'s swing lows are stair-stepping upward — rising support / higher lows (Minervini "tennis-ball action", Qullamaggie higher-lows surfing a rising EMA). How to read it: demand is getting more aggressive into each pullback — buyers stepping in earlier every dip. A rising floor under a flat ceiling is a stronger, more urgent coil than a flat floor.',
-    weight: 80,
-    fires: (s) => FIRE(s, 'ascending_support', 0.80),
-  },
-  // ── LPS / launch pad (yellow) ─────────────────────────────────
-  {
-    id: 'tight_lps',
-    label: '🪶 Tight LPS',
-    group: 'lps',
-    title: 'The final pullback (the launch pad) is exceptionally tight — an unusually calm, narrow last pause before a potential breakout. How to read it: no selling pressure right before the move, the trigger sits just overhead, and the tightness lets you place a close stop. The lower-risk spot to act.',
-    weight: 80,
-    fires: (s) => FIRE(s, 'lps_tightness', 1.00),
-  },
-  // ── Volume (lime) ─────────────────────────────────────────────
-  {
-    // Wyckoff "no supply" — buyers absorbed R-touches without driving volume.
-    // The textbook precursor to a clean breakout.
-    id: 'no_supply',
-    label: '🤫 No Supply',
-    group: 'volume',
-    title: 'Resistance was tested on below-average volume — barely any selling came out at the ceiling (Wyckoff "no supply"). How to read it: a bullish tell — the lid is weakly defended, which often precedes a clean breakout. Supply is being absorbed quietly.',
-    weight: 78,
-    fires: (_s, flags) => typeof flags.rTouchVolZ === 'number'
-      && flags.rTouchVolZ < TOUCH_VOL_Z_NO_SUPPLY,
-  },
-  {
-    id: 'vol_dryup',
-    label: '🌊 Vol Dry-up',
-    group: 'volume',
-    title: 'Volume in the final pause shrank well below the 50-day average — supply has dried up (the "quiet before the move"). How to read it: sellers look exhausted into the tightening. Now you want volume to EXPAND on the breakout to confirm demand actually shows up.',
-    weight: 75,
-    fires: (s) => FIRE(s, 'vol_contraction', 0.80),
-  },
-  {
-    // Demand at support — high volume on S-touches INSIDE the range.
-    // Renamed from "Spring Strength" because in Wyckoff terminology a
-    // Spring is specifically a Phase C undercut BELOW the range (we
-    // already label that zone REBOUND in the setup type). This tag is
-    // about buying interest absorbing supply at the S boundary itself.
-    id: 'demand_at_s',
-    label: '💪 Demand at S',
-    group: 'volume',
-    title: 'Support was tested on above-average volume — buyers stepped in at the floor and absorbed the selling. How to read it: active demand defending the bottom of the range is strength under the base. (This is buying inside the range, not a Phase C spring — a spring would show as a REBOUND setup type.)',
-    weight: 72,
-    fires: (_s, flags) => typeof flags.sTouchVolZ === 'number'
-      && flags.sTouchVolZ > TOUCH_VOL_Z_SPRING,
-  },
-  // ── Trend / leadership (green) ────────────────────────────────
-  {
-    id: 'strong_rs',
-    label: '🥇 Strong RS',
-    group: 'trend',
-    title: 'The stock is strongly outperforming the S&P 500 over the last ~6 months — a relative-strength leader. How to read it: money is already flowing into this name versus the market, and leaders tend to keep leading. A real leader resting in a base beats a laggard bouncing. Pairs powerfully with High ADR.',
-    weight: 65,
-    fires: (s) => FIRE(s, 'rs_bonus', 0.95),
-  },
-  {
-    id: 'uptrend',
-    label: '🚀 Uptrend',
-    group: 'trend',
-    title: 'The base sits inside a fully-developed yearly uptrend — this is re-accumulation (a rest stop), not a bottoming attempt. How to read it: you\'d be trading WITH the dominant trend rather than betting on a reversal — generally higher-odds context for a continuation move.',
-    weight: 60,
-    fires: (s) => FIRE(s, 'uptrend_bonus', 0.95),
-  },
-  {
-    id: 'high_adr',
-    label: '⚡ High ADR',
-    group: 'trend',
-    title: "High Average Daily Range — a volatile mover (Qullamaggie ADR% ≥ ~5%). A big-range stock resting in a tight base is prime momentum-continuation fuel.",
-    weight: 62,
-    fires: (s) => FIRE(s, 'adr', 0.80),
-  },
-  // ── Warning (red) ─────────────────────────────────────────────
-  {
-    // WARNING: distribution-flavored resistance. R-touches printing on
-    // ABOVE-average volume = supply hitting the bid every time it gets there.
-    // Not always a kill, but worth a flag on the card.
-    id: 'heavy_resistance',
-    label: '⚠️ Heavy Resistance',
-    group: 'warning',
-    title: 'Resistance is being tested on ABOVE-average volume — real supply hits the bid every time price reaches the ceiling (distribution-flavored). How to read it: a caution flag, not an automatic pass. The breakout will need heavy demand to overwhelm the sellers — be quicker to cut if price stalls at resistance.',
-    weight: 95,  // High weight so the warning survives selection even amid positive tags
-    fires: (_s, flags) => typeof flags.rTouchVolZ === 'number'
-      && flags.rTouchVolZ > TOUCH_VOL_Z_HEAVY_R,
-  },
-];
-
-// Derive the tag list from a sub-score dict + flag bag. Returns at most
-// MAX_TAGS entries. Selection keeps the most informative tags (by weight);
-// display order is then by group (color) so chips are always grouped and
-// consistent left-to-right across every card.
-//
-// `subScores` shape: { box_tightness, touch_density, oscillation, atr_squeeze,
-//                      lps_tightness, vol_contraction, base_age, uptrend_bonus,
-//                      rs_bonus, high_proximity, breadth_bonus, contraction,
-//                      ascending_support, adr }
-// `flags` shape:     { phaseDInner: bool, rTouchVolZ: number|null, sTouchVolZ: number|null }
-export function deriveTags(subScores, flags = {}) {
-  if (!subScores) return [];
-  return TAG_DEFS
-    .filter(t => t.fires(subScores, flags))
-    .sort((a, b) => b.weight - a.weight)          // keep the most informative…
-    .slice(0, MAX_TAGS)
-    .sort((a, b) =>                                // …then display grouped by color
-      (GROUP_ORDER[a.group] - GROUP_ORDER[b.group]) || (b.weight - a.weight));
-}
+import { deriveTags, GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsData';
 
 const chipBase = {
   padding: '1px 6px',
@@ -224,34 +9,26 @@ const chipBase = {
   whiteSpace: 'nowrap',
 };
 
-// Flat catalogue of every tag (id, label, group) in display order — used to
-// build the "filter by tag" chip row on the grid. Mirrors TAG_DEFS but exposes
-// only what the filter UI needs.
-export const TAG_CATALOG = [...TAG_DEFS]
-  .sort((a, b) => (GROUP_ORDER[a.group] - GROUP_ORDER[b.group]) || (b.weight - a.weight))
-  .map(({ id, label, group }) => ({ id, label, group }));
-
-// Small always-visible color key so the chip colors are self-explanatory:
-// one swatch per group, in display order. Renders inline (flex-wrap).
 export function TagLegend({ style }) {
-  const groups = Object.keys(GROUP_LABELS).sort(
-    (a, b) => GROUP_ORDER[a] - GROUP_ORDER[b]
-  );
+  const groups = Object.keys(GROUP_LABELS).sort((a, b) => GROUP_ORDER[a] - GROUP_ORDER[b]);
   return (
     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', ...style }}>
       <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
         Tag colors:
       </span>
-      {groups.map(g => {
-        const tone = GROUP_TONES[g];
+      {groups.map(group => {
+        const tone = GROUP_TONES[group];
         return (
-          <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <span key={group} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <span style={{
-              width: '10px', height: '10px', borderRadius: '3px',
-              background: tone.bg, border: `1px solid ${tone.fg}`,
+              width: '10px',
+              height: '10px',
+              borderRadius: '3px',
+              background: tone.bg,
+              border: `1px solid ${tone.fg}`,
             }} />
             <span style={{ fontSize: '11px', color: tone.fg, fontWeight: 600 }}>
-              {GROUP_LABELS[g]}
+              {GROUP_LABELS[group]}
             </span>
           </span>
         );
@@ -260,21 +37,20 @@ export function TagLegend({ style }) {
   );
 }
 
-// Renders a horizontal row of tag chips. Auto-wraps if the card is narrow.
 export function TagRow({ subScores, flags, style }) {
   const tags = deriveTags(subScores, flags);
   if (tags.length === 0) return null;
   return (
     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', ...style }}>
-      {tags.map(t => {
-        const tone = GROUP_TONES[t.group];
+      {tags.map(tagDef => {
+        const tone = GROUP_TONES[tagDef.group];
         return (
           <span
-            key={t.id}
-            title={t.title}
+            key={tagDef.id}
+            title={tagDef.title}
             style={{ ...chipBase, background: tone.bg, color: tone.fg }}
           >
-            {t.label}
+            {tagDef.label}
           </span>
         );
       })}

@@ -1,111 +1,54 @@
 """
-Chrollo API — FastAPI backend for Trading Journal & Wyckoff Screener.
+Chrollo API - FastAPI backend for Trading Journal & Wyckoff Screener.
 """
-import os
-import json
-import time
-import uuid
+from __future__ import annotations
+
 import logging
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-from typing import List, Optional
 
-import models
-import archive_models
-import schemas
-import config
 from config import settings
-from database import engine, get_db
 from ibkr import get_ibkr_service
+from middleware.request_id import RequestIDMiddleware
+from routers import analytics as analytics_router
+from routers import archive as archive_router
+from routers import ibkr as ibkr_router
+from routers import journal as journal_router
 from routers import market_data as market_data_router
 from routers import portfolio as portfolio_router
+from routers import position_calculator as position_calculator_router
+from routers import prices as prices_router
+from routers import screener as screener_router
 from routers import tags as tags_router
-from routers import analytics as analytics_router
-from routers import journal as journal_router
-from routers import archive as archive_router
+from routers import trades as trades_router
 from routers import watchlist as watchlist_router
-from services import auto_import, alpaca_prices, scan_runner, scan_status, scheduler
+from services import auto_import, scheduler
+from services.frontend import mount_frontend_assets, serve_frontend_index
 from services.health import build_health_report
+from services.startup import initialize_database
 
-# ── Bootstrap ────────────────────────────────────────────────────
-models.Base.metadata.create_all(bind=engine)
-archive_models.SetupArchive.metadata.create_all(bind=engine)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 
-# Additive migrations: new columns on trade_logs. Each ALTER is wrapped so existing DBs
-# upgrade non-destructively. SQLite ignores IF NOT EXISTS on ALTER TABLE, hence try/except.
-from sqlalchemy import text as _text
+initialize_database()
 
-_MIGRATIONS = [
-    """
-    CREATE TABLE IF NOT EXISTS scan_runs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        started_at VARCHAR NOT NULL,
-        finished_at VARCHAR,
-        status VARCHAR NOT NULL,
-        n_setups INTEGER,
-        error TEXT,
-        trigger VARCHAR NOT NULL
-    )
-    """,
-    "ALTER TABLE trade_logs ADD COLUMN actions_json TEXT",
-    "ALTER TABLE trade_logs ADD COLUMN source VARCHAR DEFAULT 'manual'",
-    "ALTER TABLE trade_logs ADD COLUMN ibkr_account VARCHAR",
-    "ALTER TABLE trade_logs ADD COLUMN perm_id VARCHAR",
-    "ALTER TABLE trade_logs ADD COLUMN planned_stop FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN r_anchor INTEGER",
-    "ALTER TABLE setup_archive ADD COLUMN s_anchor INTEGER",
-    "ALTER TABLE setup_archive ADD COLUMN score_uptrend_bonus FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN mfe_20d_date VARCHAR",
-    "ALTER TABLE setup_archive ADD COLUMN mae_20d_date VARCHAR",
-    "ALTER TABLE setup_archive ADD COLUMN r_multiple_20d FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN r_multiple_60d FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN trigger_volume_ratio FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN rs_vs_sector_pct FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN dist_52w_high_pct FLOAT",
-    # Phase 1 — volume signature at touches + LPS shape/zone + new bonuses
-    "ALTER TABLE setup_archive ADD COLUMN r_touch_vol_z FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN s_touch_vol_z FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN lps_descent_frac FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN lps_zone_type VARCHAR",
-    "ALTER TABLE setup_archive ADD COLUMN score_high_proximity FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN score_breadth_bonus FLOAT",
-    # VCP progressive-contraction footprint
-    "ALTER TABLE setup_archive ADD COLUMN contraction_count INTEGER",
-    "ALTER TABLE setup_archive ADD COLUMN contraction_quality FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN final_contraction_depth FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN score_contraction FLOAT",
-    # Ascending support / higher-lows footprint
-    "ALTER TABLE setup_archive ADD COLUMN support_slope_atr FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN ascending_support_quality FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN score_ascending_support FLOAT",
-    # ADR% absolute-volatility character
-    "ALTER TABLE setup_archive ADD COLUMN adr_pct FLOAT",
-    "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
-]
-_mig_log = logging.getLogger("chrollo.migrate")
-with engine.connect() as _conn:
-    for _stmt in _MIGRATIONS:
-        try:
-            _conn.execute(_text(_stmt))
-            _conn.commit()
-            _mig_log.info("applied: %s", _stmt)
-        except Exception as _e:
-            msg = str(_e).lower()
-            # SQLite raises "duplicate column name" when the column already exists —
-            # that's the expected idempotent path. Anything else is a real problem.
-            if "duplicate column" in msg or "already exists" in msg:
-                continue
-            _mig_log.warning("migration skipped (%s): %s", _e.__class__.__name__, _stmt)
+_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
+_FRONTEND_DIST = os.path.join(_ROOT_DIR, "webapp", "frontend", "dist")
+_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
+_FRONTEND_ASSETS = os.path.join(_FRONTEND_DIST, "assets")
+
+screener_router.configure_screener_routes(_SCREENER_JSON)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start/stop the IBKR service + auto-import writer around the app lifecycle."""
+    """Start/stop background services around the app lifecycle."""
     auto_import.start_writer()
     scheduler.start_scheduler()
     svc = get_ibkr_service()
@@ -118,72 +61,19 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        _stop_services(svc)
+
+
+def _stop_services(svc) -> None:
+    for label, stop in (
+        ("IBKR service", svc.stop),
+        ("auto-import writer", auto_import.stop_writer),
+        ("scan scheduler", scheduler.stop_scheduler),
+    ):
         try:
-            svc.stop()
+            stop()
         except Exception:
-            logging.exception("Failed to stop IBKR service")
-        try:
-            auto_import.stop_writer()
-        except Exception:
-            logging.exception("Failed to stop auto-import writer")
-        try:
-            scheduler.stop_scheduler()
-        except Exception:
-            logging.exception("Failed to stop scan scheduler")
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-)
-_req_log = logging.getLogger("chrollo.request")
-
-
-class RequestIDMiddleware:
-    """Pure-ASGI middleware: tags every HTTP request with a short ID + logs timing.
-
-    Implemented at the ASGI layer (not BaseHTTPMiddleware) so StreamingResponse
-    bodies aren't buffered — critical for the SSE endpoints (/stream/portfolio,
-    /run-scan-stream, /stream/positions-pnl).
-    """
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
-        rid = headers.get("x-request-id") or uuid.uuid4().hex[:8]
-        scope.setdefault("state", {})["request_id"] = rid
-
-        start = time.perf_counter()
-        status_code = {"v": 500}
-
-        async def send_wrapper(message):
-            if message["type"] == "http.response.start":
-                status_code["v"] = message["status"]
-                hdrs = list(message.get("headers", []))
-                hdrs.append((b"x-request-id", rid.encode("latin-1")))
-                message["headers"] = hdrs
-            await send(message)
-
-        try:
-            await self.app(scope, receive, send_wrapper)
-        except Exception:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            _req_log.exception(
-                "rid=%s %s %s -> 500 (%.1f ms)",
-                rid, scope.get("method"), scope.get("path"), elapsed_ms,
-            )
-            raise
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        _req_log.info(
-            "rid=%s %s %s -> %d (%.1f ms)",
-            rid, scope.get("method"), scope.get("path"), status_code["v"], elapsed_ms,
-        )
+            logging.exception("Failed to stop %s", label)
 
 
 app = FastAPI(title="Chrollo API", lifespan=lifespan)
@@ -205,34 +95,18 @@ app.include_router(analytics_router.router)
 app.include_router(journal_router.router)
 app.include_router(archive_router.router)
 app.include_router(watchlist_router.router)
+app.include_router(ibkr_router.router)
+app.include_router(position_calculator_router.router)
+app.include_router(trades_router.router)
+app.include_router(screener_router.router)
+app.include_router(prices_router.router)
 
-# Resolve the project root once at startup
-_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-_SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
-_FRONTEND_DIST = os.path.join(_ROOT_DIR, "webapp", "frontend", "dist")
-_FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
-_FRONTEND_ASSETS = os.path.join(_FRONTEND_DIST, "assets")
-_frontend_log = logging.getLogger("chrollo.frontend")
-
-if os.path.isdir(_FRONTEND_ASSETS):
-    app.mount("/assets", StaticFiles(directory=_FRONTEND_ASSETS), name="frontend-assets")
-else:
-    _frontend_log.warning("frontend not built - run setup.bat to create webapp/frontend/dist")
+mount_frontend_assets(app, _FRONTEND_ASSETS)
 
 
-def _serve_frontend_index():
-    if os.path.exists(_FRONTEND_INDEX):
-        return FileResponse(_FRONTEND_INDEX)
-    raise HTTPException(
-        status_code=503,
-        detail="frontend not built - run setup.bat to create webapp/frontend/dist",
-    )
-
-
-# ── Health Check ─────────────────────────────────────────────────
 @app.get("/")
 def read_root():
-    return _serve_frontend_index()
+    return serve_frontend_index(_FRONTEND_INDEX)
 
 
 @app.get("/health")
@@ -240,381 +114,6 @@ def health_check():
     return build_health_report(_SCREENER_JSON)
 
 
-# ── IBKR Status ──────────────────────────────────────────────────
-@app.get("/ibkr/status")
-def ibkr_status():
-    svc = get_ibkr_service()
-    snap = svc.snapshot()
-    return {
-        "available": svc.is_available(),
-        "connected": snap["connected"],
-        "mode": snap["mode"],
-        "client": snap["client"],
-        "host": snap["host"],
-        "port": snap["port"],
-        "client_id": snap["client_id"],
-        "last_update": snap["last_update"],
-        "last_error": snap["last_error"],
-        "stale": snap.get("stale", False),
-        "daily_restart": snap.get("daily_restart", False),
-        "session_competition": snap.get("session_competition", False),
-        "paused": svc.is_paused(),
-    }
-
-
-from pydantic import BaseModel as _PydBaseModel
-
-
-class _ModePayload(_PydBaseModel):
-    mode: str
-    confirm: bool = False
-
-
-class _ClientPayload(_PydBaseModel):
-    client: str
-
-
-class _ReconnectPayload(_PydBaseModel):
-    # A deliberate, dialog-confirmed click from the dashboard. When true, this
-    # single connect attempt is allowed even in live mode without the
-    # IBKR_LIVE_CONFIRMED env var. It is never persisted (see service.start).
-    confirm: bool = False
-
-
-@app.post("/ibkr/mode")
-def set_ibkr_mode(payload: _ModePayload):
-    """Flip between paper (port 7497) and live (port 7496) at runtime.
-
-    Live-mode switch requires ``confirm=true`` in the body — a small guardrail
-    against an accidental UI click connecting you to real money.
-    """
-    mode = payload.mode.strip().lower()
-    if mode not in ("paper", "live"):
-        raise HTTPException(status_code=400, detail="mode must be 'paper' or 'live'")
-    if mode == "live" and not payload.confirm:
-        raise HTTPException(status_code=400, detail="switching to live requires confirm=true")
-
-    svc = get_ibkr_service()
-    try:
-        svc.stop()
-    except Exception:
-        logging.exception("Failed to stop IBKR before mode switch")
-
-    config.set_mode(mode)
-    svc.apply_settings()
-
-    try:
-        # The live-mode switch already required confirm=true above; honor that as
-        # the human confirmation so the connect isn't re-blocked by the live gate.
-        svc.start(confirmed=payload.confirm)
-    except Exception:
-        logging.exception("Failed to start IBKR after mode switch")
-
-    snap = svc.snapshot()
-    return {
-        "mode": snap["mode"],
-        "port": snap["port"],
-        "connected": snap["connected"],
-        "last_error": snap.get("last_error"),
-    }
-
-
-@app.post("/ibkr/client")
-def set_ibkr_client(payload: _ClientPayload):
-    """Switch between TWS (7497/7496) and IB Gateway (4002/4001) at runtime."""
-    client = payload.client.strip().lower()
-    if client not in ("tws", "gateway"):
-        raise HTTPException(status_code=400, detail="client must be 'tws' or 'gateway'")
-
-    svc = get_ibkr_service()
-    try:
-        svc.stop()
-    except Exception:
-        logging.exception("Failed to stop IBKR before client switch")
-
-    config.set_client(client)
-    svc.apply_settings()
-
-    try:
-        svc.start()
-    except Exception:
-        logging.exception("Failed to start IBKR after client switch")
-
-    snap = svc.snapshot()
-    return {
-        "client": snap["client"],
-        "mode": snap["mode"],
-        "port": snap["port"],
-        "connected": snap["connected"],
-    }
-
-
-@app.post("/ibkr/reconnect")
-def ibkr_reconnect(payload: Optional[_ReconnectPayload] = None):
-    """Manually (re)connect IBKR — the user's deliberate "give my session to Chrollo now" action.
-
-    Resumes from a session-competition pause and starts the supervisor. In live
-    mode the always-on service is broker-free (no IBKR_LIVE_CONFIRMED), so the
-    caller must pass ``{"confirm": true}`` — a deliberate, dialog-confirmed click —
-    to clear the live gate for this connect. The confirmation is not persisted;
-    a reboot still comes up disconnected. Omitting the body (confirm=false) keeps
-    the old safe behavior.
-    """
-    confirm = bool(payload.confirm) if payload else False
-    svc = get_ibkr_service()
-    svc.resume()
-    try:
-        svc.start(confirmed=confirm)
-    except Exception:
-        logging.exception("Failed to start IBKR after manual reconnect")
-    snap = svc.snapshot()
-    return {
-        "connected": snap["connected"],
-        "session_competition": snap.get("session_competition", False),
-        "paused": svc.is_paused(),
-        "last_error": snap.get("last_error"),
-    }
-
-
-@app.post("/ibkr/disconnect")
-def ibkr_disconnect():
-    """Release the IBKR API session so the user can trade in TWS / TradingView.
-
-    Stops the supervisor thread and disconnects. The service stays disconnected
-    (no auto-reconnect) until the user deliberately reconnects again.
-    """
-    svc = get_ibkr_service()
-    try:
-        svc.stop()
-    except Exception:
-        logging.exception("Failed to stop IBKR on manual disconnect")
-    snap = svc.snapshot()
-    return {
-        "connected": snap["connected"],
-        "session_competition": snap.get("session_competition", False),
-        "paused": svc.is_paused(),
-    }
-
-
-# ── Trade CRUD ───────────────────────────────────────────────────
-@app.get("/trades/", response_model=List[schemas.TradeLog])
-def read_trades(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.TradeLog).offset(skip).limit(limit).all()
-
-
-@app.post("/trades/", response_model=schemas.TradeLog)
-def create_trade(trade: schemas.TradeLogCreate, db: Session = Depends(get_db)):
-    db_trade = models.TradeLog(**trade.model_dump())
-    db.add(db_trade)
-    db.commit()
-    db.refresh(db_trade)
-    return db_trade
-
-@app.put("/trades/{trade_id}", response_model=schemas.TradeLog)
-def update_trade(trade_id: int, trade_update: schemas.TradeLogUpdate, db: Session = Depends(get_db)):
-    db_trade = db.query(models.TradeLog).filter(models.TradeLog.id == trade_id).first()
-    if not db_trade:
-        raise HTTPException(status_code=404, detail="Trade not found")
-        
-    update_data = trade_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_trade, key, value)
-        
-    db.commit()
-    db.refresh(db_trade)
-    return db_trade
-
-@app.delete("/trades/{trade_id}")
-def delete_trade(trade_id: int, db: Session = Depends(get_db)):
-    db_trade = db.query(models.TradeLog).filter(models.TradeLog.id == trade_id).first()
-    if not db_trade:
-        raise HTTPException(status_code=404, detail="Trade not found")
-
-    db.delete(db_trade)
-    db.commit()
-    # Cascade-delete on-disk attachment files (ORM cascade only removes rows).
-    journal_router.wipe_trade_uploads(trade_id)
-    return {"status": "Trade deleted successfully"}
-
-
-# ── Position Calculator ──────────────────────────────────────────
-@app.post("/calculate-position/")
-def calculate_position(risk_amount: float, entry_price: float, stop_price: float, direction: str = "L"):
-    """Calculate shares from risk amount and stop distance."""
-    if entry_price <= 0 or stop_price <= 0 or risk_amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid inputs. Must be positive.")
-
-    stop_distance = abs(entry_price - stop_price)
-    if stop_distance == 0:
-        raise HTTPException(status_code=400, detail="Entry and Stop price cannot be the same.")
-
-    shares = int(risk_amount / stop_distance)
-    return {
-        "shares": shares,
-        "stop_distance": round(stop_distance, 4),
-        "position_size": round(shares * entry_price, 2),
-    }
-
-
-# ── Journal Stats ────────────────────────────────────────────────
-@app.get("/journal-stats/")
-def get_journal_stats(db: Session = Depends(get_db)):
-    """Calculate journal performance metrics from all logged trades."""
-    trades = db.query(models.TradeLog).all()
-
-    empty_stats = {
-        "total_pnl": 0, "win_rate": 0, "profit_factor": 0,
-        "r_multiple_total": 0, "avg_win": 0, "avg_loss": 0,
-        "total_trades": 0, "winning_trades": 0, "losing_trades": 0,
-    }
-
-    if not trades:
-        return empty_stats
-
-    winners = [t for t in trades if t.pnl is not None and t.pnl > 0]
-    losers = [t for t in trades if t.pnl is not None and t.pnl <= 0]
-
-    total_wins = sum(t.pnl for t in winners)
-    total_losses = abs(sum(t.pnl for t in losers))
-
-    avg_win = total_wins / len(winners) if winners else 0
-    avg_loss = total_losses / len(losers) if losers else 0
-    profit_factor = total_wins / total_losses if total_losses > 0 else (total_wins if total_wins > 0 else 0)
-    total_pnl = sum(t.pnl for t in trades if t.pnl is not None)
-
-    # R-Multiple: sum of (pnl / initial_risk) across all trades
-    r_multiple_total = 0
-    for t in trades:
-        if t.pnl is not None and t.entry_price > 0 and t.stop_loss > 0 and t.quantity > 0:
-            risk_dlr = abs(t.entry_price - t.stop_loss) * t.quantity
-            if risk_dlr > 0:
-                r_multiple_total += t.pnl / risk_dlr
-
-    return {
-        "total_pnl": total_pnl,
-        "win_rate": round(len(winners) / len(trades) * 100, 2),
-        "profit_factor": round(profit_factor, 2),
-        "r_multiple_total": round(r_multiple_total, 2),
-        "avg_win": round(avg_win, 2),
-        "avg_loss": round(-avg_loss, 2),
-        "total_trades": len(trades),
-        "winning_trades": len(winners),
-        "losing_trades": len(losers),
-    }
-
-
-# ── Screener Data ────────────────────────────────────────────────
-# Cache the last-read mtime so we only re-parse the 2.6MB JSON when the file changes.
-_screener_cache = {"mtime": 0, "data": None}
-
-
-@app.get("/screener-data/")
-def get_screener_data():
-    """Serve screener_data.json with file-modification caching."""
-    if not os.path.exists(_SCREENER_JSON):
-        return {"ordered_tickers": [], "chart_data": {}}
-
-    current_mtime = os.path.getmtime(_SCREENER_JSON)
-    if _screener_cache["data"] is None or current_mtime != _screener_cache["mtime"]:
-        with open(_SCREENER_JSON, "r", encoding="utf-8") as f:
-            _screener_cache["data"] = json.load(f)
-        _screener_cache["mtime"] = current_mtime
-
-    return _screener_cache["data"]
-
-
-@app.get("/scan-status/latest")
-def get_latest_scan_status():
-    return scan_status.latest_run() or {
-        "id": None,
-        "started_at": None,
-        "finished_at": None,
-        "status": "never",
-        "n_setups": None,
-        "error": None,
-        "trigger": None,
-    }
-
-
-@app.get("/scan-status/history")
-def get_scan_status_history(limit: int = Query(20, ge=1, le=100)):
-    """Recent scan runs (newest first) for the in-app scan-history view."""
-    return {"runs": scan_status.recent_runs(limit)}
-
-
-from pydantic import BaseModel as _BaseModel
-from services.earnings import get_next_earnings_batch as _earnings_batch, days_until as _days_until
-
-
-class _EarningsBatchIn(_BaseModel):
-    tickers: list[str]
-
-
-@app.post("/screener-data/earnings")
-def screener_earnings(payload: _EarningsBatchIn):
-    """Bulk earnings-date lookup for visible screener tickers.
-
-    Returns ``{ticker: {"date": YYYY-MM-DD | null, "days_until": int | null}}``.
-    Cached server-side for 24h per ticker, so flipping pages on the screener
-    grid is effectively free after the first call.
-    """
-    if not payload.tickers:
-        return {}
-    raw = _earnings_batch([t.upper().strip() for t in payload.tickers if t])
-    return {
-        t: {"date": d, "days_until": _days_until(d)}
-        for t, d in raw.items()
-    }
-
-
-import yfinance as yf
-from fastapi import Query
-
-# ── Screener Stream ──────────────────────────────────────────────
-@app.get("/run-scan-stream/")
-def run_screener_scan_stream():
-    """Trigger the screener pipeline and stream terminal output via SSE."""
-
-    def execute_and_yield():
-        try:
-            yield from scan_runner.stream_manual_scan()
-        finally:
-            # Invalidate the screener cache so the next GET picks up new data
-            _screener_cache["mtime"] = 0
-            _screener_cache["data"] = None
-
-    return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
-
-# ── Live Prices ──────────────────────────────────────────────────
-# Primary source: Alpaca Market Data v2 (real-time IEX, batch endpoint — one
-# HTTP call per poll cycle). Fallback when Alpaca isn't configured or returned
-# nothing for a symbol: yfinance per-ticker. The fallback path is the same
-# code as before, kept so the endpoint still works without setting any env vars.
-@app.get("/live-prices/")
-def get_live_prices(tickers: str = Query("")):
-    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
-    if not ticker_list:
-        return {}
-
-    prices: dict[str, float] = {}
-
-    alpaca = alpaca_prices.fetch_quotes(ticker_list)
-    if alpaca:
-        prices.update(alpaca)
-
-    missing = [t for t in ticker_list if t not in prices]
-    for t in missing:
-        try:
-            ticker_obj = yf.Ticker(t)
-            val = ticker_obj.fast_info.get('lastPrice') or ticker_obj.info.get('currentPrice')
-            if val:
-                prices[t] = round(float(val), 2)
-        except Exception as e:
-            logging.getLogger("chrollo.prices").warning("live price fetch failed for %s: %s", t, e)
-    return prices
-
-
-# Registered last so API routes win. GET-only keeps POST/SSE endpoints unshadowed.
 @app.get("/{full_path:path}")
 def serve_spa(full_path: str):
-    return _serve_frontend_index()
+    return serve_frontend_index(_FRONTEND_INDEX)
