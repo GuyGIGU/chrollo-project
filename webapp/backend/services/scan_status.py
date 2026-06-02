@@ -66,3 +66,21 @@ def latest_run() -> dict | None:
             )
         ).mappings().first()
         return dict(row) if row else None
+
+
+def recent_runs(limit: int = 20) -> list[dict]:
+    """Most recent scan runs, newest first (for the in-app scan-history view)."""
+    limit = max(1, min(int(limit), 100))
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT id, started_at, finished_at, status, n_setups, error, trigger
+                FROM scan_runs
+                ORDER BY id DESC
+                LIMIT :limit
+                """
+            ),
+            {"limit": limit},
+        ).mappings().all()
+        return [dict(r) for r in rows]

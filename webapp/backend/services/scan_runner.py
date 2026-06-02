@@ -100,7 +100,7 @@ def _tail_error(output: str, limit: int = 1000) -> str | None:
     return text[-limit:]
 
 
-def _alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str | None = None) -> None:
+def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str | None = None) -> None:
     from services.core_settings import load_core_settings
 
     settings = load_core_settings()
@@ -162,13 +162,13 @@ def stream_manual_scan() -> Iterator[str]:
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
         scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-        _alert_if_needed("manual", status, result.n_setups, error)
+        alert_if_needed("manual", status, result.n_setups, error)
         if process.returncode != 0:
             yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as exc:
         scan_status.finish_run(run_id, status="failed", error=str(exc))
-        _alert_if_needed("manual", "failed", None, str(exc))
+        alert_if_needed("manual", "failed", None, str(exc))
         yield f"data: ERROR: {exc}\n\n"
         yield "data: [DONE]\n\n"
     finally:
@@ -191,7 +191,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
         if status != "ok":
             error = _tail_error(result.output)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-            _alert_if_needed("scheduled", status, result.n_setups, error)
+            alert_if_needed("scheduled", status, result.n_setups, error)
             log.error("scheduled scan failed with exit code %s", result.returncode)
             return
 
@@ -203,10 +203,10 @@ def run_scheduled_scan_and_forward_returns() -> None:
         )
         log.info("scheduled forward-return update completed: %d setup(s)", updated)
         scan_status.finish_run(run_id, status="ok", n_setups=result.n_setups)
-        _alert_if_needed("scheduled", "ok", result.n_setups)
+        alert_if_needed("scheduled", "ok", result.n_setups)
     except Exception as exc:
         scan_status.finish_run(run_id, status="failed", error=str(exc))
-        _alert_if_needed("scheduled", "failed", None, str(exc))
+        alert_if_needed("scheduled", "failed", None, str(exc))
         raise
     finally:
         SCAN_LOCK.release()

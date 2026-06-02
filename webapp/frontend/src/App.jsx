@@ -85,6 +85,7 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [scanStatus, setScanStatus] = useState(null);
+  const [health, setHealth] = useState(null);
 
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
@@ -305,12 +306,44 @@ function App() {
     }
   };
 
+  const fetchHealth = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      if (res.ok) {
+        setHealth(await res.json());
+      }
+    } catch (error) {
+      console.error("Error fetching health:", error);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
     fetchScanStatus();
+    fetchHealth();
     const scanStatusTimer = window.setInterval(fetchScanStatus, 60000);
-    return () => window.clearInterval(scanStatusTimer);
+    const healthTimer = window.setInterval(fetchHealth, 60000);
+    return () => {
+      window.clearInterval(scanStatusTimer);
+      window.clearInterval(healthTimer);
+    };
   }, []);
+
+  // Health pill: green when all checks pass, amber when degraded, with a tooltip
+  // naming the failing check(s). IBKR is informational and never degrades.
+  const healthPill = useMemo(() => {
+    if (!health) return null;
+    const checks = health.checks || {};
+    const failing = Object.entries(checks)
+      .filter(([k, v]) => k !== 'ibkr' && v && v.ok === false)
+      .map(([k, v]) => `${k}${v.detail ? `: ${v.detail}` : ''}`);
+    const degraded = health.status !== 'ok';
+    return {
+      color: degraded ? 'var(--danger)' : 'var(--success)',
+      label: degraded ? 'Degraded' : 'Healthy',
+      title: failing.length ? `Degraded — ${failing.join('; ')}` : 'All systems OK',
+    };
+  }, [health]);
 
   const scanStatusText = useMemo(() => {
     if (!scanStatus || scanStatus.status === 'never') return 'Last scan: none';
@@ -461,7 +494,7 @@ function App() {
                 <span style={{width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)'}} />
                 Journal P&L
               </div>
-              <div style={{fontSize: '1.2rem', fontWeight: '700', color: '#fff'}}>${stats ? stats.total_pnl.toFixed(2) : "0.00"}</div>
+              <div style={{fontSize: '1.2rem', fontWeight: '700', color: '#fff'}}>${Number.isFinite(Number(stats?.total_pnl)) ? Number(stats.total_pnl).toFixed(2) : "0.00"}</div>
               <div style={{fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px'}}>IBKR disconnected</div>
               <button
                 type="button"
@@ -549,6 +582,19 @@ function App() {
               : 'Wyckoff Screener Scans'}
           </div>
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap'}}>
+             {healthPill && (
+               <span
+                 title={healthPill.title}
+                 style={{
+                   display: 'inline-flex', alignItems: 'center', gap: '5px',
+                   fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap',
+                   color: healthPill.color, cursor: 'default',
+                 }}
+               >
+                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: healthPill.color }} />
+                 {healthPill.label}
+               </span>
+             )}
              <span
                title={scanStatus?.error || ''}
                style={{

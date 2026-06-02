@@ -940,6 +940,58 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     return row
 
 
+_ANALYSIS_CACHE: Dict[str, Any] = {"report": None, "ts": 0.0}
+
+
+@router.get("/analysis")
+def get_archive_analysis(
+    source: Optional[str] = Query(None, description="Restrict to a source: screener / seed / manual"),
+    refresh: bool = Query(False, description="Bypass the ~5min cache and re-run"),
+):
+    """Run the read-only archive analysis report (mirrors ``python -m core.archive.analyze``)
+    and return it as text. Cached ~5 minutes per process unless ``refresh=true``."""
+    import time as _time
+
+    now = _time.time()
+    if (
+        not refresh
+        and not source
+        and _ANALYSIS_CACHE["report"] is not None
+        and (now - _ANALYSIS_CACHE["ts"] < 300)
+    ):
+        return {"report": _ANALYSIS_CACHE["report"], "cached": True}
+
+    cmd = [sys.executable, "-m", "core.archive.analyze"]
+    if source:
+        cmd += ["--source", source]
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=_ROOT_DIR,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+            creationflags=flags,
+            env=env,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=(result.stderr or "analysis failed")[-1000:])
+
+    report = result.stdout or ""
+    if not source:
+        _ANALYSIS_CACHE.update({"report": report, "ts": now})
+    return {"report": report, "cached": False}
+
+
 @router.post("/update-returns")
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""

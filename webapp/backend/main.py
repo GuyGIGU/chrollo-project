@@ -8,7 +8,7 @@ import uuid
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,6 +29,7 @@ from routers import journal as journal_router
 from routers import archive as archive_router
 from routers import watchlist as watchlist_router
 from services import auto_import, alpaca_prices, scan_runner, scan_status, scheduler
+from services.health import build_health_report
 
 # ── Bootstrap ────────────────────────────────────────────────────
 models.Base.metadata.create_all(bind=engine)
@@ -234,7 +235,7 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "app": "Chrollo API"}
+    return build_health_report(_SCREENER_JSON)
 
 
 # ── IBKR Status ──────────────────────────────────────────────────
@@ -533,6 +534,12 @@ def get_latest_scan_status():
     }
 
 
+@app.get("/scan-status/history")
+def get_scan_status_history(limit: int = Query(20, ge=1, le=100)):
+    """Recent scan runs (newest first) for the in-app scan-history view."""
+    return {"runs": scan_status.recent_runs(limit)}
+
+
 from pydantic import BaseModel as _BaseModel
 from services.earnings import get_next_earnings_batch as _earnings_batch, days_until as _days_until
 
@@ -601,7 +608,7 @@ def get_live_prices(tickers: str = Query("")):
             if val:
                 prices[t] = round(float(val), 2)
         except Exception as e:
-            print(f"Error fetching live price for {t}: {e}")
+            logging.getLogger("chrollo.prices").warning("live price fetch failed for %s: %s", t, e)
     return prices
 
 

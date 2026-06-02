@@ -20,6 +20,12 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
   const winPct = data.win_rate || 0;
   const lossPct = total ? (data.losing_trades / total) * 100 : 0;
 
+  // Null-safe formatters: a partial /stats payload can leave individual fields
+  // undefined even when `stats` itself is non-null, so the defaults above don't
+  // cover them. Bare .toFixed on undefined/NaN would crash the dashboard.
+  const fmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00');
+  const pctFmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '0.0');
+
   const toggle = (key) => {
     if (typeof onFilterChange !== 'function') return;
     onFilterChange(activeFilter === key ? null : key);
@@ -36,7 +42,7 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
           <span className="kpi-tile-label">{label}</span>
           <span className="kpi-tile-count" style={{ color }}>{count}</span>
         </span>
-        <span className="kpi-tile-pct">{pct.toFixed(1)}%</span>
+        <span className="kpi-tile-pct">{pctFmt(pct)}%</span>
       </div>
       <div className="kpi-bar">
         <div className="kpi-bar-fill" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
@@ -63,18 +69,18 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
       <div className="avg-stack">
         <div className="avg-line">
           <span className="avg-label">Avg W</span>
-          <span className="avg-value" style={{ color: 'var(--success)' }}>${data.avg_win.toFixed(2)}</span>
+          <span className="avg-value" style={{ color: 'var(--success)' }}>${fmt(data.avg_win)}</span>
         </div>
         <div className="avg-line">
           <span className="avg-label">Avg L</span>
-          <span className="avg-value" style={{ color: 'var(--danger)' }}>−${data.avg_loss.toFixed(2)}</span>
+          <span className="avg-value" style={{ color: 'var(--danger)' }}>−${fmt(data.avg_loss)}</span>
         </div>
       </div>
 
       <div className="pnl-block">
         <span className="pnl-label">PnL</span>
         <span className="pnl-value" style={{ color: pnlColor }}>
-          {pnlPositive ? '' : '−'}${Math.abs(data.total_pnl).toFixed(2)}
+          {pnlPositive ? '' : '−'}${fmt(Math.abs(Number(data.total_pnl) || 0))}
         </span>
         <span className="pnl-trend" style={{ color: pnlColor }}>
           {pnlPositive ? '↗' : '↘'} {total > 0 ? `${data.total_trades} trades` : 'no trades yet'}

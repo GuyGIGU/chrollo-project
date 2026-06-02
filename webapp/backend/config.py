@@ -64,7 +64,7 @@ class Settings:
             ibkr_client_id=int(os.environ.get("IBKR_CLIENT_ID", "137")),
             ibkr_mode=mode,
             ibkr_client=client,
-            ibkr_auto_connect=_env_bool("IBKR_AUTO_CONNECT", True),
+            ibkr_auto_connect=_env_bool("IBKR_AUTO_CONNECT", False),
             ibkr_live_confirmed=_env_bool("IBKR_LIVE_CONFIRMED", False),
             ibkr_port_is_explicit=bool(port_env),
         )
