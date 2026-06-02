@@ -109,6 +109,7 @@ def detect_lps(df: pd.DataFrame, latest: pd.Series,
             low_vals = pullback_period['Low'].values
             max_high_lps = float(high_vals.max())
             min_low_lps = float(low_vals.min())
+            trigger_price = float(end_lps['High'])
 
             if max_high_lps <= 0:
                 if diagnose: rejects['max_high_nonpos'] += 1
@@ -225,7 +226,7 @@ def detect_lps(df: pd.DataFrame, latest: pd.Series,
             candidates.append({
                 'length': length,
                 'offset': offset,
-                'trigger_price': max_high_lps,
+                'trigger_price': trigger_price,
                 'vol_contraction': vol_contraction,
                 'tightness_ratio': tightness_ratio,
                 'setup_type': setup_type,
