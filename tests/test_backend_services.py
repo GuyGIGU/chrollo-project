@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +12,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 from webapp.backend.routers.position_calculator import calculate_position
+from webapp.backend.routers import portfolio, portfolio_streams
 from webapp.backend.services.journal_stats import calculate_journal_stats
+from webapp.backend.services import portfolio_snapshot
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -65,3 +68,72 @@ def test_calculate_position_returns_size_from_risk_distance():
 def test_calculate_position_rejects_invalid_inputs(risk_amount, entry_price, stop_price):
     with pytest.raises(HTTPException):
         calculate_position(risk_amount=risk_amount, entry_price=entry_price, stop_price=stop_price)
+
+
+def test_portfolio_routes_are_registered_after_split():
+    rest_paths = {route.path for route in portfolio.router.routes}
+    stream_paths = {route.path for route in portfolio_streams.router.routes}
+
+    assert "/portfolio/account-summary" in rest_paths
+    assert "/ibkr/import-csv" in rest_paths
+    assert "/stream/portfolio" in stream_paths
+    assert "/stream/executions" in stream_paths
+
+
+def test_portfolio_stream_listens_to_snapshot_changing_channels():
+    assert portfolio_streams._PORTFOLIO_CHANNELS == (
+        "portfolio",
+        "ibkr_status",
+        "orders",
+        "executions",
+    )
+
+
+def test_portfolio_snapshot_saves_useful_payload(monkeypatch):
+    saved = []
+    monkeypatch.setattr(portfolio_snapshot, "save_snapshot_cache", saved.append)
+
+    monkeypatch.setattr(
+        portfolio_snapshot,
+        "get_ibkr_service",
+        lambda: SimpleNamespace(snapshot=lambda: {
+            "connected": True,
+            "mode": "paper",
+            "stale": False,
+            "daily_restart": False,
+            "session_competition": False,
+            "last_update": 123,
+            "account_summary": {},
+            "positions": [],
+            "portfolio": [{"symbol": "AAPL"}],
+            "open_orders": [],
+            "recent_executions": [],
+        }),
+    )
+
+    payload = portfolio_snapshot.portfolio_snapshot_payload()
+
+    assert payload["positions"] == [{"symbol": "AAPL"}]
+    assert saved == [payload]
+
+
+def test_portfolio_stream_starts_with_snapshot(monkeypatch):
+    monkeypatch.setattr(
+        portfolio_streams,
+        "portfolio_snapshot_payload",
+        lambda: {"connected": False, "positions": [{"symbol": "AAPL"}]},
+    )
+    request = SimpleNamespace(is_disconnected=lambda: False)
+
+    first_event = asyncio.run(_first_stream_event(request))
+
+    assert first_event.startswith("data: ")
+    assert '"symbol": "AAPL"' in first_event
+
+
+async def _first_stream_event(request):
+    stream = portfolio_streams._stream_snapshot_events(request)
+    try:
+        return await anext(stream)
+    finally:
+        await stream.aclose()

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '../api';
 import useSSE from './useSSE';
 
@@ -41,15 +41,26 @@ const hasPortfolioData = (snapshot) => (
   (snapshot?.recent_executions || []).length > 0
 );
 
+const normalizeSnapshot = (snapshot) => ({
+  ...emptyPortfolioSnapshot,
+  ...snapshot,
+  account_summary: snapshot?.account_summary || emptyPortfolioSnapshot.account_summary,
+  positions: snapshot?.positions || [],
+  open_orders: snapshot?.open_orders || [],
+  recent_executions: snapshot?.recent_executions || [],
+});
+
 const withCachedPortfolioData = (incoming, cached) => {
-  if (!cached || hasPortfolioData(incoming)) return incoming;
+  const incomingSnapshot = normalizeSnapshot(incoming);
+  if (!cached || hasPortfolioData(incomingSnapshot)) return incomingSnapshot;
+  const cachedSnapshot = normalizeSnapshot(cached);
   return {
-    ...incoming,
-    account_summary: cached.account_summary || emptyPortfolioSnapshot.account_summary,
-    positions: cached.positions || [],
-    open_orders: cached.open_orders || [],
-    recent_executions: cached.recent_executions || [],
-    last_update: cached.last_update || incoming.last_update,
+    ...incomingSnapshot,
+    account_summary: cachedSnapshot.account_summary,
+    positions: cachedSnapshot.positions,
+    open_orders: cachedSnapshot.open_orders,
+    recent_executions: cachedSnapshot.recent_executions,
+    last_update: cachedSnapshot.last_update || incomingSnapshot.last_update,
   };
 };
 
@@ -58,13 +69,20 @@ export default function usePortfolioSnapshot(enabled) {
     enabled ? `${API_BASE}/stream/portfolio` : null,
     { enabled },
   );
-  const snapshotRef = useRef(readStoredSnapshot() || emptyPortfolioSnapshot);
+  const [snapshot, setSnapshot] = useState(() => (
+    normalizeSnapshot(readStoredSnapshot())
+  ));
 
-  if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-    const nextSnapshot = withCachedPortfolioData(data, snapshotRef.current);
-    snapshotRef.current = nextSnapshot;
-    if (hasPortfolioData(nextSnapshot)) writeStoredSnapshot(nextSnapshot);
-  }
+  useEffect(() => {
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) return;
+    setSnapshot((current) => withCachedPortfolioData(data, current));
+  }, [data]);
 
-  return { snapshot: snapshotRef.current, sseStatus };
+  useEffect(() => {
+    if (hasPortfolioData(snapshot)) writeStoredSnapshot(snapshot);
+  }, [snapshot]);
+
+  const hasData = useMemo(() => hasPortfolioData(snapshot), [snapshot]);
+
+  return { snapshot, sseStatus, hasData };
 }
