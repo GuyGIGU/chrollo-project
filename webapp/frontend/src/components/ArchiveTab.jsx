@@ -294,8 +294,12 @@ const DualCorrelationBar = ({ label, value20, value60 }) => {
 // manually if they decide to apply.
 const ReweightingStrip = ({ data, basis }) => {
   if (!data || data.length === 0) return null;
-  const totalCurrent = data.reduce((sum, r) => sum + r.current, 0);
-  const totalSuggested = data.reduce((sum, r) => sum + r.suggested, 0);
+  // Null-safe number formatter: a sub-score with zero variance yields a null
+  // correlation server-side, which can cascade into null suggested/delta. Never
+  // call .toFixed on those directly or the whole Archive tab white-screens.
+  const fx = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d);
+  const totalCurrent = data.reduce((sum, r) => sum + (Number(r.current) || 0), 0);
+  const totalSuggested = data.reduce((sum, r) => sum + (Number(r.suggested) || 0), 0);
   const basisLabel = basis === '20d+60d_avg'
     ? 'avg |corr| across 20d + 60d horizons'
     : basis === '20d_only'
@@ -305,7 +309,7 @@ const ReweightingStrip = ({ data, basis }) => {
     <div className="glass-panel">
       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>⚖ Suggested Re-weighting</div>
       <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-        Basis: {basisLabel}, renormalized to preserve total cap ({totalCurrent.toFixed(0)} pts).
+        Basis: {basisLabel}, renormalized to preserve total cap ({fx(totalCurrent, 0)} pts).
         Read-only — edit <code style={{ background: 'rgba(255,255,255,0.06)', padding: '0 4px', borderRadius: '3px' }}>config/settings.py</code> manually if applying.
       </div>
       <table style={{ width: '100%', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -322,21 +326,21 @@ const ReweightingStrip = ({ data, basis }) => {
           {data.map(r => (
             <tr key={r.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
               <td style={{ padding: '4px 6px', textTransform: 'capitalize' }}>{r.name.replace(/_/g, ' ')}</td>
-              <td style={{ padding: '4px 6px', textAlign: 'right' }}>{r.current.toFixed(0)}</td>
-              <td style={{ padding: '4px 6px', textAlign: 'right' }}>{r.suggested.toFixed(1)}</td>
+              <td style={{ padding: '4px 6px', textAlign: 'right' }}>{fx(r.current, 0)}</td>
+              <td style={{ padding: '4px 6px', textAlign: 'right' }}>{fx(r.suggested, 1)}</td>
               <td style={{
                 padding: '4px 6px', textAlign: 'right', fontWeight: 600,
                 color: r.delta > 0.5 ? '#ff8c00' : r.delta < -0.5 ? 'var(--accent-blue)' : 'var(--text-muted)',
               }}>
-                {r.delta > 0 ? '+' : ''}{r.delta.toFixed(1)}
+                {r.delta > 0 ? '+' : ''}{fx(r.delta, 1)}
               </td>
-              <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{r.avg_abs_corr.toFixed(3)}</td>
+              <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{fx(r.avg_abs_corr, 3)}</td>
             </tr>
           ))}
           <tr style={{ borderTop: '1px solid var(--border-color)' }}>
             <td style={{ padding: '4px 6px', color: 'var(--text-muted)' }}>Total</td>
-            <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{totalCurrent.toFixed(0)}</td>
-            <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{totalSuggested.toFixed(1)}</td>
+            <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{fx(totalCurrent, 0)}</td>
+            <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{fx(totalSuggested, 1)}</td>
             <td colSpan={2} />
           </tr>
         </tbody>
