@@ -111,15 +111,50 @@ function App() {
 
   const reconnectIbkr = async () => {
     if (reconnecting) return;
+    // Live mode is gated behind a deliberate human confirmation: the always-on
+    // service is broker-free, so connecting hands your single IBKR API session
+    // to Chrollo until you disconnect. Paper mode needs no confirmation.
+    let confirm = false;
+    if (isLive) {
+      const livePort = isGateway ? 4001 : 7496;
+      const livePeer = isGateway ? 'IB Gateway' : 'TWS';
+      const ok = window.confirm(
+        `Connect Chrollo to your LIVE real-money IBKR account on port ${livePort}?\n\n` +
+        `This hands your single IBKR API session to Chrollo until you disconnect — ` +
+        `make sure ${livePeer} is logged into the live account and TradingView isn't using it.`,
+      );
+      if (!ok) return;
+      confirm = true;
+    }
     setReconnecting(true);
     try {
-      const res = await fetch(`${API_BASE}/ibkr/reconnect`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/ibkr/reconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm }),
+      });
       if (!res.ok) {
         const body = await res.text();
         alert(`Reconnect failed: ${body}`);
       }
     } catch (err) {
       alert(`Reconnect error: ${err.message || err}`);
+    } finally {
+      setReconnecting(false);
+    }
+  };
+
+  const disconnectIbkr = async () => {
+    if (reconnecting) return;
+    setReconnecting(true);
+    try {
+      const res = await fetch(`${API_BASE}/ibkr/disconnect`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.text();
+        alert(`Disconnect failed: ${body}`);
+      }
+    } catch (err) {
+      alert(`Disconnect error: ${err.message || err}`);
     } finally {
       setReconnecting(false);
     }
@@ -357,7 +392,24 @@ function App() {
               </div>
               <div style={{fontSize: '1.2rem', fontWeight: '700', color: '#fff'}}>${fmtMoney(acct.values?.NetLiquidation)}</div>
               <div style={{fontSize: '10px', color: 'var(--text-muted)'}}>Cash: ${fmtMoney(acct.values?.TotalCashValue)}</div>
-              <div style={{fontSize: '10px', color: 'var(--accent-blue)'}}>Buying Power: ${fmtMoney(acct.values?.BuyingPower)}</div>
+              <div style={{fontSize: '10px', color: 'var(--accent-blue)', marginBottom: '6px'}}>Buying Power: ${fmtMoney(acct.values?.BuyingPower)}</div>
+              <button
+                type="button"
+                onClick={disconnectIbkr}
+                disabled={reconnecting}
+                title="Release the IBKR API session so you can use it in TWS / TradingView."
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+                  padding: '3px 10px', borderRadius: 'var(--radius-pill, 999px)',
+                  background: 'transparent', color: 'var(--text-muted)',
+                  border: '1px solid var(--border-color)',
+                  cursor: reconnecting ? 'wait' : 'pointer',
+                  opacity: reconnecting ? 0.6 : 1,
+                  fontFamily: 'inherit',
+                }}
+              >
+                Disconnect
+              </button>
             </>
           ) : ibkrStatus?.session_competition ? (
             <>
@@ -410,7 +462,26 @@ function App() {
                 Journal P&L
               </div>
               <div style={{fontSize: '1.2rem', fontWeight: '700', color: '#fff'}}>${stats ? stats.total_pnl.toFixed(2) : "0.00"}</div>
-              <div style={{fontSize: '10px', color: 'var(--text-muted)'}}>IBKR disconnected</div>
+              <div style={{fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px'}}>IBKR disconnected</div>
+              <button
+                type="button"
+                onClick={reconnectIbkr}
+                disabled={reconnecting}
+                title={isLive
+                  ? 'Connect Chrollo to your live IBKR account for portfolio snapshots (read-only). You will confirm first.'
+                  : 'Connect Chrollo to your paper IBKR account.'}
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px',
+                  padding: '3px 10px', borderRadius: 'var(--radius-pill, 999px)',
+                  background: 'rgba(109,138,199,0.15)', color: 'var(--accent-blue)',
+                  border: '1px solid var(--accent-blue)',
+                  cursor: reconnecting ? 'wait' : 'pointer',
+                  opacity: reconnecting ? 0.6 : 1,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {reconnecting ? 'Connecting…' : '↻ Connect IBKR'}
+              </button>
             </>
           )}
         </div>

@@ -217,12 +217,21 @@ class IBKRService:
         with self._snap_lock:
             return list(self._snapshot.recent_executions[-limit:])
 
-    def start(self) -> None:
+    def start(self, *, confirmed: bool = False) -> None:
+        """Start the IBKR supervisor thread.
+
+        ``confirmed=True`` represents a *deliberate, in-the-moment human
+        confirmation* (a dashboard click that passed a "connect to real money?"
+        dialog) and lets this one start bypass the live gate. It is intentionally
+        NOT persisted: ``settings.ibkr_live_confirmed`` is untouched, so a reboot /
+        crash-restart still comes up broker-free. The ``IBKR_LIVE_CONFIRMED`` env
+        var remains the only way to satisfy the gate automatically at boot.
+        """
         if not _IB_AVAILABLE:
             log.warning("ib_async not installed — IBKR service will stay disconnected.")
             self._set_error("ib_async not installed")
             return
-        if settings.ibkr_mode == "live" and not settings.ibkr_live_confirmed:
+        if settings.ibkr_mode == "live" and not settings.ibkr_live_confirmed and not confirmed:
             log.warning(
                 "IBKR mode=live but IBKR_LIVE_CONFIRMED is not set — refusing to auto-connect. "
                 "Set IBKR_LIVE_CONFIRMED=true to opt in, or POST /ibkr/mode?mode=paper, "

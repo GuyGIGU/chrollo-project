@@ -65,7 +65,7 @@ const tdStyle = {
 };
 
 // ── StatusBar ────────────────────────────────────────────────────
-const StatusBar = ({ status, sseStatus, lastUpdate, stale, dailyRestart, sessionCompetition, onReconnect }) => {
+const StatusBar = ({ status, sseStatus, lastUpdate, stale, dailyRestart, sessionCompetition, onReconnect, onDisconnect }) => {
   const isLive = status?.mode === 'live';
   const available = !!status?.available;
   const connected = !!status?.connected;
@@ -204,6 +204,39 @@ const StatusBar = ({ status, sseStatus, lastUpdate, stale, dailyRestart, session
             Last update: {fmtTime(lastUpdate)}
           </span>
         )}
+        {available && (connected ? (
+          <button
+            type="button"
+            onClick={onDisconnect}
+            title="Release the IBKR API session so you can use it in TWS / TradingView."
+            style={{
+              marginLeft: status?.host ? 0 : 'auto',
+              padding: '4px 12px', borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid var(--border-color)', background: 'transparent',
+              color: 'var(--text-muted)', fontWeight: 600, fontSize: 11,
+              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
+            }}
+          >
+            Disconnect
+          </button>
+        ) : !sessionCompetition && !dailyRestart ? (
+          <button
+            type="button"
+            onClick={onReconnect}
+            title={isLive
+              ? 'Connect Chrollo to your live IBKR account for portfolio snapshots (read-only). You will confirm first.'
+              : 'Connect Chrollo to your paper IBKR account.'}
+            style={{
+              marginLeft: status?.host ? 0 : 'auto',
+              padding: '4px 12px', borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid var(--accent-blue)', background: 'rgba(109, 138, 199, 0.15)',
+              color: 'var(--accent-blue)', fontWeight: 600, fontSize: 11,
+              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
+            }}
+          >
+            ↻ Connect IBKR
+          </button>
+        ) : null)}
       </div>
     </>
   );
@@ -455,14 +488,45 @@ const PortfolioTab = () => {
   const sessionCompetition = !!snapshot.session_competition || !!status?.session_competition;
 
   const handleReconnect = async () => {
+    // Live connect is a deliberate human action (hands the single IBKR API
+    // session to Chrollo until disconnect); paper needs no confirmation.
+    let confirm = false;
+    if (status?.mode === 'live') {
+      const isGateway = status?.client === 'gateway';
+      const livePort = isGateway ? 4001 : 7496;
+      const livePeer = isGateway ? 'IB Gateway' : 'TWS';
+      const ok = window.confirm(
+        `Connect Chrollo to your LIVE real-money IBKR account on port ${livePort}?\n\n` +
+        `This hands your single IBKR API session to Chrollo until you disconnect — ` +
+        `make sure ${livePeer} is logged into the live account and TradingView isn't using it.`,
+      );
+      if (!ok) return;
+      confirm = true;
+    }
     try {
-      const res = await fetch(`${API_BASE}/ibkr/reconnect`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/ibkr/reconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm }),
+      });
       if (!res.ok) {
         const body = await res.text();
         alert(`Reconnect failed: ${body}`);
       }
     } catch (err) {
       alert(`Reconnect error: ${err.message || err}`);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/ibkr/disconnect`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.text();
+        alert(`Disconnect failed: ${body}`);
+      }
+    } catch (err) {
+      alert(`Disconnect error: ${err.message || err}`);
     }
   };
 
@@ -494,6 +558,7 @@ const PortfolioTab = () => {
         dailyRestart={dailyRestart}
         sessionCompetition={sessionCompetition}
         onReconnect={handleReconnect}
+        onDisconnect={handleDisconnect}
       />
       <AccountSummaryCard summary={summary} />
       <LivePositionsTable positions={positions} />
