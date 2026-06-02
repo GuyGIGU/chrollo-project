@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createChart, BarSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
-import { API_BASE } from '../api';
+import usePositionChartData from '../hooks/usePositionChartData';
 import { fmtMoney, fmtNum, pnlColor } from './portfolioFormat';
+import PortfolioPositionInsights from './PortfolioPositionInsights';
 
 const chartOptions = (width, height) => ({
   width,
@@ -43,7 +44,7 @@ const chartShellStyle = {
   border: '1px solid var(--border-color)',
   borderRadius: 8,
   background: 'var(--bg-panel)',
-  overflow: 'hidden',
+  overflowY: 'auto',
   boxShadow: '0 24px 70px rgba(0,0,0,0.42)',
 };
 
@@ -51,36 +52,6 @@ const buildLevel = (candles, value) => {
   const price = Number(value);
   if (!Number.isFinite(price) || price <= 0) return [];
   return candles.map((candle) => ({ time: candle.time, value: price }));
-};
-
-const usePositionChartData = (symbol) => {
-  const [state, setState] = useState({ loading: false, error: '', data: null });
-
-  useEffect(() => {
-    if (!symbol) return undefined;
-    const controller = new AbortController();
-    setState({ loading: true, error: '', data: null });
-
-    fetch(`${API_BASE}/market-data/chart/${encodeURIComponent(symbol)}?days=180`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error('Chart data unavailable');
-        if (!response.headers.get('content-type')?.includes('application/json')) {
-          throw new Error('Restart the backend to enable live chart data.');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (!data?.candles?.length) throw new Error('Chart data unavailable');
-        setState({ loading: false, error: '', data });
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') setState({ loading: false, error: error.message, data: null });
-      });
-
-    return () => controller.abort();
-  }, [symbol]);
-
-  return state;
 };
 
 const PositionChartCanvas = ({ symbol, data, position }) => {
@@ -166,7 +137,7 @@ const PositionChartHeader = ({ symbol, position, onClose }) => {
   );
 };
 
-const PortfolioPositionChart = ({ selectedSymbol, position, open, onClose }) => {
+const PortfolioPositionChart = ({ selectedSymbol, position, positions, summary, open, onClose }) => {
   const { loading, error, data } = usePositionChartData(open ? selectedSymbol : '');
 
   useEffect(() => {
@@ -192,6 +163,7 @@ const PortfolioPositionChart = ({ selectedSymbol, position, open, onClose }) => 
         {selectedSymbol && loading && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Loading chart data...</div>}
         {selectedSymbol && error && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>{error}</div>}
         {selectedSymbol && data && <PositionChartCanvas symbol={selectedSymbol} data={data} position={position} />}
+        <PortfolioPositionInsights position={position} positions={positions} summary={summary} />
       </section>
     </div>
   );

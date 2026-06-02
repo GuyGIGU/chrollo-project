@@ -13,7 +13,11 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from core.structure.lps import detect_lps
 from webapp.backend.routers.market_data import _clean_symbol, _is_number
-from webapp.backend.routers.portfolio import _flatten_summary
+from webapp.backend.services.portfolio_snapshot import (
+    flatten_summary,
+    has_portfolio_data,
+    with_cached_snapshot,
+)
 
 
 def test_lps_trigger_uses_last_lps_bar_high():
@@ -53,13 +57,40 @@ def test_flatten_summary_sums_numeric_values_and_ignores_unknown_tags():
         },
     }
 
-    flattened = _flatten_summary(summary)
+    flattened = flatten_summary(summary)
 
     assert flattened["values"]["NetLiquidation"] == 1100
     assert flattened["values"]["AvailableFunds"] == 250
     assert "Ignored" not in flattened["values"]
     assert flattened["currency"]["NetLiquidation"] == "USD"
     assert flattened["raw"] == summary
+
+
+def test_cached_portfolio_snapshot_preserves_last_known_data():
+    current = {
+        "connected": False,
+        "mode": "paper",
+        "stale": True,
+        "last_update": 200,
+        "account_summary": {"values": {}, "currency": {}, "raw": {}},
+        "positions": [],
+        "open_orders": [],
+        "recent_executions": [],
+    }
+    cached = {
+        "last_update": 100,
+        "account_summary": {"values": {"NetLiquidation": 1234}, "currency": {}, "raw": {}},
+        "positions": [{"symbol": "AAPL"}],
+        "open_orders": [{"symbol": "MSFT"}],
+        "recent_executions": [{"symbol": "NVDA"}],
+    }
+
+    snapshot = with_cached_snapshot(current, cached)
+
+    assert has_portfolio_data(snapshot)
+    assert snapshot["backend_cached"] is True
+    assert snapshot["last_update"] == 100
+    assert snapshot["positions"] == cached["positions"]
 
 
 @pytest.mark.parametrize(
