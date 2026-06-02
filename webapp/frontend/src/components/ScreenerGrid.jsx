@@ -475,6 +475,17 @@ const ScreenerGrid = () => {
 
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState('');
+  // Hold the live scan EventSource so we can close it on unmount — otherwise
+  // navigating away mid-scan leaks the stream and fires setState on a dead
+  // component.
+  const scanSourceRef = useRef(null);
+
+  useEffect(() => () => {
+    if (scanSourceRef.current) {
+      scanSourceRef.current.close();
+      scanSourceRef.current = null;
+    }
+  }, []);
 
   const parseScanProgress = (line) => {
     const trimmed = line.trim();
@@ -530,12 +541,18 @@ const ScreenerGrid = () => {
   };
 
   const handleRunScan = () => {
+    // Guard against double-start: close any stream still open from a prior click.
+    if (scanSourceRef.current) {
+      scanSourceRef.current.close();
+      scanSourceRef.current = null;
+    }
     setIsScanning(true);
     setScanLogs([]);
     setScanProgress(0);
     setScanPhase('Initializing pipeline…');
 
     const eventSource = new EventSource(`${API_BASE}/run-scan-stream/`);
+    scanSourceRef.current = eventSource;
 
     // Reveal results as soon as the dashboard JSON is written — which happens
     // BEFORE the (slow, network-bound) archive/market-context step. Otherwise a
@@ -555,6 +572,7 @@ const ScreenerGrid = () => {
     eventSource.onmessage = async (e) => {
       if (e.data === '[DONE]') {
         eventSource.close();
+        scanSourceRef.current = null;
         await revealResults();   // no-op if the export line already revealed
         return;
       }
@@ -574,6 +592,7 @@ const ScreenerGrid = () => {
     eventSource.onerror = (err) => {
       console.error("EventSource failed.", err);
       eventSource.close();
+      scanSourceRef.current = null;
       setIsScanning(false);
       setScanProgress(0);
       setScanPhase('');

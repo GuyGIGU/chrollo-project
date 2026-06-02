@@ -92,6 +92,20 @@ schtasks /Create /TN "Chrollo Daily Backup" /SC DAILY /ST 20:30 /TR "powershell.
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.
 
+## Applying Code Changes (one click)
+
+After any code change (frontend or backend), you do **not** need to run `npm run build` and an
+elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the repo root (or run
+`update_dashboard.ps1`). It:
+
+1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
+2. Rebuilds the frontend into `webapp\frontend\dist`.
+3. Restarts the `ChrolloDashboard` service.
+4. Polls `http://127.0.0.1:8000/health` and prints the result.
+
+It never sets `IBKR_LIVE_CONFIRMED` and never changes the service's broker-free configuration — the
+dashboard stays broker-free at boot exactly as before.
+
 ## Service Commands
 
 ```powershell

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_BASE } from '../api';
 import ScreenerModal from './ScreenerModal';
 import ArchiveCard from './ArchiveCard';
+import { ArchiveAnalysisModal, ScanHistoryModal } from './ArchiveMaintenanceModals';
 
 const SORT_OPTIONS = [
   ['scan_date', 'Date'],
@@ -383,7 +384,10 @@ const EquityCurve = ({ data }) => {
 
   // Zero baseline
   const zeroY = H - ((0 - minR) / span) * (H - 4) - 2;
-  const finalCum = cums[cums.length - 1];
+  // Null-safe formatter + finalCum guard: a point's cum_r (or any summary field)
+  // can arrive null from the API; bare .toFixed would white-screen the tab.
+  const fx = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d);
+  const finalCum = Number.isFinite(Number(cums[cums.length - 1])) ? Number(cums[cums.length - 1]) : 0;
   const lineColor = finalCum >= 0 ? '#3fb950' : '#c76b73';
   const sm = data.summary || {};
 
@@ -396,16 +400,16 @@ const EquityCurve = ({ data }) => {
         </div>
       </div>
       <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-        Cumulative R from {sm.total_setups} triggered setups · WR {(sm.win_rate * 100).toFixed(0)}% · Max DD {sm.max_drawdown_r}R
+        Cumulative R from {sm.total_setups ?? '—'} triggered setups · WR {fx(sm.win_rate != null ? sm.win_rate * 100 : null, 0)}% · Max DD {fx(sm.max_drawdown_r, 2)}R
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '140px' }}>
         <line x1="0" y1={zeroY} x2={W} y2={zeroY} stroke="rgba(255,255,255,0.15)" strokeDasharray="3,3" />
         <path d={path} fill="none" stroke={lineColor} strokeWidth="2" />
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>
-        <span>Best: <span style={{ color: 'var(--success)' }}>+{sm.best_r}R</span></span>
-        <span>Worst: <span style={{ color: 'var(--danger)' }}>{sm.worst_r}R</span></span>
-        <span>Avg: <span style={{ color: 'var(--text-main)' }}>{sm.avg_r}R</span></span>
+        <span>Best: <span style={{ color: 'var(--success)' }}>{sm.best_r != null ? '+' : ''}{fx(sm.best_r, 2)}R</span></span>
+        <span>Worst: <span style={{ color: 'var(--danger)' }}>{fx(sm.worst_r, 2)}R</span></span>
+        <span>Avg: <span style={{ color: 'var(--text-main)' }}>{fx(sm.avg_r, 2)}R</span></span>
       </div>
     </div>
   );
@@ -425,6 +429,15 @@ const ArchiveTab = () => {
   // button silently flashed a loading state and gave the user no signal of
   // what (if anything) happened — even when the subprocess succeeded.
   const [updateMsg, setUpdateMsg] = useState(null);  // { ok: bool, text: str }
+
+  // ── In-app maintenance (replaces the CLI): scan history + archive analysis ──
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRuns, setHistoryRuns] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisText, setAnalysisText] = useState('');
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
 
   // Add Setup Modal State
   const [addOpen, setAddOpen] = useState(false);
@@ -514,6 +527,38 @@ const ArchiveTab = () => {
     setUpdating(false);
     // Auto-dismiss the banner after 8s so it doesn't linger.
     setTimeout(() => setUpdateMsg(null), 8000);
+  };
+
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/scan-status/history?limit=20`);
+      const data = await res.json().catch(() => ({}));
+      setHistoryRuns(Array.isArray(data.runs) ? data.runs : []);
+    } catch (err) {
+      console.error('Failed to fetch scan history:', err);
+      setHistoryRuns([]);
+    }
+    setHistoryLoading(false);
+  };
+
+  const openAnalysis = async (refresh = false) => {
+    setAnalysisOpen(true);
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    try {
+      const res = await fetch(`${API_BASE}/archive/analysis${refresh ? '?refresh=true' : ''}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setAnalysisText(data.report || '(empty report)');
+      } else {
+        setAnalysisError((data.detail || `HTTP ${res.status}`).toString());
+      }
+    } catch (err) {
+      setAnalysisError(`Network error: ${err.message || err}`);
+    }
+    setAnalysisLoading(false);
   };
 
   const handleAddSetup = async () => {
@@ -674,6 +719,30 @@ const ArchiveTab = () => {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
+            onClick={openHistory}
+            title="Recent scan runs (scheduled + manual) — replaces checking logs."
+            style={{
+              background: 'transparent', color: 'var(--text-main)',
+              border: '1px solid var(--border-color)', padding: '8px 16px',
+              borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+              fontSize: '12px', fontFamily: 'inherit', transition: 'all 0.2s',
+            }}
+          >
+            🕒 Scan History
+          </button>
+          <button
+            onClick={() => openAnalysis(false)}
+            title="Run the read-only archive analysis report (python -m core.archive.analyze) in-app."
+            style={{
+              background: 'transparent', color: 'var(--text-main)',
+              border: '1px solid var(--border-color)', padding: '8px 16px',
+              borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+              fontSize: '12px', fontFamily: 'inherit', transition: 'all 0.2s',
+            }}
+          >
+            📊 Analysis
+          </button>
+          <button
             onClick={() => { setAddError(null); setAddOpen(true); }}
             style={{
               background: 'transparent', color: 'var(--text-main)',
@@ -719,6 +788,22 @@ const ArchiveTab = () => {
           {updateMsg.ok ? '✓ ' : '⚠ '}{updateMsg.text}
         </div>
       )}
+
+      <ScanHistoryModal
+        open={historyOpen}
+        runs={historyRuns}
+        loading={historyLoading}
+        onClose={() => setHistoryOpen(false)}
+      />
+
+      <ArchiveAnalysisModal
+        open={analysisOpen}
+        text={analysisText}
+        loading={analysisLoading}
+        error={analysisError}
+        onRefresh={() => openAnalysis(true)}
+        onClose={() => setAnalysisOpen(false)}
+      />
 
       {addOpen && (
         <div
