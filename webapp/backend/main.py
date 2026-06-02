@@ -22,6 +22,7 @@ import config
 from config import settings
 from database import engine, get_db
 from ibkr import get_ibkr_service
+from routers import market_data as market_data_router
 from routers import portfolio as portfolio_router
 from routers import tags as tags_router
 from routers import analytics as analytics_router
@@ -198,6 +199,7 @@ app.add_middleware(
 )
 
 app.include_router(portfolio_router.router)
+app.include_router(market_data_router.router)
 app.include_router(tags_router.router)
 app.include_router(analytics_router.router)
 app.include_router(journal_router.router)

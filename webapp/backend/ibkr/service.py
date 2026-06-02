@@ -271,6 +271,7 @@ class IBKRService:
                 log.exception("IBKR shutdown failed")
         if self._thread:
             self._thread.join(timeout=3)
+        self._mark_disconnected("manual disconnect")
 
     def apply_settings(self) -> None:
         """Sync snapshot metadata (mode/host/port/client_id) from config.settings.

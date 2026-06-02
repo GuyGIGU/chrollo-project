@@ -28,10 +28,14 @@ SUMMARY_KEYS = (
     "TotalCashValue",
     "AvailableFunds",
     "BuyingPower",
+    "Cushion",
+    "ExcessLiquidity",
     "GrossPositionValue",
+    "Leverage-S",
+    "MaintMarginReq",
     "UnrealizedPnL",
     "RealizedPnL",
-    "DayTradesRemaining",
+    "SMA",
 )
 
 
