@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 import models
 import archive_models
@@ -271,6 +271,13 @@ class _ClientPayload(_PydBaseModel):
     client: str
 
 
+class _ReconnectPayload(_PydBaseModel):
+    # A deliberate, dialog-confirmed click from the dashboard. When true, this
+    # single connect attempt is allowed even in live mode without the
+    # IBKR_LIVE_CONFIRMED env var. It is never persisted (see service.start).
+    confirm: bool = False
+
+
 @app.post("/ibkr/mode")
 def set_ibkr_mode(payload: _ModePayload):
     """Flip between paper (port 7497) and live (port 7496) at runtime.
@@ -294,7 +301,9 @@ def set_ibkr_mode(payload: _ModePayload):
     svc.apply_settings()
 
     try:
-        svc.start()
+        # The live-mode switch already required confirm=true above; honor that as
+        # the human confirmation so the connect isn't re-blocked by the live gate.
+        svc.start(confirmed=payload.confirm)
     except Exception:
         logging.exception("Failed to start IBKR after mode switch")
 
@@ -303,6 +312,7 @@ def set_ibkr_mode(payload: _ModePayload):
         "mode": snap["mode"],
         "port": snap["port"],
         "connected": snap["connected"],
+        "last_error": snap.get("last_error"),
     }
 
 
@@ -337,19 +347,44 @@ def set_ibkr_client(payload: _ClientPayload):
 
 
 @app.post("/ibkr/reconnect")
-def ibkr_reconnect():
-    """Manually resume IBKR connection after session competition pause.
+def ibkr_reconnect(payload: Optional[_ReconnectPayload] = None):
+    """Manually (re)connect IBKR — the user's deliberate "give my session to Chrollo now" action.
 
-    When another platform (e.g. TradingView) kicks Chrollo off the IBKR
-    session, auto-reconnect pauses to avoid an infinite fight. This endpoint
-    lets the user resume when TradingView is done.
+    Resumes from a session-competition pause and starts the supervisor. In live
+    mode the always-on service is broker-free (no IBKR_LIVE_CONFIRMED), so the
+    caller must pass ``{"confirm": true}`` — a deliberate, dialog-confirmed click —
+    to clear the live gate for this connect. The confirmation is not persisted;
+    a reboot still comes up disconnected. Omitting the body (confirm=false) keeps
+    the old safe behavior.
     """
+    confirm = bool(payload.confirm) if payload else False
     svc = get_ibkr_service()
     svc.resume()
     try:
-        svc.start()
+        svc.start(confirmed=confirm)
     except Exception:
         logging.exception("Failed to start IBKR after manual reconnect")
+    snap = svc.snapshot()
+    return {
+        "connected": snap["connected"],
+        "session_competition": snap.get("session_competition", False),
+        "paused": svc.is_paused(),
+        "last_error": snap.get("last_error"),
+    }
+
+
+@app.post("/ibkr/disconnect")
+def ibkr_disconnect():
+    """Release the IBKR API session so the user can trade in TWS / TradingView.
+
+    Stops the supervisor thread and disconnects. The service stays disconnected
+    (no auto-reconnect) until the user deliberately reconnects again.
+    """
+    svc = get_ibkr_service()
+    try:
+        svc.stop()
+    except Exception:
+        logging.exception("Failed to stop IBKR on manual disconnect")
     snap = svc.snapshot()
     return {
         "connected": snap["connected"],

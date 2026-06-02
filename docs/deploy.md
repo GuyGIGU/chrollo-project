@@ -32,7 +32,9 @@ nssm set ChrolloDashboard AppEnvironmentExtra IBKR_AUTO_CONNECT=false
 nssm start ChrolloDashboard
 ```
 
-Do **not** set `IBKR_LIVE_CONFIRMED` on this service. The unattended service should stay broker-free. If you want a portfolio snapshot, open the dashboard and click **Reconnect** yourself.
+Do **not** set `IBKR_LIVE_CONFIRMED` on this service — it must stay broker-free at boot so a reboot or crash-restart never auto-grabs your single IBKR session (which would fight TradingView).
+
+You still get live snapshots on demand: open the dashboard and click **Connect IBKR**. In live mode this pops a confirmation ("connect to your real-money account?") and, only on your OK, hands the IBKR API session to Chrollo for the duration. Click **Disconnect** to release the session before you trade in TWS / TradingView. This is a per-click human action — it is *not* persisted, so the next boot is broker-free again. (The connection is read-only; keeping IB Gateway's **Read-Only API** enabled is recommended as a broker-level guarantee.)
 
 Alternative: Windows Task Scheduler can start `python -m uvicorn main:app --host 127.0.0.1 --port 8000` at logon, with the working folder set to `webapp\backend`, but NSSM is recommended because it auto-starts on boot and restarts after crashes.
 
