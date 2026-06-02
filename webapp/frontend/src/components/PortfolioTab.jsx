@@ -5,7 +5,6 @@ import { API_BASE } from '../api';
 import AccountSummaryCard from './PortfolioSummary';
 import PortfolioDailyPnl from './PortfolioDailyPnl';
 import PortfolioPositionChart from './PortfolioPositionChart';
-import PortfolioRiskCards from './PortfolioRiskCards';
 import PortfolioStatusBar from './PortfolioStatusBar';
 import { LivePositionsTable, OpenOrdersTable, RecentExecutionsTable } from './PortfolioTables';
 import { summaryValue } from './portfolioFormat';
@@ -52,7 +51,7 @@ const PortfolioTab = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
   const enabled = !!status?.available;
-  const { snapshot, sseStatus } = usePortfolioSnapshot(enabled);
+  const { snapshot, sseStatus, hasData } = usePortfolioSnapshot(enabled);
 
   const summary = snapshot.account_summary || emptyPortfolioSnapshot.account_summary;
   const positions = useMemo(() => snapshot.positions || [], [snapshot.positions]);
@@ -128,6 +127,7 @@ const PortfolioTab = () => {
         sseStatus={sseStatus}
         lastUpdate={snapshot.last_update}
         stale={isStale}
+        hasData={hasData}
         dailyRestart={dailyRestart}
         sessionCompetition={sessionCompetition}
         onReconnect={handleReconnect}
@@ -135,15 +135,11 @@ const PortfolioTab = () => {
       />
       <PortfolioDailyPnl summary={summary} />
       <AccountSummaryCard summary={summary} positions={positions} />
-      <PortfolioRiskCards
-        positions={positions}
-        summary={summary}
-        selectedSymbol={selectedSymbol}
-        onSelectSymbol={openPositionChart}
-      />
       <PortfolioPositionChart
         selectedSymbol={selectedSymbol}
         position={selectedPosition}
+        positions={positions}
+        summary={summary}
         open={chartOpen}
         onClose={() => setChartOpen(false)}
       />

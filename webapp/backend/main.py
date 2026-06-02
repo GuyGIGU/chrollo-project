@@ -19,6 +19,7 @@ from routers import ibkr as ibkr_router
 from routers import journal as journal_router
 from routers import market_data as market_data_router
 from routers import portfolio as portfolio_router
+from routers import portfolio_streams as portfolio_streams_router
 from routers import position_calculator as position_calculator_router
 from routers import prices as prices_router
 from routers import screener as screener_router
@@ -89,6 +90,7 @@ app.add_middleware(
 )
 
 app.include_router(portfolio_router.router)
+app.include_router(portfolio_streams_router.router)
 app.include_router(market_data_router.router)
 app.include_router(tags_router.router)
 app.include_router(analytics_router.router)
