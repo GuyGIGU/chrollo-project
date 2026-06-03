@@ -273,6 +273,93 @@ function ExecutionsTab({ tradeId }) {
   );
 }
 
+const convBtnBase = {
+  flex: 1,
+  padding: '8px 0',
+  fontSize: 13,
+  fontWeight: 700,
+  borderRadius: 'var(--radius-md, 6px)',
+  border: '1px solid var(--border-color)',
+  background: 'var(--bg-main)',
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
+
+const convBtnActive = {
+  background: 'var(--accent-blue)',
+  borderColor: 'var(--accent-blue)',
+  color: '#fff',
+};
+
+// Minimal per-trade intent capture: conviction (1-3) + one-line exit reason.
+// Saved straight onto the TradeLog via PUT /trades/{id} (both fields optional).
+function IntentTab({ trade }) {
+  const [conviction, setConviction] = useState(trade.conviction || 0);
+  const [exitReason, setExitReason] = useState(trade.exit_reason || '');
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/trades/${trade.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conviction: conviction || null,
+          exit_reason: exitReason.trim() || null,
+        }),
+      });
+      if (res.ok) setSavedAt(new Date());
+    } catch { /* no-op */ }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div>
+        <label style={labelStyle}>Conviction</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[1, 2, 3].map(n => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setConviction(conviction === n ? 0 : n)}
+              style={{ ...convBtnBase, ...(conviction === n ? convBtnActive : {}) }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+          1 = low · 2 = medium · 3 = high (click again to clear)
+        </div>
+      </div>
+      <div>
+        <label style={labelStyle}>Exit Reason</label>
+        <input
+          type="text"
+          value={exitReason}
+          onChange={(e) => setExitReason(e.target.value)}
+          placeholder="hit target · stopped out · time stop · thesis broke · …"
+          style={inputStyle}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <button type="button" style={btnPrimary} onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        {savedAt && (
+          <span style={{ color: 'var(--success)', fontSize: 11 }}>
+            Saved at {savedAt.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TradeDetailDrawer({ trade, onClose }) {
   const [tab, setTab] = useState('plan');
   const overlayRef = useRef(null);
@@ -329,6 +416,7 @@ export default function TradeDetailDrawer({ trade, onClose }) {
 
         <nav style={{ display: 'flex', padding: '0 20px', borderBottom: '1px solid var(--border-color)' }}>
           <div style={tabStyle(tab === 'plan')} onClick={() => setTab('plan')}>Plan</div>
+          <div style={tabStyle(tab === 'intent')} onClick={() => setTab('intent')}>Intent</div>
           <div style={tabStyle(tab === 'notes')} onClick={() => setTab('notes')}>Notes</div>
           <div style={tabStyle(tab === 'attachments')} onClick={() => setTab('attachments')}>Charts</div>
           <div style={tabStyle(tab === 'executions')} onClick={() => setTab('executions')}>Executions</div>
@@ -336,6 +424,7 @@ export default function TradeDetailDrawer({ trade, onClose }) {
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {tab === 'plan' && <PlanTab tradeId={trade.id} />}
+          {tab === 'intent' && <IntentTab trade={trade} />}
           {tab === 'notes' && <NotesTab tradeId={trade.id} />}
           {tab === 'attachments' && <AttachmentUploader tradeId={trade.id} />}
           {tab === 'executions' && <ExecutionsTab tradeId={trade.id} />}

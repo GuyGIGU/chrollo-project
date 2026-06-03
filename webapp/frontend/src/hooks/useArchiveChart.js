@@ -8,16 +8,11 @@ export default function useArchiveChart() {
   const [chartSetup, setChartSetup] = useState(null);
   const [linkedTrades, setLinkedTrades] = useState([]);
 
-  const openChart = async (setup, bulkCharts) => {
+  const openChart = async (setup) => {
     setChartTicker(setup.ticker);
     setChartSetup(setup);
     setLinkedTrades([]);
     fetchLinkedTrades(setup.id, setLinkedTrades);
-
-    if (bulkCharts[setup.id]) {
-      setChartData(bulkCharts[setup.id]);
-      return;
-    }
 
     setChartLoading(true);
     try {
