@@ -104,7 +104,7 @@ function PassButton({ active, onToggle }) {
 const tierBadgeStyle = (tier) => ({
   alignItems: 'center',
   border: `1px solid ${tierColor(tier)}55`,
-  borderRadius: 4,
+  borderRadius: 'var(--radius-xs)',
   color: tierColor(tier),
   display: 'inline-flex',
   flexShrink: 0,
@@ -180,14 +180,24 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     className="screener-card"
     role="button"
     tabIndex={0}
-    aria-label={`Open ${ticker} chart — ${data.setup}, tier ${data.tier}, score ${data.score}`}
+    aria-label={`Open ${ticker} chart — ${data.setup}, tier ${data.tier}, score ${data.score}. Press W to save to watchlist, C to mark considered.`}
     onClick={() => onClick(ticker)}
     onKeyDown={(event) => {
-      // Make the card a real keyboard target: Enter/Space open it, matching the
-      // click. preventDefault stops Space from scrolling the page.
+      // Only act on keys aimed at the card itself, not ones bubbling up from the
+      // inner toggle buttons (otherwise Enter/Space on a focused toggle would
+      // also open the card). Enter/Space open it; W/C are power-user toggles that
+      // keep the per-card engagement the "considered" mark depends on — a
+      // deliberate alternative to mass-marking a whole page at once.
+      if (event.target !== event.currentTarget) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         onClick(ticker);
+      } else if (event.key === 'w' || event.key === 'W') {
+        event.preventDefault();
+        onToggleWatchlist(ticker);
+      } else if (event.key === 'c' || event.key === 'C') {
+        event.preventDefault();
+        onTogglePassed(ticker);
       }
     }}
     style={{
