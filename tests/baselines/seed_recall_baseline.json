@@ -1,0 +1,112 @@
+{
+  "recall": 0.543859649122807,
+  "fired": 31,
+  "missed": 26,
+  "total": 57,
+  "misses": [
+    {
+      "ticker": "WMT",
+      "trigger_date": "2025-09-11"
+    },
+    {
+      "ticker": "BWA",
+      "trigger_date": "2026-01-26"
+    },
+    {
+      "ticker": "LECO",
+      "trigger_date": "2026-01-29"
+    },
+    {
+      "ticker": "IBP",
+      "trigger_date": "2026-02-03"
+    },
+    {
+      "ticker": "TRS",
+      "trigger_date": "2026-02-06"
+    },
+    {
+      "ticker": "GXO",
+      "trigger_date": "2026-02-11"
+    },
+    {
+      "ticker": "ST",
+      "trigger_date": "2026-02-11"
+    },
+    {
+      "ticker": "NOK",
+      "trigger_date": "2026-02-17"
+    },
+    {
+      "ticker": "SHEL",
+      "trigger_date": "2026-02-18"
+    },
+    {
+      "ticker": "GASS",
+      "trigger_date": "2026-02-24"
+    },
+    {
+      "ticker": "USO",
+      "trigger_date": "2026-02-26"
+    },
+    {
+      "ticker": "VLO",
+      "trigger_date": "2026-02-26"
+    },
+    {
+      "ticker": "SNDX",
+      "trigger_date": "2026-03-06"
+    },
+    {
+      "ticker": "KALV",
+      "trigger_date": "2026-03-09"
+    },
+    {
+      "ticker": "PUMP",
+      "trigger_date": "2026-03-11"
+    },
+    {
+      "ticker": "NE",
+      "trigger_date": "2026-03-13"
+    },
+    {
+      "ticker": "RGR",
+      "trigger_date": "2026-03-13"
+    },
+    {
+      "ticker": "NTCT",
+      "trigger_date": "2026-03-16"
+    },
+    {
+      "ticker": "XWIN",
+      "trigger_date": "2026-03-19"
+    },
+    {
+      "ticker": "NBR",
+      "trigger_date": "2026-03-23"
+    },
+    {
+      "ticker": "FOSL",
+      "trigger_date": "2026-03-30"
+    },
+    {
+      "ticker": "BRZU",
+      "trigger_date": "2026-03-31"
+    },
+    {
+      "ticker": "RRBI",
+      "trigger_date": "2026-03-31"
+    },
+    {
+      "ticker": "DNTH",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "SKYT",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "CAPR",
+      "trigger_date": "2026-04-13"
+    }
+  ]
+}

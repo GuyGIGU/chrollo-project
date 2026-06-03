@@ -22,6 +22,7 @@ Usage:
 """
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import sys
@@ -31,6 +32,7 @@ from typing import Optional
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 _DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
+_BASELINE_PATH = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_baseline.json")
 
 
 # ------------------------------------------------------------------
@@ -124,6 +126,50 @@ def summarize_recall(hits: list[dict], misses: list[dict]) -> dict:
     }
 
 
+def diff_against_baseline(
+    current: dict,
+    current_misses: list[dict],
+    baseline: dict,
+    tol: float = 1e-9,
+) -> tuple[bool, list[str]]:
+    """Compare a fresh recall run against a captured baseline.
+
+    Returns ``(ok, lines)``. The guard FAILS (ok=False) when either:
+      - recall regresses below the baseline rate (beyond ``tol``), or
+      - a known winner that used to be re-found is now missed (a NEW entry in
+        the miss-set) — the stricter, more useful signal than the rate alone.
+
+    Recovered names (previously missed, now found) are reported but never fail
+    the guard — finding more winners is always allowed.
+    """
+    lines: list[str] = []
+    ok = True
+
+    base_recall = float(baseline.get("recall", 0.0))
+    cur_recall = float(current.get("recall", 0.0))
+    if cur_recall + tol < base_recall:
+        ok = False
+        lines.append(f"RECALL REGRESSED: {cur_recall * 100:.1f}% < baseline {base_recall * 100:.1f}%")
+    else:
+        lines.append(f"recall {cur_recall * 100:.1f}% (baseline {base_recall * 100:.1f}%)")
+
+    base_miss = {(m["ticker"], m["trigger_date"]) for m in baseline.get("misses", [])}
+    cur_miss = {(m["ticker"], m["trigger_date"]) for m in current_misses}
+
+    new_misses = sorted(cur_miss - base_miss)
+    if new_misses:
+        ok = False
+        lines.append(f"NEW MISSES ({len(new_misses)}) - winners no longer re-found:")
+        lines.extend(f"  {t:<6} {d}" for t, d in new_misses)
+
+    recovered = sorted(base_miss - cur_miss)
+    if recovered:
+        lines.append(f"Recovered ({len(recovered)}) - previously-missed winners now found:")
+        lines.extend(f"  {t:<6} {d}" for t, d in recovered)
+
+    return ok, lines
+
+
 # ------------------------------------------------------------------
 # DB load (read-only) + report
 # ------------------------------------------------------------------
@@ -144,26 +190,83 @@ def load_seed_rows(db_path: str = _DB_PATH) -> list[dict]:
         con.close()
 
 
-def run(db_path: str = _DB_PATH) -> None:
+def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict]]:
+    """Compute the current recall scorecard from the archive.
+
+    Returns ``(summary, hits, misses)``. Raises if the seed archive is empty —
+    a recall measurement is meaningless without seed rows to match against.
+    """
     if _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)
     from core.archive.seed import SEED_SETUPS, WINDOW_BACK, WINDOW_FWD
 
     seed_rows = load_seed_rows(db_path)
+    if not seed_rows:
+        raise RuntimeError(
+            "No source='seed' rows in the archive yet — run "
+            "`python -m core.archive.seed` first to populate the seed archive."
+        )
+    hits, misses = match_seeds(SEED_SETUPS, seed_rows, WINDOW_BACK, WINDOW_FWD)
+    return summarize_recall(hits, misses), hits, misses
 
+
+def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> dict:
+    """Snapshot the current recall + miss-set to a baseline JSON for the guard."""
+    s, _hits, misses = _recall_now(db_path)
+    baseline = {
+        "recall": s["recall"],
+        "fired": s["fired"],
+        "missed": s["missed"],
+        "total": s["total"],
+        "misses": sorted(
+            ({"ticker": m["ticker"], "trigger_date": m["trigger_date"]} for m in misses),
+            key=lambda m: (m["trigger_date"], m["ticker"]),
+        ),
+    }
+    os.makedirs(os.path.dirname(baseline_path), exist_ok=True)
+    with open(baseline_path, "w", encoding="utf-8") as f:
+        json.dump(baseline, f, indent=2)
+    print(f"Captured recall baseline -> {baseline_path}")
+    print(f"  recall {s['recall'] * 100:.1f}%  ({s['fired']}/{s['total']} fired, {s['missed']} missed)")
+    return baseline
+
+
+def check_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> bool:
+    """Compare current recall to the captured baseline. Returns True if it holds."""
+    if not os.path.exists(baseline_path):
+        print(f"No baseline at {baseline_path} — run with --capture first.")
+        return False
+    with open(baseline_path, "r", encoding="utf-8") as f:
+        baseline = json.load(f)
+
+    s, _hits, misses = _recall_now(db_path)
+    ok, lines = diff_against_baseline(s, misses, baseline)
+
+    print("=" * 64)
+    print("  SEED RECALL GUARD - current vs. captured baseline")
+    print("=" * 64)
+    for line in lines:
+        print(line)
+    print()
+    print("PASS - recall held and no winners were lost." if ok
+          else "FAIL - recall regressed; see drift above.")
+    return ok
+
+
+def run(db_path: str = _DB_PATH) -> None:
     print("=" * 64)
     print("  SEED RECALL — can the engine re-find the winners I picked?")
     print("=" * 64)
     print(f"DB: {db_path}")
 
-    if not seed_rows:
+    try:
+        s, hits, misses = _recall_now(db_path)
+    except RuntimeError as e:
         print()
-        print("No source='seed' rows in the archive yet — nothing to measure.")
-        print("Run `python -m core.archive.seed` first to populate the seed archive.")
+        print(str(e))
         return
 
-    hits, misses = match_seeds(SEED_SETUPS, seed_rows, WINDOW_BACK, WINDOW_FWD)
-    s = summarize_recall(hits, misses)
+    from core.archive.seed import WINDOW_BACK, WINDOW_FWD
 
     print()
     print(f"Seeds (unique):   {s['total']}")
@@ -201,8 +304,25 @@ def main() -> None:
 
     ap = argparse.ArgumentParser(description="Report the screener's recall on the seed winners.")
     ap.add_argument("--db", default=_DB_PATH, help="Path to the archive SQLite DB")
+    ap.add_argument("--baseline", default=_BASELINE_PATH, help="Path to the recall baseline JSON")
+    group = ap.add_mutually_exclusive_group()
+    group.add_argument("--capture", action="store_true",
+                       help="Snapshot current recall + miss-set as the baseline")
+    group.add_argument("--check", action="store_true",
+                       help="Fail (exit 1) if recall regressed or a known winner is newly missed")
     args = ap.parse_args()
-    run(db_path=args.db)
+
+    try:
+        if args.capture:
+            capture_baseline(db_path=args.db, baseline_path=args.baseline)
+        elif args.check:
+            ok = check_baseline(db_path=args.db, baseline_path=args.baseline)
+            sys.exit(0 if ok else 1)
+        else:
+            run(db_path=args.db)
+    except RuntimeError as e:
+        print(str(e))
+        sys.exit(2)
 
 
 if __name__ == "__main__":

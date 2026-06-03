@@ -30,6 +30,87 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("chrollo.fwd_returns")
 
 
+# ── Triple-barrier outcome labelling ─────────────────────────────────────────
+# López de Prado style: store the raw PATH EVENTS (when each barrier was first
+# touched) and derive the win/loss label downstream, so the label definition can
+# be re-cut later without re-downloading data. A setup WINS if price reaches
+# EITHER profit target before the stop; LOSES if the stop comes first; TIMES OUT
+# if neither fires within the horizon. Two profit targets are tracked so the
+# archive can later tell which definition labels more usefully (a fusion of the
+# R-based and fixed-% views the operator asked for).
+STOP_TOLERANCE = 0.97        # stop sits at s_level * 0.97 (matches LPS_HOLD_TOLERANCE)
+TARGET_R_MULTIPLE = 2.5      # R-based profit target: entry + 2.5 * risk
+TARGET_PCT = 0.15            # fixed-percent profit target: entry * 1.15
+BARRIER_HORIZON_DAYS = 60    # max forward bars the barrier race is evaluated over
+
+
+def compute_barrier_events(highs, lows, entry, s_level, horizon=BARRIER_HORIZON_DAYS):
+    """Triple-barrier path events measured forward from the scan bar.
+
+    Walks up to ``horizon`` forward bars and records the first bar (1-based) that
+    touches each barrier:
+      - 2.5R profit target  (high >= entry + TARGET_R_MULTIPLE * risk)
+      - +15% profit target  (high >= entry * (1 + TARGET_PCT))
+      - stop                (low  <= s_level * STOP_TOLERANCE)
+    where ``risk = entry - s_level * STOP_TOLERANCE`` (per share). Anchored to the
+    scan close so it shares one reference frame with the existing MFE/MAE/R-multiple.
+
+    Derives a single ``barrier_label``:
+      'win'     a profit target is touched on an EARLIER bar than the stop
+      'loss'    the stop is touched first. Same-bar ties resolve to loss — the
+                conservative assumption for a long, since intrabar order is unknown.
+      'timeout' neither barrier is touched within the horizon
+
+    Pure: no DB, no network, no pandas required (operates on plain sequences).
+    """
+    empty = {
+        "days_to_2_5r": None, "days_to_15pct": None, "days_to_stop": None,
+        "barrier_label": None, "win_barrier": None,
+    }
+    if entry is None or entry <= 0 or s_level is None or s_level <= 0:
+        return empty
+    stop = s_level * STOP_TOLERANCE
+    risk = entry - stop
+    if risk <= 0:  # stop at/above entry → degenerate, can't label
+        return empty
+
+    target_r = entry + TARGET_R_MULTIPLE * risk
+    target_pct = entry * (1.0 + TARGET_PCT)
+    n = min(len(highs), len(lows), horizon)
+
+    def _first(hit):
+        for i in range(n):
+            if hit(i):
+                return i + 1  # 1-based bar count
+        return None
+
+    d_r = _first(lambda i: highs[i] >= target_r)
+    d_pct = _first(lambda i: highs[i] >= target_pct)
+    d_stop = _first(lambda i: lows[i] <= stop)
+
+    target_days = [d for d in (d_r, d_pct) if d is not None]
+    d_target = min(target_days) if target_days else None
+
+    if d_target is not None and (d_stop is None or d_target < d_stop):
+        label = "win"
+        # which definition fired first; on a same-bar tie 2.5R is the stronger move
+        win_barrier = "2.5R" if (d_r is not None and (d_pct is None or d_r <= d_pct)) else "15pct"
+    elif d_stop is not None:
+        label = "loss"
+        win_barrier = None
+    else:
+        label = "timeout"
+        win_barrier = None
+
+    return {
+        "days_to_2_5r": d_r,
+        "days_to_15pct": d_pct,
+        "days_to_stop": d_stop,
+        "barrier_label": label,
+        "win_barrier": win_barrier,
+    }
+
+
 def _trading_days_since(scan_date_str: str) -> int:
     """Rough estimate of trading days elapsed since scan_date."""
     delta = (datetime.today() - datetime.strptime(scan_date_str, "%Y-%m-%d")).days
@@ -133,13 +214,46 @@ def _compute_returns(
                 break
         result["triggered"] = 1 if triggered else 0
         result["trigger_date"] = trigger_date
+        if triggered and trigger_idx >= 0:
+            result["days_to_trigger"] = trigger_idx + 1  # 1-based bar count
 
         if (triggered and trigger_idx >= 0 and volumes is not None
                 and vol_50_at_scan and vol_50_at_scan > 0):
             v = float(volumes[trigger_idx])
             result["trigger_volume_ratio"] = round(v / vol_50_at_scan, 3)
 
+    # Triple-barrier outcome label (path events + derived win/loss/timeout),
+    # anchored to the scan close so it shares the existing MFE/MAE/R frame.
+    result.update(compute_barrier_events(highs, lows, scan_close, s_level))
+
     return result
+
+
+# Outcome columns added after the initial schema. create_all() only creates
+# missing TABLES, not missing COLUMNS on an existing table, so we ALTER them in
+# on demand (idempotent — a duplicate-column error means it already exists).
+_OUTCOME_COLUMNS: dict[str, str] = {
+    "days_to_trigger": "INTEGER",
+    "days_to_2_5r":    "INTEGER",
+    "days_to_15pct":   "INTEGER",
+    "days_to_stop":    "INTEGER",
+    "barrier_label":   "TEXT",
+    "win_barrier":     "TEXT",
+}
+
+
+def _ensure_outcome_columns(engine) -> None:
+    """Add post-schema outcome columns to setup_archive if they don't exist yet."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "setup_archive" not in inspector.get_table_names():
+        return  # create_all will handle a fresh table
+    existing = {col["name"] for col in inspector.get_columns("setup_archive")}
+    with engine.begin() as conn:
+        for name, sql_type in _OUTCOME_COLUMNS.items():
+            if name not in existing:
+                conn.execute(text(f"ALTER TABLE setup_archive ADD COLUMN {name} {sql_type}"))
 
 
 def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
@@ -160,6 +274,7 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
     engine = make_sqlite_engine(db_path)
     SetupArchive.metadata.create_all(bind=engine)
+    _ensure_outcome_columns(engine)
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
 
@@ -167,14 +282,15 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     cutoff = (datetime.today() - timedelta(days=min_age_days)).strftime("%Y-%m-%d")
     query = session.query(SetupArchive).filter(SetupArchive.scan_date <= cutoff)
     if not force:
-        # Update rows that are either missing the 1d return (never computed)
-        # OR missing r_multiple_20d (existing rows from before the new
-        # columns were added — backfill on the next run).
+        # Update rows that are missing the 1d return (never computed) OR missing
+        # r_multiple_20d / barrier_label (existing rows from before those columns
+        # were added — backfill on the next run).
         from sqlalchemy import or_
         query = query.filter(
             or_(
                 SetupArchive.fwd_return_1d.is_(None),
                 SetupArchive.r_multiple_20d.is_(None),
+                SetupArchive.barrier_label.is_(None),
             )
         )
 

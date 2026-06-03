@@ -72,6 +72,16 @@ class SetupArchive(Base):
     r_multiple_60d = Column(Float, nullable=True)
     trigger_volume_ratio = Column(Float, nullable=True)  # vol_on_trigger_day / Vol_50_at_scan
 
+    # ── Triple-barrier outcome label (path events + derived win/loss/timeout) ──
+    # Anchored to the scan close. Stop = s_level*0.97; targets = entry+2.5*risk
+    # and entry*1.15. Raw event timings stored so the label can be re-cut later.
+    days_to_trigger = Column(Integer, nullable=True)  # bars from scan to trigger touch (1-based)
+    days_to_2_5r = Column(Integer, nullable=True)     # bars to 2.5R profit target (None = never)
+    days_to_15pct = Column(Integer, nullable=True)    # bars to +15% profit target (None = never)
+    days_to_stop = Column(Integer, nullable=True)     # bars to stop (low <= s_level*0.97; None = never)
+    barrier_label = Column(String, nullable=True)     # win / loss / timeout (target-before-stop race)
+    win_barrier = Column(String, nullable=True)       # 2.5R / 15pct — which target fired first on a win
+
     # ── Market context at time of signal ─────────────────────────
     spy_trend = Column(String, nullable=True)         # BULLISH / BEARISH / NEUTRAL
     vix_level = Column(Float, nullable=True)
@@ -102,6 +112,10 @@ class SetupArchive(Base):
     contraction_quality = Column(Float, nullable=True)       # [0,1] composite: count + progressive tightening + final tightness
     final_contraction_depth = Column(Float, nullable=True)   # depth of the last (rightmost) contraction, fractional
     score_contraction = Column(Float, nullable=True)         # contraction-quality sub-score (raw points)
+    base_median_spread_atr = Column(Float, nullable=True)     # median base spread / ATR snapshot
+    base_p80_spread_atr = Column(Float, nullable=True)        # 80th percentile base spread / ATR snapshot
+    base_median_spread_pct_box = Column(Float, nullable=True) # median base spread / box height
+    base_tight_bar_pct = Column(Float, nullable=True)         # share of base bars with spread <= ATR snapshot
 
     # ── Ascending support / higher-lows footprint ────────────────
     support_slope_atr = Column(Float, nullable=True)         # ATR-normalized slope of zigzag valley lows (positive = rising support)
