@@ -57,11 +57,11 @@ function WatchlistButton({ active, onToggle }) {
         color: active ? '#e3b341' : '#6b6b7a',
         cursor: 'pointer',
         fontFamily: 'inherit',
-        fontSize: 14,
-        height: 26,
+        fontSize: 12,
+        height: 22,
         lineHeight: 1,
         pointerEvents: 'auto',
-        width: 26,
+        width: 22,
       }}
     >
       {active ? '*' : '+'}
@@ -71,32 +71,39 @@ function WatchlistButton({ active, onToggle }) {
 
 function CardHeader({ data, earnings, onToggleWatchlist, ticker, watchlisted }) {
   return (
-    <div style={{
-      alignItems: 'center',
-      borderBottom: '1px solid rgba(255,255,255,0.055)',
-      display: 'flex',
-      gap: 12,
-      height: 56,
-      justifyContent: 'space-between',
-      overflow: 'hidden',
-      padding: '10px 12px 8px',
-    }}>
-      <div style={{ alignItems: 'center', display: 'flex', gap: 9, minWidth: 0 }}>
+    <div
+      style={{
+        alignItems: 'center',
+        background: 'rgba(20, 23, 33, 0.98)',
+        borderBottom: '1px solid rgba(255,255,255,0.055)',
+        display: 'flex',
+        gap: 8,
+        justifyContent: 'space-between',
+        minHeight: 34,
+        overflow: 'hidden',
+        padding: '5px 8px',
+        pointerEvents: 'auto',
+      }}
+    >
+      <div style={{
+        alignItems: 'center',
+        display: 'flex',
+        gap: 8,
+        minWidth: 0,
+      }}>
         <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ alignItems: 'center', display: 'flex', gap: 8 }}>
-            <span style={{ color: tierColor(data.tier), fontSize: 18, fontWeight: 850, lineHeight: 1.1 }}>
-              {ticker}
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800 }}>{data.tier}</span>
-          </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ alignItems: 'baseline', display: 'flex', gap: 6, minWidth: 0 }}>
+          <span style={{ color: tierColor(data.tier), fontSize: 17, fontWeight: 850, lineHeight: 1 }}>
+            {ticker}
+          </span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800 }}>{data.tier}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {data.setup}
-          </div>
+          </span>
         </div>
       </div>
       <div className="screener-card-score-meta">
-        <div style={{ alignItems: 'center', color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', fontSize: 11, gap: 7, justifyContent: 'flex-end' }}>
+        <div style={{ alignItems: 'center', color: 'var(--text-main)', display: 'flex', flexWrap: 'nowrap', fontSize: 10, gap: 6, justifyContent: 'flex-end', lineHeight: 1 }}>
           <EarningsChip info={earnings} />
           <span style={{ fontWeight: 700 }}>Score {data.score}</span>
         </div>
@@ -112,11 +119,10 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     style={{
       background: 'var(--bg-panel)',
       border: '1px solid var(--border-color)',
-      borderRadius: 8,
+      borderRadius: 6,
       cursor: 'pointer',
       display: 'flex',
       flexDirection: 'column',
-      minHeight: 276,
       overflow: 'hidden',
       transition: 'border-color 0.16s ease, background 0.16s ease',
     }}
@@ -136,7 +142,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       ticker={ticker}
       watchlisted={watchlisted}
     />
-    <div style={{ display: 'flex', height: 172, minHeight: 172 }}>
+    <div style={{ display: 'flex', height: 'clamp(130px, 7vw, 148px)', minHeight: 130, position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
     <TagRow
@@ -146,12 +152,15 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         rTouchVolZ: data.r_touch_vol_z,
         sTouchVolZ: data.s_touch_vol_z,
       }}
+      compact
+      maxTags="auto"
       style={{
         background: 'var(--bg-main)',
         borderTop: '1px solid var(--border-color)',
-        height: 46,
+        flexWrap: 'nowrap',
+        height: 28,
         overflow: 'hidden',
-        padding: '7px 12px 8px',
+        padding: '4px 8px',
       }}
     />
   </div>
