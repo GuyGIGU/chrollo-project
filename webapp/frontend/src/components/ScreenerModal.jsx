@@ -1,254 +1,189 @@
-import React, { useEffect, useRef } from 'react';
-import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import React, { useRef } from 'react';
 import { ScoreBreakdownPills } from './ScoreBreakdown';
+import useScreenerModalChart from '../hooks/useScreenerModalChart';
+
+const formatMoney = (value) =>
+  Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '-';
+
+const formatPct = (value) =>
+  Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : '-';
+
+const tierColor = (tier) => {
+  switch (tier) {
+    case 'S': return '#ff9f43';
+    case 'A': return '#bb86fc';
+    case 'B': return '#58a6ff';
+    case 'C': return '#3fb950';
+    default: return '#8b949e';
+  }
+};
+
+const distanceToTriggerPct = (data) => {
+  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
+  if (!data?.trigger || !currentPrice) return null;
+  return ((data.trigger - currentPrice) / currentPrice) * 100;
+};
+
+const setupRangePct = (data) => {
+  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
+  if (!data?.R || !data?.S || !currentPrice) return null;
+  return ((data.R - data.S) / currentPrice) * 100;
+};
+
+const buttonStyle = {
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 6,
+  color: 'var(--text-main)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: 12,
+  height: 30,
+  padding: '0 11px',
+};
+
+function Metric({ label, value, tone }) {
+  return (
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '10px 0' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>
+        {label}
+      </div>
+      <div style={{ color: tone || 'var(--text-main)', fontSize: 14, fontWeight: 800, marginTop: 4 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SetupInspector({ data }) {
+  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
+  const triggerDistance = distanceToTriggerPct(data);
+  const rangePct = setupRangePct(data);
+
+  return (
+    <aside style={{
+      background: '#1d202b',
+      borderLeft: '1px solid var(--border-color)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      overflowY: 'auto',
+      padding: '14px 16px',
+      width: 260,
+    }} className="screener-modal-inspector">
+      <div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>
+          Setup
+        </div>
+        <div style={{ color: 'var(--text-main)', fontSize: 15, fontWeight: 800, marginTop: 4 }}>
+          {data.setup || '-'}
+        </div>
+      </div>
+      <ScoreBreakdownPills subScores={data.sub_scores} includeFusion style={{ justifyContent: 'flex-start' }} />
+      <Metric label="Score" value={data.score ?? '-'} tone={tierColor(data.tier)} />
+      <Metric label="Current Price" value={formatMoney(currentPrice)} />
+      <Metric label="Trigger" value={formatMoney(data.trigger)} tone="#e3b341" />
+      <Metric
+        label="To Trigger"
+        value={formatPct(triggerDistance)}
+        tone={triggerDistance != null && triggerDistance <= 0.5 ? 'var(--warning)' : 'var(--success)'}
+      />
+      <Metric label="Base Length" value={data.base_len ? `${data.base_len} days` : '-'} />
+      <Metric label="Box Width" value={formatPct(rangePct)} />
+      <Metric label="Resistance" value={formatMoney(data.R)} />
+      <Metric label="Support" value={formatMoney(data.S)} />
+    </aside>
+  );
+}
+
+function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
+  return (
+    <header style={{
+      alignItems: 'center',
+      background: '#202330',
+      borderBottom: '1px solid var(--border-color)',
+      display: 'flex',
+      gap: 16,
+      justifyContent: 'space-between',
+      minHeight: 52,
+      padding: '8px 14px',
+    }} className="screener-modal-toolbar">
+      <div style={{ alignItems: 'center', display: 'flex', gap: 12, minWidth: 0 }}>
+        <strong style={{ color: tierColor(data.tier), fontFamily: "'JetBrains Mono', monospace", fontSize: 22 }}>
+          {ticker}
+        </strong>
+        <span style={{
+          border: `1px solid ${tierColor(data.tier)}55`,
+          borderRadius: 6,
+          color: tierColor(data.tier),
+          fontSize: 11,
+          fontWeight: 800,
+          padding: '2px 7px',
+        }}>
+          {data.tier} TIER
+        </span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {data.setup}
+        </span>
+      </div>
+      <div style={{ alignItems: 'center', display: 'flex', gap: 8 }}>
+        <button onClick={onPrev} style={buttonStyle}>Prev</button>
+        <button onClick={onNext} style={buttonStyle}>Next</button>
+        <button
+          onClick={onClose}
+          style={{ ...buttonStyle, color: 'var(--text-muted)', fontSize: 18, padding: '0 10px' }}
+          title="Close"
+        >
+          x
+        </button>
+      </div>
+    </header>
+  );
+}
 
 const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
-
-  useEffect(() => {
-    const container = chartContainerRef.current;
-    if (!container) return;
-
-    // Always clear before creating
-    container.innerHTML = '';
-
-    let disposed = false;
-
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      layout: { background: { type: 'solid', color: '#1c1c24' }, textColor: '#7b7b8f', fontFamily: "'JetBrains Mono', monospace", fontSize: 13 },
-      grid: { vertLines: { color: 'rgba(42, 42, 54, 0.4)' }, horzLines: { color: 'rgba(42, 42, 54, 0.4)' } },
-      crosshair: { mode: 1 }, 
-      rightPriceScale: { borderColor: '#2a2a36', scaleMargins: { top: 0.1, bottom: 0.25 } },
-      timeScale: { borderColor: '#2a2a36', timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
-      handleScroll: true,
-      handleScale: true,
-    });
-
-    const candleSeries = chart.addSeries(BarSeries, { upColor: '#d1d4dc', downColor: '#d1d4dc', thinBars: false });
-    
-    let plotCandles = JSON.parse(JSON.stringify(data.candles));
-    const forwardBars = data.forward_bars || 0;
-    const baseEnd = plotCandles.length - 1 - forwardBars;
-
-    if (data.base_len > 0) {
-      const baseStart = Math.max(0, baseEnd - data.base_len + 1);
-      
-      // If we have specific anchors, highlight the limb. Otherwise, highlight the whole base
-      if (data.r_anchor !== undefined && data.s_anchor !== undefined && data.r_anchor !== null) {
-        const rawBaseStart = baseEnd - data.base_len + 1;
-        const rBar = rawBaseStart + data.r_anchor;
-        const sBar = rawBaseStart + data.s_anchor;
-        const limbStart = Math.min(rBar, sBar);
-        const limbEnd = Math.max(rBar, sBar);
-        for (let k = limbStart; k <= limbEnd; k++) {
-          if (k >= 0 && k < plotCandles.length) plotCandles[k].color = '#555555';
-        }
-      } else {
-        for (let k = baseStart; k <= baseEnd; k++) {
-          if (k >= 0 && k < plotCandles.length) plotCandles[k].color = '#555555';
-        }
-      }
-      
-      if (data.lps_len > 0 && data.lps_offset !== undefined) {
-        const lpsEnd = baseEnd - data.lps_offset;
-        const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
-        for (let k = lpsStart; k <= lpsEnd; k++) {
-          if (k >= 0 && k < plotCandles.length) plotCandles[k].color = '#e3b341'; // Yellow highlight
-        }
-      }
-    }
-    candleSeries.setData(plotCandles);
-
-    const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
-    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-    volumeSeries.setData(data.volumes);
-
-    const rSeries = chart.addSeries(LineSeries, { color: '#4488ff', lineWidth: 2, crosshairMarkerVisible: false });
-    const sSeries = chart.addSeries(LineSeries, { color: '#4488ff', lineWidth: 2, crosshairMarkerVisible: false });
-    const midSeries = chart.addSeries(LineSeries, { color: 'rgba(139, 148, 158, 0.4)', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false });
-
-    const rData = []; const sData = []; const midData = [];
-    const startIdx = Math.max(0, baseEnd - data.base_len + 1);
-    const midValue = (data.R + data.S) / 2;
-    for (let i = startIdx; i < data.candles.length; i++) {
-        const t = data.candles[i].time;
-        rData.push({ time: t, value: data.R }); 
-        sData.push({ time: t, value: data.S });
-        midData.push({ time: t, value: midValue });
-    }
-    rSeries.setData(rData); sSeries.setData(sData); midSeries.setData(midData);
-
-    // Optional annotations: trigger price line + MFE/MAE markers on the
-    // forward bars. Only renders the pieces that exist in the payload, so
-    // live screener charts (no annotations) stay unchanged.
-    const ann = data.annotations || {};
-    if (ann.trigger_price) {
-      candleSeries.createPriceLine({
-        price: ann.trigger_price,
-        color: '#e3b341',
-        lineWidth: 1,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: 'Trigger',
-      });
-    }
-    const markers = [];
-    if (ann.trigger_date) {
-      markers.push({
-        time: ann.trigger_date, position: 'belowBar',
-        color: '#3fb950', shape: 'arrowUp', text: 'TRIG',
-      });
-    }
-    if (ann.mfe_20d_date && ann.mfe_20d != null) {
-      markers.push({
-        time: ann.mfe_20d_date, position: 'aboveBar',
-        color: '#3fb950', shape: 'circle',
-        text: `MFE ${(ann.mfe_20d * 100).toFixed(1)}%`,
-      });
-    }
-    if (ann.mae_20d_date && ann.mae_20d != null) {
-      markers.push({
-        time: ann.mae_20d_date, position: 'belowBar',
-        color: '#c76b73', shape: 'circle',
-        text: `MAE ${(ann.mae_20d * 100).toFixed(1)}%`,
-      });
-    }
-    if (markers.length > 0) {
-      // Sort by time — lightweight-charts requires markers in chronological order.
-      markers.sort((a, b) => a.time.localeCompare(b.time));
-      // lightweight-charts v5 removed `series.setMarkers()` — markers are
-      // now attached via the `createSeriesMarkers` plugin helper.
-      createSeriesMarkers(candleSeries, markers);
-    }
-
-    const displayStart = Math.max(0, baseEnd - Math.max(80, data.base_len + 30));
-    chart.timeScale().setVisibleRange({
-      from: data.candles[displayStart].time,
-      to: data.candles[data.candles.length - 1].time,
-    });
-
-    const handleResize = () => {
-      if (!disposed && container && container.isConnected) {
-        try {
-          chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-        } catch { /* detached */ }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    const resizeTimeout = setTimeout(handleResize, 100);
-
-    return () => {
-      disposed = true;
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
-      try {
-        chart.remove();
-      } catch {
-        // Canvas already detached — safe to ignore
-      }
-      if (container) container.innerHTML = '';
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker]); // Re-create chart when ticker changes
-
-  const getTierColor = (tier) => {
-    switch(tier) {
-      case 'S': return '#ff8c00';
-      case 'A': return '#bb86fc';
-      case 'B': return '#58a6ff';
-      case 'C': return '#3fb950';
-      default: return '#8b949e';
-    }
-  };
-
-  const getBadgeBg = (tier) => {
-    switch(tier) {
-      case 'S': return 'rgba(255,140,0,0.15)';
-      case 'A': return 'rgba(187,134,252,0.15)';
-      case 'B': return 'rgba(88,166,255,0.15)';
-      case 'C': return 'rgba(63,185,80,0.15)';
-      default: return 'rgba(139,148,158,0.15)';
-    }
-  }
-
-  const currentPrice = data.candles[data.candles.length - 1].close;
+  useScreenerModalChart(chartContainerRef, ticker, data);
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(10, 10, 15, 0.95)',
-      backdropFilter: 'blur(4px)',
-      zIndex: 5000,
-      display: 'flex', flexDirection: 'column',
-      padding: '40px'
-    }} onClick={onClose}>
-      
-      <div style={{
-        background: 'var(--bg-main)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        flex: 1, display: 'flex', flexDirection: 'column',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-        overflow: 'hidden', margin: '0 auto', width: '100%', maxWidth: '1400px'
-      }} onClick={(e) => e.stopPropagation()}>
-        
-        {/* Header */}
-        <div style={{
-          padding: '16px 24px', borderBottom: '1px solid var(--border-color)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: 'var(--bg-panel)'
-        }}>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
-            <span style={{fontSize: '24px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace", color: getTierColor(data.tier)}}>
-              {ticker}
-            </span>
-            <span style={{
-              padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '11px',
-              color: getTierColor(data.tier), border: `1px solid ${getTierColor(data.tier)}55`,
-              background: getBadgeBg(data.tier)
-            }}>
-              {data.tier} TIER
-            </span>
-            <div style={{display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", marginLeft: '12px', alignItems: 'center', flexWrap: 'wrap'}}>
-                <span><strong>Setup:</strong> {data.setup}</span>
-                <span><strong>Score:</strong> {data.score}</span>
-                <ScoreBreakdownPills subScores={data.sub_scores} includeFusion />
-                <span><strong>Curr:</strong> ${currentPrice}</span>
-                <span><strong>Base:</strong> {data.base_len}d</span>
-                <span><strong>R:</strong> ${data.R}</span>
-                <span><strong>S:</strong> ${data.S}</span>
-            </div>
-          </div>
-
-          <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-            <button onClick={onPrev} style={{
-              padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', 
-              background: 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
-            }}>◀ Prev</button>
-            <button onClick={onNext} style={{
-              padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', 
-              background: 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
-            }}>Next ▶</button>
-            <button onClick={onClose} style={{
-              background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', 
-              fontSize: '30px', marginLeft: '16px', padding: '0 8px'
-            }}>×</button>
-          </div>
-
+    <div
+      style={{
+        background: 'rgba(8, 10, 15, 0.92)',
+        bottom: 0,
+        display: 'flex',
+        left: 0,
+        padding: 28,
+        position: 'fixed',
+        right: 0,
+        top: 0,
+        zIndex: 5000,
+      }}
+      onClick={onClose}
+    >
+      <section
+        className="screener-modal-shell"
+        style={{
+          background: 'var(--bg-main)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 8,
+          boxShadow: '0 22px 55px rgba(0,0,0,0.45)',
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'column',
+          margin: '0 auto',
+          maxWidth: 1500,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+        onClick={event => event.stopPropagation()}
+      >
+        <ModalToolbar data={data} onClose={onClose} onNext={onNext} onPrev={onPrev} ticker={ticker} />
+        <div className="screener-modal-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+          <div ref={chartContainerRef} className="screener-modal-chart" style={{ flex: 1, minHeight: 0, position: 'relative' }} />
+          <SetupInspector data={data} />
         </div>
-
-        {/* Chart Canvas Area */}
-        {/* minHeight: 0 lets flex:1 actually shrink so the footer (if present)
-            isn't pushed off-screen. Without it the chart insists on its content
-            height and overflows. */}
-        <div ref={chartContainerRef} style={{ flex: 1, minHeight: 0, position: 'relative' }}></div>
-
         {footer}
-      </div>
+      </section>
     </div>
   );
 };

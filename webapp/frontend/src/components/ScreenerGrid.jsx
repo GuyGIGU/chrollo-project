@@ -131,8 +131,9 @@ function EmptyState({ message }) {
 
 const gridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 390px), 1fr))',
-  gap: '22px',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: '14px',
+  width: '100%',
 };
 
 export default ScreenerGrid;
