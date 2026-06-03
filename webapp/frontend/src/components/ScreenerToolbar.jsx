@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TagLegend } from './SetupTags';
 import { TAG_CATALOG } from './setupTagsData';
 
@@ -9,6 +10,15 @@ function ScreenerToolbar({
   filters,
   onRunScan,
 }) {
+  // Primary triage controls (tier + search) stay always-on; setup, sort, tags,
+  // and the legend live behind a disclosure so they don't crowd the grid. The
+  // count of active hidden filters keeps that state visible while collapsed.
+  const [showMore, setShowMore] = useState(false);
+  const advancedCount =
+    (filters.setupFilter !== 'ALL' ? 1 : 0) +
+    (filters.sortBy !== 'score' ? 1 : 0) +
+    filters.tagFilter.size;
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -22,17 +32,27 @@ function ScreenerToolbar({
 
       {screenerData && !isScanning && (
         <div style={panelStyle}>
-          <FilterRow filters={filters} watchlistSize={watchlistSize} />
-          <SortRow filters={filters} />
-          <TagFilterRow filters={filters} />
-          <TagLegend style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }} />
+          <FilterRow
+            filters={filters}
+            watchlistSize={watchlistSize}
+            showMore={showMore}
+            onToggleMore={() => setShowMore(value => !value)}
+            advancedCount={advancedCount}
+          />
+          {showMore && (
+            <>
+              <SortRow filters={filters} />
+              <TagFilterRow filters={filters} />
+              <TagLegend style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }} />
+            </>
+          )}
         </div>
       )}
     </>
   );
 }
 
-function FilterRow({ filters, watchlistSize }) {
+function FilterRow({ filters, watchlistSize, showMore, onToggleMore, advancedCount }) {
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
       <span style={filterLabelStyle}>Filter:</span>
@@ -58,12 +78,23 @@ function FilterRow({ filters, watchlistSize }) {
         }}
         style={searchStyle}
       />
+      <button
+        onClick={onToggleMore}
+        title={showMore ? 'Hide setup, sort, and tag filters' : 'Show setup, sort, and tag filters'}
+        style={moreButtonStyle(advancedCount > 0)}
+      >
+        {showMore
+          ? '▾ Filters'
+          : advancedCount > 0 ? `▸ Filters · ${advancedCount}` : '▸ Filters'}
+      </button>
+      {advancedCount > 0 && (
+        <button onClick={filters.resetFilters} style={resetStyle}>Reset</button>
+      )}
     </div>
   );
 }
 
 function SortRow({ filters }) {
-  const showReset = filters.setupFilter !== 'ALL' || filters.tagFilter.size > 0 || filters.sortBy !== 'score';
   return (
     <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
       <SelectControl
@@ -91,7 +122,6 @@ function SortRow({ filters }) {
           ['rs', 'Relative strength'],
         ]}
       />
-      {showReset && <button onClick={filters.resetFilters} style={resetStyle}>Reset</button>}
     </div>
   );
 }
@@ -177,6 +207,16 @@ const resetStyle = {
   border: '1px solid var(--border-color)',
   borderRadius: '12px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
 };
+// Disclosure for the secondary filters. Goes accent (Signal Blue = active
+// selection) only when hidden filters are applied, so a collapsed panel still
+// announces "filters active".
+const moreButtonStyle = (active) => ({
+  fontSize: '11px', fontWeight: 600,
+  color: active ? '#fff' : 'var(--text-muted)',
+  background: active ? 'var(--accent-blue)' : 'transparent',
+  border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+  borderRadius: '12px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
+});
 const tagButtonStyle = (active) => ({
   fontSize: '10px', fontWeight: 700,
   fontFamily: "'JetBrains Mono', monospace",
