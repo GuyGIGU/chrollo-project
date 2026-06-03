@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-03T00:00:00Z",
+  "title": "Design System: Chrollo",
+  "extensions": {
+    "colorMeta": {
+      "accent-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#5B8AFF",
+        "tonalRamp": ["#0E1730", "#16244F", "#1E3470", "#2C4F9E", "#3D68CC", "#5B8AFF", "#86A9FF", "#B7CCFF", "#E3ECFF"]
+      },
+      "bg-panel": {
+        "role": "neutral",
+        "displayName": "Slate Panel",
+        "canonical": "#232735",
+        "tonalRamp": ["#14161E", "#1A1D26", "#1E2230", "#232735", "#2A2F3E", "#303547", "#3B4159", "#4A516B", "#6C7488"]
+      },
+      "text-main": {
+        "role": "neutral",
+        "displayName": "Primary Ink",
+        "canonical": "#E8EAF0",
+        "tonalRamp": ["#6C7488", "#7E869A", "#9AA1B2", "#B3B9C6", "#C9CDD7", "#DADDE5", "#E8EAF0", "#F2F4F8", "#FFFFFF"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Win Green",
+        "canonical": "#3DD37A",
+        "tonalRamp": ["#0C3320", "#13502F", "#196B3F", "#218A50", "#2DAE66", "#3DD37A", "#6FE09B", "#A6ECC3", "#D8F7E5"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Loss Red",
+        "canonical": "#F26770",
+        "tonalRamp": ["#3D1316", "#5C1C20", "#7C262C", "#A3343B", "#CC4A52", "#F26770", "#F58E95", "#F9B6BB", "#FCDDDF"]
+      },
+      "accent-purple": {
+        "role": "secondary",
+        "displayName": "Categorical Violet",
+        "canonical": "#9B70F7",
+        "tonalRamp": ["#1F1340", "#2E1C5F", "#3F2680", "#5634A8", "#7350CE", "#9B70F7", "#B89AF9", "#D3C2FB", "#EDE5FE"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "The single hero figure on a screen (e.g. P&L value). One per region." },
+      "title": { "displayName": "Title", "purpose": "Ticker symbols and primary identifiers; heaviest weight, used sparingly." },
+      "body": { "displayName": "Body", "purpose": "Default UI text and data-table cells at 13px." },
+      "label": { "displayName": "Label", "purpose": "Uppercase column headers and KPI labels; ≤4 words only." },
+      "mono": { "displayName": "Mono / Numeric", "purpose": "Compact data pills (score, sub-scores) in tabular monospace." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 2px rgba(0,0,0,0.4)", "purpose": "Near-invisible resting seam; tonal contrast carries most depth." },
+      { "name": "elevated", "value": "0 8px 24px rgba(0,0,0,0.5)", "purpose": "True overlays only (modals, popovers)." },
+      { "name": "glow-accent", "value": "0 0 0 1px #5B8AFF, 0 0 12px rgba(91,138,255,0.35)", "purpose": "Focus / active-state response; never a resting decoration." }
+    ],
+    "motion": [
+      { "name": "ease-state", "value": "ease", "purpose": "Default state transitions (0.15–0.2s) on color, border, background." },
+      { "name": "lift", "value": "transform 0.18s ease", "purpose": "Action buttons translate up 1px on hover." },
+      { "name": "bar-fill", "value": "width 0.4s ease", "purpose": "KPI bar fills animate width on data change." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default committed action.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { background: var(--accent-blue, #5B8AFF); color: #fff; padding: 0.6rem 1.2rem; border: none; border-radius: var(--radius-sm, 6px); font-weight: 600; font-size: 13px; cursor: pointer; transition: opacity 0.2s ease; } .ds-btn-primary:hover { opacity: 0.85; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-blue-soft, rgba(91,138,255,0.16)); }"
+    },
+    {
+      "name": "Trade Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single most consequential action; the one sanctioned gradient.",
+      "html": "<button class=\"ds-btn-trade\">Log trade</button>",
+      "css": ".ds-btn-trade { background: linear-gradient(135deg, rgba(74,122,255,0.28), rgba(139,92,246,0.22)); border: 1px solid rgba(74,122,255,0.55); color: #DCE6FF; padding: 0.55rem 1rem; border-radius: var(--radius-pill, 9999px); font-weight: 600; font-size: 13px; cursor: pointer; box-shadow: 0 0 0 1px rgba(74,122,255,0.10), 0 6px 18px -8px rgba(74,122,255,0.55); transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; } .ds-btn-trade:hover { transform: translateY(-1px); background: linear-gradient(135deg, rgba(74,122,255,0.38), rgba(139,92,246,0.30)); box-shadow: 0 0 0 1px rgba(74,122,255,0.20), 0 10px 26px -8px rgba(74,122,255,0.70); }"
+    },
+    {
+      "name": "Sidebar Nav Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Quiet at rest, confidently lit when active.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-link\">Screener</button><button class=\"ds-nav-link active\">Archive</button></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 220px; } .ds-nav-link { width: 100%; padding: 0.5rem 0.85rem; color: var(--text-muted, #9AA1B2); display: flex; align-items: center; gap: 0.8rem; cursor: pointer; font-weight: 500; border: 1px solid transparent; border-radius: var(--radius-sm, 6px); background: transparent; text-align: left; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; } .ds-nav-link:hover { color: var(--text-main, #E8EAF0); background-color: rgba(255,255,255,0.03); } .ds-nav-link.active { color: #fff; background-color: var(--accent-blue-soft, rgba(91,138,255,0.16)); border-color: rgba(74,122,255,0.40); box-shadow: 0 0 0 1px rgba(74,122,255,0.10), 0 4px 16px -4px rgba(91,138,255,0.35); }"
+    },
+    {
+      "name": "Score Pill",
+      "kind": "chip",
+      "refersTo": "score-pill",
+      "description": "Compact monospace data pill; semantic color variants.",
+      "html": "<span class=\"ds-score-pill ds-score-pill--visual\">VIS <strong>82</strong></span>",
+      "css": ".ds-score-pill { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--border-color, #2F3447); background: rgba(255,255,255,0.04); color: var(--text-muted, #9AA1B2); font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; line-height: 1; white-space: nowrap; } .ds-score-pill strong { color: var(--text-main, #E8EAF0); font-size: 11px; font-variant-numeric: tabular-nums; } .ds-score-pill--visual { border-color: rgba(88,166,255,0.48); background: rgba(88,166,255,0.09); color: #58a6ff; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Status with embedded dot; tinted background of its own hue.",
+      "html": "<span class=\"ds-status-pill win\"><span class=\"dot\"></span>Win</span>",
+      "css": ".ds-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; border: 1px solid transparent; white-space: nowrap; } .ds-status-pill .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-status-pill.win { background: var(--success-bg, rgba(61,211,122,0.14)); color: var(--success, #3DD37A); border-color: rgba(34,197,94,0.30); } .ds-status-pill.win .dot { background: var(--success, #3DD37A); box-shadow: 0 0 6px var(--success, #3DD37A); }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Hairline field that shifts to Signal Blue with a soft ring on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Ticker\" />",
+      "css": ".ds-input { padding: 0.5rem; background: var(--bg-panel, #232735); border: 1px solid var(--border-color, #2F3447); border-radius: var(--radius-sm, 6px); color: var(--text-main, #E8EAF0); font-family: inherit; font-size: 13px; } .ds-input::placeholder { color: var(--text-faint, #6C7488); } .ds-input:focus { outline: none; border-color: var(--accent-blue, #5B8AFF); box-shadow: 0 0 0 3px var(--accent-blue-soft, rgba(91,138,255,0.16)); }"
+    },
+    {
+      "name": "Screener Card Header",
+      "kind": "custom",
+      "refersTo": "card-screener",
+      "description": "The dense triage unit: watchlist + considered toggles, tier-colored ticker, score.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-head\"><button class=\"ds-icon-toggle\">☆</button><button class=\"ds-icon-toggle\">☐</button><span class=\"ds-ticker\">NVDA</span><span class=\"ds-tier\">A</span><span class=\"ds-score\">Score 87</span></div></div>",
+      "css": ".ds-card { background: var(--bg-panel, #232735); border: 1px solid var(--border-color, #2F3447); border-radius: var(--radius-sm, 6px); overflow: hidden; transition: border-color 0.16s ease, background 0.16s ease; } .ds-card:hover { border-color: rgba(91,138,255,0.58); background: #242837; } .ds-card-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: rgba(20,23,33,0.98); border-bottom: 1px solid rgba(255,255,255,0.055); } .ds-icon-toggle { width: 22px; height: 22px; border: 1px solid var(--border-color, #2F3447); border-radius: 6px; background: transparent; color: #6b6b7a; cursor: pointer; font-size: 12px; line-height: 1; } .ds-ticker { color: #BB86FC; font-size: 17px; font-weight: 850; line-height: 1; } .ds-tier { color: var(--text-muted, #9AA1B2); font-size: 10px; font-weight: 800; } .ds-score { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--text-main, #E8EAF0); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "Chrollo is a pro's cockpit for reading market structure. The surface stays dark and quiet so it can be stared at for hours, but the hierarchy is confident: every screen commits to the one reading that matters most, and every control and number sits exactly where a returning user expects it. Depth comes from a calibrated ramp of dark slate surfaces, not from drop shadows or glass. Color is spent deliberately — a single interactive blue, a small set of categorical accents, and a reserved tier palette that carries product meaning. Numbers are the protagonists, set in tabular figures that hold their columns and never jitter.",
+    "keyCharacteristics": [
+      "Dark 'warm slate' surface ramp; depth by tone, not shadow.",
+      "One interactive accent (blue); accents otherwise categorical and rare.",
+      "Reserved tier palette (S/A/B/C) that means something, used nowhere else.",
+      "Tabular numerics everywhere; data alignment is non-negotiable.",
+      "Tactile, confident controls that come alive on interaction."
+    ],
+    "rules": [
+      { "name": "The One-Accent Rule", "body": "Signal Blue (#5B8AFF) is the only interactivity color. Violet, rose, and gold are categorical labels, not buttons. Blue stays scarce enough to remain a signal.", "section": "colors" },
+      { "name": "The Tier-Reserve Rule", "body": "The S/A/B/C tier hues are reserved for tier identity. Never borrow tier amber or tier violet for decoration, charts, or accents.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Every number that can change uses font-variant-numeric: tabular-nums. Columns must align and digits must not reflow as values update.", "section": "typography" },
+      { "name": "The Weight-Not-Family Rule", "body": "Hierarchy is built from Inter's weight range, not from adding typefaces. Do not introduce a serif or a second sans for emphasis; go heavier or larger.", "section": "typography" },
+      { "name": "The Tonal-Depth Rule", "body": "Reach for the next surface step before reaching for a shadow. If two flat surfaces need separation, change the tone or add a hairline border.", "section": "elevation" },
+      { "name": "The Glow-On-State Rule", "body": "Glow and elevated shadow appear in response to hover, focus, or float (modals). A surface that glows at rest is over-designed; remove it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do convey depth with the surface ramp and hairline borders before reaching for a shadow.",
+      "Do set every changeable number in tabular-nums so columns align.",
+      "Do keep Signal Blue as the sole interactivity color; build hierarchy with Inter's weight range.",
+      "Do reserve the S/A/B/C tier hues for tier identity and nothing else.",
+      "Do let controls be confident on interaction — a clear lift, tint, border, or focus ring."
+    ],
+    "donts": [
+      "Don't add gamified-broker mechanics: no confetti, no celebratory win animation, no oversized green P&L designed to feel good.",
+      "Don't ship the generic-SaaS look: no endless identical card grids, no gradient hero-metric tiles, no uppercase eyebrow kicker above every section.",
+      "Don't over-design: no decorative glassmorphism, no heavy/showy motion, no ornamental gradients between the trader and the data.",
+      "Don't use gradient text (background-clip: text on a gradient); the current .brand-text is a legacy exception slated for cleanup.",
+      "Don't borrow a tier or categorical accent to mean 'clickable' — that role belongs to Signal Blue alone.",
+      "Don't let a surface glow at rest; glow and elevated shadow are state responses only."
+    ]
+  }
+}
