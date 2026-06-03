@@ -3,7 +3,7 @@ import { deriveTags, GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsD
 
 const chipBase = {
   padding: '3px 7px',
-  borderRadius: '5px',
+  borderRadius: 'var(--radius-xs)',
   fontSize: '11px',
   fontWeight: 700,
   fontFamily: "'JetBrains Mono', monospace",

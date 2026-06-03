@@ -56,6 +56,7 @@ typography:
     lineHeight: 1
     letterSpacing: "normal"
 rounded:
+  xs: "4px"
   sm: "6px"
   md: "12px"
   lg: "16px"
