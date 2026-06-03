@@ -64,11 +64,14 @@ function WatchlistButton({ active, onToggle }) {
         width: 22,
       }}
     >
-      {active ? '*' : '+'}
+      {active ? '★' : '☆'}
     </button>
   );
 }
 
+// "Considered" marker — records that you actually saw and weighed this setup
+// (engaged with it), NOT that you rejected it. So it reads as a neutral
+// check-off, never a stop sign.
 function PassButton({ active, onToggle }) {
   return (
     <button
@@ -76,12 +79,12 @@ function PassButton({ active, onToggle }) {
         event.stopPropagation();
         onToggle();
       }}
-      title={active ? 'Seen & passed — click to undo' : 'Mark seen & passed (reviewed, skipping this setup)'}
+      title={active ? 'Considered — you saw & weighed this setup (click to unmark)' : 'Mark as considered (you saw & weighed this setup)'}
       style={{
-        background: active ? 'rgba(242,103,112,0.16)' : 'transparent',
+        background: active ? 'rgba(63,185,80,0.16)' : 'transparent',
         border: '1px solid var(--border-color)',
         borderRadius: 6,
-        color: active ? '#ff8c8c' : '#6b6b7a',
+        color: active ? '#3fb950' : '#6b6b7a',
         cursor: 'pointer',
         fontFamily: 'inherit',
         fontSize: 12,
@@ -91,7 +94,7 @@ function PassButton({ active, onToggle }) {
         width: 22,
       }}
     >
-      {active ? '✓' : '⊘'}
+      {active ? '☑' : '☐'}
     </button>
   );
 }
