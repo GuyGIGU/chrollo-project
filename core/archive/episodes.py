@@ -64,8 +64,16 @@ def _trading_day_gap(earlier: str, later: str) -> int:
 
     Used as a holiday-agnostic proxy for trading days; the gap tolerance
     absorbs the handful of market holidays a pure business-day count misses.
+
+    A malformed/empty date (np.busday_count raises ValueError/TypeError) yields
+    a deliberately huge gap so the offending row starts a fresh episode rather
+    than crashing the whole grouping — and with it every /archive/episodes and
+    /archive/missed-winners request, for all filters.
     """
-    return int(np.busday_count(earlier, later))
+    try:
+        return int(np.busday_count(earlier, later))
+    except (ValueError, TypeError):
+        return 10 ** 6
 
 
 def build_episodes(

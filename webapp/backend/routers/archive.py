@@ -223,25 +223,48 @@ def _rows_by_ids(db, ids) -> dict:
     return out
 
 
+def _grouped_episodes(db, filters: dict):
+    """Episodes for the filtered archive, cached per (filter, archive-version).
+
+    The cache key is derived from the *active* (non-None) filters, so it stays
+    in lock-step with ``_apply_setup_filters`` automatically — there's no
+    hand-maintained tuple to forget when a filter is added or renamed, and two
+    callers with the same effective filter share one grouping.
+
+    ``quality_label`` is the one filter that's mutable after insert (PATCH
+    ``/setups/{id}/label``), so a grouping *selected by it* can go stale without
+    ``(max_id, count)`` moving. Bypass the cache when it's in play; every other
+    filter keys on immutable identity columns and is safe to cache.
+    """
+    active = {k: v for k, v in filters.items() if v is not None}
+    if "quality_label" in active:
+        return _build_grouping(db, filters)
+    cache_key = tuple(sorted(active.items()))
+    version = _archive_version(db)
+    return _EPISODE_CACHE.get_or_compute(cache_key, version, lambda: _build_grouping(db, filters))
+
+
+def _canonical_setups(db, **filters) -> list:
+    """Full SetupArchive rows collapsed to one per episode (the first-seen
+    canonical row) — the same de-duplication the episode table applies, so
+    aggregate stats aren't inflated by a base's daily continuation re-flags.
+    Rows are fetched fresh, so forward returns / labels are never stale."""
+    eps = _grouped_episodes(db, filters)
+    row_by_id = _rows_by_ids(db, [ep.canonical_id for ep in eps])
+    return [row_by_id[ep.canonical_id] for ep in eps if ep.canonical_id in row_by_id]
+
+
 def _episode_context(db, **filters):
     """Shared episode view used by the episodes + missed-winners endpoints.
 
     Returns ``(episodes, canonical-row-by-id, saw-&-passed key set)``. The
-    grouping is cached per (filter, archive-version) so repeated requests don't
-    rebuild it over the whole table; only the canonical row of each episode is
-    then fetched — fresh, so forward returns / labels are never stale. Both
-    callers use only each episode's canonical row.
+    grouping is cached (see ``_grouped_episodes``); only the canonical row of
+    each episode is then fetched — fresh, so forward returns / labels are never
+    stale. Both callers use only each episode's canonical row.
     """
     from models import SetupReview
 
-    cache_key = (
-        filters.get("source"), filters.get("tier"), filters.get("setup_type"),
-        filters.get("quality_label"), filters.get("min_score"),
-        filters.get("date_from"), filters.get("date_to"),
-    )
-    version = _archive_version(db)
-    eps = _EPISODE_CACHE.get_or_compute(cache_key, version, lambda: _build_grouping(db, filters))
-
+    eps = _grouped_episodes(db, filters)
     row_by_id = _rows_by_ids(db, [ep.canonical_id for ep in eps])
     passed_keys = {
         (rv.ticker, rv.scan_date)
@@ -638,7 +661,9 @@ def _safe_corr(xs: list[float], ys: list[float]) -> float:
 @router.get("/stats")
 def archive_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Aggregate statistics for the archive."""
-    setups = db.query(SetupArchive).all()
+    # Episode-collapsed (one row per logical setup) so a base's daily re-flags
+    # don't inflate counts/win-rates — consistent with the /episodes table.
+    setups = _canonical_setups(db)
     total = len(setups)
     with_returns = [s for s in setups if s.fwd_return_20d is not None]
 
@@ -671,7 +696,9 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     Returns tier performance, sub-score correlations with forward returns,
     and setup type breakdown.
     """
-    setups = db.query(SetupArchive).all()
+    # Episode-collapsed so continuation re-flags don't inflate tier win-rates /
+    # expectancy — the same de-dup the /episodes table applies.
+    setups = _canonical_setups(db)
     with_returns = [s for s in setups if s.fwd_return_20d is not None]
 
     # ── Tier Performance ─────────────────────────────────────
@@ -852,13 +879,12 @@ def equity_curve(
     Sorted by trigger_date so the curve reflects realistic chronological
     deployment of capital.
     """
-    q = db.query(SetupArchive).filter(SetupArchive.triggered == 1, SetupArchive.r_multiple_20d.isnot(None))
-    if tier:
-        q = q.filter(SetupArchive.tier == tier.upper())
-    if label:
-        q = q.filter(SetupArchive.quality_label == label)
-
-    setups = q.all()
+    # Episode-collapsed so a persisting base contributes one entry to the curve,
+    # not one per day it re-flagged.
+    setups = [
+        s for s in _canonical_setups(db, tier=tier, quality_label=label)
+        if s.triggered == 1 and s.r_multiple_20d is not None
+    ]
     if not setups:
         return {"points": [], "summary": {}}
 

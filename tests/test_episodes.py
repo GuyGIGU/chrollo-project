@@ -111,3 +111,18 @@ def test_episode_by_member_id_maps_every_row():
     index = episode_by_member_id(eps)
     assert index[1] is index[2]          # both rows point at the same episode
     assert index[2].canonical_id == 1
+
+
+def test_malformed_date_does_not_crash_grouping():
+    # A bad scan_date must not 500 the whole endpoint — it should degrade to its
+    # own (singleton) episode rather than raising out of np.busday_count.
+    eps = build_episodes([
+        _row(1, "AAA", "2026-06-01"),
+        _row(2, "AAA", "2026-06-02"),
+        _row(3, "AAA", ""),              # malformed — would raise unguarded
+    ])
+    # All three rows are still accounted for across the resulting episodes.
+    all_members = {mid for ep in eps for mid in ep.member_ids}
+    assert all_members == {1, 2, 3}
+    # The bad row didn't merge into the clean run.
+    assert any(ep.member_ids == (3,) for ep in eps)
