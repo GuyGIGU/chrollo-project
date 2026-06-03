@@ -33,8 +33,8 @@ export default function DrawdownChart() {
         <span>Max DD: <strong style={{ color: 'var(--danger, #ef4444)' }}>{fmt$(data.max_drawdown)}</strong></span>
         <span>Max DD %: <strong style={{ color: 'var(--danger, #ef4444)' }}>{Number(data.max_drawdown_pct).toFixed(2)}%</strong></span>
       </div>
-      <div style={{ width: '100%', height: 200 }}>
-        <ResponsiveContainer>
+      <div style={{ width: '100%', height: 200, minWidth: 0, minHeight: 180 }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={180}>
           <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">

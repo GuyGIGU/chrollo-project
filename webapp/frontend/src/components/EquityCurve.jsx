@@ -33,8 +33,8 @@ export default function EquityCurve() {
   const fillColor = lastCum >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,79,88,0.12)';
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <ResponsiveContainer>
+    <div style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 120 }}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={120}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
           <defs>
             <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
