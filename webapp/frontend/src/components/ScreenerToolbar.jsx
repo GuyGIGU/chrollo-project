@@ -168,7 +168,7 @@ const tierLabel = (tier, watchlistSize) => {
 const scanButtonStyle = (isScanning) => ({
   background: isScanning ? 'var(--bg-hover)' : 'var(--accent-blue)',
   color: isScanning ? 'var(--text-muted)' : '#fff',
-  border: 'none', padding: '8px 16px', borderRadius: '6px',
+  border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-sm)',
   cursor: isScanning ? 'not-allowed' : 'pointer',
   fontWeight: '600', transition: 'all 0.2s', fontFamily: 'inherit',
 });
@@ -176,12 +176,12 @@ const scanButtonStyle = (isScanning) => ({
 const panelStyle = {
   padding: '10px 16px', background: 'var(--bg-panel)',
   border: '1px solid var(--border-color)',
-  borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px',
+  borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '12px',
 };
 
 const filterLabelStyle = { fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px' };
 const tierButtonStyle = (active) => ({
-  padding: '5px 14px', borderRadius: '16px', border: '1px solid',
+  padding: '5px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid',
   borderColor: active ? 'var(--accent-blue)' : 'var(--border-color)',
   background: active ? 'var(--accent-blue)' : 'transparent',
   color: active ? '#fff' : 'var(--text-main)',
@@ -189,14 +189,14 @@ const tierButtonStyle = (active) => ({
   fontSize: '12px', fontFamily: 'inherit',
 });
 const searchStyle = {
-  marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px',
+  marginLeft: 'auto', padding: '5px 14px', borderRadius: 'var(--radius-sm)',
   border: '1px solid var(--border-color)',
   background: 'var(--bg-main)',
   color: 'var(--text-main)',
   fontSize: '12px', width: '180px', outline: 'none', fontFamily: 'inherit',
 };
 const selectStyle = {
-  padding: '5px 10px', borderRadius: '8px',
+  padding: '5px 10px', borderRadius: 'var(--radius-sm)',
   border: '1px solid var(--border-color)',
   background: 'var(--bg-main)',
   color: 'var(--text-main)',
@@ -205,7 +205,7 @@ const selectStyle = {
 const resetStyle = {
   fontSize: '11px', color: 'var(--text-muted)', background: 'transparent',
   border: '1px solid var(--border-color)',
-  borderRadius: '12px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
+  borderRadius: 'var(--radius-lg)', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
 };
 // Disclosure for the secondary filters. Goes accent (Signal Blue = active
 // selection) only when hidden filters are applied, so a collapsed panel still
@@ -215,12 +215,12 @@ const moreButtonStyle = (active) => ({
   color: active ? '#fff' : 'var(--text-muted)',
   background: active ? 'var(--accent-blue)' : 'transparent',
   border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-  borderRadius: '12px', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
+  borderRadius: 'var(--radius-lg)', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
 });
 const tagButtonStyle = (active) => ({
   fontSize: '10px', fontWeight: 700,
   fontFamily: "'JetBrains Mono', monospace",
-  padding: '3px 9px', borderRadius: '12px', cursor: 'pointer',
+  padding: '3px 9px', borderRadius: 'var(--radius-lg)', cursor: 'pointer',
   border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
   background: active ? 'var(--accent-blue)' : 'transparent',
   color: active ? '#fff' : 'var(--text-main)',

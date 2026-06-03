@@ -193,7 +193,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     style={{
       background: 'var(--bg-panel)',
       border: '1px solid var(--border-color)',
-      borderRadius: 6,
+      borderRadius: 'var(--radius-sm)',
       cursor: 'pointer',
       display: 'flex',
       flexDirection: 'column',
