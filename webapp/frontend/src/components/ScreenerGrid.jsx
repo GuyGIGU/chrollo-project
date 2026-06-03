@@ -59,7 +59,10 @@ const ScreenerGrid = () => {
   }, [activeModalTicker, handleNextModal, handlePrevModal]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    // Screener-only full-bleed: negative margins cancel the content area's 2rem
+    // side padding so the chart wall runs edge-to-edge; a small inner padding
+    // keeps cards off the very edge. Other tabs keep their padding.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
       <ScreenerToolbar
         screenerData={screenerData}
         isScanning={scan.isScanning}
@@ -179,8 +182,11 @@ const retryButtonStyle = {
 
 const gridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '10px',
+  // Responsive "reading room": fit as many spacious ~480px cards as the screen
+  // allows and stretch them to fill the row. ~3 per row on a wide monitor, 2 on
+  // a laptop — big, readable charts with room to visualize each setup.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
+  gap: '14px',
   width: '100%',
 };
 

@@ -207,10 +207,8 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       cursor: 'pointer',
       display: 'flex',
       flexDirection: 'column',
-      // Passed cards are dimmed so the grid reads as "what's left to review".
-      opacity: passed ? 0.5 : 1,
       overflow: 'hidden',
-      transition: 'border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease',
+      transition: 'border-color 0.16s ease, background 0.16s ease',
     }}
     onMouseEnter={(event) => {
       event.currentTarget.style.borderColor = 'rgba(91,138,255,0.58)';
@@ -230,7 +228,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       ticker={ticker}
       watchlisted={watchlisted}
     />
-    <div style={{ display: 'flex', height: 'clamp(130px, 7vw, 148px)', minHeight: 130, position: 'relative' }}>
+    <div style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
     <TagRow
