@@ -99,11 +99,33 @@ function PassButton({ active, onToggle }) {
   );
 }
 
+// Small rank badge beside the ticker: reinforces tier without spending more
+// color than the ticker hue already does (subtle tinted border, no fill).
+const tierBadgeStyle = (tier) => ({
+  alignItems: 'center',
+  border: `1px solid ${tierColor(tier)}55`,
+  borderRadius: 4,
+  color: tierColor(tier),
+  display: 'inline-flex',
+  flexShrink: 0,
+  fontSize: 9,
+  fontWeight: 800,
+  height: 15,
+  justifyContent: 'center',
+  lineHeight: 1,
+  minWidth: 15,
+  padding: '0 3px',
+});
+
+// Three-zone header: a quiet utility rail (saved/considered), an identity block
+// led by the ticker, and a verdict block where the SCORE is the hero figure the
+// eye lands on first. Setup label, earnings, and sub-scores recede beneath their
+// leaders so the card reads as "rank + score" at a glance during triage.
 function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed, ticker, watchlisted }) {
   return (
     <div
       style={{
-        alignItems: 'center',
+        alignItems: 'stretch',
         background: 'rgba(20, 23, 33, 0.98)',
         borderBottom: '1px solid rgba(255,255,255,0.055)',
         display: 'flex',
@@ -111,32 +133,41 @@ function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed,
         justifyContent: 'space-between',
         minHeight: 34,
         overflow: 'hidden',
-        padding: '5px 8px',
+        padding: '6px 8px',
         pointerEvents: 'auto',
       }}
     >
-      <div style={{
-        alignItems: 'center',
-        display: 'flex',
-        gap: 8,
-        minWidth: 0,
-      }}>
+      {/* Utility rail — saved/considered toggles stay quiet on the far left */}
+      <div style={{ alignItems: 'center', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
         <PassButton active={passed} onToggle={() => onTogglePassed(ticker)} />
-        <div style={{ alignItems: 'baseline', display: 'flex', gap: 6, minWidth: 0 }}>
-          <span style={{ color: tierColor(data.tier), fontSize: 17, fontWeight: 850, lineHeight: 1 }}>
+      </div>
+
+      {/* Identity — ticker leads; setup + earnings recede onto a quiet sub-line */}
+      <div style={{ alignSelf: 'center', display: 'flex', flex: 1, flexDirection: 'column', gap: 3, minWidth: 0 }}>
+        <div style={{ alignItems: 'center', display: 'flex', gap: 6, minWidth: 0 }}>
+          <span style={{ color: tierColor(data.tier), fontSize: 18, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {ticker}
           </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800 }}>{data.tier}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
+        </div>
+        <div style={{ alignItems: 'center', display: 'flex', gap: 6, minWidth: 0 }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {data.setup}
           </span>
+          <EarningsChip info={earnings} />
         </div>
       </div>
-      <div className="screener-card-score-meta">
-        <div style={{ alignItems: 'center', color: 'var(--text-main)', display: 'flex', flexWrap: 'nowrap', fontSize: 10, gap: 6, justifyContent: 'flex-end', lineHeight: 1 }}>
-          <EarningsChip info={earnings} />
-          <span style={{ fontWeight: 700 }}>Score {data.score}</span>
+
+      {/* Verdict — the score is the figure the eye should land on first */}
+      <div style={{ alignItems: 'flex-end', display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center' }}>
+        <div style={{ alignItems: 'baseline', display: 'flex', gap: 4 }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Score
+          </span>
+          <span style={{ color: 'var(--text-main)', fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {data.score}
+          </span>
         </div>
         <ScoreBreakdownPills subScores={data.sub_scores} className="score-breakdown-compact" />
       </div>
