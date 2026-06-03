@@ -57,9 +57,14 @@ def purge(apply: bool = False, include_live: bool = False) -> dict[str, int]:
         print(f"  {src or '(null)'}: {n}")
 
     # Always protect seed/manual; protect live 'screener' rows unless the caller
-    # explicitly opts in via --include-live.
+    # explicitly opts in via --include-live. NULL/stray sources are deletable —
+    # SQL `~col.in_(...)` excludes NULL, so match those rows explicitly.
+    from sqlalchemy import or_
+
     protected = ["seed", "manual"] if include_live else _PROTECTED_SOURCES
-    q = session.query(SetupArchive).filter(~SetupArchive.source.in_(protected))
+    q = session.query(SetupArchive).filter(
+        or_(SetupArchive.source.is_(None), ~SetupArchive.source.in_(protected))
+    )
     target_count = q.count()
     scope = "incl. LIVE screener rows" if include_live else "stray rows only; live screener PROTECTED"
 

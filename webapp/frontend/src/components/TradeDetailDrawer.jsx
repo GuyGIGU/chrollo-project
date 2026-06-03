@@ -299,9 +299,11 @@ function IntentTab({ trade }) {
   const [exitReason, setExitReason] = useState(trade.exit_reason || '');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [error, setError] = useState(false);
 
   const save = async () => {
     setSaving(true);
+    setError(false);
     try {
       const res = await fetch(`${API_BASE}/trades/${trade.id}`, {
         method: 'PUT',
@@ -312,7 +314,8 @@ function IntentTab({ trade }) {
         }),
       });
       if (res.ok) setSavedAt(new Date());
-    } catch { /* no-op */ }
+      else setError(true);
+    } catch { setError(true); }
     setSaving(false);
   };
 
@@ -350,10 +353,13 @@ function IntentTab({ trade }) {
         <button type="button" style={btnPrimary} onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {savedAt && (
+        {savedAt && !error && (
           <span style={{ color: 'var(--success)', fontSize: 11 }}>
             Saved at {savedAt.toLocaleTimeString()}
           </span>
+        )}
+        {error && (
+          <span style={{ color: 'var(--danger)', fontSize: 11 }}>Save failed — try again</span>
         )}
       </div>
     </div>
