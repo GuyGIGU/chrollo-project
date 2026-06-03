@@ -1,23 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 
+const MAX_VISIBLE_BARS = 72;
+
 const chartOptions = (width, height) => ({
   width,
   height,
   layout: {
-    background: { type: 'solid', color: '#171922' },
-    textColor: '#7f879a',
+    background: { type: 'solid', color: '#141721' },
+    textColor: '#747c8f',
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 11,
+    fontSize: 10,
   },
   grid: {
-    vertLines: { color: 'rgba(47, 52, 71, 0.18)' },
-    horzLines: { color: 'rgba(47, 52, 71, 0.18)' },
+    vertLines: { color: 'rgba(47, 52, 71, 0.13)' },
+    horzLines: { color: 'rgba(47, 52, 71, 0.13)' },
   },
   crosshair: { mode: 0 },
-  rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.08, bottom: 0.22 } },
+  rightPriceScale: { borderColor: 'rgba(47, 52, 71, 0.56)', scaleMargins: { top: 0.08, bottom: 0.2 } },
   timeScale: {
-    borderColor: '#2f3447',
+    borderColor: 'rgba(47, 52, 71, 0.56)',
     timeVisible: false,
     fixLeftEdge: true,
     fixRightEdge: true,
@@ -67,9 +69,12 @@ const focusSetupRange = (chart, data) => {
 
   const leftPadding = Math.max(6, Math.min(10, Math.round(data.base_len * 0.28)));
   const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
+  const rightEdge = Math.min(candles.length - 1, baseEnd + rightPadding);
+  const leftEdge = Math.max(0, baseStart - leftPadding);
+
   chart.timeScale().setVisibleLogicalRange({
-    from: Math.max(0, baseStart - leftPadding),
-    to: Math.min(candles.length - 1, baseEnd + rightPadding),
+    from: Math.max(leftEdge, rightEdge - MAX_VISIBLE_BARS),
+    to: rightEdge,
   });
 };
 
@@ -93,8 +98,10 @@ const ScreenerMiniChart = ({ ticker, data }) => {
 
       const candles = colorCandles(data);
       const candleSeries = chart.addSeries(BarSeries, {
-        upColor: '#d8dbe5',
-        downColor: '#d8dbe5',
+        upColor: '#d7dae4',
+        downColor: '#d7dae4',
+        lastValueVisible: false,
+        priceLineVisible: false,
         thinBars: false,
       });
       candleSeries.setData(candles);
@@ -128,17 +135,6 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       sSeries.setData(buildLevelData(data.candles || [], baseStart, data.S));
       midSeries.setData(buildLevelData(data.candles || [], baseStart, midValue));
 
-      if (Number.isFinite(Number(data.trigger))) {
-        candleSeries.createPriceLine({
-          price: Number(data.trigger),
-          color: '#e3b341',
-          lineWidth: 1,
-          lineStyle: 2,
-          axisLabelVisible: false,
-          title: '',
-        });
-      }
-
       if (data.base_len > 0 && data.candles?.length > 0) {
         focusSetupRange(chart, data);
       } else {
@@ -153,7 +149,10 @@ const ScreenerMiniChart = ({ ticker, data }) => {
     const handleResize = () => {
       if (!disposed && container?.isConnected && chart) {
         try {
-          chart.applyOptions({ width: container.clientWidth });
+          chart.applyOptions({
+            height: container.clientHeight,
+            width: container.clientWidth,
+          });
           focusSetupRange(chart, data);
         } catch {
           /* container detached */

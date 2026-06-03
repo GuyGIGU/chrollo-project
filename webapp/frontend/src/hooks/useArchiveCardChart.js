@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { BarSeries, createChart, HistogramSeries, LineSeries } from 'lightweight-charts';
 
+const MAX_VISIBLE_BARS = 72;
+
 export default function useArchiveCardChart({ chartData, setup }) {
   const chartContainerRef = useRef(null);
   const [chartError, setChartError] = useState(false);
@@ -29,7 +31,11 @@ export default function useArchiveCardChart({ chartData, setup }) {
     const handleResize = () => {
       if (!disposed && container?.isConnected && chart) {
         try {
-          chart.applyOptions({ width: container.clientWidth });
+          chart.applyOptions({
+            height: container.clientHeight,
+            width: container.clientWidth,
+          });
+          setVisibleStructureRange(chart, chartData);
         } catch {
           // The chart can detach during tab changes.
         }
@@ -59,25 +65,31 @@ export default function useArchiveCardChart({ chartData, setup }) {
 const createMiniChart = (container) => createChart(container, {
   crosshair: { mode: 0 },
   grid: {
-    horzLines: { color: 'rgba(42, 42, 54, 0.3)' },
-    vertLines: { color: 'rgba(42, 42, 54, 0.3)' },
+    horzLines: { color: 'rgba(47, 52, 71, 0.13)' },
+    vertLines: { color: 'rgba(47, 52, 71, 0.13)' },
   },
   handleScale: false,
   handleScroll: false,
   height: container.clientHeight || 220,
   layout: {
-    background: { type: 'solid', color: '#1c1c24' },
+    background: { type: 'solid', color: '#141721' },
     fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 11,
-    textColor: '#7b7b8f',
+    fontSize: 10,
+    textColor: '#747c8f',
   },
-  rightPriceScale: { borderColor: '#2a2a36', scaleMargins: { top: 0.1, bottom: 0.25 } },
-  timeScale: { borderColor: '#2a2a36', fixLeftEdge: true, fixRightEdge: true, timeVisible: false },
+  rightPriceScale: { borderColor: 'rgba(47, 52, 71, 0.56)', scaleMargins: { top: 0.08, bottom: 0.2 } },
+  timeScale: { borderColor: 'rgba(47, 52, 71, 0.56)', fixLeftEdge: true, fixRightEdge: true, timeVisible: false },
   width: container.clientWidth || 340,
 });
 
 const drawCandles = (chart, chartData) => {
-  const series = chart.addSeries(BarSeries, { downColor: '#d1d4dc', thinBars: false, upColor: '#d1d4dc' });
+  const series = chart.addSeries(BarSeries, {
+    downColor: '#d7dae4',
+    lastValueVisible: false,
+    priceLineVisible: false,
+    thinBars: false,
+    upColor: '#d7dae4',
+  });
   series.setData(colorStructureCandles(chartData));
 };
 
@@ -158,11 +170,16 @@ const setVisibleStructureRange = (chart, chartData) => {
     return;
   }
   const baseEnd = getBaseEnd(chartData);
-  const fromIndex = Math.max(0, baseEnd - (chartData.base_len || 0) - 10);
-  const toIndex = Math.min(chartData.candles.length - 1, baseEnd + 12);
-  chart.timeScale().setVisibleRange({
-    from: chartData.candles[fromIndex].time,
-    to: chartData.candles[toIndex].time,
+  const baseStart = Math.max(0, baseEnd - (chartData.base_len || 0) + 1);
+  const forwardBars = chartData.forward_bars || 0;
+  const leftPadding = Math.max(6, Math.min(10, Math.round((chartData.base_len || 0) * 0.28)));
+  const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
+  const rightEdge = Math.min(chartData.candles.length - 1, baseEnd + rightPadding);
+  const leftEdge = Math.max(0, baseStart - leftPadding);
+
+  chart.timeScale().setVisibleLogicalRange({
+    from: Math.max(leftEdge, rightEdge - MAX_VISIBLE_BARS),
+    to: rightEdge,
   });
 };
 
