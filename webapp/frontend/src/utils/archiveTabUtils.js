@@ -15,6 +15,16 @@ export const SORT_OPTIONS = [
 
 export const ITEMS_PER_PAGE = 24;
 export const QUALITY_LABELS = ['perfect', 'good', 'noise', 'miss'];
+export const REVIEW_REASONS = [
+  ['earnings', 'Earnings'],
+  ['extended', 'Extended'],
+  ['weak_structure', 'Weak structure'],
+  ['weak_sector', 'Weak sector'],
+  ['no_room', 'No room'],
+  ['already_owned', 'Already owned'],
+  ['illiquid', 'Illiquid'],
+  ['other', 'Other'],
+];
 export const TIERS = ['ALL', 'S', 'A', 'B', 'C', 'D'];
 export const SETUP_TYPES = ['ALL', 'LPS', 'REBOUND', 'BREAKOUT'];
 

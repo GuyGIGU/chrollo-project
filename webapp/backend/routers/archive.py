@@ -12,6 +12,7 @@ import subprocess
 import sys
 import os
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -22,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from archive_models import SetupArchive
 from database import get_db
+from services import scan_status
 from services.episode_cache import VersionedCache
 
 router = APIRouter(prefix="/archive", tags=["archive"])
@@ -113,6 +115,11 @@ class SetupOut(BaseModel):
     contraction_quality: Optional[float] = None
     final_contraction_depth: Optional[float] = None
     score_contraction: Optional[float] = None
+    # Base bar-compression texture
+    base_median_spread_atr: Optional[float] = None
+    base_p80_spread_atr: Optional[float] = None
+    base_median_spread_pct_box: Optional[float] = None
+    base_tight_bar_pct: Optional[float] = None
     # Ascending support / higher-lows footprint
     support_slope_atr: Optional[float] = None
     ascending_support_quality: Optional[float] = None
@@ -132,10 +139,12 @@ class EpisodeOut(SetupOut):
     """A setup collapsed to one row per *episode*: the first-seen (canonical)
     row plus how long the base persisted across daily re-flags."""
 
+    episode_key: str     # stable logical setup key: ticker|setup_type|first_seen
     scan_count: int       # number of daily scans that flagged this base
     first_seen: str       # == canonical scan_date (the entry anchor)
     last_seen: str        # latest scan that still flagged the same base
     passed: bool = False  # operator reviewed this setup and skipped it
+    review_note: Optional[str] = None
 
 
 class LabelUpdate(BaseModel):
@@ -293,11 +302,16 @@ def _episode_context(db, **filters):
 
     eps = _grouped_episodes(db, filters)
     row_by_id = _rows_by_ids(db, [ep.canonical_id for ep in eps])
-    passed_keys = {
-        (rv.ticker, rv.scan_date)
+    passed_notes = {
+        (rv.ticker, rv.scan_date): rv.note
         for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
     }
-    return eps, row_by_id, passed_keys
+    return eps, row_by_id, passed_notes
+
+
+def _episode_key(ticker: str, setup_type: str, first_seen: str) -> str:
+    """Stable logical setup key shared by archive rows and UI state."""
+    return f"{ticker.upper()}|{setup_type.upper()}|{first_seen}"
 
 
 @router.get("/setups", response_model=List[SetupOut])
@@ -351,7 +365,7 @@ def list_episodes(
     table shows one row per real setup and stats aren't inflated. Grouping runs
     over the full filtered set, then the result is sorted and paginated.
     """
-    eps, row_by_id, passed_keys = _episode_context(
+    eps, row_by_id, passed_notes = _episode_context(
         db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
@@ -360,12 +374,15 @@ def list_episodes(
     out: List[EpisodeOut] = []
     for ep in eps:
         canonical = SetupOut.model_validate(row_by_id[ep.canonical_id])
+        review_key = (ep.ticker, ep.first_seen)
         out.append(EpisodeOut(
             **canonical.model_dump(),
+            episode_key=_episode_key(ep.ticker, ep.setup_type, ep.first_seen),
             scan_count=ep.scan_count,
             first_seen=ep.first_seen,
             last_seen=ep.last_seen,
-            passed=(ep.ticker, ep.first_seen) in passed_keys,
+            passed=review_key in passed_notes,
+            review_note=passed_notes.get(review_key),
         ))
 
     # Episodes are derived (not a DB column), so sort in Python. Nulls sort last
@@ -572,6 +589,10 @@ class ReviewToggleIn(BaseModel):
     scan_date: Optional[str] = None
 
 
+class ReviewMarkIn(ReviewToggleIn):
+    note: Optional[str] = None
+
+
 @router.post("/reviews/toggle")
 def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Toggle a 'saw & passed' marker for a setup; returns the new state.
@@ -610,6 +631,43 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     ))
     db.commit()
     return {"ticker": ticker, "scan_date": scan_date, "passed": True}
+
+
+@router.post("/reviews/mark")
+def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Mark an episode as reviewed/passed and store the skip reason in note."""
+    from datetime import datetime
+
+    from models import SetupReview
+
+    ticker = payload.ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+    scan_date = (payload.scan_date or "").strip()
+    if not scan_date:
+        scan_date = _latest_episode_first_seen(db, ticker)
+        if not scan_date:
+            raise HTTPException(status_code=404, detail=f"No archived setup for {ticker} to mark")
+
+    note = (payload.note or "").strip() or None
+    existing = (
+        db.query(SetupReview)
+        .filter(SetupReview.ticker == ticker, SetupReview.scan_date == scan_date)
+        .first()
+    )
+    if existing:
+        existing.verdict = "passed"
+        existing.note = note
+    else:
+        db.add(SetupReview(
+            ticker=ticker,
+            scan_date=scan_date,
+            verdict="passed",
+            note=note,
+            created_at=datetime.utcnow(),
+        ))
+    db.commit()
+    return {"ticker": ticker, "scan_date": scan_date, "passed": True, "review_note": note}
 
 
 @router.get("/reviews/passed")
@@ -738,6 +796,168 @@ def _count_by(setups: list, field: str) -> Dict[str, int]:
         val = getattr(s, field, None) or "unknown"
         counts[val] += 1
     return dict(counts)
+
+
+@router.get("/health")
+def archive_health(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Read-only continuity summary for the live research loop.
+
+    The point of this endpoint is not to certify trades; it tells the operator
+    whether Chrollo's memory is clean enough to trust for engine calibration:
+    live scans are arriving, forward returns are keeping up, and curated seed
+    rows are not being mistaken for unbiased evidence.
+    """
+    all_rows = db.query(SetupArchive).all()
+    all_episodes = _canonical_setups(db)
+    live_episodes = _canonical_setups(db, source="screener")
+    live_rows = [row for row in all_rows if (row.source or "screener") == "screener"]
+    latest_scan_date = max((row.scan_date for row in live_rows if row.scan_date), default=None)
+    latest_run = scan_status.latest_run()
+
+    live_with_20d = [row for row in live_episodes if row.fwd_return_20d is not None]
+    live_with_60d = [row for row in live_episodes if row.fwd_return_60d is not None]
+    pending_20d = [
+        row for row in live_episodes
+        if row.fwd_return_20d is None and _days_since_date(row.scan_date) is not None
+        and _days_since_date(row.scan_date) >= 28
+    ]
+    pending_60d = [
+        row for row in live_episodes
+        if row.fwd_return_60d is None and _days_since_date(row.scan_date) is not None
+        and _days_since_date(row.scan_date) >= 70
+    ]
+
+    checks = [
+        _scan_date_check(latest_scan_date),
+        _scan_run_check(latest_run),
+        _forward_returns_check(live_episodes, pending_20d, pending_60d),
+        _live_sample_check(live_episodes, live_with_20d, live_with_60d),
+        _source_mix_check(all_episodes, live_episodes),
+    ]
+    status = _overall_health_status(checks)
+
+    return {
+        "status": status,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "latest_scan_date": latest_scan_date,
+        "latest_scan_age_days": _days_since_date(latest_scan_date),
+        "latest_scan_run": latest_run,
+        "archive": {
+            "rows": len(all_rows),
+            "episodes": len(all_episodes),
+            "by_source": _count_by(all_episodes, "source"),
+        },
+        "live": {
+            "rows": len(live_rows),
+            "episodes": len(live_episodes),
+            "with_20d_returns": len(live_with_20d),
+            "with_60d_returns": len(live_with_60d),
+            "pending_20d_returns": len(pending_20d),
+            "pending_60d_returns": len(pending_60d),
+            "date_range": {
+                "earliest": min((row.scan_date for row in live_episodes), default=None),
+                "latest": max((row.scan_date for row in live_episodes), default=None),
+            },
+        },
+        "checks": checks,
+    }
+
+
+def _days_since_date(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value[:10], "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+    return max(0, (datetime.now(timezone.utc).date() - parsed).days)
+
+
+def _hours_since_iso(value: Optional[str]) -> Optional[float]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - parsed).total_seconds() / 3600.0
+
+
+def _health_check(key: str, label: str, status: str, detail: str) -> Dict[str, str]:
+    return {"key": key, "label": label, "status": status, "detail": detail}
+
+
+def _scan_date_check(latest_scan_date: Optional[str]) -> Dict[str, str]:
+    age = _days_since_date(latest_scan_date)
+    if age is None:
+        return _health_check("live_scan", "Live archive", "critical", "No live screener rows archived yet.")
+    if age <= 3:
+        return _health_check("live_scan", "Live archive", "ok", f"Latest live setup date is {latest_scan_date}.")
+    if age <= 7:
+        return _health_check("live_scan", "Live archive", "watch", f"Latest live setup date is {latest_scan_date} ({age}d old).")
+    return _health_check("live_scan", "Live archive", "critical", f"Latest live setup date is {latest_scan_date} ({age}d old).")
+
+
+def _scan_run_check(latest_run: Optional[dict]) -> Dict[str, str]:
+    if not latest_run:
+        return _health_check("scan_run", "Scan runner", "critical", "No scan run history recorded.")
+    status = latest_run.get("status") or "unknown"
+    finished_at = latest_run.get("finished_at") or latest_run.get("started_at")
+    age_hours = _hours_since_iso(finished_at)
+    n_setups = latest_run.get("n_setups")
+    suffix = f"{n_setups} setups" if n_setups is not None else "setup count unknown"
+    if status in {"failed", "stale_data"}:
+        detail = latest_run.get("error") or f"Latest run ended as {status}."
+        return _health_check("scan_run", "Scan runner", "critical", detail)
+    if status == "running":
+        return _health_check("scan_run", "Scan runner", "watch", "A scan is currently running.")
+    if age_hours is not None and age_hours > 84:
+        return _health_check("scan_run", "Scan runner", "watch", f"Last run finished {age_hours:.0f}h ago with {suffix}.")
+    return _health_check("scan_run", "Scan runner", "ok", f"Latest run status is {status}; {suffix}.")
+
+
+def _forward_returns_check(live_episodes: list, pending_20d: list, pending_60d: list) -> Dict[str, str]:
+    if not live_episodes:
+        return _health_check("forward_returns", "Forward returns", "watch", "No live episodes are available to mature yet.")
+    if pending_20d or pending_60d:
+        parts = []
+        if pending_20d:
+            parts.append(f"{len(pending_20d)} overdue 20d")
+        if pending_60d:
+            parts.append(f"{len(pending_60d)} overdue 60d")
+        return _health_check("forward_returns", "Forward returns", "watch", ", ".join(parts) + ".")
+    return _health_check("forward_returns", "Forward returns", "ok", "No mature live episodes are waiting on return backfill.")
+
+
+def _live_sample_check(live_episodes: list, live_with_20d: list, live_with_60d: list) -> Dict[str, str]:
+    n_live = len(live_episodes)
+    n_20d = len(live_with_20d)
+    n_60d = len(live_with_60d)
+    if n_live < 30:
+        return _health_check("live_sample", "Live sample", "watch", f"{n_live} live episodes; still early for calibration.")
+    if n_20d < 30:
+        return _health_check("live_sample", "Live sample", "watch", f"{n_20d} live episodes have 20d outcomes.")
+    return _health_check("live_sample", "Live sample", "ok", f"{n_live} live episodes; {n_20d} with 20d and {n_60d} with 60d outcomes.")
+
+
+def _source_mix_check(all_episodes: list, live_episodes: list) -> Dict[str, str]:
+    if not all_episodes:
+        return _health_check("source_mix", "Evidence mix", "watch", "Archive is empty.")
+    live_share = len(live_episodes) / len(all_episodes)
+    if live_share >= 0.50:
+        return _health_check("source_mix", "Evidence mix", "ok", f"Live screener episodes are {live_share:.0%} of the archive.")
+    return _health_check("source_mix", "Evidence mix", "watch", f"Live screener episodes are only {live_share:.0%}; curated rows may dominate analysis.")
+
+
+def _overall_health_status(checks: list[dict]) -> str:
+    statuses = {check["status"] for check in checks}
+    if "critical" in statuses:
+        return "critical"
+    if "watch" in statuses:
+        return "watch"
+    return "ok"
 
 
 @router.get("/calibration")
@@ -1138,6 +1358,10 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         score_ascending_support=sub.get("ascending_support"),
         adr_pct=result.get("adr_pct"),
         score_adr=sub.get("adr"),
+        base_median_spread_atr=result.get("base_median_spread_atr"),
+        base_p80_spread_atr=result.get("base_p80_spread_atr"),
+        base_median_spread_pct_box=result.get("base_median_spread_pct_box"),
+        base_tight_bar_pct=result.get("base_tight_bar_pct"),
         r_touch_vol_z=result.get("r_touch_vol_z"),
         s_touch_vol_z=result.get("s_touch_vol_z"),
         lps_descent_frac=result.get("lps_descent_frac"),

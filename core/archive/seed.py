@@ -39,6 +39,7 @@ from core.structure import (
     calculate_atr,
     detect_lps,
     find_outer_box,
+    measure_bar_compression,
     measure_contractions,
     measure_support_slope,
 )
@@ -207,6 +208,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         )
 
         contraction = measure_contractions(base_df)
+        bar_compression = measure_bar_compression(base_df, res_avg - sup_avg, atr_for_zone)
         support = measure_support_slope(base_df, atr_for_zone)
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
@@ -276,6 +278,10 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             "contraction_quality": float(contraction["quality"]),
             "final_contraction_depth": (float(contraction["final_depth"])
                                         if contraction["final_depth"] is not None else None),
+            "base_median_spread_atr": bar_compression["median_spread_atr"],
+            "base_p80_spread_atr": bar_compression["p80_spread_atr"],
+            "base_median_spread_pct_box": bar_compression["median_spread_pct_box"],
+            "base_tight_bar_pct": float(bar_compression["tight_bar_pct"]),
             "support_slope_atr": (float(support["slope_atr"])
                                   if support["slope_atr"] is not None else None),
             "ascending_support_quality": float(support["quality"]),
@@ -500,6 +506,11 @@ def seed_archive(
             contraction_quality=best_result.get("contraction_quality"),
             final_contraction_depth=best_result.get("final_contraction_depth"),
             score_contraction=sub.get("contraction"),
+            # Base bar-compression texture
+            base_median_spread_atr=best_result.get("base_median_spread_atr"),
+            base_p80_spread_atr=best_result.get("base_p80_spread_atr"),
+            base_median_spread_pct_box=best_result.get("base_median_spread_pct_box"),
+            base_tight_bar_pct=best_result.get("base_tight_bar_pct"),
             # Ascending-support / higher-lows footprint
             support_slope_atr=best_result.get("support_slope_atr"),
             ascending_support_quality=best_result.get("ascending_support_quality"),

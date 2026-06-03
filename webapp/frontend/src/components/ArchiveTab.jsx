@@ -64,6 +64,7 @@ export default function ArchiveTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <ChartViewer chart={chart} />
       <ArchiveHeader
+        health={data.health}
         onAddSetup={addSetup.openModal}
         onOpenAnalysis={maintenance.openAnalysis}
         onOpenHistory={maintenance.openHistory}
@@ -83,6 +84,7 @@ export default function ArchiveTab() {
         filteredSetups={grid.filteredSetups}
         onLabelChange={data.updateSetupLabel}
         onOpenChart={chart.openChart}
+        onReviewReasonChange={data.markReviewReason}
         onSort={handleSort}
         onTogglePassed={data.togglePassed}
         pageSetups={grid.pageSetups}

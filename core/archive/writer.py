@@ -72,6 +72,11 @@ _NEW_COLUMNS: dict[str, str] = {
     "contraction_quality":      "FLOAT",
     "final_contraction_depth":  "FLOAT",
     "score_contraction":        "FLOAT",
+    # Base bar-compression texture
+    "base_median_spread_atr":      "FLOAT",
+    "base_p80_spread_atr":         "FLOAT",
+    "base_median_spread_pct_box":  "FLOAT",
+    "base_tight_bar_pct":          "FLOAT",
     # Ascending support / higher-lows footprint
     "support_slope_atr":            "FLOAT",
     "ascending_support_quality":    "FLOAT",
@@ -290,6 +295,11 @@ def archive_scan_results(
             contraction_quality=row.get("_contraction_quality"),
             final_contraction_depth=row.get("_final_contraction_depth"),
             score_contraction=sub.get("contraction"),
+            # Base bar-compression texture
+            base_median_spread_atr=row.get("_base_median_spread_atr"),
+            base_p80_spread_atr=row.get("_base_p80_spread_atr"),
+            base_median_spread_pct_box=row.get("_base_median_spread_pct_box"),
+            base_tight_bar_pct=row.get("_base_tight_bar_pct"),
             # Ascending-support / higher-lows footprint
             support_slope_atr=row.get("_support_slope_atr"),
             ascending_support_quality=row.get("_ascending_support_quality"),

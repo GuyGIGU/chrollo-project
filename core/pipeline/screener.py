@@ -31,6 +31,7 @@ from core.structure import (
     calculate_atr,
     detect_lps,
     find_consolidation,
+    measure_bar_compression,
     measure_contractions,
     measure_support_slope,
     measure_touch_volume,
@@ -206,6 +207,12 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # VCP progressive-contraction footprint over the base window.
         contraction = measure_contractions(base_df)
 
+        # Base bar-compression texture: are the bars inside the box themselves
+        # narrow/quiet? Measure-first diagnostics only, no scoring impact.
+        bar_compression = measure_bar_compression(
+            base_df, res_avg - sup_avg, atr_for_zone
+        )
+
         # Ascending-support / higher-lows footprint over the base window.
         support = measure_support_slope(base_df, atr_for_zone)
 
@@ -279,6 +286,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_contraction_quality': float(contraction['quality']),
             '_final_contraction_depth': (float(contraction['final_depth'])
                                          if contraction['final_depth'] is not None else None),
+            # Base bar-compression texture
+            '_base_median_spread_atr': bar_compression['median_spread_atr'],
+            '_base_p80_spread_atr': bar_compression['p80_spread_atr'],
+            '_base_median_spread_pct_box': bar_compression['median_spread_pct_box'],
+            '_base_tight_bar_pct': float(bar_compression['tight_bar_pct']),
             # Ascending-support / higher-lows footprint
             '_support_slope_atr': (float(support['slope_atr'])
                                    if support['slope_atr'] is not None else None),

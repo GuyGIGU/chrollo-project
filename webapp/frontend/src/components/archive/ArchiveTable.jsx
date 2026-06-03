@@ -2,6 +2,7 @@ import { memo } from 'react';
 import {
   ITEMS_PER_PAGE,
   QUALITY_LABELS,
+  REVIEW_REASONS,
   fixed,
   labelColor,
   pct,
@@ -23,6 +24,7 @@ const COLUMNS = [
   { key: 'r_multiple_20d', label: 'R', align: 'right' },
   { key: 'triggered', label: 'Trig', align: 'center' },
   { key: '__passed', label: 'Seen?', align: 'center', sortable: false },
+  { key: '__reason', label: 'Reason', align: 'left', sortable: false },
   { key: '__label', label: 'Label', align: 'left', sortable: false },
 ];
 
@@ -31,6 +33,7 @@ function ArchiveTable({
   filteredSetups,
   onLabelChange,
   onOpenChart,
+  onReviewReasonChange,
   onSort,
   onTogglePassed,
   pageSetups,
@@ -70,9 +73,10 @@ function ArchiveTable({
           <tbody>
             {pageSetups.map(setup => (
               <SetupRow
-                key={setup.id}
+                key={setup.episode_key || setup.id}
                 onLabelChange={onLabelChange}
                 onOpenChart={onOpenChart}
+                onReviewReasonChange={onReviewReasonChange}
                 onTogglePassed={onTogglePassed}
                 setup={setup}
               />
@@ -108,7 +112,7 @@ function HeaderCell({ active, col, onSort, sortDir }) {
   );
 }
 
-const SetupRow = memo(({ onLabelChange, onOpenChart, onTogglePassed, setup }) => {
+const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTogglePassed, setup }) => {
   const persisted = setup.scan_count > 1;
   return (
     <tr
@@ -158,6 +162,27 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onTogglePassed, setup }) =>
         >
           {setup.passed ? '✓ Passed' : 'Pass'}
         </button>
+      </Cell>
+      <Cell align="left">
+        <select
+          onChange={event => onReviewReasonChange(setup.ticker, setup.first_seen, event.target.value || null)}
+          onClick={event => event.stopPropagation()}
+          title="Why this setup was reviewed and skipped"
+          style={{
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '4px',
+            color: setup.passed ? 'var(--text-main)' : 'var(--text-muted)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '11px',
+            padding: '2px 4px',
+          }}
+          value={setup.review_note || ''}
+        >
+          <option value="">-</option>
+          {REVIEW_REASONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
       </Cell>
       <Cell align="left">
         <select

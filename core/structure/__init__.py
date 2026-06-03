@@ -10,6 +10,7 @@ is the Scoring Engine's job (``core.scoring``).
 Public API:
     find_consolidation   -> the live hierarchical box detector (outer + inner)
     find_outer_box       -> textbook outer box only (used by the seed curator)
+    measure_bar_compression -> low-spread / quiet-bar texture inside the base
     measure_contractions -> the VCP progressive-tightening footprint
     measure_support_slope-> the ascending-support / higher-lows footprint
     measure_touch_volume -> volume z-scores at the R/S touch bars
@@ -20,6 +21,7 @@ Public API:
 from core.structure.consolidation import (
     find_consolidation,
     find_outer_box,
+    measure_bar_compression,
     measure_contractions,
     measure_support_slope,
     measure_touch_volume,
@@ -30,6 +32,7 @@ from core.structure.lps import detect_lps
 __all__ = [
     "find_consolidation",
     "find_outer_box",
+    "measure_bar_compression",
     "measure_contractions",
     "measure_support_slope",
     "measure_touch_volume",

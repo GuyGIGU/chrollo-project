@@ -55,6 +55,8 @@ STRUCTURAL_FEATURES = [
     "dist_52w_high_pct", "excess_return_6m", "rs_vs_sector_pct", "breadth_pct",
     "bars_since_bc", "descent_length",
     "contraction_count", "contraction_quality", "final_contraction_depth",
+    "base_median_spread_atr", "base_p80_spread_atr",
+    "base_median_spread_pct_box", "base_tight_bar_pct",
     "support_slope_atr", "ascending_support_quality",
     "adr_pct",
 ]
@@ -74,7 +76,8 @@ OUTCOME_TARGETS = ["fwd_return_20d", "fwd_return_60d", "r_multiple_20d"]
 
 # Tightness features specifically - the prime directive.
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
-                      "lps_descent_frac", "contraction_quality"]
+                      "lps_descent_frac", "contraction_quality",
+                      "base_median_spread_atr", "base_tight_bar_pct"]
 
 
 def load_archive(source: Optional[str] = None) -> pd.DataFrame:

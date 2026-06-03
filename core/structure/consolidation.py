@@ -123,6 +123,58 @@ def _build_zigzag(peaks_idx, valleys_idx, highs, lows):
 
 
 # ---------------------------------------------------------------------------
+# Base bar-compression footprint
+# ---------------------------------------------------------------------------
+
+def measure_bar_compression(base_df, box_height, atr_val):
+    """Measure how quiet/narrow the bars are inside the detected base.
+
+    Box width says how tight the *range* is. This reports the texture inside
+    that range: whether most bars are themselves low-spread / low-volatility
+    bars. Pure measurement only; no gates, no points.
+
+    Returns dict:
+        median_spread_atr      median daily spread divided by ATR snapshot
+        p80_spread_atr         80th percentile spread divided by ATR snapshot
+        median_spread_pct_box  median daily spread divided by box height
+        tight_bar_pct          share of base bars with spread <= ATR snapshot
+    """
+    empty = {
+        "median_spread_atr": None,
+        "p80_spread_atr": None,
+        "median_spread_pct_box": None,
+        "tight_bar_pct": 0.0,
+    }
+    if base_df is None or len(base_df) == 0:
+        return empty
+    if atr_val is None or atr_val <= 0 or box_height is None or box_height <= 0:
+        return empty
+
+    try:
+        if "Spread" in base_df.columns:
+            spreads = base_df["Spread"].astype(float)
+        else:
+            spreads = base_df["High"].astype(float) - base_df["Low"].astype(float)
+        spreads = spreads.replace([np.inf, -np.inf], np.nan).dropna()
+    except (KeyError, TypeError, ValueError):
+        return empty
+
+    if spreads.empty:
+        return empty
+
+    median_spread = float(spreads.median())
+    p80_spread = float(spreads.quantile(0.80))
+    tight_bar_pct = float((spreads <= atr_val).mean())
+
+    return {
+        "median_spread_atr": round(median_spread / atr_val, 4),
+        "p80_spread_atr": round(p80_spread / atr_val, 4),
+        "median_spread_pct_box": round(median_spread / box_height, 4),
+        "tight_bar_pct": round(tight_bar_pct, 4),
+    }
+
+
+# ---------------------------------------------------------------------------
 # VCP progressive-contraction footprint
 # ---------------------------------------------------------------------------
 

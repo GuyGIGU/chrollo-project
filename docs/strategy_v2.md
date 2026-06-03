@@ -228,6 +228,23 @@ Persisted to the archive as `contraction_count`, `contraction_quality`, `final_c
 
 ---
 
+## Base Bar Compression Footprint
+
+`measure_bar_compression()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
+
+It reports four raw diagnostics, all persisted to the archive and not scored:
+
+| Field | Meaning |
+|-------|---------|
+| `base_median_spread_atr` | median base bar spread divided by the ATR snapshot used by the LPS detector |
+| `base_p80_spread_atr` | 80th percentile base bar spread divided by that ATR snapshot |
+| `base_median_spread_pct_box` | median base bar spread divided by box height (`R - S`) |
+| `base_tight_bar_pct` | share of base bars whose spread is no wider than the ATR snapshot |
+
+This is **measure-first / never-gated / never-penalizing**. It gives the archive a direct way to test whether visually quiet bases outperform choppier bases with similar box width.
+
+---
+
 ## Ascending Support / Higher-Lows Footprint
 
 `measure_support_slope()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
