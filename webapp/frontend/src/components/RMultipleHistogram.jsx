@@ -29,8 +29,8 @@ export default function RMultipleHistogram() {
         <span>Avg R: <strong style={{ color: data.avg_r >= 0 ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>{data.avg_r.toFixed(2)}R</strong></span>
         <span>Total: {data.total}{data.skipped > 0 && <> • skipped {data.skipped}</>}</span>
       </div>
-      <div style={{ width: '100%', height: 200 }}>
-        <ResponsiveContainer>
+      <div style={{ width: '100%', height: 200, minWidth: 0, minHeight: 180 }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={180}>
           <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
             <XAxis dataKey="label" stroke="var(--text-muted, #8b8b9c)" fontSize={9} tickLine={false} interval={1} />

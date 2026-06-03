@@ -5,20 +5,17 @@ const chartOptions = (width, height) => ({
   width,
   height,
   layout: {
-    background: { type: 'solid', color: '#1c1f2a' },
+    background: { type: 'solid', color: '#171922' },
     textColor: '#7f879a',
     fontFamily: "'JetBrains Mono', monospace",
     fontSize: 11,
   },
   grid: {
-    vertLines: { color: 'rgba(47, 52, 71, 0.28)' },
-    horzLines: { color: 'rgba(47, 52, 71, 0.28)' },
+    vertLines: { color: 'rgba(47, 52, 71, 0.18)' },
+    horzLines: { color: 'rgba(47, 52, 71, 0.18)' },
   },
   crosshair: { mode: 0 },
-  rightPriceScale: {
-    borderColor: '#2f3447',
-    scaleMargins: { top: 0.08, bottom: 0.24 },
-  },
+  rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.08, bottom: 0.22 } },
   timeScale: {
     borderColor: '#2f3447',
     timeVisible: false,
@@ -33,7 +30,9 @@ const colorCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
 
-  const baseStart = candles.length - data.base_len;
+  const forwardBars = data.forward_bars || 0;
+  const baseEnd = candles.length - 1 - forwardBars;
+  const baseStart = baseEnd - data.base_len + 1;
   const limbStart = Math.min(baseStart + data.r_anchor, baseStart + data.s_anchor);
   const limbEnd = Math.max(baseStart + data.r_anchor, baseStart + data.s_anchor);
   for (let index = limbStart; index <= limbEnd; index += 1) {
@@ -41,7 +40,7 @@ const colorCandles = (data) => {
   }
 
   if (data.lps_len > 0 && data.lps_offset !== undefined) {
-    const lpsEnd = candles.length - 1 - data.lps_offset;
+    const lpsEnd = baseEnd - data.lps_offset;
     const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
     for (let index = lpsStart; index <= lpsEnd; index += 1) {
       if (index >= 0 && index < candles.length) candles[index].color = '#d4b85a';
@@ -53,6 +52,26 @@ const colorCandles = (data) => {
 
 const buildLevelData = (candles, startIndex, value) =>
   candles.slice(startIndex).map((candle) => ({ time: candle.time, value }));
+
+const setupIndexes = (data) => {
+  const candles = data.candles || [];
+  const forwardBars = data.forward_bars || 0;
+  const baseEnd = Math.max(0, candles.length - 1 - forwardBars);
+  const baseStart = Math.max(0, baseEnd - data.base_len + 1);
+  return { baseEnd, baseStart, candles, forwardBars };
+};
+
+const focusSetupRange = (chart, data) => {
+  const { baseEnd, baseStart, candles, forwardBars } = setupIndexes(data);
+  if (!candles.length) return;
+
+  const leftPadding = Math.max(6, Math.min(10, Math.round(data.base_len * 0.28)));
+  const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
+  chart.timeScale().setVisibleLogicalRange({
+    from: Math.max(0, baseStart - leftPadding),
+    to: Math.min(candles.length - 1, baseEnd + rightPadding),
+  });
+};
 
 const ScreenerMiniChart = ({ ticker, data }) => {
   const containerRef = useRef(null);
@@ -103,18 +122,25 @@ const ScreenerMiniChart = ({ ticker, data }) => {
         lineStyle: 2,
       });
 
-      const startIndex = Math.max(0, (data.candles || []).length - data.base_len);
+      const { baseStart } = setupIndexes(data);
       const midValue = (data.R + data.S) / 2;
-      rSeries.setData(buildLevelData(data.candles || [], startIndex, data.R));
-      sSeries.setData(buildLevelData(data.candles || [], startIndex, data.S));
-      midSeries.setData(buildLevelData(data.candles || [], startIndex, midValue));
+      rSeries.setData(buildLevelData(data.candles || [], baseStart, data.R));
+      sSeries.setData(buildLevelData(data.candles || [], baseStart, data.S));
+      midSeries.setData(buildLevelData(data.candles || [], baseStart, midValue));
+
+      if (Number.isFinite(Number(data.trigger))) {
+        candleSeries.createPriceLine({
+          price: Number(data.trigger),
+          color: '#e3b341',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: false,
+          title: '',
+        });
+      }
 
       if (data.base_len > 0 && data.candles?.length > 0) {
-        const displayStart = Math.max(0, data.candles.length - data.base_len - 18);
-        chart.timeScale().setVisibleRange({
-          from: data.candles[displayStart].time,
-          to: data.candles[data.candles.length - 1].time,
-        });
+        focusSetupRange(chart, data);
       } else {
         chart.timeScale().fitContent();
       }
@@ -128,6 +154,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       if (!disposed && container?.isConnected && chart) {
         try {
           chart.applyOptions({ width: container.clientWidth });
+          focusSetupRange(chart, data);
         } catch {
           /* container detached */
         }

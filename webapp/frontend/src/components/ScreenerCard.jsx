@@ -3,7 +3,7 @@ import { TagRow } from './SetupTags';
 import { ScoreBreakdownPills } from './ScoreBreakdown';
 import ScreenerMiniChart from './ScreenerMiniChart';
 
-const getTierColor = (tier) => {
+const tierColor = (tier) => {
   switch (tier) {
     case 'S': return '#ff9f43';
     case 'A': return '#bb86fc';
@@ -13,15 +13,7 @@ const getTierColor = (tier) => {
   }
 };
 
-const distanceToTriggerPct = (data) => {
-  if (!data?.trigger || !data?.price) return null;
-  return ((data.trigger - data.price) / data.price) * 100;
-};
-
-const formatMoney = (value) =>
-  Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '-';
-
-const EarningsChip = ({ info }) => {
+function EarningsChip({ info }) {
   if (!info || info.days_until == null) return null;
   const days = info.days_until;
   if (days < 0 || days > 14) return null;
@@ -36,142 +28,133 @@ const EarningsChip = ({ info }) => {
     <span
       title={`Earnings in ${days} day${days === 1 ? '' : 's'} (${info.date})`}
       style={{
-        padding: '2px 7px',
-        borderRadius: '999px',
-        fontSize: '10px',
-        fontWeight: 700,
         background: tone.bg,
+        borderRadius: 6,
         color: tone.fg,
         fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 10,
+        fontWeight: 700,
+        padding: '1px 6px',
       }}
     >
       ER {days}d
     </span>
   );
-};
+}
 
-const WatchlistStar = ({ active, onToggle }) => (
-  <button
-    onClick={(event) => { event.stopPropagation(); onToggle(); }}
-    title={active ? 'Remove from watchlist' : 'Save to watchlist'}
-    style={{
-      pointerEvents: 'auto',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid var(--border-color)',
-      borderRadius: '6px',
-      width: '28px',
-      height: '28px',
-      cursor: 'pointer',
-      fontSize: '15px',
-      lineHeight: 1,
-      color: active ? '#e3b341' : '#6b6b7a',
-      transition: 'color 0.15s, transform 0.15s, border-color 0.15s',
-      fontFamily: 'inherit',
-    }}
-    onMouseEnter={(event) => { event.currentTarget.style.transform = 'scale(1.06)'; }}
-    onMouseLeave={(event) => { event.currentTarget.style.transform = 'scale(1)'; }}
-  >
-    {active ? '★' : '☆'}
-  </button>
-);
-
-const InfoChip = ({ label, value, tone = 'neutral', title }) => {
-  const colors = {
-    neutral: { bg: 'rgba(255,255,255,0.04)', fg: 'var(--text-main)', border: 'var(--border-color)' },
-    trigger: { bg: 'rgba(61,211,122,0.12)', fg: 'var(--success)', border: 'rgba(61,211,122,0.28)' },
-    warning: { bg: 'rgba(240,190,60,0.12)', fg: 'var(--warning)', border: 'rgba(240,190,60,0.28)' },
-  };
-  const color = colors[tone] || colors.neutral;
-
+function WatchlistButton({ active, onToggle }) {
   return (
-    <span
-      title={title}
-      style={{
-        display: 'inline-flex',
-        flexDirection: 'column',
-        gap: '2px',
-        minWidth: '82px',
-        padding: '6px 9px',
-        borderRadius: '7px',
-        border: `1px solid ${color.border}`,
-        background: color.bg,
+    <button
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
       }}
-    >
-      <span style={{ color: 'var(--text-muted)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ color: color.fg, fontSize: '12px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-    </span>
-  );
-};
-
-const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, onClick }) => {
-  const triggerPct = distanceToTriggerPct(data);
-  const triggerTone = triggerPct != null && triggerPct <= 0.5 ? 'warning' : 'trigger';
-
-  return (
-    <div
-      onClick={() => onClick(ticker)}
+      title={active ? 'Remove from watchlist' : 'Save to watchlist'}
       style={{
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)), var(--bg-panel)',
+        background: 'transparent',
         border: '1px solid var(--border-color)',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '406px',
+        borderRadius: 6,
+        color: active ? '#e3b341' : '#6b6b7a',
         cursor: 'pointer',
-        boxShadow: '0 10px 26px -22px rgba(91,138,255,0.65)',
-        transition: 'border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease',
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.borderColor = 'rgba(91,138,255,0.68)';
-        event.currentTarget.style.transform = 'translateY(-2px)';
-        event.currentTarget.style.boxShadow = '0 18px 34px -24px rgba(91,138,255,0.95)';
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.borderColor = 'var(--border-color)';
-        event.currentTarget.style.transform = 'translateY(0)';
-        event.currentTarget.style.boxShadow = '0 10px 26px -22px rgba(91,138,255,0.65)';
+        fontFamily: 'inherit',
+        fontSize: 14,
+        height: 26,
+        lineHeight: 1,
+        pointerEvents: 'auto',
+        width: 26,
       }}
     >
-      <div style={{ padding: '15px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.055)', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
-          <WatchlistStar active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: '19px', color: getTierColor(data.tier), lineHeight: 1.1 }}>{ticker}</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '4px' }}>{data.setup}</div>
+      {active ? '*' : '+'}
+    </button>
+  );
+}
+
+function CardHeader({ data, earnings, onToggleWatchlist, ticker, watchlisted }) {
+  return (
+    <div style={{
+      alignItems: 'center',
+      borderBottom: '1px solid rgba(255,255,255,0.055)',
+      display: 'flex',
+      gap: 12,
+      height: 56,
+      justifyContent: 'space-between',
+      overflow: 'hidden',
+      padding: '10px 12px 8px',
+    }}>
+      <div style={{ alignItems: 'center', display: 'flex', gap: 9, minWidth: 0 }}>
+        <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ alignItems: 'center', display: 'flex', gap: 8 }}>
+            <span style={{ color: tierColor(data.tier), fontSize: 18, fontWeight: 850, lineHeight: 1.1 }}>
+              {ticker}
+            </span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800 }}>{data.tier}</span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {data.setup}
           </div>
         </div>
-        <div className="screener-card-score-meta">
-          <div style={{ fontSize: '11px', color: 'var(--text-main)', display: 'flex', gap: '7px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <EarningsChip info={earnings} />
-            <span style={{ padding: '3px 8px', borderRadius: '999px', background: 'rgba(255,255,255,0.055)', fontWeight: 700 }}>{data.tier} TIER</span>
-            <span style={{ fontWeight: 700 }}>Score {data.score}</span>
-          </div>
-          <ScoreBreakdownPills subScores={data.sub_scores} />
+      </div>
+      <div className="screener-card-score-meta">
+        <div style={{ alignItems: 'center', color: 'var(--text-main)', display: 'flex', flexWrap: 'wrap', fontSize: 11, gap: 7, justifyContent: 'flex-end' }}>
+          <EarningsChip info={earnings} />
+          <span style={{ fontWeight: 700 }}>Score {data.score}</span>
         </div>
+        <ScoreBreakdownPills subScores={data.sub_scores} className="score-breakdown-compact" />
       </div>
-
-      <div style={{ flex: 1, minHeight: '250px', display: 'flex' }}>
-        <ScreenerMiniChart ticker={ticker} data={data} />
-      </div>
-
-      <div style={{ padding: '12px 14px', background: 'rgba(26,29,38,0.84)', borderTop: '1px solid rgba(255,255,255,0.055)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <InfoChip label="To Trigger" value={triggerPct == null ? '-' : `${triggerPct.toFixed(1)}%`} tone={triggerTone} title={`Distance from current price to LPS high trigger (${formatMoney(data.trigger)})`} />
-        <InfoChip label="Price" value={formatMoney(data.price)} />
-        <InfoChip label="Base" value={`${data.base_len}d`} />
-      </div>
-
-      <TagRow
-        subScores={data.sub_scores}
-        flags={{
-          phaseDInner: data.phase_d_inner,
-          rTouchVolZ: data.r_touch_vol_z,
-          sTouchVolZ: data.s_touch_vol_z,
-        }}
-        style={{ padding: '8px 12px 10px', background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)' }}
-      />
     </div>
   );
-});
+}
+
+const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, onClick }) => (
+  <div
+    onClick={() => onClick(ticker)}
+    style={{
+      background: 'var(--bg-panel)',
+      border: '1px solid var(--border-color)',
+      borderRadius: 8,
+      cursor: 'pointer',
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: 276,
+      overflow: 'hidden',
+      transition: 'border-color 0.16s ease, background 0.16s ease',
+    }}
+    onMouseEnter={(event) => {
+      event.currentTarget.style.borderColor = 'rgba(91,138,255,0.58)';
+      event.currentTarget.style.background = '#242837';
+    }}
+    onMouseLeave={(event) => {
+      event.currentTarget.style.borderColor = 'var(--border-color)';
+      event.currentTarget.style.background = 'var(--bg-panel)';
+    }}
+  >
+    <CardHeader
+      data={data}
+      earnings={earnings}
+      onToggleWatchlist={onToggleWatchlist}
+      ticker={ticker}
+      watchlisted={watchlisted}
+    />
+    <div style={{ display: 'flex', height: 172, minHeight: 172 }}>
+      <ScreenerMiniChart ticker={ticker} data={data} />
+    </div>
+    <TagRow
+      subScores={data.sub_scores}
+      flags={{
+        phaseDInner: data.phase_d_inner,
+        rTouchVolZ: data.r_touch_vol_z,
+        sTouchVolZ: data.s_touch_vol_z,
+      }}
+      style={{
+        background: 'var(--bg-main)',
+        borderTop: '1px solid var(--border-color)',
+        height: 46,
+        overflow: 'hidden',
+        padding: '7px 12px 8px',
+      }}
+    />
+  </div>
+));
 
 export default ScreenerCard;

@@ -1,11 +1,12 @@
 import { deriveTags, GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsData';
 
 const chipBase = {
-  padding: '1px 6px',
-  borderRadius: '8px',
-  fontSize: '9px',
+  padding: '3px 7px',
+  borderRadius: '5px',
+  fontSize: '11px',
   fontWeight: 700,
   fontFamily: "'JetBrains Mono', monospace",
+  lineHeight: 1.1,
   whiteSpace: 'nowrap',
 };
 
@@ -41,7 +42,7 @@ export function TagRow({ subScores, flags, style }) {
   const tags = deriveTags(subScores, flags);
   if (tags.length === 0) return null;
   return (
-    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', ...style }}>
+    <div style={{ alignItems: 'center', display: 'flex', gap: '4px', flexWrap: 'wrap', ...style }}>
       {tags.map(tagDef => {
         const tone = GROUP_TONES[tagDef.group];
         return (
