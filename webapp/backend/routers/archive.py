@@ -179,6 +179,25 @@ def _apply_setup_filters(
     return q
 
 
+def _episode_context(rows, db):
+    """Shared episode view used by the episodes + missed-winners endpoints:
+    group archive rows into episodes, a row-by-id lookup, and the set of
+    (ticker, scan_date) keys the operator marked 'saw & passed'."""
+    from core.archive import episodes as ep_mod
+    from models import SetupReview
+
+    eps = ep_mod.build_episodes(
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        for r in rows
+    )
+    row_by_id = {r.id: r for r in rows}
+    passed_keys = {
+        (rv.ticker, rv.scan_date)
+        for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
+    }
+    return eps, row_by_id, passed_keys
+
+
 @router.get("/setups", response_model=List[SetupOut])
 def list_setups(
     skip: int = 0,
@@ -230,27 +249,13 @@ def list_episodes(
     table shows one row per real setup and stats aren't inflated. Grouping runs
     over the full filtered set, then the result is sorted and paginated.
     """
-    from core.archive import episodes as ep_mod
-
     rows = _apply_setup_filters(
         db.query(SetupArchive),
         tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
     ).all()
-
-    eps = ep_mod.build_episodes(
-        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
-        for r in rows
-    )
-    row_by_id = {r.id: r for r in rows}
-
-    # "saw & passed" markers, keyed to the episode's first-seen (entry) date.
-    from models import SetupReview
-    passed_keys = {
-        (rv.ticker, rv.scan_date)
-        for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
-    }
+    eps, row_by_id, passed_keys = _episode_context(rows, db)
 
     out: List[EpisodeOut] = []
     for ep in eps:
@@ -513,30 +518,24 @@ def missed_winners_report(
     """
     import pandas as pd
 
-    from core.archive import episodes as ep_mod
     from core.archive import missed_winners as mw
-    from models import SetupReview, TradeLog
+    from models import TradeLog
 
     rows = _apply_setup_filters(db.query(SetupArchive), source=source).all()
-    eps = ep_mod.build_episodes(
-        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
-        for r in rows
-    )
-    row_by_id = {r.id: r for r in rows}
+    eps, row_by_id, passed_keys = _episode_context(rows, db)
 
-    passed_keys = {
-        (rv.ticker, rv.scan_date)
-        for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
-    }
+    # Index trade opens by UPPER-cased ticker so a manually-logged lower/mixed
+    # case ticker still matches the (upper-case) archive ticker — otherwise a
+    # setup you traded is misread as 'never engaged'.
     trades_by_ticker: Dict[str, List[str]] = defaultdict(list)
     for t_ticker, t_open in db.query(TradeLog.ticker, TradeLog.opening_date).all():
         if t_ticker and t_open:
-            trades_by_ticker[t_ticker].append(t_open)
+            trades_by_ticker[t_ticker.upper()].append(t_open)
 
     def _engagement(ep) -> mw.Engagement:
         # TRADED dominates: a real position on this ticker within ±window of any
         # of the episode's scan days.
-        opens = trades_by_ticker.get(ep.ticker, [])
+        opens = trades_by_ticker.get(ep.ticker.upper(), [])
         if opens:
             lo = pd.Timestamp(ep.first_seen) - pd.Timedelta(days=trade_window_days)
             hi = pd.Timestamp(ep.last_seen) + pd.Timedelta(days=trade_window_days)

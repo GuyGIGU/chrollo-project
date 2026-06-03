@@ -1,8 +1,15 @@
+// Sort keys mirror the archive table columns (see ArchiveTable COLUMNS) so the
+// header-click sort and the filter dropdown stay in sync. 'scan_date' is the
+// episode's first-seen (entry) date.
 export const SORT_OPTIONS = [
-  ['scan_date', 'Date'],
+  ['scan_date', 'Entry'],
+  ['tier', 'Tier'],
   ['score', 'Score'],
-  ['fwd_return_20d', '20d Return'],
-  ['mfe_20d', 'MFE 20d'],
+  ['setup_type', 'Type'],
+  ['scan_count', 'Scans'],
+  ['fwd_return_20d', '20d'],
+  ['r_multiple_20d', 'R'],
+  ['triggered', 'Trig'],
   ['ticker', 'Ticker'],
 ];
 

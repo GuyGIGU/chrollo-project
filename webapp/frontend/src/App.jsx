@@ -128,7 +128,7 @@ function App() {
 
       <Suspense fallback={<ModalFallback />}>
         {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
-        {detailTrade && <TradeDetailDrawer trade={detailTrade} onClose={() => setDetailTrade(null)} />}
+        {detailTrade && <TradeDetailDrawer key={detailTrade.id} trade={detailTrade} onClose={() => setDetailTrade(null)} />}
       </Suspense>
     </div>
   );
