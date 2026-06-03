@@ -17,13 +17,19 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from archive_models import SetupArchive
 from database import get_db
+from services.episode_cache import VersionedCache
 
 router = APIRouter(prefix="/archive", tags=["archive"])
+
+# Caches the (expensive) episode grouping per (filter, archive-version) so
+# repeated requests — every sort-header click re-fetches /archive/episodes —
+# don't rebuild it over the whole table. See services/episode_cache.py.
+_EPISODE_CACHE = VersionedCache()
 
 # This file lives at webapp/backend/routers/archive.py — three levels up
 # from `routers/` (routers → backend → webapp → project root) is where
@@ -179,18 +185,64 @@ def _apply_setup_filters(
     return q
 
 
-def _episode_context(rows, db):
-    """Shared episode view used by the episodes + missed-winners endpoints:
-    group archive rows into episodes, a row-by-id lookup, and the set of
-    (ticker, scan_date) keys the operator marked 'saw & passed'."""
+def _archive_version(db) -> tuple[int, int]:
+    """Coarse signature of the archive's grouping-relevant state. ticker /
+    scan_date / setup_type are immutable after insert, so (max id, row count)
+    fully captures whether episode membership could have changed."""
+    mx, count = db.query(func.max(SetupArchive.id), func.count(SetupArchive.id)).one()
+    return (mx or 0, count or 0)
+
+
+def _build_grouping(db, filters: dict):
+    """Run the authoritative grouper (core.archive.episodes) over the filtered
+    rows. Loads only the four identity columns the grouping needs."""
     from core.archive import episodes as ep_mod
+
+    q = _apply_setup_filters(
+        db.query(
+            SetupArchive.id, SetupArchive.ticker,
+            SetupArchive.scan_date, SetupArchive.setup_type,
+        ),
+        **filters,
+    )
+    return ep_mod.build_episodes(
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        for r in q.all()
+    )
+
+
+def _rows_by_ids(db, ids) -> dict:
+    """Fetch full SetupArchive rows for the given ids, chunked to stay under
+    SQLite's bound-parameter limit."""
+    ids = list(ids)
+    out: dict = {}
+    for start in range(0, len(ids), 900):
+        chunk = ids[start:start + 900]
+        for row in db.query(SetupArchive).filter(SetupArchive.id.in_(chunk)).all():
+            out[row.id] = row
+    return out
+
+
+def _episode_context(db, **filters):
+    """Shared episode view used by the episodes + missed-winners endpoints.
+
+    Returns ``(episodes, canonical-row-by-id, saw-&-passed key set)``. The
+    grouping is cached per (filter, archive-version) so repeated requests don't
+    rebuild it over the whole table; only the canonical row of each episode is
+    then fetched — fresh, so forward returns / labels are never stale. Both
+    callers use only each episode's canonical row.
+    """
     from models import SetupReview
 
-    eps = ep_mod.build_episodes(
-        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
-        for r in rows
+    cache_key = (
+        filters.get("source"), filters.get("tier"), filters.get("setup_type"),
+        filters.get("quality_label"), filters.get("min_score"),
+        filters.get("date_from"), filters.get("date_to"),
     )
-    row_by_id = {r.id: r for r in rows}
+    version = _archive_version(db)
+    eps = _EPISODE_CACHE.get_or_compute(cache_key, version, lambda: _build_grouping(db, filters))
+
+    row_by_id = _rows_by_ids(db, [ep.canonical_id for ep in eps])
     passed_keys = {
         (rv.ticker, rv.scan_date)
         for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
@@ -249,13 +301,11 @@ def list_episodes(
     table shows one row per real setup and stats aren't inflated. Grouping runs
     over the full filtered set, then the result is sorted and paginated.
     """
-    rows = _apply_setup_filters(
-        db.query(SetupArchive),
-        tier=tier, setup_type=setup_type, source=source,
+    eps, row_by_id, passed_keys = _episode_context(
+        db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
-    ).all()
-    eps, row_by_id, passed_keys = _episode_context(rows, db)
+    )
 
     out: List[EpisodeOut] = []
     for ep in eps:
@@ -521,8 +571,7 @@ def missed_winners_report(
     from core.archive import missed_winners as mw
     from models import TradeLog
 
-    rows = _apply_setup_filters(db.query(SetupArchive), source=source).all()
-    eps, row_by_id, passed_keys = _episode_context(rows, db)
+    eps, row_by_id, passed_keys = _episode_context(db, source=source)
 
     # Index trade opens by UPPER-cased ticker so a manually-logged lower/mixed
     # case ticker still matches the (upper-case) archive ticker — otherwise a
