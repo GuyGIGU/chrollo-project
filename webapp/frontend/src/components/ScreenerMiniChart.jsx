@@ -6,6 +6,10 @@ const MAX_VISIBLE_BARS = 72;
 const chartOptions = (width, height) => ({
   width,
   height,
+  // ResizeObserver-backed: keeps the chart matched to the card's real width so
+  // the right price scale can't overflow and get clipped when the responsive
+  // grid sizes cards differently across monitors.
+  autoSize: true,
   layout: {
     background: { type: 'solid', color: '#141721' },
     textColor: '#747c8f',
@@ -88,7 +92,6 @@ const ScreenerMiniChart = ({ ticker, data }) => {
 
     container.innerHTML = '';
     setChartError(false);
-    let disposed = false;
     let chart = null;
 
     try {
@@ -146,27 +149,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       return undefined;
     }
 
-    const handleResize = () => {
-      if (!disposed && container?.isConnected && chart) {
-        try {
-          chart.applyOptions({
-            height: container.clientHeight,
-            width: container.clientWidth,
-          });
-          focusSetupRange(chart, data);
-        } catch {
-          /* container detached */
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    const resizeTimeout = setTimeout(handleResize, 80);
-
     return () => {
-      disposed = true;
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
       if (chart) {
         try {
           chart.remove();
