@@ -1,11 +1,14 @@
 import { SUB_SCORE_CAPS } from './setupScoreMath';
 
+// Tag backgrounds sit quiet (0.12 alpha) so a row of chips reads calm on a dense
+// grid; the meaningful foreground hue is kept, and the warning tag keeps a little
+// more presence (0.16) since it's the one chip meant to catch the eye.
 export const GROUP_TONES = {
-  consolidation: { bg: 'rgba(88,166,255,0.18)', fg: '#58a6ff' },
-  lps: { bg: 'rgba(231,179,65,0.18)', fg: '#e3b341' },
-  volume: { bg: 'rgba(166,226,46,0.18)', fg: '#a6e22e' },
-  trend: { bg: 'rgba(63,185,80,0.18)', fg: '#3fb950' },
-  warning: { bg: 'rgba(248,81,73,0.18)', fg: '#f85149' },
+  consolidation: { bg: 'rgba(88,166,255,0.12)', fg: '#58a6ff' },
+  lps: { bg: 'rgba(231,179,65,0.12)', fg: '#e3b341' },
+  volume: { bg: 'rgba(166,226,46,0.12)', fg: '#a6e22e' },
+  trend: { bg: 'rgba(63,185,80,0.12)', fg: '#3fb950' },
+  warning: { bg: 'rgba(248,81,73,0.16)', fg: '#f85149' },
 };
 
 export const GROUP_ORDER = {

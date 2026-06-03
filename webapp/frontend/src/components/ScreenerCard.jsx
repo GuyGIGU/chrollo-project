@@ -18,11 +18,11 @@ function EarningsChip({ info }) {
   const days = info.days_until;
   if (days < 0 || days > 14) return null;
 
+  // Quieted to a single restrained state; only imminent earnings (<=3d) keeps a
+  // caution tint, since that's the case actually worth catching the eye.
   const tone = days <= 3
-    ? { bg: 'rgba(242,103,112,0.18)', fg: '#ff8c8c' }
-    : days <= 7
-      ? { bg: 'rgba(240,190,60,0.16)', fg: '#f0be3c' }
-      : { bg: 'rgba(88,166,255,0.15)', fg: '#58a6ff' };
+    ? { bg: 'var(--warning-bg)', fg: 'var(--warning)' }
+    : { bg: 'rgba(255,255,255,0.05)', fg: 'var(--text-muted)' };
 
   return (
     <span

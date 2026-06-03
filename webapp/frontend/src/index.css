@@ -498,6 +498,18 @@ td {
   color: #e3b341;
 }
 
+/* On the screener card the sub-score pills are secondary to the hero score,
+   so they recede to neutral — their "Visual" / "Market" labels still tell them
+   apart without each carrying its own hue. The detail modal (non-compact) keeps
+   the color coding, where there's room for it and less competing color. */
+.score-breakdown-compact .score-pill-visual,
+.score-breakdown-compact .score-pill-market,
+.score-breakdown-compact .score-pill-fusion {
+  border-color: var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
 @media (max-width: 760px) {
   .screener-modal-shell {
     min-width: 0;
