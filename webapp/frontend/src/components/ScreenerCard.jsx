@@ -177,7 +177,19 @@ function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed,
 
 const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick }) => (
   <div
+    className="screener-card"
+    role="button"
+    tabIndex={0}
+    aria-label={`Open ${ticker} chart — ${data.setup}, tier ${data.tier}, score ${data.score}`}
     onClick={() => onClick(ticker)}
+    onKeyDown={(event) => {
+      // Make the card a real keyboard target: Enter/Space open it, matching the
+      // click. preventDefault stops Space from scrolling the page.
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onClick(ticker);
+      }
+    }}
     style={{
       background: 'var(--bg-panel)',
       border: '1px solid var(--border-color)',

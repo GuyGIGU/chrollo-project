@@ -510,6 +510,14 @@ td {
   color: var(--text-muted);
 }
 
+/* Keyboard focus ring for the screener cards (now role=button, Enter/Space to
+   open). :focus-visible keeps the ring off mouse clicks but shows it for
+   keyboard navigation, so a power user can sweep the grid. */
+.screener-card:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
 @media (max-width: 760px) {
   .screener-modal-shell {
     min-width: 0;
