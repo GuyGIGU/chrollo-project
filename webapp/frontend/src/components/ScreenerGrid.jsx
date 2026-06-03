@@ -6,6 +6,7 @@ import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from './ScreenerWatchlistPanel';
 import useScanRunner from '../hooks/useScanRunner';
+import useReviews from '../hooks/useReviews';
 import useScreenerData from '../hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../hooks/useWatchlist';
@@ -13,6 +14,7 @@ import useWatchlist from '../hooks/useWatchlist';
 const ScreenerGrid = () => {
   const [activeModalTicker, setActiveModalTicker] = useState(null);
   const { watchlist, toggleWatchlist } = useWatchlist();
+  const { passed, togglePassed } = useReviews();
   const { screenerData, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData();
   const filters = useScreenerFilters(screenerData, watchlist);
   const scan = useScanRunner(fetchScreener);
@@ -96,6 +98,8 @@ const ScreenerGrid = () => {
                 earnings={earningsByTicker[ticker]}
                 watchlisted={watchlist.has(ticker)}
                 onToggleWatchlist={toggleWatchlist}
+                passed={passed.has(ticker)}
+                onTogglePassed={togglePassed}
                 onClick={setActiveModalTicker}
               />
             ))}

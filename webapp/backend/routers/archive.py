@@ -254,6 +254,33 @@ def _canonical_setups(db, **filters) -> list:
     return [row_by_id[ep.canonical_id] for ep in eps if ep.canonical_id in row_by_id]
 
 
+def _latest_episode_first_seen(db, ticker: str) -> Optional[str]:
+    """First-seen (entry-anchor) date of a ticker's most-recent episode.
+
+    A live screener card has no scan_date of its own, but a 'saw & passed'
+    mark from the screener must land on the SAME (ticker, first_seen) key the
+    archive episode table and the missed-winners report key on — otherwise the
+    two surfaces disagree and a passed winner buckets as 'never engaged'.
+    Resolving to the latest episode's first-seen keeps them in lock-step.
+    Returns None if the ticker has never been archived (nothing to mark yet).
+    """
+    from core.archive import episodes as ep_mod
+
+    rows = db.query(
+        SetupArchive.id, SetupArchive.ticker,
+        SetupArchive.scan_date, SetupArchive.setup_type,
+    ).filter(func.upper(SetupArchive.ticker) == ticker).all()
+    if not rows:
+        return None
+    eps = ep_mod.build_episodes(
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        for r in rows
+    )
+    if not eps:
+        return None
+    return max(eps, key=lambda e: e.last_seen).first_seen
+
+
 def _episode_context(db, **filters):
     """Shared episode view used by the episodes + missed-winners endpoints.
 
@@ -540,13 +567,18 @@ def update_label(setup_id: int, payload: LabelUpdate, db: Session = Depends(get_
 
 class ReviewToggleIn(BaseModel):
     ticker: str
-    scan_date: str       # the setup's scan_date / episode first-seen date
+    # Explicit for an archive-table row (the episode first-seen date); omitted
+    # by the live screener, where it's resolved to the ticker's current episode.
+    scan_date: Optional[str] = None
 
 
 @router.post("/reviews/toggle")
 def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Toggle a 'saw & passed' marker for (ticker, scan_date); returns new state.
+    """Toggle a 'saw & passed' marker for a setup; returns the new state.
 
+    Callers pass an explicit ``scan_date`` (an archive-table row) or omit it
+    (a live screener card), in which case it resolves to the ticker's current
+    episode first-seen — the same key the archive and missed-winners report use.
     Lets the missed-winners report tell 'reviewed but skipped' apart from
     'never engaged'.
     """
@@ -555,9 +587,13 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     from models import SetupReview
 
     ticker = payload.ticker.strip().upper()
-    scan_date = payload.scan_date.strip()
-    if not ticker or not scan_date:
-        raise HTTPException(status_code=400, detail="ticker and scan_date required")
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+    scan_date = (payload.scan_date or "").strip()
+    if not scan_date:
+        scan_date = _latest_episode_first_seen(db, ticker)
+        if not scan_date:
+            raise HTTPException(status_code=404, detail=f"No archived setup for {ticker} to mark")
 
     existing = (
         db.query(SetupReview)
@@ -574,6 +610,21 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     ))
     db.commit()
     return {"ticker": ticker, "scan_date": scan_date, "passed": True}
+
+
+@router.get("/reviews/passed")
+def list_passed_reviews(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Distinct tickers carrying a 'saw & passed' marker, so the live screener
+    can show which of today's cards you've already reviewed and skipped."""
+    from models import SetupReview
+
+    rows = (
+        db.query(SetupReview.ticker)
+        .filter(SetupReview.verdict == "passed")
+        .distinct()
+        .all()
+    )
+    return {"tickers": sorted({r.ticker for r in rows})}
 
 
 @router.get("/missed-winners")

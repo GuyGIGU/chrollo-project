@@ -69,7 +69,34 @@ function WatchlistButton({ active, onToggle }) {
   );
 }
 
-function CardHeader({ data, earnings, onToggleWatchlist, ticker, watchlisted }) {
+function PassButton({ active, onToggle }) {
+  return (
+    <button
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      title={active ? 'Seen & passed — click to undo' : 'Mark seen & passed (reviewed, skipping this setup)'}
+      style={{
+        background: active ? 'rgba(242,103,112,0.16)' : 'transparent',
+        border: '1px solid var(--border-color)',
+        borderRadius: 6,
+        color: active ? '#ff8c8c' : '#6b6b7a',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 12,
+        height: 22,
+        lineHeight: 1,
+        pointerEvents: 'auto',
+        width: 22,
+      }}
+    >
+      {active ? '✓' : '⊘'}
+    </button>
+  );
+}
+
+function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed, ticker, watchlisted }) {
   return (
     <div
       style={{
@@ -92,6 +119,7 @@ function CardHeader({ data, earnings, onToggleWatchlist, ticker, watchlisted }) 
         minWidth: 0,
       }}>
         <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
+        <PassButton active={passed} onToggle={() => onTogglePassed(ticker)} />
         <div style={{ alignItems: 'baseline', display: 'flex', gap: 6, minWidth: 0 }}>
           <span style={{ color: tierColor(data.tier), fontSize: 17, fontWeight: 850, lineHeight: 1 }}>
             {ticker}
@@ -113,7 +141,7 @@ function CardHeader({ data, earnings, onToggleWatchlist, ticker, watchlisted }) 
   );
 }
 
-const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, onClick }) => (
+const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick }) => (
   <div
     onClick={() => onClick(ticker)}
     style={{
@@ -123,8 +151,10 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       cursor: 'pointer',
       display: 'flex',
       flexDirection: 'column',
+      // Passed cards are dimmed so the grid reads as "what's left to review".
+      opacity: passed ? 0.5 : 1,
       overflow: 'hidden',
-      transition: 'border-color 0.16s ease, background 0.16s ease',
+      transition: 'border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease',
     }}
     onMouseEnter={(event) => {
       event.currentTarget.style.borderColor = 'rgba(91,138,255,0.58)';
@@ -138,7 +168,9 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     <CardHeader
       data={data}
       earnings={earnings}
+      onTogglePassed={onTogglePassed}
       onToggleWatchlist={onToggleWatchlist}
+      passed={passed}
       ticker={ticker}
       watchlisted={watchlisted}
     />
