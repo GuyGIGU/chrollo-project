@@ -72,16 +72,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Flat dark canvas. Depth comes from the surface ramp (panels/cards step
+   lighter), not a decorative background glow — the Tonal-Depth Rule, and one
+   less "over-designed" tell. */
 .app-layout {
   display: flex;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background:
-    radial-gradient(900px 500px at 18% -10%, rgba(74, 122, 255, 0.10), transparent 60%),
-    radial-gradient(700px 500px at 95% 110%, rgba(139, 92, 246, 0.08), transparent 60%),
-    radial-gradient(600px 400px at 100% 0%, rgba(74, 122, 255, 0.06), transparent 55%),
-    var(--bg-main);
+  background: var(--bg-main);
 }
 
 /* SIDEBAR */
@@ -105,12 +104,10 @@ body {
   gap: 0.5rem;
 }
 
+/* Solid wordmark. The gradient-text + glow was a decorative tell against the
+   "over-designed" anti-reference; weight (700, from .brand) carries the emphasis. */
 .brand-text {
-  background: linear-gradient(135deg, #FFFFFF 0%, #B7C9FF 55%, var(--accent-blue) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 12px rgba(74, 122, 255, 0.25));
+  color: var(--text-main);
 }
 
 .account-info {
