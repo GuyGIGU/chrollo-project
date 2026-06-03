@@ -21,7 +21,7 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
       if (sourceParam) params.set('source', sourceParam);
 
       const [setupsRes, statsRes, calRes, eqRes] = await Promise.all([
-        fetch(`${API_BASE}/archive/setups?${params.toString()}`),
+        fetch(`${API_BASE}/archive/episodes?${params.toString()}`),
         fetch(`${API_BASE}/archive/stats`),
         fetch(`${API_BASE}/archive/calibration`),
         fetch(`${API_BASE}/archive/calibration/equity-curve`),
@@ -76,6 +76,25 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
     }
   }, []);
 
+  // "saw & passed" toggle, keyed to the episode's first-seen (entry) date.
+  const togglePassed = useCallback(async (ticker, scanDate) => {
+    try {
+      const response = await fetch(`${API_BASE}/archive/reviews/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, scan_date: scanDate }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setSetups(previous => previous.map(setup =>
+        (setup.ticker === ticker && setup.first_seen === scanDate)
+          ? { ...setup, passed: data.passed }
+          : setup));
+    } catch (error) {
+      console.error('Failed to toggle passed:', error);
+    }
+  }, []);
+
   return {
     calibration,
     equityCurve,
@@ -84,6 +103,7 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
     setSetups,
     setups,
     stats,
+    togglePassed,
     updateMsg,
     updateReturns,
     updateSetupLabel,

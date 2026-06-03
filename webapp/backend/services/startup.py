@@ -26,6 +26,8 @@ _MIGRATIONS = [
     "ALTER TABLE trade_logs ADD COLUMN ibkr_account VARCHAR",
     "ALTER TABLE trade_logs ADD COLUMN perm_id VARCHAR",
     "ALTER TABLE trade_logs ADD COLUMN planned_stop FLOAT",
+    "ALTER TABLE trade_logs ADD COLUMN conviction INTEGER",
+    "ALTER TABLE trade_logs ADD COLUMN exit_reason TEXT",
     "ALTER TABLE setup_archive ADD COLUMN r_anchor INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN s_anchor INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN score_uptrend_bonus FLOAT",

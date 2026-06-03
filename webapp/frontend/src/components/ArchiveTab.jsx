@@ -8,10 +8,10 @@ import AddSetupModal from './archive/AddSetupModal';
 import ArchiveCalibrationPanels from './archive/ArchiveCalibrationPanels';
 import ArchiveEquityCurve from './archive/ArchiveEquityCurve';
 import ArchiveFilters from './archive/ArchiveFilters';
-import ArchiveGrid from './archive/ArchiveGrid';
 import ArchiveHeader from './archive/ArchiveHeader';
 import ArchiveReweightingStrip from './archive/ArchiveReweightingStrip';
 import ArchiveSummary from './archive/ArchiveSummary';
+import ArchiveTable from './archive/ArchiveTable';
 import ArchiveTierCards from './archive/ArchiveTierCards';
 import { ArchiveAnalysisModal, ScanHistoryModal } from './ArchiveMaintenanceModals';
 import ScreenerModal from './ScreenerModal';
@@ -50,6 +50,16 @@ export default function ArchiveTab() {
     if (patch.typeFilter !== undefined) setTypeFilter(patch.typeFilter);
   };
 
+  const handleSort = (key) => {
+    if (sortBy === key) {
+      setSortDir(dir => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key);
+      setSortDir('desc');
+    }
+    grid.resetPage();
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <ChartViewer chart={chart} />
@@ -68,15 +78,17 @@ export default function ArchiveTab() {
       <ArchiveReweightingStrip data={data.calibration?.suggested_weights} basis={data.calibration?.weights_basis} />
       {data.equityCurve && <ArchiveEquityCurve data={data.equityCurve} />}
       <ArchiveFilters filters={filters} resetPage={grid.resetPage} setFilters={setFilters} />
-      <ArchiveGrid
-        bulkCharts={grid.bulkCharts}
-        bulkLoading={grid.bulkLoading}
+      <ArchiveTable
         currentPage={grid.currentPage}
         filteredSetups={grid.filteredSetups}
         onLabelChange={data.updateSetupLabel}
-        onOpenChart={setup => chart.openChart(setup, grid.bulkCharts)}
+        onOpenChart={chart.openChart}
+        onSort={handleSort}
+        onTogglePassed={data.togglePassed}
         pageSetups={grid.pageSetups}
         setCurrentPage={grid.setCurrentPage}
+        sortBy={sortBy}
+        sortDir={sortDir}
         totalPages={grid.totalPages}
       />
     </div>

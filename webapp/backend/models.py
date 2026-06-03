@@ -55,6 +55,10 @@ class TradeLog(Base):
     perm_id = Column(String, nullable=True, index=True)
     planned_stop = Column(Float, nullable=True)  # original stop used for R-multiple
 
+    # Intent capture (engine-validation pivot): the minimal per-trade "why".
+    conviction = Column(Integer, nullable=True)   # 1-3 pre-trade conviction
+    exit_reason = Column(Text, nullable=True)     # one-line "why I exited"
+
     tags = relationship(
         "Tag",
         secondary="trade_tags",
@@ -171,6 +175,28 @@ class Watchlist(Base):
 
     ticker = Column(String, primary_key=True, index=True)
     created_at = Column(DateTime, nullable=True)
+
+
+class SetupReview(Base):
+    """A 'saw & passed' decision on a screener/archive setup.
+
+    Lets the missed-winners analysis tell 'reviewed but skipped' apart from
+    'never engaged' — keyed to the setup's (ticker, scan_date) so it works for
+    both today's screener cards and historical archive rows.
+    """
+
+    __tablename__ = "setup_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    scan_date = Column(String, nullable=False, index=True)
+    verdict = Column(String, nullable=False, default="passed")  # "passed"
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "scan_date", name="uq_setup_review"),
+    )
 
 
 class PortfolioSnapshotCache(Base):

@@ -122,6 +122,16 @@ class SetupOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EpisodeOut(SetupOut):
+    """A setup collapsed to one row per *episode*: the first-seen (canonical)
+    row plus how long the base persisted across daily re-flags."""
+
+    scan_count: int       # number of daily scans that flagged this base
+    first_seen: str       # == canonical scan_date (the entry anchor)
+    last_seen: str        # latest scan that still flagged the same base
+    passed: bool = False  # operator reviewed this setup and skipped it
+
+
 class LabelUpdate(BaseModel):
     quality_label: Optional[str] = None
     notes: Optional[str] = None
@@ -136,24 +146,18 @@ class ManualSetupIn(BaseModel):
 
 # ── List / Detail ────────────────────────────────────────────────
 
-@router.get("/setups", response_model=List[SetupOut])
-def list_setups(
-    skip: int = 0,
-    limit: int = 200,
-    tier: Optional[str] = Query(None),
-    setup_type: Optional[str] = Query(None),
-    source: Optional[str] = Query(None),
-    quality_label: Optional[str] = Query(None),
-    min_score: Optional[float] = Query(None),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
-    sort_by: str = Query("scan_date"),
-    sort_dir: str = Query("desc"),
-    db: Session = Depends(get_db),
+def _apply_setup_filters(
+    q,
+    *,
+    tier: Optional[str] = None,
+    setup_type: Optional[str] = None,
+    source: Optional[str] = None,
+    quality_label: Optional[str] = None,
+    min_score: Optional[float] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
 ):
-    """List archived setups with filtering and sorting."""
-    q = db.query(SetupArchive)
-
+    """Apply the shared setup_archive filters used by the list + episode views."""
     if tier:
         q = q.filter(SetupArchive.tier == tier.upper())
     if setup_type:
@@ -172,15 +176,101 @@ def list_setups(
         q = q.filter(SetupArchive.scan_date >= date_from)
     if date_to:
         q = q.filter(SetupArchive.scan_date <= date_to)
+    return q
 
-    # Sorting
+
+@router.get("/setups", response_model=List[SetupOut])
+def list_setups(
+    skip: int = 0,
+    limit: int = 200,
+    tier: Optional[str] = Query(None),
+    setup_type: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    quality_label: Optional[str] = Query(None),
+    min_score: Optional[float] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    sort_by: str = Query("scan_date"),
+    sort_dir: str = Query("desc"),
+    db: Session = Depends(get_db),
+):
+    """List archived setups with filtering and sorting."""
+    q = _apply_setup_filters(
+        db.query(SetupArchive),
+        tier=tier, setup_type=setup_type, source=source,
+        quality_label=quality_label, min_score=min_score,
+        date_from=date_from, date_to=date_to,
+    )
+
     sort_col = getattr(SetupArchive, sort_by, SetupArchive.scan_date)
-    if sort_dir == "asc":
-        q = q.order_by(sort_col)
-    else:
-        q = q.order_by(desc(sort_col))
-
+    q = q.order_by(sort_col if sort_dir == "asc" else desc(sort_col))
     return q.offset(skip).limit(limit).all()
+
+
+@router.get("/episodes", response_model=List[EpisodeOut])
+def list_episodes(
+    skip: int = 0,
+    limit: int = 200,
+    tier: Optional[str] = Query(None),
+    setup_type: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    quality_label: Optional[str] = Query(None),
+    min_score: Optional[float] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    sort_by: str = Query("first_seen"),
+    sort_dir: str = Query("desc"),
+    db: Session = Depends(get_db),
+):
+    """List setups collapsed to one row per *episode*.
+
+    A persisting base is re-flagged every scan; an episode groups those daily
+    re-flags (same ticker + setup_type, consecutive scan dates) into one event
+    anchored to the first-seen row — de-duplicating continuation rows so the
+    table shows one row per real setup and stats aren't inflated. Grouping runs
+    over the full filtered set, then the result is sorted and paginated.
+    """
+    from core.archive import episodes as ep_mod
+
+    rows = _apply_setup_filters(
+        db.query(SetupArchive),
+        tier=tier, setup_type=setup_type, source=source,
+        quality_label=quality_label, min_score=min_score,
+        date_from=date_from, date_to=date_to,
+    ).all()
+
+    eps = ep_mod.build_episodes(
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        for r in rows
+    )
+    row_by_id = {r.id: r for r in rows}
+
+    # "saw & passed" markers, keyed to the episode's first-seen (entry) date.
+    from models import SetupReview
+    passed_keys = {
+        (rv.ticker, rv.scan_date)
+        for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
+    }
+
+    out: List[EpisodeOut] = []
+    for ep in eps:
+        canonical = SetupOut.model_validate(row_by_id[ep.canonical_id])
+        out.append(EpisodeOut(
+            **canonical.model_dump(),
+            scan_count=ep.scan_count,
+            first_seen=ep.first_seen,
+            last_seen=ep.last_seen,
+            passed=(ep.ticker, ep.first_seen) in passed_keys,
+        ))
+
+    # Episodes are derived (not a DB column), so sort in Python. Nulls sort last
+    # in either direction so missing returns/scores don't break the comparison.
+    non_null = [e for e in out if getattr(e, sort_by, None) is not None]
+    nulls = [e for e in out if getattr(e, sort_by, None) is None]
+    non_null.sort(key=lambda e: getattr(e, sort_by), reverse=(sort_dir != "asc"))
+    out = non_null + nulls
+
+    return out[skip: skip + limit]
 
 
 @router.get("/setups/{setup_id}", response_model=SetupOut)
@@ -303,101 +393,6 @@ def _build_annotations(setup, ratio: float = 1.0) -> Dict[str, Any]:
     }
 
 
-class ChartBatchIn(BaseModel):
-    ids: List[int]
-
-
-@router.post("/charts/batch")
-def get_setup_charts_batch(payload: ChartBatchIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Fetch chart data for many setups in one call.
-
-    Groups by ticker so we do one yfinance download per unique ticker (covering
-    the union of date ranges across that ticker's setups), then slices per
-    setup. Critical for the grid view — calling /chart per card would be
-    hundreds of network round trips.
-
-    Returns ``{<setup_id_str>: {candles, volumes, R, S, base_len, lps_len,
-    lps_offset, r_anchor, s_anchor, tier, setup, score, forward_bars}}``.
-    Missing IDs / failed downloads are silently omitted from the response.
-    """
-    if not payload.ids:
-        return {}
-
-    import pandas as pd
-    import yfinance as yf
-
-    setups = db.query(SetupArchive).filter(SetupArchive.id.in_(payload.ids)).all()
-    if not setups:
-        return {}
-
-    # Group by ticker, compute the union date window per ticker.
-    by_ticker: Dict[str, List[SetupArchive]] = defaultdict(list)
-    for s in setups:
-        by_ticker[s.ticker].append(s)
-
-    out: Dict[str, Any] = {}
-    for ticker, group in by_ticker.items():
-        try:
-            min_dt = min(pd.Timestamp(s.scan_date) for s in group)
-            max_dt = max(pd.Timestamp(s.scan_date) for s in group)
-            start = (min_dt - pd.Timedelta(days=500)).strftime("%Y-%m-%d")
-            end = (max_dt + pd.Timedelta(days=45)).strftime("%Y-%m-%d")
-            raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True, timeout=30)
-            if raw is None or raw.empty:
-                continue
-            if hasattr(raw.columns, "nlevels") and raw.columns.nlevels > 1:
-                raw.columns = raw.columns.droplevel("Ticker")
-        except Exception:
-            continue
-
-        for s in group:
-            try:
-                target = pd.Timestamp(s.scan_date)
-                # Re-scale stored R/S/trigger onto the freshly-adjusted candle
-                # scale (computed against the full ticker download `raw`, which
-                # always contains the scan_date bar).
-                ratio = _adjustment_ratio(raw, target, s.current_price)
-                # Window: 500 cal days back through scan_date + 45 cal days forward
-                lo = target - pd.Timedelta(days=500)
-                hi = target + pd.Timedelta(days=45)
-                window = raw[(raw.index >= lo) & (raw.index <= hi)]
-                if window.empty:
-                    continue
-
-                candles, volumes, forward_bars = [], [], 0
-                for dt, row in window.iterrows():
-                    dt_str = dt.strftime("%Y-%m-%d")
-                    if dt > target:
-                        forward_bars += 1
-                    o = float(row["Open"]); h = float(row["High"])
-                    l = float(row["Low"]); c = float(row["Close"])
-                    v = int(row["Volume"])
-                    candles.append({"time": dt_str, "open": o, "high": h, "low": l, "close": c})
-                    color = "rgba(38, 166, 154, 0.5)" if c >= o else "rgba(239, 83, 80, 0.5)"
-                    volumes.append({"time": dt_str, "value": v, "color": color})
-
-                out[str(s.id)] = {
-                    "candles": candles,
-                    "volumes": volumes,
-                    "base_len": s.base_length or 0,
-                    "R": (s.r_level * ratio) if s.r_level else s.r_level,
-                    "S": (s.s_level * ratio) if s.s_level else s.s_level,
-                    "lps_len": s.lps_length or 0,
-                    "lps_offset": 0,
-                    "r_anchor": s.r_anchor,
-                    "s_anchor": s.s_anchor,
-                    "tier": s.tier,
-                    "setup": s.setup_type,
-                    "score": s.score,
-                    "forward_bars": forward_bars,
-                    "annotations": _build_annotations(s, ratio),
-                }
-            except Exception:
-                continue
-
-    return out
-
-
 @router.get("/setups/{setup_id}/linked-trades")
 def linked_trades(
     setup_id: int,
@@ -461,6 +456,112 @@ def update_label(setup_id: int, payload: LabelUpdate, db: Session = Depends(get_
     db.commit()
     db.refresh(setup)
     return {"status": "ok", "id": setup.id, "quality_label": setup.quality_label}
+
+
+# ── Saw-and-passed marker + missed-winners report ────────────────
+
+class ReviewToggleIn(BaseModel):
+    ticker: str
+    scan_date: str       # the setup's scan_date / episode first-seen date
+
+
+@router.post("/reviews/toggle")
+def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Toggle a 'saw & passed' marker for (ticker, scan_date); returns new state.
+
+    Lets the missed-winners report tell 'reviewed but skipped' apart from
+    'never engaged'.
+    """
+    from datetime import datetime
+
+    from models import SetupReview
+
+    ticker = payload.ticker.strip().upper()
+    scan_date = payload.scan_date.strip()
+    if not ticker or not scan_date:
+        raise HTTPException(status_code=400, detail="ticker and scan_date required")
+
+    existing = (
+        db.query(SetupReview)
+        .filter(SetupReview.ticker == ticker, SetupReview.scan_date == scan_date)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return {"ticker": ticker, "scan_date": scan_date, "passed": False}
+
+    db.add(SetupReview(
+        ticker=ticker, scan_date=scan_date, verdict="passed", created_at=datetime.utcnow(),
+    ))
+    db.commit()
+    return {"ticker": ticker, "scan_date": scan_date, "passed": True}
+
+
+@router.get("/missed-winners")
+def missed_winners_report(
+    min_r: float = Query(2.0, ge=0),
+    source: str = Query("screener"),
+    trade_window_days: int = Query(7, ge=0, le=30),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Engine-validation payoff: winners (>= min_r in 60d) the engine flagged,
+    bucketed by traded / saw-and-passed / never-engaged.
+
+    Built on episodes so a persisting base isn't double-counted. The winner
+    tallies fill in as 60-day forward returns mature; until then matured==0.
+    """
+    import pandas as pd
+
+    from core.archive import episodes as ep_mod
+    from core.archive import missed_winners as mw
+    from models import SetupReview, TradeLog
+
+    rows = _apply_setup_filters(db.query(SetupArchive), source=source).all()
+    eps = ep_mod.build_episodes(
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        for r in rows
+    )
+    row_by_id = {r.id: r for r in rows}
+
+    passed_keys = {
+        (rv.ticker, rv.scan_date)
+        for rv in db.query(SetupReview).filter(SetupReview.verdict == "passed").all()
+    }
+    trades_by_ticker: Dict[str, List[str]] = defaultdict(list)
+    for t_ticker, t_open in db.query(TradeLog.ticker, TradeLog.opening_date).all():
+        if t_ticker and t_open:
+            trades_by_ticker[t_ticker].append(t_open)
+
+    def _engagement(ep) -> mw.Engagement:
+        # TRADED dominates: a real position on this ticker within ±window of any
+        # of the episode's scan days.
+        opens = trades_by_ticker.get(ep.ticker, [])
+        if opens:
+            lo = pd.Timestamp(ep.first_seen) - pd.Timedelta(days=trade_window_days)
+            hi = pd.Timestamp(ep.last_seen) + pd.Timedelta(days=trade_window_days)
+            for od in opens:
+                try:
+                    if lo <= pd.Timestamp(od) <= hi:
+                        return mw.Engagement.TRADED
+                except (ValueError, TypeError):
+                    continue
+        if (ep.ticker, ep.first_seen) in passed_keys:
+            return mw.Engagement.SAW_AND_PASSED
+        return mw.Engagement.NEVER_ENGAGED
+
+    outcomes = [
+        mw.EpisodeOutcome(
+            ticker=ep.ticker,
+            first_seen=ep.first_seen,
+            tier=row_by_id[ep.canonical_id].tier,
+            score=row_by_id[ep.canonical_id].score,
+            r_multiple_60d=row_by_id[ep.canonical_id].r_multiple_60d,
+            engagement=_engagement(ep),
+        )
+        for ep in eps
+    ]
+    return mw.summarize(outcomes, min_r=min_r)
 
 
 # ── Stats & Calibration ─────────────────────────────────────────

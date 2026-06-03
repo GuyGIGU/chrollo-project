@@ -39,6 +39,10 @@ class TradeLogBase(BaseModel):
     pnl: Optional[float] = None
     actions_json: Optional[str] = None
 
+    # Intent capture: 1-3 pre-trade conviction + one-line exit reason.
+    conviction: Optional[int] = None
+    exit_reason: Optional[str] = None
+
 class TradeLogCreate(TradeLogBase):
     pass
 
@@ -58,6 +62,8 @@ class TradeLogUpdate(BaseModel):
     commissions: Optional[float] = None
     pnl: Optional[float] = None
     actions_json: Optional[str] = None
+    conviction: Optional[int] = None
+    exit_reason: Optional[str] = None
 
 class TradeLog(TradeLogBase):
     id: int

@@ -103,9 +103,10 @@ def archive_scan_results(
 ) -> int:
     """Persist every row in results_df to the setup_archive table.
 
-    Disabled by default: the archive is a curated regression suite for
-    seed/manual setups (see core/archive/seed.py and /archive/add-setup),
-    not a log of every daily scan. Pass enable=True to opt back in.
+    Gated by settings.ARCHIVE_LIVE_SCANS (passed in as ``enable``). Live
+    archiving is the engine-validation strategy: every daily signal becomes
+    part of the unbiased record whose forward returns measure the screener's
+    real edge. enable=False only suppresses writes (e.g. ad-hoc/test scans).
     """
     if not enable:
         return 0
