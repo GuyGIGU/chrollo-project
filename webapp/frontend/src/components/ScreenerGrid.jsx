@@ -132,7 +132,7 @@ function EmptyState({ message }) {
 const gridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
+  gap: '10px',
   width: '100%',
 };
 

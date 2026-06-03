@@ -19,13 +19,13 @@ const ArchiveCard = memo(({ chartData, onClick, onLabelChange, setup }) => {
       style={{
         background: 'var(--bg-panel)',
         border: '1px solid var(--border-color)',
-        borderRadius: '8px',
+        borderRadius: '6px',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        height: '340px',
+        height: '282px',
         overflow: 'hidden',
-        transition: 'border-color 0.2s',
+        transition: 'border-color 0.16s ease, background 0.16s ease',
       }}
     >
       <CardHeader setup={setup} subScores={subScores} />
@@ -40,8 +40,13 @@ const ArchiveCard = memo(({ chartData, onClick, onLabelChange, setup }) => {
         style={{
           background: 'var(--bg-main)',
           borderTop: '1px solid var(--border-color)',
-          padding: '6px 10px',
+          flexWrap: 'nowrap',
+          height: '28px',
+          overflow: 'hidden',
+          padding: '4px 8px',
         }}
+        compact
+        maxTags="auto"
         subScores={subScores}
       />
     </div>
@@ -51,16 +56,18 @@ const ArchiveCard = memo(({ chartData, onClick, onLabelChange, setup }) => {
 function CardHeader({ setup, subScores }) {
   return (
     <div style={{
-      alignItems: 'flex-start',
-      borderBottom: '1px solid var(--border-color)',
+      alignItems: 'center',
+      background: 'rgba(20, 23, 33, 0.98)',
+      borderBottom: '1px solid rgba(255,255,255,0.055)',
       display: 'flex',
-      flexWrap: 'wrap',
       gap: '8px',
       justifyContent: 'space-between',
-      padding: '10px 14px',
+      minHeight: '34px',
+      overflow: 'hidden',
+      padding: '5px 8px',
     }}>
       <div style={{ alignItems: 'baseline', display: 'flex', gap: '8px', minWidth: 0 }}>
-        <span style={{ color: tierColor(setup.tier), fontSize: '15px', fontWeight: '700' }}>{setup.ticker}</span>
+        <span style={{ color: tierColor(setup.tier), fontSize: '17px', fontWeight: '850', lineHeight: 1 }}>{setup.ticker}</span>
         <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{setup.scan_date}</span>
       </div>
       <div className="screener-card-score-meta">
@@ -77,7 +84,7 @@ function CardHeader({ setup, subScores }) {
 function CardChart({ chartContainerRef, chartData, chartError }) {
   if (chartError) return <ChartPlaceholder text="Chart failed to load" />;
   if (!chartData) return <ChartPlaceholder text="Loading chart..." />;
-  return <div ref={chartContainerRef} style={{ flex: 1, pointerEvents: 'none', position: 'relative' }} />;
+  return <div ref={chartContainerRef} style={{ flex: 1, minHeight: '150px', pointerEvents: 'none', position: 'relative' }} />;
 }
 
 function ChartPlaceholder({ text }) {
@@ -103,10 +110,10 @@ function CardFooter({ fwdColor, onLabelChange, setup }) {
       borderTop: '1px solid var(--border-color)',
       color: 'var(--text-muted)',
       display: 'flex',
-      fontSize: '11px',
+      fontSize: '10px',
       gap: '8px',
       justifyContent: 'space-between',
-      padding: '8px 14px',
+      padding: '6px 8px',
     }}>
       <span style={{ alignItems: 'center', display: 'flex', gap: '8px' }}>
         <span>{setup.setup_type}</span>
