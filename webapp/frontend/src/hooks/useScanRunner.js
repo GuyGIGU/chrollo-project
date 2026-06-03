@@ -6,6 +6,7 @@ function useScanRunner(fetchScreener) {
   const [scanLogs, setScanLogs] = useState([]);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState('');
+  const [scanError, setScanError] = useState(null);
   const scanSourceRef = useRef(null);
 
   useEffect(() => () => closeScanSource(scanSourceRef), []);
@@ -13,6 +14,7 @@ function useScanRunner(fetchScreener) {
   const handleRunScan = () => {
     closeScanSource(scanSourceRef);
     setIsScanning(true);
+    setScanError(null);
     setScanLogs([]);
     setScanProgress(0);
     setScanPhase('Initializing pipeline...');
@@ -52,10 +54,15 @@ function useScanRunner(fetchScreener) {
       setIsScanning(false);
       setScanProgress(0);
       setScanPhase('');
+      // Only a real failure if results were never revealed; a benign error event
+      // can fire as the stream closes after a successful run.
+      if (!resultsRevealed) {
+        setScanError('The market scan stopped before results were ready. Make sure the backend is running, then run the scan again.');
+      }
     };
   };
 
-  return { isScanning, scanLogs, scanProgress, scanPhase, handleRunScan };
+  return { isScanning, scanLogs, scanProgress, scanPhase, scanError, handleRunScan };
 }
 
 function closeScanSource(scanSourceRef) {

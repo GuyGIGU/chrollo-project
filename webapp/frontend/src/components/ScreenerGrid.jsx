@@ -85,7 +85,11 @@ const ScreenerGrid = () => {
         scanLogs={scan.scanLogs}
       />
 
-      {!hasScreenerData && !scan.isScanning && <EmptyState message="Loading Screener Data... (If this takes more than a moment, run a new market scan!)" />}
+      {scan.scanError && !scan.isScanning && (
+        <ScanErrorBanner message={scan.scanError} onRetry={scan.handleRunScan} />
+      )}
+
+      {!hasScreenerData && !scan.isScanning && !scan.scanError && <EmptyState message="Loading Screener Data... (If this takes more than a moment, run a new market scan!)" />}
       {hasScreenerData && !scan.isScanning && filters.paginatedTickers.length === 0 && <EmptyState message="No setups found matching current filters." />}
       {hasScreenerData && !scan.isScanning && filters.paginatedTickers.length > 0 && (
         <>
@@ -132,6 +136,46 @@ function EmptyState({ message }) {
     </div>
   );
 }
+
+// Shown when a scan stops before results arrive (the EventSource errored). Tells
+// the user what happened and offers a one-click retry, instead of stranding them
+// on the generic "Loading…" line.
+function ScanErrorBanner({ message, onRetry }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        alignItems: 'center',
+        background: 'var(--danger-bg)',
+        border: '1px solid rgba(242,103,112,0.35)',
+        borderRadius: 'var(--radius-sm)',
+        color: 'var(--text-main)',
+        display: 'flex',
+        gap: '12px',
+        justifyContent: 'space-between',
+        padding: '12px 16px',
+      }}
+    >
+      <span style={{ fontSize: '13px' }}>
+        <strong style={{ color: 'var(--danger)' }}>Scan failed.</strong> {message}
+      </span>
+      <button onClick={onRetry} style={retryButtonStyle}>Run scan again</button>
+    </div>
+  );
+}
+
+const retryButtonStyle = {
+  background: 'var(--accent-blue)',
+  border: 'none',
+  borderRadius: 'var(--radius-sm)',
+  color: '#fff',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: '12px',
+  fontWeight: 600,
+  padding: '6px 14px',
+  whiteSpace: 'nowrap',
+};
 
 const gridStyle = {
   display: 'grid',
