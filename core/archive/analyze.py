@@ -84,6 +84,12 @@ OUTCOME_TARGETS = ["fwd_return_20d", "fwd_return_60d", "r_multiple_20d"]
 # there was time to lock in a swing. (Operator's call: ~1 trading week.)
 CASH_GRAB_MAX_BARS = 5
 
+# Sample-adequacy gate for the Stage-1 signal-edge verdicts. Below these, the
+# tool REFUSES to label signals harmful/inert (it would just be fitting noise /
+# a winners-only gallery). Binary outcomes also need both classes represented.
+EDGE_MIN_N = 25          # minimum labelled pairs
+EDGE_MIN_MINORITY = 8    # minimum of the minority class (e.g. losers) for a binary outcome
+
 # Edge targets for the Stage-1 signal-edge / subtraction analysis, in priority
 # order. The first one with enough non-null rows is the "primary" the verdicts
 # are based on. durable_win (a win that HELD, not a cash-grab) is the truest
@@ -578,16 +584,33 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
             primary = t
             break
 
-    n_primary = (int(pd.to_numeric(df[primary], errors="coerce").notna().sum())
-                 if primary else 0)
+    prim_vals = pd.to_numeric(df[primary], errors="coerce") if primary else None
+    n_primary = int(prim_vals.notna().sum()) if primary else 0
     noise = max(0.15, 1.0 / np.sqrt(n_primary - 3)) if n_primary > 4 else None
+
+    # Is the outcome binary (a win/loss flag)? If so, verdicts need BOTH classes
+    # present — a winners-only gallery (no losers) can't tell harmful from good.
+    nonnull = prim_vals.dropna() if primary is not None else pd.Series([], dtype=float)
+    is_binary = len(nonnull) > 0 and set(pd.unique(nonnull)) <= {0.0, 1.0}
+    n_minority = (int(min((nonnull == 1).sum(), (nonnull == 0).sum()))
+                  if is_binary else None)
+
+    trustworthy = n_primary >= EDGE_MIN_N
+    if is_binary:
+        trustworthy = trustworthy and n_minority >= EDGE_MIN_MINORITY
 
     rows = []
     for feat in SUB_SCORES:
         if feat not in df.columns:
             continue
-        nn = int(pd.to_numeric(df[feat], errors="coerce").notna().sum())
-        if nn == 0:
+        feat_vals = pd.to_numeric(df[feat], errors="coerce")
+        # n = the PAIRED sample actually used in the primary correlation (rows
+        # with both the sub-score and the outcome), not the sub-score's own
+        # count — otherwise a 38-pair correlation looks like 933 and overstates
+        # its power.
+        nn = (int((feat_vals.notna() & prim_vals.notna()).sum())
+              if primary else int(feat_vals.notna().sum()))
+        if int(feat_vals.notna().sum()) == 0:
             continue
         corr_by = {}
         for t in targets:
@@ -611,7 +634,8 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
     rows.sort(key=lambda r: (r["primary_corr"] is None,
                              r["primary_corr"] if r["primary_corr"] is not None else 0.0))
     return {"primary_target": primary, "n_primary": n_primary,
-            "noise_floor": noise, "rows": rows}
+            "noise_floor": noise, "is_binary": is_binary, "n_minority": n_minority,
+            "verdicts_trustworthy": trustworthy, "rows": rows}
 
 
 def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
@@ -642,11 +666,24 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
         return
 
     emit()
-    emit(f"Primary outcome: {edge['primary_target']}  (n={edge['n_primary']}, "
+    minority = (f", minority class={edge['n_minority']}" if edge.get("is_binary") else "")
+    emit(f"Primary outcome: {edge['primary_target']}  (n={edge['n_primary']}{minority}, "
          f"noise floor |r| < {fmt(edge['noise_floor'])})")
-    if not valid:
-        emit("!  Sample is thin / winners-biased — read these as DIRECTIONAL priors,")
-        emit("   not significance. Only act on large effects with a mechanical reason.")
+
+    # Hard adequacy gate: refuse to emit verdicts on data that can't support
+    # them. This is the structural defence against acting on a winners-only
+    # mirage (e.g. "tightness is harmful" computed across 38 hand-picked wins).
+    if not edge["verdicts_trustworthy"]:
+        emit()
+        emit("!  VERDICTS WITHHELD — the sample can't support harmful/inert calls.")
+        if edge.get("is_binary"):
+            emit(f"   Need >= {EDGE_MIN_N} labelled pairs AND >= {EDGE_MIN_MINORITY} of the "
+                 f"minority class (e.g. losers).")
+            emit(f"   Have n={edge['n_primary']}, minority class={edge['n_minority']}.")
+        else:
+            emit(f"   Need >= {EDGE_MIN_N} labelled pairs. Have n={edge['n_primary']}.")
+        emit("   Re-run once live, mixed-outcome rows (winners AND losers) accrue.")
+        return
 
     emit()
     emit(f"{'sub-score':<26}{'n':>4}{'rank_r':>9}  verdict")

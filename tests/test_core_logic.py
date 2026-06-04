@@ -535,6 +535,35 @@ def test_durable_vs_cash_grab_win_classification():
     assert pd.isna(gaps[0]) and pd.isna(gaps[3])  # no stop touch / not a win
 
 
+def test_signal_edge_withholds_verdicts_on_winners_only_sample():
+    # 30 labelled rows but only 1 loser → binary minority class = 1 < 8 →
+    # the tool must refuse to trust verdicts (winners-only mirage guard).
+    n = 30
+    win = [1.0] * (n - 1) + [0.0]
+    df = pd.DataFrame({
+        "durable_win": win,
+        "score_box_tightness": list(range(n)),
+    })
+    out = signal_edge(df, targets=["durable_win"], min_n=8)
+    assert out["primary_target"] == "durable_win"
+    assert out["is_binary"] is True
+    assert out["n_minority"] == 1
+    assert out["verdicts_trustworthy"] is False
+
+
+def test_signal_edge_trusts_verdicts_with_balanced_adequate_sample():
+    # 40 rows, 20 wins / 20 losses, well above the floors → verdicts trusted.
+    n = 40
+    win = [1.0, 0.0] * (n // 2)
+    df = pd.DataFrame({
+        "durable_win": win,
+        "score_box_tightness": win,  # perfectly +assoc
+    })
+    out = signal_edge(df, targets=["durable_win"], min_n=8)
+    assert out["n_minority"] == 20
+    assert out["verdicts_trustworthy"] is True
+
+
 def test_durable_win_degrades_to_barrier_win_without_timing_columns():
     # No days_to_* columns (outcomes not backfilled) -> every win counts durable.
     df = pd.DataFrame({"barrier_label": ["win", "loss", "timeout", "win"]})
