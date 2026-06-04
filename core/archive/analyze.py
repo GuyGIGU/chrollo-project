@@ -22,6 +22,11 @@ human-readable report answering the questions that actually matter for tuning:
   5. PRIME-DIRECTIVE TEST - is TIGHTNESS predictive? Isolates box_width /
      atr_ratio / tightness_ratio / lps_descent_frac. When losers exist, splits
      tight-tertile vs loose-tertile and compares mean forward return.
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1) - rank-associates every
+     scoring sub-score with realized outcome (barrier_win / r_multiple / fwd
+     return) and flags each as BENEFICIAL / INERT / HARMFUL via an n-aware
+     noise floor. The actionable shortlist for "subtract harmful signals".
+     Read-only: flags candidates, never changes a weight.
 
 Usage:
     python -m core.archive.analyze                 # full report to stdout
@@ -73,6 +78,18 @@ SUB_SCORES = [
 
 # Outcome targets (filled by update_forward_returns).
 OUTCOME_TARGETS = ["fwd_return_20d", "fwd_return_60d", "r_multiple_20d"]
+
+# A win that round-trips to the stop within this many bars of first touching a
+# profit target is a "cash-grab" — it spiked into profit then collapsed before
+# there was time to lock in a swing. (Operator's call: ~1 trading week.)
+CASH_GRAB_MAX_BARS = 5
+
+# Edge targets for the Stage-1 signal-edge / subtraction analysis, in priority
+# order. The first one with enough non-null rows is the "primary" the verdicts
+# are based on. durable_win (a win that HELD, not a cash-grab) is the truest
+# success outcome; barrier_win (any win vs loss/timeout) is the looser fallback,
+# then realized R, then the raw 20d return.
+EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d"]
 
 # Tightness features specifically - the prime directive.
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
@@ -151,6 +168,24 @@ def safe_corr(x: pd.Series, y: pd.Series, min_n: int = 8) -> Optional[float]:
     if xv.std() == 0 or yv.std() == 0:
         return None
     return float(np.corrcoef(xv, yv)[0, 1])
+
+
+def safe_rank_corr(x: pd.Series, y: pd.Series, min_n: int = 8) -> Optional[float]:
+    """Spearman rank correlation (Pearson on ranks), NaN-safe.
+
+    Rank-based so it is robust to the heavy-tailed, outlier-prone outcome
+    distributions in a thin archive (one 8R winner shouldn't dominate a Pearson
+    fit). None if too few pairs or no variance.
+    """
+    xx = pd.to_numeric(x, errors="coerce")
+    yy = pd.to_numeric(y, errors="coerce")
+    mask = xx.notna() & yy.notna()
+    if mask.sum() < min_n:
+        return None
+    xr, yr = xx[mask].rank(), yy[mask].rank()
+    if xr.std() == 0 or yr.std() == 0:
+        return None
+    return float(np.corrcoef(xr, yr)[0, 1])
 
 
 # ------------------------------------------------------------------
@@ -453,6 +488,180 @@ def section_tightness(df: pd.DataFrame, valid: bool) -> None:
 
 
 # ------------------------------------------------------------------
+# Section 6 - signal edge & subtraction candidates (Stage 1)
+# ------------------------------------------------------------------
+def _num_col(df: pd.DataFrame, name: str) -> pd.Series:
+    """Numeric view of a column, or an all-NaN series if the column is absent."""
+    if name in df.columns:
+        return pd.to_numeric(df[name], errors="coerce")
+    return pd.Series(np.nan, index=df.index)
+
+
+def derive_outcomes(df: pd.DataFrame,
+                    cash_grab_max_bars: int = CASH_GRAB_MAX_BARS) -> pd.DataFrame:
+    """Return a copy with derived outcome columns the edge analysis needs.
+
+    barrier_win: 1.0 if the triple-barrier label is 'win', 0.0 if 'loss' or
+        'timeout', NaN if unlabelled. (Timeouts are non-wins — the setup didn't
+        deliver inside the horizon.)
+
+    win_quality / durable_win / bars_target_to_stop — the "did the win HOLD?"
+        refinement. The barrier code records the first bar each line is touched
+        independently, so on a win we already know whether the stop was *also*
+        tagged later and how many bars after the profit target that happened:
+          bars_target_to_stop = days_to_stop − (first profit-target bar)
+        A win whose stop round-trip lands within ``cash_grab_max_bars`` is a
+        'cash_grab' (spiked into profit then collapsed before there was time to
+        lock in a swing); otherwise the win is 'durable'.
+          durable_win: 1.0 = durable win; 0.0 = cash-grab / loss / timeout;
+                       NaN = unlabelled.
+        Degrades gracefully: if the days_to_* columns are absent (outcomes not
+        yet backfilled), every win is treated as durable (we can't know better),
+        so durable_win collapses to barrier_win until the timing data exists.
+    """
+    df = df.copy()
+    if "barrier_label" not in df.columns:
+        return df
+
+    norm = df["barrier_label"].map(
+        lambda v: v.strip().lower() if isinstance(v, str) else None
+    )
+    df["barrier_win"] = norm.map({"win": 1.0, "loss": 0.0, "timeout": 0.0})
+
+    is_win = norm.eq("win")
+    d_target = pd.concat([_num_col(df, "days_to_2_5r"),
+                          _num_col(df, "days_to_15pct")], axis=1).min(axis=1)
+    d_stop = _num_col(df, "days_to_stop")
+    gap = d_stop - d_target
+    has_roundtrip = is_win & d_stop.notna() & d_target.notna()
+    cash_grab = has_roundtrip & (gap <= cash_grab_max_bars)
+
+    df["bars_target_to_stop"] = gap.where(has_roundtrip)
+
+    wq = pd.Series([None] * len(df), index=df.index, dtype=object)
+    wq[is_win & ~cash_grab] = "durable"
+    wq[cash_grab] = "cash_grab"
+    df["win_quality"] = wq
+
+    durable = pd.Series(np.nan, index=df.index)
+    durable[norm.isin(["win", "loss", "timeout"])] = 0.0
+    durable[is_win & ~cash_grab] = 1.0
+    df["durable_win"] = durable
+    return df
+
+
+def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
+                min_n: int = 8) -> dict:
+    """Pure: classify each scoring sub-score by its rank-association with outcome.
+
+    Every sub-score is *meant* to be a positive contributor (the engine rewards
+    higher values). So against a higher-is-better outcome:
+        negative association  -> HARMFUL  (the points actively misrank)
+        near-zero association -> INERT    (spends score/ranking influence for
+                                           nothing; dilutes the real signal)
+        positive association  -> BENEFICIAL (keep)
+    "Near-zero" is defined by an n-aware noise floor (~1/sqrt(n-3), floored at
+    0.15) so we never call a signal harmful on what is statistically noise.
+
+    This NEVER changes a weight — it only flags subtraction candidates. The
+    actual re-weighting is a separate, reviewed, guarded step.
+
+    Returns: {primary_target, n_primary, noise_floor, rows: [...]} where each
+    row is {feature, n, corr_by_target (dict), primary_corr, verdict}.
+    Sorted most-harmful first.
+    """
+    targets = targets or EDGE_TARGETS
+
+    primary = None
+    for t in targets:
+        if t in df.columns and pd.to_numeric(df[t], errors="coerce").notna().sum() >= min_n:
+            primary = t
+            break
+
+    n_primary = (int(pd.to_numeric(df[primary], errors="coerce").notna().sum())
+                 if primary else 0)
+    noise = max(0.15, 1.0 / np.sqrt(n_primary - 3)) if n_primary > 4 else None
+
+    rows = []
+    for feat in SUB_SCORES:
+        if feat not in df.columns:
+            continue
+        nn = int(pd.to_numeric(df[feat], errors="coerce").notna().sum())
+        if nn == 0:
+            continue
+        corr_by = {}
+        for t in targets:
+            if t in df.columns:
+                corr_by[t] = safe_rank_corr(df[feat], df[t], min_n=min_n)
+        pc = corr_by.get(primary) if primary else None
+        if pc is None or noise is None:
+            verdict = "unknown"
+        elif pc <= -noise:
+            verdict = "harmful"
+        elif pc >= noise:
+            verdict = "beneficial"
+        else:
+            verdict = "inert"
+        rows.append({
+            "feature": feat, "n": nn, "corr_by_target": corr_by,
+            "primary_corr": pc, "verdict": verdict,
+        })
+
+    # Most-harmful first (most negative primary_corr); unknowns sink to the end.
+    rows.sort(key=lambda r: (r["primary_corr"] is None,
+                             r["primary_corr"] if r["primary_corr"] is not None else 0.0))
+    return {"primary_target": primary, "n_primary": n_primary,
+            "noise_floor": noise, "rows": rows}
+
+
+def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
+    header("6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)")
+    emit("Each scoring sub-score is meant to REWARD a setup. This ranks them by")
+    emit("rank-association with realized outcome and flags the ones that don't")
+    emit("earn their points: HARMFUL (negative) or INERT (near-zero). These are")
+    emit("subtraction CANDIDATES only — re-weighting is a separate guarded step.")
+
+    enriched = derive_outcomes(df)
+    edge = signal_edge(enriched)
+
+    # Win-quality composition — durable vs cash-grab, the operator's distinction.
+    if "win_quality" in enriched.columns and enriched["win_quality"].notna().any():
+        wq = enriched["win_quality"].value_counts().to_dict()
+        n_dur, n_cg = wq.get("durable", 0), wq.get("cash_grab", 0)
+        gaps = pd.to_numeric(enriched["bars_target_to_stop"], errors="coerce").dropna()
+        subhdr("Win quality (durable vs cash-grab)")
+        emit(f"  durable wins: {n_dur}   cash-grab wins: {n_cg} "
+             f"(round-trip to stop within {CASH_GRAB_MAX_BARS} bars of target)")
+        if len(gaps):
+            emit(f"  median bars target->stop among round-trips: {fmt(gaps.median())}")
+
+    if edge["primary_target"] is None:
+        emit()
+        emit("!  No outcome column has enough labelled rows yet (need durable_win /")
+        emit("   barrier_win / r_multiple_20d / fwd_return_20d). Backfill, then re-run.")
+        return
+
+    emit()
+    emit(f"Primary outcome: {edge['primary_target']}  (n={edge['n_primary']}, "
+         f"noise floor |r| < {fmt(edge['noise_floor'])})")
+    if not valid:
+        emit("!  Sample is thin / winners-biased — read these as DIRECTIONAL priors,")
+        emit("   not significance. Only act on large effects with a mechanical reason.")
+
+    emit()
+    emit(f"{'sub-score':<26}{'n':>4}{'rank_r':>9}  verdict")
+    emit("-" * 56)
+    for r in edge["rows"]:
+        emit(f"{r['feature']:<26}{r['n']:>4}{fmt(r['primary_corr']):>9}  {r['verdict']}")
+
+    harmful = [r["feature"] for r in edge["rows"] if r["verdict"] == "harmful"]
+    inert = [r["feature"] for r in edge["rows"] if r["verdict"] == "inert"]
+    subhdr("Subtraction shortlist")
+    emit(f"  HARMFUL (down-weight / zero): {', '.join(harmful) if harmful else '(none)'}")
+    emit(f"  INERT   (candidate to trim):  {', '.join(inert) if inert else '(none)'}")
+
+
+# ------------------------------------------------------------------
 # Orchestrator
 # ------------------------------------------------------------------
 def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str] = None) -> None:
@@ -469,6 +678,7 @@ def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str]
     section_performance(df, comp["valid_outcome"])
     section_correlations(df, comp["valid_corr"])
     section_tightness(df, comp["valid_outcome"])
+    section_signal_edge(df, comp["valid_corr"])
 
     header("END OF REPORT")
 

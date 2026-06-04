@@ -15,6 +15,7 @@ from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from core.structure.consolidation import measure_bar_compression
 from core.structure.lps import detect_lps
+from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 from core.structure.scope import scope_consolidation
 from tools.fidelity_harness import summarize_fidelity
 from tools.shadow_diff import canonical_fields
@@ -455,3 +456,88 @@ def test_fidelity_day_error_median_from_dates():
     s = summarize_fidelity(rows)
     # |+3| and |-5| → median 4.0
     assert s["median_day_error"] == 4.0
+
+
+# ──────────────────────────────────────────────────────────────────
+# Signal-edge analysis (analyze.signal_edge): pure Stage-1 classifier —
+# flags each sub-score as beneficial / inert / harmful by its rank
+# association with outcome. Read-only measurement; changes no weights.
+# ──────────────────────────────────────────────────────────────────
+def test_derive_outcomes_maps_barrier_label_to_win_binary():
+    df = pd.DataFrame({"barrier_label": ["win", "loss", "timeout", None]})
+    out = derive_outcomes(df)
+    wins = out["barrier_win"].tolist()
+    assert wins[0] == 1.0
+    assert wins[1] == 0.0 and wins[2] == 0.0  # loss + timeout are non-wins
+    assert pd.isna(wins[3])                    # unlabelled stays NaN
+
+
+def test_safe_rank_corr_is_monotonic_not_linear():
+    # A monotonic but non-linear relation → Spearman = 1.0 (Pearson would be <1).
+    x = pd.Series([1, 2, 3, 4, 5, 6, 7, 8])
+    y = pd.Series([1, 4, 9, 16, 25, 36, 49, 64])
+    assert safe_rank_corr(x, y) == 1.0
+    assert safe_rank_corr(pd.Series([1, 1, 1, 1]), pd.Series([1, 2, 3, 4])) is None  # no variance
+
+
+def test_signal_edge_classifies_harmful_inert_beneficial():
+    n = 40
+    win = [1.0, 0.0] * (n // 2)                      # alternating outcome
+    df = pd.DataFrame({
+        "barrier_win": win,
+        "score_box_tightness": win,                  # perfectly +assoc → beneficial
+        "score_touch_density": [1.0 - w for w in win],  # perfectly -assoc → harmful
+        "score_oscillation": list(range(n)),         # monotonic vs alternating → ~0 → inert
+    })
+    out = signal_edge(df, targets=["barrier_win"], min_n=8)
+    assert out["primary_target"] == "barrier_win"
+    verdicts = {r["feature"]: r["verdict"] for r in out["rows"]}
+    assert verdicts["score_box_tightness"] == "beneficial"
+    assert verdicts["score_touch_density"] == "harmful"
+    assert verdicts["score_oscillation"] == "inert"
+    # Most-harmful sorts first.
+    assert out["rows"][0]["feature"] == "score_touch_density"
+
+
+def test_signal_edge_no_outcome_column_returns_no_primary():
+    df = pd.DataFrame({"score_box_tightness": [1, 2, 3, 4, 5, 6, 7, 8]})
+    out = signal_edge(df)
+    assert out["primary_target"] is None
+    assert out["rows"] == [] or all(r["verdict"] == "unknown" for r in out["rows"])
+
+
+def test_durable_vs_cash_grab_win_classification():
+    # Four labelled setups. days_to_15pct = first profit-target bar; days_to_stop
+    # = first stop touch. cash_grab_max_bars defaults to 5.
+    df = pd.DataFrame({
+        "barrier_label":  ["win",  "win",  "win",  "loss"],
+        "days_to_2_5r":   [None,   None,   None,   None],
+        "days_to_15pct":  [3,      4,      10,     None],
+        "days_to_stop":   [None,   6,      30,     2],
+    })
+    out = derive_outcomes(df)
+    wq = out["win_quality"].tolist()
+    # row0: win, never round-trips      -> durable
+    # row1: target bar 4, stop bar 6 -> gap 2 <= 5 -> cash_grab
+    # row2: target bar 10, stop bar 30 -> gap 20 > 5 -> durable
+    # row3: loss -> not a win -> None
+    assert wq[0] == "durable"
+    assert wq[1] == "cash_grab"
+    assert wq[2] == "durable"
+    assert wq[3] is None
+    # durable_win binary: durable=1; cash-grab/loss=0; (all labelled here)
+    assert out["durable_win"].tolist() == [1.0, 0.0, 1.0, 0.0]
+    # breathing-room window recorded for any win that round-trips to the stop,
+    # whether fast (cash-grab) or slow (durable): row1 gap=2, row2 gap=20.
+    gaps = out["bars_target_to_stop"].tolist()
+    assert gaps[1] == 2.0
+    assert gaps[2] == 20.0
+    assert pd.isna(gaps[0]) and pd.isna(gaps[3])  # no stop touch / not a win
+
+
+def test_durable_win_degrades_to_barrier_win_without_timing_columns():
+    # No days_to_* columns (outcomes not backfilled) -> every win counts durable.
+    df = pd.DataFrame({"barrier_label": ["win", "loss", "timeout", "win"]})
+    out = derive_outcomes(df)
+    assert out["durable_win"].tolist() == [1.0, 0.0, 0.0, 1.0]
+    assert out["barrier_win"].tolist() == [1.0, 0.0, 0.0, 1.0]
