@@ -508,6 +508,94 @@ td {
   color: var(--text-muted);
 }
 
+.chart-phase-overlay {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.chart-phase-band,
+.chart-phase-lps-zone,
+.chart-phase-c-line,
+.chart-phase-c-marker {
+  position: absolute;
+}
+
+.chart-phase-band {
+  border-left: 1px solid color-mix(in srgb, var(--border-strong) 58%, transparent);
+}
+
+.chart-phase-a {
+  background: color-mix(in srgb, var(--text-faint) 7%, transparent);
+}
+
+.chart-phase-b {
+  background: color-mix(in srgb, var(--accent-purple) 7%, transparent);
+}
+
+.chart-phase-d {
+  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+  border-left-color: color-mix(in srgb, var(--accent-blue) 36%, transparent);
+}
+
+.chart-phase-lps-zone {
+  background: color-mix(in srgb, var(--accent-yellow) 18%, transparent);
+  border-block: 1px solid color-mix(in srgb, var(--accent-yellow) 36%, transparent);
+}
+
+.chart-phase-c-line {
+  bottom: 0;
+  border-left: 1px dashed color-mix(in srgb, var(--accent-pink) 44%, transparent);
+  top: 0;
+  transform: translateX(-0.5px);
+}
+
+.chart-phase-c-marker {
+  background: var(--accent-pink);
+  border: 1px solid color-mix(in srgb, var(--text-main) 72%, transparent);
+  height: 7px;
+  opacity: 0.86;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 7px;
+}
+
+.chart-phase-legend {
+  align-items: center;
+  background: color-mix(in srgb, var(--bg-main) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  border-radius: var(--radius-xs);
+  color: var(--text-faint);
+  display: flex;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  gap: 9px;
+  left: 10px;
+  padding: 4px 6px;
+  position: absolute;
+  top: 9px;
+}
+
+.chart-phase-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.chart-phase-legend i {
+  border-radius: 2px;
+  display: inline-block;
+  height: 7px;
+  width: 9px;
+}
+
+.chart-phase-legend .phase-a { background: color-mix(in srgb, var(--text-faint) 28%, transparent); }
+.chart-phase-legend .phase-b { background: color-mix(in srgb, var(--accent-purple) 30%, transparent); }
+.chart-phase-legend .phase-d { background: color-mix(in srgb, var(--accent-blue) 38%, transparent); }
+.chart-phase-legend .lps-zone { background: color-mix(in srgb, var(--accent-yellow) 42%, transparent); }
+
 /* Keyboard focus ring for the screener cards (now role=button, Enter/Space to
    open). :focus-visible keeps the ring off mouse clicks but shows it for
    keyboard navigation, so a power user can sweep the grid. */

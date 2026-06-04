@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { attachPhaseOverlay } from './chartPhaseOverlay';
 
 const MAX_VISIBLE_BARS = 72;
 
@@ -93,6 +94,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
     container.innerHTML = '';
     setChartError(false);
     let chart = null;
+    let removePhaseOverlay = () => {};
 
     try {
       const width = container.clientWidth || 380;
@@ -108,6 +110,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
         thinBars: false,
       });
       candleSeries.setData(candles);
+      removePhaseOverlay = attachPhaseOverlay({ candleSeries, chart, compact: true, container, data });
 
       const volumeSeries = chart.addSeries(HistogramSeries, {
         priceFormat: { type: 'volume' },
@@ -150,6 +153,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
     }
 
     return () => {
+      removePhaseOverlay();
       if (chart) {
         try {
           chart.remove();

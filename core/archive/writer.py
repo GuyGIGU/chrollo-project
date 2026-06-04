@@ -84,6 +84,13 @@ _NEW_COLUMNS: dict[str, str] = {
     # ADR% absolute-volatility character
     "adr_pct":                      "FLOAT",
     "score_adr":                    "FLOAT",
+    # Phase-D scoping layer (descriptive right-most-region bands)
+    "scope_phase_a_date":           "TEXT",
+    "scope_phase_b_date":           "TEXT",
+    "scope_phase_d_date":           "TEXT",
+    "scope_phase_c_date":           "TEXT",
+    "scope_has_mini":               "INTEGER",
+    "scope_confidence":             "FLOAT",
 }
 
 
@@ -322,6 +329,14 @@ def archive_scan_results(
             # AR low. Includes the early-chop drift between AR and the working box.
             descent_length=row.get("_descent_length"),
             phase_d_inner=int(bool(row.get("_phase_d_inner"))) if row.get("_phase_d_inner") is not None else None,
+            # Phase-D scoping layer (descriptive right-most-region bands)
+            scope_phase_a_date=row.get("_phase_a_start_date"),
+            scope_phase_b_date=row.get("_phase_b_start_date"),
+            scope_phase_d_date=row.get("_phase_d_start_date"),
+            scope_phase_c_date=row.get("_phase_c_event_date"),
+            scope_has_mini=(int(bool(row.get("_has_mini_consolidation")))
+                            if row.get("_has_mini_consolidation") is not None else None),
+            scope_confidence=row.get("_scope_confidence"),
             source="screener",
         )
 

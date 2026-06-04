@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import { attachPhaseOverlay } from '../components/chartPhaseOverlay';
 
 const chartOptions = (width, height) => ({
   width,
@@ -144,6 +145,7 @@ export default function useScreenerModalChart(containerRef, ticker, data) {
     const candleSeries = chart.addSeries(BarSeries, { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false });
 
     candleSeries.setData(colorStructureCandles(data, baseEnd));
+    const removePhaseOverlay = attachPhaseOverlay({ candleSeries, chart, container, data });
     const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     volumeSeries.setData(data.volumes || []);
@@ -163,6 +165,7 @@ export default function useScreenerModalChart(containerRef, ticker, data) {
       disposed = true;
       clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
+      removePhaseOverlay();
       chart.remove();
       container.innerHTML = '';
     };

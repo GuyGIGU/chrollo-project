@@ -118,6 +118,18 @@ def _extract_chart_data(data, results_df, tickers):
                 'ascending_support_quality': row.get('_ascending_support_quality'),
                 'higher_low_frac': row.get('_support_higher_low_frac'),
                 'adr_pct': row.get('_adr_pct'),
+                # Phase-D scoping bands — consumed by the chart phase overlay.
+                # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.
+                '_phase_a_start_date': row.get('_phase_a_start_date'),
+                '_phase_b_start_date': row.get('_phase_b_start_date'),
+                '_phase_d_start_date': row.get('_phase_d_start_date'),
+                '_phase_c_event_date': row.get('_phase_c_event_date'),
+                '_lps_zone_low': row.get('_lps_zone_low'),
+                '_lps_zone_high': row.get('_lps_zone_high'),
+                '_lps_zone_start_date': row.get('_lps_zone_start_date'),
+                '_lps_zone_end_date': row.get('_lps_zone_end_date'),
+                '_has_mini_consolidation': bool(row.get('_has_mini_consolidation', False)),
+                '_scope_confidence': row.get('_scope_confidence'),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")

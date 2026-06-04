@@ -147,6 +147,31 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ---
 
+## The Phase D Model — Reading the Right-Most Region
+
+Phases A and B establish *where the base is* and *what its R/S are*. But everything a trade actually depends on happens in **Phase D — the right-most region of the consolidation**, the launchpad immediately before markup. This is the part a human reads *first* when scanning, and it is the north star the engine exists to honor: read Phase D faithfully and the rest is context.
+
+**Phase D is defined by its Last Point of Support (LPS).** The LPS is the foundation of every setup worth considering — no LPS in the right-most region means no Phase D and no setup. This is not aspirational: `detect_lps()` is mandatory in the pipeline, and a ticker with no qualifying LPS is dropped (`_evaluate_ticker` returns `None`).
+
+**What an LPS is (and isn't).** An LPS is **support forming and holding around the support zone, in general** — price returns to the floor and holds. It is **not** *defined* by being a higher low. A higher-low / ascending / "tennis-ball" shape is **rewarded, not required**: plenty of valid LPSs simply form around the support zone without stair-stepping up. The implementation already reflects this general definition:
+
+- the pullback-shape gate is **graded, not binary** — `descent_frac` *multiplies* LPS quality rather than rejecting non-higher-lows (Phase 3, gate 5);
+- the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
+- the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint").
+
+**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" via the hierarchical inner sub-box (`find_consolidation` → `_inner_zigzag`; see "Hierarchical Refinement"). The inner box is a *structural fact to recognize*, not a requirement to impose.
+
+**The "V" — a positioning guide, not a detected object.** The right-most action often traces a V: a final dip / shakeout / spring down into support, then a turn back up. The V is a guide for *where the trader wants to stand*:
+
+- **before the tip** (still descending into the dip) = wrong place, wrong time — the low isn't in;
+- **after the tip** (turned up off the low, demand returning) = the shakeout is done and we are walking toward launch.
+
+The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the trigger must sit **above** current price (room to run; Phase 3, gate 13), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
+
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* Surfacing that region explicitly — an adaptive scoping pass over the existing detector output, drawn on the chart, kept strictly as a **hint to the LPS step, never a new gate** — is a **planned refinement, not yet a first-class layer**. The pieces it would compose (mandatory LPS, graded shape, zone placement, optional inner box, trigger-above-price) already exist and are cited above; the work is to make the right-most region an explicit, inspectable thing rather than an implicit by-product. It must degrade gracefully: a young base may yield only "equilibrium body + right edge," never forced into tidy quadrants.
+
+---
+
 ## Phase 3 — LPS Detection
 
 `detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every gate below must pass; failing any single gate disqualifies the window. The final candidate is the one with the highest `vol_contraction × (1 - tightness_ratio)` quality.

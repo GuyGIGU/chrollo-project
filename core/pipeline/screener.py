@@ -35,6 +35,7 @@ from core.structure import (
     measure_contractions,
     measure_support_slope,
     measure_touch_volume,
+    scope_consolidation,
 )
 
 
@@ -216,6 +217,22 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # Ascending-support / higher-lows footprint over the base window.
         support = measure_support_slope(base_df, atr_for_zone)
 
+        # Phase-D scoping layer — re-expresses the already-detected box / swing /
+        # LPS as the right-most launch region (Phase A/B/D bands + LPS support
+        # band). Pure measurement: it consumes values computed above, assigns no
+        # points, and never gates. Archived raw and drawn on the chart card.
+        scope = scope_consolidation(
+            df,
+            bc_anchor_bar=bc_anchor_bar,
+            phase_b_start_bar=phase_b_start_bar,
+            base_len=base_len,
+            is_inner_box=is_inner_box,
+            lps_offset=lps_offset,
+            lps_length=lps_length,
+            lps_zone_type=lps_result.get("zone_type", "INSIDE"),
+            atr_val=atr_for_zone,
+        )
+
         # ADR% absolute-volatility character over the latest full 20-bar tape.
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
@@ -299,6 +316,20 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             # ADR% absolute-volatility character
             '_adr_pct': float(adr_value),
             '_adr_quality': float(adr_quality),
+            # Phase-D scoping layer — right-most region bands + LPS support
+            # band. Dates align with the chart OHLC; raw bars kept for the
+            # fidelity-grading harness. Measure-first: never gated, never scored.
+            '_phase_a_start_date': scope['phase_a_start_date'],
+            '_phase_b_start_date': scope['phase_b_start_date'],
+            '_phase_d_start_date': scope['phase_d_start_date'],
+            '_phase_c_event_date': scope['phase_c_event_date'],
+            '_lps_zone_low': scope['lps_zone_low'],
+            '_lps_zone_high': scope['lps_zone_high'],
+            '_lps_zone_start_date': scope['lps_zone_start_date'],
+            '_lps_zone_end_date': scope['lps_zone_end_date'],
+            '_has_mini_consolidation': bool(scope['has_mini_consolidation']),
+            '_scope_confidence': float(scope['scope_confidence']),
+
             # Base-window endpoints for RS-vs-sector computation in the writer
             # (avoids fetching sector ETF data inside per-ticker workers).
             '_base_close_start': float(base_df['Close'].iloc[0]),

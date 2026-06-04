@@ -28,6 +28,7 @@ from core.structure.consolidation import (
 )
 from core.structure.indicators import adr_pct, calculate_adx, calculate_atr
 from core.structure.lps import detect_lps
+from core.structure.scope import scope_consolidation
 
 __all__ = [
     "find_consolidation",
@@ -37,6 +38,7 @@ __all__ = [
     "measure_support_slope",
     "measure_touch_volume",
     "detect_lps",
+    "scope_consolidation",
     "adr_pct",
     "calculate_atr",
     "calculate_adx",

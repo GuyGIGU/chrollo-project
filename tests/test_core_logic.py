@@ -15,6 +15,8 @@ from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from core.structure.consolidation import measure_bar_compression
 from core.structure.lps import detect_lps
+from core.structure.scope import scope_consolidation
+from tools.fidelity_harness import summarize_fidelity
 from tools.shadow_diff import canonical_fields
 from tools.shadow_diff import diff_against_baseline as shadow_diff_against_baseline
 from webapp.backend.routers.market_data import _clean_symbol, _is_number
@@ -291,3 +293,165 @@ def test_engines_do_not_import_archive(engine_dir):
         "core/{} must not import core.archive (scoring/structure judge facts, "
         "they never read outcomes): {}".format(engine_dir, offenders)
     )
+
+
+# ──────────────────────────────────────────────────────────────────
+# Phase-D scoping layer (scope_consolidation): pure descriptive
+# measurement — re-expresses the detected box / swing / LPS as the
+# right-most launch region. Never gates, never scores.
+# ──────────────────────────────────────────────────────────────────
+def _scope_df(n=30, low=100.0):
+    """A length-n OHLC-ish frame with a DatetimeIndex (Low + High are read)."""
+    idx = pd.date_range("2026-01-01", periods=n, freq="D")
+    return pd.DataFrame({"Low": [low] * n, "High": [low + 1.0] * n}, index=idx)
+
+
+def test_scope_outer_box_orders_a_b_d_bands():
+    df = _scope_df(30)
+    df.iloc[26, df.columns.get_loc("Low")] = 95.0  # min of the LPS window [25:29]
+    df.iloc[26, df.columns.get_loc("High")] = 96.0
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    # Outer box: A=climax, B=body start, D=right-most region (>= body start,
+    # within the frame — its exact bar is anchored on the swing-high logic).
+    assert out["phase_a_start_date"] == str(df.index[2])[:10]
+    assert out["phase_b_start_date"] == str(df.index[5])[:10]
+    assert out["phase_d_start_bar"] is not None
+    assert 5 <= out["phase_d_start_bar"] <= 29
+    assert out["phase_c_event_date"] is None
+    assert out["has_mini_consolidation"] is False
+    # All three regions placed → full confidence (D weighted 0.5).
+    assert out["scope_confidence"] == 1.0
+    # LPS zone = bounding box of the candidate bars [25:29): low = the dip at
+    # bar 26 (95.0), high = the max High across those bars (101.0 default).
+    assert out["lps_zone_low"] == 95.0
+    assert out["lps_zone_high"] == 101.0
+    # Tight in time too: the box spans the exact candidate bars.
+    assert out["lps_zone_start_date"] == str(df.index[25])[:10]
+    assert out["lps_zone_end_date"] == str(df.index[28])[:10]
+
+
+def test_scope_phase_d_anchors_on_final_third_of_base():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    # box_start = 30 - 25 = 5; final third = 5 + (2*25)//3 = 5 + 16 = 21.
+    assert out["phase_d_start_bar"] == 21
+    assert out["phase_d_start_date"] == str(df.index[21])[:10]
+
+
+def test_scope_inner_box_marks_mini_consolidation_and_d_start():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=10,
+        is_inner_box=True, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    # Inner box: Phase D is the mini-consolidation itself → starts at n-base_len.
+    assert out["has_mini_consolidation"] is True
+    assert out["phase_d_start_date"] == str(df.index[20])[:10]
+    assert out["phase_d_start_bar"] == 20
+
+
+def test_scope_spring_emits_phase_c_marker_at_lps_low():
+    df = _scope_df(30)
+    df.iloc[27, df.columns.get_loc("Low")] = 90.0  # the spring low inside [25:29]
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="UNDERCUT_S", atr_val=2.0,
+    )
+    assert out["phase_c_event_date"] == str(df.index[27])[:10]
+    # Bounding box: low = the spring dip (90.0), high = max High over [25:29).
+    assert out["lps_zone_low"] == 90.0
+    assert out["lps_zone_high"] == 101.0
+
+
+def test_scope_degenerate_order_drops_lead_in_keeps_launchpad():
+    df = _scope_df(30)
+    # Climax AFTER body start is degenerate → drop A/B rather than invert.
+    out = scope_consolidation(
+        df, bc_anchor_bar=10, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    assert out["phase_a_start_date"] is None
+    assert out["phase_b_start_date"] is None
+    assert out["phase_d_start_date"] is not None  # launchpad still placed
+    assert out["scope_confidence"] == 0.5         # only D (weighted 0.5)
+
+
+def test_scope_degrades_when_no_lps_window():
+    df = _scope_df(30)
+    # offset past the frame → no usable LPS window; outer box → no Phase D.
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=40, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    assert out["phase_d_start_date"] is None
+    assert out["lps_zone_low"] is None
+    assert out["phase_a_start_date"] == str(df.index[2])[:10]
+    assert out["scope_confidence"] == 0.5  # A + B placed, D missing
+
+
+def test_scope_empty_on_no_base():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=0,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+    assert out["phase_a_start_date"] is None
+    assert out["phase_d_start_date"] is None
+    assert out["scope_confidence"] == 0.0
+
+
+# ──────────────────────────────────────────────────────────────────
+# Fidelity harness (summarize_fidelity): pure grading core — turns the
+# human's hand-labels into a fidelity score. Unscored rows are ignored.
+# ──────────────────────────────────────────────────────────────────
+def test_fidelity_all_ok_is_full_score():
+    rows = [
+        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
+        {"ticker": "BBB", "phase_d_verdict": "OK", "lps_zone_verdict": "ok"},
+    ]
+    s = summarize_fidelity(rows)
+    assert s["n_scored"] == 2
+    assert s["phase_d_ok_pct"] == 100.0
+    assert s["lps_ok_pct"] == 100.0
+    assert s["misreads"] == []
+
+
+def test_fidelity_counts_misreads_and_ignores_unscored():
+    rows = [
+        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
+        {"ticker": "BBB", "phase_d_verdict": "early", "lps_zone_verdict": "high"},
+        {"ticker": "CCC", "phase_d_verdict": "late", "lps_zone_verdict": "ok"},
+        {"ticker": "DDD", "phase_d_verdict": "", "lps_zone_verdict": ""},  # unscored → ignored
+    ]
+    s = summarize_fidelity(rows)
+    assert s["n_total"] == 4
+    assert s["n_scored"] == 3
+    assert s["phase_d_ok"] == 1 and s["phase_d_early"] == 1 and s["phase_d_late"] == 1
+    assert round(s["phase_d_ok_pct"], 1) == 33.3
+    assert s["lps_breakdown"]["high"] == 1
+    assert {m["ticker"] for m in s["misreads"]} == {"BBB", "CCC"}
+
+
+def test_fidelity_day_error_median_from_dates():
+    rows = [
+        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok",
+         "engine_phase_d_date": "2026-06-01", "your_phase_d_date": "2026-06-04"},
+        {"ticker": "BBB", "phase_d_verdict": "late", "lps_zone_verdict": "ok",
+         "engine_phase_d_date": "2026-06-10", "your_phase_d_date": "2026-06-05"},
+    ]
+    s = summarize_fidelity(rows)
+    # |+3| and |-5| → median 4.0
+    assert s["median_day_error"] == 4.0

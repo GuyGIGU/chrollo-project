@@ -126,6 +126,16 @@ class SetupArchive(Base):
     adr_pct = Column(Float, nullable=True)                    # Average Daily Range % over 20 bars (plain percent)
     score_adr = Column(Float, nullable=True)                  # ADR sub-score (raw points)
 
+    # ── Phase-D scoping layer (descriptive right-most-region bands) ──
+    # Read-only measurement: where each region begins + the LPS support band.
+    # Dates align with the chart OHLC; archived raw for the fidelity harness.
+    scope_phase_a_date = Column(String, nullable=True)  # Phase A (climax/lead-in) start
+    scope_phase_b_date = Column(String, nullable=True)  # Phase B (equilibrium body) start
+    scope_phase_d_date = Column(String, nullable=True)  # Phase D (right-most launchpad) start
+    scope_phase_c_date = Column(String, nullable=True)  # Phase C spring marker (UNDERCUT_S only)
+    scope_has_mini = Column(Integer, nullable=True)     # 1 if Phase D is an inner mini-consolidation
+    scope_confidence = Column(Float, nullable=True)     # [0,1] fraction of regions confidently placed
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)
