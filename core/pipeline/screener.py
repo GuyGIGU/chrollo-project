@@ -37,6 +37,14 @@ from core.structure import (
     measure_touch_volume,
     scope_consolidation,
 )
+from core.structure.segmentation import segment_swings
+
+# Lead-in window (bars before the detected base) searched for the trend->range
+# root swing when reconnecting a drifted BC anchor (see _evaluate_ticker).
+_SEG_LEAD_IN = 60
+# How close the root swing's AR (its end) must land to the detected base start
+# to count as the descent INTO this base.
+_SEG_AR_TOL = 10
 
 
 # ────────────────────────────────────────────────────────────────
@@ -216,6 +224,34 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
 
         # Ascending-support / higher-lows footprint over the base window.
         support = measure_support_slope(base_df, atr_for_zone)
+
+        # ── Reconnect the BC anchor to the RECENT base (display/scoping only) ──
+        # The detector's bc_anchor_bar can drift to an ancient climax: its
+        # "earliest valid anchor" preference plus the global-best Phase B box can
+        # staple an 18-month-old BC onto a recent box, so the drawn Phase A "root
+        # swing" points at a disconnected climax (the ECPG complaint, found to
+        # affect ~99% of firing tickers). The swing-segmentation root is the true
+        # trend->range bridge; adopt its BC ONLY when it sits in the lead-in just
+        # before this base (so we never substitute a worse anchor). This touches
+        # the Phase-A scoping + the _bars_since_BC / _descent_length diagnostics
+        # ONLY — never R/S/Score/Tier: score_setup does not see bc_anchor_bar, and
+        # base_age is driven by base_len.
+        seg = segment_swings(df, atr_for_zone, lookback=base_len + _SEG_LEAD_IN)
+        dom = seg.get("dominant_direction", 0)
+        bridge = None
+        if dom != 0:
+            for s in seg.get("swings", []):
+                # The root swing is the descent INTO this base: a counter-trend
+                # leg (opposite the dominant trend) whose AR (its end) lands at
+                # the base start, with its start — the climax — sitting in the
+                # lead-in just before it. Pick the largest such counter-burst.
+                if (s["direction"] == -dom
+                        and abs(s["end_bar"] - phase_b_start_bar) <= _SEG_AR_TOL
+                        and phase_b_start_bar - _SEG_LEAD_IN <= s["start_bar"] < phase_b_start_bar):
+                    if bridge is None or s["abs_disp_atr"] > bridge["abs_disp_atr"]:
+                        bridge = s
+        if bridge is not None:
+            bc_anchor_bar = bridge["start_bar"]
 
         # Phase-D scoping layer — re-expresses the already-detected box / swing /
         # LPS as the right-most launch region (Phase A/B/D bands + LPS support

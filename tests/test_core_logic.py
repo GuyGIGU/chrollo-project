@@ -15,6 +15,7 @@ from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from core.structure.consolidation import measure_bar_compression
 from core.structure.lps import detect_lps
+from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 from core.structure.scope import scope_consolidation
 from tools.fidelity_harness import summarize_fidelity
@@ -67,6 +68,53 @@ def test_measure_bar_compression_reports_base_spread_texture():
     assert result["p80_spread_atr"] == 1.1
     assert result["median_spread_pct_box"] == 0.2
     assert result["tight_bar_pct"] == 0.8
+
+
+def _ramp_frame(pivot_prices, bars_per_leg=6):
+    """Build a degenerate OHLC frame (High==Low==Close) that linearly ramps
+    between the given pivot prices, so the zigzag pivots land predictably."""
+    prices = [float(pivot_prices[0])]
+    for k in range(1, len(pivot_prices)):
+        p0, p1 = float(pivot_prices[k - 1]), float(pivot_prices[k])
+        for b in range(1, bars_per_leg + 1):
+            prices.append(p0 + (p1 - p0) * b / bars_per_leg)
+    return pd.DataFrame({"High": prices, "Low": prices, "Close": prices, "Open": prices})
+
+
+def test_segment_swings_finds_root_bridge():
+    # Up-trend (with small pullbacks) into a climax at 60, then a big counter-
+    # burst down to 53 (the AR), then a tight range. The root swing is the
+    # 60 -> 53 leg: it terminates the trend and births the range.
+    df = _ramp_frame([50, 53, 51.5, 56, 54, 60, 53, 56, 53.5, 56, 53.5])
+
+    res = segment_swings(df, atr_val=1.0)
+
+    assert res["dominant_direction"] == 1
+    assert res["n_swings"] == 8
+
+    root = res["root_swing"]
+    assert root is not None
+    assert root["bc_bar"] == 30           # climax pivot (price 60)
+    assert root["ar_bar"] == 36           # first counter-burst valley (price 53)
+    assert root["counter_disp_atr"] == 7.0
+    # The AR (7 ATR) dwarfs the trend's pullbacks (median 1.75 ATR) -> ~4x burst.
+    assert root["counter_burst_ratio"] == 4.0
+
+    # Efficiency is a real ratio in [0, 1]; the AR is the single largest swing.
+    assert 0.0 <= res["efficiency"] <= 1.0
+    assert max(s["abs_disp_atr"] for s in res["swings"]) == 7.0
+
+
+def test_segment_swings_guards_bad_inputs():
+    df = _ramp_frame([50, 53, 51.5, 56, 54, 60, 53, 56, 53.5, 56, 53.5])
+    # Non-positive / NaN ATR must never divide a displacement.
+    assert segment_swings(df, atr_val=0.0) == segment_swings(df, atr_val=-1.0)
+    assert segment_swings(df, atr_val=0.0)["root_swing"] is None
+    assert segment_swings(df, atr_val=float("nan"))["n_swings"] == 0
+    # Too few bars to form a swing structure.
+    tiny = pd.DataFrame({"High": [1, 2, 3], "Low": [1, 2, 3],
+                         "Close": [1, 2, 3], "Open": [1, 2, 3]})
+    assert segment_swings(tiny, atr_val=1.0)["n_swings"] == 0
 
 
 def test_flatten_summary_sums_numeric_values_and_ignores_unknown_tags():
