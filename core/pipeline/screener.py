@@ -32,10 +32,12 @@ from core.structure import (
     detect_lps,
     find_consolidation,
     measure_bar_compression,
+    measure_bins,
     measure_contractions,
     measure_support_slope,
     measure_touch_volume,
     scope_consolidation,
+    trend_template,
 )
 from core.structure.segmentation import segment_swings
 
@@ -270,6 +272,27 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_val=atr_for_zone,
         )
 
+        # Region (bin) features — per-region size / range / volume + the
+        # Last-Supper stretch. Pure measure-first: consumes the anchors already
+        # computed above, assigns no points, never gates. The Phase-D boundary
+        # shares scope's rule (core.structure.bin_features imports the helper).
+        bins = measure_bins(
+            df,
+            bc_anchor_bar=bc_anchor_bar,
+            phase_b_start_bar=phase_b_start_bar,
+            base_len=base_len,
+            is_inner_box=is_inner_box,
+            lps_offset=lps_offset,
+            lps_length=lps_length,
+            R=res_avg,
+            S=sup_avg,
+            atr_val=atr_for_zone,
+        )
+
+        # Minervini Stage-2 trend-template criteria (price/MA geometry). Raw
+        # context fields, never scored or gated; RS-rank criterion omitted.
+        trend = trend_template(df, dist_52w_high_pct=dist_52w_high_pct)
+
         # ADR% absolute-volatility character over the latest full 20-bar tape.
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
@@ -366,6 +389,30 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_lps_zone_end_date': scope['lps_zone_end_date'],
             '_has_mini_consolidation': bool(scope['has_mini_consolidation']),
             '_scope_confidence': float(scope['scope_confidence']),
+
+            # Region (bin) features — A/B/D/LPS size, range, volume + Last Supper
+            '_bin_a_bars': bins['bin_a_bars'],
+            '_bin_a_range_pct': bins['bin_a_range_pct'],
+            '_bin_a_volume_ratio': bins['bin_a_volume_ratio'],
+            '_bin_b_bars': bins['bin_b_bars'],
+            '_bin_b_range_pct': bins['bin_b_range_pct'],
+            '_bin_b_volume_ratio': bins['bin_b_volume_ratio'],
+            '_bin_d_bars': bins['bin_d_bars'],
+            '_bin_d_range_pct': bins['bin_d_range_pct'],
+            '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
+            '_bin_d_boundary_source': bins['bin_d_boundary_source'],
+            '_bin_lps_bars': bins['bin_lps_bars'],
+            '_lps_position_in_box': bins['lps_position_in_box'],
+            '_bin_d_vs_b_range_ratio': bins['bin_d_vs_b_range_ratio'],
+            '_bin_d_vs_b_volume_ratio': bins['bin_d_vs_b_volume_ratio'],
+            '_lps_stretch_atr': bins['lps_stretch_atr'],
+            '_lps_stretch_box': bins['lps_stretch_box'],
+            # Minervini Stage-2 trend-template context (raw, no scoring)
+            '_stage2_ma_stack_pass': trend['stage2_ma_stack_pass'],
+            '_stage2_ma200_slope_1m_pct': trend['stage2_ma200_slope_1m_pct'],
+            '_stage2_52w_low_pct': trend['stage2_52w_low_pct'],
+            '_stage2_trend_pass_count': trend['stage2_trend_pass_count'],
+            '_stage2_trend_pass': trend['stage2_trend_pass'],
 
             # Base-window endpoints for RS-vs-sector computation in the writer
             # (avoids fetching sector ETF data inside per-ticker workers).

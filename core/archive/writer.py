@@ -91,6 +91,29 @@ _NEW_COLUMNS: dict[str, str] = {
     "scope_phase_c_date":           "TEXT",
     "scope_has_mini":               "INTEGER",
     "scope_confidence":             "FLOAT",
+    # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
+    "bin_a_bars":                   "INTEGER",
+    "bin_a_range_pct":              "FLOAT",
+    "bin_a_volume_ratio":           "FLOAT",
+    "bin_b_bars":                   "INTEGER",
+    "bin_b_range_pct":              "FLOAT",
+    "bin_b_volume_ratio":           "FLOAT",
+    "bin_d_bars":                   "INTEGER",
+    "bin_d_range_pct":              "FLOAT",
+    "bin_d_volume_ratio":           "FLOAT",
+    "bin_d_boundary_source":        "TEXT",
+    "bin_lps_bars":                 "INTEGER",
+    "lps_position_in_box":          "FLOAT",
+    "bin_d_vs_b_range_ratio":       "FLOAT",
+    "bin_d_vs_b_volume_ratio":      "FLOAT",
+    "lps_stretch_atr":              "FLOAT",
+    "lps_stretch_box":              "FLOAT",
+    # Minervini Stage-2 trend template (raw context)
+    "stage2_ma_stack_pass":         "INTEGER",
+    "stage2_ma200_slope_1m_pct":    "FLOAT",
+    "stage2_52w_low_pct":           "FLOAT",
+    "stage2_trend_pass_count":      "INTEGER",
+    "stage2_trend_pass":            "INTEGER",
 }
 
 
@@ -337,6 +360,31 @@ def archive_scan_results(
             scope_has_mini=(int(bool(row.get("_has_mini_consolidation")))
                             if row.get("_has_mini_consolidation") is not None else None),
             scope_confidence=row.get("_scope_confidence"),
+            # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
+            bin_a_bars=row.get("_bin_a_bars"),
+            bin_a_range_pct=row.get("_bin_a_range_pct"),
+            bin_a_volume_ratio=row.get("_bin_a_volume_ratio"),
+            bin_b_bars=row.get("_bin_b_bars"),
+            bin_b_range_pct=row.get("_bin_b_range_pct"),
+            bin_b_volume_ratio=row.get("_bin_b_volume_ratio"),
+            bin_d_bars=row.get("_bin_d_bars"),
+            bin_d_range_pct=row.get("_bin_d_range_pct"),
+            bin_d_volume_ratio=row.get("_bin_d_volume_ratio"),
+            bin_d_boundary_source=row.get("_bin_d_boundary_source"),
+            bin_lps_bars=row.get("_bin_lps_bars"),
+            lps_position_in_box=row.get("_lps_position_in_box"),
+            bin_d_vs_b_range_ratio=row.get("_bin_d_vs_b_range_ratio"),
+            bin_d_vs_b_volume_ratio=row.get("_bin_d_vs_b_volume_ratio"),
+            lps_stretch_atr=row.get("_lps_stretch_atr"),
+            lps_stretch_box=row.get("_lps_stretch_box"),
+            # Minervini Stage-2 trend-template context (raw, no scoring)
+            stage2_ma_stack_pass=(int(bool(row.get("_stage2_ma_stack_pass")))
+                                  if row.get("_stage2_ma_stack_pass") is not None else None),
+            stage2_ma200_slope_1m_pct=row.get("_stage2_ma200_slope_1m_pct"),
+            stage2_52w_low_pct=row.get("_stage2_52w_low_pct"),
+            stage2_trend_pass_count=row.get("_stage2_trend_pass_count"),
+            stage2_trend_pass=(int(bool(row.get("_stage2_trend_pass")))
+                               if row.get("_stage2_trend_pass") is not None else None),
             source="screener",
         )
 

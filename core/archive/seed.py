@@ -40,8 +40,10 @@ from core.structure import (
     detect_lps,
     find_outer_box,
     measure_bar_compression,
+    measure_bins,
     measure_contractions,
     measure_support_slope,
+    trend_template,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -186,6 +188,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         setup_state = lps_result["setup_type"]
         is_lps = True
         lps_length = lps_result["length"]
+        lps_offset = lps_result["offset"]
         trigger_price = lps_result["trigger_price"]
         vol_contraction = lps_result["vol_contraction"]
         tightness_ratio = lps_result["tightness_ratio"]
@@ -218,6 +221,23 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             min(adr_value / settings.ADR_FULL_PCT, 1.0)
             if settings.ADR_FULL_PCT else 0.0
         )
+
+        # Region (bin) features + Minervini trend template (measure-first parity
+        # with the live pipeline). Seed uses find_outer_box only -> never an
+        # inner box, so Phase D always resolves via the heuristic boundary.
+        bins = measure_bins(
+            df_ind,
+            bc_anchor_bar=bc_anchor_bar,
+            phase_b_start_bar=phase_b_start_bar,
+            base_len=base_len,
+            is_inner_box=False,
+            lps_offset=lps_offset,
+            lps_length=lps_length,
+            R=res_avg,
+            S=sup_avg,
+            atr_val=atr_for_zone,
+        )
+        trend = trend_template(df_ind, dist_52w_high_pct=dist_52w_high_pct)
 
         score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
@@ -290,6 +310,9 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "ascending_support_quality": float(support["quality"]),
             "adr_pct": float(adr_value),
             "adr_quality": float(adr_quality),
+            # Region (bin) features + Minervini trend template (measure-first).
+            **bins,
+            **trend,
         }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
@@ -521,6 +544,31 @@ def seed_archive(
             # ADR% absolute-volatility character
             adr_pct=best_result.get("adr_pct"),
             score_adr=sub.get("adr"),
+            # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
+            bin_a_bars=best_result.get("bin_a_bars"),
+            bin_a_range_pct=best_result.get("bin_a_range_pct"),
+            bin_a_volume_ratio=best_result.get("bin_a_volume_ratio"),
+            bin_b_bars=best_result.get("bin_b_bars"),
+            bin_b_range_pct=best_result.get("bin_b_range_pct"),
+            bin_b_volume_ratio=best_result.get("bin_b_volume_ratio"),
+            bin_d_bars=best_result.get("bin_d_bars"),
+            bin_d_range_pct=best_result.get("bin_d_range_pct"),
+            bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),
+            bin_d_boundary_source=best_result.get("bin_d_boundary_source"),
+            bin_lps_bars=best_result.get("bin_lps_bars"),
+            lps_position_in_box=best_result.get("lps_position_in_box"),
+            bin_d_vs_b_range_ratio=best_result.get("bin_d_vs_b_range_ratio"),
+            bin_d_vs_b_volume_ratio=best_result.get("bin_d_vs_b_volume_ratio"),
+            lps_stretch_atr=best_result.get("lps_stretch_atr"),
+            lps_stretch_box=best_result.get("lps_stretch_box"),
+            # Minervini Stage-2 trend-template context (raw, no scoring)
+            stage2_ma_stack_pass=(int(bool(best_result.get("stage2_ma_stack_pass")))
+                                  if best_result.get("stage2_ma_stack_pass") is not None else None),
+            stage2_ma200_slope_1m_pct=best_result.get("stage2_ma200_slope_1m_pct"),
+            stage2_52w_low_pct=best_result.get("stage2_52w_low_pct"),
+            stage2_trend_pass_count=best_result.get("stage2_trend_pass_count"),
+            stage2_trend_pass=(int(bool(best_result.get("stage2_trend_pass")))
+                               if best_result.get("stage2_trend_pass") is not None else None),
             # Forward returns
             **fwd_returns,
             # Market context

@@ -136,6 +136,33 @@ class SetupArchive(Base):
     scope_has_mini = Column(Integer, nullable=True)     # 1 if Phase D is an inner mini-consolidation
     scope_confidence = Column(Float, nullable=True)     # [0,1] fraction of regions confidently placed
 
+    # ── Region (bin) features (measure-only: "where am I in the base?") ──
+    # Per-region size / price-range / volume character, the D-vs-B comparison,
+    # and the Last-Supper stretch of the LPS from the box that birthed it.
+    bin_a_bars = Column(Integer, nullable=True)            # climax event (BC/SC -> AR) length in bars
+    bin_a_range_pct = Column(Float, nullable=True)         # (maxHigh-minLow)/minLow over Bin A
+    bin_a_volume_ratio = Column(Float, nullable=True)      # Bin A mean volume / trailing-50 mean
+    bin_b_bars = Column(Integer, nullable=True)            # working base length (= base_length)
+    bin_b_range_pct = Column(Float, nullable=True)         # base price range fraction
+    bin_b_volume_ratio = Column(Float, nullable=True)      # base mean volume / trailing-50 mean
+    bin_d_bars = Column(Integer, nullable=True)            # right-most launchpad length in bars
+    bin_d_range_pct = Column(Float, nullable=True)         # launchpad price range fraction
+    bin_d_volume_ratio = Column(Float, nullable=True)      # launchpad mean volume / trailing-50 mean
+    bin_d_boundary_source = Column(String, nullable=True)  # inner_box | heuristic (how Phase D start was placed)
+    bin_lps_bars = Column(Integer, nullable=True)          # LPS window length in bars
+    lps_position_in_box = Column(Float, nullable=True)     # (lps_low - S)/(R - S): 0=floor, 1=ceiling
+    bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter launchpad)
+    bin_d_vs_b_volume_ratio = Column(Float, nullable=True) # Bin D vol / Bin B vol (<1 = quieter launchpad)
+    lps_stretch_atr = Column(Float, nullable=True)         # (lps_low - R)/ATR: how far the LPS sits above the box ceiling
+    lps_stretch_box = Column(Float, nullable=True)         # (lps_low - R)/(R - S): same, in box-heights (Last-Supper risk)
+
+    # ── Minervini Stage-2 trend template (raw context, no scoring) ──
+    stage2_ma_stack_pass = Column(Integer, nullable=True)       # 1 if price > SMA50 > SMA150 > SMA200
+    stage2_ma200_slope_1m_pct = Column(Float, nullable=True)    # SMA200 % change over ~21 bars
+    stage2_52w_low_pct = Column(Float, nullable=True)           # fraction above the 52-week low
+    stage2_trend_pass_count = Column(Integer, nullable=True)    # how many of the 7 trend-template criteria pass
+    stage2_trend_pass = Column(Integer, nullable=True)          # 1 if all 7 pass
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)

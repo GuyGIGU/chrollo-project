@@ -60,6 +60,42 @@ def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
         return None
 
 
+def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
+                           is_inner_box: bool, has_lps_window: bool,
+                           lps_start: int, b: Optional[int]) -> Optional[int]:
+    """Phase-D (right-most launchpad) start bar, df-positional. Pure.
+
+    Single source of truth for the Phase-D boundary, shared between the scoping
+    overlay (``scope_consolidation``) and the bin-feature measurer
+    (``core.structure.bin_features``) so the drawn band and the measured Phase-D
+    bin can never drift apart:
+
+      - inner sub-box  -> the mini-consolidation IS the region: its start.
+      - otherwise      -> the final third of the base (the right-most side),
+                          pulled earlier if the LPS itself starts before it (the
+                          LPS always sits inside Phase D). A fraction, not the
+                          2-7 bar LPS window, so it reads as a region. The exact
+                          fraction is the first knob the fidelity grader will
+                          calibrate. ``None`` when there is no LPS window.
+
+    The result is clamped on-frame and never allowed to invert the body start
+    ``b``: when the base is too young to separate body from launchpad it
+    collapses to ``b`` rather than crossing it.
+    """
+    if is_inner_box:
+        d = box_start
+    elif has_lps_window:
+        final_third = box_start + (2 * base_len) // 3
+        d = max(box_start, min(final_third, lps_start))
+    else:
+        d = None
+    if d is not None:
+        d = max(0, min(d, last))
+        if b is not None and d < b:
+            d = b
+    return d
+
+
 def scope_consolidation(
     df: "pd.DataFrame",
     *,
@@ -157,28 +193,16 @@ def scope_consolidation(
     box_start = n - base_len
 
     # ── Phase D anchor — the right-most region (the launchpad) ──────────────
-    # Phase D is a REGION anchored on the LPS, not the LPS formation alone.
-    #   inner sub-box -> the mini-consolidation IS the region: its start.
-    #   otherwise     -> the final third of the base (the right-most side),
-    #                    with the LPS as its foundation (highlighted
-    #                    separately). A fraction, not the 2-7 bar LPS window,
-    #                    so it reads as a region; pulled earlier if the LPS
-    #                    itself starts before the final third (LPS always
-    #                    sits inside Phase D). The exact fraction is the first
-    #                    knob the fidelity grader will calibrate.
-    if is_inner_box:
-        d = box_start
-    elif has_lps_window:
-        final_third = box_start + (2 * base_len) // 3
-        d = max(box_start, min(final_third, lps_start))
-    else:
-        d = None
-    if d is not None:
-        d = max(0, min(d, last))
-        # Keep the band ordering monotone; collapse (not invert) when the base
-        # is too young to separate the body from the launchpad.
-        if b is not None and d < b:
-            d = b
+    # Boundary rule lives in _resolve_phase_d_start (shared with
+    # core.structure.bin_features so the drawn band and the measured Phase-D
+    # bin use one rule): inner sub-box -> its start; else the final third of the
+    # base, pulled earlier if the LPS begins before it; clamped on-frame and
+    # never allowed to cross the body start b.
+    d = _resolve_phase_d_start(
+        box_start=box_start, base_len=base_len, last=last,
+        is_inner_box=is_inner_box, has_lps_window=has_lps_window,
+        lps_start=lps_start, b=b,
+    )
 
     # ── Phase C spring marker (UNDERCUT_S only) — the undercut low (V tip) ───
     c = lps_low_bar if (lps_zone_type == "UNDERCUT_S" and lps_low_bar is not None) else None

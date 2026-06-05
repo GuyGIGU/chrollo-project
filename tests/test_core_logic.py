@@ -13,14 +13,16 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
+from core.structure.bin_features import measure_bins
 from core.structure.consolidation import (
     _select_phase_b_candidate,
     measure_bar_compression,
 )
+from core.structure.indicators import trend_template
 from core.structure.lps import detect_lps
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
-from core.structure.scope import scope_consolidation
+from core.structure.scope import _resolve_phase_d_start, scope_consolidation
 from tools.fidelity_harness import summarize_fidelity
 from tools.shadow_diff import canonical_fields
 from tools.shadow_diff import diff_against_baseline as shadow_diff_against_baseline
@@ -361,6 +363,120 @@ def test_shadow_guard_fails_when_ticker_drops_out():
     ok, lines = shadow_diff_against_baseline(current, baseline)
     assert ok is False
     assert any("BBB" in line for line in lines)
+
+
+# ──────────────────────────────────────────────────────────────────
+# Bin features + Minervini trend template (Stage 2A, measure-only)
+# ──────────────────────────────────────────────────────────────────
+def _flat_ohlc(n, *, high=101.0, low=99.0, close=100.0, volume=1000.0):
+    """Uniform OHLC frame; callers mutate specific rows for region tests."""
+    return pd.DataFrame([
+        {"Open": close, "High": high, "Low": low, "Close": close, "Volume": volume}
+        for _ in range(n)
+    ])
+
+
+def test_measure_bins_slices_named_regions_heuristic():
+    df = _flat_ohlc(120)
+    # LPS = last 5 bars, low pinned at 100 (inside the 99..101 box).
+    for i in range(115, 120):
+        df.loc[i, "Low"] = 100.0
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+    assert bins["bin_a_bars"] == 20          # 30 - 10
+    assert bins["bin_b_bars"] == 60          # base_len
+    assert bins["bin_lps_bars"] == 5
+    assert bins["bin_d_bars"] == 20          # final-third heuristic: d=100, n=120
+    assert bins["bin_d_boundary_source"] == "heuristic"
+    assert abs(bins["lps_position_in_box"] - 0.5) < 1e-9   # (100-99)/(101-99)
+    assert bins["bin_b_volume_ratio"] == 1.0               # uniform volume
+    # LPS foot sits below the ceiling -> no Last-Supper stretch (< 0).
+    assert bins["lps_stretch_box"] < 0
+    assert bins["lps_stretch_atr"] == -1.0                 # (100-101)/1
+
+
+def test_measure_bins_inner_box_sets_boundary_source_and_region():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=True, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+    assert bins["bin_d_boundary_source"] == "inner_box"
+    assert bins["bin_d_bars"] == 60          # Phase D = the inner box (box_start..end)
+
+
+def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
+    df = _flat_ohlc(120)
+    for i in range(115, 120):
+        df.loc[i, "Low"] = 103.0
+        df.loc[i, "Close"] = 103.5
+        df.loc[i, "High"] = 104.0
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+    # LPS formed 2 points above R=101 -> stretched (the Last-Supper risk axis).
+    assert bins["lps_stretch_box"] > 0
+    assert bins["lps_stretch_atr"] == 2.0     # (103-101)/1
+    assert bins["lps_position_in_box"] > 1.0  # above the box ceiling
+
+
+def test_measure_bins_no_lps_window_degrades_gracefully():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=200, lps_length=5,   # window falls off the frame
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+    assert bins["bin_lps_bars"] is None
+    assert bins["lps_stretch_atr"] is None
+    assert bins["bin_d_bars"] is None         # heuristic Phase D keys off the LPS start
+    assert bins["bin_b_bars"] == 60           # the base region is still measured
+
+
+def test_resolve_phase_d_start_matches_scope_rule():
+    # inner box -> box start; heuristic -> final third pulled to LPS; no LPS -> None.
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=True, has_lps_window=True,
+                                  lps_start=115, b=30) == 60
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=115, b=30) == 100
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=False,
+                                  lps_start=0, b=30) is None
+
+
+def test_trend_template_full_pass_on_clean_uptrend():
+    n = 252
+    df = pd.DataFrame([
+        {"Open": 10 + 0.36 * i, "High": (10 + 0.36 * i) * 1.01,
+         "Low": (10 + 0.36 * i) * 0.99, "Close": 10 + 0.36 * i, "Volume": 1000}
+        for i in range(n)
+    ])
+    t = trend_template(df, dist_52w_high_pct=-0.01)
+    assert t["stage2_trend_pass"] is True
+    assert t["stage2_trend_pass_count"] == 7
+    assert t["stage2_ma_stack_pass"] is True
+    assert t["stage2_ma200_slope_1m_pct"] > 0
+    assert t["stage2_52w_low_pct"] > 0.30
+
+
+def test_trend_template_insufficient_history_degrades():
+    df = pd.DataFrame([
+        {"Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000}
+        for _ in range(150)        # < 200 bars
+    ])
+    t = trend_template(df, dist_52w_high_pct=-0.01)
+    assert t["stage2_trend_pass"] is False
+    assert t["stage2_trend_pass_count"] == 0
+    assert t["stage2_ma200_slope_1m_pct"] is None
+    assert t["stage2_ma_stack_pass"] is False
 
 
 # ──────────────────────────────────────────────────────────────────

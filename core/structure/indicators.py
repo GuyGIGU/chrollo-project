@@ -79,6 +79,80 @@ def adr_pct(df, window: int = 20) -> float:
         return 0.0
 
 
+def trend_template(df, *, dist_52w_high_pct=None) -> dict:
+    """Minervini Stage-2 trend-template criteria (measure-only, no opinion).
+
+    The classic price/structure template, computed self-contained from df:
+      1. price > SMA_150 and price > SMA_200
+      2. SMA_150 > SMA_200
+      3. SMA_200 trending up over the last ~1 month (21 bars)
+      4. SMA_50 > SMA_150 > SMA_200
+      5. price > SMA_50
+      6. price >= 30% above the 52-week low
+      7. price within 25% of the 52-week high
+
+    Minervini's 8th criterion (RS rating >= 70, a universe percentile) is
+    deliberately omitted — Chrollo measures relative strength SPY-relatively
+    elsewhere and does not compute a universe rank — so the pass count is out
+    of 7 and ``stage2_trend_pass`` means all 7.
+
+    Returns a JSON-safe dict (un-prefixed keys). Every field is None/False-safe
+    on insufficient (< 200 bars) or non-finite input — never raises, never NaN.
+    """
+    empty = {
+        "stage2_ma_stack_pass": False,
+        "stage2_ma200_slope_1m_pct": None,
+        "stage2_52w_low_pct": None,
+        "stage2_trend_pass_count": 0,
+        "stage2_trend_pass": False,
+    }
+    try:
+        if df is None or len(df) < 200 or "Close" not in df.columns:
+            return empty
+        close = df["Close"].astype(float)
+        n = len(close)
+        price = float(close.iloc[-1])
+        sma50 = float(close.iloc[-50:].mean())
+        sma150 = float(close.iloc[-150:].mean())
+        sma200 = float(close.iloc[-200:].mean())
+        if not all(np.isfinite(v) for v in (price, sma50, sma150, sma200)):
+            return empty
+        if price <= 0 or min(sma50, sma150, sma200) <= 0:
+            return empty
+
+        # 200-day MA slope over ~1 month (21 trading days), as a percent.
+        slope_pct = None
+        if n >= 221:
+            sma200_prev = float(close.iloc[-221:-21].mean())
+            if np.isfinite(sma200_prev) and sma200_prev > 0:
+                slope_pct = (sma200 - sma200_prev) / sma200_prev * 100.0
+                if not np.isfinite(slope_pct):
+                    slope_pct = None
+
+        # 52-week low distance (fraction above the 252-bar low).
+        low_252 = float(df["Low"].iloc[-min(252, n):].min())
+        low_pct = ((price - low_252) / low_252) if (np.isfinite(low_252) and low_252 > 0) else None
+
+        c1 = price > sma150 and price > sma200
+        c2 = sma150 > sma200
+        c3 = slope_pct is not None and slope_pct > 0
+        c4 = sma50 > sma150 > sma200
+        c5 = price > sma50
+        c6 = low_pct is not None and low_pct >= 0.30
+        c7 = dist_52w_high_pct is not None and float(dist_52w_high_pct) >= -0.25
+        count = int(sum(bool(c) for c in (c1, c2, c3, c4, c5, c6, c7)))
+
+        return {
+            "stage2_ma_stack_pass": bool(price > sma50 > sma150 > sma200),
+            "stage2_ma200_slope_1m_pct": (round(slope_pct, 4) if slope_pct is not None else None),
+            "stage2_52w_low_pct": (round(low_pct, 4) if low_pct is not None else None),
+            "stage2_trend_pass_count": count,
+            "stage2_trend_pass": bool(count == 7),
+        }
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return empty
+
+
 def calculate_adx(df, period=14):
     """Average Directional Index using Wilder's smoothing."""
     high = df['High'].values

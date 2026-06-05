@@ -340,6 +340,79 @@ These are bookkeeping (not score gates) intentionally: the volume signature at t
 
 ---
 
+## Region (Bin) Features & Trend Template (Stage 2A)
+
+Two measure-only layers. Both are **descriptive, never scored and never gated** —
+every value is an underscore-prefixed result field persisted to the archive
+(nullable, backward-compatible) so a later calibration pass can test whether any
+of it predicts forward returns. Scoring (14 components, max ~202) and the tier
+thresholds are **unchanged**.
+
+### Bin features — "where am I in the base?"
+
+`measure_bins()` ([core/structure/bin_features.py](../core/structure/bin_features.py))
+slices an already-detected base into its named regions and reports raw size,
+price-range, and volume character per region. It detects nothing new — it
+consumes anchors the detector + LPS finder already produced.
+
+| Region | Span | What it is |
+|--------|------|------------|
+| **A — climax event** | `bc_anchor_bar → phase_b_start_bar` | the BC/SC → AR trend-exhaustion lead-in |
+| **B — working base** | the validated box (`base_df`) | the cause-building equilibrium |
+| **D — launchpad** | the right-most region | the inner mini-consolidation if one was detected, else the final-third heuristic |
+| **LPS** | the exact LPS candidate bars | the launch pad itself |
+
+Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/minLow),
+`_bin_{a,b,d}_volume_ratio` (region mean volume ÷ trailing-50 mean). Plus:
+
+- `_bin_lps_bars`, `_lps_position_in_box` ((lps_low − S)/(R − S): 0 = floor, 1 = ceiling);
+- `_bin_d_vs_b_range_ratio` / `_bin_d_vs_b_volume_ratio` — is the launchpad
+  tighter / quieter than the base it sits in? (the VCP "coil into launch" read);
+- `_bin_d_boundary_source` — `inner_box` (a real detected mini-consolidation) or
+  `heuristic` (the final-third fallback), so archive analysis can trust the
+  clean ones and discount the fuzzy ones.
+
+**Phase-D boundary is single-sourced.** The Phase-D start uses the *same* rule
+the scoping overlay draws — both call `scope._resolve_phase_d_start()` — so the
+measured Phase-D bin and the drawn Phase-D band can never drift apart. Any
+region the engine can't place confidently (e.g. no LPS window) is emitted as
+`None`; young bases legitimately have fewer regions.
+
+### Last Supper stretch
+
+The over-extension axis from the structure legend: how far the LPS foot sits
+*above the box that birthed it* (its energy source).
+
+- `_lps_stretch_atr` = `(lps_low − R) / ATR` — distance above the ceiling, in ATR;
+- `_lps_stretch_box` = `(lps_low − R) / (R − S)` — same, in box-heights.
+
+≤ 0 means the LPS formed in or below the box (no stretch); a large positive
+value flags a stretched, Last-Supper-risk LPS far from its energy source. Raw
+archived measure first — validated against the durable-win vs cash-grab outcome
+before it is ever allowed to influence ranking.
+
+### Minervini Stage-2 trend template
+
+`trend_template()` ([core/structure/indicators.py](../core/structure/indicators.py))
+records the classic price/MA leadership template as raw context, computed
+self-contained from the daily frame:
+
+1. price > SMA_150 and > SMA_200; 2. SMA_150 > SMA_200; 3. SMA_200 rising over
+~1 month (21 bars); 4. SMA_50 > SMA_150 > SMA_200; 5. price > SMA_50; 6. price
+≥ 30% above the 52-week low; 7. price within 25% of the 52-week high.
+
+Fields: `_stage2_ma_stack_pass`, `_stage2_ma200_slope_1m_pct`,
+`_stage2_52w_low_pct`, `_stage2_trend_pass_count` (0–7), `_stage2_trend_pass`
+(all 7). Minervini's 8th criterion (RS rating ≥ 70, a *universe percentile*) is
+**deliberately omitted** — Chrollo measures relative strength SPY-relatively via
+`excess_return_6m` and does not compute a universe rank — so the count is out of
+7. Context only; no gate, no score.
+
+All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
+surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
+
+---
+
 ## Outputs
 
 `_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields (`_R`, `_S`, `_lps_offset`, `_r_anchor_bar`, `_s_anchor_bar`, `_sub_scores`, `_r_touch_vol_z`, `_s_touch_vol_z`, `_lps_descent_frac`, `_lps_zone_type`, etc.) feed the chart renderer and the archive but are not displayed in the terminal.

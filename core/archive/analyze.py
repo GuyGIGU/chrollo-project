@@ -64,6 +64,16 @@ STRUCTURAL_FEATURES = [
     "base_median_spread_pct_box", "base_tight_bar_pct",
     "support_slope_atr", "ascending_support_quality",
     "adr_pct",
+    # Region (bin) features (Stage 2A — "where am I in the base?")
+    "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
+    "bin_b_range_pct", "bin_b_volume_ratio",
+    "bin_d_bars", "bin_d_range_pct", "bin_d_volume_ratio",
+    "bin_lps_bars", "lps_position_in_box",
+    "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
+    "lps_stretch_atr", "lps_stretch_box",
+    # Minervini Stage-2 trend template (raw context)
+    "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct",
+    "stage2_52w_low_pct", "stage2_trend_pass_count", "stage2_trend_pass",
 ]
 
 # Sub-scores (the Scoring Engine decomposition).
@@ -100,7 +110,8 @@ EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d"
 # Tightness features specifically - the prime directive.
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "lps_descent_frac", "contraction_quality",
-                      "base_median_spread_atr", "base_tight_bar_pct"]
+                      "base_median_spread_atr", "base_tight_bar_pct",
+                      "bin_d_vs_b_range_ratio"]
 
 
 def load_archive(source: Optional[str] = None) -> pd.DataFrame:
@@ -480,7 +491,8 @@ def section_tightness(df: pd.DataFrame, valid: bool) -> None:
         # For box_width / atr_ratio / tightness_ratio, LOWER = tighter.
         # For lps_descent_frac, HIGHER = cleaner. Normalize direction so
         # "tight" is always the better-thesis end.
-        ascending_is_tight = feat in ("box_width", "atr_ratio", "tightness_ratio")
+        ascending_is_tight = feat in ("box_width", "atr_ratio", "tightness_ratio",
+                                      "bin_d_vs_b_range_ratio")
         d = d.sort_values(feat, ascending=ascending_is_tight)
         tert = max(4, len(d) // 3)
         tight = d.head(tert)[target]

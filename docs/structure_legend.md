@@ -143,6 +143,14 @@ LS becomes a raw archived measure first (an "LPS stretch" field), validated
 against accruing outcomes (especially the durable-win vs cash-grab label) before
 it ever influences ranking.
 
+> **Shipped (Stage 2A).** The stretch is now a raw archived measure:
+> `_lps_stretch_atr` and `_lps_stretch_box` — the LPS foot's distance above the
+> box ceiling R, in ATR and in box-heights — from
+> [bin_features.py](../core/structure/bin_features.py). Component **b**
+> ("distance from the last consolidation") is the box-relative form; the
+> innermost range *is* the operative box the detector returned. Measure-first:
+> archived, never yet scored.
+
 ---
 
 ## Engine implications
@@ -167,6 +175,13 @@ it ever influences ranking.
    equilibrium. A single quality floor (`PHASE_B_REACH_QUALITY_FLOOR`) keeps it
    from reaching back into a materially looser framing. See
    segmentation_research.md → Build path → Change B.
+
+5. **Regions are now measured (Stage 2A).** `measure_bins` records each region's
+   (A / B / D / LPS) size, range, and volume as raw archived fields — the
+   "where am I in the base?" layer — alongside the Minervini Stage-2 trend
+   template. The Phase-D boundary is single-sourced with the scoping overlay
+   (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
+   scores. See strategy_v2.md, "Region (Bin) Features & Trend Template".
 
 ---
 
