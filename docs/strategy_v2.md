@@ -14,6 +14,7 @@ Phase 1  Baseline universe filter              core.pipeline.screener   (apply_b
 Phase 2  Consolidation detection               core.structure           (find_consolidation -> find_outer_box + _phase_b_zigzag, with optional _inner_zigzag refinement)
 Phase 2b Crash / extension filters             core.pipeline.screener   (_evaluate_ticker)
 Phase 3  LPS detection                         core.structure           (detect_lps)
+Phase 3b Read-only phase scoping               core.structure           (scope_consolidation)
 Phase 4  Scoring & tier assignment             core.scoring             (score_setup, calculate_tier)
 Archive  Persist + forward-return backfill     core.archive             (writer / forward_returns / seed)
 ```
@@ -73,7 +74,7 @@ While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread =
 Before per-ticker workers fan out, the orchestrator computes two scalars once and pickles them into every worker:
 
 - **`spy_6m_return`** — SPY close-to-close return over `RS_LOOKBACK_BARS` (126 bars). Feeds the Soft RS bonus in scoring (`excess_return_6m = stock_6m − spy_6m`).
-- **`breadth_pct`** — share of the screened universe with `Close > SMA_50`. Currently persisted to the archive (`_breadth_pct`) for regression purposes; not yet wired into a scoring gate.
+- **`breadth_pct`** — share of the screened universe with `Close > SMA_50`. Persisted to the archive (`_breadth_pct`) and used by the market-breadth bonus in scoring; never used as a hard gate.
 
 Cached in `market_context.json` next to the parquet with TTL 1h during market hours, 12h otherwise; invalidated when SPY's last-bar date changes.
 
@@ -106,6 +107,10 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 `anchors` is built most-recent-first; the loop iterates `reversed(anchors)` (oldest-first) and takes the **first anchor whose Phase B passes** all quality gates. Rationale (from the docstring): maximizes Wyckoff "cause" / base age, and resists the failure mode where a mid-base upthrust gets selected because its shorter window mechanically yields a tighter box.
 
+### Swing Segmentation — Phase-A Display Reconnect
+
+`segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) measures the swing path with ATR-normalized displacement and identifies a root counter-swing from trend into range. The live pipeline uses this only after the box/LPS have already passed: if the detector's BC anchor drifted to an ancient climax, `_evaluate_ticker()` may reconnect `bc_anchor_bar` to the largest recent counter-trend swing whose end lands near `phase_b_start_bar`. This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, and chart-region labels), but it does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
+
 ### Phase B — Zigzag S/R Anchoring
 
 `_phase_b_zigzag()` ([core/structure/consolidation.py](../core/structure/consolidation.py)).
@@ -126,7 +131,10 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
      - In-base crash filter: `min(Low) >= S × CRASH_FILTER_MULT` (0.70).
      - **Touch density** (ATR-normalized, `TOUCH_TOLERANCE_ATR = 0.5`): require ≥ 2 touches each on R and S.
      - **Midline crosses** ("tunnel-killer"): committed-cross count using `MIDLINE_ATR_BUFFER = 0.3·ATR` — a cross only counts after price first travels ≥ buffer away from the midline. Required: `max(MIN_MIDLINE_CROSSES=3, len(eq_df) // 15)`.
-6. **Best-candidate weighting:** `0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × midline_quality(/8)`.
+6. **Structural-quality score:** every valid candidate receives `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × midline_quality(/8)`.
+7. **Candidate selection (`select="earliest"` live default):** find the best combined score, keep only candidates whose combined score is at least `PHASE_B_REACH_QUALITY_FLOOR × best_combined` (`0.75 × best`), then choose the earliest `cand_start` from that good-enough pool, tie-broken toward higher quality. This is the current "right one, not merely tightest one" rule: root the outer box at the earliest structurally valid range start, but refuse to reach back into a materially looser framing just because it begins earlier.
+
+`select="best"` remains as a diagnostic mode for A/B tools and uses the highest combined score regardless of start. `select="debug"` returns the valid-candidate landscape for tooling. This selector applies only to the **outer** Phase-B box; the inner Phase-D mini-consolidation still chases tightness because its job is to identify a recent launchpad inside an already-validated outer base.
 
 #### `cand_start` trim — measure on the actual chop window
 
@@ -168,7 +176,17 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 
 The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the trigger must sit **above** current price (room to run; Phase 3, gate 13), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
 
-**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* Surfacing that region explicitly — an adaptive scoping pass over the existing detector output, drawn on the chart, kept strictly as a **hint to the LPS step, never a new gate** — is a **planned refinement, not yet a first-class layer**. The pieces it would compose (mandatory LPS, graded shape, zone placement, optional inner box, trigger-above-price) already exist and are cited above; the work is to make the right-most region an explicit, inspectable thing rather than an implicit by-product. It must degrade gracefully: a young base may yield only "equilibrium body + right edge," never forced into tidy quadrants.
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is now surfaced explicitly by `scope_consolidation()` ([core/structure/scope.py](../core/structure/scope.py)), an adaptive scoping pass over the detector + LPS output. It is strictly a **read-only hint**, never a gate: it cannot drop a ticker, change R/S, or alter score/tier.
+
+The scoping layer emits best-effort chart anchors:
+
+- **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor toward the base start. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
+- **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
+- **Phase D:** the right-most launch region. If an inner mini-consolidation won, Phase D starts at that inner box. Otherwise it starts around the final third of the base, pulled earlier when the exact LPS shelf begins earlier.
+- **Phase C:** optional spring marker at the LPS low only when the LPS zone type is `UNDERCUT_S`.
+- **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
+
+All boundaries are nullable. If the engine cannot place a region confidently, it emits `None` and the frontend skips that label/box. Young bases may yield only a base body and a right edge; the model must never force four tidy quadrants.
 
 ---
 
@@ -326,6 +344,8 @@ These are bookkeeping (not score gates) intentionally: the volume signature at t
 
 `_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields (`_R`, `_S`, `_lps_offset`, `_r_anchor_bar`, `_s_anchor_bar`, `_sub_scores`, `_r_touch_vol_z`, `_s_touch_vol_z`, `_lps_descent_frac`, `_lps_zone_type`, etc.) feed the chart renderer and the archive but are not displayed in the terminal.
 
+The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`, `_phase_b_start_date`, `_phase_d_start_date`, optional `_phase_c_event_date`, `_lps_zone_low`, `_lps_zone_high`, `_lps_zone_start_date`, `_lps_zone_end_date`, `_has_mini_consolidation`, and `_scope_confidence`. These fields are visualization/diagnostic facts only; no downstream filtering or scoring consumes them.
+
 Pipeline returns `(results_df, market_data, tickers)` — `results_df` is sorted by `Score` descending.
 
 ---
@@ -386,6 +406,7 @@ TREND_MIN_MOVE_BARS = 20
 TREND_PRIOR_LOOKBACK = 100
 LOCAL_PEAK_BARS = 30
 PHASE_B_ATR_WINDOW = 30
+PHASE_B_REACH_QUALITY_FLOOR = 0.75  # earliest-good-enough outer-box selector
 AR_MIN_DROP_PCT = 0.05
 AR_MAX_BARS = 15
 

@@ -4,10 +4,10 @@ import { buildPhaseRegions } from './chartPhaseOverlay';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
 const formatMoney = (value) =>
-  Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '-';
+  value != null && value !== '' && Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '-';
 
 const formatPct = (value) =>
-  Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : '-';
+  value != null && value !== '' && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : '-';
 
 const tierColor = (tier) => {
   switch (tier) {
@@ -67,7 +67,7 @@ function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
             onFocus={() => onRegionChange(region.key)}
             onMouseEnter={() => onRegionChange(region.key)}
             onMouseLeave={() => onRegionChange(null)}
-            title={`${region.name} - ${region.detail}`}
+            aria-label={`${region.name} - ${region.detail}`}
           >
             <span className="phase-bin-token">{region.label}</span>
             <span className="phase-bin-copy">

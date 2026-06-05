@@ -1,6 +1,7 @@
 import React from 'react';
 
 const STALE_CHUNK_RELOAD_PREFIX = 'chrollo:stale-chunk-reload:';
+let staleChunkReloadedThisTab = false;
 
 const isDynamicImportError = (error) => {
   const message = String(error?.message || error || '');
@@ -18,6 +19,8 @@ const alreadyReloadedFor = (key) => {
     window.sessionStorage.setItem(key, '1');
     return false;
   } catch {
+    if (staleChunkReloadedThisTab) return true;
+    staleChunkReloadedThisTab = true;
     return false;
   }
 };

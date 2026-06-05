@@ -9,7 +9,7 @@ them as the right-most launch region the human eye reads first.
 It answers a single question per setup: *given where the box, the swing, and
 the LPS already are, where does the right-most region (Phase D) begin, and what
 sits inside it?* The output is bands + a support-zone price band, archived raw
-and drawn on the chart card. It is a HINT, never a gate — nothing here can drop
+and drawn on the chart overlay. It is a HINT, never a gate — nothing here can drop
 a ticker or change a score.
 
 Regions (all best-effort; any boundary that can't be placed confidently is
@@ -18,8 +18,10 @@ have fewer regions, and we never force four tidy quadrants):
 
     Phase A  — lead-in: climax / trend exhaustion into the equilibrium body
                (bc_anchor_bar -> phase_b_start_bar)
-    Phase B  — the equilibrium body / cause-building
-               (phase_b_start_bar -> phase_d_start)
+    Phase B  — the working base / cause-building region. In the chart
+               validation overlay it is read as the whole base from
+               phase_b_start_bar through the setup end, with Phase D as an
+               overlapping right-side subregion rather than a hard cutoff.
     Phase D  — the right-most launchpad, the region the trader positions in.
                Anchored on the LPS (always the foundation). When the detector
                selected an inner sub-box (a mini-consolidation), Phase D is that

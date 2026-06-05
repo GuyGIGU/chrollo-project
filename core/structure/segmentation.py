@@ -14,8 +14,11 @@ PURE MEASUREMENT (Phase 1). It:
   - flags the candidate root swing (climax pivot -> first big counter-burst).
 
 It bakes in NO trend/range cutoff (case-dependent; calibrated later against the
-fidelity set) and it NEVER gates or scores. Nothing in the live pipeline consumes
-it yet, so the shadow-diff stays frozen while we eyeball it on real charts.
+fidelity set) and it NEVER gates or scores. The live pipeline consumes it only
+as a display/scoping aid: when the original BC anchor drifted too far back, the
+pipeline may reconnect the Phase-A anchor to a recent root swing for diagnostics
+and chart-region labels. R/S, setup eligibility, score, and tier do not consume
+the segmentation output.
 
 Reuses the existing zigzag machinery in consolidation.py rather than
 re-implementing pivot detection.
