@@ -42,6 +42,17 @@ LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this w
 # Phase-B ATR window (median over recent N base bars; used when no override is given)
 PHASE_B_ATR_WINDOW = 30
 
+# Phase-B candidate selection (outer box). When the engine roots the
+# consolidation at the EARLIEST valid range start (select="earliest"), it must
+# not reach back into a *materially looser* framing just because it begins
+# earlier. Among the valid pivot pairs it keeps only those whose combined
+# structural quality (tightness + touch density + midline) is at least this
+# fraction of the best available pair, then picks the earliest of THOSE. So a
+# longer truer base is preferred, but a sparse, ballooning framing that merely
+# starts earlier is rejected. 1.0 == strict "best only"; lower == more willing
+# to trade a little quality for an earlier (longer) start.
+PHASE_B_REACH_QUALITY_FLOOR = 0.75
+
 # Automatic Reaction validation (required)
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
 AR_MAX_BARS = 15                 # ...within this many bars of the climax

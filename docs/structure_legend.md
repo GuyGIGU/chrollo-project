@@ -158,6 +158,15 @@ it ever influences ranking.
 3. **Everything here is a measure, not a gate.** BC-respected-as-R, range
    qualification confidence, LPS stretch — all raw archived fields, recalibrated
    later against the live outcome archive.
+4. **Read the range from its earliest valid start, not its best-scoring
+   sub-window (shipped — Change B).** The outer box now selects the *earliest
+   good-enough* candidate pair (`select="earliest"`), so the consolidation is
+   rooted at the true range start near the AR low. The old "pick the
+   highest-scoring pair" rule kept grabbing a tight recent *tail* and discarding
+   the real base — "a random pair that scored better" starting the box mid-
+   equilibrium. A single quality floor (`PHASE_B_REACH_QUALITY_FLOOR`) keeps it
+   from reaching back into a materially looser framing. See
+   segmentation_research.md → Build path → Change B.
 
 ---
 

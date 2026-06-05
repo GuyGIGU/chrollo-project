@@ -94,7 +94,8 @@ def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, flo
 # ────────────────────────────────────────────────────────────────
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
-                     breadth_pct: Optional[float] = None) -> Optional[dict]:
+                     breadth_pct: Optional[float] = None,
+                     select: str = "earliest") -> Optional[dict]:
     """
     Evaluate a single ticker through all screening phases.
     Returns a result dict if the ticker passes, or None if filtered out.
@@ -126,7 +127,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
             is_inner_box = \
-            find_consolidation(df, min_days=settings.MIN_BASE_DAYS)
+            find_consolidation(df, min_days=settings.MIN_BASE_DAYS, select=select)
 
         if base_len == 0:
             return None

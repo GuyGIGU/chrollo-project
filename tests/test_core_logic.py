@@ -13,7 +13,10 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
-from core.structure.consolidation import measure_bar_compression
+from core.structure.consolidation import (
+    _select_phase_b_candidate,
+    measure_bar_compression,
+)
 from core.structure.lps import detect_lps
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
@@ -103,6 +106,43 @@ def test_segment_swings_finds_root_bridge():
     # Efficiency is a real ratio in [0, 1]; the AR is the single largest swing.
     assert 0.0 <= res["efficiency"] <= 1.0
     assert max(s["abs_disp_atr"] for s in res["swings"]) == 7.0
+
+
+def _cand(combined, cand_start, box_width=0.1):
+    """Build a Phase-B candidate tuple (only combined [0] and cand_start [9]
+    drive selection; the rest are placeholders)."""
+    return (combined, 100.0, 90.0, box_width, 5, 5, 0, 10, 5, cand_start)
+
+
+def test_phase_b_select_best_takes_global_best():
+    # A later, tighter (higher-combined) pair vs an earlier, looser one.
+    early_loose = _cand(combined=0.50, cand_start=10)
+    late_tight = _cand(combined=0.80, cand_start=40)
+    chosen = _select_phase_b_candidate([early_loose, late_tight], "best")
+    assert chosen is late_tight  # best == highest combined, regardless of start
+
+
+def test_phase_b_select_earliest_prefers_earlier_when_good_enough():
+    # Earlier pair is within the quality floor (0.75) of the best -> reach back.
+    early_ok = _cand(combined=0.72, cand_start=10)   # 0.72 / 0.80 = 90% >= 75%
+    late_tight = _cand(combined=0.80, cand_start=40)
+    chosen = _select_phase_b_candidate([late_tight, early_ok], "earliest")
+    assert chosen is early_ok
+
+
+def test_phase_b_select_earliest_rejects_materially_looser_framing():
+    # The SKT case: the earlier framing is far below the floor (65% of best),
+    # so "earliest" must NOT reach back to it and keeps the tight late box.
+    early_loose = _cand(combined=0.499, cand_start=10)  # 0.499/0.770 = 65% < 75%
+    late_tight = _cand(combined=0.770, cand_start=40)
+    chosen = _select_phase_b_candidate([early_loose, late_tight], "earliest")
+    assert chosen is late_tight
+
+
+def test_phase_b_select_earliest_never_empties_pool():
+    # A single candidate always clears its own floor.
+    only = _cand(combined=0.30, cand_start=5)
+    assert _select_phase_b_candidate([only], "earliest") is only
 
 
 def test_segment_swings_guards_bad_inputs():

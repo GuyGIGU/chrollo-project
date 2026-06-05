@@ -117,13 +117,37 @@ it on the fidelity chart and check it labels ECPG / MEOH / the 12-stock set the
 way the eye does.
 
 **Phase 2 — once the measure earns trust.** Constrain anchor selection + R/S
-rooting to respect **segment ownership**. Shadow-diff moves here; that diff *is*
-the review artifact (ECPG snaps to the 92 climax; MEOH unchanged).
+rooting to respect **segment ownership**.
+
+- **Change A (shipped).** Reconnect the drifted BC anchor to the recent base
+  via the segmentation root swing — display/scoping only, zero canonical drift.
+- **Change B (shipped).** Outer-box candidate selection flipped from
+  *global-best combined score* to **earliest good-enough range start**
+  (`select="earliest"`, now the live default in `_phase_b_zigzag` /
+  `find_outer_box` / `find_consolidation` / `_evaluate_ticker`). The old "best"
+  rule chronically truncated bases — it grabbed a tight recent *tail* with R
+  often pinned to a transient spike (CGEM 19-bar tail, NMM 23-bar 2-touch
+  spike) and threw the real range away. Earliest roots the box at the true
+  range start near the AR low. A single quality floor
+  (`PHASE_B_REACH_QUALITY_FLOOR = 0.75`) stops it reaching back into a
+  *materially looser* framing (the SKT over-reach, 65% of best quality, is
+  rejected → SKT keeps its tight box). The inner stage still owns
+  tighter-launchpad detection, so the outer box need not chase tightness.
+  - **Blast radius** (frozen 198-ticker shadow fixture, best→earliest): 197
+    fire (1 drop, SMFG — a quality-tied case whose truer range presents no
+    LPS), **0 tier changes**, 25 scores up / 11 down, bases longer almost
+    everywhere. Visually verified on CGEM/NMM/VIK/YOU/SKT/SMFG
+    (`tools/phaseb_render.py`); A/B driver is `tools/phaseb_ab.py`.
 
 **Phase 3 — fold nesting + Last Supper** off the same segment objects.
 
 ## Open knobs (calibrate against the eye, never hard-code blind)
 
+- `PHASE_B_REACH_QUALITY_FLOOR` (= 0.75, **calibrated**): how much structural
+  quality the outer box may trade for an earlier (longer) range start. The
+  data showed a clean gap — every legitimate base-lengthener kept ≥85% of the
+  best framing's quality, while the lone over-reach (SKT) sat at 65% — so 0.75
+  separates them with margin. 1.0 == strict "best only".
 - The efficiency / counter-burst-ratio cutoff that separates trend from range.
 - The minimum swing size (ATR displacement) that "counts" as a leg — ties to the
   ~10-bar / behavioral floor for "what is a real range."

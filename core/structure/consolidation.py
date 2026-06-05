@@ -525,7 +525,35 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val):
 # Phase B: shared zigzag-based S/R anchoring (used by find_outer_box)
 # ---------------------------------------------------------------------------
 
-def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None):
+def _select_phase_b_candidate(valid_candidates, select):
+    """Pick one candidate framing from the valid (gate-passing) set.
+
+    Each candidate is the tuple appended in the Phase-B loop:
+    ``(combined, R, S, box_width, r_touches, s_touches, total_outside,
+       r_anchor_bar, s_anchor_bar, cand_start)`` — so x[0] is the combined
+    structural-quality score and x[9] is the box's start bar.
+
+      - "earliest" (default, the live engine): among framings whose combined
+        is within ``PHASE_B_REACH_QUALITY_FLOOR`` of the best available, the
+        one that STARTS earliest (tie-broken toward higher quality). This roots
+        the box at the true (longer) range start, while refusing to reach back
+        into a *materially looser* framing that merely begins earlier. The best
+        candidate always clears its own floor, so a choice always exists.
+      - "best": the global-best combined score. The pre-Change-B rule, retained
+        as an explicit diagnostic/comparison mode (see tools/phaseb_ab.py).
+
+    Assumes ``valid_candidates`` is non-empty.
+    """
+    if select == "earliest":
+        best_combined = max(c[0] for c in valid_candidates)
+        floor = settings.PHASE_B_REACH_QUALITY_FLOOR * best_combined
+        pool = [c for c in valid_candidates if c[0] >= floor]
+        return min(pool, key=lambda x: (x[9], -x[0]))
+    return max(valid_candidates, key=lambda x: x[0])
+
+
+def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
+                    select="earliest"):
     """Shared Phase B: zigzag S/R anchoring over eval_df.iloc[start_idx:].
 
     Returns the same 9-tuple shape as find_outer_box (EMPTY if no valid
@@ -536,6 +564,18 @@ def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None):
     Phase B's volatility frame with the evaluation snapshot at bar -6 (the
     same ATR used for LPS zone tolerance). When None, falls back to the
     base-window median.
+
+    ``select``: candidate-pair selection rule (see _select_phase_b_candidate).
+      - "earliest" (default, the live engine): root the consolidation at the
+        true range start near the AR low — the earliest framing that is not
+        materially looser than the best available — instead of letting a later,
+        tighter sub-pair pull the box's origin into the middle of the
+        equilibrium ("the Right one, not the best one"). Legitimately-tighter
+        recent launchpads are still captured by the separate inner stage
+        (_inner_zigzag), so the outer box does not need to chase tightness here.
+      - "best": the global-best combined score — the pre-Change-B rule, kept as
+        an explicit diagnostic/comparison mode.
+      - "debug": return the full valid-candidate landscape (tools only).
     """
     EMPTY = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
 
@@ -623,11 +663,29 @@ def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None):
         ))
 
     if not valid_candidates:
-        return EMPTY
+        return [] if select == "debug" else EMPTY
 
-    valid_candidates.sort(key=lambda x: x[0], reverse=True)
+    if select == "debug":
+        # Diagnostic-only: expose the full valid-candidate landscape (sorted by
+        # earliest start) so tools can introspect the selection trade-off. Never
+        # used by the live pipeline.
+        return [
+            {
+                "cand_start": int(c[9]),
+                "base_len": int(base_length - c[9]),
+                "box_width": round(float(c[3]), 4),
+                "r_touches": int(c[4]),
+                "s_touches": int(c[5]),
+                "combined": round(float(c[0]), 4),
+                "R": round(float(c[1]), 4),
+                "S": round(float(c[2]), 4),
+            }
+            for c in sorted(valid_candidates, key=lambda x: x[9])
+        ]
+
     _, best_R, best_S, best_bw, best_rt, best_st, best_breach, \
-        best_r_bar, best_s_bar, best_cand_start = valid_candidates[0]
+        best_r_bar, best_s_bar, best_cand_start = \
+        _select_phase_b_candidate(valid_candidates, select)
     # Trim base_length to the candidate's window so downstream LPS sizing,
     # base_df spread quantiles, and effective_phase_b_start in
     # find_outer_box all reflect the actual box, not the entire Phase B
@@ -764,7 +822,8 @@ def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
 # Public: outer-box anchor-enumeration (no inner refinement)
 # ---------------------------------------------------------------------------
 
-def find_outer_box(df: "pd.DataFrame", min_days: int | None = None) -> tuple:
+def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
+                   select: str = "earliest") -> tuple:
     """Extreme-anchored consolidation detection (BC or SC).
 
     Anchor qualification (a bar `i` is a candidate anchor if):
@@ -916,8 +975,22 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None) -> tuple:
     # window mechanically yields a tighter box.
     for _atype, _abar, phase_b_start in reversed(anchors):
         base_length = len(df) - phase_b_start
+        if select == "debug":
+            # Diagnostic: return the candidate landscape for the first anchor
+            # that yields a valid Phase B (the one the live engine would use).
+            probe = _phase_b_zigzag(
+                eval_df, phase_b_start, base_length, atr_override=atr_snapshot,
+                select="best",
+            )
+            if probe[0] != 0:
+                return _phase_b_zigzag(
+                    eval_df, phase_b_start, base_length,
+                    atr_override=atr_snapshot, select="debug",
+                )
+            continue
         result = _phase_b_zigzag(
             eval_df, phase_b_start, base_length, atr_override=atr_snapshot,
+            select=select,
         )
         if result[0] != 0:
             # Effective phase_b_start = original AR-low anchor + the
@@ -926,14 +999,14 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None) -> tuple:
             effective_phase_b_start = len(df) - result[0]
             return result + (_abar, effective_phase_b_start, False)
 
-    return EMPTY
+    return [] if select == "debug" else EMPTY
 
 
 # ---------------------------------------------------------------------------
 # Public: hierarchical detector (live entry point)
 # ---------------------------------------------------------------------------
 
-def find_consolidation(df, min_days=None):
+def find_consolidation(df, min_days=None, select="earliest"):
     """Hierarchical detection: try inner sub-box, fall back to outer.
 
     Strategy:
@@ -972,7 +1045,10 @@ def find_consolidation(df, min_days=None):
     if min_days is None:
         min_days = settings.MIN_BASE_DAYS
 
-    outer = find_outer_box(df, min_days=min_days)
+    # `select` steers ONLY the outer box's candidate-pair choice (earliest
+    # range start vs global-best). The inner stage stays best-score: its whole
+    # job is to find the tighter recent launchpad, so it should chase tightness.
+    outer = find_outer_box(df, min_days=min_days, select=select)
     if outer[0] == 0:
         return outer
 
