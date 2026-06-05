@@ -34,7 +34,10 @@ draw the consolidation accurately and measure its tightness faithfully.**
 
 | File | What it does (in plain terms) |
 |------|-------------------------------|
-| `consolidation.py` | Finds the trading range (the "box"): where the ceiling (R) and floor (S) are, how many times price touched them, how tight it is. Also `measure_contractions` (the VCP coil footprint) and `measure_touch_volume` (was volume heavy or light at the edges?). |
+| `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner launchpad. |
+| `box_candidates.py` | Builds/selects zigzag R/S candidates and checks boundary respect, R/S touch density, and midline oscillation. |
+| `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
+| `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
 | `lps.py` | Finds the **Last Point of Support** — the quiet, tight pullback that marks the launch pad. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
 | `indicators.py` | The math helpers — ATR (volatility), ADX (trend strength), and ADR% (absolute daily range). |
 
@@ -60,8 +63,13 @@ it is, and assembles the ranked list.
 
 | File | What it does |
 |------|--------------|
-| `data.py` | Downloads and caches the market data (prices, volume, the SPY benchmark). |
-| `screener.py` | The baseline filter + `run_screener` (the main entry point) + the per-stock evaluation that wires structure → scoring. |
+| `data.py` | The stable public doorway: exports `get_tickers`, `fetch_data`, and `get_market_context`. |
+| `tickers.py` | Loads and refreshes the cached common-stock universe. |
+| `downloads.py` | Owns yfinance downloads, retry/recovery, split-drift checks, and the parquet cache. |
+| `market_context.py` | Computes the SPY 6-month return and universe breadth broadcast used by scoring. |
+| `cache.py` | Small filesystem, metadata, and market-clock helpers used by the data modules. |
+| `evaluation.py` | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly. |
+| `screener.py` | `run_screener`: loads data, prepares ticker frames, broadcasts market context, runs workers, and ranks results. |
 
 ## 4. `core/archive/` — the Measuring Stick ("learn from outcomes")
 

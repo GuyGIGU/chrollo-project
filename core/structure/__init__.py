@@ -21,9 +21,8 @@ Public API:
     calculate_atr / calculate_adx -> volatility & trend-strength math
 """
 from core.structure.bin_features import measure_bins
-from core.structure.consolidation import (
-    find_consolidation,
-    find_outer_box,
+from core.structure.consolidation import find_consolidation, find_outer_box
+from core.structure.metrics import (
     measure_bar_compression,
     measure_contractions,
     measure_support_slope,

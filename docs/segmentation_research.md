@@ -30,13 +30,13 @@ bottom of the markup and printing a phantom "SC" that never existed.
 
 ## What we already have (reuse, don't rebuild)
 
-In `core/structure/consolidation.py`:
+In `core/structure/`:
 
-- `_find_pivots()` + `_build_zigzag()` — already produce the alternating
+- `pivots.py::_find_pivots()` + `pivots.py::_build_zigzag()` — already produce the alternating
   peak/valley **swing skeleton** (the HH/HL/LH/LL path the whole trading world
   reads).
-- `find_outer_box()` — climax (BC/SC) enumeration + earliest-anchor selection.
-- `_phase_b_zigzag()` — range validation (boundary respect, touches, midline).
+- `consolidation.py::find_outer_box()` — climax (BC/SC) enumeration + earliest-anchor selection.
+- `box_candidates.py::_phase_b_zigzag()` — range validation (boundary respect, touches, midline).
 - `lps.py::detect_lps()` — the right-edge LPS, gated by `swing_complete_idx` so
   it can't predate the box.
 

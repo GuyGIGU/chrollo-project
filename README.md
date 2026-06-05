@@ -85,20 +85,23 @@ absolute volatility) were all added this way.
 
 ```
 core/                  The screener engine (see core/MAP.md)
-  structure/           Visual Structure Engine — consolidation.py, lps.py, indicators.py
+  structure/           Visual Structure Engine — consolidation.py, box_candidates.py,
+                         lps.py, indicators.py
   scoring/             Scoring Engine — scoring.py (score_setup, calculate_tier)
-  pipeline/            Conductor — data.py (fetch/cache), screener.py (run_screener,
-                         _evaluate_ticker), scan_job.py (scan → dashboard → archive)
+  pipeline/            Conductor — data.py public API; tickers.py, downloads.py,
+                         market_context.py, cache.py; evaluation.py (_evaluate_ticker);
+                         screener.py (run_screener); scan_job.py (scan → dashboard → archive)
   archive/             writer.py, forward_returns.py, seed.py, analyze.py, purge.py
 config/                settings.py (all tunables), tickers.csv (cached universe)
 output/                Generated screener_data.json, watchlists, logs (data files gitignored)
 webapp/
   backend/             FastAPI app — main.py, routers/, services/ (scan_runner, scheduler,
                          scan_status), ibkr/, archive_models.py, models.py, database.py
-  frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveCard, SetupTags,
-                         ScoreBreakdown, TradeTable, charts), dist/ (built, gitignored)
+  frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveTab,
+                         SetupTags, ScoreBreakdown, TradeTable, charts),
+                         dist/ (built, gitignored)
 docs/                  strategy_v2.md (algorithm), deploy.md (go-live), handoff_gap3.md
-tools/ , experiments/  Dev/backtest harnesses; backtest_watchlist.py lives at repo root
+tools/                 Dev/backtest and fidelity harnesses
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend
 start_dashboard.bat    Manual launcher: one uvicorn process serving UI + API at :8000
