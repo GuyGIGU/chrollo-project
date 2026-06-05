@@ -127,11 +127,14 @@ WINDOW_BACK = 10
 WINDOW_FWD = 3
 
 
-def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[dict]:
+def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
+                      select: str = "earliest") -> Optional[dict]:
     """Run the full screener pipeline against df (last bar = evaluation date).
 
     Returns the result dict on pass, or None on reject.
     Mirrors _evaluate_ticker but works on a pre-sliced DataFrame.
+    ``select`` steers the outer-box candidate choice (see consolidation.py);
+    "earliest" is the live engine, "best" the pre-Change-B diagnostic mode.
     """
     try:
         baseline = apply_baseline_filters(df)
@@ -150,7 +153,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
             _is_inner = \
-            find_outer_box(df_ind, min_days=settings.MIN_BASE_DAYS)
+            find_outer_box(df_ind, min_days=settings.MIN_BASE_DAYS, select=select)
 
         if base_len == 0:
             return None

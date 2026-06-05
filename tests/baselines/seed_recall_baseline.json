@@ -1,7 +1,7 @@
 {
-  "recall": 0.543859649122807,
-  "fired": 31,
-  "missed": 26,
+  "recall": 0.5087719298245614,
+  "fired": 29,
+  "missed": 28,
   "total": 57,
   "misses": [
     {
@@ -53,6 +53,10 @@
       "trigger_date": "2026-02-26"
     },
     {
+      "ticker": "VIST",
+      "trigger_date": "2026-03-05"
+    },
+    {
       "ticker": "SNDX",
       "trigger_date": "2026-03-06"
     },
@@ -98,6 +102,10 @@
     },
     {
       "ticker": "DNTH",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "LPTH",
       "trigger_date": "2026-04-08"
     },
     {
