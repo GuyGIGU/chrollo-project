@@ -20,8 +20,8 @@ pipeline may reconnect the Phase-A anchor to a recent root swing for diagnostics
 and chart-region labels. R/S, setup eligibility, score, and tier do not consume
 the segmentation output.
 
-Reuses the existing zigzag machinery in consolidation.py rather than
-re-implementing pivot detection.
+Reuses the shared zigzag machinery in pivots.py rather than re-implementing
+pivot detection.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from typing import Optional
 import numpy as np
 
 from config import settings
-from core.structure.consolidation import _build_zigzag, _find_pivots
+from core.structure.pivots import _build_zigzag, _find_pivots
 
 
 def _empty() -> dict:

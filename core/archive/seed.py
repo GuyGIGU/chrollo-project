@@ -32,7 +32,7 @@ if _BACKEND_DIR not in sys.path:
 
 from config import settings
 from core.archive.forward_returns import _compute_returns
-from core.pipeline.screener import apply_baseline_filters
+from core.pipeline.evaluation import apply_baseline_filters
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,

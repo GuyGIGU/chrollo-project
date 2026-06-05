@@ -9,10 +9,10 @@ The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias
 ## Pipeline Overview
 
 ```
-Phase 0  Universe & data acquisition          core.pipeline.data
-Phase 1  Baseline universe filter              core.pipeline.screener   (apply_baseline_filters)
+Phase 0  Universe & data acquisition          core.pipeline.data public API
+Phase 1  Baseline universe filter              core.pipeline.evaluation (apply_baseline_filters)
 Phase 2  Consolidation detection               core.structure           (find_consolidation -> find_outer_box + _phase_b_zigzag, with optional _inner_zigzag refinement)
-Phase 2b Crash / extension filters             core.pipeline.screener   (_evaluate_ticker)
+Phase 2b Crash / extension filters             core.pipeline.evaluation (_evaluate_ticker)
 Phase 3  LPS detection                         core.structure           (detect_lps)
 Phase 3b Read-only phase scoping               core.structure           (scope_consolidation)
 Phase 4  Scoring & tier assignment             core.scoring             (score_setup, calculate_tier)
@@ -24,13 +24,14 @@ The code is organized as two engines plus a conductor (see [core/MAP.md](../core
 **`core/scoring/`** = the Scoring Engine (the tunable opinion layer),
 **`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
 measuring-stick tooling. Orchestrated by `run_screener()` in
-[core/pipeline/screener.py](../core/pipeline/screener.py), running per-ticker evaluation in a `ProcessPoolExecutor`.
+[core/pipeline/screener.py](../core/pipeline/screener.py), running per-ticker evaluation from
+[core/pipeline/evaluation.py](../core/pipeline/evaluation.py) in a `ProcessPoolExecutor`.
 
 ---
 
 ## Phase 0 — Universe & Data
 
-### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py))
+### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/tickers.py](../core/pipeline/tickers.py))
 
 1. Read from cached `config/tickers.csv` if it exists and is younger than `TICKER_CACHE_MAX_AGE_DAYS` (1 day).
 2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'` and `ETF == 'N'`.
@@ -38,7 +39,7 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 4. Dedupe (preserving order) and write back to the CSV cache.
 5. Hard fallback to a 15-stock sample if FTP fails.
 
-### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py))
+### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/downloads.py](../core/pipeline/downloads.py))
 
 - Reads from `market_data_cache_2y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
   - `TTL_FRESH_HOURS_MARKET = 1` (RTH) / `TTL_FRESH_HOURS_OFFHOURS = 12` — under TTL the cache is reused as-is.
@@ -52,7 +53,7 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 
 ## Phase 1 — Baseline Universe Filter
 
-`apply_baseline_filters()` ([core/pipeline/screener.py](../core/pipeline/screener.py)).
+`apply_baseline_filters()` ([core/pipeline/evaluation.py](../core/pipeline/evaluation.py)).
 
 Reject the ticker entirely if any check fails. Run in this order:
 
@@ -69,7 +70,7 @@ While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread =
 
 `_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/structure/indicators.py](../core/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
 
-### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py))
+### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
 
 Before per-ticker workers fan out, the orchestrator computes two scalars once and pickles them into every worker:
 
@@ -113,7 +114,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase B — Zigzag S/R Anchoring
 
-`_phase_b_zigzag()` ([core/structure/consolidation.py](../core/structure/consolidation.py)).
+`_phase_b_zigzag()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -122,12 +123,12 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 4. **Candidate generation** — only **strictly consecutive** zigzag pairs (peak→valley or valley→peak) are tested. The peak's High = R, the valley's Low = S.
 5. **Per-candidate validation:**
    - **Box width:** `(R - S) / S <= MAX_BOX_WIDTH` (0.25).
-   - **Boundary respect** — `_is_boundary_respected()`:
+   - **Boundary respect** — `_is_boundary_respected()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)):
      - Buffered band: `[S - 0.5·ATR, R + 0.5·ATR]` (`BOUNDARY_ATR_BUFFER = 0.5`).
      - Each bar's High vs `R + buffer` and Low vs `S - buffer` — wicks count as breaches (bars not candles).
      - At least `MIN_BOUNDARY_RESPECT_PCT` (80%) of bars must keep their full range inside the band.
      - No consecutive run of outside-bars longer than `MAX_CONSECUTIVE_OUTSIDE_DAYS` (30).
-   - **Quality** — `_validate_base_quality()`:
+   - **Quality** — `_validate_base_quality()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)):
      - In-base crash filter: `min(Low) >= S × CRASH_FILTER_MULT` (0.70).
      - **Touch density** (ATR-normalized, `TOUCH_TOLERANCE_ATR = 0.5`): require ≥ 2 touches each on R and S.
      - **Midline crosses** ("tunnel-killer"): committed-cross count using `MIDLINE_ATR_BUFFER = 0.3·ATR` — a cross only counts after price first travels ≥ buffer away from the midline. Required: `max(MIN_MIDLINE_CROSSES=3, len(eq_df) // 15)`.
@@ -258,7 +259,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## VCP Progressive-Contraction Footprint
 
-`measure_contractions()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
+`measure_contractions()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
 
 It reuses the Phase B zigzag machinery over the base window: each peak→valley downswing is one contraction, `depth = (peak − valley) / peak`. The initial BC→AR descent into the base is excluded by design (it's the entry into the base, the early-chop the `cand_start` trim already removes).
 
@@ -273,7 +274,7 @@ Persisted to the archive as `contraction_count`, `contraction_quality`, `final_c
 
 ## Base Bar Compression Footprint
 
-`measure_bar_compression()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
+`measure_bar_compression()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
 
 It reports four raw diagnostics, all persisted to the archive and not scored:
 
@@ -290,7 +291,7 @@ This is **measure-first / never-gated / never-penalizing**. It gives the archive
 
 ## Ascending Support / Higher-Lows Footprint
 
-`measure_support_slope()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
+`measure_support_slope()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
 
 It reuses the same Phase B zigzag as the contraction metric, but reads the **valley** sequence. It fits a least-squares line through the `(bar_index, valley_low)` points and ATR-normalizes the slope so it's comparable across price levels and tickers.
 
@@ -542,7 +543,7 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Hierarchical Refinement — Inner Sub-Box (live)
 
-`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D launchpad / VCP mini-consolidation probe. After an outer box is found, it probes the recent half of that box (`_INNER_SEARCH_FRACTION = 0.5`) via `_inner_zigzag()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) for a tighter inner sub-box. When the inner exists and is meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) AND spans `_INNER_MIN_DAYS = 15`+ bars, the inner wins; otherwise the outer is returned unchanged.
+`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D launchpad / VCP mini-consolidation probe. After an outer box is found, it probes the recent half of that box (`_INNER_SEARCH_FRACTION = 0.5`) via `_inner_zigzag()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)) for a tighter inner sub-box. When the inner exists and is meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) AND spans `INNER_MIN_DAYS = 15`+ bars, the inner wins; otherwise the outer is returned unchanged.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 
