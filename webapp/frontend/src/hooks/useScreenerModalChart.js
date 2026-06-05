@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { attachPhaseOverlay } from '../components/chartPhaseOverlay';
 
@@ -132,7 +132,15 @@ const setFocusedRange = (chart, data, baseEnd) => {
   });
 };
 
-export default function useScreenerModalChart(containerRef, ticker, data) {
+export default function useScreenerModalChart(containerRef, ticker, data, activePhaseRegion = null) {
+  const activeRegionRef = useRef(activePhaseRegion);
+  const phaseOverlayRef = useRef(null);
+
+  useEffect(() => {
+    activeRegionRef.current = activePhaseRegion;
+    phaseOverlayRef.current?.setActiveRegion(activePhaseRegion);
+  }, [activePhaseRegion]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !data?.candles?.length) return undefined;
@@ -145,7 +153,14 @@ export default function useScreenerModalChart(containerRef, ticker, data) {
     const candleSeries = chart.addSeries(BarSeries, { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false });
 
     candleSeries.setData(colorStructureCandles(data, baseEnd));
-    const removePhaseOverlay = attachPhaseOverlay({ candleSeries, chart, container, data });
+    const phaseOverlay = attachPhaseOverlay({
+      activeRegion: activeRegionRef.current,
+      candleSeries,
+      chart,
+      container,
+      data,
+    });
+    phaseOverlayRef.current = phaseOverlay;
     const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     volumeSeries.setData(data.volumes || []);
@@ -165,7 +180,8 @@ export default function useScreenerModalChart(containerRef, ticker, data) {
       disposed = true;
       clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
-      removePhaseOverlay();
+      phaseOverlay.remove();
+      if (phaseOverlayRef.current === phaseOverlay) phaseOverlayRef.current = null;
       chart.remove();
       container.innerHTML = '';
     };

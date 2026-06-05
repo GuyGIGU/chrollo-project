@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScoreBreakdownPills } from './ScoreBreakdown';
+import { buildPhaseRegions } from './chartPhaseOverlay';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
 const formatMoney = (value) =>
@@ -22,12 +23,6 @@ const distanceToTriggerPct = (data) => {
   const currentPrice = data.candles?.[data.candles.length - 1]?.close;
   if (!data?.trigger || !currentPrice) return null;
   return ((data.trigger - currentPrice) / currentPrice) * 100;
-};
-
-const setupRangePct = (data) => {
-  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
-  if (!data?.R || !data?.S || !currentPrice) return null;
-  return ((data.R - data.S) / currentPrice) * 100;
 };
 
 const buttonStyle = {
@@ -55,10 +50,40 @@ function Metric({ label, value, tone }) {
   );
 }
 
-function SetupInspector({ data }) {
+function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
+  const regions = useMemo(() => buildPhaseRegions(data), [data]);
+  if (regions.length === 0) return null;
+
+  return (
+    <div className="phase-bin-panel">
+      <div className="phase-bin-panel-label">Bins</div>
+      <div className="phase-bin-list">
+        {regions.map(region => (
+          <button
+            key={region.key}
+            type="button"
+            className={`phase-bin-control phase-bin-${region.key}${activeRegion === region.key ? ' is-active' : ''}`}
+            onBlur={() => onRegionChange(null)}
+            onFocus={() => onRegionChange(region.key)}
+            onMouseEnter={() => onRegionChange(region.key)}
+            onMouseLeave={() => onRegionChange(null)}
+            title={`${region.name} - ${region.detail}`}
+          >
+            <span className="phase-bin-token">{region.label}</span>
+            <span className="phase-bin-copy">
+              <span className="phase-bin-name">{region.name}</span>
+              <span className="phase-bin-detail">{region.detail}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SetupInspector({ activeRegion, data, onRegionChange }) {
   const currentPrice = data.candles?.[data.candles.length - 1]?.close;
   const triggerDistance = distanceToTriggerPct(data);
-  const rangePct = setupRangePct(data);
 
   return (
     <aside style={{
@@ -80,6 +105,7 @@ function SetupInspector({ data }) {
         </div>
       </div>
       <ScoreBreakdownPills subScores={data.sub_scores} includeFusion style={{ justifyContent: 'flex-start' }} />
+      <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
       <Metric label="Score" value={data.score ?? '-'} tone={tierColor(data.tier)} />
       <Metric label="Current Price" value={formatMoney(currentPrice)} />
       <Metric label="Trigger" value={formatMoney(data.trigger)} tone="#e3b341" />
@@ -88,10 +114,6 @@ function SetupInspector({ data }) {
         value={formatPct(triggerDistance)}
         tone={triggerDistance != null && triggerDistance <= 0.5 ? 'var(--warning)' : 'var(--success)'}
       />
-      <Metric label="Base Length" value={data.base_len ? `${data.base_len} days` : '-'} />
-      <Metric label="Box Width" value={formatPct(rangePct)} />
-      <Metric label="Resistance" value={formatMoney(data.R)} />
-      <Metric label="Support" value={formatMoney(data.S)} />
     </aside>
   );
 }
@@ -143,7 +165,13 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
 
 const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
-  useScreenerModalChart(chartContainerRef, ticker, data);
+  const [activeRegion, setActiveRegion] = useState(null);
+
+  useEffect(() => {
+    setActiveRegion(null);
+  }, [ticker]);
+
+  useScreenerModalChart(chartContainerRef, ticker, data, activeRegion);
 
   return (
     <div
@@ -180,7 +208,7 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
         <ModalToolbar data={data} onClose={onClose} onNext={onNext} onPrev={onPrev} ticker={ticker} />
         <div className="screener-modal-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           <div ref={chartContainerRef} className="screener-modal-chart" style={{ flex: 1, minHeight: 0, position: 'relative' }} />
-          <SetupInspector data={data} />
+          <SetupInspector activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
         </div>
         {footer}
       </section>

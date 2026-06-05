@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import AppContent from './components/AppContent';
 import AppSidebar from './components/AppSidebar';
 import AppTopbar from './components/AppTopbar';
+import ErrorBoundary from './components/ErrorBoundary';
 import useDashboardData from './hooks/useDashboardData';
 import useIBKRAccountSummary from './hooks/useIBKRAccountSummary';
 import useIBKRStatus from './hooks/useIBKRStatus';
@@ -111,25 +112,29 @@ function App() {
           stockTradeCount={stockTrades.length}
           optionTradeCount={optionTrades.length}
         />
-        <AppContent
-          activeTab={activeTab}
-          stats={stats}
-          trades={trades}
-          tradeFilter={tradeFilter}
-          onTradeFilterChange={setTradeFilter}
-          filteredTrades={filteredTrades}
-          optionTrades={optionTrades}
-          draftRow={draftRow}
-          setDraftRow={setDraftRow}
-          onDetailClick={setDetailTrade}
-          onTradeUpdate={fetchDashboardData}
-        />
+        <ErrorBoundary>
+          <AppContent
+            activeTab={activeTab}
+            stats={stats}
+            trades={trades}
+            tradeFilter={tradeFilter}
+            onTradeFilterChange={setTradeFilter}
+            filteredTrades={filteredTrades}
+            optionTrades={optionTrades}
+            draftRow={draftRow}
+            setDraftRow={setDraftRow}
+            onDetailClick={setDetailTrade}
+            onTradeUpdate={fetchDashboardData}
+          />
+        </ErrorBoundary>
       </main>
 
-      <Suspense fallback={<ModalFallback />}>
-        {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
-        {detailTrade && <TradeDetailDrawer key={detailTrade.id} trade={detailTrade} onClose={() => setDetailTrade(null)} />}
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<ModalFallback />}>
+          {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
+          {detailTrade && <TradeDetailDrawer key={detailTrade.id} trade={detailTrade} onClose={() => setDetailTrade(null)} />}
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

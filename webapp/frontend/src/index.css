@@ -508,93 +508,109 @@ td {
   color: var(--text-muted);
 }
 
-.chart-phase-overlay {
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  position: absolute;
-  z-index: 2;
+.phase-bin-panel {
+  border-block: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 0;
 }
 
-.chart-phase-band,
-.chart-phase-lps-zone,
-.chart-phase-c-line,
-.chart-phase-c-marker {
-  position: absolute;
+.phase-bin-panel-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
-.chart-phase-band {
-  border-left: 1px solid color-mix(in srgb, var(--border-strong) 58%, transparent);
+.phase-bin-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
 }
 
-.chart-phase-a {
-  background: color-mix(in srgb, var(--text-faint) 7%, transparent);
-}
-
-.chart-phase-b {
-  background: color-mix(in srgb, var(--accent-purple) 7%, transparent);
-}
-
-.chart-phase-d {
-  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
-  border-left-color: color-mix(in srgb, var(--accent-blue) 36%, transparent);
-}
-
-.chart-phase-lps-zone {
-  background: color-mix(in srgb, var(--accent-yellow) 18%, transparent);
-  border-block: 1px solid color-mix(in srgb, var(--accent-yellow) 36%, transparent);
-}
-
-.chart-phase-c-line {
-  bottom: 0;
-  border-left: 1px dashed color-mix(in srgb, var(--accent-pink) 44%, transparent);
-  top: 0;
-  transform: translateX(-0.5px);
-}
-
-.chart-phase-c-marker {
-  background: var(--accent-pink);
-  border: 1px solid color-mix(in srgb, var(--text-main) 72%, transparent);
-  height: 7px;
-  opacity: 0.86;
-  transform: translate(-50%, -50%) rotate(45deg);
-  width: 7px;
-}
-
-.chart-phase-legend {
+.phase-bin-control {
   align-items: center;
-  background: color-mix(in srgb, var(--bg-main) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  cursor: help;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 34px 1fr;
+  min-height: 38px;
+  padding: 6px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.phase-bin-control:hover,
+.phase-bin-control:focus-visible,
+.phase-bin-control.is-active {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.phase-bin-token {
+  align-items: center;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-xs);
-  color: var(--text-faint);
-  display: flex;
+  display: inline-flex;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
-  font-weight: 700;
-  gap: 9px;
-  left: 10px;
-  padding: 4px 6px;
-  position: absolute;
-  top: 9px;
+  font-weight: 800;
+  height: 22px;
+  justify-content: center;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
-.chart-phase-legend span {
-  align-items: center;
-  display: inline-flex;
-  gap: 4px;
+.phase-bin-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.chart-phase-legend i {
-  border-radius: 2px;
-  display: inline-block;
-  height: 7px;
-  width: 9px;
+.phase-bin-name {
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
-.chart-phase-legend .phase-a { background: color-mix(in srgb, var(--text-faint) 28%, transparent); }
-.chart-phase-legend .phase-b { background: color-mix(in srgb, var(--accent-purple) 30%, transparent); }
-.chart-phase-legend .phase-d { background: color-mix(in srgb, var(--accent-blue) 38%, transparent); }
-.chart-phase-legend .lps-zone { background: color-mix(in srgb, var(--accent-yellow) 42%, transparent); }
+.phase-bin-detail {
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phase-bin-a .phase-bin-token {
+  border-color: color-mix(in srgb, var(--text-faint) 64%, transparent);
+  color: var(--text-faint);
+}
+
+.phase-bin-b .phase-bin-token {
+  border-color: color-mix(in srgb, var(--accent-purple) 58%, transparent);
+  color: var(--accent-purple);
+}
+
+.phase-bin-c .phase-bin-token {
+  border-color: color-mix(in srgb, var(--accent-pink) 58%, transparent);
+  color: var(--accent-pink);
+}
+
+.phase-bin-d .phase-bin-token {
+  border-color: color-mix(in srgb, var(--accent-blue) 66%, transparent);
+  color: var(--accent-blue);
+}
+
+.phase-bin-lps .phase-bin-token {
+  border-color: color-mix(in srgb, var(--accent-yellow) 62%, transparent);
+  color: var(--accent-yellow);
+}
 
 /* Keyboard focus ring for the screener cards (now role=button, Enter/Space to
    open). :focus-visible keeps the ring off mouse clicks but shows it for

@@ -1,0 +1,13 @@
+ticker,snapshot_date,tier,score,engine_phase_d_date,engine_lps_low,engine_lps_high,has_mini,has_spring,phase_d_verdict,lps_zone_verdict,your_phase_d_date,notes
+AMZN,2026-06-03,S,110.4,2026-05-22,252.53,259.2364,0,1,ok,ok,,right side correct direction not off by much; stock terrible: very young volatile base reads as 2-dip counter-trend not reaccum; far from S. BC 05-05 AR 12-05
+ARGX,2026-06-03,A,101.4,2026-05-26,793.22,816.2854,0,0,ok,wrong,2026-05-20,phase D ~05-20 (engine 05-26, leans late); LPS window reaches onto the down-spike (Last Supper) bars not the 05-22/26 test -> stretched, wouldnt trust. BC 04-17 AR 04-24
+ASM,2026-06-03,S,135.0,2026-05-20,7.01,7.4609,0,0,ok,wrong,2026-05-26,phase D correct; LPS misplaced too early, real LPS ~06-02 to 06-04 (and a bad one). wide volatile base too early to trust. BC 04-16 AR 04-29
+BC,2026-06-03,S,135.5,2026-05-18,80.4,83.528,0,0,ok,ok,,right side + LPS correct; S/R good but BC/AR anchors offset (drew B-start mid rising trend). real BC 04-22 AR 05-01. choppy sloppy base, not S
+CEPU,2026-06-03,S,121.0,2026-05-21,15.28,16.0005,0,0,ok,ok,,generally correct
+GFF,2026-06-03,A,109.0,2026-05-15,83.8,87.1978,0,0,ok,ok,,right side + LPS correct; bad read of trend end / wrong A-B anchor placement
+HGV,2026-06-03,S,116.2,2026-05-18,50.0,51.9826,0,0,ok,ok,,good base read; S/R good; phase D starts after last dip correct; LPS correct. volatile
+IIPR,2026-06-03,S,134.0,2026-05-20,56.89,58.6977,0,0,ok,ok,,phase D generally correct; LPS slightly late ~05-29. huge messy volatile base
+MIDD,2026-06-03,S,111.7,2026-05-22,152.77,158.0511,0,0,ok,ok,2026-05-21,phase D ~05-21 correct (engine 1 day off); phase B start wrong (engine picked bottom 05-04). real BC 04-10 AR 04-16; LPS 05-27/28. terrible downspiraling base
+OMCL,2026-06-03,B,84.6,2026-05-28,41.66,43.3163,0,1,late,wrong,,NO phase D and NO LPS yet - base immature; engine fabricated a launchpad at the very end. trend ended 04-28 AR 04-30 B-start 05-07
+PRK,2026-06-03,S,113.6,2026-05-15,167.76,171.5635,0,0,ok,ok,,correct in every metric. volatile choppy messy base
+SMBK,2026-06-03,S,121.0,2026-05-20,40.35,41.5662,0,1,ok,ok,,correct in general; same character as PRK
