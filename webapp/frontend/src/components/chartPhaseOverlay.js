@@ -11,7 +11,7 @@ const REGION_DEFS = {
   a: { label: 'A', name: 'Phase A', detail: 'Root climax / AR', token: '--text-faint' },
   b: { label: 'B', name: 'Phase B', detail: 'Equilibrium body', token: '--accent-purple' },
   c: { label: 'C', name: 'Phase C', detail: 'Spring / shakeout', token: '--accent-pink' },
-  d: { label: 'D', name: 'Phase D', detail: 'Launchpad', token: '--accent-blue' },
+  d: { label: 'D', name: 'Phase D', detail: 'Right-side range', token: '--accent-blue' },
   lps: { label: 'LPS', name: 'LPS', detail: 'Support zone', token: '--accent-yellow' },
 };
 

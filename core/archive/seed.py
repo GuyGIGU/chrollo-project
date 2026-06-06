@@ -37,8 +37,8 @@ from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
     calculate_atr,
+    detect_boxes,
     detect_lps,
-    find_outer_box,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
@@ -148,14 +148,12 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         df_ind = df.copy()
         df_ind["ATR_10"] = calculate_atr(df_ind, 10)
         df_ind["ATR_50"] = calculate_atr(df_ind, 50)
-
-        # find_outer_box never refines to an inner sub-box — its is_inner is
-        # always False. We discard it (the seed archive is intentionally a
-        # gallery of textbook outer-box setups).
+        # Mirror the live parent+inner detector so seed recall measures the same engine.
+        boxes = detect_boxes(df_ind, min_days=settings.MIN_BASE_DAYS, select=select)
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
-            _is_inner = \
-            find_outer_box(df_ind, min_days=settings.MIN_BASE_DAYS, select=select)
+            _is_inner = boxes["parent"]
+        inner = boxes["inner"]
 
         if base_len == 0:
             return None
@@ -168,19 +166,38 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         if latest["Close"] >= (res_avg * settings.EXTENSION_FILTER_MULT):
             return None
 
-        base_df = df.iloc[-base_len:]
         atr_for_zone = float(atr_eval["ATR_10"])
-        # Match the live screener: floor base_range_threshold at 1.2 * ATR so
-        # tight Phase-D-style bases don't suffocate the LPS spread gate.
-        base_range_threshold = max(
-            float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
-            1.2 * atr_for_zone,
-        )
+
+        def _range_threshold(bdf):
+            return max(
+                float(bdf["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
+                1.2 * atr_for_zone,
+            )
+
+        base_df = df.iloc[-base_len:]
+        base_range_threshold = _range_threshold(base_df)
 
         phase_b_start = len(df_ind) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
-        lps_result = detect_lps(df_ind, latest, sup_avg, res_avg, atr_for_zone, base_range_threshold, base_len, swing_complete_idx)
+        lps_in_inner = False
+        lps_result = None
+        if inner is not None:
+            inner_base_df = df_ind.iloc[-inner["base_len"]:]
+            inner_swing_complete = inner["start_bar"] + max(
+                inner["r_anchor_bar"], inner["s_anchor_bar"])
+            inner_lps = detect_lps(
+                df_ind, latest, inner["S"], inner["R"], atr_for_zone,
+                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+            )
+            if inner_lps:
+                lps_result = inner_lps
+                lps_in_inner = True
+        if lps_result is None:
+            lps_result = detect_lps(
+                df_ind, latest, sup_avg, res_avg, atr_for_zone,
+                base_range_threshold, base_len, swing_complete_idx,
+            )
 
         if not lps_result:
             return None
@@ -222,9 +239,9 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             if settings.ADR_FULL_PCT else 0.0
         )
 
+        phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
         # Region (bin) features + Minervini trend template (measure-first parity
-        # with the live pipeline). Seed uses find_outer_box only -> never an
-        # inner box, so Phase D always resolves via the heuristic boundary.
+        # with the live pipeline).
         bins = measure_bins(
             df_ind,
             bc_anchor_bar=bc_anchor_bar,
@@ -236,6 +253,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             R=res_avg,
             S=sup_avg,
             atr_val=atr_for_zone,
+            phase_d_start_bar=phase_d_start_bar,
         )
         trend = trend_template(df_ind, dist_52w_high_pct=dist_52w_high_pct)
 
@@ -297,10 +315,18 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "s_touch_vol_z": s_touch_vol_z,
             "lps_descent_frac": float(lps_result.get("descent_frac", 1.0)),
             "lps_zone_type": lps_result.get("zone_type", "INSIDE"),
+            "phase_d_inner": bool(inner is not None),
+            "lps_in_inner": bool(lps_in_inner),
+            "inner_R": float(inner["R"]) if inner is not None else None,
+            "inner_S": float(inner["S"]) if inner is not None else None,
+            "inner_box_width": float(inner["box_width"]) if inner is not None else None,
+            "inner_start_bar": phase_d_start_bar,
             "contraction_count": int(contraction["n_contractions"]),
             "contraction_quality": float(contraction["quality"]),
             "final_contraction_depth": (float(contraction["final_depth"])
                                         if contraction["final_depth"] is not None else None),
+            "contraction_vol_trend": (float(contraction["vol_trend"])
+                                      if contraction["vol_trend"] is not None else None),
             "base_median_spread_atr": bar_compression["median_spread_atr"],
             "base_p80_spread_atr": bar_compression["p80_spread_atr"],
             "base_median_spread_pct_box": bar_compression["median_spread_pct_box"],
@@ -531,6 +557,7 @@ def seed_archive(
             contraction_count=best_result.get("contraction_count"),
             contraction_quality=best_result.get("contraction_quality"),
             final_contraction_depth=best_result.get("final_contraction_depth"),
+            contraction_vol_trend=best_result.get("contraction_vol_trend"),
             score_contraction=sub.get("contraction"),
             # Base bar-compression texture
             base_median_spread_atr=best_result.get("base_median_spread_atr"),
@@ -580,8 +607,10 @@ def seed_archive(
             excess_return_6m=best_result.get("excess_return_6m"),
             bars_since_bc=best_result.get("bars_since_BC"),
             descent_length=best_result.get("descent_length"),
-            # Seed archive uses find_outer_box exclusively → always outer.
-            phase_d_inner=0,
+            phase_d_inner=(int(bool(best_result.get("phase_d_inner")))
+                           if best_result.get("phase_d_inner") is not None else None),
+            lps_in_inner=(int(bool(best_result.get("lps_in_inner")))
+                          if best_result.get("lps_in_inner") is not None else None),
             # Labels
             source="seed",
             quality_label="perfect",

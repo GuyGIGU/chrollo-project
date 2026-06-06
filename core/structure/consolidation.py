@@ -4,15 +4,17 @@ following macro trend exhaustion using zigzag-based S/R anchoring.
 
 Two public entry points:
 
-  ``find_consolidation(df)`` — hierarchical detector used by the live
-  screener. Finds the outer BC→AR box, then probes the recent half for a
-  tighter inner sub-box (Phase D launchpad / VCP mini-consolidation). When
-  an inner exists and is meaningfully tighter, it wins; otherwise the outer
-  is returned unchanged.
+  ``detect_boxes(df)`` — live parent+inner detector. Finds the outer BC→AR
+  box as the base of record, then probes for a tighter nested Phase D range
+  and returns both.
+
+  ``find_consolidation(df)`` — legacy single-box detector. Finds the outer
+  BC→AR box, then probes the recent half for a tighter inner sub-box. When an
+  inner exists and is meaningfully tighter, it returns that single box;
+  otherwise the outer is returned unchanged.
 
   ``find_outer_box(df)`` — anchor-enumeration only (no inner refinement).
-  Used by the seed-archive curator where we want the textbook outer box,
-  not a Phase-D launchpad.
+  Used by diagnostics that need the parent candidate landscape directly.
 
 Phase B uses a zigzag structural approach:
   1. Start from Wyckoff BC (Buying Climax) and AR (Automatic Reaction) anchors
@@ -29,6 +31,7 @@ import pandas as pd
 from config import settings
 from core.structure.box_candidates import (
     INNER_MIN_DAYS,
+    _detect_inner_phase_b_start,
     _inner_zigzag,
     _phase_b_zigzag,
     _select_phase_b_candidate,
@@ -83,7 +86,7 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
          is_inner)
     is_inner is always False here (this function never refines to an inner
     sub-box). The hierarchical detector ``find_consolidation`` sets it True
-    when a Phase D launchpad replaces the outer box. All zeros on failure.
+    when a Phase D inner range replaces the outer box. All zeros on failure.
     """
     if min_days is None:
         min_days = settings.MIN_BASE_DAYS
@@ -245,7 +248,7 @@ def find_consolidation(df, min_days=None, select="earliest"):
     Strategy:
       1. Find the standard "outer" box via find_outer_box.
       2. Probe the most recent portion of that box for a *tighter* sub-box
-         (the user's "Phase D mini-consolidation" / VCP launchpad pattern):
+         (the user's "Phase D mini-consolidation" / VCP inner-range pattern):
          "Smaller/tighter consolidation zones within an existing
          consolidation typically forming after Phase C before breakout".
       3. If a valid inner box exists AND is meaningfully tighter than the
@@ -273,7 +276,7 @@ def find_consolidation(df, min_days=None, select="earliest"):
         (base_length, R, S, box_width, r_touches, s_touches, breach_days,
          r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar,
          is_inner)
-    is_inner is True when the inner sub-box (Phase D launchpad) replaced the
+    is_inner is True when the inner sub-box (Phase D mini-consolidation) replaced the
     outer detection, False when the outer box is returned unchanged.
     """
     if min_days is None:
@@ -281,7 +284,7 @@ def find_consolidation(df, min_days=None, select="earliest"):
 
     # `select` steers ONLY the outer box's candidate-pair choice (earliest
     # range start vs global-best). The inner stage stays best-score: its whole
-    # job is to find the tighter recent launchpad, so it should chase tightness.
+    # job is to find the tighter recent Phase D range, so it should chase tightness.
     outer = find_outer_box(df, min_days=min_days, select=select)
     if outer[0] == 0:
         return outer
@@ -317,3 +320,74 @@ def find_consolidation(df, min_days=None, select="earliest"):
         return outer
 
     return inner_result + (bc_anchor, inner_phase_b_start, True)
+
+
+# ---------------------------------------------------------------------------
+# Parent + Inner: the nested range model (draw both) — see docs/structure_legend.md
+# ---------------------------------------------------------------------------
+
+def _inner_box_at(eval_df, start, n):
+    """Run the inner-stage zigzag from ``start`` and normalize to an inner-box dict.
+
+    Returns None when the window is too short or no valid inner box forms. The
+    returned ``start_bar`` is df-positional (n - effective base length), matching
+    the engine's ``phase_b_start = len(df) - base_len`` convention.
+    """
+    # _inner_zigzag itself requires the search window to be >= MIN_BASE_DAYS, so
+    # gate on that same (eval_df-relative) floor — INNER_MIN_DAYS is only the min
+    # inner CANDIDATE length, not the window floor.
+    if start >= len(eval_df) or (len(eval_df) - start) < settings.MIN_BASE_DAYS:
+        return None
+    r = _inner_zigzag(eval_df, start, n - start)
+    if r[0] == 0:
+        return None
+    eff_base_len, R, S, bw, rt, st = r[0], r[1], r[2], r[3], r[4], r[5]
+    return {
+        "R": float(R), "S": float(S), "box_width": float(bw),
+        "base_len": int(eff_base_len), "start_bar": int(n - eff_base_len),
+        "r_touches": int(rt), "s_touches": int(st),
+        "r_anchor_bar": int(r[7]), "s_anchor_bar": int(r[8]),
+    }
+
+
+def detect_boxes(df, min_days=None, select="earliest"):
+    """Parent (outer) box + the best-of-both inner companion.
+
+    The **parent** is the base of record (always == ``find_outer_box``). The
+    **inner** is the tighter Phase D range: the BETTER (tighter) of the inner
+    found from the mechanical midpoint and the inner found from the
+    detected inner climax (``_detect_inner_phase_b_start``), keeping only one that
+    clears the same ``_INNER_TIGHTNESS_RATIO`` (0.75) gate. None when no
+    meaningfully-tighter inner exists.
+
+    Pure measurement: it composes the two boxes but decides nothing about firing
+    or scoring — the caller applies the model (parent = base, inner = nested
+    Phase D range).
+
+    Returns ``{"parent": <12-tuple>, "inner": <dict|None>}``.
+    """
+    if min_days is None:
+        min_days = settings.MIN_BASE_DAYS
+
+    parent = find_outer_box(df, min_days=min_days, select=select)
+    if parent[0] == 0:
+        return {"parent": parent, "inner": None}
+
+    base_len, bw_outer, parent_pbs = parent[0], parent[3], parent[10]
+    eval_df = df.iloc[:-5] if len(df) > 5 else df
+    if parent_pbs >= len(eval_df):
+        return {"parent": parent, "inner": None}
+
+    n = len(df)
+    starts = [parent_pbs + int(base_len * _INNER_SEARCH_FRACTION)]
+    det_off = _detect_inner_phase_b_start(eval_df.iloc[parent_pbs:])
+    if det_off is not None:
+        starts.append(parent_pbs + det_off)
+
+    candidates = []
+    for s in starts:
+        box = _inner_box_at(eval_df, s, n)
+        if box is not None and box["box_width"] < bw_outer * _INNER_TIGHTNESS_RATIO:
+            candidates.append(box)
+    inner = min(candidates, key=lambda b: b["box_width"]) if candidates else None
+    return {"parent": parent, "inner": inner}

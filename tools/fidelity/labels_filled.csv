@@ -8,6 +8,6 @@ GFF,2026-06-03,A,109.0,2026-05-15,83.8,87.1978,0,0,ok,ok,,right side + LPS corre
 HGV,2026-06-03,S,116.2,2026-05-18,50.0,51.9826,0,0,ok,ok,,good base read; S/R good; phase D starts after last dip correct; LPS correct. volatile
 IIPR,2026-06-03,S,134.0,2026-05-20,56.89,58.6977,0,0,ok,ok,,phase D generally correct; LPS slightly late ~05-29. huge messy volatile base
 MIDD,2026-06-03,S,111.7,2026-05-22,152.77,158.0511,0,0,ok,ok,2026-05-21,phase D ~05-21 correct (engine 1 day off); phase B start wrong (engine picked bottom 05-04). real BC 04-10 AR 04-16; LPS 05-27/28. terrible downspiraling base
-OMCL,2026-06-03,B,84.6,2026-05-28,41.66,43.3163,0,1,late,wrong,,NO phase D and NO LPS yet - base immature; engine fabricated a launchpad at the very end. trend ended 04-28 AR 04-30 B-start 05-07
+OMCL,2026-06-03,B,84.6,2026-05-28,41.66,43.3163,0,1,late,wrong,,NO phase D and NO LPS yet - base immature; engine fabricated a Phase D region at the very end. trend ended 04-28 AR 04-30 B-start 05-07
 PRK,2026-06-03,S,113.6,2026-05-15,167.76,171.5635,0,0,ok,ok,,correct in every metric. volatile choppy messy base
 SMBK,2026-06-03,S,121.0,2026-05-20,40.35,41.5662,0,1,ok,ok,,correct in general; same character as PRK

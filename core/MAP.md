@@ -34,11 +34,11 @@ draw the consolidation accurately and measure its tightness faithfully.**
 
 | File | What it does (in plain terms) |
 |------|-------------------------------|
-| `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner launchpad. |
+| `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner Phase D range. |
 | `box_candidates.py` | Builds/selects zigzag R/S candidates and checks boundary respect, R/S touch density, and midline oscillation. |
 | `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
 | `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
-| `lps.py` | Finds the **Last Point of Support** — the quiet, tight pullback that marks the launch pad. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
+| `lps.py` | Finds the **Last Point of Support** — the quiet, tight pullback that defines the actionable support test. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
 | `indicators.py` | The math helpers — ATR (volatility), ADX (trend strength), and ADR% (absolute daily range). |
 
 **Want to change how the box or LPS is *detected*?** This folder.

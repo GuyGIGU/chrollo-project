@@ -60,6 +60,7 @@ _NEW_COLUMNS: dict[str, str] = {
     "bars_since_bc":        "INTEGER",
     "descent_length":       "INTEGER",
     "phase_d_inner":        "INTEGER",
+    "lps_in_inner":         "INTEGER",
     # Phase-1 (volume signature + LPS shape/zone + new bonuses)
     "r_touch_vol_z":        "FLOAT",
     "s_touch_vol_z":        "FLOAT",
@@ -71,6 +72,7 @@ _NEW_COLUMNS: dict[str, str] = {
     "contraction_count":        "INTEGER",
     "contraction_quality":      "FLOAT",
     "final_contraction_depth":  "FLOAT",
+    "contraction_vol_trend":    "FLOAT",
     "score_contraction":        "FLOAT",
     # Base bar-compression texture
     "base_median_spread_atr":      "FLOAT",
@@ -324,6 +326,7 @@ def archive_scan_results(
             contraction_count=row.get("_contraction_count"),
             contraction_quality=row.get("_contraction_quality"),
             final_contraction_depth=row.get("_final_contraction_depth"),
+            contraction_vol_trend=row.get("_contraction_vol_trend"),
             score_contraction=sub.get("contraction"),
             # Base bar-compression texture
             base_median_spread_atr=row.get("_base_median_spread_atr"),
@@ -352,6 +355,7 @@ def archive_scan_results(
             # AR low. Includes the early-chop drift between AR and the working box.
             descent_length=row.get("_descent_length"),
             phase_d_inner=int(bool(row.get("_phase_d_inner"))) if row.get("_phase_d_inner") is not None else None,
+            lps_in_inner=int(bool(row.get("_lps_in_inner"))) if row.get("_lps_in_inner") is not None else None,
             # Phase-D scoping layer (descriptive right-most-region bands)
             scope_phase_a_date=row.get("_phase_a_start_date"),
             scope_phase_b_date=row.get("_phase_b_start_date"),

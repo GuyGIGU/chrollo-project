@@ -11,8 +11,8 @@ from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
     calculate_atr,
+    detect_boxes,
     detect_lps,
-    find_consolidation,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
@@ -108,10 +108,15 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         df['ATR_10'] = calculate_atr(df, 10)
         df['ATR_50'] = calculate_atr(df, 50)
 
+        # Parent (outer) is the base of record; the inner box is the nested
+        # companion — drawn separately and used to score the LPS when the LPS sits
+        # inside it. See docs/structure_legend.md "Parent + Inner: the nested
+        # range model (draw both)".
+        boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS, select=select)
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
-            is_inner_box = \
-            find_consolidation(df, min_days=settings.MIN_BASE_DAYS, select=select)
+            is_inner_box = boxes["parent"]
+        inner = boxes["inner"]
 
         if base_len == 0:
             return None
@@ -126,18 +131,38 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
 
         base_df = df.iloc[-base_len:]
         atr_for_zone = float(atr_eval['ATR_10'])
-        base_range_threshold = max(
-            float(base_df['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
-            1.2 * atr_for_zone,
-        )
 
+        def _range_threshold(bdf):
+            return max(
+                float(bdf['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
+                1.2 * atr_for_zone,
+            )
+
+        base_range_threshold = _range_threshold(base_df)
         phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
-        lps_result = detect_lps(
-            df, latest, sup_avg, res_avg,
-            atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
-        )
+        # Use the inner box when it yields an LPS (tighter box -> closer trigger /
+        # stop), else the parent. Only the LPS (trigger / zone / tightness /
+        # setup type) follows the inner; the base above stays parent.
+        lps_in_inner = False
+        lps_result = None
+        if inner is not None:
+            inner_base_df = df.iloc[-inner["base_len"]:]
+            inner_swing_complete = inner["start_bar"] + max(
+                inner["r_anchor_bar"], inner["s_anchor_bar"])
+            inner_lps = detect_lps(
+                df, latest, inner["S"], inner["R"], atr_for_zone,
+                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+            )
+            if inner_lps:
+                lps_result = inner_lps
+                lps_in_inner = True
+        if lps_result is None:
+            lps_result = detect_lps(
+                df, latest, sup_avg, res_avg,
+                atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
+            )
 
         if not lps_result:
             return None
@@ -179,6 +204,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         bc_anchor_bar = _reconnect_bc_anchor(
             df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
         )
+        phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
 
         scope = scope_consolidation(
             df,
@@ -190,6 +216,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             lps_length=lps_length,
             lps_zone_type=lps_result.get("zone_type", "INSIDE"),
             atr_val=atr_for_zone,
+            phase_d_start_bar=phase_d_start_bar,
         )
 
         bins = measure_bins(
@@ -203,6 +230,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             R=res_avg,
             S=sup_avg,
             atr_val=atr_for_zone,
+            phase_d_start_bar=phase_d_start_bar,
         )
 
         trend = trend_template(df, dist_52w_high_pct=dist_52w_high_pct)
@@ -251,7 +279,12 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_s_anchor_bar': int(s_anchor_bar),
             '_bars_since_BC': int(len(df) - bc_anchor_bar),
             '_descent_length': int(phase_b_start_bar - bc_anchor_bar),
-            '_phase_d_inner': bool(is_inner_box),
+            '_phase_d_inner': bool(inner is not None),
+            '_lps_in_inner': bool(lps_in_inner),
+            '_inner_R': float(inner['R']) if inner is not None else None,
+            '_inner_S': float(inner['S']) if inner is not None else None,
+            '_inner_box_width': float(inner['box_width']) if inner is not None else None,
+            '_inner_start_bar': int(inner['start_bar']) if inner is not None else None,
             '_dist_52w_high_pct': float(dist_52w_high_pct) if dist_52w_high_pct is not None else None,
             '_excess_return_6m': float(excess_return_6m),
             '_breadth_pct': float(breadth_pct) if breadth_pct is not None else None,
@@ -263,6 +296,8 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_contraction_quality': float(contraction['quality']),
             '_final_contraction_depth': (float(contraction['final_depth'])
                                          if contraction['final_depth'] is not None else None),
+            '_contraction_vol_trend': (float(contraction['vol_trend'])
+                                       if contraction['vol_trend'] is not None else None),
             '_base_median_spread_atr': bar_compression['median_spread_atr'],
             '_base_p80_spread_atr': bar_compression['p80_spread_atr'],
             '_base_median_spread_pct_box': bar_compression['median_spread_pct_box'],

@@ -76,6 +76,12 @@ const colorLps = (candles, data, baseEnd) => {
 const buildLevelData = (candles, startIndex, value) =>
   candles.slice(startIndex).map(candle => ({ time: candle.time, value }));
 
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
 const addStructureLevels = (chart, data, baseEnd) => {
   const startIndex = Math.max(0, baseEnd - data.base_len + 1);
   const midValue = (Number(data.R) + Number(data.S)) / 2;
@@ -88,6 +94,21 @@ const addStructureLevels = (chart, data, baseEnd) => {
     lineWidth: 1,
     lineStyle: 2,
   }).setData(buildLevelData(data.candles || [], startIndex, midValue));
+
+  const innerR = finiteNumber(data.inner_R);
+  const innerS = finiteNumber(data.inner_S);
+  const innerStartBar = finiteNumber(data.inner_start_bar);
+  if (innerR != null && innerS != null && innerStartBar != null) {
+    const innerStart = Math.max(0, Math.min((data.candles || []).length - 1, Math.trunc(innerStartBar)));
+    const innerOptions = {
+      ...levelOptions,
+      color: 'rgba(212, 184, 90, 0.92)',
+      lineWidth: 1,
+      lineStyle: 2,
+    };
+    chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerR));
+    chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerS));
+  }
 };
 
 const addAnnotations = (candleSeries, annotations) => {

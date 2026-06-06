@@ -22,7 +22,7 @@ if _ROOT not in sys.path:
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters
-from core.structure.consolidation import find_consolidation
+from core.structure.consolidation import detect_boxes
 from core.structure.indicators import calculate_atr
 from core.structure.segmentation import segment_swings
 from tools.shadow_diff import _load_fixture
@@ -59,7 +59,8 @@ def main() -> None:
         df["ATR_10"] = calculate_atr(df, 10)
         df["ATR_50"] = calculate_atr(df, 50)
 
-        tup = find_consolidation(df, min_days=settings.MIN_BASE_DAYS)
+        boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS)
+        tup = boxes["parent"]
         base_len, bc_anchor_bar = tup[0], tup[9]
         if base_len == 0:
             skipped.append((ticker, "no_base"))

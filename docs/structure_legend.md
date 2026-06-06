@@ -25,6 +25,18 @@ chart into one textbook template.
 *evaluate* is the **right-most actionable structure**. Everything to its left is
 context (the energy-gathering history), not the setup itself.
 
+**The whole job, stated plainly.** We read, detect, and compare **staircases**
+(swing sequences) to locate **boxes** (consolidations) — and those boxes contain
+*inner* boxes with their own staircases. That recursion is the entire structural
+task. The general reading we play toward is one clean layered layout:
+
+> **Trend → Climax → Base → Inner Climax → Inner Base**
+
+— *not* a template forced onto every chart (many setups, especially young ones,
+show only part of it), but the spine of how price action is read here. This is a
+system that **solves price-action puzzles** from boring OHLC + volume: no flash,
+just disciplined reading, followed to the letter.
+
 ---
 
 ## The two lego pieces
@@ -113,11 +125,29 @@ current directive: no new gates in this stage).
 
 ---
 
-## Last Supper (LS) — the stretch measure
+## Last Supper (LS) — the over-extension axis
 
-The **Last Supper** is a post-LPS shakeout that fires when the LPS forms
-stretched too far from its energy source — it takes out the stops sitting at the
-obvious LPS trap.
+**"Last Supper" is our own coined term** (not a published TA term) — the *last*
+shakeout before the trend resumes. It names a real pattern: a deep correction,
+sometimes sharp (a day or two) or drawn-out (several days), that **punishes an
+over-extended entry** — it flushes the stops behind the obvious LPS, then pivots
+and continues the move, often without you. Keep two things separate:
+
+- **The event** — the flush itself. We do **not** detect or alarm on this
+  everywhere; that is not the engine's job.
+- **The condition** — *over-extension*: how far the LPS sits from the range that
+  fed it. This is what we measure, because it tells you whether a Last Supper
+  would hurt *you at this entry*. A precise, well-positioned entry (near support,
+  off a rebound, after a Phase-C spring) survives a Last Supper; a stretched one
+  is the trap.
+
+It can appear **before *or* after an LPS** — Phase D holds more than one LPS (see
+"Phase D is a sequence"), so a flush can sit between two of them.
+
+**The good case has a name:** an LPS resting *just above* freshly-breached
+resistance (R flipped to support) is close to its energy source and *not*
+over-extended — the Wyckoff **Back-Up to the Edge of the Creek (BUEC)**, which
+the engine already classifies as the `OVERSHOOT_R` zone.
 
 **Stretch = the move from the LPS, measured relative to the range that birthed
 it** — where "the range that birthed it" is the **last energy-gathering stage
@@ -126,7 +156,9 @@ the parent).
 
 Two measurable components:
 
-- **a. raw move from the LPS** — how far price extended off the LPS itself.
+- **a. raw move from the LPS — "% past the pivot."** How far price has extended,
+  in percent, above its energy source — the trader-intuitive form (also
+  Minervini's "don't buy extended past the pivot"). *Planned add.*
 - **b. distance from the last consolidation** — how stretched the LPS is from
   its birthing range.
 
@@ -153,16 +185,59 @@ it ever influences ranking.
 
 ---
 
+## Phase D is a sequence — the staircase
+
+Phase D is **not a single LPS** — canonically it is a *staircase*: an advance
+(**SOS** — sign of strength, wide spread + expanding volume) into a reaction
+(**LPS** — narrow spread + drying volume), repeated, each LPS a higher low and a
+valid add point, until markup. There can be **multiple LPSs** in one Phase D
+(Wyckoff: *"despite the ostensibly singular precision of this term, there may be
+multiple LPSs"*).
+
+**SOS is a certainty-booster, not a prerequisite.** Theory says wait for a clean
+SOS before trusting the LPS — but in practice the best entries are the *early*,
+well-positioned ones (an LPS near support, off a rebound, right after a Phase-C
+spring), because you catch the fish before the stream. Waiting for the SOS to
+confirm = late to the party = the move is gone. So the engine must **never**
+demand an SOS or drift toward later, more-confirmed setups. The SOS lives
+*inside* the staircase (it is the advance leg between two LPS steps), never as a
+"wait for it" gate.
+
+**The staircase as a Phase-D maturity read.** How developed Phase D is — the
+number of SOS→LPS steps, together with rising support and progressive volume
+dry-up — is a real measure of *where we are* in the setup. It is to be **scored
+as a bonus, never hard-gated** (same shape as ascending support / ADR: 0 for
+absence, raw measure archived, tiers untouched).
+
+---
+
 ## Engine implications
 
-1. **The fix is two detectors, not one tweak.** Today the engine fuses Piece A
-   and Piece B — the anchor it finds *defines* where R/S get carved (see
-   strategy_v2.md, "Phase A — Anchor Discovery/Selection" → "Phase B — Zigzag
-   S/R Anchoring"). Splitting them so the range can be rooted by its **own**
-   swing pair, independent of the climax, is the real correction.
+1. **One unified mechanism: climax → root swing → range — run at every scale.**
+   The detector's real job is a single move: *given a window, find its climax
+   (Phase A) and root the range (R/S) on the counter-swing that climax births.*
+   The **outer** box is already largely decoupled in practice — the `cand_start`
+   trim + earliest-valid-start selection (Change B) root R/S on their own zigzag
+   pair, so the box sits at a healthy length (archive: `base_length` median ~31
+   bars) even while the macro-climax label sits ~459 bars back, and that BC
+   anchor does **not** feed R/S, LPS, scoring, or tiering. So the outer split is
+   mostly *diagnostic* (a clean local Mini-BC + a "BC-respected-as-R?" boolean).
+   **The real win is applying the same mechanism to the *inner* base.** Today the
+   inner search starts at a **mechanical midpoint** (`_INNER_SEARCH_FRACTION` —
+   the recent 50% of the outer) and grabs the tightest box: *no* inner climax,
+   *no* root swing. Anchoring the inner box on a *detected* **Inner Climax**
+   (inner Phase A) + its root swing — exactly how the eye reads it — is the
+   upgrade, and it sharpens the inner range → Phase D → LPS → the actual trade.
+   The machinery half-exists: `segment_swings._find_root_swing` already finds
+   "climax → first big counter-burst (AR)"; today it runs once, on the outer,
+   for chart labels only. Generalize it to the inner window. (The falsified v5
+   experiment was *outer anchor preference* — a different lever; inner-climax
+   anchoring is untested.)
 2. **Nesting = energy source = Last Supper.** The parent/inner-range model and
-   the LS stretch measure are the *same axis*. Once nesting is represented,
-   LS is "distance from the innermost birthing range" and comes almost for free.
+   the LS over-extension axis are the *same axis*. With the inner range anchored
+   on its own climax, "% past the pivot" is measured from the innermost birthing
+   range automatically — the layout **Trend → Climax → Base → Inner Climax →
+   Inner Base** falls straight out.
 3. **Everything here is a measure, not a gate.** BC-respected-as-R, range
    qualification confidence, LPS stretch — all raw archived fields, recalibrated
    later against the live outcome archive.
@@ -201,3 +276,64 @@ it ever influences ranking.
 - **The legend's fix:** still mark the ~92 spike as BC (Piece A), but **do not
   force R onto it** — detect that the bars oscillate in the ~78–85 box and root
   R/S on *that* box's own swing pair (Piece B); record "BC respected as R? → no."
+
+---
+
+## Parent + Inner: the nested range model (draw both)
+
+Decided 2026-06-06. When an inner box is found we **keep both** — the parent is
+never thrown away:
+
+- **Parent (outer) is the base of record.** Drawn R/S, base length, Phase A/B/D
+  regions and the vertical bins all anchor on the parent, always. The inner no
+  longer replaces it.
+- **Inner box is detected (inner climax → root swing) and drawn** as a child R/S
+  inside the parent.
+- **The inner is a nested Phase D range, not a second base:**
+  - the parent's **Phase D bin extends to span the inner** — no separate inner
+    bins;
+  - if the **LPS lands inside the inner box, the LPS is scored against the
+    inner's tighter R/S** (trigger / tightness / zone); an LPS outside the inner
+    scores against the parent.
+- Net: it **keeps the base of record (parent) separate from the nested Phase D
+  range (inner)**. The climax → root-swing → range mechanism (the "A/B split")
+  sharpens *both* anchors. Phase C stays unbuilt.
+
+**Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
+`_detect_inner_phase_b_start` (core/structure/box_candidates.py) finds the
+most-recent qualifying inner climax — a ≥ `AR_MIN_DROP_PCT` reaction leaving
+≥ `INNER_MIN_DAYS` bars. But on the 197-ticker fixture a *pure* climax anchor
+regressed inner detections 32 → 12 (it grabs late minor peaks on long bases). So
+the inner search runs from **both** the detected climax and the old midpoint and
+keeps the better box — 35 vs 32 today, never worse, and it captures the
+earlier / longer inner bases the midpoint structurally can't see.
+
+**Staging.** Stage 1: draw both (parent + best-of-both inner), firing unchanged
+(shadow-clean) — eyeball the inner anchor on charts. Stage 2: the flip — parent
+becomes primary, the LPS routes to the inner when it sits inside it, the Phase D
+bin extends over the inner; validated (shadow-inspect + seed_recall + backtest +
+before/after firing-diff).
+
+## Agreed build order (measure-first, no new gates)
+
+Distilled from the engine-strength review. All enrichment — none add a gate:
+
+- **`_contraction_vol_trend`** ✓ *measured + archived* — volume drying up *across*
+  the contractions, lightest at the final / tightest one (the VCP canon).
+  `measure_contractions` now reads volume per contraction into `vol_trend ∈ [0,1]`
+  and archives it raw; it is **not** folded into `quality`, so ranking is
+  byte-unchanged (shadow-guard verified, 197 tickers). *Remaining:* surface it on
+  the 🌀 VCP Coil chip — the one UX choice.
+- **% past the pivot** — the raw-% over-extension form (Last Supper component a);
+  measured from the inner-climax-anchored birthing range.
+- **SOS→LPS staircase** — the Phase-D maturity read; **scored as a bonus, never
+  gated** (ascending-support / ADR shape).
+- **Base count / stage** (O'Neil) — trend maturity on the weekly frame; reset on
+  a deep decline; late-stage (3rd/4th+) = higher-risk *context*, archived raw.
+  Its own lane.
+
+Structural prerequisite for the middle two is the **Inner-Climax** unification
+(engine implication #1). Sequence: inner-climax mechanism → over-extension +
+staircase; volume-trend anytime; base-count in parallel. The binding limit on
+*detection* remains the LPS detector (the v5 anchor-preference experiment was
+falsified) — left ringfenced under quality-over-recall.

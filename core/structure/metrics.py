@@ -62,6 +62,28 @@ def measure_bar_compression(base_df, box_height, atr_val):
 # VCP progressive-contraction footprint
 # ---------------------------------------------------------------------------
 
+def _vol_trend_from_contractions(contraction_vols):
+    """Score volume drying up ACROSS a contraction sequence (the Minervini VCP
+    nuance: each pullback should trade lighter, the final coil the quietest).
+
+    Pure measurement, bonus-only convention — never negative; returns None when
+    there are fewer than two measurable contractions (a trend needs two points).
+    Composite in [0,1]: 0.5 * progressive-decline fraction + 0.5 * final-is-lightest.
+    """
+    vols = [v for v in (contraction_vols or []) if v is not None and np.isfinite(v)]
+    if len(vols) < 2:
+        return None
+    # Progressive decline — share of consecutive steps where volume does not RISE
+    # (5% tolerance, mirroring the depth progressive-tightening tolerance below).
+    non_rising = sum(1 for i in range(1, len(vols)) if vols[i] <= vols[i - 1] * 1.05)
+    progressive = non_rising / (len(vols) - 1)
+    # Final-is-lightest — where the final contraction's volume sits between the
+    # lightest and heaviest contraction (1.0 = it IS the lightest, 0.0 = heaviest).
+    vmax, vmin = max(vols), min(vols)
+    final_lightest = (vmax - vols[-1]) / (vmax - vmin) if vmax > vmin else 0.5
+    return round(0.5 * progressive + 0.5 * final_lightest, 4)
+
+
 def measure_contractions(base_df, order=None):
     """Measure the VCP progressive-contraction footprint within a base window.
 
@@ -84,10 +106,15 @@ def measure_contractions(base_df, order=None):
         final_depth:     float|None  depth of the last (rightmost) contraction
         quality:         float in [0,1]  composite:
                          0.40*count + 0.35*progressive_tightening + 0.25*final_tight
+        vol_trend:       float|None  [0,1] volume drying up across the contractions,
+                         lightest at the final coil (the VCP volume nuance); None with
+                         <2 contractions. Measured only — NOT part of `quality`.
     """
-    empty = {"n_contractions": 0, "depths": [], "final_depth": None, "quality": 0.0}
+    empty = {"n_contractions": 0, "depths": [], "final_depth": None,
+             "quality": 0.0, "vol_trend": None}
     highs = base_df["High"].values
     lows = base_df["Low"].values
+    volumes = base_df["Volume"].values if "Volume" in base_df.columns else None
     n = len(highs)
     if order is None:
         order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
@@ -103,13 +130,24 @@ def measure_contractions(base_df, order=None):
         return empty
 
     # Each peak->valley transition is a contraction (a pullback within the base).
+    # Capture the mean volume across each contraction's bars in the same pass —
+    # the VCP nuance is that volume should dry up step by step, lightest at the
+    # final coil. Volume is measured but NOT folded into `quality` (which stays
+    # price-only), so the contraction sub-score and the VCP-Coil tag are unchanged;
+    # the volume read is archived raw to validate before it is allowed to matter.
     depths = []
+    contraction_vols = []
     for i in range(len(zigzag) - 1):
         a, b = zigzag[i], zigzag[i + 1]
         if a[1] == "peak" and b[1] == "valley":
             peak_p, val_p = a[2], b[2]
             if peak_p > 0 and val_p < peak_p:
                 depths.append((peak_p - val_p) / peak_p)
+                if volumes is not None:
+                    seg = volumes[a[0]:b[0] + 1]
+                    contraction_vols.append(
+                        float(np.nanmean(seg)) if len(seg) else float("nan")
+                    )
     if not depths:
         return empty
 
@@ -155,6 +193,7 @@ def measure_contractions(base_df, order=None):
         "depths": [round(d, 4) for d in depths],
         "final_depth": round(final_depth, 4),
         "quality": round(quality, 4),
+        "vol_trend": _vol_trend_from_contractions(contraction_vols),
     }
 
 

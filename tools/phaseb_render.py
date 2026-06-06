@@ -26,7 +26,7 @@ if _ROOT not in sys.path:
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker
-from core.structure.consolidation import find_consolidation
+from core.structure.consolidation import detect_boxes
 from core.structure.indicators import calculate_atr
 from tools.shadow_diff import _load_fixture
 
@@ -45,7 +45,7 @@ def _panel(ax, plot_df, x0, box, fires, label):
     xs = list(range(len(plot_df)))
     last_x = len(xs) - 1
 
-    base_len, R, S, bw, rt, st, pbs_df = box
+    base_len, R, S, bw, rt, st, pbs_df, inner = box
     # Box x-range: from phase_b_start (df-positional) into the shown window.
     box_x0 = pbs_df - x0
     if box_x0 < 0:
@@ -57,6 +57,17 @@ def _panel(ax, plot_df, x0, box, fires, label):
     ax.axvline(box_x0, color="#8b5cf6", alpha=0.6, lw=1.2, zorder=1)
     ax.axhline(R, color="#5b8aff", ls="--", lw=0.9, alpha=0.8)
     ax.axhline(S, color="#5b8aff", ls="--", lw=0.9, alpha=0.8)
+    if inner is not None:
+        ix0 = max(0, inner["start_bar"] - x0)
+        ax.add_patch(Rectangle(
+            (ix0 - 0.4, inner["S"]),
+            (last_x - ix0) + 0.8,
+            max(inner["R"] - inner["S"], 1e-9),
+            facecolor="#d4b85a", alpha=0.12, edgecolor="#d4b85a", lw=1.1, zorder=2,
+        ))
+        ax.axvline(ix0, color="#d4b85a", alpha=0.7, lw=1.0, zorder=2)
+        ax.axhline(inner["R"], color="#d4b85a", ls=":", lw=0.9, alpha=0.9)
+        ax.axhline(inner["S"], color="#d4b85a", ls=":", lw=0.9, alpha=0.9)
 
     tick = 0.34
     bar_lw = 1.1 if len(xs) > 90 else 1.4
@@ -79,13 +90,14 @@ def _panel(ax, plot_df, x0, box, fires, label):
 
 
 def _box_for(df, select):
-    t = find_consolidation(df, min_days=settings.MIN_BASE_DAYS, select=select)
+    boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS, select=select)
+    t = boxes["parent"]
     base_len = t[0]
     if base_len == 0:
         return None
     R, S, bw, rt, st = t[1], t[2], t[3], t[4], t[5]
     pbs_df = len(df) - base_len
-    return (base_len, R, S, bw, rt, st, pbs_df)
+    return (base_len, R, S, bw, rt, st, pbs_df, boxes["inner"])
 
 
 def render(tickers):

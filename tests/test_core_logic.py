@@ -19,6 +19,8 @@ from core.structure.consolidation import (
     measure_bar_compression,
 )
 from core.structure.indicators import trend_template
+from core.structure.metrics import _vol_trend_from_contractions, measure_contractions
+from core.structure.box_candidates import _detect_inner_phase_b_start
 from core.structure.lps import detect_lps
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
@@ -32,6 +34,86 @@ from webapp.backend.services.portfolio_snapshot import (
     has_portfolio_data,
     with_cached_snapshot,
 )
+
+
+def _contraction_frame(levels, volumes):
+    """Build an OHLCV frame from a list of close levels (±0.5 High/Low band)."""
+    return pd.DataFrame({
+        "High": [c + 0.5 for c in levels],
+        "Low": [c - 0.5 for c in levels],
+        "Close": list(levels),
+        "Volume": list(volumes),
+    })
+
+
+# A clean 3-contraction sawtooth: peaks at idx 4/12/18, valleys at idx 8/15/21.
+_VCP_LEVELS = [
+    10, 12, 14, 16, 30, 22, 18, 14, 6, 12, 16, 20,
+    26, 18, 14, 9, 13, 17, 22, 16, 13, 11, 12, 13,
+]
+
+
+def test_vol_trend_from_contractions_scores_drying_up():
+    # Lighter each contraction, quietest at the final coil -> full credit.
+    assert _vol_trend_from_contractions([1000, 800, 500]) == 1.0
+    # Heaviest at the final contraction -> zero.
+    assert _vol_trend_from_contractions([500, 800, 1000]) == 0.0
+    # A trend needs two points; non-finite values are dropped before scoring.
+    assert _vol_trend_from_contractions([1000]) is None
+    assert _vol_trend_from_contractions([]) is None
+    assert _vol_trend_from_contractions([float("nan"), 900, 700, 500]) == 1.0
+    # Flat volume -> every step non-rising (1.0), final-lightest neutral (0.5).
+    assert _vol_trend_from_contractions([800, 800, 800]) == 0.75
+
+
+def test_measure_contractions_volume_does_not_touch_quality():
+    n = len(_VCP_LEVELS)
+    drying = _contraction_frame(_VCP_LEVELS, [2000 - 60 * i for i in range(n)])
+    rising = _contraction_frame(_VCP_LEVELS, [620 + 60 * i for i in range(n)])
+
+    rd = measure_contractions(drying, order=2)
+    rr = measure_contractions(rising, order=2)
+
+    # Identical price -> identical contractions and IDENTICAL quality: volume is
+    # measured but never folded into the score (the measure-first invariant).
+    assert rd["n_contractions"] >= 2
+    assert rd["quality"] == rr["quality"]
+    # ...but the volume read separates them: drying up ranks far above rising in.
+    assert rd["vol_trend"] is not None and rr["vol_trend"] is not None
+    assert rd["vol_trend"] > rr["vol_trend"]
+
+
+def test_measure_contractions_vol_trend_none_without_contractions():
+    flat = _contraction_frame([10, 10, 10, 10, 10], [500, 500, 500, 500, 500])
+    assert measure_contractions(flat, order=2)["vol_trend"] is None
+
+
+def test_detect_inner_phase_b_start_finds_recent_climax():
+    # 12 bars rising to a clear peak (118), a ~17% drop over 5 bars to the inner
+    # AR (~98), then 21 tight bars — a textbook inner climax → reaction → inner range.
+    levels = (
+        [90, 93, 96, 99, 102, 105, 108, 111, 114, 116, 117, 118]
+        + [112, 108, 104, 100, 98]
+        + [100, 99, 101, 100, 102, 99, 100, 101, 99, 100, 102,
+           100, 99, 101, 100, 99, 100, 101, 99, 100, 101]
+    )
+    frame = _contraction_frame(levels, [1000] * len(levels))
+    off = _detect_inner_phase_b_start(frame)
+    assert off is not None
+    # Lands after the peak, leaves >= INNER_MIN_DAYS room, and is a real reaction.
+    assert 11 < off <= len(frame) - 15
+    assert frame['Low'].iloc[off] <= 0.95 * frame['High'].iloc[:off].max()
+
+
+def test_detect_inner_phase_b_start_none_when_no_reaction():
+    # 40 near-flat bars (~3% wiggle) — no >= 5% reaction, so no inner climax.
+    levels = [100 + (1.5 if i % 2 else -1.5) for i in range(40)]
+    assert _detect_inner_phase_b_start(_contraction_frame(levels, [1000] * 40)) is None
+
+
+def test_detect_inner_phase_b_start_none_when_too_short():
+    levels = [100, 102, 98, 101, 99, 100, 103, 97, 100, 101]
+    assert _detect_inner_phase_b_start(_contraction_frame(levels, [1000] * 10)) is None
 
 
 def test_lps_trigger_uses_last_lps_bar_high():
@@ -409,6 +491,18 @@ def test_measure_bins_inner_box_sets_boundary_source_and_region():
     assert bins["bin_d_bars"] == 60          # Phase D = the inner box (box_start..end)
 
 
+def test_measure_bins_parent_with_inner_phase_d_keeps_parent_base():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=90,
+    )
+    assert bins["bin_b_bars"] == 60          # parent remains the base of record
+    assert bins["bin_d_boundary_source"] == "inner_box"
+    assert bins["bin_d_bars"] == 30          # Phase D spans the nested range
+
+
 def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
     df = _flat_ohlc(120)
     for i in range(115, 120):
@@ -444,6 +538,16 @@ def test_resolve_phase_d_start_matches_scope_rule():
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
                                   is_inner_box=True, has_lps_window=True,
                                   lps_start=115, b=30) == 60
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=115, b=30,
+                                  phase_d_start_bar=90) == 90
+    # Inner anchors Phase D, but the LPS always sits inside it: an LPS that
+    # starts before the inner (parent-fallback LPS) pulls Phase D back to the LPS.
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=80, b=30,
+                                  phase_d_start_bar=90) == 80
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
                                   is_inner_box=False, has_lps_window=True,
                                   lps_start=115, b=30) == 100
@@ -564,6 +668,19 @@ def test_scope_inner_box_marks_mini_consolidation_and_d_start():
     assert out["phase_d_start_bar"] == 20
 
 
+def test_scope_parent_with_inner_phase_d_uses_explicit_start():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0, phase_d_start_bar=18,
+    )
+    assert out["has_mini_consolidation"] is True
+    assert out["phase_d_start_bar"] == 18
+    assert out["phase_d_start_date"] == str(df.index[18])[:10]
+    assert out["phase_b_start_date"] == str(df.index[5])[:10]
+
+
 def test_scope_spring_emits_phase_c_marker_at_lps_low():
     df = _scope_df(30)
     df.iloc[27, df.columns.get_loc("Low")] = 90.0  # the spring low inside [25:29]
@@ -578,7 +695,7 @@ def test_scope_spring_emits_phase_c_marker_at_lps_low():
     assert out["lps_zone_high"] == 101.0
 
 
-def test_scope_degenerate_order_drops_lead_in_keeps_launchpad():
+def test_scope_degenerate_order_drops_lead_in_keeps_phase_d():
     df = _scope_df(30)
     # Climax AFTER body start is degenerate → drop A/B rather than invert.
     out = scope_consolidation(
@@ -588,7 +705,7 @@ def test_scope_degenerate_order_drops_lead_in_keeps_launchpad():
     )
     assert out["phase_a_start_date"] is None
     assert out["phase_b_start_date"] is None
-    assert out["phase_d_start_date"] is not None  # launchpad still placed
+    assert out["phase_d_start_date"] is not None  # Phase D still placed
     assert out["scope_confidence"] == 0.5         # only D (weighted 0.5)
 
 

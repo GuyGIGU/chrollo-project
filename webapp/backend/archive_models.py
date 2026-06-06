@@ -95,7 +95,8 @@ class SetupArchive(Base):
     # ── Phase A structural detail ────────────────────────────────
     bars_since_bc = Column(Integer, nullable=True)    # Bars from BC (or SC) to scan_date
     descent_length = Column(Integer, nullable=True)   # Bars from BC to AR low (or SC to bounce high)
-    phase_d_inner = Column(Integer, nullable=True)    # 1 if the hierarchical detector picked an inner sub-box (Phase D launchpad), else 0
+    phase_d_inner = Column(Integer, nullable=True)    # 1 if a nested (inner) Phase D range exists, else 0
+    lps_in_inner = Column(Integer, nullable=True)     # 1 if the scored LPS is rooted in that inner range, else 0
 
     # ── Volume-around-touches signature (Wyckoff no-supply / spring test) ──
     r_touch_vol_z = Column(Float, nullable=True)      # z-score of avg volume at R-touches vs base volume distribution. Negative = no supply, positive = distribution warning.
@@ -111,6 +112,7 @@ class SetupArchive(Base):
     contraction_count = Column(Integer, nullable=True)       # number of peak->valley contractions in the base
     contraction_quality = Column(Float, nullable=True)       # [0,1] composite: count + progressive tightening + final tightness
     final_contraction_depth = Column(Float, nullable=True)   # depth of the last (rightmost) contraction, fractional
+    contraction_vol_trend = Column(Float, nullable=True)     # [0,1] volume drying up across contractions, lightest at final coil
     score_contraction = Column(Float, nullable=True)         # contraction-quality sub-score (raw points)
     base_median_spread_atr = Column(Float, nullable=True)     # median base spread / ATR snapshot
     base_p80_spread_atr = Column(Float, nullable=True)        # 80th percentile base spread / ATR snapshot
@@ -131,7 +133,7 @@ class SetupArchive(Base):
     # Dates align with the chart OHLC; archived raw for the fidelity harness.
     scope_phase_a_date = Column(String, nullable=True)  # Phase A (climax/lead-in) start
     scope_phase_b_date = Column(String, nullable=True)  # Phase B (equilibrium body) start
-    scope_phase_d_date = Column(String, nullable=True)  # Phase D (right-most launchpad) start
+    scope_phase_d_date = Column(String, nullable=True)  # Phase D right-most-region start
     scope_phase_c_date = Column(String, nullable=True)  # Phase C spring marker (UNDERCUT_S only)
     scope_has_mini = Column(Integer, nullable=True)     # 1 if Phase D is an inner mini-consolidation
     scope_confidence = Column(Float, nullable=True)     # [0,1] fraction of regions confidently placed
@@ -145,14 +147,14 @@ class SetupArchive(Base):
     bin_b_bars = Column(Integer, nullable=True)            # working base length (= base_length)
     bin_b_range_pct = Column(Float, nullable=True)         # base price range fraction
     bin_b_volume_ratio = Column(Float, nullable=True)      # base mean volume / trailing-50 mean
-    bin_d_bars = Column(Integer, nullable=True)            # right-most launchpad length in bars
-    bin_d_range_pct = Column(Float, nullable=True)         # launchpad price range fraction
-    bin_d_volume_ratio = Column(Float, nullable=True)      # launchpad mean volume / trailing-50 mean
+    bin_d_bars = Column(Integer, nullable=True)            # Phase D length in bars
+    bin_d_range_pct = Column(Float, nullable=True)         # Phase D price range fraction
+    bin_d_volume_ratio = Column(Float, nullable=True)      # Phase D mean volume / trailing-50 mean
     bin_d_boundary_source = Column(String, nullable=True)  # inner_box | heuristic (how Phase D start was placed)
     bin_lps_bars = Column(Integer, nullable=True)          # LPS window length in bars
     lps_position_in_box = Column(Float, nullable=True)     # (lps_low - S)/(R - S): 0=floor, 1=ceiling
-    bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter launchpad)
-    bin_d_vs_b_volume_ratio = Column(Float, nullable=True) # Bin D vol / Bin B vol (<1 = quieter launchpad)
+    bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter Phase D)
+    bin_d_vs_b_volume_ratio = Column(Float, nullable=True) # Bin D vol / Bin B vol (<1 = quieter Phase D)
     lps_stretch_atr = Column(Float, nullable=True)         # (lps_low - R)/ATR: how far the LPS sits above the box ceiling
     lps_stretch_box = Column(Float, nullable=True)         # (lps_low - R)/(R - S): same, in box-heights (Last-Supper risk)
 

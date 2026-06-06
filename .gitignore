@@ -29,6 +29,7 @@ output/*_analysis.md
 # Generated screener / backtest CSVs — regenerated on every run, no value in git history.
 output/watchlists/*.csv
 output/backtest/*.csv
+tools/fidelity/inner/*.png
 
 # Ticker universe cache — auto-refreshed from NASDAQ FTP when stale (see core/pipeline/data.py)
 config/tickers.csv

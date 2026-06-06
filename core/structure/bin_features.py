@@ -14,7 +14,7 @@ placed is emitted as ``None`` so young bases degrade gracefully):
 
     Bin A   — the climax event: BC/SC -> AR (the trend-exhaustion lead-in).
     Bin B   — the working base: the validated box itself (``base_df``).
-    Bin D   — the right-most launchpad. Boundary comes from the SAME rule the
+    Bin D   — the right-most Phase D region. Boundary comes from the SAME rule the
               scoping overlay draws (``scope._resolve_phase_d_start``), so the
               drawn band and this measured bin can never drift apart. Tagged
               ``bin_d_boundary_source`` = "inner_box" (a real mini-consolidation)
@@ -106,6 +106,7 @@ def measure_bins(
     R: float,
     S: float,
     atr_val: float,
+    phase_d_start_bar: Optional[int] = None,
 ) -> dict:
     """Measure the named regions of an already-detected base. Pure.
 
@@ -119,6 +120,9 @@ def measure_bins(
         base_len: trimmed working-box length -> box start = len(df) - base_len.
         is_inner_box: True when the detector picked an inner sub-box (Phase D is
             then that box; boundary source = "inner_box").
+        phase_d_start_bar: optional explicit Phase-D start. Used when the parent
+            remains the base of record and an inner Phase D range is drawn inside
+            it.
         lps_offset, lps_length: locate the LPS window — it ends at
             len(df) - lps_offset (exclusive) and spans lps_length bars.
         R, S: box ceiling / floor prices (for LPS position + stretch).
@@ -180,12 +184,12 @@ def measure_bins(
     if vb is not None and vol_ref:
         out["bin_b_volume_ratio"] = _round(vb / vol_ref)
 
-    # ── Bin D — the right-most launchpad (shared boundary rule) ─────────────
+    # ── Bin D — the right-most Phase D region (shared boundary rule) ────────
     b = phase_b_start_bar if (phase_b_start_bar is not None and 0 <= phase_b_start_bar < n) else None
     d = _resolve_phase_d_start(
         box_start=box_start, base_len=base_len, last=last,
         is_inner_box=is_inner_box, has_lps_window=has_lps,
-        lps_start=lps_start, b=b,
+        lps_start=lps_start, b=b, phase_d_start_bar=phase_d_start_bar,
     )
     vd = None
     if d is not None and d < n:
@@ -193,11 +197,13 @@ def measure_bins(
         vd = _mean_vol(seg_d)
         out["bin_d_bars"] = int(n - d)
         out["bin_d_range_pct"] = _range_pct(seg_d)
-        out["bin_d_boundary_source"] = "inner_box" if is_inner_box else "heuristic"
+        out["bin_d_boundary_source"] = (
+            "inner_box" if (is_inner_box or phase_d_start_bar is not None) else "heuristic"
+        )
         if vd is not None and vol_ref:
             out["bin_d_volume_ratio"] = _round(vd / vol_ref)
 
-    # ── D-vs-B comparisons (the "is the launchpad tighter/quieter?" read) ───
+    # ── D-vs-B comparisons (is Phase D tighter/quieter than Phase B?) ───────
     if out["bin_d_range_pct"] is not None and out["bin_b_range_pct"]:
         out["bin_d_vs_b_range_ratio"] = _round(out["bin_d_range_pct"] / out["bin_b_range_pct"])
     if vd is not None and vb:

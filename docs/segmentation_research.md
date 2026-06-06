@@ -132,7 +132,7 @@ rooting to respect **segment ownership**.
   (`PHASE_B_REACH_QUALITY_FLOOR = 0.75`) stops it reaching back into a
   *materially looser* framing (the SKT over-reach, 65% of best quality, is
   rejected → SKT keeps its tight box). The inner stage still owns
-  tighter-launchpad detection, so the outer box need not chase tightness.
+  tighter inner-range detection, so the outer box need not chase tightness.
   - **Blast radius** (frozen 198-ticker shadow fixture, best→earliest): 197
     fire (1 drop, SMFG — a quality-tied case whose truer range presents no
     LPS), **0 tier changes**, 25 scores up / 11 down, bases longer almost

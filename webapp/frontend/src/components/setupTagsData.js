@@ -21,7 +21,7 @@ export const GROUP_ORDER = {
 
 export const GROUP_LABELS = {
   consolidation: 'Structure',
-  lps: 'LPS / launch pad',
+  lps: 'LPS / support test',
   volume: 'Volume',
   trend: 'Trend',
   warning: 'Warning',
@@ -31,6 +31,10 @@ const TOUCH_VOL_Z_NO_SUPPLY = -0.30;
 const TOUCH_VOL_Z_SPRING = 0.30;
 const TOUCH_VOL_Z_HEAVY_R = 0.50;
 const MAX_TAGS = 4;
+// Volume drying up ACROSS the contractions (lightest at the final coil) at or
+// above this [0,1] read flips the VCP-Coil tooltip from "not confirming yet" to
+// "volume confirms". Tooltip wording only — it never changes which chips fire.
+const CONTRACTION_VOL_TREND_CONFIRM = 0.70;
 
 const firesAt = (scores, key, fraction) => (
   (scores?.[key] ?? 0) >= fraction * SUB_SCORE_CAPS[key]
@@ -50,15 +54,30 @@ const TAG_DEFS = [
     'phase_d',
     '📐 Phase D',
     'consolidation',
-    'A tighter, newer consolidation has formed inside the larger base — the engine swapped to this refined inner box (Wyckoff Phase D launchpad). How to read it: often the final tightening just before a move. Watch the inner-box edges for the trigger; strongest when paired with a volume dry-up.',
+    'A tighter, newer consolidation has formed inside the larger base — the engine is reading this refined inner box as a Phase D mini-consolidation. How to read it: often the final tightening just before a move. Watch the inner-box edges for the trigger; strongest when paired with a volume dry-up.',
     100,
     (_scores, flags) => !!flags.phaseDInner,
   ),
   tag('old_base', '🏛 Old Base', 'consolidation', 'A long-built base — the stock has spent many months forming this consolidation (lots of Wyckoff "cause"). How to read it: more time building = more stored energy for a potential move. But age alone isn\'t a trigger — still wants a tight edge and a volume dry-up to act on.', 90, scores => firesAt(scores, 'base_age', 0.80)),
-  tag('vcp_coil', '🌀 VCP Coil', 'consolidation', 'Progressive volatility contraction — each pullback in the base is tighter than the one before, ending in a tight final coil (Minervini\'s VCP). How to read it: the classic pre-breakout footprint of supply drying up in stages. The tighter the final coil, the closer your stop can sit — so the lower-risk the entry.', 88, scores => firesAt(scores, 'contraction', 0.80)),
+  tag(
+    'vcp_coil',
+    '🌀 VCP Coil',
+    'consolidation',
+    (_scores, flags) => {
+      const base = 'Progressive volatility contraction — each pullback in the base is tighter than the one before, ending in a tight final coil (Minervini\'s VCP). How to read it: the classic pre-breakout footprint of supply drying up in stages. The tighter the final coil, the closer your stop can sit — so the lower-risk the entry.';
+      const vt = flags?.contractionVolTrend;
+      if (typeof vt !== 'number') return base;
+      const pts = `${(vt * 100).toFixed(0)}/100`;
+      return base + (vt >= CONTRACTION_VOL_TREND_CONFIRM
+        ? ` Volume confirms (${pts}): it dries up across the contractions, lightest at the final coil — supply is leaving in stages.`
+        : ` Volume isn't confirming the dry-up yet (${pts}): it doesn't taper across the contractions — ideally it goes quiet into the final coil.`);
+    },
+    88,
+    scores => firesAt(scores, 'contraction', 0.80),
+  ),
   tag('tight_box', '🔒 Tight Box', 'consolidation', 'Price is compressed into a narrow resistance/support range — a tightly-wound horizontal box. How to read it: tightness means a coiled spring and a clean, close stop just under support. You want the breakout on rising volume; if it fails, the tight range keeps the loss small.', 85, scores => firesAt(scores, 'box_tightness', 0.80)),
   tag('ascending_support', '📈 Ascending Support', 'consolidation', 'The base\'s swing lows are stair-stepping upward — rising support / higher lows (Minervini "tennis-ball action", Qullamaggie higher-lows surfing a rising EMA). How to read it: demand is getting more aggressive into each pullback — buyers stepping in earlier every dip. A rising floor under a flat ceiling is a stronger, more urgent coil than a flat floor.', 80, scores => firesAt(scores, 'ascending_support', 0.80)),
-  tag('tight_lps', '🪶 Tight LPS', 'lps', 'The final pullback (the launch pad) is exceptionally tight — an unusually calm, narrow last pause before a potential breakout. How to read it: no selling pressure right before the move, the trigger sits just overhead, and the tightness lets you place a close stop. The lower-risk spot to act.', 80, scores => firesAt(scores, 'lps_tightness', 1.00)),
+  tag('tight_lps', '🪶 Tight LPS', 'lps', 'The final LPS pullback is exceptionally tight — an unusually calm, narrow last pause before a potential breakout. How to read it: no selling pressure right before the move, the trigger sits just overhead, and the tightness lets you place a close stop. The lower-risk spot to act.', 80, scores => firesAt(scores, 'lps_tightness', 1.00)),
   tag(
     'no_supply',
     '🤫 No Supply',
@@ -97,6 +116,14 @@ export function deriveTags(subScores, flags = {}) {
     .slice(0, MAX_TAGS)
     .sort((a, b) => (
       GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || b.weight - a.weight
+    ))
+    // Resolve dynamic titles (a tag may compute its tooltip from scores/flags —
+    // e.g. VCP Coil folds in the contraction volume-trend read) down to plain
+    // strings, so every consumer keeps seeing `title` as a string.
+    .map(tagDef => (
+      typeof tagDef.title === 'function'
+        ? { ...tagDef, title: tagDef.title(subScores, flags) }
+        : tagDef
     ));
 }
 

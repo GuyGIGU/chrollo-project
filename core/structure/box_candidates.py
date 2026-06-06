@@ -7,7 +7,10 @@ from config import settings
 from core.structure.pivots import _build_zigzag, _find_pivots
 
 
-INNER_MIN_DAYS = 15
+INNER_MIN_DAYS = 15   # min length of an inner CANDIDATE box. NOTE: _inner_zigzag
+                      # separately requires the search WINDOW to be >= MIN_BASE_DAYS
+                      # (the binding floor); the room-checks that use this constant
+                      # are only a looser pre-filter.
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
 
 
@@ -277,3 +280,49 @@ def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
 
     selected = max(valid_candidates, key=lambda x: x[0])
     return _rebase_selected_candidate(selected, base_length)
+
+
+def _detect_inner_phase_b_start(eq_df):
+    """Locate the inner Phase B start from a detected inner climax.
+
+    The inner instance of the outer BC->AR anchoring, one scale down and
+    direction-agnostic (an inner base can sit inside a flat outer box, so there
+    is no 'dominant trend' to lean on). Within the outer-base window ``eq_df`` it
+    scans zigzag peak->valley limbs from the most RECENT end backward and returns
+    the first that is a genuine reaction: a drop >= AR_MIN_DROP_PCT (the same
+    'what counts as a reaction' threshold the outer climax uses) whose reaction
+    low still leaves >= INNER_MIN_DAYS bars for an inner base to form. That low is
+    the inner AR — the root swing the inner R/S is born from.
+
+    Returns the inner AR-low bar as a 0-based OFFSET into ``eq_df``, or None when
+    no clean inner climax exists (the caller falls back to its own heuristic).
+    Pure measurement — reads price only, reuses existing tunables, decides nothing
+    about scoring or eligibility.
+    """
+    n = len(eq_df)
+    if n < INNER_MIN_DAYS + 2:
+        return None
+
+    eq_highs = eq_df['High'].values
+    eq_lows = eq_df['Low'].values
+    peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(n))
+    if not peaks_idx or not valleys_idx:
+        return None
+    zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
+    if len(zigzag) < 2:
+        return None
+
+    # Most-recent qualifying inner climax: scan peak->valley limbs newest-first.
+    for i in range(len(zigzag) - 2, -1, -1):
+        zi, zj = zigzag[i], zigzag[i + 1]
+        if zi[1] != 'peak' or zj[1] != 'valley':
+            continue
+        peak_p, val_p = zi[2], zj[2]
+        if peak_p <= 0 or val_p >= peak_p:
+            continue
+        if (peak_p - val_p) / peak_p < settings.AR_MIN_DROP_PCT:
+            continue
+        ar_bar = int(zj[0])                     # offset into eq_df of the inner AR
+        if (n - ar_bar) >= INNER_MIN_DAYS:
+            return ar_bar
+    return None

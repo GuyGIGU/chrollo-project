@@ -66,6 +66,16 @@ def _extract_chart_data(data, results_df, tickers):
                  'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
                 for d, o, c, v in zip(dates, opens, closes, vols)
             ]
+            window_start_bar = len(df) - show_days
+            inner_start = row.get('_inner_start_bar')
+            try:
+                inner_start_local = (
+                    int(float(inner_start)) - window_start_bar
+                    if inner_start is not None and math.isfinite(float(inner_start))
+                    else None
+                )
+            except (TypeError, ValueError):
+                inner_start_local = None
             
             # Sub-scores power the "why ranked" tag chips on the frontend
             # card. Emit the raw point values; the JS helper compares each
@@ -88,6 +98,11 @@ def _extract_chart_data(data, results_df, tickers):
                 'volumes': volumes,
                 'R': round(float(row['_R']), 2),
                 'S': round(float(row['_S']), 2),
+                'inner_R': row.get('_inner_R'),
+                'inner_S': row.get('_inner_S'),
+                'inner_box_width': row.get('_inner_box_width'),
+                'inner_start_bar': inner_start_local,
+                'lps_in_inner': bool(row.get('_lps_in_inner', False)),
                 'base_len': int(row['_base_len']),
                 'lps_len': int(row['_lps_len']),
                 'lps_offset': int(row['_lps_offset']),
@@ -113,6 +128,7 @@ def _extract_chart_data(data, results_df, tickers):
                 'contraction_count': row.get('_contraction_count'),
                 'contraction_quality': row.get('_contraction_quality'),
                 'final_contraction_depth': row.get('_final_contraction_depth'),
+                'contraction_vol_trend': row.get('_contraction_vol_trend'),
                 # Ascending-support / higher-lows footprint (for tooltips / tag)
                 'support_slope_atr': row.get('_support_slope_atr'),
                 'ascending_support_quality': row.get('_ascending_support_quality'),

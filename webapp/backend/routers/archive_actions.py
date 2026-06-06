@@ -181,6 +181,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         contraction_count=result.get("contraction_count"),
         contraction_quality=result.get("contraction_quality"),
         final_contraction_depth=result.get("final_contraction_depth"),
+        contraction_vol_trend=result.get("contraction_vol_trend"),
         support_slope_atr=result.get("support_slope_atr"),
         ascending_support_quality=result.get("ascending_support_quality"),
         spy_trend=market_ctx.get("spy_trend"),
@@ -189,8 +190,10 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         sector_trend=sector_trend,
         rs_vs_sector_pct=rs_vs_sector,
         dist_52w_high_pct=result.get("dist_52w_high_pct"),
-        # Manual-add path runs find_outer_box (via _evaluate_at_date) → always outer.
-        phase_d_inner=0,
+        phase_d_inner=(int(bool(result.get("phase_d_inner")))
+                       if result.get("phase_d_inner") is not None else None),
+        lps_in_inner=(int(bool(result.get("lps_in_inner")))
+                      if result.get("lps_in_inner") is not None else None),
         source="manual",
         quality_label=payload.quality_label,
         notes=payload.notes,

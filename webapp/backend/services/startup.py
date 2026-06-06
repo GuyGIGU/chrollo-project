@@ -47,6 +47,7 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN contraction_count INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN contraction_quality FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN final_contraction_depth FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN contraction_vol_trend FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_contraction FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN base_median_spread_atr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN base_p80_spread_atr FLOAT",
@@ -57,6 +58,8 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN score_ascending_support FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN adr_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN phase_d_inner INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN lps_in_inner INTEGER",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

@@ -63,7 +63,7 @@ def detect_lps(df: pd.DataFrame, latest: pd.Series,
     candidates: list[dict] = []
     rejects: Counter = Counter()
 
-    # Tight-box zone-tolerance floor. For Phase D launchpads (bw < 0.10),
+    # Tight-box zone-tolerance floor. For narrow Phase D ranges (bw < 0.10),
     # half-ATR can shrink below half-box-height, suffocating a textbook
     # spring/retest. Floor zone_tol at 0.5 * box_height in that regime.
     # Self-gating: wider boxes keep the flat ATR rule (half-box-height would

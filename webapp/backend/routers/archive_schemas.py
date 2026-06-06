@@ -64,6 +64,7 @@ class SetupOut(BaseModel):
     dist_52w_high_pct: Optional[float] = None
     # Phase A structural detail
     phase_d_inner: Optional[int] = None
+    lps_in_inner: Optional[int] = None
     # Volume-around-touches signature
     r_touch_vol_z: Optional[float] = None
     s_touch_vol_z: Optional[float] = None
@@ -78,6 +79,7 @@ class SetupOut(BaseModel):
     contraction_count: Optional[int] = None
     contraction_quality: Optional[float] = None
     final_contraction_depth: Optional[float] = None
+    contraction_vol_trend: Optional[float] = None
     score_contraction: Optional[float] = None
     # Base bar-compression texture
     base_median_spread_atr: Optional[float] = None

@@ -22,7 +22,7 @@ have fewer regions, and we never force four tidy quadrants):
                validation overlay it is read as the whole base from
                phase_b_start_bar through the setup end, with Phase D as an
                overlapping right-side subregion rather than a hard cutoff.
-    Phase D  — the right-most launchpad, the region the trader positions in.
+    Phase D  — the right-most region where the LPS is evaluated.
                Anchored on the LPS (always the foundation). When the detector
                selected an inner sub-box (a mini-consolidation), Phase D is that
                inner box; otherwise it's the LPS shelf.
@@ -62,15 +62,21 @@ def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
 
 def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                            is_inner_box: bool, has_lps_window: bool,
-                           lps_start: int, b: Optional[int]) -> Optional[int]:
-    """Phase-D (right-most launchpad) start bar, df-positional. Pure.
+                           lps_start: int, b: Optional[int],
+                           phase_d_start_bar: Optional[int] = None) -> Optional[int]:
+    """Phase-D right-most-region start bar, df-positional. Pure.
 
     Single source of truth for the Phase-D boundary, shared between the scoping
     overlay (``scope_consolidation``) and the bin-feature measurer
     (``core.structure.bin_features``) so the drawn band and the measured Phase-D
     bin can never drift apart:
 
-      - inner sub-box  -> the mini-consolidation IS the region: its start.
+      - phase_d_start_bar -> the inner base anchors Phase D (the parent+inner
+                             model's proxy for the B->D split when there is no
+                             Phase C), pulled earlier if the LPS starts before it
+                             (the LPS always sits inside Phase D).
+      - inner sub-box  -> legacy path where the mini-consolidation replaced the
+                          active box: use that box start.
       - otherwise      -> the final third of the base (the right-most side),
                           pulled earlier if the LPS itself starts before it (the
                           LPS always sits inside Phase D). A fraction, not the
@@ -79,10 +85,18 @@ def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                           calibrate. ``None`` when there is no LPS window.
 
     The result is clamped on-frame and never allowed to invert the body start
-    ``b``: when the base is too young to separate body from launchpad it
+    ``b``: when the base is too young to separate body from Phase D it
     collapses to ``b`` rather than crossing it.
     """
-    if is_inner_box:
+    if phase_d_start_bar is not None:
+        d = phase_d_start_bar
+        if has_lps_window:
+            # The LPS always sits inside Phase D. The inner base anchors Phase D,
+            # but if the detected LPS starts before it (e.g. it fell back to the
+            # parent box), pull Phase D back to the LPS so it stays contained.
+            # No-op in the usual case where the LPS is rooted in the inner.
+            d = min(d, lps_start)
+    elif is_inner_box:
         d = box_start
     elif has_lps_window:
         final_third = box_start + (2 * base_len) // 3
@@ -107,6 +121,7 @@ def scope_consolidation(
     lps_length: int,
     lps_zone_type: str,
     atr_val: float,
+    phase_d_start_bar: Optional[int] = None,
 ) -> dict:
     """Scope the right-most region of an already-detected base. Pure measurement.
 
@@ -122,6 +137,9 @@ def scope_consolidation(
         base_len: working box length in bars (=> box start = len(df) - base_len).
         is_inner_box: True when the hierarchical detector picked an inner
             sub-box (a Phase D mini-consolidation).
+        phase_d_start_bar: optional explicit Phase-D start. Used when the parent
+            remains the base of record and an inner Phase D range is drawn inside
+            it.
         lps_offset, lps_length: locate the LPS window: it ends at
             ``len(df) - lps_offset`` (exclusive) and spans ``lps_length`` bars.
         lps_zone_type: "INSIDE" / "OVERSHOOT_R" / "UNDERCUT_S". A spring
@@ -150,7 +168,7 @@ def scope_consolidation(
         "lps_zone_high": None,
         "lps_zone_start_date": None,
         "lps_zone_end_date": None,
-        "has_mini_consolidation": bool(is_inner_box),
+        "has_mini_consolidation": bool(is_inner_box or phase_d_start_bar is not None),
         "scope_confidence": 0.0,
         "phase_a_start_bar": None,
         "phase_b_start_bar": None,
@@ -192,7 +210,7 @@ def scope_consolidation(
 
     box_start = n - base_len
 
-    # ── Phase D anchor — the right-most region (the launchpad) ──────────────
+    # ── Phase D anchor — the right-most region ─────────────────────────────
     # Boundary rule lives in _resolve_phase_d_start (shared with
     # core.structure.bin_features so the drawn band and the measured Phase-D
     # bin use one rule): inner sub-box -> its start; else the final third of the
@@ -201,7 +219,7 @@ def scope_consolidation(
     d = _resolve_phase_d_start(
         box_start=box_start, base_len=base_len, last=last,
         is_inner_box=is_inner_box, has_lps_window=has_lps_window,
-        lps_start=lps_start, b=b,
+        lps_start=lps_start, b=b, phase_d_start_bar=phase_d_start_bar,
     )
 
     # ── Phase C spring marker (UNDERCUT_S only) — the undercut low (V tip) ───
@@ -245,7 +263,7 @@ def scope_consolidation(
         "lps_zone_high": lps_zone_high,
         "lps_zone_start_date": lps_zone_start_date,
         "lps_zone_end_date": lps_zone_end_date,
-        "has_mini_consolidation": bool(is_inner_box),
+        "has_mini_consolidation": bool(is_inner_box or phase_d_start_bar is not None),
         "scope_confidence": round(confidence, 3),
         "phase_a_start_bar": a,
         "phase_b_start_bar": b,

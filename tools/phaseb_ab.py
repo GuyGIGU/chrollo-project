@@ -26,7 +26,7 @@ if _ROOT not in sys.path:
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker
-from core.structure.consolidation import find_consolidation, find_outer_box
+from core.structure.consolidation import detect_boxes, find_outer_box
 from core.structure.indicators import calculate_atr
 from tools.shadow_diff import _load_fixture
 
@@ -85,15 +85,18 @@ def _trace(tickers: list[str]) -> None:
         df["ATR_50"] = calculate_atr(df, 50)
         n = len(df)
         for sel in ("best", "earliest"):
-            t = find_consolidation(df, min_days=settings.MIN_BASE_DAYS, select=sel)
+            boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS, select=sel)
+            t = boxes["parent"]
+            inner = boxes["inner"]
             base_len, R, S, bw = t[0], t[1], t[2], t[3]
             rt, st = t[4], t[5]
-            is_inner = t[11]
+            has_inner = inner is not None
             pbs = n - base_len
             close = float(df["Close"].iloc[-1])
             res = _evaluate_ticker(ticker, frames[ticker], spy_6m, breadth, select=sel)
             print(f"  [{sel:8}] base_len={base_len:3}  R={R:.2f} S={S:.2f}  "
-                  f"box={bw:.3f}  touches r/s={rt}/{st}  inner={is_inner}  "
+                  f"box={bw:.3f}  touches r/s={rt}/{st}  inner={has_inner}  "
+                  f"lps_in_inner={bool(res and res.get('_lps_in_inner'))}  "
                   f"phase_b_start_bar={pbs}  close={close:.2f}  "
                   f"fires={'YES' if res else 'no'}"
                   + (f" (Score {res['Score']:.1f} {res['Tier']})" if res else ""))

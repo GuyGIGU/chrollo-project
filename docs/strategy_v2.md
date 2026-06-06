@@ -11,7 +11,7 @@ The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias
 ```
 Phase 0  Universe & data acquisition          core.pipeline.data public API
 Phase 1  Baseline universe filter              core.pipeline.evaluation (apply_baseline_filters)
-Phase 2  Consolidation detection               core.structure           (find_consolidation -> find_outer_box + _phase_b_zigzag, with optional _inner_zigzag refinement)
+Phase 2  Consolidation detection               core.structure           (detect_boxes -> parent find_outer_box + best-of-both inner range)
 Phase 2b Crash / extension filters             core.pipeline.evaluation (_evaluate_ticker)
 Phase 3  LPS detection                         core.structure           (detect_lps)
 Phase 3b Read-only phase scoping               core.structure           (scope_consolidation)
@@ -83,7 +83,7 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 ## Phase 2 — Consolidation Detection
 
-`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) is the live entry point. It calls `find_outer_box()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) for extreme-anchored Wyckoff base discovery, then optionally refines into a tighter inner sub-box (see "Hierarchical refinement" below). The seed-archive curator calls `find_outer_box()` directly when it wants the textbook outer box without inner refinement.
+`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) is the live entry point. It calls `find_outer_box()` for the parent Wyckoff range, then probes for a best-of-both inner Phase D range (mechanical midpoint and detected inner climax; see "Parent + Inner" below). The parent remains the base of record. The inner, when present, is drawn alongside and used for LPS detection/scoring only when the LPS forms inside it.
 
 ### Setup
 
@@ -135,7 +135,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 6. **Structural-quality score:** every valid candidate receives `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × midline_quality(/8)`.
 7. **Candidate selection (`select="earliest"` live default):** find the best combined score, keep only candidates whose combined score is at least `PHASE_B_REACH_QUALITY_FLOOR × best_combined` (`0.75 × best`), then choose the earliest `cand_start` from that good-enough pool, tie-broken toward higher quality. This is the current "right one, not merely tightest one" rule: root the outer box at the earliest structurally valid range start, but refuse to reach back into a materially looser framing just because it begins earlier.
 
-`select="best"` remains as a diagnostic mode for A/B tools and uses the highest combined score regardless of start. `select="debug"` returns the valid-candidate landscape for tooling. This selector applies only to the **outer** Phase-B box; the inner Phase-D mini-consolidation still chases tightness because its job is to identify a recent launchpad inside an already-validated outer base.
+`select="best"` remains as a diagnostic mode for A/B tools and uses the highest combined score regardless of start. `select="debug"` returns the valid-candidate landscape for tooling. This selector applies only to the **outer** Phase-B box; the inner Phase-D mini-consolidation still chases tightness because its job is to identify a recent nested range inside an already-validated outer base.
 
 #### `cand_start` trim — measure on the actual chop window
 
@@ -143,7 +143,7 @@ Phase B begins at the AR *low* (or the bounce *high* for SC anchors), but the st
 
 `_phase_b_zigzag` returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
 
-`find_consolidation` and `find_outer_box` wrap that and return a **12-tuple**: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields; `is_inner_box` flags Phase D launchpads (see Hierarchical Refinement below).
+`find_outer_box` returns a **12-tuple** for the parent: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields. `detect_boxes` wraps that as `{"parent": <12-tuple>, "inner": <dict|None>}`; the inner dict carries its own `R`, `S`, `box_width`, `base_len`, `start_bar`, touches, and anchor bars.
 
 `r_anchor_bar` / `s_anchor_bar` are returned in **eq_df-relative** (base-relative) coordinates — the dashboard and SQLite archive consume them that way. The LPS detector translates them into df-positional indices locally.
 
@@ -158,7 +158,7 @@ After consolidation passes, `_evaluate_ticker()` re-checks at the latest bar:
 
 ## The Phase D Model — Reading the Right-Most Region
 
-Phases A and B establish *where the base is* and *what its R/S are*. But everything a trade actually depends on happens in **Phase D — the right-most region of the consolidation**, the launchpad immediately before markup. This is the part a human reads *first* when scanning, and it is the north star the engine exists to honor: read Phase D faithfully and the rest is context.
+Phases A and B establish *where the base is* and *what its R/S are*. But everything a trade actually depends on happens in **Phase D — the right-most region of the consolidation**, where the LPS is evaluated before markup. This is the part a human reads *first* when scanning, and it is the north star the engine exists to honor: read Phase D faithfully and the rest is context.
 
 **Phase D is defined by its Last Point of Support (LPS).** The LPS is the foundation of every setup worth considering — no LPS in the right-most region means no Phase D and no setup. This is not aspirational: `detect_lps()` is mandatory in the pipeline, and a ticker with no qualifying LPS is dropped (`_evaluate_ticker` returns `None`).
 
@@ -168,7 +168,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 - the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
 - the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint").
 
-**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" via the hierarchical inner sub-box (`find_consolidation` → `_inner_zigzag`; see "Hierarchical Refinement"). The inner box is a *structural fact to recognize*, not a requirement to impose.
+**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" via the parent+inner detector (`detect_boxes` → `_inner_zigzag`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
 
 **The "V" — a positioning guide, not a detected object.** The right-most action often traces a V: a final dip / shakeout / spring down into support, then a turn back up. The V is a guide for *where the trader wants to stand*:
 
@@ -268,7 +268,9 @@ It reuses the Phase B zigzag machinery over the base window: each peak→valley 
 - **progressive** — fraction of consecutive contractions that don't widen (5% tolerance); 1.0 = textbook monotonic tightening.
 - **final_tight** — ramp on the rightmost contraction depth: full ≤ 3%, zero ≥ 12%.
 
-Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, and the `score_contraction` sub-score. Fires the 🌀 **VCP Coil** tag chip when `quality ≥ CONTRACTION_QUALITY_TAG` (0.70). Scored, not gated — measure-first, like the touch-volume signature.
+**Volume across the contractions (`vol_trend`).** In the same pass, the mean volume of each contraction's bars is captured and scored into `vol_trend ∈ [0,1] = 0.5·progressive_decline + 0.5·final_is_lightest` (`None` with < 2 contractions) — the Minervini nuance that volume should dry up step by step, lightest at the final coil. This is **measured only**: it is deliberately NOT folded into `quality`, so the contraction sub-score, the tiers, and the VCP-Coil tag are byte-for-byte unchanged (verified against the shadow-output guard). Archived raw as `contraction_vol_trend` to validate against forward returns before it is allowed to matter (or to surface on the tag).
+
+Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, `contraction_vol_trend`, and the `score_contraction` sub-score. Fires the 🌀 **VCP Coil** tag chip when `quality ≥ CONTRACTION_QUALITY_TAG` (0.70). Scored, not gated — measure-first, like the touch-volume signature.
 
 ---
 
@@ -360,14 +362,14 @@ consumes anchors the detector + LPS finder already produced.
 |--------|------|------------|
 | **A — climax event** | `bc_anchor_bar → phase_b_start_bar` | the BC/SC → AR trend-exhaustion lead-in |
 | **B — working base** | the validated box (`base_df`) | the cause-building equilibrium |
-| **D — launchpad** | the right-most region | the inner mini-consolidation if one was detected, else the final-third heuristic |
-| **LPS** | the exact LPS candidate bars | the launch pad itself |
+| **D — Phase D** | the right-most region | the inner mini-consolidation if one was detected, else the final-third heuristic |
+| **LPS** | the exact LPS candidate bars | the Last Point of Support itself |
 
 Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/minLow),
 `_bin_{a,b,d}_volume_ratio` (region mean volume ÷ trailing-50 mean). Plus:
 
 - `_bin_lps_bars`, `_lps_position_in_box` ((lps_low − S)/(R − S): 0 = floor, 1 = ceiling);
-- `_bin_d_vs_b_range_ratio` / `_bin_d_vs_b_volume_ratio` — is the launchpad
+- `_bin_d_vs_b_range_ratio` / `_bin_d_vs_b_volume_ratio` — is Phase D
   tighter / quieter than the base it sits in? (the VCP "coil into launch" read);
 - `_bin_d_boundary_source` — `inner_box` (a real detected mini-consolidation) or
   `heuristic` (the final-third fallback), so archive analysis can trust the
@@ -541,9 +543,9 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ---
 
-## Hierarchical Refinement — Inner Sub-Box (live)
+## Parent + Inner — Nested Phase D Range (live)
 
-`find_consolidation()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D launchpad / VCP mini-consolidation probe. After an outer box is found, it probes the recent half of that box (`_INNER_SEARCH_FRACTION = 0.5`) via `_inner_zigzag()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)) for a tighter inner sub-box. When the inner exists and is meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) AND spans `INNER_MIN_DAYS = 15`+ bars, the inner wins; otherwise the outer is returned unchanged.
+`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D / VCP mini-consolidation probe. After the parent box is found, it runs the inner search from both the mechanical midpoint (`_INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_phase_b_start`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 

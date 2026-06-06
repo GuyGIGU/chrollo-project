@@ -8,7 +8,7 @@ bar in that window, plus the rejection reason for misses.
 Status — banked at 28/44 hits (63.6%) against the seed watchlist (post-shape-gate).
 
 Two LPS-scaling adaptations live in this harness (NOT in the live screener)
-to make Phase D launchpad LPSes detectable:
+to make narrow Phase D LPSes detectable:
 
   1. Zone tolerance floor (gated on bw < 0.10):
          zone_tol = max(LPS_ZONE_ATR_MULT * atr, 0.5 * box_height)
@@ -55,7 +55,7 @@ if PROJECT_ROOT not in sys.path:
 
 from config import settings
 from core.scoring import calculate_tier, score_setup
-from core.structure import calculate_adx, calculate_atr, detect_lps, find_consolidation
+from core.structure import calculate_adx, calculate_atr, detect_boxes, detect_lps
 
 WINDOW_DAYS_BACK = 7    # Look further back to catch pre-breakout state
 WINDOW_DAYS_FWD = 3
@@ -153,10 +153,11 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         df['ATR_50'] = calculate_atr(df, 50)
         df['ADX_14'] = calculate_adx(df, 14)
 
+        boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS)
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
-            _is_inner = \
-            find_consolidation(df, min_days=settings.MIN_BASE_DAYS)
+            _is_inner = boxes["parent"]
+        inner = boxes["inner"]
 
         if base_len == 0:
             return None, "no consolidation base found"
@@ -169,24 +170,45 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
             return None, f"over-extended (price {latest['Close']:.2f} >= R*{settings.EXTENSION_FILTER_MULT})"
 
-        base_df = df.iloc[-base_len:]
         atr_for_zone = float(atr_eval['ATR_10'])
-        # Floor base_range_threshold at 1.2 * ATR. For tight inner boxes,
-        # the 50th-percentile spread can be smaller than a normal-volatility
-        # bar, which means a single ATR-sized bar in the LPS window kills
-        # detection. The floor lets ATR-typical bars pass while the
-        # percentile still bounds bases with chronically wide bars.
-        base_range_threshold = max(
-            float(base_df['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
-            1.2 * atr_for_zone,
-        )
+
+        def _range_threshold(bdf):
+            return max(
+                float(bdf['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
+                1.2 * atr_for_zone,
+            )
+
+        base_df = df.iloc[-base_len:]
+        base_range_threshold = _range_threshold(base_df)
         phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
-        lps_result, lps_rejects = detect_lps(
-            df, latest, sup_avg, res_avg,
-            atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
-            diagnose=True,
-        )
+        lps_rejects = Counter()
+        lps_in_inner = False
+        lps_result = None
+        if inner is not None:
+            inner_base_df = df.iloc[-inner["base_len"]:]
+            inner_swing_complete = inner["start_bar"] + max(
+                inner["r_anchor_bar"], inner["s_anchor_bar"])
+            inner_lps, inner_rejects = detect_lps(
+                df, latest, inner["S"], inner["R"], atr_for_zone,
+                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+                diagnose=True,
+            )
+            if inner_lps:
+                lps_result = inner_lps
+                lps_in_inner = True
+            else:
+                lps_rejects.update(inner_rejects)
+        if lps_result is None:
+            parent_lps, parent_rejects = detect_lps(
+                df, latest, sup_avg, res_avg,
+                atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
+                diagnose=True,
+            )
+            if parent_lps:
+                lps_result = parent_lps
+            else:
+                lps_rejects.update(parent_rejects)
 
         if not lps_result:
             _LPS_GLOBAL_REJECTS.update(lps_rejects)
@@ -221,6 +243,8 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
             'BoxWidth': round(float(box_width), 3),
             'Touches': int(r_touches + s_touches),
             'LPSLen': int(lps_length),
+            'Inner': bool(inner is not None),
+            'LPSInner': bool(lps_in_inner),
         }, None
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:

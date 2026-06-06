@@ -60,6 +60,7 @@ STRUCTURAL_FEATURES = [
     "dist_52w_high_pct", "excess_return_6m", "rs_vs_sector_pct", "breadth_pct",
     "bars_since_bc", "descent_length",
     "contraction_count", "contraction_quality", "final_contraction_depth",
+    "contraction_vol_trend",
     "base_median_spread_atr", "base_p80_spread_atr",
     "base_median_spread_pct_box", "base_tight_bar_pct",
     "support_slope_atr", "ascending_support_quality",
@@ -410,7 +411,9 @@ def section_performance(df: pd.DataFrame, valid: bool) -> None:
     if "lps_zone_type" in df.columns and df["lps_zone_type"].notna().any():
         _print_segments(df, "lps_zone_type", label="zone")
     if "phase_d_inner" in df.columns and df["phase_d_inner"].notna().any():
-        _print_segments(df, "phase_d_inner", label="inner_box(0/1)")
+        _print_segments(df, "phase_d_inner", label="inner_exists(0/1)")
+    if "lps_in_inner" in df.columns and df["lps_in_inner"].notna().any():
+        _print_segments(df, "lps_in_inner", label="lps_in_inner(0/1)")
     if "spy_trend" in df.columns and df["spy_trend"].notna().any():
         _print_segments(df, "spy_trend", label="spy_trend")
 

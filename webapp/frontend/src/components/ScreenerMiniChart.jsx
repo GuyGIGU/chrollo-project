@@ -59,6 +59,12 @@ const colorCandles = (data) => {
 const buildLevelData = (candles, startIndex, value) =>
   candles.slice(startIndex).map((candle) => ({ time: candle.time, value }));
 
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
 const setupIndexes = (data) => {
   const candles = data.candles || [];
   const forwardBars = data.forward_bars || 0;
@@ -137,6 +143,21 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       rSeries.setData(buildLevelData(data.candles || [], baseStart, data.R));
       sSeries.setData(buildLevelData(data.candles || [], baseStart, data.S));
       midSeries.setData(buildLevelData(data.candles || [], baseStart, midValue));
+
+      const innerR = finiteNumber(data.inner_R);
+      const innerS = finiteNumber(data.inner_S);
+      const innerStartBar = finiteNumber(data.inner_start_bar);
+      if (innerR != null && innerS != null && innerStartBar != null) {
+        const innerStart = Math.max(0, Math.min(candles.length - 1, Math.trunc(innerStartBar)));
+        const innerOptions = {
+          ...levelOptions,
+          color: 'rgba(212, 184, 90, 0.92)',
+          lineWidth: 1,
+          lineStyle: 2,
+        };
+        chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerR));
+        chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerS));
+      }
 
       if (data.base_len > 0 && data.candles?.length > 0) {
         focusSetupRange(chart, data);
