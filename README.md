@@ -100,7 +100,7 @@ webapp/
   frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveTab,
                          SetupTags, ScoreBreakdown, TradeTable, charts),
                          dist/ (built, gitignored)
-docs/                  strategy_v2.md (algorithm), deploy.md (go-live), handoff_gap3.md
+docs/                  strategy_v2.md (algorithm), structure_legend.md (vocab), deploy.md (go-live)
 tools/                 Dev/backtest and fidelity harnesses
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend

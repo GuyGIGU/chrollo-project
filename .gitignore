@@ -27,7 +27,6 @@ output/*_analysis.md
 *.log
 
 # Generated screener / backtest CSVs — regenerated on every run, no value in git history.
-# (Files under experiments/dead_ends/**/*.csv stay tracked — intentionally frozen evidence.)
 output/watchlists/*.csv
 output/backtest/*.csv
 

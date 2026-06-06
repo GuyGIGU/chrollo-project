@@ -549,7 +549,7 @@ Inner ⊂ outer is enforced **temporally**, not in price space — the inner can
 
 The key difference between `_inner_zigzag` and `_phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 
-Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../backtest_watchlist.py). Of the 16 misses, 9 now fail at the LPS `shape_up_march` gate (the structural-pullback shape check added in the LPS rewrite — see "LPS Detection" above) and 5 fail at outer-box detection. None are tunable without weakening structural correctness, per the project's standing **quality-over-hit-rate** guidance (accurate tight structure beats catching more names).
+Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../tools/backtest_watchlist.py). Of the 16 misses, 9 now fail at the LPS `shape_up_march` gate (the structural-pullback shape check added in the LPS rewrite — see "LPS Detection" above) and 5 fail at outer-box detection. None are tunable without weakening structural correctness, per the project's standing **quality-over-hit-rate** guidance (accurate tight structure beats catching more names).
 
 ### LPS scaling adaptations for tight inner boxes
 
@@ -562,7 +562,7 @@ When the hierarchical detector returns a tight inner box, the standard LPS gates
 
 The 13 misses split into structural categories — none are tunable LPS-gate issues:
 
-- **Anchor mis-detection** (NBR, GXO, VLO, SHEL): the outer-box detector picks the wrong window — an older quiet zone instead of the structurally relevant recent chop. The recent-first-anchor v5 hypothesis was tested and falsified (see [experiments/dead_ends/v5_recent_first_anchor/](../experiments/dead_ends/v5_recent_first_anchor/)): v5 picks different outer anchors but the LPS detector still rejects at the same gates. Re-test only if the LPS detector itself is rewritten — anchor preference alone won't help.
+- **Anchor mis-detection** (NBR, GXO, VLO, SHEL): the outer-box detector picks the wrong window — an older quiet zone instead of the structurally relevant recent chop. The recent-first-anchor v5 hypothesis was tested and falsified (in the since-retired `experiments/dead_ends/v5_recent_first_anchor/` harness, kept in git history): v5 picks different outer anchors but the LPS detector still rejects at the same gates. Re-test only if the LPS detector itself is rewritten — anchor preference alone won't help.
 - **Marginal drop_pct edges** (TRS at 1.3% drop, SNDX at 10.6%): structurally real bounds; loosening sacrifices selectivity for two tickers.
 - **Spread-decline strict** (ST, RRBI): pre-breakout bars not contracting; relaxing contradicts the LPS definition.
 - **Acceptable misses** (KEYS, BRZU, NE) per the section above.

@@ -262,8 +262,9 @@ def find_consolidation(df, min_days=None, select="earliest"):
 
     REMAINING MISSES — NBR / GXO / VLO / SHEL plus ST / RRBI / SNDX / TRS are
     LPS-detector limits, not anchor-detection limits. The recent-first-anchor
-    hypothesis (v5) was tested and falsified: see
-    experiments/dead_ends/v5_recent_first_anchor/. v5 picks different (more
+    hypothesis (v5) was tested and falsified in a since-retired harness
+    (experiments/dead_ends/v5_recent_first_anchor/, see git history). v5
+    picks different (more
     recent) outer anchors but the LPS detector still rejects at the same gates
     (zone_gate, spread_quantile). Re-test only if the LPS detector itself is
     rewritten — anchor preference alone won't help.

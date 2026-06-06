@@ -27,7 +27,7 @@ to make Phase D launchpad LPSes detectable:
 Remaining 13 misses categorize as:
   - Anchor mis-detection (NBR, GXO, VLO, SHEL): outer-box detector picks
     the wrong window. Not solvable by LPS tuning alone (the v5 recent-first
-    anchor experiment was tested and falsified — see experiments/dead_ends/).
+    anchor experiment was tested and falsified — retired, see git history).
   - Marginal drop_pct edges (TRS at 1.3%, SNDX at 10.6%): structurally
     real bounds — loosening them sacrifices selectivity for two tickers.
   - Spread-decline strict (ST, RRBI): pre-breakout bars not contracting;
