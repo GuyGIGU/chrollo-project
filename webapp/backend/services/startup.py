@@ -56,10 +56,22 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN support_slope_atr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN ascending_support_quality FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_ascending_support FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_r_touches INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN eq_s_touches INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN eq_r_touch_thirds INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN eq_s_touch_thirds INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN eq_lower_dwell FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_mid_dwell FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_upper_dwell FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_coverage FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN adr_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN phase_d_inner INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN lps_in_inner INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_end FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_crossings INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_rng FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_corr FLOAT",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

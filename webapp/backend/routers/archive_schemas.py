@@ -90,6 +90,20 @@ class SetupOut(BaseModel):
     support_slope_atr: Optional[float] = None
     ascending_support_quality: Optional[float] = None
     score_ascending_support: Optional[float] = None
+    # Worked-equilibrium occupancy footprint
+    eq_r_touches: Optional[int] = None
+    eq_s_touches: Optional[int] = None
+    eq_r_touch_thirds: Optional[int] = None
+    eq_s_touch_thirds: Optional[int] = None
+    eq_lower_dwell: Optional[float] = None
+    eq_mid_dwell: Optional[float] = None
+    eq_upper_dwell: Optional[float] = None
+    eq_coverage: Optional[float] = None
+    # Bin-B interior trajectory
+    bin_b_cog_end: Optional[float] = None
+    bin_b_cog_crossings: Optional[int] = None
+    bin_b_cog_rng: Optional[float] = None
+    bin_b_cog_corr: Optional[float] = None
     # ADR% absolute-volatility character
     adr_pct: Optional[float] = None
     score_adr: Optional[float] = None

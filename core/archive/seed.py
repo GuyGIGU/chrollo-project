@@ -42,6 +42,7 @@ from core.structure import (
     measure_bar_compression,
     measure_bins,
     measure_contractions,
+    measure_equilibrium,
     measure_support_slope,
     trend_template,
 )
@@ -233,6 +234,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         contraction = measure_contractions(base_df)
         bar_compression = measure_bar_compression(base_df, res_avg - sup_avg, atr_for_zone)
         support = measure_support_slope(base_df, atr_for_zone)
+        equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
             min(adr_value / settings.ADR_FULL_PCT, 1.0)
@@ -334,6 +336,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "support_slope_atr": (float(support["slope_atr"])
                                   if support["slope_atr"] is not None else None),
             "ascending_support_quality": float(support["quality"]),
+            "eq_r_touches": int(equilibrium["r_touches"]),
+            "eq_s_touches": int(equilibrium["s_touches"]),
+            "eq_r_touch_thirds": int(equilibrium["r_touch_thirds"]),
+            "eq_s_touch_thirds": int(equilibrium["s_touch_thirds"]),
+            "eq_lower_dwell": float(equilibrium["lower_dwell"]),
+            "eq_mid_dwell": float(equilibrium["mid_dwell"]),
+            "eq_upper_dwell": float(equilibrium["upper_dwell"]),
+            "eq_coverage": float(equilibrium["coverage"]),
             "adr_pct": float(adr_value),
             "adr_quality": float(adr_quality),
             # Region (bin) features + Minervini trend template (measure-first).
@@ -568,6 +578,15 @@ def seed_archive(
             support_slope_atr=best_result.get("support_slope_atr"),
             ascending_support_quality=best_result.get("ascending_support_quality"),
             score_ascending_support=sub.get("ascending_support"),
+            # Worked-equilibrium occupancy metrics (raw, measure-first)
+            eq_r_touches=best_result.get("eq_r_touches"),
+            eq_s_touches=best_result.get("eq_s_touches"),
+            eq_r_touch_thirds=best_result.get("eq_r_touch_thirds"),
+            eq_s_touch_thirds=best_result.get("eq_s_touch_thirds"),
+            eq_lower_dwell=best_result.get("eq_lower_dwell"),
+            eq_mid_dwell=best_result.get("eq_mid_dwell"),
+            eq_upper_dwell=best_result.get("eq_upper_dwell"),
+            eq_coverage=best_result.get("eq_coverage"),
             # ADR% absolute-volatility character
             adr_pct=best_result.get("adr_pct"),
             score_adr=sub.get("adr"),
@@ -578,6 +597,10 @@ def seed_archive(
             bin_b_bars=best_result.get("bin_b_bars"),
             bin_b_range_pct=best_result.get("bin_b_range_pct"),
             bin_b_volume_ratio=best_result.get("bin_b_volume_ratio"),
+            bin_b_cog_end=best_result.get("bin_b_cog_end"),
+            bin_b_cog_crossings=best_result.get("bin_b_cog_crossings"),
+            bin_b_cog_rng=best_result.get("bin_b_cog_rng"),
+            bin_b_cog_corr=best_result.get("bin_b_cog_corr"),
             bin_d_bars=best_result.get("bin_d_bars"),
             bin_d_range_pct=best_result.get("bin_d_range_pct"),
             bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),

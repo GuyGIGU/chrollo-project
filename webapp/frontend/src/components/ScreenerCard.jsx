@@ -238,6 +238,10 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         rTouchVolZ: data.r_touch_vol_z,
         sTouchVolZ: data.s_touch_vol_z,
         contractionVolTrend: data.contraction_vol_trend,
+        cogEnd: data.bin_b_cog_end,
+        cogCrossings: data.bin_b_cog_crossings,
+        cogRng: data.bin_b_cog_rng,
+        cogCorr: data.bin_b_cog_corr,
       }}
       compact
       maxTags="auto"

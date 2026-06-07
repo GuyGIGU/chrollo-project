@@ -134,6 +134,12 @@ def _extract_chart_data(data, results_df, tickers):
                 'ascending_support_quality': row.get('_ascending_support_quality'),
                 'higher_low_frac': row.get('_support_higher_low_frac'),
                 'adr_pct': row.get('_adr_pct'),
+                # Bin-B interior trajectory ("eyes inside the base") → drives the
+                # two_sided_range tag + interior tooltip on the card.
+                'bin_b_cog_end': row.get('_bin_b_cog_end'),
+                'bin_b_cog_crossings': row.get('_bin_b_cog_crossings'),
+                'bin_b_cog_rng': row.get('_bin_b_cog_rng'),
+                'bin_b_cog_corr': row.get('_bin_b_cog_corr'),
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.
                 '_phase_a_start_date': row.get('_phase_a_start_date'),

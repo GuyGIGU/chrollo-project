@@ -49,6 +49,12 @@ def _empty() -> dict:
         "bin_b_bars": None,
         "bin_b_range_pct": None,
         "bin_b_volume_ratio": None,
+        # Bin B interior trajectory (the "eyes inside the base" fusion) — see
+        # _cog_interior. All None on a young / degenerate base.
+        "bin_b_cog_end": None,
+        "bin_b_cog_crossings": None,
+        "bin_b_cog_rng": None,
+        "bin_b_cog_corr": None,
         "bin_d_bars": None,
         "bin_d_range_pct": None,
         "bin_d_volume_ratio": None,
@@ -92,6 +98,60 @@ def _mean_vol(seg: "pd.DataFrame") -> Optional[float]:
         return None
     v = float(seg["Volume"].mean())
     return v if _finite(v) else None
+
+
+def _cog_interior(seg: "pd.DataFrame", R: float, S: float) -> dict:
+    """Interior trajectory of the box (Bin B): slice the base into adaptive
+    time-columns and track the center-of-gravity — the mean close position in the
+    box (0 = at S, 1 = at R) — across them. This is the "eyes inside the base"
+    fusion with the vertical bin system: where price *sits* through the range over
+    time, not just where the rails are.
+
+    RESIDENCE measure -> Close-based by design (it answers "where did price
+    settle", exactly like measure_equilibrium's dwell). It is deliberately NOT a
+    High/Low reach measure — those (touches, boundary respect, spread) stay on
+    High/Low elsewhere. Pure: no opinion, no gate.
+
+    Returns (all None on a young / degenerate base, so it degrades gracefully):
+        bin_b_cog_end        mean CoG of the last ~2 time-columns: where price
+                             sits now (>~0.6 pressing R, <~0.35 testing S)
+        bin_b_cog_crossings  how many times the CoG track crosses the box mid-line
+                             (>=2 = a genuine two-sided / oscillating range;
+                             0-1 = a one-way traverse)
+        bin_b_cog_rng        max-min of the CoG track: how much of the box height
+                             the center swept
+        bin_b_cog_corr       corr of per-bar position vs time: trajectory direction
+                             (+ climbing toward R, - sagging toward S)
+    """
+    out = {"bin_b_cog_end": None, "bin_b_cog_crossings": None,
+           "bin_b_cog_rng": None, "bin_b_cog_corr": None}
+    if seg is None or "Close" not in seg.columns:
+        return out
+    box = float(R - S) if (_finite(R) and _finite(S)) else 0.0
+    if not (np.isfinite(box) and box > 0):
+        return out
+    closes = seg["Close"].values.astype(float)
+    n = len(closes)
+    if n < 8:
+        return out
+    pos = np.clip((closes - S) / box, 0.0, 1.0)
+    ncols = int(np.clip(n // 5, 4, 8))
+    cols = np.array_split(np.arange(n), ncols)
+    cog = np.array([pos[c].mean() for c in cols if len(c)])
+    if len(cog) < 3:
+        return out
+
+    side = np.sign(cog - 0.5)
+    side = side[side != 0]
+    crossings = int(np.sum(side[1:] != side[:-1])) if len(side) > 1 else 0
+    corr = float(np.corrcoef(np.arange(n), pos)[0, 1]) if pos.std() > 1e-9 else 0.0
+    if not np.isfinite(corr):
+        corr = 0.0
+    out["bin_b_cog_end"] = round(float(cog[-2:].mean()), 4)
+    out["bin_b_cog_crossings"] = crossings
+    out["bin_b_cog_rng"] = round(float(cog.max() - cog.min()), 4)
+    out["bin_b_cog_corr"] = round(corr, 4)
+    return out
 
 
 def measure_bins(
@@ -183,6 +243,8 @@ def measure_bins(
     out["bin_b_range_pct"] = _range_pct(seg_b)
     if vb is not None and vol_ref:
         out["bin_b_volume_ratio"] = _round(vb / vol_ref)
+    # Interior trajectory of Bin B (the time x price "inside the base" read).
+    out.update(_cog_interior(seg_b, R, S))
 
     # ── Bin D — the right-most Phase D region (shared boundary rule) ────────
     b = phase_b_start_bar if (phase_b_start_bar is not None and 0 <= phase_b_start_bar < n) else None

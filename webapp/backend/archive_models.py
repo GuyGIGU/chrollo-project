@@ -124,6 +124,16 @@ class SetupArchive(Base):
     ascending_support_quality = Column(Float, nullable=True) # [0,1] composite: slope ramp + higher-low consistency
     score_ascending_support = Column(Float, nullable=True)   # ascending-support sub-score (raw points)
 
+    # Worked-equilibrium occupancy footprint (raw, no scoring)
+    eq_r_touches = Column(Integer, nullable=True)             # R rail touches measured by measure_equilibrium
+    eq_s_touches = Column(Integer, nullable=True)             # S rail touches measured by measure_equilibrium
+    eq_r_touch_thirds = Column(Integer, nullable=True)        # time-thirds containing an R touch
+    eq_s_touch_thirds = Column(Integer, nullable=True)        # time-thirds containing an S touch
+    eq_lower_dwell = Column(Float, nullable=True)             # share of closes in lower third of box
+    eq_mid_dwell = Column(Float, nullable=True)               # share of closes in middle third of box
+    eq_upper_dwell = Column(Float, nullable=True)             # share of closes in upper third of box
+    eq_coverage = Column(Float, nullable=True)                # share of occupied vertical box bins
+
     # ── ADR% absolute-volatility character ──────────────────────
     adr_pct = Column(Float, nullable=True)                    # Average Daily Range % over 20 bars (plain percent)
     score_adr = Column(Float, nullable=True)                  # ADR sub-score (raw points)
@@ -147,6 +157,11 @@ class SetupArchive(Base):
     bin_b_bars = Column(Integer, nullable=True)            # working base length (= base_length)
     bin_b_range_pct = Column(Float, nullable=True)         # base price range fraction
     bin_b_volume_ratio = Column(Float, nullable=True)      # base mean volume / trailing-50 mean
+    # Bin B interior trajectory ("eyes inside the base") — Close-residence CoG over time
+    bin_b_cog_end = Column(Float, nullable=True)           # recent CoG (0=floor..1=ceiling): where price sits now
+    bin_b_cog_crossings = Column(Integer, nullable=True)   # CoG mid-line crossings (>=2 = two-sided/oscillating range)
+    bin_b_cog_rng = Column(Float, nullable=True)           # CoG sweep (max-min): how much box height the center covered
+    bin_b_cog_corr = Column(Float, nullable=True)          # corr(position, time): + climbing to R, - sagging to S
     bin_d_bars = Column(Integer, nullable=True)            # Phase D length in bars
     bin_d_range_pct = Column(Float, nullable=True)         # Phase D price range fraction
     bin_d_volume_ratio = Column(Float, nullable=True)      # Phase D mean volume / trailing-50 mean

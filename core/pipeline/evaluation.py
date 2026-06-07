@@ -16,6 +16,7 @@ from core.structure import (
     measure_bar_compression,
     measure_bins,
     measure_contractions,
+    measure_equilibrium,
     measure_support_slope,
     measure_touch_volume,
     scope_consolidation,
@@ -200,6 +201,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             base_df, res_avg - sup_avg, atr_for_zone
         )
         support = measure_support_slope(base_df, atr_for_zone)
+        equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
 
         bc_anchor_bar = _reconnect_bc_anchor(
             df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
@@ -306,6 +308,14 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                                    if support['slope_atr'] is not None else None),
             '_support_higher_low_frac': float(support['higher_low_frac']),
             '_ascending_support_quality': float(support['quality']),
+            '_eq_r_touches': int(equilibrium['r_touches']),
+            '_eq_s_touches': int(equilibrium['s_touches']),
+            '_eq_r_touch_thirds': int(equilibrium['r_touch_thirds']),
+            '_eq_s_touch_thirds': int(equilibrium['s_touch_thirds']),
+            '_eq_lower_dwell': float(equilibrium['lower_dwell']),
+            '_eq_mid_dwell': float(equilibrium['mid_dwell']),
+            '_eq_upper_dwell': float(equilibrium['upper_dwell']),
+            '_eq_coverage': float(equilibrium['coverage']),
             '_adr_pct': float(adr_value),
             '_adr_quality': float(adr_quality),
             '_phase_a_start_date': scope['phase_a_start_date'],
@@ -324,6 +334,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_bin_b_bars': bins['bin_b_bars'],
             '_bin_b_range_pct': bins['bin_b_range_pct'],
             '_bin_b_volume_ratio': bins['bin_b_volume_ratio'],
+            '_bin_b_cog_end': bins['bin_b_cog_end'],
+            '_bin_b_cog_crossings': bins['bin_b_cog_crossings'],
+            '_bin_b_cog_rng': bins['bin_b_cog_rng'],
+            '_bin_b_cog_corr': bins['bin_b_cog_corr'],
             '_bin_d_bars': bins['bin_d_bars'],
             '_bin_d_range_pct': bins['bin_d_range_pct'],
             '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
