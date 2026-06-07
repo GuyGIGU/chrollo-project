@@ -320,3 +320,88 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
         s_touch_vol_z = None
 
     return r_touch_vol_z, s_touch_vol_z
+
+
+# ---------------------------------------------------------------------------
+# Worked-equilibrium occupancy — is this candidate range a REAL trading range?
+# ---------------------------------------------------------------------------
+
+def measure_equilibrium(base_df, R, S, atr_val):
+    """How genuinely *worked* is the candidate range ``[S, R]`` over its window?
+
+    The Phase-B question, in the user's terms: does price RESPECT, TOUCH, and
+    ZIGZAG THROUGH both rails CONSTANTLY, with no dead space? A real trading
+    range fills its box and re-tests both rails across the whole span. A
+    mis-anchored box leaves a *starved band* — dead space — where a one-time
+    climax / Automatic-Rally low sits far below where price actually trades, or
+    it churns the middle without ever working the rails.
+
+    ``R`` / ``S`` are the candidate's RAIL LEVELS (the Resistance / Support
+    anchors), not the window's extremes — that's what makes dead space visible:
+    a one-time low pins ``S`` while price dwells higher, leaving the lower bins
+    starved.
+
+    Pure measurement, no gates and no points — the validity rule in
+    ``box_candidates._validate_base_quality`` and the Scoring Engine decide what
+    the numbers are worth.
+
+    Returns dict (safe defaults on a degenerate window so it reads as invalid):
+        r_touches, s_touches            touches within TOUCH_TOLERANCE_ATR of each rail
+        r_touch_thirds, s_touch_thirds  of 3 equal time-thirds, how many contain a touch
+                                        (constant contact vs. clustered at the start)
+        lower_dwell, mid_dwell, upper_dwell
+                                        fraction of closes in the lower / middle / upper
+                                        third of the box (closes beyond a rail count toward
+                                        the nearest third); the two halves being worked is
+                                        what rules out dead space
+        coverage                        fraction of EQ_COVERAGE_BINS box-height bins holding
+                                        >= EQ_COVERAGE_MIN_FRAC of closes (starved-band detector)
+    """
+    empty = {
+        "r_touches": 0, "s_touches": 0,
+        "r_touch_thirds": 0, "s_touch_thirds": 0,
+        "lower_dwell": 0.0, "mid_dwell": 1.0, "upper_dwell": 0.0,
+        "coverage": 0.0,
+    }
+    if base_df is None or len(base_df) == 0:
+        return empty
+    box = R - S
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return empty
+
+    highs = base_df["High"].values.astype(float)
+    lows = base_df["Low"].values.astype(float)
+    closes = base_df["Close"].values.astype(float)
+    n = len(closes)
+
+    tb = settings.TOUCH_TOLERANCE_ATR * atr_val
+    r_mask = np.abs(highs - R) <= tb
+    s_mask = np.abs(lows - S) <= tb
+
+    thirds = np.array_split(np.arange(n), 3)
+    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
+    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+
+    # Close position in the box: 0 at S, 1 at R. May fall outside [0,1] on
+    # excursions; those count toward the nearest third / clamped coverage bin.
+    pos = (closes - S) / box
+    lower_dwell = float(np.mean(pos < 1.0 / 3.0))
+    upper_dwell = float(np.mean(pos > 2.0 / 3.0))
+    mid_dwell = float(np.mean((pos >= 1.0 / 3.0) & (pos <= 2.0 / 3.0)))
+
+    nb = settings.EQ_COVERAGE_BINS
+    bin_idx = np.clip((np.clip(pos, 0.0, 1.0) * nb).astype(int), 0, nb - 1)
+    counts = np.bincount(bin_idx, minlength=nb)
+    min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
+    coverage = float(np.mean(counts >= min_count))
+
+    return {
+        "r_touches": int(r_mask.sum()),
+        "s_touches": int(s_mask.sum()),
+        "r_touch_thirds": int(r_touch_thirds),
+        "s_touch_thirds": int(s_touch_thirds),
+        "lower_dwell": round(lower_dwell, 4),
+        "mid_dwell": round(mid_dwell, 4),
+        "upper_dwell": round(upper_dwell, 4),
+        "coverage": round(coverage, 4),
+    }

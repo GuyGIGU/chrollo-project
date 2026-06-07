@@ -14,7 +14,11 @@ MIN_YEARLY_RETURN = -0.20        # Allows modest drawdowns (v1 used +0.30)
 # PHASE 2 — CONSOLIDATION BASE PARAMETERS
 # ============================================================
 MIN_BASE_DAYS = 20               # Minimum consolidation length (reject < 20 day chop)
-MAX_BOX_WIDTH = 0.25             # (R - S) / S ceiling
+MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this is
+                                 # not a tradeable tight equilibrium — it's the
+                                 # BC->AR extremes, not a worked Phase B box.
+                                 # (was 0.25; tightened with the worked-equilibrium
+                                 #  rewrite. Doubles as the box-tightness scoring scale.)
 CRASH_FILTER_MULT = 0.70         # Floor cap for the box-width-scaled crash filter
 EXTENSION_FILTER_MULT = 1.15     # Price above R * this = too extended
 
@@ -25,11 +29,25 @@ PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
 
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
-MAX_CONSECUTIVE_OUTSIDE_DAYS = 30 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf)
+MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
-MIN_MIDLINE_CROSSES = 3          # Minimum midline oscillations required
-MIDLINE_ATR_BUFFER = 0.3         # Price must move this × ATR from midline before a new cross counts
+MIDLINE_ATR_BUFFER = 0.3         # Price must move this × ATR from midline before a new cross counts (retained for legacy oscillation scoring; the midline-cross VALIDITY gate is retired in favor of the equilibrium dwell/coverage rule below)
+
+# Worked-equilibrium validity (Phase B) — a candidate Resistance/Support-anchor
+# pair is only a real trading range if price RESPECTS, TOUCHES, and ZIGZAGS
+# THROUGH both rails CONSTANTLY, with no dead space. These gates replace the old
+# "2 touches per side + N midline crosses" rule, which let the widest BC->AR box
+# win (dead space below a one-time AR low, or mid-box churn). Measured by
+# core.structure.metrics.measure_equilibrium. Starting points — CALIBRATED
+# against seed-recall, not hard-coded blind.
+EQ_MIN_TOUCHES_PER_RAIL = 3      # >= this many touches within TOUCH_TOLERANCE_ATR of EACH rail
+EQ_MIN_TOUCH_THIRDS = 2          # each rail touched in >= this many of 3 time-thirds (constant, not clustered)
+EQ_MIN_HALF_DWELL = 0.15         # >= this fraction of closes in BOTH the lower and the upper box third (both halves worked -> no dead space)
+EQ_MAX_MID_DWELL = 0.45          # <= this fraction of closes in the middle box third (reject mid-box churn that never works the rails)
+EQ_MIN_COVERAGE = 0.80           # >= this fraction of box-height bins must hold real dwell (starved-band / dead-space detector)
+EQ_COVERAGE_BINS = 6             # number of equal box-height bins for the coverage measure
+EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this fraction of closes
 
 # Markup-leg qualification (Phase A in find_outer_box)
 TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
@@ -41,17 +59,6 @@ LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this w
 
 # Phase-B ATR window (median over recent N base bars; used when no override is given)
 PHASE_B_ATR_WINDOW = 30
-
-# Phase-B candidate selection (outer box). When the engine roots the
-# consolidation at the EARLIEST valid range start (select="earliest"), it must
-# not reach back into a *materially looser* framing just because it begins
-# earlier. Among the valid pivot pairs it keeps only those whose combined
-# structural quality (tightness + touch density + midline) is at least this
-# fraction of the best available pair, then picks the earliest of THOSE. So a
-# longer truer base is preferred, but a sparse, ballooning framing that merely
-# starts earlier is rejected. 1.0 == strict "best only"; lower == more willing
-# to trade a little quality for an earlier (longer) start.
-PHASE_B_REACH_QUALITY_FLOOR = 0.75
 
 # Automatic Reaction validation (required)
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
@@ -103,15 +110,27 @@ TIER_B = 75
 TIER_C = 55
 # Below TIER_C = Tier D
 
-# Scoring component maximum points (Total ~ 128 pts)
-SCORE_BASE_AGE = 35             # Wyckoff "cause" heavily rewarded (was 8)
+# S-tier width cap — a wide base, however long or well-touched, is NOT an elite
+# setup. Additive scoring can't enforce this (a wide range compensates with
+# length/touches), so cap S by box width directly: only a genuinely tight,
+# worked range can be S; wider (but still valid) ranges fall to A. This is the
+# user's rule — "wide ... getting an S, this is bad." Main calibration knob.
+# (Validity already caps box width at MAX_BOX_WIDTH = 0.18.)
+S_MAX_BOX_WIDTH = 0.15
+
+# Scoring component maximum points (Total ~ 122 pts)
+# Rebalanced with the worked-equilibrium rewrite: base age no longer dominates
+# (it used to reward the widest/oldest BC->AR framing — the very bug we fixed),
+# and box tightness bites harder so a wide-but-worked range (now drawn correctly)
+# lands a tier below an equally-clean tight coil.
+SCORE_BASE_AGE = 22             # Wyckoff "cause" (was 35 — trimmed; the box is now a genuinely worked range, so length is a cleaner but less dominant signal)
 BASE_AGE_CAP_DAYS = 120         # Saturation point for base-age reward (sqrt-scaled)
 SCORE_TOUCH_DENSITY = 25        # 15 base + 10 bonus (was 20)
 SCORE_VOL_CONTRACTION = 20      # Volume dry-up (was 10)
 SCORE_LPS_TIGHTNESS = 20        # Final candle tightness (was 35)
-SCORE_BOX_TIGHTNESS = 15        # Reduced penalty for wide boxes (was 35)
+SCORE_BOX_TIGHTNESS = 22        # Tightness now bites (was 15) — separates a tight coil from a wide-but-clean range
 SCORE_ATR_SQUEEZE = 8           # Volatility contraction (was 10)
-SCORE_OSCILLATION = 5           # Midline chop quality (was 10)
+SCORE_OSCILLATION = 5           # Rail-working quality (closes spend time AT the rails, not clustered mid-box)
 
 # Strong-uptrend bonus — linear ramp from MIN to MAX yearly return.
 # Re-accumulation setups inside an established uptrend break out more reliably

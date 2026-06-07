@@ -26,6 +26,7 @@ from core.structure.consolidation import detect_boxes, find_consolidation, find_
 from core.structure.metrics import (
     measure_bar_compression,
     measure_contractions,
+    measure_equilibrium,
     measure_support_slope,
     measure_touch_volume,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "detect_boxes",
     "measure_bar_compression",
     "measure_contractions",
+    "measure_equilibrium",
     "measure_support_slope",
     "measure_touch_volume",
     "measure_bins",

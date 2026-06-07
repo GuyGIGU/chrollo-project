@@ -265,7 +265,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             contraction['quality'], support['quality'], adr_quality,
         )
         score = score_result["total"]
-        tier = calculate_tier(score)
+        tier = calculate_tier(score, box_width)
 
         # Volume signature at R/S touch bars (mirror of _evaluate_ticker).
         touch_band_vol = settings.TOUCH_TOLERANCE_ATR * atr_for_zone

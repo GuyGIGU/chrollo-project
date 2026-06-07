@@ -19,8 +19,12 @@ from core.structure.consolidation import (
     measure_bar_compression,
 )
 from core.structure.indicators import trend_template
-from core.structure.metrics import _vol_trend_from_contractions, measure_contractions
-from core.structure.box_candidates import _detect_inner_phase_b_start
+from core.structure.metrics import (
+    _vol_trend_from_contractions,
+    measure_contractions,
+    measure_equilibrium,
+)
+from core.structure.box_candidates import _detect_inner_phase_b_start, _validate_base_quality
 from core.structure.lps import detect_lps
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
@@ -206,27 +210,75 @@ def test_phase_b_select_best_takes_global_best():
     assert chosen is late_tight  # best == highest combined, regardless of start
 
 
-def test_phase_b_select_earliest_prefers_earlier_when_good_enough():
-    # Earlier pair is within the quality floor (0.75) of the best -> reach back.
-    early_ok = _cand(combined=0.72, cand_start=10)   # 0.72 / 0.80 = 90% >= 75%
+def test_phase_b_select_earliest_prefers_earlier_start():
+    # Every candidate has already passed worked-equilibrium validity, so
+    # "earliest" takes the earliest start (longest cause) even when a later
+    # framing scores higher combined. There is no reach-quality floor anymore:
+    # a sparse / dead-space framing can no longer be a valid candidate, so the
+    # old "is the early framing good enough?" question is moot.
+    early = _cand(combined=0.60, cand_start=10)
     late_tight = _cand(combined=0.80, cand_start=40)
-    chosen = _select_phase_b_candidate([late_tight, early_ok], "earliest")
-    assert chosen is early_ok
+    chosen = _select_phase_b_candidate([late_tight, early], "earliest")
+    assert chosen is early
 
 
-def test_phase_b_select_earliest_rejects_materially_looser_framing():
-    # The SKT case: the earlier framing is far below the floor (65% of best),
-    # so "earliest" must NOT reach back to it and keeps the tight late box.
-    early_loose = _cand(combined=0.499, cand_start=10)  # 0.499/0.770 = 65% < 75%
-    late_tight = _cand(combined=0.770, cand_start=40)
-    chosen = _select_phase_b_candidate([early_loose, late_tight], "earliest")
-    assert chosen is late_tight
+def test_phase_b_select_earliest_breaks_ties_by_quality():
+    # When two valid framings start on the same bar, the higher-combined one
+    # wins the tie (the -x[0] secondary key).
+    start_lo = _cand(combined=0.50, cand_start=10)
+    start_hi = _cand(combined=0.80, cand_start=10)
+    chosen = _select_phase_b_candidate([start_lo, start_hi], "earliest")
+    assert chosen is start_hi
 
 
 def test_phase_b_select_earliest_never_empties_pool():
-    # A single candidate always clears its own floor.
+    # A single candidate is always returned (it is, by construction, valid).
     only = _cand(combined=0.30, cand_start=5)
     assert _select_phase_b_candidate([only], "earliest") is only
+
+
+def _osc_frame(closes, band=1.0):
+    """OHLC frame with High/Low a fixed band around each close."""
+    return pd.DataFrame({
+        "High": [c + band for c in closes],
+        "Low": [c - band for c in closes],
+        "Close": list(closes),
+    })
+
+
+# A triangle wave that traverses the whole [100,110] box: touches both rails
+# repeatedly, fills the middle bins, and never huddles mid-box. (3 cycles.)
+_WORKED = [101, 103, 105, 107, 109, 107, 105, 103] * 3
+# Price lives in the top after a single one-time dip to the low — the dead-space
+# pathology the engine used to anchor on (support pinned to a low price never revisits).
+_DEAD_SPACE = [100, 102] + [106, 109, 107, 108, 106, 109, 107, 108] * 2 + [106, 109, 107, 108, 106, 109]
+
+
+def test_measure_equilibrium_worked_range_is_filled_and_two_sided():
+    eq = measure_equilibrium(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+    assert eq["r_touches"] >= 3 and eq["s_touches"] >= 3
+    assert eq["r_touch_thirds"] >= 2 and eq["s_touch_thirds"] >= 2
+    assert eq["lower_dwell"] >= 0.15 and eq["upper_dwell"] >= 0.15
+    assert eq["mid_dwell"] <= 0.45
+    assert eq["coverage"] >= 0.80
+
+
+def test_measure_equilibrium_dead_space_starves_the_lower_half():
+    eq = measure_equilibrium(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+    # Price lives up top after a one-time dip: the lower half is dead (dwell
+    # collapses there) while the upper half hogs the action.
+    assert eq["lower_dwell"] < 0.15
+    assert eq["upper_dwell"] > 0.45
+
+
+def test_validate_base_quality_accepts_worked_rejects_dead_space():
+    # A genuinely worked range validates; a dead-space range does not.
+    _rt, _st, _eq, ok_worked = _validate_base_quality(
+        _osc_frame(_WORKED), 110.0, 100.0, 1.0)
+    _rt2, _st2, _eq2, ok_dead = _validate_base_quality(
+        _osc_frame(_DEAD_SPACE), 110.0, 100.0, 1.0)
+    assert ok_worked is True
+    assert ok_dead is False
 
 
 def test_segment_swings_guards_bad_inputs():

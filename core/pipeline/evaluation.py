@@ -248,7 +248,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             contraction['quality'], support['quality'], adr_quality,
         )
         score = score_result['total']
-        tier = calculate_tier(score)
+        tier = calculate_tier(score, box_width)
 
         return {
             'Ticker': ticker,

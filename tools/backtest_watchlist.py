@@ -232,7 +232,7 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
         )
         score = score_result['total']
-        tier = calculate_tier(score)
+        tier = calculate_tier(score, box_width)
 
         return {
             'Tier': tier,

@@ -1,9 +1,20 @@
-"""Zigzag candidate selection for consolidation boxes."""
+"""Zigzag candidate generation + worked-equilibrium validity for consolidation boxes.
+
+A candidate is a Resistance-anchor / Support-anchor pair drawn from the zigzag
+(``BC``/``AR`` are the Phase-A trend climax/rally — the place the search begins,
+not the rails). A pair is only a REAL trading range if price respects, touches,
+and zigzags through both rails CONSTANTLY with no dead space — enforced by
+``_is_boundary_respected`` (respect) + ``_validate_base_quality`` (constant
+two-sided touch + both-halves dwell + coverage, via
+``metrics.measure_equilibrium``). Selection keeps the EARLIEST pair that passes
+every constraint; if none passes, the box is rejected.
+"""
 from __future__ import annotations
 
 import numpy as np
 
 from config import settings
+from core.structure.metrics import measure_equilibrium
 from core.structure.pivots import _build_zigzag, _find_pivots
 
 
@@ -65,55 +76,51 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
 
 def _validate_base_quality(eq_df, R_val, S_val, atr_val):
     """
-    Validate a candidate R/S pair using structural quality checks.
+    Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
+    REAL trading range only if price respects, touches, and zigzags through BOTH
+    rails CONSTANTLY, with no dead space.
 
-    Checks:
+    Boundary respect is enforced separately by the caller
+    (``_is_boundary_respected``) before this is called; here we add the
+    occupancy half of the test via ``measure_equilibrium``:
       - Box width within limits
       - Crash filter: no catastrophic wick below support
-      - Touch density: at least two touches on each boundary
-      - Midline oscillation: enough committed crosses, ATR-buffered
+      - Constant two-sided touch: >= EQ_MIN_TOUCHES_PER_RAIL on each rail, each
+        touched across >= EQ_MIN_TOUCH_THIRDS of 3 time-thirds (not clustered)
+      - No dead space: closes dwell in BOTH the lower and upper box third
+        (>= EQ_MIN_HALF_DWELL each) and the box-height coverage is not starved
+        (>= EQ_MIN_COVERAGE)
+      - Not mid-box churn: middle-third dwell <= EQ_MAX_MID_DWELL
+
+    The old "2 touches/side + N midline crosses" gate is retired — it let the
+    widest BC->AR framing win (a wide box mechanically racks up crosses while a
+    one-time AR low leaves dead space beneath the real range).
 
     Returns:
-        (r_touches, s_touches, crosses, is_valid)
+        (r_touches, s_touches, eq, is_valid)  where eq is the measure_equilibrium
+        dict (None when rejected on width/crash before measuring).
     """
     box_width = (R_val - S_val) / S_val
     if box_width > settings.MAX_BOX_WIDTH or box_width <= 0:
-        return 0, 0, 0, False
+        return 0, 0, None, False
 
     if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
-        return 0, 0, 0, False
+        return 0, 0, None, False
 
-    touch_band = settings.TOUCH_TOLERANCE_ATR * atr_val
-    r_touches = int(((eq_df['High'] - R_val).abs() <= touch_band).sum())
-    s_touches = int(((eq_df['Low'] - S_val).abs() <= touch_band).sum())
+    eq = measure_equilibrium(eq_df, R_val, S_val, atr_val)
+    r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
-    if r_touches < 2 or s_touches < 2:
-        return r_touches, s_touches, 0, False
-
-    midline = (R_val + S_val) / 2
-    buffer = settings.MIDLINE_ATR_BUFFER * atr_val
-    close_vals = eq_df['Close'].values
-    crosses = 0
-    if len(close_vals) > 1:
-        above = close_vals > midline
-        distances = np.abs(close_vals - midline)
-        prev_above = above[0]
-        committed = True
-        for i in range(1, len(close_vals)):
-            if above[i] != prev_above:
-                if committed:
-                    crosses += 1
-                    prev_above = above[i]
-                    committed = False
-            else:
-                if distances[i] >= buffer:
-                    committed = True
-
-    min_crosses_needed = max(settings.MIN_MIDLINE_CROSSES, len(eq_df) // 15)
-    if crosses < min_crosses_needed:
-        return r_touches, s_touches, crosses, False
-
-    return r_touches, s_touches, crosses, True
+    is_valid = (
+        r_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
+        and s_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
+        and eq["r_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
+        and eq["s_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
+        and eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
+        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
+    )
+    return r_touches, s_touches, eq, is_valid
 
 
 def _candidate_atr(eq_df, eq_highs, eq_lows, atr_override=None):
@@ -140,11 +147,13 @@ def _pivot_order(n_bars):
     return settings.PIVOT_ORDER_SHORT
 
 
-def _score_candidate(box_width, r_touches, s_touches, crosses):
+def _score_candidate(box_width, r_touches, s_touches, coverage):
+    """Combined quality of a (valid) candidate framing — drives "best"/debug
+    selection and breaks "earliest" ties. All inputs already passed validity."""
     tightness_score = (settings.MAX_BOX_WIDTH - box_width) / settings.MAX_BOX_WIDTH
     touch_score = min(1.0, (r_touches + s_touches) / 10.0)
-    midline_score = min(1.0, crosses / 8.0)
-    return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * midline_score
+    coverage_score = coverage
+    return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * coverage_score
 
 
 def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0):
@@ -189,13 +198,13 @@ def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0
         if not respected:
             continue
 
-        r_touches, s_touches, crosses, is_valid = _validate_base_quality(
+        r_touches, s_touches, eq, is_valid = _validate_base_quality(
             cand_eq_df, R_val, S_val, atr_val,
         )
         if not is_valid:
             continue
 
-        combined = _score_candidate(box_width, r_touches, s_touches, crosses)
+        combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
         valid_candidates.append((
             combined, R_val, S_val, box_width,
             r_touches, s_touches, total_outside,
@@ -206,12 +215,17 @@ def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0
 
 
 def _select_phase_b_candidate(valid_candidates, select):
-    """Pick one candidate framing from the valid gate-passing set."""
+    """Pick one framing from the valid set.
+
+    Every candidate here already passed the worked-equilibrium validity rule, so
+    "earliest" is simply the earliest-starting valid range (longest Wyckoff
+    cause), ties broken by higher combined quality. This is the user's "earliest
+    OF the ones that qualify" — there is no longer a best-vs-earliest tension or
+    a reach-quality floor, because a sparse/dead-space framing can no longer be
+    valid in the first place. "best" stays for diagnostics.
+    """
     if select == "earliest":
-        best_combined = max(c[0] for c in valid_candidates)
-        floor = settings.PHASE_B_REACH_QUALITY_FLOOR * best_combined
-        pool = [c for c in valid_candidates if c[0] >= floor]
-        return min(pool, key=lambda x: (x[9], -x[0]))
+        return min(valid_candidates, key=lambda x: (x[9], -x[0]))
     return max(valid_candidates, key=lambda x: x[0])
 
 

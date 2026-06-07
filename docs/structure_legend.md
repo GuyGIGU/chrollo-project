@@ -241,15 +241,21 @@ absence, raw measure archived, tiers untouched).
 3. **Everything here is a measure, not a gate.** BC-respected-as-R, range
    qualification confidence, LPS stretch — all raw archived fields, recalibrated
    later against the live outcome archive.
-4. **Read the range from its earliest valid start, not its best-scoring
-   sub-window (shipped — Change B).** The outer box now selects the *earliest
-   good-enough* candidate pair (`select="earliest"`), so the consolidation is
-   rooted at the true range start near the AR low. The old "pick the
-   highest-scoring pair" rule kept grabbing a tight recent *tail* and discarding
-   the real base — "a random pair that scored better" starting the box mid-
-   equilibrium. A single quality floor (`PHASE_B_REACH_QUALITY_FLOOR`) keeps it
-   from reaching back into a materially looser framing. See
-   segmentation_research.md → Build path → Change B.
+4. **The box is the earliest WORKED equilibrium, or there is no box (shipped —
+   worked-equilibrium rewrite).** Terminology: **BC / SC / AR** name the Phase-A
+   *trend* (climax + automatic rally) — where the search begins; the box's rails
+   are the **Resistance anchor / Support anchor** (mini-anchors for inner bases),
+   which may coincide with BC/AR but usually sit later/tighter. A candidate pair
+   is valid only if price *respects, touches, and zigzags through both rails
+   constantly with no dead space* (`measure_equilibrium`: constant two-sided
+   touch + both-halves dwell + coverage, not mid-churn). Selection keeps the
+   **earliest** pair that passes every constraint — "the earliest *of the ones
+   that qualify*." Because a sparse/dead-space framing can no longer be valid,
+   the support anchor climbs off a one-time AR low until the band is genuinely
+   worked (this is what finally fixes "anchored from the bottom"). If no pair
+   qualifies anywhere, the stock is rejected. This supersedes the earlier
+   "Change B / `PHASE_B_REACH_QUALITY_FLOOR`" earliest-good-enough rule (retired).
+   See segmentation_research.md → Build path → Phase 2.
 
 5. **Regions are now measured (Stage 2A).** `measure_bins` records each region's
    (A / B / D / LPS) size, range, and volume as raw archived fields — the

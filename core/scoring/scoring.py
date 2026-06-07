@@ -64,11 +64,16 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         touch_score += settings.TOUCH_BONUS_POINTS
     s_touch = touch_score
 
-    # Oscillation quality
+    # Oscillation quality — reward price that WORKS the rails (closes spend time
+    # near S and R), NOT closes huddled at the midline. osc_ratio = mean
+    # |close - midline| / box_height: ~0.4-0.5 for a clean two-sided range,
+    # ~0.1 for mid-box clustering. The old form rewarded clustering — the exact
+    # opposite of a worked equilibrium (and the validity rule now rejects
+    # mid-churn outright, so this is purely a rail-working bonus).
     midline = (res_avg + sup_avg) / 2
     box_height = res_avg - sup_avg
-    osc_ratio = np.mean(np.abs(base_df['Close'] - midline)) / box_height if box_height > 0 else 0.5
-    s_osc = _clamp((0.3 - osc_ratio) * (settings.SCORE_OSCILLATION * 5),
+    osc_ratio = np.mean(np.abs(base_df['Close'] - midline)) / box_height if box_height > 0 else 0.0
+    s_osc = _clamp((osc_ratio / 0.33) * settings.SCORE_OSCILLATION,
                     settings.SCORE_OSCILLATION)
 
     # ATR squeeze
@@ -178,14 +183,25 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     }
 
 
-def calculate_tier(score: float) -> str:
-    """Map a numeric score to a letter tier grade."""
+def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
+    """Map a numeric score to a letter tier grade.
+
+    ``box_width`` (optional) applies the S-tier width cap: a base wider than
+    ``S_MAX_BOX_WIDTH`` cannot be S no matter how high it scores — a wide range,
+    however long or well-touched, is not an elite setup. It still earns A on
+    merit. Callers that don't have a width on hand omit it (no cap applied).
+    """
     if score >= settings.TIER_S:
-        return 'S'
+        tier = 'S'
     elif score >= settings.TIER_A:
-        return 'A'
+        tier = 'A'
     elif score >= settings.TIER_B:
-        return 'B'
+        tier = 'B'
     elif score >= settings.TIER_C:
-        return 'C'
-    return 'D'
+        tier = 'C'
+    else:
+        tier = 'D'
+
+    if tier == 'S' and box_width is not None and box_width > settings.S_MAX_BOX_WIDTH:
+        tier = 'A'
+    return tier

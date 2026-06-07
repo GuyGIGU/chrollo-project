@@ -16,12 +16,27 @@ Two public entry points:
   ``find_outer_box(df)`` — anchor-enumeration only (no inner refinement).
   Used by diagnostics that need the parent candidate landscape directly.
 
-Phase B uses a zigzag structural approach:
-  1. Start from Wyckoff BC (Buying Climax) and AR (Automatic Reaction) anchors
-  2. Build a zigzag from alternating pivot peaks and valleys
-  3. Propose R/S candidates from consecutive zigzag limbs (peak→valley pairs)
-  4. Validate candidates with boundary respect, touch density + midline quality
-  5. Select the best candidate by weighted combined score
+Terminology (kept distinct on purpose):
+  * BC / SC / AR  — Phase A, the TREND. The Buying/Selling Climax that ends the
+    trend and the Automatic Rally/Reaction that first counters it. These mark
+    where to BEGIN looking for a range; they are not the range's rails.
+  * Resistance anchor / Support anchor — Phase B, the RANGE. The swing high/low
+    levels the consolidation actually oscillates between. They MAY coincide with
+    BC/AR but usually sit later/tighter (the support anchor climbs off a one-time
+    AR low until the band is genuinely worked). Inner bases use mini-anchors.
+
+Phase B procedure (the user's "is this a real trading range?" test):
+  1. From the trend end (BC/AR), build a zigzag of alternating pivots.
+  2. Propose Resistance/Support-anchor pairs from the zigzag limbs.
+  3. For each pair ask: does price RESPECT, TOUCH, and ZIGZAG THROUGH both rails
+     CONSTANTLY, with no dead space? (boundary respect + worked-equilibrium
+     validity in box_candidates._validate_base_quality). Constant two-sided
+     touch + no dead space is what makes a sparse / lopsided framing fail.
+  4. Keep the EARLIEST pair that satisfies every constraint — "earliest of the
+     ones that qualify" (longest cause among genuinely worked ranges). The
+     dead-space gate makes the over-wide BC->AR framing invalid, so the anchors
+     settle on the real equilibrium rather than the extremes.
+  5. If NO pair qualifies anywhere -> reject the stock (no box).
 """
 from __future__ import annotations
 
@@ -73,9 +88,11 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
             (>= AR_MIN_DROP_PCT rise within AR_MAX_BARS). Phase B starts at
             the bounce *high* (skips the ascent).
 
-    Every qualifying anchor is tried — the Phase B that yields the tightest
-    / best-touched box wins. That prevents an old anchor with a loose window
-    from shadowing a recent anchor whose Phase B is actually structural.
+    Every qualifying anchor is tried oldest-first; the FIRST whose Phase B
+    yields a valid worked-equilibrium box wins (earliest cause). A BC/AR whose
+    Phase B is sparse or full of dead space no longer validates, so the search
+    falls through to a later anchor whose range is genuinely worked. If no anchor
+    yields a valid box, the function returns EMPTY — the stock is rejected.
 
     Macro gate: stock must be in a bullish context (above SMA200 OR has a
     qualifying markup run somewhere in the window).

@@ -138,16 +138,39 @@ rooting to respect **segment ownership**.
     LPS), **0 tier changes**, 25 scores up / 11 down, bases longer almost
     everywhere. Visually verified on CGEM/NMM/VIK/YOU/SKT/SMFG
     (`tools/phaseb_render.py`); A/B driver is `tools/phaseb_ab.py`.
+- **Change C — worked-equilibrium validity (shipped).** Change B fixed *which
+  valid framing* to pick but left validity loose, so the only framing that ever
+  passed was the widest BC→AR box (every tighter sub-range got "broken" by later
+  excursions). Symptoms: DBD/RLGT/KWR/FLG firing S/A on wide, dead-space, or
+  mid-churn boxes anchored from the bottom. The fix makes validity itself encode
+  the user's range test: a Resistance/Support-anchor pair is valid only if price
+  **respects, touches, and zigzags through both rails constantly with no dead
+  space** (`metrics.measure_equilibrium`: ≥3 two-sided touches spread across the
+  span + both-halves dwell + box-height coverage, and not mid-churn), box width
+  ≤ 0.18, respect tightened (`MAX_CONSECUTIVE_OUTSIDE_DAYS` 30→10). Selection is
+  now plain **earliest-of-valid** (`PHASE_B_REACH_QUALITY_FLOOR` retired — a
+  sparse framing can no longer be valid, so no floor is needed), and **no valid
+  pair → reject the stock**. This is the long-planned "constrain R/S rooting"
+  Phase 2: the support anchor climbs off one-time AR lows automatically.
+  Scoring rebalanced (`base_age` 35→22, `box_tightness` 15→22, oscillation
+  flipped to reward rail-working) + an **S-tier width cap** (`S_MAX_BOX_WIDTH =
+  0.15`) so a wide-but-worked range lands A, not S.
+  - **Blast radius** (live 2y cache, full universe): daily fire 60→46, S-tier
+    ~41→~24; **seed-winner recall preserved exactly** (same 28 winners re-found,
+    hermetic cache probe old vs new). DBD/RLGT/KWR/FLG reject; BBVA/ABEV/COLM →
+    A. Validity unit-tested in `tests/test_core_logic.py`.
 
 **Phase 3 — fold nesting + Last Supper** off the same segment objects.
 
 ## Open knobs (calibrate against the eye, never hard-code blind)
 
-- `PHASE_B_REACH_QUALITY_FLOOR` (= 0.75, **calibrated**): how much structural
-  quality the outer box may trade for an earlier (longer) range start. The
-  data showed a clean gap — every legitimate base-lengthener kept ≥85% of the
-  best framing's quality, while the lone over-reach (SKT) sat at 65% — so 0.75
-  separates them with margin. 1.0 == strict "best only".
+- `PHASE_B_REACH_QUALITY_FLOOR` — **retired** by Change C. Selection is now
+  earliest-of-valid; a sparse framing can't be valid, so no reach floor is
+  needed.
+- The worked-equilibrium gates (`EQ_MIN_TOUCHES_PER_RAIL`, `EQ_MIN_TOUCH_THIRDS`,
+  `EQ_MIN_HALF_DWELL`, `EQ_MAX_MID_DWELL`, `EQ_MIN_COVERAGE`) and the S-tier width
+  cap (`S_MAX_BOX_WIDTH`) — starting points calibrated against seed recall; the
+  width cap is the main knob for "how wide may an S setup be."
 - The efficiency / counter-burst-ratio cutoff that separates trend from range.
 - The minimum swing size (ATR displacement) that "counts" as a leg — ties to the
   ~10-bar / behavioral floor for "what is a real range."

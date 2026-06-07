@@ -121,21 +121,41 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 2. **Zigzag construction** — `_build_zigzag()`: merge peaks + valleys chronologically, enforce strict alternation; on consecutive same-type pivots, keep the more extreme (higher peak or lower valley).
 3. **ATR reference** — use the engine-aligned snapshot from `find_outer_box` if supplied; otherwise the median `ATR_10` over the last `PHASE_B_ATR_WINDOW` (30) bars; final fallback = median(High-Low).
 4. **Candidate generation** — only **strictly consecutive** zigzag pairs (peak→valley or valley→peak) are tested. The peak's High = R, the valley's Low = S.
-5. **Per-candidate validation:**
-   - **Box width:** `(R - S) / S <= MAX_BOX_WIDTH` (0.25).
-   - **Boundary respect** — `_is_boundary_respected()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)):
-     - Buffered band: `[S - 0.5·ATR, R + 0.5·ATR]` (`BOUNDARY_ATR_BUFFER = 0.5`).
-     - Each bar's High vs `R + buffer` and Low vs `S - buffer` — wicks count as breaches (bars not candles).
-     - At least `MIN_BOUNDARY_RESPECT_PCT` (80%) of bars must keep their full range inside the band.
-     - No consecutive run of outside-bars longer than `MAX_CONSECUTIVE_OUTSIDE_DAYS` (30).
-   - **Quality** — `_validate_base_quality()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)):
+5. **Per-candidate validation — the "worked equilibrium" test.** A candidate (a
+   Resistance-anchor / Support-anchor pair) is a REAL trading range only if price
+   *respects, touches, and zigzags through both rails constantly, with no dead
+   space*:
+   - **Box width:** `(R - S) / S <= MAX_BOX_WIDTH` (0.18 — a range wider than this
+     is the BC→AR extremes, not a tradeable equilibrium).
+   - **Boundary respect** — `_is_boundary_respected()`:
+     - Buffered band `[S - 0.5·ATR, R + 0.5·ATR]`; wicks count as breaches.
+     - ≥ `MIN_BOUNDARY_RESPECT_PCT` (80%) of bars inside the band, no consecutive
+       outside run longer than `MAX_CONSECUTIVE_OUTSIDE_DAYS` (10).
+   - **Worked-equilibrium occupancy** — `_validate_base_quality()` via
+     `metrics.measure_equilibrium()`:
      - In-base crash filter: `min(Low) >= S × CRASH_FILTER_MULT` (0.70).
-     - **Touch density** (ATR-normalized, `TOUCH_TOLERANCE_ATR = 0.5`): require ≥ 2 touches each on R and S.
-     - **Midline crosses** ("tunnel-killer"): committed-cross count using `MIDLINE_ATR_BUFFER = 0.3·ATR` — a cross only counts after price first travels ≥ buffer away from the midline. Required: `max(MIN_MIDLINE_CROSSES=3, len(eq_df) // 15)`.
-6. **Structural-quality score:** every valid candidate receives `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × midline_quality(/8)`.
-7. **Candidate selection (`select="earliest"` live default):** find the best combined score, keep only candidates whose combined score is at least `PHASE_B_REACH_QUALITY_FLOOR × best_combined` (`0.75 × best`), then choose the earliest `cand_start` from that good-enough pool, tie-broken toward higher quality. This is the current "right one, not merely tightest one" rule: root the outer box at the earliest structurally valid range start, but refuse to reach back into a materially looser framing just because it begins earlier.
+     - **Constant two-sided touch:** ≥ `EQ_MIN_TOUCHES_PER_RAIL` (3) on each rail,
+       each touched in ≥ `EQ_MIN_TOUCH_THIRDS` (2) of 3 time-thirds (not clustered).
+     - **No dead space:** ≥ `EQ_MIN_HALF_DWELL` (0.15) of closes in BOTH the lower
+       and upper box third, and box-height `coverage` ≥ `EQ_MIN_COVERAGE` (0.80).
+     - **Not mid-churn:** middle-third dwell ≤ `EQ_MAX_MID_DWELL` (0.45).
+   - The old "≥2 touches + N midline crosses" gate is retired — a wide box
+     mechanically racked up crosses while a one-time AR low left dead space
+     beneath the real range, so the widest framing always won.
+6. **Structural-quality score:** every *valid* candidate gets
+   `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
+7. **Candidate selection (`select="earliest"` live default):** choose the
+   **earliest** `cand_start` among the valid candidates (longest cause),
+   tie-broken toward higher quality — "the earliest *of the ones that qualify*."
+   There is no reach-quality floor anymore: a sparse / dead-space framing can no
+   longer be valid, so the support anchor naturally climbs off one-time lows
+   until the band is genuinely worked. **If no candidate is valid → no box → the
+   stock is rejected.**
 
-`select="best"` remains as a diagnostic mode for A/B tools and uses the highest combined score regardless of start. `select="debug"` returns the valid-candidate landscape for tooling. This selector applies only to the **outer** Phase-B box; the inner Phase-D mini-consolidation still chases tightness because its job is to identify a recent nested range inside an already-validated outer base.
+`select="best"` remains a diagnostic mode (highest combined regardless of start);
+`select="debug"` returns the valid-candidate landscape. The inner Phase-D
+mini-consolidation runs the same worked-equilibrium validity one scale down
+(mini Resistance/Support anchors) but still selects for tightness.
 
 #### `cand_start` trim — measure on the actual chop window
 
