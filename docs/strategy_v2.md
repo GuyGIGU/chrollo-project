@@ -204,7 +204,7 @@ The scoping layer emits best-effort chart anchors:
 - **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor toward the base start. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
 - **Phase D:** the right-most launch region. If an inner mini-consolidation won, Phase D starts at that inner box. Otherwise it starts around the final third of the base, pulled earlier when the exact LPS shelf begins earlier.
-- **Phase C:** optional spring marker at the LPS low only when the LPS zone type is `UNDERCUT_S`.
+- **Phase C:** optional measured support-test event in Bin B. A `SPRING` is a late Low undercut below S that recovers by Close back above S within the configured recovery window; a `HELD_TEST` tests S from above without breaking it. Most bases have no Phase C and that is normal.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
 All boundaries are nullable. If the engine cannot place a region confidently, it emits `None` and the frontend skips that label/box. Young bases may yield only a base body and a right edge; the model must never force four tidy quadrants.
@@ -354,7 +354,7 @@ These don't gate anything — they're persisted to the archive (`r_touch_vol_z`,
 | z-score signature | Tag chip | Meaning |
 |---|---|---|
 | `r_touch_vol_z < TOUCH_VOL_Z_NO_SUPPLY` (-0.30) | 🤫 No Supply | Resistance tested on below-average volume — buyers absorbed silently, textbook precursor to a clean breakout |
-| `s_touch_vol_z > TOUCH_VOL_Z_SPRING` (+0.30) | 💪 Demand at S | Support tested on above-average volume — buyers stepping in at S, selling absorbed. **Not a spring** — a spring is a Phase C undercut below the range (that shows up as a `REBOUND` setup type, not as this tag) |
+| `s_touch_vol_z > TOUCH_VOL_Z_SPRING` (+0.30) | 💪 Demand at S | Support tested on above-average volume — buyers stepping in at S, selling absorbed. **Not a spring** — a spring is the measured Phase C undercut-and-recover event (`bin_c_type = SPRING`), and an active undercut LPS still shows as `REBOUND`. |
 | `r_touch_vol_z > TOUCH_VOL_Z_HEAVY_R` (+0.50) | ⚠️ Heavy Resistance | Resistance tested on ABOVE-average volume — supply hitting the bid every time, distribution-flavored, breakout risk |
 
 The "Heavy Resistance" tag is the only *warning* tag in the system — designed to surface even when other positive tags would otherwise crowd it out (it carries higher `weight` in the tag-ordering than even Phase D).

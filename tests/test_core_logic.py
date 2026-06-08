@@ -8,6 +8,8 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
+from config import settings
+
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
@@ -32,7 +34,7 @@ from core.structure.metrics import (
     measure_equilibrium,
 )
 from core.structure.box_candidates import _detect_inner_phase_b_start, _validate_base_quality
-from core.structure.lps import detect_lps
+from core.structure.lps import detect_lps, detect_lps_tests
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 from core.structure.scope import _resolve_phase_d_start, scope_consolidation
@@ -333,6 +335,123 @@ def test_lps_trigger_uses_last_lps_bar_high():
     )
 
     assert result["trigger_price"] == 107
+
+
+def _lps_behavior_frame(highs, lows, closes=None):
+    closes = closes or lows
+    return pd.DataFrame([
+        {
+            "High": high,
+            "Low": low,
+            "Close": close,
+            "Spread": high - low,
+            "Volume": 500,
+            "Vol_50": 1000,
+        }
+        for high, low, close in zip(highs, lows, closes)
+    ])
+
+
+def test_lps_accepts_compact_reaction_behavior(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106, 105],
+        lows=[106, 104, 102, 101],
+        closes=[107, 105, 103, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=10,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["window_range_pct_box"] == 0.7
+    assert result["high_descent_frac"] == 1.0
+
+
+def test_lps_rejects_window_that_spans_most_of_box(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[110, 109, 108, 107, 106],
+        lows=[105, 104, 103, 102, 101],
+        closes=[106, 105, 104, 103, 102],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=10,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert rejects["window_box_range"] == 1
+
+
+def test_lps_rejects_rising_high_behavior(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[104, 105, 106, 107, 108],
+        lows=[104, 103, 102, 101, 100],
+        closes=[104, 103, 102, 101, 101],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=10,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert rejects["high_up_march"] == 1
+
+
+def test_detect_lps_tests_returns_non_overlapping_support_tests(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[118, 117, 108, 106, 116, 115, 107, 105],
+        lows=[116, 115, 102, 100, 114, 113, 101, 100],
+        closes=[117, 116, 104, 103, 115, 114, 103, 103],
+    )
+    df.index = pd.date_range("2026-01-01", periods=len(df), freq="D")
+
+    tests = detect_lps_tests(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=20,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert len(tests) >= 2
+    assert all("start_date" in test and "end_date" in test for test in tests)
+    spans = {(test["start_index"], test["end_index"]) for test in tests}
+    assert len(spans) == len(tests)
 
 
 def test_measure_bar_compression_reports_base_spread_texture():
@@ -763,6 +882,23 @@ def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
     assert bins["lps_position_in_box"] > 1.0  # above the box ceiling
 
 
+def test_measure_bins_lps_stretch_can_use_active_inner_box():
+    df = _flat_ohlc(120, high=110.0, low=100.0, close=105.0)
+    for i in range(115, 120):
+        df.loc[i, "Low"] = 103.0
+        df.loc[i, "Close"] = 103.5
+        df.loc[i, "High"] = 104.0
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=110.0, S=100.0, atr_val=1.0, lps_R=104.0, lps_S=102.0,
+    )
+    assert bins["bin_b_bars"] == 60           # parent remains the base of record
+    assert bins["lps_position_in_box"] == 0.5 # active inner box: (103-102)/(104-102)
+    assert bins["lps_stretch_box"] == -0.5    # active inner R, not parent R
+    assert bins["lps_stretch_atr"] == -1.0
+
+
 def test_measure_bins_no_lps_window_degrades_gracefully():
     df = _flat_ohlc(120)
     bins = measure_bins(
@@ -774,6 +910,98 @@ def test_measure_bins_no_lps_window_degrades_gracefully():
     assert bins["lps_stretch_atr"] is None
     assert bins["bin_d_bars"] is None         # heuristic Phase D keys off the LPS start
     assert bins["bin_b_bars"] == 60           # the base region is still measured
+
+
+def test_measure_bins_support_test_cluster_can_anchor_phase_d():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0, support_test_start_bar=92,
+    )
+    assert bins["bin_d_boundary_source"] == "support_tests"
+    assert bins["bin_d_bars"] == 28
+
+
+def test_measure_bins_phase_c_spring_requires_recovery():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.8
+    df.loc[95, "Close"] = 98.9
+    df.loc[96, "Low"] = 99.1
+    df.loc[96, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is True
+    assert bins["bin_c_type"] == "SPRING"
+    assert bins["bin_c_undercut_atr"] == 0.2
+    assert bins["bin_c_recovery_bars"] == 1
+    assert bins["bin_c_time_loc"] == pytest.approx((95 - 60) / 59, abs=0.0001)
+
+
+def test_measure_bins_unrecovered_undercut_is_not_phase_c():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.7
+    for idx in range(95, 99):
+        df.loc[idx, "Close"] = 98.8
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
+
+
+def test_measure_bins_phase_c_can_be_held_test_from_above():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[110, "Low"] = 99.2
+    df.loc[110, "Close"] = 99.4
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is True
+    assert bins["bin_c_type"] == "HELD_TEST"
+    assert bins["bin_c_undercut_atr"] == 0.0
+    assert bins["bin_c_recovery_bars"] == 0
+
+
+def test_measure_bins_phase_c_held_test_stays_near_support():
+    df = _flat_ohlc(120, high=104.0, low=102.0, close=102.2)
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=104.0, S=100.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
+
+
+def test_measure_bins_phase_c_requires_atr_frame():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.8
+    df.loc[95, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=None,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
 
 
 def test_resolve_phase_d_start_matches_scope_rule():
@@ -896,6 +1124,18 @@ def test_scope_phase_d_anchors_on_final_third_of_base():
     # box_start = 30 - 25 = 5; final third = 5 + (2*25)//3 = 5 + 16 = 21.
     assert out["phase_d_start_bar"] == 21
     assert out["phase_d_start_date"] == str(df.index[21])[:10]
+
+
+def test_scope_phase_d_can_use_support_test_cluster_hint():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0, support_test_start_bar=18,
+    )
+    assert out["has_mini_consolidation"] is False
+    assert out["phase_d_start_bar"] == 18
+    assert out["phase_d_start_date"] == str(df.index[18])[:10]
 
 
 def test_scope_inner_box_marks_mini_consolidation_and_d_start():

@@ -40,6 +40,10 @@ const firesAt = (scores, key, fraction) => (
   (scores?.[key] ?? 0) >= fraction * SUB_SCORE_CAPS[key]
 );
 
+const fmt = (value, digits = 1) => (
+  typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—'
+);
+
 const tag = (id, label, group, title, weight, fires) => ({
   id,
   label,
@@ -85,6 +89,26 @@ const TAG_DEFS = [
     56,
     (_scores, flags) => typeof flags.cogCrossings === 'number' && flags.cogCrossings >= 2,
   ),
+  tag(
+    'phase_c_test',
+    '🪝 Spring/Test',
+    'lps',
+    (_scores, flags) => {
+      const kind = flags.binCType === 'SPRING' ? 'spring' : 'held support test';
+      const depth = flags.binCType === 'SPRING'
+        ? ` It undercut support by ${fmt(flags.binCUndercutAtr)} ATR`
+        : ' It tested support from above without breaking it';
+      const recovery = typeof flags.binCRecoveryBars === 'number'
+        ? ` and closed back inside after ${flags.binCRecoveryBars} bar${flags.binCRecoveryBars === 1 ? '' : 's'}.`
+        : '.';
+      const volume = typeof flags.binCSpringVolZ === 'number'
+        ? ` Event volume z-score: ${fmt(flags.binCSpringVolZ, 2)} vs the base.`
+        : '';
+      return `A late Phase C ${kind} was measured near support.${depth}${recovery}${volume} How to read it: recovery by Close is the tell; without recovery it is a breakdown, not a spring.`;
+    },
+    82,
+    (_scores, flags) => !!flags.binCPresent,
+  ),
   tag('tight_lps', '🪶 Tight LPS', 'lps', 'The final LPS pullback is exceptionally tight — an unusually calm, narrow last pause before a potential breakout. How to read it: no selling pressure right before the move, the trigger sits just overhead, and the tightness lets you place a close stop. The lower-risk spot to act.', 80, scores => firesAt(scores, 'lps_tightness', 1.00)),
   tag(
     'no_supply',
@@ -99,7 +123,7 @@ const TAG_DEFS = [
     'demand_at_s',
     '💪 Demand at S',
     'volume',
-    'Support was tested on above-average volume — buyers stepped in at the floor and absorbed the selling. How to read it: active demand defending the bottom of the range is strength under the base. (This is buying inside the range, not a Phase C spring — a spring would show as a REBOUND setup type.)',
+    'Support was tested on above-average volume — buyers stepped in at the floor and absorbed the selling. How to read it: active demand defending the bottom of the range is strength under the base. This is buying inside the range; a true Phase C spring is the separate Spring/Test chip, and an active undercut LPS can still show as REBOUND.',
     72,
     (_scores, flags) => typeof flags.sTouchVolZ === 'number' && flags.sTouchVolZ > TOUCH_VOL_Z_SPRING,
   ),

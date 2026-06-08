@@ -182,6 +182,11 @@ def _extract_chart_data(data, results_df, tickers):
                 's_touch_vol_z': row.get('_s_touch_vol_z'),
                 # LPS shape detail (for tooltips / future analysis)
                 'lps_descent_frac': row.get('_lps_descent_frac'),
+                'lps_high_descent_frac': row.get('_lps_high_descent_frac'),
+                'lps_window_range_pct_box': row.get('_lps_window_range_pct_box'),
+                'lps_high_extension_box': row.get('_lps_high_extension_box'),
+                'lps_high_extension_atr': row.get('_lps_high_extension_atr'),
+                'lps_tests': row.get('_lps_tests') or [],
                 'lps_zone_type': row.get('_lps_zone_type'),
                 # VCP contraction footprint (for tooltips / tag)
                 'contraction_count': row.get('_contraction_count'),
@@ -199,6 +204,14 @@ def _extract_chart_data(data, results_df, tickers):
                 'bin_b_cog_crossings': row.get('_bin_b_cog_crossings'),
                 'bin_b_cog_rng': row.get('_bin_b_cog_rng'),
                 'bin_b_cog_corr': row.get('_bin_b_cog_corr'),
+                'bin_c_present': row.get('_bin_c_present'),
+                'bin_c_type': row.get('_bin_c_type'),
+                'bin_c_event_date': row.get('_bin_c_event_date'),
+                'bin_c_undercut_atr': row.get('_bin_c_undercut_atr'),
+                'bin_c_recovery_bars': row.get('_bin_c_recovery_bars'),
+                'bin_c_time_loc': row.get('_bin_c_time_loc'),
+                'bin_c_spring_vol_z': row.get('_bin_c_spring_vol_z'),
+                'bin_d_boundary_source': row.get('_bin_d_boundary_source'),
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.
                 '_phase_a_start_date': row.get('_phase_a_start_date'),

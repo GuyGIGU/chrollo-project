@@ -237,7 +237,7 @@ absence, raw measure archived, tiers untouched).
    the LS over-extension axis are the *same axis*. With the inner range anchored
    on its own climax, "% past the pivot" is measured from the innermost birthing
    range automatically — the layout **Trend → Climax → Base → Inner Climax →
-   Inner Base** falls straight out.
+  Inner Base** falls straight out.
 3. **Everything here is a measure, not a gate.** BC-respected-as-R, range
    qualification confidence, LPS stretch — all raw archived fields, recalibrated
    later against the live outcome archive.
@@ -303,7 +303,9 @@ never thrown away:
     scores against the parent.
 - Net: it **keeps the base of record (parent) separate from the nested Phase D
   range (inner)**. The climax → root-swing → range mechanism (the "A/B split")
-  sharpens *both* anchors. Phase C stays unbuilt.
+  sharpens *both* anchors. Phase C is now a small optional Bin-C measurement:
+  spring = Low undercuts S, Close recovers inside; held test = support tested
+  from above. It remains descriptive, never a gate.
 
 **Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
 `_detect_inner_phase_b_start` (core/structure/box_candidates.py) finds the

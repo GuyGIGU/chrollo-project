@@ -39,6 +39,7 @@ from core.structure import (
     calculate_atr,
     detect_boxes,
     detect_lps,
+    detect_lps_tests,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
@@ -183,17 +184,23 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
 
         lps_in_inner = False
         lps_result = None
+        lps_context = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
         if inner is not None:
             inner_base_df = df_ind.iloc[-inner["base_len"]:]
             inner_swing_complete = inner["start_bar"] + max(
                 inner["r_anchor_bar"], inner["s_anchor_bar"])
+            inner_range_threshold = _range_threshold(inner_base_df)
             inner_lps = detect_lps(
                 df_ind, latest, inner["S"], inner["R"], atr_for_zone,
-                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+                inner_range_threshold, inner["base_len"], inner_swing_complete,
             )
             if inner_lps:
                 lps_result = inner_lps
                 lps_in_inner = True
+                lps_context = (
+                    inner["S"], inner["R"], inner_range_threshold,
+                    inner["base_len"], inner_swing_complete,
+                )
         if lps_result is None:
             lps_result = detect_lps(
                 df_ind, latest, sup_avg, res_avg, atr_for_zone,
@@ -210,6 +217,10 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         trigger_price = lps_result["trigger_price"]
         vol_contraction = lps_result["vol_contraction"]
         tightness_ratio = lps_result["tightness_ratio"]
+        lps_tests = detect_lps_tests(
+            df_ind, latest, lps_context[0], lps_context[1],
+            atr_for_zone, lps_context[2], lps_context[3], lps_context[4],
+        )
 
         current_price = latest["Close"]
         distance_to_trigger = (trigger_price - current_price) / current_price
@@ -242,6 +253,19 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         )
 
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
+        phase_b_start = len(df_ind) - base_len
+        support_test_start_bar = None
+        if inner is None:
+            right_half = phase_b_start + base_len // 2
+            starts = []
+            for test in lps_tests:
+                try:
+                    start = int(test["start_index"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if start >= right_half:
+                    starts.append(start)
+            support_test_start_bar = min(starts) if len(starts) >= 2 else None
         # Region (bin) features + Minervini trend template (measure-first parity
         # with the live pipeline).
         bins = measure_bins(
@@ -256,6 +280,9 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             S=sup_avg,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
+            support_test_start_bar=support_test_start_bar,
+            lps_R=lps_context[1],
+            lps_S=lps_context[0],
         )
         trend = trend_template(df_ind, dist_52w_high_pct=dist_52w_high_pct)
 
@@ -601,6 +628,14 @@ def seed_archive(
             bin_b_cog_crossings=best_result.get("bin_b_cog_crossings"),
             bin_b_cog_rng=best_result.get("bin_b_cog_rng"),
             bin_b_cog_corr=best_result.get("bin_b_cog_corr"),
+            bin_c_present=(int(bool(best_result.get("bin_c_present")))
+                           if best_result.get("bin_c_present") is not None else None),
+            bin_c_type=best_result.get("bin_c_type"),
+            bin_c_event_date=best_result.get("bin_c_event_date"),
+            bin_c_undercut_atr=best_result.get("bin_c_undercut_atr"),
+            bin_c_recovery_bars=best_result.get("bin_c_recovery_bars"),
+            bin_c_time_loc=best_result.get("bin_c_time_loc"),
+            bin_c_spring_vol_z=best_result.get("bin_c_spring_vol_z"),
             bin_d_bars=best_result.get("bin_d_bars"),
             bin_d_range_pct=best_result.get("bin_d_range_pct"),
             bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),

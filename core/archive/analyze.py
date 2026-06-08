@@ -72,6 +72,8 @@ STRUCTURAL_FEATURES = [
     "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
     "bin_b_range_pct", "bin_b_volume_ratio",
     "bin_b_cog_end", "bin_b_cog_crossings", "bin_b_cog_rng", "bin_b_cog_corr",
+    "bin_c_present", "bin_c_undercut_atr", "bin_c_recovery_bars",
+    "bin_c_time_loc", "bin_c_spring_vol_z",
     "bin_d_bars", "bin_d_range_pct", "bin_d_volume_ratio",
     "bin_lps_bars", "lps_position_in_box",
     "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
