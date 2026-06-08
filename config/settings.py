@@ -77,6 +77,10 @@ LPS_DROP_MAX = 0.10              # Maximum pullback depth (10%, staleness cap)
 # are still rejected; setups above multiply LPS quality by descent_frac so
 # cleaner descents outrank sloppy ones.
 LPS_MIN_DESCENT_FRAC = 0.50
+LPS_MIN_HIGH_DESCENT_FRAC = 0.45  # Reject obvious rising / higher-high drift inside the LPS window
+LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
+LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
+LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
 LPS_SCAN_OFFSET_MAX = 4         # Today + up to 3 days back (offsets 0..3) — only surface active LPS
 LPS_LENGTH_MIN = 2               # Shortest LPS formation (days)
 LPS_LENGTH_MAX = 7               # Longest LPS formation (days)
@@ -87,6 +91,13 @@ LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
 #   OVERSHOOT_R   : R < low <= R + k*ATR       (backtest of breakout)
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
+
+# Phase-C bin measurement (archive/UI only, never a gate): a spring is a
+# meaningful Low undercut of Bin-B support that recovers by Close back inside.
+BIN_C_UNDERCUT_ATR_MIN = 0.10
+BIN_C_RECOVERY_BARS_MAX = 3
+BIN_C_LATE_BOX_FRACTION = 0.50
+BIN_C_HELD_TEST_ATR_MAX = 0.50
 
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.

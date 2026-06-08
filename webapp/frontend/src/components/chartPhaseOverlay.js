@@ -64,6 +64,23 @@ const setupBoxRange = (data) => {
   };
 };
 
+const phaseDDetail = (data) => {
+  switch (data?.bin_d_boundary_source) {
+    case 'inner_box':
+      return 'Inner range';
+    case 'support_tests':
+      return 'Support-test cluster';
+    default:
+      return 'Right-side range';
+  }
+};
+
+const phaseCDetail = (data) => {
+  if (data?.bin_c_type === 'SPRING') return 'Undercut + recover';
+  if (data?.bin_c_type === 'HELD_TEST') return 'Held support test';
+  return 'Spring / shakeout';
+};
+
 const priceRangeForBars = (candles, startIndex, endIndex) => {
   let low = null;
   let high = null;
@@ -124,6 +141,25 @@ const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
   };
 };
 
+const addLpsRegion = (regions, candles, seen, startDate, endDate, lowValue, highValue, extra = {}) => {
+  const startIndex = indexOnOrAfter(candles, startDate);
+  const endIndex = indexOnOrAfter(candles, endDate);
+  const low = finiteNumber(lowValue);
+  const high = finiteNumber(highValue);
+  if (startIndex == null || endIndex == null || low == null || high == null) return;
+
+  const key = `${startIndex}:${endIndex}:${low}:${high}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+
+  const region = buildRegion('lps', candles, startIndex, endIndex, {
+    high,
+    low,
+    ...extra,
+  });
+  if (region) regions.push(region);
+};
+
 export const buildPhaseRegions = (data) => {
   const candles = data?.candles || [];
   if (candles.length === 0) return [];
@@ -142,24 +178,41 @@ export const buildPhaseRegions = (data) => {
     if (region) regions.push(region);
   }
   if (indexes.phaseCEvent != null) {
-    const region = buildRegion('c', candles, indexes.phaseCEvent, indexes.phaseCEvent);
+    const region = buildRegion('c', candles, indexes.phaseCEvent, indexes.phaseCEvent, {
+      detail: phaseCDetail(data),
+    });
     if (region) regions.push(region);
   }
   if (indexes.phaseDStart != null) {
-    const region = buildRegion('d', candles, indexes.phaseDStart, baseEnd, { range: 'setupBox' });
+    const region = buildRegion('d', candles, indexes.phaseDStart, baseEnd, {
+      detail: phaseDDetail(data),
+      range: 'setupBox',
+    });
     if (region) regions.push(region);
   }
-  if (indexes.lpsZoneStart != null && indexes.lpsZoneEnd != null) {
-    const low = finiteNumber(data?._lps_zone_low);
-    const high = finiteNumber(data?._lps_zone_high);
-    if (low != null && high != null) {
-      const region = buildRegion('lps', candles, indexes.lpsZoneStart, indexes.lpsZoneEnd, {
-        high,
-        low,
-      });
-      if (region) regions.push(region);
-    }
+  const seenLpsRegions = new Set();
+  for (const test of data?.lps_tests || []) {
+    addLpsRegion(
+      regions,
+      candles,
+      seenLpsRegions,
+      test.start_date,
+      test.end_date,
+      test.low,
+      test.high,
+      { detail: test.zone_type === 'UNDERCUT_S' ? 'Spring / support test' : 'Support test' },
+    );
   }
+  addLpsRegion(
+    regions,
+    candles,
+    seenLpsRegions,
+    data?._lps_zone_start_date,
+    data?._lps_zone_end_date,
+    data?._lps_zone_low,
+    data?._lps_zone_high,
+    { detail: 'Active support zone' },
+  );
 
   return regions;
 };
@@ -200,13 +253,15 @@ class PhaseRegionRenderer {
 
   drawBackground(target) {
     target.useMediaCoordinateSpace(({ context }) => {
-      const { height, left, strokeStyle, top, width, fillStyle } = this.drawData;
       context.save();
-      context.fillStyle = fillStyle;
-      context.strokeStyle = strokeStyle;
-      context.lineWidth = 1;
-      context.fillRect(left, top, width, height);
-      context.strokeRect(left + 0.5, top + 0.5, Math.max(1, width - 1), Math.max(1, height - 1));
+      for (const region of this.drawData) {
+        const { height, left, strokeStyle, top, width, fillStyle } = region;
+        context.fillStyle = fillStyle;
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = 1;
+        context.fillRect(left, top, width, height);
+        context.strokeRect(left + 0.5, top + 0.5, Math.max(1, width - 1), Math.max(1, height - 1));
+      }
       context.restore();
     });
   }
@@ -295,35 +350,39 @@ class PhaseRegionPrimitive {
     if (!this.activeRegion || !this.chart || !this.series) return null;
 
     const candles = this.data?.candles || [];
-    const region = this.regions.find((item) => item.key === this.activeRegion);
-    if (!region) return null;
-
-    const priceRange = priceRangeForRegion(this.data, candles, region);
-    if (!priceRange) return null;
-
-    const spacing = this.barWidth(region.startIndex);
-    const x1 = this.xForBar(region.startIndex);
-    const x2 = this.xForBar(region.endIndex);
-    const yLow = this.series.priceToCoordinate(priceRange.low);
-    const yHigh = this.series.priceToCoordinate(priceRange.high);
-    if (x1 == null || x2 == null || yLow == null || yHigh == null) return null;
-
     const paneWidth = this.chart.timeScale().width();
     const paneHeight = Math.max(0, this.container?.clientHeight ?? 0);
-    const left = Math.round(clamp(Math.min(x1, x2) - spacing * 0.45, 0, paneWidth));
-    const right = Math.round(clamp(Math.max(x1, x2) + spacing * 0.45, 0, paneWidth));
-    const top = Math.round(clamp(Math.min(yLow, yHigh), 0, paneHeight));
-    const bottom = Math.round(clamp(Math.max(yLow, yHigh), 0, paneHeight));
-    if (right - left < 2 || bottom - top < 2) return null;
+    const drawRegions = this.regions
+      .filter((item) => item.key === this.activeRegion)
+      .map((region) => {
+        const priceRange = priceRangeForRegion(this.data, candles, region);
+        if (!priceRange) return null;
 
-    return {
-      fillStyle: region.fillStyle,
-      height: bottom - top,
-      left,
-      strokeStyle: region.strokeStyle,
-      top,
-      width: right - left,
-    };
+        const spacing = this.barWidth(region.startIndex);
+        const x1 = this.xForBar(region.startIndex);
+        const x2 = this.xForBar(region.endIndex);
+        const yLow = this.series.priceToCoordinate(priceRange.low);
+        const yHigh = this.series.priceToCoordinate(priceRange.high);
+        if (x1 == null || x2 == null || yLow == null || yHigh == null) return null;
+
+        const left = Math.round(clamp(Math.min(x1, x2) - spacing * 0.45, 0, paneWidth));
+        const right = Math.round(clamp(Math.max(x1, x2) + spacing * 0.45, 0, paneWidth));
+        const top = Math.round(clamp(Math.min(yLow, yHigh), 0, paneHeight));
+        const bottom = Math.round(clamp(Math.max(yLow, yHigh), 0, paneHeight));
+        if (right - left < 2 || bottom - top < 2) return null;
+
+        return {
+          fillStyle: region.fillStyle,
+          height: bottom - top,
+          left,
+          strokeStyle: region.strokeStyle,
+          top,
+          width: right - left,
+        };
+      })
+      .filter(Boolean);
+
+    return drawRegions.length ? drawRegions : null;
   }
 }
 

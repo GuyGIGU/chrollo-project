@@ -86,6 +86,11 @@ function buildTagMap(screenerData) {
       rTouchVolZ: data.r_touch_vol_z,
       sTouchVolZ: data.s_touch_vol_z,
       contractionVolTrend: data.contraction_vol_trend,
+      binCPresent: data.bin_c_present,
+      binCType: data.bin_c_type,
+      binCUndercutAtr: data.bin_c_undercut_atr,
+      binCRecoveryBars: data.bin_c_recovery_bars,
+      binCSpringVolZ: data.bin_c_spring_vol_z,
     });
     map[ticker] = new Set(tags.map(tag => tag.id));
   }

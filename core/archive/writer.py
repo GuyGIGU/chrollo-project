@@ -113,6 +113,13 @@ _NEW_COLUMNS: dict[str, str] = {
     "bin_b_cog_crossings":          "INTEGER",
     "bin_b_cog_rng":                "FLOAT",
     "bin_b_cog_corr":               "FLOAT",
+    "bin_c_present":                "INTEGER",
+    "bin_c_type":                   "TEXT",
+    "bin_c_event_date":             "TEXT",
+    "bin_c_undercut_atr":           "FLOAT",
+    "bin_c_recovery_bars":          "INTEGER",
+    "bin_c_time_loc":               "FLOAT",
+    "bin_c_spring_vol_z":           "FLOAT",
     "bin_d_bars":                   "INTEGER",
     "bin_d_range_pct":              "FLOAT",
     "bin_d_volume_ratio":           "FLOAT",
@@ -201,7 +208,14 @@ def archive_scan_results(
             return None
 
     def _bool_int(value) -> int | None:
-        return int(bool(value)) if value is not None else None
+        if value is None:
+            return None
+        try:
+            if pd.isna(value):
+                return None
+        except (TypeError, ValueError):
+            pass
+        return int(bool(value))
 
     scan_dt = scan_date_str or date.today().strftime("%Y-%m-%d")
 
@@ -421,6 +435,13 @@ def archive_scan_results(
             bin_b_cog_crossings=row.get("_bin_b_cog_crossings"),
             bin_b_cog_rng=row.get("_bin_b_cog_rng"),
             bin_b_cog_corr=row.get("_bin_b_cog_corr"),
+            bin_c_present=_bool_int(row.get("_bin_c_present")),
+            bin_c_type=row.get("_bin_c_type"),
+            bin_c_event_date=row.get("_bin_c_event_date"),
+            bin_c_undercut_atr=row.get("_bin_c_undercut_atr"),
+            bin_c_recovery_bars=row.get("_bin_c_recovery_bars"),
+            bin_c_time_loc=row.get("_bin_c_time_loc"),
+            bin_c_spring_vol_z=row.get("_bin_c_spring_vol_z"),
             bin_d_bars=row.get("_bin_d_bars"),
             bin_d_range_pct=row.get("_bin_d_range_pct"),
             bin_d_volume_ratio=row.get("_bin_d_volume_ratio"),

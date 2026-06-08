@@ -16,7 +16,8 @@ Public API:
     measure_support_slope-> the ascending-support / higher-lows footprint
     measure_touch_volume -> volume z-scores at the R/S touch bars
     measure_bins         -> per-region (A/B/D/LPS) size/range/volume + Last Supper
-    detect_lps           -> the Last-Point-of-Support / spring finder
+    detect_lps           -> the active Last-Point-of-Support / spring finder
+    detect_lps_tests     -> non-overlapping support tests across the base
     adr_pct              -> Qullamaggie Average Daily Range %
     trend_template       -> Minervini Stage-2 trend-template criteria
     calculate_atr / calculate_adx -> volatility & trend-strength math
@@ -31,7 +32,7 @@ from core.structure.metrics import (
     measure_touch_volume,
 )
 from core.structure.indicators import adr_pct, calculate_adx, calculate_atr, trend_template
-from core.structure.lps import detect_lps
+from core.structure.lps import detect_lps, detect_lps_tests
 from core.structure.scope import scope_consolidation
 
 __all__ = [
@@ -45,6 +46,7 @@ __all__ = [
     "measure_touch_volume",
     "measure_bins",
     "detect_lps",
+    "detect_lps_tests",
     "scope_consolidation",
     "adr_pct",
     "trend_template",

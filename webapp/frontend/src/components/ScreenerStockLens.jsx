@@ -227,6 +227,11 @@ function TagsPanel({ data }) {
           cogCrossings: data.bin_b_cog_crossings,
           cogRng: data.bin_b_cog_rng,
           cogCorr: data.bin_b_cog_corr,
+          binCPresent: data.bin_c_present,
+          binCType: data.bin_c_type,
+          binCUndercutAtr: data.bin_c_undercut_atr,
+          binCRecoveryBars: data.bin_c_recovery_bars,
+          binCSpringVolZ: data.bin_c_spring_vol_z,
         }}
         maxTags={null}
         style={{ padding: 0 }}

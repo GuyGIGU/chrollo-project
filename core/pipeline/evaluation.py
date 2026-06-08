@@ -13,6 +13,7 @@ from core.structure import (
     calculate_atr,
     detect_boxes,
     detect_lps,
+    detect_lps_tests,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
@@ -89,6 +90,24 @@ def _reconnect_bc_anchor(df, atr_for_zone, base_len, phase_b_start_bar, bc_ancho
     return bc_anchor_bar
 
 
+def _right_side_support_cluster_start(lps_tests, box_start: int, base_len: int) -> Optional[int]:
+    """First measured support test in the right half, only when there is a cluster."""
+    if not lps_tests:
+        return None
+    right_half = box_start + base_len // 2
+    starts = []
+    for test in lps_tests:
+        try:
+            start = int(test["start_index"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start >= right_half:
+            starts.append(start)
+    if len(starts) < 2:
+        return None
+    return min(starts)
+
+
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None,
@@ -148,17 +167,23 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # setup type) follows the inner; the base above stays parent.
         lps_in_inner = False
         lps_result = None
+        lps_context = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
         if inner is not None:
             inner_base_df = df.iloc[-inner["base_len"]:]
             inner_swing_complete = inner["start_bar"] + max(
                 inner["r_anchor_bar"], inner["s_anchor_bar"])
+            inner_range_threshold = _range_threshold(inner_base_df)
             inner_lps = detect_lps(
                 df, latest, inner["S"], inner["R"], atr_for_zone,
-                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+                inner_range_threshold, inner["base_len"], inner_swing_complete,
             )
             if inner_lps:
                 lps_result = inner_lps
                 lps_in_inner = True
+                lps_context = (
+                    inner["S"], inner["R"], inner_range_threshold,
+                    inner["base_len"], inner_swing_complete,
+                )
         if lps_result is None:
             lps_result = detect_lps(
                 df, latest, sup_avg, res_avg,
@@ -174,6 +199,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         trigger_price = lps_result['trigger_price']
         vol_contraction = lps_result['vol_contraction']
         tightness_ratio = lps_result['tightness_ratio']
+        lps_tests = detect_lps_tests(
+            df, latest, lps_context[0], lps_context[1],
+            atr_for_zone, lps_context[2], lps_context[3], lps_context[4],
+        )
 
         current_price = latest['Close']
         distance_to_trigger = (trigger_price - current_price) / current_price
@@ -207,6 +236,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
         )
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
+        support_test_start_bar = (
+            None if inner is not None
+            else _right_side_support_cluster_start(lps_tests, phase_b_start, base_len)
+        )
 
         scope = scope_consolidation(
             df,
@@ -219,6 +252,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             lps_zone_type=lps_result.get("zone_type", "INSIDE"),
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
+            support_test_start_bar=support_test_start_bar,
         )
 
         bins = measure_bins(
@@ -233,6 +267,9 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             S=sup_avg,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
+            support_test_start_bar=support_test_start_bar,
+            lps_R=lps_context[1],
+            lps_S=lps_context[0],
         )
 
         trend = trend_template(df, dist_52w_high_pct=dist_52w_high_pct)
@@ -251,6 +288,8 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         )
         score = score_result['total']
         tier = calculate_tier(score, box_width)
+
+        phase_c_event_date = bins['bin_c_event_date'] or scope['phase_c_event_date']
 
         return {
             'Ticker': ticker,
@@ -293,6 +332,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_r_touch_vol_z': r_touch_vol_z,
             '_s_touch_vol_z': s_touch_vol_z,
             '_lps_descent_frac': float(lps_result.get('descent_frac', 1.0)),
+            '_lps_high_descent_frac': float(lps_result.get('high_descent_frac', 1.0)),
+            '_lps_window_range_pct_box': float(lps_result.get('window_range_pct_box', 0.0)),
+            '_lps_high_extension_box': float(lps_result.get('high_extension_box', 0.0)),
+            '_lps_high_extension_atr': float(lps_result.get('high_extension_atr', 0.0)),
+            '_lps_tests': lps_tests,
             '_lps_zone_type': lps_result.get('zone_type', 'INSIDE'),
             '_contraction_count': int(contraction['n_contractions']),
             '_contraction_quality': float(contraction['quality']),
@@ -321,7 +365,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_phase_a_start_date': scope['phase_a_start_date'],
             '_phase_b_start_date': scope['phase_b_start_date'],
             '_phase_d_start_date': scope['phase_d_start_date'],
-            '_phase_c_event_date': scope['phase_c_event_date'],
+            '_phase_c_event_date': phase_c_event_date,
             '_lps_zone_low': scope['lps_zone_low'],
             '_lps_zone_high': scope['lps_zone_high'],
             '_lps_zone_start_date': scope['lps_zone_start_date'],
@@ -338,6 +382,13 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_bin_b_cog_crossings': bins['bin_b_cog_crossings'],
             '_bin_b_cog_rng': bins['bin_b_cog_rng'],
             '_bin_b_cog_corr': bins['bin_b_cog_corr'],
+            '_bin_c_present': bins['bin_c_present'],
+            '_bin_c_type': bins['bin_c_type'],
+            '_bin_c_event_date': bins['bin_c_event_date'],
+            '_bin_c_undercut_atr': bins['bin_c_undercut_atr'],
+            '_bin_c_recovery_bars': bins['bin_c_recovery_bars'],
+            '_bin_c_time_loc': bins['bin_c_time_loc'],
+            '_bin_c_spring_vol_z': bins['bin_c_spring_vol_z'],
             '_bin_d_bars': bins['bin_d_bars'],
             '_bin_d_range_pct': bins['bin_d_range_pct'],
             '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],

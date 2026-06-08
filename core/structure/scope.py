@@ -26,8 +26,9 @@ have fewer regions, and we never force four tidy quadrants):
                Anchored on the LPS (always the foundation). When the detector
                selected an inner sub-box (a mini-consolidation), Phase D is that
                inner box; otherwise it's the LPS shelf.
-    Phase C  — optional spring marker: only when the LPS undercut support
-               (zone_type == "UNDERCUT_S" / a REBOUND).
+    Phase C  — legacy active-LPS spring marker when the LPS undercut support.
+               The richer optional Bin-C support-test measurement lives in
+               core.structure.bin_features.
 
 The LPS zone (``lps_zone_low``/``lps_zone_high`` + ``lps_zone_start_date``/
 ``lps_zone_end_date``) is the bounding box of the exact LPS candidate bars —
@@ -63,7 +64,8 @@ def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
 def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                            is_inner_box: bool, has_lps_window: bool,
                            lps_start: int, b: Optional[int],
-                           phase_d_start_bar: Optional[int] = None) -> Optional[int]:
+                           phase_d_start_bar: Optional[int] = None,
+                           support_test_start_bar: Optional[int] = None) -> Optional[int]:
     """Phase-D right-most-region start bar, df-positional. Pure.
 
     Single source of truth for the Phase-D boundary, shared between the scoping
@@ -77,6 +79,10 @@ def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                              (the LPS always sits inside Phase D).
       - inner sub-box  -> legacy path where the mini-consolidation replaced the
                           active box: use that box start.
+      - support tests  -> when no inner box exists but multiple right-side
+                          support tests are already measured, prefer the first
+                          test in that cluster. This is a descriptive hint, not
+                          a textbook SOS requirement.
       - otherwise      -> the final third of the base (the right-most side),
                           pulled earlier if the LPS itself starts before it (the
                           LPS always sits inside Phase D). A fraction, not the
@@ -99,8 +105,11 @@ def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
     elif is_inner_box:
         d = box_start
     elif has_lps_window:
-        final_third = box_start + (2 * base_len) // 3
-        d = max(box_start, min(final_third, lps_start))
+        if support_test_start_bar is not None:
+            d = support_test_start_bar
+        else:
+            d = box_start + (2 * base_len) // 3
+        d = max(box_start, min(d, lps_start))
     else:
         d = None
     if d is not None:
@@ -122,6 +131,7 @@ def scope_consolidation(
     lps_zone_type: str,
     atr_val: float,
     phase_d_start_bar: Optional[int] = None,
+    support_test_start_bar: Optional[int] = None,
 ) -> dict:
     """Scope the right-most region of an already-detected base. Pure measurement.
 
@@ -140,6 +150,9 @@ def scope_consolidation(
         phase_d_start_bar: optional explicit Phase-D start. Used when the parent
             remains the base of record and an inner Phase D range is drawn inside
             it.
+        support_test_start_bar: optional df-positional start of a measured
+            right-side support-test cluster. Used only as a better descriptive
+            Phase-D hint when no inner range exists.
         lps_offset, lps_length: locate the LPS window: it ends at
             ``len(df) - lps_offset`` (exclusive) and spans ``lps_length`` bars.
         lps_zone_type: "INSIDE" / "OVERSHOOT_R" / "UNDERCUT_S". A spring
@@ -220,6 +233,7 @@ def scope_consolidation(
         box_start=box_start, base_len=base_len, last=last,
         is_inner_box=is_inner_box, has_lps_window=has_lps_window,
         lps_start=lps_start, b=b, phase_d_start_bar=phase_d_start_bar,
+        support_test_start_bar=support_test_start_bar,
     )
 
     # ── Phase C spring marker (UNDERCUT_S only) — the undercut low (V tip) ───
