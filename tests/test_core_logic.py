@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timezone
 import sys
 from pathlib import Path
 
@@ -13,6 +14,10 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
+from core.pipeline.cache import _atomic_write_parquet
+from core.pipeline.market_context import get_market_context
+import core.pipeline.downloads as downloads_module
+import core.pipeline.market_context as market_context_module
 from core.structure.bin_features import measure_bins
 from core.structure.consolidation import (
     _select_phase_b_candidate,
@@ -48,6 +53,139 @@ def _contraction_frame(levels, volumes):
         "Close": list(levels),
         "Volume": list(volumes),
     })
+
+
+def test_cache_writer_optimizes_market_panel_roundtrip(tmp_path):
+    idx = pd.date_range("2026-01-01", periods=3, freq="B")
+    fields = ["Open", "High", "Low", "Close", "Adj Close", "Volume"]
+    cols = pd.MultiIndex.from_product([["AAA", "BBB"], fields])
+    data = pd.DataFrame(index=idx, columns=cols, dtype="float64")
+
+    for ticker in ["AAA", "BBB"]:
+        data[(ticker, "Open")] = [10.123456, 10.5, 10.7]
+        data[(ticker, "High")] = [10.5, 10.8, 11.0]
+        data[(ticker, "Low")] = [9.9, 10.2, 10.4]
+        data[(ticker, "Close")] = [10.2, 10.6, 10.9]
+        data[(ticker, "Adj Close")] = [10.2, 10.6, 10.9]
+        data[(ticker, "Volume")] = [1000, None, 1200]
+
+    path = tmp_path / "market_cache.parquet"
+    _atomic_write_parquet(data, str(path))
+    out = pd.read_parquet(path)
+
+    assert out[("AAA", "Close")].dtype == "float32"
+    assert out[("AAA", "Volume")].dtype == "Int64"
+    assert abs(float(out[("AAA", "Close")].iloc[0]) - 10.2) < 1e-5
+    assert pd.isna(out[("AAA", "Volume")].iloc[1])
+
+
+def test_market_context_computes_regime_state(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        market_context_module,
+        "_market_context_path",
+        lambda: str(tmp_path / "market_context.json"),
+    )
+    monkeypatch.setattr(market_context_module, "_is_market_hours", lambda: False)
+
+    idx = pd.date_range("2025-01-01", periods=220, freq="B")
+
+    def frame(start, step):
+        close = pd.Series([start + step * i for i in range(len(idx))], index=idx)
+        return pd.DataFrame({
+            "Open": close - 0.1,
+            "High": close + 0.2,
+            "Low": close - 0.2,
+            "Close": close,
+            "Volume": [1_000_000 + i for i in range(len(idx))],
+        }, index=idx)
+
+    panel = pd.concat(
+        {"SPY": frame(100, 0.2), "QQQ": frame(120, 0.3)},
+        axis=1,
+    )
+    ticker_frames = {
+        "AAA": frame(20, 0.05),
+        "BBB": frame(30, 0.04),
+        "CCC": frame(40, 0.03),
+    }
+
+    context = get_market_context(panel, ticker_frames)
+    regime = context["regime"]
+
+    assert context["spy_6m_return"] > 0
+    assert context["breadth_pct"] == 1.0
+    assert regime["state"] == "UPTREND"
+    assert regime["breadth_50_pct"] == 1.0
+    assert regime["breadth_200_pct"] == 1.0
+    assert regime["indexes"]["SPY"]["above_sma_50"] is True
+    assert regime["indexes"]["QQQ"]["sma_50_rising"] is True
+
+
+def test_market_context_short_history_stays_neutral(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        market_context_module,
+        "_market_context_path",
+        lambda: str(tmp_path / "market_context.json"),
+    )
+    monkeypatch.setattr(market_context_module, "_is_market_hours", lambda: False)
+
+    idx = pd.date_range("2026-01-01", periods=100, freq="B")
+    close = pd.Series([100 + i for i in range(len(idx))], index=idx)
+    frame = pd.DataFrame({
+        "Open": close - 0.1,
+        "High": close + 0.2,
+        "Low": close - 0.2,
+        "Close": close,
+    }, index=idx)
+    panel = pd.concat({"SPY": frame, "QQQ": frame}, axis=1)
+
+    context = get_market_context(panel, {"AAA": frame})
+
+    assert context["regime"]["state"] == "NEUTRAL"
+    assert context["regime"]["indexes"]["SPY"]["above_sma_200"] is None
+
+
+def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monkeypatch):
+    cache_file = tmp_path / "market_cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+
+    today = pd.Timestamp.now().normalize()
+    last_bar = today if today.weekday() < 5 else today - pd.tseries.offsets.BDay(1)
+    cached_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[last_bar]),
+            "SPY": pd.DataFrame({"Close": [100.0], "Volume": [1000]}, index=[last_bar]),
+        },
+        axis=1,
+    )
+    full_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[last_bar]),
+            "SPY": pd.DataFrame({"Close": [100.0], "Volume": [1000]}, index=[last_bar]),
+            "QQQ": pd.DataFrame({"Close": [120.0], "Volume": [1000]}, index=[last_bar]),
+        },
+        axis=1,
+    )
+    _atomic_write_parquet(cached_panel, str(cache_file))
+    meta_file.write_text(
+        f'{{"last_full_refresh": "{datetime.now(timezone.utc).isoformat()}"}}',
+        encoding="utf-8",
+    )
+
+    called = {}
+    monkeypatch.setattr(downloads_module, "_cache_paths", lambda: (str(cache_file), str(meta_file)))
+    monkeypatch.setattr(downloads_module, "_is_market_hours", lambda: False)
+    monkeypatch.setattr(downloads_module.settings, "TTL_FRESH_HOURS_OFFHOURS", 0)
+    def fake_full_refetch(symbols):
+        called["symbols"] = symbols
+        return full_panel
+
+    monkeypatch.setattr(downloads_module, "_full_refetch", fake_full_refetch)
+
+    out = downloads_module.fetch_data(["AAA"])
+
+    assert called["symbols"] == ["AAA", "SPY", "QQQ"]
+    assert set(out.columns.get_level_values(0)) == {"AAA", "SPY", "QQQ"}
 
 
 # A clean 3-contraction sawtooth: peaks at idx 4/12/18, valleys at idx 8/15/21.

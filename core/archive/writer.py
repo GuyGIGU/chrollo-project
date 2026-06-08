@@ -129,6 +129,17 @@ _NEW_COLUMNS: dict[str, str] = {
     "stage2_52w_low_pct":           "FLOAT",
     "stage2_trend_pass_count":      "INTEGER",
     "stage2_trend_pass":            "INTEGER",
+    # Market regime state (run-level context, observability only)
+    "regime_state":                 "TEXT",
+    "regime_breadth_50_pct":        "FLOAT",
+    "regime_breadth_200_pct":       "FLOAT",
+    "regime_distribution_days":     "INTEGER",
+    "regime_spy_above_50":          "INTEGER",
+    "regime_spy_above_200":         "INTEGER",
+    "regime_spy_50d_slope_pct":     "FLOAT",
+    "regime_qqq_above_50":          "INTEGER",
+    "regime_qqq_above_200":         "INTEGER",
+    "regime_qqq_50d_slope_pct":     "FLOAT",
 }
 
 
@@ -188,6 +199,9 @@ def archive_scan_results(
             return round(stock_ret - sec_ret, 5)
         except Exception:
             return None
+
+    def _bool_int(value) -> int | None:
+        return int(bool(value)) if value is not None else None
 
     scan_dt = scan_date_str or date.today().strftime("%Y-%m-%d")
 
@@ -371,6 +385,16 @@ def archive_scan_results(
             dist_52w_high_pct=row.get("_dist_52w_high_pct"),
             excess_return_6m=row.get("_excess_return_6m"),
             breadth_pct=row.get("_breadth_pct"),
+            regime_state=row.get("_regime_state"),
+            regime_breadth_50_pct=row.get("_regime_breadth_50_pct"),
+            regime_breadth_200_pct=row.get("_regime_breadth_200_pct"),
+            regime_distribution_days=row.get("_regime_distribution_days"),
+            regime_spy_above_50=_bool_int(row.get("_regime_spy_above_50")),
+            regime_spy_above_200=_bool_int(row.get("_regime_spy_above_200")),
+            regime_spy_50d_slope_pct=row.get("_regime_spy_50d_slope_pct"),
+            regime_qqq_above_50=_bool_int(row.get("_regime_qqq_above_50")),
+            regime_qqq_above_200=_bool_int(row.get("_regime_qqq_above_200")),
+            regime_qqq_50d_slope_pct=row.get("_regime_qqq_50d_slope_pct"),
             bars_since_bc=row.get("_bars_since_BC"),
             # descent_length spans BC anchor → box start (the inner mini-AR pivot
             # selected by the cand_start trim in _phase_b_zigzag), not BC → original

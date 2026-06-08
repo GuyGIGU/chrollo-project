@@ -220,6 +220,7 @@ CACHE_FILENAME = "market_data_cache_2y.parquet"
 CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"
 PARQUET_ENGINE = "pyarrow"
+PARQUET_COMPRESSION = "zstd"
 CACHE_MAX_AGE_HOURS = 12          # Legacy fallback TTL (used only if meta sidecar missing)
 DOWNLOAD_PERIOD = "2y"
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
@@ -239,8 +240,21 @@ SPLIT_PROBE_REFERENCE_SYMBOL = "SPY"         # Always included in the probe samp
 
 # Market context cache
 SPY_SYMBOL = "SPY"                # Stored in the parquet alongside the universe (not screened)
+INDEX_SYMBOLS = ["SPY", "QQQ"]    # Market-regime indexes stored with the universe
 MARKET_CONTEXT_TTL_HOURS_MARKET = 1
 MARKET_CONTEXT_TTL_HOURS_OFFHOURS = 12
+
+# Market-regime state (observability only; not a score/gate)
+REGIME_MA_PERIODS = [10, 20, 50, 200]
+REGIME_SLOPE_MA_PERIOD = 50
+REGIME_SLOPE_LOOKBACK = 10
+REGIME_DISTRIBUTION_DAY_DROP = 0.002
+REGIME_DISTRIBUTION_DAY_LOOKBACK = 25
+REGIME_DISTRIBUTION_DAY_PRESSURE = 5
+REGIME_BREADTH_50_HEALTHY = 0.60
+REGIME_BREADTH_50_WEAK = 0.40
+REGIME_BREADTH_200_HEALTHY = 0.50
+REGIME_BREADTH_200_WEAK = 0.35
 
 # ============================================================
 # DASHBOARD

@@ -72,6 +72,16 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_crossings INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_rng FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_corr FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN regime_state VARCHAR",
+    "ALTER TABLE setup_archive ADD COLUMN regime_breadth_50_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN regime_breadth_200_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN regime_distribution_days INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN regime_spy_above_50 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN regime_spy_above_200 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN regime_spy_50d_slope_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN regime_qqq_above_50 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN regime_qqq_above_200 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN regime_qqq_50d_slope_pct FLOAT",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

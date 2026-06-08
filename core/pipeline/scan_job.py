@@ -80,7 +80,7 @@ def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
 
 def run_scan_and_export() -> ScanExportResult:
     """Run the screener and write every non-broker output artifact."""
-    results_df, data, tickers = run_screener()
+    results_df, data, tickers, market_context = run_screener()
 
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
@@ -93,7 +93,7 @@ def run_scan_and_export() -> ScanExportResult:
     save_csv(results_df, output_dir)
     print_finviz_url(results_df)
 
-    generate_dashboard(results_df, data, tickers)
+    generate_dashboard(results_df, data, tickers, market_context)
 
     # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
     # Forward returns are filled in later by core/archive/forward_returns.py.

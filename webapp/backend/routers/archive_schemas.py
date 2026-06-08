@@ -62,6 +62,16 @@ class SetupOut(BaseModel):
     sector_trend: Optional[str] = None
     rs_vs_sector_pct: Optional[float] = None
     dist_52w_high_pct: Optional[float] = None
+    regime_state: Optional[str] = None
+    regime_breadth_50_pct: Optional[float] = None
+    regime_breadth_200_pct: Optional[float] = None
+    regime_distribution_days: Optional[int] = None
+    regime_spy_above_50: Optional[int] = None
+    regime_spy_above_200: Optional[int] = None
+    regime_spy_50d_slope_pct: Optional[float] = None
+    regime_qqq_above_50: Optional[int] = None
+    regime_qqq_above_200: Optional[int] = None
+    regime_qqq_50d_slope_pct: Optional[float] = None
     # Phase A structural detail
     phase_d_inner: Optional[int] = None
     lps_in_inner: Optional[int] = None

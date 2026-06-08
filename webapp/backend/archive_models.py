@@ -91,6 +91,16 @@ class SetupArchive(Base):
     dist_52w_high_pct = Column(Float, nullable=True)  # (current − max_high_252d) / max_high_252d (negative)
     excess_return_6m = Column(Float, nullable=True)   # stock 6m return − SPY 6m return at scan_date
     breadth_pct = Column(Float, nullable=True)        # % of universe with Close > SMA_50 on scan_date
+    regime_state = Column(String, nullable=True)      # UPTREND / NEUTRAL / UNDER_PRESSURE / CORRECTION
+    regime_breadth_50_pct = Column(Float, nullable=True)
+    regime_breadth_200_pct = Column(Float, nullable=True)
+    regime_distribution_days = Column(Integer, nullable=True)
+    regime_spy_above_50 = Column(Integer, nullable=True)
+    regime_spy_above_200 = Column(Integer, nullable=True)
+    regime_spy_50d_slope_pct = Column(Float, nullable=True)
+    regime_qqq_above_50 = Column(Integer, nullable=True)
+    regime_qqq_above_200 = Column(Integer, nullable=True)
+    regime_qqq_50d_slope_pct = Column(Float, nullable=True)
 
     # ── Phase A structural detail ────────────────────────────────
     bars_since_bc = Column(Integer, nullable=True)    # Bars from BC (or SC) to scan_date

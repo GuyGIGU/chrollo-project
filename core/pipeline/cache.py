@@ -44,6 +44,17 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _optimize_market_data_for_cache(data: pd.DataFrame) -> pd.DataFrame:
+    optimized = data.copy()
+    for column in optimized.columns:
+        field = column[1] if isinstance(column, tuple) and len(column) > 1 else column
+        if field in {'Open', 'High', 'Low', 'Close', 'Adj Close'}:
+            optimized[column] = pd.to_numeric(optimized[column], errors='coerce').astype('float32')
+        elif field == 'Volume':
+            optimized[column] = pd.to_numeric(optimized[column], errors='coerce').round().astype('Int64')
+    return optimized
+
+
 def _is_market_hours() -> bool:
     """US equity market hours: 09:30–16:00 ET, Monday–Friday."""
     ny = datetime.now(ZoneInfo("America/New_York"))
@@ -55,5 +66,10 @@ def _is_market_hours() -> bool:
 
 def _atomic_write_parquet(data: pd.DataFrame, path: str) -> None:
     tmp = path + '.tmp'
-    data.to_parquet(tmp, engine=settings.PARQUET_ENGINE)
+    optimized = _optimize_market_data_for_cache(data)
+    optimized.to_parquet(
+        tmp,
+        engine=settings.PARQUET_ENGINE,
+        compression=settings.PARQUET_COMPRESSION,
+    )
     os.replace(tmp, path)

@@ -159,7 +159,7 @@ def _extract_chart_data(data, results_df, tickers):
     return chart_data
 
 
-def generate_dashboard(results_df, data=None, tickers=None):
+def generate_dashboard(results_df, data=None, tickers=None, market_context=None):
     """Extract chart data and export it as JSON for the React frontend."""
     
     # Extract chart data if market data is provided
@@ -179,6 +179,7 @@ def generate_dashboard(results_df, data=None, tickers=None):
     payload = _json_safe({
         "chart_data": chart_data,
         "ordered_tickers": ordered_tickers,
+        "market_context": market_context or {},
     })
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(payload, f)

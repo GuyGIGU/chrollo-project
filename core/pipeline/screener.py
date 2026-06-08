@@ -30,10 +30,11 @@ __all__ = ["run_screener", "_evaluate_ticker", "apply_baseline_filters"]
 def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Extract per-ticker OHLCV frames for worker processes."""
     multi_ticker = len(tickers) > 1
+    index_symbols = set(getattr(settings, 'INDEX_SYMBOLS', [settings.SPY_SYMBOL]))
     ticker_frames: dict[str, pd.DataFrame] = {}
 
     for ticker in tickers:
-        if ticker == settings.SPY_SYMBOL:
+        if ticker in index_symbols:
             continue
         try:
             if multi_ticker:
@@ -80,21 +81,43 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     return results
 
 
-def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+def _regime_archive_fields(market_context: dict) -> dict:
+    regime = market_context.get('regime') or {}
+    indexes = regime.get('indexes') or {}
+    spy = indexes.get(settings.SPY_SYMBOL) or {}
+    qqq = indexes.get('QQQ') or {}
+    return {
+        '_regime_state': regime.get('state'),
+        '_regime_breadth_50_pct': regime.get('breadth_50_pct'),
+        '_regime_breadth_200_pct': regime.get('breadth_200_pct'),
+        '_regime_distribution_days': regime.get('distribution_days'),
+        '_regime_spy_above_50': spy.get('above_sma_50'),
+        '_regime_spy_above_200': spy.get('above_sma_200'),
+        '_regime_spy_50d_slope_pct': spy.get('sma_50_slope_pct'),
+        '_regime_qqq_above_50': qqq.get('above_sma_50'),
+        '_regime_qqq_above_200': qqq.get('above_sma_200'),
+        '_regime_qqq_50d_slope_pct': qqq.get('sma_50_slope_pct'),
+    }
+
+
+def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     """
     Execute the full Wyckoff VCP/LPS screening pipeline.
 
     Returns:
-        (results_df, market_data, tickers)
+        (results_df, market_data, tickers, market_context)
         - results_df: ranked per-ticker setup DataFrame (possibly empty)
         - market_data: raw OHLCV DataFrame used by the dashboard
         - tickers: list of tickers that were evaluated
+        - market_context: run-level context for dashboard/archive
     """
     tickers = get_tickers()
     data = fetch_data(tickers)
     ticker_frames = _prepare_ticker_frames(tickers, data)
 
-    spy_6m_return, breadth_pct = get_market_context(data, ticker_frames)
+    market_context = get_market_context(data, ticker_frames)
+    spy_6m_return = float(market_context.get('spy_6m_return') or 0.0)
+    breadth_pct = market_context.get('breadth_pct')
 
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
@@ -105,7 +128,9 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
 
     if results:
         results_df = pd.DataFrame(results).sort_values(by='Score', ascending=False)
+        for key, value in _regime_archive_fields(market_context).items():
+            results_df[key] = value
     else:
         results_df = pd.DataFrame()
 
-    return results_df, data, tickers
+    return results_df, data, tickers, market_context

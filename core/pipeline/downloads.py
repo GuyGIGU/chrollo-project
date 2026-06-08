@@ -284,6 +284,13 @@ def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
     return data.loc[data.index >= cutoff]
 
 
+def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
+    if data.empty or not isinstance(data.columns, pd.MultiIndex):
+        return False
+    present = set(data.columns.get_level_values(0))
+    return all(symbol in present for symbol in symbols)
+
+
 def fetch_data(tickers: list[str]) -> pd.DataFrame:
     """
     Download market data via yfinance with PyArrow Parquet caching.
@@ -297,13 +304,16 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     - Otherwise (or on first run / corruption / weekly refresh due), do a
       full cold refetch of the entire DOWNLOAD_PERIOD.
 
-    SPY is always included in the download so the screener can read it from
-    the same parquet without a separate yfinance call.
+    Index symbols are always included in the download so the screener can read
+    market context from the same parquet without separate yfinance calls.
     """
     cache_file, meta_file = _cache_paths()
 
-    spy = settings.SPY_SYMBOL
-    tickers_with_spy = list(tickers) + ([spy] if spy not in tickers else [])
+    index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
+    tickers_with_indexes = list(tickers)
+    for symbol in index_symbols:
+        if symbol not in tickers_with_indexes:
+            tickers_with_indexes.append(symbol)
 
     # ── Fast path: fresh cache ─────────────────────────────────────────────
     meta = _read_meta(meta_file)
@@ -312,9 +322,13 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         ttl = (settings.TTL_FRESH_HOURS_MARKET if _is_market_hours()
                else settings.TTL_FRESH_HOURS_OFFHOURS)
         if cache_age_hours < ttl:
-            print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
-                  f"TTL {ttl}h)...", flush=True)
-            return pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+            cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+            if _has_all_symbols(cached_data, index_symbols):
+                print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
+                      f"TTL {ttl}h)...", flush=True)
+                return cached_data
+            print("Local cache is fresh but missing a market-regime index; updating cache.",
+                  flush=True)
 
     # ── Decide cold vs. incremental ────────────────────────────────────────
     cached: pd.DataFrame | None = None
@@ -348,13 +362,18 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     # refetch when the cache is "stale" only by clock-time (e.g., we ran 13h
     # ago but it's still the same trading day).
     if (cached is not None and not cached.empty and gap_bdays == 0
-            and not weekly_refresh_due):
+            and not weekly_refresh_due
+            and _has_all_symbols(cached, index_symbols)):
         print(f"Cache last bar is current ({cached.index.max().date()}); "
               f"touching mtime and returning.", flush=True)
         _atomic_write_parquet(cached, cache_file)
         meta['last_modified'] = _now_iso()
         _write_meta(meta_file, meta)
         return cached
+    if (cached is not None and not cached.empty and gap_bdays == 0
+            and not weekly_refresh_due):
+        print("Cache last bar is current but missing a market-regime index; "
+              "falling back to full refetch.", flush=True)
 
     do_incremental = (
         cached is not None
@@ -365,7 +384,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     )
 
     if do_incremental:
-        data = _incremental_fetch(cached, tickers_with_spy, gap_bdays)
+        data = _incremental_fetch(cached, tickers_with_indexes, gap_bdays)
         if data is not None and not data.empty:
             data = _trim_to_period(data, settings.DOWNLOAD_PERIOD)
             data = data.loc[:, ~data.columns.duplicated(keep='last')]
@@ -380,7 +399,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         print("  Incremental fetch yielded no usable data; falling back to full refetch.")
 
     # ── Cold path ──────────────────────────────────────────────────────────
-    data = _full_refetch(tickers_with_spy)
+    data = _full_refetch(tickers_with_indexes)
     if data.empty:
         return data
 
