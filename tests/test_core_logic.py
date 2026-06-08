@@ -1,4 +1,5 @@
 import math
+import json
 from datetime import datetime, timezone
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from core.pipeline.cache import _atomic_write_parquet
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
 import core.pipeline.market_context as market_context_module
+import output.dashboard as dashboard_module
 from core.structure.bin_features import measure_bins
 from core.structure.consolidation import (
     _select_phase_b_candidate,
@@ -145,6 +147,44 @@ def test_market_context_short_history_stays_neutral(tmp_path, monkeypatch):
     assert context["regime"]["indexes"]["SPY"]["above_sma_200"] is None
 
 
+def test_market_context_cache_missing_configured_index_recomputes(tmp_path, monkeypatch):
+    context_path = tmp_path / "market_context.json"
+    monkeypatch.setattr(market_context_module, "_market_context_path", lambda: str(context_path))
+    monkeypatch.setattr(market_context_module, "_is_market_hours", lambda: False)
+
+    idx = pd.date_range("2025-01-01", periods=220, freq="B")
+    close = pd.Series([100 + i for i in range(len(idx))], index=idx)
+    frame = pd.DataFrame({
+        "Open": close - 0.1,
+        "High": close + 0.2,
+        "Low": close - 0.2,
+        "Close": close,
+        "Volume": [1_000_000 + i for i in range(len(idx))],
+    }, index=idx)
+    panel = pd.concat({"SPY": frame, "QQQ": frame}, axis=1)
+    context_path.write_text(
+        json.dumps({
+            "spy_6m_return": 0.1,
+            "breadth_pct": 1.0,
+            "computed_at": datetime.now(timezone.utc).isoformat(),
+            "spy_last_bar_date": idx[-1].strftime("%Y-%m-%d"),
+            "index_last_bar_dates": {
+                "SPY": idx[-1].strftime("%Y-%m-%d"),
+                "QQQ": idx[-1].strftime("%Y-%m-%d"),
+            },
+            "regime": {
+                "state": "UPTREND",
+                "indexes": {"SPY": {"close": 100.0}},
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    context = get_market_context(panel, {"AAA": frame})
+
+    assert set(context["regime"]["indexes"]) == {"SPY", "QQQ"}
+
+
 def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monkeypatch):
     cache_file = tmp_path / "market_cache.parquet"
     meta_file = tmp_path / "cache_meta.json"
@@ -186,6 +226,19 @@ def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monke
 
     assert called["symbols"] == ["AAA", "SPY", "QQQ"]
     assert set(out.columns.get_level_values(0)) == {"AAA", "SPY", "QQQ"}
+
+
+def test_dashboard_sector_cache_resolves_missing_ticker(tmp_path, monkeypatch):
+    cache_path = tmp_path / "sector_etf_cache.json"
+    monkeypatch.setattr(dashboard_module, "SECTOR_ETF_CACHE_PATH", str(cache_path))
+    monkeypatch.setattr(dashboard_module, "_resolve_sector_etf", lambda ticker: "XLI")
+
+    cache = dashboard_module._load_sector_etf_cache()
+    sector = dashboard_module._sector_etf_for_ticker("wcc", cache)
+    persisted = json.loads(cache_path.read_text(encoding="utf-8"))
+
+    assert sector == "XLI"
+    assert persisted == {"WCC": "XLI"}
 
 
 # A clean 3-contraction sawtooth: peaks at idx 4/12/18, valleys at idx 8/15/21.

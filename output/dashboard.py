@@ -5,10 +5,64 @@ Generates a JSON data file for the React dashboard to consume.
 import os
 import json
 import math
+import sys
 
 from config import settings
 
-OUTPUT_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output'))
+PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output")
+SECTOR_ETF_CACHE_PATH = os.path.join(OUTPUT_DIR, "sector_etf_cache.json")
+
+SECTOR_ETF_NAMES = {
+    "XLB": "Materials",
+    "XLC": "Communication Services",
+    "XLE": "Energy",
+    "XLF": "Financials",
+    "XLI": "Industrials",
+    "XLK": "Technology",
+    "XLP": "Consumer Staples",
+    "XLRE": "Real Estate",
+    "XLU": "Utilities",
+    "XLV": "Health Care",
+    "XLY": "Consumer Discretionary",
+}
+
+
+def _load_sector_etf_cache():
+    try:
+        with open(SECTOR_ETF_CACHE_PATH, "r", encoding="utf-8") as handle:
+            cache = json.load(handle)
+            return cache if isinstance(cache, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_sector_etf_cache(cache):
+    try:
+        os.makedirs(os.path.dirname(SECTOR_ETF_CACHE_PATH), exist_ok=True)
+        with open(SECTOR_ETF_CACHE_PATH, "w", encoding="utf-8") as handle:
+            json.dump(cache, handle)
+    except OSError:
+        pass
+
+
+def _resolve_sector_etf(ticker):
+    try:
+        if BACKEND_DIR not in sys.path:
+            sys.path.append(BACKEND_DIR)
+        from archive_models import get_sector_etf
+        return get_sector_etf(ticker) or ""
+    except Exception:
+        return ""
+
+
+def _sector_etf_for_ticker(ticker, sector_etf_cache):
+    normalized = str(ticker).upper()
+    if normalized not in sector_etf_cache:
+        sector_etf_cache[normalized] = _resolve_sector_etf(normalized)
+        _save_sector_etf_cache(sector_etf_cache)
+    return sector_etf_cache.get(normalized) or None
 
 
 def _json_safe(obj):
@@ -33,6 +87,7 @@ def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
     chart_data = {}
     chart_candidates = results_df[results_df['Tier'].isin(settings.DASHBOARD_CHART_TIERS)]
+    sector_etf_cache = _load_sector_etf_cache()
     
     for _, row in chart_candidates.iterrows():
         ticker = row['Ticker']
@@ -93,6 +148,8 @@ def _extract_chart_data(data, results_df, tickers):
                 )
             }
 
+            sector_etf = _sector_etf_for_ticker(ticker, sector_etf_cache)
+
             chart_data[ticker] = {
                 'candles': candles,
                 'volumes': volumes,
@@ -111,6 +168,8 @@ def _extract_chart_data(data, results_df, tickers):
                 'tier': row['Tier'],
                 'score': row['Score'],
                 'setup': row['Setup'],
+                'sector_etf': sector_etf,
+                'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
                 # Price vs. breakout trigger — lets the frontend show / sort by
                 # "% to trigger" (how much room is left before the entry fires).
                 'price': round(float(row['Current Price']), 2),

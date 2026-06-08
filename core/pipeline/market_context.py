@@ -159,6 +159,18 @@ def _compute_regime(data: pd.DataFrame,
     }
 
 
+def _has_required_index_trends(regime: dict, index_last_bar_dates: dict[str, str | None]) -> bool:
+    indexes = regime.get('indexes') if isinstance(regime, dict) else None
+    if not isinstance(indexes, dict):
+        return False
+    for symbol, last_bar_date in index_last_bar_dates.items():
+        if last_bar_date is None:
+            return False
+        if symbol not in indexes or not indexes.get(symbol):
+            return False
+    return True
+
+
 def get_market_context(data: pd.DataFrame,
                        ticker_frames: dict[str, pd.DataFrame]) -> dict:
     """
@@ -197,19 +209,22 @@ def get_market_context(data: pd.DataFrame,
                 bp = cached['breadth_pct']
                 bp_val = float(bp) if bp is not None else None
                 regime = cached.get('regime') or {}
-                print(f"Market context loaded from cache (age {age_hours:.2f}h, "
-                      f"TTL {ttl_hours}h): SPY 6m={spy_ret*100:.2f}%, "
-                      f"breadth={'n/a' if bp_val is None else f'{bp_val*100:.1f}%'}, "
-                      f"regime={regime.get('state', 'UNKNOWN')}",
+                if _has_required_index_trends(regime, index_last_bar_dates):
+                    print(f"Market context loaded from cache (age {age_hours:.2f}h, "
+                          f"TTL {ttl_hours}h): SPY 6m={spy_ret*100:.2f}%, "
+                          f"breadth={'n/a' if bp_val is None else f'{bp_val*100:.1f}%'}, "
+                          f"regime={regime.get('state', 'UNKNOWN')}",
+                          flush=True)
+                    return {
+                        'spy_6m_return': spy_ret,
+                        'breadth_pct': bp_val,
+                        'regime': regime,
+                        'spy_last_bar_date': spy_last_bar,
+                        'index_last_bar_dates': index_last_bar_dates,
+                        'computed_at': cached.get('computed_at'),
+                    }
+                print("Market context cache is missing a configured index; recomputing.",
                       flush=True)
-                return {
-                    'spy_6m_return': spy_ret,
-                    'breadth_pct': bp_val,
-                    'regime': regime,
-                    'spy_last_bar_date': spy_last_bar,
-                    'index_last_bar_dates': index_last_bar_dates,
-                    'computed_at': cached.get('computed_at'),
-                }
         except Exception:
             pass
 

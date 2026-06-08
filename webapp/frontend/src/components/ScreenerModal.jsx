@@ -1,13 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { buildPhaseRegions } from './chartPhaseOverlay';
+import ScreenerStockLens from './ScreenerStockLens';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
-
-const formatMoney = (value) =>
-  value != null && value !== '' && Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '-';
-
-const formatPct = (value) =>
-  value != null && value !== '' && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : '-';
 
 const tierColor = (tier) => {
   switch (tier) {
@@ -17,12 +11,6 @@ const tierColor = (tier) => {
     case 'C': return '#3fb950';
     default: return '#8b949e';
   }
-};
-
-const distanceToTriggerPct = (data) => {
-  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
-  if (!data?.trigger || !currentPrice) return null;
-  return ((data.trigger - currentPrice) / currentPrice) * 100;
 };
 
 const buttonStyle = {
@@ -37,84 +25,31 @@ const buttonStyle = {
   padding: '0 11px',
 };
 
-function Metric({ label, value, tone }) {
-  return (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '10px 0' }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>
-        {label}
-      </div>
-      <div style={{ color: tone || 'var(--text-main)', fontSize: 14, fontWeight: 800, marginTop: 4 }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
+function PhaseLegend({ activeRegion, data, onRegionChange }) {
   const regions = useMemo(() => buildPhaseRegions(data), [data]);
   if (regions.length === 0) return null;
 
   return (
-    <div className="phase-bin-panel">
-      <div className="phase-bin-panel-label">Bins</div>
-      <div className="phase-bin-list">
+    <div className="screener-modal-phase-legend" aria-label="Chart phase legend">
+      <span>Structure</span>
+      <div>
         {regions.map(region => (
           <button
             key={region.key}
             type="button"
-            className={`phase-bin-control phase-bin-${region.key}${activeRegion === region.key ? ' is-active' : ''}`}
+            className={`phase-bin-token phase-bin-${region.key}${activeRegion === region.key ? ' is-active' : ''}`}
             onBlur={() => onRegionChange(null)}
             onFocus={() => onRegionChange(region.key)}
             onMouseEnter={() => onRegionChange(region.key)}
             onMouseLeave={() => onRegionChange(null)}
             aria-label={`${region.name} - ${region.detail}`}
+            title={`${region.name}: ${region.detail}`}
           >
-            <span className="phase-bin-token">{region.label}</span>
-            <span className="phase-bin-copy">
-              <span className="phase-bin-name">{region.name}</span>
-              <span className="phase-bin-detail">{region.detail}</span>
-            </span>
+            {region.label}
           </button>
         ))}
       </div>
     </div>
-  );
-}
-
-function SetupInspector({ activeRegion, data, onRegionChange }) {
-  const currentPrice = data.candles?.[data.candles.length - 1]?.close;
-  const triggerDistance = distanceToTriggerPct(data);
-
-  return (
-    <aside style={{
-      background: '#1d202b',
-      borderLeft: '1px solid var(--border-color)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
-      overflowY: 'auto',
-      padding: '14px 16px',
-      width: 260,
-    }} className="screener-modal-inspector">
-      <div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>
-          Setup
-        </div>
-        <div style={{ color: 'var(--text-main)', fontSize: 15, fontWeight: 800, marginTop: 4 }}>
-          {data.setup || '-'}
-        </div>
-      </div>
-      <ScoreBreakdownPills subScores={data.sub_scores} includeFusion style={{ justifyContent: 'flex-start' }} />
-      <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
-      <Metric label="Score" value={data.score ?? '-'} tone={tierColor(data.tier)} />
-      <Metric label="Current Price" value={formatMoney(currentPrice)} />
-      <Metric label="Trigger" value={formatMoney(data.trigger)} tone="#e3b341" />
-      <Metric
-        label="To Trigger"
-        value={formatPct(triggerDistance)}
-        tone={triggerDistance != null && triggerDistance <= 0.5 ? 'var(--warning)' : 'var(--success)'}
-      />
-    </aside>
   );
 }
 
@@ -206,9 +141,12 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
         onClick={event => event.stopPropagation()}
       >
         <ModalToolbar data={data} onClose={onClose} onNext={onNext} onPrev={onPrev} ticker={ticker} />
-        <div className="screener-modal-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-          <div ref={chartContainerRef} className="screener-modal-chart" style={{ flex: 1, minHeight: 0, position: 'relative' }} />
-          <SetupInspector activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
+        <div className="screener-modal-body" style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}>
+          <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+            <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
+            <PhaseLegend activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
+          </div>
+          <ScreenerStockLens activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
         </div>
         {footer}
       </section>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import ScreenerCard from './ScreenerCard';
+import MarketRegimeBanner from './MarketRegimeBanner';
 import ScreenerModal from './ScreenerModal';
 import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
@@ -71,6 +72,10 @@ const ScreenerGrid = () => {
         filters={filters}
         onRunScan={scan.handleRunScan}
       />
+
+      {screenerData && !scan.isScanning && (
+        <MarketRegimeBanner marketContext={screenerData.market_context} />
+      )}
 
       {filters.tierFilter === 'WATCHLIST' && (
         <ScreenerWatchlistPanel
