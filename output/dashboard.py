@@ -122,15 +122,17 @@ def _extract_chart_data(data, results_df, tickers):
                 for d, o, c, v in zip(dates, opens, closes, vols)
             ]
             window_start_bar = len(df) - show_days
-            inner_start = row.get('_inner_start_bar')
-            try:
-                inner_start_local = (
-                    int(float(inner_start)) - window_start_bar
-                    if inner_start is not None and math.isfinite(float(inner_start))
-                    else None
-                )
-            except (TypeError, ValueError):
-                inner_start_local = None
+            def _local_bar(value):
+                try:
+                    return (
+                        int(float(value)) - window_start_bar
+                        if value is not None and math.isfinite(float(value))
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    return None
+
+            inner_start_local = _local_bar(row.get('_inner_start_bar'))
             
             # Sub-scores power the "why ranked" tag chips on the frontend
             # card. Emit the raw point values; the JS helper compares each
@@ -159,6 +161,12 @@ def _extract_chart_data(data, results_df, tickers):
                 'inner_S': row.get('_inner_S'),
                 'inner_box_width': row.get('_inner_box_width'),
                 'inner_start_bar': inner_start_local,
+                'inner_source': row.get('_inner_source'),
+                'inner_search_start_bar': _local_bar(row.get('_inner_search_start_bar')),
+                'inner_climax_bar': _local_bar(row.get('_inner_climax_bar')),
+                'inner_reaction_bar': _local_bar(row.get('_inner_reaction_bar')),
+                'inner_reaction_pct': row.get('_inner_reaction_pct'),
+                'inner_reaction_bars': row.get('_inner_reaction_bars'),
                 'lps_in_inner': bool(row.get('_lps_in_inner', False)),
                 'base_len': int(row['_base_len']),
                 'lps_len': int(row['_lps_len']),
@@ -211,6 +219,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'bin_c_recovery_bars': row.get('_bin_c_recovery_bars'),
                 'bin_c_time_loc': row.get('_bin_c_time_loc'),
                 'bin_c_spring_vol_z': row.get('_bin_c_spring_vol_z'),
+                'bin_d_support_slope_atr': row.get('_bin_d_support_slope_atr'),
+                'bin_d_higher_low_frac': row.get('_bin_d_higher_low_frac'),
+                'bin_d_ascending_support_quality': row.get('_bin_d_ascending_support_quality'),
+                'bin_d_vs_b_support_quality_delta': row.get('_bin_d_vs_b_support_quality_delta'),
                 'bin_d_boundary_source': row.get('_bin_d_boundary_source'),
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.

@@ -27,6 +27,10 @@ sits ABOVE the box that birthed it — ``lps_stretch_atr`` (in ATR) and
 or below the box (no stretch); large positive = a stretched, Last-Supper-risk
 LPS far from its energy source.
 
+Phase-D support behavior: because the right side should often show demand
+getting more aggressive, Bin D also measures its own ascending-support quality
+and compares it with the full-base support quality.
+
 PURE MEASUREMENT. No opinion, no gate, never imports the scoring or archive
 layers. Returns un-prefixed keys; the pipeline maps them to ``_bin_*`` /
 ``_lps_*`` archive fields.
@@ -39,6 +43,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
+from core.structure.metrics import measure_support_slope
 from core.structure.scope import _resolve_phase_d_start
 
 
@@ -66,11 +71,15 @@ def _empty() -> dict:
         "bin_d_bars": None,
         "bin_d_range_pct": None,
         "bin_d_volume_ratio": None,
+        "bin_d_support_slope_atr": None,
+        "bin_d_higher_low_frac": None,
+        "bin_d_ascending_support_quality": None,
         "bin_d_boundary_source": None,
         "bin_lps_bars": None,
         "lps_position_in_box": None,
         "bin_d_vs_b_range_ratio": None,
         "bin_d_vs_b_volume_ratio": None,
+        "bin_d_vs_b_support_quality_delta": None,
         "lps_stretch_atr": None,
         "lps_stretch_box": None,
     }
@@ -393,6 +402,7 @@ def measure_bins(
     out["bin_b_range_pct"] = _range_pct(seg_b)
     if vb is not None and vol_ref:
         out["bin_b_volume_ratio"] = _round(vb / vol_ref)
+    support_b = measure_support_slope(seg_b, atr_val)
     # Interior trajectory of Bin B (the time x price "inside the base" read).
     out.update(_cog_interior(seg_b, R, S))
     out.update(_phase_c_candidate(
@@ -421,12 +431,20 @@ def measure_bins(
         )
         if vd is not None and vol_ref:
             out["bin_d_volume_ratio"] = _round(vd / vol_ref)
+        support_d = measure_support_slope(seg_d, atr_val)
+        out["bin_d_support_slope_atr"] = support_d["slope_atr"]
+        out["bin_d_higher_low_frac"] = support_d["higher_low_frac"]
+        out["bin_d_ascending_support_quality"] = support_d["quality"]
 
     # ── D-vs-B comparisons (is Phase D tighter/quieter than Phase B?) ───────
     if out["bin_d_range_pct"] is not None and out["bin_b_range_pct"]:
         out["bin_d_vs_b_range_ratio"] = _round(out["bin_d_range_pct"] / out["bin_b_range_pct"])
     if vd is not None and vb:
         out["bin_d_vs_b_volume_ratio"] = _round(vd / vb)
+    if out["bin_d_support_slope_atr"] is not None and support_b["slope_atr"] is not None:
+        out["bin_d_vs_b_support_quality_delta"] = _round(
+            out["bin_d_ascending_support_quality"] - support_b["quality"]
+        )
 
     # ── LPS position in the box + Last-Supper stretch ───────────────────────
     if lps_low is not None and active_box_ok:

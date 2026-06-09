@@ -59,6 +59,7 @@ STRUCTURAL_FEATURES = [
     "tightness_ratio", "lps_descent_frac", "r_touch_vol_z", "s_touch_vol_z",
     "dist_52w_high_pct", "excess_return_6m", "rs_vs_sector_pct", "breadth_pct",
     "bars_since_bc", "descent_length",
+    "inner_reaction_pct", "inner_reaction_bars",
     "contraction_count", "contraction_quality", "final_contraction_depth",
     "contraction_vol_trend",
     "base_median_spread_atr", "base_p80_spread_atr",
@@ -75,8 +76,11 @@ STRUCTURAL_FEATURES = [
     "bin_c_present", "bin_c_undercut_atr", "bin_c_recovery_bars",
     "bin_c_time_loc", "bin_c_spring_vol_z",
     "bin_d_bars", "bin_d_range_pct", "bin_d_volume_ratio",
+    "bin_d_support_slope_atr", "bin_d_higher_low_frac",
+    "bin_d_ascending_support_quality",
     "bin_lps_bars", "lps_position_in_box",
     "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
+    "bin_d_vs_b_support_quality_delta",
     "lps_stretch_atr", "lps_stretch_box",
     # Minervini Stage-2 trend template (raw context)
     "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct",
@@ -118,7 +122,8 @@ EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d"
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "lps_descent_frac", "contraction_quality",
                       "base_median_spread_atr", "base_tight_bar_pct",
-                      "bin_d_vs_b_range_ratio"]
+                      "bin_d_vs_b_range_ratio",
+                      "bin_d_ascending_support_quality"]
 
 
 def load_archive(source: Optional[str] = None) -> pd.DataFrame:
@@ -420,6 +425,8 @@ def section_performance(df: pd.DataFrame, valid: bool) -> None:
         _print_segments(df, "phase_d_inner", label="inner_exists(0/1)")
     if "lps_in_inner" in df.columns and df["lps_in_inner"].notna().any():
         _print_segments(df, "lps_in_inner", label="lps_in_inner(0/1)")
+    if "inner_source" in df.columns and df["inner_source"].notna().any():
+        _print_segments(df, "inner_source", label="inner_source")
     if "spy_trend" in df.columns and df["spy_trend"].notna().any():
         _print_segments(df, "spy_trend", label="spy_trend")
 

@@ -161,6 +161,10 @@ rooting to respect **segment ownership**.
     A. Validity unit-tested in `tests/test_core_logic.py`.
 
 **Phase 3 — fold nesting + Last Supper** off the same segment objects.
+Started measure-first: the selected inner box now archives its origin
+(`midpoint` vs `inner_climax`) and, when applicable, the mini-climax -> mini-AR
+reaction depth/duration. This is evidence only; over-extension and staircase
+behavior still wait on calibration.
 
 ## Open knobs (calibrate against the eye, never hard-code blind)
 

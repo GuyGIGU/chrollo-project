@@ -46,7 +46,7 @@ import pandas as pd
 from config import settings
 from core.structure.box_candidates import (
     INNER_MIN_DAYS,
-    _detect_inner_phase_b_start,
+    _detect_inner_root_swing,
     _inner_zigzag,
     _phase_b_zigzag,
     _select_phase_b_candidate,
@@ -343,7 +343,7 @@ def find_consolidation(df, min_days=None, select="earliest"):
 # Parent + Inner: the nested range model (draw both) — see docs/structure_legend.md
 # ---------------------------------------------------------------------------
 
-def _inner_box_at(eval_df, start, n):
+def _inner_box_at(eval_df, start, n, source="midpoint", root=None):
     """Run the inner-stage zigzag from ``start`` and normalize to an inner-box dict.
 
     Returns None when the window is too short or no valid inner box forms. The
@@ -359,12 +359,26 @@ def _inner_box_at(eval_df, start, n):
     if r[0] == 0:
         return None
     eff_base_len, R, S, bw, rt, st = r[0], r[1], r[2], r[3], r[4], r[5]
-    return {
+    box = {
         "R": float(R), "S": float(S), "box_width": float(bw),
         "base_len": int(eff_base_len), "start_bar": int(n - eff_base_len),
         "r_touches": int(rt), "s_touches": int(st),
         "r_anchor_bar": int(r[7]), "s_anchor_bar": int(r[8]),
+        "source": source,
+        "search_start_bar": int(start),
+        "climax_bar": None,
+        "reaction_bar": None,
+        "reaction_pct": None,
+        "reaction_bars": None,
     }
+    if root is not None:
+        box.update({
+            "climax_bar": int(root["bc_bar"]),
+            "reaction_bar": int(root["ar_bar"]),
+            "reaction_pct": float(root["reaction_pct"]),
+            "reaction_bars": int(root["reaction_bars"]),
+        })
+    return box
 
 
 def detect_boxes(df, min_days=None, select="earliest"):
@@ -396,14 +410,26 @@ def detect_boxes(df, min_days=None, select="earliest"):
         return {"parent": parent, "inner": None}
 
     n = len(df)
-    starts = [parent_pbs + int(base_len * _INNER_SEARCH_FRACTION)]
-    det_off = _detect_inner_phase_b_start(eval_df.iloc[parent_pbs:])
-    if det_off is not None:
-        starts.append(parent_pbs + det_off)
+    midpoint_start = parent_pbs + int(base_len * _INNER_SEARCH_FRACTION)
+    starts = {
+        midpoint_start: {"source": "midpoint", "root": None},
+    }
+    root = _detect_inner_root_swing(eval_df.iloc[parent_pbs:])
+    if root is not None:
+        root_abs = {
+            "bc_bar": parent_pbs + int(root["bc_bar"]),
+            "ar_bar": parent_pbs + int(root["ar_bar"]),
+            "reaction_pct": root["reaction_pct"],
+            "reaction_bars": root["reaction_bars"],
+        }
+        starts[root_abs["ar_bar"]] = {"source": "inner_climax", "root": root_abs}
 
     candidates = []
-    for s in starts:
-        box = _inner_box_at(eval_df, s, n)
+    for s, meta in starts.items():
+        box = _inner_box_at(
+            eval_df, s, n,
+            source=meta["source"], root=meta["root"],
+        )
         if box is not None and box["box_width"] < bw_outer * _INNER_TIGHTNESS_RATIO:
             candidates.append(box)
     inner = min(candidates, key=lambda b: b["box_width"]) if candidates else None

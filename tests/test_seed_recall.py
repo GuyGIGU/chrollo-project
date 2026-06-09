@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.archive.seed_recall import match_seeds, summarize_recall
+from core.archive.seed_recall import filter_ignored_seeds, match_seeds, summarize_recall
 
 
 def _row(ticker, scan_date, tier="S", score=80.0):
@@ -49,6 +49,20 @@ def test_duplicate_seeds_collapsed():
     assert len(hits) + len(misses) == 1   # counted once
 
 
+def test_filter_ignored_seeds_excludes_bad_data_with_reason():
+    seeds = [("AAA", "2026-03-13"), ("BBB", "2026-03-14"), ("BBB", "2026-03-14")]
+    active, ignored = filter_ignored_seeds(
+        seeds,
+        {("BBB", "2026-03-14"): "bad vendor history"},
+    )
+    assert active == [("AAA", "2026-03-13")]
+    assert ignored == [{
+        "ticker": "BBB",
+        "trigger_date": "2026-03-14",
+        "reason": "bad vendor history",
+    }]
+
+
 def test_same_ticker_two_distinct_triggers_matched_independently():
     seeds = [("AAA", "2026-01-20"), ("AAA", "2026-03-20")]
     rows = [_row("AAA", "2026-03-18")]   # only the March base was re-detected
@@ -70,6 +84,16 @@ def test_summarize_recall_counts_and_distribution():
     assert s["score_min"] == 70.0 and s["score_max"] == 90.0
 
 
+def test_summarize_recall_reports_ignored_without_penalizing_recall():
+    hits = [{"ticker": "A", "trigger_date": "2026-03-13", "scan_date": "2026-03-10", "tier": "S", "score": 90.0}]
+    misses = [{"ticker": "B", "trigger_date": "2026-03-15"}]
+    ignored = [{"ticker": "C", "trigger_date": "2026-03-16", "reason": "bad vendor history"}]
+    s = summarize_recall(hits, misses, ignored)
+    assert s["total"] == 2 and s["raw_total"] == 3 and s["ignored"] == 1
+    assert abs(s["recall"] - 0.5) < 1e-9
+
+
 def test_summarize_empty():
     s = summarize_recall([], [])
-    assert s["total"] == 0 and s["recall"] == 0.0 and s["score_median"] is None
+    assert s["total"] == 0 and s["raw_total"] == 0
+    assert s["recall"] == 0.0 and s["score_median"] is None

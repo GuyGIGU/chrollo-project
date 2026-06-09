@@ -326,6 +326,20 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_inner_S': float(inner['S']) if inner is not None else None,
             '_inner_box_width': float(inner['box_width']) if inner is not None else None,
             '_inner_start_bar': int(inner['start_bar']) if inner is not None else None,
+            '_inner_source': inner.get('source') if inner is not None else None,
+            '_inner_search_start_bar': int(inner['search_start_bar']) if inner is not None else None,
+            '_inner_climax_bar': (int(inner['climax_bar'])
+                                  if inner is not None and inner.get('climax_bar') is not None
+                                  else None),
+            '_inner_reaction_bar': (int(inner['reaction_bar'])
+                                    if inner is not None and inner.get('reaction_bar') is not None
+                                    else None),
+            '_inner_reaction_pct': (float(inner['reaction_pct'])
+                                    if inner is not None and inner.get('reaction_pct') is not None
+                                    else None),
+            '_inner_reaction_bars': (int(inner['reaction_bars'])
+                                     if inner is not None and inner.get('reaction_bars') is not None
+                                     else None),
             '_dist_52w_high_pct': float(dist_52w_high_pct) if dist_52w_high_pct is not None else None,
             '_excess_return_6m': float(excess_return_6m),
             '_breadth_pct': float(breadth_pct) if breadth_pct is not None else None,
@@ -392,11 +406,15 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_bin_d_bars': bins['bin_d_bars'],
             '_bin_d_range_pct': bins['bin_d_range_pct'],
             '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
+            '_bin_d_support_slope_atr': bins['bin_d_support_slope_atr'],
+            '_bin_d_higher_low_frac': bins['bin_d_higher_low_frac'],
+            '_bin_d_ascending_support_quality': bins['bin_d_ascending_support_quality'],
             '_bin_d_boundary_source': bins['bin_d_boundary_source'],
             '_bin_lps_bars': bins['bin_lps_bars'],
             '_lps_position_in_box': bins['lps_position_in_box'],
             '_bin_d_vs_b_range_ratio': bins['bin_d_vs_b_range_ratio'],
             '_bin_d_vs_b_volume_ratio': bins['bin_d_vs_b_volume_ratio'],
+            '_bin_d_vs_b_support_quality_delta': bins['bin_d_vs_b_support_quality_delta'],
             '_lps_stretch_atr': bins['lps_stretch_atr'],
             '_lps_stretch_box': bins['lps_stretch_box'],
             '_stage2_ma_stack_pass': trend['stage2_ma_stack_pass'],

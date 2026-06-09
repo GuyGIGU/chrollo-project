@@ -68,6 +68,12 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN phase_d_inner INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN lps_in_inner INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN inner_source VARCHAR",
+    "ALTER TABLE setup_archive ADD COLUMN inner_search_start_bar INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN inner_climax_bar INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN inner_reaction_bar INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN inner_reaction_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN inner_reaction_bars INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_end FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_crossings INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN bin_b_cog_rng FLOAT",
@@ -82,6 +88,10 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN regime_qqq_above_50 INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN regime_qqq_above_200 INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN regime_qqq_50d_slope_pct FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_d_support_slope_atr FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_d_higher_low_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_d_ascending_support_quality FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bin_d_vs_b_support_quality_delta FLOAT",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

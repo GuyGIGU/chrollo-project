@@ -296,22 +296,12 @@ def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
     return _rebase_selected_candidate(selected, base_length)
 
 
-def _detect_inner_phase_b_start(eq_df):
-    """Locate the inner Phase B start from a detected inner climax.
+def _detect_inner_root_swing(eq_df):
+    """Measure the inner climax -> reaction swing inside an outer base.
 
-    The inner instance of the outer BC->AR anchoring, one scale down and
-    direction-agnostic (an inner base can sit inside a flat outer box, so there
-    is no 'dominant trend' to lean on). Within the outer-base window ``eq_df`` it
-    scans zigzag peak->valley limbs from the most RECENT end backward and returns
-    the first that is a genuine reaction: a drop >= AR_MIN_DROP_PCT (the same
-    'what counts as a reaction' threshold the outer climax uses) whose reaction
-    low still leaves >= INNER_MIN_DAYS bars for an inner base to form. That low is
-    the inner AR — the root swing the inner R/S is born from.
-
-    Returns the inner AR-low bar as a 0-based OFFSET into ``eq_df``, or None when
-    no clean inner climax exists (the caller falls back to its own heuristic).
-    Pure measurement — reads price only, reuses existing tunables, decides nothing
-    about scoring or eligibility.
+    Bars are offsets into ``eq_df``. This is the richer measurement behind
+    ``_detect_inner_phase_b_start``; it reports the inner climax, the reaction
+    low that can birth an inner range, and the reaction magnitude.
     """
     n = len(eq_df)
     if n < INNER_MIN_DAYS + 2:
@@ -336,7 +326,34 @@ def _detect_inner_phase_b_start(eq_df):
             continue
         if (peak_p - val_p) / peak_p < settings.AR_MIN_DROP_PCT:
             continue
-        ar_bar = int(zj[0])                     # offset into eq_df of the inner AR
+        ar_bar = int(zj[0])
         if (n - ar_bar) >= INNER_MIN_DAYS:
-            return ar_bar
+            bc_bar = int(zi[0])
+            return {
+                "bc_bar": bc_bar,
+                "ar_bar": ar_bar,
+                "reaction_pct": round(float((peak_p - val_p) / peak_p), 4),
+                "reaction_bars": int(ar_bar - bc_bar),
+            }
     return None
+
+
+def _detect_inner_phase_b_start(eq_df):
+    """Locate the inner Phase B start from a detected inner climax.
+
+    The inner instance of the outer BC->AR anchoring, one scale down and
+    direction-agnostic (an inner base can sit inside a flat outer box, so there
+    is no 'dominant trend' to lean on). Within the outer-base window ``eq_df`` it
+    scans zigzag peak->valley limbs from the most RECENT end backward and returns
+    the first that is a genuine reaction: a drop >= AR_MIN_DROP_PCT (the same
+    'what counts as a reaction' threshold the outer climax uses) whose reaction
+    low still leaves >= INNER_MIN_DAYS bars for an inner base to form. That low is
+    the inner AR — the root swing the inner R/S is born from.
+
+    Returns the inner AR-low bar as a 0-based OFFSET into ``eq_df``, or None when
+    no clean inner climax exists (the caller falls back to its own heuristic).
+    Pure measurement — reads price only, reuses existing tunables, decides nothing
+    about scoring or eligibility.
+    """
+    root = _detect_inner_root_swing(eq_df)
+    return root["ar_bar"] if root is not None else None

@@ -391,6 +391,10 @@ Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/mi
 - `_bin_lps_bars`, `_lps_position_in_box` ((lps_low − S)/(R − S): 0 = floor, 1 = ceiling);
 - `_bin_d_vs_b_range_ratio` / `_bin_d_vs_b_volume_ratio` — is Phase D
   tighter / quieter than the base it sits in? (the VCP "coil into launch" read);
+- `_bin_d_support_slope_atr`, `_bin_d_higher_low_frac`,
+  `_bin_d_ascending_support_quality`, and
+  `_bin_d_vs_b_support_quality_delta` — is the right side stair-stepping higher
+  more clearly than the base as a whole?
 - `_bin_d_boundary_source` — `inner_box` (a real detected mini-consolidation) or
   `heuristic` (the final-third fallback), so archive analysis can trust the
   clean ones and discount the fuzzy ones.
@@ -413,6 +417,22 @@ The over-extension axis from the structure legend: how far the LPS foot sits
 value flags a stretched, Last-Supper-risk LPS far from its energy source. Raw
 archived measure first — validated against the durable-win vs cash-grab outcome
 before it is ever allowed to influence ranking.
+
+### Inner-origin measurements
+
+The selected inner Phase-D range also records how it was born:
+
+- `_inner_source` = `midpoint` or `inner_climax`, describing which best-of-both
+  search origin produced the selected inner box;
+- `_inner_search_start_bar` = the df bar where that winning inner search began;
+- `_inner_climax_bar` / `_inner_reaction_bar` = the detected mini-BC -> mini-AR
+  swing when `_inner_source = inner_climax`;
+- `_inner_reaction_pct` / `_inner_reaction_bars` = depth and duration of that
+  reaction.
+
+These are descriptive archive fields only. They let the calibration report learn
+whether inner boxes born from a real mini-climax behave differently from midpoint
+heuristic boxes before any later scoring or anchoring change is considered.
 
 ### Minervini Stage-2 trend template
 

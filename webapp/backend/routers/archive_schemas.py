@@ -75,6 +75,12 @@ class SetupOut(BaseModel):
     # Phase A structural detail
     phase_d_inner: Optional[int] = None
     lps_in_inner: Optional[int] = None
+    inner_source: Optional[str] = None
+    inner_search_start_bar: Optional[int] = None
+    inner_climax_bar: Optional[int] = None
+    inner_reaction_bar: Optional[int] = None
+    inner_reaction_pct: Optional[float] = None
+    inner_reaction_bars: Optional[int] = None
     # Volume-around-touches signature
     r_touch_vol_z: Optional[float] = None
     s_touch_vol_z: Optional[float] = None
@@ -114,6 +120,10 @@ class SetupOut(BaseModel):
     bin_b_cog_crossings: Optional[int] = None
     bin_b_cog_rng: Optional[float] = None
     bin_b_cog_corr: Optional[float] = None
+    bin_d_support_slope_atr: Optional[float] = None
+    bin_d_higher_low_frac: Optional[float] = None
+    bin_d_ascending_support_quality: Optional[float] = None
+    bin_d_vs_b_support_quality_delta: Optional[float] = None
     # ADR% absolute-volatility character
     adr_pct: Optional[float] = None
     score_adr: Optional[float] = None

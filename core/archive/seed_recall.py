@@ -28,11 +28,21 @@ import sqlite3
 import sys
 from collections import defaultdict
 from datetime import date, timedelta
-from typing import Optional
+from typing import Mapping, Optional
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 _DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
 _BASELINE_PATH = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_baseline.json")
+
+SeedKey = tuple[str, str]
+
+# Known seed setups where yfinance's adjusted fund history has drifted enough
+# that the historical chart no longer represents the operator-labeled setup.
+# Keep them visible in reports, but exclude them from recall math.
+SEED_RECALL_IGNORES: dict[SeedKey, str] = {
+    ("USO", "2026-02-26"): "yfinance adjusted-history drift on fund data",
+    ("BRZU", "2026-03-31"): "yfinance adjusted-history drift on leveraged-fund data",
+}
 
 
 # ------------------------------------------------------------------
@@ -49,6 +59,27 @@ def _dedup(seed_setups: list[tuple[str, str]]) -> list[tuple[str, str]]:
         seen.add((ticker, day))
         out.append((ticker, day))
     return out
+
+
+def filter_ignored_seeds(
+    seed_setups: list[tuple[str, str]],
+    ignored_seeds: Optional[Mapping[SeedKey, str]] = None,
+) -> tuple[list[tuple[str, str]], list[dict]]:
+    """Split seed setups into active seeds and explicitly ignored bad-data seeds."""
+    ignored_lookup = SEED_RECALL_IGNORES if ignored_seeds is None else ignored_seeds
+    active: list[tuple[str, str]] = []
+    ignored: list[dict] = []
+    for ticker, trigger in _dedup(seed_setups):
+        reason = ignored_lookup.get((ticker, trigger))
+        if reason:
+            ignored.append({
+                "ticker": ticker,
+                "trigger_date": trigger,
+                "reason": reason,
+            })
+        else:
+            active.append((ticker, trigger))
+    return active, ignored
 
 
 def match_seeds(
@@ -104,9 +135,11 @@ def match_seeds(
     return hits, misses
 
 
-def summarize_recall(hits: list[dict], misses: list[dict]) -> dict:
+def summarize_recall(hits: list[dict], misses: list[dict], ignored: Optional[list[dict]] = None) -> dict:
     """Aggregate hits/misses into the recall scorecard."""
+    ignored = ignored or []
     total = len(hits) + len(misses)
+    raw_total = total + len(ignored)
     tier_dist: dict[str, int] = defaultdict(int)
     scores: list[float] = []
     for hit in hits:
@@ -116,8 +149,10 @@ def summarize_recall(hits: list[dict], misses: list[dict]) -> dict:
     scores.sort()
     return {
         "total": total,
+        "raw_total": raw_total,
         "fired": len(hits),
         "missed": len(misses),
+        "ignored": len(ignored),
         "recall": (len(hits) / total) if total else 0.0,
         "tier_dist": dict(tier_dist),
         "score_min": scores[0] if scores else None,
@@ -190,10 +225,10 @@ def load_seed_rows(db_path: str = _DB_PATH) -> list[dict]:
         con.close()
 
 
-def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict]]:
+def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict], list[dict]]:
     """Compute the current recall scorecard from the archive.
 
-    Returns ``(summary, hits, misses)``. Raises if the seed archive is empty —
+    Returns ``(summary, hits, misses, ignored)``. Raises if the seed archive is empty —
     a recall measurement is meaningless without seed rows to match against.
     """
     if _PROJECT_ROOT not in sys.path:
@@ -206,18 +241,25 @@ def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict]]:
             "No source='seed' rows in the archive yet — run "
             "`python -m core.archive.seed` first to populate the seed archive."
         )
-    hits, misses = match_seeds(SEED_SETUPS, seed_rows, WINDOW_BACK, WINDOW_FWD)
-    return summarize_recall(hits, misses), hits, misses
+    active_seeds, ignored = filter_ignored_seeds(SEED_SETUPS)
+    hits, misses = match_seeds(active_seeds, seed_rows, WINDOW_BACK, WINDOW_FWD)
+    return summarize_recall(hits, misses, ignored), hits, misses, ignored
 
 
 def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> dict:
     """Snapshot the current recall + miss-set to a baseline JSON for the guard."""
-    s, _hits, misses = _recall_now(db_path)
+    s, _hits, misses, ignored = _recall_now(db_path)
     baseline = {
         "recall": s["recall"],
         "fired": s["fired"],
         "missed": s["missed"],
         "total": s["total"],
+        "raw_total": s["raw_total"],
+        "ignored": s["ignored"],
+        "ignored_seeds": sorted(
+            ignored,
+            key=lambda m: (m["trigger_date"], m["ticker"]),
+        ),
         "misses": sorted(
             ({"ticker": m["ticker"], "trigger_date": m["trigger_date"]} for m in misses),
             key=lambda m: (m["trigger_date"], m["ticker"]),
@@ -227,7 +269,10 @@ def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PAT
     with open(baseline_path, "w", encoding="utf-8") as f:
         json.dump(baseline, f, indent=2)
     print(f"Captured recall baseline -> {baseline_path}")
-    print(f"  recall {s['recall'] * 100:.1f}%  ({s['fired']}/{s['total']} fired, {s['missed']} missed)")
+    print(
+        f"  recall {s['recall'] * 100:.1f}%  "
+        f"({s['fired']}/{s['total']} active fired, {s['missed']} missed, {s['ignored']} ignored)"
+    )
     return baseline
 
 
@@ -239,7 +284,7 @@ def check_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH)
     with open(baseline_path, "r", encoding="utf-8") as f:
         baseline = json.load(f)
 
-    s, _hits, misses = _recall_now(db_path)
+    s, _hits, misses, _ignored = _recall_now(db_path)
     ok, lines = diff_against_baseline(s, misses, baseline)
 
     print("=" * 64)
@@ -260,7 +305,7 @@ def run(db_path: str = _DB_PATH) -> None:
     print(f"DB: {db_path}")
 
     try:
-        s, hits, misses = _recall_now(db_path)
+        s, hits, misses, ignored = _recall_now(db_path)
     except RuntimeError as e:
         print()
         print(str(e))
@@ -269,7 +314,9 @@ def run(db_path: str = _DB_PATH) -> None:
     from core.archive.seed import WINDOW_BACK, WINDOW_FWD
 
     print()
-    print(f"Seeds (unique):   {s['total']}")
+    print(f"Seeds (unique):   {s['raw_total']}")
+    print(f"Measured seeds:   {s['total']}")
+    print(f"Ignored:          {s['ignored']}")
     print(f"Re-detected:      {s['fired']}")
     print(f"Missed:           {s['missed']}")
     print(f"RECALL:           {s['recall'] * 100:.1f}%")
@@ -292,6 +339,12 @@ def run(db_path: str = _DB_PATH) -> None:
             print(f"  {m['ticker']:<6} {m['trigger_date']}")
     else:
         print("  (none — perfect recall on the seed set)")
+
+    if ignored:
+        print()
+        print(f"IGNORED ({len(ignored)}) — excluded from recall math because source data is unreliable:")
+        for m in sorted(ignored, key=lambda x: x["trigger_date"]):
+            print(f"  {m['ticker']:<6} {m['trigger_date']}  {m['reason']}")
 
     print()
     print("Note: a MISS means no seed row was archived in-window. With a seeded")

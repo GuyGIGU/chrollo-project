@@ -350,6 +350,21 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "inner_S": float(inner["S"]) if inner is not None else None,
             "inner_box_width": float(inner["box_width"]) if inner is not None else None,
             "inner_start_bar": phase_d_start_bar,
+            "inner_source": inner.get("source") if inner is not None else None,
+            "inner_search_start_bar": (int(inner["search_start_bar"])
+                                       if inner is not None else None),
+            "inner_climax_bar": (int(inner["climax_bar"])
+                                 if inner is not None and inner.get("climax_bar") is not None
+                                 else None),
+            "inner_reaction_bar": (int(inner["reaction_bar"])
+                                   if inner is not None and inner.get("reaction_bar") is not None
+                                   else None),
+            "inner_reaction_pct": (float(inner["reaction_pct"])
+                                   if inner is not None and inner.get("reaction_pct") is not None
+                                   else None),
+            "inner_reaction_bars": (int(inner["reaction_bars"])
+                                    if inner is not None and inner.get("reaction_bars") is not None
+                                    else None),
             "contraction_count": int(contraction["n_contractions"]),
             "contraction_quality": float(contraction["quality"]),
             "final_contraction_depth": (float(contraction["final_depth"])
@@ -639,11 +654,15 @@ def seed_archive(
             bin_d_bars=best_result.get("bin_d_bars"),
             bin_d_range_pct=best_result.get("bin_d_range_pct"),
             bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),
+            bin_d_support_slope_atr=best_result.get("bin_d_support_slope_atr"),
+            bin_d_higher_low_frac=best_result.get("bin_d_higher_low_frac"),
+            bin_d_ascending_support_quality=best_result.get("bin_d_ascending_support_quality"),
             bin_d_boundary_source=best_result.get("bin_d_boundary_source"),
             bin_lps_bars=best_result.get("bin_lps_bars"),
             lps_position_in_box=best_result.get("lps_position_in_box"),
             bin_d_vs_b_range_ratio=best_result.get("bin_d_vs_b_range_ratio"),
             bin_d_vs_b_volume_ratio=best_result.get("bin_d_vs_b_volume_ratio"),
+            bin_d_vs_b_support_quality_delta=best_result.get("bin_d_vs_b_support_quality_delta"),
             lps_stretch_atr=best_result.get("lps_stretch_atr"),
             lps_stretch_box=best_result.get("lps_stretch_box"),
             # Minervini Stage-2 trend-template context (raw, no scoring)
@@ -669,6 +688,12 @@ def seed_archive(
                            if best_result.get("phase_d_inner") is not None else None),
             lps_in_inner=(int(bool(best_result.get("lps_in_inner")))
                           if best_result.get("lps_in_inner") is not None else None),
+            inner_source=best_result.get("inner_source"),
+            inner_search_start_bar=best_result.get("inner_search_start_bar"),
+            inner_climax_bar=best_result.get("inner_climax_bar"),
+            inner_reaction_bar=best_result.get("inner_reaction_bar"),
+            inner_reaction_pct=best_result.get("inner_reaction_pct"),
+            inner_reaction_bars=best_result.get("inner_reaction_bars"),
             # Labels
             source="seed",
             quality_label="perfect",

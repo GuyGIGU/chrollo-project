@@ -260,7 +260,9 @@ absence, raw measure archived, tiers untouched).
 5. **Regions are now measured (Stage 2A).** `measure_bins` records each region's
    (A / B / D / LPS) size, range, and volume as raw archived fields — the
    "where am I in the base?" layer — alongside the Minervini Stage-2 trend
-   template. The Phase-D boundary is single-sourced with the scoping overlay
+   template. Phase D also carries right-side support behavior:
+   `_bin_d_ascending_support_quality` and its D-vs-B support-quality delta. The
+   Phase-D boundary is single-sourced with the scoping overlay
    (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
    scores. See strategy_v2.md, "Region (Bin) Features & Trend Template".
 
@@ -332,6 +334,10 @@ Distilled from the engine-strength review. All enrichment — none add a gate:
   and archives it raw; it is **not** folded into `quality`, so ranking is
   byte-unchanged (shadow-guard verified, 197 tickers). *Remaining:* surface it on
   the 🌀 VCP Coil chip — the one UX choice.
+- **Inner-origin facts** - *measured + archived* - the selected inner range now
+  records whether it came from the midpoint heuristic or a real inner
+  mini-climax -> mini-AR reaction, plus the reaction depth and duration. This is
+  evidence only; it does not change which stocks fire.
 - **% past the pivot** — the raw-% over-extension form (Last Supper component a);
   measured from the inner-climax-anchored birthing range.
 - **SOS→LPS staircase** — the Phase-D maturity read; **scored as a bonus, never
@@ -341,7 +347,9 @@ Distilled from the engine-strength review. All enrichment — none add a gate:
   Its own lane.
 
 Structural prerequisite for the middle two is the **Inner-Climax** unification
-(engine implication #1). Sequence: inner-climax mechanism → over-extension +
-staircase; volume-trend anytime; base-count in parallel. The binding limit on
+(engine implication #1). First slice is shipped as selected-inner-origin
+measurement; the behavior flip remains future work. Sequence: inner-climax
+mechanism → over-extension + staircase; volume-trend anytime; base-count in
+parallel. The binding limit on
 *detection* remains the LPS detector (the v5 anchor-preference experiment was
 falsified) — left ringfenced under quality-over-recall.

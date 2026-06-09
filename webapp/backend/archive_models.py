@@ -107,6 +107,12 @@ class SetupArchive(Base):
     descent_length = Column(Integer, nullable=True)   # Bars from BC to AR low (or SC to bounce high)
     phase_d_inner = Column(Integer, nullable=True)    # 1 if a nested (inner) Phase D range exists, else 0
     lps_in_inner = Column(Integer, nullable=True)     # 1 if the scored LPS is rooted in that inner range, else 0
+    inner_source = Column(String, nullable=True)       # midpoint | inner_climax: which inner-search origin won
+    inner_search_start_bar = Column(Integer, nullable=True)  # df bar where the selected inner search began
+    inner_climax_bar = Column(Integer, nullable=True)  # df bar of selected inner climax, when source=inner_climax
+    inner_reaction_bar = Column(Integer, nullable=True)  # df bar of selected inner reaction low / mini-AR
+    inner_reaction_pct = Column(Float, nullable=True)  # selected inner reaction depth from climax high to AR low
+    inner_reaction_bars = Column(Integer, nullable=True)  # bars from selected inner climax to reaction low
 
     # ── Volume-around-touches signature (Wyckoff no-supply / spring test) ──
     r_touch_vol_z = Column(Float, nullable=True)      # z-score of avg volume at R-touches vs base volume distribution. Negative = no supply, positive = distribution warning.
@@ -182,11 +188,15 @@ class SetupArchive(Base):
     bin_d_bars = Column(Integer, nullable=True)            # Phase D length in bars
     bin_d_range_pct = Column(Float, nullable=True)         # Phase D price range fraction
     bin_d_volume_ratio = Column(Float, nullable=True)      # Phase D mean volume / trailing-50 mean
+    bin_d_support_slope_atr = Column(Float, nullable=True) # Phase D swing-low slope, ATR-normalized
+    bin_d_higher_low_frac = Column(Float, nullable=True)   # Phase D consecutive valley pairs that step up
+    bin_d_ascending_support_quality = Column(Float, nullable=True) # Phase D rising-support quality
     bin_d_boundary_source = Column(String, nullable=True)  # inner_box | support_tests | heuristic
     bin_lps_bars = Column(Integer, nullable=True)          # LPS window length in bars
     lps_position_in_box = Column(Float, nullable=True)     # (lps_low - S)/(R - S): 0=floor, 1=ceiling
     bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter Phase D)
     bin_d_vs_b_volume_ratio = Column(Float, nullable=True) # Bin D vol / Bin B vol (<1 = quieter Phase D)
+    bin_d_vs_b_support_quality_delta = Column(Float, nullable=True) # Phase D support quality - full-base support quality
     lps_stretch_atr = Column(Float, nullable=True)         # (lps_low - R)/ATR: how far the LPS sits above the box ceiling
     lps_stretch_box = Column(Float, nullable=True)         # (lps_low - R)/(R - S): same, in box-heights (Last-Supper risk)
 

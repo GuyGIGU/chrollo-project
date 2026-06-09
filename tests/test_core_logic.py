@@ -33,7 +33,11 @@ from core.structure.metrics import (
     measure_contractions,
     measure_equilibrium,
 )
-from core.structure.box_candidates import _detect_inner_phase_b_start, _validate_base_quality
+from core.structure.box_candidates import (
+    _detect_inner_phase_b_start,
+    _detect_inner_root_swing,
+    _validate_base_quality,
+)
 from core.structure.lps import detect_lps, detect_lps_tests
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
@@ -300,6 +304,24 @@ def test_detect_inner_phase_b_start_finds_recent_climax():
     # Lands after the peak, leaves >= INNER_MIN_DAYS room, and is a real reaction.
     assert 11 < off <= len(frame) - 15
     assert frame['Low'].iloc[off] <= 0.95 * frame['High'].iloc[:off].max()
+
+
+def test_detect_inner_root_swing_reports_reaction_measurements():
+    levels = (
+        [90, 93, 96, 99, 102, 105, 108, 111, 114, 116, 117, 118]
+        + [112, 108, 104, 100, 98]
+        + [100, 99, 101, 100, 102, 99, 100, 101, 99, 100, 102,
+           100, 99, 101, 100, 99, 100, 101, 99, 100, 101]
+    )
+    frame = _contraction_frame(levels, [1000] * len(levels))
+
+    root = _detect_inner_root_swing(frame)
+
+    assert root is not None
+    assert root["bc_bar"] < root["ar_bar"]
+    assert root["ar_bar"] == _detect_inner_phase_b_start(frame)
+    assert root["reaction_bars"] == root["ar_bar"] - root["bc_bar"]
+    assert root["reaction_pct"] >= settings.AR_MIN_DROP_PCT
 
 
 def test_detect_inner_phase_b_start_none_when_no_reaction():
@@ -921,6 +943,50 @@ def test_measure_bins_support_test_cluster_can_anchor_phase_d():
     )
     assert bins["bin_d_boundary_source"] == "support_tests"
     assert bins["bin_d_bars"] == 28
+
+
+def test_measure_bins_phase_d_reports_right_side_ascending_support():
+    # Earlier base action sags, then Phase D starts stair-stepping higher.
+    lead = _ramp_frame([104, 108, 103, 107, 102, 106, 101, 105, 100, 104])
+    lead["Volume"] = 1000.0
+    # Phase D stair-steps: each reaction low is higher than the prior one.
+    d = _ramp_frame([100, 104, 101, 105, 102, 106, 103, 107, 104, 108])
+    d["Volume"] = 1000.0
+    df = pd.concat([lead, d], ignore_index=True)
+    d_start = len(lead)
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=len(df),
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=108.0, S=100.0, atr_val=1.0, support_test_start_bar=d_start,
+    )
+
+    assert bins["bin_d_boundary_source"] == "support_tests"
+    assert bins["bin_d_ascending_support_quality"] > 0
+    assert bins["bin_d_higher_low_frac"] == 1.0
+    assert bins["bin_d_vs_b_support_quality_delta"] > 0
+
+
+def test_measure_bins_phase_d_support_delta_blank_when_unmeasured():
+    # The support-test boundary creates a Phase D slice that is too short to fit
+    # swing lows. Its standalone quality is neutral, but the D-vs-B comparison
+    # should stay blank instead of pretending "no measurement" is weaker support.
+    lead = _ramp_frame([104, 108, 103, 107, 102, 106, 101, 105, 100, 104])
+    lead["Volume"] = 1000.0
+    d = _ramp_frame([104, 105])
+    d["Volume"] = 1000.0
+    df = pd.concat([lead, d], ignore_index=True)
+    d_start = len(lead)
+
+    bins = measure_bins(
+        df, bc_anchor_bar=0, phase_b_start_bar=1, base_len=len(df),
+        is_inner_box=False, lps_offset=0, lps_length=2,
+        R=108.0, S=100.0, atr_val=1.0, support_test_start_bar=d_start,
+    )
+
+    assert bins["bin_d_support_slope_atr"] is None
+    assert bins["bin_d_ascending_support_quality"] == 0.0
+    assert bins["bin_d_vs_b_support_quality_delta"] is None
 
 
 def test_measure_bins_phase_c_spring_requires_recovery():
