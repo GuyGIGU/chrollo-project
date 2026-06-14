@@ -2,8 +2,8 @@ import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 
-const fx = (value, digits = 1) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : Number(value).toFixed(digits)
+const scoreLabel = (value) => (
+  value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
 );
 
 const money = (value) => (
@@ -38,6 +38,18 @@ const bars = (value) => {
 };
 
 const latestCandle = (data) => data?.candles?.[data.candles.length - 1] || null;
+
+const latestLpsRegion = (regions) => (
+  regions
+    .filter((region) => region.key === 'lps')
+    .sort((a, b) => b.endIndex - a.endIndex || b.startIndex - a.startIndex)[0] || null
+);
+
+const structurePanelRegions = (regions) => {
+  const latestLps = latestLpsRegion(regions);
+  const nonLps = regions.filter((region) => region.key !== 'lps');
+  return latestLps ? [...nonLps, { ...latestLps, activeTarget: 'lps' }] : nonLps;
+};
 
 const distanceToTriggerPct = (data) => {
   const currentPrice = finiteNumber(data?.price ?? latestCandle(data)?.close);
@@ -85,7 +97,7 @@ function SnapshotMetric({ label, title, tone, value }) {
 }
 
 function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
-  const regions = buildPhaseRegions(data);
+  const regions = structurePanelRegions(buildPhaseRegions(data));
   if (regions.length === 0) return null;
 
   return (
@@ -94,25 +106,33 @@ function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
         <span>Technical Structure Analysis</span>
       </div>
       <div className="stock-lens-phase-list">
-        {regions.map(region => (
-          <button
-            key={region.key}
-            type="button"
-            className={`phase-bin-control phase-bin-${region.key}${activeRegion === region.key ? ' is-active' : ''}`}
-            onBlur={() => onRegionChange(null)}
-            onFocus={() => onRegionChange(region.key)}
-            onMouseEnter={() => onRegionChange(region.key)}
-            onMouseLeave={() => onRegionChange(null)}
-            aria-label={`${region.name} - ${region.detail}`}
-            title={`${region.name}: ${region.detail}`}
-          >
-            <span className="phase-bin-token">{region.label}</span>
-            <span className="phase-bin-copy">
-              <span className="phase-bin-name">{region.name}</span>
-              <span className="phase-bin-detail">{region.detail}</span>
-            </span>
-          </button>
-        ))}
+        {regions.map(region => {
+          const activeTarget = region.activeTarget || region.id;
+          const isActive = activeRegion === activeTarget || activeRegion === region.id;
+          const tokenStyle = region.color ? {
+            borderColor: `${region.color}aa`,
+            color: region.color,
+          } : undefined;
+          return (
+            <button
+              key={region.id}
+              type="button"
+              className={`phase-bin-control phase-bin-${region.key}${isActive ? ' is-active' : ''}`}
+              onBlur={() => onRegionChange(null)}
+              onFocus={() => onRegionChange(activeTarget)}
+              onMouseEnter={() => onRegionChange(activeTarget)}
+              onMouseLeave={() => onRegionChange(null)}
+              aria-label={`${region.name} - ${region.detail}`}
+              title={`${region.name}: ${region.detail}`}
+            >
+              <span className="phase-bin-token" style={tokenStyle}>{region.label}</span>
+              <span className="phase-bin-copy">
+                <span className="phase-bin-name">{region.name}</span>
+                <span className="phase-bin-detail">{region.detail}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -183,7 +203,7 @@ function ContextPanel({ data }) {
           label="Score"
           title="Total setup score from the screener."
           tone={tierColor(data.tier)}
-          value={fx(data.score, 1)}
+          value={scoreLabel(data.score)}
         />
         <SnapshotMetric
           label="ADR"
@@ -236,7 +256,7 @@ function TagsPanel({ data }) {
         maxTags={null}
         style={{ padding: 0 }}
       />
-      <ScoreBreakdownPills subScores={data.sub_scores} includeFusion style={{ marginTop: 10 }} />
+      <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
     </section>
   );
 }

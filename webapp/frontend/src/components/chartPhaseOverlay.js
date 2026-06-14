@@ -8,7 +8,7 @@ const TOKEN_FALLBACKS = {
 };
 
 const REGION_DEFS = {
-  a: { label: 'A', name: 'Phase A', detail: 'Root climax / AR', token: '--text-faint' },
+  a: { label: 'A', name: 'Phase A', detail: 'Root swing · sets R/S', token: '--text-faint' },
   b: { label: 'B', name: 'Phase B', detail: 'Equilibrium body', token: '--accent-purple' },
   c: { label: 'C', name: 'Phase C', detail: 'Spring / shakeout', token: '--accent-pink' },
   d: { label: 'D', name: 'Phase D', detail: 'Right-side range', token: '--accent-blue' },
@@ -16,6 +16,8 @@ const REGION_DEFS = {
 };
 
 const PHASE_A_MAX_BARS = 16;
+const LPS_OLDEST_COLOR = '#8A6A22';
+const LPS_LATEST_COLOR = '#F6D86B';
 
 const dateKey = (value) => (typeof value === 'string' ? value.slice(0, 10) : null);
 
@@ -68,8 +70,12 @@ const phaseDDetail = (data) => {
   switch (data?.bin_d_boundary_source) {
     case 'inner_box':
       return 'Inner range';
+    case 'spring':
+      return 'Spring recovery';
     case 'support_tests':
       return 'Support-test cluster';
+    case 'v_tip':
+      return 'Final V tip';
     default:
       return 'Right-side range';
   }
@@ -77,7 +83,6 @@ const phaseDDetail = (data) => {
 
 const phaseCDetail = (data) => {
   if (data?.bin_c_type === 'SPRING') return 'Undercut + recover';
-  if (data?.bin_c_type === 'HELD_TEST') return 'Held support test';
   return 'Spring / shakeout';
 };
 
@@ -117,8 +122,8 @@ const priceRangeForRegion = (data, candles, region) => {
 
 const phaseIndexes = (data, candles) => ({
   phaseAStart: indexOnOrAfter(candles, data?._phase_a_start_date),
+  phaseAEnd: indexOnOrAfter(candles, data?._phase_a_end_date),
   phaseBStart: indexOnOrAfter(candles, data?._phase_b_start_date),
-  phaseCEvent: indexOnOrAfter(candles, data?._phase_c_event_date),
   phaseDStart: indexOnOrAfter(candles, data?._phase_d_start_date),
   lpsZoneEnd: indexOnOrAfter(candles, data?._lps_zone_end_date),
   lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
@@ -132,25 +137,35 @@ const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
   if (end < start) return null;
 
   const def = REGION_DEFS[key];
+  const id = extra.id || key;
   return {
     ...def,
     ...extra,
     endIndex: end,
+    id,
     key,
     startIndex: start,
   };
 };
 
-const addLpsRegion = (regions, candles, seen, startDate, endDate, lowValue, highValue, extra = {}) => {
+// LPS regions dedupe by TIME OVERLAP, not exact bounds. The live screener's
+// "active" LPS zone is almost always the most-recent support test re-emitted
+// with very slightly different rounded prices, so an exact-key check let the
+// same physical zone draw twice ("LPS shows twice on one zone"). Any LPS whose
+// bar-span intersects one already added is the same zone — skip it.
+const addLpsRegion = (regions, candles, spans, startDate, endDate, lowValue, highValue, extra = {}) => {
   const startIndex = indexOnOrAfter(candles, startDate);
   const endIndex = indexOnOrAfter(candles, endDate);
   const low = finiteNumber(lowValue);
   const high = finiteNumber(highValue);
   if (startIndex == null || endIndex == null || low == null || high == null) return;
 
-  const key = `${startIndex}:${endIndex}:${low}:${high}`;
-  if (seen.has(key)) return;
-  seen.add(key);
+  const lo = Math.min(startIndex, endIndex);
+  const hi = Math.max(startIndex, endIndex);
+  for (const [spanLo, spanHi] of spans) {
+    if (lo <= spanHi && hi >= spanLo) return;
+  }
+  spans.push([lo, hi]);
 
   const region = buildRegion('lps', candles, startIndex, endIndex, {
     high,
@@ -168,8 +183,26 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  if (indexes.phaseAStart != null && indexes.phaseBStart != null) {
-    const phaseAEnd = Math.min(indexes.phaseBStart - 1, indexes.phaseAStart + PHASE_A_MAX_BARS - 1);
+  // Phase A — the range's own root-swing pair: the bars that establish R and S
+  // (r_anchor / s_anchor — the boundary-responsible bars the screener already
+  // identifies and colors on the card). This fuses the vertical bin layer with
+  // the box's boundary detection: Phase A IS the swing that worked the rails.
+  // Falls back to the backend climax→reaction dates only if the anchors are
+  // missing.
+  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
+  const rAnchor = finiteNumber(data?.r_anchor);
+  const sAnchor = finiteNumber(data?.s_anchor);
+  if (rAnchor != null && sAnchor != null && baseLen > 0) {
+    const baseStart = baseEnd - baseLen + 1;
+    const rBar = baseStart + rAnchor;
+    const sBar = baseStart + sAnchor;
+    const region = buildRegion('a', candles, Math.min(rBar, sBar), Math.max(rBar, sBar));
+    if (region) regions.push(region);
+  } else if (indexes.phaseAStart != null) {
+    const fallbackEnd = indexes.phaseBStart != null
+      ? Math.min(indexes.phaseBStart - 1, indexes.phaseAStart + PHASE_A_MAX_BARS - 1)
+      : indexes.phaseAStart + PHASE_A_MAX_BARS - 1;
+    const phaseAEnd = indexes.phaseAEnd ?? fallbackEnd;
     const region = buildRegion('a', candles, indexes.phaseAStart, phaseAEnd);
     if (region) regions.push(region);
   }
@@ -177,11 +210,26 @@ export const buildPhaseRegions = (data) => {
     const region = buildRegion('b', candles, indexes.phaseBStart, baseEnd, { range: 'setupBox' });
     if (region) regions.push(region);
   }
-  if (indexes.phaseCEvent != null) {
-    const region = buildRegion('c', candles, indexes.phaseCEvent, indexes.phaseCEvent, {
-      detail: phaseCDetail(data),
-    });
-    if (region) regions.push(region);
+  // Phase C — the measured spring. A spring is a 0-1 bar undercut-and-recover, so
+  // a single-bar marker reads as "nothing happened". Draw a band from the spring
+  // low up to support: the band's HEIGHT is the undercut depth, so the shakeout
+  // stays legible even when it spans one bar. Driven by the bin_c measurement
+  // (which carries the recovery span) rather than the bare scope marker.
+  if (data?.bin_c_present && data?.bin_c_event_date) {
+    const eventIndex = indexOnOrAfter(candles, data.bin_c_event_date);
+    if (eventIndex != null) {
+      const recoveryBars = Math.max(0, Math.trunc(finiteNumber(data.bin_c_recovery_bars) ?? 0));
+      const endIndex = clamp(eventIndex + recoveryBars, eventIndex, candles.length - 1);
+      const support = finiteNumber(data.S ?? data._S);
+      const springRange = priceRangeForBars(candles, eventIndex, endIndex);
+      const extra = { detail: phaseCDetail(data) };
+      if (springRange && support != null && springRange.low < support) {
+        extra.low = springRange.low;
+        extra.high = support;
+      }
+      const region = buildRegion('c', candles, eventIndex, endIndex, extra);
+      if (region) regions.push(region);
+    }
   }
   if (indexes.phaseDStart != null) {
     const region = buildRegion('d', candles, indexes.phaseDStart, baseEnd, {
@@ -190,29 +238,36 @@ export const buildPhaseRegions = (data) => {
     });
     if (region) regions.push(region);
   }
-  const seenLpsRegions = new Set();
-  for (const test of data?.lps_tests || []) {
+  // One chip per physical LPS zone. Historical support tests carry the richer
+  // labels, so add them first; the active zone is then skipped whenever it
+  // overlaps one (it almost always does — it IS the most recent test).
+  const lpsSpans = [];
+  for (const [testIndex, test] of (data?.lps_tests || []).entries()) {
     addLpsRegion(
       regions,
       candles,
-      seenLpsRegions,
+      lpsSpans,
       test.start_date,
       test.end_date,
       test.low,
       test.high,
-      { detail: test.zone_type === 'UNDERCUT_S' ? 'Spring / support test' : 'Support test' },
+      {
+        detail: test.zone_type === 'UNDERCUT_S' ? 'Spring / support test' : 'Support test',
+        id: `lps:${test.start_date || test.start_index}:${test.end_date || test.end_index}:${testIndex}`,
+      },
     );
   }
   addLpsRegion(
     regions,
     candles,
-    seenLpsRegions,
+    lpsSpans,
     data?._lps_zone_start_date,
     data?._lps_zone_end_date,
     data?._lps_zone_low,
     data?._lps_zone_high,
-    { detail: 'Active support zone' },
+    { detail: 'Active support zone', id: 'lps:active' },
   );
+  applyLpsSequenceColors(regions);
 
   return regions;
 };
@@ -234,9 +289,36 @@ const colorToRgba = (color, alpha) => {
   return color;
 };
 
+const interpolateHexColor = (from, to, ratio) => {
+  const fromHex = from.replace('#', '');
+  const toHex = to.replace('#', '');
+  const t = clamp(ratio, 0, 1);
+  const channel = (offset) => {
+    const start = parseInt(fromHex.slice(offset, offset + 2), 16);
+    const end = parseInt(toHex.slice(offset, offset + 2), 16);
+    return Math.round(start + (end - start) * t).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(2)}${channel(4)}`;
+};
+
+const applyLpsSequenceColors = (regions) => {
+  const lpsRegions = regions
+    .filter((region) => region.key === 'lps')
+    .sort((a, b) => a.startIndex - b.startIndex || a.endIndex - b.endIndex);
+
+  const last = lpsRegions.length - 1;
+  lpsRegions.forEach((region, index) => {
+    const ratio = last <= 0 ? 1 : index / last;
+    region.color = interpolateHexColor(LPS_OLDEST_COLOR, LPS_LATEST_COLOR, ratio);
+    region.detail = index === last ? 'Latest support zone' : `Earlier support zone ${index + 1}`;
+    region.lpsSequenceIndex = index;
+    region.lpsSequenceCount = lpsRegions.length;
+  });
+};
+
 const styledRegions = (data, container) =>
   buildPhaseRegions(data).map((region) => {
-    const color = tokenColor(container, region.token);
+    const color = region.color || tokenColor(container, region.token);
     return {
       ...region,
       fillStyle: colorToRgba(color, region.key === 'lps' ? 0.08 : 0.045),
@@ -353,7 +435,7 @@ class PhaseRegionPrimitive {
     const paneWidth = this.chart.timeScale().width();
     const paneHeight = Math.max(0, this.container?.clientHeight ?? 0);
     const drawRegions = this.regions
-      .filter((item) => item.key === this.activeRegion)
+      .filter((item) => item.id === this.activeRegion || item.key === this.activeRegion)
       .map((region) => {
         const priceRange = priceRangeForRegion(this.data, candles, region);
         if (!priceRange) return null;

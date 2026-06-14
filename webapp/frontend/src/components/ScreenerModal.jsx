@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { buildPhaseRegions } from './chartPhaseOverlay';
+import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
@@ -24,34 +23,6 @@ const buttonStyle = {
   height: 30,
   padding: '0 11px',
 };
-
-function PhaseLegend({ activeRegion, data, onRegionChange }) {
-  const regions = useMemo(() => buildPhaseRegions(data), [data]);
-  if (regions.length === 0) return null;
-
-  return (
-    <div className="screener-modal-phase-legend" aria-label="Chart phase legend">
-      <span>Structure</span>
-      <div>
-        {regions.map(region => (
-          <button
-            key={region.key}
-            type="button"
-            className={`phase-bin-token phase-bin-${region.key}${activeRegion === region.key ? ' is-active' : ''}`}
-            onBlur={() => onRegionChange(null)}
-            onFocus={() => onRegionChange(region.key)}
-            onMouseEnter={() => onRegionChange(region.key)}
-            onMouseLeave={() => onRegionChange(null)}
-            aria-label={`${region.name} - ${region.detail}`}
-            title={`${region.name}: ${region.detail}`}
-          >
-            {region.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
   return (
@@ -144,7 +115,6 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
         <div className="screener-modal-body" style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}>
           <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
             <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
-            <PhaseLegend activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
           </div>
           <ScreenerStockLens activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
         </div>

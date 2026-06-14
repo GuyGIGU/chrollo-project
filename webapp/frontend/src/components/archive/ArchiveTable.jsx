@@ -128,7 +128,7 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
       <Cell align="left">
         <span style={{ color: tierColor(setup.tier), fontWeight: 600 }}>{setup.tier}</span>
       </Cell>
-      <Cell align="right">{fixed(setup.score, 1)}</Cell>
+      <Cell align="right">{fixed(setup.score, 0)}</Cell>
       <Cell align="left" muted>{setup.setup_type}</Cell>
       <Cell align="right">
         <span title={persisted ? `flagged on ${setup.scan_count} scans (${setup.first_seen} → ${setup.last_seen})` : undefined}

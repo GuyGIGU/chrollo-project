@@ -116,7 +116,7 @@ A single FastAPI process serves both the JSON API and the **built** React app fr
 
 - **Screener grid** — one card per surviving setup: a candlestick chart with the detected box (R/S)
   and LPS window drawn on, the tier + score, "why-ranked" **tag chips** (e.g. 🌀 VCP Coil,
-  📈 Ascending Support, ⚡ High ADR, 🤫 No Supply, ⚠️ Heavy Resistance), **Visual / Market / Both
+  📈 Ascending Support, ⚡ High ADR, 🤫 No Supply, ⚠️ Heavy Resistance), **Visual / Market
   score pills**, distance-to-trigger, plus tier/setup/tag filters and sorting.
 - **Watchlist** — a user-curated star toggle persisted to SQLite; bridges the grid to manual
   review in TWS / TradingView.

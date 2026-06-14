@@ -94,17 +94,14 @@ const TAG_DEFS = [
     '🪝 Spring/Test',
     'lps',
     (_scores, flags) => {
-      const kind = flags.binCType === 'SPRING' ? 'spring' : 'held support test';
-      const depth = flags.binCType === 'SPRING'
-        ? ` It undercut support by ${fmt(flags.binCUndercutAtr)} ATR`
-        : ' It tested support from above without breaking it';
+      const depth = ` It undercut support by ${fmt(flags.binCUndercutAtr)} ATR`;
       const recovery = typeof flags.binCRecoveryBars === 'number'
         ? ` and closed back inside after ${flags.binCRecoveryBars} bar${flags.binCRecoveryBars === 1 ? '' : 's'}.`
         : '.';
       const volume = typeof flags.binCSpringVolZ === 'number'
         ? ` Event volume z-score: ${fmt(flags.binCSpringVolZ, 2)} vs the base.`
         : '';
-      return `A late Phase C ${kind} was measured near support.${depth}${recovery}${volume} How to read it: recovery by Close is the tell; without recovery it is a breakdown, not a spring.`;
+      return `A late Phase C spring was measured near support.${depth}${recovery}${volume} How to read it: recovery by Close is the tell; without recovery it is a breakdown, not a spring.`;
     },
     82,
     (_scores, flags) => !!flags.binCPresent,

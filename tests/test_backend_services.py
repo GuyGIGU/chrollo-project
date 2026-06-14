@@ -1,8 +1,11 @@
 import asyncio
+import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 from fastapi import HTTPException
 
@@ -14,7 +17,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 from webapp.backend.routers.position_calculator import calculate_position
 from webapp.backend.routers import portfolio, portfolio_streams
 from webapp.backend.services.journal_stats import calculate_journal_stats
-from webapp.backend.services import portfolio_snapshot
+from webapp.backend.services import portfolio_snapshot, screener_data
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -87,6 +90,40 @@ def test_portfolio_stream_listens_to_snapshot_changing_channels():
         "orders",
         "executions",
     )
+
+
+def test_screener_data_serves_last_good_payload_on_bad_json(tmp_path):
+    path = tmp_path / "screener_data.json"
+    screener_data.invalidate_screener_cache()
+    path.write_text('{"ordered_tickers": ["AAA"], "chart_data": {"AAA": {}}}', encoding="utf-8")
+
+    assert screener_data.read_screener_data(str(path))["ordered_tickers"] == ["AAA"]
+
+    path.write_text('{"ordered_tickers": [', encoding="utf-8")
+    os.utime(path, (path.stat().st_atime + 5, path.stat().st_mtime + 5))
+
+    assert screener_data.read_screener_data(str(path))["ordered_tickers"] == ["AAA"]
+
+
+def test_screener_data_bad_first_read_returns_empty(tmp_path):
+    path = tmp_path / "screener_data.json"
+    screener_data.invalidate_screener_cache()
+    path.write_text('{"ordered_tickers": [', encoding="utf-8")
+
+    assert screener_data.read_screener_data(str(path)) == {
+        "ordered_tickers": [],
+        "chart_data": {},
+    }
+
+
+def test_portfolio_sse_data_is_strict_json_safe():
+    event = portfolio_streams._sse_data({
+        "value": np.float32(0.5),
+        "bad": np.inf,
+    })
+
+    payload = json.loads(event.removeprefix("data: ").strip())
+    assert payload == {"value": 0.5, "bad": None}
 
 
 def test_portfolio_snapshot_saves_useful_payload(monkeypatch):

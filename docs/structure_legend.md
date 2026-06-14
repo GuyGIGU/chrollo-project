@@ -306,8 +306,8 @@ never thrown away:
 - Net: it **keeps the base of record (parent) separate from the nested Phase D
   range (inner)**. The climax → root-swing → range mechanism (the "A/B split")
   sharpens *both* anchors. Phase C is now a small optional Bin-C measurement:
-  spring = Low undercuts S, Close recovers inside; held test = support tested
-  from above. It remains descriptive, never a gate.
+  spring = Low undercuts S near the box, Close recovers inside. Held support
+  tests stay in the LPS/support-test layer. It remains descriptive, never a gate.
 
 **Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
 `_detect_inner_phase_b_start` (core/structure/box_candidates.py) finds the

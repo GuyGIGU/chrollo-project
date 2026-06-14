@@ -13,6 +13,10 @@ const tierColor = (tier) => {
   }
 };
 
+const scoreLabel = (value) => (
+  value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
+);
+
 function EarningsChip({ info }) {
   if (!info || info.days_until == null) return null;
   const days = info.days_until;
@@ -122,6 +126,8 @@ const tierBadgeStyle = (tier) => ({
 // eye lands on first. Setup label, earnings, and sub-scores recede beneath their
 // leaders so the card reads as "rank + score" at a glance during triage.
 function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed, ticker, watchlisted }) {
+  const score = scoreLabel(data.score);
+
   return (
     <div
       style={{
@@ -166,7 +172,7 @@ function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed,
             Score
           </span>
           <span style={{ color: 'var(--text-main)', fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-            {data.score}
+            {score}
           </span>
         </div>
         <ScoreBreakdownPills subScores={data.sub_scores} className="score-breakdown-compact" />
@@ -180,7 +186,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     className="screener-card"
     role="button"
     tabIndex={0}
-    aria-label={`Open ${ticker} chart — ${data.setup}, tier ${data.tier}, score ${data.score}. Press W to save to watchlist, C to mark considered.`}
+    aria-label={`Open ${ticker} chart — ${data.setup}, tier ${data.tier}, score ${scoreLabel(data.score)}. Press W to save to watchlist, C to mark considered.`}
     onClick={() => onClick(ticker)}
     onKeyDown={(event) => {
       // Only act on keys aimed at the card itself, not ones bubbling up from the

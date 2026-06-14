@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
-import { attachPhaseOverlay } from '../components/chartPhaseOverlay';
+import { attachPhaseOverlay, buildPhaseRegions } from '../components/chartPhaseOverlay';
 
 const chartOptions = (width, height) => ({
   width,
@@ -65,6 +65,18 @@ const colorBase = (candles, data, baseStart, baseEnd) => {
 };
 
 const colorLps = (candles, data, baseEnd) => {
+  let colored = false;
+  const lpsRegions = buildPhaseRegions(data).filter(region => region.key === 'lps');
+  for (const region of lpsRegions) {
+    for (let index = region.startIndex; index <= region.endIndex; index += 1) {
+      if (index >= 0 && index < candles.length) {
+        candles[index].color = region.color || '#e3b341';
+        colored = true;
+      }
+    }
+  }
+
+  if (colored) return;
   if (data.lps_len <= 0 || data.lps_offset === undefined) return;
   const lpsEnd = baseEnd - data.lps_offset;
   const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);

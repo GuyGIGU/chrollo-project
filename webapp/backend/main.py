@@ -5,7 +5,12 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
+
+_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT_DIR not in sys.path:
+    sys.path.append(_ROOT_DIR)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +43,6 @@ logging.basicConfig(
 
 initialize_database()
 
-_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
 _FRONTEND_DIST = os.path.join(_ROOT_DIR, "webapp", "frontend", "dist")
 _FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")

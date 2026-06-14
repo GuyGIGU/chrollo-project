@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 from config import settings
+from core.pipeline.json_safety import to_json_safe
 
 
 def _project_root() -> str:
@@ -36,7 +37,7 @@ def _read_meta(meta_path: str) -> dict:
 def _write_meta(meta_path: str, meta: dict) -> None:
     tmp = meta_path + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(meta, f, indent=2)
+        json.dump(to_json_safe(meta), f, indent=2, allow_nan=False)
     os.replace(tmp, meta_path)
 
 

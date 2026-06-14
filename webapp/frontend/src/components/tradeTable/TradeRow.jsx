@@ -35,9 +35,9 @@ export default function TradeRow({
             <span className={`side-arrow ${derived.isLong ? 'long' : 'short'}`}>{derived.isLong ? 'L' : 'S'}</span>
           </div>
         </td>
-        <EditableCell {...editing} rowId={trade.id} field="entry_price" displayValue={trade.entry_price != null ? `$${fmtMoney(trade.entry_price)}` : ''} rawForEdit={trade.entry_price} num inputType="number" step="0.01" />
+        <EditableCell {...editing} rowId={trade.id} field="entry_price" displayValue={derived.entryVwap != null ? `$${fmtMoney(derived.entryVwap)}` : ''} rawForEdit={trade.entry_price} num inputType="number" step="0.01" />
         <EditableCell {...editing} rowId={trade.id} field="stop_loss" displayValue={derived.stopVal != null ? `$${fmtMoney(derived.stopVal)}` : ''} rawForEdit={trade.stop_loss} sub={derived.stopPct != null ? `${derived.stopPct.toFixed(1)}%` : null} num inputType="number" step="0.01" />
-        <EditableCell {...editing} rowId={trade.id} field="quantity" displayValue={trade.quantity != null ? fmtInt(trade.quantity) : ''} rawForEdit={trade.quantity} num inputType="number" />
+        <EditableCell {...editing} rowId={trade.id} field="quantity" displayValue={derived.openQty != null ? fmtInt(derived.openQty) : ''} rawForEdit={trade.quantity} num inputType="number" />
         <ComputedCell num>{derived.totalWorth != null ? `$${fmtMoney(derived.totalWorth, 0)}` : '-'}</ComputedCell>
         <ComputedCell num divider>{derived.position != null ? fmtInt(derived.position) : '-'}</ComputedCell>
         <ComputedCell num><ExitValue derived={derived} /></ComputedCell>

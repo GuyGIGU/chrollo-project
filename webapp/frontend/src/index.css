@@ -490,19 +490,12 @@ td {
   color: #3fb950;
 }
 
-.score-pill-fusion {
-  border-color: rgba(231, 179, 65, 0.38);
-  background: rgba(231, 179, 65, 0.12);
-  color: #e3b341;
-}
-
 /* On the screener card the sub-score pills are secondary to the hero score,
    so they recede to neutral — their "Visual" / "Market" labels still tell them
    apart without each carrying its own hue. The detail modal (non-compact) keeps
    the color coding, where there's room for it and less competing color. */
 .score-breakdown-compact .score-pill-visual,
-.score-breakdown-compact .score-pill-market,
-.score-breakdown-compact .score-pill-fusion {
+.score-breakdown-compact .score-pill-market {
   border-color: var(--border-color);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
@@ -615,70 +608,6 @@ td {
 .screener-modal-chart-shell {
   background: #171922;
   border-bottom: 1px solid var(--border-color);
-}
-
-.screener-modal-phase-legend {
-  align-items: center;
-  background: rgba(23, 25, 34, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
-  bottom: 10px;
-  display: flex;
-  gap: 8px;
-  left: 12px;
-  padding: 6px 8px;
-  position: absolute;
-  z-index: 2;
-}
-
-.screener-modal-phase-legend > span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.screener-modal-phase-legend > div {
-  display: flex;
-  gap: 5px;
-}
-
-.screener-modal-phase-legend .phase-bin-token {
-  background: rgba(255, 255, 255, 0.025);
-  cursor: help;
-  padding: 0 6px;
-}
-
-.screener-modal-phase-legend .phase-bin-token:hover,
-.screener-modal-phase-legend .phase-bin-token:focus-visible,
-.screener-modal-phase-legend .phase-bin-token.is-active {
-  background: rgba(91, 138, 255, 0.14);
-  outline: none;
-}
-
-.screener-modal-phase-legend .phase-bin-a {
-  border-color: color-mix(in srgb, var(--text-faint) 64%, transparent);
-  color: var(--text-faint);
-}
-
-.screener-modal-phase-legend .phase-bin-b {
-  border-color: color-mix(in srgb, var(--accent-purple) 58%, transparent);
-  color: var(--accent-purple);
-}
-
-.screener-modal-phase-legend .phase-bin-c {
-  border-color: color-mix(in srgb, var(--accent-pink) 58%, transparent);
-  color: var(--accent-pink);
-}
-
-.screener-modal-phase-legend .phase-bin-d {
-  border-color: color-mix(in srgb, var(--accent-blue) 66%, transparent);
-  color: var(--accent-blue);
-}
-
-.screener-modal-phase-legend .phase-bin-lps {
-  border-color: color-mix(in srgb, var(--accent-yellow) 62%, transparent);
-  color: var(--accent-yellow);
 }
 
 .stock-lens {
@@ -1053,20 +982,20 @@ td {
 
 .trade-row td {
   background: transparent;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
   padding: 0;
-  height: 46px;
-  font-size: 12px;
+  height: 56px;
+  font-size: 13px;
   color: var(--text-main);
   font-family: inherit;
   transition: background-color 0.12s ease;
   vertical-align: middle;
 }
 .trade-row td.col-divider {
-  border-left: 1px solid rgba(255, 255, 255, 0.035);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 .trade-row:hover td {
-  background: rgba(255, 255, 255, 0.018);
+  background: rgba(255, 255, 255, 0.032);
 }
 .trade-row.draft td {
   background: rgba(74, 122, 255, 0.04);
@@ -1078,7 +1007,7 @@ td {
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 12px;
+  padding: 0 14px;
   gap: 6px;
   width: 100%;
   box-sizing: border-box;

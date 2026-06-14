@@ -201,10 +201,10 @@ The LPS *is* that turn — the last support after the reaction. The engine leans
 
 The scoping layer emits best-effort chart anchors:
 
-- **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor toward the base start. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
+- **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor to the reaction bar. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
-- **Phase D:** the right-most launch region. If an inner mini-consolidation won, Phase D starts at that inner box. Otherwise it starts around the final third of the base, pulled earlier when the exact LPS shelf begins earlier.
-- **Phase C:** optional measured support-test event in Bin B. A `SPRING` is a late Low undercut below S that recovers by Close back above S within the configured recovery window; a `HELD_TEST` tests S from above without breaking it. Most bases have no Phase C and that is normal.
+- **Phase D:** the right-most launch region. If a true Phase-C spring is present, Phase D starts on the spring recovery bar. Otherwise the late-base V-tip is preferred as the B->D divider, then support-test clusters, then the final-third fallback pulled earlier when the exact LPS shelf begins earlier.
+- **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
 All boundaries are nullable. If the engine cannot place a region confidently, it emits `None` and the frontend skips that label/box. Young bases may yield only a base body and a right edge; the model must never force four tidy quadrants.
@@ -380,9 +380,9 @@ consumes anchors the detector + LPS finder already produced.
 
 | Region | Span | What it is |
 |--------|------|------------|
-| **A — climax event** | `bc_anchor_bar → phase_b_start_bar` | the BC/SC → AR trend-exhaustion lead-in |
+| **A — climax event** | `bc_anchor_bar → phase_a_end_bar` | the BC/SC → AR trend-exhaustion lead-in |
 | **B — working base** | the validated box (`base_df`) | the cause-building equilibrium |
-| **D — Phase D** | the right-most region | the inner mini-consolidation if one was detected, else the final-third heuristic |
+| **D — Phase D** | the right-most region | true spring recovery if present, else the inner mini-consolidation / late V-tip / support-test cluster / final-third fallback |
 | **LPS** | the exact LPS candidate bars | the Last Point of Support itself |
 
 Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/minLow),
@@ -395,9 +395,11 @@ Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/mi
   `_bin_d_ascending_support_quality`, and
   `_bin_d_vs_b_support_quality_delta` — is the right side stair-stepping higher
   more clearly than the base as a whole?
-- `_bin_d_boundary_source` — `inner_box` (a real detected mini-consolidation) or
-  `heuristic` (the final-third fallback), so archive analysis can trust the
-  clean ones and discount the fuzzy ones.
+- `_bin_d_boundary_source` — `spring` (true Phase-C spring recovery), `inner_box`
+  (a real detected mini-consolidation), `v_tip` (the final recovered late-base
+  low), `support_tests` (a right-side support-test cluster), or `heuristic` (the
+  final-third fallback), so archive analysis can trust the clean ones and
+  discount the fuzzy ones.
 
 **Phase-D boundary is single-sourced.** The Phase-D start uses the *same* rule
 the scoping overlay draws — both call `scope._resolve_phase_d_start()` — so the

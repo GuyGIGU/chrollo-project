@@ -1,8 +1,10 @@
 import { deriveScoreBreakdown } from './setupScoreMath';
 
-const formatScore = (value) => value == null ? '--' : `${value}`;
+const formatScore = (value) => (
+  value == null || !Number.isFinite(Number(value)) ? '--' : `${Math.round(Number(value))}`
+);
 
-export function ScoreBreakdownPills({ subScores, includeFusion = false, className = '', style }) {
+export function ScoreBreakdownPills({ subScores, className = '', style }) {
   const breakdown = deriveScoreBreakdown(subScores);
 
   return (
@@ -21,15 +23,6 @@ export function ScoreBreakdownPills({ subScores, includeFusion = false, classNam
         <span>Market</span>
         <strong>{formatScore(breakdown.market.score)}</strong>
       </span>
-      {includeFusion && (
-        <span
-          className="score-pill score-pill-fusion"
-          title="Fusion score: rewards setups where both Visual and Market scores are strong."
-        >
-          <span>Both</span>
-          <strong>{formatScore(breakdown.fusion)}</strong>
-        </span>
-      )}
     </div>
   );
 }

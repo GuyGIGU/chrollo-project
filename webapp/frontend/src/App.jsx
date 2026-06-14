@@ -4,7 +4,6 @@ import AppSidebar from './components/AppSidebar';
 import AppTopbar from './components/AppTopbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import useDashboardData from './hooks/useDashboardData';
-import useIBKRAccountSummary from './hooks/useIBKRAccountSummary';
 import useIBKRStatus from './hooks/useIBKRStatus';
 import useIbkrActions from './hooks/useIbkrActions';
 import { API_BASE } from './api';
@@ -20,10 +19,9 @@ const ModalFallback = () => null;
 function App() {
   const ibkrStatus = useIBKRStatus(10000);
   const ibkrActions = useIbkrActions(ibkrStatus);
-  const acct = useIBKRAccountSummary(ibkrActions.isConnected);
   const { trades, stats, scanStatus, health, fetchDashboardData } = useDashboardData();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('screener');
   const [tradeFilter, setTradeFilter] = useState(null);
   const [isCalcModalOpen, setCalcModalOpen] = useState(false);
   const [draftRow, setDraftRow] = useState(null);
@@ -98,8 +96,6 @@ function App() {
         importingCsv={importingCsv}
         onCsvImport={handleCsvImport}
         ibkrStatus={ibkrStatus}
-        acct={acct}
-        stats={stats}
         ibkrActions={ibkrActions}
       />
 

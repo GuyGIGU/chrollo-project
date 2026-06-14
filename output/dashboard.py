@@ -8,6 +8,7 @@ import math
 import sys
 
 from config import settings
+from core.pipeline.json_safety import to_json_safe
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -66,8 +67,7 @@ def _sector_etf_for_ticker(ticker, sector_etf_cache):
 
 
 def _json_safe(obj):
-    """Recursively replace NaN/Inf floats with None so the written JSON is
-    strictly RFC-compliant.
+    """Recursively coerce NumPy/Pandas scalars and replace NaN/Inf with None.
 
     Starlette's JSONResponse serves /screener-data/ with allow_nan=False, so a
     single NaN/Inf anywhere in the payload makes the endpoint 500 — and the
@@ -75,13 +75,7 @@ def _json_safe(obj):
     the one place the file is written, guarantees the served file is always
     serveable regardless of which metric produced a degenerate value.
     """
-    if isinstance(obj, float):
-        return obj if math.isfinite(obj) else None
-    if isinstance(obj, dict):
-        return {k: _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_json_safe(v) for v in obj]
-    return obj
+    return to_json_safe(obj)
 
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
@@ -227,6 +221,7 @@ def _extract_chart_data(data, results_df, tickers):
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.
                 '_phase_a_start_date': row.get('_phase_a_start_date'),
+                '_phase_a_end_date': row.get('_phase_a_end_date'),
                 '_phase_b_start_date': row.get('_phase_b_start_date'),
                 '_phase_d_start_date': row.get('_phase_d_start_date'),
                 '_phase_c_event_date': row.get('_phase_c_event_date'),
@@ -265,8 +260,18 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None)
         "ordered_tickers": ordered_tickers,
         "market_context": market_context or {},
     })
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(payload, f)
+    tmp_path = json_path + ".tmp"
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, allow_nan=False)
+        os.replace(tmp_path, json_path)
+    except Exception:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
     
     # flush=True so the webapp's scan stream receives these sentinels immediately
     # — the frontend reveals results on "UI update available" without waiting for

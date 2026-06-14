@@ -67,18 +67,14 @@ export function deriveScoreBreakdown(subScores) {
     return {
       visual: { raw: 0, cap: 0, score: null },
       market: { raw: 0, cap: 0, score: null },
-      fusion: null,
     };
   }
 
   const visual = scoreBucket(subScores, VISUAL_SCORE_KEYS);
   const market = scoreBucket(subScores, MARKET_SCORE_KEYS);
-  const hasBoth = visual.score != null && market.score != null;
 
   return {
     visual,
     market,
-    fusion: hasBoth ? Math.round(Math.sqrt(visual.score * market.score)) : null,
   };
 }
-

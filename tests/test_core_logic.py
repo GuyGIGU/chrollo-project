@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from fastapi import HTTPException
@@ -17,7 +18,8 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from core.archive.forward_returns import compute_barrier_events
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
-from core.pipeline.cache import _atomic_write_parquet
+from core.pipeline.cache import _atomic_write_parquet, _write_meta
+from core.pipeline.json_safety import to_json_safe
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
 import core.pipeline.market_context as market_context_module
@@ -85,6 +87,53 @@ def test_cache_writer_optimizes_market_panel_roundtrip(tmp_path):
     assert out[("AAA", "Volume")].dtype == "Int64"
     assert abs(float(out[("AAA", "Close")].iloc[0]) - 10.2) < 1e-5
     assert pd.isna(out[("AAA", "Volume")].iloc[1])
+
+
+def test_json_safe_handles_scan_payload_scalars():
+    payload = {
+        "chart_data": {
+            "RSVR": {
+                "lps_tests": [{
+                    "window_range_pct_box": np.float32(0.42),
+                    "length": np.int64(3),
+                    "valid": np.bool_(True),
+                    "missing": pd.NA,
+                    "when": pd.Timestamp("2026-06-14"),
+                }],
+                "bad": np.float64(float("nan")),
+                "array": np.array([np.float32(1.2), np.inf]),
+            },
+        },
+        ("tuple", "key"): "ok",
+    }
+
+    safe = to_json_safe(payload)
+
+    json.dumps(safe, allow_nan=False)
+    test = safe["chart_data"]["RSVR"]["lps_tests"][0]
+    assert test["window_range_pct_box"] == pytest.approx(0.42)
+    assert test["length"] == 3
+    assert test["valid"] is True
+    assert test["missing"] is None
+    assert test["when"] == "2026-06-14T00:00:00"
+    assert safe["chart_data"]["RSVR"]["bad"] is None
+    assert safe["chart_data"]["RSVR"]["array"][1] is None
+    assert safe["['tuple', 'key']"] == "ok"
+
+
+def test_meta_writer_sanitizes_scan_context(tmp_path):
+    path = tmp_path / "market_context.json"
+
+    _write_meta(str(path), {
+        "spy_6m_return": np.float32(0.123),
+        "breadth_pct": np.float64(float("nan")),
+        "computed_at": pd.Timestamp("2026-06-14T12:00:00"),
+    })
+
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["spy_6m_return"] == pytest.approx(0.123)
+    assert written["breadth_pct"] is None
+    assert written["computed_at"] == "2026-06-14T12:00:00"
 
 
 def test_market_context_computes_regime_state(tmp_path, monkeypatch):
@@ -864,6 +913,17 @@ def test_measure_bins_slices_named_regions_heuristic():
     assert bins["lps_stretch_atr"] == -1.0                 # (100-101)/1
 
 
+def test_measure_bins_phase_a_can_end_at_root_reaction():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, phase_a_end_bar=16,
+        base_len=60, is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_a_bars"] == 6
+
+
 def test_measure_bins_inner_box_sets_boundary_source_and_region():
     df = _flat_ohlc(120)
     bins = measure_bins(
@@ -945,6 +1005,18 @@ def test_measure_bins_support_test_cluster_can_anchor_phase_d():
     assert bins["bin_d_bars"] == 28
 
 
+def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+        support_test_start_bar=92, v_tip_bar=88,
+    )
+    assert bins["bin_d_boundary_source"] == "v_tip"
+    assert bins["bin_d_bars"] == 32
+
+
 def test_measure_bins_phase_d_reports_right_side_ascending_support():
     # Earlier base action sags, then Phase D starts stair-stepping higher.
     lead = _ramp_frame([104, 108, 103, 107, 102, 106, 101, 105, 100, 104])
@@ -991,7 +1063,9 @@ def test_measure_bins_phase_d_support_delta_blank_when_unmeasured():
 
 def test_measure_bins_phase_c_spring_requires_recovery():
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    df.loc[95, "Low"] = 98.8
+    # A clean spring: a meaningful undercut of S (0.4 ATR) framed by the flat
+    # 101 highs (the V arms) that reclaims S by Close on the next bar.
+    df.loc[95, "Low"] = 98.6
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Low"] = 99.1
     df.loc[96, "Close"] = 99.2
@@ -1004,14 +1078,70 @@ def test_measure_bins_phase_c_spring_requires_recovery():
 
     assert bins["bin_c_present"] is True
     assert bins["bin_c_type"] == "SPRING"
-    assert bins["bin_c_undercut_atr"] == 0.2
+    assert bins["bin_c_undercut_atr"] == 0.4
     assert bins["bin_c_recovery_bars"] == 1
+    assert bins["bin_c_event_bar"] == 95
+    assert bins["bin_c_recovery_bar"] == 96
+    assert bins["bin_d_start_bar"] == 96
+    assert bins["bin_d_boundary_source"] == "spring"
     assert bins["bin_c_time_loc"] == pytest.approx((95 - 60) / 59, abs=0.0001)
+
+
+def test_measure_bins_phase_c_spring_beats_loose_v_tip_for_phase_d():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.6
+    df.loc[95, "Close"] = 98.9
+    df.loc[96, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0, v_tip_bar=88,
+    )
+
+    assert bins["bin_c_type"] == "SPRING"
+    assert bins["bin_d_start_bar"] == 96
+    assert bins["bin_d_boundary_source"] == "spring"
+
+
+def test_measure_bins_phase_c_spring_beats_inner_start_for_phase_d():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.6
+    df.loc[95, "Close"] = 98.9
+    df.loc[96, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=88,
+    )
+
+    assert bins["bin_c_type"] == "SPRING"
+    assert bins["bin_d_start_bar"] == 96
+    assert bins["bin_d_boundary_source"] == "spring"
+
+
+def test_measure_bins_phase_c_rejects_shallow_undercut():
+    # A barely-below-support poke (0.2 ATR) is a "test at support", not a spring
+    # — the undercut floor rejects it even though it reclaims by Close.
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 98.8
+    df.loc[95, "Close"] = 98.9
+    df.loc[96, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
 
 
 def test_measure_bins_unrecovered_undercut_is_not_phase_c():
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    df.loc[95, "Low"] = 98.7
+    df.loc[95, "Low"] = 98.6
     for idx in range(95, 99):
         df.loc[idx, "Close"] = 98.8
 
@@ -1025,7 +1155,7 @@ def test_measure_bins_unrecovered_undercut_is_not_phase_c():
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_can_be_held_test_from_above():
+def test_measure_bins_phase_c_does_not_label_held_test_from_above():
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[110, "Low"] = 99.2
     df.loc[110, "Close"] = 99.4
@@ -1036,10 +1166,8 @@ def test_measure_bins_phase_c_can_be_held_test_from_above():
         R=101.0, S=99.0, atr_val=1.0,
     )
 
-    assert bins["bin_c_present"] is True
-    assert bins["bin_c_type"] == "HELD_TEST"
-    assert bins["bin_c_undercut_atr"] == 0.0
-    assert bins["bin_c_recovery_bars"] == 0
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
 
 
 def test_measure_bins_phase_c_held_test_stays_near_support():
@@ -1049,6 +1177,21 @@ def test_measure_bins_phase_c_held_test_stays_near_support():
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=104.0, S=100.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
+
+
+def test_measure_bins_phase_c_rejects_too_deep_undercut():
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, "Low"] = 97.4
+    df.loc[95, "Close"] = 99.2
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
     )
 
     assert bins["bin_c_present"] is False
@@ -1071,7 +1214,7 @@ def test_measure_bins_phase_c_requires_atr_frame():
 
 
 def test_resolve_phase_d_start_matches_scope_rule():
-    # inner box -> box start; heuristic -> final third pulled to LPS; no LPS -> None.
+    # inner box -> box start; V-tip/support hints -> final third fallback; no LPS -> None.
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
                                   is_inner_box=True, has_lps_window=True,
                                   lps_start=115, b=30) == 60
@@ -1079,6 +1222,21 @@ def test_resolve_phase_d_start_matches_scope_rule():
                                   is_inner_box=False, has_lps_window=True,
                                   lps_start=115, b=30,
                                   phase_d_start_bar=90) == 90
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=115, b=30,
+                                  support_test_start_bar=92,
+                                  v_tip_bar=88) == 88
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=115, b=30,
+                                  phase_c_recovery_bar=96,
+                                  v_tip_bar=88) == 96
+    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
+                                  is_inner_box=False, has_lps_window=True,
+                                  lps_start=115, b=30,
+                                  phase_d_start_bar=88,
+                                  phase_c_recovery_bar=96) == 96
     # Inner anchors Phase D, but the LPS always sits inside it: an LPS that
     # starts before the inner (parent-fallback LPS) pulls Phase D back to the LPS.
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
@@ -1180,6 +1338,20 @@ def test_scope_outer_box_orders_a_b_d_bands():
     assert out["lps_zone_end_date"] == str(df.index[28])[:10]
 
 
+def test_scope_phase_a_can_end_before_phase_b_body():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_a_end_bar=6, phase_b_start_bar=12,
+        base_len=18, is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+    )
+
+    assert out["phase_a_start_date"] == str(df.index[2])[:10]
+    assert out["phase_a_end_date"] == str(df.index[6])[:10]
+    assert out["phase_a_end_bar"] == 6
+    assert out["phase_b_start_date"] == str(df.index[12])[:10]
+
+
 def test_scope_phase_d_anchors_on_final_third_of_base():
     df = _scope_df(30)
     out = scope_consolidation(
@@ -1202,6 +1374,45 @@ def test_scope_phase_d_can_use_support_test_cluster_hint():
     assert out["has_mini_consolidation"] is False
     assert out["phase_d_start_bar"] == 18
     assert out["phase_d_start_date"] == str(df.index[18])[:10]
+
+
+def test_scope_phase_d_can_use_v_tip_boundary():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+        support_test_start_bar=18, v_tip_bar=16,
+    )
+    assert out["has_mini_consolidation"] is False
+    assert out["phase_d_start_bar"] == 16
+    assert out["phase_d_start_date"] == str(df.index[16])[:10]
+
+
+def test_scope_phase_d_can_use_phase_c_recovery_boundary():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+        phase_c_recovery_bar=17, v_tip_bar=16,
+    )
+    assert out["has_mini_consolidation"] is False
+    assert out["phase_d_start_bar"] == 17
+    assert out["phase_d_start_date"] == str(df.index[17])[:10]
+
+
+def test_scope_phase_c_recovery_beats_inner_start_boundary():
+    df = _scope_df(30)
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
+        is_inner_box=False, lps_offset=1, lps_length=4,
+        lps_zone_type="INSIDE", atr_val=1.0,
+        phase_d_start_bar=14, phase_c_recovery_bar=17,
+    )
+    assert out["has_mini_consolidation"] is True
+    assert out["phase_d_start_bar"] == 17
+    assert out["phase_d_start_date"] == str(df.index[17])[:10]
 
 
 def test_scope_inner_box_marks_mini_consolidation_and_d_start():

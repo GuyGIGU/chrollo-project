@@ -45,6 +45,15 @@ const colorCandles = (data) => {
     if (index >= 0 && index < candles.length) candles[index].color = '#596070';
   }
 
+  for (const test of data.lps_tests || []) {
+    const start = indexOnOrAfter(candles, test.start_date);
+    const end = indexOnOrAfter(candles, test.end_date);
+    if (start == null || end == null) continue;
+    for (let index = start; index <= end; index += 1) {
+      if (index >= 0 && index < candles.length) candles[index].color = '#d4b85a';
+    }
+  }
+
   if (data.lps_len > 0 && data.lps_offset !== undefined) {
     const lpsEnd = baseEnd - data.lps_offset;
     const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
@@ -54,6 +63,24 @@ const colorCandles = (data) => {
   }
 
   return candles;
+};
+
+const candleDate = (candle) => {
+  if (!candle?.time) return '';
+  if (typeof candle.time === 'string') return candle.time.slice(0, 10);
+  if (typeof candle.time === 'object') {
+    const month = String(candle.time.month).padStart(2, '0');
+    const day = String(candle.time.day).padStart(2, '0');
+    return `${candle.time.year}-${month}-${day}`;
+  }
+  return '';
+};
+
+const indexOnOrAfter = (candles, rawDate) => {
+  const target = typeof rawDate === 'string' ? rawDate.slice(0, 10) : null;
+  if (!target) return null;
+  const index = candles.findIndex(candle => candleDate(candle) >= target);
+  return index >= 0 ? index : null;
 };
 
 const buildLevelData = (candles, startIndex, value) =>

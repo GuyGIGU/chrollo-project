@@ -32,7 +32,11 @@ if _BACKEND_DIR not in sys.path:
 
 from config import settings
 from core.archive.forward_returns import _compute_returns
-from core.pipeline.evaluation import apply_baseline_filters
+from core.pipeline.evaluation import (
+    _final_v_tip_bar,
+    _resolve_phase_a_swing,
+    apply_baseline_filters,
+)
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
@@ -254,6 +258,9 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
 
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
         phase_b_start = len(df_ind) - base_len
+        bc_anchor_bar, phase_a_end_bar = _resolve_phase_a_swing(
+            df_ind, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
+        )
         support_test_start_bar = None
         if inner is None:
             right_half = phase_b_start + base_len // 2
@@ -266,6 +273,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
                 if start >= right_half:
                     starts.append(start)
             support_test_start_bar = min(starts) if len(starts) >= 2 else None
+        v_tip_bar = None if inner is not None else _final_v_tip_bar(df_ind, phase_b_start, base_len)
         # Region (bin) features + Minervini trend template (measure-first parity
         # with the live pipeline).
         bins = measure_bins(
@@ -281,6 +289,8 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
             support_test_start_bar=support_test_start_bar,
+            phase_a_end_bar=phase_a_end_bar,
+            v_tip_bar=v_tip_bar,
             lps_R=lps_context[1],
             lps_S=lps_context[0],
         )

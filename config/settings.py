@@ -92,12 +92,27 @@ LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
 
-# Phase-C bin measurement (archive/UI only, never a gate): a spring is a
-# meaningful Low undercut of Bin-B support that recovers by Close back inside.
-BIN_C_UNDERCUT_ATR_MIN = 0.10
+# Phase-C bin measurement (archive/UI only, never a gate): a spring is the TIP
+# of a V — a real reaction DOWN into a meaningful undercut of Bin-B support, then
+# a recovery UP that reclaims S by Close. The undercut floor + the two V-arm
+# tests reject shallow "tests at support" that are not springs (the small
+# hiccups). See docs/strategy_v2.md "The 'V'".
+BIN_C_UNDERCUT_ATR_MIN = 0.30      # spring Low must dip at least this far below S
+BIN_C_UNDERCUT_ATR_MAX = 1.50      # Deeper flushes are breakdown/shakeout risk, not clean Phase C
+BIN_C_UNDERCUT_BOX_MAX = 0.35      # Also cap depth as a fraction of box height
 BIN_C_RECOVERY_BARS_MAX = 3
 BIN_C_LATE_BOX_FRACTION = 0.50
-BIN_C_HELD_TEST_ATR_MAX = 0.50
+BIN_C_V_SHOULDER_BARS = 8          # window each side of the tip to find the V shoulders
+BIN_C_V_DROP_ATR_MIN = 1.5         # left arm: real reaction down into the tip
+BIN_C_V_RECOVERY_ATR_MIN = 1.0     # right arm: real recovery up out of the tip
+
+# Phase B->D divider from the V-tip (display only). Separate from the Phase-C
+# spring gate above: ANY recovered late-base low (even a shallow one that is NOT
+# a true spring) is still the tip of the final 'V' and marks where the right-side
+# markup begins ("Phase B ends here, Phase D starts here"). We're good at finding
+# the tip even when small, so we repurpose it for the boundary, not a spring tag.
+PHASE_D_VTIP_LATE_FRACTION = 0.35  # only look for the tip in the late part of the base
+PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it recovered
 
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.

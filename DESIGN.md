@@ -247,7 +247,7 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 
 ### Chips & Pills
 - **Score pill:** Monospace, 18px tall, elevated-surface background, hairline border;
-  semantic color variants (visual=sky, market=green, fusion=gold).
+  semantic color variants (visual=sky, market=green).
 - **Status pill:** Pill-radius, 14%-tint background of its status hue with a matching
   6px dot; open=blue, win=green, loss=red, wash=gold.
 - **Tier badge:** Carries the reserved tier hue; appears only for tier identity.

@@ -1,4 +1,3 @@
-import IbkrAccountPanel from './IbkrAccountPanel';
 import IbkrModeControls from './IbkrModeControls';
 
 const navSections = [
@@ -29,8 +28,6 @@ function AppSidebar({
   importingCsv,
   onCsvImport,
   ibkrStatus,
-  acct,
-  stats,
   ibkrActions,
 }) {
   return (
@@ -47,21 +44,15 @@ function AppSidebar({
       </div>
 
       <IbkrModeControls
+        ibkrStatus={ibkrStatus}
+        isConnected={ibkrActions.isConnected}
         isLive={ibkrActions.isLive}
         isGateway={ibkrActions.isGateway}
+        reconnecting={ibkrActions.reconnecting}
         switchingClient={ibkrActions.switchingClient}
         switchingMode={ibkrActions.switchingMode}
         onToggleClient={ibkrActions.toggleIbkrClient}
         onToggleMode={ibkrActions.toggleIbkrMode}
-      />
-
-      <IbkrAccountPanel
-        acct={acct}
-        stats={stats}
-        ibkrStatus={ibkrStatus}
-        isConnected={ibkrActions.isConnected}
-        isLive={ibkrActions.isLive}
-        reconnecting={ibkrActions.reconnecting}
         onReconnect={ibkrActions.reconnectIbkr}
         onDisconnect={ibkrActions.disconnectIbkr}
       />

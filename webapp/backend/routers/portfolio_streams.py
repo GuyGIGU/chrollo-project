@@ -8,6 +8,7 @@ from typing import Any, AsyncIterator
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from core.pipeline.json_safety import to_json_safe
 from ibkr.broadcaster import broadcaster
 from services.portfolio_snapshot import portfolio_snapshot_payload
 
@@ -17,7 +18,7 @@ _PORTFOLIO_CHANNELS = ("portfolio", "ibkr_status", "orders", "executions")
 
 
 def _sse_data(payload: Any) -> str:
-    return f"data: {json.dumps(payload, default=str)}\n\n"
+    return f"data: {json.dumps(to_json_safe(payload), allow_nan=False)}\n\n"
 
 
 async def _snapshot_event() -> str:

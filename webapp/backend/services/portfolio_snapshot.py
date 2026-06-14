@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from sqlalchemy.orm import Session
 
 import models
+from core.pipeline.json_safety import to_json_safe
 from database import SessionLocal
 from ibkr import get_ibkr_service
 
@@ -110,7 +111,7 @@ def save_snapshot_cache(snapshot: Dict[str, Any]) -> None:
         if row is None:
             row = models.PortfolioSnapshotCache(key=_CACHE_KEY)
             db.add(row)
-        row.payload_json = json.dumps(snapshot, default=str)
+        row.payload_json = json.dumps(to_json_safe(snapshot), allow_nan=False)
         row.updated_at = datetime.now(timezone.utc)
         db.commit()
     finally:

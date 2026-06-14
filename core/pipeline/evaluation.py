@@ -72,10 +72,16 @@ def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, flo
     return df, float(yearly_return)
 
 
-def _reconnect_bc_anchor(df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar):
-    """Reconnect a drifted BC anchor to the recent trend->range bridge."""
+def _resolve_phase_a_swing(df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar):
+    """Resolve the display/measurement Phase-A root swing.
+
+    The box detector may advance ``phase_b_start_bar`` from the raw AR into the
+    first truly worked equilibrium body. For the vertical layer, Phase A should
+    still be the climax -> AR bridge itself, not that whole lead-in/body span.
+    """
     phase_b_start = len(df) - base_len
     seg = segment_swings(df, atr_for_zone, lookback=base_len + _SEG_LEAD_IN)
+
     dom = seg.get("dominant_direction", 0)
     bridge = None
     if dom != 0:
@@ -86,8 +92,24 @@ def _reconnect_bc_anchor(df, atr_for_zone, base_len, phase_b_start_bar, bc_ancho
                 if bridge is None or swing["abs_disp_atr"] > bridge["abs_disp_atr"]:
                     bridge = swing
     if bridge is not None:
-        return bridge["start_bar"]
-    return bc_anchor_bar
+        return bridge["start_bar"], bridge["end_bar"]
+
+    root = seg.get("root_swing")
+    if root is not None:
+        try:
+            root_start = int(root["bc_bar"])
+            root_end = int(root["ar_bar"])
+        except (KeyError, TypeError, ValueError):
+            root_start = root_end = None
+        if root_start is not None and root_start < root_end < len(df):
+            if root_end <= phase_b_start_bar:
+                return root_start, root_end
+
+    phase_a_end_bar = min(
+        phase_b_start_bar,
+        bc_anchor_bar + settings.AR_MAX_BARS,
+    )
+    return bc_anchor_bar, phase_a_end_bar
 
 
 def _right_side_support_cluster_start(lps_tests, box_start: int, base_len: int) -> Optional[int]:
@@ -106,6 +128,36 @@ def _right_side_support_cluster_start(lps_tests, box_start: int, base_len: int) 
     if len(starts) < 2:
         return None
     return min(starts)
+
+
+def _final_v_tip_bar(df: pd.DataFrame, box_start: int, base_len: int) -> Optional[int]:
+    """The deepest recovered Low in the late base — the tip of the final 'V'.
+
+    The tip is where the right-side markup begins (the Phase B->D divider). Loose
+    by design: ANY late-base low that price then turned up off of counts, even a
+    shallow one that is not a true Phase-C spring (those still tag separately via
+    bin_c). df-positional bar, or None when no recovered low exists.
+    """
+    n = len(df)
+    if base_len <= 0 or n == 0:
+        return None
+    late = box_start + int(base_len * settings.PHASE_D_VTIP_LATE_FRACTION)
+    start = max(late, box_start + 1)
+    if start >= n - 1:
+        return None
+    lows = df["Low"].values
+    highs = df["High"].values
+    rec = settings.PHASE_D_VTIP_RECOVERY_BARS
+    best_bar = None
+    best_low = None
+    for i in range(start, n - 1):
+        # recovered = a higher High shows up within the next few bars (turned up)
+        if float(highs[i + 1:min(n, i + 1 + rec)].max()) <= float(highs[i]):
+            continue
+        low_i = float(lows[i])
+        if best_low is None or low_i < best_low:
+            best_bar, best_low = i, low_i
+    return best_bar
 
 
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
@@ -232,7 +284,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         support = measure_support_slope(base_df, atr_for_zone)
         equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
 
-        bc_anchor_bar = _reconnect_bc_anchor(
+        bc_anchor_bar, phase_a_end_bar = _resolve_phase_a_swing(
             df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
         )
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
@@ -240,19 +292,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             None if inner is not None
             else _right_side_support_cluster_start(lps_tests, phase_b_start, base_len)
         )
-
-        scope = scope_consolidation(
-            df,
-            bc_anchor_bar=bc_anchor_bar,
-            phase_b_start_bar=phase_b_start_bar,
-            base_len=base_len,
-            is_inner_box=is_inner_box,
-            lps_offset=lps_offset,
-            lps_length=lps_length,
-            lps_zone_type=lps_result.get("zone_type", "INSIDE"),
-            atr_val=atr_for_zone,
-            phase_d_start_bar=phase_d_start_bar,
-            support_test_start_bar=support_test_start_bar,
+        # The V-tip (final recovered low) is the Phase B->D divider. Used only
+        # when there's no inner Phase-D box of record.
+        v_tip_bar = (
+            None if inner is not None
+            else _final_v_tip_bar(df, phase_b_start, base_len)
         )
 
         bins = measure_bins(
@@ -268,8 +312,27 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
             support_test_start_bar=support_test_start_bar,
+            phase_a_end_bar=phase_a_end_bar,
             lps_R=lps_context[1],
             lps_S=lps_context[0],
+            v_tip_bar=v_tip_bar,
+        )
+
+        scope = scope_consolidation(
+            df,
+            bc_anchor_bar=bc_anchor_bar,
+            phase_b_start_bar=phase_b_start_bar,
+            base_len=base_len,
+            is_inner_box=is_inner_box,
+            lps_offset=lps_offset,
+            lps_length=lps_length,
+            lps_zone_type=lps_result.get("zone_type", "INSIDE"),
+            atr_val=atr_for_zone,
+            phase_d_start_bar=phase_d_start_bar,
+            support_test_start_bar=support_test_start_bar,
+            phase_a_end_bar=phase_a_end_bar,
+            phase_c_recovery_bar=bins.get("bin_c_recovery_bar"),
+            v_tip_bar=v_tip_bar,
         )
 
         trend = trend_template(df, dist_52w_high_pct=dist_52w_high_pct)
@@ -377,6 +440,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_adr_pct': float(adr_value),
             '_adr_quality': float(adr_quality),
             '_phase_a_start_date': scope['phase_a_start_date'],
+            '_phase_a_end_date': scope['phase_a_end_date'],
             '_phase_b_start_date': scope['phase_b_start_date'],
             '_phase_d_start_date': scope['phase_d_start_date'],
             '_phase_c_event_date': phase_c_event_date,

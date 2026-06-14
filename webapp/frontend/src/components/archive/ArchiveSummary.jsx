@@ -146,7 +146,7 @@ function ScoresPanel({ setup }) {
   return (
     <SummaryPanel title="Sub-Scores">
       {rows.map(([label, key]) => (
-        <SummaryRow key={key} label={label} value={fixed(setup[key], 2)} color={key === 'score_uptrend_bonus' && setup[key] > 0 ? 'var(--success)' : undefined} />
+        <SummaryRow key={key} label={label} value={fixed(setup[key], 0)} color={key === 'score_uptrend_bonus' && setup[key] > 0 ? 'var(--success)' : undefined} />
       ))}
     </SummaryPanel>
   );

@@ -178,10 +178,10 @@ class SetupArchive(Base):
     bin_b_cog_crossings = Column(Integer, nullable=True)   # CoG mid-line crossings (>=2 = two-sided/oscillating range)
     bin_b_cog_rng = Column(Float, nullable=True)           # CoG sweep (max-min): how much box height the center covered
     bin_b_cog_corr = Column(Float, nullable=True)          # corr(position, time): + climbing to R, - sagging to S
-    bin_c_present = Column(Integer, nullable=True)          # 1 when a late support test/spring was measured
-    bin_c_type = Column(String, nullable=True)              # SPRING | HELD_TEST
-    bin_c_event_date = Column(String, nullable=True)        # low/test bar date
-    bin_c_undercut_atr = Column(Float, nullable=True)       # Low undercut depth below S, in ATR; 0 for held tests
+    bin_c_present = Column(Integer, nullable=True)          # 1 when a late spring was measured
+    bin_c_type = Column(String, nullable=True)              # SPRING
+    bin_c_event_date = Column(String, nullable=True)        # low bar date
+    bin_c_undercut_atr = Column(Float, nullable=True)       # Low undercut depth below S, in ATR
     bin_c_recovery_bars = Column(Integer, nullable=True)    # bars until Close recovered back above S
     bin_c_time_loc = Column(Float, nullable=True)           # event location inside Bin B (0=start, 1=end)
     bin_c_spring_vol_z = Column(Float, nullable=True)       # event volume z-score vs Bin B volume distribution
@@ -191,7 +191,7 @@ class SetupArchive(Base):
     bin_d_support_slope_atr = Column(Float, nullable=True) # Phase D swing-low slope, ATR-normalized
     bin_d_higher_low_frac = Column(Float, nullable=True)   # Phase D consecutive valley pairs that step up
     bin_d_ascending_support_quality = Column(Float, nullable=True) # Phase D rising-support quality
-    bin_d_boundary_source = Column(String, nullable=True)  # inner_box | support_tests | heuristic
+    bin_d_boundary_source = Column(String, nullable=True)  # inner_box | spring | v_tip | support_tests | heuristic
     bin_lps_bars = Column(Integer, nullable=True)          # LPS window length in bars
     lps_position_in_box = Column(Float, nullable=True)     # (lps_low - S)/(R - S): 0=floor, 1=ceiling
     bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter Phase D)

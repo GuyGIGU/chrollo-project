@@ -45,6 +45,127 @@ export const fmtDateShort = (value) => {
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}`;
 };
 
+export const summarizeFillLedger = (fills, direction, multiplier = 1) => {
+  const isLong = direction === 'LONG';
+  const openSide = isLong ? 'BUY' : 'SELL';
+  const closeSide = isLong ? 'SELL' : 'BUY';
+  const EPS = 1e-9;
+
+  let position = 0;
+  let openCost = 0;
+  let openFees = 0;
+  let cycleOpenQty = 0;
+  let cycleOpenCash = 0;
+  let cycleCloseQty = 0;
+  let cycleCloseCash = 0;
+  let cycleRealizedPnl = 0;
+  let cycleOpeningDate = null;
+  let cycleClosingDate = null;
+  let lastCycleOpenQty = 0;
+  let lastCycleEntry = null;
+  let lastCycleOpeningDate = null;
+  let lastCycleClosingDate = null;
+  let realizedPnl = 0;
+  let commissions = 0;
+  let anyClose = false;
+
+  for (const fill of fills) {
+    const rawSide = String(fill.side || '').toUpperCase();
+    const rawType = String(fill.type || '').toUpperCase();
+    const rawRole = String(fill.role || '').toUpperCase();
+    const side = rawSide === 'BUY' || rawSide === 'SELL'
+      ? rawSide
+      : rawType === 'BUY' || rawType === 'SELL'
+        ? rawType
+        : rawType === 'ENTRY' || rawRole === 'ENTRY'
+          ? openSide
+          : rawType === 'EXIT' || rawRole === 'EXIT'
+            ? closeSide
+            : '';
+    const quantity = parseFloat(fill.quantity) || 0;
+    const price = parseFloat(fill.price) || 0;
+    const fee = parseFloat(fill.fee) || 0;
+    const date = String(fill.date || '').slice(0, 10);
+    if (quantity <= 0 || price <= 0) {
+      commissions += fee;
+      continue;
+    }
+
+    commissions += fee;
+
+    if (side === openSide) {
+      if (position <= EPS) {
+        position = 0;
+        openCost = 0;
+        openFees = 0;
+        cycleOpenQty = 0;
+        cycleOpenCash = 0;
+        cycleCloseQty = 0;
+        cycleCloseCash = 0;
+        cycleRealizedPnl = 0;
+        cycleOpeningDate = null;
+        cycleClosingDate = null;
+      }
+      position += quantity;
+      openCost += quantity * price * multiplier;
+      openFees += fee;
+      cycleOpenQty += quantity;
+      cycleOpenCash += quantity * price * multiplier;
+      if (date && (!cycleOpeningDate || date < cycleOpeningDate)) cycleOpeningDate = date;
+    } else if (side === closeSide) {
+      const closedQty = Math.min(quantity, position);
+      cycleCloseQty += closedQty;
+      cycleCloseCash += closedQty * price * multiplier;
+      anyClose = anyClose || closedQty > 0;
+      if (date && (!cycleClosingDate || date > cycleClosingDate)) cycleClosingDate = date;
+
+      if (closedQty > 0 && position > EPS) {
+        const avgCost = openCost / position;
+        const gross = isLong
+          ? (price * multiplier - avgCost) * closedQty
+          : (avgCost - price * multiplier) * closedQty;
+        const openFeeShare = openFees * (closedQty / position);
+        const fillPnl = gross - openFeeShare - fee;
+        realizedPnl += fillPnl;
+        cycleRealizedPnl += fillPnl;
+        openFees -= openFeeShare;
+        openCost -= avgCost * closedQty;
+        position -= closedQty;
+      } else {
+        realizedPnl -= fee;
+        cycleRealizedPnl -= fee;
+      }
+
+      if (position <= EPS) {
+        lastCycleOpenQty = cycleOpenQty;
+        lastCycleEntry = cycleOpenQty > 0 ? cycleOpenCash / (cycleOpenQty * multiplier) : lastCycleEntry;
+        lastCycleOpeningDate = cycleOpeningDate;
+        lastCycleClosingDate = cycleClosingDate;
+        position = 0;
+        openCost = 0;
+        openFees = 0;
+      }
+    }
+  }
+
+  const currentEntry = position > EPS ? openCost / (position * multiplier) : lastCycleEntry;
+  return {
+    anyClose,
+    commissions,
+    currentOpenFees: openFees,
+    entryPrice: currentEntry,
+    exitPrice: cycleCloseQty > 0 ? cycleCloseCash / (cycleCloseQty * multiplier) : null,
+    openingDate: position > EPS ? cycleOpeningDate : lastCycleOpeningDate,
+    closingDate: position <= EPS && anyClose ? lastCycleClosingDate : null,
+    openQty: position > EPS ? position : lastCycleOpenQty,
+    position,
+    activeCycleRealizedPnl: cycleRealizedPnl,
+    realizedPnl,
+    cycleCloseCash,
+    cycleCloseQty,
+  };
+};
+
 export const deriveTradeRow = (trade, priceFor) => {
   const direction = inferDirection(trade);
   const isLong = direction === 'LONG';
@@ -54,46 +175,30 @@ export const deriveTradeRow = (trade, priceFor) => {
   const rawActions = parseActions(trade.actions_json);
   const actions = rawActions.map(action => ({
     ...action,
-    side: (action.side || action.type || '').toUpperCase(),
+    side: normalizeActionSide(action, openSide, closeSide),
   }));
   const includesOpener = actions.some(action => action.side === openSide);
   const initialQty = Number(trade.quantity) || 0;
+  const fallbackActions = includesOpener ? actions : [
+    {
+      side: openSide,
+      quantity: initialQty,
+      price: Number(trade.entry_price) || 0,
+      fee: Number(trade.commissions) || 0,
+      date: trade.opening_date,
+    },
+    ...actions,
+  ];
+  const ledger = summarizeFillLedger(fallbackActions, direction, multiplier);
 
-  let openQty = includesOpener ? 0 : initialQty;
-  let openCash = includesOpener ? 0 : (Number(trade.entry_price) || 0) * initialQty * multiplier;
-  let openFees = includesOpener ? 0 : Number(trade.commissions) || 0;
-  let closeQty = 0;
-  let closeCash = 0;
-  let closeFees = 0;
-  let lastCloseDate = null;
-
-  for (const action of actions) {
-    const quantity = parseFloat(action.quantity) || 0;
-    const price = parseFloat(action.price) || 0;
-    const fee = parseFloat(action.fee) || 0;
-
-    if (action.side === openSide) {
-      openQty += quantity;
-      openCash += quantity * price * multiplier;
-      openFees += fee;
-    } else if (action.side === closeSide) {
-      closeQty += quantity;
-      closeCash += quantity * price * multiplier;
-      closeFees += fee;
-      if (action.date) {
-        const day = String(action.date).slice(0, 10);
-        if (!lastCloseDate || day > lastCloseDate) lastCloseDate = day;
-      }
-    }
-  }
-
-  const entryVwap = openQty > 0 ? openCash / (openQty * multiplier) : Number(trade.entry_price) || null;
-  const position = openQty - closeQty;
-  const totalWorth = entryVwap != null ? entryVwap * openQty * multiplier : null;
+  const entryVwap = ledger.entryPrice != null ? ledger.entryPrice : (Number(trade.entry_price) || null);
+  const position = ledger.position;
+  const openQty = ledger.openQty;
+  const totalWorth = entryVwap != null && openQty ? entryVwap * openQty * multiplier : null;
   const { price: livePrice, source: liveSource } = priceFor(trade.ticker);
   const { currentExit, currentExitSource } = getExitPrice({
-    closeCash,
-    closeQty,
+    closeCash: ledger.cycleCloseCash,
+    closeQty: ledger.cycleCloseQty,
     livePrice,
     liveSource,
     multiplier,
@@ -101,15 +206,11 @@ export const deriveTradeRow = (trade, priceFor) => {
     trade,
   });
   const pnl = calculatePnl({
-    closeCash,
-    closeFees,
-    closeQty,
     entryVwap,
     isLong,
+    ledger,
     livePrice,
     multiplier,
-    openFees,
-    openQty,
     position,
     trade,
   });
@@ -121,12 +222,12 @@ export const deriveTradeRow = (trade, priceFor) => {
   const rValue = riskDistance && riskDistance > 0 && openQty && pnl != null
     ? pnl / (riskDistance * openQty * multiplier)
     : null;
-  const status = getStatus({ closeQty, initialQty, pnl, position });
+  const status = getStatus({ closeQty: ledger.cycleCloseQty, hasClosed: ledger.anyClose, initialQty, pnl, position });
 
   return {
     direction,
     entryVwap,
-    exitDate: position <= 0 && lastCloseDate ? lastCloseDate : (position <= 0 ? trade.closing_date || null : null),
+    exitDate: position <= 0 && ledger.closingDate ? ledger.closingDate : (position <= 0 ? trade.closing_date || null : null),
     isLong,
     multiplier,
     openQty,
@@ -136,11 +237,22 @@ export const deriveTradeRow = (trade, priceFor) => {
     status,
     stopPct,
     stopVal,
-    totalExit: closeQty > 0 ? closeCash : null,
+    totalExit: ledger.cycleCloseQty > 0 ? ledger.cycleCloseCash : null,
     totalWorth,
     currentExit,
     currentExitSource,
   };
+};
+
+const normalizeActionSide = (action, openSide, closeSide) => {
+  const rawSide = String(action.side || '').toUpperCase();
+  const rawType = String(action.type || '').toUpperCase();
+  const rawRole = String(action.role || '').toUpperCase();
+  if (rawSide === 'BUY' || rawSide === 'SELL') return rawSide;
+  if (rawType === 'BUY' || rawType === 'SELL') return rawType;
+  if (rawType === 'ENTRY' || rawRole === 'ENTRY') return openSide;
+  if (rawType === 'EXIT' || rawRole === 'EXIT') return closeSide;
+  return rawType;
 };
 
 const getExitPrice = ({ closeCash, closeQty, livePrice, liveSource, multiplier, position, trade }) => {
@@ -157,34 +269,25 @@ const getExitPrice = ({ closeCash, closeQty, livePrice, liveSource, multiplier, 
 };
 
 const calculatePnl = ({
-  closeCash, closeFees, closeQty, entryVwap, isLong, livePrice, multiplier,
-  openFees, openQty, position, trade,
+  entryVwap, isLong, ledger, livePrice, multiplier, position, trade,
 }) => {
-  if (closeQty > 0) {
-    const realizedCloseCash = isLong ? closeCash : -closeCash;
-    const openedCash = entryVwap * closeQty * multiplier;
-    const realizedOpenCashClosed = isLong ? -openedCash : openedCash;
-    const realized = realizedCloseCash + realizedOpenCashClosed
-      - openFees * (closeQty / Math.max(openQty, 1)) - closeFees;
-    if (position > 0 && livePrice != null) {
-      const unrealized = isLong
-        ? (livePrice - entryVwap) * position * multiplier
-        : (entryVwap - livePrice) * position * multiplier;
-      return realized + unrealized;
-    }
-    return realized;
-  }
   if (position > 0 && livePrice != null && entryVwap != null) {
-    return isLong
+    const unrealized = isLong
       ? (livePrice - entryVwap) * position * multiplier
       : (entryVwap - livePrice) * position * multiplier;
+    return ledger.activeCycleRealizedPnl + unrealized - ledger.currentOpenFees;
   }
+  if (position > 0) {
+    return ledger.activeCycleRealizedPnl !== 0 ? ledger.activeCycleRealizedPnl : null;
+  }
+  if (ledger.anyClose) return ledger.realizedPnl;
   return trade.pnl != null ? Number(trade.pnl) : null;
 };
 
-const getStatus = ({ closeQty, initialQty, pnl, position }) => {
+const getStatus = ({ closeQty, hasClosed, initialQty, pnl, position }) => {
+  if (position > 0 && closeQty > 0) return 'partial';
   if (position > 0) return 'open';
-  if (closeQty > 0) return pnl != null && pnl > 0 ? 'win' : 'loss';
+  if (hasClosed) return pnl != null && pnl > 0 ? 'win' : 'loss';
   if (initialQty > 0) return 'open';
   return 'draft';
 };

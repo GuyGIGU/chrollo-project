@@ -48,7 +48,7 @@ export default function FillsRow({
               </button>
             </div>
           ))}
-          <button className="fill-add" onClick={() => addFill(trade.id)}>+ Add fill</button>
+          <button className="fill-add" onClick={() => addFill(trade)}>+ Add fill</button>
         </div>
       </td>
     </tr>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { API_BASE } from '../api';
 import { inferDirection } from '../utils/tradeUtils';
-import { parseActions, todayIso } from '../utils/tradeTableUtils';
+import { parseActions, summarizeFillLedger, todayIso } from '../utils/tradeTableUtils';
 
 export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }) {
   const [expandedFills, setExpandedFills] = useState(() => new Set());
@@ -28,11 +28,10 @@ export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }
       if (!trade) return previous;
 
       const openSide = inferDirection(trade) === 'LONG' ? 'BUY' : 'SELL';
-      const parsed = parseActions(trade.actions_json).map(action => ({
-        ...action,
-        type: (action.side || action.type || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
-      }));
-      if (parsed.some(action => action.type === openSide)) {
+      const closeSide = openSide === 'BUY' ? 'SELL' : 'BUY';
+      const rawActions = parseActions(trade.actions_json);
+      const parsed = rawActions.map(action => normalizeFill(action, openSide, closeSide));
+      if (actionsAreComplete(rawActions)) {
         return { ...previous, [tradeId]: parsed };
       }
 
@@ -51,12 +50,20 @@ export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }
     }));
   };
 
-  const addFill = (tradeId) => {
+  const addFill = (trade) => {
+    const tradeId = trade.id;
     setFillsBuffer(previous => ({
       ...previous,
       [tradeId]: [
         ...(previous[tradeId] || []),
-        { id: Date.now(), type: 'BUY', date: todayIso(), quantity: '', price: '', fee: 0 },
+        {
+          id: Date.now(),
+          type: getNextFillSide(trade, previous[tradeId] || []),
+          date: todayIso(),
+          quantity: '',
+          price: '',
+          fee: 0,
+        },
       ],
     }));
   };
@@ -80,21 +87,17 @@ export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }
   const saveFills = async (trade) => {
     const fills = fillsBuffer[trade.id] || [];
     if (fills.length === 0) return;
-    const [first, ...rest] = fills;
     const direction = inferDirection(trade);
-    const closingType = direction === 'LONG' ? 'SELL' : 'BUY';
-    const { hasClosing, pnl } = calculateFillPnl(fills, closingType);
-    const closingFill = [...fills].reverse().find(fill =>
-      fill.type === closingType && parseFloat(fill.quantity) > 0);
+    const summary = summarizeFills(fills, direction);
     const payload = {
-      opening_date: first.date || trade.opening_date,
-      entry_price: parseFloat(first.price) || 0,
-      quantity: parseInt(first.quantity, 10) || 0,
-      commissions: parseFloat(first.fee) || 0,
-      actions_json: rest.length > 0 ? JSON.stringify(rest.map(toSavedFill)) : null,
-      exit_price: closingFill ? parseFloat(closingFill.price) || null : null,
-      closing_date: closingFill ? closingFill.date || null : null,
-      pnl: hasClosing ? pnl : null,
+      opening_date: summary.openingDate || trade.opening_date,
+      entry_price: summary.entryPrice,
+      quantity: summary.quantity,
+      commissions: summary.commissions,
+      actions_json: JSON.stringify(fills.map((fill, index) => toSavedFill(fill, index === 0))),
+      exit_price: summary.exitPrice,
+      closing_date: summary.closingDate,
+      pnl: summary.pnl,
     };
 
     try {
@@ -132,27 +135,63 @@ const buildInitialFill = (trade, openSide) => ({
   isInitial: true,
 });
 
-const calculateFillPnl = (fills, closingType) => {
-  let cashFlow = 0;
-  let totalFees = 0;
-  let hasClosing = false;
-  for (const fill of fills) {
-    const quantity = parseFloat(fill.quantity) || 0;
-    const price = parseFloat(fill.price) || 0;
-    const fee = parseFloat(fill.fee) || 0;
-    if (fill.type === 'SELL') cashFlow += quantity * price;
-    else if (fill.type === 'BUY') cashFlow -= quantity * price;
-    totalFees += fee;
-    if (fill.type === closingType && quantity > 0) hasClosing = true;
-  }
-  return { hasClosing, pnl: cashFlow - totalFees };
+const actionsAreComplete = (fills) => (
+  fills.some(fill => {
+    const role = String(fill.role || '').toUpperCase();
+    const type = String(fill.type || '').toUpperCase();
+    return fill.exec_id || fill.isInitial || role === 'ENTRY' || role === 'EXIT' || type === 'ENTRY' || type === 'EXIT';
+  })
+);
+
+const normalizeFill = (fill, openSide, closeSide) => {
+  const role = String(fill.role || '').toUpperCase();
+  const rawType = String(fill.side || fill.type || '').toUpperCase();
+  const type = rawType === 'SELL'
+    ? 'SELL'
+    : rawType === 'BUY'
+      ? 'BUY'
+      : role === 'EXIT' || rawType === 'EXIT'
+        ? closeSide
+        : openSide;
+
+  return {
+    ...fill,
+    role: role || (type === openSide ? 'ENTRY' : 'EXIT'),
+    type,
+  };
 };
 
-const toSavedFill = (fill) => ({
+const getNextFillSide = (trade, fills) => {
+  const direction = inferDirection(trade);
+  const openSide = direction === 'LONG' ? 'BUY' : 'SELL';
+  const closeSide = openSide === 'BUY' ? 'SELL' : 'BUY';
+  const summary = summarizeFills(fills, direction);
+  return summary.position > 0 ? closeSide : openSide;
+};
+
+const summarizeFills = (fills, direction) => {
+  const ledger = summarizeFillLedger(fills, direction);
+  const isClosed = ledger.openQty > 0 && ledger.position <= 0;
+  return {
+    closingDate: isClosed ? ledger.closingDate : null,
+    commissions: ledger.commissions,
+    entryPrice: ledger.entryPrice || 0,
+    exitPrice: ledger.exitPrice,
+    openingDate: ledger.openingDate,
+    pnl: isClosed ? ledger.realizedPnl : null,
+    position: ledger.position,
+    quantity: Math.round(ledger.openQty),
+  };
+};
+
+const toSavedFill = (fill, isInitial) => ({
   id: fill.id,
   type: fill.type,
+  side: fill.type,
+  role: fill.role || (isInitial ? 'ENTRY' : undefined),
   date: fill.date,
   quantity: fill.quantity,
   price: fill.price,
   fee: fill.fee,
+  isInitial: isInitial || undefined,
 });
