@@ -2,7 +2,9 @@
 
 This document is the **single source of truth** for what the screener actually does. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
 
-The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A / Phase B structural model. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by an actual swing.
+The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A/B/C/D structure. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by actual High/Low swing geometry.
+
+The live structure reader is now chronological: one left-to-right daily-chart narrative, not a set of independent detectors reconciled afterward. It walks **Trend / root swing -> Phase A -> Phase B -> optional Phase C -> Phase D -> LPS**, backtracking to the next root swing when any brick fails. That single `Structure` is the shared reading object for horizontal analysis (time, cause, rail travel, compression) and vertical analysis (R/S levels, box height, undercut depth, trigger shelf).
 
 ---
 
@@ -11,10 +13,10 @@ The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias
 ```
 Phase 0  Universe & data acquisition          core.pipeline.data public API
 Phase 1  Baseline universe filter              core.pipeline.evaluation (apply_baseline_filters)
-Phase 2  Consolidation detection               core.structure           (detect_boxes -> parent find_outer_box + best-of-both inner range)
+Phase 2  Chronological structure read          core.structure           (read_structure -> bricks -> Structure)
 Phase 2b Crash / extension filters             core.pipeline.evaluation (_evaluate_ticker)
-Phase 3  LPS detection                         core.structure           (detect_lps)
-Phase 3b Read-only phase scoping               core.structure           (scope_consolidation)
+Phase 3  Active LPS/Test election              core.structure           (detect_lps; latest actionable setup LPS)
+Phase 3b Phase scoping + bin evidence          core.structure           (phase_d / scope_consolidation / measure_bins)
 Phase 4  Scoring & tier assignment             core.scoring             (score_setup, calculate_tier)
 Archive  Persist + forward-return backfill     core.archive             (writer / forward_returns / seed)
 ```
@@ -83,11 +85,22 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 ## Phase 2 — Consolidation Detection
 
-`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) is the live entry point. It calls `find_outer_box()` for the parent Wyckoff range, then probes for a best-of-both inner Phase D range (mechanical midpoint and detected inner climax; see "Parent + Inner" below). The parent remains the base of record. The inner, when present, is drawn alongside and used for LPS detection/scoring only when the LPS forms inside it.
+`read_structure()` ([core/structure/narrative.py](../core/structure/narrative.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [core/structure/bricks.py](../core/structure/bricks.py):
+
+1. `find_root_swing()` — next calibrated climax -> automatic-reaction anchor, oldest-first.
+2. `validate_equilibrium()` — a real worked Phase-B box, using the existing zigzag candidate and traversal gates.
+3. `find_spring()` — optional Phase-C spring / shakeout.
+4. `find_inner_box()` — optional tighter Phase-D mini-consolidation in the recent half of the parent.
+5. `find_lps()` — mandatory active LPS/Test, inner first when a tighter inner box exists, otherwise parent.
+6. `resolve_phase_a()` — reconnects the local climax -> AR bridge whose reaction lands at the validated box start.
+
+If any required brick fails, the reader advances to the next root swing and tries again. If no complete A -> B -> (C?) -> D/LPS narrative holds, the ticker has no setup.
+
+`consolidation.detect_boxes()` / `find_outer_box()` remain for diagnostics and low-level compatibility. The live pipeline consumes the `Structure` from `read_structure()` and adapts it into the legacy parent/inner shape internally so scoring, archive, and chart payloads stay stable.
 
 ### Setup
 
-- `eval_df = df.iloc[:-5]` — last 5 bars are excluded from structural analysis as "edge noise."
+- `eval_df = df.iloc[:-STRUCTURE_EDGE_SKIP_BARS]` (default 5) — last 5 bars are excluded from structural anchoring as trigger/edge noise.
 - Require `len(eval_df) >= MIN_BASE_DAYS + 15` = 35 bars.
 - ATR snapshot: take `df.iloc[-1]['ATR_10']` from `eval_df` (which equals `df.iloc[-6]['ATR_10']`) to share one volatility frame with the LPS detector.
 - **Macro gate (re-asserted):** at `eval_df.iloc[-1]`, `Close > SMA_200`. (Baseline already enforced this at the latest bar; this re-asserts at the evaluation bar so the function works standalone.)
@@ -104,13 +117,15 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 **SC qualification:** mirror — `lows[i]` is local trough over 30 bars, fell ≥ 15% from a prior peak (≥ 20 bars), validated by ≥ 5% bounce within 15 bars; Phase B starts at the **bounce high**.
 
-### Phase A — Anchor Selection
+### Phase A — Anchor Selection & Backtracking
 
-`anchors` is built most-recent-first; the loop iterates `reversed(anchors)` (oldest-first) and takes the **first anchor whose Phase B passes** all quality gates. Rationale (from the docstring): maximizes Wyckoff "cause" / base age, and resists the failure mode where a mid-base upthrust gets selected because its shorter window mechanically yields a tighter box.
+`_collect_root_anchors()` is built most-recent-first; `find_root_swing()` reads it oldest-first and returns the next root swing at/after the reader's search cursor. The reader then asks Phase B and Phase D to validate the story born from that root. If the box fails, the spring/LPS path fails, or no active LPS exists, the cursor advances past that climax and the reader tries the next pair of limbs. This preserves the "earliest valid cause" bias without forcing an invalid old trend top onto a newer worked base.
 
-### Swing Segmentation — Phase-A Display Reconnect
+### Phase A — Locality Resolution
 
-`segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) measures the swing path with ATR-normalized displacement and identifies a root counter-swing from trend into range. The live pipeline uses this only after the box/LPS have already passed: if the detector's BC anchor drifted to an ancient climax, `_evaluate_ticker()` may reconnect `bc_anchor_bar` to the largest recent counter-trend swing whose end lands near `phase_b_start_bar`. This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, and chart-region labels), but it does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
+`resolve_phase_a()` ([core/structure/bricks.py](../core/structure/bricks.py)) repackages `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands near `box.start_bar`; if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
+
+This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
 ### Phase B — Zigzag S/R Anchoring
 
@@ -119,7 +134,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
 2. **Zigzag construction** — `_build_zigzag()`: merge peaks + valleys chronologically, enforce strict alternation; on consecutive same-type pivots, keep the more extreme (higher peak or lower valley).
-3. **ATR reference** — use the engine-aligned snapshot from `find_outer_box` if supplied; otherwise the median `ATR_10` over the last `PHASE_B_ATR_WINDOW` (30) bars; final fallback = median(High-Low).
+3. **ATR reference** — use the engine-aligned snapshot from the reader if supplied; otherwise the median `ATR_10` over the last `PHASE_B_ATR_WINDOW` (30) bars; final fallback = median(High-Low).
 4. **Candidate generation** — only **strictly consecutive** zigzag pairs (peak→valley or valley→peak) are tested. The peak's High = R, the valley's Low = S.
 5. **Per-candidate validation — the "worked equilibrium" test.** A candidate (a
    Resistance-anchor / Support-anchor pair) is a REAL trading range only if price
@@ -144,6 +159,15 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
    - The old "≥2 touches + N midline crosses" gate is retired — a wide box
      mechanically racked up crosses while a one-time AR low left dead space
      beneath the real range, so the widest framing always won.
+   - **Traversal gate** — `_apply_traversal_gate()` requires real rail-to-rail
+     swing travel: at least `TRAVERSAL_MIN = 2` full traversals and density at
+     least `TRAVERSAL_MIN_DENSITY = 0.08`. This is the swing-structural guard
+     against boxes that technically touch both rails but leave one side mostly
+     dead.
+   - **SOS trim rescue** — a worked box whose right side has already broken out
+     and held above R can be validated over the worked cause before that
+     breakout tail. This rescues SOS -> BUEC structures (e.g. a valid range that
+     backs up to an LPS) without moving ordinary in-range setups.
 6. **Structural-quality score:** every *valid* candidate gets
    `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
 7. **Candidate selection (`select="earliest"` live default):** choose the
@@ -165,7 +189,7 @@ Phase B begins at the AR *low* (or the bounce *high* for SC anchors), but the st
 
 `_phase_b_zigzag` returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
 
-`find_outer_box` returns a **12-tuple** for the parent: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields. `detect_boxes` wraps that as `{"parent": <12-tuple>, "inner": <dict|None>}`; the inner dict carries its own `R`, `S`, `box_width`, `base_len`, `start_bar`, touches, and anchor bars.
+The live reader returns a `Structure` object with the validated parent `EquilibriumBox`, optional `InnerBox`, optional `Spring`, winning `Lps`, phase boundaries, and Phase-D evidence. `_evaluate_ticker()` adapts that into the legacy parent tuple internally: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields. Diagnostic `detect_boxes()` still returns `{"parent": <12-tuple>, "inner": <dict|None>}` for tools.
 
 `r_anchor_bar` / `s_anchor_bar` are returned in **eq_df-relative** (base-relative) coordinates — the dashboard and SQLite archive consume them that way. The LPS detector translates them into df-positional indices locally.
 
@@ -190,22 +214,22 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 - the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
 - the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint").
 
-**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" via the parent+inner detector (`detect_boxes` → `_inner_zigzag`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
+**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" through the `find_inner_box()` brick, which mirrors the legacy inner search (`_inner_box_at` + `_detect_inner_root_swing`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
 
 **The "V" — a positioning guide, not a detected object.** The right-most action often traces a V: a final dip / shakeout / spring down into support, then a turn back up. The V is a guide for *where the trader wants to stand*:
 
 - **before the tip** (still descending into the dip) = wrong place, wrong time — the low isn't in;
 - **after the tip** (turned up off the low, demand returning) = the shakeout is done and we are walking toward launch.
 
-The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the trigger must sit **above** current price (room to run; Phase 3, gate 13), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
+The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the active setup LPS is terminal-bar based and must sit below its trigger (Phase 3, gate 14), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
 
-**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is now surfaced explicitly by `scope_consolidation()` ([core/structure/scope.py](../core/structure/scope.py)), an adaptive scoping pass over the detector + LPS output. It is strictly a **read-only hint**, never a gate: it cannot drop a ticker, change R/S, or alter score/tier.
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([core/structure/phase_d.py](../core/structure/phase_d.py)) and surfaced through the narrative reader, `measure_bins()`, and `scope_consolidation()` ([core/structure/scope.py](../core/structure/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
 
 The scoping layer emits best-effort chart anchors:
 
-- **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor to the reaction bar. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
+- **Phase A:** local root climax / automatic-reaction lead-in, from the resolved consolidation-specific climax to the reaction bar.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
-- **Phase D:** the right-most launch region. A true Phase-C spring recovery floors the Phase-D search; it is not itself the boundary source. Phase D starts at the earliest credible right-side evidence at/after that floor: support-test cluster, inner mini-consolidation, or recovered V-tip. If none is present, the LPS window is the mandatory fallback.
+- **Phase D:** the right-most launch region. A true Phase-C spring recovery floors the Phase-D search; it is not itself the boundary source. Phase D starts at the earliest credible right-side evidence at/after that floor: support-test cluster, SOS reclaim, rising support, inner mini-consolidation, or recovered V-tip. If none is present, the LPS window is the mandatory fallback.
 - **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
@@ -243,7 +267,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **Quality ranking:** candidates still carry `vol_contraction × (1 - tightness_ratio) × descent_frac × high_descent_frac × spread_decline_quality`, but setup election is actionability-first and recency-first: latest valid `end_index`, then latest `low_index`, then longer length, then quality. If several clean slices share the same final low, the detector reports the longest clean pullback.
 
-> **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `_detect_lps` is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now — `BREAKOUT_VOLUME_MULT`, `BREAKOUT_DEFAULT_VOL_CONTRACTION`, and `BREAKOUT_DEFAULT_TIGHTNESS` exist in settings but are unused.
+> **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `detect_lps()` path is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now — `BREAKOUT_VOLUME_MULT`, `BREAKOUT_DEFAULT_VOL_CONTRACTION`, and `BREAKOUT_DEFAULT_TIGHTNESS` exist in settings but are unused.
 
 ---
 
@@ -255,7 +279,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |-----------|---------|---------------|
 | **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22` | `SCORE_BOX_TIGHTNESS = 22` |
 | **Touch density** | `min(touches × 2, 15)` plus `+10` if `r_touches ≥ 3 AND s_touches ≥ 3` OR `total ≥ 6` | `SCORE_TOUCH_DENSITY = 25` (15 base + 10 bonus); `TOUCH_BONUS_INDIVIDUAL = 3`, `TOUCH_BONUS_TOTAL = 6`, `TOUCH_BONUS_POINTS = 10` |
-| **Oscillation** | `(mean(|Close - midline|) / box_height) / 0.33 × 5`, rewarding closes that work the rails rather than clustering at mid-box | `SCORE_OSCILLATION = 5` |
+| **Oscillation** | `(mean(|bar_midpoint - midline|) / box_height) / 0.33 × 5`, where `bar_midpoint = (High + Low) / 2`. Rewards bars whose neutral location works the rails rather than clustering at mid-box. | `SCORE_OSCILLATION = 5` |
 | **ATR squeeze** | `(1 - ATR_10/ATR_50 at bar -6) × 8` | `SCORE_ATR_SQUEEZE = 8` |
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |
@@ -399,15 +423,20 @@ Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/mi
   `_bin_d_vs_b_support_quality_delta` — is the right side stair-stepping higher
   more clearly than the base as a whole?
 - `_bin_d_boundary_source` — `support_tests` (a right-side support-test cluster),
-  `inner_box` (a real detected mini-consolidation), `v_tip` (the final recovered
-  late-base low), or `lps` (the mandatory gate / fallback). Spring recovery only
-  floors the search; it is not itself a boundary source.
+  `sos_reclaim`, `rising_support`, `inner_box` (a real detected
+  mini-consolidation), `v_tip` (the final recovered late-base low), or `lps`
+  (the mandatory gate / fallback). Spring recovery only floors the search; it is
+  not itself a boundary source.
+- `_phase_d_evidence_json` — serialized evidence detail: floor marks, all
+  candidate evidence signals, and the selected source/bar. The frontend overlay
+  uses this when present and falls back to `_bin_d_boundary_source` otherwise.
 
 **Phase-D boundary is single-sourced.** The Phase-D start uses the *same* rule
-the scoping overlay draws — both call `scope._resolve_phase_d_start()` — so the
-measured Phase-D bin and the drawn Phase-D band can never drift apart. Any
-region the engine can't place confidently (e.g. no LPS window) is emitted as
-`None`; young bases legitimately have fewer regions.
+the narrative, bin measurement, and scoping overlay draw — all call
+`phase_d.resolve_phase_d_boundary()` through thin wrappers — so the measured
+Phase-D bin and the drawn Phase-D band can never drift apart. Any region the
+engine can't place confidently (e.g. no LPS window) is emitted as `None`; young
+bases legitimately have fewer regions.
 
 ### Last Supper stretch
 
@@ -462,9 +491,16 @@ surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 
 ## Outputs
 
-`_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields (`_R`, `_S`, `_lps_offset`, `_r_anchor_bar`, `_s_anchor_bar`, `_sub_scores`, `_r_touch_vol_z`, `_s_touch_vol_z`, `_lps_descent_frac`, `_lps_zone_type`, etc.) feed the chart renderer and the archive but are not displayed in the terminal.
+`_evaluate_ticker()` returns one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields feed the chart renderer and the archive but are not displayed in the terminal.
 
-The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`, `_phase_b_start_date`, `_phase_d_start_date`, optional `_phase_c_event_date`, `_lps_zone_low`, `_lps_zone_high`, `_lps_zone_start_date`, `_lps_zone_end_date`, `_has_mini_consolidation`, and `_scope_confidence`. These fields are visualization/diagnostic facts only; no downstream filtering or scoring consumes them.
+Important structure payloads:
+
+- Box/rail fields: `_R`, `_S`, `_r_anchor_bar`, `_s_anchor_bar`, `_phase_a_start_date`, `_phase_a_end_date`, `_phase_b_start_date`, `_phase_d_start_date`.
+- LPS geometry: `_lps_offset`, `_lps_len`, `_trigger_price`, `_lps_zone_type`, `_lps_descent_frac`, `_lps_high_descent_frac`, `_lps_profile_unit`, `_lps_pullback_profile`, `_lps_first_high`, `_lps_last_low`, `_lps_window_high`, `_lps_window_low`.
+- Inner/Phase-D fields: `_phase_d_inner`, `_lps_in_inner`, `_inner_*`, `_bin_d_boundary_source`, `_phase_d_evidence_json`.
+- Scoring/archive helpers: `_sub_scores`, `_r_touch_vol_z`, `_s_touch_vol_z`, `_stage2_*`, `_bin_*`, `_trav_*`, `_eq_*`.
+
+The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`, `_phase_a_end_date`, `_phase_b_start_date`, `_phase_d_start_date`, optional `_phase_c_event_date`, `_lps_zone_low`, `_lps_zone_high`, `_lps_zone_start_date`, `_lps_zone_end_date`, `_has_mini_consolidation`, `_scope_confidence`, and `_phase_d_evidence_json`. These fields are visualization/diagnostic facts only; no downstream filtering or scoring consumes them.
 
 Pipeline returns `(results_df, market_data, tickers)` — `results_df` is sorted by `Score` descending.
 
@@ -524,7 +560,14 @@ EQ_MIN_TOUCH_THIRDS = 2
 EQ_MIN_HALF_DWELL = 0.15
 EQ_MAX_MID_DWELL = 0.45
 EQ_MIN_COVERAGE = 0.80
+EQ_COVERAGE_BINS = 6
+EQ_COVERAGE_MIN_FRAC = 0.03
+STRUCTURE_EDGE_SKIP_BARS = 5
+INNER_SEARCH_FRACTION = 0.5
+INNER_TIGHTNESS_RATIO = 0.75
 TRAVERSAL_GATE_ENABLED = True
+TRAVERSAL_NOISE_FRAC = 0.15
+TRAVERSAL_FULL_FRAC = 0.55
 TRAVERSAL_MIN = 2
 TRAVERSAL_MIN_DENSITY = 0.08
 SOS_TRIM_ENABLED = True
@@ -565,10 +608,11 @@ BIN_C_UNDERCUT_ATR_MIN = 0.30; BIN_C_UNDERCUT_ATR_MAX = 3.00
 BIN_C_UNDERCUT_BOX_MAX = 0.65; BIN_C_RECOVERY_BARS_MAX = 8
 BIN_C_LINGER_BARS_MAX = 12; BIN_C_HOLD_BARS = 3
 BIN_C_HOLD_TOL_ATR = 0.50
+BIN_C_SIGNIF_UNDERCUT_ATR = 0.75; BIN_C_MIN_LINGER_BARS = 2
 PHASE_D_VTIP_LATE_FRACTION = 0.35
 PHASE_D_VTIP_RECOVERY_BARS = 6
 TOUCH_VOL_Z_NO_SUPPLY = -0.30   # Tag: r_touch_vol_z below this → "No Supply"
-TOUCH_VOL_Z_SPRING = 0.30       # Tag: s_touch_vol_z above this → "Spring Strength"
+TOUCH_VOL_Z_SPRING = 0.30       # Tag: s_touch_vol_z above this → "Demand at S"
 TOUCH_VOL_Z_HEAVY_R = 0.50      # Tag: r_touch_vol_z above this → "Heavy Resistance" (warning)
 
 # Phase 4 — Scoring
@@ -579,7 +623,7 @@ SCORE_VOL_CONTRACTION = 20
 SCORE_LPS_TIGHTNESS = 20
 SCORE_BOX_TIGHTNESS = 22
 SCORE_ATR_SQUEEZE = 8
-SCORE_OSCILLATION = 5
+SCORE_OSCILLATION = 5            # bar-midpoint rail-working bonus
 TOUCH_BONUS_INDIVIDUAL = 3; TOUCH_BONUS_TOTAL = 6; TOUCH_BONUS_POINTS = 10
 MIN_STRONG_YEARLY_RETURN = 0.30; MAX_STRONG_YEARLY_RETURN = 0.60; SCORE_UPTREND_BONUS = 15
 SCORE_RS_BONUS = 15; RS_LOOKBACK_BARS = 126; RS_MAX_EXCESS_RETURN = 0.30
@@ -614,7 +658,9 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D / VCP mini-consolidation probe. After the parent box is found, it runs the inner search from both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+The live reader calls `find_inner_box()` ([core/structure/bricks.py](../core/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+
+`detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 
@@ -622,17 +668,26 @@ The key difference between `_inner_zigzag` and `_phase_b_zigzag`: the inner vers
 
 Historical backtest snapshots are calibration inputs, not permanent truth. When a missed visual winner clusters around a hard LPS gate, the next step is to measure that gate against forward outcomes before moving it into quality/selector evidence.
 
-### LPS scaling adaptations for tight inner boxes
+### Adaptive LPS geometry
 
-When the hierarchical detector returns a tight inner box, the standard LPS gates are too strict. Two scalings address this — both self-gated so they cannot over-loosen wider boxes:
+The live LPS detector no longer hard-gates raw percent pullback depth. It uses a setup-profile unit so wide/spready bases get realistic absolute wiggle room while tight bases stay precise:
 
-1. **Zone tolerance floor** — `if bw < 0.10: zone_tol = max(0.5*ATR, 0.5*box_height)` (in `_detect_lps`). Tight Phase D boxes often have the LPS forming as a breakout-retest just above R (resistance flipped to support post-breach) or a sellers-failing test just below S. Half-ATR alone is too narrow when `box_height` is small. The `bw < 0.10` gate prevents wide-outer-box over-loosening.
-2. **Base range threshold floor** — `base_range_threshold = max(spread_quantile, 1.2*ATR)` (in `_evaluate_ticker`). Inside a tight inner box the 50%ile spread can be smaller than a normally-volatile bar, killing detection on any ATR-typical day. The floor is now applied **unconditionally** (no `bw` self-gate); chronically-wide bases simply have a percentile that already exceeds 1.2·ATR, so the `max(...)` resolves to the percentile and the rule is unchanged for them.
+```
+base_range_threshold = max(base spread quantile, 1.2 * ATR)
+profile_unit = max(base_range_threshold, LPS_PROFILE_BOX_FRACTION_FLOOR * box_height)
+pullback_profile = (first_bar_high - last_bar_low) / profile_unit
+```
+
+The LPS low is the **last bar's Low**, the trigger is the **last bar's High**, and the candidate is actionable only while current price remains below that trigger. The terminal-low guard requires the last Low to sit within `LPS_TERMINAL_LOW_TOL_PROFILE` profile units of the window low. Spread decline remains quality evidence; hard rejection is only "spread expanded too much for this setup profile."
+
+The zone tolerance still adapts for tight boxes: if box width is below 10%, `_zone_tolerance()` uses `max(0.5 * ATR, 0.5 * box_height)`. This keeps tight inner boxes from rejecting reasonable breakout retests just above R or failed-seller tests just below S.
 
 ### Current calibration frontier
 
 The reader should stay visually strict, but the LPS gates should be audited as
 separate ideas: hard geometry, quality evidence, and active-setup selection.
-Spread decline is already quality-only. Volume contraction, descent cleanliness,
-and zone/range tolerances are the next places to test against the archive before
-loosening or hardening anything.
+`tools/lps_gate_audit.py --matrix lps-core` is the current scoreboard for this:
+it can soften descent, volume, spread, terminal-low, and pullback-profile gates
+individually and report which tickers would recover/drop. Volume contraction,
+descent cleanliness, and zone/range tolerances are the next places to test
+against forward outcomes before loosening or hardening anything.
