@@ -27,17 +27,14 @@ _ROOT = os.path.normpath(os.path.join(_THIS_DIR, ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from config import settings
 from core.pipeline.screener import apply_baseline_filters
 from core.structure.box_candidates import (
     INNER_MIN_DAYS,
     _detect_inner_phase_b_start,
     _inner_zigzag,
 )
-from core.structure.consolidation import (
-    _INNER_SEARCH_FRACTION,
-    _INNER_TIGHTNESS_RATIO,
-    find_outer_box,
-)
+from core.structure.consolidation import find_outer_box
 from core.structure.indicators import calculate_atr
 from tools.shadow_diff import _load_fixture
 
@@ -115,7 +112,7 @@ def render(tickers):
         parent = (opbs, R_o, S_o, bw_o)
 
         eval_df = df.iloc[:-5] if n > 5 else df
-        mid_start = opbs + int(obl * _INNER_SEARCH_FRACTION)
+        mid_start = opbs + int(obl * settings.INNER_SEARCH_FRACTION)
         det_off = _detect_inner_phase_b_start(eval_df.iloc[opbs:])
         det_start = (opbs + det_off) if det_off is not None else None
 
@@ -128,7 +125,7 @@ def render(tickers):
         plot_df = df.tail(show).copy().reset_index(drop=True)
 
         def gate(b):
-            return "wins" if (b and b[3] < bw_o * _INNER_TIGHTNESS_RATIO) else "no"
+            return "wins" if (b and b[3] < bw_o * settings.INNER_TIGHTNESS_RATIO) else "no"
 
         fig, axes = plt.subplots(2, 1, figsize=(15, 11), sharex=True)
         panels = [
