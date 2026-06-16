@@ -350,12 +350,11 @@ def measure_equilibrium(base_df, R, S, atr_val):
         r_touch_thirds, s_touch_thirds  of 3 equal time-thirds, how many contain a touch
                                         (constant contact vs. clustered at the start)
         lower_dwell, mid_dwell, upper_dwell
-                                        fraction of closes in the lower / middle / upper
-                                        third of the box (closes beyond a rail count toward
-                                        the nearest third); the two halves being worked is
-                                        what rules out dead space
+                                        fraction of bars whose [Low, High] range intersects
+                                        the lower / middle / upper third of the box; the two
+                                        halves being worked is what rules out dead space
         coverage                        fraction of EQ_COVERAGE_BINS box-height bins holding
-                                        >= EQ_COVERAGE_MIN_FRAC of closes (starved-band detector)
+                                        >= EQ_COVERAGE_MIN_FRAC of bars (starved-band detector)
     """
     empty = {
         "r_touches": 0, "s_touches": 0,
@@ -371,8 +370,7 @@ def measure_equilibrium(base_df, R, S, atr_val):
 
     highs = base_df["High"].values.astype(float)
     lows = base_df["Low"].values.astype(float)
-    closes = base_df["Close"].values.astype(float)
-    n = len(closes)
+    n = len(highs)
 
     tb = settings.TOUCH_TOLERANCE_ATR * atr_val
     r_mask = np.abs(highs - R) <= tb
@@ -382,16 +380,23 @@ def measure_equilibrium(base_df, R, S, atr_val):
     r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
     s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
 
-    # Close position in the box: 0 at S, 1 at R. May fall outside [0,1] on
-    # excursions; those count toward the nearest third / clamped coverage bin.
-    pos = (closes - S) / box
-    lower_dwell = float(np.mean(pos < 1.0 / 3.0))
-    upper_dwell = float(np.mean(pos > 2.0 / 3.0))
-    mid_dwell = float(np.mean((pos >= 1.0 / 3.0) & (pos <= 2.0 / 3.0)))
+    # Range occupancy: a bar works a third/bin if its full [Low, High] range
+    # intersects it. Closes are a residence concept; Phase-B rail work is a
+    # High/Low geometry concept.
+    low_pos = np.clip((lows - S) / box, 0.0, 1.0)
+    high_pos = np.clip((highs - S) / box, 0.0, 1.0)
+    lo = np.minimum(low_pos, high_pos)
+    hi = np.maximum(low_pos, high_pos)
+    lower_dwell = float(np.mean((hi >= 0.0) & (lo <= 1.0 / 3.0)))
+    mid_dwell = float(np.mean((hi >= 1.0 / 3.0) & (lo <= 2.0 / 3.0)))
+    upper_dwell = float(np.mean((hi >= 2.0 / 3.0) & (lo <= 1.0)))
 
     nb = settings.EQ_COVERAGE_BINS
-    bin_idx = np.clip((np.clip(pos, 0.0, 1.0) * nb).astype(int), 0, nb - 1)
-    counts = np.bincount(bin_idx, minlength=nb)
+    counts = np.zeros(nb, dtype=int)
+    start_bins = np.clip((lo * nb).astype(int), 0, nb - 1)
+    end_bins = np.clip(np.ceil(hi * nb).astype(int) - 1, 0, nb - 1)
+    for start_bin, end_bin in zip(start_bins, end_bins):
+        counts[start_bin:end_bin + 1] += 1
     min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
     coverage = float(np.mean(counts >= min_count))
 
@@ -404,4 +409,174 @@ def measure_equilibrium(base_df, R, S, atr_val):
         "mid_dwell": round(mid_dwell, 4),
         "upper_dwell": round(upper_dwell, 4),
         "coverage": round(coverage, 4),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Limb traversal — do the swing LIMBS travel rail-to-rail, or is there dead space?
+# ---------------------------------------------------------------------------
+
+def _collapse_swings(zigzag, min_amp):
+    """Amplitude-filter an alternating zigzag down to its significant swings.
+
+    A percentage/ATR-style zigzag built ON TOP of ``_build_zigzag``: walk the raw
+    alternating pivots left-to-right and absorb any reversal smaller than
+    ``min_amp`` into the running directional extreme, so only swings that move a
+    meaningful fraction of the box survive. This is what makes the traversal read
+    adaptive — in a tight box a small absolute move is still a real swing; in a
+    wide box the same absolute move is noise — because ``min_amp`` scales with box
+    height at the call site.
+
+    Single O(n) left-to-right pass (no fixed-point deletion). The input alternates
+    peak/valley, and every branch preserves that alternation, so the output is a
+    clean alternating list of ``(bar_index, 'peak'|'valley', price)`` tuples.
+    """
+    if not zigzag:
+        return []
+    out = [zigzag[0]]
+    for piv in zigzag[1:]:
+        last = out[-1]
+        if piv[1] == last[1]:
+            # Same type (post-merge can produce this): keep the more extreme.
+            if ((piv[1] == 'peak' and piv[2] >= last[2]) or
+                    (piv[1] == 'valley' and piv[2] <= last[2])):
+                out[-1] = piv
+        elif abs(piv[2] - last[2]) >= min_amp:
+            out.append(piv)                       # a genuine reversal — commit it
+        elif len(out) >= 2:
+            # Sub-threshold counter-swing: drop the small reversal's start and let
+            # the prior same-type extreme (out[-2]) absorb this pivot.
+            out.pop()
+            prev = out[-1]
+            if ((piv[1] == 'peak' and piv[2] >= prev[2]) or
+                    (piv[1] == 'valley' and piv[2] <= prev[2])):
+                out[-1] = piv
+        # else: a sub-threshold move off the very first pivot — skip it; the
+        # anchor stays until a real reversal arrives.
+    return out
+
+
+def measure_traversal(base_df, R, S, atr_val):
+    """Do the swing LIMBS travel rail-to-rail, or does price hang off one rail?
+
+    ``measure_equilibrium`` asks which vertical bands the bars occupy. This asks
+    the complementary, swing-structural question a chart reader actually uses: do
+    the up/down limbs of the chop genuinely run from Support to Resistance and
+    back, or does price hang off one rail, nick the middle, and tap the far rail
+    only a couple of times? Persistent dead space at a rail is the tell that R/S
+    were marked too wide.
+
+    Deliberately a REACH measure — peaks use High, valleys use Low (a swing that
+    *reaches* a rail counts), unlike settled close / CoG measures. Swing
+    significance is judged as a FRACTION OF BOX HEIGHT (``TRAVERSAL_NOISE_FRAC``),
+    not a bar count, so the read adapts: tight boxes have short limbs, wide boxes
+    long ones — which is the whole point. ``atr_val`` is accepted for contract
+    symmetry with the sibling measures and to reject degenerate windows; the swing
+    math itself is box-relative by design.
+
+    Pure measurement, no gates and no points (v1). The pool-aware validity gate in
+    ``box_candidates`` (v2) and the archive decide what the numbers are worth.
+
+    Returns dict (safe defaults on a degenerate window):
+        n_full_traversals  limbs spanning >= TRAVERSAL_FULL_FRAC of the box that
+                           connect the low zone (<= TRAVERSAL_LOW_ZONE) to the high
+                           zone (>= TRAVERSAL_HIGH_ZONE); direction-agnostic, so a
+                           round-trip S->R->S counts as 2
+        n_swings           significant swings left after amplitude filtering
+        top_dead_space     1 - 75th-pct of peak positions: how far below R the
+                           swings habitually turn (0 = peaks reach R; large = dead top)
+        bottom_dead_space  25th-pct of valley positions: how far above S they turn
+        rail_reaches_high  swing peaks reaching the high zone
+        rail_reaches_low   swing valleys reaching the low zone
+        max_swing_frac     largest single limb as a fraction of box height
+    """
+    empty = {
+        "n_full_traversals": 0, "n_swings": 0,
+        "top_dead_space": None, "bottom_dead_space": None,
+        "rail_reaches_high": 0, "rail_reaches_low": 0,
+        "max_swing_frac": None,
+    }
+    if base_df is None or len(base_df) == 0:
+        return empty
+    box = R - S
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return empty
+
+    highs = base_df["High"].values.astype(float)
+    lows = base_df["Low"].values.astype(float)
+    n = len(highs)
+
+    # Sensitive (order-1) zigzag so tight-box swings aren't missed; the amplitude
+    # filter below removes the resulting noise.
+    peaks, valleys = _find_pivots(highs, lows, 1)
+    if not peaks or not valleys:
+        return empty
+    zz = _build_zigzag(peaks, valleys, highs, lows)
+    if len(zz) < 3:
+        return empty
+
+    min_amp = settings.TRAVERSAL_NOISE_FRAC * box
+    swings = _collapse_swings(zz, min_amp)
+    if not swings:
+        return empty
+
+    # Soft endpoints: order-1 pivots exclude the first/last bar, so a leading or
+    # trailing (in-progress) limb is invisible. Add each only when it forms a real
+    # (>= min_amp) limb of the opposite type — different bar + opposite type means
+    # no zero-width or noise limb is introduced, and alternation is preserved.
+    # Done BEFORE the 2-pivot floor, so a single collapsed extreme plus its
+    # leading/trailing limbs can still form a measurable swing.
+    first = swings[0]
+    if first[0] > 0:
+        kind = 'valley' if first[1] == 'peak' else 'peak'
+        price = lows[0] if kind == 'valley' else highs[0]
+        if abs(price - first[2]) >= min_amp:
+            swings.insert(0, (0, kind, price))
+    last = swings[-1]
+    if last[0] < n - 1:
+        kind = 'valley' if last[1] == 'peak' else 'peak'
+        price = lows[n - 1] if kind == 'valley' else highs[n - 1]
+        if abs(price - last[2]) >= min_amp:
+            swings.append((n - 1, kind, price))
+
+    if len(swings) < 2:
+        return empty
+
+    # Position as a fraction of box (0 = S, 1 = R). NOT clipped for the traversal
+    # / reach test — an overshoot through a rail is *more* than a reach.
+    pos = [(p[2] - S) / box for p in swings]
+
+    full = 0
+    max_span = 0.0
+    for i in range(len(swings) - 1):
+        a, b = pos[i], pos[i + 1]
+        span = abs(a - b)
+        if span > max_span:
+            max_span = span
+        if (span >= settings.TRAVERSAL_FULL_FRAC
+                and min(a, b) <= settings.TRAVERSAL_LOW_ZONE
+                and max(a, b) >= settings.TRAVERSAL_HIGH_ZONE):
+            full += 1
+
+    peak_pos = [p for p, sw in zip(pos, swings) if sw[1] == "peak"]
+    valley_pos = [p for p, sw in zip(pos, swings) if sw[1] == "valley"]
+    rail_reaches_high = sum(1 for p in peak_pos if p >= settings.TRAVERSAL_HIGH_ZONE)
+    rail_reaches_low = sum(1 for p in valley_pos if p <= settings.TRAVERSAL_LOW_ZONE)
+
+    # Dead-space cluster: the rail-side quartile of the CLIPPED positions asks
+    # "does a meaningful share of swings reach the rail?" — the median understates
+    # an occasionally-tagged rail, the extreme is fooled by a lone wick.
+    top_dead = (round(1.0 - float(np.quantile(np.clip(peak_pos, 0.0, 1.0), 0.75)), 4)
+                if peak_pos else None)
+    bottom_dead = (round(float(np.quantile(np.clip(valley_pos, 0.0, 1.0), 0.25)), 4)
+                   if valley_pos else None)
+
+    return {
+        "n_full_traversals": int(full),
+        "n_swings": int(len(swings)),
+        "top_dead_space": top_dead,
+        "bottom_dead_space": bottom_dead,
+        "rail_reaches_high": int(rail_reaches_high),
+        "rail_reaches_low": int(rail_reaches_low),
+        "max_swing_frac": round(float(max_span), 4),
     }

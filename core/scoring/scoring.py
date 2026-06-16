@@ -64,15 +64,16 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         touch_score += settings.TOUCH_BONUS_POINTS
     s_touch = touch_score
 
-    # Oscillation quality — reward price that WORKS the rails (closes spend time
-    # near S and R), NOT closes huddled at the midline. osc_ratio = mean
-    # |close - midline| / box_height: ~0.4-0.5 for a clean two-sided range,
-    # ~0.1 for mid-box clustering. The old form rewarded clustering — the exact
-    # opposite of a worked equilibrium (and the validity rule now rejects
-    # mid-churn outright, so this is purely a rail-working bonus).
+    # Oscillation quality — reward price that WORKS the rails, not bars huddled
+    # at the midline. Use the bar midpoint so this neutral location summary
+    # respects High/Low geometry without pretending every wick is a settled close.
     midline = (res_avg + sup_avg) / 2
     box_height = res_avg - sup_avg
-    osc_ratio = np.mean(np.abs(base_df['Close'] - midline)) / box_height if box_height > 0 else 0.0
+    if box_height > 0 and {"High", "Low"} <= set(base_df.columns):
+        bar_mid = (base_df["High"].astype(float) + base_df["Low"].astype(float)) / 2.0
+        osc_ratio = np.mean(np.abs(bar_mid - midline)) / box_height
+    else:
+        osc_ratio = 0.0
     s_osc = _clamp((osc_ratio / 0.33) * settings.SCORE_OSCILLATION,
                     settings.SCORE_OSCILLATION)
 

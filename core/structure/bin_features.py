@@ -14,13 +14,15 @@ placed is emitted as ``None`` so young bases degrade gracefully):
 
     Bin A   — the climax event: BC/SC -> AR (the trend-exhaustion lead-in).
     Bin B   — the working base: the validated box itself (``base_df``).
-    Bin D   — the right-most Phase D region. Boundary comes from the SAME rule the
-              scoping overlay draws (``scope._resolve_phase_d_start``), so the
-              drawn band and this measured bin can never drift apart. Tagged
-              ``bin_d_boundary_source`` = "inner_box" (a real mini-consolidation)
-              "spring" (true Phase-C spring recovery), "v_tip" (final recovered
-              V-tip), "support_tests" (support-test cluster), or "heuristic"
-              (the final-third fallback).
+    Bin D   — the right-most Phase D region. Boundary comes from the SAME shared
+              rule the scoping overlay draws (``phase_d.resolve_phase_d_boundary``
+              via ``scope._resolve_phase_d_start``), so the drawn band and this
+              measured bin can never drift apart. Tagged ``bin_d_boundary_source``
+              = the EARLIEST credible right-side evidence after the spring-recovery
+              floor: "support_tests" (support / rising-support / SOS cluster),
+              "inner_box" (a real mini-consolidation), or "v_tip" (final recovered
+              V-tip) — else "lps" (the mandatory gate / fallback). A spring
+              recovery only FLOORS the search; it is never itself the source.
     Bin C   — an optional spring: a late, measured undercut of support that
               recovers by Close. Most bases do not have one.
     Bin LPS — the exact LPS candidate bars.
@@ -41,6 +43,7 @@ layers. Returns un-prefixed keys; the pipeline maps them to ``_bin_*`` /
 """
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 import numpy as np
@@ -48,7 +51,7 @@ import pandas as pd
 
 from config import settings
 from core.structure.metrics import measure_support_slope
-from core.structure.scope import _resolve_phase_d_start
+from core.structure.phase_d import resolve_phase_d_boundary
 
 
 def _empty() -> dict:
@@ -82,6 +85,7 @@ def _empty() -> dict:
         "bin_d_higher_low_frac": None,
         "bin_d_ascending_support_quality": None,
         "bin_d_boundary_source": None,
+        "phase_d_evidence_json": None,
         "bin_lps_bars": None,
         "lps_position_in_box": None,
         "bin_d_vs_b_range_ratio": None,
@@ -205,23 +209,31 @@ def _volume_z(seg: "pd.DataFrame", base_seg: "pd.DataFrame") -> Optional[float]:
 def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
                        box_start: int, base_len: int, R: float, S: float,
                        atr_val: float) -> dict:
-    """Measure the Phase-C spring: the TIP of a V that springs below support.
+    """Measure the Phase-C spring: a bounded EXCURSION below support that is
+    reclaimed and HELD.
 
-    A spring is not just any Low under S. It is the tip of a V — a real reaction
-    DOWN into a meaningful undercut of support (the left arm), then a recovery UP
-    that reclaims S by Close (the right arm). Three tests, in order, reject the
-    shallow "tests at support" that are not springs (the small hiccups the eye
-    dismisses):
+    A spring is a phase, not a one-bar V. Price penetrates support (the test),
+    then climbs back into the range and holds there (supply absorbed). The
+    excursion can be a clean fast V or a choppy linger below S — both are valid;
+    we validate the invariants, shape-agnostic:
 
-      1. undercut floor  — the tip Low dips >= BIN_C_UNDERCUT_ATR_MIN below S
-                           (and not deeper than the breakdown cap / box cap).
-      2. V arms          — a real drop into the tip (left shoulder High - tip,
-                           >= BIN_C_V_DROP_ATR_MIN) AND a real recovery out of it
-                           (right shoulder High - tip, >= BIN_C_V_RECOVERY_ATR_MIN).
-      3. reclaim         — Close back above S within BIN_C_RECOVERY_BARS_MAX.
+      1. penetration — a tip Low dips >= BIN_C_UNDERCUT_ATR_MIN below S and no
+                       deeper than the breakdown caps (BIN_C_UNDERCUT_ATR_MAX and
+                       BIN_C_UNDERCUT_BOX_MAX).
+      2. reclaim     — Close climbs back above S within BIN_C_RECOVERY_BARS_MAX
+                       bars of the tip, and the whole below-S episode (first
+                       penetration -> reclaim) is bounded by BIN_C_LINGER_BARS_MAX.
+      3. significance— not a trivial one-bar poke: EITHER a visible clean-V dip
+                       (>= BIN_C_SIGNIF_UNDERCUT_ATR) OR a multi-bar struggle below
+                       S (episode spans >= BIN_C_MIN_LINGER_BARS).
+      4. hold        — after the reclaim, Close HOLDS above S for BIN_C_HOLD_BARS
+                       bars (one dip up to BIN_C_HOLD_TOL_ATR below S is tolerated
+                       as a secondary test). This is the absorption confirmation —
+                       it rejects the poke-and-fail that looks like a spring for
+                       one bar then breaks back down.
 
-    All thresholds are ATR-normalized. Most bases have no Phase C and that is
-    normal. Pure measurement; never gates score/tier.
+    All depth thresholds are ATR-normalized. Most bases have no Phase C and that
+    is normal. Pure measurement; never gates score/tier.
     """
     empty = {
         "bin_c_present": False,
@@ -243,53 +255,81 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
         return empty
 
     n = len(df)
+    Sf = float(S)
     late_start = box_start + int(base_len * settings.BIN_C_LATE_BOX_FRACTION)
     late_start = max(box_start + 1, min(late_start, n - 1))
     min_undercut = settings.BIN_C_UNDERCUT_ATR_MIN * atr
     max_undercut = settings.BIN_C_UNDERCUT_ATR_MAX * atr
-    box_height = float(R) - float(S)
+    box_height = float(R) - Sf
     max_box_undercut = (
         settings.BIN_C_UNDERCUT_BOX_MAX * box_height
         if _finite(box_height) and box_height > 0
         else None
     )
-    drop_min = settings.BIN_C_V_DROP_ATR_MIN * atr
-    rec_min = settings.BIN_C_V_RECOVERY_ATR_MIN * atr
-    shoulder = int(settings.BIN_C_V_SHOULDER_BARS)
+    reclaim_max = int(settings.BIN_C_RECOVERY_BARS_MAX)
+    linger_max = int(settings.BIN_C_LINGER_BARS_MAX)
+    hold_bars = int(settings.BIN_C_HOLD_BARS)
+    hold_tol = settings.BIN_C_HOLD_TOL_ATR * atr
+    signif_undercut = settings.BIN_C_SIGNIF_UNDERCUT_ATR * atr
+    min_linger = int(settings.BIN_C_MIN_LINGER_BARS)
 
     lows = df["Low"].values.astype(float)
-    highs = df["High"].values.astype(float)
     closes = df["Close"].values.astype(float)
+
+    def _spring_at(tip):
+        """Validate a spring episode whose trough is bar ``tip``; None if not one."""
+        low = lows[tip]
+        if not np.isfinite(low) or low >= Sf:
+            return None
+        # (1) penetration: a real test, not a touch, and not a breakdown
+        depth = Sf - low
+        if depth < min_undercut or depth > max_undercut:
+            return None
+        if max_box_undercut is not None and depth > max_box_undercut:
+            return None
+        # (2) reclaim: first Close back above S, within the window
+        reclaim = None
+        for r in range(tip, min(n, tip + reclaim_max + 1)):
+            if closes[r] >= Sf:
+                reclaim = r
+                break
+        if reclaim is None:
+            return None
+        # the below-S episode (first penetration -> reclaim) must be bounded, and
+        # the tip must be its genuine trough (the deepest Low of the sojourn)
+        start = tip
+        while start - 1 > box_start and lows[start - 1] < Sf:
+            start -= 1
+        if (reclaim - start) > linger_max:
+            return None
+        # tip must be the deepest Low of the sojourn (inclusive of the reclaim
+        # bar, so a single wick-below-then-close-above spring — start==reclaim — is
+        # a non-empty slice rather than an error)
+        if low > lows[start:reclaim + 1].min() + 1e-9:
+            return None
+        # (3) significance: not a trivial one-bar poke. EITHER a visible clean-V
+        # dip (deep enough on its own) OR a genuine multi-bar struggle below S (the
+        # episode lingers) — the user's "not a simple bar breach and recovery".
+        if depth < signif_undercut and (reclaim - start) < min_linger:
+            return None
+        # (4) hold: the reclaim must STICK — Close stays above S (one tolerated
+        # secondary-test dip) over the next hold_bars bars (or to the right edge)
+        dips = 0
+        for h in range(reclaim + 1, min(n, reclaim + 1 + hold_bars)):
+            c = closes[h]
+            if c >= Sf:
+                continue
+            if c >= Sf - hold_tol and dips == 0:
+                dips += 1
+                continue
+            return None
+        return {"idx": tip, "recovery_idx": reclaim, "undercut_atr": depth / atr}
 
     best = None
     for idx in range(late_start, n):
-        low = lows[idx]
-        if not np.isfinite(low) or low >= float(S):
+        cand = _spring_at(idx)
+        if cand is None:
             continue
-        # (1) undercut floor + breakdown / box caps
-        depth = float(S) - low
-        if depth < min_undercut or depth > max_undercut:
-            continue
-        if max_box_undercut is not None and depth > max_box_undercut:
-            continue
-        # tip = a genuine local Low (nothing lower on the immediate left)
-        left0 = max(box_start, idx - shoulder)
-        if low > lows[left0:idx + 1].min() + 1e-9:
-            continue
-        # (2) V arms: a real reaction down into the tip and recovery up out of it
-        left_high = float(highs[left0:idx + 1].max())
-        right_high = float(highs[idx:min(n, idx + shoulder + 1)].max())
-        if (left_high - low) < drop_min or (right_high - low) < rec_min:
-            continue
-        # (3) reclaim: Close back above S within the recovery window
-        recovery_idx = None
-        for ridx in range(idx, min(n, idx + settings.BIN_C_RECOVERY_BARS_MAX + 1)):
-            if closes[ridx] >= float(S):
-                recovery_idx = ridx
-                break
-        if recovery_idx is None:
-            continue
-        cand = {"idx": idx, "recovery_idx": recovery_idx, "undercut_atr": depth / atr}
         # prefer the latest, then deepest qualifying spring (closest to launch)
         if best is None or (cand["idx"], cand["undercut_atr"]) > (best["idx"], best["undercut_atr"]):
             best = cand
@@ -328,6 +368,8 @@ def measure_bins(
     atr_val: float,
     phase_d_start_bar: Optional[int] = None,
     support_test_start_bar: Optional[int] = None,
+    sos_reclaim_start_bar: Optional[int] = None,
+    rising_support_start_bar: Optional[int] = None,
     phase_a_end_bar: Optional[int] = None,
     v_tip_bar: Optional[int] = None,
     lps_R: Optional[float] = None,
@@ -358,6 +400,8 @@ def measure_bins(
         support_test_start_bar: optional df-positional start of a measured
             right-side support-test cluster; used only to locate Bin D when no
             inner box exists.
+        sos_reclaim_start_bar/rising_support_start_bar: optional df-positional
+            starts of richer right-side evidence derived from LPS/Test candidates.
         v_tip_bar: optional df-positional final recovered low in the late base.
             Used as the Phase B->D divider when no true Phase-C spring exists.
         lps_R, lps_S: optional active LPS box ceiling/floor. Parent R/S still
@@ -441,14 +485,20 @@ def measure_bins(
 
     # ── Bin D — the right-most Phase D region (shared boundary rule) ────────
     b = phase_b_start_bar if (phase_b_start_bar is not None and 0 <= phase_b_start_bar < n) else None
-    d = _resolve_phase_d_start(
-        box_start=box_start, base_len=base_len, last=last,
-        is_inner_box=is_inner_box, has_lps_window=has_lps,
-        lps_start=lps_start, b=b, phase_d_start_bar=phase_d_start_bar,
-        support_test_start_bar=support_test_start_bar,
+    inner_start = box_start if (is_inner_box and phase_d_start_bar is None) else phase_d_start_bar
+    phase_d = resolve_phase_d_boundary(
+        last=last,
+        has_lps_window=has_lps,
+        lps_start=lps_start,
+        b=b,
         phase_c_recovery_bar=phase_c_recovery_bar,
+        phase_d_start_bar=inner_start,
         v_tip_bar=v_tip_bar,
+        support_test_start_bar=support_test_start_bar,
+        sos_reclaim_start_bar=sos_reclaim_start_bar,
+        rising_support_start_bar=rising_support_start_bar,
     )
+    d = phase_d.start_bar
     vd = None
     if d is not None and d < n:
         seg_d = df.iloc[d:n]
@@ -456,13 +506,8 @@ def measure_bins(
         out["bin_d_start_bar"] = int(d)
         out["bin_d_bars"] = int(n - d)
         out["bin_d_range_pct"] = _range_pct(seg_d)
-        out["bin_d_boundary_source"] = (
-            "spring" if phase_c_recovery_bar is not None
-            else "inner_box" if (is_inner_box or phase_d_start_bar is not None)
-            else "v_tip" if v_tip_bar is not None
-            else "support_tests" if support_test_start_bar is not None
-            else "heuristic"
-        )
+        out["bin_d_boundary_source"] = phase_d.source
+        out["phase_d_evidence_json"] = json.dumps(phase_d.evidence, sort_keys=True)
         if vd is not None and vol_ref:
             out["bin_d_volume_ratio"] = _round(vd / vol_ref)
         support_d = measure_support_slope(seg_d, atr_val)

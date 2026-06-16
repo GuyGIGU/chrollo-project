@@ -82,7 +82,7 @@ def explain(ticker, raw, spy_6m, breadth):
         i = boxes["inner"]
         print(f"  inner: R={i['R']:.2f} S={i['S']:.2f} width={i['box_width']:.3f}")
 
-    res = _evaluate_ticker(ticker, raw, spy_6m, breadth, select="earliest")
+    res = _evaluate_ticker(ticker, raw, spy_6m, breadth)
     if res:
         cap = " (width-capped from S)" if (res["Tier"] == "A" and bw > settings.S_MAX_BOX_WIDTH) else ""
         print(f"  >>> FIRES  {res['Tier']}{cap}  score={res['Score']}  {res['Setup']}")

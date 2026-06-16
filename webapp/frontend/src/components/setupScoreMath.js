@@ -1,11 +1,11 @@
 export const SUB_SCORE_CAPS = {
-  box_tightness: 15,
+  box_tightness: 22,
   touch_density: 25,
   oscillation: 5,
   atr_squeeze: 8,
   lps_tightness: 20,
   vol_contraction: 20,
-  base_age: 35,
+  base_age: 22,
   uptrend_bonus: 15,
   rs_bonus: 15,
   high_proximity: 8,

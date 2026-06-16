@@ -5,8 +5,7 @@ A candidate is a Resistance-anchor / Support-anchor pair drawn from the zigzag
 not the rails). A pair is only a REAL trading range if price respects, touches,
 and zigzags through both rails CONSTANTLY with no dead space — enforced by
 ``_is_boundary_respected`` (respect) + ``_validate_base_quality`` (constant
-two-sided touch + both-halves dwell + coverage, via
-``metrics.measure_equilibrium``). Selection keeps the EARLIEST pair that passes
+two-sided touch + close-residence dwell/coverage). Selection keeps the EARLIEST pair that passes
 every constraint; if none passes, the box is rejected.
 """
 from __future__ import annotations
@@ -14,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from core.structure.metrics import measure_equilibrium
+from core.structure.metrics import measure_traversal
 from core.structure.pivots import _build_zigzag, _find_pivots
 
 
@@ -74,6 +73,103 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     return respected, r_broken, s_broken, total_outside
 
 
+def _worked_window_end(highs, lows, R_val, S_val, atr_val):
+    """Index where the worked range ends, trimming a trailing SOS breakout tail.
+
+    A range whose right side has already broken out above R and HELD above
+    support — a creek-jump then back-up (SOS -> BUEC) — should be validated over
+    its worked CAUSE, not penalised for the breakout. We trim the earliest
+    trailing run of ``>= SOS_TRIM_MIN_RUN`` consecutive above-(R+buffer) bars
+    that (a) begins past the worked prefix (``>= SOS_TRIM_MIN_PREFIX_FRAC`` of the
+    window) and (b) holds support to the end (no Low dips below S-buffer after
+    it). Returns ``len(highs)`` when there is no such tail — the no-op case:
+    price never broke out and held, so every ordinary in-range framing (and every
+    downside breakdown) is unaffected.
+
+    Pure / None-safe. Buffer mirrors ``_is_boundary_respected`` (bars, not
+    candles) so the trim and the respect gate speak the same geometry.
+    """
+    n = len(highs)
+    if not settings.SOS_TRIM_ENABLED or n == 0:
+        return n
+    highs = np.asarray(highs, dtype=float)
+    lows = np.asarray(lows, dtype=float)
+    buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
+    r_ceiling = R_val + buffer
+    s_floor = S_val - buffer
+    above = highs > r_ceiling
+    min_prefix = settings.SOS_TRIM_MIN_PREFIX_FRAC * n
+    i = 0
+    while i < n:
+        if above[i]:
+            j = i
+            while j < n and above[j]:
+                j += 1
+            if (j - i) >= settings.SOS_TRIM_MIN_RUN and i >= min_prefix \
+                    and float(lows[i:].min()) >= s_floor:
+                return i
+            i = j
+        else:
+            i += 1
+    return n
+
+
+def _measure_close_residence(eq_df, R_val, S_val, atr_val):
+    """Legacy close-residence occupancy for box-of-record selection.
+
+    Public ``measure_equilibrium`` now reports High/Low range occupancy for
+    analysis, but selecting the parent box still uses closes as the residence
+    concept. This preserves calibrated Phase-B rails while rail touches and
+    boundary respect continue to use High/Low geometry.
+    """
+    empty = {
+        "r_touches": 0, "s_touches": 0,
+        "r_touch_thirds": 0, "s_touch_thirds": 0,
+        "lower_dwell": 0.0, "mid_dwell": 1.0, "upper_dwell": 0.0,
+        "coverage": 0.0,
+    }
+    if eq_df is None or len(eq_df) == 0:
+        return empty
+    box = R_val - S_val
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return empty
+
+    highs = eq_df["High"].values.astype(float)
+    lows = eq_df["Low"].values.astype(float)
+    closes = eq_df["Close"].values.astype(float)
+    n = len(closes)
+
+    tb = settings.TOUCH_TOLERANCE_ATR * atr_val
+    r_mask = np.abs(highs - R_val) <= tb
+    s_mask = np.abs(lows - S_val) <= tb
+
+    thirds = np.array_split(np.arange(n), 3)
+    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
+    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+
+    pos = np.clip((closes - S_val) / box, 0.0, 1.0)
+    lower_dwell = float(np.mean(pos <= 1.0 / 3.0))
+    mid_dwell = float(np.mean((pos > 1.0 / 3.0) & (pos < 2.0 / 3.0)))
+    upper_dwell = float(np.mean(pos >= 2.0 / 3.0))
+
+    nb = settings.EQ_COVERAGE_BINS
+    bins = np.minimum((pos * nb).astype(int), nb - 1)
+    counts = np.bincount(bins, minlength=nb)
+    min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
+    coverage = float(np.mean(counts >= min_count))
+
+    return {
+        "r_touches": int(r_mask.sum()),
+        "s_touches": int(s_mask.sum()),
+        "r_touch_thirds": int(r_touch_thirds),
+        "s_touch_thirds": int(s_touch_thirds),
+        "lower_dwell": round(lower_dwell, 4),
+        "mid_dwell": round(mid_dwell, 4),
+        "upper_dwell": round(upper_dwell, 4),
+        "coverage": round(coverage, 4),
+    }
+
+
 def _validate_base_quality(eq_df, R_val, S_val, atr_val):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
@@ -82,7 +178,7 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val):
 
     Boundary respect is enforced separately by the caller
     (``_is_boundary_respected``) before this is called; here we add the
-    occupancy half of the test via ``measure_equilibrium``:
+    close-residence occupancy half of the test:
       - Box width within limits
       - Crash filter: no catastrophic wick below support
       - Constant two-sided touch: >= EQ_MIN_TOUCHES_PER_RAIL on each rail, each
@@ -97,7 +193,7 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val):
     one-time AR low leaves dead space beneath the real range).
 
     Returns:
-        (r_touches, s_touches, eq, is_valid)  where eq is the measure_equilibrium
+        (r_touches, s_touches, eq, is_valid)  where eq is the close-residence
         dict (None when rejected on width/crash before measuring).
     """
     box_width = (R_val - S_val) / S_val
@@ -107,7 +203,7 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val):
     if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
         return 0, 0, None, False
 
-    eq = measure_equilibrium(eq_df, R_val, S_val, atr_val)
+    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
     is_valid = (
@@ -156,7 +252,76 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
     return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * coverage_score
 
 
-def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0):
+def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal):
+    """Limb-traversal quality gate (v2): keep only framings whose swing limbs
+    genuinely travel rail-to-rail, so the earliest-valid selection re-anchors R/S
+    to the real swing envelope instead of a dead-space climax framing.
+
+    A framing must clear BOTH floors:
+      - COUNT  (``TRAVERSAL_MIN``): >= N genuine rail-to-rail swings.
+      - DENSITY (``TRAVERSAL_MIN_DENSITY``): those swings are a real SHARE of the
+        action. A long base racks up a few full trips amid a sea of interior chop
+        (BMRN 5/111 = 0.045) and clears the count alone; winners run dense (seed
+        floor ~0.14). Low density = the box is too wide / mis-anchored.
+
+    Sub-threshold framings are dropped with NO legacy fallback: when an anchor
+    yields no qualifying framing, ``find_outer_box`` falls through to its other
+    BC/SC anchors (deeper re-anchoring), and a stock whose every framing is sparse
+    simply doesn't fire — that's the point, it isn't a worked range. Recall-safety
+    rides on the thresholds sitting well below the validated winner floor (count:
+    every seed winner >= 2; density: winner floor ~0.14 vs gate 0.08), policed by
+    the seed-recall guard — not on keeping a bad box.
+
+    No-op unless ``settings.TRAVERSAL_GATE_ENABLED`` and ``enforce_traversal`` (the
+    outer Phase-B path only — inner boxes are short and tight by design, where
+    rail-to-rail traversal is naturally rare, so they are measured but never gated).
+    """
+    if not (settings.TRAVERSAL_GATE_ENABLED and enforce_traversal):
+        return valid_candidates
+
+    # c[9]=cand_start, c[10]=judged-window length, c[1]=R_val, c[2]=S_val — measure
+    # traversal on the SAME window the framing was respect/occupancy-validated over
+    # (its trimmed worked cause when SOS-rescued; the full window when strict, where
+    # c[10] spans to the edge so this is byte-identical to the legacy full slice).
+    def _passes(c):
+        trav = measure_traversal(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
+        nf, ns = trav["n_full_traversals"], trav["n_swings"]
+        return (nf >= settings.TRAVERSAL_MIN
+                and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)
+
+    return [c for c in valid_candidates if _passes(c)]
+
+
+def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
+                     r_anchor_bar, s_anchor_bar, cand_start, atr_val):
+    """Respect + occupancy over one window; return the candidate tuple or None.
+
+    ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
+    (the full candidate window for a strict framing, or its trimmed worked cause
+    for a rescued one). R/S/anchors/cand_start are always the framing's true
+    full-base coordinates — only the measurement window narrows.
+    """
+    respected, _r_broken, _s_broken, total_outside = _is_boundary_respected(
+        highs, lows, R_val, S_val, atr_val,
+    )
+    if not respected:
+        return None
+    r_touches, s_touches, eq, is_valid = _validate_base_quality(
+        sub_df, R_val, S_val, atr_val,
+    )
+    if not is_valid:
+        return None
+    combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
+    # Last slot = the JUDGED window length (= len(highs), relative to cand_start):
+    # the full candidate window for a strict framing, or its trimmed worked cause
+    # for a rescued one. The traversal gate measures over the SAME window, so a
+    # rescued SOS tail can't be ignored for respect/occupancy yet counted here.
+    return (combined, R_val, S_val, box_width, r_touches, s_touches, total_outside,
+            r_anchor_bar, s_anchor_bar, cand_start, len(highs))
+
+
+def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
+                               enforce_traversal=False):
     """Build valid R/S candidates from consecutive zigzag limbs."""
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
@@ -169,7 +334,13 @@ def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0
     if len(zigzag) < 2:
         return []
 
-    valid_candidates = []
+    # Two pools: STRICT framings pass respect + occupancy over the full window
+    # (the legacy rule, byte-identical); RESCUED framings only pass once a
+    # trailing SOS breakout tail is trimmed (see ``_worked_window_end``). Rescued
+    # framings are used ONLY when a window yields no strict one, so an ordinary
+    # in-range setup is never re-framed — the trim can only save a box that would
+    # otherwise be rejected outright (NMM's SOS -> BUEC).
+    strict, rescued = [], []
     for i in range(len(zigzag) - 1):
         zi, zj = zigzag[i], zigzag[i + 1]
         if zi[1] == 'peak' and zj[1] == 'valley':
@@ -192,26 +363,36 @@ def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0
         if len(cand_eq_df) < min_candidate_days:
             continue
 
-        respected, _r_broken, _s_broken, total_outside = _is_boundary_respected(
-            eq_highs[cand_start:], eq_lows[cand_start:], R_val, S_val, atr_val,
-        )
-        if not respected:
+        cand_highs = eq_highs[cand_start:]
+        cand_lows = eq_lows[cand_start:]
+        tup = _build_candidate(cand_highs, cand_lows, cand_eq_df, R_val, S_val,
+                               box_width, r_anchor_bar, s_anchor_bar, cand_start,
+                               atr_val)
+        if tup is not None:
+            strict.append(tup)
             continue
 
-        r_touches, s_touches, eq, is_valid = _validate_base_quality(
-            cand_eq_df, R_val, S_val, atr_val,
-        )
-        if not is_valid:
-            continue
+        # Rescue the SOS -> BUEC case: the worked cause is a clean range, only the
+        # already-broken-out right side tripped the gates. Outer Phase-B only, and
+        # only while price is still BACKING UP to the box (not extended away from
+        # it): an old range price has since blown past is stale, not a setup — the
+        # same extension semantics the firing filter uses, applied here so a stale
+        # rescued box can't pre-empt the ticker's real recent box in backtracking.
+        if enforce_traversal and settings.SOS_TRIM_ENABLED:
+            work_end = _worked_window_end(cand_highs, cand_lows, R_val, S_val, atr_val)
+            last_close = float(cand_eq_df['Close'].iloc[-1])
+            if work_end < len(cand_highs) \
+                    and last_close <= R_val * settings.EXTENSION_FILTER_MULT:
+                tup = _build_candidate(
+                    cand_highs[:work_end], cand_lows[:work_end],
+                    cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
+                    r_anchor_bar, s_anchor_bar, cand_start, atr_val,
+                )
+                if tup is not None:
+                    rescued.append(tup)
 
-        combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
-        valid_candidates.append((
-            combined, R_val, S_val, box_width,
-            r_touches, s_touches, total_outside,
-            r_anchor_bar, s_anchor_bar, cand_start,
-        ))
-
-    return valid_candidates
+    pool = strict if strict else rescued
+    return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal)
 
 
 def _select_phase_b_candidate(valid_candidates, select):
@@ -246,8 +427,10 @@ def _debug_candidates(valid_candidates, base_length):
 
 
 def _rebase_selected_candidate(candidate, base_length):
+    # Trailing *_ absorbs the judged-window length (slot 10), which is internal to
+    # candidate selection / the traversal gate and not part of the rebased box.
     _, best_R, best_S, best_bw, best_rt, best_st, best_breach, \
-        best_r_bar, best_s_bar, best_cand_start = candidate
+        best_r_bar, best_s_bar, best_cand_start, *_ = candidate
 
     effective_base_length = base_length - best_cand_start
     new_r_anchor = best_r_bar - best_cand_start
@@ -264,7 +447,8 @@ def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
     eq_lows = eq_df['Low'].values
 
     atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
-    valid_candidates = _collect_zigzag_candidates(eq_df, base_length, atr_val)
+    valid_candidates = _collect_zigzag_candidates(
+        eq_df, base_length, atr_val, enforce_traversal=True)
 
     if not valid_candidates:
         return [] if select == "debug" else EMPTY_BOX

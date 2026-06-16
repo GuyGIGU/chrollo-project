@@ -47,7 +47,7 @@ def _run(select: str) -> dict:
         df = frames.get(ticker)
         if df is None:
             continue
-        res = _evaluate_ticker(ticker, df, spy_6m, breadth, select=select)
+        res = _evaluate_ticker(ticker, df, spy_6m, breadth)
         if res is not None:
             out[ticker] = res
     return out
@@ -93,7 +93,7 @@ def _trace(tickers: list[str]) -> None:
             has_inner = inner is not None
             pbs = n - base_len
             close = float(df["Close"].iloc[-1])
-            res = _evaluate_ticker(ticker, frames[ticker], spy_6m, breadth, select=sel)
+            res = _evaluate_ticker(ticker, frames[ticker], spy_6m, breadth)
             print(f"  [{sel:8}] base_len={base_len:3}  R={R:.2f} S={S:.2f}  "
                   f"box={bw:.3f}  touches r/s={rt}/{st}  inner={has_inner}  "
                   f"lps_in_inner={bool(res and res.get('_lps_in_inner'))}  "

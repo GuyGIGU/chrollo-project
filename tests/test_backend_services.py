@@ -16,8 +16,12 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from webapp.backend.routers.position_calculator import calculate_position
 from webapp.backend.routers import portfolio, portfolio_streams
+from webapp.backend.routers.archive_schemas import SetupOut
+from core.archive import forward_returns as archive_forward_returns
+from core.archive import writer as archive_writer
+import archive_models
 from webapp.backend.services.journal_stats import calculate_journal_stats
-from webapp.backend.services import portfolio_snapshot, screener_data
+from webapp.backend.services import portfolio_snapshot, screener_data, startup
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -81,6 +85,38 @@ def test_portfolio_routes_are_registered_after_split():
     assert "/ibkr/import-csv" in rest_paths
     assert "/stream/portfolio" in stream_paths
     assert "/stream/executions" in stream_paths
+
+
+def test_archive_writer_columns_are_modeled_and_migrated():
+    model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
+    migration_sql = "\n".join(startup._MIGRATIONS)
+    migration_columns = {
+        statement.split(" ADD COLUMN ", 1)[1].split()[0]
+        for statement in startup._MIGRATIONS
+        if "ALTER TABLE setup_archive ADD COLUMN " in statement
+    }
+
+    assert set(archive_writer._NEW_COLUMNS) <= model_columns
+    assert set(archive_writer._NEW_COLUMNS) <= migration_columns
+    for field in archive_writer._NEW_COLUMNS:
+        assert f"ADD COLUMN {field} " in migration_sql
+
+
+def test_archive_outcome_columns_are_modeled_and_migrated():
+    model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
+    schema_fields = set(SetupOut.model_fields)
+    migration_sql = "\n".join(startup._MIGRATIONS)
+    migration_columns = {
+        statement.split(" ADD COLUMN ", 1)[1].split()[0]
+        for statement in startup._MIGRATIONS
+        if "ALTER TABLE setup_archive ADD COLUMN " in statement
+    }
+
+    assert set(archive_forward_returns._OUTCOME_COLUMNS) <= model_columns
+    assert set(archive_forward_returns._OUTCOME_COLUMNS) <= schema_fields
+    assert set(archive_forward_returns._OUTCOME_COLUMNS) <= migration_columns
+    for field in archive_forward_returns._OUTCOME_COLUMNS:
+        assert f"ADD COLUMN {field} " in migration_sql
 
 
 def test_portfolio_stream_listens_to_snapshot_changing_channels():

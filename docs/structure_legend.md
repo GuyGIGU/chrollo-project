@@ -39,6 +39,44 @@ just disciplined reading, followed to the letter.
 
 ---
 
+## The two reading axes — horizontal & vertical
+
+Every base is read along **two axes at once**, and the engine records both on the
+single `Structure` reading object (`core.structure`):
+
+| Axis | Reads along the… | Question | Fields (`Structure.horizontal` / `.vertical`) |
+|---|---|---|---|
+| **Horizontal** | **time** axis | *how is the base built out over time?* | base duration, rail tests (R/S touches), breach days, LPS shelf length, and whether the swing limbs travel the range **rail-to-rail** (`full_traversals`, `traversal_density`) |
+| **Vertical** | **price** axis | *how big are the moves?* | rail levels (R/S), range **height**, Phase-C **undercut depth** below support, the right-side **breakout thrust** above resistance |
+
+Neither view measures anything new — both are *derived from the calibrated bricks*
+the reader already produced. In the archive these surface as the
+`HORIZONTAL_FEATURES` / `VERTICAL_FEATURES` fingerprints
+(`core/archive/analyze.py`), so the edge analysis can ask **which axis separates
+winners from losers** — the engine-validation question.
+
+## Phase-D evidence vocabulary
+
+Phase D (the right side) opens at the **earliest credible right-side evidence**
+at/after the *floor* (the spring recovery and/or the inner-search start), with the
+**LPS as the mandatory gate and fallback**. Evidence *sources*, in rank order
+(earliest bar wins; rank only breaks same-bar ties):
+
+> `support_tests` → `sos_reclaim` → `rising_support` → `inner_box` → `v_tip` → `lps`
+
+The spring **recovery** is *not* a source — it only floors the search (it ended
+Phase C). One vocabulary is spoken end-to-end:
+
+- **Engine** — `resolve_phase_d_boundary` returns a `PhaseDBoundary` whose
+  `evidence` dict carries every candidate (`signals`) and the chosen one
+  (`selected = {source, start_bar, …}`).
+- **Archive** — `phase_d_evidence_json` (the full dict) + `bin_d_boundary_source`
+  (= `selected.source`).
+- **Overlay** — `chartPhaseOverlay.js` reads `evidence.selected.source` and labels
+  it (`SOS reclaim`, `Rising support`, `LPS shelf`, …).
+
+---
+
 ## The two lego pieces
 
 The single most important idea: **the climax pair and the trading range are two

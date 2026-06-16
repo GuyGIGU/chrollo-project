@@ -1,9 +1,16 @@
-"""Runtime configuration for the Chrollo backend.
+"""Runtime **broker** configuration for the Chrollo backend (IBKR mode/client/port).
+
+Imported as ``broker_config`` — deliberately NOT named ``config``. The backend
+service runs with cwd = ``webapp/backend``, so a module named ``config`` here
+would shadow the repo-root ``config`` *screener* package for everything the
+backend imports (including ``core``), which previously crashed the service boot.
+Keeping this name distinct lets both configs coexist: ``config`` = screener,
+``broker_config`` = broker.
 
 ``settings`` is a shared mutable object so the IBKR mode/client can be flipped at
 runtime via ``set_mode()`` / ``set_client()``. Consumers must read
-``config.settings.<field>`` each time they need a value (don't cache into locals
-at import time).
+``broker_config.settings.<field>`` each time they need a value (don't cache into
+locals at import time).
 """
 from __future__ import annotations
 

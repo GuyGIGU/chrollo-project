@@ -131,14 +131,16 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
      - Buffered band `[S - 0.5·ATR, R + 0.5·ATR]`; wicks count as breaches.
      - ≥ `MIN_BOUNDARY_RESPECT_PCT` (80%) of bars inside the band, no consecutive
        outside run longer than `MAX_CONSECUTIVE_OUTSIDE_DAYS` (10).
-   - **Worked-equilibrium occupancy** — `_validate_base_quality()` via
-     `metrics.measure_equilibrium()`:
+   - **Worked-equilibrium occupancy** — `_validate_base_quality()`:
      - In-base crash filter: `min(Low) >= S × CRASH_FILTER_MULT` (0.70).
      - **Constant two-sided touch:** ≥ `EQ_MIN_TOUCHES_PER_RAIL` (3) on each rail,
        each touched in ≥ `EQ_MIN_TOUCH_THIRDS` (2) of 3 time-thirds (not clustered).
      - **No dead space:** ≥ `EQ_MIN_HALF_DWELL` (0.15) of closes in BOTH the lower
        and upper box third, and box-height `coverage` ≥ `EQ_MIN_COVERAGE` (0.80).
      - **Not mid-churn:** middle-third dwell ≤ `EQ_MAX_MID_DWELL` (0.45).
+     - Public `metrics.measure_equilibrium()` additionally reports High/Low
+       range occupancy for analysis, but the box-of-record selector keeps close
+       residence as the calibrated dead-space gate so Phase-B rails do not drift.
    - The old "≥2 touches + N midline crosses" gate is retired — a wide box
      mechanically racked up crosses while a one-time AR low left dead space
      beneath the real range, so the widest framing always won.
@@ -203,7 +205,7 @@ The scoping layer emits best-effort chart anchors:
 
 - **Phase A:** compact root climax / automatic-reaction lead-in, from the BC/SC anchor to the reaction bar. The live pipeline may reconnect a drifted ancient BC to a recent swing-segmentation bridge for this display/scoping purpose only.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
-- **Phase D:** the right-most launch region. If a true Phase-C spring is present, Phase D starts on the spring recovery bar. Otherwise the late-base V-tip is preferred as the B->D divider, then support-test clusters, then the final-third fallback pulled earlier when the exact LPS shelf begins earlier.
+- **Phase D:** the right-most launch region. A true Phase-C spring recovery floors the Phase-D search; it is not itself the boundary source. Phase D starts at the earliest credible right-side evidence at/after that floor: support-test cluster, inner mini-consolidation, or recovered V-tip. If none is present, the LPS window is the mandatory fallback.
 - **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
@@ -213,32 +215,33 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every gate below must pass; failing any single gate disqualifies the window. The final candidate is the one with the highest `vol_contraction × (1 - tightness_ratio)` quality.
+`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate geometry is terminal-bar based: the LPS peak is the first bar's High, the LPS low is the last bar's Low, and the trigger is the last bar's High. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
 |---|------|------|------------------|
-| 1 | **Recency** | `offset ∈ {0,1,2,3}` | `LPS_SCAN_OFFSET_MAX = 4` |
+| 1 | **Recency** | `offset` in the last 7 active LPS bars | `LPS_SCAN_OFFSET_MAX = 7` |
 | 2 | **Length** | `LPS_LENGTH_MIN ≤ length ≤ LPS_LENGTH_MAX` | 2 to 7 bars |
 | 3 | **Window bound** | `offset + length ≤ base_len + AR_MAX_BARS` | redundant outer guard; never lets the LPS pre-date the box |
 | 4 | **Swing-complete** | `eval_idx > swing_complete_idx` where `swing_complete_idx = (len(df) - base_len) + max(r_anchor, s_anchor)` | LPS must sit *after* the swing pivots that defined R and S |
-| 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` where `descent_frac` = fraction of pair-wise (i<j) low comparisons with `low[j] <= low[i]`. 1.0 = perfect descent, 0.5 = sideways, 0.0 = perfect rally. Surviving descent_frac multiplies the candidate's LPS quality, so cleaner descents outrank sloppy ones. Replaces the prior binary `argmax_high > argmin_low` reject, which dropped near-misses where most of the window was descending | `LPS_MIN_DESCENT_FRAC = 0.50` |
-| 6 | **Zone gate** | LPS low (= `min(Low)` across the window) lands in one of three buffered zones (tolerance = `0.5 × ATR_10` snapshot at bar -6) | `LPS_ZONE_ATR_MULT = 0.5` |
+| 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` and `high_descent_frac >= LPS_MIN_HIGH_DESCENT_FRAC`; both are pair-wise non-rising fractions over lows/highs | shape gates + quality multipliers |
+| 6 | **Zone gate** | terminal LPS low (= last-bar `Low`) lands in one of three buffered zones | `LPS_ZONE_ATR_MULT = 0.5` |
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
-| 7 | **Pullback depth (zone-conditional)** | `min_drop ≤ (max_high - min_low) / max_high ≤ LPS_DROP_MAX`, where `min_drop = LPS_DROP_MIN_OVERSHOOT_R` for OVERSHOOT_R (backtest of breakout — requires a real retest, not shallow drift above R) and `LPS_DROP_MIN` otherwise | INSIDE/UNDERCUT_S: 2%–10%, OVERSHOOT_R: 4%–10% |
-| 8 | **Spread (core)** | every bar's `Spread (High - Low)` < `base_range_threshold` = `max(base_df['Spread'].quantile(0.5), 1.2·ATR_10)` | `LPS_RANGE_PERCENTILE = 0.5` (median); ATR floor is now unconditional (no `bw` self-gate) — see note below |
-| 9 | **Declining spread** | last bar's spread ≤ prior bar's spread (when length ≥ 2) | `LPS_SPREAD_MUST_DECLINE = True` |
-| 10 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
-| 11 | **Hold tolerance** | `latest['Close'] >= min_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
-| 12 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= min_low × 0.97` AND `Spread < base_range_threshold` | catches MSGM-style failures where a tight 2-bar pullback is followed by widening down-bars |
-| 13 | **Trigger room** (in `_evaluate_ticker`) | `(trigger_price - current_price) / current_price > 0` | trigger = `pullback_period['High'].max()` — must still be ahead of price |
+| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - last_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.65`; OVERSHOOT_R needs `>= 1.25`; all zones cap at `<= 4.50` | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
+| 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10` |
+| 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
+| 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
+| 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
+| 12 | **Hold tolerance** | `latest['Close'] >= last_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
+| 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= last_low × 0.97` and stay profile-tight | catches support-test failures that widen after the LPS |
+| 14 | **Trigger room** | candidate is actionable only when `current_price < trigger_price`; `_evaluate_ticker` keeps the same final room check | trigger = last LPS bar High |
 
 **Setup label:** `REBOUND` if zone is `UNDERCUT_S`; otherwise `LPS`.
 
-**Quality ranking:** among surviving candidates, pick the maximum of `vol_contraction × (1 - tightness_ratio) × descent_frac` where `tightness_ratio = end_lps_spread / base_range_threshold`, `vol_contraction = (Vol_50 - mean_pullback_vol) / Vol_50`, and `descent_frac` is the graded pullback-shape score (1.0 = perfect descent). Multiplying by descent_frac means a clean-shape LPS outranks a same-volume / same-tightness sloppy one.
+**Quality ranking:** candidates still carry `vol_contraction × (1 - tightness_ratio) × descent_frac × high_descent_frac × spread_decline_quality`, but setup election is actionability-first and recency-first: latest valid `end_index`, then latest `low_index`, then longer length, then quality. If several clean slices share the same final low, the detector reports the longest clean pullback.
 
 > **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `_detect_lps` is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now — `BREAKOUT_VOLUME_MULT`, `BREAKOUT_DEFAULT_VOL_CONTRACTION`, and `BREAKOUT_DEFAULT_TIGHTNESS` exist in settings but are unused.
 
@@ -250,13 +253,13 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
-| **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 15` | `SCORE_BOX_TIGHTNESS = 15` |
+| **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22` | `SCORE_BOX_TIGHTNESS = 22` |
 | **Touch density** | `min(touches × 2, 15)` plus `+10` if `r_touches ≥ 3 AND s_touches ≥ 3` OR `total ≥ 6` | `SCORE_TOUCH_DENSITY = 25` (15 base + 10 bonus); `TOUCH_BONUS_INDIVIDUAL = 3`, `TOUCH_BONUS_TOTAL = 6`, `TOUCH_BONUS_POINTS = 10` |
-| **Oscillation** | `(0.3 - mean(|Close - midline|) / box_height) × (5 × 5)` | `SCORE_OSCILLATION = 5` |
+| **Oscillation** | `(mean(|Close - midline|) / box_height) / 0.33 × 5`, rewarding closes that work the rails rather than clustering at mid-box | `SCORE_OSCILLATION = 5` |
 | **ATR squeeze** | `(1 - ATR_10/ATR_50 at bar -6) × 8` | `SCORE_ATR_SQUEEZE = 8` |
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |
-| **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 35`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d | `SCORE_BASE_AGE = 35`, `BASE_AGE_CAP_DAYS = 120` |
+| **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 22`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d | `SCORE_BASE_AGE = 22`, `BASE_AGE_CAP_DAYS = 120` |
 | **Strong-uptrend bonus** | **Linear ramp**: `0` below 30% YoY return, full points at 60%+, linear between. Re-accumulation inside an established uptrend breaks out more reliably than the same structure on a flat YoY chart. The other three "uptrend conditions" (above SMA50, above SMA200, ≥ 50K volume) are already hard baseline gates in Phase 1, so YoY return is the only differentiating axis. | `SCORE_UPTREND_BONUS = 15`, `MIN_STRONG_YEARLY_RETURN = 0.30`, `MAX_STRONG_YEARLY_RETURN = 0.60` |
 | **Soft RS bonus** | `min(1, excess_return_6m / 0.30) × 15` where `excess_return_6m = stock_6m_return − spy_6m_return`. Leadership reward, no filter — laggards just earn 0. | `SCORE_RS_BONUS = 15`, `RS_LOOKBACK_BARS = 126`, `RS_MAX_EXCESS_RETURN = 0.30` |
 | **52w-high proximity** | Linear ramp from `0` at −20% below 52w high to full at −5% (or higher). Bases that consolidate near recent highs hold their breakouts more reliably than ones rebuilding from deep drawdowns. | `SCORE_52W_HIGH_PROXIMITY = 8`, `HIGH_PROXIMITY_FULL_PCT = -0.05`, `HIGH_PROXIMITY_ZERO_PCT = -0.20` |
@@ -382,7 +385,7 @@ consumes anchors the detector + LPS finder already produced.
 |--------|------|------------|
 | **A — climax event** | `bc_anchor_bar → phase_a_end_bar` | the BC/SC → AR trend-exhaustion lead-in |
 | **B — working base** | the validated box (`base_df`) | the cause-building equilibrium |
-| **D — Phase D** | the right-most region | true spring recovery if present, else the inner mini-consolidation / late V-tip / support-test cluster / final-third fallback |
+| **D — Phase D** | the right-most region | earliest credible right-side evidence after the spring/search floor: support-test cluster, inner mini-consolidation, or recovered V-tip; else the LPS fallback |
 | **LPS** | the exact LPS candidate bars | the Last Point of Support itself |
 
 Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/minLow),
@@ -395,11 +398,10 @@ Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/mi
   `_bin_d_ascending_support_quality`, and
   `_bin_d_vs_b_support_quality_delta` — is the right side stair-stepping higher
   more clearly than the base as a whole?
-- `_bin_d_boundary_source` — `spring` (true Phase-C spring recovery), `inner_box`
-  (a real detected mini-consolidation), `v_tip` (the final recovered late-base
-  low), `support_tests` (a right-side support-test cluster), or `heuristic` (the
-  final-third fallback), so archive analysis can trust the clean ones and
-  discount the fuzzy ones.
+- `_bin_d_boundary_source` — `support_tests` (a right-side support-test cluster),
+  `inner_box` (a real detected mini-consolidation), `v_tip` (the final recovered
+  late-base low), or `lps` (the mandatory gate / fallback). Spring recovery only
+  floors the search; it is not itself a boundary source.
 
 **Phase-D boundary is single-sourced.** The Phase-D start uses the *same* rule
 the scoping overlay draws — both call `scope._resolve_phase_d_start()` — so the
@@ -509,48 +511,73 @@ MIN_YEARLY_RETURN = -0.20
 
 # Phase 2 — Consolidation
 MIN_BASE_DAYS = 20
-MAX_BOX_WIDTH = 0.25
+MAX_BOX_WIDTH = 0.18
 CRASH_FILTER_MULT = 0.70
 EXTENSION_FILTER_MULT = 1.15
 PIVOT_ORDER_SHORT = 1; PIVOT_ORDER_LONG = 2; PIVOT_ORDER_THRESHOLD = 40
 BOUNDARY_ATR_BUFFER = 0.5
-MAX_CONSECUTIVE_OUTSIDE_DAYS = 30
+MAX_CONSECUTIVE_OUTSIDE_DAYS = 10
 MIN_BOUNDARY_RESPECT_PCT = 0.80
 TOUCH_TOLERANCE_ATR = 0.5
-MIN_MIDLINE_CROSSES = 3
-MIDLINE_ATR_BUFFER = 0.3
+EQ_MIN_TOUCHES_PER_RAIL = 3
+EQ_MIN_TOUCH_THIRDS = 2
+EQ_MIN_HALF_DWELL = 0.15
+EQ_MAX_MID_DWELL = 0.45
+EQ_MIN_COVERAGE = 0.80
+TRAVERSAL_GATE_ENABLED = True
+TRAVERSAL_MIN = 2
+TRAVERSAL_MIN_DENSITY = 0.08
+SOS_TRIM_ENABLED = True
+SOS_TRIM_MIN_RUN = 3
+SOS_TRIM_MIN_PREFIX_FRAC = 0.30
 TREND_MIN_GAIN_PCT = 0.15
 TREND_MIN_MOVE_BARS = 20
 TREND_PRIOR_LOOKBACK = 100
 LOCAL_PEAK_BARS = 30
 PHASE_B_ATR_WINDOW = 30
-PHASE_B_REACH_QUALITY_FLOOR = 0.75  # earliest-good-enough outer-box selector
 AR_MIN_DROP_PCT = 0.05
 AR_MAX_BARS = 15
 
 # Phase 3 — LPS detection
-LPS_DROP_MIN = 0.02
-LPS_DROP_MIN_OVERSHOOT_R = 0.04  # Stricter floor for backtest-of-breakout zone
-LPS_DROP_MAX = 0.10
+LPS_DROP_MIN = 0.02              # deprecated/back-compat only; live depth is profile-normalized
+LPS_DROP_MIN_OVERSHOOT_R = 0.04  # deprecated/back-compat only
+LPS_DROP_MAX = 0.10              # deprecated/back-compat only
 LPS_MIN_DESCENT_FRAC = 0.50     # Graded shape gate (pair-wise low descent fraction)
-LPS_SCAN_OFFSET_MAX = 4         # today + up to 3 days back
+LPS_MIN_HIGH_DESCENT_FRAC = 0.45
+LPS_MAX_WINDOW_BOX_RANGE = 0.85
+LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35
+LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
+LPS_SCAN_OFFSET_MAX = 7         # today + up to 6 days back
 LPS_LENGTH_MIN = 2; LPS_LENGTH_MAX = 7
 LPS_HOLD_TOLERANCE = 0.97
+LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15
+LPS_PULLBACK_PROFILE_MIN = 0.65
+LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25
+LPS_PULLBACK_PROFILE_MAX = 4.50
+LPS_TERMINAL_LOW_TOL_PROFILE = 0.10
+LPS_SPREAD_MAX_PROFILE_MULT = 1.25
+LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
 LPS_ZONE_ATR_MULT = 0.5
 LPS_RANGE_PERCENTILE = 0.5
-LPS_SPREAD_MUST_DECLINE = True
+LPS_SPREAD_MUST_DECLINE = True  # quality discount, not a hard rejection
 LPS_VOL_CONTRACTION_MAX = 0.85
+BIN_C_UNDERCUT_ATR_MIN = 0.30; BIN_C_UNDERCUT_ATR_MAX = 3.00
+BIN_C_UNDERCUT_BOX_MAX = 0.65; BIN_C_RECOVERY_BARS_MAX = 8
+BIN_C_LINGER_BARS_MAX = 12; BIN_C_HOLD_BARS = 3
+BIN_C_HOLD_TOL_ATR = 0.50
+PHASE_D_VTIP_LATE_FRACTION = 0.35
+PHASE_D_VTIP_RECOVERY_BARS = 6
 TOUCH_VOL_Z_NO_SUPPLY = -0.30   # Tag: r_touch_vol_z below this → "No Supply"
 TOUCH_VOL_Z_SPRING = 0.30       # Tag: s_touch_vol_z above this → "Spring Strength"
 TOUCH_VOL_Z_HEAVY_R = 0.50      # Tag: r_touch_vol_z above this → "Heavy Resistance" (warning)
 
 # Phase 4 — Scoring
 TIER_S = 110; TIER_A = 95; TIER_B = 75; TIER_C = 55
-SCORE_BASE_AGE = 35; BASE_AGE_CAP_DAYS = 120
+SCORE_BASE_AGE = 22; BASE_AGE_CAP_DAYS = 120
 SCORE_TOUCH_DENSITY = 25
 SCORE_VOL_CONTRACTION = 20
 SCORE_LPS_TIGHTNESS = 20
-SCORE_BOX_TIGHTNESS = 15
+SCORE_BOX_TIGHTNESS = 22
 SCORE_ATR_SQUEEZE = 8
 SCORE_OSCILLATION = 5
 TOUCH_BONUS_INDIVIDUAL = 3; TOUCH_BONUS_TOTAL = 6; TOUCH_BONUS_POINTS = 10
@@ -587,13 +614,13 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D / VCP mini-consolidation probe. After the parent box is found, it runs the inner search from both the mechanical midpoint (`_INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_phase_b_start`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < 0.75 * bw_outer`, i.e. ≥25% tighter) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+`detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)) wraps `find_outer_box()` with a Phase D / VCP mini-consolidation probe. After the parent box is found, it runs the inner search from both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 
 The key difference between `_inner_zigzag` and `_phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 
-Banked at **28/44 hits (63.6%)** on [backtest_watchlist.py](../tools/backtest_watchlist.py). Of the 16 misses, 9 now fail at the LPS `shape_up_march` gate (the structural-pullback shape check added in the LPS rewrite — see "LPS Detection" above) and 5 fail at outer-box detection. None are tunable without weakening structural correctness, per the project's standing **quality-over-hit-rate** guidance (accurate tight structure beats catching more names).
+Historical backtest snapshots are calibration inputs, not permanent truth. When a missed visual winner clusters around a hard LPS gate, the next step is to measure that gate against forward outcomes before moving it into quality/selector evidence.
 
 ### LPS scaling adaptations for tight inner boxes
 
@@ -602,11 +629,10 @@ When the hierarchical detector returns a tight inner box, the standard LPS gates
 1. **Zone tolerance floor** — `if bw < 0.10: zone_tol = max(0.5*ATR, 0.5*box_height)` (in `_detect_lps`). Tight Phase D boxes often have the LPS forming as a breakout-retest just above R (resistance flipped to support post-breach) or a sellers-failing test just below S. Half-ATR alone is too narrow when `box_height` is small. The `bw < 0.10` gate prevents wide-outer-box over-loosening.
 2. **Base range threshold floor** — `base_range_threshold = max(spread_quantile, 1.2*ATR)` (in `_evaluate_ticker`). Inside a tight inner box the 50%ile spread can be smaller than a normally-volatile bar, killing detection on any ATR-typical day. The floor is now applied **unconditionally** (no `bw` self-gate); chronically-wide bases simply have a percentile that already exceeds 1.2·ATR, so the `max(...)` resolves to the percentile and the rule is unchanged for them.
 
-### Remaining misses
+### Current calibration frontier
 
-The 13 misses split into structural categories — none are tunable LPS-gate issues:
-
-- **Anchor mis-detection** (NBR, GXO, VLO, SHEL): the outer-box detector picks the wrong window — an older quiet zone instead of the structurally relevant recent chop. The recent-first-anchor v5 hypothesis was tested and falsified (in the since-retired `experiments/dead_ends/v5_recent_first_anchor/` harness, kept in git history): v5 picks different outer anchors but the LPS detector still rejects at the same gates. Re-test only if the LPS detector itself is rewritten — anchor preference alone won't help.
-- **Marginal drop_pct edges** (TRS at 1.3% drop, SNDX at 10.6%): structurally real bounds; loosening sacrifices selectivity for two tickers.
-- **Spread-decline strict** (ST, RRBI): pre-breakout bars not contracting; relaxing contradicts the LPS definition.
-- **Acceptable misses** (KEYS, BRZU, NE) per the section above.
+The reader should stay visually strict, but the LPS gates should be audited as
+separate ideas: hard geometry, quality evidence, and active-setup selection.
+Spread decline is already quality-only. Volume contraction, descent cleanliness,
+and zone/range tolerances are the next places to test against the archive before
+loosening or hardening anything.

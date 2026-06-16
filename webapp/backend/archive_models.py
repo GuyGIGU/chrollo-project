@@ -150,6 +150,17 @@ class SetupArchive(Base):
     eq_upper_dwell = Column(Float, nullable=True)             # share of closes in upper third of box
     eq_coverage = Column(Float, nullable=True)                # share of occupied vertical box bins
 
+    # ── Limb-traversal read (raw, no scoring; v1 measure-first) ──
+    # Do the swing limbs travel rail-to-rail, or hang off a rail (dead space)?
+    # measure_traversal — the swing-structural complement to eq_* occupancy.
+    trav_n_full_traversals = Column(Integer, nullable=True)   # rail-to-rail swings (round-trip S->R->S = 2)
+    trav_n_swings = Column(Integer, nullable=True)            # significant swings after amplitude filtering
+    trav_top_dead_space = Column(Float, nullable=True)        # 1 - 75th-pct peak position (dead space below R)
+    trav_bottom_dead_space = Column(Float, nullable=True)     # 25th-pct valley position (dead space above S)
+    trav_rail_reaches_high = Column(Integer, nullable=True)   # swing peaks reaching the high zone
+    trav_rail_reaches_low = Column(Integer, nullable=True)    # swing valleys reaching the low zone
+    trav_max_swing_frac = Column(Float, nullable=True)        # largest single limb as a fraction of box height
+
     # ── ADR% absolute-volatility character ──────────────────────
     adr_pct = Column(Float, nullable=True)                    # Average Daily Range % over 20 bars (plain percent)
     score_adr = Column(Float, nullable=True)                  # ADR sub-score (raw points)
@@ -181,17 +192,21 @@ class SetupArchive(Base):
     bin_c_present = Column(Integer, nullable=True)          # 1 when a late spring was measured
     bin_c_type = Column(String, nullable=True)              # SPRING
     bin_c_event_date = Column(String, nullable=True)        # low bar date
+    bin_c_event_bar = Column(Integer, nullable=True)        # df-positional low/tip bar
     bin_c_undercut_atr = Column(Float, nullable=True)       # Low undercut depth below S, in ATR
     bin_c_recovery_bars = Column(Integer, nullable=True)    # bars until Close recovered back above S
+    bin_c_recovery_bar = Column(Integer, nullable=True)     # df-positional Close reclaim bar
     bin_c_time_loc = Column(Float, nullable=True)           # event location inside Bin B (0=start, 1=end)
     bin_c_spring_vol_z = Column(Float, nullable=True)       # event volume z-score vs Bin B volume distribution
     bin_d_bars = Column(Integer, nullable=True)            # Phase D length in bars
+    bin_d_start_bar = Column(Integer, nullable=True)        # df-positional Phase D start
     bin_d_range_pct = Column(Float, nullable=True)         # Phase D price range fraction
     bin_d_volume_ratio = Column(Float, nullable=True)      # Phase D mean volume / trailing-50 mean
     bin_d_support_slope_atr = Column(Float, nullable=True) # Phase D swing-low slope, ATR-normalized
     bin_d_higher_low_frac = Column(Float, nullable=True)   # Phase D consecutive valley pairs that step up
     bin_d_ascending_support_quality = Column(Float, nullable=True) # Phase D rising-support quality
-    bin_d_boundary_source = Column(String, nullable=True)  # inner_box | spring | v_tip | support_tests | heuristic
+    bin_d_boundary_source = Column(String, nullable=True)  # support_tests | inner_box | v_tip | lps
+    phase_d_evidence_json = Column(Text, nullable=True)    # JSON detail for Phase-D boundary evidence
     bin_lps_bars = Column(Integer, nullable=True)          # LPS window length in bars
     lps_position_in_box = Column(Float, nullable=True)     # (lps_low - S)/(R - S): 0=floor, 1=ceiling
     bin_d_vs_b_range_ratio = Column(Float, nullable=True)  # Bin D range / Bin B range (<1 = tighter Phase D)

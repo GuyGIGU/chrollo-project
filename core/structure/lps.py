@@ -1,23 +1,15 @@
-"""
-LPS / spring detection - the Last-Point-of-Support finder.
+"""LPS / spring detection - the Last-Point-of-Support finder.
 
-Part of the Visual Structure Engine: given an already-detected consolidation
-box (its R, S, ATR and base length), this scans recent bars for a valid Last
-Point of Support: the quiet, tight pullback that marks the launch pad before a
-breakout. It also classifies the zone the pullback sits in:
-
-    INSIDE       -> pullback low sits between S and R (textbook LPS)
-    OVERSHOOT_R  -> pullback pokes just above R then holds (backtest of breakout)
-    UNDERCUT_S   -> pullback dips just below S then reclaims (a spring = REBOUND)
-
-This module is pure measurement + classification. It does not decide how good
-the setup is; it returns geometry/behavior facts and lets scoring grade them.
+Pure measurement + classification over an already-detected consolidation box.
+The detector returns facts about the active setup LPS/Test; scoring and the
+pipeline decide what those facts are worth.
 """
 from __future__ import annotations
 
 from collections import Counter
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from config import settings
@@ -37,6 +29,13 @@ def _pairwise_descent_fraction(values) -> float:
     return concordant / total_pairs if total_pairs > 0 else 1.0
 
 
+def _finite(value) -> bool:
+    try:
+        return value is not None and np.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
 def _zone_tolerance(sup_avg: float, res_avg: float, atr_val: float) -> float:
     """Tolerance around the active box used by the LPS zone gate."""
     box_height = res_avg - sup_avg
@@ -53,6 +52,34 @@ def _date_at(df: pd.DataFrame, idx: int) -> Optional[str]:
         return str(df.index[idx])[:10]
     except (IndexError, TypeError, ValueError):
         return None
+
+
+def _spread_decline_quality(tight_spread: float, prev_spread: float,
+                            profile_unit: float) -> float:
+    """Reward a narrowing final bar without rejecting an otherwise tight LPS."""
+    if profile_unit <= 0:
+        return 1.0
+    if tight_spread <= prev_spread:
+        return 1.0
+    widening = tight_spread - prev_spread
+    return max(0.0, 1.0 - (widening / profile_unit))
+
+
+def _profile_unit(base_range_threshold: float, box_height: float) -> Optional[float]:
+    if not _finite(base_range_threshold) or float(base_range_threshold) <= 0:
+        return None
+    if not _finite(box_height) or float(box_height) <= 0:
+        return None
+    return max(
+        float(base_range_threshold),
+        settings.LPS_PROFILE_BOX_FRACTION_FLOOR * float(box_height),
+    )
+
+
+def _spread_series(frame: pd.DataFrame) -> pd.Series:
+    if "Spread" in frame.columns:
+        return frame["Spread"].astype(float)
+    return frame["High"].astype(float) - frame["Low"].astype(float)
 
 
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
@@ -80,10 +107,16 @@ def _collect_lps_candidates(
     rejects: Counter = Counter()
     n = len(df)
 
-    box_height = res_avg - sup_avg
+    box_height = float(res_avg) - float(sup_avg)
     if box_height <= 0:
         if diagnose:
             rejects["box_height_nonpos"] += 1
+        return candidates, rejects
+
+    profile_unit = _profile_unit(base_range_threshold, box_height)
+    if profile_unit is None:
+        if diagnose:
+            rejects["profile_unit_nonpos"] += 1
         return candidates, rejects
 
     zone_tol = _zone_tolerance(sup_avg, res_avg, atr_val)
@@ -116,17 +149,24 @@ def _collect_lps_candidates(
                 continue
 
             pullback_period = df.iloc[start:end]
+            first_lps = pullback_period.iloc[0]
             end_lps = pullback_period.iloc[-1]
 
-            high_vals = pullback_period["High"].values
-            low_vals = pullback_period["Low"].values
-            max_high_lps = float(high_vals.max())
-            min_low_lps = float(low_vals.min())
-            trigger_price = float(end_lps["High"])
+            high_vals = pullback_period["High"].values.astype(float)
+            low_vals = pullback_period["Low"].values.astype(float)
+            spreads = _spread_series(pullback_period)
 
-            if max_high_lps <= 0:
+            first_high = float(first_lps["High"])
+            last_low = float(end_lps["Low"])
+            last_high = float(end_lps["High"])
+            window_high = float(np.nanmax(high_vals))
+            window_low = float(np.nanmin(low_vals))
+            low_index = end - 1
+            trigger_price = last_high
+
+            if first_high <= 0:
                 if diagnose:
-                    rejects["max_high_nonpos"] += 1
+                    rejects["first_high_nonpos"] += 1
                 continue
 
             # A support test should be a reaction into support, not a rising
@@ -143,14 +183,21 @@ def _collect_lps_candidates(
                     rejects["high_up_march"] += 1
                 continue
 
-            # Zone gate: LPS low must sit in one of the valid support zones.
-            if min_low_lps < s_floor or min_low_lps > r_ceiling:
+            terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
+            if last_low > window_low + terminal_low_tolerance:
+                if diagnose:
+                    rejects["terminal_low"] += 1
+                continue
+
+            # Zone gate: the terminal LPS low must sit in one of the valid
+            # support zones.
+            if last_low < s_floor or last_low > r_ceiling:
                 if diagnose:
                     rejects["zone_gate"] += 1
                 continue
-            if min_low_lps < sup_avg:
+            if last_low < sup_avg:
                 zone_type = "UNDERCUT_S"
-            elif min_low_lps > res_avg:
+            elif last_low > res_avg:
                 zone_type = "OVERSHOOT_R"
             else:
                 zone_type = "INSIDE"
@@ -158,7 +205,7 @@ def _collect_lps_candidates(
             # Behavior gate: the candidate window should localize the support
             # test. If it spans most of the active box, it is a broad reaction
             # region, not a usable LPS footprint.
-            window_range_pct_box = (max_high_lps - min_low_lps) / box_height
+            window_range_pct_box = (window_high - window_low) / box_height
             if window_range_pct_box > settings.LPS_MAX_WINDOW_BOX_RANGE:
                 if diagnose:
                     rejects["window_box_range"] += 1
@@ -167,7 +214,7 @@ def _collect_lps_candidates(
             # INSIDE means the low is back inside the old box. If the same
             # window first launched far above R, the chosen block is usually a
             # late pullback/off-structure reaction rather than BUEC behavior.
-            high_extension = max(0.0, max_high_lps - res_avg)
+            high_extension = max(0.0, window_high - res_avg)
             high_extension_box = high_extension / box_height
             high_extension_atr = (
                 high_extension / float(atr_val)
@@ -183,33 +230,41 @@ def _collect_lps_candidates(
                     rejects["inside_high_extension"] += 1
                 continue
 
-            drop_pct = (max_high_lps - min_low_lps) / max_high_lps
-            min_drop = (
-                settings.LPS_DROP_MIN_OVERSHOOT_R
+            pullback_profile = (first_high - last_low) / profile_unit
+            min_pullback = (
+                settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
                 if zone_type == "OVERSHOOT_R"
-                else settings.LPS_DROP_MIN
+                else settings.LPS_PULLBACK_PROFILE_MIN
             )
-            if not (min_drop <= drop_pct <= settings.LPS_DROP_MAX):
+            if not (min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX):
                 if diagnose:
-                    rejects[f"drop_pct({drop_pct:.3f})"] += 1
+                    rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
                 continue
 
-            if base_range_threshold <= 0:
+            spread_max_allowed = profile_unit * settings.LPS_SPREAD_MAX_PROFILE_MULT
+            max_spread = float(spreads.max())
+            if max_spread > spread_max_allowed:
                 if diagnose:
-                    rejects["base_range_nonpos"] += 1
+                    rejects["spread_profile"] += 1
                 continue
-            if pullback_period["Spread"].max() >= base_range_threshold:
-                if diagnose:
-                    rejects["spread_quantile"] += 1
-                continue
-            tight_spread = end_lps["Spread"]
 
-            if settings.LPS_SPREAD_MUST_DECLINE and length >= 2:
-                prev_bar = pullback_period.iloc[-2]
-                if tight_spread > prev_bar["Spread"]:
+            tight_spread = float(spreads.iloc[-1])
+            spread_expansion = 0.0
+            spread_decline_quality = 1.0
+            if length >= 2:
+                prev_spread = float(spreads.iloc[-2])
+                spread_expansion = max(0.0, tight_spread - prev_spread)
+                max_expansion = profile_unit * settings.LPS_SPREAD_EXPANSION_MAX_PROFILE
+                if spread_expansion > max_expansion:
                     if diagnose:
-                        rejects["spread_decline"] += 1
+                        rejects["spread_expansion"] += 1
                     continue
+                if settings.LPS_SPREAD_MUST_DECLINE:
+                    spread_decline_quality = _spread_decline_quality(
+                        tight_spread,
+                        prev_spread,
+                        profile_unit,
+                    )
 
             vol_50_at_lps = float(df.iloc[eval_idx]["Vol_50"])
             if vol_50_at_lps <= 0:
@@ -222,20 +277,20 @@ def _collect_lps_candidates(
                     rejects["vol_contraction"] += 1
                 continue
 
-            if latest["Close"] < (min_low_lps * settings.LPS_HOLD_TOLERANCE):
+            if latest["Close"] < (last_low * settings.LPS_HOLD_TOLERANCE):
                 if diagnose:
                     rejects["hold_tolerance"] += 1
                 continue
 
-            # Bars after the LPS evaluation bar must hold above the LPS low and
-            # stay tight, or the "LPS" has become another down-leg.
+            # Bars after the LPS evaluation bar must hold above the terminal LPS
+            # low and stay profile-tight, or the "LPS" has become another down-leg.
             if offset > 0:
                 post_lps = df.iloc[end:n]
-                if post_lps["Low"].min() < min_low_lps * settings.LPS_HOLD_TOLERANCE:
+                if post_lps["Low"].min() < last_low * settings.LPS_HOLD_TOLERANCE:
                     if diagnose:
                         rejects["post_lps_low_breach"] += 1
                     continue
-                if post_lps["Spread"].max() >= base_range_threshold:
+                if _spread_series(post_lps).max() > spread_max_allowed:
                     if diagnose:
                         rejects["post_lps_spread"] += 1
                     continue
@@ -245,36 +300,88 @@ def _collect_lps_candidates(
                 if diagnose:
                     rejects["vol_contraction_post"] += 1
                 continue
-            tightness_ratio = tight_spread / base_range_threshold
+            tightness_ratio = tight_spread / profile_unit
             quality = (
                 vol_contraction
-                * (1 - tightness_ratio)
+                * max(0.0, 1 - tightness_ratio)
                 * low_descent_frac
                 * high_descent_frac
+                * spread_decline_quality
             )
 
             setup_type = "REBOUND" if zone_type == "UNDERCUT_S" else "LPS"
             candidates.append({
-                "length": length,
-                "offset": offset,
+                "length": int(length),
+                "offset": int(offset),
                 "start_index": int(start),
                 "end_index": int(end),
-                "low": min_low_lps,
-                "high": max_high_lps,
+                "low_index": int(low_index),
+                "low": last_low,
+                "high": window_high,
                 "trigger_price": trigger_price,
-                "vol_contraction": vol_contraction,
-                "tightness_ratio": tightness_ratio,
+                "vol_contraction": float(vol_contraction),
+                "tightness_ratio": float(tightness_ratio),
                 "setup_type": setup_type,
                 "zone_type": zone_type,
-                "descent_frac": low_descent_frac,
-                "high_descent_frac": high_descent_frac,
-                "window_range_pct_box": window_range_pct_box,
-                "high_extension_box": high_extension_box,
-                "high_extension_atr": high_extension_atr,
-                "_quality": quality,
+                "descent_frac": float(low_descent_frac),
+                "high_descent_frac": float(high_descent_frac),
+                "spread_decline_quality": float(spread_decline_quality),
+                "window_range_pct_box": float(window_range_pct_box),
+                "high_extension_box": float(high_extension_box),
+                "high_extension_atr": float(high_extension_atr),
+                "profile_unit": float(profile_unit),
+                "profile_unit_pct": float(profile_unit / first_high),
+                "pullback_profile": float(pullback_profile),
+                "terminal_low_tolerance": float(terminal_low_tolerance),
+                "spread_expansion_profile": float(spread_expansion / profile_unit),
+                "first_high": float(first_high),
+                "last_low": float(last_low),
+                "window_high": float(window_high),
+                "window_low": float(window_low),
+                "_quality": float(quality),
             })
 
     return candidates, rejects
+
+
+def _elect_active_lps(candidates: list[dict], latest: pd.Series) -> Optional[dict]:
+    """Pick the latest actionable setup LPS from already-valid candidates."""
+    try:
+        current_price = float(latest["Close"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    actionable = [
+        c for c in candidates
+        if current_price < float(c["trigger_price"])
+    ]
+    if not actionable:
+        return None
+
+    best = max(
+        actionable,
+        key=lambda c: (
+            int(c["end_index"]),
+            int(c["low_index"]),
+            int(c["length"]),
+            float(c["_quality"]),
+        ),
+    )
+
+    # If the elected slice is part of a single clean reaction into the same
+    # terminal low, report the whole pullback instead of a shorter sub-slice.
+    same_terminal_low = [
+        c for c in actionable
+        if c["low_index"] == best["low_index"]
+        and c["end_index"] == best["end_index"]
+    ]
+    clean_reactions = [
+        c for c in same_terminal_low
+        if c["descent_frac"] == 1.0 and c["high_descent_frac"] == 1.0
+    ]
+    if clean_reactions:
+        best = max(clean_reactions, key=lambda c: (int(c["length"]), float(c["_quality"])))
+    return best
 
 
 def detect_lps(
@@ -288,11 +395,11 @@ def detect_lps(
     swing_complete_idx: int,
     diagnose: bool = False,
 ) -> Union[Optional[dict], tuple[Optional[dict], Counter]]:
-    """
-    Scan the active recent tape for the best valid LPS formation.
+    """Elect the single active setup LPS/Test.
 
-    diagnose=True returns (best_candidate_or_None, Counter of rejection reasons)
-    for watchlist/backtest harnesses.
+    Public signature remains compatible. Internally this first collects every
+    valid LPS/Test footprint, then elects the latest actionable terminal-low
+    candidate. ``diagnose=True`` returns rejection counters for audit harnesses.
     """
     candidates, rejects = _collect_lps_candidates(
         df,
@@ -309,8 +416,13 @@ def detect_lps(
     if not candidates:
         return (None, rejects) if diagnose else None
 
-    candidates.sort(key=lambda c: c["_quality"], reverse=True)
-    best = _public_candidate(candidates[0], df)
+    best_candidate = _elect_active_lps(candidates, latest)
+    if best_candidate is None:
+        if diagnose:
+            rejects["not_actionable"] += len(candidates)
+        return (None, rejects) if diagnose else None
+
+    best = _public_candidate(best_candidate, df)
     return (best, rejects) if diagnose else best
 
 
@@ -325,12 +437,12 @@ def detect_lps_tests(
     swing_complete_idx: int,
     max_tests: int = 8,
 ) -> list[dict]:
-    """
-    Return non-overlapping support-test/LPS candidates across the base.
+    """Enumerate non-overlapping support-test evidence across the base.
 
-    This is a measure-only companion to detect_lps. The live screener still
-    elects one active recent LPS, but the UI can draw earlier Phase-D tests so
-    the chart reads as behavior/a staircase instead of a single magic block.
+    Measure-only, and not a setup elector. It shares candidate geometry with
+    ``detect_lps`` but selects differently on purpose: this keeps the visible
+    support-test staircase, while ``detect_lps`` returns the one active setup
+    LPS that owns the trigger.
     """
     max_window = base_len + settings.AR_MAX_BARS
     offset_max = max(0, max_window - settings.LPS_LENGTH_MIN + 1)

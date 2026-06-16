@@ -66,19 +66,44 @@ const setupBoxRange = (data) => {
   };
 };
 
-const phaseDDetail = (data) => {
-  switch (data?.bin_d_boundary_source) {
-    case 'inner_box':
-      return 'Inner range';
-    case 'spring':
-      return 'Spring recovery';
+const parsePhaseDEvidence = (data) => {
+  const raw = data?.phase_d_evidence_json ?? data?.phase_d_evidence;
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const phaseDSourceDetail = (source) => {
+  switch (source) {
     case 'support_tests':
       return 'Support-test cluster';
+    case 'sos_reclaim':
+      return 'SOS reclaim';
+    case 'rising_support':
+      return 'Rising support';
+    case 'inner_box':
+      return 'Inner range';
     case 'v_tip':
       return 'Final V tip';
+    case 'lps':
+      return 'LPS shelf';
     default:
       return 'Right-side range';
   }
+};
+
+const phaseDDetail = (data) => {
+  // The spring recovery only FLOORS Phase D (it ends Phase C); the boundary
+  // source is the earliest right-side evidence after it, with the LPS as the
+  // mandatory fallback/gate. There is no 'spring' source.
+  const evidence = parsePhaseDEvidence(data);
+  const source = evidence?.selected?.source || data?.bin_d_boundary_source;
+  return phaseDSourceDetail(source);
 };
 
 const phaseCDetail = (data) => {

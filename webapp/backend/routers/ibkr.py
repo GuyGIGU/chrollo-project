@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-import config
+import broker_config
 from ibkr import get_ibkr_service
 
 router = APIRouter(prefix="", tags=["ibkr"])
@@ -57,7 +57,7 @@ def set_ibkr_mode(payload: ModePayload):
 
     svc = get_ibkr_service()
     _stop_service(svc, "mode switch")
-    config.set_mode(mode)
+    broker_config.set_mode(mode)
     svc.apply_settings()
     _start_service(svc, "mode switch", confirmed=payload.confirm)
     return _connection_response(svc)
@@ -71,7 +71,7 @@ def set_ibkr_client(payload: ClientPayload):
 
     svc = get_ibkr_service()
     _stop_service(svc, "client switch")
-    config.set_client(client)
+    broker_config.set_client(client)
     svc.apply_settings()
     _start_service(svc, "client switch")
     return _connection_response(svc)

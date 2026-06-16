@@ -55,6 +55,12 @@ class SetupOut(BaseModel):
     r_multiple_20d: Optional[float] = None
     r_multiple_60d: Optional[float] = None
     trigger_volume_ratio: Optional[float] = None
+    days_to_trigger: Optional[int] = None
+    days_to_2_5r: Optional[int] = None
+    days_to_15pct: Optional[int] = None
+    days_to_stop: Optional[int] = None
+    barrier_label: Optional[str] = None
+    win_barrier: Optional[str] = None
     # Market context
     spy_trend: Optional[str] = None
     vix_level: Optional[float] = None
@@ -115,15 +121,42 @@ class SetupOut(BaseModel):
     eq_mid_dwell: Optional[float] = None
     eq_upper_dwell: Optional[float] = None
     eq_coverage: Optional[float] = None
-    # Bin-B interior trajectory
+    # Region/bin features
+    bin_a_bars: Optional[int] = None
+    bin_a_range_pct: Optional[float] = None
+    bin_a_volume_ratio: Optional[float] = None
+    bin_b_bars: Optional[int] = None
+    bin_b_range_pct: Optional[float] = None
+    bin_b_volume_ratio: Optional[float] = None
     bin_b_cog_end: Optional[float] = None
     bin_b_cog_crossings: Optional[int] = None
     bin_b_cog_rng: Optional[float] = None
     bin_b_cog_corr: Optional[float] = None
+    bin_c_present: Optional[int] = None
+    bin_c_type: Optional[str] = None
+    bin_c_event_date: Optional[str] = None
+    bin_c_event_bar: Optional[int] = None
+    bin_c_undercut_atr: Optional[float] = None
+    bin_c_recovery_bars: Optional[int] = None
+    bin_c_recovery_bar: Optional[int] = None
+    bin_c_time_loc: Optional[float] = None
+    bin_c_spring_vol_z: Optional[float] = None
+    bin_d_bars: Optional[int] = None
+    bin_d_start_bar: Optional[int] = None
+    bin_d_range_pct: Optional[float] = None
+    bin_d_volume_ratio: Optional[float] = None
     bin_d_support_slope_atr: Optional[float] = None
     bin_d_higher_low_frac: Optional[float] = None
     bin_d_ascending_support_quality: Optional[float] = None
+    bin_d_boundary_source: Optional[str] = None
+    phase_d_evidence_json: Optional[str] = None
+    bin_lps_bars: Optional[int] = None
+    lps_position_in_box: Optional[float] = None
+    bin_d_vs_b_range_ratio: Optional[float] = None
+    bin_d_vs_b_volume_ratio: Optional[float] = None
     bin_d_vs_b_support_quality_delta: Optional[float] = None
+    lps_stretch_atr: Optional[float] = None
+    lps_stretch_box: Optional[float] = None
     # ADR% absolute-volatility character
     adr_pct: Optional[float] = None
     score_adr: Optional[float] = None

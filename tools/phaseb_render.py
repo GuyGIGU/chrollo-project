@@ -130,7 +130,7 @@ def render(tickers):
         fires = {}
         for sel in ("best", "earliest"):
             boxes[sel] = _box_for(df, sel)
-            res = _evaluate_ticker(ticker, raw, spy_6m, breadth, select=sel)
+            res = _evaluate_ticker(ticker, raw, spy_6m, breadth)
             fires[sel] = (f"FIRES {res['Tier']} {res['Score']:.1f}" if res else "")
 
         starts = [b[6] for b in boxes.values() if b]

@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from config import settings
+from broker_config import settings
 from .broadcaster import broadcaster
 from .mapping import (
     execution_to_dict,
@@ -274,9 +274,9 @@ class IBKRService:
         self._mark_disconnected("manual disconnect")
 
     def apply_settings(self) -> None:
-        """Sync snapshot metadata (mode/host/port/client_id) from config.settings.
+        """Sync snapshot metadata (mode/host/port/client_id) from broker_config.settings.
 
-        Call after ``config.set_mode()`` while the service is stopped; the next
+        Call after ``broker_config.set_mode()`` while the service is stopped; the next
         ``start()`` will connect using the fresh values.
         """
         with self._snap_lock:

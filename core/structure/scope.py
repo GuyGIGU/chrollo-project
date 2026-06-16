@@ -22,13 +22,12 @@ have fewer regions, and we never force four tidy quadrants):
                validation overlay it is read as the whole base from
                phase_b_start_bar through the setup end, with Phase D as an
                overlapping right-side subregion rather than a hard cutoff.
-    Phase D  — the right-most region where the LPS is evaluated.
-               Anchored on the LPS (always the foundation). When the detector
-               selected an inner sub-box (a mini-consolidation), Phase D is that
-               inner box; otherwise it's the LPS shelf.
-    Phase C  — legacy active-LPS spring marker when the LPS undercut support.
-               The richer optional Bin-C support-test measurement lives in
-               core.structure.bin_features.
+    Phase D  — the right-most region where the LPS is evaluated. It begins at
+               the earliest credible right-side evidence after the Phase-C /
+               search floor: support-test cluster, inner mini-consolidation,
+               or V-tip. The LPS remains the mandatory gate and fallback.
+    Phase C  — optional measured spring. A spring recovery floors the Phase-D
+               search; it is not itself the Phase-D boundary source.
 
 The LPS zone (``lps_zone_low``/``lps_zone_high`` + ``lps_zone_start_date``/
 ``lps_zone_end_date``) is the bounding box of the exact LPS candidate bars —
@@ -37,9 +36,12 @@ tightly in both price and time rather than stretching a level across Phase D.
 """
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 import pandas as pd
+
+from core.structure.phase_d import resolve_phase_d_boundary
 
 
 def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
@@ -66,68 +68,32 @@ def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                            lps_start: int, b: Optional[int],
                            phase_d_start_bar: Optional[int] = None,
                            support_test_start_bar: Optional[int] = None,
+                           sos_reclaim_start_bar: Optional[int] = None,
+                           rising_support_start_bar: Optional[int] = None,
                            phase_c_recovery_bar: Optional[int] = None,
                            v_tip_bar: Optional[int] = None) -> Optional[int]:
     """Phase-D right-most-region start bar, df-positional. Pure.
 
-    Single source of truth for the Phase-D boundary, shared between the scoping
-    overlay (``scope_consolidation``) and the bin-feature measurer
-    (``core.structure.bin_features``) so the drawn band and the measured Phase-D
-    bin can never drift apart:
-
-      - phase_d_start_bar -> the inner base anchors Phase D (the parent+inner
-                             model's proxy for the B->D split when there is no
-                             Phase C), pulled earlier if the LPS starts before it
-                             (the LPS always sits inside Phase D).
-      - inner sub-box  -> legacy path where the mini-consolidation replaced the
-                          active box: use that box start.
-      - Phase-C spring -> when a true measured spring exists, Phase D starts on
-                          the recovery bar. This is the strict V-tip path.
-      - support tests  -> when no inner box exists but multiple right-side
-                          support tests are already measured, prefer the first
-                          test in that cluster. This is a descriptive hint, not
-                          a textbook SOS requirement.
-      - V-tip          -> when no inner box exists, the final recovered low in
-                          the late base marks the B->D divider. This is looser
-                          than a Phase-C spring and does not emit a spring tag.
-      - otherwise      -> the final third of the base (the right-most side),
-                          pulled earlier if the LPS itself starts before it (the
-                          LPS always sits inside Phase D). A fraction, not the
-                          2-7 bar LPS window, so it reads as a region. The exact
-                          fraction is the first knob the fidelity grader will
-                          calibrate. ``None`` when there is no LPS window.
+    Compatibility wrapper around ``core.structure.phase_d`` so existing tests and
+    callers can ask for the bar only while bins/scope/narrative share one rule.
 
     The result is clamped on-frame and never allowed to invert the body start
     ``b``: when the base is too young to separate body from Phase D it
     collapses to ``b`` rather than crossing it.
     """
-    if phase_c_recovery_bar is not None:
-        d = phase_c_recovery_bar
-    elif phase_d_start_bar is not None:
-        d = phase_d_start_bar
-        if has_lps_window:
-            # The LPS always sits inside Phase D. The inner base anchors Phase D,
-            # but if the detected LPS starts before it (e.g. it fell back to the
-            # parent box), pull Phase D back to the LPS so it stays contained.
-            # No-op in the usual case where the LPS is rooted in the inner.
-            d = min(d, lps_start)
-    elif is_inner_box:
-        d = box_start
-    elif has_lps_window:
-        if v_tip_bar is not None:
-            d = v_tip_bar
-        elif support_test_start_bar is not None:
-            d = support_test_start_bar
-        else:
-            d = box_start + (2 * base_len) // 3
-        d = max(box_start, min(d, lps_start))
-    else:
-        d = None
-    if d is not None:
-        d = max(0, min(d, last))
-        if b is not None and d < b:
-            d = b
-    return d
+    inner_start = box_start if (is_inner_box and phase_d_start_bar is None) else phase_d_start_bar
+    return resolve_phase_d_boundary(
+        last=last,
+        has_lps_window=has_lps_window,
+        lps_start=lps_start,
+        b=b,
+        phase_c_recovery_bar=phase_c_recovery_bar,
+        phase_d_start_bar=inner_start,
+        v_tip_bar=v_tip_bar,
+        support_test_start_bar=support_test_start_bar,
+        sos_reclaim_start_bar=sos_reclaim_start_bar,
+        rising_support_start_bar=rising_support_start_bar,
+    ).start_bar
 
 
 def scope_consolidation(
@@ -143,6 +109,8 @@ def scope_consolidation(
     atr_val: float,
     phase_d_start_bar: Optional[int] = None,
     support_test_start_bar: Optional[int] = None,
+    sos_reclaim_start_bar: Optional[int] = None,
+    rising_support_start_bar: Optional[int] = None,
     phase_a_end_bar: Optional[int] = None,
     phase_c_recovery_bar: Optional[int] = None,
     v_tip_bar: Optional[int] = None,
@@ -167,9 +135,13 @@ def scope_consolidation(
         support_test_start_bar: optional df-positional start of a measured
             right-side support-test cluster. Used only as a better descriptive
             Phase-D hint when no inner range exists.
+        sos_reclaim_start_bar/rising_support_start_bar: optional df-positional
+            starts of first-class right-side evidence derived from LPS/Test
+            candidates.
         phase_c_recovery_bar: optional df-positional recovery bar of a true
-            measured Phase-C spring. When present, this is the strict Phase-D
-            start.
+            measured Phase-C spring. When present, this floors the Phase-D
+            evidence search; the boundary still comes from right-side evidence
+            or the LPS fallback.
         v_tip_bar: optional df-positional final recovered low in the late base.
             Used as the Phase B->D divider when no inner range exists.
         lps_offset, lps_length: locate the LPS window: it ends at
@@ -204,6 +176,7 @@ def scope_consolidation(
         "lps_zone_end_date": None,
         "has_mini_consolidation": bool(is_inner_box or phase_d_start_bar is not None),
         "scope_confidence": 0.0,
+        "phase_d_evidence_json": None,
         "phase_a_start_bar": None,
         "phase_a_end_bar": None,
         "phase_b_start_bar": None,
@@ -255,19 +228,22 @@ def scope_consolidation(
     box_start = n - base_len
 
     # ── Phase D anchor — the right-most region ─────────────────────────────
-    # Boundary rule lives in _resolve_phase_d_start (shared with
-    # core.structure.bin_features so the drawn band and the measured Phase-D
-    # bin use one rule): inner sub-box -> its start; else the final third of the
-    # base, pulled earlier if the LPS begins before it; clamped on-frame and
-    # never allowed to cross the body start b.
-    d = _resolve_phase_d_start(
-        box_start=box_start, base_len=base_len, last=last,
-        is_inner_box=is_inner_box, has_lps_window=has_lps_window,
-        lps_start=lps_start, b=b, phase_d_start_bar=phase_d_start_bar,
-        support_test_start_bar=support_test_start_bar,
+    # Boundary rule lives in core.structure.phase_d: use the best right-side
+    # evidence available, with the LPS window as the mandatory fallback.
+    inner_start = box_start if (is_inner_box and phase_d_start_bar is None) else phase_d_start_bar
+    phase_d = resolve_phase_d_boundary(
+        last=last,
+        has_lps_window=has_lps_window,
+        lps_start=lps_start,
+        b=b,
         phase_c_recovery_bar=phase_c_recovery_bar,
+        phase_d_start_bar=inner_start,
         v_tip_bar=v_tip_bar,
+        support_test_start_bar=support_test_start_bar,
+        sos_reclaim_start_bar=sos_reclaim_start_bar,
+        rising_support_start_bar=rising_support_start_bar,
     )
+    d = phase_d.start_bar
 
     # ── Phase C spring marker (UNDERCUT_S only) — the undercut low (V tip) ───
     c = lps_low_bar if (lps_zone_type == "UNDERCUT_S" and lps_low_bar is not None) else None
@@ -313,6 +289,10 @@ def scope_consolidation(
         "lps_zone_end_date": lps_zone_end_date,
         "has_mini_consolidation": bool(is_inner_box or phase_d_start_bar is not None),
         "scope_confidence": round(confidence, 3),
+        "phase_d_evidence_json": (
+            json.dumps(phase_d.evidence, sort_keys=True)
+            if phase_d.evidence else None
+        ),
         "phase_a_start_bar": a,
         "phase_a_end_bar": a_end,
         "phase_b_start_bar": b,

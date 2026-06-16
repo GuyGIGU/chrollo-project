@@ -68,6 +68,9 @@ STRUCTURAL_FEATURES = [
     "eq_r_touches", "eq_s_touches",
     "eq_r_touch_thirds", "eq_s_touch_thirds",
     "eq_lower_dwell", "eq_mid_dwell", "eq_upper_dwell", "eq_coverage",
+    "trav_n_full_traversals", "trav_n_swings",
+    "trav_top_dead_space", "trav_bottom_dead_space",
+    "trav_rail_reaches_high", "trav_rail_reaches_low", "trav_max_swing_frac",
     "adr_pct",
     # Region (bin) features (Stage 2A — "where am I in the base?")
     "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
@@ -85,6 +88,31 @@ STRUCTURAL_FEATURES = [
     # Minervini Stage-2 trend template (raw context)
     "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct",
     "stage2_52w_low_pct", "stage2_trend_pass_count", "stage2_trend_pass",
+]
+
+# The two-axis read — mirrors core.structure.Structure.horizontal / .vertical.
+# A daily chart is read along two axes; splitting the fingerprint by axis lets the
+# edge analysis ask WHICH ONE separates winners from losers (the validation
+# question). Every column here is already archived (core/archive/writer.py) — these
+# are groupings of the existing fingerprint, not new data.
+#   HORIZONTAL = structure along the TIME axis: how long the base runs, how often
+#     each rail is tested, and whether the swings travel the range rail-to-rail.
+HORIZONTAL_FEATURES = [
+    "base_length", "r_touches", "s_touches",
+    "eq_r_touches", "eq_s_touches", "eq_r_touch_thirds", "eq_s_touch_thirds",
+    "breach_days", "lps_length", "bin_lps_bars", "lps_position_in_box",
+    "trav_n_full_traversals", "trav_n_swings",
+    "trav_rail_reaches_high", "trav_rail_reaches_low",
+    "bin_c_time_loc", "bin_d_bars",
+]
+#   VERTICAL = magnitudes along the PRICE axis: rail levels / range height, the
+#     Phase-C undercut depth, and the right-side breakout thrust.
+VERTICAL_FEATURES = [
+    "box_width", "tightness_ratio", "atr_ratio",
+    "lps_descent_frac", "bin_c_undercut_atr",
+    "lps_stretch_atr", "lps_stretch_box",
+    "trav_top_dead_space", "trav_bottom_dead_space", "trav_max_swing_frac",
+    "final_contraction_depth", "bin_d_vs_b_range_ratio",
 ]
 
 # Sub-scores (the Scoring Engine decomposition).
@@ -123,7 +151,8 @@ TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "lps_descent_frac", "contraction_quality",
                       "base_median_spread_atr", "base_tight_bar_pct",
                       "bin_d_vs_b_range_ratio",
-                      "bin_d_ascending_support_quality"]
+                      "bin_d_ascending_support_quality",
+                      "trav_n_full_traversals", "trav_top_dead_space"]
 
 
 def load_archive(source: Optional[str] = None) -> pd.DataFrame:
@@ -330,6 +359,14 @@ def section_fingerprint(df: pd.DataFrame) -> None:
 
     subhdr("All setups")
     _fingerprint_table(df, STRUCTURAL_FEATURES)
+
+    # The two-axis read (mirrors Structure.horizontal / .vertical): split the
+    # fingerprint into time-axis structure vs price-axis magnitude, so the edge
+    # analysis can see which axis separates winners from losers.
+    subhdr("Horizontal axis - time structure (duration, rail tests, traversal)")
+    _fingerprint_table(df, HORIZONTAL_FEATURES)
+    subhdr("Vertical axis - price magnitude (rails/height, undercut, thrust)")
+    _fingerprint_table(df, VERTICAL_FEATURES)
 
     # By setup type - LPS vs REBOUND vs BREAKOUT may have distinct profiles.
     for stype in sorted(df["setup_type"].dropna().unique()):

@@ -16,7 +16,11 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.archive.forward_returns import compute_barrier_events
+from core.archive.forward_returns import (
+    FORWARD_RETURN_HORIZON_BARS,
+    _compute_returns,
+    compute_barrier_events,
+)
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from core.pipeline.cache import _atomic_write_parquet, _write_meta
 from core.pipeline.json_safety import to_json_safe
@@ -34,6 +38,7 @@ from core.structure.metrics import (
     _vol_trend_from_contractions,
     measure_contractions,
     measure_equilibrium,
+    measure_traversal,
 )
 from core.structure.box_candidates import (
     _detect_inner_phase_b_start,
@@ -119,6 +124,42 @@ def test_json_safe_handles_scan_payload_scalars():
     assert safe["chart_data"]["RSVR"]["bad"] is None
     assert safe["chart_data"]["RSVR"]["array"][1] is None
     assert safe["['tuple', 'key']"] == "ok"
+
+
+def test_dashboard_exports_phase_c_and_d_bar_indices(monkeypatch):
+    dates = pd.date_range("2026-01-01", periods=10, freq="B", name="Date")
+    data = pd.DataFrame({
+        "Open": np.linspace(10, 11, len(dates)),
+        "High": np.linspace(10.5, 11.5, len(dates)),
+        "Low": np.linspace(9.5, 10.5, len(dates)),
+        "Close": np.linspace(10.2, 11.2, len(dates)),
+        "Volume": np.linspace(1000, 1100, len(dates)),
+    }, index=dates)
+    results = pd.DataFrame([{
+        "Ticker": "AAA",
+        "Tier": "A",
+        "Score": 100,
+        "Setup": "LPS",
+        "Current Price": 11.2,
+        "_trigger_price": 11.6,
+        "_R": 11.5,
+        "_S": 9.5,
+        "_base_len": 8,
+        "_lps_len": 2,
+        "_lps_offset": 0,
+        "_r_anchor_bar": 2,
+        "_s_anchor_bar": 3,
+        "_bin_c_event_bar": 7,
+        "_bin_c_recovery_bar": 8,
+        "_bin_d_start_bar": 6,
+    }])
+    monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker", lambda *_args: None)
+
+    chart = dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
+
+    assert chart["bin_c_event_bar"] == 7
+    assert chart["bin_c_recovery_bar"] == 8
+    assert chart["bin_d_start_bar"] == 6
 
 
 def test_meta_writer_sanitizes_scan_context(tmp_path):
@@ -400,7 +441,7 @@ def test_lps_trigger_uses_last_lps_bar_high():
         sup_avg=100,
         res_avg=110,
         atr_val=2,
-        base_range_threshold=10,
+        base_range_threshold=8,
         base_len=20,
         swing_complete_idx=2,
     )
@@ -438,7 +479,7 @@ def test_lps_accepts_compact_reaction_behavior(monkeypatch):
         sup_avg=100,
         res_avg=110,
         atr_val=2,
-        base_range_threshold=10,
+        base_range_threshold=8,
         base_len=20,
         swing_complete_idx=-1,
     )
@@ -498,6 +539,292 @@ def test_lps_rejects_rising_high_behavior(monkeypatch):
     assert rejects["high_up_march"] == 1
 
 
+def test_lps_spread_widening_discounts_quality_not_gate(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[110.0, 109.0, 108.0, 107.0, 106.0],
+        lows=[108.8, 107.6, 106.3, 105.6, 104.2],
+        closes=[109.0, 108.0, 107.0, 106.0, 105.0],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=2.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["spread_decline_quality"] < 1.0
+
+
+def test_lps_scans_last_seven_active_bars(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[116, 115, 110, 108, 109, 110, 111, 112, 113, 114],
+        lows=[114, 113, 105, 102, 103, 104, 105, 106, 107, 108],
+        closes=[115, 114, 106, 103, 104, 105, 106, 107, 108, 107],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=115,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=30,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["offset"] == 6
+    assert result["start_index"] == 2
+
+
+def test_lps_rejects_stale_candidate_when_later_lower_low(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[110, 108, 107, 106, 107, 108],
+        lows=[105, 102, 101, 100, 101, 102],
+        closes=[106, 103, 102, 101, 102, 103],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=99,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 2
+    assert result["end_index"] == 4
+
+
+def test_lps_prefers_full_pullback_into_latest_low(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 7)
+    df = _lps_behavior_frame(
+        highs=[72.89, 72.83, 72.76, 72.29, 72.28, 72.98],
+        lows=[71.68, 71.39, 71.04, 70.83, 70.51, 71.41],
+        closes=[72.08, 71.41, 71.40, 71.68, 70.91, 72.20],
+    )
+    df.index = pd.to_datetime([
+        "2026-06-02", "2026-06-03", "2026-06-04",
+        "2026-06-05", "2026-06-08", "2026-06-09",
+    ])
+    df["Volume"] = [117000, 105800, 77700, 152700, 76500, 126200]
+    df["Vol_50"] = [151010, 148000, 146088, 146834, 144268, 146428]
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=65.05789189179512,
+        res_avg=74.15060505040422,
+        atr_val=2.182,
+        base_range_threshold=2.62,
+        base_len=73,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_date"] == "2026-06-02"
+    assert result["end_date"] == "2026-06-08"
+    assert result["low_index"] == 4
+
+
+def test_lps_profile_uses_first_high_not_window_high(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[106, 112, 105],
+        lows=[104, 108, 101],
+        closes=[105, 109, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=120,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["first_high"] == 106
+    assert result["window_high"] == 112
+    assert result["pullback_profile"] == pytest.approx((106 - 101) / 4)
+
+
+def test_lps_terminal_low_guard_rejects_earlier_lower_low(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106],
+        lows=[105, 100, 102],
+        closes=[106, 101, 105],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=99,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert rejects["terminal_low"] == 1
+
+
+def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[105, 102],
+        closes=[106, 104],
+    )
+
+    tight, tight_rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=2.4,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+    wide = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert tight is None
+    assert tight_rejects["spread_profile"] == 1
+    assert wide is not None
+    assert wide["profile_unit"] == 4.0
+
+
+def test_lps_spread_can_expand_slightly_but_not_a_lot(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    small = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[106, 103],
+        closes=[107, 104],
+    )
+    large = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[107, 102.5],
+        closes=[107, 104],
+    )
+
+    ok = detect_lps(
+        df=small,
+        latest=small.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+    bad, rejects = detect_lps(
+        df=large,
+        latest=large.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert ok is not None
+    assert ok["spread_expansion_profile"] == pytest.approx(0.25)
+    assert bad is None
+    assert rejects["spread_expansion"] == 1
+
+
+def test_lps_selector_latest_actionable_beats_older_quality(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 108, 106],
+        lows=[106, 102, 105, 102],
+        closes=[107, 103, 106, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=7,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 2
+    assert result["end_index"] == 4
+
+
+def test_lps_selector_skips_non_actionable_latest(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 109, 107],
+        lows=[105, 102, 105, 102],
+        closes=[106, 103, 106, 107],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=7,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 0
+    assert result["end_index"] == 2
+
+
 def test_detect_lps_tests_returns_non_overlapping_support_tests(monkeypatch):
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
@@ -514,7 +841,7 @@ def test_detect_lps_tests_returns_non_overlapping_support_tests(monkeypatch):
         sup_avg=100,
         res_avg=110,
         atr_val=2,
-        base_range_threshold=20,
+        base_range_threshold=8,
         base_len=20,
         swing_complete_idx=-1,
     )
@@ -640,7 +967,7 @@ def test_measure_equilibrium_worked_range_is_filled_and_two_sided():
     assert eq["r_touches"] >= 3 and eq["s_touches"] >= 3
     assert eq["r_touch_thirds"] >= 2 and eq["s_touch_thirds"] >= 2
     assert eq["lower_dwell"] >= 0.15 and eq["upper_dwell"] >= 0.15
-    assert eq["mid_dwell"] <= 0.45
+    assert eq["mid_dwell"] <= 0.85
     assert eq["coverage"] >= 0.80
 
 
@@ -652,6 +979,23 @@ def test_measure_equilibrium_dead_space_starves_the_lower_half():
     assert eq["upper_dwell"] > 0.45
 
 
+def test_measure_equilibrium_range_occupancy_uses_high_low_not_close():
+    frame = pd.DataFrame([
+        {"High": 110.0, "Low": 100.0, "Close": 105.0},
+        {"High": 110.0, "Low": 100.0, "Close": 105.0},
+        {"High": 110.0, "Low": 100.0, "Close": 105.0},
+    ])
+
+    eq = measure_equilibrium(frame, R=110.0, S=100.0, atr_val=1.0)
+
+    assert eq["r_touches"] == 3
+    assert eq["s_touches"] == 3
+    assert eq["lower_dwell"] == 1.0
+    assert eq["mid_dwell"] == 1.0
+    assert eq["upper_dwell"] == 1.0
+    assert eq["coverage"] == 1.0
+
+
 def test_validate_base_quality_accepts_worked_rejects_dead_space():
     # A genuinely worked range validates; a dead-space range does not.
     _rt, _st, _eq, ok_worked = _validate_base_quality(
@@ -660,6 +1004,69 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space():
         _osc_frame(_DEAD_SPACE), 110.0, 100.0, 1.0)
     assert ok_worked is True
     assert ok_dead is False
+
+
+def test_worked_window_end_trims_only_a_held_late_breakout():
+    # The SOS -> BUEC rescue: a worked range whose right side has broken out above
+    # R and HELD above support is validated over its cause, not the breakout tail.
+    from core.structure.box_candidates import _worked_window_end
+    R, S, atr = 110.0, 100.0, 1.0          # buffer = BOUNDARY_ATR_BUFFER * atr
+    base_h, base_l = [105.0] * 20, [104.0] * 20
+    # A sustained breakout above R that holds above S -> trim exactly the tail.
+    assert _worked_window_end(base_h + [118.0] * 6, base_l + [115.0] * 6,
+                              R, S, atr) == 20
+    # An all-in-range window has no breakout tail -> no-op (full length).
+    assert _worked_window_end([105.0] * 26, [104.0] * 26, R, S, atr) == 26
+    # A 2-bar poke is below SOS_TRIM_MIN_RUN -> not a breakout -> no trim.
+    assert _worked_window_end(base_h + [118.0] * 2 + [105.0] * 4,
+                              base_l + [115.0] * 2 + [104.0] * 4, R, S, atr) == 26
+    # A breakout that loses support afterwards is a breakdown, not SOS -> no trim.
+    assert _worked_window_end(base_h + [118.0] * 4 + [105.0] * 2,
+                              base_l + [115.0] * 4 + [90.0] * 2, R, S, atr) == 26
+
+
+def _flat_frame(closes):
+    """High == Low == Close, so a swing's amplitude is the raw close move (no
+    band inflation) — needed to exercise genuinely sub-threshold reversals."""
+    return pd.DataFrame({"High": list(closes), "Low": list(closes), "Close": list(closes)})
+
+
+def test_measure_traversal_counts_rail_to_rail_swings():
+    # The worked triangle wave runs the full box repeatedly: many genuine
+    # rail-to-rail traversals and no dead space at either rail.
+    t = measure_traversal(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+    assert t["n_full_traversals"] >= 2
+    assert t["top_dead_space"] is not None and t["top_dead_space"] < 0.15
+    assert t["bottom_dead_space"] is not None and t["bottom_dead_space"] < 0.15
+
+
+def test_measure_traversal_flags_dead_space_hanging_from_a_rail():
+    # Price hangs in the top after one initial dip: only that single trip reaches
+    # S, so rail-to-rail traversals collapse and the lower half reads as dead.
+    t = measure_traversal(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+    assert t["n_full_traversals"] < 2
+    assert t["bottom_dead_space"] > 0.30
+
+
+def test_measure_traversal_absorbs_subthreshold_reversal():
+    # A 1.2-wide pullback inside an up-leg of an 11-wide box (min_amp = 0.15*11 =
+    # 1.65) must be absorbed: the swing list stays V->P->V (3, via soft endpoints),
+    # not split into 5 by the noise pivot, and the leg reads as 2 traversals.
+    frame = _flat_frame([100, 110, 108.8, 111, 100])
+    t = measure_traversal(frame, R=111.0, S=100.0, atr_val=1.0)
+    assert t["n_swings"] == 3
+    assert t["n_full_traversals"] == 2
+
+
+def test_measure_traversal_guards_bad_inputs():
+    frame = _osc_frame(_WORKED)
+    # Non-positive / NaN ATR and a non-positive box collapse to the empty read.
+    assert (measure_traversal(frame, 110.0, 100.0, 0.0)
+            == measure_traversal(frame, 110.0, 100.0, -1.0))
+    assert measure_traversal(frame, 100.0, 100.0, 1.0)["n_full_traversals"] == 0
+    assert measure_traversal(frame, 110.0, 100.0, float("nan"))["n_swings"] == 0
+    # Too few bars to form a pivot structure.
+    assert measure_traversal(_flat_frame([1, 2]), 2.0, 1.0, 1.0)["n_swings"] == 0
 
 
 def test_segment_swings_guards_bad_inputs():
@@ -810,8 +1217,53 @@ def test_barrier_horizon_caps_the_race():
 
 
 # ──────────────────────────────────────────────────────────────────
-# Seed-recall baseline guard (core.archive.seed_recall)
+# Forward-return maturity guards (core.archive.forward_returns)
 # ──────────────────────────────────────────────────────────────────
+def test_compute_returns_caps_trigger_detection_at_60_forward_bars():
+    n = FORWARD_RETURN_HORIZON_BARS + 5
+    idx = pd.date_range("2026-01-02", periods=n, freq="B")
+    highs = [101.0] * FORWARD_RETURN_HORIZON_BARS + [130.0] * 5
+    fwd_df = pd.DataFrame({
+        "Open": [100.0] * n,
+        "High": highs,
+        "Low": [99.0] * n,
+        "Close": [100.0] * n,
+        "Volume": [1000.0] * n,
+    }, index=idx)
+
+    res = _compute_returns(
+        fwd_df,
+        scan_close=100.0,
+        trigger_price=120.0,
+        s_level=95.0,
+        vol_50_at_scan=1000.0,
+    )
+
+    assert res["triggered"] == 0
+    assert "days_to_trigger" not in res
+    assert res["fwd_return_60d"] == 0
+    assert res["barrier_label"] == "timeout"
+
+
+def test_compute_returns_defers_timeout_until_60_bar_window_complete():
+    n = 5
+    idx = pd.date_range("2026-01-02", periods=n, freq="B")
+    fwd_df = pd.DataFrame({
+        "Open": [100.0] * n,
+        "High": [101.0] * n,
+        "Low": [99.0] * n,
+        "Close": [100.0] * n,
+        "Volume": [1000.0] * n,
+    }, index=idx)
+
+    res = _compute_returns(fwd_df, scan_close=100.0, trigger_price=120.0, s_level=95.0)
+
+    assert res["barrier_label"] is None
+    assert "fwd_return_20d" not in res
+    assert "fwd_return_60d" not in res
+
+
+# Seed-recall baseline guard (core.archive.seed_recall)
 def test_seed_recall_guard_fails_on_new_miss():
     baseline = {"recall": 0.8, "misses": [{"ticker": "AAA", "trigger_date": "2026-01-01"}]}
     current = {"recall": 0.8}
@@ -891,7 +1343,7 @@ def _flat_ohlc(n, *, high=101.0, low=99.0, close=100.0, volume=1000.0):
     ])
 
 
-def test_measure_bins_slices_named_regions_heuristic():
+def test_measure_bins_slices_named_regions_at_lps():
     df = _flat_ohlc(120)
     # LPS = last 5 bars, low pinned at 100 (inside the 99..101 box).
     for i in range(115, 120):
@@ -904,8 +1356,11 @@ def test_measure_bins_slices_named_regions_heuristic():
     assert bins["bin_a_bars"] == 20          # 30 - 10
     assert bins["bin_b_bars"] == 60          # base_len
     assert bins["bin_lps_bars"] == 5
-    assert bins["bin_d_bars"] == 20          # final-third heuristic: d=100, n=120
-    assert bins["bin_d_boundary_source"] == "heuristic"
+    assert bins["bin_d_bars"] == 5           # Phase D anchored at the LPS: 120 - 115
+    assert bins["bin_d_boundary_source"] == "lps"
+    evidence = json.loads(bins["phase_d_evidence_json"])
+    assert evidence["selected"]["source"] == "lps"
+    assert evidence["selected"]["meta"]["fallback"] is True
     assert abs(bins["lps_position_in_box"] - 0.5) < 1e-9   # (100-99)/(101-99)
     assert bins["bin_b_volume_ratio"] == 1.0               # uniform volume
     # LPS foot sits below the ceiling -> no Last-Supper stretch (< 0).
@@ -945,6 +1400,36 @@ def test_measure_bins_parent_with_inner_phase_d_keeps_parent_base():
     assert bins["bin_b_bars"] == 60          # parent remains the base of record
     assert bins["bin_d_boundary_source"] == "inner_box"
     assert bins["bin_d_bars"] == 30          # Phase D spans the nested range
+
+
+def test_measure_bins_evidence_json_records_selected_source():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+        support_test_start_bar=88,
+        sos_reclaim_start_bar=82,
+        rising_support_start_bar=84,
+        v_tip_bar=86,
+    )
+    evidence = json.loads(bins["phase_d_evidence_json"])
+
+    assert bins["bin_d_boundary_source"] == "sos_reclaim"
+    assert evidence["selected"]["source"] == "sos_reclaim"
+    assert {s["source"] for s in evidence["signals"]} >= {"support_tests", "sos_reclaim", "rising_support", "v_tip", "lps"}
+
+
+def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster():
+    df = _flat_ohlc(120)
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+        support_test_start_bar=92, v_tip_bar=88,
+    )
+    assert bins["bin_d_boundary_source"] == "v_tip"
+    assert bins["bin_d_bars"] == 32
 
 
 def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
@@ -994,51 +1479,6 @@ def test_measure_bins_no_lps_window_degrades_gracefully():
     assert bins["bin_b_bars"] == 60           # the base region is still measured
 
 
-def test_measure_bins_support_test_cluster_can_anchor_phase_d():
-    df = _flat_ohlc(120)
-    bins = measure_bins(
-        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
-        is_inner_box=False, lps_offset=0, lps_length=5,
-        R=101.0, S=99.0, atr_val=1.0, support_test_start_bar=92,
-    )
-    assert bins["bin_d_boundary_source"] == "support_tests"
-    assert bins["bin_d_bars"] == 28
-
-
-def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster():
-    df = _flat_ohlc(120)
-    bins = measure_bins(
-        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
-        is_inner_box=False, lps_offset=0, lps_length=5,
-        R=101.0, S=99.0, atr_val=1.0,
-        support_test_start_bar=92, v_tip_bar=88,
-    )
-    assert bins["bin_d_boundary_source"] == "v_tip"
-    assert bins["bin_d_bars"] == 32
-
-
-def test_measure_bins_phase_d_reports_right_side_ascending_support():
-    # Earlier base action sags, then Phase D starts stair-stepping higher.
-    lead = _ramp_frame([104, 108, 103, 107, 102, 106, 101, 105, 100, 104])
-    lead["Volume"] = 1000.0
-    # Phase D stair-steps: each reaction low is higher than the prior one.
-    d = _ramp_frame([100, 104, 101, 105, 102, 106, 103, 107, 104, 108])
-    d["Volume"] = 1000.0
-    df = pd.concat([lead, d], ignore_index=True)
-    d_start = len(lead)
-
-    bins = measure_bins(
-        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=len(df),
-        is_inner_box=False, lps_offset=0, lps_length=5,
-        R=108.0, S=100.0, atr_val=1.0, support_test_start_bar=d_start,
-    )
-
-    assert bins["bin_d_boundary_source"] == "support_tests"
-    assert bins["bin_d_ascending_support_quality"] > 0
-    assert bins["bin_d_higher_low_frac"] == 1.0
-    assert bins["bin_d_vs_b_support_quality_delta"] > 0
-
-
 def test_measure_bins_phase_d_support_delta_blank_when_unmeasured():
     # The support-test boundary creates a Phase D slice that is too short to fit
     # swing lows. Its standalone quality is neutral, but the D-vs-B comparison
@@ -1058,14 +1498,15 @@ def test_measure_bins_phase_d_support_delta_blank_when_unmeasured():
 
     assert bins["bin_d_support_slope_atr"] is None
     assert bins["bin_d_ascending_support_quality"] == 0.0
+    assert bins["bin_d_boundary_source"] == "support_tests"
     assert bins["bin_d_vs_b_support_quality_delta"] is None
 
 
 def test_measure_bins_phase_c_spring_requires_recovery():
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    # A clean spring: a meaningful undercut of S (0.4 ATR) framed by the flat
-    # 101 highs (the V arms) that reclaims S by Close on the next bar.
-    df.loc[95, "Low"] = 98.6
+    # A clean-V spring: a visible undercut of S (0.8 ATR) that reclaims S by
+    # Close on the next bar and holds.
+    df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Low"] = 99.1
     df.loc[96, "Close"] = 99.2
@@ -1078,18 +1519,20 @@ def test_measure_bins_phase_c_spring_requires_recovery():
 
     assert bins["bin_c_present"] is True
     assert bins["bin_c_type"] == "SPRING"
-    assert bins["bin_c_undercut_atr"] == 0.4
+    assert bins["bin_c_undercut_atr"] == 0.8
     assert bins["bin_c_recovery_bars"] == 1
     assert bins["bin_c_event_bar"] == 95
     assert bins["bin_c_recovery_bar"] == 96
-    assert bins["bin_d_start_bar"] == 96
-    assert bins["bin_d_boundary_source"] == "spring"
+    # The spring reclaim (96) FLOORS Phase D but does not anchor it; with no
+    # richer right-side evidence after it, D opens at the LPS (the gate).
+    assert bins["bin_d_start_bar"] == 115
+    assert bins["bin_d_boundary_source"] == "lps"
     assert bins["bin_c_time_loc"] == pytest.approx((95 - 60) / 59, abs=0.0001)
 
 
-def test_measure_bins_phase_c_spring_beats_loose_v_tip_for_phase_d():
+def test_measure_bins_phase_c_spring_floors_out_earlier_v_tip():
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    df.loc[95, "Low"] = 98.6
+    df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Close"] = 99.2
 
@@ -1100,25 +1543,29 @@ def test_measure_bins_phase_c_spring_beats_loose_v_tip_for_phase_d():
     )
 
     assert bins["bin_c_type"] == "SPRING"
-    assert bins["bin_d_start_bar"] == 96
-    assert bins["bin_d_boundary_source"] == "spring"
+    # The V-tip at 88 sits BEFORE the spring reclaim (96), so it is floored out
+    # (it belonged to Phase C); Phase D falls back to the LPS.
+    assert bins["bin_d_start_bar"] == 115
+    assert bins["bin_d_boundary_source"] == "lps"
 
 
-def test_measure_bins_phase_c_spring_beats_inner_start_for_phase_d():
+def test_measure_bins_inner_after_spring_recovery_opens_phase_d():
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    df.loc[95, "Low"] = 98.6
+    df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Close"] = 99.2
 
     bins = measure_bins(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
-        R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=88,
+        R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=100,
     )
 
     assert bins["bin_c_type"] == "SPRING"
-    assert bins["bin_d_start_bar"] == 96
-    assert bins["bin_d_boundary_source"] == "spring"
+    # An inner mini-consolidation at 100 is AFTER the reclaim (96): it is the
+    # earliest credible right-side evidence and opens Phase D, ahead of the LPS.
+    assert bins["bin_d_start_bar"] == 100
+    assert bins["bin_d_boundary_source"] == "inner_box"
 
 
 def test_measure_bins_phase_c_rejects_shallow_undercut():
@@ -1137,13 +1584,58 @@ def test_measure_bins_phase_c_rejects_shallow_undercut():
 
     assert bins["bin_c_present"] is False
     assert bins["bin_c_type"] is None
+    assert bins["bin_c_event_bar"] is None
+    assert bins["bin_c_recovery_bar"] is None
 
 
-def test_measure_bins_unrecovered_undercut_is_not_phase_c():
+def test_measure_bins_phase_c_accepts_linger_spring():
+    # A choppy multi-bar sojourn below S (not a clean V) that reclaims and holds
+    # is a valid spring — the "linger below support then recover" variation.
     df = _flat_ohlc(120, low=100.0, close=100.2)
-    df.loc[95, "Low"] = 98.6
-    for idx in range(95, 99):
-        df.loc[idx, "Close"] = 98.8
+    df.loc[95, ["Low", "Close"]] = [98.5, 98.7]
+    df.loc[96, ["Low", "Close"]] = [98.2, 98.6]   # trough
+    df.loc[97, ["Low", "Close"]] = [98.3, 98.4]
+    df.loc[98, ["Low", "Close"]] = [98.4, 98.8]
+    df.loc[99, ["Low", "Close"]] = [98.9, 99.3]   # reclaim; bars 100+ hold above S
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is True
+    assert bins["bin_c_type"] == "SPRING"
+    assert bins["bin_c_event_bar"] == 96      # the trough, not the first penetration
+    assert bins["bin_c_recovery_bar"] == 99
+    assert bins["bin_c_recovery_bars"] == 3
+    assert bins["bin_c_undercut_atr"] == 0.8
+
+
+def test_measure_bins_phase_c_rejects_never_reclaimed():
+    # A sojourn below S that never closes back above it is a breakdown, not a spring.
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    for idx in range(95, 120):
+        df.loc[idx, ["Low", "Close"]] = [98.0, 98.3]
+
+    bins = measure_bins(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=5,
+        R=101.0, S=99.0, atr_val=1.0,
+    )
+
+    assert bins["bin_c_present"] is False
+    assert bins["bin_c_type"] is None
+
+
+def test_measure_bins_phase_c_rejects_poke_and_fail():
+    # Penetrate + reclaim for ONE bar, then break back below S and stay there:
+    # the hold check rejects it (a real spring's reclaim sticks = supply absorbed).
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[95, ["Low", "Close"]] = [98.5, 98.7]   # penetrate
+    df.loc[96, ["Low", "Close"]] = [98.9, 99.3]   # one-bar reclaim
+    for idx in range(97, 120):
+        df.loc[idx, ["Low", "Close"]] = [98.0, 98.3]  # fails back below S, sustained
 
     bins = measure_bins(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
@@ -1214,41 +1706,96 @@ def test_measure_bins_phase_c_requires_atr_frame():
 
 
 def test_resolve_phase_d_start_matches_scope_rule():
-    # inner box -> box start; V-tip/support hints -> final third fallback; no LPS -> None.
+    # Corrected model: the LPS is the GATE / fallback. A spring RECOVERY ends
+    # Phase C and only FLOORS the search; Phase D opens at the EARLIEST credible
+    # right-side evidence AFTER that floor.
+    common = dict(box_start=60, base_len=60, last=119, is_inner_box=False,
+                  has_lps_window=True, b=30)
+    # No richer evidence -> LPS fallback.
+    assert _resolve_phase_d_start(lps_start=115, **common) == 115
+    # A spring recovery is NOT itself the Phase-D start: with nothing after it,
+    # Phase D still falls back to the LPS (it does not anchor at the reclaim).
+    assert _resolve_phase_d_start(lps_start=115, phase_c_recovery_bar=96, **common) == 115
+    # Earliest right-side evidence wins regardless of type (v_tip @88 < inner @90
+    # < support @92).
+    assert _resolve_phase_d_start(lps_start=115, phase_d_start_bar=90,
+                                  support_test_start_bar=92, v_tip_bar=88, **common) == 88
+    assert _resolve_phase_d_start(lps_start=115, support_test_start_bar=92,
+                                  v_tip_bar=88, **common) == 88
+    assert _resolve_phase_d_start(lps_start=115, support_test_start_bar=92, **common) == 92
+    # The spring reclaim floors it: evidence BEFORE the reclaim is ignored; the
+    # earliest evidence AFTER it wins.
+    assert _resolve_phase_d_start(lps_start=115, phase_c_recovery_bar=91,
+                                  v_tip_bar=88, support_test_start_bar=95,
+                                  **common) == 95
+    assert _resolve_phase_d_start(lps_start=115, phase_c_recovery_bar=91,
+                                  phase_d_start_bar=93, support_test_start_bar=95,
+                                  **common) == 93
+    # Shakeout case: the LPS pullback can predate the reclaim, but Phase D never
+    # opens before it — the LPS fallback clamps UP to the recovery floor, so D
+    # lands right at "the recovery after a mean shakeout".
+    assert _resolve_phase_d_start(lps_start=90, phase_c_recovery_bar=96, **common) == 96
+    # Active inner box implies its box start.
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
                                   is_inner_box=True, has_lps_window=True,
                                   lps_start=115, b=30) == 60
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=115, b=30,
-                                  phase_d_start_bar=90) == 90
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=115, b=30,
-                                  support_test_start_bar=92,
-                                  v_tip_bar=88) == 88
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=115, b=30,
-                                  phase_c_recovery_bar=96,
-                                  v_tip_bar=88) == 96
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=115, b=30,
-                                  phase_d_start_bar=88,
-                                  phase_c_recovery_bar=96) == 96
-    # Inner anchors Phase D, but the LPS always sits inside it: an LPS that
-    # starts before the inner (parent-fallback LPS) pulls Phase D back to the LPS.
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=80, b=30,
-                                  phase_d_start_bar=90) == 80
-    assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
-                                  is_inner_box=False, has_lps_window=True,
-                                  lps_start=115, b=30) == 100
+    # Clamp: never cross the body start b.
+    assert _resolve_phase_d_start(lps_start=20, **common) == 30
+    # No LPS window -> None.
     assert _resolve_phase_d_start(box_start=60, base_len=60, last=119,
                                   is_inner_box=False, has_lps_window=False,
                                   lps_start=0, b=30) is None
+
+
+def test_resolve_phase_d_boundary_lps_fallback_respects_search_start_floor():
+    from core.structure.phase_d import resolve_phase_d_boundary
+    # The LPS fallback must not open Phase D before the declared search-start
+    # floor (the floor includes search_start_bar, not only the spring reclaim).
+    pb = resolve_phase_d_boundary(last=119, has_lps_window=True, lps_start=90,
+                                  b=30, search_start_bar=100)
+    assert pb.start_bar == 100 and pb.source == "lps"
+    # ...but a later LPS still wins on its own bar.
+    pb2 = resolve_phase_d_boundary(last=119, has_lps_window=True, lps_start=110,
+                                   b=30, search_start_bar=100)
+    assert pb2.start_bar == 110 and pb2.source == "lps"
+
+
+def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
+    from core.structure.phase_d import resolve_phase_d_boundary
+
+    pb = resolve_phase_d_boundary(
+        last=119,
+        has_lps_window=True,
+        lps_start=110,
+        b=30,
+        phase_c_recovery_bar=80,
+        support_test_start_bar=78,
+        sos_reclaim_start_bar=92,
+        rising_support_start_bar=88,
+        phase_d_start_bar=90,
+        v_tip_bar=86,
+    )
+
+    assert pb.start_bar == 86
+    assert pb.source == "v_tip"
+    assert pb.evidence["floor"] == 80
+    assert pb.evidence["selected"]["source"] == "v_tip"
+
+
+def test_support_test_evidence_starts_classifies_cluster_sos_and_rising_support():
+    from core.structure.phase_d import support_test_evidence_starts
+
+    starts = support_test_evidence_starts([
+        {"start_index": 20, "end_index": 22, "low": 101.0, "zone_type": "INSIDE"},
+        {"start_index": 25, "end_index": 27, "low": 102.0, "zone_type": "OVERSHOOT_R"},
+        {"start_index": 29, "end_index": 31, "low": 103.0, "zone_type": "INSIDE"},
+    ], box_start=0, base_len=40)
+
+    assert starts == {
+        "support_tests": 20,
+        "sos_reclaim": 25,
+        "rising_support": 20,
+    }
 
 
 def test_trend_template_full_pass_on_clean_uptrend():
@@ -1352,16 +1899,16 @@ def test_scope_phase_a_can_end_before_phase_b_body():
     assert out["phase_b_start_date"] == str(df.index[12])[:10]
 
 
-def test_scope_phase_d_anchors_on_final_third_of_base():
+def test_scope_phase_d_anchors_at_lps():
     df = _scope_df(30)
     out = scope_consolidation(
         df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
         is_inner_box=False, lps_offset=1, lps_length=4,
         lps_zone_type="INSIDE", atr_val=1.0,
     )
-    # box_start = 30 - 25 = 5; final third = 5 + (2*25)//3 = 5 + 16 = 21.
-    assert out["phase_d_start_bar"] == 21
-    assert out["phase_d_start_date"] == str(df.index[21])[:10]
+    # No spring -> Phase D anchors at the LPS: lps_start = 30 - 1 - 4 = 25.
+    assert out["phase_d_start_bar"] == 25
+    assert out["phase_d_start_date"] == str(df.index[25])[:10]
 
 
 def test_scope_phase_d_can_use_support_test_cluster_hint():
@@ -1389,30 +1936,34 @@ def test_scope_phase_d_can_use_v_tip_boundary():
     assert out["phase_d_start_date"] == str(df.index[16])[:10]
 
 
-def test_scope_phase_d_can_use_phase_c_recovery_boundary():
+def test_scope_phase_c_recovery_floors_phase_d_search():
     df = _scope_df(30)
     out = scope_consolidation(
         df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
         is_inner_box=False, lps_offset=1, lps_length=4,
         lps_zone_type="INSIDE", atr_val=1.0,
-        phase_c_recovery_bar=17, v_tip_bar=16,
+        phase_c_recovery_bar=17, v_tip_bar=16, support_test_start_bar=20,
     )
+    # Recovery (17) ends Phase C and FLOORS the search: the V-tip at 16 is before
+    # the reclaim (ignored); the support test at 20 is after it and opens Phase D.
     assert out["has_mini_consolidation"] is False
-    assert out["phase_d_start_bar"] == 17
-    assert out["phase_d_start_date"] == str(df.index[17])[:10]
+    assert out["phase_d_start_bar"] == 20
+    assert out["phase_d_start_date"] == str(df.index[20])[:10]
 
 
-def test_scope_phase_c_recovery_beats_inner_start_boundary():
+def test_scope_inner_after_recovery_opens_phase_d():
     df = _scope_df(30)
     out = scope_consolidation(
         df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25,
         is_inner_box=False, lps_offset=1, lps_length=4,
         lps_zone_type="INSIDE", atr_val=1.0,
-        phase_d_start_bar=14, phase_c_recovery_bar=17,
+        phase_d_start_bar=20, phase_c_recovery_bar=17,
     )
+    # An inner mini-consolidation AFTER the reclaim is the right-side contraction
+    # that opens Phase D (the LPS stays the gate underneath it).
     assert out["has_mini_consolidation"] is True
-    assert out["phase_d_start_bar"] == 17
-    assert out["phase_d_start_date"] == str(df.index[17])[:10]
+    assert out["phase_d_start_bar"] == 20
+    assert out["phase_d_start_date"] == str(df.index[20])[:10]
 
 
 def test_scope_inner_box_marks_mini_consolidation_and_d_start():
@@ -1422,7 +1973,7 @@ def test_scope_inner_box_marks_mini_consolidation_and_d_start():
         is_inner_box=True, lps_offset=1, lps_length=4,
         lps_zone_type="INSIDE", atr_val=1.0,
     )
-    # Inner box: Phase D is the mini-consolidation itself → starts at n-base_len.
+    # Active inner box: Phase D is the mini-consolidation itself -> box start.
     assert out["has_mini_consolidation"] is True
     assert out["phase_d_start_date"] == str(df.index[20])[:10]
     assert out["phase_d_start_bar"] == 20

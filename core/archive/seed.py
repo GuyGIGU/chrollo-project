@@ -31,17 +31,15 @@ if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
 from config import settings
-from core.archive.forward_returns import _compute_returns
+from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
 from core.pipeline.evaluation import (
-    _final_v_tip_bar,
-    _resolve_phase_a_swing,
+    _structure_to_boxes,
     apply_baseline_filters,
 )
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
     calculate_atr,
-    detect_boxes,
     detect_lps,
     detect_lps_tests,
     measure_bar_compression,
@@ -49,8 +47,11 @@ from core.structure import (
     measure_contractions,
     measure_equilibrium,
     measure_support_slope,
+    measure_traversal,
     trend_template,
 )
+from core.structure.narrative import read_structure
+from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -135,14 +136,12 @@ WINDOW_BACK = 10
 WINDOW_FWD = 3
 
 
-def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
-                      select: str = "earliest") -> Optional[dict]:
+def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[dict]:
     """Run the full screener pipeline against df (last bar = evaluation date).
 
-    Returns the result dict on pass, or None on reject.
-    Mirrors _evaluate_ticker but works on a pre-sliced DataFrame.
-    ``select`` steers the outer-box candidate choice (see consolidation.py);
-    "earliest" is the live engine, "best" the pre-Change-B diagnostic mode.
+    Returns the result dict on pass, or None on reject. Mirrors _evaluate_ticker
+    but works on a pre-sliced DataFrame: it reads ONE chronological narrative
+    structure (the oldest valid root swing), so there is no box-selection mode.
     """
     try:
         baseline = apply_baseline_filters(df)
@@ -154,8 +153,11 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         df_ind = df.copy()
         df_ind["ATR_10"] = calculate_atr(df_ind, 10)
         df_ind["ATR_50"] = calculate_atr(df_ind, 50)
-        # Mirror the live parent+inner detector so seed recall measures the same engine.
-        boxes = detect_boxes(df_ind, min_days=settings.MIN_BASE_DAYS, select=select)
+        # Mirror the live chronological reader so seed recall measures the same engine.
+        structure = read_structure(df_ind, float(df_ind.iloc[-6]["ATR_10"]))
+        if structure is None:
+            return None
+        boxes = _structure_to_boxes(structure, len(df_ind))
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
             _is_inner = boxes["parent"]
@@ -250,6 +252,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
         bar_compression = measure_bar_compression(base_df, res_avg - sup_avg, atr_for_zone)
         support = measure_support_slope(base_df, atr_for_zone)
         equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
+        traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
             min(adr_value / settings.ADR_FULL_PCT, 1.0)
@@ -258,22 +261,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
 
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
         phase_b_start = len(df_ind) - base_len
-        bc_anchor_bar, phase_a_end_bar = _resolve_phase_a_swing(
-            df_ind, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
+        bc_anchor_bar, phase_a_end_bar = int(structure.climax_bar), int(structure.ar_bar)
+        phase_d_evidence_starts = (
+            {"support_tests": None, "sos_reclaim": None, "rising_support": None}
+            if inner is not None
+            else support_test_evidence_starts(lps_tests, phase_b_start, base_len)
         )
-        support_test_start_bar = None
-        if inner is None:
-            right_half = phase_b_start + base_len // 2
-            starts = []
-            for test in lps_tests:
-                try:
-                    start = int(test["start_index"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                if start >= right_half:
-                    starts.append(start)
-            support_test_start_bar = min(starts) if len(starts) >= 2 else None
-        v_tip_bar = None if inner is not None else _final_v_tip_bar(df_ind, phase_b_start, base_len)
+        support_test_start_bar = phase_d_evidence_starts["support_tests"]
+        v_tip_bar = None if inner is not None else final_v_tip_bar(df_ind, phase_b_start, base_len)
         # Region (bin) features + Minervini trend template (measure-first parity
         # with the live pipeline).
         bins = measure_bins(
@@ -289,6 +284,8 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
             support_test_start_bar=support_test_start_bar,
+            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
+            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
             phase_a_end_bar=phase_a_end_bar,
             v_tip_bar=v_tip_bar,
             lps_R=lps_context[1],
@@ -353,6 +350,19 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "r_touch_vol_z": r_touch_vol_z,
             "s_touch_vol_z": s_touch_vol_z,
             "lps_descent_frac": float(lps_result.get("descent_frac", 1.0)),
+            "lps_high_descent_frac": float(lps_result.get("high_descent_frac", 1.0)),
+            "lps_window_range_pct_box": float(lps_result.get("window_range_pct_box", 0.0)),
+            "lps_high_extension_box": float(lps_result.get("high_extension_box", 0.0)),
+            "lps_high_extension_atr": float(lps_result.get("high_extension_atr", 0.0)),
+            "lps_profile_unit": float(lps_result.get("profile_unit", 0.0)),
+            "lps_profile_unit_pct": float(lps_result.get("profile_unit_pct", 0.0)),
+            "lps_pullback_profile": float(lps_result.get("pullback_profile", 0.0)),
+            "lps_terminal_low_tolerance": float(lps_result.get("terminal_low_tolerance", 0.0)),
+            "lps_spread_expansion_profile": float(lps_result.get("spread_expansion_profile", 0.0)),
+            "lps_first_high": float(lps_result.get("first_high", 0.0)),
+            "lps_last_low": float(lps_result.get("last_low", 0.0)),
+            "lps_window_high": float(lps_result.get("window_high", 0.0)),
+            "lps_window_low": float(lps_result.get("window_low", 0.0)),
             "lps_zone_type": lps_result.get("zone_type", "INSIDE"),
             "phase_d_inner": bool(inner is not None),
             "lps_in_inner": bool(lps_in_inner),
@@ -396,6 +406,16 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             "eq_mid_dwell": float(equilibrium["mid_dwell"]),
             "eq_upper_dwell": float(equilibrium["upper_dwell"]),
             "eq_coverage": float(equilibrium["coverage"]),
+            "trav_n_full_traversals": int(traversal["n_full_traversals"]),
+            "trav_n_swings": int(traversal["n_swings"]),
+            "trav_top_dead_space": (float(traversal["top_dead_space"])
+                                    if traversal["top_dead_space"] is not None else None),
+            "trav_bottom_dead_space": (float(traversal["bottom_dead_space"])
+                                       if traversal["bottom_dead_space"] is not None else None),
+            "trav_rail_reaches_high": int(traversal["rail_reaches_high"]),
+            "trav_rail_reaches_low": int(traversal["rail_reaches_low"]),
+            "trav_max_swing_frac": (float(traversal["max_swing_frac"])
+                                    if traversal["max_swing_frac"] is not None else None),
             "adr_pct": float(adr_value),
             "adr_quality": float(adr_quality),
             # Region (bin) features + Minervini trend template (measure-first).
@@ -403,7 +423,10 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0,
             **trend,
         }
 
-    except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError) as e:
+    except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
+            AttributeError):
+        # Parity with the live _evaluate_ticker guard: the structure-adapter path
+        # can raise AttributeError on a degenerate frame; skip the date, never crash.
         return None
 
 
@@ -452,7 +475,7 @@ def seed_archive(
     latest = max(pd.Timestamp(d) for _, d in setups)
 
     dl_start = (earliest - pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
-    dl_end = (latest + pd.Timedelta(days=90)).strftime("%Y-%m-%d")  # Extra for forward returns
+    dl_end = (latest + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
 
     log.info(f"Downloading {len(unique_tickers)} tickers from {dl_start} -> {dl_end}...")
     raw = yf.download(
@@ -639,6 +662,14 @@ def seed_archive(
             eq_mid_dwell=best_result.get("eq_mid_dwell"),
             eq_upper_dwell=best_result.get("eq_upper_dwell"),
             eq_coverage=best_result.get("eq_coverage"),
+            # Limb-traversal read (raw, measure-first)
+            trav_n_full_traversals=best_result.get("trav_n_full_traversals"),
+            trav_n_swings=best_result.get("trav_n_swings"),
+            trav_top_dead_space=best_result.get("trav_top_dead_space"),
+            trav_bottom_dead_space=best_result.get("trav_bottom_dead_space"),
+            trav_rail_reaches_high=best_result.get("trav_rail_reaches_high"),
+            trav_rail_reaches_low=best_result.get("trav_rail_reaches_low"),
+            trav_max_swing_frac=best_result.get("trav_max_swing_frac"),
             # ADR% absolute-volatility character
             adr_pct=best_result.get("adr_pct"),
             score_adr=sub.get("adr"),
@@ -657,17 +688,21 @@ def seed_archive(
                            if best_result.get("bin_c_present") is not None else None),
             bin_c_type=best_result.get("bin_c_type"),
             bin_c_event_date=best_result.get("bin_c_event_date"),
+            bin_c_event_bar=best_result.get("bin_c_event_bar"),
             bin_c_undercut_atr=best_result.get("bin_c_undercut_atr"),
             bin_c_recovery_bars=best_result.get("bin_c_recovery_bars"),
+            bin_c_recovery_bar=best_result.get("bin_c_recovery_bar"),
             bin_c_time_loc=best_result.get("bin_c_time_loc"),
             bin_c_spring_vol_z=best_result.get("bin_c_spring_vol_z"),
             bin_d_bars=best_result.get("bin_d_bars"),
+            bin_d_start_bar=best_result.get("bin_d_start_bar"),
             bin_d_range_pct=best_result.get("bin_d_range_pct"),
             bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),
             bin_d_support_slope_atr=best_result.get("bin_d_support_slope_atr"),
             bin_d_higher_low_frac=best_result.get("bin_d_higher_low_frac"),
             bin_d_ascending_support_quality=best_result.get("bin_d_ascending_support_quality"),
             bin_d_boundary_source=best_result.get("bin_d_boundary_source"),
+            phase_d_evidence_json=best_result.get("phase_d_evidence_json"),
             bin_lps_bars=best_result.get("bin_lps_bars"),
             lps_position_in_box=best_result.get("lps_position_in_box"),
             bin_d_vs_b_range_ratio=best_result.get("bin_d_vs_b_range_ratio"),

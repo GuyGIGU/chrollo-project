@@ -59,14 +59,94 @@ from core.structure.metrics import (
 )
 
 
-# Hierarchical-detection tunables (inner sub-box gating).
-# Inner box must be at most this fraction of the outer's box width.
-# 0.75 = inner is at least 25% tighter than outer.
-_INNER_TIGHTNESS_RATIO = 0.75
+# Hierarchical-detection tunables (inner sub-box gating) live in settings and are
+# read lazily at the use sites below — never cached at import time. This keeps the
+# module importable under a different top-level ``config`` (e.g. the backend's
+# broker config, when cwd is webapp/backend) without requiring the screener
+# settings to be resolvable at import. See settings.INNER_TIGHTNESS_RATIO (inner
+# must be >=25% tighter than parent) and settings.INNER_SEARCH_FRACTION (inner
+# search begins at this fraction of the outer base).
 
-# Inner search starts at this fraction of the outer base. 0.5 = look at the
-# second half of the outer consolidation for the tightening.
-_INNER_SEARCH_FRACTION = 0.5
+
+def _collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[str, int, int, float, float]]:
+    """Return qualifying Phase-A climax -> reaction anchors, most-recent first."""
+    if len(eval_df) < min_days + 15:
+        return []
+
+    closes = eval_df['Close'].values
+    highs = eval_df['High'].values
+    lows = eval_df['Low'].values
+    sma200 = eval_df['Close'].rolling(200).mean().values
+    end = len(eval_df) - 1
+
+    if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
+        return []
+
+    min_move = settings.TREND_MIN_GAIN_PCT
+    min_move_bars = settings.TREND_MIN_MOVE_BARS
+    prior_lookback = settings.TREND_PRIOR_LOOKBACK
+    local_peak_bars = settings.LOCAL_PEAK_BARS
+
+    scan_lo = min_move_bars + 5
+    scan_hi = end - min_days
+    if scan_hi <= scan_lo:
+        return []
+
+    anchors: list[tuple[str, int, int, float, float]] = []
+
+    for i in range(scan_hi, scan_lo - 1, -1):
+        prior_start = max(0, i - prior_lookback)
+        local_start = max(0, i - local_peak_bars)
+
+        if highs[i] >= np.max(highs[local_start:i + 1]):
+            prior_lows = lows[prior_start:i]
+            if len(prior_lows) >= min_move_bars:
+                trough_k = int(np.argmin(prior_lows))
+                trough_low = float(prior_lows[trough_k])
+                trough_bar = prior_start + trough_k
+                if trough_low > 0 \
+                        and highs[i] / trough_low - 1.0 >= min_move \
+                        and (i - trough_bar) >= min_move_bars:
+                    ar_thr = highs[i] * (1.0 - settings.AR_MIN_DROP_PCT)
+                    ar_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
+                    ar_completed = False
+                    ar_low_bar = -1
+                    ar_low_val = np.inf
+                    for j in range(i + 1, ar_end):
+                        if closes[j] <= ar_thr:
+                            ar_completed = True
+                        if lows[j] < ar_low_val:
+                            ar_low_val = lows[j]
+                            ar_low_bar = j
+                    if ar_completed and ar_low_bar != -1 \
+                            and (len(eval_df) - ar_low_bar) >= min_days:
+                        anchors.append(('BC', i, ar_low_bar, float(highs[i]), float(ar_low_val)))
+
+        if lows[i] <= np.min(lows[local_start:i + 1]):
+            prior_highs = highs[prior_start:i]
+            if len(prior_highs) >= min_move_bars:
+                peak_k = int(np.argmax(prior_highs))
+                peak_high = float(prior_highs[peak_k])
+                peak_bar = prior_start + peak_k
+                if peak_high > 0 \
+                        and 1.0 - lows[i] / peak_high >= min_move \
+                        and (i - peak_bar) >= min_move_bars:
+                    bounce_thr = lows[i] * (1.0 + settings.AR_MIN_DROP_PCT)
+                    bounce_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
+                    bounce_completed = False
+                    bounce_high_bar = -1
+                    bounce_high_val = -np.inf
+                    for j in range(i + 1, bounce_end):
+                        if closes[j] >= bounce_thr:
+                            bounce_completed = True
+                        if highs[j] > bounce_high_val:
+                            bounce_high_val = highs[j]
+                            bounce_high_bar = j
+                    if bounce_completed and bounce_high_bar != -1 \
+                            and (len(eval_df) - bounce_high_bar) >= min_days:
+                        anchors.append(('SC', i, bounce_high_bar, float(bounce_high_val), float(lows[i])))
+
+    return anchors
 
 
 # ---------------------------------------------------------------------------
@@ -113,17 +193,10 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
     # align with df-positional indices in the same range.
     EMPTY = (0, 0, 0, 1.0, 0, 0, 0, 0, 0, 0, 0, False)
 
-    eval_df = df.iloc[:-5] if len(df) > 5 else df
+    skip = settings.STRUCTURE_EDGE_SKIP_BARS
+    eval_df = df.iloc[:-skip] if len(df) > skip else df
     if len(eval_df) < min_days + 15:
         return EMPTY
-
-    closes = eval_df['Close'].values
-    highs = eval_df['High'].values
-    lows = eval_df['Low'].values
-
-    sma200 = eval_df['Close'].rolling(200).mean().values
-
-    end = len(eval_df) - 1
 
     # Engine-aligned ATR snapshot — same bar (df[-6] == eval_df[-1]) used
     # downstream for LPS zone tolerance, so Phase B and the LPS detector
@@ -135,86 +208,7 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
     else:
         atr_snapshot = None
 
-    # --- MACRO GATE: bullish context required ---
-    # Baseline already filters Close < SMA_200 at bar -1; this re-asserts the
-    # condition at the evaluation bar (-6) so the function stays self-contained
-    # if called outside the standard pipeline.
-    if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
-        return EMPTY
-
-    # --- ANCHOR DISCOVERY: enumerate every qualifying extreme ---
-    min_move = settings.TREND_MIN_GAIN_PCT
-    min_move_bars = settings.TREND_MIN_MOVE_BARS
-    prior_lookback = settings.TREND_PRIOR_LOOKBACK
-    local_peak_bars = settings.LOCAL_PEAK_BARS
-
-    scan_lo = min_move_bars + 5
-    scan_hi = end - min_days
-    if scan_hi <= scan_lo:
-        return EMPTY
-
-    # Each entry: (anchor_type, anchor_bar, phase_b_start)
-    anchors: list[tuple[str, int, int]] = []
-
-    for i in range(scan_hi, scan_lo - 1, -1):
-        prior_start = max(0, i - prior_lookback)
-        local_start = max(0, i - local_peak_bars)
-
-        # BC: highs[i] is the local peak over the prior local window.
-        if highs[i] >= np.max(highs[local_start:i + 1]):
-            prior_lows = lows[prior_start:i]
-            if len(prior_lows) >= min_move_bars:
-                trough_k = int(np.argmin(prior_lows))
-                trough_low = float(prior_lows[trough_k])
-                trough_bar = prior_start + trough_k
-                if trough_low > 0 \
-                        and highs[i] / trough_low - 1.0 >= min_move \
-                        and (i - trough_bar) >= min_move_bars:
-                    # AR: confirm >=5% drop, then anchor Phase B at AR LOW.
-                    # Starting at the AR low (not the first threshold cross)
-                    # skips the reaction descent so the Phase B window doesn't
-                    # include mid-fall bars that would break boundary respect.
-                    ar_thr = highs[i] * (1.0 - settings.AR_MIN_DROP_PCT)
-                    ar_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
-                    ar_completed = False
-                    ar_low_bar = -1
-                    ar_low_val = np.inf
-                    for j in range(i + 1, ar_end):
-                        if closes[j] <= ar_thr:
-                            ar_completed = True
-                        if lows[j] < ar_low_val:
-                            ar_low_val = lows[j]
-                            ar_low_bar = j
-                    if ar_completed and ar_low_bar != -1 \
-                            and (len(eval_df) - ar_low_bar) >= min_days:
-                        anchors.append(('BC', i, ar_low_bar))
-
-        # SC: lows[i] is the local trough over the prior local window.
-        if lows[i] <= np.min(lows[local_start:i + 1]):
-            prior_highs = highs[prior_start:i]
-            if len(prior_highs) >= min_move_bars:
-                peak_k = int(np.argmax(prior_highs))
-                peak_high = float(prior_highs[peak_k])
-                peak_bar = prior_start + peak_k
-                if peak_high > 0 \
-                        and 1.0 - lows[i] / peak_high >= min_move \
-                        and (i - peak_bar) >= min_move_bars:
-                    # Bounce: confirm >=5% rise, anchor Phase B at bounce HIGH.
-                    bounce_thr = lows[i] * (1.0 + settings.AR_MIN_DROP_PCT)
-                    bounce_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
-                    bounce_completed = False
-                    bounce_high_bar = -1
-                    bounce_high_val = -np.inf
-                    for j in range(i + 1, bounce_end):
-                        if closes[j] >= bounce_thr:
-                            bounce_completed = True
-                        if highs[j] > bounce_high_val:
-                            bounce_high_val = highs[j]
-                            bounce_high_bar = j
-                    if bounce_completed and bounce_high_bar != -1 \
-                            and (len(eval_df) - bounce_high_bar) >= min_days:
-                        anchors.append(('SC', i, bounce_high_bar))
-
+    anchors = _collect_root_anchors(eval_df, min_days)
     if not anchors:
         return EMPTY
 
@@ -226,7 +220,7 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
     # maximizes Wyckoff "cause" (base age) and resists the truncation failure where
     # a mid-base upthrust is selected over the true climax because its shorter
     # window mechanically yields a tighter box.
-    for _atype, _abar, phase_b_start in reversed(anchors):
+    for _atype, _abar, phase_b_start, _R, _S in reversed(anchors):
         base_length = len(df) - phase_b_start
         if select == "debug":
             # Diagnostic: return the candidate landscape for the first anchor
@@ -310,11 +304,12 @@ def find_consolidation(df, min_days=None, select="earliest"):
      _rt, _st, _br, _ra, _sa, bc_anchor, outer_phase_b_start,
      _outer_is_inner) = outer
 
-    inner_phase_b_start = outer_phase_b_start + int(outer_base_len * _INNER_SEARCH_FRACTION)
+    inner_phase_b_start = outer_phase_b_start + int(outer_base_len * settings.INNER_SEARCH_FRACTION)
     if (len(df) - inner_phase_b_start) < INNER_MIN_DAYS:
         return outer
 
-    eval_df = df.iloc[:-5] if len(df) > 5 else df
+    skip = settings.STRUCTURE_EDGE_SKIP_BARS
+    eval_df = df.iloc[:-skip] if len(df) > skip else df
     if inner_phase_b_start >= len(eval_df):
         return outer
     inner_base_length = len(df) - inner_phase_b_start
@@ -333,7 +328,7 @@ def find_consolidation(df, min_days=None, select="earliest"):
     # boundary-respect gate already filters out wild outliers, so an inner
     # found in outer's recent half is structurally adjacent regardless of
     # whether its R/S sit inside outer's bounds.
-    if bw_inner >= bw_outer * _INNER_TIGHTNESS_RATIO:
+    if bw_inner >= bw_outer * settings.INNER_TIGHTNESS_RATIO:
         return outer
 
     return inner_result + (bc_anchor, inner_phase_b_start, True)
@@ -388,7 +383,7 @@ def detect_boxes(df, min_days=None, select="earliest"):
     **inner** is the tighter Phase D range: the BETTER (tighter) of the inner
     found from the mechanical midpoint and the inner found from the
     detected inner climax (``_detect_inner_phase_b_start``), keeping only one that
-    clears the same ``_INNER_TIGHTNESS_RATIO`` (0.75) gate. None when no
+    clears the same ``settings.INNER_TIGHTNESS_RATIO`` (0.75) gate. None when no
     meaningfully-tighter inner exists.
 
     Pure measurement: it composes the two boxes but decides nothing about firing
@@ -405,12 +400,13 @@ def detect_boxes(df, min_days=None, select="earliest"):
         return {"parent": parent, "inner": None}
 
     base_len, bw_outer, parent_pbs = parent[0], parent[3], parent[10]
-    eval_df = df.iloc[:-5] if len(df) > 5 else df
+    skip = settings.STRUCTURE_EDGE_SKIP_BARS
+    eval_df = df.iloc[:-skip] if len(df) > skip else df
     if parent_pbs >= len(eval_df):
         return {"parent": parent, "inner": None}
 
     n = len(df)
-    midpoint_start = parent_pbs + int(base_len * _INNER_SEARCH_FRACTION)
+    midpoint_start = parent_pbs + int(base_len * settings.INNER_SEARCH_FRACTION)
     starts = {
         midpoint_start: {"source": "midpoint", "root": None},
     }
@@ -430,7 +426,7 @@ def detect_boxes(df, min_days=None, select="earliest"):
             eval_df, s, n,
             source=meta["source"], root=meta["root"],
         )
-        if box is not None and box["box_width"] < bw_outer * _INNER_TIGHTNESS_RATIO:
+        if box is not None and box["box_width"] < bw_outer * settings.INNER_TIGHTNESS_RATIO:
             candidates.append(box)
     inner = min(candidates, key=lambda b: b["box_width"]) if candidates else None
     return {"parent": parent, "inner": inner}

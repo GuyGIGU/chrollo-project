@@ -11,7 +11,6 @@ from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
     calculate_atr,
-    detect_boxes,
     detect_lps,
     detect_lps_tests,
     measure_bar_compression,
@@ -20,17 +19,12 @@ from core.structure import (
     measure_equilibrium,
     measure_support_slope,
     measure_touch_volume,
+    measure_traversal,
     scope_consolidation,
     trend_template,
 )
-from core.structure.segmentation import segment_swings
-
-# Lead-in window (bars before the detected base) searched for the trend->range
-# root swing when reconnecting a drifted BC anchor (see _evaluate_ticker).
-_SEG_LEAD_IN = 60
-# How close the root swing's AR (its end) must land to the detected base start
-# to count as the descent INTO this base.
-_SEG_AR_TOL = 10
+from core.structure.narrative import read_structure
+from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
 
 
 def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
@@ -72,98 +66,46 @@ def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, flo
     return df, float(yearly_return)
 
 
-def _resolve_phase_a_swing(df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar):
-    """Resolve the display/measurement Phase-A root swing.
+def _structure_to_boxes(s, n: int) -> dict:
+    """Adapt a narrative ``Structure`` to the ``detect_boxes`` output shape so the
+    rest of the pipeline consumes it unchanged.
 
-    The box detector may advance ``phase_b_start_bar`` from the raw AR into the
-    first truly worked equilibrium body. For the vertical layer, Phase A should
-    still be the climax -> AR bridge itself, not that whole lead-in/body span.
+    Brick anchors are ABSOLUTE (df-positional); the legacy parent tuple / inner
+    dict want them REBASED to their own box start, because downstream recomputes
+    ``swing_complete_idx = start + max(r_anchor, s_anchor)``. ``bc_anchor_bar``
+    (slot 9) carries the already-resolved-local climax — the narrative path skips
+    ``_resolve_phase_a_swing`` and reads ``structure.climax_bar`` directly.
     """
-    phase_b_start = len(df) - base_len
-    seg = segment_swings(df, atr_for_zone, lookback=base_len + _SEG_LEAD_IN)
-
-    dom = seg.get("dominant_direction", 0)
-    bridge = None
-    if dom != 0:
-        for swing in seg.get("swings", []):
-            if (swing["direction"] == -dom
-                    and abs(swing["end_bar"] - phase_b_start_bar) <= _SEG_AR_TOL
-                    and phase_b_start_bar - _SEG_LEAD_IN <= swing["start_bar"] < phase_b_start_bar):
-                if bridge is None or swing["abs_disp_atr"] > bridge["abs_disp_atr"]:
-                    bridge = swing
-    if bridge is not None:
-        return bridge["start_bar"], bridge["end_bar"]
-
-    root = seg.get("root_swing")
-    if root is not None:
-        try:
-            root_start = int(root["bc_bar"])
-            root_end = int(root["ar_bar"])
-        except (KeyError, TypeError, ValueError):
-            root_start = root_end = None
-        if root_start is not None and root_start < root_end < len(df):
-            if root_end <= phase_b_start_bar:
-                return root_start, root_end
-
-    phase_a_end_bar = min(
-        phase_b_start_bar,
-        bc_anchor_bar + settings.AR_MAX_BARS,
+    pbs = int(s.phase_b_start_bar)
+    base_len = n - pbs
+    box = s.box
+    parent = (
+        base_len, float(s.R), float(s.S), float(s.box_width),
+        int(box.r_touches), int(box.s_touches), int(box.breach_days),
+        int(box.r_anchor_bar) - pbs, int(box.s_anchor_bar) - pbs,
+        int(s.climax_bar), pbs, False,
     )
-    return bc_anchor_bar, phase_a_end_bar
-
-
-def _right_side_support_cluster_start(lps_tests, box_start: int, base_len: int) -> Optional[int]:
-    """First measured support test in the right half, only when there is a cluster."""
-    if not lps_tests:
-        return None
-    right_half = box_start + base_len // 2
-    starts = []
-    for test in lps_tests:
-        try:
-            start = int(test["start_index"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if start >= right_half:
-            starts.append(start)
-    if len(starts) < 2:
-        return None
-    return min(starts)
-
-
-def _final_v_tip_bar(df: pd.DataFrame, box_start: int, base_len: int) -> Optional[int]:
-    """The deepest recovered Low in the late base — the tip of the final 'V'.
-
-    The tip is where the right-side markup begins (the Phase B->D divider). Loose
-    by design: ANY late-base low that price then turned up off of counts, even a
-    shallow one that is not a true Phase-C spring (those still tag separately via
-    bin_c). df-positional bar, or None when no recovered low exists.
-    """
-    n = len(df)
-    if base_len <= 0 or n == 0:
-        return None
-    late = box_start + int(base_len * settings.PHASE_D_VTIP_LATE_FRACTION)
-    start = max(late, box_start + 1)
-    if start >= n - 1:
-        return None
-    lows = df["Low"].values
-    highs = df["High"].values
-    rec = settings.PHASE_D_VTIP_RECOVERY_BARS
-    best_bar = None
-    best_low = None
-    for i in range(start, n - 1):
-        # recovered = a higher High shows up within the next few bars (turned up)
-        if float(highs[i + 1:min(n, i + 1 + rec)].max()) <= float(highs[i]):
-            continue
-        low_i = float(lows[i])
-        if best_low is None or low_i < best_low:
-            best_bar, best_low = i, low_i
-    return best_bar
+    inner = None
+    if s.inner is not None:
+        i = s.inner
+        istart = int(i.start_bar)
+        inner = {
+            "R": float(i.R), "S": float(i.S), "box_width": float(i.box_width),
+            "base_len": int(i.base_len), "start_bar": istart,
+            "r_touches": int(i.r_touches), "s_touches": int(i.s_touches),
+            "r_anchor_bar": int(i.r_anchor_bar) - istart,
+            "s_anchor_bar": int(i.s_anchor_bar) - istart,
+            "source": i.source, "search_start_bar": int(i.search_start_bar),
+            "climax_bar": i.climax_bar,
+            "reaction_bar": i.reaction_bar, "reaction_pct": i.reaction_pct,
+            "reaction_bars": i.reaction_bars,
+        }
+    return {"parent": parent, "inner": inner}
 
 
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
-                     breadth_pct: Optional[float] = None,
-                     select: str = "earliest") -> Optional[dict]:
+                     breadth_pct: Optional[float] = None) -> Optional[dict]:
     """
     Evaluate a single ticker through all screening phases.
     Returns a result dict if the ticker passes, or None if filtered out.
@@ -184,7 +126,14 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # companion — drawn separately and used to score the LPS when the LPS sits
         # inside it. See docs/structure_legend.md "Parent + Inner: the nested
         # range model (draw both)".
-        boxes = detect_boxes(df, min_days=settings.MIN_BASE_DAYS, select=select)
+        # One chronological A->B->(C?)->D narrative is the structure source of
+        # truth; it is adapted to the legacy box shape so the rest of the pass is
+        # unchanged. The narrative always reads the oldest valid root swing by
+        # construction, so there is no box-selection mode to choose.
+        structure = read_structure(df, float(df.iloc[-6]['ATR_10']))
+        if structure is None:
+            return None
+        boxes = _structure_to_boxes(structure, len(df))
         base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
             r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
             is_inner_box = boxes["parent"]
@@ -283,20 +232,23 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         )
         support = measure_support_slope(base_df, atr_for_zone)
         equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
+        traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
 
-        bc_anchor_bar, phase_a_end_bar = _resolve_phase_a_swing(
-            df, atr_for_zone, base_len, phase_b_start_bar, bc_anchor_bar
-        )
+        # Phase A is already the resolved LOCAL root swing (resolve_phase_a brick);
+        # no after-the-fact reconciliation needed.
+        bc_anchor_bar, phase_a_end_bar = int(structure.climax_bar), int(structure.ar_bar)
         phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
-        support_test_start_bar = (
-            None if inner is not None
-            else _right_side_support_cluster_start(lps_tests, phase_b_start, base_len)
+        phase_d_evidence_starts = (
+            {"support_tests": None, "sos_reclaim": None, "rising_support": None}
+            if inner is not None
+            else support_test_evidence_starts(lps_tests, phase_b_start, base_len)
         )
+        support_test_start_bar = phase_d_evidence_starts["support_tests"]
         # The V-tip (final recovered low) is the Phase B->D divider. Used only
         # when there's no inner Phase-D box of record.
         v_tip_bar = (
             None if inner is not None
-            else _final_v_tip_bar(df, phase_b_start, base_len)
+            else final_v_tip_bar(df, phase_b_start, base_len)
         )
 
         bins = measure_bins(
@@ -312,6 +264,8 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
             support_test_start_bar=support_test_start_bar,
+            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
+            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
             phase_a_end_bar=phase_a_end_bar,
             lps_R=lps_context[1],
             lps_S=lps_context[0],
@@ -330,6 +284,8 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_val=atr_for_zone,
             phase_d_start_bar=phase_d_start_bar,
             support_test_start_bar=support_test_start_bar,
+            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
+            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
             phase_a_end_bar=phase_a_end_bar,
             phase_c_recovery_bar=bins.get("bin_c_recovery_bar"),
             v_tip_bar=v_tip_bar,
@@ -413,6 +369,15 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_lps_window_range_pct_box': float(lps_result.get('window_range_pct_box', 0.0)),
             '_lps_high_extension_box': float(lps_result.get('high_extension_box', 0.0)),
             '_lps_high_extension_atr': float(lps_result.get('high_extension_atr', 0.0)),
+            '_lps_profile_unit': float(lps_result.get('profile_unit', 0.0)),
+            '_lps_profile_unit_pct': float(lps_result.get('profile_unit_pct', 0.0)),
+            '_lps_pullback_profile': float(lps_result.get('pullback_profile', 0.0)),
+            '_lps_terminal_low_tolerance': float(lps_result.get('terminal_low_tolerance', 0.0)),
+            '_lps_spread_expansion_profile': float(lps_result.get('spread_expansion_profile', 0.0)),
+            '_lps_first_high': float(lps_result.get('first_high', 0.0)),
+            '_lps_last_low': float(lps_result.get('last_low', 0.0)),
+            '_lps_window_high': float(lps_result.get('window_high', 0.0)),
+            '_lps_window_low': float(lps_result.get('window_low', 0.0)),
             '_lps_tests': lps_tests,
             '_lps_zone_type': lps_result.get('zone_type', 'INSIDE'),
             '_contraction_count': int(contraction['n_contractions']),
@@ -437,6 +402,16 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_eq_mid_dwell': float(equilibrium['mid_dwell']),
             '_eq_upper_dwell': float(equilibrium['upper_dwell']),
             '_eq_coverage': float(equilibrium['coverage']),
+            '_trav_n_full_traversals': int(traversal['n_full_traversals']),
+            '_trav_n_swings': int(traversal['n_swings']),
+            '_trav_top_dead_space': (float(traversal['top_dead_space'])
+                                     if traversal['top_dead_space'] is not None else None),
+            '_trav_bottom_dead_space': (float(traversal['bottom_dead_space'])
+                                        if traversal['bottom_dead_space'] is not None else None),
+            '_trav_rail_reaches_high': int(traversal['rail_reaches_high']),
+            '_trav_rail_reaches_low': int(traversal['rail_reaches_low']),
+            '_trav_max_swing_frac': (float(traversal['max_swing_frac'])
+                                     if traversal['max_swing_frac'] is not None else None),
             '_adr_pct': float(adr_value),
             '_adr_quality': float(adr_quality),
             '_phase_a_start_date': scope['phase_a_start_date'],
@@ -463,17 +438,21 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_bin_c_present': bins['bin_c_present'],
             '_bin_c_type': bins['bin_c_type'],
             '_bin_c_event_date': bins['bin_c_event_date'],
+            '_bin_c_event_bar': bins['bin_c_event_bar'],
             '_bin_c_undercut_atr': bins['bin_c_undercut_atr'],
             '_bin_c_recovery_bars': bins['bin_c_recovery_bars'],
+            '_bin_c_recovery_bar': bins['bin_c_recovery_bar'],
             '_bin_c_time_loc': bins['bin_c_time_loc'],
             '_bin_c_spring_vol_z': bins['bin_c_spring_vol_z'],
             '_bin_d_bars': bins['bin_d_bars'],
+            '_bin_d_start_bar': bins['bin_d_start_bar'],
             '_bin_d_range_pct': bins['bin_d_range_pct'],
             '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
             '_bin_d_support_slope_atr': bins['bin_d_support_slope_atr'],
             '_bin_d_higher_low_frac': bins['bin_d_higher_low_frac'],
             '_bin_d_ascending_support_quality': bins['bin_d_ascending_support_quality'],
             '_bin_d_boundary_source': bins['bin_d_boundary_source'],
+            '_phase_d_evidence_json': bins['phase_d_evidence_json'] or scope['phase_d_evidence_json'],
             '_bin_lps_bars': bins['bin_lps_bars'],
             '_lps_position_in_box': bins['lps_position_in_box'],
             '_bin_d_vs_b_range_ratio': bins['bin_d_vs_b_range_ratio'],

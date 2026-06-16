@@ -41,7 +41,10 @@ log = logging.getLogger("chrollo.fwd_returns")
 STOP_TOLERANCE = 0.97        # stop sits at s_level * 0.97 (matches LPS_HOLD_TOLERANCE)
 TARGET_R_MULTIPLE = 2.5      # R-based profit target: entry + 2.5 * risk
 TARGET_PCT = 0.15            # fixed-percent profit target: entry * 1.15
-BARRIER_HORIZON_DAYS = 60    # max forward bars the barrier race is evaluated over
+FORWARD_RETURN_HORIZON_BARS = 60  # max forward bars any outcome is evaluated over
+BARRIER_HORIZON_DAYS = FORWARD_RETURN_HORIZON_BARS
+FORWARD_RETURN_DOWNLOAD_DAYS = 120  # calendar buffer to capture 60 market sessions
+FORWARD_RETURN_MAX_SCAN_AGE_DAYS = FORWARD_RETURN_DOWNLOAD_DAYS
 
 
 def compute_barrier_events(highs, lows, entry, s_level, horizon=BARRIER_HORIZON_DAYS):
@@ -117,6 +120,13 @@ def _trading_days_since(scan_date_str: str) -> int:
     return int(delta * 5 / 7)  # rough business day estimate
 
 
+def _cap_forward_window(fwd_df: pd.DataFrame) -> pd.DataFrame:
+    """Keep outcome math inside the archive's fixed 60-bar forward window."""
+    if fwd_df is None or fwd_df.empty:
+        return fwd_df
+    return fwd_df.iloc[:FORWARD_RETURN_HORIZON_BARS]
+
+
 def _compute_returns(
     fwd_df: pd.DataFrame,
     scan_close: float,
@@ -141,7 +151,8 @@ def _compute_returns(
     Returns:
         Dict of return fields ready to write to the archive.
     """
-    if fwd_df.empty or scan_close <= 0:
+    fwd_df = _cap_forward_window(fwd_df)
+    if fwd_df is None or fwd_df.empty or scan_close <= 0:
         return {}
 
     closes = fwd_df["Close"]
@@ -224,7 +235,10 @@ def _compute_returns(
 
     # Triple-barrier outcome label (path events + derived win/loss/timeout),
     # anchored to the scan close so it shares the existing MFE/MAE/R frame.
-    result.update(compute_barrier_events(highs, lows, scan_close, s_level))
+    barrier = compute_barrier_events(highs, lows, scan_close, s_level)
+    if len(highs) < FORWARD_RETURN_HORIZON_BARS and barrier.get("barrier_label") == "timeout":
+        barrier["barrier_label"] = None
+    result.update(barrier)
 
     return result
 
@@ -282,14 +296,23 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     cutoff = (datetime.today() - timedelta(days=min_age_days)).strftime("%Y-%m-%d")
     query = session.query(SetupArchive).filter(SetupArchive.scan_date <= cutoff)
     if not force:
-        # Update rows that are missing the 1d return (never computed) OR missing
-        # r_multiple_20d / barrier_label (existing rows from before those columns
-        # were added — backfill on the next run).
+        oldest_cutoff = (
+            datetime.today() - timedelta(days=FORWARD_RETURN_MAX_SCAN_AGE_DAYS)
+        ).strftime("%Y-%m-%d")
+        query = query.filter(SetupArchive.scan_date >= oldest_cutoff)
+        # Update rows that are still maturing through the 60-bar window. Once
+        # the long-horizon return and barrier label are present, the daily job
+        # leaves the row alone.
         from sqlalchemy import or_
         query = query.filter(
             or_(
                 SetupArchive.fwd_return_1d.is_(None),
+                SetupArchive.fwd_return_5d.is_(None),
+                SetupArchive.fwd_return_10d.is_(None),
+                SetupArchive.fwd_return_20d.is_(None),
+                SetupArchive.fwd_return_60d.is_(None),
                 SetupArchive.r_multiple_20d.is_(None),
+                SetupArchive.r_multiple_60d.is_(None),
                 SetupArchive.barrier_label.is_(None),
             )
         )
@@ -311,7 +334,11 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     all_tickers = list(ticker_setups.keys())
     earliest = min(s.scan_date for s in setups)
     start = pd.Timestamp(earliest)
-    end = pd.Timestamp.now() + pd.Timedelta(days=2)
+    latest_needed = max(
+        pd.Timestamp(s.scan_date) + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)
+        for s in setups
+    )
+    end = min(pd.Timestamp.now() + pd.Timedelta(days=2), latest_needed)
 
     log.info(f"Downloading data for {len(all_tickers)} tickers from {start.date()} to {end.date()}...")
     raw = yf.download(

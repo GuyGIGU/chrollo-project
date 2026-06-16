@@ -42,7 +42,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         _sys.path.insert(0, _root)
 
     from core.archive.seed import _evaluate_at_date
-    from core.archive.forward_returns import _compute_returns
+    from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from archive_models import (
         SetupArchive,
         get_market_context,
@@ -71,7 +71,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     # Download enough history for baseline (2y minus a buffer is plenty) plus
     # forward bars for return computation.
     start = (target_ts - _pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
-    end = (target_ts + _pd.Timedelta(days=90)).strftime("%Y-%m-%d")
+    end = (target_ts + _pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
     try:
         raw = _yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True, timeout=30)
     except Exception as e:
@@ -192,14 +192,51 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         eq_mid_dwell=result.get("eq_mid_dwell"),
         eq_upper_dwell=result.get("eq_upper_dwell"),
         eq_coverage=result.get("eq_coverage"),
+        # Limb-traversal read — mirror the live writer / seed so manual rows are
+        # structurally complete for analyze.py (otherwise these read as NULL).
+        trav_n_full_traversals=result.get("trav_n_full_traversals"),
+        trav_n_swings=result.get("trav_n_swings"),
+        trav_top_dead_space=result.get("trav_top_dead_space"),
+        trav_bottom_dead_space=result.get("trav_bottom_dead_space"),
+        trav_rail_reaches_high=result.get("trav_rail_reaches_high"),
+        trav_rail_reaches_low=result.get("trav_rail_reaches_low"),
+        trav_max_swing_frac=result.get("trav_max_swing_frac"),
+        bin_a_bars=result.get("bin_a_bars"),
+        bin_a_range_pct=result.get("bin_a_range_pct"),
+        bin_a_volume_ratio=result.get("bin_a_volume_ratio"),
+        bin_b_bars=result.get("bin_b_bars"),
+        bin_b_range_pct=result.get("bin_b_range_pct"),
+        bin_b_volume_ratio=result.get("bin_b_volume_ratio"),
         bin_b_cog_end=result.get("bin_b_cog_end"),
         bin_b_cog_crossings=result.get("bin_b_cog_crossings"),
         bin_b_cog_rng=result.get("bin_b_cog_rng"),
         bin_b_cog_corr=result.get("bin_b_cog_corr"),
+        bin_c_present=(int(bool(result.get("bin_c_present")))
+                       if result.get("bin_c_present") is not None else None),
+        bin_c_type=result.get("bin_c_type"),
+        bin_c_event_date=result.get("bin_c_event_date"),
+        bin_c_event_bar=result.get("bin_c_event_bar"),
+        bin_c_undercut_atr=result.get("bin_c_undercut_atr"),
+        bin_c_recovery_bars=result.get("bin_c_recovery_bars"),
+        bin_c_recovery_bar=result.get("bin_c_recovery_bar"),
+        bin_c_time_loc=result.get("bin_c_time_loc"),
+        bin_c_spring_vol_z=result.get("bin_c_spring_vol_z"),
+        bin_d_bars=result.get("bin_d_bars"),
+        bin_d_start_bar=result.get("bin_d_start_bar"),
+        bin_d_range_pct=result.get("bin_d_range_pct"),
+        bin_d_volume_ratio=result.get("bin_d_volume_ratio"),
         bin_d_support_slope_atr=result.get("bin_d_support_slope_atr"),
         bin_d_higher_low_frac=result.get("bin_d_higher_low_frac"),
         bin_d_ascending_support_quality=result.get("bin_d_ascending_support_quality"),
+        bin_d_boundary_source=result.get("bin_d_boundary_source"),
+        phase_d_evidence_json=result.get("phase_d_evidence_json"),
+        bin_lps_bars=result.get("bin_lps_bars"),
+        lps_position_in_box=result.get("lps_position_in_box"),
+        bin_d_vs_b_range_ratio=result.get("bin_d_vs_b_range_ratio"),
+        bin_d_vs_b_volume_ratio=result.get("bin_d_vs_b_volume_ratio"),
         bin_d_vs_b_support_quality_delta=result.get("bin_d_vs_b_support_quality_delta"),
+        lps_stretch_atr=result.get("lps_stretch_atr"),
+        lps_stretch_box=result.get("lps_stretch_box"),
         spy_trend=market_ctx.get("spy_trend"),
         vix_level=market_ctx.get("vix_level"),
         sector_etf=sector_etf,

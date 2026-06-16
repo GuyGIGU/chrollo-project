@@ -53,7 +53,7 @@ To start from a fresh DB: delete `trading_journal.db` and restart the backend.
 Chrollo is read-only against IBKR. If any future endpoint places orders, it must assert:
 
 ```python
-from config import is_live_mode
+from broker_config import is_live_mode
 if not is_live_mode():
     raise HTTPException(400, "Order placement disabled in paper mode")
 ```

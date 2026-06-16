@@ -15,7 +15,7 @@ if _ROOT_DIR not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import settings
+from broker_config import settings
 from ibkr import get_ibkr_service
 from middleware.request_id import RequestIDMiddleware
 from routers import analytics as analytics_router

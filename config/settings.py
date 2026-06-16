@@ -38,16 +38,53 @@ MIDLINE_ATR_BUFFER = 0.3         # Price must move this × ATR from midline befo
 # pair is only a real trading range if price RESPECTS, TOUCHES, and ZIGZAGS
 # THROUGH both rails CONSTANTLY, with no dead space. These gates replace the old
 # "2 touches per side + N midline crosses" rule, which let the widest BC->AR box
-# win (dead space below a one-time AR low, or mid-box churn). Measured by
-# core.structure.metrics.measure_equilibrium. Starting points — CALIBRATED
-# against seed-recall, not hard-coded blind.
+# win (dead space below a one-time AR low, or mid-box churn). Candidate selection
+# uses close-residence dwell/coverage; public measure_equilibrium also reports
+# High/Low range occupancy for analysis. Starting points are calibrated against
+# seed-recall, not hard-coded blind.
 EQ_MIN_TOUCHES_PER_RAIL = 3      # >= this many touches within TOUCH_TOLERANCE_ATR of EACH rail
 EQ_MIN_TOUCH_THIRDS = 2          # each rail touched in >= this many of 3 time-thirds (constant, not clustered)
 EQ_MIN_HALF_DWELL = 0.15         # >= this fraction of closes in BOTH the lower and the upper box third (both halves worked -> no dead space)
-EQ_MAX_MID_DWELL = 0.45          # <= this fraction of closes in the middle box third (reject mid-box churn that never works the rails)
-EQ_MIN_COVERAGE = 0.80           # >= this fraction of box-height bins must hold real dwell (starved-band / dead-space detector)
+EQ_MAX_MID_DWELL = 0.45          # <= this fraction of closes in the middle box third for box-of-record selection
+EQ_MIN_COVERAGE = 0.80           # >= this fraction of box-height bins must hold real close dwell (starved-band / dead-space detector)
 EQ_COVERAGE_BINS = 6             # number of equal box-height bins for the coverage measure
 EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this fraction of closes
+
+# Limb-traversal read (Phase B) — the swing-structural complement to the
+# occupancy gate above. The occupancy gate asks where price resides; this asks
+# whether the up/down swing LIMBS of the chop actually travel rail-to-rail
+# (S<->R), or hang off one rail and leave dead space (the tell that R/S were
+# marked too wide). Swing size is judged as a FRACTION OF BOX HEIGHT, not a bar
+# count, so the read adapts to box width (tight boxes have short limbs, wide ones
+# long). Measured by core.structure.metrics.measure_traversal. v1 is
+# measure-first / archive-only — TRAVERSAL_GATE_ENABLED stays False until the
+# live archive proves TRAVERSAL_MIN against forward outcomes / seed-recall.
+TRAVERSAL_NOISE_FRAC = 0.15      # a swing < this fraction of box height is chop, merged away
+TRAVERSAL_FULL_FRAC = 0.55       # a limb spanning >= this fraction of the box is a real rail-to-rail trip
+TRAVERSAL_LOW_ZONE = 0.30        # a swing turn at/below this box fraction "reached" the support side
+TRAVERSAL_HIGH_ZONE = 0.70       # a swing turn at/above this box fraction "reached" the resistance side
+TRAVERSAL_MIN = 2                # >= this many full traversals = a genuinely two-sided range (crossed and re-crossed)
+TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be rail-to-rail. Count alone lets a
+                                 # LONG base pass on a few full swings amid a sea of interior chop (BMRN: 5/111
+                                 # = 0.045); winners run dense (seed floor ~0.14, median ~0.52). Low density =
+                                 # the box is too wide / mis-anchored. 0.08 sits in the empty gap (BMRN/FRPH ~0.04
+                                 # vs winner-min 0.14) so it drops the sprawl with margin and clips zero winners.
+TRAVERSAL_GATE_ENABLED = True    # v2 LIVE: pool-aware re-anchor gate (winner floor validated = MIN, 2026-06-15)
+
+# Sign-of-strength (SOS) breakout tolerance for Phase-B validation. A worked
+# range whose RIGHT side has already broken out above R and HELD above support —
+# a creek-jump then back-up (SOS -> BUEC) — is the setup, not a failed box. The
+# legacy respect/occupancy gates measured to the live edge, so they counted that
+# breakout as a boundary failure and rejected the range (e.g. NMM: a clean April
+# box buried under a sustained May breakout above R, backing up to an early-June
+# LPS). Fix: validate the range over its WORKED CAUSE — trim a trailing sustained
+# above-R run that holds support before measuring boundary-respect + occupancy.
+# No-op unless price has already broken out and held, so in-range setups are
+# untouched and the change can only RESCUE SOS-BUEC framings (recall-positive).
+# Outer Phase-B only (like the traversal gate); inner boxes are never trimmed.
+SOS_TRIM_ENABLED = True
+SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
+SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
 
 # Markup-leg qualification (Phase A in find_outer_box)
 TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
@@ -67,9 +104,11 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # ============================================================
 # PHASE 3 — LPS & BREAKOUT DETECTION
 # ============================================================
-LPS_DROP_MIN = 0.02              # Minimum pullback depth (2%) — INSIDE / UNDERCUT_S zones
-LPS_DROP_MIN_OVERSHOOT_R = 0.04  # Stricter floor for OVERSHOOT_R: require a real backtest, not a shallow drift above R
-LPS_DROP_MAX = 0.10              # Maximum pullback depth (10%, staleness cap)
+# Deprecated raw-% depth constants. Kept for archive/docs compatibility only;
+# live LPS depth is measured in setup-profile units below.
+LPS_DROP_MIN = 0.02
+LPS_DROP_MIN_OVERSHOOT_R = 0.04
+LPS_DROP_MAX = 0.10
 # Graded shape gate: descent_frac is the fraction of pair-wise (i<j) low
 # comparisons where the later bar's low is <= the earlier bar's low (perfect
 # descent = 1.0, perfect rally = 0.0, ~0.5 for random/sideways). Replaces
@@ -81,10 +120,17 @@ LPS_MIN_HIGH_DESCENT_FRAC = 0.45  # Reject obvious rising / higher-high drift in
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
-LPS_SCAN_OFFSET_MAX = 4         # Today + up to 3 days back (offsets 0..3) — only surface active LPS
+LPS_SCAN_OFFSET_MAX = 7         # Today + up to 6 days back (offsets 0..6) — last 7 active LPS bars
 LPS_LENGTH_MIN = 2               # Shortest LPS formation (days)
 LPS_LENGTH_MAX = 7               # Longest LPS formation (days)
 LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
+LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15  # Profile unit floor: wider boxes get more absolute wiggle room
+LPS_PULLBACK_PROFILE_MIN = 0.65        # Min first-bar High -> last-bar Low pullback in profile units
+LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25
+LPS_PULLBACK_PROFILE_MAX = 4.50        # Staleness / too-wide reaction cap in profile units
+LPS_TERMINAL_LOW_TOL_PROFILE = 0.10    # Last Low may sit this many profile units above window Low
+LPS_SPREAD_MAX_PROFILE_MULT = 1.25     # Any LPS bar spread must stay within this profile multiple
+LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by this many profile units
 
 # Zone gate — LPS low must sit in one of 3 zones relative to the box:
 #   INSIDE        : S <= low <= R
@@ -92,19 +138,31 @@ LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
 
-# Phase-C bin measurement (archive/UI only, never a gate): a spring is the TIP
-# of a V — a real reaction DOWN into a meaningful undercut of Bin-B support, then
-# a recovery UP that reclaims S by Close. The undercut floor + the two V-arm
-# tests reject shallow "tests at support" that are not springs (the small
-# hiccups). See docs/strategy_v2.md "The 'V'".
-BIN_C_UNDERCUT_ATR_MIN = 0.30      # spring Low must dip at least this far below S
-BIN_C_UNDERCUT_ATR_MAX = 1.50      # Deeper flushes are breakdown/shakeout risk, not clean Phase C
-BIN_C_UNDERCUT_BOX_MAX = 0.35      # Also cap depth as a fraction of box height
-BIN_C_RECOVERY_BARS_MAX = 3
-BIN_C_LATE_BOX_FRACTION = 0.50
-BIN_C_V_SHOULDER_BARS = 8          # window each side of the tip to find the V shoulders
-BIN_C_V_DROP_ATR_MIN = 1.5         # left arm: real reaction down into the tip
-BIN_C_V_RECOVERY_ATR_MIN = 1.0     # right arm: real recovery up out of the tip
+# Phase-C bin measurement (archive/UI only, never a gate). A spring is a PHASE,
+# not a one-bar V: a bounded EXCURSION below support that is reclaimed and HELD.
+# It can be a clean fast V OR a choppy linger below S before recovering — both
+# are valid. We key on the three invariants — genuine penetration, reclaim, and
+# HOLD (the reclaim sticks = supply absorbed) — NOT on the shape of the dip.
+# Grounded in Wyckoff (Phase C ~1-2 weeks; Spring #2 mild vs Spring #1 / terminal
+# shakeout deep; price returns to the range within ~5 sessions; the tell is that
+# the reclaim holds) and in real misses (KIDS: 2.1 ATR / 0.55-of-box, 6-bar
+# linger — a terminal shakeout the old clean-fast-V template rejected).
+BIN_C_UNDERCUT_ATR_MIN = 0.30      # tip Low must dip >= this far below S (a real test, not a touch)
+BIN_C_UNDERCUT_ATR_MAX = 3.00      # depth cap, terminal-shakeout tolerant (was 1.5 — too tight, missed deep springs); beyond this it's a breakdown not a spring
+BIN_C_UNDERCUT_BOX_MAX = 0.65      # also cap depth as a fraction of box (was 0.35; ~0.55 is a valid deep spring, ~0.8+ breaks the range)
+BIN_C_RECOVERY_BARS_MAX = 8        # Close must reclaim S within this many bars of the trough (was 3 — clean fast V only; widened for the linger)
+BIN_C_LINGER_BARS_MAX = 12         # the whole below-support episode (first penetration -> reclaim) must be bounded; a spring lingers, a breakdown never ends
+BIN_C_HOLD_BARS = 3                # after reclaim, Close must HOLD above S (within tol) for this many bars — the absorption confirmation that rejects poke-and-fail
+BIN_C_HOLD_TOL_ATR = 0.50          # one dip up to this far below S during the hold window is tolerated (a secondary test); a sustained close-below is not
+# Significance — the user's "it's not a simple bar breach and recovery". A spring
+# is EITHER a visible clean-V dip (deep enough on its own) OR a genuine multi-bar
+# struggle below support (a shallower undercut that lingers). A trivial one-bar
+# wick a fraction of an ATR below S that snaps back is neither — it's noise, not
+# Phase C. (Calibrated to the live split: shallow-fast pokes ran <=0.7 ATR, real
+# springs >=0.8 ATR or multi-bar.)
+BIN_C_SIGNIF_UNDERCUT_ATR = 0.75   # a clean-V spring must dip >= this far below S to count on depth alone
+BIN_C_MIN_LINGER_BARS = 2          # else the below-S episode (first penetration -> reclaim) must span >= this many bars
+BIN_C_LATE_BOX_FRACTION = 0.50     # only look for Phase C in the late half of the base
 
 # Phase B->D divider from the V-tip (display only). Separate from the Phase-C
 # spring gate above: ANY recovered late-base low (even a shallow one that is NOT
@@ -118,10 +176,15 @@ PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it re
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
 LPS_RANGE_PERCENTILE = 0.5
-LPS_SPREAD_MUST_DECLINE = True    # Final bar range <= prior bar range
+LPS_SPREAD_MUST_DECLINE = True    # Declining final spread earns full quality; widening is discounted, not gated
 
 BREAKOUT_VOLUME_MULT = 1.5       # Volume must exceed 50d avg * this
 LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
+
+# Shared structural-frame constants.
+STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action when anchoring boxes
+INNER_SEARCH_FRACTION = 0.5       # Search recent half for nested Phase-D mini-consolidation
+INNER_TIGHTNESS_RATIO = 0.75      # Inner box must be at least 25% tighter than parent
 
 # ============================================================
 # PHASE 4 — SCORING & RANKING
