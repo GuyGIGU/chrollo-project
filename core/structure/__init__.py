@@ -42,7 +42,7 @@ from core.structure.narrative import Structure, read_structure
 from core.structure.indicators import adr_pct, calculate_adx, calculate_atr, trend_template
 
 # ── Layer: Consolidation — locate the equilibrium box, measure how worked it is ─
-from core.structure.consolidation import detect_boxes, find_consolidation, find_outer_box
+from core.structure.consolidation import detect_boxes, find_outer_box
 from core.structure.metrics import measure_equilibrium, measure_traversal
 
 # ── Layer: Phase B texture — the VCP progressive-tightening / quiet-bar / touch footprint ─
@@ -72,7 +72,6 @@ __all__ = [
     # Consolidation
     "detect_boxes",
     "find_outer_box",
-    "find_consolidation",
     "measure_equilibrium",
     "measure_traversal",
     # Phase B texture

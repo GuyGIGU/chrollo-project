@@ -2,16 +2,14 @@
 Wyckoff consolidation detection — identifies structural equilibrium bases
 following macro trend exhaustion using zigzag-based S/R anchoring.
 
-Two public entry points:
+These are the STANDALONE box detectors. The live screener no longer calls them —
+it reads structure chronologically via ``core.structure.read_structure`` (which
+assembles the box through ``bricks.validate_equilibrium``). What remains here
+serves the diagnostic tools, plus the shared low-level anchor machinery
+(``_collect_root_anchors`` / ``_inner_box_at``) that the bricks import directly.
 
-  ``detect_boxes(df)`` — live parent+inner detector. Finds the outer BC→AR
-  box as the base of record, then probes for a tighter nested Phase D range
-  and returns both.
-
-  ``find_consolidation(df)`` — legacy single-box detector. Finds the outer
-  BC→AR box, then probes the recent half for a tighter inner sub-box. When an
-  inner exists and is meaningfully tighter, it returns that single box;
-  otherwise the outer is returned unchanged.
+  ``detect_boxes(df)`` — parent+inner detector. Finds the outer BC→AR box as the
+  base of record, then probes for a tighter nested Phase D range and returns both.
 
   ``find_outer_box(df)`` — anchor-enumeration only (no inner refinement).
   Used by diagnostics that need the parent candidate landscape directly.
@@ -182,7 +180,7 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
          r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar,
          is_inner)
     is_inner is always False here (this function never refines to an inner
-    sub-box). The hierarchical detector ``find_consolidation`` sets it True
+    sub-box). The hierarchical detector ``detect_boxes`` sets it True
     when a Phase D inner range replaces the outer box. All zeros on failure.
     """
     if min_days is None:
@@ -247,91 +245,6 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
             return result + (_abar, effective_phase_b_start, False)
 
     return [] if select == "debug" else EMPTY
-
-
-# ---------------------------------------------------------------------------
-# Public: hierarchical detector (live entry point)
-# ---------------------------------------------------------------------------
-
-def find_consolidation(df, min_days=None, select="earliest"):
-    """Hierarchical detection: try inner sub-box, fall back to outer.
-
-    Strategy:
-      1. Find the standard "outer" box via find_outer_box.
-      2. Probe the most recent portion of that box for a *tighter* sub-box
-         (the user's "Phase D mini-consolidation" / VCP inner-range pattern):
-         "Smaller/tighter consolidation zones within an existing
-         consolidation typically forming after Phase C before breakout".
-      3. If a valid inner box exists AND is meaningfully tighter than the
-         outer, return the inner. Otherwise fall back to the outer.
-
-    This preserves all single-base detections (outer always wins when no
-    inner exists) and adds true Phase D detection (inner ⊂ outer in time,
-    not necessarily in price space).
-
-    The matching LPS-scaling adaptations live in core/structure/lps.py
-    (detect_lps zone-tolerance floor) and core/pipeline/screener.py
-    (_evaluate_ticker base_range_threshold floor). Both self-gate on tight
-    boxes and leave wide-outer detections untouched.
-
-    REMAINING MISSES — NBR / GXO / VLO / SHEL plus ST / RRBI / SNDX / TRS are
-    LPS-detector limits, not anchor-detection limits. The recent-first-anchor
-    hypothesis (v5) was tested and falsified in a since-retired harness
-    (experiments/dead_ends/v5_recent_first_anchor/, see git history). v5
-    picks different (more
-    recent) outer anchors but the LPS detector still rejects at the same gates
-    (zone_gate, spread_quantile). Re-test only if the LPS detector itself is
-    rewritten — anchor preference alone won't help.
-
-    Returns same 12-tuple shape as find_outer_box:
-        (base_length, R, S, box_width, r_touches, s_touches, breach_days,
-         r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar,
-         is_inner)
-    is_inner is True when the inner sub-box (Phase D mini-consolidation) replaced the
-    outer detection, False when the outer box is returned unchanged.
-    """
-    if min_days is None:
-        min_days = settings.MIN_BASE_DAYS
-
-    # `select` steers ONLY the outer box's candidate-pair choice (earliest
-    # range start vs global-best). The inner stage stays best-score: its whole
-    # job is to find the tighter recent Phase D range, so it should chase tightness.
-    outer = find_outer_box(df, min_days=min_days, select=select)
-    if outer[0] == 0:
-        return outer
-
-    (outer_base_len, R_outer, S_outer, bw_outer,
-     _rt, _st, _br, _ra, _sa, bc_anchor, outer_phase_b_start,
-     _outer_is_inner) = outer
-
-    inner_phase_b_start = outer_phase_b_start + int(outer_base_len * settings.INNER_SEARCH_FRACTION)
-    if (len(df) - inner_phase_b_start) < INNER_MIN_DAYS:
-        return outer
-
-    skip = settings.STRUCTURE_EDGE_SKIP_BARS
-    eval_df = df.iloc[:-skip] if len(df) > skip else df
-    if inner_phase_b_start >= len(eval_df):
-        return outer
-    inner_base_length = len(df) - inner_phase_b_start
-
-    inner_result = _inner_zigzag(
-        eval_df, inner_phase_b_start, inner_base_length,
-    )
-    if inner_result[0] == 0:
-        return outer
-
-    bw_inner = inner_result[3]
-
-    # Inner must be meaningfully tighter than the outer. No price-containment
-    # check: inner can sit inside, above, or below outer in price space — as
-    # long as it's *temporally* inside outer's time window. Outer's
-    # boundary-respect gate already filters out wild outliers, so an inner
-    # found in outer's recent half is structurally adjacent regardless of
-    # whether its R/S sit inside outer's bounds.
-    if bw_inner >= bw_outer * settings.INNER_TIGHTNESS_RATIO:
-        return outer
-
-    return inner_result + (bc_anchor, inner_phase_b_start, True)
 
 
 # ---------------------------------------------------------------------------
