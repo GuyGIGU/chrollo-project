@@ -436,6 +436,22 @@ def resolve_phase_a(
             if root_end <= phase_b_start_bar:
                 return root_start, root_end
 
+    # Final fallback. The seed root can be an ancient SCAN ORIGIN: the box is
+    # emergent from candidate enumeration, so the *same* box is reached from roots
+    # hundreds of bars earlier (see tools.structure_case_audit). Returning that
+    # seed climax would paint a stale Phase A — a 2024 climax on a 2026 box — when
+    # the bridge/segmentation searches above find nothing local. When the seed
+    # sits beyond the local bridge window, synthesize the climax -> AR from the
+    # box's own run-up (the prominent high feeding the reaction the box opens on)
+    # so the overlay anchor stays local; within the window, keep the raw anchor.
+    if phase_b_start_bar - bc_anchor_bar > _SEG_LEAD_IN:
+        lo = max(0, phase_b_start_bar - _SEG_LEAD_IN)
+        run_up_highs = df["High"].values[lo:phase_b_start_bar]
+        local_climax_bar = (
+            lo + int(np.argmax(run_up_highs)) if len(run_up_highs) else phase_b_start_bar
+        )
+        return local_climax_bar, phase_b_start_bar
+
     phase_a_end_bar = min(
         phase_b_start_bar,
         bc_anchor_bar + settings.AR_MAX_BARS,

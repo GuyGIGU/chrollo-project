@@ -271,4 +271,21 @@ def test_resolve_phase_a_last_resort_uses_raw_anchor():
     raw_root = RootSwing("BC", 20, 25, 105.0, 100.0, 0.05, 5)
     box = _box(start_bar=50, base_len=30)
 
+    # gap (50-20=30) is within the local bridge window (_SEG_LEAD_IN=60): the raw
+    # anchor is local enough, so it is used unchanged.
     assert resolve_phase_a(df, raw_root, box, 1.0) == (20, 35)
+
+
+def test_resolve_phase_a_localizes_stale_seed():
+    # A seed root far beyond the local bridge window (an ancient scan origin) must
+    # NOT paint a stale Phase A onto a recent box. With no bridge / segmentation
+    # swing to find (flat frame), the fallback synthesizes a LOCAL climax -> AR
+    # from the box run-up instead of returning the distant seed climax.
+    df = _ohlc_from_closes([100.0] * 260)
+    stale_root = RootSwing("BC", 10, 18, 105.0, 100.0, 0.05, 8)
+    box = _box(start_bar=240, base_len=20)
+
+    climax, ar = resolve_phase_a(df, stale_root, box, 1.0)
+    assert ar == 240                         # AR anchors where Phase B opens
+    assert 240 - climax <= 60                # climax is local (within _SEG_LEAD_IN)
+    assert climax != stale_root.climax_bar   # specifically not the ancient seed

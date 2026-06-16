@@ -1,0 +1,306 @@
+"""Root-swing / box-integrity case audit — the dissection surface for the
+"stale root sees through to a modern box" question (ROIV / TDAY / ADM / BWMX ...).
+
+For each named ticker this REPLICATES the live spine's root walk
+(``read_structure`` in core.structure.narrative): it enumerates the candidate
+root swings oldest-first exactly as the spine does, and for every root reports
+whether its Phase-B equilibrium validates, how far the worked box starts AFTER
+the automatic-reaction low (the "root-to-box gap"), the box's rail-to-rail
+traversal density, and whether a Phase-D LPS completes the narrative.
+
+The spine returns the FIRST root that completes A->B->(C?)->D, so the audit marks
+that winner and then answers the calibration questions directly:
+
+  * Which root won, and on which box?
+  * Did an OLDER root win on a box that starts far from its reaction (a stale
+    root reaching through to a later structure)?
+  * WOULD the proposed root-to-box gap rule (box.start_bar - root.ar_bar <=
+    AR_MAX_BARS) re-anchor to a more local root? -- simulated read-only here by
+    filtering the same brick outputs, touching no detector math.
+  * Did the LPS / trigger survive?
+
+Everything is read-only: it reads the live parquet cache and calls the real,
+calibrated bricks. It changes nothing and gates nothing.
+
+    python -m tools.structure_case_audit                       # default cases
+    python -m tools.structure_case_audit ROIV ADM BWMX
+"""
+from __future__ import annotations
+
+import os
+import sys
+
+_THIS = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.normpath(os.path.join(_THIS, ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+import pandas as pd
+
+from config import settings
+from core.pipeline.evaluation import apply_baseline_filters
+from core.structure import bricks
+from core.structure.indicators import calculate_atr
+from core.structure.narrative import read_structure
+
+# The cases that drove the Root-Swing + Box-Integrity repair discussion.
+DEFAULT = ["ROIV", "TDAY", "ADM", "BWMX", "NMM", "BBVA"]
+
+# Spine parity: read_structure caps its backtracking loop at this many roots.
+_MAX_ANCHORS = 64
+
+
+def _date(df: pd.DataFrame, bar) -> str:
+    """Human-readable date for a full-df bar index (falls back to the raw index)."""
+    if bar is None:
+        return "   -   "
+    try:
+        b = int(bar)
+    except (TypeError, ValueError):
+        return "   -   "
+    if b < 0 or b >= len(df):
+        return f"#{b}?"
+    idx = df.index[b]
+    ts = getattr(idx, "date", None)
+    return ts().isoformat() if callable(ts) else str(idx)
+
+
+def _prep(raw: pd.DataFrame):
+    """Run the exact live prep (baseline filters + ATR cols) the screener uses.
+
+    Returns (df, atr) or (None, reason)."""
+    base = apply_baseline_filters(raw.copy())
+    if base is None:
+        return None, "rejected at baseline filters (price / vol / trend / return)"
+    df, _ = base
+    df = df.copy()
+    df["ATR_10"] = calculate_atr(df, 10)
+    df["ATR_50"] = calculate_atr(df, 50)
+    if len(df) < 6:
+        return None, "too few bars for an ATR snapshot"
+    atr = float(df.iloc[-6]["ATR_10"])
+    if not (atr > 0):
+        return None, "non-positive ATR snapshot"
+    return df, atr
+
+
+def _complete_narrative(df, box, atr):
+    """Mirror the spine's Phase-D resolution: inner-box LPS first, else parent.
+
+    Returns (lps, lps_in_inner, inner, spring) — lps is None when no Phase-D
+    minimum completes the story."""
+    spring = bricks.find_spring(df, box, atr)
+    inner = bricks.find_inner_box(df, box, atr)
+    lps = None
+    lps_in_inner = False
+    if inner is not None:
+        lps = bricks.find_lps(df, inner, atr)
+        lps_in_inner = lps is not None
+    if lps is None:
+        lps = bricks.find_lps(df, box, atr)
+    return lps, lps_in_inner, inner, spring
+
+
+def _walk_roots(df, atr):
+    """Enumerate roots oldest-first exactly as ``read_structure`` does, evaluating
+    each one's box / gap / traversal / LPS INDEPENDENTLY (no short-circuit), so we
+    can see the whole landscape — including the roots the live spine never reaches
+    because an earlier root already won."""
+    rows = []
+    search_from = 0
+    for _ in range(_MAX_ANCHORS):
+        root = bricks.find_root_swing(df, search_from_bar=search_from, atr=atr)
+        if root is None:
+            break
+        search_from = int(root.climax_bar) + 1
+
+        box = bricks.validate_equilibrium(df, root, atr)
+        row = {
+            "root": root,
+            "box": box,
+            "gap": None,
+            "gap_ok": None,
+            "lps": None,
+            "lps_in_inner": False,
+            "inner": None,
+            "spring": None,
+            "complete": False,
+        }
+        if box is not None:
+            gap = int(box.start_bar) - int(root.ar_bar)
+            row["gap"] = gap
+            row["gap_ok"] = gap <= settings.AR_MAX_BARS
+            lps, lps_in_inner, inner, spring = _complete_narrative(df, box, atr)
+            row["lps"] = lps
+            row["lps_in_inner"] = lps_in_inner
+            row["inner"] = inner
+            row["spring"] = spring
+            row["complete"] = lps is not None
+        rows.append(row)
+    return rows
+
+
+def _live_winner_idx(rows):
+    """Index of the root the live spine returns: the first complete narrative."""
+    for i, r in enumerate(rows):
+        if r["complete"]:
+            return i
+    return None
+
+
+def _gap_rule_winner_idx(rows):
+    """Index the spine WOULD return under the proposed root-to-box gap rule:
+    the first root whose box is local (gap <= AR_MAX_BARS) AND completes."""
+    for i, r in enumerate(rows):
+        if r["complete"] and r["gap_ok"]:
+            return i
+    return None
+
+
+def _print_winner_detail(df, rows, idx, atr, live):
+    r = rows[idx]
+    root, box, lps = r["root"], r["box"], r["lps"]
+    print(f"  LIVE STRUCTURE  (spine returns root #{idx})")
+    print(f"    seed root  climax {_date(df, root.climax_bar)} -> AR {_date(df, root.ar_bar)}"
+          f"   ({root.kind}, reaction {root.reaction_pct*100:.1f}% over {root.reaction_bars} bars)")
+    # What the chart overlay ACTUALLY draws as Phase A: resolve_phase_a may
+    # re-localize the climax->AR pointer near the box, independent of the seed.
+    if live is not None:
+        dist = abs(int(live.ar_bar) - int(box.start_bar))
+        tag = "LOCAL to box" if dist <= settings.AR_MAX_BARS else f"STALE ({dist} bars from box start)"
+        print(f"    Phase A    climax {_date(df, live.climax_bar)} -> AR {_date(df, live.ar_bar)}"
+              f"   [resolve_phase_a -> overlay; {tag}]")
+    print(f"    Phase B  box {_date(df, box.start_bar)} .. (R={box.R:.2f} S={box.S:.2f} "
+          f"width={box.box_width:.3f} base_len={box.base_len})")
+    print(f"             root-to-box gap = {r['gap']} bars "
+          f"({'LOCAL' if r['gap_ok'] else 'STALE >'+str(settings.AR_MAX_BARS)})   "
+          f"traversals nFull={box.n_full_traversals} density={box.traversal_density:.3f} "
+          f"touches r/s={box.r_touches}/{box.s_touches}")
+    if r["spring"] is not None:
+        sp = r["spring"]
+        print(f"    Phase C  spring tip {_date(df, sp.tip_bar)} "
+              f"(undercut {sp.undercut_atr:.2f} ATR, recover {sp.recovery_bars} bars)")
+    if r["inner"] is not None:
+        inr = r["inner"]
+        print(f"    inner    {_date(df, inr.start_bar)} .. "
+              f"(R={inr.R:.2f} S={inr.S:.2f} width={inr.box_width:.3f})")
+    where = "inner" if r["lps_in_inner"] else "parent"
+    print(f"    Phase D  LPS [{where}] start {_date(df, lps.start_bar)} "
+          f"trigger={lps.trigger:.2f} zone={lps.zone_type} setup={lps.setup_type} "
+          f"offset={lps.offset} len={lps.length}")
+
+
+def _print_roots_table(df, rows, live_idx, gap_idx):
+    print("  CANDIDATE ROOTS (oldest-first — the order the spine walks):")
+    print(f"    {'#':>2} {'climax':>10} {'AR':>10} {'kind':>4} {'rx%':>5} "
+          f"{'box-start':>10} {'gap':>4} {'loc':>3} {'width':>6} {'nF':>3} "
+          f"{'dens':>5} {'lps':>4}  mark")
+    for i, r in enumerate(rows):
+        root, box = r["root"], r["box"]
+        mark = []
+        if i == live_idx:
+            mark.append("<< LIVE WIN")
+        if i == gap_idx and gap_idx != live_idx:
+            mark.append("<< GAP-RULE WIN")
+        if box is None:
+            print(f"    {i:>2} {_date(df, root.climax_bar):>10} {_date(df, root.ar_bar):>10} "
+                  f"{root.kind:>4} {root.reaction_pct*100:>4.1f} "
+                  f"{'-- no worked equilibrium / traversal-gated --':>10}   {' '.join(mark)}")
+            continue
+        loc = "yes" if r["gap_ok"] else "NO"
+        lps = "yes" if r["complete"] else "no"
+        print(f"    {i:>2} {_date(df, root.climax_bar):>10} {_date(df, root.ar_bar):>10} "
+              f"{root.kind:>4} {root.reaction_pct*100:>4.1f} "
+              f"{_date(df, box.start_bar):>10} {r['gap']:>4} {loc:>3} "
+              f"{box.box_width:>6.3f} {box.n_full_traversals:>3} "
+              f"{box.traversal_density:>5.3f} {lps:>4}  {' '.join(mark)}")
+
+
+def _print_diagnosis(rows, live_idx, gap_idx):
+    print("  DIAGNOSIS:")
+    # How many DISTINCT boxes do the completing roots actually produce? If it is
+    # one, the box is emergent from candidate enumeration and the seed root is
+    # merely a scan origin — not the cause the box-integrity plan assumes.
+    box_starts = {int(r["box"].start_bar) for r in rows if r["complete"]}
+    if box_starts:
+        n_complete = sum(1 for r in rows if r["complete"])
+        print(f"    {n_complete} completing roots -> {len(box_starts)} distinct box(es). "
+              f"{'Same box from every seed: the root is a scan origin, not the cause.' if len(box_starts) == 1 else 'Seed choice changes which box wins.'}")
+    if live_idx is None:
+        print("    no root completes a narrative — the stock does not fire.")
+        return
+    live = rows[live_idx]
+    if live["gap_ok"]:
+        print(f"    live winner root #{live_idx} is LOCAL (gap={live['gap']} "
+              f"<= {settings.AR_MAX_BARS}) — not a stale-root case.")
+    else:
+        print(f"    live winner root #{live_idx} is STALE — its box starts "
+              f"{live['gap']} bars after the reaction (> {settings.AR_MAX_BARS}); "
+              f"an old root is reaching through to a later structure.")
+    if gap_idx is None:
+        print("    root-to-box gap rule would leave NO completing root -> the gate "
+              "would DROP this ticker (recall risk — check whether that is correct).")
+    elif gap_idx != live_idx:
+        print(f"    root-to-box gap rule WOULD RE-ANCHOR: winner moves "
+              f"#{live_idx} -> #{gap_idx} (a more local root). <-- change 2 acts here.")
+    else:
+        print("    root-to-box gap rule leaves the winner unchanged.")
+    # Traversal-floor sensitivity (change 4): does the live box survive 0.12?
+    if live_idx is not None and rows[live_idx]["box"] is not None:
+        d = rows[live_idx]["box"].traversal_density
+        for floor in (0.08, 0.12):
+            verdict = "survives" if d >= floor else "FAILS"
+            print(f"    live box density {d:.3f} {verdict} a {floor:.2f} floor.")
+
+
+def audit(ticker: str, raw: pd.DataFrame) -> None:
+    print("=" * 92)
+    print(ticker)
+    df, atr = _prep(raw)
+    if df is None:
+        print(f"  {atr}")   # atr carries the rejection reason here
+        return
+
+    rows = _walk_roots(df, atr)
+    if not rows:
+        print("  no qualifying root swings (no climax->reaction anchor in the window).")
+        return
+
+    live_idx = _live_winner_idx(rows)
+    gap_idx = _gap_rule_winner_idx(rows)
+
+    live = read_structure(df, atr)
+    if live_idx is not None:
+        _print_winner_detail(df, rows, live_idx, atr, live)
+        # Faithfulness cross-check: our manual walk must match the real spine.
+        if live is not None:
+            w = rows[live_idx]["box"]
+            ok = (int(live.phase_b_start_bar) == int(w.start_bar)
+                  and abs(float(live.R) - float(w.R)) < 1e-6)
+            if not ok:
+                print(f"    [warn] manual walk diverged from read_structure "
+                      f"(spine box-start {_date(df, live.phase_b_start_bar)} "
+                      f"R={live.R:.2f}) — audit logic needs a look.")
+    else:
+        print("  LIVE STRUCTURE: none — no root completes A->B->(C?)->D.")
+    print()
+    _print_roots_table(df, rows, live_idx, gap_idx)
+    print()
+    _print_diagnosis(rows, live_idx, gap_idx)
+
+
+def main() -> None:
+    d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
+    level0 = set(d.columns.get_level_values(0))
+    tickers = [t.upper() for t in sys.argv[1:]] or DEFAULT
+    for t in tickers:
+        if t not in level0:
+            print("=" * 92)
+            print(f"{t}: not in cache")
+            continue
+        audit(t, d[t].dropna())
+    print("=" * 92)
+
+
+if __name__ == "__main__":
+    main()
