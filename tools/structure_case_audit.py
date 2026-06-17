@@ -35,9 +35,12 @@ _ROOT = os.path.normpath(os.path.join(_THIS, ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+import argparse
+
 import pandas as pd
 
 from config import settings
+from core.archive.seed import _evaluate_at_date
 from core.pipeline.evaluation import apply_baseline_filters
 from core.structure import bricks
 from core.structure.indicators import calculate_atr
@@ -289,16 +292,74 @@ def audit(ticker: str, raw: pd.DataFrame) -> None:
     _print_diagnosis(rows, live_idx, gap_idx)
 
 
+def _spy_6m(d, level0) -> float:
+    """SPY 6-month return as of the latest cached bar. Feeds only the RS score
+    bonus (never gates), so one snapshot is fine across as-of offsets."""
+    spy = settings.SPY_SYMBOL
+    if spy not in level0:
+        return 0.0
+    sc = d[spy]["Close"].dropna()
+    if len(sc) <= settings.RS_LOOKBACK_BARS:
+        return 0.0
+    return float(sc.iloc[-1] / sc.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
+
+
+def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
+    """Walk backward from the latest bar; return (offset, result_dict, truncated_df)
+    for the MOST RECENT as-of date the full pipeline fires, or (None, None, None).
+
+    Dropping the last ``offset`` bars = "pretend the rest doesn't exist", so a
+    setup whose LPS was later ruined is still seen at the date it was live. Uses
+    the real ``_evaluate_at_date`` (full baseline -> structure -> LPS -> score)."""
+    n = len(raw)
+    for off in range(0, scan_back + 1):
+        sl = raw.iloc[: n - off] if off else raw
+        if len(sl) < 200:
+            break
+        res = _evaluate_at_date(sl.copy(), spy_6m_return=spy_6m)
+        if res is not None:
+            return off, res, sl
+    return None, None, None
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Root-swing / box-integrity case audit.")
+    ap.add_argument("tickers", nargs="*",
+                    help="tickers to audit (default: the repair set)")
+    ap.add_argument("--scan-back", type=int, default=0, metavar="N",
+                    help="find each ticker's most recent valid date within the last "
+                         "N bars and dissect the structure THERE (later bars treated "
+                         "as non-existent), instead of auditing today.")
+    a = ap.parse_args()
+
     d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
     level0 = set(d.columns.get_level_values(0))
-    tickers = [t.upper() for t in sys.argv[1:]] or DEFAULT
+    spy_6m = _spy_6m(d, level0)
+    tickers = [t.upper() for t in a.tickers] or DEFAULT
+
     for t in tickers:
         if t not in level0:
             print("=" * 92)
             print(f"{t}: not in cache")
             continue
-        audit(t, d[t].dropna())
+        raw = d[t].dropna()
+        if a.scan_back:
+            off, res, sl = find_last_valid(raw, spy_6m, a.scan_back)
+            if res is None:
+                print(f"\n>>> {t}: did NOT fire in the last {a.scan_back} bars "
+                      f"(latest {raw.index[-1].date()}) — auditing today for context.")
+                audit(t, raw)
+            else:
+                trig, bw, sc = res.get("trigger_price"), res.get("box_width"), res.get("score")
+                trig_s = f"{trig:.2f}" if isinstance(trig, (int, float)) else str(trig)
+                bw_s = f"{bw:.3f}" if isinstance(bw, (int, float)) else str(bw)
+                sc_s = f"{sc:.0f}" if isinstance(sc, (int, float)) else str(sc)
+                print(f"\n>>> {t}: LAST VALID {sl.index[-1].date()} (off -{off})  "
+                      f"Tier {res.get('tier')}  score {sc_s}  {res.get('setup_type')}  "
+                      f"trigger {trig_s}  box {bw_s}  LPS_len {res.get('lps_length')}")
+                audit(t, sl)
+        else:
+            audit(t, raw)
     print("=" * 92)
 
 
