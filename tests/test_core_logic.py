@@ -2134,6 +2134,25 @@ def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     assert clean["oscillation"] == 0.0 and dead["oscillation"] == 0.0  # retired
 
 
+def test_base_age_dead_space_dock_spares_tight_boxes():
+    """base_age 'cause' credit is docked for WIDE low-density (dead-space) bases,
+    but NOT for ultra-tight ones (whose low density is a small-box / spring artifact)."""
+    from core.scoring.scoring import score_setup
+
+    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
+                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
+    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+                  atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
+                  base_len=90, yearly_return=0.0, traversal_density=0.15)
+
+    wide = score_setup(box_width=0.12, **common)    # wide + low density -> docked
+    tight = score_setup(box_width=0.02, **common)   # ultra-tight -> exempt (PRA-like)
+    clean_wide = score_setup(box_width=0.12, **{**common, "traversal_density": 0.40})
+
+    assert tight["base_age"] > wide["base_age"] * 1.5     # tight keeps full credit
+    assert clean_wide["base_age"] == tight["base_age"]    # density past full-credit -> no dock
+
+
 def test_signal_edge_classifies_harmful_inert_beneficial():
     n = 40
     win = [1.0, 0.0] * (n // 2)                      # alternating outcome

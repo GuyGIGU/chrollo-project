@@ -107,6 +107,14 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     if base_len > settings.MIN_BASE_DAYS:
         age_factor = math.sqrt(base_len / settings.BASE_AGE_CAP_DAYS)
         s_age = _clamp(age_factor * settings.SCORE_BASE_AGE, settings.SCORE_BASE_AGE)
+        # Dead-space dock: "cause" only counts if a long base actually worked
+        # rail-to-rail. A WIDE base with low traversal density is dead space, not
+        # cause, so scale its age credit by the density shortfall. Tight boxes are
+        # exempt (low density there is a small-box / spring artifact, e.g. PRA) —
+        # so only gate once box_width clears BASE_AGE_DEADSPACE_WIDTH.
+        if (box_width > settings.BASE_AGE_DEADSPACE_WIDTH
+                and traversal_density < settings.TRAVERSAL_QUALITY_DENSITY_FULL):
+            s_age *= _clamp(traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL, 1.0)
 
     # Strong-uptrend bonus — re-accumulation in an established uptrend
     # breaks out more reliably than the same structure on a flat YoY chart.

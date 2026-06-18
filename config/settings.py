@@ -214,6 +214,12 @@ S_MAX_BOX_WIDTH = 0.15
 # lands a tier below an equally-clean tight coil.
 SCORE_BASE_AGE = 22             # Wyckoff "cause" (was 35 — trimmed; the box is now a genuinely worked range, so length is a cleaner but less dominant signal)
 BASE_AGE_CAP_DAYS = 120         # Saturation point for base-age reward (sqrt-scaled)
+# Dead-space dock on base-age "cause": a long base only earns full cause credit if
+# its swings actually worked rail-to-rail. A WIDE base (box_width > this) with low
+# traversal density is dead space, not cause, so its base_age is scaled down by the
+# density shortfall (toward 0). Tight boxes are EXEMPT — their low density is a
+# small-box / spring artifact (e.g. PRA, width 0.017), not dead space.
+BASE_AGE_DEADSPACE_WIDTH = 0.06
 SCORE_TOUCH_DENSITY = 25        # 15 base + 10 bonus (was 20)
 SCORE_VOL_CONTRACTION = 20      # Volume dry-up (was 10)
 SCORE_LPS_TIGHTNESS = 20        # Final candle tightness (was 35)
