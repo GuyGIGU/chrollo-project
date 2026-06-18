@@ -304,6 +304,12 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct, breadth_pct,
             contraction['quality'], support['quality'], adr_quality,
+            traversal_density=(
+                traversal['n_full_traversals'] / traversal['n_swings']
+                if traversal['n_swings'] else 0.0
+            ),
+            max_swing_frac=traversal['max_swing_frac'] or 1.0,
+            dwell_asymmetry=abs(equilibrium['upper_dwell'] - equilibrium['lower_dwell']),
         )
         score = score_result['total']
         tier = calculate_tier(score, box_width)

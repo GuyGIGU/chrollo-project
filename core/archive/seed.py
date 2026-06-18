@@ -299,6 +299,12 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             excess_return_6m, dist_52w_high_pct,
             None,  # breadth_pct unknown for historical seed dates
             contraction['quality'], support['quality'], adr_quality,
+            traversal_density=(
+                traversal['n_full_traversals'] / traversal['n_swings']
+                if traversal['n_swings'] else 0.0
+            ),
+            max_swing_frac=traversal['max_swing_frac'] or 1.0,
+            dwell_asymmetry=abs(equilibrium['upper_dwell'] - equilibrium['lower_dwell']),
         )
         score = score_result["total"]
         tier = calculate_tier(score, box_width)

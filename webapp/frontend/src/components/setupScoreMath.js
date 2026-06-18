@@ -1,7 +1,7 @@
 export const SUB_SCORE_CAPS = {
   box_tightness: 22,
   touch_density: 25,
-  oscillation: 5,
+  traversal_quality: 10,
   atr_squeeze: 8,
   lps_tightness: 20,
   vol_contraction: 20,
@@ -18,7 +18,7 @@ export const SUB_SCORE_CAPS = {
 const VISUAL_SCORE_KEYS = [
   'box_tightness',
   'touch_density',
-  'oscillation',
+  'traversal_quality',
   'atr_squeeze',
   'lps_tightness',
   'base_age',

@@ -16,7 +16,6 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from config import settings
@@ -36,7 +35,10 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 breadth_pct: Optional[float] = None,
                 contraction_quality: float = 0.0,
                 support_quality: float = 0.0,
-                adr_quality: float = 0.0) -> dict:
+                adr_quality: float = 0.0,
+                traversal_density: float = 0.0,
+                max_swing_frac: float = 1.0,
+                dwell_asymmetry: float = 0.0) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -48,6 +50,9 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     to award the 52w-high proximity bonus.
     breadth_pct: % of universe with Close > SMA_50 on scan_date. Same value
     across every setup in a run; rewards setups forming in a broad tape.
+    traversal_density / max_swing_frac / dwell_asymmetry: box-relative swing facts
+    (measure_traversal + measure_equilibrium) grading genuine two-sided rail-working
+    vs dead space; drives the traversal-quality term that replaced oscillation.
     """
     touches = r_touches + s_touches
 
@@ -64,18 +69,24 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         touch_score += settings.TOUCH_BONUS_POINTS
     s_touch = touch_score
 
-    # Oscillation quality — reward price that WORKS the rails, not bars huddled
-    # at the midline. Use the bar midpoint so this neutral location summary
-    # respects High/Low geometry without pretending every wick is a settled close.
-    midline = (res_avg + sup_avg) / 2
-    box_height = res_avg - sup_avg
-    if box_height > 0 and {"High", "Low"} <= set(base_df.columns):
-        bar_mid = (base_df["High"].astype(float) + base_df["Low"].astype(float)) / 2.0
-        osc_ratio = np.mean(np.abs(bar_mid - midline)) / box_height
-    else:
-        osc_ratio = 0.0
-    s_osc = _clamp((osc_ratio / 0.33) * settings.SCORE_OSCILLATION,
-                    settings.SCORE_OSCILLATION)
+    # Traversal quality — does the chop genuinely WORK BOTH RAILS, or hang off one?
+    # Graded reward on rail-to-rail density (true round-trips per significant swing),
+    # docked for one-sided dwell (lower-vs-upper-third residence asymmetry) and a
+    # single oversized limb (max_swing_frac > 1 = a one-off spike defining a rail).
+    # Replaces the retired, rail-blind oscillation term. The dock can only erode the
+    # reward toward 0 — it is never negative, so a dead-space box simply earns
+    # nothing here rather than being penalized below its other merits.
+    density_reward = _clamp(
+        (traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL) * settings.SCORE_TRAVERSAL_QUALITY,
+        settings.SCORE_TRAVERSAL_QUALITY,
+    )
+    dead_space = max(0.0, max_swing_frac - 1.0) + dwell_asymmetry
+    dead_space_penalty = _clamp(dead_space * settings.TRAVERSAL_QUALITY_DWELL_PENALTY,
+                                settings.TRAVERSAL_QUALITY_DWELL_PENALTY)
+    s_traversal = max(0.0, density_reward - dead_space_penalty)
+
+    # Oscillation retired (rail-blind). Kept at 0 for payload/archive key continuity.
+    s_osc = 0.0
 
     # ATR squeeze
     s_atr = _clamp((1.0 - atr_ratio) * settings.SCORE_ATR_SQUEEZE,
@@ -161,7 +172,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # be worth trading. Bonus-only; quiet names simply earn zero here.
     s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
 
-    total = round(s_box + s_touch + s_osc + s_atr + s_lps + s_vol + s_age
+    total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
                   + s_uptrend + s_rs + s_high + s_breadth + s_contraction
                   + s_ascending + s_adr, 1)
 
@@ -170,6 +181,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'box_tightness': round(s_box, 2),
         'touch_density': round(s_touch, 2),
         'oscillation': round(s_osc, 2),
+        'traversal_quality': round(s_traversal, 2),
         'atr_squeeze': round(s_atr, 2),
         'lps_tightness': round(s_lps, 2),
         'vol_contraction': round(s_vol, 2),

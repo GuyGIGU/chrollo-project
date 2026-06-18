@@ -136,7 +136,7 @@ def _extract_chart_data(data, results_df, tickers):
             sub_payload = {
                 k: round(float(sub.get(k, 0) or 0), 2)
                 for k in (
-                    'box_tightness', 'touch_density', 'oscillation',
+                    'box_tightness', 'touch_density', 'traversal_quality',
                     'atr_squeeze', 'lps_tightness', 'vol_contraction',
                     'base_age', 'uptrend_bonus', 'rs_bonus',
                     'high_proximity', 'breadth_bonus', 'contraction',
@@ -210,11 +210,18 @@ def _extract_chart_data(data, results_df, tickers):
                 'higher_low_frac': row.get('_support_higher_low_frac'),
                 'adr_pct': row.get('_adr_pct'),
                 # Bin-B interior trajectory ("eyes inside the base") → drives the
-                # two_sided_range tag + interior tooltip on the card.
+                # interior CoG tooltip on the card. (The worked_equilibrium chip now
+                # fires off traversal_density below, not these close-based crossings.)
                 'bin_b_cog_end': row.get('_bin_b_cog_end'),
                 'bin_b_cog_crossings': row.get('_bin_b_cog_crossings'),
                 'bin_b_cog_rng': row.get('_bin_b_cog_rng'),
                 'bin_b_cog_corr': row.get('_bin_b_cog_corr'),
+                # Limb-traversal density (rail-to-rail swings / significant swings) →
+                # drives the worked_equilibrium chip; the real two-sidedness signal.
+                'traversal_density': (
+                    round(row['_trav_n_full_traversals'] / row['_trav_n_swings'], 3)
+                    if row.get('_trav_n_swings') else None
+                ),
                 'bin_c_present': row.get('_bin_c_present'),
                 'bin_c_type': row.get('_bin_c_type'),
                 'bin_c_event_date': row.get('_bin_c_event_date'),

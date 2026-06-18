@@ -2112,6 +2112,28 @@ def test_safe_rank_corr_is_monotonic_not_linear():
     assert safe_rank_corr(pd.Series([1, 1, 1, 1]), pd.Series([1, 2, 3, 4])) is None  # no variance
 
 
+def test_score_traversal_quality_rewards_two_sided_over_dead_space():
+    """The traversal-quality term (which replaced the rail-blind oscillation term)
+    must rank a genuinely two-sided box above a dead-space one; oscillation now
+    contributes nothing."""
+    from core.scoring.scoring import score_setup
+
+    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
+                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
+    common = dict(box_width=0.1, r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0,
+                  base_df=base, atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
+                  base_len=40, yearly_return=0.0)
+
+    clean = score_setup(**common, traversal_density=0.5, max_swing_frac=1.0, dwell_asymmetry=0.1)
+    dead = score_setup(**common, traversal_density=0.1, max_swing_frac=1.5, dwell_asymmetry=0.5)
+
+    assert clean["traversal_quality"] > 8.0        # clean two-sided box, near the 10-pt cap
+    assert dead["traversal_quality"] == 0.0         # dead-space reward fully eaten by the dock
+    assert clean["traversal_quality"] > dead["traversal_quality"]
+    assert clean["total"] > dead["total"]
+    assert clean["oscillation"] == 0.0 and dead["oscillation"] == 0.0  # retired
+
+
 def test_signal_edge_classifies_harmful_inert_beneficial():
     n = 40
     win = [1.0, 0.0] * (n // 2)                      # alternating outcome

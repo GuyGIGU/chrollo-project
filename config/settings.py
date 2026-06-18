@@ -219,7 +219,20 @@ SCORE_VOL_CONTRACTION = 20      # Volume dry-up (was 10)
 SCORE_LPS_TIGHTNESS = 20        # Final candle tightness (was 35)
 SCORE_BOX_TIGHTNESS = 22        # Tightness now bites (was 15) — separates a tight coil from a wide-but-clean range
 SCORE_ATR_SQUEEZE = 8           # Volatility contraction (was 10)
-SCORE_OSCILLATION = 5           # Rail-working quality (closes spend time AT the rails, not clustered mid-box)
+# Oscillation RETIRED — it was rail-blind: it rewarded mean |bar-mid − midline|,
+# which a one-sided top-hug maxes exactly like a true two-sided box (CHCT, a dead-
+# space framing, maxed it). Replaced by the traversal-quality term below (graded on
+# real rail-to-rail density). Kept at 0 so the sub-score key / archive column stay
+# valid without re-scoring anything.
+SCORE_OSCILLATION = 0
+# Traversal quality — the 2-sidedness the validity gate only screens for, now a
+# graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
+# density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)
+# or anchors a rail on a one-off spike (max_swing_frac > 1) is docked. Box-relative
+# inputs only — no box_width, so no double-count with SCORE_BOX_TIGHTNESS.
+SCORE_TRAVERSAL_QUALITY = 10           # cap — lifts a clean box over a dead-space one without bloating S-tier
+TRAVERSAL_QUALITY_DENSITY_FULL = 0.33  # nFull/nSwings >= this earns full density credit (winner median ~0.5)
+TRAVERSAL_QUALITY_DWELL_PENALTY = 8    # max dock for dwell asymmetry + one-off-spike overshoot
 
 # Strong-uptrend bonus — linear ramp from MIN to MAX yearly return.
 # Re-accumulation setups inside an established uptrend break out more reliably
