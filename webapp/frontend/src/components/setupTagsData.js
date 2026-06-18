@@ -82,12 +82,12 @@ const TAG_DEFS = [
   tag('tight_box', '🔒 Tight Box', 'consolidation', 'Price is compressed into a narrow resistance/support range — a tightly-wound horizontal box. How to read it: tightness means a coiled spring and a clean, close stop just under support. You want the breakout on rising volume; if it fails, the tight range keeps the loss small.', 85, scores => firesAt(scores, 'box_tightness', 0.80)),
   tag('ascending_support', '📈 Ascending Support', 'consolidation', 'The base\'s swing lows are stair-stepping upward — rising support / higher lows (Minervini "tennis-ball action", Qullamaggie higher-lows surfing a rising EMA). How to read it: demand is getting more aggressive into each pullback — buyers stepping in earlier every dip. A rising floor under a flat ceiling is a stronger, more urgent coil than a flat floor.', 80, scores => firesAt(scores, 'ascending_support', 0.80)),
   tag(
-    'two_sided_range',
-    '🪜 Two-Sided Range',
+    'worked_equilibrium',
+    '⚖️ Worked Equilibrium',
     'consolidation',
-    'Price has oscillated rail-to-rail through the base — its center of gravity (where closes sit in the box) crossed the box mid-line at least twice over time, so it is a genuine two-sided trading range rather than a one-way drift to one edge. How to read it: buyers at support and sellers at resistance have each shown up repeatedly, so the box is real and well-worked — the cleanest kind of consolidation to trade a breakout from. A base that only climbs one-way to the ceiling won\'t carry this chip (that\'s a lift, not a range — lean on the Ascending Support read there instead).',
+    'The base is a genuinely WORKED equilibrium — its swing limbs travel rail-to-rail repeatedly (high traversal density: the up and down legs run from support to resistance and back), instead of hanging off one rail and leaving dead space at the other. How to read it: buyers at support and sellers at resistance have each defended their rail again and again across the whole range, so this is a real two-sided cause — the cleanest kind of base to break a move from. A box that hugs one rail and only taps the far one a couple of times (dead space) won\'t carry this chip; the engine now scores that structure DOWN, not up.',
     56,
-    (_scores, flags) => typeof flags.cogCrossings === 'number' && flags.cogCrossings >= 2,
+    (_scores, flags) => typeof flags.traversalDensity === 'number' && flags.traversalDensity >= 0.33,
   ),
   tag(
     'phase_c_test',

@@ -246,6 +246,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         contractionVolTrend: data.contraction_vol_trend,
         cogEnd: data.bin_b_cog_end,
         cogCrossings: data.bin_b_cog_crossings,
+        traversalDensity: data.traversal_density,
         cogRng: data.bin_b_cog_rng,
         cogCorr: data.bin_b_cog_corr,
         binCPresent: data.bin_c_present,

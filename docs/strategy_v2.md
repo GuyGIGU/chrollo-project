@@ -273,13 +273,13 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **14 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **202**.
+`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **14 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **207**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
 | **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22` | `SCORE_BOX_TIGHTNESS = 22` |
 | **Touch density** | `min(touches × 2, 15)` plus `+10` if `r_touches ≥ 3 AND s_touches ≥ 3` OR `total ≥ 6` | `SCORE_TOUCH_DENSITY = 25` (15 base + 10 bonus); `TOUCH_BONUS_INDIVIDUAL = 3`, `TOUCH_BONUS_TOTAL = 6`, `TOUCH_BONUS_POINTS = 10` |
-| **Oscillation** | `(mean(|bar_midpoint - midline|) / box_height) / 0.33 × 5`, where `bar_midpoint = (High + Low) / 2`. Rewards bars whose neutral location works the rails rather than clustering at mid-box. | `SCORE_OSCILLATION = 5` |
+| **Traversal quality** | `clamp((density / 0.33) × 10, 10) − clamp((dwell_asymmetry + max(0, max_swing_frac − 1)) × 8, 8)`, floored at 0, where `density = n_full_traversals / n_swings`. Rewards a box whose swing limbs genuinely run rail-to-rail; docks dead-space framings that hang off one rail (`dwell_asymmetry`) or anchor a rail on a one-off spike (`max_swing_frac > 1`). Replaced the rail-blind **oscillation** term (which a one-sided top-hug maxed just like a true two-sided box). | `SCORE_TRAVERSAL_QUALITY = 10`, `TRAVERSAL_QUALITY_DENSITY_FULL = 0.33`, `TRAVERSAL_QUALITY_DWELL_PENALTY = 8` |
 | **ATR squeeze** | `(1 - ATR_10/ATR_50 at bar -6) × 8` | `SCORE_ATR_SQUEEZE = 8` |
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |

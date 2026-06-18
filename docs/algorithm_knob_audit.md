@@ -136,9 +136,11 @@ Taxonomy:
   occupancy as analysis geometry.
 - SOS trim is not a loosened box rule. It says: validate the worked cause before
   a sustained breakout tail, then let the LPS/BUEC decide if the setup is active.
-- `two_sided_range` should be treated as the standard behavior of a valid box,
-  not a rare bonus tag. The tag can remain as a descriptive chip, but the
-  underlying rule already belongs to Phase-B validity.
+- Two-sided rail-working is now BOTH a hard validity rule (the traversal gate)
+  and a graded scoring reward (`SCORE_TRAVERSAL_QUALITY`, which replaced the
+  rail-blind `oscillation` term). The `worked_equilibrium` chip (formerly
+  `two_sided_range`) is the descriptive surface — now sourced off the real
+  `traversal_density` field, not the looser close-based CoG-crossing proxy.
 
 Hidden/local knobs:
 
@@ -398,7 +400,8 @@ Scoring ramp knobs:
 Hidden scoring knobs:
 
 - Touches score at `touches * 2.0` before the touch bonus.
-- Oscillation full-ish credit is normalized at `osc_ratio / 0.33`.
+- Traversal-quality density credit is normalized at `density / 0.33` (full credit
+  at `TRAVERSAL_QUALITY_DENSITY_FULL`); the `oscillation` term it replaced is retired (cap 0).
 - LPS tightness and volume contraction are multiplied by `2 * score cap`.
 - Base age uses sqrt scaling.
 
