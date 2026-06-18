@@ -1,4 +1,4 @@
-import { inferDirection, isOptionSymbol } from './tradeUtils';
+import { inferDirection, isOptionSymbol } from './tradeUtils.js';
 
 export const EDITABLE_FIELDS = ['opening_date', 'ticker', 'entry_price', 'stop_loss', 'quantity'];
 export const DEFAULT_PAGE_SIZE = 20;
@@ -43,6 +43,31 @@ export const fmtDateShort = (value) => {
   if (!match) return value;
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}`;
+};
+
+export const deriveTradeAlerts = (trades = [], priceFor) => (
+  trades
+    .flatMap(trade => buildTradeAlerts(trade, deriveTradeRow(trade, priceFor)))
+    .sort(compareAlerts)
+);
+
+export const buildTradeAlerts = (trade, derived) => {
+  if (!trade || !derived || (derived.status !== 'open' && derived.status !== 'partial')) return [];
+  if (!(derived.position > 0)) return [];
+
+  const alerts = [];
+  const ticker = String(trade.ticker || '').toUpperCase();
+  const tradeId = trade.id ?? ticker;
+
+  if (derived.rToStop != null) {
+    const stopAlert = stopAlertFor({ derived, ticker, tradeId });
+    if (stopAlert) alerts.push(stopAlert);
+  }
+
+  const targetAlert = targetAlertFor({ derived, ticker, tradeId });
+  if (targetAlert) alerts.push(targetAlert);
+
+  return alerts;
 };
 
 export const summarizeFillLedger = (fills, direction, multiplier = 1) => {
@@ -195,7 +220,7 @@ export const deriveTradeRow = (trade, priceFor) => {
   const position = ledger.position;
   const openQty = ledger.openQty;
   const totalWorth = entryVwap != null && openQty ? entryVwap * openQty * multiplier : null;
-  const { price: livePrice, source: liveSource } = priceFor(trade.ticker);
+  const { price: livePrice, source: liveSource } = priceFor?.(trade.ticker) || {};
   const { currentExit, currentExitSource } = getExitPrice({
     closeCash: ledger.cycleCloseCash,
     closeQty: ledger.cycleCloseQty,
@@ -222,26 +247,179 @@ export const deriveTradeRow = (trade, priceFor) => {
   const rValue = riskDistance && riskDistance > 0 && openQty && pnl != null
     ? pnl / (riskDistance * openQty * multiplier)
     : null;
+  const distToStop = currentExit != null && stopVal != null
+    ? (isLong ? currentExit - stopVal : stopVal - currentExit)
+    : null;
+  const distToStopPct = distToStop != null && currentExit
+    ? distToStop / currentExit * 100
+    : null;
+  // R-to-stop must come straight from prices, NOT rValue + 1: on a scaled-out
+  // (partial) position rValue folds in realized P&L and fees that don't cancel,
+  // so rValue + 1 drifts. distToStop / riskDistance is exact for full and partial.
+  const rToStop = distToStop != null && riskDistance ? distToStop / riskDistance : null;
+  const stopRiskTone = riskToneFor(rToStop);
+  const targetLadder = buildTargetLadder({ currentExit, isLong, riskDistance, trade });
+  const nextTarget = targetLadder.find(target => target.isNext) || null;
+  const distToTargetPct = nextTarget?.distToTargetPct ?? null;
   const status = getStatus({ closeQty: ledger.cycleCloseQty, hasClosed: ledger.anyClose, initialQty, pnl, position });
 
   return {
+    distToStopPct,
+    distToTargetPct,
     direction,
     entryVwap,
     exitDate: position <= 0 && ledger.closingDate ? ledger.closingDate : (position <= 0 ? trade.closing_date || null : null),
     isLong,
     multiplier,
+    nextTarget,
     openQty,
     pnl,
     position,
+    riskDistance,
     rValue,
+    rToStop,
     status,
     stopPct,
+    stopRiskTone,
     stopVal,
+    targetLadder,
     totalExit: ledger.cycleCloseQty > 0 ? ledger.cycleCloseCash : null,
     totalWorth,
     currentExit,
     currentExitSource,
   };
+};
+
+const buildTargetLadder = ({ currentExit, isLong, riskDistance, trade }) => {
+  const targets = [1, 2, 3, 4, 5]
+    .map(index => {
+      const price = finitePositive(trade[`t${index}_price`]);
+      if (price == null) return null;
+      const qty = finitePositive(trade[`t${index}_qty`]);
+      const signedDistance = currentExit != null
+        ? (isLong ? price - currentExit : currentExit - price)
+        : null;
+      const hit = currentExit != null
+        ? (isLong ? currentExit >= price : currentExit <= price)
+        : false;
+      return {
+        index,
+        label: `T${index}`,
+        price,
+        qty,
+        hit,
+        isNext: false,
+        distToTargetPct: signedDistance != null && currentExit
+          ? signedDistance / currentExit * 100
+          : null,
+        rToTarget: signedDistance != null && riskDistance
+          ? signedDistance / riskDistance
+          : null,
+      };
+    })
+    .filter(Boolean);
+
+  const nextIndex = targets.find(target => !target.hit)?.index ?? null;
+  return targets.map(target => ({
+    ...target,
+    isNext: target.index === nextIndex,
+  }));
+};
+
+const finitePositive = (value) => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+};
+
+const riskToneFor = (rToStop) => {
+  if (rToStop == null || !Number.isFinite(Number(rToStop))) return null;
+  if (rToStop <= 0) return 'breached';
+  if (rToStop <= 0.25) return 'danger';
+  if (rToStop <= 0.5) return 'warning';
+  return null;
+};
+
+const stopAlertFor = ({ derived, ticker, tradeId }) => {
+  if (derived.rToStop <= 0) {
+    return {
+      id: `${tradeId}:stop:breached`,
+      kind: 'stop',
+      level: 'critical',
+      ticker,
+      title: `${ticker} through stop`,
+      detail: `Stop ${formatAlertMoney(derived.stopVal)} - ${formatAlertR(derived.rToStop)} to stop`,
+      tradeId,
+      sortRank: 0,
+    };
+  }
+  if (derived.rToStop <= 0.25) {
+    return {
+      id: `${tradeId}:stop:danger`,
+      kind: 'stop',
+      level: 'danger',
+      ticker,
+      title: `${ticker} near stop`,
+      detail: `${formatAlertPct(derived.distToStopPct)} / ${formatAlertR(derived.rToStop)} to stop`,
+      tradeId,
+      sortRank: 1,
+    };
+  }
+  if (derived.rToStop <= 0.5) {
+    return {
+      id: `${tradeId}:stop:warning`,
+      kind: 'stop',
+      level: 'warning',
+      ticker,
+      title: `${ticker} stop getting close`,
+      detail: `${formatAlertPct(derived.distToStopPct)} / ${formatAlertR(derived.rToStop)} to stop`,
+      tradeId,
+      sortRank: 2,
+    };
+  }
+  return null;
+};
+
+const targetAlertFor = ({ derived, ticker, tradeId }) => {
+  const target = derived.nextTarget;
+  if (!target) return null;
+  const rToTarget = target.rToTarget;
+  const pctToTarget = target.distToTargetPct;
+  const hasR = Number.isFinite(rToTarget);
+  const hasPct = Number.isFinite(pctToTarget);
+  if ((!hasR && !hasPct) || (hasR && rToTarget < 0) || (hasPct && pctToTarget < 0)) return null;
+  if (!((hasR && rToTarget <= 0.25) || (hasPct && pctToTarget <= 1))) return null;
+
+  return {
+    id: `${tradeId}:target:${target.label}`,
+    kind: 'target',
+    level: 'target',
+    ticker,
+    title: `${ticker} near ${target.label}`,
+    detail: `${formatAlertPct(target.distToTargetPct)} / ${formatAlertR(target.rToTarget)} away`,
+    tradeId,
+    sortRank: 3,
+    targetLabel: target.label,
+  };
+};
+
+const compareAlerts = (first, second) => {
+  if (first.sortRank !== second.sortRank) return first.sortRank - second.sortRank;
+  return first.ticker.localeCompare(second.ticker);
+};
+
+const formatAlertMoney = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '-';
+  return `$${fmtMoney(value)}`;
+};
+
+const formatAlertPct = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '-';
+  return `${Number(value).toFixed(1)}%`;
+};
+
+const formatAlertR = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '-';
+  return `${Number(value).toFixed(2)}R`;
 };
 
 const normalizeActionSide = (action, openSide, closeSide) => {

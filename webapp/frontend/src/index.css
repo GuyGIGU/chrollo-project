@@ -931,6 +931,133 @@ td {
   padding-bottom: 1rem;
 }
 
+.trade-alert-strip {
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+}
+
+.trade-alert-head {
+  align-items: baseline;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-width: 84px;
+}
+
+.trade-alert-kicker {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-alert-head strong {
+  color: var(--warning);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.trade-alert-list {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trade-alert-item {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  min-height: 34px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trade-alert-item.critical,
+.trade-alert-item.danger {
+  background: rgba(242, 103, 112, 0.10);
+  border-color: rgba(242, 103, 112, 0.32);
+}
+
+.trade-alert-item.warning {
+  background: rgba(240, 190, 60, 0.10);
+  border-color: rgba(240, 190, 60, 0.30);
+}
+
+.trade-alert-item.target {
+  background: rgba(91, 138, 255, 0.10);
+  border-color: rgba(91, 138, 255, 0.30);
+}
+
+.trade-alert-main,
+.trade-alert-action {
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.trade-alert-main {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 142px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.trade-alert-title {
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-alert-detail {
+  color: var(--text-muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-alert-action {
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 1px solid rgba(255, 255, 255, 0.065);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+.trade-alert-action:hover,
+.trade-alert-main:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text-main);
+}
+
+.trade-alert-more {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
 .trade-table-scroll {
   overflow-x: auto;
 }
@@ -1000,6 +1127,20 @@ td {
 .trade-row.draft td {
   background: rgba(74, 122, 255, 0.04);
   border-bottom-color: rgba(74, 122, 255, 0.15);
+}
+.trade-row.risk-warning td {
+  background: rgba(240, 190, 60, 0.045);
+}
+.trade-row.risk-warning:hover td {
+  background: rgba(240, 190, 60, 0.075);
+}
+.trade-row.risk-danger td,
+.trade-row.risk-breached td {
+  background: rgba(242, 103, 112, 0.06);
+}
+.trade-row.risk-danger:hover td,
+.trade-row.risk-breached:hover td {
+  background: rgba(242, 103, 112, 0.095);
 }
 
 /* Cell interaction surface */
@@ -1316,6 +1457,9 @@ td.cell-editable { overflow: hidden; }
 }
 .cell-stack .secondary.up   { color: var(--success); }
 .cell-stack .secondary.down { color: var(--danger); }
+.trade-stop-stack .secondary.risk-warning { color: var(--warning); }
+.trade-stop-stack .secondary.risk-danger,
+.trade-stop-stack .secondary.risk-breached { color: var(--danger); }
 
 /* Inline R-multiplier chip on T1/T2 cells (clickable to edit) */
 .r-chip {

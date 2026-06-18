@@ -47,6 +47,7 @@ function AppContent({
             />
             <TradeTable
               trades={filteredTrades}
+              alertTrades={trades}
               draftRow={draftRow}
               setDraftRow={setDraftRow}
               onDetailClick={onDetailClick}
@@ -61,6 +62,7 @@ function AppContent({
           <ErrorBoundary>
             <TradeTable
               trades={optionTrades}
+              alertTrades={optionTrades}
               draftRow={null}
               setDraftRow={() => {}}
               onDetailClick={onDetailClick}

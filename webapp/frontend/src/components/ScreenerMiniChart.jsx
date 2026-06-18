@@ -150,7 +150,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       volumeSeries.setData(data.volumes || []);
 
       const levelOptions = {
-        color: '#5b8aff',
+        color: '#2457b8',
         lineWidth: 2,
         crosshairMarkerVisible: false,
         lastValueVisible: false,
@@ -178,9 +178,8 @@ const ScreenerMiniChart = ({ ticker, data }) => {
         const innerStart = Math.max(0, Math.min(candles.length - 1, Math.trunc(innerStartBar)));
         const innerOptions = {
           ...levelOptions,
-          color: 'rgba(212, 184, 90, 0.92)',
-          lineWidth: 1,
-          lineStyle: 2,
+          color: '#5f8fe6',
+          lineWidth: 2,
         };
         chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerR));
         chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerS));

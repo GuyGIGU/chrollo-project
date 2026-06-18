@@ -4,6 +4,7 @@ import ExecutionsTab from './tradeDetail/ExecutionsTab';
 import IntentTab from './tradeDetail/IntentTab';
 import NotesTab from './tradeDetail/NotesTab';
 import PlanTab from './tradeDetail/PlanTab';
+import RiskCockpit from './tradeDetail/RiskCockpit';
 
 const tabStyle = (active) => ({
   padding: '8px 14px',
@@ -80,6 +81,7 @@ export default function TradeDetailDrawer({ trade, onClose }) {
         </nav>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+          <RiskCockpit trade={trade} />
           {tab === 'plan' && <PlanTab tradeId={trade.id} />}
           {tab === 'intent' && <IntentTab trade={trade} />}
           {tab === 'notes' && <NotesTab tradeId={trade.id} />}

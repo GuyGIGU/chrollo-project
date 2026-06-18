@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import useTradeCellEditing from '../hooks/useTradeCellEditing';
 import useTradeFills from '../hooks/useTradeFills';
 import useTradeLivePrices from '../hooks/useTradeLivePrices';
-import { DEFAULT_PAGE_SIZE, deriveTradeRow } from '../utils/tradeTableUtils';
+import { DEFAULT_PAGE_SIZE, deriveTradeAlerts, deriveTradeRow } from '../utils/tradeTableUtils';
 import DraftTradeRow from './tradeTable/DraftTradeRow';
+import TradeRiskAlerts from './tradeTable/TradeRiskAlerts';
 import TradeRow from './tradeTable/TradeRow';
 import TradeTablePager from './tradeTable/TradeTablePager';
 
@@ -12,6 +13,7 @@ const COLUMNS = [
 ];
 
 export default function TradeTable({
+  alertTrades,
   draftRow,
   onDetailClick,
   onTradeUpdate,
@@ -20,7 +22,12 @@ export default function TradeTable({
   trades = [],
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const priceFor = useTradeLivePrices(trades);
+  const alertSourceTrades = alertTrades || trades;
+  const liveTrades = useMemo(
+    () => mergeTrades(trades, alertSourceTrades),
+    [alertSourceTrades, trades],
+  );
+  const priceFor = useTradeLivePrices(liveTrades);
   const pageCount = Math.max(1, Math.ceil(trades.length / pageSize));
   const pageStart = (currentPage - 1) * pageSize;
   const pageEnd = Math.min(pageStart + pageSize, trades.length);
@@ -34,6 +41,10 @@ export default function TradeTable({
     onTradeUpdate,
     trades,
   });
+  const riskAlerts = useMemo(
+    () => deriveTradeAlerts(alertSourceTrades, priceFor),
+    [alertSourceTrades, priceFor],
+  );
 
   useEffect(() => {
     setCurrentPage(page => Math.min(Math.max(page, 1), pageCount));
@@ -49,6 +60,7 @@ export default function TradeTable({
 
   return (
     <div className="trade-table-wrap">
+      <TradeRiskAlerts alerts={riskAlerts} trades={alertSourceTrades} onDetailClick={onDetailClick} />
       <div className="trade-table-scroll">
         <table className="trade-table">
           <colgroup>
@@ -114,6 +126,17 @@ export default function TradeTable({
       {trades.length === 0 && !draftRow && <EmptyTradeTable />}
     </div>
   );
+}
+
+function mergeTrades(primary, secondary) {
+  const merged = new Map();
+  for (const trade of primary || []) {
+    if (trade?.id != null) merged.set(trade.id, trade);
+  }
+  for (const trade of secondary || []) {
+    if (trade?.id != null) merged.set(trade.id, trade);
+  }
+  return [...merged.values()];
 }
 
 function EmptyTradeTable() {

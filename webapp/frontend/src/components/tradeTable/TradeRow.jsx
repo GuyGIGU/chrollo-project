@@ -13,9 +13,10 @@ export default function TradeRow({
   onToggleSide,
   trade,
 }) {
+  const riskClass = derived.position > 0 && derived.stopRiskTone ? ` risk-${derived.stopRiskTone}` : '';
   return (
     <>
-      <tr className="trade-row">
+      <tr className={`trade-row${riskClass}`}>
         <td className="text">
           <div className="cell-shell readonly center">
             <span
@@ -36,7 +37,7 @@ export default function TradeRow({
           </div>
         </td>
         <EditableCell {...editing} rowId={trade.id} field="entry_price" displayValue={derived.entryVwap != null ? `$${fmtMoney(derived.entryVwap)}` : ''} rawForEdit={trade.entry_price} num inputType="number" step="0.01" />
-        <EditableCell {...editing} rowId={trade.id} field="stop_loss" displayValue={derived.stopVal != null ? `$${fmtMoney(derived.stopVal)}` : ''} rawForEdit={trade.stop_loss} sub={derived.stopPct != null ? `${derived.stopPct.toFixed(1)}%` : null} num inputType="number" step="0.01" />
+        <EditableCell {...editing} rowId={trade.id} field="stop_loss" displayValue={derived.stopVal != null ? <StopValue derived={derived} /> : ''} rawForEdit={trade.stop_loss} num inputType="number" step="0.01" />
         <EditableCell {...editing} rowId={trade.id} field="quantity" displayValue={derived.openQty != null ? fmtInt(derived.openQty) : ''} rawForEdit={trade.quantity} num inputType="number" />
         <ComputedCell num>{derived.totalWorth != null ? `$${fmtMoney(derived.totalWorth, 0)}` : '-'}</ComputedCell>
         <ComputedCell num divider>{derived.position != null ? fmtInt(derived.position) : '-'}</ComputedCell>
@@ -71,15 +72,37 @@ function ExitValue({ derived }) {
   );
 }
 
+function StopValue({ derived }) {
+  if (derived.stopVal == null) return '';
+  const liveStopPct = formatPct(derived.distToStopPct);
+  const liveStopR = formatR(derived.rToStop);
+  const plannedPct = formatPct(derived.stopPct);
+  const liveMeta = derived.position > 0 && liveStopPct && liveStopR
+    ? `${liveStopPct} / ${liveStopR}`
+    : null;
+  const meta = liveMeta || plannedPct;
+  return (
+    <span className="cell-stack trade-stop-stack">
+      <span>${fmtMoney(derived.stopVal)}</span>
+      {meta && (
+        <span className={`secondary ${derived.stopRiskTone ? `risk-${derived.stopRiskTone}` : ''}`}>
+          {meta}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function PnlValue({ derived }) {
   if (derived.pnl == null) return '-';
+  const rValue = formatSignedR(derived.rValue);
   const color = derived.pnl > 0
     ? 'var(--success)'
     : derived.pnl < 0 ? 'var(--danger)' : 'var(--text-muted)';
   return (
     <span style={{ color, fontWeight: 600 }}>
       {derived.pnl >= 0 ? '+' : '-'}${fmtMoney(Math.abs(derived.pnl))}
-      {derived.rValue != null && (
+      {rValue && (
         <span
           className="sub"
           style={{
@@ -89,9 +112,24 @@ function PnlValue({ derived }) {
             opacity: 0.85,
           }}
         >
-          {derived.rValue >= 0 ? '+' : ''}{derived.rValue.toFixed(2)}R
+          {rValue}
         </span>
       )}
     </span>
   );
 }
+
+const formatPct = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return null;
+  return `${Number(value).toFixed(1)}%`;
+};
+
+const formatR = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return null;
+  return `${Number(value).toFixed(2)}R`;
+};
+
+const formatSignedR = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return null;
+  return `${Number(value) >= 0 ? '+' : ''}${Number(value).toFixed(2)}R`;
+};
