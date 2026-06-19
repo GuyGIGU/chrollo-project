@@ -38,7 +38,8 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 adr_quality: float = 0.0,
                 traversal_density: float = 0.0,
                 max_swing_frac: float = 1.0,
-                dwell_asymmetry: float = 0.0) -> dict:
+                dwell_asymmetry: float = 0.0,
+                has_spring: bool = False) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -80,7 +81,13 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         (traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL) * settings.SCORE_TRAVERSAL_QUALITY,
         settings.SCORE_TRAVERSAL_QUALITY,
     )
-    dead_space = max(0.0, max_swing_frac - 1.0) + dwell_asymmetry
+    # A single limb dwarfing the box is a dead-space spike ONLY in a wide box with
+    # no spring. In a tight box overshoot is inevitable (any real swing dwarfs the
+    # tiny range, e.g. PRA), and a confirmed spring's undercut is a bullish leg, not
+    # dead space — exempt the overshoot in both; the dwell-asymmetry tell remains.
+    overshoot = (0.0 if (box_width <= settings.BASE_AGE_DEADSPACE_WIDTH or has_spring)
+                 else max(0.0, max_swing_frac - 1.0))
+    dead_space = overshoot + dwell_asymmetry
     dead_space_penalty = _clamp(dead_space * settings.TRAVERSAL_QUALITY_DWELL_PENALTY,
                                 settings.TRAVERSAL_QUALITY_DWELL_PENALTY)
     s_traversal = max(0.0, density_reward - dead_space_penalty)

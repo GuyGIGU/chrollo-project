@@ -2153,6 +2153,27 @@ def test_base_age_dead_space_dock_spares_tight_boxes():
     assert clean_wide["base_age"] == tight["base_age"]    # density past full-credit -> no dock
 
 
+def test_traversal_overshoot_exempt_for_tight_box_and_spring():
+    """The max_swing_frac overshoot penalty must not fire on a tight box (overshoot
+    is inevitable when the box is tiny, e.g. PRA) or a confirmed spring (the undercut
+    is a bullish leg, not dead space)."""
+    from core.scoring.scoring import score_setup
+
+    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
+                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
+    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+                  atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
+                  base_len=40, yearly_return=0.0, traversal_density=0.3,
+                  max_swing_frac=2.5, dwell_asymmetry=0.1)
+
+    wide = score_setup(box_width=0.12, **common)                     # wide, no spring -> overshoot docks
+    tight = score_setup(box_width=0.02, **common)                    # tight box -> overshoot exempt
+    spring = score_setup(box_width=0.12, has_spring=True, **common)   # spring -> overshoot exempt
+
+    assert tight["traversal_quality"] > wide["traversal_quality"]
+    assert spring["traversal_quality"] > wide["traversal_quality"]
+
+
 def test_signal_edge_classifies_harmful_inert_beneficial():
     n = 40
     win = [1.0, 0.0] * (n // 2)                      # alternating outcome

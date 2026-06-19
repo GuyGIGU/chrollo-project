@@ -310,6 +310,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             ),
             max_swing_frac=traversal['max_swing_frac'] or 1.0,
             dwell_asymmetry=abs(equilibrium['upper_dwell'] - equilibrium['lower_dwell']),
+            has_spring=bool(bins.get('bin_c_present')),
         )
         score = score_result['total']
         tier = calculate_tier(score, box_width)
