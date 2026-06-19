@@ -65,6 +65,8 @@ export const buildTradeAlerts = (trade, derived) => {
   }
 
   const targetAlert = targetAlertFor({ derived, ticker, tradeId });
+  const targetHitAlert = targetHitAlertFor({ derived, ticker, tradeId });
+  if (targetHitAlert) alerts.push(targetHitAlert);
   if (targetAlert) alerts.push(targetAlert);
 
   return alerts;
@@ -397,8 +399,32 @@ const targetAlertFor = ({ derived, ticker, tradeId }) => {
     title: `${ticker} near ${target.label}`,
     detail: `${formatAlertPct(target.distToTargetPct)} / ${formatAlertR(target.rToTarget)} away`,
     tradeId,
+    sortRank: 4,
+    targetLabel: target.label,
+  };
+};
+
+const targetHitAlertFor = ({ derived, ticker, tradeId }) => {
+  const hitTargets = (derived.targetLadder || []).filter(target => target.hit);
+  const target = hitTargets[hitTargets.length - 1];
+  if (!target) return null;
+
+  const next = derived.nextTarget;
+  const nextDetail = next
+    ? `${next.label} ${formatAlertPct(next.distToTargetPct)} / ${formatAlertR(next.rToTarget)} away`
+    : 'Ladder complete';
+
+  return {
+    id: `${tradeId}:target-hit:${target.label}`,
+    kind: 'target',
+    level: 'target',
+    ticker,
+    title: `${ticker} hit ${target.label}`,
+    detail: `${formatAlertMoney(target.price)} reached - ${nextDetail}`,
+    tradeId,
     sortRank: 3,
     targetLabel: target.label,
+    targetState: 'hit',
   };
 };
 

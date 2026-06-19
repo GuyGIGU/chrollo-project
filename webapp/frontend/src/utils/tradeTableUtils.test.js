@@ -132,6 +132,23 @@ test('deriveTradeAlerts raises next-target proximity alerts', () => {
   assert.equal(alerts[0].targetLabel, 'T1');
 });
 
+test('deriveTradeAlerts raises target-hit alerts for the latest reached target', () => {
+  const alerts = deriveTradeAlerts(
+    [{
+      ...baseTrade,
+      t1_price: 110,
+      t2_price: 120,
+    }],
+    priceFor(112),
+  );
+
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].kind, 'target');
+  assert.equal(alerts[0].targetLabel, 'T1');
+  assert.equal(alerts[0].targetState, 'hit');
+  assert.match(alerts[0].title, /hit T1/);
+});
+
 test('deriveTradeAlerts ignores closed trades and missing live quotes', () => {
   const closedAlerts = deriveTradeAlerts(
     [{

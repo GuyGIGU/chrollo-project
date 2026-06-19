@@ -1,5 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import ErrorBoundary from './ErrorBoundary';
+import useTradeLivePrices from '../hooks/useTradeLivePrices';
+import { deriveTradeAlerts } from '../utils/tradeTableUtils';
+import TradeRiskAlerts from './tradeTable/TradeRiskAlerts';
 
 const DashboardStats = lazy(() => import('./DashboardStats'));
 const TradeTable = lazy(() => import('./TradeTable'));
@@ -34,8 +37,15 @@ function AppContent({
   onDetailClick,
   onTradeUpdate,
 }) {
+  const priceFor = useTradeLivePrices(trades);
+  const riskAlerts = useMemo(
+    () => deriveTradeAlerts(trades, priceFor),
+    [priceFor, trades],
+  );
+
   return (
     <div className="content-scroll">
+      <TradeRiskAlerts alerts={riskAlerts} trades={trades} onDetailClick={onDetailClick} />
       <Suspense fallback={<LoadingPanel />}>
         {activeTab === 'dashboard' && (
           <>
@@ -47,11 +57,11 @@ function AppContent({
             />
             <TradeTable
               trades={filteredTrades}
-              alertTrades={trades}
               draftRow={draftRow}
               setDraftRow={setDraftRow}
               onDetailClick={onDetailClick}
               onTradeUpdate={onTradeUpdate}
+              priceFor={priceFor}
             />
             <ErrorBoundary>
               <AnalyticsPanel />
@@ -62,11 +72,11 @@ function AppContent({
           <ErrorBoundary>
             <TradeTable
               trades={optionTrades}
-              alertTrades={optionTrades}
               draftRow={null}
               setDraftRow={() => {}}
               onDetailClick={onDetailClick}
               onTradeUpdate={onTradeUpdate}
+              priceFor={priceFor}
             />
           </ErrorBoundary>
         )}
