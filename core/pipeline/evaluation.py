@@ -419,6 +419,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_trav_rail_reaches_low': int(traversal['rail_reaches_low']),
             '_trav_max_swing_frac': (float(traversal['max_swing_frac'])
                                      if traversal['max_swing_frac'] is not None else None),
+            '_trav_last_support_frac': (float(traversal['last_support_frac'])
+                                        if traversal['last_support_frac'] is not None else None),
+            '_trav_coil_floor_pos': (float(traversal['coil_floor_pos'])
+                                     if traversal['coil_floor_pos'] is not None else None),
             '_adr_pct': float(adr_value),
             '_adr_quality': float(adr_quality),
             '_phase_a_start_date': scope['phase_a_start_date'],

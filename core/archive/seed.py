@@ -423,6 +423,10 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             "trav_rail_reaches_low": int(traversal["rail_reaches_low"]),
             "trav_max_swing_frac": (float(traversal["max_swing_frac"])
                                     if traversal["max_swing_frac"] is not None else None),
+            "trav_last_support_frac": (float(traversal["last_support_frac"])
+                                       if traversal["last_support_frac"] is not None else None),
+            "trav_coil_floor_pos": (float(traversal["coil_floor_pos"])
+                                    if traversal["coil_floor_pos"] is not None else None),
             "adr_pct": float(adr_value),
             "adr_quality": float(adr_quality),
             # Region (bin) features + Minervini trend template (measure-first).
@@ -677,6 +681,8 @@ def seed_archive(
             trav_rail_reaches_high=best_result.get("trav_rail_reaches_high"),
             trav_rail_reaches_low=best_result.get("trav_rail_reaches_low"),
             trav_max_swing_frac=best_result.get("trav_max_swing_frac"),
+            trav_last_support_frac=best_result.get("trav_last_support_frac"),
+            trav_coil_floor_pos=best_result.get("trav_coil_floor_pos"),
             # ADR% absolute-volatility character
             adr_pct=best_result.get("adr_pct"),
             score_adr=sub.get("adr"),

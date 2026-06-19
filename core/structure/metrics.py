@@ -495,6 +495,7 @@ def measure_traversal(base_df, R, S, atr_val):
         "top_dead_space": None, "bottom_dead_space": None,
         "rail_reaches_high": 0, "rail_reaches_low": 0,
         "max_swing_frac": None,
+        "last_support_frac": None, "coil_floor_pos": None,
     }
     if base_df is None or len(base_df) == 0:
         return empty
@@ -571,6 +572,21 @@ def measure_traversal(base_df, R, S, atr_val):
     bottom_dead = (round(float(np.quantile(np.clip(valley_pos, 0.0, 1.0), 0.25)), 4)
                    if valley_pos else None)
 
+    # Late-support work (descent-tail tell; shadow-only v1, no gate/points). A box
+    # that touches S only early then floats up (a one-sided rising coil) reads as a
+    # descent tail, not a worked range — unlike a range that re-tests S throughout.
+    # last_support_frac = time-position (0..1) of the last support touch; low = S
+    # abandoned early. coil_floor_pos = box-position of the lowest Low AFTER that
+    # touch (0=S, 1=R); high = a real dead band beneath the late coil.
+    s_band = settings.TOUCH_TOLERANCE_ATR * atr_val
+    touch_bars = np.where(lows <= S + s_band)[0]
+    if len(touch_bars):
+        last_support_frac = round(float(touch_bars[-1]) / max(1, n - 1), 4)
+        after = lows[touch_bars[-1] + 1:]
+        coil_floor_pos = round(float((np.min(after) - S) / box), 4) if len(after) else None
+    else:
+        last_support_frac, coil_floor_pos = None, None
+
     return {
         "n_full_traversals": int(full),
         "n_swings": int(len(swings)),
@@ -579,4 +595,6 @@ def measure_traversal(base_df, R, S, atr_val):
         "rail_reaches_high": int(rail_reaches_high),
         "rail_reaches_low": int(rail_reaches_low),
         "max_swing_frac": round(float(max_span), 4),
+        "last_support_frac": last_support_frac,
+        "coil_floor_pos": coil_floor_pos,
     }

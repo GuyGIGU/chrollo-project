@@ -161,6 +161,8 @@ class SetupArchive(Base):
     trav_rail_reaches_high = Column(Integer, nullable=True)   # swing peaks reaching the high zone
     trav_rail_reaches_low = Column(Integer, nullable=True)    # swing valleys reaching the low zone
     trav_max_swing_frac = Column(Float, nullable=True)        # largest single limb as a fraction of box height
+    trav_last_support_frac = Column(Float, nullable=True)     # time-pos (0..1) of last support touch; low = S abandoned early (descent tail)
+    trav_coil_floor_pos = Column(Float, nullable=True)        # box-pos of lowest Low after last S-touch; high = dead band under the late coil
 
     # ── ADR% absolute-volatility character ──────────────────────
     adr_pct = Column(Float, nullable=True)                    # Average Daily Range % over 20 bars (plain percent)

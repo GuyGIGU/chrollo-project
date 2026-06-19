@@ -71,6 +71,7 @@ STRUCTURAL_FEATURES = [
     "trav_n_full_traversals", "trav_n_swings",
     "trav_top_dead_space", "trav_bottom_dead_space",
     "trav_rail_reaches_high", "trav_rail_reaches_low", "trav_max_swing_frac",
+    "trav_last_support_frac", "trav_coil_floor_pos",
     "adr_pct",
     # Region (bin) features (Stage 2A — "where am I in the base?")
     "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
@@ -102,7 +103,7 @@ HORIZONTAL_FEATURES = [
     "eq_r_touches", "eq_s_touches", "eq_r_touch_thirds", "eq_s_touch_thirds",
     "breach_days", "lps_length", "bin_lps_bars", "lps_position_in_box",
     "trav_n_full_traversals", "trav_n_swings",
-    "trav_rail_reaches_high", "trav_rail_reaches_low",
+    "trav_rail_reaches_high", "trav_rail_reaches_low", "trav_last_support_frac",
     "bin_c_time_loc", "bin_d_bars",
 ]
 #   VERTICAL = magnitudes along the PRICE axis: rail levels / range height, the
@@ -112,6 +113,7 @@ VERTICAL_FEATURES = [
     "lps_descent_frac", "bin_c_undercut_atr",
     "lps_stretch_atr", "lps_stretch_box",
     "trav_top_dead_space", "trav_bottom_dead_space", "trav_max_swing_frac",
+    "trav_coil_floor_pos",
     "final_contraction_depth", "bin_d_vs_b_range_ratio",
 ]
 

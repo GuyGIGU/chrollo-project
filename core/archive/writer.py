@@ -107,6 +107,8 @@ _NEW_COLUMNS: dict[str, str] = {
     "trav_rail_reaches_high":       "INTEGER",
     "trav_rail_reaches_low":        "INTEGER",
     "trav_max_swing_frac":          "FLOAT",
+    "trav_last_support_frac":       "FLOAT",
+    "trav_coil_floor_pos":          "FLOAT",
     # ADR% absolute-volatility character
     "adr_pct":                      "FLOAT",
     "score_adr":                    "FLOAT",
@@ -419,6 +421,8 @@ def archive_scan_results(
             trav_rail_reaches_high=row.get("_trav_rail_reaches_high"),
             trav_rail_reaches_low=row.get("_trav_rail_reaches_low"),
             trav_max_swing_frac=row.get("_trav_max_swing_frac"),
+            trav_last_support_frac=row.get("_trav_last_support_frac"),
+            trav_coil_floor_pos=row.get("_trav_coil_floor_pos"),
             # ADR% absolute-volatility character
             adr_pct=row.get("_adr_pct"),
             score_adr=sub.get("adr"),
