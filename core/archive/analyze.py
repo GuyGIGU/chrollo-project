@@ -118,6 +118,7 @@ VERTICAL_FEATURES = [
 # Sub-scores (the Scoring Engine decomposition).
 SUB_SCORES = [
     "score_box_tightness", "score_touch_density", "score_oscillation",
+    "score_traversal_quality",
     "score_atr_squeeze", "score_lps_tightness", "score_vol_contraction",
     "score_base_age", "score_uptrend_bonus", "score_rs_bonus",
     "score_high_proximity", "score_breadth_bonus", "score_contraction",

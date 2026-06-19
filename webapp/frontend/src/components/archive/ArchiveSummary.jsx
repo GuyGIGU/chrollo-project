@@ -136,7 +136,7 @@ function ScoresPanel({ setup }) {
   const rows = [
     ['Box Tight', 'score_box_tightness'],
     ['Touch Dens.', 'score_touch_density'],
-    ['Oscillation', 'score_oscillation'],
+    ['Worked Eq.', 'score_traversal_quality'],
     ['ATR Squeeze', 'score_atr_squeeze'],
     ['LPS Tight', 'score_lps_tightness'],
     ['Vol Contr.', 'score_vol_contraction'],

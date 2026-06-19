@@ -73,6 +73,7 @@ _NEW_COLUMNS: dict[str, str] = {
     "lps_descent_frac":     "FLOAT",
     "lps_zone_type":        "TEXT",
     "score_high_proximity": "FLOAT",
+    "score_traversal_quality": "FLOAT",
     "score_breadth_bonus":  "FLOAT",
     # VCP progressive-contraction footprint
     "contraction_count":        "INTEGER",
@@ -372,6 +373,7 @@ def archive_scan_results(
             score_box_tightness=sub.get("box_tightness"),
             score_touch_density=sub.get("touch_density"),
             score_oscillation=sub.get("oscillation"),
+            score_traversal_quality=sub.get("traversal_quality"),
             score_atr_squeeze=sub.get("atr_squeeze"),
             score_lps_tightness=sub.get("lps_tightness"),
             score_vol_contraction=sub.get("vol_contraction"),
