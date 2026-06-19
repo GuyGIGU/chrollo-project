@@ -72,7 +72,7 @@ function AppContent({
         )}
         {activeTab === 'portfolio' && (
           <ErrorBoundary>
-            <PortfolioTab key="portfolio" />
+            <PortfolioTab key="portfolio" trades={trades} onTradeDetailClick={onDetailClick} />
           </ErrorBoundary>
         )}
         {activeTab === 'screener' && (

@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmtMoney, fmtNum, fmtPct, fmtTime, pnlColor } from './portfolioFormat';
+import { positionPlanKey } from '../utils/portfolioPlanUtils';
 const thStyle = {
   padding: '11px 12px',
   fontSize: 10,
@@ -32,6 +33,19 @@ const pillStyle = (color, background) => ({
 const orderPrice = (value) => {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue > 0 ? fmtMoney(numberValue) : '-';
+};
+
+const planToneColor = (tone) => {
+  if (tone === 'breached' || tone === 'danger') return 'var(--danger)';
+  if (tone === 'warning') return 'var(--warning)';
+  return 'var(--text-main)';
+};
+
+const planToneBackground = (plan) => {
+  const tone = plan?.derived?.stopRiskTone;
+  if (tone === 'breached' || tone === 'danger') return 'rgba(242, 103, 112, 0.065)';
+  if (tone === 'warning') return 'rgba(240, 190, 60, 0.055)';
+  return null;
 };
 
 const Section = ({ title, count, children }) => (
@@ -85,23 +99,34 @@ const positionStats = (position, netLiquidation) => {
   };
 };
 
-export const LivePositionsTable = ({ positions, netLiquidation, selectedSymbol, onSelectSymbol }) => {
+export const LivePositionsTable = ({
+  netLiquidation,
+  onOpenTradePlan,
+  onSelectSymbol,
+  positionPlans,
+  positions,
+  selectedSymbol,
+}) => {
   const rows = (positions || []).slice().sort((a, b) => Math.abs(Number(b.market_value) || 0) - Math.abs(Number(a.market_value) || 0));
 
   return (
     <Section title="Live Positions" count={rows.length}>
       <Table
-        minWidth={980}
-        headers={['Symbol', 'Side', 'Qty', 'Weight', 'Avg Cost', 'Market', 'Value', 'Unrealized', 'P&L %']}
+        minWidth={1460}
+        headers={['Symbol', 'Side', 'Qty', 'Weight', 'Avg Cost', 'Market', 'Value', 'Unrealized', 'P&L %', 'Plan', 'Stop', 'To Stop', 'R', 'Next Target']}
         empty={rows.length === 0 ? 'No open positions.' : null}
-        colSpan={9}
+        colSpan={14}
       >
         {rows.map((position, index) => {
           const stats = positionStats(position, netLiquidation);
-          const key = `${position.account || ''}-${position.symbol}-${position.sec_type || ''}-${index}`;
+          const planKey = positionPlanKey(position);
+          const plan = positionPlans?.get(planKey);
+          const key = `${planKey}-${index}`;
           const sideColor = stats.qty < 0 ? 'var(--danger)' : 'var(--success)';
           const active = selectedSymbol === position.symbol;
-          const rowBackground = active ? 'rgba(88, 166, 255, 0.12)' : (index % 2 ? 'rgba(255,255,255,0.012)' : 'transparent');
+          const rowBackground = active
+            ? 'rgba(88, 166, 255, 0.12)'
+            : planToneBackground(plan) || (index % 2 ? 'rgba(255,255,255,0.012)' : 'transparent');
           return (
             <tr
               key={key}
@@ -121,12 +146,98 @@ export const LivePositionsTable = ({ positions, netLiquidation, selectedSymbol, 
               <td style={tdStyle}>{stats.marketValue == null ? '-' : fmtMoney(stats.marketValue)}</td>
               <td style={{ ...tdStyle, color: pnlColor(stats.unrealized), fontWeight: 700 }}>{stats.unrealized == null ? '-' : fmtMoney(stats.unrealized)}</td>
               <td style={{ ...tdStyle, color: pnlColor(stats.pnlPct), fontWeight: 700 }}>{fmtPct(stats.pnlPct)}</td>
+              <td style={tdStyle}><PlanStatusCell plan={plan} onOpenTradePlan={onOpenTradePlan} /></td>
+              <td style={tdStyle}>{plan?.derived?.stopVal == null ? '-' : fmtMoney(plan.derived.stopVal)}</td>
+              <td style={{ ...tdStyle, color: planToneColor(plan?.derived?.stopRiskTone), fontWeight: plan?.derived?.stopRiskTone ? 800 : 600 }}>
+                <PlanStopDistance plan={plan} />
+              </td>
+              <td style={{ ...tdStyle, color: pnlColor(plan?.derived?.rValue), fontWeight: 700 }}>{formatR(plan?.derived?.rValue, true)}</td>
+              <td style={tdStyle}><PlanNextTarget plan={plan} /></td>
             </tr>
           );
         })}
       </Table>
     </Section>
   );
+};
+
+const PlanStatusCell = ({ onOpenTradePlan, plan }) => {
+  if (!plan || plan.state === 'missing') {
+    return <span style={pillStyle('var(--text-muted)', 'rgba(255,255,255,0.06)')}>No plan</span>;
+  }
+  if (plan.state === 'multiple') {
+    return <span style={pillStyle('var(--warning)', 'var(--warning-bg)')}>{plan.label}</span>;
+  }
+  const color = plan.directionMismatch ? 'var(--danger)' : 'var(--success)';
+  const background = plan.directionMismatch ? 'var(--danger-bg)' : 'var(--success-bg)';
+  const label = plan.directionMismatch ? 'Mismatch' : 'Linked';
+  const topAlert = plan.alerts?.[0] || null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (plan.trade) onOpenTradePlan?.(plan.trade);
+        }}
+        title="Open linked journal plan"
+        style={{
+          ...pillStyle(color, background),
+          border: 'none',
+          cursor: plan.trade ? 'pointer' : 'default',
+        }}
+      >
+        {label}
+      </button>
+      {topAlert && (
+        <span title={topAlert.detail} style={alertBadgeStyle(topAlert)}>
+          {topAlert.kind}
+        </span>
+      )}
+    </span>
+  );
+};
+
+const PlanStopDistance = ({ plan }) => {
+  const derived = plan?.derived;
+  if (!derived) return '-';
+  const pct = formatPctValue(derived.distToStopPct);
+  const r = formatR(derived.rToStop);
+  if (pct === '-' && r === '-') return '-';
+  return `${pct} / ${r}`;
+};
+
+const PlanNextTarget = ({ plan }) => {
+  const target = plan?.derived?.nextTarget;
+  if (!target) return <span style={{ color: 'var(--text-muted)' }}>{plan?.derived?.targetLadder?.length ? 'Complete' : '-'}</span>;
+  const distance = target.distToTargetPct == null || !Number.isFinite(Number(target.distToTargetPct))
+    ? 'No quote'
+    : `${formatPctValue(target.distToTargetPct)} / ${formatR(target.rToTarget)} away`;
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+      <strong style={{ color: 'var(--accent-blue)', fontSize: 12 }}>{target.label} {fmtMoney(target.price)}</strong>
+      <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+        {distance}
+      </span>
+    </span>
+  );
+};
+
+const alertBadgeStyle = (alert) => {
+  const isStop = alert.level === 'critical' || alert.level === 'danger';
+  if (isStop) return pillStyle('var(--danger)', 'var(--danger-bg)');
+  if (alert.level === 'warning') return pillStyle('var(--warning)', 'var(--warning-bg)');
+  return pillStyle('var(--accent-blue)', 'var(--accent-blue-soft)');
+};
+
+const formatPctValue = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '-';
+  return `${Number(value).toFixed(1)}%`;
+};
+
+const formatR = (value, signed = false) => {
+  if (value == null || !Number.isFinite(Number(value))) return '-';
+  return `${signed && Number(value) >= 0 ? '+' : ''}${Number(value).toFixed(2)}R`;
 };
 
 export const OpenOrdersTable = ({ orders }) => {

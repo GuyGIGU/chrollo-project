@@ -8,6 +8,7 @@ import PortfolioPositionChart from './PortfolioPositionChart';
 import PortfolioStatusBar from './PortfolioStatusBar';
 import { LivePositionsTable, OpenOrdersTable, RecentExecutionsTable } from './PortfolioTables';
 import { summaryValue } from './portfolioFormat';
+import { buildPortfolioPlanMap } from '../utils/portfolioPlanUtils';
 
 const unavailableStyle = {
   background: 'var(--bg-panel)',
@@ -46,7 +47,7 @@ const disconnect = async () => {
   if (!response.ok) throw new Error(await response.text());
 };
 
-const PortfolioTab = () => {
+const PortfolioTab = ({ onTradeDetailClick, trades = [] }) => {
   const status = useIBKRStatus(10000);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
@@ -60,6 +61,10 @@ const PortfolioTab = () => {
   const dailyRestart = !!snapshot.daily_restart || !!status?.daily_restart;
   const sessionCompetition = !!snapshot.session_competition || !!status?.session_competition;
   const netLiquidation = Number(summaryValue(summary, 'NetLiquidation')) || 0;
+  const positionPlans = useMemo(
+    () => buildPortfolioPlanMap(positions, trades),
+    [positions, trades],
+  );
 
   const largestPosition = useMemo(() => (
     positions.reduce((best, item) => {
@@ -145,9 +150,11 @@ const PortfolioTab = () => {
       />
       <LivePositionsTable
         positions={positions}
+        positionPlans={positionPlans}
         netLiquidation={netLiquidation}
         selectedSymbol={selectedSymbol}
         onSelectSymbol={openPositionChart}
+        onOpenTradePlan={onTradeDetailClick}
       />
       <OpenOrdersTable orders={openOrders} />
       <RecentExecutionsTable executions={executions} />

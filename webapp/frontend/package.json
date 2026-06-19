@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/utils/tradeTableUtils.test.js",
+    "test": "node --test src/utils/tradeTableUtils.test.js src/utils/portfolioPlanUtils.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
