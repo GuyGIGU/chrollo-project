@@ -29,10 +29,10 @@ if _ROOT not in sys.path:
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters
-from core.structure.box_candidates import (
+from core.structure.box_primitives import (
     INNER_MIN_DAYS,
     _detect_inner_phase_b_start,
-    _inner_zigzag,
+    inner_zigzag,
 )
 from core.structure.consolidation import find_outer_box
 from core.structure.indicators import calculate_atr
@@ -76,7 +76,7 @@ def _box(ax, x0, last_x, box, color, alpha, label):
 def _inner_box(eval_df, n, start):
     if start is None or start >= len(eval_df) or (n - start) < INNER_MIN_DAYS:
         return None
-    r = _inner_zigzag(eval_df, start, n - start)
+    r = inner_zigzag(eval_df, start, n - start)
     if r[0] == 0:
         return None
     return (n - r[0], r[1], r[2], r[3])     # (start_df, R, S, bw)

@@ -157,7 +157,6 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         tightness_ratio=result["tightness_ratio"],
         score_box_tightness=sub.get("box_tightness"),
         score_touch_density=sub.get("touch_density"),
-        score_oscillation=sub.get("oscillation"),
         score_atr_squeeze=sub.get("atr_squeeze"),
         score_lps_tightness=sub.get("lps_tightness"),
         score_vol_contraction=sub.get("vol_contraction"),

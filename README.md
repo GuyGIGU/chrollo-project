@@ -85,7 +85,7 @@ absolute volatility) were all added this way.
 
 ```
 core/                  The screener engine (see core/MAP.md)
-  structure/           Visual Structure Engine — consolidation.py, box_candidates.py,
+  structure/           Visual Structure Engine — consolidation.py, box_primitives.py,
                          lps.py, indicators.py
   scoring/             Scoring Engine — scoring.py (score_setup, calculate_tier)
   pipeline/            Conductor — data.py public API; tickers.py, downloads.py,

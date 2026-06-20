@@ -11,8 +11,10 @@ from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
     calculate_atr,
+    descent_tail_rejects,
     detect_lps,
     detect_lps_tests,
+    lps_range_threshold,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
@@ -103,6 +105,70 @@ def _structure_to_boxes(s, n: int) -> dict:
     return {"parent": parent, "inner": inner}
 
 
+def select_active_lps(df, latest, parent, inner, atr):
+    """Detect the active LPS, preferring the tighter inner box's LPS when it
+    yields one (closer trigger / stop), else the parent's. Returns
+    ``(lps_result, lps_in_inner, lps_context)``.
+
+    Folded out of the live + seed eval paths so the inner-first-then-parent rule
+    can never silently diverge. ``parent`` is
+    ``(S, R, base_range_threshold, base_len, swing_complete_idx)``.
+    """
+    sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx = parent
+    lps_result = None
+    lps_in_inner = False
+    lps_context = parent
+    if inner is not None:
+        inner_base_df = df.iloc[-inner["base_len"]:]
+        inner_swing_complete = inner["start_bar"] + max(
+            inner["r_anchor_bar"], inner["s_anchor_bar"])
+        inner_rt = lps_range_threshold(inner_base_df, atr)
+        inner_lps = detect_lps(
+            df, latest, inner["S"], inner["R"], atr,
+            inner_rt, inner["base_len"], inner_swing_complete,
+        )
+        if inner_lps:
+            lps_result = inner_lps
+            lps_in_inner = True
+            lps_context = (inner["S"], inner["R"], inner_rt,
+                           inner["base_len"], inner_swing_complete)
+    if lps_result is None:
+        lps_result = detect_lps(
+            df, latest, sup_avg, res_avg, atr,
+            base_range_threshold, base_len, swing_complete_idx,
+        )
+    return lps_result, lps_in_inner, lps_context
+
+
+def descent_tail_drops(frame, parent_traversal, box_width, inner, lps_in_inner, atr):
+    """Width-aware descent-tail gate on the ACTIVE box — the inner box's own
+    traversal when the LPS re-anchored there (so a clean promotable inner
+    survives, e.g. QUAD), else the parent's (drops CHCT/DGII). Folded so the
+    live + seed paths gate identically. ``parent_traversal`` is the already
+    computed parent ``measure_traversal`` result."""
+    if lps_in_inner and inner is not None:
+        gate_trav = measure_traversal(
+            frame.iloc[-inner["base_len"]:], inner["R"], inner["S"], atr)
+        gate_width = float(inner["box_width"])
+    else:
+        gate_trav = parent_traversal
+        gate_width = box_width
+    return descent_tail_rejects(gate_trav.get("last_support_frac"),
+                                gate_trav.get("coil_floor_pos"), gate_width)
+
+
+def score_traversal_args(traversal, equilibrium, bins) -> dict:
+    """The four box-relative swing facts ``score_setup`` needs from the measure
+    layer. Folded so the live + seed paths feed the scorer identically."""
+    return {
+        "traversal_density": (traversal["n_full_traversals"] / traversal["n_swings"]
+                              if traversal["n_swings"] else 0.0),
+        "max_swing_frac": traversal["max_swing_frac"] or 1.0,
+        "dwell_asymmetry": abs(equilibrium["upper_dwell"] - equilibrium["lower_dwell"]),
+        "has_spring": bool(bins.get("bin_c_present")),
+    }
+
+
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None) -> Optional[dict]:
@@ -153,43 +219,16 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         base_df = df.iloc[-base_len:]
         atr_for_zone = float(atr_eval['ATR_10'])
 
-        def _range_threshold(bdf):
-            return max(
-                float(bdf['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
-                1.2 * atr_for_zone,
-            )
-
-        base_range_threshold = _range_threshold(base_df)
+        base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
         phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
         # Use the inner box when it yields an LPS (tighter box -> closer trigger /
         # stop), else the parent. Only the LPS (trigger / zone / tightness /
         # setup type) follows the inner; the base above stays parent.
-        lps_in_inner = False
-        lps_result = None
-        lps_context = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
-        if inner is not None:
-            inner_base_df = df.iloc[-inner["base_len"]:]
-            inner_swing_complete = inner["start_bar"] + max(
-                inner["r_anchor_bar"], inner["s_anchor_bar"])
-            inner_range_threshold = _range_threshold(inner_base_df)
-            inner_lps = detect_lps(
-                df, latest, inner["S"], inner["R"], atr_for_zone,
-                inner_range_threshold, inner["base_len"], inner_swing_complete,
-            )
-            if inner_lps:
-                lps_result = inner_lps
-                lps_in_inner = True
-                lps_context = (
-                    inner["S"], inner["R"], inner_range_threshold,
-                    inner["base_len"], inner_swing_complete,
-                )
-        if lps_result is None:
-            lps_result = detect_lps(
-                df, latest, sup_avg, res_avg,
-                atr_for_zone, base_range_threshold, base_len, swing_complete_idx,
-            )
+        parent_ctx = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
+        lps_result, lps_in_inner, lps_context = select_active_lps(
+            df, latest, parent_ctx, inner, atr_for_zone)
 
         if not lps_result:
             return None
@@ -233,6 +272,11 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         support = measure_support_slope(base_df, atr_for_zone)
         equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
         traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
+
+        # Descent-tail gate: drop a wide box that abandoned its support rail early
+        # into dead space (CHCT/DGII); a clean promotable inner survives (QUAD).
+        if descent_tail_drops(df, traversal, box_width, inner, lps_in_inner, atr_for_zone):
+            return None
 
         # Phase A is already the resolved LOCAL root swing (resolve_phase_a brick);
         # no after-the-fact reconciliation needed.
@@ -304,13 +348,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct, breadth_pct,
             contraction['quality'], support['quality'], adr_quality,
-            traversal_density=(
-                traversal['n_full_traversals'] / traversal['n_swings']
-                if traversal['n_swings'] else 0.0
-            ),
-            max_swing_frac=traversal['max_swing_frac'] or 1.0,
-            dwell_asymmetry=abs(equilibrium['upper_dwell'] - equilibrium['lower_dwell']),
-            has_spring=bool(bins.get('bin_c_present')),
+            **score_traversal_args(traversal, equilibrium, bins),
         )
         score = score_result['total']
         tier = calculate_tier(score, box_width)

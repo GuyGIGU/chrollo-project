@@ -342,7 +342,7 @@ def measure_equilibrium(base_df, R, S, atr_val):
     starved.
 
     Pure measurement, no gates and no points — the validity rule in
-    ``box_candidates._validate_base_quality`` and the Scoring Engine decide what
+    ``box_primitives._validate_base_quality`` and the Scoring Engine decide what
     the numbers are worth.
 
     Returns dict (safe defaults on a degenerate window so it reads as invalid):
@@ -475,7 +475,7 @@ def measure_traversal(base_df, R, S, atr_val):
     math itself is box-relative by design.
 
     Pure measurement, no gates and no points (v1). The pool-aware validity gate in
-    ``box_candidates`` (v2) and the archive decide what the numbers are worth.
+    ``box_primitives`` (v2) and the archive decide what the numbers are worth.
 
     Returns dict (safe defaults on a degenerate window):
         n_full_traversals  limbs spanning >= TRAVERSAL_FULL_FRAC of the box that
@@ -598,3 +598,28 @@ def measure_traversal(base_df, R, S, atr_val):
         "last_support_frac": last_support_frac,
         "coil_floor_pos": coil_floor_pos,
     }
+
+
+def descent_tail_rejects(last_support_frac, coil_floor_pos, box_width) -> bool:
+    """True = the box ABANDONED its support rail EARLY into dead space — a
+    mis-anchored / dead-space framing the descent-tail gate drops (CHCT, DGII).
+
+    ``last_support_frac`` (time-position 0..1 of the last support touch) is
+    ``<= DESCENT_TAIL_LSF_MAX`` AND ``coil_floor_pos`` (box-position of the lowest
+    Low after that touch) is ``>= DESCENT_TAIL_CFP_MIN`` — i.e. price left the low
+    rail early and then coiled in dead space above it. Both inputs come from
+    ``measure_traversal``; pass the ACTIVE box's fields (inner if the LPS
+    re-anchored there, else parent).
+
+    Width-aware: TIGHT boxes (``box_width <= BASE_AGE_DEADSPACE_WIDTH``) are EXEMPT
+    — their dead band is small in absolute terms so the tell is a false positive
+    (saves the EQIX winner). No-op unless ``settings.DESCENT_TAIL_GATE_ENABLED``.
+    """
+    if not settings.DESCENT_TAIL_GATE_ENABLED:
+        return False
+    if box_width is None or box_width <= settings.BASE_AGE_DEADSPACE_WIDTH:
+        return False
+    if last_support_frac is None or coil_floor_pos is None:
+        return False
+    return (last_support_frac <= settings.DESCENT_TAIL_LSF_MAX
+            and coil_floor_pos >= settings.DESCENT_TAIL_CFP_MIN)

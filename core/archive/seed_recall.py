@@ -352,6 +352,52 @@ def run(db_path: str = _DB_PATH) -> None:
     print("seeded, run `python -m core.archive.seed` before trusting these numbers.")
 
 
+def run_fresh() -> None:
+    """Re-evaluate the CURRENT engine against the seed winners on FRESH data,
+    bypassing the archive entirely.
+
+    The DB-based report reads whatever rows the archive holds — which can be
+    STALE (written by an older engine) and report yesterday's recall. ``--fresh``
+    re-runs the live engine on freshly downloaded data so engine changes that
+    silently drop winners surface immediately (the blind spot that hid a
+    14-winner regression in 2026-06). Needs network + a few minutes — use
+    ``--check`` for CI's fast path; reach for ``--fresh`` when you suspect the
+    archive is stale or after touching the detector.
+    """
+    from collections import Counter
+
+    from core.archive.seed import SEED_SETUPS, fired_seeds_fresh
+
+    active, ignored = filter_ignored_seeds(SEED_SETUPS)
+    total = len(active)
+    print("=" * 64)
+    print("  SEED RECALL — FRESH re-eval of the CURRENT engine (not the archive)")
+    print("=" * 64)
+    results = fired_seeds_fresh(SEED_SETUPS)
+    fired = {k: r for k, r in results.items() if r is not None}
+    missed = sorted(k for k, r in results.items() if r is None)
+
+    print()
+    print(f"Measured seeds:   {total}")
+    print(f"Re-detected:      {len(fired)}")
+    print(f"Missed:           {len(missed)}")
+    print(f"RECALL (fresh):   {len(fired) / total * 100:.1f}%" if total else "RECALL: n/a")
+    tiers = Counter(r["tier"] for r in fired.values())
+    print(f"Hit tiers:        {dict(sorted(tiers.items()))}")
+
+    print()
+    print(f"MISSES ({len(missed)}) — winners the live engine did NOT re-fire in-window:")
+    for ticker, trigger in sorted(missed, key=lambda x: x[1]):
+        print(f"  {ticker:<6} {trigger}")
+    if ignored:
+        print()
+        print(f"IGNORED ({len(ignored)}): "
+              f"{[m['ticker'] for m in ignored]}  (unreliable source data)")
+    print()
+    print("Tip: a FRESH miss the DB-based report counts as a HIT means the archive")
+    print("is stale — re-seed (`python -m core.archive.seed --force`) to refresh it.")
+
+
 def main() -> None:
     import argparse
 
@@ -363,6 +409,9 @@ def main() -> None:
                        help="Snapshot current recall + miss-set as the baseline")
     group.add_argument("--check", action="store_true",
                        help="Fail (exit 1) if recall regressed or a known winner is newly missed")
+    group.add_argument("--fresh", action="store_true",
+                       help="Re-evaluate the CURRENT engine on fresh data, bypassing the "
+                            "(possibly stale) archive (network; slower)")
     args = ap.parse_args()
 
     try:
@@ -371,6 +420,8 @@ def main() -> None:
         elif args.check:
             ok = check_baseline(db_path=args.db, baseline_path=args.baseline)
             sys.exit(0 if ok else 1)
+        elif args.fresh:
+            run_fresh()
         else:
             run(db_path=args.db)
     except RuntimeError as e:

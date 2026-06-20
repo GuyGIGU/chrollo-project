@@ -46,8 +46,7 @@ class SetupArchive(Base):
     # ── Sub-scores (decomposed for regression) ───────────────────
     score_box_tightness = Column(Float, nullable=True)
     score_touch_density = Column(Float, nullable=True)
-    score_oscillation = Column(Float, nullable=True)        # retired (0 on new scans); replaced by traversal_quality
-    score_traversal_quality = Column(Float, nullable=True)  # rail-to-rail two-sidedness reward (replaced oscillation)
+    score_traversal_quality = Column(Float, nullable=True)  # rail-to-rail two-sidedness reward
     score_atr_squeeze = Column(Float, nullable=True)
     score_lps_tightness = Column(Float, nullable=True)
     score_vol_contraction = Column(Float, nullable=True)

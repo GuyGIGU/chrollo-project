@@ -374,7 +374,6 @@ def archive_scan_results(
             # Sub-scores
             score_box_tightness=sub.get("box_tightness"),
             score_touch_density=sub.get("touch_density"),
-            score_oscillation=sub.get("oscillation"),
             score_traversal_quality=sub.get("traversal_quality"),
             score_atr_squeeze=sub.get("atr_squeeze"),
             score_lps_tightness=sub.get("lps_tightness"),

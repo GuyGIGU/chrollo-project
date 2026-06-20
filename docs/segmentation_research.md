@@ -36,7 +36,7 @@ In `core/structure/`:
   peak/valley **swing skeleton** (the HH/HL/LH/LL path the whole trading world
   reads).
 - `consolidation.py::find_outer_box()` — climax (BC/SC) enumeration + earliest-anchor selection.
-- `box_candidates.py::_phase_b_zigzag()` — range validation (boundary respect, touches, midline).
+- `box_primitives.py::phase_b_zigzag()` — range validation (boundary respect, touches, midline).
 - `lps.py::detect_lps()` — the right-edge LPS, gated by `swing_complete_idx` so
   it can't predate the box.
 
@@ -123,7 +123,7 @@ rooting to respect **segment ownership**.
   via the segmentation root swing — display/scoping only, zero canonical drift.
 - **Change B (shipped).** Outer-box candidate selection flipped from
   *global-best combined score* to **earliest good-enough range start**
-  (`select="earliest"`, now the live default in `_phase_b_zigzag` /
+  (`select="earliest"`, now the live default in `phase_b_zigzag` /
   `find_outer_box` / `find_consolidation` / `_evaluate_ticker`). The old "best"
   rule chronically truncated bases — it grabbed a tight recent *tail* with R
   often pinned to a transient spike (CGEM 19-bar tail, NMM 23-bar 2-touch

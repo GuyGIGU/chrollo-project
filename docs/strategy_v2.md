@@ -119,7 +119,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase A — Anchor Selection & Backtracking
 
-`_collect_root_anchors()` is built most-recent-first; `find_root_swing()` reads it oldest-first and returns the next root swing at/after the reader's search cursor. The reader then asks Phase B and Phase D to validate the story born from that root. If the box fails, the spring/LPS path fails, or no active LPS exists, the cursor advances past that climax and the reader tries the next pair of limbs. This preserves the "earliest valid cause" bias without forcing an invalid old trend top onto a newer worked base.
+`collect_root_anchors()` is built most-recent-first; `find_root_swing()` reads it oldest-first and returns the next root swing at/after the reader's search cursor. The reader then asks Phase B and Phase D to validate the story born from that root. If the box fails, the spring/LPS path fails, or no active LPS exists, the cursor advances past that climax and the reader tries the next pair of limbs. This preserves the "earliest valid cause" bias without forcing an invalid old trend top onto a newer worked base.
 
 ### Phase A — Locality Resolution
 
@@ -129,7 +129,7 @@ This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, c
 
 ### Phase B — Zigzag S/R Anchoring
 
-`_phase_b_zigzag()` ([core/structure/box_candidates.py](../core/structure/box_candidates.py)).
+`phase_b_zigzag()` ([core/structure/box_primitives.py](../core/structure/box_primitives.py)).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -185,9 +185,9 @@ mini-consolidation runs the same worked-equilibrium validity one scale down
 
 #### `cand_start` trim — measure on the actual chop window
 
-Phase B begins at the AR *low* (or the bounce *high* for SC anchors), but the structural box rarely starts there — it starts at the next zigzag pivot, which is the inner "mini BC" / "mini AR" that opens the working consolidation. Bars between the outer AR and this inner pivot are the early-chop drift, not part of the box, and including them in boundary respect / base quality measurement inflates breach counts and forgives wicks that aren't really chop. To correct this, every candidate inside `_phase_b_zigzag()` is measured on its own bar window: starting at `cand_start = min(r_anchor_bar, s_anchor_bar)` (the earlier of the two zigzag anchors that define R and S). Both `_is_boundary_respected()` and `_validate_base_quality()` run over `eq_df.iloc[cand_start:]`, so the boundary-respect % and the touch / midline-cross counts reflect the actual chop range, not the BC→AR span. The returned `base_length` is also the trimmed length (`base_length - cand_start`), and the r/s anchor bars are rebased to it. The outer BC anchor (`bc_anchor_bar`) remains df-positional — only the box window itself is trimmed.
+Phase B begins at the AR *low* (or the bounce *high* for SC anchors), but the structural box rarely starts there — it starts at the next zigzag pivot, which is the inner "mini BC" / "mini AR" that opens the working consolidation. Bars between the outer AR and this inner pivot are the early-chop drift, not part of the box, and including them in boundary respect / base quality measurement inflates breach counts and forgives wicks that aren't really chop. To correct this, every candidate inside `phase_b_zigzag()` is measured on its own bar window: starting at `cand_start = min(r_anchor_bar, s_anchor_bar)` (the earlier of the two zigzag anchors that define R and S). Both `_is_boundary_respected()` and `_validate_base_quality()` run over `eq_df.iloc[cand_start:]`, so the boundary-respect % and the touch / midline-cross counts reflect the actual chop range, not the BC→AR span. The returned `base_length` is also the trimmed length (`base_length - cand_start`), and the r/s anchor bars are rebased to it. The outer BC anchor (`bc_anchor_bar`) remains df-positional — only the box window itself is trimmed.
 
-`_phase_b_zigzag` returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
+`phase_b_zigzag` returns: `(base_length, R, S, box_width, r_touches, s_touches, total_outside, r_anchor_bar, s_anchor_bar)`.
 
 The live reader returns a `Structure` object with the validated parent `EquilibriumBox`, optional `InnerBox`, optional `Spring`, winning `Lps`, phase boundaries, and Phase-D evidence. `_evaluate_ticker()` adapts that into the legacy parent tuple internally: `(base_length, R, S, box_width, r_touches, s_touches, breach_days, r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, is_inner_box)`. `bc_anchor_bar` / `phase_b_start_bar` are df-positional and feed the `_bars_since_BC` / `_descent_length` archive fields. Diagnostic `detect_boxes()` still returns `{"parent": <12-tuple>, "inner": <dict|None>}` for tools.
 
@@ -214,7 +214,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 - the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
 - the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint").
 
-**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" through the `find_inner_box()` brick, which mirrors the legacy inner search (`_inner_box_at` + `_detect_inner_root_swing`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
+**The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" through the `find_inner_box()` brick, which mirrors the shared inner search (`inner_box_at` + `detect_inner_root_swing`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
 
 **The "V" — a positioning guide, not a detected object.** The right-most action often traces a V: a final dip / shakeout / spring down into support, then a turn back up. The V is a guide for *where the trader wants to stand*:
 
@@ -623,7 +623,6 @@ SCORE_VOL_CONTRACTION = 20
 SCORE_LPS_TIGHTNESS = 20
 SCORE_BOX_TIGHTNESS = 22
 SCORE_ATR_SQUEEZE = 8
-SCORE_OSCILLATION = 5            # bar-midpoint rail-working bonus
 TOUCH_BONUS_INDIVIDUAL = 3; TOUCH_BONUS_TOTAL = 6; TOUCH_BONUS_POINTS = 10
 MIN_STRONG_YEARLY_RETURN = 0.30; MAX_STRONG_YEARLY_RETURN = 0.60; SCORE_UPTREND_BONUS = 15
 SCORE_RS_BONUS = 15; RS_LOOKBACK_BARS = 126; RS_MAX_EXCESS_RETURN = 0.30
@@ -658,13 +657,13 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-The live reader calls `find_inner_box()` ([core/structure/bricks.py](../core/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`_detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+The live reader calls `find_inner_box()` ([core/structure/bricks.py](../core/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 `detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
 
-The key difference between `_inner_zigzag` and `_phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
+The key difference between `inner_zigzag` and `phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 
 Historical backtest snapshots are calibration inputs, not permanent truth. When a missed visual winner clusters around a hard LPS gate, the next step is to measure that gate against forward outcomes before moving it into quality/selector evidence.
 

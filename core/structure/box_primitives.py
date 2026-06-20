@@ -1,4 +1,7 @@
-"""Zigzag candidate generation + worked-equilibrium validity for consolidation boxes.
+"""Shared calibrated box primitives.
+
+The live chronological bricks and the diagnostic standalone detectors in
+``consolidation`` both compose these measurement helpers.
 
 A candidate is a Resistance-anchor / Support-anchor pair drawn from the zigzag
 (``BC``/``AR`` are the Phase-A trend climax/rally — the place the search begins,
@@ -17,11 +20,107 @@ from core.structure.metrics import measure_traversal
 from core.structure.pivots import _build_zigzag, _find_pivots
 
 
-INNER_MIN_DAYS = 15   # min length of an inner CANDIDATE box. NOTE: _inner_zigzag
+INNER_MIN_DAYS = 15   # min length of an inner CANDIDATE box. NOTE: inner_zigzag
                       # separately requires the search WINDOW to be >= MIN_BASE_DAYS
                       # (the binding floor); the room-checks that use this constant
                       # are only a looser pre-filter.
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
+
+__all__ = [
+    "INNER_MIN_DAYS",
+    "EMPTY_BOX",
+    "collect_root_anchors",
+    "inner_box_at",
+    "collect_zigzag_candidates",
+    "select_phase_b_candidate",
+    "detect_inner_root_swing",
+    "phase_b_zigzag",
+    "inner_zigzag",
+    "_detect_inner_phase_b_start",
+    "_validate_base_quality",
+    "_worked_window_end",
+]
+
+
+def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[str, int, int, float, float]]:
+    """Return qualifying Phase-A climax -> reaction anchors, most-recent first."""
+    if len(eval_df) < min_days + 15:
+        return []
+
+    closes = eval_df['Close'].values
+    highs = eval_df['High'].values
+    lows = eval_df['Low'].values
+    sma200 = eval_df['Close'].rolling(200).mean().values
+    end = len(eval_df) - 1
+
+    if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
+        return []
+
+    min_move = settings.TREND_MIN_GAIN_PCT
+    min_move_bars = settings.TREND_MIN_MOVE_BARS
+    prior_lookback = settings.TREND_PRIOR_LOOKBACK
+    local_peak_bars = settings.LOCAL_PEAK_BARS
+
+    scan_lo = min_move_bars + 5
+    scan_hi = end - min_days
+    if scan_hi <= scan_lo:
+        return []
+
+    anchors: list[tuple[str, int, int, float, float]] = []
+
+    for i in range(scan_hi, scan_lo - 1, -1):
+        prior_start = max(0, i - prior_lookback)
+        local_start = max(0, i - local_peak_bars)
+
+        if highs[i] >= np.max(highs[local_start:i + 1]):
+            prior_lows = lows[prior_start:i]
+            if len(prior_lows) >= min_move_bars:
+                trough_k = int(np.argmin(prior_lows))
+                trough_low = float(prior_lows[trough_k])
+                trough_bar = prior_start + trough_k
+                if trough_low > 0 \
+                        and highs[i] / trough_low - 1.0 >= min_move \
+                        and (i - trough_bar) >= min_move_bars:
+                    ar_thr = highs[i] * (1.0 - settings.AR_MIN_DROP_PCT)
+                    ar_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
+                    ar_completed = False
+                    ar_low_bar = -1
+                    ar_low_val = np.inf
+                    for j in range(i + 1, ar_end):
+                        if closes[j] <= ar_thr:
+                            ar_completed = True
+                        if lows[j] < ar_low_val:
+                            ar_low_val = lows[j]
+                            ar_low_bar = j
+                    if ar_completed and ar_low_bar != -1 \
+                            and (len(eval_df) - ar_low_bar) >= min_days:
+                        anchors.append(('BC', i, ar_low_bar, float(highs[i]), float(ar_low_val)))
+
+        if lows[i] <= np.min(lows[local_start:i + 1]):
+            prior_highs = highs[prior_start:i]
+            if len(prior_highs) >= min_move_bars:
+                peak_k = int(np.argmax(prior_highs))
+                peak_high = float(prior_highs[peak_k])
+                peak_bar = prior_start + peak_k
+                if peak_high > 0 \
+                        and 1.0 - lows[i] / peak_high >= min_move \
+                        and (i - peak_bar) >= min_move_bars:
+                    bounce_thr = lows[i] * (1.0 + settings.AR_MIN_DROP_PCT)
+                    bounce_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
+                    bounce_completed = False
+                    bounce_high_bar = -1
+                    bounce_high_val = -np.inf
+                    for j in range(i + 1, bounce_end):
+                        if closes[j] >= bounce_thr:
+                            bounce_completed = True
+                        if highs[j] > bounce_high_val:
+                            bounce_high_val = highs[j]
+                            bounce_high_bar = j
+                    if bounce_completed and bounce_high_bar != -1 \
+                            and (len(eval_df) - bounce_high_bar) >= min_days:
+                        anchors.append(('SC', i, bounce_high_bar, float(bounce_high_val), float(lows[i])))
+
+    return anchors
 
 
 def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
@@ -320,8 +419,8 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, len(highs))
 
 
-def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
-                               enforce_traversal=False):
+def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
+                              enforce_traversal=False):
     """Build valid R/S candidates from consecutive zigzag limbs."""
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
@@ -395,7 +494,7 @@ def _collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0
     return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal)
 
 
-def _select_phase_b_candidate(valid_candidates, select):
+def select_phase_b_candidate(valid_candidates, select):
     """Pick one framing from the valid set.
 
     Every candidate here already passed the worked-equilibrium validity rule, so
@@ -439,15 +538,15 @@ def _rebase_selected_candidate(candidate, base_length):
             best_breach, new_r_anchor, new_s_anchor)
 
 
-def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
-                    select="earliest"):
+def phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
+                   select="earliest"):
     """Shared Phase B: zigzag S/R anchoring over eval_df.iloc[start_idx:]."""
     eq_df = eval_df.iloc[start_idx:]
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
     atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
-    valid_candidates = _collect_zigzag_candidates(
+    valid_candidates = collect_zigzag_candidates(
         eq_df, base_length, atr_val, enforce_traversal=True)
 
     if not valid_candidates:
@@ -456,11 +555,11 @@ def _phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
     if select == "debug":
         return _debug_candidates(valid_candidates, base_length)
 
-    selected = _select_phase_b_candidate(valid_candidates, select)
+    selected = select_phase_b_candidate(valid_candidates, select)
     return _rebase_selected_candidate(selected, base_length)
 
 
-def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
+def inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
     """Inner-stage zigzag detector scored over each candidate's own bar range."""
     eq_df = eval_df.iloc[start_idx:]
     if len(eq_df) < settings.MIN_BASE_DAYS:
@@ -470,7 +569,7 @@ def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
     eq_lows = eq_df['Low'].values
 
     atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
-    valid_candidates = _collect_zigzag_candidates(
+    valid_candidates = collect_zigzag_candidates(
         eq_df, base_length, atr_val, min_candidate_days=INNER_MIN_DAYS,
     )
     if not valid_candidates:
@@ -480,7 +579,45 @@ def _inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
     return _rebase_selected_candidate(selected, base_length)
 
 
-def _detect_inner_root_swing(eq_df):
+def inner_box_at(eval_df, start, n, source="midpoint", root=None):
+    """Run the inner-stage zigzag from ``start`` and normalize to an inner-box dict.
+
+    Returns None when the window is too short or no valid inner box forms. The
+    returned ``start_bar`` is df-positional (n - effective base length), matching
+    the engine's ``phase_b_start = len(df) - base_len`` convention.
+    """
+    # inner_zigzag itself requires the search window to be >= MIN_BASE_DAYS, so
+    # gate on that same (eval_df-relative) floor - INNER_MIN_DAYS is only the min
+    # inner CANDIDATE length, not the window floor.
+    if start >= len(eval_df) or (len(eval_df) - start) < settings.MIN_BASE_DAYS:
+        return None
+    r = inner_zigzag(eval_df, start, n - start)
+    if r[0] == 0:
+        return None
+    eff_base_len, R, S, bw, rt, st = r[0], r[1], r[2], r[3], r[4], r[5]
+    box = {
+        "R": float(R), "S": float(S), "box_width": float(bw),
+        "base_len": int(eff_base_len), "start_bar": int(n - eff_base_len),
+        "r_touches": int(rt), "s_touches": int(st),
+        "r_anchor_bar": int(r[7]), "s_anchor_bar": int(r[8]),
+        "source": source,
+        "search_start_bar": int(start),
+        "climax_bar": None,
+        "reaction_bar": None,
+        "reaction_pct": None,
+        "reaction_bars": None,
+    }
+    if root is not None:
+        box.update({
+            "climax_bar": int(root["bc_bar"]),
+            "reaction_bar": int(root["ar_bar"]),
+            "reaction_pct": float(root["reaction_pct"]),
+            "reaction_bars": int(root["reaction_bars"]),
+        })
+    return box
+
+
+def detect_inner_root_swing(eq_df):
     """Measure the inner climax -> reaction swing inside an outer base.
 
     Bars are offsets into ``eq_df``. This is the richer measurement behind
@@ -539,5 +676,5 @@ def _detect_inner_phase_b_start(eq_df):
     Pure measurement — reads price only, reuses existing tunables, decides nothing
     about scoring or eligibility.
     """
-    root = _detect_inner_root_swing(eq_df)
+    root = detect_inner_root_swing(eq_df)
     return root["ar_bar"] if root is not None else None

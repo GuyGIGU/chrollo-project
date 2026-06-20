@@ -26,6 +26,17 @@ def _clamp(value: float, cap: float) -> float:
     return max(0.0, min(cap, value))
 
 
+def _ramp(value: Optional[float], zero_at: float, full_at: float, cap: float) -> float:
+    """Linear ramp: 0 at/below ``zero_at``, ``cap`` at/above ``full_at``, proportional
+    in between. The single shape shared by the uptrend / RS / 52w-high / breadth
+    bonuses — each rewards a measurement that scales between a zero point and a
+    saturation point. ``None`` (a missing measurement, e.g. no 52w history) → 0."""
+    if value is None or value <= zero_at:
+        return 0.0
+    progress = min(1.0, (value - zero_at) / (full_at - zero_at))
+    return progress * cap
+
+
 def score_setup(box_width: float, r_touches: int, s_touches: int,
                 res_avg: float, sup_avg: float, base_df: pd.DataFrame,
                 atr_ratio: float, tightness_ratio: float,
@@ -92,9 +103,6 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                                 settings.TRAVERSAL_QUALITY_DWELL_PENALTY)
     s_traversal = max(0.0, density_reward - dead_space_penalty)
 
-    # Oscillation retired (rail-blind). Kept at 0 for payload/archive key continuity.
-    s_osc = 0.0
-
     # ATR squeeze
     s_atr = _clamp((1.0 - atr_ratio) * settings.SCORE_ATR_SQUEEZE,
                     settings.SCORE_ATR_SQUEEZE)
@@ -123,53 +131,24 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 and traversal_density < settings.TRAVERSAL_QUALITY_DENSITY_FULL):
             s_age *= _clamp(traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL, 1.0)
 
-    # Strong-uptrend bonus — re-accumulation in an established uptrend
-    # breaks out more reliably than the same structure on a flat YoY chart.
-    # Linear ramp from MIN_STRONG_YEARLY_RETURN to MAX_STRONG_YEARLY_RETURN.
-    if yearly_return >= settings.MIN_STRONG_YEARLY_RETURN:
-        span = settings.MAX_STRONG_YEARLY_RETURN - settings.MIN_STRONG_YEARLY_RETURN
-        progress = min(1.0, (yearly_return - settings.MIN_STRONG_YEARLY_RETURN) / span)
-        s_uptrend = progress * settings.SCORE_UPTREND_BONUS
-    else:
-        s_uptrend = 0.0
+    # Strong-uptrend bonus — re-accumulation in an established uptrend breaks out
+    # more reliably than the same structure on a flat YoY chart. Ramp MIN→MAX return.
+    s_uptrend = _ramp(yearly_return, settings.MIN_STRONG_YEARLY_RETURN,
+                      settings.MAX_STRONG_YEARLY_RETURN, settings.SCORE_UPTREND_BONUS)
 
-    # Soft RS bonus — additive points for outperforming SPY over 6 months.
-    # No filter, just leadership reward; saturates at RS_MAX_EXCESS_RETURN.
-    if excess_return > 0:
-        rs_progress = min(1.0, excess_return / settings.RS_MAX_EXCESS_RETURN)
-        s_rs = rs_progress * settings.SCORE_RS_BONUS
-    else:
-        s_rs = 0.0
+    # Soft RS bonus — additive points for outperforming SPY over 6 months. No
+    # filter, just leadership reward; ramps from 0 up to RS_MAX_EXCESS_RETURN.
+    s_rs = _ramp(excess_return, 0.0, settings.RS_MAX_EXCESS_RETURN, settings.SCORE_RS_BONUS)
 
     # 52-week high proximity — bases near recent highs hold breakouts more
-    # reliably. Linear ramp; null distance contributes zero (e.g. tickers
-    # without sufficient history).
-    s_high = 0.0
-    if dist_52w_high_pct is not None:
-        full = settings.HIGH_PROXIMITY_FULL_PCT
-        zero = settings.HIGH_PROXIMITY_ZERO_PCT
-        if dist_52w_high_pct >= full:
-            s_high = float(settings.SCORE_52W_HIGH_PROXIMITY)
-        elif dist_52w_high_pct <= zero:
-            s_high = 0.0
-        else:
-            progress = (dist_52w_high_pct - zero) / (full - zero)
-            s_high = progress * settings.SCORE_52W_HIGH_PROXIMITY
+    # reliably. Ramp ZERO→FULL pct; null distance (no history) contributes zero.
+    s_high = _ramp(dist_52w_high_pct, settings.HIGH_PROXIMITY_ZERO_PCT,
+                   settings.HIGH_PROXIMITY_FULL_PCT, settings.SCORE_52W_HIGH_PROXIMITY)
 
-    # Market-breadth bonus — linear ramp on % of universe above SMA_50.
-    # Same value for every setup in a run; rewards a friendly tape regardless
-    # of which ticker we're scoring.
-    s_breadth = 0.0
-    if breadth_pct is not None:
-        b_full = settings.BREADTH_FULL_PCT
-        b_zero = settings.BREADTH_ZERO_PCT
-        if breadth_pct >= b_full:
-            s_breadth = float(settings.SCORE_BREADTH_BONUS)
-        elif breadth_pct <= b_zero:
-            s_breadth = 0.0
-        else:
-            b_progress = (breadth_pct - b_zero) / (b_full - b_zero)
-            s_breadth = b_progress * settings.SCORE_BREADTH_BONUS
+    # Market-breadth bonus — ramp on % of universe above SMA_50. Same value for
+    # every setup in a run; rewards a friendly tape regardless of the ticker.
+    s_breadth = _ramp(breadth_pct, settings.BREADTH_ZERO_PCT,
+                      settings.BREADTH_FULL_PCT, settings.SCORE_BREADTH_BONUS)
 
     # VCP progressive-contraction footprint — the *process* of tightening
     # (count + progressive-shrink + tight final contraction), as opposed to
@@ -195,7 +174,6 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'total': total,
         'box_tightness': round(s_box, 2),
         'touch_density': round(s_touch, 2),
-        'oscillation': round(s_osc, 2),
         'traversal_quality': round(s_traversal, 2),
         'atr_squeeze': round(s_atr, 2),
         'lps_tightness': round(s_lps, 2),

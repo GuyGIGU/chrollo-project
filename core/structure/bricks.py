@@ -14,12 +14,13 @@ import pandas as pd
 
 from config import settings
 from core.structure.bin_features import _phase_c_candidate
-from core.structure.box_candidates import (
-    _collect_zigzag_candidates,
-    _detect_inner_root_swing,
-    _select_phase_b_candidate,
+from core.structure.box_primitives import (
+    collect_root_anchors,
+    collect_zigzag_candidates,
+    detect_inner_root_swing,
+    inner_box_at,
+    select_phase_b_candidate,
 )
-from core.structure.consolidation import _collect_root_anchors, _inner_box_at
 from core.structure.lps import detect_lps
 from core.structure.metrics import measure_traversal
 from core.structure.segmentation import segment_swings
@@ -144,7 +145,7 @@ def find_root_swing(
     # valid full-df indices; the LPS/spring bricks still read the full df.
     skip = settings.STRUCTURE_EDGE_SKIP_BARS
     eval_df = df.iloc[:-skip] if len(df) > skip else df
-    anchors = _collect_root_anchors(eval_df, settings.MIN_BASE_DAYS)
+    anchors = collect_root_anchors(eval_df, settings.MIN_BASE_DAYS)
     for kind, climax_bar, ar_bar, R, S in reversed(anchors):
         if climax_bar < start:
             continue
@@ -185,7 +186,7 @@ def validate_equilibrium(
     if len(eq_df) < settings.MIN_BASE_DAYS:
         return None
 
-    candidates = _collect_zigzag_candidates(
+    candidates = collect_zigzag_candidates(
         eq_df,
         len(df) - root.ar_bar,   # base_length in full-df terms (matches legacy)
         float(atr),
@@ -194,7 +195,7 @@ def validate_equilibrium(
     if not candidates:
         return None
 
-    selected = _select_phase_b_candidate(candidates, "earliest")
+    selected = select_phase_b_candidate(candidates, "earliest")
     # Trailing *_ absorbs the judged-window length (slot 10); this path rebases
     # the anchors itself against root.ar_bar below, so it reads the raw candidate.
     quality, R, S, box_width, r_touches, s_touches, breach_days, \
@@ -248,7 +249,7 @@ def find_inner_box(
     starts = {
         midpoint_start: {"source": "midpoint", "root": None},
     }
-    root = _detect_inner_root_swing(eval_df.iloc[parent_pbs:])
+    root = detect_inner_root_swing(eval_df.iloc[parent_pbs:])
     if root is not None:
         root_abs = {
             "bc_bar": parent_pbs + int(root["bc_bar"]),
@@ -260,7 +261,7 @@ def find_inner_box(
 
     candidates = []
     for s, meta in starts.items():
-        inner = _inner_box_at(
+        inner = inner_box_at(
             eval_df, s, n,
             source=meta["source"], root=meta["root"],
         )

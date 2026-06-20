@@ -1,4 +1,5 @@
-"""Startup database setup and additive migrations."""
+"""Startup database setup and idempotent migrations (mostly additive ALTERs, plus
+the occasional one-off retired-column DROP)."""
 from __future__ import annotations
 
 import logging
@@ -80,6 +81,9 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN trav_rail_reaches_high INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN trav_rail_reaches_low INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN trav_max_swing_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN trav_last_support_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN trav_coil_floor_pos FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN score_traversal_quality FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN adr_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN score_adr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN phase_d_inner INTEGER",
@@ -148,6 +152,13 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN stage2_52w_low_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN stage2_trend_pass_count INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN stage2_trend_pass INTEGER",
+    # Retired sub-score — the rail-blind oscillation term, replaced by
+    # score_traversal_quality. Drop the column so the live schema matches the
+    # model; its pre-retirement values measured a flawed (rail-blind) quantity
+    # and are preserved in the dated DB backup. Idempotent: a re-run on a DB that
+    # never had the column raises "no such column", which the runner treats as
+    # already-applied.
+    "ALTER TABLE setup_archive DROP COLUMN score_oscillation",
 ]
 
 _log = logging.getLogger("chrollo.migrate")
@@ -168,6 +179,10 @@ def _apply_migrations() -> None:
                 _log.info("applied: %s", statement)
             except Exception as exc:
                 message = str(exc).lower()
-                if "duplicate column" in message or "already exists" in message:
+                # Idempotency: a re-run of an ADD hits "duplicate column"/"already
+                # exists"; a re-run of a DROP hits "no such column". All mean the
+                # migration's end state already holds — skip quietly.
+                if ("duplicate column" in message or "already exists" in message
+                        or "no such column" in message):
                     continue
                 _log.warning("migration skipped (%s): %s", exc.__class__.__name__, statement)

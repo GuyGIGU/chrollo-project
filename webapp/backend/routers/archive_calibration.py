@@ -286,7 +286,7 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     # if base_age correlates strongly at 60d but weakly at 20d, that's a
     # "long-hold edge" signal, not a swing edge.
     sub_score_fields = [
-        "score_box_tightness", "score_touch_density", "score_oscillation",
+        "score_box_tightness", "score_touch_density",
         "score_atr_squeeze", "score_lps_tightness", "score_vol_contraction",
         "score_base_age",
     ]
@@ -305,7 +305,7 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
     # ── Suggested Re-weighting ──────────────────────────────
     # Average |corr| across 20d and 60d horizons → re-normalize to preserve
-    # the current total weight cap (128 pts across the 7 core sub-scores).
+    # the current total weight cap (128 pts across the 6 core sub-scores).
     # Sub-scores with negative or near-zero correlation get floored at a
     # small positive (0.02) so they're not zeroed out by a single noisy
     # archive — re-weighting is a *suggestion*, not auto-apply.
@@ -323,7 +323,6 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     current_weights = {
         "box_tightness":   _cfg.SCORE_BOX_TIGHTNESS,
         "touch_density":   _cfg.SCORE_TOUCH_DENSITY,
-        "oscillation":     _cfg.SCORE_OSCILLATION,
         "atr_squeeze":     _cfg.SCORE_ATR_SQUEEZE,
         "lps_tightness":   _cfg.SCORE_LPS_TIGHTNESS,
         "vol_contraction": _cfg.SCORE_VOL_CONTRACTION,

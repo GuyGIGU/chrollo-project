@@ -35,6 +35,9 @@ from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_
 from core.pipeline.evaluation import (
     _structure_to_boxes,
     apply_baseline_filters,
+    descent_tail_drops,
+    score_traversal_args,
+    select_active_lps,
 )
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
@@ -42,11 +45,13 @@ from core.structure import (
     calculate_atr,
     detect_lps,
     detect_lps_tests,
+    lps_range_threshold,
     measure_bar_compression,
     measure_bins,
     measure_contractions,
     measure_equilibrium,
     measure_support_slope,
+    measure_touch_volume,
     measure_traversal,
     trend_template,
 )
@@ -176,42 +181,15 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
 
         atr_for_zone = float(atr_eval["ATR_10"])
 
-        def _range_threshold(bdf):
-            return max(
-                float(bdf["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
-                1.2 * atr_for_zone,
-            )
-
         base_df = df.iloc[-base_len:]
-        base_range_threshold = _range_threshold(base_df)
+        base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
 
         phase_b_start = len(df_ind) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
-        lps_in_inner = False
-        lps_result = None
-        lps_context = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
-        if inner is not None:
-            inner_base_df = df_ind.iloc[-inner["base_len"]:]
-            inner_swing_complete = inner["start_bar"] + max(
-                inner["r_anchor_bar"], inner["s_anchor_bar"])
-            inner_range_threshold = _range_threshold(inner_base_df)
-            inner_lps = detect_lps(
-                df_ind, latest, inner["S"], inner["R"], atr_for_zone,
-                inner_range_threshold, inner["base_len"], inner_swing_complete,
-            )
-            if inner_lps:
-                lps_result = inner_lps
-                lps_in_inner = True
-                lps_context = (
-                    inner["S"], inner["R"], inner_range_threshold,
-                    inner["base_len"], inner_swing_complete,
-                )
-        if lps_result is None:
-            lps_result = detect_lps(
-                df_ind, latest, sup_avg, res_avg, atr_for_zone,
-                base_range_threshold, base_len, swing_complete_idx,
-            )
+        parent_ctx = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
+        lps_result, lps_in_inner, lps_context = select_active_lps(
+            df_ind, latest, parent_ctx, inner, atr_for_zone)
 
         if not lps_result:
             return None
@@ -253,6 +231,11 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         support = measure_support_slope(base_df, atr_for_zone)
         equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
         traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
+
+        # Descent-tail gate (parity with the live pipeline) — active box, tight exempt.
+        if descent_tail_drops(df_ind, traversal, box_width, inner, lps_in_inner, atr_for_zone):
+            return None
+
         adr_value = adr_pct(df, settings.ADR_WINDOW)
         adr_quality = (
             min(adr_value / settings.ADR_FULL_PCT, 1.0)
@@ -299,31 +282,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             excess_return_6m, dist_52w_high_pct,
             None,  # breadth_pct unknown for historical seed dates
             contraction['quality'], support['quality'], adr_quality,
-            traversal_density=(
-                traversal['n_full_traversals'] / traversal['n_swings']
-                if traversal['n_swings'] else 0.0
-            ),
-            max_swing_frac=traversal['max_swing_frac'] or 1.0,
-            dwell_asymmetry=abs(equilibrium['upper_dwell'] - equilibrium['lower_dwell']),
-            has_spring=bool(bins.get('bin_c_present')),
+            **score_traversal_args(traversal, equilibrium, bins),
         )
         score = score_result["total"]
         tier = calculate_tier(score, box_width)
 
-        # Volume signature at R/S touch bars (mirror of _evaluate_ticker).
-        touch_band_vol = settings.TOUCH_TOLERANCE_ATR * atr_for_zone
-        r_touch_mask = (base_df["High"] - res_avg).abs() <= touch_band_vol
-        s_touch_mask = (base_df["Low"] - sup_avg).abs() <= touch_band_vol
-        vol_mean_base = float(base_df["Volume"].mean())
-        vol_std_base = float(base_df["Volume"].std())
-        r_touch_vol_z = (
-            float((base_df.loc[r_touch_mask, "Volume"].mean() - vol_mean_base) / vol_std_base)
-            if vol_std_base > 0 and r_touch_mask.any() else None
-        )
-        s_touch_vol_z = (
-            float((base_df.loc[s_touch_mask, "Volume"].mean() - vol_mean_base) / vol_std_base)
-            if vol_std_base > 0 and s_touch_mask.any() else None
-        )
+        # Volume signature at R/S touch bars (shared helper — parity with live).
+        r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
+            base_df, res_avg, sup_avg, atr_for_zone)
 
         return {
             "setup_type": setup_state,
@@ -635,7 +601,6 @@ def seed_archive(
             # Sub-scores
             score_box_tightness=sub.get("box_tightness"),
             score_touch_density=sub.get("touch_density"),
-            score_oscillation=sub.get("oscillation"),
             score_atr_squeeze=sub.get("atr_squeeze"),
             score_lps_tightness=sub.get("lps_tightness"),
             score_vol_contraction=sub.get("vol_contraction"),
@@ -774,6 +739,89 @@ def seed_archive(
     session.close()
     log.info(f"\nSeeded {archived}/{len(setups)} setups into the archive.")
     return archived
+
+
+def fired_seeds_fresh(
+    setups: list[tuple[str, str]] | None = None,
+) -> dict[tuple[str, str], Optional[dict]]:
+    """Re-evaluate each seed winner with the CURRENT engine on FRESH data,
+    WITHOUT writing the archive.
+
+    Downloads the tickers and runs the SAME ``-WINDOW_BACK / +WINDOW_FWD``
+    best-by-score scan-back ``seed_archive`` uses, returning
+    ``{(ticker, trigger_date): result_dict_or_None}``. This is the read-only
+    truth the seed-recall guard's ``--fresh`` mode needs: it measures what the
+    live engine fires TODAY rather than what a (possibly stale) archive recorded,
+    so engine changes that silently drop winners surface immediately. Bad-data
+    seeds (USO/BRZU) are filtered out.
+    """
+    from core.archive.seed_recall import filter_ignored_seeds
+
+    if setups is None:
+        setups = SEED_SETUPS
+    active, _ignored = filter_ignored_seeds(setups)
+    if not active:
+        return {}
+
+    unique = sorted({t for t, _ in active})
+    earliest = min(pd.Timestamp(d) for _, d in active)
+    latest = max(pd.Timestamp(d) for _, d in active)
+    dl_start = (earliest - pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
+    dl_end = (latest + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
+
+    log.info(f"[fresh recall] downloading {len(unique)} tickers {dl_start} -> {dl_end} ...")
+    raw = yf.download(unique, start=dl_start, end=dl_end, group_by="ticker",
+                      threads=True, progress=False, auto_adjust=True)
+    spy_raw = yf.download("SPY", start=dl_start, end=dl_end, progress=False,
+                          auto_adjust=True, threads=True)
+    spy_close = spy_raw["Close"] if not spy_raw.empty else None
+    if spy_close is not None and hasattr(spy_close, "columns"):
+        spy_close = spy_close.iloc[:, 0]
+
+    data: dict[str, pd.DataFrame] = {}
+    if len(unique) == 1:
+        df = raw.dropna()
+        if not df.empty:
+            data[unique[0]] = df
+    else:
+        for t in unique:
+            try:
+                df = raw[t].dropna()
+                if not df.empty:
+                    data[t] = df
+            except KeyError:
+                pass
+
+    def _spy6(eval_date) -> float:
+        if spy_close is None:
+            return 0.0
+        s = spy_close[spy_close.index <= eval_date]
+        if len(s) > settings.RS_LOOKBACK_BARS:
+            return float(s.iloc[-1] / s.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
+        return 0.0
+
+    out: dict[tuple[str, str], Optional[dict]] = {}
+    seen: set[tuple[str, str]] = set()
+    for ticker, date_str in active:
+        if (ticker, date_str) in seen:
+            continue
+        seen.add((ticker, date_str))
+        df_full = data.get(ticker)
+        if df_full is None:
+            out[(ticker, date_str)] = None
+            continue
+        target = pd.Timestamp(date_str)
+        best = None
+        for offset in range(-WINDOW_BACK, WINDOW_FWD + 1):
+            eval_date = target + pd.Timedelta(days=offset)
+            df_slice = df_full[df_full.index <= eval_date]
+            if len(df_slice) < 200:
+                continue
+            result = _evaluate_at_date(df_slice, spy_6m_return=_spy6(eval_date))
+            if result is not None and (best is None or result["score"] > best["score"]):
+                best = result
+        out[(ticker, date_str)] = best
+    return out
 
 
 if __name__ == "__main__":

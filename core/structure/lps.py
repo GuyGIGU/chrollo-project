@@ -476,3 +476,16 @@ def detect_lps_tests(
 
     selected.sort(key=lambda c: c["start_index"])
     return [_public_candidate(candidate, df) for candidate in selected]
+
+
+def lps_range_threshold(base_df: pd.DataFrame, atr_val: float) -> float:
+    """The LPS window-sizing threshold: ``max(p-quantile spread, 1.2 * ATR)``.
+
+    Folded out of the live (evaluation) + seed eval paths so the LPS footprint
+    sizing can never silently diverge between them. Falls back to High-Low when
+    the frame has no precomputed ``Spread`` column (via ``_spread_series``).
+    """
+    return max(
+        float(_spread_series(base_df).quantile(settings.LPS_RANGE_PERCENTILE)),
+        1.2 * float(atr_val),
+    )

@@ -87,7 +87,7 @@ Cleanup candidates:
 
 ## Phase B: Worked Equilibrium
 
-Sources: `config/settings.py`, `core/structure/box_candidates.py`,
+Sources: `config/settings.py`, `core/structure/box_primitives.py`,
 `core/structure/metrics.py`.
 
 Hard geometry rules:
@@ -149,14 +149,9 @@ Hidden/local knobs:
 - Touch-density quality divides by 10.
 - The selector uses earliest valid candidate, tie-broken by quality.
 
-Cleanup candidates:
-
-- `MIDLINE_ATR_BUFFER` is unused by Python now that the old midline-cross gate is
-  retired.
-
 ## Inner Box: Phase-D Mini Consolidation
 
-Sources: `core/structure/consolidation.py`, `core/structure/box_candidates.py`,
+Sources: `core/structure/consolidation.py`, `core/structure/box_primitives.py`,
 `core/structure/bricks.py`.
 
 Hard geometry rules:
@@ -174,7 +169,7 @@ Taxonomy:
 
 Cleanup candidates:
 
-- `INNER_MIN_DAYS` still lives in `box_candidates.py`; decide whether it should
+- `INNER_MIN_DAYS` still lives in `box_primitives.py`; decide whether it should
   stay private to candidate generation or move to settings with the other inner
   knobs.
 
@@ -368,7 +363,6 @@ Tier/ranking knobs:
 - `SCORE_LPS_TIGHTNESS = 20`
 - `SCORE_BOX_TIGHTNESS = 22`
 - `SCORE_ATR_SQUEEZE = 8`
-- `SCORE_OSCILLATION = 5`
 - `SCORE_UPTREND_BONUS = 15`
 - `SCORE_RS_BONUS = 15`
 - `SCORE_52W_HIGH_PROXIMITY = 8`
@@ -401,7 +395,8 @@ Hidden scoring knobs:
 
 - Touches score at `touches * 2.0` before the touch bonus.
 - Traversal-quality density credit is normalized at `density / 0.33` (full credit
-  at `TRAVERSAL_QUALITY_DENSITY_FULL`); the `oscillation` term it replaced is retired (cap 0).
+  at `TRAVERSAL_QUALITY_DENSITY_FULL`); the rail-blind `oscillation` term it replaced
+  has been removed (sub-score, `SCORE_OSCILLATION`, and the archive column are gone).
 - LPS tightness and volume contraction are multiplied by `2 * score cap`.
 - Base age uses sqrt scaling.
 
@@ -420,7 +415,6 @@ Frontend sync:
 
 Likely dead in Python:
 
-- `MIDLINE_ATR_BUFFER`
 - `TREND_SMA_LOOKBACK`
 - `TREND_BULLISH_GAP_MAX`
 - `BREAKOUT_VOLUME_MULT`
@@ -439,7 +433,7 @@ Frontend-only mirror constants:
 
 Private algorithm knobs:
 
-- `INNER_MIN_DAYS = 15` lives in `box_candidates.py`.
+- `INNER_MIN_DAYS = 15` lives in `box_primitives.py`.
 - Several quality weights are hard-coded inside measurement functions.
 
 ## Lowest-Knob Baseline To Aim For

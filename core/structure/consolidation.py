@@ -2,11 +2,10 @@
 Wyckoff consolidation detection — identifies structural equilibrium bases
 following macro trend exhaustion using zigzag-based S/R anchoring.
 
-These are the STANDALONE box detectors. The live screener no longer calls them —
-it reads structure chronologically via ``core.structure.read_structure`` (which
-assembles the box through ``bricks.validate_equilibrium``). What remains here
-serves the diagnostic tools, plus the shared low-level anchor machinery
-(``_collect_root_anchors`` / ``_inner_box_at``) that the bricks import directly.
+Diagnostic standalone detectors, composed from
+``core.structure.box_primitives``. The live screener does not call this module;
+it reads structure chronologically via ``core.structure.read_structure`` ->
+``bricks``. What remains here serves diagnostic tools and public compatibility.
 
   ``detect_boxes(df)`` — parent+inner detector. Finds the outer BC→AR box as the
   base of record, then probes for a tighter nested Phase D range and returns both.
@@ -28,7 +27,7 @@ Phase B procedure (the user's "is this a real trading range?" test):
   2. Propose Resistance/Support-anchor pairs from the zigzag limbs.
   3. For each pair ask: does price RESPECT, TOUCH, and ZIGZAG THROUGH both rails
      CONSTANTLY, with no dead space? (boundary respect + worked-equilibrium
-     validity in box_candidates._validate_base_quality). Constant two-sided
+     validity in box_primitives._validate_base_quality). Constant two-sided
      touch + no dead space is what makes a sparse / lopsided framing fail.
   4. Keep the EARLIEST pair that satisfies every constraint — "earliest of the
      ones that qualify" (longest cause among genuinely worked ranges). The
@@ -42,18 +41,11 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.box_candidates import (
-    INNER_MIN_DAYS,
-    _detect_inner_root_swing,
-    _inner_zigzag,
-    _phase_b_zigzag,
-    _select_phase_b_candidate,
-)
-from core.structure.metrics import (
-    measure_bar_compression,
-    measure_contractions,
-    measure_support_slope,
-    measure_touch_volume,
+from core.structure.box_primitives import (
+    collect_root_anchors,
+    detect_inner_root_swing,
+    inner_box_at,
+    phase_b_zigzag,
 )
 
 
@@ -64,88 +56,6 @@ from core.structure.metrics import (
 # settings to be resolvable at import. See settings.INNER_TIGHTNESS_RATIO (inner
 # must be >=25% tighter than parent) and settings.INNER_SEARCH_FRACTION (inner
 # search begins at this fraction of the outer base).
-
-
-def _collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[str, int, int, float, float]]:
-    """Return qualifying Phase-A climax -> reaction anchors, most-recent first."""
-    if len(eval_df) < min_days + 15:
-        return []
-
-    closes = eval_df['Close'].values
-    highs = eval_df['High'].values
-    lows = eval_df['Low'].values
-    sma200 = eval_df['Close'].rolling(200).mean().values
-    end = len(eval_df) - 1
-
-    if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
-        return []
-
-    min_move = settings.TREND_MIN_GAIN_PCT
-    min_move_bars = settings.TREND_MIN_MOVE_BARS
-    prior_lookback = settings.TREND_PRIOR_LOOKBACK
-    local_peak_bars = settings.LOCAL_PEAK_BARS
-
-    scan_lo = min_move_bars + 5
-    scan_hi = end - min_days
-    if scan_hi <= scan_lo:
-        return []
-
-    anchors: list[tuple[str, int, int, float, float]] = []
-
-    for i in range(scan_hi, scan_lo - 1, -1):
-        prior_start = max(0, i - prior_lookback)
-        local_start = max(0, i - local_peak_bars)
-
-        if highs[i] >= np.max(highs[local_start:i + 1]):
-            prior_lows = lows[prior_start:i]
-            if len(prior_lows) >= min_move_bars:
-                trough_k = int(np.argmin(prior_lows))
-                trough_low = float(prior_lows[trough_k])
-                trough_bar = prior_start + trough_k
-                if trough_low > 0 \
-                        and highs[i] / trough_low - 1.0 >= min_move \
-                        and (i - trough_bar) >= min_move_bars:
-                    ar_thr = highs[i] * (1.0 - settings.AR_MIN_DROP_PCT)
-                    ar_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
-                    ar_completed = False
-                    ar_low_bar = -1
-                    ar_low_val = np.inf
-                    for j in range(i + 1, ar_end):
-                        if closes[j] <= ar_thr:
-                            ar_completed = True
-                        if lows[j] < ar_low_val:
-                            ar_low_val = lows[j]
-                            ar_low_bar = j
-                    if ar_completed and ar_low_bar != -1 \
-                            and (len(eval_df) - ar_low_bar) >= min_days:
-                        anchors.append(('BC', i, ar_low_bar, float(highs[i]), float(ar_low_val)))
-
-        if lows[i] <= np.min(lows[local_start:i + 1]):
-            prior_highs = highs[prior_start:i]
-            if len(prior_highs) >= min_move_bars:
-                peak_k = int(np.argmax(prior_highs))
-                peak_high = float(prior_highs[peak_k])
-                peak_bar = prior_start + peak_k
-                if peak_high > 0 \
-                        and 1.0 - lows[i] / peak_high >= min_move \
-                        and (i - peak_bar) >= min_move_bars:
-                    bounce_thr = lows[i] * (1.0 + settings.AR_MIN_DROP_PCT)
-                    bounce_end = min(len(eval_df), i + settings.AR_MAX_BARS + 1)
-                    bounce_completed = False
-                    bounce_high_bar = -1
-                    bounce_high_val = -np.inf
-                    for j in range(i + 1, bounce_end):
-                        if closes[j] >= bounce_thr:
-                            bounce_completed = True
-                        if highs[j] > bounce_high_val:
-                            bounce_high_val = highs[j]
-                            bounce_high_bar = j
-                    if bounce_completed and bounce_high_bar != -1 \
-                            and (len(eval_df) - bounce_high_bar) >= min_days:
-                        anchors.append(('SC', i, bounce_high_bar, float(bounce_high_val), float(lows[i])))
-
-    return anchors
-
 
 # ---------------------------------------------------------------------------
 # Public: outer-box anchor-enumeration (no inner refinement)
@@ -206,13 +116,13 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
     else:
         atr_snapshot = None
 
-    anchors = _collect_root_anchors(eval_df, min_days)
+    anchors = collect_root_anchors(eval_df, min_days)
     if not anchors:
         return EMPTY
 
     # --- PHASE B: pick the EARLIEST anchor whose Phase B passes quality gates ---
     # `anchors` is built most-recent-first (line above scans range(scan_hi, scan_lo-1, -1)),
-    # so reversed() gives oldest-first. _phase_b_zigzag already enforces all
+    # so reversed() gives oldest-first. phase_b_zigzag already enforces all
     # quality checks (box width, boundary respect, touch density, midline crosses);
     # any non-EMPTY return is a valid Phase B. Preferring the earliest valid anchor
     # maximizes Wyckoff "cause" (base age) and resists the truncation failure where
@@ -223,17 +133,17 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
         if select == "debug":
             # Diagnostic: return the candidate landscape for the first anchor
             # that yields a valid Phase B (the one the live engine would use).
-            probe = _phase_b_zigzag(
+            probe = phase_b_zigzag(
                 eval_df, phase_b_start, base_length, atr_override=atr_snapshot,
                 select="best",
             )
             if probe[0] != 0:
-                return _phase_b_zigzag(
+                return phase_b_zigzag(
                     eval_df, phase_b_start, base_length,
                     atr_override=atr_snapshot, select="debug",
                 )
             continue
-        result = _phase_b_zigzag(
+        result = phase_b_zigzag(
             eval_df, phase_b_start, base_length, atr_override=atr_snapshot,
             select=select,
         )
@@ -250,44 +160,6 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
 # ---------------------------------------------------------------------------
 # Parent + Inner: the nested range model (draw both) — see docs/structure_legend.md
 # ---------------------------------------------------------------------------
-
-def _inner_box_at(eval_df, start, n, source="midpoint", root=None):
-    """Run the inner-stage zigzag from ``start`` and normalize to an inner-box dict.
-
-    Returns None when the window is too short or no valid inner box forms. The
-    returned ``start_bar`` is df-positional (n - effective base length), matching
-    the engine's ``phase_b_start = len(df) - base_len`` convention.
-    """
-    # _inner_zigzag itself requires the search window to be >= MIN_BASE_DAYS, so
-    # gate on that same (eval_df-relative) floor — INNER_MIN_DAYS is only the min
-    # inner CANDIDATE length, not the window floor.
-    if start >= len(eval_df) or (len(eval_df) - start) < settings.MIN_BASE_DAYS:
-        return None
-    r = _inner_zigzag(eval_df, start, n - start)
-    if r[0] == 0:
-        return None
-    eff_base_len, R, S, bw, rt, st = r[0], r[1], r[2], r[3], r[4], r[5]
-    box = {
-        "R": float(R), "S": float(S), "box_width": float(bw),
-        "base_len": int(eff_base_len), "start_bar": int(n - eff_base_len),
-        "r_touches": int(rt), "s_touches": int(st),
-        "r_anchor_bar": int(r[7]), "s_anchor_bar": int(r[8]),
-        "source": source,
-        "search_start_bar": int(start),
-        "climax_bar": None,
-        "reaction_bar": None,
-        "reaction_pct": None,
-        "reaction_bars": None,
-    }
-    if root is not None:
-        box.update({
-            "climax_bar": int(root["bc_bar"]),
-            "reaction_bar": int(root["ar_bar"]),
-            "reaction_pct": float(root["reaction_pct"]),
-            "reaction_bars": int(root["reaction_bars"]),
-        })
-    return box
-
 
 def detect_boxes(df, min_days=None, select="earliest"):
     """Parent (outer) box + the best-of-both inner companion.
@@ -323,7 +195,7 @@ def detect_boxes(df, min_days=None, select="earliest"):
     starts = {
         midpoint_start: {"source": "midpoint", "root": None},
     }
-    root = _detect_inner_root_swing(eval_df.iloc[parent_pbs:])
+    root = detect_inner_root_swing(eval_df.iloc[parent_pbs:])
     if root is not None:
         root_abs = {
             "bc_bar": parent_pbs + int(root["bc_bar"]),
@@ -335,7 +207,7 @@ def detect_boxes(df, min_days=None, select="earliest"):
 
     candidates = []
     for s, meta in starts.items():
-        box = _inner_box_at(
+        box = inner_box_at(
             eval_df, s, n,
             source=meta["source"], root=meta["root"],
         )

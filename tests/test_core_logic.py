@@ -29,21 +29,19 @@ import core.pipeline.downloads as downloads_module
 import core.pipeline.market_context as market_context_module
 import output.dashboard as dashboard_module
 from core.structure.bin_features import measure_bins
-from core.structure.consolidation import (
-    _select_phase_b_candidate,
-    measure_bar_compression,
-)
 from core.structure.indicators import trend_template
 from core.structure.metrics import (
     _vol_trend_from_contractions,
+    measure_bar_compression,
     measure_contractions,
     measure_equilibrium,
     measure_traversal,
 )
-from core.structure.box_candidates import (
+from core.structure.box_primitives import (
     _detect_inner_phase_b_start,
-    _detect_inner_root_swing,
     _validate_base_quality,
+    detect_inner_root_swing,
+    select_phase_b_candidate,
 )
 from core.structure.lps import detect_lps, detect_lps_tests
 from core.structure.segmentation import segment_swings
@@ -405,7 +403,7 @@ def test_detect_inner_root_swing_reports_reaction_measurements():
     )
     frame = _contraction_frame(levels, [1000] * len(levels))
 
-    root = _detect_inner_root_swing(frame)
+    root = detect_inner_root_swing(frame)
 
     assert root is not None
     assert root["bc_bar"] < root["ar_bar"]
@@ -489,6 +487,38 @@ def test_lps_accepts_compact_reaction_behavior(monkeypatch):
     assert result["high_descent_frac"] == 1.0
 
 
+def test_lps_accepts_shallow_pullback_on_tight_clean_coil(monkeypatch):
+    # A tight, clean-descent coil (lows AND highs strictly descending) whose
+    # first-high -> last-low pullback is only 0.5 profile units. The old 0.65
+    # floor rejected these tight VCP pivots purely on pullback magnitude (the
+    # BP / NVMI seed misses, both descent_frac 1.0); the shipped 0.40 floor
+    # accepts them while the descent / vol / spread / zone gates still apply.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106, 105],
+        lows=[107, 106, 105, 104],
+        closes=[107, 106, 105, 104],
+    )
+    kw = dict(
+        latest=df.iloc[-1], sup_avg=100, res_avg=110, atr_val=2,
+        base_range_threshold=8, base_len=20, swing_complete_idx=-1,
+    )
+
+    # Accepted at the shipped 0.40 floor, with a genuinely shallow (<0.65) pullback.
+    monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.40)
+    accepted = detect_lps(df=df, **kw)
+    assert accepted is not None
+    assert 0.40 <= accepted["pullback_profile"] < 0.65
+    assert accepted["descent_frac"] == 1.0  # the coil is a clean descent, not chop
+
+    # The retired 0.65 floor rejected exactly this coil on pullback magnitude alone.
+    monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.65)
+    rejected, rejects = detect_lps(df=df, diagnose=True, **kw)
+    assert rejected is None
+    assert any(str(k).startswith("pullback_profile") for k in rejects)
+
+
 def test_lps_rejects_window_that_spans_most_of_box(monkeypatch):
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
@@ -514,7 +544,14 @@ def test_lps_rejects_window_that_spans_most_of_box(monkeypatch):
     assert rejects["window_box_range"] == 1
 
 
-def test_lps_rejects_rising_high_behavior(monkeypatch):
+def test_lps_rising_edge_is_graded_not_hard_rejected(monkeypatch):
+    # Reframed 2026-06-19: a rising upper edge is NOT a hard reject. A rising
+    # coil ties into ASCENDING SUPPORT (gradual rising buyer pressure), which the
+    # engine already rewards via SCORE_ASCENDING_SUPPORT — so the old high_up_march
+    # reject double-counted it as a defect. The descent floors are retired to 0;
+    # descent_frac / high_descent_frac stay GRADED quality inputs (clean descents
+    # still outrank), but no longer gate. This frame (lows cleanly testing the
+    # terminal support low, rising upper edge) now elects an LPS.
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
     df = _lps_behavior_frame(
@@ -523,7 +560,7 @@ def test_lps_rejects_rising_high_behavior(monkeypatch):
         closes=[104, 103, 102, 101, 101],
     )
 
-    result, rejects = detect_lps(
+    result = detect_lps(
         df=df,
         latest=df.iloc[-1],
         sup_avg=100,
@@ -532,11 +569,13 @@ def test_lps_rejects_rising_high_behavior(monkeypatch):
         base_range_threshold=10,
         base_len=20,
         swing_complete_idx=-1,
-        diagnose=True,
     )
 
-    assert result is None
-    assert rejects["high_up_march"] == 1
+    assert result is not None
+    # The rising upper edge is recorded as a graded signal (low high_descent_frac),
+    # not a rejection; the lows still register a clean descent into support.
+    assert result["high_descent_frac"] == 0.0
+    assert result["descent_frac"] == 1.0
 
 
 def test_lps_spread_widening_discounts_quality_not_gate(monkeypatch):
@@ -914,7 +953,7 @@ def test_phase_b_select_best_takes_global_best():
     # A later, tighter (higher-combined) pair vs an earlier, looser one.
     early_loose = _cand(combined=0.50, cand_start=10)
     late_tight = _cand(combined=0.80, cand_start=40)
-    chosen = _select_phase_b_candidate([early_loose, late_tight], "best")
+    chosen = select_phase_b_candidate([early_loose, late_tight], "best")
     assert chosen is late_tight  # best == highest combined, regardless of start
 
 
@@ -926,7 +965,7 @@ def test_phase_b_select_earliest_prefers_earlier_start():
     # old "is the early framing good enough?" question is moot.
     early = _cand(combined=0.60, cand_start=10)
     late_tight = _cand(combined=0.80, cand_start=40)
-    chosen = _select_phase_b_candidate([late_tight, early], "earliest")
+    chosen = select_phase_b_candidate([late_tight, early], "earliest")
     assert chosen is early
 
 
@@ -935,14 +974,14 @@ def test_phase_b_select_earliest_breaks_ties_by_quality():
     # wins the tie (the -x[0] secondary key).
     start_lo = _cand(combined=0.50, cand_start=10)
     start_hi = _cand(combined=0.80, cand_start=10)
-    chosen = _select_phase_b_candidate([start_lo, start_hi], "earliest")
+    chosen = select_phase_b_candidate([start_lo, start_hi], "earliest")
     assert chosen is start_hi
 
 
 def test_phase_b_select_earliest_never_empties_pool():
     # A single candidate is always returned (it is, by construction, valid).
     only = _cand(combined=0.30, cand_start=5)
-    assert _select_phase_b_candidate([only], "earliest") is only
+    assert select_phase_b_candidate([only], "earliest") is only
 
 
 def _osc_frame(closes, band=1.0):
@@ -1009,7 +1048,7 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space():
 def test_worked_window_end_trims_only_a_held_late_breakout():
     # The SOS -> BUEC rescue: a worked range whose right side has broken out above
     # R and HELD above support is validated over its cause, not the breakout tail.
-    from core.structure.box_candidates import _worked_window_end
+    from core.structure.box_primitives import _worked_window_end
     R, S, atr = 110.0, 100.0, 1.0          # buffer = BOUNDARY_ATR_BUFFER * atr
     base_h, base_l = [105.0] * 20, [104.0] * 20
     # A sustained breakout above R that holds above S -> trim exactly the tail.
@@ -2114,8 +2153,7 @@ def test_safe_rank_corr_is_monotonic_not_linear():
 
 def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     """The traversal-quality term (which replaced the rail-blind oscillation term)
-    must rank a genuinely two-sided box above a dead-space one; oscillation now
-    contributes nothing."""
+    must rank a genuinely two-sided box above a dead-space one."""
     from core.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
@@ -2131,7 +2169,7 @@ def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     assert dead["traversal_quality"] == 0.0         # dead-space reward fully eaten by the dock
     assert clean["traversal_quality"] > dead["traversal_quality"]
     assert clean["total"] > dead["total"]
-    assert clean["oscillation"] == 0.0 and dead["oscillation"] == 0.0  # retired
+    assert "oscillation" not in clean  # retired sub-score is fully gone from the payload
 
 
 def test_base_age_dead_space_dock_spares_tight_boxes():
@@ -2174,6 +2212,113 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
     assert spring["traversal_quality"] > wide["traversal_quality"]
 
 
+def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
+    """The descent-tail gate drops a WIDE box whose support was abandoned early
+    (last_support_frac <= LSF_MAX) into dead space (coil_floor_pos >= CFP_MIN),
+    but spares tight boxes (the EQIX exemption) and is None-safe / flag-guarded."""
+    from core.structure import descent_tail_rejects
+
+    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", True)
+    monkeypatch.setattr(settings, "DESCENT_TAIL_LSF_MAX", 0.40)
+    monkeypatch.setattr(settings, "DESCENT_TAIL_CFP_MIN", 0.20)
+    monkeypatch.setattr(settings, "BASE_AGE_DEADSPACE_WIDTH", 0.06)
+
+    # Wide box, support left early into a dead band above it -> a dead tail.
+    assert descent_tail_rejects(0.35, 0.30, 0.10) is True
+    # Tight box (<= BASE_AGE_DEADSPACE_WIDTH) is EXEMPT (saves EQIX, w 0.038).
+    assert descent_tail_rejects(0.35, 0.30, 0.04) is False
+    # Support held late (high last_support_frac) -> not a dead tail.
+    assert descent_tail_rejects(0.80, 0.30, 0.10) is False
+    # No dead band under the late coil (low coil_floor_pos) -> not a dead tail.
+    assert descent_tail_rejects(0.35, 0.10, 0.10) is False
+    # None-safe (degenerate measure_traversal).
+    assert descent_tail_rejects(None, 0.30, 0.10) is False
+    assert descent_tail_rejects(0.35, None, 0.10) is False
+    # Flag-guarded.
+    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", False)
+    assert descent_tail_rejects(0.35, 0.30, 0.10) is False
+
+
+def test_eval_twins_share_the_folded_core():
+    """The live (``_evaluate_ticker``) and seed (``_evaluate_at_date``) paths must
+    BOTH route through the shared eval helpers, so the structural logic (LPS
+    selection, descent-tail gate, scorer args) can never silently diverge between
+    them — the drift that let the descent-tail gate land in one path only and that
+    the seed-recall guard exists to measure. If you re-inline one of these in a
+    single path, fold it back into the shared helper instead."""
+    import inspect
+
+    from core.archive.seed import _evaluate_at_date
+    from core.pipeline.evaluation import _evaluate_ticker
+
+    live_src = inspect.getsource(_evaluate_ticker)
+    seed_src = inspect.getsource(_evaluate_at_date)
+    for helper in ("select_active_lps", "descent_tail_drops", "score_traversal_args"):
+        assert helper in live_src, f"_evaluate_ticker no longer routes through {helper}"
+        assert helper in seed_src, f"_evaluate_at_date no longer routes through {helper}"
+
+
+def test_score_traversal_args_maps_measure_facts():
+    from core.pipeline.evaluation import score_traversal_args
+
+    args = score_traversal_args(
+        {"n_full_traversals": 3, "n_swings": 6, "max_swing_frac": 1.4},
+        {"upper_dwell": 0.3, "lower_dwell": 0.5},
+        {"bin_c_present": 1},
+    )
+    assert args["traversal_density"] == 0.5
+    assert args["max_swing_frac"] == 1.4
+    assert abs(args["dwell_asymmetry"] - 0.2) < 1e-9
+    assert args["has_spring"] is True
+
+    # Degenerate guards: zero swings -> density 0; None max_swing_frac -> 1.0; no spring.
+    args2 = score_traversal_args(
+        {"n_full_traversals": 0, "n_swings": 0, "max_swing_frac": None},
+        {"upper_dwell": 0.4, "lower_dwell": 0.4},
+        {},
+    )
+    assert args2["traversal_density"] == 0.0
+    assert args2["max_swing_frac"] == 1.0
+    assert args2["dwell_asymmetry"] == 0.0
+    assert args2["has_spring"] is False
+
+
+def test_select_active_lps_prefers_inner_then_parent(monkeypatch):
+    """The folded inner-first-then-parent rule: take the inner box's LPS when it
+    yields one (closer trigger/stop), else the parent's; lps_context follows."""
+    from core.pipeline import evaluation
+
+    df = _lps_behavior_frame(
+        highs=[110.0] * 30, lows=[100.0] * 30, closes=[105.0] * 30,
+    )
+    latest = df.iloc[-1]
+    inner = {"base_len": 15, "start_bar": 10, "r_anchor_bar": 12,
+             "s_anchor_bar": 11, "S": 101.0, "R": 109.0}
+    parent = (90.0, 120.0, 5.0, 30, 5)  # (S, R, range_threshold, base_len, swing)
+
+    def fake(which_for_inner):
+        def _f(d, l, S, R, atr, rt, bl, sw):
+            hit = S == inner["S"] if which_for_inner else S == parent[0]
+            return {"setup_type": "LPS", "_who": "inner" if S == inner["S"] else "parent"} if hit else None
+        return _f
+
+    # Inner fires -> inner wins; context switches to the inner rails.
+    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=True))
+    res, in_inner, ctx = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
+    assert in_inner is True and res["_who"] == "inner"
+    assert ctx[0] == inner["S"] and ctx[1] == inner["R"]
+
+    # Inner returns None -> fall back to the parent; context stays parent.
+    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=False))
+    res2, in_inner2, ctx2 = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
+    assert in_inner2 is False and res2["_who"] == "parent"
+    assert ctx2 == parent
+
+    # No inner box at all -> parent path.
+    res3, in_inner3, ctx3 = evaluation.select_active_lps(df, latest, parent, None, atr=2.0)
+    assert in_inner3 is False and res3["_who"] == "parent"
+
+
 def test_signal_edge_classifies_harmful_inert_beneficial():
     n = 40
     win = [1.0, 0.0] * (n // 2)                      # alternating outcome
@@ -2181,14 +2326,14 @@ def test_signal_edge_classifies_harmful_inert_beneficial():
         "barrier_win": win,
         "score_box_tightness": win,                  # perfectly +assoc → beneficial
         "score_touch_density": [1.0 - w for w in win],  # perfectly -assoc → harmful
-        "score_oscillation": list(range(n)),         # monotonic vs alternating → ~0 → inert
+        "score_base_age": list(range(n)),            # monotonic vs alternating → ~0 → inert
     })
     out = signal_edge(df, targets=["barrier_win"], min_n=8)
     assert out["primary_target"] == "barrier_win"
     verdicts = {r["feature"]: r["verdict"] for r in out["rows"]}
     assert verdicts["score_box_tightness"] == "beneficial"
     assert verdicts["score_touch_density"] == "harmful"
-    assert verdicts["score_oscillation"] == "inert"
+    assert verdicts["score_base_age"] == "inert"
     # Most-harmful sorts first.
     assert out["rows"][0]["feature"] == "score_touch_density"
 

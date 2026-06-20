@@ -32,7 +32,6 @@ class SetupOut(BaseModel):
     # Sub-scores
     score_box_tightness: Optional[float] = None
     score_touch_density: Optional[float] = None
-    score_oscillation: Optional[float] = None
     score_atr_squeeze: Optional[float] = None
     score_lps_tightness: Optional[float] = None
     score_vol_contraction: Optional[float] = None

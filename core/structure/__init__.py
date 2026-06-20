@@ -25,7 +25,7 @@ archive) reads from. The per-layer validators ("bricks") live in
 testable in isolation with fakes:
 
     Trend / Phase A   bricks.find_root_swing, bricks.resolve_phase_a
-    Consolidation/B   bricks.validate_equilibrium  (+ consolidation.py, box_candidates.py)
+    Consolidation/B   bricks.validate_equilibrium  (+ consolidation.py, box_primitives.py)
     Phase C           bricks.find_spring
     Phase D           bricks.find_lps, bricks.find_inner_box, phase_d.resolve_phase_d_boundary
     LPS               lps.detect_lps, lps.detect_lps_tests
@@ -43,7 +43,11 @@ from core.structure.indicators import adr_pct, calculate_adx, calculate_atr, tre
 
 # ── Layer: Consolidation — locate the equilibrium box, measure how worked it is ─
 from core.structure.consolidation import detect_boxes, find_outer_box
-from core.structure.metrics import measure_equilibrium, measure_traversal
+from core.structure.metrics import (
+    descent_tail_rejects,
+    measure_equilibrium,
+    measure_traversal,
+)
 
 # ── Layer: Phase B texture — the VCP progressive-tightening / quiet-bar / touch footprint ─
 from core.structure.metrics import (
@@ -55,7 +59,7 @@ from core.structure.metrics import (
 from core.structure.bin_features import measure_bins
 
 # ── Layer: Phase D / LPS — the right-side trigger shelf + support-test staircase ─
-from core.structure.lps import detect_lps, detect_lps_tests
+from core.structure.lps import detect_lps, detect_lps_tests, lps_range_threshold
 
 # ── Scope — clip the assembled narrative to the actionable window ────────────
 from core.structure.scope import scope_consolidation
@@ -74,6 +78,7 @@ __all__ = [
     "find_outer_box",
     "measure_equilibrium",
     "measure_traversal",
+    "descent_tail_rejects",
     # Phase B texture
     "measure_bar_compression",
     "measure_contractions",
@@ -83,6 +88,7 @@ __all__ = [
     # Phase D / LPS
     "detect_lps",
     "detect_lps_tests",
+    "lps_range_threshold",
     # scope
     "scope_consolidation",
 ]

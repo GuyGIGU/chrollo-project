@@ -32,7 +32,6 @@ BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
-MIDLINE_ATR_BUFFER = 0.3         # Price must move this × ATR from midline before a new cross counts (retained for legacy oscillation scoring; the midline-cross VALIDITY gate is retired in favor of the equilibrium dwell/coverage rule below)
 
 # Worked-equilibrium validity (Phase B) — a candidate Resistance/Support-anchor
 # pair is only a real trading range if price RESPECTS, TOUCHES, and ZIGZAGS
@@ -70,6 +69,21 @@ TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be r
                                  # the box is too wide / mis-anchored. 0.08 sits in the empty gap (BMRN/FRPH ~0.04
                                  # vs winner-min 0.14) so it drops the sprawl with margin and clips zero winners.
 TRAVERSAL_GATE_ENABLED = True    # v2 LIVE: pool-aware re-anchor gate (winner floor validated = MIN, 2026-06-15)
+
+# Descent-tail gate: a WIDE box whose support rail was abandoned EARLY — price
+# left the low rail (last_support_frac <= LSF_MAX, the time-position 0..1 of the
+# last support touch) then coiled in DEAD SPACE above it (coil_floor_pos >= CFP_MIN,
+# the box-position of the lowest Low after that touch) — is a mis-anchored /
+# dead-space framing (CHCT, DGII). Read on the ACTIVE box (the inner box when the
+# LPS re-anchored there, else the parent), so a setup with a clean PROMOTABLE inner
+# survives (QUAD). TIGHT boxes (box_width <= BASE_AGE_DEADSPACE_WIDTH) are EXEMPT —
+# their dead band is small in absolute terms so the tell is a false positive
+# (saves the EQIX winner, box_width 0.038). Validated 2026-06-19 (pre + post the
+# LPS recall work): drops ZERO firing seed winners; drops ~6/97 universe dead-space
+# fires incl. the user's CHCT + DGII. Measured by measure_traversal (metrics.py).
+DESCENT_TAIL_GATE_ENABLED = True
+DESCENT_TAIL_LSF_MAX = 0.40
+DESCENT_TAIL_CFP_MIN = 0.20
 
 # Sign-of-strength (SOS) breakout tolerance for Phase-B validation. A worked
 # range whose RIGHT side has already broken out above R and HELD above support —
@@ -109,14 +123,21 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 LPS_DROP_MIN = 0.02
 LPS_DROP_MIN_OVERSHOOT_R = 0.04
 LPS_DROP_MAX = 0.10
-# Graded shape gate: descent_frac is the fraction of pair-wise (i<j) low
-# comparisons where the later bar's low is <= the earlier bar's low (perfect
-# descent = 1.0, perfect rally = 0.0, ~0.5 for random/sideways). Replaces
-# the prior binary argmax-high > argmin-low reject. Setups below this floor
-# are still rejected; setups above multiply LPS quality by descent_frac so
-# cleaner descents outrank sloppy ones.
-LPS_MIN_DESCENT_FRAC = 0.50
-LPS_MIN_HIGH_DESCENT_FRAC = 0.45  # Reject obvious rising / higher-high drift inside the LPS window
+# descent_frac is the fraction of pair-wise (i<j) low comparisons where the later
+# bar's low is <= the earlier bar's low (perfect descent = 1.0, perfect rally =
+# 0.0, ~0.5 for random/sideways). It is now a PURELY GRADED quality input — it
+# multiplies LPS quality so cleaner descents outrank sloppy ones — with NO hard
+# floor (both floors retired to 0.0, 2026-06-19).
+# Why no floor: a rising-bottom LPS coil is not "chop" — it is ASCENDING SUPPORT
+# (gradual rising buyer pressure, the bullish VCP / Minervini pivot), which the
+# engine already MEASURES and REWARDS via measure_support_slope ->
+# ascending_support_quality -> SCORE_ASCENDING_SUPPORT. A hard descent reject
+# double-counted that as a defect while the scorer counts it as a strength.
+# Shadow (descent floor 0, pullback 0.40): seed recall 22->27 (+KEYS/MSGS/EWTX/
+# NBR/PKE, 0 lost); universe +33 fires (S:17/A:8). The pullback / vol-contraction
+# / spread / zone / window-box-range gates + the graded quality still filter.
+LPS_MIN_DESCENT_FRAC = 0.0
+LPS_MIN_HIGH_DESCENT_FRAC = 0.0
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
@@ -125,7 +146,14 @@ LPS_LENGTH_MIN = 2               # Shortest LPS formation (days)
 LPS_LENGTH_MAX = 7               # Longest LPS formation (days)
 LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
 LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15  # Profile unit floor: wider boxes get more absolute wiggle room
-LPS_PULLBACK_PROFILE_MIN = 0.65        # Min first-bar High -> last-bar Low pullback in profile units
+LPS_PULLBACK_PROFILE_MIN = 0.40        # Min first-bar High -> last-bar Low pullback in profile units.
+                                       # 0.65 (the old floor) fought tightness: a tight contracting VCP pivot
+                                       # near R has a small high->low span by construction, so genuine clean
+                                       # LPS coils (BP pull 0.59, NVMI 0.44 — both descent_frac 1.0) were
+                                       # rejected on pullback magnitude alone. Lowered to 0.40 (shadow 2026-06-19):
+                                       # seed recall 18->22 (+BP/NVMI/FOSL/NGL, 0 lost); universe +5 fires
+                                       # (4 of 5 A/S-tier, the 1 dead-space caught by the descent-tail read).
+                                       # The descent + vol-contraction + spread + zone gates still filter junk.
 LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25
 LPS_PULLBACK_PROFILE_MAX = 4.50        # Staleness / too-wide reaction cap in profile units
 LPS_TERMINAL_LOW_TOL_PROFILE = 0.10    # Last Low may sit this many profile units above window Low
@@ -225,12 +253,6 @@ SCORE_VOL_CONTRACTION = 20      # Volume dry-up (was 10)
 SCORE_LPS_TIGHTNESS = 20        # Final candle tightness (was 35)
 SCORE_BOX_TIGHTNESS = 22        # Tightness now bites (was 15) — separates a tight coil from a wide-but-clean range
 SCORE_ATR_SQUEEZE = 8           # Volatility contraction (was 10)
-# Oscillation RETIRED — it was rail-blind: it rewarded mean |bar-mid − midline|,
-# which a one-sided top-hug maxes exactly like a true two-sided box (CHCT, a dead-
-# space framing, maxed it). Replaced by the traversal-quality term below (graded on
-# real rail-to-rail density). Kept at 0 so the sub-score key / archive column stay
-# valid without re-scoring anything.
-SCORE_OSCILLATION = 0
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)
