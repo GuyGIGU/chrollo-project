@@ -554,14 +554,18 @@ def measure_bins(
     if has_lps:
         seg_lps = df.iloc[lps_start:lps_end]
         try:
-            fallback_low_rel = int(seg_lps["Low"].values.astype(float).argmin())
+            low_values = seg_lps["Low"].values.astype(float)
+            high_values = seg_lps["High"].values.astype(float)
+            if not np.isfinite(low_values).any() or not np.isfinite(high_values).any():
+                raise ValueError("non-finite LPS window")
+            fallback_low_rel = int(np.nanargmin(low_values))
             fallback_low_bar = lps_start + fallback_low_rel
             elected_lps_low_bar = _bar_or_none(lps_low_bar, n)
             if elected_lps_low_bar is None or not (lps_start <= elected_lps_low_bar < lps_end):
                 elected_lps_low_bar = fallback_low_bar
             elected_lps_anchor_bar = _bar_or_none(lps_anchor_bar, n)
             if elected_lps_anchor_bar is None or not (lps_start <= elected_lps_anchor_bar < lps_end):
-                fallback_anchor_rel = int(seg_lps["High"].values.astype(float).argmax())
+                fallback_anchor_rel = int(np.nanargmax(high_values))
                 elected_lps_anchor_bar = lps_start + fallback_anchor_rel
             lps_low = float(df["Low"].iloc[elected_lps_low_bar])
         except (KeyError, ValueError, TypeError):

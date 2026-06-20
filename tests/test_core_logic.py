@@ -511,6 +511,7 @@ def test_lps_accepts_shallow_pullback_on_tight_clean_coil(monkeypatch):
     assert accepted is not None
     assert 0.40 <= accepted["pullback_profile"] < 0.65
     assert accepted["descent_frac"] == 1.0  # the coil is a clean descent, not chop
+    assert accepted["swing_type"] == "clean_downswing"
 
     # The retired 0.65 floor rejected exactly this coil on pullback magnitude alone.
     monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.65)

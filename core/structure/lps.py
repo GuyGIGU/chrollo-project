@@ -266,7 +266,6 @@ def _collect_lps_candidates(
                 high_descent_frac,
                 box_width,
             )
-            clean_downswing_bypass = False
             if window_range_pct_box > settings.LPS_MAX_WINDOW_BOX_RANGE:
                 # A clean pullback swing is allowed to cover more vertical range:
                 # chart-wise it is one anchor high -> final low test, not broad
@@ -275,7 +274,6 @@ def _collect_lps_candidates(
                     if diagnose:
                         rejects["window_box_range"] += 1
                     continue
-                clean_downswing_bypass = True
 
             # INSIDE means the low is back inside the old box. If the same
             # window first launched far above R, the chosen block is usually a
@@ -416,7 +414,7 @@ def _collect_lps_candidates(
                     zone_type,
                     rising_support_shelf,
                     buec_shelf,
-                    clean_downswing_bypass,
+                    clean_downswing,
                 ),
                 "lps_swing_depth_pct": float(swing_depth / first_high),
                 "lps_swing_depth_atr": (
