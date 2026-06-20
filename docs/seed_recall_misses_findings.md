@@ -110,3 +110,32 @@ Guard results after the GRDN/SILC/SYRE recovery change:
   re-detected, 52.7% recall, hit tiers `{'A': 6, 'S': 23}`, and 26 misses.
 - `python -m pytest tests/ -q`: 213 passed.
 - `python -m pytest tests/test_core_logic.py -q -k "lps"`: 29 passed.
+
+## Box-Layer Deferral — NKTR / PGC (2026-06-20, Guy's call: PAUSE box fallbacks)
+
+The two remaining misses are **box-layer** (no valid Phase-B box elected before the
+LPS). Diagnosed with the new Pass-0 tool `python -m tools.structure_case_audit
+NKTR --as-of 2026-04-13` (per-root strict candidate + first binding gate + margin):
+
+- **NKTR** — strict enumeration anchors **S at the deep shakeout lows (62.5/64.5)**,
+  so `lower_dwell` fails (0.074 < 0.15): price actually dwells in a **69–77 coil**
+  while the 62–64 dips are reclaimed springs, plus a late **SOS breakout to 78+**
+  (04-01). A valid box DOES exist — `R=75.21 / S=68.90` over 02-23..03-30 validates
+  cleanly — but it is **region-defined, not pivot-pair-defined**: both rails sit
+  *inside* the coil and the box must start at the coil's left edge with the breakout
+  SOS-trimmed. Adjacent AND non-adjacent pivot-pair re-anchoring (cand_start at the
+  pivot OR at 0, with SOS-trim) were tested through the real `_build_candidate` +
+  traversal gate: **0 candidates validate**. Capturing it needs **region-based coil
+  framing** (define the worked region → set its rails → treat deep dips as springs).
+- **PGC** — a *tight* ~0.07 coil sits **mid-box** (`mid_dwell 0.5–0.6`,
+  `upper/lower_dwell` ~0.1, `traversal nF=0`, `s_touches=1`); NO recovered-support
+  signal. Needs a dedicated tight-coil validator that does not demand two-sided rail
+  work — a different relaxation from NKTR.
+
+**Decision: PAUSED.** Both treated as known-hard misses alongside PKE/TERN. Any
+fallback strong enough to recover NKTR/PGC will also recover **junk coil-with-spikes
+/ tight-mid-coil look-alikes universe-wide**, so it is too precision-dangerous to
+ship without a measure-first build behind a flag + a **full-universe new-fires
+eyeball** (the 31-ticker shadow fixture won't catch new fallback fires) + archive
+outcome evidence. Revisit with that evidence later. The diagnostic tool +
+`--as-of DATE` are in place for the revisit.
