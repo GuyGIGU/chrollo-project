@@ -17,8 +17,7 @@ from core.structure.bin_features import _phase_c_candidate
 from core.structure.box_primitives import (
     collect_root_anchors,
     collect_zigzag_candidates,
-    detect_inner_root_swing,
-    inner_box_at,
+    select_inner_box,
     select_phase_b_candidate,
 )
 from core.structure.lps import detect_lps
@@ -244,33 +243,9 @@ def find_inner_box(
         return None
 
     n = len(df)
-    bw_outer = box.box_width
-    midpoint_start = parent_pbs + int(box.base_len * settings.INNER_SEARCH_FRACTION)
-    starts = {
-        midpoint_start: {"source": "midpoint", "root": None},
-    }
-    root = detect_inner_root_swing(eval_df.iloc[parent_pbs:])
-    if root is not None:
-        root_abs = {
-            "bc_bar": parent_pbs + int(root["bc_bar"]),
-            "ar_bar": parent_pbs + int(root["ar_bar"]),
-            "reaction_pct": root["reaction_pct"],
-            "reaction_bars": root["reaction_bars"],
-        }
-        starts[root_abs["ar_bar"]] = {"source": "inner_climax", "root": root_abs}
-
-    candidates = []
-    for s, meta in starts.items():
-        inner = inner_box_at(
-            eval_df, s, n,
-            source=meta["source"], root=meta["root"],
-        )
-        if inner is not None and inner["box_width"] < bw_outer * settings.INNER_TIGHTNESS_RATIO:
-            candidates.append(inner)
-    if not candidates:
+    selected = select_inner_box(eval_df, parent_pbs, box.base_len, box.box_width, n)
+    if selected is None:
         return None
-
-    selected = min(candidates, key=lambda b: b["box_width"])
     start_bar = int(selected["start_bar"])
     return InnerBox(
         S=float(selected["S"]),

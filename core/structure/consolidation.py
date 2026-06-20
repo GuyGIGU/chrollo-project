@@ -43,9 +43,8 @@ import pandas as pd
 from config import settings
 from core.structure.box_primitives import (
     collect_root_anchors,
-    detect_inner_root_swing,
-    inner_box_at,
     phase_b_zigzag,
+    select_inner_box,
 )
 
 
@@ -191,27 +190,5 @@ def detect_boxes(df, min_days=None, select="earliest"):
         return {"parent": parent, "inner": None}
 
     n = len(df)
-    midpoint_start = parent_pbs + int(base_len * settings.INNER_SEARCH_FRACTION)
-    starts = {
-        midpoint_start: {"source": "midpoint", "root": None},
-    }
-    root = detect_inner_root_swing(eval_df.iloc[parent_pbs:])
-    if root is not None:
-        root_abs = {
-            "bc_bar": parent_pbs + int(root["bc_bar"]),
-            "ar_bar": parent_pbs + int(root["ar_bar"]),
-            "reaction_pct": root["reaction_pct"],
-            "reaction_bars": root["reaction_bars"],
-        }
-        starts[root_abs["ar_bar"]] = {"source": "inner_climax", "root": root_abs}
-
-    candidates = []
-    for s, meta in starts.items():
-        box = inner_box_at(
-            eval_df, s, n,
-            source=meta["source"], root=meta["root"],
-        )
-        if box is not None and box["box_width"] < bw_outer * settings.INNER_TIGHTNESS_RATIO:
-            candidates.append(box)
-    inner = min(candidates, key=lambda b: b["box_width"]) if candidates else None
+    inner = select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n)
     return {"parent": parent, "inner": inner}
