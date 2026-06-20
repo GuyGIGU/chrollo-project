@@ -4,6 +4,17 @@ Date: 2026-06-20
 
 ## Summary
 
+Locked all-seed fresh recall after the GRDN/SILC/SYRE recovery change:
+**29/55 measured seeds re-detected = 52.7% fresh recall**. The fresh hit tiers
+were `{'A': 6, 'S': 23}`. The 26 fresh misses were WMT 2025-09-11, BWA
+2026-01-26, IBP 2026-02-03, GXO 2026-02-11, NOK 2026-02-17, FOSL
+2026-02-18, SHEL 2026-02-18, TERN 2026-02-23, GASS 2026-02-24, PKE
+2026-02-24, VLO 2026-02-26, VIST 2026-03-05, SNDX 2026-03-06, PUMP
+2026-03-11, NE 2026-03-13, RGR 2026-03-13, NTCT 2026-03-16, XWIN
+2026-03-19, FOSL 2026-03-30, PGC 2026-03-30, RRBI 2026-03-31, DNTH
+2026-04-08, LPTH 2026-04-08, SKYT 2026-04-08, CAPR 2026-04-13, and
+NKTR 2026-04-13.
+
 Fresh recheck of the 8 names in `docs/refactor_seed_recall_misses_codex.md`
 originally found that **FOSL could already fire again** in the smaller targeted
 download, while GRDN/SILC were close LPS misses and the other names remained
@@ -70,9 +81,8 @@ Guard results after the GRDN/SILC/SYRE recovery change:
   because no valid box is elected.
 - `python -m tools.shadow_diff --check`: pass, no canonical drift across 31
   frozen live outputs.
-- `python -m core.archive.seed_recall --fresh`: completed after the GRDN/SILC
-  change; GRDN and SILC no longer appeared in the fresh miss list. Overall
-  fresh recall printed 28/55 active seeds re-detected. Not rerun after the SYRE
-  targeted clean-downswing change.
+- `python -m core.archive.seed_recall --fresh`: completed after the
+  GRDN/SILC/SYRE recovery change; fresh recall printed 29/55 measured seeds
+  re-detected, 52.7% recall, hit tiers `{'A': 6, 'S': 23}`, and 26 misses.
 - `python -m pytest tests/ -q`: 213 passed.
 - `python -m pytest tests/test_core_logic.py -q -k "lps"`: 29 passed.
