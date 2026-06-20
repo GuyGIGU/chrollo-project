@@ -15,6 +15,9 @@ import pandas as pd
 from config import settings
 
 
+_TIGHT_BOX_WIDTH = 0.10
+
+
 def _pairwise_descent_fraction(values) -> float:
     """Fraction of pairwise comparisons where later values do not rise."""
     n = len(values)
@@ -40,7 +43,7 @@ def _zone_tolerance(sup_avg: float, res_avg: float, atr_val: float) -> float:
     """Tolerance around the active box used by the LPS zone gate."""
     box_height = res_avg - sup_avg
     bw = box_height / sup_avg if sup_avg > 0 else 0.0
-    if bw < 0.10:
+    if bw < _TIGHT_BOX_WIDTH:
         return max(settings.LPS_ZONE_ATR_MULT * atr_val, 0.5 * box_height)
     return settings.LPS_ZONE_ATR_MULT * atr_val
 
@@ -80,6 +83,22 @@ def _spread_series(frame: pd.DataFrame) -> pd.Series:
     if "Spread" in frame.columns:
         return frame["Spread"].astype(float)
     return frame["High"].astype(float) - frame["Low"].astype(float)
+
+
+def _box_position(price: float, sup_avg: float, box_height: float) -> float:
+    if box_height <= 0:
+        return 1.0
+    return (float(price) - float(sup_avg)) / float(box_height)
+
+
+def _clean_downswing(length: int, low_descent_frac: float, high_descent_frac: float,
+                     box_width: float) -> bool:
+    return (
+        length >= 3
+        and low_descent_frac == 1.0
+        and high_descent_frac == 1.0
+        and box_width <= _TIGHT_BOX_WIDTH
+    )
 
 
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
@@ -161,7 +180,9 @@ def _collect_lps_candidates(
             last_high = float(end_lps["High"])
             window_high = float(np.nanmax(high_vals))
             window_low = float(np.nanmin(low_vals))
+            window_low_rel = int(np.nanargmin(low_vals))
             low_index = end - 1
+            support_low = last_low
             trigger_price = last_high
 
             if first_high <= 0:
@@ -184,20 +205,35 @@ def _collect_lps_candidates(
                 continue
 
             terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
+            window_range_pct_box = (window_high - window_low) / box_height
             if last_low > window_low + terminal_low_tolerance:
-                if diagnose:
-                    rejects["terminal_low"] += 1
-                continue
+                shelf_low_pos = _box_position(window_low, sup_avg, box_height)
+                # A compact rising shelf can print its real support test early,
+                # then tighten upward. Keep the terminal-low rule for ordinary
+                # reactions; this exception is only for a multi-bar inside-box
+                # shelf whose low is still in the support side of the box.
+                rising_support_shelf = (
+                    length >= 4
+                    and window_low >= sup_avg
+                    and window_range_pct_box <= settings.LPS_MAX_WINDOW_BOX_RANGE
+                    and shelf_low_pos <= settings.TRAVERSAL_LOW_ZONE
+                )
+                if not rising_support_shelf:
+                    if diagnose:
+                        rejects["terminal_low"] += 1
+                    continue
+                support_low = window_low
+                low_index = start + window_low_rel
 
-            # Zone gate: the terminal LPS low must sit in one of the valid
+            # Zone gate: the elected LPS low must sit in one of the valid
             # support zones.
-            if last_low < s_floor or last_low > r_ceiling:
+            if support_low < s_floor or support_low > r_ceiling:
                 if diagnose:
                     rejects["zone_gate"] += 1
                 continue
-            if last_low < sup_avg:
+            if support_low < sup_avg:
                 zone_type = "UNDERCUT_S"
-            elif last_low > res_avg:
+            elif support_low > res_avg:
                 zone_type = "OVERSHOOT_R"
             else:
                 zone_type = "INSIDE"
@@ -205,11 +241,15 @@ def _collect_lps_candidates(
             # Behavior gate: the candidate window should localize the support
             # test. If it spans most of the active box, it is a broad reaction
             # region, not a usable LPS footprint.
-            window_range_pct_box = (window_high - window_low) / box_height
             if window_range_pct_box > settings.LPS_MAX_WINDOW_BOX_RANGE:
-                if diagnose:
-                    rejects["window_box_range"] += 1
-                continue
+                # A clean pullback swing is allowed to cover more vertical range:
+                # chart-wise it is one anchor high -> final low test, not broad
+                # multi-direction chop occupying the whole box.
+                if not _clean_downswing(length, low_descent_frac, high_descent_frac,
+                                        box_height / sup_avg if sup_avg > 0 else 1.0):
+                    if diagnose:
+                        rejects["window_box_range"] += 1
+                    continue
 
             # INSIDE means the low is back inside the old box. If the same
             # window first launched far above R, the chosen block is usually a
@@ -230,12 +270,25 @@ def _collect_lps_candidates(
                     rejects["inside_high_extension"] += 1
                 continue
 
-            pullback_profile = (first_high - last_low) / profile_unit
-            min_pullback = (
-                settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
-                if zone_type == "OVERSHOOT_R"
-                else settings.LPS_PULLBACK_PROFILE_MIN
-            )
+            pullback_profile = (first_high - support_low) / profile_unit
+            min_pullback = settings.LPS_PULLBACK_PROFILE_MIN
+            if zone_type == "OVERSHOOT_R":
+                close_extension_box = _box_position(float(end_lps["Close"]), res_avg, box_height)
+                # BUEC / resistance-shelf behavior: a longer shelf holding just
+                # above R can be a valid shallow LPS. Keep the stricter overshoot
+                # floor when price has already lifted away from R or when the
+                # pullback is nearly a normal overshoot reaction.
+                buec_shelf = (
+                    length >= 5
+                    and support_low >= res_avg
+                    and close_extension_box <= settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
+                    and pullback_profile <= (
+                        settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+                        - 2 * settings.LPS_TERMINAL_LOW_TOL_PROFILE
+                    )
+                )
+                if not buec_shelf:
+                    min_pullback = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
             if not (min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX):
                 if diagnose:
                     rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
@@ -277,16 +330,16 @@ def _collect_lps_candidates(
                     rejects["vol_contraction"] += 1
                 continue
 
-            if latest["Close"] < (last_low * settings.LPS_HOLD_TOLERANCE):
+            if latest["Close"] < (support_low * settings.LPS_HOLD_TOLERANCE):
                 if diagnose:
                     rejects["hold_tolerance"] += 1
                 continue
 
-            # Bars after the LPS evaluation bar must hold above the terminal LPS
+            # Bars after the LPS evaluation bar must hold above the elected LPS
             # low and stay profile-tight, or the "LPS" has become another down-leg.
             if offset > 0:
                 post_lps = df.iloc[end:n]
-                if post_lps["Low"].min() < last_low * settings.LPS_HOLD_TOLERANCE:
+                if post_lps["Low"].min() < support_low * settings.LPS_HOLD_TOLERANCE:
                     if diagnose:
                         rejects["post_lps_low_breach"] += 1
                     continue
@@ -316,7 +369,7 @@ def _collect_lps_candidates(
                 "start_index": int(start),
                 "end_index": int(end),
                 "low_index": int(low_index),
-                "low": last_low,
+                "low": support_low,
                 "high": window_high,
                 "trigger_price": trigger_price,
                 "vol_contraction": float(vol_contraction),

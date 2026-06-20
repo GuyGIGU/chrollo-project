@@ -523,7 +523,7 @@ def test_lps_rejects_window_that_spans_most_of_box(monkeypatch):
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
     df = _lps_behavior_frame(
-        highs=[110, 109, 108, 107, 106],
+        highs=[110, 114, 113, 112, 106],
         lows=[105, 104, 103, 102, 101],
         closes=[106, 105, 104, 103, 102],
     )
@@ -542,6 +542,32 @@ def test_lps_rejects_window_that_spans_most_of_box(monkeypatch):
 
     assert result is None
     assert rejects["window_box_range"] == 1
+
+
+def test_lps_accepts_clean_downswing_even_when_window_spans_box(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 107],
+        lows=[108, 105, 102],
+        closes=[109, 106, 103],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["window_range_pct_box"] > settings.LPS_MAX_WINDOW_BOX_RANGE
+    assert result["descent_frac"] == 1.0
+    assert result["high_descent_frac"] == 1.0
 
 
 def test_lps_rising_edge_is_graded_not_hard_rejected(monkeypatch):
@@ -733,6 +759,82 @@ def test_lps_terminal_low_guard_rejects_earlier_lower_low(monkeypatch):
 
     assert result is None
     assert rejects["terminal_low"] == 1
+
+
+def test_lps_accepts_compact_rising_support_shelf(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[106.0, 105.0, 105.2, 105.4, 105.6],
+        lows=[104.0, 101.0, 102.0, 102.5, 103.0],
+        closes=[105.0, 102.0, 103.0, 103.5, 104.5],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["low_index"] == 1
+    assert result["low"] == 101.0
+    assert result["last_low"] == 103.0
+
+
+def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[113.0, 112.2, 111.8, 111.6, 111.3],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[111.2, 110.8, 110.9, 111.0, 110.8],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["zone_type"] == "OVERSHOOT_R"
+    assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+
+
+def test_lps_rejects_extended_shallow_overshoot_shelf(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[114.5, 114.2, 114.1, 114.0, 114.2],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[113.8, 113.9, 113.8, 113.9, 113.8],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert any(str(k).startswith("pullback_profile") for k in rejects)
 
 
 def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch):
