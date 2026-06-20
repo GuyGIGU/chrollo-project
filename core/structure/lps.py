@@ -101,12 +101,29 @@ def _clean_downswing(length: int, low_descent_frac: float, high_descent_frac: fl
     )
 
 
+def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
+                clean_downswing: bool) -> str:
+    if zone_type == "UNDERCUT_S":
+        return "undercut_rebound"
+    if rising_support_shelf:
+        return "rising_support_shelf"
+    if buec_shelf:
+        return "buec_shelf"
+    if clean_downswing:
+        return "clean_downswing"
+    return "terminal_valley"
+
+
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
     out = {k: v for k, v in candidate.items() if k != "_quality"}
     start = int(out["start_index"])
     end = int(out["end_index"])
     out["start_date"] = _date_at(df, start)
     out["end_date"] = _date_at(df, end - 1)
+    if "lps_anchor_bar" in out:
+        out["lps_anchor_date"] = _date_at(df, int(out["lps_anchor_bar"]))
+    if "lps_low_bar" in out:
+        out["lps_low_date"] = _date_at(df, int(out["lps_low_bar"]))
     return out
 
 
@@ -141,6 +158,7 @@ def _collect_lps_candidates(
     zone_tol = _zone_tolerance(sup_avg, res_avg, atr_val)
     r_ceiling = res_avg + zone_tol
     s_floor = sup_avg - zone_tol
+    box_width = box_height / sup_avg if sup_avg > 0 else 1.0
 
     # LPS must land inside the base + reaction window. Without this guard,
     # raising scan depth could match an LPS that pre-dates the box entirely.
@@ -206,6 +224,7 @@ def _collect_lps_candidates(
 
             terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
             window_range_pct_box = (window_high - window_low) / box_height
+            rising_support_shelf = False
             if last_low > window_low + terminal_low_tolerance:
                 shelf_low_pos = _box_position(window_low, sup_avg, box_height)
                 # A compact rising shelf can print its real support test early,
@@ -241,15 +260,22 @@ def _collect_lps_candidates(
             # Behavior gate: the candidate window should localize the support
             # test. If it spans most of the active box, it is a broad reaction
             # region, not a usable LPS footprint.
+            clean_downswing = _clean_downswing(
+                length,
+                low_descent_frac,
+                high_descent_frac,
+                box_width,
+            )
+            clean_downswing_bypass = False
             if window_range_pct_box > settings.LPS_MAX_WINDOW_BOX_RANGE:
                 # A clean pullback swing is allowed to cover more vertical range:
                 # chart-wise it is one anchor high -> final low test, not broad
                 # multi-direction chop occupying the whole box.
-                if not _clean_downswing(length, low_descent_frac, high_descent_frac,
-                                        box_height / sup_avg if sup_avg > 0 else 1.0):
+                if not clean_downswing:
                     if diagnose:
                         rejects["window_box_range"] += 1
                     continue
+                clean_downswing_bypass = True
 
             # INSIDE means the low is back inside the old box. If the same
             # window first launched far above R, the chosen block is usually a
@@ -272,6 +298,7 @@ def _collect_lps_candidates(
 
             pullback_profile = (first_high - support_low) / profile_unit
             min_pullback = settings.LPS_PULLBACK_PROFILE_MIN
+            buec_shelf = False
             if zone_type == "OVERSHOOT_R":
                 close_extension_box = _box_position(float(end_lps["Close"]), res_avg, box_height)
                 # BUEC / resistance-shelf behavior: a longer shelf holding just
@@ -363,12 +390,15 @@ def _collect_lps_candidates(
             )
 
             setup_type = "REBOUND" if zone_type == "UNDERCUT_S" else "LPS"
+            swing_depth = first_high - support_low
             candidates.append({
                 "length": int(length),
                 "offset": int(offset),
                 "start_index": int(start),
                 "end_index": int(end),
                 "low_index": int(low_index),
+                "lps_anchor_bar": int(start),
+                "lps_low_bar": int(low_index),
                 "low": support_low,
                 "high": window_high,
                 "trigger_price": trigger_price,
@@ -382,6 +412,19 @@ def _collect_lps_candidates(
                 "window_range_pct_box": float(window_range_pct_box),
                 "high_extension_box": float(high_extension_box),
                 "high_extension_atr": float(high_extension_atr),
+                "swing_type": _swing_type(
+                    zone_type,
+                    rising_support_shelf,
+                    buec_shelf,
+                    clean_downswing_bypass,
+                ),
+                "lps_swing_depth_pct": float(swing_depth / first_high),
+                "lps_swing_depth_atr": (
+                    float(swing_depth / float(atr_val))
+                    if atr_val is not None and float(atr_val) > 0
+                    else 0.0
+                ),
+                "lps_swing_depth_box": float(swing_depth / box_height),
                 "profile_unit": float(profile_unit),
                 "profile_unit_pct": float(profile_unit / first_high),
                 "pullback_profile": float(pullback_profile),

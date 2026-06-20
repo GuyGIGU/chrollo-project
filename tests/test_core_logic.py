@@ -568,6 +568,10 @@ def test_lps_accepts_clean_downswing_even_when_window_spans_box(monkeypatch):
     assert result["window_range_pct_box"] > settings.LPS_MAX_WINDOW_BOX_RANGE
     assert result["descent_frac"] == 1.0
     assert result["high_descent_frac"] == 1.0
+    assert result["swing_type"] == "clean_downswing"
+    assert result["lps_anchor_bar"] == 0
+    assert result["lps_low_bar"] == 2
+    assert result["lps_swing_depth_box"] == pytest.approx((112 - 102) / (110 - 100))
 
 
 def test_lps_rising_edge_is_graded_not_hard_rejected(monkeypatch):
@@ -785,6 +789,35 @@ def test_lps_accepts_compact_rising_support_shelf(monkeypatch):
     assert result["low_index"] == 1
     assert result["low"] == 101.0
     assert result["last_low"] == 103.0
+    assert result["swing_type"] == "rising_support_shelf"
+
+
+def test_lps_swing_dates_follow_anchor_and_elected_valley(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[106.0, 105.0, 105.2, 105.4, 105.6],
+        lows=[104.0, 101.0, 102.0, 102.5, 103.0],
+        closes=[105.0, 102.0, 103.0, 103.5, 104.5],
+    )
+    df.index = pd.date_range("2026-01-05", periods=len(df), freq="B")
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["lps_anchor_date"] == "2026-01-05"
+    assert result["lps_low_date"] == "2026-01-06"
+    assert result["lps_swing_depth_pct"] == pytest.approx((106 - 101) / 106)
+    assert result["lps_swing_depth_atr"] == pytest.approx((106 - 101) / 2)
 
 
 def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch):
@@ -809,7 +842,34 @@ def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch):
 
     assert result is not None
     assert result["zone_type"] == "OVERSHOOT_R"
+    assert result["swing_type"] == "buec_shelf"
     assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+
+
+def test_lps_swing_type_labels_undercut_rebound(monkeypatch):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[108, 106, 104],
+        lows=[103, 100, 98],
+        closes=[104, 101, 100],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=4,
+        base_range_threshold=5,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["setup_type"] == "REBOUND"
+    assert result["zone_type"] == "UNDERCUT_S"
+    assert result["swing_type"] == "undercut_rebound"
 
 
 def test_lps_rejects_extended_shallow_overshoot_shelf(monkeypatch):
@@ -1575,6 +1635,9 @@ def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster():
 
 def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
     df = _flat_ohlc(120)
+    df.loc[113, "Low"] = 102.0
+    df.loc[113, "Close"] = 102.5
+    df.loc[113, "High"] = 103.0
     for i in range(115, 120):
         df.loc[i, "Low"] = 103.0
         df.loc[i, "Close"] = 103.5
@@ -1588,6 +1651,9 @@ def test_measure_bins_last_supper_positive_when_lps_above_ceiling():
     assert bins["lps_stretch_box"] > 0
     assert bins["lps_stretch_atr"] == 2.0     # (103-101)/1
     assert bins["lps_position_in_box"] > 1.0  # above the box ceiling
+    assert bins["last_supper_pullback_from_extension_pct"] == 0.0096
+    assert bins["last_supper_source_box_age"] == 2
+    assert bins["last_supper_reclaim_quality"] == 0.75
 
 
 def test_measure_bins_lps_stretch_can_use_active_inner_box():

@@ -118,6 +118,14 @@ class Lps:
     last_low: float
     window_high: float
     window_low: float
+    swing_type: str = "terminal_valley"
+    lps_anchor_bar: Optional[int] = None
+    lps_anchor_date: Optional[str] = None
+    lps_low_bar: Optional[int] = None
+    lps_low_date: Optional[str] = None
+    lps_swing_depth_pct: Optional[float] = None
+    lps_swing_depth_atr: Optional[float] = None
+    lps_swing_depth_box: Optional[float] = None
 
 
 def _finite(x) -> bool:
@@ -373,6 +381,16 @@ def find_lps(
         last_low=float(result["last_low"]),
         window_high=float(result["window_high"]),
         window_low=float(result["window_low"]),
+        swing_type=result.get("swing_type", "terminal_valley"),
+        lps_anchor_bar=(int(result["lps_anchor_bar"])
+                        if result.get("lps_anchor_bar") is not None else None),
+        lps_anchor_date=result.get("lps_anchor_date"),
+        lps_low_bar=(int(result["lps_low_bar"])
+                     if result.get("lps_low_bar") is not None else None),
+        lps_low_date=result.get("lps_low_date"),
+        lps_swing_depth_pct=result.get("lps_swing_depth_pct"),
+        lps_swing_depth_atr=result.get("lps_swing_depth_atr"),
+        lps_swing_depth_box=result.get("lps_swing_depth_box"),
     )
 
 

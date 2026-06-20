@@ -93,6 +93,9 @@ def _empty() -> dict:
         "bin_d_vs_b_support_quality_delta": None,
         "lps_stretch_atr": None,
         "lps_stretch_box": None,
+        "last_supper_pullback_from_extension_pct": None,
+        "last_supper_source_box_age": None,
+        "last_supper_reclaim_quality": None,
     }
 
 
@@ -189,6 +192,104 @@ def _date_at(df: "pd.DataFrame", idx: int) -> Optional[str]:
         return str(df.index[idx])[:10]
     except (IndexError, TypeError, ValueError):
         return None
+
+
+def _bar_or_none(value, n: int) -> Optional[int]:
+    try:
+        bar = int(value)
+    except (TypeError, ValueError):
+        return None
+    if 0 <= bar < n:
+        return bar
+    return None
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _spread_at(df: "pd.DataFrame", idx: int) -> Optional[float]:
+    try:
+        return float(df["High"].iloc[idx]) - float(df["Low"].iloc[idx])
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
+
+def _source_box_exit_bar(df: "pd.DataFrame", start: int, end: int,
+                         ceiling: float) -> Optional[int]:
+    if not _finite(ceiling):
+        return None
+    lo = max(0, int(start))
+    hi = min(len(df), int(end) + 1)
+    if lo >= hi:
+        return None
+    for idx in range(lo, hi):
+        try:
+            if float(df["Low"].iloc[idx]) > float(ceiling):
+                return idx
+        except (KeyError, TypeError, ValueError):
+            break
+    if "Close" not in df.columns:
+        return None
+    for idx in range(lo, hi):
+        try:
+            if float(df["Close"].iloc[idx]) > float(ceiling):
+                return idx
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _last_supper_measurements(
+    df: "pd.DataFrame",
+    *,
+    anchor_bar: Optional[int],
+    low_bar: Optional[int],
+    lps_end: int,
+    box_start: int,
+    active_R: float,
+) -> dict:
+    out = {
+        "last_supper_pullback_from_extension_pct": None,
+        "last_supper_source_box_age": None,
+        "last_supper_reclaim_quality": None,
+    }
+    n = len(df) if df is not None else 0
+    if n == 0 or anchor_bar is None or low_bar is None:
+        return out
+    if not (0 <= anchor_bar < n and 0 <= low_bar < n):
+        return out
+    try:
+        anchor_high = float(df["High"].iloc[anchor_bar])
+        lps_low = float(df["Low"].iloc[low_bar])
+    except (KeyError, TypeError, ValueError):
+        return out
+    if not (_finite(anchor_high) and _finite(lps_low)) or anchor_high <= 0:
+        return out
+
+    swing = anchor_high - lps_low
+    if swing > 0:
+        out["last_supper_pullback_from_extension_pct"] = _round(swing / anchor_high)
+        final_bar = max(low_bar, min(n - 1, int(lps_end) - 1))
+        try:
+            final_close = float(df["Close"].iloc[final_bar])
+        except (KeyError, TypeError, ValueError):
+            final_close = lps_low
+        reclaim = _clamp01((final_close - lps_low) / swing)
+        final_spread = _spread_at(df, final_bar)
+        prev_spread = _spread_at(df, final_bar - 1) if final_bar > low_bar else final_spread
+        if final_spread is not None and prev_spread is not None and final_spread > prev_spread:
+            spread_quality = _clamp01(1.0 - ((final_spread - prev_spread) / max(final_spread, 1e-9)))
+        else:
+            spread_quality = 1.0
+        out["last_supper_reclaim_quality"] = _round((reclaim + spread_quality) / 2.0)
+
+    if _finite(active_R) and lps_low > float(active_R):
+        exit_bar = _source_box_exit_bar(df, box_start, low_bar, float(active_R))
+        if exit_bar is not None:
+            out["last_supper_source_box_age"] = int(low_bar - exit_bar)
+
+    return out
 
 
 def _volume_z(seg: "pd.DataFrame", base_seg: "pd.DataFrame") -> Optional[float]:
@@ -374,6 +475,8 @@ def measure_bins(
     v_tip_bar: Optional[int] = None,
     lps_R: Optional[float] = None,
     lps_S: Optional[float] = None,
+    lps_anchor_bar: Optional[int] = None,
+    lps_low_bar: Optional[int] = None,
 ) -> dict:
     """Measure the named regions of an already-detected base. Pure.
 
@@ -407,6 +510,10 @@ def measure_bins(
         lps_R, lps_S: optional active LPS box ceiling/floor. Parent R/S still
             define Bin B/D; these only define LPS position/stretch when the LPS
             was elected against an inner range.
+        lps_anchor_bar/lps_low_bar: optional elected LPS swing bars from
+            ``detect_lps``. When present, Last Supper measurements use the
+            anchor High -> elected valley Low rather than re-inferring from the
+            LPS window.
 
     Returns a JSON-safe dict of un-prefixed keys (see _empty for the shape).
     """
@@ -442,12 +549,25 @@ def measure_bins(
     lps_end = min(lps_end, n)
     has_lps = lps_end > lps_start
     lps_low = None
+    elected_lps_low_bar = None
+    elected_lps_anchor_bar = None
     if has_lps:
         seg_lps = df.iloc[lps_start:lps_end]
         try:
-            lps_low = float(seg_lps["Low"].min())
+            fallback_low_rel = int(seg_lps["Low"].values.astype(float).argmin())
+            fallback_low_bar = lps_start + fallback_low_rel
+            elected_lps_low_bar = _bar_or_none(lps_low_bar, n)
+            if elected_lps_low_bar is None or not (lps_start <= elected_lps_low_bar < lps_end):
+                elected_lps_low_bar = fallback_low_bar
+            elected_lps_anchor_bar = _bar_or_none(lps_anchor_bar, n)
+            if elected_lps_anchor_bar is None or not (lps_start <= elected_lps_anchor_bar < lps_end):
+                fallback_anchor_rel = int(seg_lps["High"].values.astype(float).argmax())
+                elected_lps_anchor_bar = lps_start + fallback_anchor_rel
+            lps_low = float(df["Low"].iloc[elected_lps_low_bar])
         except (KeyError, ValueError, TypeError):
             lps_low = None
+            elected_lps_low_bar = None
+            elected_lps_anchor_bar = None
         out["bin_lps_bars"] = int(lps_end - lps_start)
 
     # ── Bin A — climax event (BC/SC -> AR) ──────────────────────────────────
@@ -534,5 +654,15 @@ def measure_bins(
         out["lps_stretch_box"] = _round((lps_low - active_R) / active_box_height)
     if lps_low is not None and has_atr:
         out["lps_stretch_atr"] = _round((lps_low - active_R) / float(atr_val))
+
+    if has_lps:
+        out.update(_last_supper_measurements(
+            df,
+            anchor_bar=elected_lps_anchor_bar,
+            low_bar=elected_lps_low_bar,
+            lps_end=lps_end,
+            box_start=box_start,
+            active_R=active_R,
+        ))
 
     return out

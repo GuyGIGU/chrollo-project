@@ -58,6 +58,30 @@ smaller targeted download but appeared as a miss in the all-seed fresh run.
 | SYRE | 2026-02-12 | Recovered | 2026-02-12 | Phase D / LPS | Recovered as clean anchor-high to final-valley downswing. Elected LPS window 2026-02-09 through 2026-02-11; the wide window range is accepted because highs and lows descend cleanly into the valley. | recovered |
 | TERN | 2026-02-23 | Miss | 2026-02-23 | Phase D / actionability | Valid box from 2026-01-12. Older Feb 13 LPS candidates pass geometry but are no longer actionable on Feb 23: close 40.85 vs trigger 38.80. On Feb 13 itself, baseline fails SMA50 by -0.2472. Current pullback is shallow: overshoot-R profile 0.4393 vs min 1.25. | acceptable |
 
+## FOSL Data-Sensitivity Diagnostic
+
+X4 diagnosis: FOSL is a **lookback-window / root-walk cap sensitivity**, not a
+split-adjustment issue and not `fired_seeds_fresh` nondeterminism.
+
+- Targeted single-ticker range (`2024-01-20` -> `2026-06-18`) fires FOSL
+  2026-02-18 as an S-tier LPS; best eval date is 2026-02-17, score 136.5,
+  LPS 2026-02-13 -> 2026-02-17.
+- Full single-ticker range (`2023-08-13` -> `2026-08-12`) misses, matching the
+  all-seed fresh run.
+- Full single-ticker FOSL data and FOSL extracted from the 52-ticker all-seed
+  multi-download are identical over 714 common rows: max absolute OHLCV diff is
+  0.0 for Open/High/Low/Close/Volume, with 0 differing rows.
+- The failing stage is `read_structure`, before LPS. With the narrow frame,
+  `read_structure` reaches the valid December 2025 root candidates and fires.
+  With the full frame, the older 2023/early-2024 history adds enough stale root
+  candidates that the `_MAX_ANCHORS = 64` safety cap is exhausted first.
+  Narrow frame: 58 roots total, good LPS roots at indices 55-57. Full frame:
+  74 roots total, good LPS roots at indices 71-73, beyond the cap.
+
+No detector loosening was applied. A future fix, if desired, should make the
+root-walk safety bound less sensitive to irrelevant old history, not widen
+box/LPS gates.
+
 ## Proposed Changes
 
 Implemented in `core.structure.lps`:

@@ -273,6 +273,8 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             v_tip_bar=v_tip_bar,
             lps_R=lps_context[1],
             lps_S=lps_context[0],
+            lps_anchor_bar=lps_result.get("lps_anchor_bar"),
+            lps_low_bar=lps_result.get("lps_low_bar"),
         )
         trend = trend_template(df_ind, dist_52w_high_pct=dist_52w_high_pct)
 
@@ -336,6 +338,16 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             "lps_last_low": float(lps_result.get("last_low", 0.0)),
             "lps_window_high": float(lps_result.get("window_high", 0.0)),
             "lps_window_low": float(lps_result.get("window_low", 0.0)),
+            "lps_swing_type": lps_result.get("swing_type", "terminal_valley"),
+            "lps_anchor_bar": (int(lps_result["lps_anchor_bar"])
+                               if lps_result.get("lps_anchor_bar") is not None else None),
+            "lps_anchor_date": lps_result.get("lps_anchor_date"),
+            "lps_low_bar": (int(lps_result["lps_low_bar"])
+                            if lps_result.get("lps_low_bar") is not None else None),
+            "lps_low_date": lps_result.get("lps_low_date"),
+            "lps_swing_depth_pct": lps_result.get("lps_swing_depth_pct"),
+            "lps_swing_depth_atr": lps_result.get("lps_swing_depth_atr"),
+            "lps_swing_depth_box": lps_result.get("lps_swing_depth_box"),
             "lps_zone_type": lps_result.get("zone_type", "INSIDE"),
             "phase_d_inner": bool(inner is not None),
             "lps_in_inner": bool(lps_in_inner),
