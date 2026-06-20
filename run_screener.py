@@ -20,16 +20,24 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.pipeline.scan_job import run_scan_and_export
+from core.pipeline.scan_job import StaleMarketDataError, run_scan_and_export
+
+
+def _print_result_json(n_setups: int, n_archived: int) -> None:
+    print(
+        "SCAN_RESULT_JSON:"
+        + json.dumps({"n_setups": n_setups, "n_archived": n_archived}),
+        flush=True,
+    )
 
 
 def main() -> None:
-    result = run_scan_and_export()
-    print(
-        "SCAN_RESULT_JSON:"
-        + json.dumps({"n_setups": result.n_setups, "n_archived": result.n_archived}),
-        flush=True,
-    )
+    try:
+        result = run_scan_and_export()
+    except StaleMarketDataError as exc:
+        _print_result_json(exc.n_setups or 0, 0)
+        raise
+    _print_result_json(result.n_setups, result.n_archived)
 
 
 if __name__ == '__main__':

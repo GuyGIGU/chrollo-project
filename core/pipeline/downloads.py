@@ -19,6 +19,13 @@ from core.pipeline.cache import (
     _read_meta,
     _write_meta,
 )
+from core.pipeline.data_freshness import (
+    close_coverage_on,
+    has_all_closes_on,
+    last_complete_reference_date,
+    symbols_missing_closes_on,
+)
+from core.pipeline.market_calendar import latest_completed_session, session_gap
 
 
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
@@ -291,6 +298,74 @@ def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
     return all(symbol in present for symbol in symbols)
 
 
+def _patch_market_data(base: pd.DataFrame, patch: pd.DataFrame) -> pd.DataFrame:
+    if patch.empty:
+        return base
+    merged = base.reindex(base.index.union(patch.index)).sort_index()
+    for column in patch.columns:
+        if column in merged.columns:
+            merged[column] = patch[column].combine_first(merged[column])
+        else:
+            merged[column] = patch[column]
+    return merged
+
+
+def _repair_latest_session(
+    data: pd.DataFrame,
+    symbols: list[str],
+    expected_session: pd.Timestamp,
+    min_latest_coverage: float,
+    label: str,
+) -> pd.DataFrame:
+    coverage = close_coverage_on(data, symbols, expected_session)
+    if coverage.ratio >= min_latest_coverage:
+        return data
+
+    missing = symbols_missing_closes_on(data, symbols, expected_session)
+    if not missing:
+        return data
+
+    batch_size = max(1, int(getattr(settings, "LATEST_REPAIR_BATCH_SIZE", 100)))
+    sleep_seconds = max(0.0, float(getattr(settings, "LATEST_REPAIR_SLEEP_SECONDS", 2.0)))
+    start = (expected_session - pd.tseries.offsets.BDay(settings.INCREMENTAL_OVERLAP_BDAYS)).normalize()
+    end = (expected_session + pd.Timedelta(days=1)).normalize()
+    frames: list[pd.DataFrame] = []
+
+    print(f"  {label} latest-session coverage is {coverage.format()} for "
+          f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+          f"repairing {len(missing)} missing symbol(s) in {batch_size}-batches...",
+          flush=True)
+
+    total_batches = ((len(missing) - 1) // batch_size) + 1
+    for i in range(0, len(missing), batch_size):
+        batch = missing[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        print(f"  {label} repair batch {batch_num}/{total_batches} ({len(batch)} tickers)...",
+              flush=True)
+        repaired = _download_batch_with_retry_kwargs(
+            batch,
+            {'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d')},
+            max_retries=2,
+        )
+        if not repaired.empty and isinstance(repaired.columns, pd.MultiIndex):
+            if hasattr(repaired.index, 'tz') and repaired.index.tz is not None:
+                repaired.index = repaired.index.tz_localize(None)
+            frames.append(repaired)
+        time.sleep(sleep_seconds)
+
+    if not frames:
+        print(f"  {label} repair yielded no usable data.", flush=True)
+        return data
+
+    repaired_panel = pd.concat(frames, axis=1)
+    repaired_panel = repaired_panel.loc[:, ~repaired_panel.columns.duplicated(keep='last')]
+    repaired = _patch_market_data(data, repaired_panel)
+    repaired_coverage = close_coverage_on(repaired, symbols, expected_session)
+    print(f"  {label} repair coverage after patch: {repaired_coverage.format()}.",
+          flush=True)
+    return repaired
+
+
 def fetch_data(tickers: list[str]) -> pd.DataFrame:
     """
     Download market data via yfinance with PyArrow Parquet caching.
@@ -314,6 +389,8 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     for symbol in index_symbols:
         if symbol not in tickers_with_indexes:
             tickers_with_indexes.append(symbol)
+    expected_session = latest_completed_session()
+    min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
     # ── Fast path: fresh cache ─────────────────────────────────────────────
     meta = _read_meta(meta_file)
@@ -323,12 +400,18 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
                else settings.TTL_FRESH_HOURS_OFFHOURS)
         if cache_age_hours < ttl:
             cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
-            if _has_all_symbols(cached_data, index_symbols):
+            last_reference_date = last_complete_reference_date(cached_data, index_symbols)
+            coverage = close_coverage_on(cached_data, tickers_with_indexes, expected_session)
+            if (_has_all_symbols(cached_data, index_symbols)
+                    and last_reference_date is not None
+                    and last_reference_date >= expected_session
+                    and coverage.ratio >= min_latest_coverage):
                 print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
                       f"TTL {ttl}h)...", flush=True)
                 return cached_data
-            print("Local cache is fresh but missing a market-regime index; updating cache.",
-                  flush=True)
+            print(f"Local cache is fresh by mtime but latest-session coverage is "
+                  f"{coverage.format()} for {expected_session.date()} "
+                  f"(required >= {min_latest_coverage:.0%}); updating cache.", flush=True)
 
     # ── Decide cold vs. incremental ────────────────────────────────────────
     cached: pd.DataFrame | None = None
@@ -352,10 +435,16 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
             weekly_refresh_due = True
 
     gap_bdays = None
+    last_cached_date = None
     if cached is not None and not cached.empty:
-        last_cached_date = cached.index.max().normalize()
-        today = pd.Timestamp.now().normalize()
-        gap_bdays = len(pd.bdate_range(last_cached_date, today)) - 1
+        last_cached_date = (
+            last_complete_reference_date(cached, index_symbols)
+            or cached.index.max().normalize()
+        )
+        gap_bdays = session_gap(last_cached_date, expected_session)
+        latest_coverage = close_coverage_on(cached, tickers_with_indexes, expected_session)
+    else:
+        latest_coverage = None
 
     # Cache exists, weekly refresh not due, and we already have the latest
     # trading day's bar → just refresh mtime and return. This avoids a full
@@ -363,8 +452,10 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     # ago but it's still the same trading day).
     if (cached is not None and not cached.empty and gap_bdays == 0
             and not weekly_refresh_due
-            and _has_all_symbols(cached, index_symbols)):
-        print(f"Cache last bar is current ({cached.index.max().date()}); "
+            and _has_all_symbols(cached, index_symbols)
+            and latest_coverage is not None
+            and latest_coverage.ratio >= min_latest_coverage):
+        print(f"Cache last market-regime bar is current ({last_cached_date.date()}); "
               f"touching mtime and returning.", flush=True)
         _atomic_write_parquet(cached, cache_file)
         meta['last_modified'] = _now_iso()
@@ -372,7 +463,9 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         return cached
     if (cached is not None and not cached.empty and gap_bdays == 0
             and not weekly_refresh_due):
-        print("Cache last bar is current but missing a market-regime index; "
+        coverage_text = latest_coverage.format() if latest_coverage else "none"
+        print(f"Cache last market-regime bar is current but latest-session coverage is "
+              f"{coverage_text} (required >= {min_latest_coverage:.0%}); "
               "falling back to full refetch.", flush=True)
 
     do_incremental = (
@@ -406,6 +499,23 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     if isinstance(data.columns, pd.MultiIndex):
         data = data.loc[:, ~data.columns.duplicated(keep='last')]
 
+    data = _repair_latest_session(
+        data,
+        tickers_with_indexes,
+        expected_session,
+        min_latest_coverage,
+        "Full refetch",
+    )
+    coverage = close_coverage_on(data, tickers_with_indexes, expected_session)
+    if (not has_all_closes_on(data, index_symbols, expected_session)
+            or coverage.ratio < min_latest_coverage):
+        print(f"Full refetch latest-session coverage is {coverage.format()} for "
+              f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+              "keeping existing cache if possible.", flush=True)
+        if cached is not None and not cached.empty:
+            return cached
+        return data
+
     _atomic_write_parquet(data, cache_file)
     meta = {
         'last_full_refresh': _now_iso(),
@@ -423,11 +533,16 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     merge into the cached panel. Returns the merged DataFrame on success or
     None on a soft failure that should fall through to the cold path.
     """
-    last_cached_date = cached.index.max().normalize()
-    today = pd.Timestamp.now().normalize()
+    index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
+    expected_session = latest_completed_session()
+    min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    last_cached_date = (
+        last_complete_reference_date(cached, index_symbols)
+        or cached.index.max().normalize()
+    )
     overlap = settings.INCREMENTAL_OVERLAP_BDAYS
     start = (last_cached_date - pd.tseries.offsets.BDay(overlap)).normalize()
-    end = (today + pd.Timedelta(days=1)).normalize()  # yfinance end is exclusive
+    end = (expected_session + pd.Timedelta(days=1)).normalize()  # yfinance end is exclusive
 
     print(f"Incremental update: gap={gap_bdays} bday(s), fetching "
           f"{start.date()} → {end.date()} ({len(tickers_with_spy)} tickers)...",
@@ -440,6 +555,22 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     )
     if fresh.empty or not isinstance(fresh.columns, pd.MultiIndex):
         print("  Incremental download returned empty/malformed data.")
+        return None
+
+    fresh = _repair_latest_session(
+        fresh,
+        tickers_with_spy,
+        expected_session,
+        min_latest_coverage,
+        "Incremental",
+    )
+    fresh_coverage = close_coverage_on(fresh, tickers_with_spy, expected_session)
+    if (last_cached_date < expected_session
+            and (not has_all_closes_on(fresh, index_symbols, expected_session)
+                 or fresh_coverage.ratio < min_latest_coverage)):
+        print(f"  Incremental latest-session coverage is {fresh_coverage.format()} "
+              f"for {expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+              "falling back to full refetch.")
         return None
 
     cached_tickers = list({c[0] for c in cached.columns if isinstance(c, tuple)})
@@ -480,5 +611,14 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     if drifted:
         print(f"  Refetching {len(drifted)} split-drifted ticker(s) in full...", flush=True)
         merged = _recover_missing_data(merged, drifted)
+
+    merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
+    if (last_cached_date < expected_session
+            and (not has_all_closes_on(merged, index_symbols, expected_session)
+                 or merged_coverage.ratio < min_latest_coverage)):
+        print(f"  Merged cache latest-session coverage is {merged_coverage.format()} "
+              f"for {expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+              "falling back to full refetch.")
+        return None
 
     return merged

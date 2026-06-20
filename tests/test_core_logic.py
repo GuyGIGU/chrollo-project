@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -27,7 +28,9 @@ from core.pipeline.json_safety import to_json_safe
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
 import core.pipeline.market_context as market_context_module
+import core.pipeline.scan_job as scan_job_module
 import output.dashboard as dashboard_module
+import webapp.backend.routers.prices as prices_module
 from core.structure.bin_features import measure_bins
 from core.structure.indicators import trend_template
 from core.structure.metrics import (
@@ -56,6 +59,7 @@ from webapp.backend.services.portfolio_snapshot import (
     has_portfolio_data,
     with_cached_snapshot,
 )
+from webapp.backend.services.scan_runner import _parse_n_setups, _tail_error
 
 
 def _contraction_frame(levels, volumes):
@@ -283,8 +287,7 @@ def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monke
     cache_file = tmp_path / "market_cache.parquet"
     meta_file = tmp_path / "cache_meta.json"
 
-    today = pd.Timestamp.now().normalize()
-    last_bar = today if today.weekday() < 5 else today - pd.tseries.offsets.BDay(1)
+    last_bar = downloads_module.latest_completed_session()
     cached_panel = pd.concat(
         {
             "AAA": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[last_bar]),
@@ -320,6 +323,202 @@ def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monke
 
     assert called["symbols"] == ["AAA", "SPY", "QQQ"]
     assert set(out.columns.get_level_values(0)) == {"AAA", "SPY", "QQQ"}
+
+
+def test_expected_session_date_skips_juneteenth_market_holiday():
+    now = datetime(2026, 6, 20, 12, 0, tzinfo=ZoneInfo("America/New_York"))
+
+    assert scan_job_module._expected_session_date(now) == "2026-06-18"
+
+
+def test_incremental_fetch_replaces_sparse_latest_reference_row(monkeypatch):
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    cached_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, 11.0], "Volume": [1000, 1000]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, None], "Volume": [1000, None]}, index=dates),
+            "QQQ": pd.DataFrame({"Close": [120.0, None], "Volume": [1000, None]}, index=dates),
+        },
+        axis=1,
+    )
+    fresh_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]]),
+            "SPY": pd.DataFrame({"Close": [101.0], "Volume": [1100]}, index=[dates[-1]]),
+            "QQQ": pd.DataFrame({"Close": [121.0], "Volume": [1100]}, index=[dates[-1]]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
+
+    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+
+    assert out is not None
+    assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+    assert out.loc[dates[-1], ("QQQ", "Close")] == 121.0
+
+
+def test_incremental_fetch_rejects_missing_latest_reference_bar(monkeypatch):
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    cached_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[dates[0]]),
+            "SPY": pd.DataFrame({"Close": [100.0], "Volume": [1000]}, index=[dates[0]]),
+            "QQQ": pd.DataFrame({"Close": [120.0], "Volume": [1000]}, index=[dates[0]]),
+        },
+        axis=1,
+    )
+    fresh_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]]),
+            "SPY": pd.DataFrame({"Close": [None], "Volume": [None]}, index=[dates[-1]]),
+            "QQQ": pd.DataFrame({"Close": [121.0], "Volume": [1100]}, index=[dates[-1]]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+
+    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+
+    assert out is None
+
+
+def test_incremental_fetch_rejects_low_latest_coverage_with_fresh_indexes(monkeypatch):
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    cached_panel = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[dates[0]])
+            for symbol in ["AAA", "BBB", "CCC", "SPY", "QQQ"]
+        },
+        axis=1,
+    )
+    fresh_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]]),
+            "SPY": pd.DataFrame({"Close": [101.0], "Volume": [1100]}, index=[dates[-1]]),
+            "QQQ": pd.DataFrame({"Close": [121.0], "Volume": [1100]}, index=[dates[-1]]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+
+    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "BBB", "CCC", "SPY", "QQQ"], 1)
+
+    assert out is None
+
+
+def test_latest_session_repair_patches_missing_closes_without_dropping_history(monkeypatch):
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    base = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, None], "Volume": [1000, None]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1100]}, index=dates),
+        },
+        axis=1,
+    )
+    patch = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_BATCH_SIZE", 10)
+    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
+    monkeypatch.setattr(downloads_module, "_download_batch_with_retry_kwargs", lambda *_args, **_kwargs: patch)
+
+    out = downloads_module._repair_latest_session(
+        base,
+        ["AAA", "SPY"],
+        dates[-1],
+        1.0,
+        "test",
+    )
+
+    assert out.loc[dates[0], ("AAA", "Close")] == 10.0
+    assert out.loc[dates[-1], ("AAA", "Close")] == 11.0
+    assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+
+
+def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
+    day = pd.Timestamp("2026-06-18")
+    panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[day]),
+            "BBB": pd.DataFrame({"Close": [None], "Volume": [None]}, index=[day]),
+            "SPY": pd.DataFrame({"Close": [101.0], "Volume": [1100]}, index=[day]),
+            "QQQ": pd.DataFrame({"Close": [121.0], "Volume": [1100]}, index=[day]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: "2026-06-18")
+    monkeypatch.setattr(scan_job_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
+
+    with pytest.raises(scan_job_module.StaleMarketDataError, match="latest-session close coverage 3/4"):
+        scan_job_module._assert_fresh_for_archive(panel, ["AAA", "BBB"])
+
+
+def test_parse_n_setups_reads_json_before_stale_traceback():
+    output = "\n".join([
+        "Aborting archive write: stale market data: latest-session close coverage 3/4",
+        'SCAN_RESULT_JSON:{"n_setups": 140, "n_archived": 0}',
+        "Traceback (most recent call last):",
+        "core.pipeline.scan_job.StaleMarketDataError: stale market data",
+    ])
+
+    assert _parse_n_setups(output) == 140
+
+
+def test_scan_tail_error_prefers_stale_market_data_line():
+    output = "\n".join([
+        "Extracted 46 interactive chart models for React dashboard...",
+        "Data exported to: output/screener_data.json",
+        "Aborting archive write: stale market data: last bar 2026-06-17, expected >= 2026-06-18",
+        "Traceback (most recent call last):",
+        "  File \"run_screener.py\", line 36, in <module>",
+    ])
+
+    assert _tail_error(output) == (
+        "Aborting archive write: stale market data: last bar 2026-06-17, expected >= 2026-06-18"
+    )
+
+
+def test_live_prices_ignores_option_contract_symbol(monkeypatch):
+    called = []
+    monkeypatch.setattr(prices_module.alpaca_prices, "fetch_quotes", lambda tickers: {})
+    monkeypatch.setattr(prices_module, "_fetch_yfinance_price", lambda ticker: called.append(ticker) or 1.0)
+
+    out = prices_module.get_live_prices("JAZZ,UNG 22MAY26 12.5 C")
+
+    assert out == {"JAZZ": 1.0}
+    assert called == ["JAZZ"]
+
+
+def test_live_prices_skips_yfinance_fallback_while_scan_running(monkeypatch):
+    called = []
+    monkeypatch.setattr(prices_module.alpaca_prices, "fetch_quotes", lambda tickers: {})
+    monkeypatch.setattr(prices_module, "_scan_is_running", lambda: True)
+    monkeypatch.setattr(prices_module, "_fetch_yfinance_price", lambda ticker: called.append(ticker) or 1.0)
+
+    out = prices_module.get_live_prices("JAZZ")
+
+    assert out == {}
+    assert called == []
 
 
 def test_dashboard_sector_cache_resolves_missing_ticker(tmp_path, monkeypatch):

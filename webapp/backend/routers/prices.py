@@ -2,19 +2,25 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import yfinance as yf
 from fastapi import APIRouter, Query
 
-from services import alpaca_prices
+from services import alpaca_prices, scan_status
 
 router = APIRouter(prefix="", tags=["prices"])
 _log = logging.getLogger("chrollo.prices")
+_QUOTE_SYMBOL_RE = re.compile(r"^[A-Z0-9._-]{1,16}$")
 
 
 @router.get("/live-prices/")
 def get_live_prices(tickers: str = Query("")):
-    ticker_list = [ticker.strip().upper() for ticker in tickers.split(",") if ticker.strip()]
+    ticker_list = [
+        ticker.strip().upper()
+        for ticker in tickers.split(",")
+        if _is_external_quote_symbol(ticker.strip().upper())
+    ]
     if not ticker_list:
         return {}
 
@@ -25,11 +31,26 @@ def get_live_prices(tickers: str = Query("")):
     if alpaca_quotes:
         prices.update(alpaca_quotes)
 
+    if _scan_is_running():
+        return prices
+
     for ticker in [item for item in ticker_list if item not in prices]:
         price = _fetch_yfinance_price(ticker)
         if price is not None:
             prices[ticker] = price
     return prices
+
+
+def _is_external_quote_symbol(ticker: str) -> bool:
+    return bool(_QUOTE_SYMBOL_RE.fullmatch(ticker))
+
+
+def _scan_is_running() -> bool:
+    try:
+        latest = scan_status.latest_run()
+    except Exception:
+        return False
+    return (latest or {}).get("status") == "running"
 
 
 def _fetch_yfinance_price(ticker: str) -> float | None:

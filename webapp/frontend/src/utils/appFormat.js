@@ -42,7 +42,9 @@ export const buildHealthPill = (health) => {
 export const buildScanStatusText = (scanStatus) => {
   if (!scanStatus || scanStatus.status === 'never') return 'Last scan: none';
   const when = fmtScanTime(scanStatus.finished_at || scanStatus.started_at);
-  const count = Number.isFinite(Number(scanStatus.n_setups)) ? Number(scanStatus.n_setups) : 0;
+  const count = Number.isFinite(Number(scanStatus.n_setups))
+    ? `${Number(scanStatus.n_setups)} setups`
+    : 'setup count unknown';
   const label = scanStatus.status === 'stale_data' ? 'stale' : scanStatus.status;
-  return `Last scan: ${when} | ${count} setups | ${label}`;
+  return `Last scan: ${when} | ${count} | ${label}`;
 };

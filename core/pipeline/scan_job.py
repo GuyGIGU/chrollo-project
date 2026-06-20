@@ -5,12 +5,13 @@ import os
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 from config import settings
 from core.archive.writer import archive_scan_results
 from core.pipeline import run_screener
+from core.pipeline.data_freshness import close_coverage_on, unique_symbols
+from core.pipeline.market_calendar import latest_completed_session
 from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
@@ -21,6 +22,10 @@ log = logging.getLogger("chrollo.scan_job")
 class StaleMarketDataError(RuntimeError):
     """Raised when a scan should not be archived because data is stale."""
 
+    def __init__(self, message: str, n_setups: int | None = None):
+        super().__init__(message)
+        self.n_setups = n_setups
+
 
 @dataclass
 class ScanExportResult:
@@ -28,18 +33,8 @@ class ScanExportResult:
     n_archived: int
 
 
-def _previous_business_day(day: pd.Timestamp) -> pd.Timestamp:
-    return (day - pd.tseries.offsets.BDay(1)).normalize()
-
-
-def _expected_session_date() -> str:
-    now_et = datetime.now(ZoneInfo("America/New_York"))
-    today = pd.Timestamp(now_et.date())
-    after_close = (now_et.hour, now_et.minute) >= (16, 0)
-    if now_et.weekday() < 5 and after_close:
-        expected = today
-    else:
-        expected = _previous_business_day(today)
+def _expected_session_date(now_et: datetime | None = None) -> str:
+    expected = latest_completed_session(now_et)
     return expected.strftime("%Y-%m-%d")
 
 
@@ -77,6 +72,18 @@ def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
         log.warning("Aborting archive write: %s", msg)
         raise StaleMarketDataError(msg)
 
+    index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
+    coverage_symbols = unique_symbols(list(tickers) + list(index_symbols))
+    min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    coverage = close_coverage_on(data, coverage_symbols, pd.Timestamp(expected))
+    if coverage.ratio < min_latest_coverage:
+        msg = (
+            f"stale market data: latest-session close coverage {coverage.format()} "
+            f"on {expected}, required >= {min_latest_coverage:.0%}"
+        )
+        log.warning("Aborting archive write: %s", msg)
+        raise StaleMarketDataError(msg)
+
 
 def run_scan_and_export() -> ScanExportResult:
     """Run the screener and write every non-broker output artifact."""
@@ -100,7 +107,11 @@ def run_scan_and_export() -> ScanExportResult:
     # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
     n_archived = 0
     if settings.ARCHIVE_LIVE_SCANS:
-        _assert_fresh_for_archive(data, tickers)
+        try:
+            _assert_fresh_for_archive(data, tickers)
+        except StaleMarketDataError as exc:
+            exc.n_setups = len(results_df)
+            raise
         n_archived = archive_scan_results(results_df, enable=True)
         print(f"\nArchived {n_archived} live setups to setup_archive (source='screener').")
 

@@ -97,6 +97,9 @@ def _tail_error(output: str, limit: int = 1000) -> str | None:
     text = output.strip()
     if not text:
         return None
+    for line in reversed(text.splitlines()):
+        if "stale market data" in line.lower():
+            return line.strip()
     return text[-limit:]
 
 

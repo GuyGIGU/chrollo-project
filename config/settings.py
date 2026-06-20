@@ -338,6 +338,9 @@ TTL_FRESH_HOURS_OFFHOURS = 12     # ...or this outside market hours
 FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 2y refetch at least weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
+MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage before cache/archive is trusted
+LATEST_REPAIR_BATCH_SIZE = 100     # Smaller latest-bar repair batches after a sparse Yahoo response
+LATEST_REPAIR_SLEEP_SECONDS = 2.0  # Gentle pause between repair batches to reduce Yahoo rate limits
 
 # Split-detection probe (defends against yfinance's auto_adjust=True silently rescaling history)
 SPLIT_PROBE_SAMPLE_SIZE = 30                 # Number of cached tickers (+ SPY) to probe for split-induced drift
