@@ -237,11 +237,6 @@ def resolve_phase_d_boundary(
     return PhaseDBoundary(None, None, evidence)
 
 
-def right_side_support_cluster_start(lps_tests, box_start: int, base_len: int) -> Optional[int]:
-    """First measured support test in the right half, only when there is a cluster."""
-    return support_test_evidence_starts(lps_tests, box_start, base_len)["support_tests"]
-
-
 def final_v_tip_bar(df: pd.DataFrame, box_start: int, base_len: int) -> Optional[int]:
     """The deepest recovered Low in the late base: the tip of the final V."""
     n = len(df)

@@ -114,12 +114,6 @@ def compute_barrier_events(highs, lows, entry, s_level, horizon=BARRIER_HORIZON_
     }
 
 
-def _trading_days_since(scan_date_str: str) -> int:
-    """Rough estimate of trading days elapsed since scan_date."""
-    delta = (datetime.today() - datetime.strptime(scan_date_str, "%Y-%m-%d")).days
-    return int(delta * 5 / 7)  # rough business day estimate
-
-
 def _cap_forward_window(fwd_df: pd.DataFrame) -> pd.DataFrame:
     """Keep outcome math inside the archive's fixed 60-bar forward window."""
     if fwd_df is None or fwd_df.empty:
