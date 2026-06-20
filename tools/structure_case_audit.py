@@ -43,8 +43,15 @@ from config import settings
 from core.archive.seed import _evaluate_at_date
 from core.pipeline.evaluation import apply_baseline_filters
 from core.structure import bricks
+from core.structure.box_primitives import (
+    _is_boundary_respected,
+    _pivot_order,
+    _validate_base_quality,
+)
 from core.structure.indicators import calculate_atr
+from core.structure.metrics import measure_traversal
 from core.structure.narrative import read_structure
+from core.structure.pivots import _build_zigzag, _find_pivots
 
 # The cases that drove the Root-Swing + Box-Integrity repair discussion.
 DEFAULT = ["ROIV", "TDAY", "ADM", "BWMX", "NMM", "BBVA"]
@@ -256,6 +263,101 @@ def _print_diagnosis(rows, live_idx, gap_idx):
             print(f"    live box density {d:.3f} {verdict} a {floor:.2f} floor.")
 
 
+def _validity_reject(eq, r_touches, s_touches) -> str:
+    """First failing worked-equilibrium sub-gate of ``_validate_base_quality``."""
+    checks = [
+        ("r_touches", r_touches, settings.EQ_MIN_TOUCHES_PER_RAIL, ">="),
+        ("s_touches", s_touches, settings.EQ_MIN_TOUCHES_PER_RAIL, ">="),
+        ("r_touch_thirds", eq["r_touch_thirds"], settings.EQ_MIN_TOUCH_THIRDS, ">="),
+        ("s_touch_thirds", eq["s_touch_thirds"], settings.EQ_MIN_TOUCH_THIRDS, ">="),
+        ("lower_dwell", eq["lower_dwell"], settings.EQ_MIN_HALF_DWELL, ">="),
+        ("upper_dwell", eq["upper_dwell"], settings.EQ_MIN_HALF_DWELL, ">="),
+        ("mid_dwell", eq["mid_dwell"], settings.EQ_MAX_MID_DWELL, "<="),
+        ("coverage", eq["coverage"], settings.EQ_MIN_COVERAGE, ">="),
+    ]
+    for name, val, thr, op in checks:
+        ok = (val >= thr) if op == ">=" else (val <= thr)
+        if not ok:
+            return f"{name}={val} (need {op}{thr})"
+    return "PASS?"
+
+
+def _diagnose_candidates(df, root, atr) -> None:
+    """Pass-0 box diagnostic: for a root whose strict Phase-B box fails, enumerate
+    the zigzag R/S candidates and report each one's FIRST binding reject — the REAL
+    box_primitives gates (width -> boundary respect -> worked-equilibrium dwell/
+    coverage -> traversal) run in pipeline order — plus a recovered-support hint.
+    Read-only; mirrors ``validate_equilibrium``'s framing (eval_df[:-skip], AR-low)."""
+    skip = settings.STRUCTURE_EDGE_SKIP_BARS
+    eval_df = df.iloc[:-skip] if len(df) > skip else df
+    if root.ar_bar >= len(eval_df):
+        print("      (AR beyond eval window)")
+        return
+    eq_df = eval_df.iloc[root.ar_bar:]
+    if len(eq_df) < settings.MIN_BASE_DAYS:
+        print("      (post-AR window < MIN_BASE_DAYS)")
+        return
+    eq_highs, eq_lows = eq_df["High"].values, eq_df["Low"].values
+    peaks, valleys = _find_pivots(eq_highs, eq_lows, _pivot_order(len(eq_df)))
+    if not peaks or not valleys:
+        print("      (no pivots in window)")
+        return
+    zz = _build_zigzag(peaks, valleys, eq_highs, eq_lows)
+    print(f"        {'R':>8} {'S':>8} {'width':>6} {'start':>11}  first-reject")
+    shown = 0
+    for i in range(len(zz) - 1):
+        zi, zj = zz[i], zz[i + 1]
+        if zi[1] == "peak" and zj[1] == "valley":
+            R_val, S_val, r_a, s_a = zi[2], zj[2], zi[0], zj[0]
+        elif zi[1] == "valley" and zj[1] == "peak":
+            R_val, S_val, r_a, s_a = zj[2], zi[2], zj[0], zi[0]
+        else:
+            continue
+        if R_val <= S_val:
+            continue
+        width = (R_val - S_val) / S_val
+        cstart = min(r_a, s_a)
+        sub = eq_df.iloc[cstart:]
+        chi, clo = eq_highs[cstart:], eq_lows[cstart:]
+        if width > settings.MAX_BOX_WIDTH:
+            reject = f"width {width:.3f} > {settings.MAX_BOX_WIDTH}"
+        elif not _is_boundary_respected(chi, clo, R_val, S_val, atr)[0]:
+            reject = "boundary_respect"
+        else:
+            rt, st, eq, valid = _validate_base_quality(sub, R_val, S_val, atr)
+            if eq is None:
+                reject = "width/crash"
+            elif not valid:
+                reject = _validity_reject(eq, rt, st)
+            else:
+                trav = measure_traversal(sub, R_val, S_val, atr)
+                nf, ns = trav["n_full_traversals"], trav["n_swings"]
+                dens = nf / ns if ns else 0.0
+                if settings.TRAVERSAL_GATE_ENABLED and (
+                        nf < settings.TRAVERSAL_MIN or dens < settings.TRAVERSAL_MIN_DENSITY):
+                    reject = f"traversal nF={nf} dens={dens:.3f} (<{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})"
+                else:
+                    reject = "PASS (would validate)"
+        print(f"        {R_val:>8.2f} {S_val:>8.2f} {width:>6.3f} "
+              f"{_date(df, root.ar_bar + cstart):>11}  {reject}")
+        shown += 1
+        if shown >= 12:
+            print("        ... (more candidates truncated)")
+            break
+    if shown == 0:
+        print("        (no peak/valley R<S candidate pairs)")
+    # Recovered-support / high-shelf hint from the post-AR window extremes.
+    R_ext, S_ext = float(eq_highs.max()), float(eq_lows.min())
+    if R_ext > S_ext:
+        trav = measure_traversal(eq_df, R_ext, S_ext, atr)
+        lsf, cfp = trav.get("last_support_frac"), trav.get("coil_floor_pos")
+        if lsf is not None and cfp is not None:
+            tag = ("recovered-support candidate (old floor abandoned early)"
+                   if (lsf <= 0.40 and cfp >= 0.20) else "no early-abandonment signal")
+            print(f"      window: last_support_frac={lsf:.3f} coil_floor_pos={cfp:.3f} "
+                  f"-> {tag}")
+
+
 def audit(ticker: str, raw: pd.DataFrame) -> None:
     print("=" * 92)
     print(ticker)
@@ -290,6 +392,16 @@ def audit(ticker: str, raw: pd.DataFrame) -> None:
     _print_roots_table(df, rows, live_idx, gap_idx)
     print()
     _print_diagnosis(rows, live_idx, gap_idx)
+
+    if live_idx is None:
+        print()
+        print("  WHY NO BOX — strict candidate rejects (most-recent 4 roots, where "
+              "a recent setup lives):")
+        lo = max(0, len(rows) - 4)
+        for i in range(lo, len(rows)):
+            rt = rows[i]["root"]
+            print(f"    root #{i}  climax {_date(df, rt.climax_bar)} -> AR {_date(df, rt.ar_bar)}:")
+            _diagnose_candidates(df, rt, atr)
 
 
 def _spy_6m(d, level0) -> float:
@@ -330,6 +442,9 @@ def main() -> None:
                     help="find each ticker's most recent valid date within the last "
                          "N bars and dissect the structure THERE (later bars treated "
                          "as non-existent), instead of auditing today.")
+    ap.add_argument("--as-of", type=str, default=None, metavar="YYYY-MM-DD",
+                    help="slice each ticker to end at this date (later bars treated as "
+                         "non-existent) before auditing — for historical seed cases.")
     a = ap.parse_args()
 
     d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
@@ -343,6 +458,8 @@ def main() -> None:
             print(f"{t}: not in cache")
             continue
         raw = d[t].dropna()
+        if a.as_of:
+            raw = raw[raw.index <= pd.Timestamp(a.as_of)]
         if a.scan_back:
             off, res, sl = find_last_valid(raw, spy_6m, a.scan_back)
             if res is None:
