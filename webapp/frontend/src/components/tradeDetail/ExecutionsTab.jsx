@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '../../api';
+import { fmtInt, fmtMoney } from '../../utils/tradeTableUtils';
 
 export default function ExecutionsTab({ tradeId }) {
   const [rows, setRows] = useState([]);
@@ -9,23 +10,42 @@ export default function ExecutionsTab({ tradeId }) {
     let cancelled = false;
     setLoading(true);
     fetch(`${API_BASE}/trades/${tradeId}/executions`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => { if (!cancelled) { setRows(Array.isArray(d) ? d : []); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
+      .then(response => response.ok ? response.json() : [])
+      .then((data) => {
+        if (!cancelled) {
+          setRows(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [tradeId]);
 
-  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading...</div>;
   if (rows.length === 0) {
     return (
       <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-        No linked IBKR executions. Executions appear here once fills from TWS are auto-imported.
+        No linked IBKR executions.
       </div>
     );
   }
 
-  const th = { padding: '8px 10px', fontSize: 10, color: 'var(--text-muted)', textAlign: 'left', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' };
-  const td = { padding: '8px 10px', fontSize: 12, color: 'var(--text-main, #e0e0e6)' };
+  const th = {
+    color: 'var(--text-muted)',
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.5px',
+    padding: '8px 10px',
+    textAlign: 'left',
+    textTransform: 'uppercase',
+  };
+  const td = {
+    color: 'var(--text-main, #e0e0e6)',
+    fontSize: 12,
+    padding: '8px 10px',
+  };
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -41,20 +61,24 @@ export default function ExecutionsTab({ tradeId }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((e) => {
-            const realized = e.realized_pnl;
-            const color = realized == null ? 'var(--text-muted)' : (realized > 0 ? 'var(--success)' : realized < 0 ? 'var(--danger)' : 'var(--text-muted)');
-            const sideColor = e.side === 'BUY' ? 'var(--success)' : 'var(--danger)';
+          {rows.map((execution) => {
+            const realized = finiteNumber(execution.realized_pnl);
+            const color = realized == null
+              ? 'var(--text-muted)'
+              : realized > 0
+                ? 'var(--success)'
+                : realized < 0
+                  ? 'var(--danger)'
+                  : 'var(--text-muted)';
+            const sideColor = execution.side === 'BUY' ? 'var(--success)' : 'var(--danger)';
             return (
-              <tr key={e.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <td style={{ ...td, color: 'var(--text-muted)' }}>{e.time ? new Date(e.time).toLocaleString() : '—'}</td>
-                <td style={{ ...td, color: sideColor, fontWeight: 600 }}>{e.side}</td>
-                <td style={td}>{e.quantity}</td>
-                <td style={td}>${Number(e.price).toFixed(2)}</td>
-                <td style={{ ...td, color: 'var(--text-muted)' }}>${Number(e.commission).toFixed(2)}</td>
-                <td style={{ ...td, color, fontWeight: 600 }}>
-                  {realized == null ? '—' : `$${Number(realized).toFixed(2)}`}
-                </td>
+              <tr key={execution.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ ...td, color: 'var(--text-muted)' }}>{execution.time ? new Date(execution.time).toLocaleString() : '-'}</td>
+                <td style={{ ...td, color: sideColor, fontWeight: 600 }}>{execution.side || '-'}</td>
+                <td style={td}>{fmtInt(execution.quantity)}</td>
+                <td style={td}>{money(execution.price)}</td>
+                <td style={{ ...td, color: 'var(--text-muted)' }}>{money(execution.commission)}</td>
+                <td style={{ ...td, color, fontWeight: 600 }}>{money(realized)}</td>
               </tr>
             );
           })}
@@ -63,3 +87,13 @@ export default function ExecutionsTab({ tradeId }) {
     </div>
   );
 }
+
+const money = (value) => (
+  value == null || !Number.isFinite(Number(value)) ? '-' : `$${fmtMoney(value)}`
+);
+
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};

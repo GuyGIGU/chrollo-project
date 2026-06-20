@@ -102,8 +102,6 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 
 # Markup-leg qualification (Phase A in find_outer_box)
 TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
-TREND_SMA_LOOKBACK = 20          # SMA50 must rise over this lookback to count
-TREND_BULLISH_GAP_MAX = 5        # Tolerated consecutive non-bullish bars in a run
 TREND_MIN_MOVE_BARS = 20         # Markup leg must span at least this many bars
 TREND_PRIOR_LOOKBACK = 100       # Search this far back for prior trough/peak
 LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this window
@@ -118,11 +116,6 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # ============================================================
 # PHASE 3 — LPS & BREAKOUT DETECTION
 # ============================================================
-# Deprecated raw-% depth constants. Kept for archive/docs compatibility only;
-# live LPS depth is measured in setup-profile units below.
-LPS_DROP_MIN = 0.02
-LPS_DROP_MIN_OVERSHOOT_R = 0.04
-LPS_DROP_MAX = 0.10
 # descent_frac is the fraction of pair-wise (i<j) low comparisons where the later
 # bar's low is <= the earlier bar's low (perfect descent = 1.0, perfect rally =
 # 0.0, ~0.5 for random/sideways). It is now a PURELY GRADED quality input — it
@@ -206,7 +199,6 @@ PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it re
 LPS_RANGE_PERCENTILE = 0.5
 LPS_SPREAD_MUST_DECLINE = True    # Declining final spread earns full quality; widening is discounted, not gated
 
-BREAKOUT_VOLUME_MULT = 1.5       # Volume must exceed 50d avg * this
 LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
 
 # Shared structural-frame constants.
@@ -301,7 +293,6 @@ CONTRACTION_IDEAL_MIN = 2         # Minervini: 2-6 contractions, 3-4 typical
 CONTRACTION_IDEAL_MAX = 6
 CONTRACTION_FINAL_TIGHT_PCT = 0.03  # final contraction ≤ 3% drawdown → full final-tightness
 CONTRACTION_FINAL_LOOSE_PCT = 0.12  # final contraction ≥ 12% → zero
-CONTRACTION_QUALITY_TAG = 0.70    # quality ≥ this fires the "VCP Coil" tag chip
 
 # Ascending support / higher lows (Minervini "tennis-ball action", Qullamaggie
 # "higher lows surfing the rising EMA"): are the swing-low valleys stair-stepping
@@ -310,31 +301,18 @@ CONTRACTION_QUALITY_TAG = 0.70    # quality ≥ this fires the "VCP Coil" tag ch
 # measure-first — a flat or sagging floor simply earns zero, never penalized.
 SCORE_ASCENDING_SUPPORT = 8          # cap for the ascending-support sub-score
 ASCENDING_SUPPORT_FULL_SLOPE = 0.10  # valley lows rising ≥ 0.10 ATR/bar → full slope credit
-ASCENDING_SUPPORT_TAG = 0.70         # quality ≥ this fires the "Ascending Support" tag chip
 
 # ADR% absolute volatility (Qullamaggie "mover" character): does the stock
 # travel enough each day to be worth trading? Bonus-only, measure-first.
 ADR_WINDOW = 20        # bars used for the Average Daily Range %
 SCORE_ADR = 8          # cap for the ADR sub-score
 ADR_FULL_PCT = 5.0     # ADR% >= 5.0 earns full credit (~5% mover threshold)
-ADR_TAG = 0.80         # sub-score >= this*cap fires the "High ADR" tag chip
-
-# Volume signature at R/S touches — z-score of touch-bar volume vs the base's
-# own volume distribution. Drives the no-supply / spring-strength /
-# heavy-resistance tags. Negative z at R = no supply (textbook); positive z at
-# S = spring strength; positive z at R = distribution-flavored resistance.
-TOUCH_VOL_Z_NO_SUPPLY = -0.30     # r_touch_vol_z below this → "No Supply" tag
-TOUCH_VOL_Z_SPRING = 0.30         # s_touch_vol_z above this → "Spring Strength" tag
-TOUCH_VOL_Z_HEAVY_R = 0.50        # r_touch_vol_z above this → "Heavy Resistance" warning
 
 # Touch density bonus trigger
 TOUCH_BONUS_INDIVIDUAL = 3       # Need >= 3 touches on EACH side
 TOUCH_BONUS_TOTAL = 6            # OR >= 6 total touches
 TOUCH_BONUS_POINTS = 10          # Bonus awarded (part of the 25 pts max)
 
-# Breakout default scores (when not an LPS)
-BREAKOUT_DEFAULT_VOL_CONTRACTION = 0.5
-BREAKOUT_DEFAULT_TIGHTNESS = 0.7
 
 # ============================================================
 # DATA & CACHING
@@ -351,7 +329,6 @@ CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"
 PARQUET_ENGINE = "pyarrow"
 PARQUET_COMPRESSION = "zstd"
-CACHE_MAX_AGE_HOURS = 12          # Legacy fallback TTL (used only if meta sidecar missing)
 DOWNLOAD_PERIOD = "2y"
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
 

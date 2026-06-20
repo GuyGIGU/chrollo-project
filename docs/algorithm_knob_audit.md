@@ -81,7 +81,8 @@ Taxonomy:
 
 Cleanup candidates:
 
-- `TREND_SMA_LOOKBACK` and `TREND_BULLISH_GAP_MAX` are currently unused.
+- `TREND_SMA_LOOKBACK` and `TREND_BULLISH_GAP_MAX` were confirmed unused and
+  removed from `config/settings.py`.
 - The five-bar edge skip should probably be named once because it is repeated in
   root/box/inner paths.
 
@@ -246,11 +247,8 @@ Hard geometry rules:
 - `LPS_LENGTH_MIN = 2`
 - `LPS_LENGTH_MAX = 7`
 - `LPS_SCAN_OFFSET_MAX = 7`
-- `LPS_DROP_MIN = 0.02` (deprecated/back-compat only)
-- `LPS_DROP_MIN_OVERSHOOT_R = 0.04` (deprecated/back-compat only)
-- `LPS_DROP_MAX = 0.10` (deprecated/back-compat only)
 - `LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15`
-- `LPS_PULLBACK_PROFILE_MIN = 0.65`
+- `LPS_PULLBACK_PROFILE_MIN = 0.40`
 - `LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25`
 - `LPS_PULLBACK_PROFILE_MAX = 4.50`
 - `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`
@@ -413,23 +411,33 @@ Frontend sync:
 
 ## Dead Or Duplicated Knobs
 
-Likely dead in Python:
+Confirmed dead and removed from `config/settings.py`:
 
 - `TREND_SMA_LOOKBACK`
 - `TREND_BULLISH_GAP_MAX`
+- `LPS_DROP_MIN`
+- `LPS_DROP_MIN_OVERSHOOT_R`
+- `LPS_DROP_MAX`
 - `BREAKOUT_VOLUME_MULT`
 - `BREAKOUT_DEFAULT_VOL_CONTRACTION`
 - `BREAKOUT_DEFAULT_TIGHTNESS`
 - `CACHE_MAX_AGE_HOURS` (runtime/cache, not algorithm)
+- `CONTRACTION_QUALITY_TAG`
+- `ASCENDING_SUPPORT_TAG`
+- `ADR_TAG`
+- `TOUCH_VOL_Z_NO_SUPPLY`
+- `TOUCH_VOL_Z_SPRING`
+- `TOUCH_VOL_Z_HEAVY_R`
 
-Frontend-only mirror constants:
+Frontend-owned tag-chip thresholds that intentionally remain in
+`webapp/frontend/src/components/setupTagsData.js`:
 
 - `TOUCH_VOL_Z_NO_SUPPLY`
 - `TOUCH_VOL_Z_SPRING`
 - `TOUCH_VOL_Z_HEAVY_R`
-- `CONTRACTION_QUALITY_TAG`
-- `ASCENDING_SUPPORT_TAG`
-- `ADR_TAG`
+- `firesAt(scores, 'contraction', 0.80)`
+- `firesAt(scores, 'ascending_support', 0.80)`
+- `firesAt(scores, 'adr', 0.80)`
 
 Private algorithm knobs:
 

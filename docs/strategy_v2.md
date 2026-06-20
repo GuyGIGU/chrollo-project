@@ -239,7 +239,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate geometry is terminal-bar based: the LPS peak is the first bar's High, the LPS low is the last bar's Low, and the trigger is the last bar's High. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
+`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
@@ -249,25 +249,25 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | 2 | **Length** | `LPS_LENGTH_MIN ≤ length ≤ LPS_LENGTH_MAX` | 2 to 7 bars |
 | 3 | **Window bound** | `offset + length ≤ base_len + AR_MAX_BARS` | redundant outer guard; never lets the LPS pre-date the box |
 | 4 | **Swing-complete** | `eval_idx > swing_complete_idx` where `swing_complete_idx = (len(df) - base_len) + max(r_anchor, s_anchor)` | LPS must sit *after* the swing pivots that defined R and S |
-| 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` and `high_descent_frac >= LPS_MIN_HIGH_DESCENT_FRAC`; both are pair-wise non-rising fractions over lows/highs | shape gates + quality multipliers |
-| 6 | **Zone gate** | terminal LPS low (= last-bar `Low`) lands in one of three buffered zones | `LPS_ZONE_ATR_MULT = 0.5` |
+| 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` and `high_descent_frac >= LPS_MIN_HIGH_DESCENT_FRAC`; both are pair-wise non-rising fractions over lows/highs. A fully clean downswing may span more vertical box range because it is one peak-to-valley swing, not broad chop. | shape gates + quality multipliers |
+| 6 | **Zone gate** | elected LPS low lands in one of three buffered zones. Normally this is the last-bar `Low`; for a compact rising support shelf it can be the early window low. | `LPS_ZONE_ATR_MULT = 0.5` |
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
-| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - last_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.65`; OVERSHOOT_R needs `>= 1.25`; all zones cap at `<= 4.50` | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
-| 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10` |
+| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow BUEC shelf above R may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50` | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
+| 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
 | 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
-| 12 | **Hold tolerance** | `latest['Close'] >= last_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
-| 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= last_low × 0.97` and stay profile-tight | catches support-test failures that widen after the LPS |
+| 12 | **Hold tolerance** | `latest['Close'] >= elected_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
+| 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= elected_low × 0.97` and stay profile-tight | catches support-test failures that widen after the LPS |
 | 14 | **Trigger room** | candidate is actionable only when `current_price < trigger_price`; `_evaluate_ticker` keeps the same final room check | trigger = last LPS bar High |
 
 **Setup label:** `REBOUND` if zone is `UNDERCUT_S`; otherwise `LPS`.
 
 **Quality ranking:** candidates still carry `vol_contraction × (1 - tightness_ratio) × descent_frac × high_descent_frac × spread_decline_quality`, but setup election is actionability-first and recency-first: latest valid `end_index`, then latest `low_index`, then longer length, then quality. If several clean slices share the same final low, the detector reports the longest clean pullback.
 
-> **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `detect_lps()` path is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now — `BREAKOUT_VOLUME_MULT`, `BREAKOUT_DEFAULT_VOL_CONTRACTION`, and `BREAKOUT_DEFAULT_TIGHTNESS` exist in settings but are unused.
+> **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `detect_lps()` path is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now, so the old `BREAKOUT_*` settings were removed rather than kept as false knobs.
 
 ---
 
@@ -317,7 +317,7 @@ It reuses the Phase B zigzag machinery over the base window: each peak→valley 
 
 **Volume across the contractions (`vol_trend`).** In the same pass, the mean volume of each contraction's bars is captured and scored into `vol_trend ∈ [0,1] = 0.5·progressive_decline + 0.5·final_is_lightest` (`None` with < 2 contractions) — the Minervini nuance that volume should dry up step by step, lightest at the final coil. This is **measured only**: it is deliberately NOT folded into `quality`, so the contraction sub-score, the tiers, and the VCP-Coil tag are byte-for-byte unchanged (verified against the shadow-output guard). Archived raw as `contraction_vol_trend` to validate against forward returns before it is allowed to matter (or to surface on the tag).
 
-Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, `contraction_vol_trend`, and the `score_contraction` sub-score. Fires the 🌀 **VCP Coil** tag chip when `quality ≥ CONTRACTION_QUALITY_TAG` (0.70). Scored, not gated — measure-first, like the touch-volume signature.
+Persisted to the archive as `contraction_count`, `contraction_quality`, `final_contraction_depth`, `contraction_vol_trend`, and the `score_contraction` sub-score. The frontend 🌀 **VCP Coil** tag chip currently fires when `score_contraction` reaches 80% of its sub-score cap. Scored, not gated — measure-first, like the touch-volume signature.
 
 ---
 
@@ -348,7 +348,7 @@ It reuses the same Phase B zigzag as the contraction metric, but reads the **val
 - **slope_score** — linear ramp of the ATR-normalized slope from 0 (flat/descending → 0) to `ASCENDING_SUPPORT_FULL_SLOPE` (0.10 ATR/bar → 1.0).
 - **higher_low_frac** — fraction of consecutive valley pairs that actually step up (consistency of the higher-lows).
 
-Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. Fires the 📈 **Ascending Support** tag chip when `quality ≥ ASCENDING_SUPPORT_TAG` (0.70). **Bonus-only / measure-first** — a flat or descending floor earns 0 points and is never penalized.
+Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. The frontend 📈 **Ascending Support** tag chip currently fires when `score_ascending_support` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — a flat or descending floor earns 0 points and is never penalized.
 
 ---
 
@@ -362,7 +362,7 @@ ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
 
 This captures the stock's **absolute volatility character**: a high-ADR stock resting in a tight base is a stronger momentum-continuation candidate than a low-range stock with the same visual structure. The metric is guarded at source: insufficient history, zero lows, NaN/Inf, or malformed ranges return `0.0`, so the dashboard payload never receives non-finite values from ADR.
 
-Scoring uses `adr_quality = min(ADR% / ADR_FULL_PCT, 1.0)`, with full credit at `ADR_FULL_PCT = 5.0`. Persisted as `adr_pct` and the `score_adr` sub-score. Fires the ⚡ **High ADR** tag chip when `score_adr ≥ ADR_TAG × SCORE_ADR` (`0.80 × 8 = 6.4`). **Bonus-only / measure-first** — quiet names earn 0 points and are never filtered or penalized.
+Scoring uses `adr_quality = min(ADR% / ADR_FULL_PCT, 1.0)`, with full credit at `ADR_FULL_PCT = 5.0`. Persisted as `adr_pct` and the `score_adr` sub-score. The frontend ⚡ **High ADR** tag chip currently fires when `score_adr` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — quiet names earn 0 points and are never filtered or penalized.
 
 ---
 
@@ -376,13 +376,13 @@ r_touch_vol_z = (mean_vol_at_R_touches − mean_base_vol) / std_base_vol
 s_touch_vol_z = (mean_vol_at_S_touches − mean_base_vol) / std_base_vol
 ```
 
-These don't gate anything — they're persisted to the archive (`r_touch_vol_z`, `s_touch_vol_z`) and surface as Wyckoff-classic interpretation tags on the frontend card:
+These don't gate anything — they're persisted to the archive (`r_touch_vol_z`, `s_touch_vol_z`) and surface as Wyckoff-classic interpretation tags on the frontend card. Those chip thresholds live in `webapp/frontend/src/components/setupTagsData.js`, not Python settings:
 
 | z-score signature | Tag chip | Meaning |
 |---|---|---|
-| `r_touch_vol_z < TOUCH_VOL_Z_NO_SUPPLY` (-0.30) | 🤫 No Supply | Resistance tested on below-average volume — buyers absorbed silently, textbook precursor to a clean breakout |
-| `s_touch_vol_z > TOUCH_VOL_Z_SPRING` (+0.30) | 💪 Demand at S | Support tested on above-average volume — buyers stepping in at S, selling absorbed. **Not a spring** — a spring is the measured Phase C undercut-and-recover event (`bin_c_type = SPRING`), and an active undercut LPS still shows as `REBOUND`. |
-| `r_touch_vol_z > TOUCH_VOL_Z_HEAVY_R` (+0.50) | ⚠️ Heavy Resistance | Resistance tested on ABOVE-average volume — supply hitting the bid every time, distribution-flavored, breakout risk |
+| `r_touch_vol_z < -0.30` | 🤫 No Supply | Resistance tested on below-average volume — buyers absorbed silently, textbook precursor to a clean breakout |
+| `s_touch_vol_z > +0.30` | 💪 Demand at S | Support tested on above-average volume — buyers stepping in at S, selling absorbed. **Not a spring** — a spring is the measured Phase C undercut-and-recover event (`bin_c_type = SPRING`), and an active undercut LPS still shows as `REBOUND`. |
+| `r_touch_vol_z > +0.50` | ⚠️ Heavy Resistance | Resistance tested on ABOVE-average volume — supply hitting the bid every time, distribution-flavored, breakout risk |
 
 The "Heavy Resistance" tag is the only *warning* tag in the system — designed to surface even when other positive tags would otherwise crowd it out (it carries higher `weight` in the tag-ordering than even Phase D).
 
@@ -582,11 +582,8 @@ AR_MIN_DROP_PCT = 0.05
 AR_MAX_BARS = 15
 
 # Phase 3 — LPS detection
-LPS_DROP_MIN = 0.02              # deprecated/back-compat only; live depth is profile-normalized
-LPS_DROP_MIN_OVERSHOOT_R = 0.04  # deprecated/back-compat only
-LPS_DROP_MAX = 0.10              # deprecated/back-compat only
-LPS_MIN_DESCENT_FRAC = 0.50     # Graded shape gate (pair-wise low descent fraction)
-LPS_MIN_HIGH_DESCENT_FRAC = 0.45
+LPS_MIN_DESCENT_FRAC = 0.0      # Graded quality input; no hard descent floor
+LPS_MIN_HIGH_DESCENT_FRAC = 0.0
 LPS_MAX_WINDOW_BOX_RANGE = 0.85
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
@@ -594,7 +591,7 @@ LPS_SCAN_OFFSET_MAX = 7         # today + up to 6 days back
 LPS_LENGTH_MIN = 2; LPS_LENGTH_MAX = 7
 LPS_HOLD_TOLERANCE = 0.97
 LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15
-LPS_PULLBACK_PROFILE_MIN = 0.65
+LPS_PULLBACK_PROFILE_MIN = 0.40
 LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25
 LPS_PULLBACK_PROFILE_MAX = 4.50
 LPS_TERMINAL_LOW_TOL_PROFILE = 0.10
@@ -611,10 +608,6 @@ BIN_C_HOLD_TOL_ATR = 0.50
 BIN_C_SIGNIF_UNDERCUT_ATR = 0.75; BIN_C_MIN_LINGER_BARS = 2
 PHASE_D_VTIP_LATE_FRACTION = 0.35
 PHASE_D_VTIP_RECOVERY_BARS = 6
-TOUCH_VOL_Z_NO_SUPPLY = -0.30   # Tag: r_touch_vol_z below this → "No Supply"
-TOUCH_VOL_Z_SPRING = 0.30       # Tag: s_touch_vol_z above this → "Demand at S"
-TOUCH_VOL_Z_HEAVY_R = 0.50      # Tag: r_touch_vol_z above this → "Heavy Resistance" (warning)
-
 # Phase 4 — Scoring
 TIER_S = 110; TIER_A = 95; TIER_B = 75; TIER_C = 55
 SCORE_BASE_AGE = 22; BASE_AGE_CAP_DAYS = 120
@@ -629,9 +622,9 @@ SCORE_RS_BONUS = 15; RS_LOOKBACK_BARS = 126; RS_MAX_EXCESS_RETURN = 0.30
 SCORE_52W_HIGH_PROXIMITY = 8; HIGH_PROXIMITY_FULL_PCT = -0.05; HIGH_PROXIMITY_ZERO_PCT = -0.20
 SCORE_BREADTH_BONUS = 8; BREADTH_FULL_PCT = 0.60; BREADTH_ZERO_PCT = 0.35
 SCORE_CONTRACTION = 12; CONTRACTION_IDEAL_MIN = 2; CONTRACTION_IDEAL_MAX = 6
-CONTRACTION_FINAL_TIGHT_PCT = 0.03; CONTRACTION_FINAL_LOOSE_PCT = 0.12; CONTRACTION_QUALITY_TAG = 0.70
-SCORE_ASCENDING_SUPPORT = 8; ASCENDING_SUPPORT_FULL_SLOPE = 0.10; ASCENDING_SUPPORT_TAG = 0.70
-ADR_WINDOW = 20; SCORE_ADR = 8; ADR_FULL_PCT = 5.0; ADR_TAG = 0.80
+CONTRACTION_FINAL_TIGHT_PCT = 0.03; CONTRACTION_FINAL_LOOSE_PCT = 0.12
+SCORE_ASCENDING_SUPPORT = 8; ASCENDING_SUPPORT_FULL_SLOPE = 0.10
+ADR_WINDOW = 20; SCORE_ADR = 8; ADR_FULL_PCT = 5.0
 
 # Data & cache (incremental fetch)
 CACHE_FILENAME = "market_data_cache_2y.parquet"
@@ -674,10 +667,10 @@ The live LPS detector no longer hard-gates raw percent pullback depth. It uses a
 ```
 base_range_threshold = max(base spread quantile, 1.2 * ATR)
 profile_unit = max(base_range_threshold, LPS_PROFILE_BOX_FRACTION_FLOOR * box_height)
-pullback_profile = (first_bar_high - last_bar_low) / profile_unit
+pullback_profile = (anchor_bar_high - elected_lps_low) / profile_unit
 ```
 
-The LPS low is the **last bar's Low**, the trigger is the **last bar's High**, and the candidate is actionable only while current price remains below that trigger. The terminal-low guard requires the last Low to sit within `LPS_TERMINAL_LOW_TOL_PROFILE` profile units of the window low. Spread decline remains quality evidence; hard rejection is only "spread expanded too much for this setup profile."
+The ordinary LPS low is the **last bar's Low**, the trigger is the **last bar's High**, and the candidate is actionable only while current price remains below that trigger. The terminal-low guard requires the last Low to sit within `LPS_TERMINAL_LOW_TOL_PROFILE` profile units of the window low. A fully clean down-swing can exceed the broad window-range guard because the useful measurement is the individual price-action swing from anchor high to final valley. Spread decline remains quality evidence; hard rejection is only "spread expanded too much for this setup profile."
 
 The zone tolerance still adapts for tight boxes: if box width is below 10%, `_zone_tolerance()` uses `max(0.5 * ATR, 0.5 * box_height)`. This keeps tight inner boxes from rejecting reasonable breakout retests just above R or failed-seller tests just below S.
 

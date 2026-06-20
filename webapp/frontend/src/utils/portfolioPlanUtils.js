@@ -1,5 +1,5 @@
 import { buildTradeAlerts, deriveTradeRow } from './tradeTableUtils.js';
-import { inferDirection } from './tradeUtils.js';
+import { inferDirection, isOptionSymbol } from './tradeUtils.js';
 
 const nullPriceFor = () => ({ price: null, source: null });
 
@@ -12,12 +12,12 @@ export const positionPlanKey = (position) => [
 ].join('|');
 
 export const buildPortfolioPlanMap = (positions = [], trades = []) => {
-  const openTradesBySymbol = groupOpenTradesBySymbol(trades);
+  const openTradesByInstrument = groupOpenTradesByInstrument(trades);
   const planMap = new Map();
 
   for (const position of positions || []) {
-    const symbol = normalizePlanSymbol(position?.symbol);
-    const matches = symbol ? openTradesBySymbol.get(symbol) || [] : [];
+    const key = positionInstrumentKey(position);
+    const matches = key ? openTradesByInstrument.get(key) || [] : [];
     planMap.set(positionPlanKey(position), buildPositionPlan(position, matches));
   }
 
@@ -28,17 +28,35 @@ export const normalizePlanSymbol = (value) => (
   String(value || '').trim().toUpperCase().replace(/\s+/g, ' ')
 );
 
-const groupOpenTradesBySymbol = (trades) => {
+const groupOpenTradesByInstrument = (trades) => {
   const groups = new Map();
   for (const trade of trades || []) {
     if (!isOpenJournalTrade(trade)) continue;
-    const symbol = normalizePlanSymbol(trade.ticker);
-    if (!symbol) continue;
-    const bucket = groups.get(symbol) || [];
+    const key = tradeInstrumentKey(trade);
+    if (!key) continue;
+    const bucket = groups.get(key) || [];
     bucket.push(trade);
-    groups.set(symbol, bucket);
+    groups.set(key, bucket);
   }
   return groups;
+};
+
+const positionInstrumentKey = (position) => {
+  const symbol = normalizePlanSymbol(position?.symbol);
+  if (!symbol) return '';
+  return `${normalizeInstrumentType(position?.sec_type, symbol)}|${symbol}`;
+};
+
+const tradeInstrumentKey = (trade) => {
+  const symbol = normalizePlanSymbol(trade?.ticker);
+  if (!symbol) return '';
+  return `${normalizeInstrumentType(null, symbol)}|${symbol}`;
+};
+
+const normalizeInstrumentType = (value, symbol) => {
+  const secType = String(value || '').trim().toUpperCase();
+  if (secType === 'OPT' || isOptionSymbol(symbol)) return 'OPT';
+  return 'STK';
 };
 
 const isOpenJournalTrade = (trade) => {

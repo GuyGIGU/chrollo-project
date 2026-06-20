@@ -186,6 +186,7 @@ export const summarizeFillLedger = (fills, direction, multiplier = 1) => {
     closingDate: position <= EPS && anyClose ? lastCycleClosingDate : null,
     openQty: position > EPS ? position : lastCycleOpenQty,
     position,
+    riskQty: position > EPS ? cycleOpenQty : lastCycleOpenQty,
     activeCycleRealizedPnl: cycleRealizedPnl,
     realizedPnl,
     cycleCloseCash,
@@ -221,6 +222,7 @@ export const deriveTradeRow = (trade, priceFor) => {
   const entryVwap = ledger.entryPrice != null ? ledger.entryPrice : (Number(trade.entry_price) || null);
   const position = ledger.position;
   const openQty = ledger.openQty;
+  const riskQty = ledger.riskQty || openQty || initialQty;
   const totalWorth = entryVwap != null && openQty ? entryVwap * openQty * multiplier : null;
   const { price: livePrice, source: liveSource } = priceFor?.(trade.ticker) || {};
   const { currentExit, currentExitSource } = getExitPrice({
@@ -246,8 +248,8 @@ export const deriveTradeRow = (trade, priceFor) => {
     ? Math.abs(entryVwap - stopVal) / entryVwap * 100
     : null;
   const riskDistance = stopVal != null && entryVwap != null ? Math.abs(entryVwap - stopVal) : null;
-  const rValue = riskDistance && riskDistance > 0 && openQty && pnl != null
-    ? pnl / (riskDistance * openQty * multiplier)
+  const rValue = riskDistance && riskDistance > 0 && riskQty && pnl != null
+    ? pnl / (riskDistance * riskQty * multiplier)
     : null;
   const distToStop = currentExit != null && stopVal != null
     ? (isLong ? currentExit - stopVal : stopVal - currentExit)
@@ -278,6 +280,7 @@ export const deriveTradeRow = (trade, priceFor) => {
     pnl,
     position,
     riskDistance,
+    riskQty,
     rValue,
     rToStop,
     status,

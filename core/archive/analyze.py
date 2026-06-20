@@ -302,9 +302,9 @@ def section_composition(df: pd.DataFrame, min_rows: int) -> dict:
 
     # ── Data-quality flags ─────────────────────────────────────────
     # (a) Placeholder contamination: legacy BREAKOUT seed rows were written
-    #     with BREAKOUT_DEFAULT_TIGHTNESS (0.70) / _VOL_CONTRACTION (0.50)
-    #     instead of measured values. They poison the fingerprint and any
-    #     correlation. Detect a suspicious mass of identical values.
+    #     with literal tightness/volume placeholders (0.70 / 0.50) instead of
+    #     measured values. They poison the fingerprint and any correlation.
+    #     Detect a suspicious mass of identical values.
     subhdr("Data-quality flags")
     flagged = False
     for col, placeholder in (("tightness_ratio", 0.70), ("vol_contraction", 0.50)):

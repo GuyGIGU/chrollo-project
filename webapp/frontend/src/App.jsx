@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import AppContent from './components/AppContent';
 import AppSidebar from './components/AppSidebar';
 import AppTopbar from './components/AppTopbar';
@@ -56,6 +56,11 @@ function App() {
       quantity: '',
     });
   };
+
+  const handleTradeUpdated = useCallback((updatedTrade) => {
+    if (updatedTrade?.id) setDetailTrade(updatedTrade);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleCsvImport = async (event) => {
     const file = event.target.files?.[0];
@@ -128,7 +133,14 @@ function App() {
       <ErrorBoundary>
         <Suspense fallback={<ModalFallback />}>
           {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
-          {detailTrade && <TradeDetailDrawer key={detailTrade.id} trade={detailTrade} onClose={() => setDetailTrade(null)} />}
+          {detailTrade && (
+            <TradeDetailDrawer
+              key={detailTrade.id}
+              trade={detailTrade}
+              onClose={() => setDetailTrade(null)}
+              onTradeUpdate={handleTradeUpdated}
+            />
+          )}
         </Suspense>
       </ErrorBoundary>
     </div>

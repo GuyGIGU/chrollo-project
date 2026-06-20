@@ -104,10 +104,8 @@ def set_plan(trade_id: int, payload: PlanPayload, db: Session = Depends(get_db))
     if not plan:
         plan = models.TradePlan(trade_log_id=trade_id, created_at=datetime.utcnow())
         db.add(plan)
-    plan.thesis = payload.thesis
-    plan.entry_plan = payload.entry_plan
-    plan.exit_plan = payload.exit_plan
-    plan.risk_plan = payload.risk_plan
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(plan, key, value)
     db.commit()
     db.refresh(plan)
     return _plan_dict(trade_id, plan)

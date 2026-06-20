@@ -121,7 +121,10 @@ def ingest_execution(exec_dict: Dict[str, Any]) -> None:
 def rebuild_trade_logs_for(db: Session, account: Optional[str], symbol: Optional[str]) -> None:
     """Re-derive TradeLog rows (source='ibkr') for one (account, symbol) pair.
 
-    Manual trades (source='manual') are never touched.
+    Manual trades (source='manual') are never touched. Journal-owned plan fields
+    on imported rows (stop/targets/conviction/thesis/notes) are preserved; this
+    rebuild only refreshes broker-owned fill facts such as entry VWAP, quantity,
+    close legs, commissions, realized P&L, and actions_json.
     """
     if not symbol:
         return

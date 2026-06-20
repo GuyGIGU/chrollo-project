@@ -102,6 +102,7 @@ test('deriveTradeRow keeps R-to-stop price-based on a scaled-out (partial) posit
 
   assert.equal(row.openQty, 5);
   assert.equal(row.status, 'partial');
+  closeTo(row.rValue, 0.75);
   // Price-based: (105 - 90) / (100 - 90) = 1.5, independent of the +50 booked on
   // the partial. The retired `rValue + 1` would read 2.5 here (realized P&L leaks in).
   closeTo(row.rToStop, 1.5);

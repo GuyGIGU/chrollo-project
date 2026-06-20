@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildPortfolioPlanMap, positionPlanKey } from './portfolioPlanUtils.js';
+import { isOptionSymbol, optionUnderlyingSymbol } from './tradeUtils.js';
 
 const baseTrade = {
   id: 1,
@@ -107,4 +108,72 @@ test('buildPortfolioPlanMap flags a broker side that conflicts with the journal 
   assert.equal(plan.directionMismatch, true);
   assert.equal(plan.brokerDirection, 'SHORT');
   assert.equal(plan.planDirection, 'LONG');
+});
+
+test('buildPortfolioPlanMap does not link option holdings to stock plans by underlying', () => {
+  const plan = planFor(
+    {
+      ...basePosition,
+      symbol: 'MSFT 260619C00300000',
+      sec_type: 'OPT',
+      quantity: 1,
+    },
+    [baseTrade],
+  );
+
+  assert.equal(plan.state, 'missing');
+});
+
+test('buildPortfolioPlanMap links option holdings to matching option journal plans', () => {
+  const optionTrade = {
+    ...baseTrade,
+    ticker: 'MSFT 260619C00300000',
+    quantity: 1,
+    entry_price: 4,
+    stop_loss: 2,
+  };
+  const plan = planFor(
+    {
+      ...basePosition,
+      symbol: 'MSFT 260619C00300000',
+      sec_type: 'OPT',
+      quantity: 1,
+      market_price: 5,
+    },
+    [optionTrade],
+  );
+
+  assert.equal(plan.state, 'linked');
+  assert.equal(plan.trade.ticker, 'MSFT 260619C00300000');
+  closeTo(plan.derived.rValue, 0.5);
+});
+
+test('buildPortfolioPlanMap infers option holdings when broker type is missing', () => {
+  const optionTrade = {
+    ...baseTrade,
+    ticker: 'MSFT 260619C00300000',
+    quantity: 1,
+    entry_price: 4,
+    stop_loss: 2,
+  };
+  const plan = planFor(
+    {
+      ...basePosition,
+      symbol: 'MSFT 260619C00300000',
+      sec_type: '',
+      quantity: 1,
+      market_price: 5,
+    },
+    [optionTrade],
+  );
+
+  assert.equal(plan.state, 'linked');
+  assert.equal(plan.trade.ticker, 'MSFT 260619C00300000');
+});
+
+test('option symbol parsing extracts an underlying for chart lookups', () => {
+  assert.equal(isOptionSymbol('MSFT 260619C00300000'), true);
+  assert.equal(optionUnderlyingSymbol('MSFT 260619C00300000'), 'MSFT');
+  assert.equal(isOptionSymbol('AAPL260619P00190000'), true);
+  assert.equal(optionUnderlyingSymbol('AAPL260619P00190000'), 'AAPL');
 });

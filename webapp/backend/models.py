@@ -56,7 +56,7 @@ class TradeLog(Base):
     planned_stop = Column(Float, nullable=True)  # original stop used for R-multiple
 
     # Intent capture (engine-validation pivot): the minimal per-trade "why".
-    conviction = Column(Integer, nullable=True)   # 1-3 pre-trade conviction
+    conviction = Column(Integer, nullable=True)   # 1-10 pre-trade conviction
     exit_reason = Column(Text, nullable=True)     # one-line "why I exited"
 
     tags = relationship(

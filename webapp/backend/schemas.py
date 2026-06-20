@@ -39,7 +39,7 @@ class TradeLogBase(BaseModel):
     pnl: Optional[float] = None
     actions_json: Optional[str] = None
 
-    # Intent capture: 1-3 pre-trade conviction + one-line exit reason.
+    # Intent capture: 1-10 pre-trade conviction + one-line exit reason.
     conviction: Optional[int] = None
     exit_reason: Optional[str] = None
 
@@ -56,6 +56,16 @@ class TradeLogUpdate(BaseModel):
     risk_percentage: Optional[float] = None
     position_size: Optional[float] = None
     target_r: Optional[float] = None
+    t1_qty: Optional[int] = None
+    t1_price: Optional[float] = None
+    t2_qty: Optional[int] = None
+    t2_price: Optional[float] = None
+    t3_qty: Optional[int] = None
+    t3_price: Optional[float] = None
+    t4_qty: Optional[int] = None
+    t4_price: Optional[float] = None
+    t5_qty: Optional[int] = None
+    t5_price: Optional[float] = None
     closing_date: Optional[str] = None
     remaining_qty: Optional[int] = None
     exit_price: Optional[float] = None
