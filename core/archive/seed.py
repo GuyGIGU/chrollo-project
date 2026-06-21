@@ -53,8 +53,10 @@ from core.structure import (
     measure_support_slope,
     measure_touch_volume,
     measure_traversal,
+    read_htf_context,
     trend_template,
 )
+from core.structure.htf import htf_archive_values
 from core.structure.narrative import read_structure
 from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
 
@@ -153,6 +155,12 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         if baseline is None:
             return None
         df, yearly_return = baseline
+
+        # Full history for HTF resampling. The seed path downloads its OWN window
+        # (it does not read the growing 5y screener cache), so its daily read needs
+        # no trim here — trimming would shift seed-recall. Only the live path (which
+        # reads the growing cache) trims; see core.pipeline.evaluation.
+        full_df = df
 
         latest = df.iloc[-1]
         df_ind = df.copy()
@@ -293,6 +301,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
             base_df, res_avg, sup_avg, atr_for_zone)
 
+        # HTF context (measure-only) — parity with the live path; resampled from
+        # the full frame. Keys are non-prefixed, matching this seed result dict.
+        htf_ctx: dict = {}
+        if settings.HTF_CONTEXT_ENABLED:
+            _hbox = (res_avg, sup_avg)
+            htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=_hbox))
+            htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=_hbox))
+
         return {
             "setup_type": setup_state,
             "tier": tier,
@@ -410,6 +426,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             # Region (bin) features + Minervini trend template (measure-first).
             **bins,
             **trend,
+            **htf_ctx,
         }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
@@ -708,6 +725,8 @@ def seed_archive(
             stage2_trend_pass_count=best_result.get("stage2_trend_pass_count"),
             stage2_trend_pass=(int(bool(best_result.get("stage2_trend_pass")))
                                if best_result.get("stage2_trend_pass") is not None else None),
+            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
+            **htf_archive_values(best_result.get, prefixed=False),
             # Forward returns
             **fwd_returns,
             # Market context

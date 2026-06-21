@@ -224,6 +224,26 @@ class SetupArchive(Base):
     stage2_trend_pass_count = Column(Integer, nullable=True)    # how many of the 7 trend-template criteria pass
     stage2_trend_pass = Column(Integer, nullable=True)          # 1 if all 7 pass
 
+    # ── HTF (higher-timeframe) context — same Trend+Box engine, weekly/monthly ──
+    htf_w_stage2 = Column(Integer, nullable=True)        # weekly price > rising 30-wk MA (Stage-2)
+    htf_w_trend_state = Column(String, nullable=True)    # up / neutral / down / unknown
+    htf_w_in_consol = Column(Integer, nullable=True)     # a worked weekly box exists now
+    htf_w_phase = Column(String, nullable=True)          # B / C / D
+    htf_w_box_r = Column(Float, nullable=True)
+    htf_w_box_s = Column(Float, nullable=True)
+    htf_w_box_width = Column(Float, nullable=True)
+    htf_w_reaccum = Column(Integer, nullable=True)       # Stage-2 uptrend AND consolidating (re-accumulation)
+    htf_w_daily_nested = Column(Integer, nullable=True)  # daily box sits inside the weekly box
+    htf_m_stage2 = Column(Integer, nullable=True)
+    htf_m_trend_state = Column(String, nullable=True)
+    htf_m_in_consol = Column(Integer, nullable=True)
+    htf_m_phase = Column(String, nullable=True)
+    htf_m_box_r = Column(Float, nullable=True)
+    htf_m_box_s = Column(Float, nullable=True)
+    htf_m_box_width = Column(Float, nullable=True)
+    htf_m_reaccum = Column(Integer, nullable=True)
+    htf_m_daily_nested = Column(Integer, nullable=True)
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)

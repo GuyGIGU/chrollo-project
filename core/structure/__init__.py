@@ -64,6 +64,14 @@ from core.structure.lps import detect_lps, detect_lps_tests, lps_range_threshold
 # ── Scope — clip the assembled narrative to the actionable window ────────────
 from core.structure.scope import scope_consolidation
 
+# ── Layer: HTF — the same Trend+Box engine on weekly/monthly bars ────────────
+from core.structure.htf import (
+    htf_stage2,
+    read_htf_context,
+    resample_ohlc,
+    timeframe_windows,
+)
+
 __all__ = [
     # reader + reading object
     "read_structure",
@@ -91,4 +99,9 @@ __all__ = [
     "lps_range_threshold",
     # scope
     "scope_consolidation",
+    # HTF
+    "read_htf_context",
+    "resample_ohlc",
+    "htf_stage2",
+    "timeframe_windows",
 ]

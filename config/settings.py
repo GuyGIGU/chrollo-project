@@ -105,6 +105,10 @@ TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
 TREND_MIN_MOVE_BARS = 20         # Markup leg must span at least this many bars
 TREND_PRIOR_LOOKBACK = 100       # Search this far back for prior trough/peak
 LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this window
+ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a root requires
+                                 # latest close > this SMA (the Stage-2 / uptrend filter). Daily=200;
+                                 # HTF presets scale it (weekly ~30 = Weinstein MA-30, monthly ~10) so
+                                 # the rolling mean isn't all-NaN on the shorter resampled frame.
 
 # Phase-B ATR window (median over recent N base bars; used when no override is given)
 PHASE_B_ATR_WINDOW = 30
@@ -331,13 +335,85 @@ ARCHIVE_LIVE_SCANS = True
 # "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
 MARKET_DATA_PROVIDER = "yahoo"
 
-CACHE_FILENAME = "market_data_cache_2y.parquet"
+CACHE_FILENAME = "market_data_cache_5y.parquet"
 CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"
 PARQUET_ENGINE = "pyarrow"
 PARQUET_COMPRESSION = "zstd"
-DOWNLOAD_PERIOD = "2y"
+DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) and monthly (~60 bars)
+                                 # resampling for HTF context has enough depth. The DAILY structure
+                                 # read is trimmed back to DAILY_STRUCTURE_PERIOD so this deeper cache
+                                 # does NOT change daily behavior (see HTF section below + core.structure.htf).
+                                 # Renaming the cache file forces a clean cold 5y backfill on next run.
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
+
+# ============================================================
+# HIGHER-TIMEFRAME (HTF) STRUCTURE CONTEXT
+# ============================================================
+# The structure engine reads the SAME Wyckoff Trend+Box (A->B->C->D) logic on
+# weekly/monthly bars as on daily — "it's all relative and derivative". Its RATIO
+# thresholds (MAX_BOX_WIDTH, MIN_BOUNDARY_RESPECT_PCT, ATR/box ratios, traversal
+# fractions, LPS profiles) are scale-invariant and transfer untouched; only the
+# BAR-COUNT WINDOWS are daily-calibrated. core.structure.htf temporarily rescales
+# ONLY those windows (timeframe_windows CM) around a read_structure() call on the
+# resampled frame. These presets are FIRST-PASS (~daily/5 weekly, /~4 again
+# monthly) and a calibration target — eyeball + tune via tools/htf_audit.py.
+HTF_CONTEXT_ENABLED = True        # compute + archive + chip HTF context on FIRING setups; never gates
+
+# The daily read is sliced to this trailing window before read_structure, so the
+# 5y cache (needed for HTF resampling) does NOT feed the daily oldest-first root
+# walk extra history and drift it (the FOSL _MAX_ANCHORS sensitivity). Keeps daily
+# byte-identical; validate with tools.shadow_diff once real 5y data is present.
+DAILY_STRUCTURE_PERIOD = "2y"
+
+HTF_STAGE_MA = 30                 # HTF Stage-2 trend MA (Weinstein weekly MA-30 ~ daily MA-150/200)
+HTF_STAGE_MA_SLOPE_BARS = 4       # the stage MA must be rising over this many HTF bars
+
+# settings-attr -> weekly value. ONLY bar-count windows appear here; every ratio
+# threshold is deliberately absent so it keeps its calibrated daily value.
+HTF_WEEKLY_WINDOWS = {
+    "MIN_BASE_DAYS": 6,
+    "STRUCTURE_EDGE_SKIP_BARS": 1,
+    "TREND_MIN_MOVE_BARS": 5,
+    "TREND_PRIOR_LOOKBACK": 26,
+    "LOCAL_PEAK_BARS": 8,
+    "ROOT_TREND_SMA": 30,
+    "PHASE_B_ATR_WINDOW": 8,
+    "AR_MAX_BARS": 4,
+    "MAX_CONSECUTIVE_OUTSIDE_DAYS": 3,
+    "PIVOT_ORDER_THRESHOLD": 12,
+    "EQ_MIN_TOUCHES_PER_RAIL": 2,
+    "LPS_SCAN_OFFSET_MAX": 2,
+    "LPS_LENGTH_MIN": 1,
+    "LPS_LENGTH_MAX": 4,
+    "BIN_C_RECOVERY_BARS_MAX": 3,
+    "BIN_C_LINGER_BARS_MAX": 4,
+    "BIN_C_HOLD_BARS": 1,
+    "BIN_C_MIN_LINGER_BARS": 1,
+    "PHASE_D_VTIP_RECOVERY_BARS": 2,
+}
+
+HTF_MONTHLY_WINDOWS = {
+    "MIN_BASE_DAYS": 4,
+    "STRUCTURE_EDGE_SKIP_BARS": 1,
+    "TREND_MIN_MOVE_BARS": 3,
+    "TREND_PRIOR_LOOKBACK": 12,
+    "LOCAL_PEAK_BARS": 4,
+    "ROOT_TREND_SMA": 10,
+    "PHASE_B_ATR_WINDOW": 6,
+    "AR_MAX_BARS": 3,
+    "MAX_CONSECUTIVE_OUTSIDE_DAYS": 2,
+    "PIVOT_ORDER_THRESHOLD": 8,
+    "EQ_MIN_TOUCHES_PER_RAIL": 2,
+    "LPS_SCAN_OFFSET_MAX": 1,
+    "LPS_LENGTH_MIN": 1,
+    "LPS_LENGTH_MAX": 2,
+    "BIN_C_RECOVERY_BARS_MAX": 2,
+    "BIN_C_LINGER_BARS_MAX": 3,
+    "BIN_C_HOLD_BARS": 1,
+    "BIN_C_MIN_LINGER_BARS": 1,
+    "PHASE_D_VTIP_RECOVERY_BARS": 1,
+}
 
 # Incremental fetch tuning
 TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars if cache is older than this during market hours

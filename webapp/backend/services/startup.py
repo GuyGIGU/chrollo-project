@@ -152,6 +152,25 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN stage2_52w_low_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN stage2_trend_pass_count INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN stage2_trend_pass INTEGER",
+    # HTF (higher-timeframe) context — same Trend+Box engine on weekly/monthly bars
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_stage2 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_trend_state TEXT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_in_consol INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_phase TEXT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_box_r FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_box_s FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_box_width FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_reaccum INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_w_daily_nested INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_stage2 INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_trend_state TEXT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_in_consol INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_phase TEXT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_box_r FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_box_s FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_box_width FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_reaccum INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN htf_m_daily_nested INTEGER",
     # Retired sub-score — the rail-blind oscillation term, replaced by
     # score_traversal_quality. Drop the column so the live schema matches the
     # model; its pre-retirement values measured a flawed (rail-blind) quantity

@@ -9,6 +9,7 @@ import sys
 
 from config import settings
 from core.pipeline.json_safety import to_json_safe
+from core.structure.htf import HTF_COLUMNS
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -222,6 +223,9 @@ def _extract_chart_data(data, results_df, tickers):
                     round(row['_trav_n_full_traversals'] / row['_trav_n_swings'], 3)
                     if row.get('_trav_n_swings') else None
                 ),
+                # HTF (higher-timeframe) context — weekly/monthly Trend+Box read,
+                # surfaced to the Screener Grid. Bare keys (htf_w_* / htf_m_*).
+                **{c: row.get('_' + c) for c in HTF_COLUMNS},
                 'bin_c_present': row.get('_bin_c_present'),
                 'bin_c_type': row.get('_bin_c_type'),
                 'bin_c_event_date': row.get('_bin_c_event_date'),

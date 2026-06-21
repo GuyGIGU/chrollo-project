@@ -51,7 +51,7 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
     closes = eval_df['Close'].values
     highs = eval_df['High'].values
     lows = eval_df['Low'].values
-    sma200 = eval_df['Close'].rolling(200).mean().values
+    sma200 = eval_df['Close'].rolling(settings.ROOT_TREND_SMA).mean().values
     end = len(eval_df) - 1
 
     if np.isnan(sma200[end]) or closes[end] <= sma200[end]:

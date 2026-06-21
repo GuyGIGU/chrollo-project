@@ -22,11 +22,13 @@ from core.structure import (
     measure_support_slope,
     measure_touch_volume,
     measure_traversal,
+    read_htf_context,
     scope_consolidation,
     trend_template,
 )
 from core.structure.narrative import read_structure
 from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
+from core.pipeline.downloads import _trim_to_period
 
 
 def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
@@ -182,6 +184,13 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         if baseline is None:
             return None
         df, yearly_return = baseline
+
+        # Keep the full (up to 5y) frame for HTF resampling, but run the DAILY
+        # structure read on a stable trailing window so deepening the cache for
+        # HTF does NOT feed the oldest-first root walk extra history and drift it
+        # (the FOSL _MAX_ANCHORS sensitivity). See config.DAILY_STRUCTURE_PERIOD.
+        full_df = df
+        df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
 
         latest = df.iloc[-1]
 
@@ -356,6 +365,15 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         tier = calculate_tier(score, box_width)
 
         phase_c_event_date = bins['bin_c_event_date'] or scope['phase_c_event_date']
+
+        # HTF context (measure-only): the same Trend+Box engine on weekly/monthly
+        # bars, enriching this firing setup. Resampled from the FULL frame; never
+        # gates. Archived as htf_w_* / htf_m_* (core.structure.htf, config HTF_*).
+        htf_ctx: dict = {}
+        if settings.HTF_CONTEXT_ENABLED:
+            _hbox = (res_avg, sup_avg)
+            htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=_hbox))
+            htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=_hbox))
 
         return {
             'Ticker': ticker,
@@ -533,6 +551,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_base_close_end': float(base_df['Close'].iloc[-1]),
             '_base_date_start': str(base_df.index[0])[:10],
             '_base_date_end': str(base_df.index[-1])[:10],
+            **{f"_{_k}": _v for _k, _v in htf_ctx.items()},
         }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:

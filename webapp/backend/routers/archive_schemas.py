@@ -86,6 +86,25 @@ class SetupOut(BaseModel):
     inner_reaction_bar: Optional[int] = None
     inner_reaction_pct: Optional[float] = None
     inner_reaction_bars: Optional[int] = None
+    # HTF (higher-timeframe) context — same Trend+Box engine on weekly/monthly bars
+    htf_w_stage2: Optional[int] = None
+    htf_w_trend_state: Optional[str] = None
+    htf_w_in_consol: Optional[int] = None
+    htf_w_phase: Optional[str] = None
+    htf_w_box_r: Optional[float] = None
+    htf_w_box_s: Optional[float] = None
+    htf_w_box_width: Optional[float] = None
+    htf_w_reaccum: Optional[int] = None
+    htf_w_daily_nested: Optional[int] = None
+    htf_m_stage2: Optional[int] = None
+    htf_m_trend_state: Optional[str] = None
+    htf_m_in_consol: Optional[int] = None
+    htf_m_phase: Optional[str] = None
+    htf_m_box_r: Optional[float] = None
+    htf_m_box_s: Optional[float] = None
+    htf_m_box_width: Optional[float] = None
+    htf_m_reaccum: Optional[int] = None
+    htf_m_daily_nested: Optional[int] = None
     # Volume-around-touches signature
     r_touch_vol_z: Optional[float] = None
     s_touch_vol_z: Optional[float] = None

@@ -89,6 +89,9 @@ STRUCTURAL_FEATURES = [
     # Minervini Stage-2 trend template (raw context)
     "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct",
     "stage2_52w_low_pct", "stage2_trend_pass_count", "stage2_trend_pass",
+    # HTF (higher-timeframe) re-accumulation context — does HTF alignment predict outcome?
+    "htf_w_stage2", "htf_w_in_consol", "htf_w_reaccum", "htf_w_daily_nested", "htf_w_box_width",
+    "htf_m_stage2", "htf_m_in_consol", "htf_m_reaccum", "htf_m_daily_nested", "htf_m_box_width",
 ]
 
 # The two-axis read — mirrors core.structure.Structure.horizontal / .vertical.

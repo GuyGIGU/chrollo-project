@@ -53,6 +53,8 @@ def _save_sector_etf_cache(cache: dict) -> None:
 # creates missing tables, not missing columns, so we ALTER TABLE on demand.
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
+from core.structure.htf import HTF_COLUMN_SQL, htf_archive_values
+
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
     "excess_return_6m":     "FLOAT",
@@ -173,6 +175,10 @@ _NEW_COLUMNS: dict[str, str] = {
     "regime_qqq_above_200":         "INTEGER",
     "regime_qqq_50d_slope_pct":     "FLOAT",
 }
+
+# HTF (higher-timeframe) context columns — single source of truth in
+# core.structure.htf so the writer / model / migrations / seed stay in sync.
+_NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
 
 def _ensure_new_columns(engine) -> None:
@@ -509,6 +515,8 @@ def archive_scan_results(
             stage2_trend_pass_count=row.get("_stage2_trend_pass_count"),
             stage2_trend_pass=(int(bool(row.get("_stage2_trend_pass")))
                                if row.get("_stage2_trend_pass") is not None else None),
+            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
+            **htf_archive_values(row.get, prefixed=True),
             source="screener",
         )
 
