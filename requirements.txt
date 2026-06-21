@@ -1,7 +1,7 @@
 # Wyckoff VCP/LPS Screener — Python Dependencies
 pandas
 numpy
-yfinance
+yfinance==1.2.1   # pinned: unattended scans break if a yfinance release changes Yahoo's scraper — upgrade deliberately
 matplotlib
 scipy
 lxml

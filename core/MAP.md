@@ -67,6 +67,7 @@ it is, and assembles the ranked list.
 | `tickers.py` | Loads and refreshes the cached common-stock universe. |
 | `providers.py` | Market-data source abstraction. The screener fetches its panel through `get_provider().fetch(...)`, not a vendor directly, so a bulk-EOD source can be slotted in behind one contract. Today only `yahoo` (wraps `downloads.fetch_data`). |
 | `downloads.py` | The Yahoo provider's implementation: yfinance downloads, retry/recovery, split-drift checks, and the parquet cache. |
+| `fetch_health.py` | Dead-ticker quarantine (skip symbols that keep returning nothing, re-probed after a cooldown) + per-run fetch-health telemetry written to `cache_meta.json`. Cuts wasted requests/429s on the delisted tail. |
 | `market_context.py` | Computes the SPY 6-month return and universe breadth broadcast used by scoring. |
 | `cache.py` | Small filesystem, metadata, and market-clock helpers used by the data modules. |
 | `evaluation.py` | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly. |

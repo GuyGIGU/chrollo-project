@@ -355,6 +355,19 @@ SPLIT_PROBE_DRIFT_THRESHOLD = 0.005          # Ticker-level: ratio (fresh/cached
 SPLIT_PROBE_UNIVERSE_DRIFT_PCT = 0.02        # If > 2% of probed tickers drift → cold refetch
 SPLIT_PROBE_REFERENCE_SYMBOL = "SPY"         # Always included in the probe sample if present in cache
 
+# Dead-ticker quarantine — the universe (~6.9k NASDAQ-traded symbols) has a long
+# tail of delisted / halted / invalid tickers that return nothing from Yahoo every
+# run, wasting requests, driving 429s, and triggering per-ticker recovery storms.
+# Symbols that come back empty on repeated COLD full-refetches (the strongest death
+# signal) are skipped, then re-probed after a cooldown so a re-listing recovers.
+# Updates are gated on a healthy run so a rate-limited day can't quarantine the
+# whole universe. Index symbols are never quarantined. See core/pipeline/fetch_health.py.
+QUARANTINE_ENABLED = True
+QUARANTINE_FILENAME = "ticker_quarantine.json"
+QUARANTINE_EMPTY_STREAK = 2          # consecutive empty cold-refetches before quarantine
+QUARANTINE_COOLDOWN_DAYS = 7         # re-probe a quarantined ticker after this many days
+QUARANTINE_MIN_HEALTHY_RATIO = 0.85  # only judge deadness on a near-complete run: a rate-limited day (429s crater the return ratio) falls below this and can't penalize missing tickers, while a healthy run returns ~95%+ of requested
+
 # Market context cache
 SPY_SYMBOL = "SPY"                # Stored in the parquet alongside the universe (not screened)
 INDEX_SYMBOLS = ["SPY", "QQQ"]    # Market-regime indexes stored with the universe

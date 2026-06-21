@@ -25,6 +25,16 @@ from core.pipeline.data_freshness import (
     last_complete_reference_date,
     symbols_missing_closes_on,
 )
+from core.pipeline.fetch_health import (
+    count_quarantined,
+    is_healthy,
+    load_quarantine,
+    present_tickers,
+    record_results,
+    save_quarantine,
+    split_active,
+    summarize,
+)
 from core.pipeline.market_calendar import latest_completed_session, session_gap
 
 
@@ -382,6 +392,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     Index symbols are always included in the download so the screener can read
     market context from the same parquet without separate yfinance calls.
     """
+    t_fetch_start = time.time()
     cache_file, meta_file = _cache_paths()
 
     index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
@@ -389,6 +400,22 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     for symbol in index_symbols:
         if symbol not in tickers_with_indexes:
             tickers_with_indexes.append(symbol)
+
+    # Dead-ticker quarantine: skip symbols that keep returning nothing (re-probed
+    # after a cooldown). Cheap, runs every fetch; index symbols are never skipped.
+    quar_path = os.path.join(os.path.dirname(meta_file),
+                             getattr(settings, "QUARANTINE_FILENAME", "ticker_quarantine.json"))
+    quarantine = load_quarantine(quar_path) if getattr(settings, "QUARANTINE_ENABLED", True) else {}
+    active_symbols, skipped_quarantined = split_active(
+        tickers_with_indexes, quarantine, index_symbols=index_symbols
+    )
+    if skipped_quarantined:
+        print(f"  Quarantine: skipping {len(skipped_quarantined)} repeatedly-empty "
+              f"ticker(s); re-probe in <= {getattr(settings, 'QUARANTINE_COOLDOWN_DAYS', 7)}d.",
+              flush=True)
+    tickers_with_indexes = active_symbols
+    requested_non_index = [t for t in tickers_with_indexes if t not in index_symbols]
+
     expected_session = latest_completed_session()
     min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
@@ -483,6 +510,14 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
             data = data.loc[:, ~data.columns.duplicated(keep='last')]
             _atomic_write_parquet(data, cache_file)
             meta['last_modified'] = _now_iso()
+            # Health only — the cold full-refetch owns quarantine updates (a ticker
+            # absent from a small incremental window is not necessarily dead).
+            returned_active = present_tickers(data) & set(requested_non_index)
+            meta['fetch_health'] = summarize(
+                "incremental", requested_non_index, returned_active,
+                len(skipped_quarantined), 0, count_quarantined(quarantine),
+                time.time() - t_fetch_start,
+            )
             # Preserve last_full_refresh on incremental writes.
             _write_meta(meta_file, meta)
             print(f"Saved incremental update to {cache_file}. New last bar: "
@@ -509,6 +544,14 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     coverage = close_coverage_on(data, tickers_with_indexes, expected_session)
     if (not has_all_closes_on(data, index_symbols, expected_session)
             or coverage.ratio < min_latest_coverage):
+        # Unhealthy cold run (likely rate-limited): record health for observability
+        # but DON'T touch quarantine, and preserve last_full_refresh in meta.
+        returned_active = present_tickers(data) & set(requested_non_index)
+        meta['fetch_health'] = summarize(
+            "cold", requested_non_index, returned_active, len(skipped_quarantined),
+            0, count_quarantined(quarantine), time.time() - t_fetch_start,
+        )
+        _write_meta(meta_file, meta)
         print(f"Full refetch latest-session coverage is {coverage.format()} for "
               f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
               "keeping existing cache if possible.", flush=True)
@@ -517,12 +560,28 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         return data
 
     _atomic_write_parquet(data, cache_file)
+    returned = present_tickers(data)
+    returned_active = returned & set(requested_non_index)
+    newly: list[str] = []
+    if getattr(settings, "QUARANTINE_ENABLED", True) and is_healthy(requested_non_index, returned_active):
+        quarantine, newly = record_results(quarantine, requested_non_index, returned)
+        save_quarantine(quar_path, quarantine)
+    health = summarize(
+        "cold", requested_non_index, returned_active, len(skipped_quarantined),
+        len(newly), count_quarantined(quarantine), time.time() - t_fetch_start,
+    )
     meta = {
         'last_full_refresh': _now_iso(),
         'last_modified': _now_iso(),
+        'fetch_health': health,
     }
     _write_meta(meta_file, meta)
-    print(f"Saved optimized cache to {cache_file}.")
+    if newly:
+        print(f"  Quarantine: +{len(newly)} ticker(s) after "
+              f"{getattr(settings, 'QUARANTINE_EMPTY_STREAK', 2)} empty refetch(es); "
+              f"{health['quarantined_total']} total quarantined.", flush=True)
+    print(f"Saved optimized cache to {cache_file} "
+          f"(returned {health['returned']}/{health['requested']}).")
     return data
 
 
