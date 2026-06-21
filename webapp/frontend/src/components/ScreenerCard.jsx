@@ -181,11 +181,11 @@ function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed,
   );
 }
 
-// One timeframe's higher-timeframe read: trend arrow (color = up/down/neutral),
-// the structural state (re-accum / consol+phase / stage-2 / —), and a nesting
-// mark when the daily base sits inside this HTF box. Re-accumulation is the
-// premium case, so it takes the S-tier amber.
-function HtfCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
+// One timeframe's read: trend arrow (color = up/down/neutral), the structural
+// state (re-accum / consol+phase / stage-2 / —), and a nesting mark when the
+// daily base sits inside this timeframe's box. Re-accumulation is the premium
+// case, so it takes the S-tier amber.
+function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
   const trend = trendState === 'up' ? { sym: '▲', col: '#3fb950' }
     : trendState === 'down' ? { sym: '▼', col: '#f85149' }
       : trendState === 'neutral' ? { sym: '▬', col: '#8b949e' }
@@ -198,10 +198,10 @@ function HtfCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
   else if (trendState == null || trendState === 'unknown') { state = 'no data'; }
   else if (trendState === 'down') { state = 'downtrend'; stateCol = '#f85149'; }
   const tfName = tf === 'W' ? 'Weekly' : 'Monthly';
-  const title = `${tfName} HTF — trend: ${trendState || 'unknown'}`
+  const title = `${tfName} — trend: ${trendState || 'unknown'}`
     + (inConsol ? `; in a worked box (phase ${phase || '?'})` : '; no worked box')
     + (reaccum ? '; RE-ACCUMULATION (Stage-2 uptrend + consolidating — energy-gathering pause)' : '')
-    + (nested ? '; the daily base nests inside this HTF box (tight multi-timeframe alignment)' : '');
+    + (nested ? '; the daily base nests inside this higher-timeframe box (tight alignment)' : '');
   return (
     <div title={title} style={{ alignItems: 'center', display: 'flex', flex: 1, gap: 5, minWidth: 0 }}>
       <span style={{ color: 'var(--text-faint)', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>
@@ -212,16 +212,15 @@ function HtfCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
   );
 }
 
-// The always-visible higher-timeframe context band: the SAME Trend+Box engine
-// read on weekly + monthly bars. Hidden only when the row predates HTF.
-function HtfStrip({ data }) {
+// The always-visible weekly + monthly context band: the SAME Trend+Box engine
+// read one and two timeframes up. Hidden only on rows that predate the read.
+function TimeframeBand({ data }) {
   if (data.htf_w_trend_state == null && data.htf_m_trend_state == null) return null;
   return (
     <div style={{ alignItems: 'center', background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: 8, padding: '4px 8px' }}>
-      <span style={{ color: 'var(--text-faint)', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em' }}>HTF</span>
-      <HtfCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
+      <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
       <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', width: 1 }} />
-      <HtfCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
+      <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
     </div>
   );
 }
@@ -282,7 +281,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     <div style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
-    <HtfStrip data={data} />
+    <TimeframeBand data={data} />
     <TagRow
       subScores={data.sub_scores}
       flags={{

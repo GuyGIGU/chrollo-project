@@ -9,7 +9,7 @@ import sys
 
 from config import settings
 from core.pipeline.json_safety import to_json_safe
-from core.structure.htf import HTF_COLUMNS
+from core.structure.htf import HTF_COLUMNS, resample_ohlc
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -78,6 +78,31 @@ def _json_safe(obj):
     """
     return to_json_safe(obj)
 
+def _tf_candles(df, tf, cap):
+    """Resample the daily frame to weekly/monthly and return (candles, volumes)
+    for the higher-timeframe charts, capped to the last ``cap`` bars."""
+    resampled = resample_ohlc(df, tf)
+    if resampled is None or resampled.empty:
+        return [], []
+    resampled = resampled.tail(cap)
+    dates = [str(idx)[:10] for idx in resampled.index]
+    opens = resampled['Open'].round(2).values
+    highs = resampled['High'].round(2).values
+    lows = resampled['Low'].round(2).values
+    closes = resampled['Close'].round(2).values
+    vols = resampled['Volume'].round(0).values
+    candles = [
+        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
+        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
+    ]
+    volumes = [
+        {'time': d, 'value': float(v),
+         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
+        for d, o, c, v in zip(dates, opens, closes, vols)
+    ]
+    return candles, volumes
+
+
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
     chart_data = {}
@@ -116,6 +141,10 @@ def _extract_chart_data(data, results_df, tickers):
                  'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
                 for d, o, c, v in zip(dates, opens, closes, vols)
             ]
+            # Weekly + monthly candles for the higher-timeframe charts, resampled
+            # from the FULL daily history (not the 300-bar daily window).
+            weekly_candles, weekly_volumes = _tf_candles(df, "weekly", 110)
+            monthly_candles, monthly_volumes = _tf_candles(df, "monthly", 60)
             window_start_bar = len(df) - show_days
             def _local_bar(value):
                 try:
@@ -150,6 +179,10 @@ def _extract_chart_data(data, results_df, tickers):
             chart_data[ticker] = {
                 'candles': candles,
                 'volumes': volumes,
+                'weekly_candles': weekly_candles,
+                'weekly_volumes': weekly_volumes,
+                'monthly_candles': monthly_candles,
+                'monthly_volumes': monthly_volumes,
                 'R': round(float(row['_R']), 2),
                 'S': round(float(row['_S']), 2),
                 'inner_R': row.get('_inner_R'),

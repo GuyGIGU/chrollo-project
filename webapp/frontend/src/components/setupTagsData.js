@@ -127,11 +127,11 @@ const TAG_DEFS = [
   tag('strong_rs', '🥇 Strong RS', 'trend', 'The stock is strongly outperforming the S&P 500 over the last ~6 months — a relative-strength leader. How to read it: money is already flowing into this name versus the market, and leaders tend to keep leading. A real leader resting in a base beats a laggard bouncing. Pairs powerfully with High ADR.', 65, scores => firesAt(scores, 'rs_bonus', 0.95)),
   tag('uptrend', '🚀 Uptrend', 'trend', 'The base sits inside a fully-developed yearly uptrend — this is re-accumulation (a rest stop), not a bottoming attempt. How to read it: you\'d be trading WITH the dominant trend rather than betting on a reversal — generally higher-odds context for a continuation move.', 60, scores => firesAt(scores, 'uptrend_bonus', 0.95)),
   tag(
-    'htf_reaccum',
-    '⬆ HTF Re-accum',
+    'weekly_reaccum',
+    '⬆ Weekly Re-accum',
     'trend',
     (_scores, flags) => {
-      let s = 'The daily base sits inside a HIGHER-TIMEFRAME re-accumulation — on the weekly chart the stock is in a Stage-2 uptrend AND consolidating (the same Trend+Box read, one timeframe up). How to read it: the premium context — a daily pause that is itself an energy-gathering rest within a larger uptrend (Wyckoff re-accumulation / Minervini base), not a bottoming guess.';
+      let s = 'The daily base sits inside a weekly re-accumulation — on the weekly chart the stock is in a Stage-2 uptrend AND consolidating (the same Trend+Box read, one timeframe up). How to read it: the premium context — a daily pause that is itself an energy-gathering rest within a larger uptrend (Wyckoff re-accumulation / Minervini base), not a bottoming guess.';
       if (flags.htfWeeklyPhase) s += ` Weekly phase ${flags.htfWeeklyPhase}.`;
       if (flags.htfDailyNested) s += ' The daily box nests cleanly inside the weekly box — tight multi-timeframe alignment.';
       if (flags.htfMonthlyReaccum) s += ' The MONTHLY chart is also re-accumulating — alignment across two higher timeframes.';

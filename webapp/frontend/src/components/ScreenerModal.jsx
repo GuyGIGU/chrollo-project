@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
+import TimeframeCharts from './TimeframeCharts';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
 const tierColor = (tier) => {
@@ -116,6 +117,7 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
           <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
             <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
           </div>
+          <TimeframeCharts data={data} />
           <ScreenerStockLens activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
         </div>
         {footer}

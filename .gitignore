@@ -21,10 +21,14 @@ market_context.json
 
 # Generated output — keep .py code in output/, exclude bulky generated data
 output/*.json
+output/*.bak
 output/*.log
 output/logs/
 output/*_analysis.md
 *.log
+
+# Runtime artifacts written at scan time (not source)
+ticker_quarantine.json
 
 # Generated screener / backtest CSVs — regenerated on every run, no value in git history.
 output/watchlists/*.csv
