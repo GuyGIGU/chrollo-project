@@ -324,6 +324,13 @@ TOUCH_BONUS_POINTS = 10          # Bonus awarded (part of the 25 pts max)
 # Idempotent per (ticker, scan_date); re-running the same day updates in place.
 ARCHIVE_LIVE_SCANS = True
 
+# Market-data source. The screener fetches its canonical panel through
+# core.pipeline.providers.get_provider(), not directly from a vendor, so a
+# bulk-EOD source can be added behind the same contract and validated against
+# the incumbent (tools/provider_parity.py) before it feeds an archiveable scan.
+# "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
+MARKET_DATA_PROVIDER = "yahoo"
+
 CACHE_FILENAME = "market_data_cache_2y.parquet"
 CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"

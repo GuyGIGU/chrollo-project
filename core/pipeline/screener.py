@@ -21,7 +21,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import pandas as pd
 
 from config import settings
-from core.pipeline.data import fetch_data, get_market_context, get_tickers
+from core.pipeline.data import get_market_context, get_provider, get_tickers
 from core.pipeline.evaluation import _evaluate_ticker, apply_baseline_filters
 
 __all__ = ["run_screener", "_evaluate_ticker", "apply_baseline_filters"]
@@ -112,7 +112,7 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
         - market_context: run-level context for dashboard/archive
     """
     tickers = get_tickers()
-    data = fetch_data(tickers)
+    data = get_provider().fetch(tickers)
     ticker_frames = _prepare_ticker_frames(tickers, data)
 
     market_context = get_market_context(data, ticker_frames)

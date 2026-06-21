@@ -11,6 +11,18 @@ from __future__ import annotations
 
 from core.pipeline.downloads import fetch_data
 from core.pipeline.market_context import get_market_context
+from core.pipeline.providers import (
+    MarketDataProvider,
+    available_providers,
+    get_provider,
+)
 from core.pipeline.tickers import get_tickers
 
-__all__ = ["fetch_data", "get_market_context", "get_tickers"]
+__all__ = [
+    "fetch_data",
+    "get_market_context",
+    "get_tickers",
+    "get_provider",
+    "available_providers",
+    "MarketDataProvider",
+]

@@ -63,9 +63,10 @@ it is, and assembles the ranked list.
 
 | File | What it does |
 |------|--------------|
-| `data.py` | The stable public doorway: exports `get_tickers`, `fetch_data`, and `get_market_context`. |
+| `data.py` | The stable public doorway: exports `get_tickers`, `fetch_data`, `get_market_context`, and `get_provider`. |
 | `tickers.py` | Loads and refreshes the cached common-stock universe. |
-| `downloads.py` | Owns yfinance downloads, retry/recovery, split-drift checks, and the parquet cache. |
+| `providers.py` | Market-data source abstraction. The screener fetches its panel through `get_provider().fetch(...)`, not a vendor directly, so a bulk-EOD source can be slotted in behind one contract. Today only `yahoo` (wraps `downloads.fetch_data`). |
+| `downloads.py` | The Yahoo provider's implementation: yfinance downloads, retry/recovery, split-drift checks, and the parquet cache. |
 | `market_context.py` | Computes the SPY 6-month return and universe breadth broadcast used by scoring. |
 | `cache.py` | Small filesystem, metadata, and market-clock helpers used by the data modules. |
 | `evaluation.py` | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly. |
