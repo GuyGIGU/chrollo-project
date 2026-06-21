@@ -22,6 +22,7 @@ from core.archive import writer as archive_writer
 import archive_models
 from webapp.backend.services.journal_stats import calculate_journal_stats
 from webapp.backend.services import portfolio_snapshot, screener_data, startup
+from webapp.backend.services import scan_runner
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -210,3 +211,50 @@ async def _first_stream_event(request):
         return await anext(stream)
     finally:
         await stream.aclose()
+
+
+# ---- scan-runner alert decision (fetch-health degradation early warning) ----
+def test_alert_decision_failed_and_stale_always_alert():
+    assert scan_runner._alert_decision("failed", 5, None, True, True) == "failed"
+    assert scan_runner._alert_decision("stale_data", 5, None, True, True) == "stale_data"
+
+
+def test_alert_decision_zero_results_respects_toggle():
+    assert scan_runner._alert_decision("ok", 0, None, True, True) == "zero scan results"
+    assert scan_runner._alert_decision("ok", 0, None, False, True) is None
+
+
+def test_alert_decision_degraded_fetch_is_early_warning():
+    unhealthy = {"mode": "incremental", "return_ratio": 0.42, "healthy": False}
+    reason = scan_runner._alert_decision("ok", 120, unhealthy, True, True)
+    assert reason is not None
+    assert "degraded data fetch" in reason and "0.42" in reason
+
+
+def test_alert_decision_degraded_fetch_toggle_off():
+    unhealthy = {"return_ratio": 0.42, "healthy": False}
+    assert scan_runner._alert_decision("ok", 120, unhealthy, True, False) is None
+
+
+def test_alert_decision_healthy_ok_scan_is_silent():
+    healthy = {"mode": "incremental", "return_ratio": 0.999, "healthy": True}
+    assert scan_runner._alert_decision("ok", 120, healthy, True, True) is None
+    assert scan_runner._alert_decision("ok", 120, None, True, True) is None
+
+
+def test_last_fetch_health_reads_record(tmp_path, monkeypatch):
+    (tmp_path / "cache_meta.json").write_text(
+        json.dumps({"fetch_health": {"healthy": False, "return_ratio": 0.1}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(scan_runner, "ROOT_DIR", str(tmp_path))
+    assert scan_runner._last_fetch_health() == {"healthy": False, "return_ratio": 0.1}
+
+
+def test_last_fetch_health_missing_or_malformed(tmp_path, monkeypatch):
+    monkeypatch.setattr(scan_runner, "ROOT_DIR", str(tmp_path))
+    assert scan_runner._last_fetch_health() is None  # no file
+    (tmp_path / "cache_meta.json").write_text("{not json", encoding="utf-8")
+    assert scan_runner._last_fetch_health() is None  # malformed
+    (tmp_path / "cache_meta.json").write_text("null", encoding="utf-8")
+    assert scan_runner._last_fetch_health() is None  # valid JSON, not an object

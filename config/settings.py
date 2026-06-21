@@ -402,3 +402,4 @@ SCAN_SCHEDULE_MINUTE_ET = 0
 FORWARD_RETURNS_MIN_AGE_DAYS = 5
 ALERT_WEBHOOK_URL_ENV = "ALERT_WEBHOOK_URL"
 ALERT_ON_ZERO_RESULTS = True
+ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetch-health came back unhealthy (low return ratio) — an early warning before a stale_data failure

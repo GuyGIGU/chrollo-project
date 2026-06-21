@@ -103,16 +103,55 @@ def _tail_error(output: str, limit: int = 1000) -> str | None:
     return text[-limit:]
 
 
+def _last_fetch_health() -> dict | None:
+    """The most recent fetch-health record the scan wrote to cache_meta.json."""
+    meta_path = os.path.join(ROOT_DIR, "cache_meta.json")
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return None
+    health = meta.get("fetch_health") if isinstance(meta, dict) else None
+    return health if isinstance(health, dict) else None
+
+
+def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None,
+                    alert_on_zero: bool, alert_on_degraded: bool) -> str | None:
+    """Return a human-readable alert reason, or None if no alert is warranted.
+
+    Pure (no I/O) so it is unit-testable. A failed/stale scan alerts on its
+    status; a successful scan with zero results alerts when enabled; a successful
+    scan whose fetch came back unhealthy (low return ratio) alerts as an early
+    warning, before the degradation escalates to a stale_data failure.
+    """
+    if status in ("failed", "stale_data"):
+        return status
+    if n_setups == 0 and alert_on_zero:
+        return "zero scan results"
+    if (alert_on_degraded and isinstance(fetch_health, dict)
+            and fetch_health.get("healthy") is False):
+        return (f"degraded data fetch (mode={fetch_health.get('mode')}, "
+                f"return_ratio={fetch_health.get('return_ratio')})")
+    return None
+
+
 def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str | None = None) -> None:
     from services.core_settings import load_core_settings
 
     settings = load_core_settings()
-    zero_result = n_setups == 0 and bool(getattr(settings, "ALERT_ON_ZERO_RESULTS", True))
-    should_alert = status in {"failed", "stale_data"} or zero_result
-    if not should_alert:
+    # Only consult fetch-health for an otherwise-ok scan: a failed/stale run
+    # already alerts on its status, and its cache_meta record may be stale.
+    fetch_health = _last_fetch_health() if status == "ok" else None
+    reason = _alert_decision(
+        status,
+        n_setups,
+        fetch_health,
+        bool(getattr(settings, "ALERT_ON_ZERO_RESULTS", True)),
+        bool(getattr(settings, "ALERT_ON_DEGRADED_FETCH", True)),
+    )
+    if reason is None:
         return
 
-    reason = "zero scan results" if zero_result and status == "ok" else status
     message = f"Chrollo scan alert ({trigger}): {reason}; setups={n_setups}"
     if error:
         message = f"{message}; error={error[:300]}"
