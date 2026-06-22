@@ -30,7 +30,6 @@ if _ROOT not in sys.path:
 from config import settings
 from core.pipeline.screener import apply_baseline_filters
 from core.structure.box_primitives import (
-    INNER_MIN_DAYS,
     _detect_inner_phase_b_start,
     inner_zigzag,
 )
@@ -74,7 +73,7 @@ def _box(ax, x0, last_x, box, color, alpha, label):
 
 
 def _inner_box(eval_df, n, start):
-    if start is None or start >= len(eval_df) or (n - start) < INNER_MIN_DAYS:
+    if start is None or start >= len(eval_df) or (n - start) < settings.INNER_MIN_DAYS:
         return None
     r = inner_zigzag(eval_df, start, n - start)
     if r[0] == 0:

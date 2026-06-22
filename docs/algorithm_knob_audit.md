@@ -12,6 +12,21 @@ The goal is to separate:
 - scoring-only: opinions after the structure has already passed
 - cleanup candidates: stale, duplicated, or hidden knobs
 
+## Status (2026-06-22 cleanup pass)
+
+Several "cleanup candidate" items below were already RESOLVED — verified this pass:
+
+- **Five-bar edge skip: centralized.** Every root/box/inner path reads
+  `settings.STRUCTURE_EDGE_SKIP_BARS`; only explanatory comments still show `:-5`.
+- **`INNER_MIN_DAYS`: moved to `config/settings.py`** beside `INNER_SEARCH_FRACTION` /
+  `INNER_TIGHTNESS_RATIO`; read as `settings.INNER_MIN_DAYS` at use-sites (byte-identical).
+- **`scope.py` Phase-D docstring: already current** (earliest right-side evidence; LPS the
+  mandatory gate/fallback) — not stale.
+- **Frontend score caps (`setupScoreMath.js`): in sync** with the Python `SCORE_*`.
+
+All verified byte-identical (`shadow_diff --check` PASS, 281 tests green). The remaining
+substantive work is architectural — see "Recommended Next Work" at the bottom.
+
 ## Reader Model
 
 The clean model is:
@@ -170,9 +185,8 @@ Taxonomy:
 
 Cleanup candidates:
 
-- `INNER_MIN_DAYS` still lives in `box_primitives.py`; decide whether it should
-  stay private to candidate generation or move to settings with the other inner
-  knobs.
+- `INNER_MIN_DAYS` — RESOLVED 2026-06-22: moved to `config/settings.py` with the
+  other inner knobs (read as `settings.INNER_MIN_DAYS`; byte-identical).
 
 ## Phase C: Spring
 
@@ -482,10 +496,15 @@ the best story rather than reject the stock outright.
 
 ## Recommended Next Work
 
-1. Keep stale mirrors clean: frontend score caps and strategy/scope docstrings.
-2. Use `python -m tools.lps_gate_audit` to show reject/firing deltas by detector gate:
-   especially LPS volume, descent fractions, zone, and range thresholds.
-3. First-class the Phase-D evidence vocabulary in archive/overlay:
+(The original #1 "keep stale mirrors clean" and #5 "centralize duplicated knobs" are
+DONE — see "Status (2026-06-22 cleanup pass)" at the top. What remains is the
+substantive, engine-touching work — do it measure-first, each step guard-validated
+with `shadow_diff --check` + `seed_recall`.)
+
+1. `python -m tools.lps_gate_audit` to show reject/firing deltas by detector gate:
+   especially LPS volume, descent fractions, zone, and range thresholds. Analysis-only;
+   informs the two refactors below.
+2. First-class the Phase-D evidence vocabulary in archive/overlay:
    `support_tests`, `rising_support`, `sos_reclaim`, `inner_box`, `v_tip`, `lps`.
-4. Split LPS into explicit candidate detection vs active setup selection.
-5. Only then delete dead knobs and centralize duplicated ones.
+3. Split LPS into explicit candidate detection vs active setup selection.
+4. Refresh `strategy_v2.md`'s older Phase-D boundary wording — after the next calibration pass.

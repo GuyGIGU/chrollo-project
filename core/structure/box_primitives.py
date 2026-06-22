@@ -20,14 +20,9 @@ from core.structure.metrics import measure_traversal
 from core.structure.pivots import _build_zigzag, _find_pivots
 
 
-INNER_MIN_DAYS = 15   # min length of an inner CANDIDATE box. NOTE: inner_zigzag
-                      # separately requires the search WINDOW to be >= MIN_BASE_DAYS
-                      # (the binding floor); the room-checks that use this constant
-                      # are only a looser pre-filter.
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
 
 __all__ = [
-    "INNER_MIN_DAYS",
     "EMPTY_BOX",
     "collect_root_anchors",
     "inner_box_at",
@@ -571,7 +566,7 @@ def inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
 
     atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
     valid_candidates = collect_zigzag_candidates(
-        eq_df, base_length, atr_val, min_candidate_days=INNER_MIN_DAYS,
+        eq_df, base_length, atr_val, min_candidate_days=settings.INNER_MIN_DAYS,
     )
     if not valid_candidates:
         return EMPTY_BOX
@@ -626,7 +621,7 @@ def detect_inner_root_swing(eq_df):
     low that can birth an inner range, and the reaction magnitude.
     """
     n = len(eq_df)
-    if n < INNER_MIN_DAYS + 2:
+    if n < settings.INNER_MIN_DAYS + 2:
         return None
 
     eq_highs = eq_df['High'].values
@@ -649,7 +644,7 @@ def detect_inner_root_swing(eq_df):
         if (peak_p - val_p) / peak_p < settings.AR_MIN_DROP_PCT:
             continue
         ar_bar = int(zj[0])
-        if (n - ar_bar) >= INNER_MIN_DAYS:
+        if (n - ar_bar) >= settings.INNER_MIN_DAYS:
             bc_bar = int(zi[0])
             return {
                 "bc_bar": bc_bar,
@@ -705,7 +700,7 @@ def _detect_inner_phase_b_start(eq_df):
     scans zigzag peak->valley limbs from the most RECENT end backward and returns
     the first that is a genuine reaction: a drop >= AR_MIN_DROP_PCT (the same
     'what counts as a reaction' threshold the outer climax uses) whose reaction
-    low still leaves >= INNER_MIN_DAYS bars for an inner base to form. That low is
+    low still leaves >= settings.INNER_MIN_DAYS bars for an inner base to form. That low is
     the inner AR — the root swing the inner R/S is born from.
 
     Returns the inner AR-low bar as a 0-based OFFSET into ``eq_df``, or None when
