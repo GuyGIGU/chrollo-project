@@ -28,7 +28,7 @@ testable in isolation with fakes:
     Consolidation/B   bricks.validate_equilibrium  (+ consolidation.py, box_primitives.py)
     Phase C           bricks.find_spring
     Phase D           bricks.find_lps, bricks.find_inner_box, phase_d.resolve_phase_d_boundary
-    LPS               lps.detect_lps, lps.detect_lps_tests
+    LPS               lps.detect_lps_candidates, lps.select_active_lps_candidate
 
 Public API — grouped by layer (see ``__all__`` below).
 """
@@ -59,7 +59,13 @@ from core.structure.metrics import (
 from core.structure.bin_features import measure_bins
 
 # ── Layer: Phase D / LPS — the right-side trigger shelf + support-test staircase ─
-from core.structure.lps import detect_lps, detect_lps_tests, lps_range_threshold
+from core.structure.lps import (
+    detect_lps,
+    detect_lps_candidates,
+    detect_lps_tests,
+    lps_range_threshold,
+    select_active_lps_candidate,
+)
 
 # ── Scope — clip the assembled narrative to the actionable window ────────────
 from core.structure.scope import scope_consolidation
@@ -95,8 +101,10 @@ __all__ = [
     "measure_bins",
     # Phase D / LPS
     "detect_lps",
+    "detect_lps_candidates",
     "detect_lps_tests",
     "lps_range_threshold",
+    "select_active_lps_candidate",
     # scope
     "scope_consolidation",
     # HTF

@@ -40,6 +40,15 @@ class PhaseDBoundary:
     evidence: dict = field(default_factory=dict)
 
 
+PHASE_D_EVIDENCE_SOURCES = (
+    "support_tests",
+    "rising_support",
+    "sos_reclaim",
+    "inner_box",
+    "v_tip",
+    "lps",
+)
+
 # Earliest credible evidence wins; this rank only breaks same-bar ties.
 _EVIDENCE_RANK = {
     "support_tests": 0,

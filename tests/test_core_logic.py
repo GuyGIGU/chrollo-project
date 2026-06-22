@@ -46,7 +46,12 @@ from core.structure.box_primitives import (
     detect_inner_root_swing,
     select_phase_b_candidate,
 )
-from core.structure.lps import detect_lps, detect_lps_tests
+from core.structure.lps import (
+    detect_lps,
+    detect_lps_candidates,
+    detect_lps_tests,
+    select_active_lps_candidate,
+)
 from core.structure.segmentation import segment_swings
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 from core.structure.scope import _resolve_phase_d_start, scope_consolidation
@@ -644,6 +649,38 @@ def test_lps_trigger_uses_last_lps_bar_high():
     )
 
     assert result["trigger_price"] == 107
+
+
+def test_lps_candidate_detector_and_selector_match_wrapper():
+    df = pd.DataFrame([
+        {"High": 118, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 117, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 110, "Low": 106, "Close": 107, "Spread": 2, "Volume": 500, "Vol_50": 1000},
+        {"High": 107, "Low": 103, "Close": 106, "Spread": 1, "Volume": 500, "Vol_50": 1000},
+    ])
+    kwargs = dict(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=2,
+    )
+
+    wrapper, wrapper_rejects = detect_lps(diagnose=True, **kwargs)
+    candidates, candidate_rejects = detect_lps_candidates(diagnose=True, **kwargs)
+    elected = select_active_lps_candidate(candidates, df.iloc[-1])
+
+    assert elected is not None
+    assert wrapper_rejects == candidate_rejects
+    for key in ("start_index", "end_index", "low_index", "trigger_price", "zone_type"):
+        assert wrapper[key] == elected[key]
+    assert "_quality" in elected
+    assert "_quality" not in wrapper
 
 
 def _lps_behavior_frame(highs, lows, closes=None):
@@ -2187,6 +2224,26 @@ def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
     assert pb.source == "v_tip"
     assert pb.evidence["floor"] == 80
     assert pb.evidence["selected"]["source"] == "v_tip"
+
+
+def test_phase_d_boundary_evidence_carries_full_vocabulary():
+    from core.structure.phase_d import PHASE_D_EVIDENCE_SOURCES, resolve_phase_d_boundary
+
+    pb = resolve_phase_d_boundary(
+        last=119,
+        has_lps_window=True,
+        lps_start=110,
+        b=30,
+        support_test_start_bar=88,
+        sos_reclaim_start_bar=90,
+        rising_support_start_bar=92,
+        phase_d_start_bar=94,
+        v_tip_bar=96,
+    )
+
+    signal_sources = {signal["source"] for signal in pb.evidence["signals"]}
+    assert signal_sources == set(PHASE_D_EVIDENCE_SOURCES)
+    assert pb.evidence["selected"]["source"] == "support_tests"
 
 
 def test_support_test_evidence_starts_classifies_cluster_sos_and_rising_support():

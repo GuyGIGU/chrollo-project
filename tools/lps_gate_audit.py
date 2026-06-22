@@ -1,7 +1,7 @@
 """Read-only LPS gate audit harness.
 
 This tool replays the current structure reader up to Phase B, then diagnoses the
-LPS/Test layer with ``detect_lps(..., diagnose=True)``. It is meant for
+LPS/Test layer as detector candidates plus active-setup election. It is meant for
 calibration work: which gates reject candidate windows, and what firing deltas a
 small settings override would create.
 
@@ -37,7 +37,7 @@ from config import settings
 from core.pipeline.evaluation import apply_baseline_filters
 from core.structure import calculate_atr
 from core.structure import bricks
-from core.structure.lps import detect_lps
+from core.structure.lps import detect_lps_candidates, select_active_lps_candidate
 
 _MAX_ANCHORS = 64
 _DB_PATH = ROOT / "webapp" / "backend" / "trading_journal.db"
@@ -242,7 +242,7 @@ def _lps_context(df: pd.DataFrame, box, atr: float) -> tuple[Optional[dict], Cou
         1.2 * float(atr),
     )
     swing_complete_idx = max(int(box.r_anchor_bar), int(box.s_anchor_bar))
-    result, rejects = detect_lps(
+    candidates, rejects = detect_lps_candidates(
         work_df,
         work_df.iloc[-1],
         float(box.S),
@@ -253,6 +253,9 @@ def _lps_context(df: pd.DataFrame, box, atr: float) -> tuple[Optional[dict], Cou
         swing_complete_idx,
         diagnose=True,
     )
+    result = select_active_lps_candidate(candidates, work_df.iloc[-1])
+    if candidates and result is None:
+        rejects["not_actionable"] += len(candidates)
     return result, rejects
 
 

@@ -127,7 +127,7 @@ def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
     return out
 
 
-def _collect_lps_candidates(
+def detect_lps_candidates(
     df: pd.DataFrame,
     latest: pd.Series,
     sup_avg: float,
@@ -136,12 +136,21 @@ def _collect_lps_candidates(
     base_range_threshold: float,
     base_len: int,
     swing_complete_idx: int,
-    offset_max: int,
+    offset_max: Optional[int] = None,
     diagnose: bool = False,
 ) -> tuple[list[dict], Counter]:
+    """Collect every valid LPS/Test footprint before active-setup election.
+
+    This is the detector layer only: it applies the LPS geometry/volume/spread
+    gates and returns electable candidate dicts plus diagnostic reject counters.
+    The candidate dicts keep ``_quality`` as the selector weight; consumers should
+    use ``select_active_lps_candidate`` (or the compatibility wrapper
+    ``detect_lps``) rather than scoring/archive this private field directly.
+    """
     candidates: list[dict] = []
     rejects: Counter = Counter()
     n = len(df)
+    scan_offset_max = settings.LPS_SCAN_OFFSET_MAX if offset_max is None else offset_max
 
     box_height = float(res_avg) - float(sup_avg)
     if box_height <= 0:
@@ -164,7 +173,7 @@ def _collect_lps_candidates(
     # raising scan depth could match an LPS that pre-dates the box entirely.
     max_window = base_len + settings.AR_MAX_BARS
 
-    for offset in range(0, max(0, int(offset_max))):
+    for offset in range(0, max(0, int(scan_offset_max))):
         end = n - offset
         eval_idx = end - 1
 
@@ -438,7 +447,7 @@ def _collect_lps_candidates(
     return candidates, rejects
 
 
-def _elect_active_lps(candidates: list[dict], latest: pd.Series) -> Optional[dict]:
+def select_active_lps_candidate(candidates: list[dict], latest: pd.Series) -> Optional[dict]:
     """Pick the latest actionable setup LPS from already-valid candidates."""
     try:
         current_price = float(latest["Close"])
@@ -495,7 +504,7 @@ def detect_lps(
     valid LPS/Test footprint, then elects the latest actionable terminal-low
     candidate. ``diagnose=True`` returns rejection counters for audit harnesses.
     """
-    candidates, rejects = _collect_lps_candidates(
+    candidates, rejects = detect_lps_candidates(
         df,
         latest,
         sup_avg,
@@ -504,13 +513,12 @@ def detect_lps(
         base_range_threshold,
         base_len,
         swing_complete_idx,
-        settings.LPS_SCAN_OFFSET_MAX,
-        diagnose,
+        diagnose=diagnose,
     )
     if not candidates:
         return (None, rejects) if diagnose else None
 
-    best_candidate = _elect_active_lps(candidates, latest)
+    best_candidate = select_active_lps_candidate(candidates, latest)
     if best_candidate is None:
         if diagnose:
             rejects["not_actionable"] += len(candidates)
@@ -540,7 +548,7 @@ def detect_lps_tests(
     """
     max_window = base_len + settings.AR_MAX_BARS
     offset_max = max(0, max_window - settings.LPS_LENGTH_MIN + 1)
-    candidates, _ = _collect_lps_candidates(
+    candidates, _ = detect_lps_candidates(
         df,
         latest,
         sup_avg,

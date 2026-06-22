@@ -88,11 +88,20 @@ const sectorLabel = (data) => {
   return '-';
 };
 
-const phaseRegionTip = (region) => explainTip({
-  what: `${region.name} marks ${region.detail.toLowerCase()} in the detected base.`,
-  why: 'It shows which part of the Wyckoff-style structure the engine is reading on the chart.',
-  use: 'Hover or focus it to highlight the matching region, then verify the support, resistance, and recovery behavior by eye.',
-});
+const phaseRegionTip = (region) => {
+  if (region.key === 'd' && region.evidenceSummary) {
+    return explainTip({
+      what: `${region.name} starts at the selected right-side evidence: ${region.detail.toLowerCase()}.`,
+      why: `The evidence vocabulary is ${region.evidenceSummary}; the earliest credible signal after the Phase-C floor anchors the Phase-D band, with LPS as the fallback.`,
+      use: 'Hover or focus it to highlight Phase D, then confirm that the selected evidence matches the tightening support behavior by eye.',
+    });
+  }
+  return explainTip({
+    what: `${region.name} marks ${region.detail.toLowerCase()} in the detected base.`,
+    why: 'It shows which part of the Wyckoff-style structure the engine is reading on the chart.',
+    use: 'Hover or focus it to highlight the matching region, then verify the support, resistance, and recovery behavior by eye.',
+  });
+};
 
 function SnapshotMetric({ label, title, tone, value }) {
   return (

@@ -78,32 +78,45 @@ const parsePhaseDEvidence = (data) => {
   }
 };
 
-const phaseDSourceDetail = (source) => {
-  switch (source) {
-    case 'support_tests':
-      return 'Support-test cluster';
-    case 'sos_reclaim':
-      return 'Sign-of-strength reclaim';
-    case 'rising_support':
-      return 'Rising support';
-    case 'inner_box':
-      return 'Inner tightening range';
-    case 'v_tip':
-      return 'Final V-shaped test';
-    case 'lps':
-      return 'LPS support shelf';
-    default:
-      return 'Right-side tightening range';
-  }
+const PHASE_D_SOURCE_DETAILS = {
+  support_tests: 'Support-test cluster',
+  sos_reclaim: 'Sign-of-strength reclaim',
+  rising_support: 'Rising support',
+  inner_box: 'Inner tightening range',
+  v_tip: 'Final V-shaped test',
+  lps: 'LPS support shelf',
 };
 
-const phaseDDetail = (data) => {
+const phaseDSourceDetail = (source) => (
+  PHASE_D_SOURCE_DETAILS[source] || 'Right-side tightening range'
+);
+
+const phaseDSignalLabels = (signals) => {
+  if (!Array.isArray(signals)) return [];
+  const seen = new Set();
+  const labels = [];
+  for (const signal of signals) {
+    const source = signal?.source;
+    if (!source || seen.has(source)) continue;
+    seen.add(source);
+    labels.push(phaseDSourceDetail(source));
+  }
+  return labels;
+};
+
+const phaseDMetadata = (data) => {
   // The spring recovery only FLOORS Phase D (it ends Phase C); the boundary
   // source is the earliest right-side evidence after it, with the LPS as the
   // mandatory fallback/gate. There is no 'spring' source.
   const evidence = parsePhaseDEvidence(data);
   const source = evidence?.selected?.source || data?.bin_d_boundary_source;
-  return phaseDSourceDetail(source);
+  const signalLabels = phaseDSignalLabels(evidence?.signals);
+  return {
+    detail: phaseDSourceDetail(source),
+    evidenceSignals: signalLabels,
+    evidenceSource: source || null,
+    evidenceSummary: signalLabels.length ? signalLabels.join(', ') : null,
+  };
 };
 
 const phaseCDetail = (data) => {
@@ -258,7 +271,7 @@ export const buildPhaseRegions = (data) => {
   }
   if (indexes.phaseDStart != null) {
     const region = buildRegion('d', candles, indexes.phaseDStart, baseEnd, {
-      detail: phaseDDetail(data),
+      ...phaseDMetadata(data),
       range: 'setupBox',
     });
     if (region) regions.push(region);
