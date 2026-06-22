@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmtMoney, fmtPct, pnlColor, summaryCurrency, summaryValue } from './portfolioFormat';
+import { explainTip } from './tooltipText';
 
 const tileStyle = {
   background: 'var(--bg-panel)',
@@ -40,21 +41,33 @@ const PortfolioDailyPnl = ({ summary }) => {
         value={fmtMoney(total, currency)}
         subValue={`${fmtPct(totalPct)} of net liquidation`}
         color={pnlColor(total)}
-        title="Broker-reported session P&L: realized plus current unrealized P&L from the IBKR account summary."
+        title={explainTip({
+          what: 'Broker-reported session P&L: realized P&L plus current unrealized P&L.',
+          why: 'It shows how today account movement compares with total account value.',
+          use: 'Use it as a daily risk temperature check, not as an automatic reason to add or exit exposure.',
+        })}
       />
       <DailyPnlTile
         label="Realized Today"
         value={fmtMoney(realized, currency)}
         subValue="Closed or partially closed P&L"
         color={pnlColor(realized)}
-        title="Realized P&L reported by IBKR for the current account snapshot."
+        title={explainTip({
+          what: 'P&L from positions closed or partially closed in the current account snapshot.',
+          why: 'It separates booked results from open mark-to-market movement.',
+          use: 'Use it to review completed decisions separately from open position noise.',
+        })}
       />
       <DailyPnlTile
         label="Open P&L"
         value={fmtMoney(unrealized, currency)}
         subValue="Live unrealized movement"
         color={pnlColor(unrealized)}
-        title="Unrealized P&L on currently open positions, reported by IBKR."
+        title={explainTip({
+          what: 'Unrealized P&L on positions that are still open.',
+          why: 'It shows live portfolio pressure before gains or losses are locked in.',
+          use: 'Use it with the trade plan and stop levels; open P&L can change quickly.',
+        })}
       />
     </section>
   );

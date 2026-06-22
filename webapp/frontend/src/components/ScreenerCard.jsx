@@ -2,6 +2,7 @@ import React from 'react';
 import { TagRow } from './SetupTags';
 import { ScoreBreakdownPills } from './ScoreBreakdown';
 import ScreenerMiniChart from './ScreenerMiniChart';
+import { explainTip } from './tooltipText';
 
 const tierColor = (tier) => {
   switch (tier) {
@@ -30,7 +31,11 @@ function EarningsChip({ info }) {
 
   return (
     <span
-      title={`Earnings in ${days} day${days === 1 ? '' : 's'} (${info.date})`}
+      title={explainTip({
+        what: `Earnings are scheduled in ${days} day${days === 1 ? '' : 's'} (${info.date}).`,
+        why: 'Near-term earnings can override a clean technical setup with gap risk and volatility.',
+        use: 'Treat it as a timing warning and decide manually whether the setup is still worth tracking before the report.',
+      })}
       style={{
         background: tone.bg,
         borderRadius: 6,
@@ -198,10 +203,17 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
   else if (trendState == null || trendState === 'unknown') { state = 'no data'; }
   else if (trendState === 'down') { state = 'downtrend'; stateCol = '#f85149'; }
   const tfName = tf === 'W' ? 'Weekly' : 'Monthly';
-  const title = `${tfName} — trend: ${trendState || 'unknown'}`
-    + (inConsol ? `; in a worked box (phase ${phase || '?'})` : '; no worked box')
-    + (reaccum ? '; RE-ACCUMULATION (Stage-2 uptrend + consolidating — energy-gathering pause)' : '')
-    + (nested ? '; the daily base nests inside this higher-timeframe box (tight alignment)' : '');
+  const status = [
+    `trend ${trendState || 'unknown'}`,
+    inConsol ? `worked box phase ${phase || '?'}` : 'no worked box',
+    reaccum ? 're-accumulation: Stage-2 uptrend plus consolidation' : null,
+    nested ? 'daily base nests inside this higher-timeframe box' : null,
+  ].filter(Boolean).join('; ');
+  const title = explainTip({
+    what: `${tfName} context for the same setup engine: ${status}.`,
+    why: 'Higher-timeframe agreement helps separate a small daily pattern from a setup aligned with a larger Stage-2 or Wyckoff-style trend pause.',
+    use: 'Give more weight to daily setups that are also supported by weekly or monthly re-accumulation; be stricter when context is weak or missing.',
+  });
   return (
     <div title={title} style={{ alignItems: 'center', display: 'flex', flex: 1, gap: 5, minWidth: 0 }}>
       <span style={{ color: 'var(--text-faint)', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>

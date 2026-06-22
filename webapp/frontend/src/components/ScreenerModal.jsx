@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import TimeframeMainChart from './TimeframeMainChart';
-import { readState } from './timeframeRead';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
 const tierColor = (tier) => {
@@ -203,7 +202,6 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
                 boxS={interval === 'W' ? data.htf_w_box_s : data.htf_m_box_s}
                 candles={interval === 'W' ? data.weekly_candles : data.monthly_candles}
                 label={interval === 'W' ? 'WEEKLY' : 'MONTHLY'}
-                state={readState(data, interval === 'W' ? 'w' : 'm')}
                 volumes={interval === 'W' ? data.weekly_volumes : data.monthly_volumes}
               />
             )}

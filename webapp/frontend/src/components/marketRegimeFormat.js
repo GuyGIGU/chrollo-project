@@ -1,38 +1,60 @@
+import { explainTip } from './tooltipText';
+
 export const STATE_META = {
   UPTREND: {
     label: 'Uptrend',
     tone: 'var(--success)',
     border: 'rgba(61, 211, 122, 0.30)',
     summary: 'Indexes and breadth are aligned.',
-    detail: 'SPY is above key moving averages, its 50D average is rising, and breadth is healthy.',
+    detail: explainTip({
+      what: 'The market backdrop is constructive: SPY is holding key moving averages, the 50-day average is rising, and breadth is healthy.',
+      why: 'Breakout setups usually work better when the broad market is supporting risk-taking.',
+      use: 'You can be more willing to review long setups, while still requiring each chart to meet its own trigger and risk rules.',
+    }),
   },
   NEUTRAL: {
     label: 'Neutral',
     tone: 'var(--accent-blue)',
     border: 'rgba(91, 138, 255, 0.32)',
     summary: 'Mixed backdrop.',
-    detail: 'The market is not clearly healthy or clearly defensive from the available measures.',
+    detail: explainTip({
+      what: 'The market backdrop is mixed from the available trend, breadth, and distribution measures.',
+      why: 'Mixed conditions can produce selective opportunities but less broad follow-through.',
+      use: 'Be choosy: prioritize the cleanest leaders and avoid forcing marginal setups.',
+    }),
   },
   UNDER_PRESSURE: {
     label: 'Under Pressure',
     tone: 'var(--warning)',
     border: 'rgba(240, 190, 60, 0.34)',
     summary: 'Constructive, but selective.',
-    detail: 'SPY may still be holding trend while breadth or distribution days are flashing caution.',
+    detail: explainTip({
+      what: 'The index trend may still be intact, but breadth or distribution is flashing caution.',
+      why: 'A market can look fine at the index level while fewer stocks participate underneath.',
+      use: 'Reduce tolerance for sloppy setups and demand stronger confirmation before acting.',
+    }),
   },
   CORRECTION: {
     label: 'Correction',
     tone: 'var(--danger)',
     border: 'rgba(242, 103, 112, 0.34)',
     summary: 'Defensive backdrop.',
-    detail: 'SPY is below major trend support or weak long-term breadth confirms market stress.',
+    detail: explainTip({
+      what: 'SPY is below major trend support, or long-term breadth is weak enough to confirm market stress.',
+      why: 'Correction conditions raise the chance that breakouts fail or reverse quickly.',
+      use: 'Stay defensive and treat new long ideas as watchlist candidates until the backdrop improves.',
+    }),
   },
   UNKNOWN: {
     label: 'Pending',
     tone: 'var(--text-muted)',
     border: 'var(--border-color)',
     summary: 'Awaiting new scan.',
-    detail: 'Run a fresh market scan to populate regime context.',
+    detail: explainTip({
+      what: 'The market regime has not been calculated for the current scan data.',
+      why: 'Without fresh context, the screener cannot judge whether the broad market is helping or hurting setups.',
+      use: 'Run a fresh scan before relying on regime, breadth, or distribution reads.',
+    }),
   },
 };
 

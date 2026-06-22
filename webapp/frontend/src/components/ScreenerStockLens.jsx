@@ -1,6 +1,7 @@
 import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
+import { explainTip } from './tooltipText';
 
 const scoreLabel = (value) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
@@ -87,6 +88,12 @@ const sectorLabel = (data) => {
   return '-';
 };
 
+const phaseRegionTip = (region) => explainTip({
+  what: `${region.name} marks ${region.detail.toLowerCase()} in the detected base.`,
+  why: 'It shows which part of the Wyckoff-style structure the engine is reading on the chart.',
+  use: 'Hover or focus it to highlight the matching region, then verify the support, resistance, and recovery behavior by eye.',
+});
+
 function SnapshotMetric({ label, title, tone, value }) {
   return (
     <div className="stock-lens-metric" title={title}>
@@ -123,7 +130,7 @@ function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
               onMouseEnter={() => onRegionChange(activeTarget)}
               onMouseLeave={() => onRegionChange(null)}
               aria-label={`${region.name} - ${region.detail}`}
-              title={`${region.name}: ${region.detail}`}
+              title={phaseRegionTip(region)}
             >
               <span className="phase-bin-token" style={tokenStyle}>{region.label}</span>
               <span className="phase-bin-copy">
@@ -152,7 +159,11 @@ function DecisionRead({ data }) {
         <span
           className="stock-lens-tier"
           style={{ borderColor: `${tierColor(data.tier)}66`, color: tierColor(data.tier) }}
-          title="Tier is the engine's rank for this setup."
+          title={explainTip({
+            what: 'The engine rank for this setup after scoring structure and confirmation context.',
+            why: 'It helps us triage the scan quickly without treating every setup as equal.',
+            use: 'Review higher tiers first, then still confirm the chart, trigger, and risk manually.',
+          })}
         >
           {data.tier || '-'} Tier
         </span>
@@ -161,24 +172,40 @@ function DecisionRead({ data }) {
       <div className="stock-lens-metrics-grid">
         <SnapshotMetric
           label="Price"
-          title="Latest close from the scan payload."
+          title={explainTip({
+            what: 'The latest closing price included in the scan result.',
+            why: 'It anchors the setup read to the data the screener actually scored.',
+            use: 'Compare it with the trigger and box levels before deciding whether the setup is close enough to watch.',
+          })}
           value={money(currentPrice)}
         />
         <SnapshotMetric
           label="Trigger"
-          title="Breakout trigger price from the structure engine."
+          title={explainTip({
+            what: 'The breakout level calculated from the detected resistance area.',
+            why: 'It gives us the price area where demand must prove it can clear the base.',
+            use: 'Treat it as a review level, not an automatic order; look for clean price action and volume confirmation.',
+          })}
           tone="#e3b341"
           value={money(data.trigger)}
         />
         <SnapshotMetric
           label="To Trigger"
-          title="How far the latest close is from the trigger. Lower is closer; negative means price is already above it."
+          title={explainTip({
+            what: 'The percent distance from the latest close to the trigger.',
+            why: 'It tells us whether the setup is actionable, extended, or still needs time.',
+            use: 'Lower is closer; a negative value means price is already above the trigger and needs extra caution.',
+          })}
           tone={triggerTone(distance)}
           value={pct(distance)}
         />
         <SnapshotMetric
           label="Read"
-          title="Plain-English read of trigger distance."
+          title={explainTip({
+            what: 'A plain-language summary of the trigger distance.',
+            why: 'It turns the distance number into a faster triage read.',
+            use: 'Use it to sort attention, then make the actual decision from the chart and risk plan.',
+          })}
           tone={triggerTone(distance)}
           value={triggerRead(distance)}
         />
@@ -196,33 +223,57 @@ function ContextPanel({ data }) {
       <div className="stock-lens-context-grid">
         <SnapshotMetric
           label="Sector"
-          title="Sector context from the cached sector ETF map. Full industry names can be added in a later enrichment pass."
+          title={explainTip({
+            what: 'The stock sector or sector ETF available from the cached map.',
+            why: 'Sector context helps us see whether the idea is part of a stronger theme or standing alone.',
+            use: 'Prefer setups that agree with strong sector behavior; treat missing sector detail as neutral.',
+          })}
           value={sectorLabel(data)}
         />
         <SnapshotMetric
           label="Score"
-          title="Total setup score from the screener."
+          title={explainTip({
+            what: 'The total setup score from the screener.',
+            why: 'It combines the measured structure and confirmation signals into one triage number.',
+            use: 'Use it to prioritize candidates, then inspect the chart because the score is not a trade signal by itself.',
+          })}
           tone={tierColor(data.tier)}
           value={scoreLabel(data.score)}
         />
         <SnapshotMetric
           label="ADR"
-          title="Average Daily Range. Higher means the stock tends to move more each day."
+          title={explainTip({
+            what: 'Average Daily Range percent: the stock average daily movement relative to price.',
+            why: 'Higher ADR means more movement potential, but also wider normal volatility.',
+            use: 'Use it like the Qullamaggie-style volatility filter: size stops and position risk around the stock actual movement.',
+          })}
           value={pct(data.adr_pct)}
         />
         <SnapshotMetric
           label="Base"
-          title="Number of bars in the detected base."
+          title={explainTip({
+            what: 'The number of bars inside the detected consolidation base.',
+            why: 'Base length tells us how much time the stock has spent building the current structure.',
+            use: 'Longer bases can be meaningful, but act only when the final structure is tight and near a clear trigger.',
+          })}
           value={bars(data.base_len)}
         />
         <SnapshotMetric
           label="Box Width"
-          title="Resistance minus support, shown as percent of support. Lower means tighter structure."
+          title={explainTip({
+            what: 'The distance from support to resistance, shown as a percent of support.',
+            why: 'It measures how tight or wide the actionable box is.',
+            use: 'Prefer tighter boxes when the rails are clean, because risk can usually be defined more precisely.',
+          })}
           value={pct(boxWidthPct(data))}
         />
         <SnapshotMetric
           label="LPS"
-          title="Length of the last point of support pullback."
+          title={explainTip({
+            what: 'The length of the latest last-point-of-support pullback.',
+            why: 'A shorter, controlled LPS can show that sellers are not pushing price far from the trigger.',
+            use: 'Use it to judge whether the final pause is tight; a failed support test weakens the setup.',
+          })}
           value={bars(data.lps_len)}
         />
       </div>

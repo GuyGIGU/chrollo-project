@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import MarketRegimeDetailModal from './MarketRegimeDetailModal';
+import { explainTip } from './tooltipText';
 import {
   STATE_META,
   breadthTone,
@@ -56,7 +57,11 @@ function MarketRegimeBanner({ marketContext }) {
             detail={countLabel(regime.breadth_50_count, regime.breadth_50_total)}
             barValue={regime.breadth_50_pct}
             tone={breadthTone(regime.breadth_50_pct)}
-            title="Share of screened names closing above their 50-day average. Weak 50D breadth can put the regime under pressure."
+            title={explainTip({
+              what: 'The share of screened stocks closing above their 50-day moving average.',
+              why: 'It shows short-to-intermediate participation beneath the index.',
+              use: 'Healthy breadth supports long setups; weak breadth means be more selective even if SPY looks firm.',
+            })}
           />
           <Metric
             label="Breadth 200D"
@@ -64,14 +69,22 @@ function MarketRegimeBanner({ marketContext }) {
             detail={countLabel(regime.breadth_200_count, regime.breadth_200_total)}
             barValue={regime.breadth_200_pct}
             tone={breadthTone(regime.breadth_200_pct)}
-            title="Share of screened names closing above their 200-day average. Weak 200D breadth confirms broader market stress."
+            title={explainTip({
+              what: 'The share of screened stocks closing above their 200-day moving average.',
+              why: 'It measures longer-term market participation and trend health.',
+              use: 'Treat weak 200D breadth as a broader risk warning, especially when judging breakout durability.',
+            })}
           />
           <Metric
             label="Distribution"
             value={fxDays(regime.distribution_days)}
             detail="selling pressure"
             tone={distributionTone(regime.distribution_days)}
-            title="Recent index down days on higher volume. More distribution days mean institutions may be selling into the tape."
+            title={explainTip({
+              what: 'Recent index down days that occurred on higher volume.',
+              why: 'Clusters of distribution days can signal institutional selling pressure.',
+              use: 'When the count is elevated, require cleaner setups and stronger demand before trusting breakouts.',
+            })}
           />
           <IndexMetric symbol="SPY" trend={spy} onOpen={() => setDetailSymbol('SPY')} />
           <IndexMetric symbol="QQQ" trend={qqq} onOpen={() => setDetailSymbol('QQQ')} />
@@ -111,7 +124,11 @@ function IndexMetric({ symbol, trend, onOpen }) {
   const above50 = trend?.above_sma_50;
   const above200 = trend?.above_sma_200;
   const tone = indexTone(above50, above200);
-  const title = `${symbol}: close ${fxPrice(trend?.close)}, 50D ${postureText(above50)}, 200D ${postureText(above200)}, 50D slope ${fxSignedPct(trend?.sma_50_slope_pct)}. Click for details.`;
+  const title = explainTip({
+    what: `${symbol} index context: close ${fxPrice(trend?.close)}, 50D ${postureText(above50)}, 200D ${postureText(above200)}, 50D slope ${fxSignedPct(trend?.sma_50_slope_pct)}.`,
+    why: 'The index trend tells us whether the broad backdrop is supporting or pressuring long setups.',
+    use: 'Click for details, and be more cautious when price is below key averages or the 50D slope is weakening.',
+  });
 
   return (
     <button type="button" onClick={onOpen} style={indexMetricStyle} title={title}>

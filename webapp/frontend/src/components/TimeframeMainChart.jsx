@@ -24,12 +24,32 @@ const chartOptions = (width, height) => ({
   },
   crosshair: { mode: 1 },
   rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.08, bottom: 0.22 } },
-  timeScale: { borderColor: '#2f3447', timeVisible: false, fixLeftEdge: false, fixRightEdge: false },
+  timeScale: { borderColor: '#2f3447', timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
   handleScroll: true,
   handleScale: true,
 });
 
-export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label, state }) {
+const levelOptions = {
+  color: '#2457b8',
+  lineWidth: 2,
+  crosshairMarkerVisible: false,
+  lastValueVisible: false,
+  priceLineVisible: false,
+};
+
+// null/'' -> null (NOT 0). Number(null) === 0, which would otherwise draw a
+// phantom rail at price 0 for any timeframe with no box (the daily chart never
+// hits this because a fired daily setup always has an R/S).
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const buildLevelData = (candles, value) =>
+  candles.map(candle => ({ time: candle.time, value }));
+
+export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label }) {
   const containerRef = useRef(null);
   const [chartError, setChartError] = useState(false);
 
@@ -46,34 +66,27 @@ export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label
 
     try {
       chart = createChart(container, chartOptions(container.clientWidth || 600, container.clientHeight || 360));
-      const candleSeries = chart.addSeries(BarSeries, {
-        upColor: '#26a69a',
-        downColor: '#ef5350',
-        lastValueVisible: false,
-        priceLineVisible: false,
-        thinBars: false,
-      });
+      const candleSeries = chart.addSeries(BarSeries, { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false });
       candleSeries.setData(candles || []);
 
       if (volumes?.length) {
-        const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'tfvol' });
+        const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
         volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
         volumeSeries.setData(volumes);
       }
 
       const cand = candles || [];
-      const r = Number(boxR);
-      const s = Number(boxS);
-      if (cand.length && Number.isFinite(r) && Number.isFinite(s)) {
-        const level = { color: '#2457b8', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false };
-        chart.addSeries(LineSeries, level).setData(cand.map(k => ({ time: k.time, value: r })));
-        chart.addSeries(LineSeries, level).setData(cand.map(k => ({ time: k.time, value: s })));
+      const r = finiteNumber(boxR);
+      const s = finiteNumber(boxS);
+      if (cand.length && r != null && s != null) {
+        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(cand, r));
+        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(cand, s));
         chart.addSeries(LineSeries, {
-          ...level,
-          color: 'rgba(139, 148, 158, 0.40)',
+          ...levelOptions,
+          color: 'rgba(139, 148, 158, 0.45)',
           lineWidth: 1,
           lineStyle: 2,
-        }).setData(cand.map(k => ({ time: k.time, value: (r + s) / 2 })));
+        }).setData(buildLevelData(cand, (r + s) / 2));
       }
 
       chart.timeScale().fitContent();
@@ -123,31 +136,8 @@ export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label
   }
 
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
+    <div className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }}>
       <div ref={containerRef} style={{ height: '100%', position: 'relative' }} />
-      {state ? (
-        <div style={{
-          alignItems: 'center',
-          background: 'rgba(20, 23, 33, 0.74)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 6,
-          display: 'flex',
-          gap: 8,
-          left: 10,
-          padding: '3px 9px',
-          pointerEvents: 'none',
-          position: 'absolute',
-          top: 8,
-          zIndex: 3,
-        }}>
-          <span style={{ color: 'var(--text-main)', fontSize: 11, fontWeight: 700, letterSpacing: 0.4 }}>{label}</span>
-          <span style={{ color: state.trend.col, fontSize: 12, lineHeight: 1 }}>{state.trend.sym}</span>
-          <span style={{ color: state.col, fontSize: 11, fontWeight: 600 }}>{state.text}</span>
-          {state.nested ? (
-            <span title="The daily base sits inside this higher-timeframe box (tight alignment)" style={{ color: '#ff9f43', fontSize: 10 }}>⊂ nested</span>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

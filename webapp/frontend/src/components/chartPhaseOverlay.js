@@ -8,11 +8,11 @@ const TOKEN_FALLBACKS = {
 };
 
 const REGION_DEFS = {
-  a: { label: 'A', name: 'Phase A', detail: 'Root swing · sets R/S', token: '--text-faint' },
-  b: { label: 'B', name: 'Phase B', detail: 'Equilibrium body', token: '--accent-purple' },
-  c: { label: 'C', name: 'Phase C', detail: 'Spring / shakeout', token: '--accent-pink' },
-  d: { label: 'D', name: 'Phase D', detail: 'Right-side range', token: '--accent-blue' },
-  lps: { label: 'LPS', name: 'LPS', detail: 'Support zone', token: '--accent-yellow' },
+  a: { label: 'A', name: 'Phase A', detail: 'Initial swing setting support/resistance', token: '--text-faint' },
+  b: { label: 'B', name: 'Phase B', detail: 'Two-sided range work', token: '--accent-purple' },
+  c: { label: 'C', name: 'Phase C', detail: 'Support shakeout or test', token: '--accent-pink' },
+  d: { label: 'D', name: 'Phase D', detail: 'Right-side tightening range', token: '--accent-blue' },
+  lps: { label: 'LPS', name: 'LPS', detail: 'Last support-test zone', token: '--accent-yellow' },
 };
 
 const PHASE_A_MAX_BARS = 16;
@@ -83,17 +83,17 @@ const phaseDSourceDetail = (source) => {
     case 'support_tests':
       return 'Support-test cluster';
     case 'sos_reclaim':
-      return 'SOS reclaim';
+      return 'Sign-of-strength reclaim';
     case 'rising_support':
       return 'Rising support';
     case 'inner_box':
-      return 'Inner range';
+      return 'Inner tightening range';
     case 'v_tip':
-      return 'Final V tip';
+      return 'Final V-shaped test';
     case 'lps':
-      return 'LPS shelf';
+      return 'LPS support shelf';
     default:
-      return 'Right-side range';
+      return 'Right-side tightening range';
   }
 };
 
@@ -107,8 +107,8 @@ const phaseDDetail = (data) => {
 };
 
 const phaseCDetail = (data) => {
-  if (data?.bin_c_type === 'SPRING') return 'Undercut + recover';
-  return 'Spring / shakeout';
+  if (data?.bin_c_type === 'SPRING') return 'Undercut and recovery';
+  return 'Support shakeout or test';
 };
 
 const priceRangeForBars = (candles, startIndex, endIndex) => {
@@ -277,7 +277,7 @@ export const buildPhaseRegions = (data) => {
       test.low,
       test.high,
       {
-        detail: test.zone_type === 'UNDERCUT_S' ? 'Spring / support test' : 'Support test',
+        detail: test.zone_type === 'UNDERCUT_S' ? 'Support undercut and test' : 'Support test',
         id: `lps:${test.start_date || test.start_index}:${test.end_date || test.end_index}:${testIndex}`,
       },
     );
@@ -290,7 +290,7 @@ export const buildPhaseRegions = (data) => {
     data?._lps_zone_end_date,
     data?._lps_zone_low,
     data?._lps_zone_high,
-    { detail: 'Active support zone', id: 'lps:active' },
+    { detail: 'Active support-test zone', id: 'lps:active' },
   );
   applyLpsSequenceColors(regions);
 
@@ -335,7 +335,7 @@ const applyLpsSequenceColors = (regions) => {
   lpsRegions.forEach((region, index) => {
     const ratio = last <= 0 ? 1 : index / last;
     region.color = interpolateHexColor(LPS_OLDEST_COLOR, LPS_LATEST_COLOR, ratio);
-    region.detail = index === last ? 'Latest support zone' : `Earlier support zone ${index + 1}`;
+    region.detail = index === last ? 'Latest support-test zone' : `Earlier support-test zone ${index + 1}`;
     region.lpsSequenceIndex = index;
     region.lpsSequenceCount = lpsRegions.length;
   });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } from './portfolioFormat';
+import { explainTip } from './tooltipText';
 
 const tileBase = {
   background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)), var(--bg-panel)',
@@ -66,40 +67,64 @@ const AccountSummaryCard = ({ summary, positions }) => {
         value={fmtMoney(summaryValue(summary, 'NetLiquidation'), netCurrency)}
         subValue={`Cash ${fmtMoney(summaryValue(summary, 'TotalCashValue'), summaryCurrency(summary, 'TotalCashValue'))}`}
         tone="good"
-        title="Estimated account value if positions were closed at current market prices."
+        title={explainTip({
+          what: 'Broker-reported account value with assets marked to current market prices.',
+          why: 'It is the main denominator for exposure, buying power, and risk context.',
+          use: 'Use it to size portfolio risk; remember it moves with open positions and market prices.',
+        })}
       />
       <MetricTile
         label="Buying Power"
         value={fmtMoney(summaryValue(summary, 'BuyingPower'), summaryCurrency(summary, 'BuyingPower'))}
         subValue={`Available ${fmtMoney(summaryValue(summary, 'AvailableFunds'), summaryCurrency(summary, 'AvailableFunds'))}`}
-        title="Broker-reported funds available for new trades, before any additional risk rules you apply."
+        title={explainTip({
+          what: 'Broker-reported capacity available for new trades, including account equity and applicable margin.',
+          why: 'It shows what the broker may allow, not what the trading plan should use.',
+          use: 'Treat it as a hard availability check, then apply your own risk limits before any manual trade.',
+        })}
       />
       <MetricTile
         label="Unrealized P&L"
         value={fmtMoney(summaryValue(summary, 'UnrealizedPnL'), summaryCurrency(summary, 'UnrealizedPnL'))}
         subValue={`Realized ${fmtMoney(summaryValue(summary, 'RealizedPnL'), summaryCurrency(summary, 'RealizedPnL'))}`}
         color={pnlColor(summaryValue(summary, 'UnrealizedPnL'))}
-        title="Open position P&L, with realized P&L shown underneath from the IBKR account summary."
+        title={explainTip({
+          what: 'Profit or loss on open positions, with realized P&L shown underneath.',
+          why: 'It separates live mark-to-market movement from closed trade results.',
+          use: 'Use it to understand current portfolio pressure; do not treat it as a reason to ignore the trade plan.',
+        })}
       />
       <MetricTile
         label="Margin Cushion"
         value={fmtPct(metrics.cushionPct)}
         subValue={`Excess ${fmtMoney(summaryValue(summary, 'ExcessLiquidity'), summaryCurrency(summary, 'ExcessLiquidity'))}`}
         tone={metrics.cushionPct != null && metrics.cushionPct < 25 ? 'risk' : 'good'}
-        title="IBKR cushion converted to percent. Lower cushion means less room before margin stress."
+        title={explainTip({
+          what: 'IBKR excess liquidity shown as a percent cushion against net liquidation value.',
+          why: 'Lower cushion means less room before margin stress or broker liquidation risk.',
+          use: 'Keep extra buffer in volatile markets and avoid adding exposure when cushion is tightening.',
+        })}
       />
       <MetricTile
         label="Exposure"
         value={fmtPct(metrics.grossPct)}
         subValue={`Long ${fmtMoney(metrics.longValue, netCurrency)} / Short ${fmtMoney(metrics.shortValue, netCurrency)}`}
-        title="Gross position value as a percent of net liquidation, split into long and short exposure."
+        title={explainTip({
+          what: 'Gross position value as a percent of net liquidation, split into long and short exposure.',
+          why: 'It shows how much market exposure the portfolio carries relative to account size.',
+          use: 'Use it to avoid stacking too much risk, especially when many positions point in the same direction.',
+        })}
       />
       <MetricTile
         label="Margin Use"
         value={fmtPct(metrics.marginUsePct)}
         subValue={`Leverage ${metrics.leverage == null ? '-' : fmtNum(metrics.leverage, 2)}`}
         tone={metrics.marginUsePct != null && metrics.marginUsePct > 70 ? 'risk' : 'default'}
-        title="Maintenance margin divided by maintenance margin plus excess liquidity."
+        title={explainTip({
+          what: 'Maintenance margin divided by maintenance margin plus excess liquidity.',
+          why: 'It estimates how much of the account margin buffer is already being used.',
+          use: 'Treat high margin use as a risk warning and reduce appetite for new manual trades.',
+        })}
       />
     </section>
   );

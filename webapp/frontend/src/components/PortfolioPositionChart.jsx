@@ -3,6 +3,7 @@ import { createChart, BarSeries, HistogramSeries, LineSeries } from 'lightweight
 import usePositionChartData from '../hooks/usePositionChartData';
 import { fmtMoney, fmtNum, pnlColor } from './portfolioFormat';
 import PortfolioPositionInsights from './PortfolioPositionInsights';
+import { explainTip } from './tooltipText';
 
 const chartOptions = (width, height) => ({
   width,
@@ -156,7 +157,11 @@ const PortfolioPositionChart = ({ selectedSymbol, position, positions, summary, 
       <section
         style={chartShellStyle}
         onClick={(event) => event.stopPropagation()}
-        title="Real daily OHLCV data from the market-data endpoint."
+        title={explainTip({
+          what: 'A daily OHLCV chart for the selected open position, using the local market-data endpoint.',
+          why: 'It lets us compare the broker position with the actual price and volume path.',
+          use: 'Use the chart to review behavior around average cost, support, and planned exit levels.',
+        })}
       >
         <PositionChartHeader symbol={selectedSymbol} position={position} onClose={onClose} />
         {!selectedSymbol && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Select a position to load its chart.</div>}
