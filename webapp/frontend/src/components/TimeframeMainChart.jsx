@@ -49,12 +49,32 @@ const finiteNumber = (value) => {
 const buildLevelData = (candles, value) =>
   candles.map(candle => ({ time: candle.time, value }));
 
+// Colour the structure candles exactly like the daily chart: the base-limb
+// swing (the bars that set the rails) grey, the right-side LPS span gold. Dates
+// come from htf.chart_box; bars outside both spans keep the default bar colour.
+const colorStructureCandles = (candles, { limbStart, limbEnd, lpsStart, lpsEnd }) => {
+  const out = candles.map(candle => ({ ...candle }));
+  const paint = (from, to, color) => {
+    if (!from || !to) return;
+    for (let i = 0; i < out.length; i += 1) {
+      if (out[i].time >= from && out[i].time <= to) out[i].color = color;
+    }
+  };
+  paint(limbStart, limbEnd, '#5d6474');   // base limb (root swing) — grey
+  paint(lpsStart, lpsEnd, '#e3b341');      // LPS support test — gold
+  return out;
+};
+
 export default function TimeframeMainChart({ candles, volumes, box, label }) {
   const containerRef = useRef(null);
   const [chartError, setChartError] = useState(false);
   const boxR = box?.r;
   const boxS = box?.s;
   const boxStart = box?.start_date;
+  const limbStart = box?.limb_start_date;
+  const limbEnd = box?.limb_end_date;
+  const lpsStart = box?.lps_start_date;
+  const lpsEnd = box?.lps_end_date;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -70,7 +90,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
     try {
       chart = createChart(container, chartOptions(container.clientWidth || 600, container.clientHeight || 360));
       const candleSeries = chart.addSeries(BarSeries, { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false });
-      candleSeries.setData(candles || []);
+      candleSeries.setData(colorStructureCandles(candles || [], { limbStart, limbEnd, lpsStart, lpsEnd }));
 
       if (volumes?.length) {
         const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
@@ -128,7 +148,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
       }
       if (container) container.innerHTML = '';
     };
-  }, [candles, volumes, boxR, boxS, boxStart]);
+  }, [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd]);
 
   if (chartError) {
     return (

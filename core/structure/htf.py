@@ -281,12 +281,25 @@ def chart_box(daily_df: pd.DataFrame, tf: str) -> Optional[dict]:
         if s is None:
             return None
         box = s["box"]
-        start = max(0, min(int(box.start_bar), len(work) - 1))
+        lps = s.get("lps")
+        idx = work.index
+        n = len(idx)
+
+        def _date(bar) -> str:
+            return str(idx[max(0, min(int(bar), n - 1))])[:10]
+
+        # Geometry as DATES so the chart can colour candles exactly like the daily
+        # chart: the base-limb swing (the bars that set the rails) grey, and the
+        # right-side LPS span gold. ``start_date`` anchors the R/S rails.
         return {
             "r": round(float(box.R), 4),
             "s": round(float(box.S), 4),
-            "start_date": str(work.index[start])[:10],
+            "start_date": _date(box.start_bar),
             "phase": s["phase"],
+            "limb_start_date": _date(min(int(box.r_anchor_bar), int(box.s_anchor_bar))),
+            "limb_end_date": _date(max(int(box.r_anchor_bar), int(box.s_anchor_bar))),
+            "lps_start_date": _date(lps.start_bar) if lps is not None else None,
+            "lps_end_date": _date(lps.end_bar) if lps is not None else None,
         }
     except Exception:
         return None
