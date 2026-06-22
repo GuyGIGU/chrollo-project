@@ -349,6 +349,21 @@ MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage
 LATEST_REPAIR_BATCH_SIZE = 100     # Smaller latest-bar repair batches after a sparse Yahoo response
 LATEST_REPAIR_SLEEP_SECONDS = 2.0  # Gentle pause between repair batches to reduce Yahoo rate limits
 
+# Outbound Yahoo request rate limit (core.pipeline.rate_limit). yfinance spawns its
+# own download threads and the screener fans the universe across a worker pool, so
+# without a SHARED ceiling the concurrent workers each throttle independently and
+# collectively burst Yahoo into 429s — the 2%-coverage stale-data days. Every
+# yf.download call now passes through ONE process-global token bucket, and the
+# download pool is bounded (workers) to cap concurrent connections. (yfinance 1.2.1
+# requires a curl_cffi session and rejects a stdlib requests.Session, so a
+# requests-ratelimiter LimiterSession can't be injected — hence the explicit gate.)
+# Conservative defaults; raise PER_SEC/WORKERS if scans are too slow and Yahoo
+# tolerates it (with the bounded pool, a higher rate genuinely speeds the refetch).
+YAHOO_RATE_LIMIT_ENABLED = True
+YAHOO_RATE_LIMIT_PER_SEC = 8.0     # sustained outbound requests/sec to Yahoo (global ceiling)
+YAHOO_RATE_LIMIT_BURST = 15        # token-bucket capacity (max short burst)
+YAHOO_DOWNLOAD_WORKERS = 10        # bounded download-pool size (caps simultaneous connections)
+
 # Split-detection probe (defends against yfinance's auto_adjust=True silently rescaling history)
 SPLIT_PROBE_SAMPLE_SIZE = 30                 # Number of cached tickers (+ SPY) to probe for split-induced drift
 SPLIT_PROBE_DRIFT_THRESHOLD = 0.005          # Ticker-level: ratio (fresh/cached) deviating by > 0.5% on overlap = split
