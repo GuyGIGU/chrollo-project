@@ -356,8 +356,8 @@ TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
 # thresholds (MAX_BOX_WIDTH, MIN_BOUNDARY_RESPECT_PCT, ATR/box ratios, traversal
 # fractions, LPS profiles) are scale-invariant and transfer untouched; only the
 # BAR-COUNT WINDOWS are daily-calibrated. core.structure.htf temporarily rescales
-# ONLY those windows (timeframe_windows CM) around a read_structure() call on the
-# resampled frame. These presets are FIRST-PASS (~daily/5 weekly, /~4 again
+# ONLY those windows (timeframe_windows CM) around the same Trend+Box brick walk
+# on the resampled frame. These presets are FIRST-PASS (~daily/5 weekly, /~4 again
 # monthly) and a calibration target — eyeball + tune via tools/htf_audit.py.
 HTF_CONTEXT_ENABLED = True        # compute + archive + chip HTF context on FIRING setups; never gates
 
@@ -419,7 +419,7 @@ HTF_MONTHLY_WINDOWS = {
 # Incremental fetch tuning
 TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars if cache is older than this during market hours
 TTL_FRESH_HOURS_OFFHOURS = 12     # ...or this outside market hours
-FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 2y refetch at least weekly
+FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 5y refetch at least weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
 MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage before cache/archive is trusted

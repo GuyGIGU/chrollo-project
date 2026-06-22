@@ -55,10 +55,10 @@ def _empty(prefix: str) -> dict:
     return {prefix + k: v for k, v in _FIELDS.items()}
 
 
-# ── Archive column metadata — single source of truth for the 5-place sync ────
-# (writer._NEW_COLUMNS, the live + seed SetupArchive builds, the ORM model, the
-#  startup migrations, and the analyze fingerprint all derive from these, so a
-#  new HTF field is added in ONE place.)
+# ── Archive column metadata ─────────────────────────────────────────────────
+# The writer, live/seed archive value mapping, and dashboard payload derive from
+# this list. ORM/API/migration declarations stay explicit, with tests enforcing
+# that they carry the same HTF field set.
 HTF_BOOL_FIELDS = ("stage2", "in_consol", "reaccum", "daily_nested")
 HTF_COLUMNS = [f"{p}{k}" for p in ("htf_w_", "htf_m_") for k in _FIELDS]
 HTF_BOOL_COLUMNS = frozenset(

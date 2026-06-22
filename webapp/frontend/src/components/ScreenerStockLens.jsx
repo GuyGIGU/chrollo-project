@@ -304,6 +304,10 @@ function TagsPanel({ data }) {
           binCUndercutAtr: data.bin_c_undercut_atr,
           binCRecoveryBars: data.bin_c_recovery_bars,
           binCSpringVolZ: data.bin_c_spring_vol_z,
+          htfWeeklyReaccum: data.htf_w_reaccum,
+          htfWeeklyPhase: data.htf_w_phase,
+          htfDailyNested: data.htf_w_daily_nested,
+          htfMonthlyReaccum: data.htf_m_reaccum,
         }}
         maxTags={null}
         style={{ padding: 0 }}
@@ -313,7 +317,8 @@ function TagsPanel({ data }) {
   );
 }
 
-export default function ScreenerStockLens({ activeRegion, data, onRegionChange }) {
+export default function ScreenerStockLens({ activeRegion, data, interval = 'D', onRegionChange }) {
+  const showDailyStructure = interval === 'D';
   return (
     <div className="stock-lens">
       <div className="stock-lens-top">
@@ -321,7 +326,9 @@ export default function ScreenerStockLens({ activeRegion, data, onRegionChange }
         <ContextPanel data={data} />
       </div>
       <div className="stock-lens-bottom">
-        <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
+        {showDailyStructure ? (
+          <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
+        ) : null}
         <TagsPanel data={data} />
       </div>
     </div>

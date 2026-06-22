@@ -9,7 +9,7 @@ TradingView chart. This is the calibration instrument for the HTF window presets
 
     python -m tools.htf_audit NVDA AAPL AMD            # today
     python -m tools.htf_audit NVDA --as-of 2026-03-30  # historical
-    python -m tools.htf_audit NVDA --cache market_data_cache_2y.parquet
+    python -m tools.htf_audit NVDA --cache market_data_cache_5y.parquet
 """
 from __future__ import annotations
 

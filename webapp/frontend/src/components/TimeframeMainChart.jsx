@@ -77,15 +77,32 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
   const lpsEnd = box?.lps_end_date;
 
   useEffect(() => {
+    setChartError(false);
+  }, [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     container.innerHTML = '';
-    setChartError(false);
     let chart = null;
     let disposed = false;
     let handleResize = null;
     let resizeTimeout = null;
+
+    const cleanup = () => {
+      disposed = true;
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      if (handleResize) window.removeEventListener('resize', handleResize);
+      if (chart) {
+        try {
+          chart.remove();
+        } catch {
+          /* safe to ignore */
+        }
+      }
+      if (container) container.innerHTML = '';
+    };
 
     try {
       chart = createChart(container, chartOptions(container.clientWidth || 600, container.clientHeight || 360));
@@ -131,23 +148,12 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
       resizeTimeout = setTimeout(handleResize, 100);
     } catch (err) {
       console.error('[TimeframeMainChart] init failed:', err);
+      cleanup();
       setChartError(true);
       return undefined;
     }
 
-    return () => {
-      disposed = true;
-      if (resizeTimeout) clearTimeout(resizeTimeout);
-      if (handleResize) window.removeEventListener('resize', handleResize);
-      if (chart) {
-        try {
-          chart.remove();
-        } catch {
-          /* safe to ignore */
-        }
-      }
-      if (container) container.innerHTML = '';
-    };
+    return cleanup;
   }, [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd]);
 
   if (chartError) {

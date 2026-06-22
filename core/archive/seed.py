@@ -20,7 +20,6 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
@@ -39,6 +38,7 @@ from core.pipeline.evaluation import (
     score_traversal_args,
     select_active_lps,
 )
+from core.pipeline.downloads import _batched_download, _trim_to_period
 from core.scoring import calculate_tier, score_setup
 from core.structure import (
     adr_pct,
@@ -142,6 +142,30 @@ SEED_SETUPS: list[tuple[str, str]] = [
 WINDOW_BACK = 10
 WINDOW_FWD = 3
 
+# Seed/fresh-recall needs enough lookback for monthly HTF Stage-2 context. The
+# daily structure read is trimmed in _evaluate_at_date, so this extra history
+# enriches HTF only and does not change the daily root walk.
+SEED_HISTORY_DAYS = 365 * 5 + 30
+
+
+def _ticker_frame(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+    if isinstance(raw.columns, pd.MultiIndex):
+        try:
+            return raw[ticker].dropna()
+        except KeyError:
+            return pd.DataFrame()
+    return raw.dropna()
+
+
+def _close_series(raw: pd.DataFrame, ticker: str):
+    frame = _ticker_frame(raw, ticker)
+    if frame.empty or "Close" not in frame:
+        return None
+    close = frame["Close"]
+    return close.iloc[:, 0] if hasattr(close, "columns") else close
+
 
 def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[dict]:
     """Run the full screener pipeline against df (last bar = evaluation date).
@@ -156,11 +180,11 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             return None
         df, yearly_return = baseline
 
-        # Full history for HTF resampling. The seed path downloads its OWN window
-        # (it does not read the growing 5y screener cache), so its daily read needs
-        # no trim here — trimming would shift seed-recall. Only the live path (which
-        # reads the growing cache) trims; see core.pipeline.evaluation.
+        # Keep the full frame for HTF resampling, but trim the daily structure read
+        # exactly like the live pipeline so the seed path does not drift when the
+        # history window grows for weekly/monthly context.
         full_df = df
+        df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
 
         latest = df.iloc[-1]
         df_ind = df.copy()
@@ -302,7 +326,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             base_df, res_avg, sup_avg, atr_for_zone)
 
         # HTF context (measure-only) — parity with the live path; resampled from
-        # the full frame. Keys are non-prefixed, matching this seed result dict.
+        # the full frame. Keys are htf_* without the live row's leading "_".
         htf_ctx: dict = {}
         if settings.HTF_CONTEXT_ENABLED:
             _hbox = (res_avg, sup_avg)
@@ -480,40 +504,32 @@ def seed_archive(
     earliest = min(pd.Timestamp(d) for _, d in setups)
     latest = max(pd.Timestamp(d) for _, d in setups)
 
-    dl_start = (earliest - pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
+    dl_start = (earliest - pd.Timedelta(days=SEED_HISTORY_DAYS)).strftime("%Y-%m-%d")
     dl_end = (latest + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
 
     log.info(f"Downloading {len(unique_tickers)} tickers from {dl_start} -> {dl_end}...")
-    raw = yf.download(
-        unique_tickers, start=dl_start, end=dl_end,
-        group_by="ticker", threads=True, progress=False, auto_adjust=True,
+    raw = _batched_download(
+        unique_tickers,
+        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        "Seed download",
     )
 
     # SPY history for per-date RS computation — same window so any seed eval
     # date can look back RS_LOOKBACK_BARS without falling off the start.
     log.info("Downloading SPY for RS reference...")
-    spy_raw = yf.download(
-        "SPY", start=dl_start, end=dl_end,
-        progress=False, auto_adjust=True, threads=True,
+    spy_raw = _batched_download(
+        ["SPY"],
+        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        "Seed SPY",
     )
-    spy_close_series = spy_raw["Close"] if not spy_raw.empty else None
-    if spy_close_series is not None and hasattr(spy_close_series, "columns"):
-        spy_close_series = spy_close_series.iloc[:, 0]
+    spy_close_series = _close_series(spy_raw, "SPY")
 
     # Parse per-ticker DataFrames
     data: dict[str, pd.DataFrame] = {}
-    if len(unique_tickers) == 1:
-        df = raw.dropna()
+    for t in unique_tickers:
+        df = _ticker_frame(raw, t)
         if not df.empty:
-            data[unique_tickers[0]] = df
-    else:
-        for t in unique_tickers:
-            try:
-                df = raw[t].dropna()
-                if not df.empty:
-                    data[t] = df
-            except KeyError:
-                pass
+            data[t] = df
 
     log.info(f"Got data for {len(data)}/{len(unique_tickers)} tickers.")
 
@@ -797,31 +813,27 @@ def fired_seeds_fresh(
     unique = sorted({t for t, _ in active})
     earliest = min(pd.Timestamp(d) for _, d in active)
     latest = max(pd.Timestamp(d) for _, d in active)
-    dl_start = (earliest - pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
+    dl_start = (earliest - pd.Timedelta(days=SEED_HISTORY_DAYS)).strftime("%Y-%m-%d")
     dl_end = (latest + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
 
     log.info(f"[fresh recall] downloading {len(unique)} tickers {dl_start} -> {dl_end} ...")
-    raw = yf.download(unique, start=dl_start, end=dl_end, group_by="ticker",
-                      threads=True, progress=False, auto_adjust=True)
-    spy_raw = yf.download("SPY", start=dl_start, end=dl_end, progress=False,
-                          auto_adjust=True, threads=True)
-    spy_close = spy_raw["Close"] if not spy_raw.empty else None
-    if spy_close is not None and hasattr(spy_close, "columns"):
-        spy_close = spy_close.iloc[:, 0]
+    raw = _batched_download(
+        unique,
+        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        "Fresh seed recall",
+    )
+    spy_raw = _batched_download(
+        ["SPY"],
+        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        "Fresh seed SPY",
+    )
+    spy_close = _close_series(spy_raw, "SPY")
 
     data: dict[str, pd.DataFrame] = {}
-    if len(unique) == 1:
-        df = raw.dropna()
+    for t in unique:
+        df = _ticker_frame(raw, t)
         if not df.empty:
-            data[unique[0]] = df
-    else:
-        for t in unique:
-            try:
-                df = raw[t].dropna()
-                if not df.empty:
-                    data[t] = df
-            except KeyError:
-                pass
+            data[t] = df
 
     def _spy6(eval_date) -> float:
         if spy_close is None:

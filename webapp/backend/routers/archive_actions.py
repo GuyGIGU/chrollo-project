@@ -34,21 +34,37 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     import sys as _sys
     import os as _os
     import pandas as _pd
-    import yfinance as _yf
 
     # Make project root importable so we can use core/ modules.
     _root = _os.path.normpath(_os.path.join(_os.path.dirname(__file__), "..", "..", ".."))
     if _root not in _sys.path:
         _sys.path.insert(0, _root)
 
-    from core.archive.seed import _evaluate_at_date
+    from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
+    from core.pipeline.downloads import _batched_download
+    from core.structure.htf import htf_archive_values
     from archive_models import (
         SetupArchive,
         get_market_context,
         get_sector_etf,
         get_sector_trend,
     )
+
+    def _download_one(symbol: str, start_date: str, end_date: str, label: str):
+        raw_frame = _batched_download(
+            [symbol],
+            {"start": start_date, "end": end_date, "auto_adjust": True},
+            label,
+        )
+        if raw_frame is None or raw_frame.empty:
+            return raw_frame
+        if hasattr(raw_frame.columns, "nlevels") and raw_frame.columns.nlevels > 1:
+            try:
+                return raw_frame[symbol].dropna()
+            except KeyError:
+                return _pd.DataFrame()
+        return raw_frame.dropna()
 
     ticker = (payload.ticker or "").strip().upper()
     if not ticker:
@@ -68,14 +84,14 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail=f"{ticker} @ {scan_dt} already in archive")
 
-    # Download enough history for baseline (2y minus a buffer is plenty) plus
-    # forward bars for return computation.
-    start = (target_ts - _pd.Timedelta(days=365 * 2 + 30)).strftime("%Y-%m-%d")
+    # Download enough history for monthly HTF context; _evaluate_at_date trims
+    # the daily structure read back to settings.DAILY_STRUCTURE_PERIOD.
+    start = (target_ts - _pd.Timedelta(days=SEED_HISTORY_DAYS)).strftime("%Y-%m-%d")
     end = (target_ts + _pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)).strftime("%Y-%m-%d")
     try:
-        raw = _yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True, timeout=30)
+        raw = _download_one(ticker, start, end, f"Manual archive {ticker}")
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"yfinance download failed: {e}")
+        raise HTTPException(status_code=502, detail=f"market-data download failed: {e}")
     if raw is None or raw.empty:
         raise HTTPException(status_code=404, detail=f"no market data found for {ticker}")
     if hasattr(raw.columns, "nlevels") and raw.columns.nlevels > 1:
@@ -118,8 +134,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     base_start = result.get("base_date_start"); base_end = result.get("base_date_end")
     if sector_etf and base_start and base_end:
         try:
-            sec_raw = _yf.download(sector_etf, start=base_start, end=base_end,
-                                   progress=False, timeout=20, auto_adjust=True)
+            sec_raw = _download_one(sector_etf, base_start, base_end, f"Manual archive {sector_etf}")
             if sec_raw is not None and not sec_raw.empty:
                 sc = sec_raw["Close"]
                 if hasattr(sc, "columns"): sc = sc.iloc[:, 0]
@@ -252,6 +267,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         inner_reaction_bar=result.get("inner_reaction_bar"),
         inner_reaction_pct=result.get("inner_reaction_pct"),
         inner_reaction_bars=result.get("inner_reaction_bars"),
+        **htf_archive_values(result.get, prefixed=False),
         source="manual",
         quality_label=payload.quality_label,
         notes=payload.notes,

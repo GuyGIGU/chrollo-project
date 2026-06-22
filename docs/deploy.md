@@ -54,7 +54,7 @@ The valuable local data is:
 - `webapp\backend\trading_journal.db`
 - `webapp\backend\trading_journal.db-wal`
 - `webapp\backend\trading_journal.db-shm`
-- `market_data_cache_2y.parquet`
+- `market_data_cache_5y.parquet`
 - `cache_meta.json`
 - `market_context.json`
 
@@ -68,7 +68,7 @@ $stamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 $dest = Join-Path $root $stamp
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item "$repo\webapp\backend\trading_journal.db*" $dest -ErrorAction SilentlyContinue
-Copy-Item "$repo\market_data_cache_2y.parquet" $dest -ErrorAction SilentlyContinue
+Copy-Item "$repo\market_data_cache_5y.parquet" $dest -ErrorAction SilentlyContinue
 Copy-Item "$repo\cache_meta.json" $dest -ErrorAction SilentlyContinue
 Copy-Item "$repo\market_context.json" $dest -ErrorAction SilentlyContinue
 # Retention: keep the 14 most recent snapshots (the 108 MB parquet adds up fast).

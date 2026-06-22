@@ -2,11 +2,13 @@
 
 Lets you preview the Screener Grid — including the new weekly/monthly HTF context
 band on each card — on the existing cache, without running a full (and now 5y)
-scan. Read-only on market data; it only rewrites the grid JSON the dashboard
-serves. Reuses the real pipeline helpers, so the output matches a live scan.
+scan. Read-only on market data; it rewrites the grid JSON the dashboard serves
+and may refresh local derived caches such as market_context.json and
+output/sector_etf_cache.json. Reuses the real pipeline helpers, so the output
+matches a live scan.
 
     python -m tools.htf_preview
-    python -m tools.htf_preview --cache market_data_cache_2y.parquet
+    python -m tools.htf_preview --cache market_data_cache_5y.parquet
 
 A backup of the current screener_data.json is written alongside (.bak) first.
 """
@@ -36,7 +38,7 @@ from output.dashboard import OUTPUT_DIR, generate_dashboard
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default=None,
-                    help="parquet path (default: settings.CACHE_FILENAME, with 2y fallback)")
+                    help="parquet path (default: settings.CACHE_FILENAME, with old 2y fallback)")
     a = ap.parse_args()
 
     path = a.cache or settings.CACHE_FILENAME

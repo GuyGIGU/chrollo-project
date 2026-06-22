@@ -16,7 +16,6 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 if _PROJECT_ROOT not in sys.path:
@@ -28,6 +27,17 @@ if _BACKEND_DIR not in sys.path:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.fwd_returns")
+
+
+def _ticker_frame(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+    if isinstance(raw.columns, pd.MultiIndex):
+        try:
+            return raw[ticker].dropna()
+        except KeyError:
+            return pd.DataFrame()
+    return raw.dropna()
 
 
 # ── Triple-barrier outcome labelling ─────────────────────────────────────────
@@ -334,23 +344,20 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     )
     end = min(pd.Timestamp.now() + pd.Timedelta(days=2), latest_needed)
 
+    start_str = start.strftime("%Y-%m-%d")
+    end_str = end.strftime("%Y-%m-%d")
     log.info(f"Downloading data for {len(all_tickers)} tickers from {start.date()} to {end.date()}...")
-    raw = yf.download(
+    from core.pipeline.downloads import _batched_download
+    raw = _batched_download(
         all_tickers,
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        group_by="ticker",
-        threads=True,
-        progress=False,
+        {"start": start_str, "end": end_str, "auto_adjust": True},
+        "Forward returns",
     )
 
     updated = 0
     for ticker, setup_list in ticker_setups.items():
         try:
-            if len(all_tickers) == 1:
-                df = raw.dropna()
-            else:
-                df = raw[ticker].dropna()
+            df = _ticker_frame(raw, ticker)
         except (KeyError, AttributeError):
             log.warning(f"  No data for {ticker}, skipping.")
             continue

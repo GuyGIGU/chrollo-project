@@ -146,6 +146,10 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
     selectInterval('D');
   }, [ticker]);
 
+  useEffect(() => {
+    if (interval !== 'D') setActiveRegion(null);
+  }, [interval]);
+
   useScreenerModalChart(chartContainerRef, ticker, data, activeRegion, interval);
 
   return (
@@ -205,7 +209,12 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
               />
             )}
           </div>
-          <ScreenerStockLens activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
+          <ScreenerStockLens
+            activeRegion={activeRegion}
+            data={data}
+            interval={interval}
+            onRegionChange={setActiveRegion}
+          />
         </div>
         {footer}
       </section>

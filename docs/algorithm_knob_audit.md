@@ -81,9 +81,8 @@ Hard geometry rules:
 
 Fallback/tolerance:
 
-- The detector evaluates `df.iloc[:-5]` when possible. This five-bar edge skip is
-  hard-coded in the box/root reader and prevents live-edge noise from changing
-  the base.
+- The detector reserves the latest `STRUCTURE_EDGE_SKIP_BARS` bars when possible.
+  The centralized setting prevents live-edge noise from changing the base.
 - `resolve_phase_a` uses `_SEG_LEAD_IN = 60` and `_SEG_AR_TOL = 10` to reconnect
   a distant raw anchor to the local climax -> AR bridge of the accepted box.
 
@@ -98,8 +97,8 @@ Cleanup candidates:
 
 - `TREND_SMA_LOOKBACK` and `TREND_BULLISH_GAP_MAX` were confirmed unused and
   removed from `config/settings.py`.
-- The five-bar edge skip should probably be named once because it is repeated in
-  root/box/inner paths.
+- Five-bar edge skip — RESOLVED 2026-06-22: centralized as
+  `settings.STRUCTURE_EDGE_SKIP_BARS` across root/box/inner paths.
 
 ## Phase B: Worked Equilibrium
 
@@ -245,9 +244,8 @@ Taxonomy:
 
 Cleanup candidates:
 
-- `scope.py` still has compatibility wording that says Phase D anchors on the
-  LPS/inner only. Its implementation uses the shared boundary helper, but the
-  docstring is stale.
+- `scope.py` Phase-D wording — RESOLVED 2026-06-22: docstring matches the shared
+  boundary helper (earliest right-side evidence; LPS remains the mandatory gate).
 - `strategy_v2.md` still describes a partly older Phase-D boundary model in
   places. It should be refreshed after the next calibration pass.
 
@@ -455,7 +453,7 @@ Frontend-owned tag-chip thresholds that intentionally remain in
 
 Private algorithm knobs:
 
-- `INNER_MIN_DAYS = 15` lives in `box_primitives.py`.
+- `INNER_MIN_DAYS = 15` lives in `config/settings.py`.
 - Several quality weights are hard-coded inside measurement functions.
 
 ## Lowest-Knob Baseline To Aim For

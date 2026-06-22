@@ -43,12 +43,13 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 
 ### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/downloads.py](../core/pipeline/downloads.py))
 
-- Reads from `market_data_cache_2y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
+- Reads from `market_data_cache_5y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
   - `TTL_FRESH_HOURS_MARKET = 1` (RTH) / `TTL_FRESH_HOURS_OFFHOURS = 12` — under TTL the cache is reused as-is.
-  - `FULL_REFRESH_INTERVAL_DAYS = 7` — at least once a week, force a cold 2y refetch regardless of TTL.
+  - `FULL_REFRESH_INTERVAL_DAYS = 7` — at least once a week, force a cold 5y refetch regardless of TTL.
   - Between those, `_incremental_fetch()` re-downloads only the last few business days (`INCREMENTAL_OVERLAP_BDAYS = 5`), with a `SPLIT_PROBE_*` guard that detects yfinance's auto-adjust silently rescaling history and falls back to a cold refetch when > 2% of probed tickers drift.
-- Cold path: downloads from `yfinance` in batches of **500 tickers** with `period = "2y"` (`DOWNLOAD_PERIOD`), 1.5s sleep between batches, exponential-backoff retry (3 attempts: 2s/4s/8s).
-- `_recover_missing_data()` re-downloads tickers that came back missing or with < 200 bars (skipped if more than half the universe is missing — likely rate-limit). Recovered batches replace the bad columns and the merged frame is written back to Parquet.
+- Cold path: downloads from `yfinance` with bounded per-ticker workers through the shared Yahoo token bucket (`YAHOO_RATE_LIMIT_*`), using `period = "5y"` (`DOWNLOAD_PERIOD`) so weekly/monthly HTF context has enough history.
+- The daily structure read still trims to `DAILY_STRUCTURE_PERIOD = "2y"` before `read_structure()`, so the deeper cache feeds HTF context without changing the daily root walk.
+- `_recover_missing_data()` re-downloads tickers that came back missing or with < 200 bars (skipped if more than half the universe is missing — likely rate-limit). Recovered columns replace the bad columns and the merged frame is written back to Parquet.
 - SPY rides in the same parquet as the screened universe but is excluded from screening — it exists only to feed `get_market_context()` (SPY 6m return + breadth).
 
 ---
@@ -627,13 +628,18 @@ SCORE_ASCENDING_SUPPORT = 8; ASCENDING_SUPPORT_FULL_SLOPE = 0.10
 ADR_WINDOW = 20; SCORE_ADR = 8; ADR_FULL_PCT = 5.0
 
 # Data & cache (incremental fetch)
-CACHE_FILENAME = "market_data_cache_2y.parquet"
+CACHE_FILENAME = "market_data_cache_5y.parquet"
 TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars hourly during RTH
 TTL_FRESH_HOURS_OFFHOURS = 12
-FULL_REFRESH_INTERVAL_DAYS = 7    # Forced cold 2y refetch weekly
+FULL_REFRESH_INTERVAL_DAYS = 7    # Forced cold 5y refetch weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Overlap re-download for split-probe
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap → fall back to full refetch
-DOWNLOAD_PERIOD = "2y"
+DOWNLOAD_PERIOD = "5y"
+DAILY_STRUCTURE_PERIOD = "2y"
+YAHOO_RATE_LIMIT_ENABLED = True
+YAHOO_RATE_LIMIT_PER_SEC = 8.0
+YAHOO_RATE_LIMIT_BURST = 15
+YAHOO_DOWNLOAD_WORKERS = 10
 TICKER_CACHE_MAX_AGE_DAYS = 1
 SPY_SYMBOL = "SPY"                # Stored in parquet for market context, not screened
 MARKET_CONTEXT_TTL_HOURS_MARKET = 1

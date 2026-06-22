@@ -7,6 +7,7 @@ inner threading disabled.
 """
 import threading
 import time
+from pathlib import Path
 
 import pandas as pd
 
@@ -87,3 +88,16 @@ def test_batched_download_gates_each_ticker_and_disables_inner_threads(monkeypat
     level0 = set(out.columns.get_level_values(0))
     assert {"AAA", "BBB", "CCC"} <= level0
     assert len(seen) == 3            # throttle invoked once per single-ticker download
+
+
+def test_archive_download_paths_use_shared_batched_downloader():
+    root = Path(__file__).resolve().parents[1]
+    for rel in (
+        "core/archive/forward_returns.py",
+        "core/archive/seed.py",
+        "webapp/backend/routers/archive_actions.py",
+    ):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "yf.download" not in text
+        assert "_yf.download" not in text
+        assert "_batched_download" in text

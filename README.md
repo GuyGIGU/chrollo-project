@@ -20,8 +20,9 @@ New here? Read this file top-to-bottom, then:
 
 ## What it does, end to end
 
-1. **Pulls market data** for the US common-stock universe from yfinance into a 2-year parquet cache
-   (incremental daily refresh; weekly cold refetch). SPY rides along for market context.
+1. **Pulls market data** for the US common-stock universe from yfinance into a 5-year parquet cache
+   (incremental daily refresh; weekly cold refetch). The daily read trims to 2 years, while the
+   deeper cache feeds weekly/monthly context. SPY rides along for market context.
 2. **Screens** every ticker through a 4-phase pipeline: baseline filters → consolidation/box
    detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_v2.md`.
 3. **Renders** the survivors in a React dashboard: candlestick charts with the detected box/LPS

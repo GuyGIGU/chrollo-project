@@ -183,3 +183,79 @@ def test_orm_model_has_htf_columns():
     from archive_models import SetupArchive
     for col in htf.HTF_COLUMNS:
         assert hasattr(SetupArchive, col), f"ORM missing {col}"
+
+
+def test_backend_schema_and_startup_migrations_have_htf_columns():
+    from routers.archive_schemas import SetupOut
+    from services.startup import _MIGRATIONS
+
+    fields = getattr(SetupOut, "model_fields", None) or getattr(SetupOut, "__fields__")
+    for col in htf.HTF_COLUMNS:
+        assert col in fields, f"API schema missing {col}"
+
+    migration_sql = "\n".join(_MIGRATIONS)
+    for col in htf.HTF_COLUMNS:
+        assert f"ADD COLUMN {col} " in migration_sql, f"startup migration missing {col}"
+
+
+def test_dashboard_payload_includes_htf_chart_and_context_fields(monkeypatch):
+    from output import dashboard
+
+    monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda ticker, cache: None)
+    monkeypatch.setattr(
+        dashboard,
+        "chart_box",
+        lambda df, tf: {
+            "r": 80.0,
+            "s": 70.0,
+            "start_date": "2024-01-05",
+            "phase": "D",
+            "limb_start_date": "2024-01-05",
+            "limb_end_date": "2024-02-02",
+            "lps_start_date": "2024-03-01",
+            "lps_end_date": "2024-03-08",
+        },
+    )
+
+    frame = _daily(800)
+    market_data = pd.concat({"TEST": frame, "SPY": frame}, axis=1)
+    row = {
+        "Ticker": "TEST",
+        "Tier": "S",
+        "Score": 120,
+        "Setup": "LPS",
+        "Current Price": 79.5,
+        "_trigger_price": 80.25,
+        "_R": 80.0,
+        "_S": 70.0,
+        "_base_len": 40,
+        "_lps_len": 3,
+        "_lps_offset": 0,
+        "_r_anchor_bar": 10,
+        "_s_anchor_bar": 18,
+        "_sub_scores": {},
+        "_htf_w_reaccum": True,
+        "_htf_w_phase": "D",
+        "_htf_w_daily_nested": True,
+        "_htf_m_reaccum": False,
+    }
+
+    chart_data = dashboard._extract_chart_data(
+        market_data,
+        pd.DataFrame([row]),
+        ["TEST", "SPY"],
+    )
+
+    payload = chart_data["TEST"]
+    assert payload["weekly_candles"]
+    assert payload["weekly_volumes"]
+    assert payload["monthly_candles"]
+    assert payload["monthly_volumes"]
+    assert payload["weekly_box"]["phase"] == "D"
+    assert payload["monthly_box"]["phase"] == "D"
+    for col in htf.HTF_COLUMNS:
+        assert col in payload
+    assert payload["htf_w_reaccum"] is True
+    assert payload["htf_w_phase"] == "D"
+    assert payload["htf_w_daily_nested"] is True
+    assert payload["htf_m_reaccum"] is False
