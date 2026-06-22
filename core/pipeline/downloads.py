@@ -36,6 +36,7 @@ from core.pipeline.fetch_health import (
     summarize,
 )
 from core.pipeline.market_calendar import latest_completed_session, session_gap
+from core.pipeline import rate_limit
 
 
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
@@ -45,11 +46,12 @@ def _download_batch_with_retry(batch: list[str], period: str, max_retries: int =
     """
     for attempt in range(1, max_retries + 1):
         try:
+            rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
             batch_data = yf.download(
                 batch,
                 period=period,
                 group_by='ticker',
-                threads=True,
+                threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
                 progress=False,
                 timeout=30,  # 30s timeout to handle slow connections
             )
@@ -142,25 +144,38 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
 
 
 def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> pd.DataFrame:
+    """Download ``tickers`` one request at a time through a BOUNDED, rate-limited
+    pool. ``period_or_dates`` is either ``{'period': '2y'}`` (full refetch) or
+    ``{'start': date, 'end': date}`` (incremental).
+
+    Each ticker is a single-ticker ``yf.download`` gated by the shared token bucket
+    (``core.pipeline.rate_limit``), and the pool size caps simultaneous
+    connections — so the concurrent workers collectively respect ONE outbound-rate
+    ceiling instead of bursting Yahoo into 429s. This replaces the old 500-batch
+    ``threads=True`` path whose uncontrolled inner threads (one per ticker, each
+    throttling independently) were the root cause of the rate-limit storms.
     """
-    Download a list of tickers in 500-batches with retries and rate-limit
-    sleeps. ``period_or_dates`` is either ``{'period': '2y'}`` (full refetch)
-    or ``{'start': date, 'end': date}`` (incremental).
-    """
-    batch_size = 500
+    if not tickers:
+        return pd.DataFrame()
+
     frames: list[pd.DataFrame] = []
+    total = len(tickers)
+    done = 0
+    workers = min(rate_limit.download_workers(), total)
+    print(f"  {label}: {total} tickers via {workers} rate-limited workers...", flush=True)
 
-    for i in range(0, len(tickers), batch_size):
-        batch = tickers[i:i + batch_size]
-        batch_num = i // batch_size + 1
-        total_batches = ((len(tickers) - 1) // batch_size) + 1
-        print(f"  {label} batch {batch_num}/{total_batches} ({len(batch)} tickers)...", flush=True)
-
-        batch_data = _download_batch_with_retry_kwargs(batch, period_or_dates)
-        if not batch_data.empty:
-            frames.append(batch_data)
-
-        time.sleep(1.5)  # Avoid 429s
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = {
+            ex.submit(_download_batch_with_retry_kwargs, [ticker], period_or_dates): ticker
+            for ticker in tickers
+        }
+        for fut in as_completed(futures):
+            frame = fut.result()
+            done += 1
+            if not frame.empty:
+                frames.append(frame)
+            if done % 500 == 0 or done == total:
+                print(f"    {label}: {done}/{total} fetched ({len(frames)} non-empty)...", flush=True)
 
     if not frames:
         return pd.DataFrame()
@@ -177,10 +192,11 @@ def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,
     """Variant of _download_batch_with_retry that accepts either period= or start/end=."""
     for attempt in range(1, max_retries + 1):
         try:
+            rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
             batch_data = yf.download(
                 batch,
                 group_by='ticker',
-                threads=True,
+                threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
                 progress=False,
                 timeout=30,
                 **period_or_dates,
