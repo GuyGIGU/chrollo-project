@@ -175,7 +175,7 @@ const TAG_DEFS = [
     use: 'Prefer leaders over laggards when the structure is also clean; do not use RS alone as an entry signal.',
   }), 65, scores => firesAt(scores, 'rs_bonus', 0.95)),
   tag('uptrend', '🚀 Uptrend', 'trend', explainTip({
-    what: 'The detected base sits inside an established longer-term uptrend, similar to Stage-2 continuation context.',
+    what: 'The detected base sits inside an established longer-term uptrend — a continuation (markup) context.',
     why: 'Continuation setups usually have better context than bottom-fishing attempts.',
     use: 'Favor the setup when the base forms as a pause in the trend, while still respecting support and trigger behavior.',
   }), 60, scores => firesAt(scores, 'uptrend_bonus', 0.95)),
@@ -185,7 +185,7 @@ const TAG_DEFS = [
     'trend',
     (_scores, flags) => {
       let s = explainTip({
-        what: 'The daily base sits inside a weekly Stage-2 consolidation or Wyckoff re-accumulation read.',
+        what: 'The daily base sits inside a weekly uptrend consolidation or Wyckoff re-accumulation read.',
         why: 'This aligns the daily setup with a larger uptrend pause instead of an isolated short-term pattern.',
         use: 'Give it more priority when the daily box nests inside the weekly box and monthly context also agrees.',
       });

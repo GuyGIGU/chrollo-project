@@ -49,9 +49,12 @@ const finiteNumber = (value) => {
 const buildLevelData = (candles, value) =>
   candles.map(candle => ({ time: candle.time, value }));
 
-export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label }) {
+export default function TimeframeMainChart({ candles, volumes, box, label }) {
   const containerRef = useRef(null);
   const [chartError, setChartError] = useState(false);
+  const boxR = box?.r;
+  const boxS = box?.s;
+  const boxStart = box?.start_date;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -79,14 +82,22 @@ export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label
       const r = finiteNumber(boxR);
       const s = finiteNumber(boxS);
       if (cand.length && r != null && s != null) {
-        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(cand, r));
-        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(cand, s));
+        // Anchor the rails to the bars the box is born from (boxStart) — a
+        // bounded line exactly like the daily chart, not a full-width rail.
+        let from = 0;
+        if (boxStart) {
+          const found = cand.findIndex(candle => candle.time >= boxStart);
+          from = found < 0 ? 0 : found;
+        }
+        const railBars = cand.slice(from);
+        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(railBars, r));
+        chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(railBars, s));
         chart.addSeries(LineSeries, {
           ...levelOptions,
           color: 'rgba(139, 148, 158, 0.45)',
           lineWidth: 1,
           lineStyle: 2,
-        }).setData(buildLevelData(cand, (r + s) / 2));
+        }).setData(buildLevelData(railBars, (r + s) / 2));
       }
 
       chart.timeScale().fitContent();
@@ -117,7 +128,7 @@ export default function TimeframeMainChart({ candles, volumes, boxR, boxS, label
       }
       if (container) container.innerHTML = '';
     };
-  }, [candles, volumes, boxR, boxS]);
+  }, [candles, volumes, boxR, boxS, boxStart]);
 
   if (chartError) {
     return (

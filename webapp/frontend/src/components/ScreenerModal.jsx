@@ -198,8 +198,7 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
             ) : (
               <TimeframeMainChart
                 key={interval}
-                boxR={interval === 'W' ? data.htf_w_box_r : data.htf_m_box_r}
-                boxS={interval === 'W' ? data.htf_w_box_s : data.htf_m_box_s}
+                box={interval === 'W' ? data.weekly_box : data.monthly_box}
                 candles={interval === 'W' ? data.weekly_candles : data.monthly_candles}
                 label={interval === 'W' ? 'WEEKLY' : 'MONTHLY'}
                 volumes={interval === 'W' ? data.weekly_volumes : data.monthly_volumes}

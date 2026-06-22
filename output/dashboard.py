@@ -9,7 +9,7 @@ import sys
 
 from config import settings
 from core.pipeline.json_safety import to_json_safe
-from core.structure.htf import HTF_COLUMNS, resample_ohlc
+from core.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -145,6 +145,10 @@ def _extract_chart_data(data, results_df, tickers):
             # from the FULL daily history (not the 300-bar daily window).
             weekly_candles, weekly_volumes = _tf_candles(df, "weekly", 110)
             monthly_candles, monthly_volumes = _tf_candles(df, "monthly", 60)
+            # Worked box geometry (R/S + start date) so the chart can anchor the
+            # rails to the bars the box is born from, like the daily chart.
+            weekly_box = chart_box(df, "weekly")
+            monthly_box = chart_box(df, "monthly")
             window_start_bar = len(df) - show_days
             def _local_bar(value):
                 try:
@@ -181,8 +185,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'volumes': volumes,
                 'weekly_candles': weekly_candles,
                 'weekly_volumes': weekly_volumes,
+                'weekly_box': weekly_box,
                 'monthly_candles': monthly_candles,
                 'monthly_volumes': monthly_volumes,
+                'monthly_box': monthly_box,
                 'R': round(float(row['_R']), 2),
                 'S': round(float(row['_S']), 2),
                 'inner_R': row.get('_inner_R'),

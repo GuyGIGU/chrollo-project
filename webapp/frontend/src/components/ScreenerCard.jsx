@@ -199,19 +199,19 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
   let stateCol = 'var(--text-faint)';
   if (reaccum) { state = `Re-accum${phase ? ` ${phase}` : ''}`; stateCol = '#ff9f43'; }
   else if (inConsol) { state = `Consol${phase ? ` ${phase}` : ''}`; stateCol = '#58a6ff'; }
-  else if (stage2) { state = 'Stage 2'; stateCol = '#3fb950'; }
+  else if (stage2) { state = 'Uptrend'; stateCol = '#3fb950'; }
   else if (trendState == null || trendState === 'unknown') { state = 'no data'; }
   else if (trendState === 'down') { state = 'downtrend'; stateCol = '#f85149'; }
   const tfName = tf === 'W' ? 'Weekly' : 'Monthly';
   const status = [
     `trend ${trendState || 'unknown'}`,
     inConsol ? `worked box phase ${phase || '?'}` : 'no worked box',
-    reaccum ? 're-accumulation: Stage-2 uptrend plus consolidation' : null,
+    reaccum ? 're-accumulation: established uptrend plus consolidation' : null,
     nested ? 'daily base nests inside this higher-timeframe box' : null,
   ].filter(Boolean).join('; ');
   const title = explainTip({
     what: `${tfName} context for the same setup engine: ${status}.`,
-    why: 'Higher-timeframe agreement helps separate a small daily pattern from a setup aligned with a larger Stage-2 or Wyckoff-style trend pause.',
+    why: 'Higher-timeframe agreement helps separate a small daily pattern from a setup aligned with a larger established uptrend or Wyckoff-style trend pause.',
     use: 'Give more weight to daily setups that are also supported by weekly or monthly re-accumulation; be stricter when context is weak or missing.',
   });
   return (

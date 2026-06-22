@@ -252,3 +252,41 @@ def read_htf_context(daily_df: pd.DataFrame, tf: str,
         return out
     except Exception:
         return out
+
+
+def chart_box(daily_df: pd.DataFrame, tf: str) -> Optional[dict]:
+    """The worked HTF box for CHARTING: ``r``, ``s``, the box's START DATE, and
+    phase. The start date lets the frontend anchor the rails to the bars the box is
+    born from — exactly like the daily chart's bounded R/S lines, not a full-width
+    rail. Reuses the same resample + window-override + box-tolerant walk as
+    ``read_htf_context``. Returns None when there is no worked box. Never raises
+    (charting must not break a scan)."""
+    try:
+        htf_df = resample_ohlc(daily_df, tf)
+        if htf_df is None or len(htf_df) < 8:
+            return None
+        work = htf_df.copy()
+        work["ATR_10"] = calculate_atr(work, 10)
+        if "Volume" in work.columns:
+            work["Vol_50"] = work["Volume"].rolling(50, min_periods=1).mean()
+        else:
+            work["Volume"] = 0.0
+            work["Vol_50"] = 0.0
+        work["Spread"] = work["High"] - work["Low"]
+        atr = float(work["ATR_10"].iloc[-2 if len(work) >= 2 else -1])
+        if not np.isfinite(atr) or atr <= 0:
+            return None
+        with timeframe_windows(tf):
+            s = _read_htf_structure(work, atr)
+        if s is None:
+            return None
+        box = s["box"]
+        start = max(0, min(int(box.start_bar), len(work) - 1))
+        return {
+            "r": round(float(box.R), 4),
+            "s": round(float(box.S), 4),
+            "start_date": str(work.index[start])[:10],
+            "phase": s["phase"],
+        }
+    except Exception:
+        return None
