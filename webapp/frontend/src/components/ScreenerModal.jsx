@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
-import TimeframeCharts from './TimeframeCharts';
+import TimeframeMainChart from './TimeframeMainChart';
+import { readState } from './timeframeRead';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 
 const tierColor = (tier) => {
@@ -25,7 +26,63 @@ const buttonStyle = {
   padding: '0 11px',
 };
 
-function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
+const INTERVAL_TABS = [
+  { key: 'D', label: 'D', name: 'Daily' },
+  { key: 'W', label: 'W', name: 'Weekly' },
+  { key: 'M', label: 'M', name: 'Monthly' },
+];
+
+// TradingView-style D/W/M timeframe switcher. Weekly/Monthly are disabled when
+// the row predates the higher-timeframe read (no resampled candles in payload).
+function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
+  const enabled = { D: true, W: hasWeekly, M: hasMonthly };
+  return (
+    <div
+      role="tablist"
+      aria-label="Chart timeframe"
+      style={{
+        alignItems: 'stretch',
+        border: '1px solid var(--border-color)',
+        borderRadius: 6,
+        display: 'flex',
+        height: 28,
+        overflow: 'hidden',
+      }}
+    >
+      {INTERVAL_TABS.map((tab, index) => {
+        const active = interval === tab.key;
+        const ok = enabled[tab.key];
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            disabled={!ok}
+            onClick={() => ok && onIntervalChange(tab.key)}
+            title={ok ? `${tab.name} chart` : `${tab.name} — needs more history`}
+            style={{
+              background: active ? 'rgba(88,166,255,0.16)' : 'transparent',
+              border: 'none',
+              borderLeft: index === 0 ? 'none' : '1px solid var(--border-color)',
+              color: !ok ? 'var(--text-faint)' : active ? '#58a6ff' : 'var(--text-muted)',
+              cursor: ok ? 'pointer' : 'default',
+              fontFamily: 'inherit',
+              fontSize: 12,
+              fontWeight: 700,
+              minWidth: 30,
+              padding: '0 10px',
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ModalToolbar({ data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly }) {
   return (
     <header style={{
       alignItems: 'center',
@@ -51,6 +108,12 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
         }}>
           {data.tier} TIER
         </span>
+        <IntervalTabs
+          hasMonthly={hasMonthly}
+          hasWeekly={hasWeekly}
+          interval={interval}
+          onIntervalChange={onIntervalChange}
+        />
         <span style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {data.setup}
         </span>
@@ -73,12 +136,18 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker }) {
 const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
   const [activeRegion, setActiveRegion] = useState(null);
+  const [interval, selectInterval] = useState('D');
 
+  const hasWeekly = data?.weekly_candles?.length > 0;
+  const hasMonthly = data?.monthly_candles?.length > 0;
+
+  // Reset overlays and snap back to the daily chart on every ticker change.
   useEffect(() => {
     setActiveRegion(null);
+    selectInterval('D');
   }, [ticker]);
 
-  useScreenerModalChart(chartContainerRef, ticker, data, activeRegion);
+  useScreenerModalChart(chartContainerRef, ticker, data, activeRegion, interval);
 
   return (
     <div
@@ -112,12 +181,33 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
         }}
         onClick={event => event.stopPropagation()}
       >
-        <ModalToolbar data={data} onClose={onClose} onNext={onNext} onPrev={onPrev} ticker={ticker} />
+        <ModalToolbar
+          data={data}
+          hasMonthly={hasMonthly}
+          hasWeekly={hasWeekly}
+          interval={interval}
+          onClose={onClose}
+          onIntervalChange={selectInterval}
+          onNext={onNext}
+          onPrev={onPrev}
+          ticker={ticker}
+        />
         <div className="screener-modal-body" style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}>
           <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
-            <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
+            {interval === 'D' ? (
+              <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
+            ) : (
+              <TimeframeMainChart
+                key={interval}
+                boxR={interval === 'W' ? data.htf_w_box_r : data.htf_m_box_r}
+                boxS={interval === 'W' ? data.htf_w_box_s : data.htf_m_box_s}
+                candles={interval === 'W' ? data.weekly_candles : data.monthly_candles}
+                label={interval === 'W' ? 'WEEKLY' : 'MONTHLY'}
+                state={readState(data, interval === 'W' ? 'w' : 'm')}
+                volumes={interval === 'W' ? data.weekly_volumes : data.monthly_volumes}
+              />
+            )}
           </div>
-          <TimeframeCharts data={data} />
           <ScreenerStockLens activeRegion={activeRegion} data={data} onRegionChange={setActiveRegion} />
         </div>
         {footer}

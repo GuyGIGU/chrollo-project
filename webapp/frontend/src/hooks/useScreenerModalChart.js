@@ -164,7 +164,7 @@ const setFocusedRange = (chart, data, baseEnd) => {
   });
 };
 
-export default function useScreenerModalChart(containerRef, ticker, data, activePhaseRegion = null) {
+export default function useScreenerModalChart(containerRef, ticker, data, activePhaseRegion = null, interval = 'D') {
   const activeRegionRef = useRef(activePhaseRegion);
   const phaseOverlayRef = useRef(null);
 
@@ -175,7 +175,11 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !data?.candles?.length) return undefined;
+    // Only the daily timeframe uses this rich structure-overlay chart; the
+    // weekly/monthly tabs render TimeframeMainChart instead (and unmount this
+    // container, so `container` is null then anyway). Guarding on interval makes
+    // returning to Daily re-init cleanly via the deps below.
+    if (!container || interval !== 'D' || !data?.candles?.length) return undefined;
 
     container.innerHTML = '';
     let disposed = false;
@@ -217,5 +221,5 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
       chart.remove();
       container.innerHTML = '';
     };
-  }, [containerRef, data, ticker]);
+  }, [containerRef, data, ticker, interval]);
 }
