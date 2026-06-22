@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
 import { attachPhaseOverlay, buildPhaseRegions } from '../components/chartPhaseOverlay';
+import { buildHl2SmaData, hl2Sma20Options } from '../components/chartIndicators';
 
 const chartOptions = (width, height) => ({
   width,
@@ -200,6 +201,10 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
     const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     volumeSeries.setData(data.volumes || []);
+    const hl2Sma20 = buildHl2SmaData(data.candles || []);
+    if (hl2Sma20.length) {
+      chart.addSeries(LineSeries, hl2Sma20Options).setData(hl2Sma20);
+    }
     addStructureLevels(chart, data, baseEnd);
     addAnnotations(candleSeries, data.annotations || {});
     setFocusedRange(chart, data, baseEnd);

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { buildHl2SmaData, hl2Sma20Options } from './chartIndicators';
 
 const MAX_VISIBLE_BARS = 72;
 
@@ -148,6 +149,11 @@ const ScreenerMiniChart = ({ ticker, data }) => {
       });
       volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
       volumeSeries.setData(data.volumes || []);
+
+      const hl2Sma20 = buildHl2SmaData(data.candles || []);
+      if (hl2Sma20.length) {
+        chart.addSeries(LineSeries, hl2Sma20Options).setData(hl2Sma20);
+      }
 
       const levelOptions = {
         color: '#2457b8',

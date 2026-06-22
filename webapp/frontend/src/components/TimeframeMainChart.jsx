@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, BarSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { buildHl2SmaData, hl2Sma20Options } from './chartIndicators';
 
 // The big, interactive weekly/monthly chart behind the modal's D/W/M interval
 // tabs. It's the SAME Trend+Box read the daily engine does, one and two
@@ -116,6 +117,11 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
       }
 
       const cand = candles || [];
+      const hl2Sma20 = buildHl2SmaData(cand);
+      if (hl2Sma20.length) {
+        chart.addSeries(LineSeries, hl2Sma20Options).setData(hl2Sma20);
+      }
+
       const r = finiteNumber(boxR);
       const s = finiteNumber(boxS);
       if (cand.length && r != null && s != null) {
