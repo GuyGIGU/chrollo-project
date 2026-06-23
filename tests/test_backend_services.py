@@ -258,3 +258,41 @@ def test_last_fetch_health_missing_or_malformed(tmp_path, monkeypatch):
     assert scan_runner._last_fetch_health() is None  # malformed
     (tmp_path / "cache_meta.json").write_text("null", encoding="utf-8")
     assert scan_runner._last_fetch_health() is None  # valid JSON, not an object
+
+
+def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatch):
+    # Regression: a failing scan must NOT skip the forward-return backfill. The
+    # backfill matures already-archived rows and is independent of the scan, so a
+    # crashing scan can no longer silently starve outcome maturation.
+    import services.scan_status as scan_status_mod
+    import services.core_settings as core_settings_mod
+
+    calls = {"backfill": 0, "finish_status": None}
+    result = SimpleNamespace(output="boom", returncode=1, n_setups=None)
+
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda: result)
+    monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")
+    monkeypatch.setattr(scan_runner, "_tail_error", lambda out: "scan failed: boom")
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger: 1)
+
+    def _finish(run_id, status, n_setups=None, error=None):
+        calls["finish_status"] = status
+
+    monkeypatch.setattr(scan_status_mod, "finish_run", _finish)
+    monkeypatch.setattr(
+        core_settings_mod, "load_core_settings",
+        lambda: SimpleNamespace(FORWARD_RETURNS_MIN_AGE_DAYS=5),
+    )
+
+    def _backfill(min_age_days=5):
+        calls["backfill"] += 1
+        return 7
+
+    monkeypatch.setattr(archive_forward_returns, "update_forward_returns", _backfill)
+
+    scan_runner.run_scheduled_scan_and_forward_returns()
+
+    assert calls["backfill"] == 1              # backfill ran despite the failed scan
+    assert calls["finish_status"] == "failed"  # scan run still recorded as failed
+    assert not scan_runner.SCAN_LOCK.locked()  # lock released on every path

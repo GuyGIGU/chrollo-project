@@ -218,7 +218,13 @@ def stream_manual_scan() -> Iterator[str]:
 
 
 def run_scheduled_scan_and_forward_returns() -> None:
-    """Run scan then forward-return backfill sequentially under one DB-write lock."""
+    """Run the scan, then ALWAYS run the forward-return backfill, under one DB lock.
+
+    The backfill matures already-archived rows and does not depend on the scan
+    succeeding, so it runs even when the scan fails — a crashing scan must not
+    silently starve outcome maturation. The scan status and the backfill report
+    independently; the scan's run record still reflects only the scan outcome.
+    """
     from core.archive.forward_returns import update_forward_returns
     from services import scan_status
 
@@ -228,27 +234,32 @@ def run_scheduled_scan_and_forward_returns() -> None:
 
     run_id = scan_status.start_run("scheduled")
     try:
-        result = _run_scan_process_unlocked()
-        status = _result_status(result)
-        if status != "ok":
-            error = _tail_error(result.output)
+        try:
+            result = _run_scan_process_unlocked()
+            status = _result_status(result)
+            error = _tail_error(result.output) if status != "ok" else None
+            if status != "ok":
+                log.error("scheduled scan failed with exit code %s", result.returncode)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
             alert_if_needed("scheduled", status, result.n_setups, error)
-            log.error("scheduled scan failed with exit code %s", result.returncode)
-            return
+        except Exception as exc:
+            scan_status.finish_run(run_id, status="failed", error=str(exc))
+            alert_if_needed("scheduled", "failed", None, str(exc))
+            raise
+        finally:
+            # Forward-return backfill is independent of the scan: it matures
+            # already-archived rows and needs no fresh scan, so run it regardless
+            # of scan outcome. Isolated so its own failure neither masks nor is
+            # masked by the scan result.
+            try:
+                from services.core_settings import load_core_settings
 
-        from services.core_settings import load_core_settings
-
-        root_settings = load_core_settings()
-        updated = update_forward_returns(
-            min_age_days=getattr(root_settings, "FORWARD_RETURNS_MIN_AGE_DAYS", 5)
-        )
-        log.info("scheduled forward-return update completed: %d setup(s)", updated)
-        scan_status.finish_run(run_id, status="ok", n_setups=result.n_setups)
-        alert_if_needed("scheduled", "ok", result.n_setups)
-    except Exception as exc:
-        scan_status.finish_run(run_id, status="failed", error=str(exc))
-        alert_if_needed("scheduled", "failed", None, str(exc))
-        raise
+                root_settings = load_core_settings()
+                updated = update_forward_returns(
+                    min_age_days=getattr(root_settings, "FORWARD_RETURNS_MIN_AGE_DAYS", 5)
+                )
+                log.info("scheduled forward-return update completed: %d setup(s)", updated)
+            except Exception:
+                log.exception("scheduled forward-return update failed")
     finally:
         SCAN_LOCK.release()

@@ -327,6 +327,14 @@ def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
 def _patch_market_data(base: pd.DataFrame, patch: pd.DataFrame) -> pd.DataFrame:
     if patch.empty:
         return base
+    # Both frames must have unique column labels. A duplicate label makes
+    # ``frame[column]`` return a DataFrame instead of a Series, and
+    # ``Series.combine_first(DataFrame)`` then crashes on ``other.dtype``.
+    # The incremental merge upstream can leave duplicate (ticker, field)
+    # columns in ``base``, so dedupe both sides here (mirrors the patch-side
+    # dedupe in _repair_latest_session) before the column-wise combine.
+    base = base.loc[:, ~base.columns.duplicated(keep='last')]
+    patch = patch.loc[:, ~patch.columns.duplicated(keep='last')]
     merged = base.reindex(base.index.union(patch.index)).sort_index()
     for column in patch.columns:
         if column in merged.columns:

@@ -459,6 +459,37 @@ def test_latest_session_repair_patches_missing_closes_without_dropping_history(m
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
 
 
+def test_patch_market_data_tolerates_duplicate_base_columns():
+    # Regression: the incremental merge upstream can leave a duplicate
+    # (ticker, field) column in ``base``. Before the dedupe fix ``merged[col]``
+    # returned a DataFrame and ``Series.combine_first(DataFrame)`` crashed with
+    # "'DataFrame' object has no attribute 'dtype'", failing the scheduled scan
+    # — and silently starving the forward-return backfill chained after it.
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    base = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, None], "Volume": [1000, None]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1100]}, index=dates),
+        },
+        axis=1,
+    )
+    # Inject the duplicate (AAA, Close) column that triggers the crash.
+    base = pd.concat([base, base[[("AAA", "Close")]]], axis=1)
+    assert base.columns.duplicated().any()  # precondition: corrupted base
+
+    patch = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]])},
+        axis=1,
+    )
+
+    out = downloads_module._patch_market_data(base, patch)
+
+    assert not out.columns.duplicated().any()            # dedupe happened
+    assert out.loc[dates[0], ("AAA", "Close")] == 10.0   # history preserved
+    assert out.loc[dates[-1], ("AAA", "Close")] == 11.0  # latest patched in
+    assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+
+
 def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
     day = pd.Timestamp("2026-06-18")
     panel = pd.concat(
