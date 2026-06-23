@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -77,6 +77,6 @@ class TradeLogUpdate(BaseModel):
 
 class TradeLog(TradeLogBase):
     id: int
-    tags: List[TagOut] = []
+    tags: List[TagOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

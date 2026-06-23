@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
+from services.db_write import commit_or_http
 
 router = APIRouter(prefix="", tags=["tags"])
 
@@ -59,7 +60,7 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
         return existing
     tag = models.Tag(name=name, category=category, color=payload.color)
     db.add(tag)
-    db.commit()
+    commit_or_http(db, conflict_detail=f"Tag '{name}' already exists")
     db.refresh(tag)
     return tag
 
@@ -75,7 +76,7 @@ def update_tag(tag_id: int, payload: TagUpdate, db: Session = Depends(get_db)):
         val = getattr(payload, field)
         if val is not None:
             setattr(tag, field, val)
-    db.commit()
+    commit_or_http(db, conflict_detail="Tag name already exists")
     db.refresh(tag)
     return tag
 
@@ -86,7 +87,7 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     db.delete(tag)
-    db.commit()
+    commit_or_http(db)
     return {"status": "deleted"}
 
 
@@ -113,7 +114,7 @@ def set_trade_tags(trade_id: int, payload: AttachPayload, db: Session = Depends(
     else:
         tags = []
     trade.tags = tags
-    db.commit()
+    commit_or_http(db)
     db.refresh(trade)
     return trade.tags
 
@@ -126,7 +127,7 @@ def attach_tag(trade_id: int, tag_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Trade or tag not found")
     if tag not in trade.tags:
         trade.tags.append(tag)
-        db.commit()
+        commit_or_http(db, conflict_detail="Tag is already attached to this trade")
         db.refresh(trade)
     return trade.tags
 
@@ -139,6 +140,6 @@ def detach_tag(trade_id: int, tag_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Trade or tag not found")
     if tag in trade.tags:
         trade.tags.remove(tag)
-        db.commit()
+        commit_or_http(db)
         db.refresh(trade)
     return trade.tags

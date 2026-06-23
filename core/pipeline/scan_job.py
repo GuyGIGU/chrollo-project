@@ -63,12 +63,15 @@ def _last_bar_date(data: pd.DataFrame, tickers: list[str]) -> str | None:
 def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
     expected = _expected_session_date()
     last_bar = _last_bar_date(data, tickers)
-    # Stale only if the data is OLDER than the latest completed session — i.e.
-    # the feed is missing a session it should have. A bar that is current or
-    # newer (e.g. today's forming bar during an intraday manual scan) is fine.
-    # ISO "YYYY-MM-DD" strings compare chronologically, so "<" is correct here.
+    # The canonical fetch path trims forming bars before scans/cache writes.
+    # This archive guard rejects older data, and defensively rejects newer data
+    # when completed-session trimming is enabled.
     if last_bar is None or last_bar < expected:
         msg = f"stale market data: last bar {last_bar or 'none'}, expected >= {expected}"
+        log.warning("Aborting archive write: %s", msg)
+        raise StaleMarketDataError(msg)
+    if getattr(settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", True) and last_bar > expected:
+        msg = f"immature market data: last bar {last_bar}, expected completed session {expected}"
         log.warning("Aborting archive write: %s", msg)
         raise StaleMarketDataError(msg)
 

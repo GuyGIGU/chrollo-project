@@ -50,12 +50,26 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
     try {
       const response = await fetch(`${API_BASE}/archive/update-returns`, { method: 'POST' });
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.returncode === 0) {
+      if (!response.ok) {
+        const text = (data.detail || `HTTP ${response.status}`).toString().trim();
+        setUpdateMsg({ ok: false, text: text.slice(-300) || 'Update failed.' });
+        return;
+      }
+
+      if (data.status === 'running') {
+        setUpdateMsg({ ok: true, text: data.already_running ? 'Update already running.' : 'Update started.' });
+        const finalStatus = await waitForUpdateReturns(data.id);
+        if (finalStatus.status === 'succeeded' && finalStatus.returncode === 0) {
+          setUpdateMsg({ ok: true, text: extractUpdateSummary(finalStatus) });
+          await fetchAll();
+        } else {
+          setUpdateMsg({ ok: false, text: updateFailureText(finalStatus) });
+        }
+      } else if (data.status === 'succeeded' && data.returncode === 0) {
         setUpdateMsg({ ok: true, text: extractUpdateSummary(data) });
         await fetchAll();
       } else {
-        const text = (data.stderr || data.detail || `HTTP ${response.status}`).trim();
-        setUpdateMsg({ ok: false, text: text.slice(-300) || 'Update failed.' });
+        setUpdateMsg({ ok: false, text: updateFailureText(data) });
       }
     } catch (error) {
       setUpdateMsg({ ok: false, text: `Network error: ${error.message || error}` });
@@ -134,10 +148,29 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
   };
 }
 
+const waitForUpdateReturns = async (jobId) => {
+  for (let attempt = 0; attempt < 310; attempt += 1) {
+    await delay(1000);
+    const response = await fetch(`${API_BASE}/archive/update-returns/status`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return { status: 'failed', stderr: data.detail || `HTTP ${response.status}` };
+    if (jobId && data.id && data.id !== jobId && data.status === 'running') continue;
+    if (data.status !== 'running') return data;
+  }
+  return { status: 'failed', stderr: 'Timed out waiting for update.' };
+};
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 const extractUpdateSummary = (data) => {
   const combined = `${data.stdout || ''}\n${data.stderr || ''}`.trim();
   const lines = combined.split('\n').filter(Boolean);
   const summary = [...lines].reverse().find(line =>
     /updated|no setups|setups need/i.test(line)) || lines[0] || 'Done.';
   return summary.replace(/^\S+\s+\S+\s+\S+\s+/, '').trim();
+};
+
+const updateFailureText = (data) => {
+  const text = (data.error || data.stderr || data.detail || data.status || 'Update failed.').toString().trim();
+  return text.slice(-300) || 'Update failed.';
 };

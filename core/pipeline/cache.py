@@ -47,6 +47,10 @@ def _now_iso() -> str:
 
 def _optimize_market_data_for_cache(data: pd.DataFrame) -> pd.DataFrame:
     optimized = data.copy()
+    if optimized.index.has_duplicates:
+        optimized = optimized.loc[~optimized.index.duplicated(keep='last')]
+    if optimized.columns.has_duplicates:
+        optimized = optimized.loc[:, ~optimized.columns.duplicated(keep='last')]
     for column in optimized.columns:
         field = column[1] if isinstance(column, tuple) and len(column) > 1 else column
         if field in {'Open', 'High', 'Low', 'Close', 'Adj Close'}:

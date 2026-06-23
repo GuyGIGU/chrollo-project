@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from routers.archive_schemas import ReviewMarkIn, ReviewToggleIn
 from services.archive_queries import _episode_context, _latest_episode_first_seen
+from services.db_write import commit_or_http
 
 router = APIRouter(tags=["archive"])
 
@@ -45,13 +46,13 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     )
     if existing:
         db.delete(existing)
-        db.commit()
+        commit_or_http(db)
         return {"ticker": ticker, "scan_date": scan_date, "passed": False}
 
     db.add(SetupReview(
         ticker=ticker, scan_date=scan_date, verdict="passed", created_at=datetime.utcnow(),
     ))
-    db.commit()
+    commit_or_http(db, conflict_detail="Review marker already exists")
     return {"ticker": ticker, "scan_date": scan_date, "passed": True}
 
 
@@ -88,7 +89,7 @@ def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[st
             note=note,
             created_at=datetime.utcnow(),
         ))
-    db.commit()
+    commit_or_http(db, conflict_detail="Review marker already exists")
     return {"ticker": ticker, "scan_date": scan_date, "passed": True, "review_note": note}
 
 

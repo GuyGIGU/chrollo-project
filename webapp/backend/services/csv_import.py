@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import models
 from database import SessionLocal
 from services import auto_import
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 log = logging.getLogger(__name__)
 
@@ -208,7 +209,15 @@ def import_activity_statement(content: str) -> Dict[str, Any]:
             imported += 1
             affected_pairs.add((account, t["symbol"]))
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise ValueError("Duplicate execution encountered during CSV import") from exc
+        except SQLAlchemyError:
+            db.rollback()
+            log.exception("Failed to persist CSV executions")
+            raise
 
         # Rebuild every pair in the account, not just newly-affected ones, so a
         # CSV upload always re-derives all fills from executions. Pairs not in
@@ -219,19 +228,33 @@ def import_activity_statement(content: str) -> Dict[str, Any]:
             .distinct()
             .all()
         )
+        rebuild_errors: List[Dict[str, str]] = []
         for acct, sym in all_pairs:
             try:
                 auto_import.rebuild_trade_logs_for(db, acct, sym)
-            except Exception:
+            except Exception as exc:
+                db.rollback()
                 log.exception("Failed to rebuild trade logs for (%s, %s)", acct, sym)
+                rebuild_errors.append({
+                    "account": acct or "",
+                    "symbol": sym or "",
+                    "error": str(exc),
+                })
+
+        rebuilt = len(all_pairs) - len(rebuild_errors)
+        message = f"Imported {imported} new fills ({skipped} duplicates skipped); refreshed {rebuilt} symbol(s)."
+        if rebuild_errors:
+            message += f" {len(rebuild_errors)} symbol(s) need attention."
 
         return {
             "account": account,
             "imported": imported,
             "skipped": skipped,
-            "trade_logs_rebuilt": len(all_pairs),
+            "trade_logs_rebuilt": rebuilt,
+            "trade_logs_failed": len(rebuild_errors),
+            "rebuild_errors": rebuild_errors[:10],
             "parse_errors": parsed["errors"],
-            "message": f"Imported {imported} new fills ({skipped} duplicates skipped); refreshed {len(all_pairs)} symbol(s).",
+            "message": message,
         }
     finally:
         db.close()

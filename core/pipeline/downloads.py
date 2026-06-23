@@ -59,7 +59,7 @@ def _download_batch_with_retry(batch: list[str], period: str, max_retries: int =
                 # If only 1 ticker in batch, it doesn't return a MultiIndex, so we force it
                 if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
                     batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
-                return batch_data
+                return _normalize_market_panel(batch_data)
         except Exception as e:
             if attempt < max_retries:
                 wait = 2 ** attempt  # Exponential backoff: 2s, 4s, 8s
@@ -76,6 +76,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
     Check for missing or incomplete data (<200 bars) and attempt to re-download.
     Returns the corrected DataFrame.
     """
+    data = _normalize_market_panel(data)
     missing_or_short = []
     for ticker in tickers:
         if ticker in data:
@@ -86,11 +87,11 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
             missing_or_short.append(ticker)
 
     if not missing_or_short:
-        return data
+        return _normalize_market_panel(data)
 
     if len(missing_or_short) > len(tickers) * 0.5:
         print(f"Warning: {len(missing_or_short)} dropouts detected. Rate limit severe. Skipping individual fallback to avoid IP ban.")
-        return data
+        return _normalize_market_panel(data)
 
     print(f"Validating {len(missing_or_short)} tickers with missing or suspiciously short data (<200 bars) — per-ticker fallback...")
     recovered_count = 0
@@ -111,6 +112,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
                 continue
             if not isinstance(fb_data.columns, pd.MultiIndex):
                 fb_data.columns = pd.MultiIndex.from_product([[ticker], fb_data.columns])
+            fb_data = _normalize_market_panel(fb_data)
             new_len = len(fb_data[ticker].dropna()) if ticker in fb_data else 0
             old_len = len(data[ticker].dropna()) if ticker in data else 0
             if new_len > old_len:
@@ -133,14 +135,14 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
             if hasattr(fallback_frames[i].index, 'tz') and fallback_frames[i].index.tz is not None:
                 fallback_frames[i].index = fallback_frames[i].index.tz_localize(None)
 
-        data = pd.concat([data] + fallback_frames, axis=1)
+        data = _normalize_market_panel(pd.concat([data] + fallback_frames, axis=1))
 
     if recovered_count > 0:
         print(f"Successfully recovered full data for {recovered_count} tickers using fallback batches!")
     else:
         print("Fallback pass complete. No additional tickers could be recovered (likely delisted or too new).")
 
-    return data
+    return _normalize_market_panel(data)
 
 
 def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> pd.DataFrame:
@@ -184,7 +186,7 @@ def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> 
         if hasattr(frames[j].index, 'tz') and frames[j].index.tz is not None:
             frames[j].index = frames[j].index.tz_localize(None)
 
-    return pd.concat(frames, axis=1)
+    return _normalize_market_panel(pd.concat(frames, axis=1))
 
 
 def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,
@@ -204,7 +206,7 @@ def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,
             if not batch_data.empty:
                 if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
                     batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
-                return batch_data
+                return _normalize_market_panel(batch_data)
         except Exception as e:
             if attempt < max_retries:
                 wait = 2 ** attempt
@@ -228,6 +230,8 @@ def _detect_splits(cached: pd.DataFrame, fresh: pd.DataFrame,
     - ``drifted_tickers`` is the per-ticker list that drifted; if force is
       False these can be re-fetched individually.
     """
+    cached = _normalize_market_panel(cached)
+    fresh = _normalize_market_panel(fresh)
     sample_size = min(settings.SPLIT_PROBE_SAMPLE_SIZE, len(cached_tickers))
     # Seed by today's date so the sample rotates daily but is reproducible
     # within a single day — gives broad coverage across the universe over time
@@ -298,8 +302,7 @@ def _full_refetch(tickers_to_fetch: list[str]) -> pd.DataFrame:
 
     if isinstance(data.columns, pd.MultiIndex):
         data = _recover_missing_data(data, tickers_to_fetch)
-        data = data.loc[:, ~data.columns.duplicated(keep='last')]
-    return data
+    return _normalize_market_panel(data)
 
 
 def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
@@ -324,24 +327,62 @@ def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
     return all(symbol in present for symbol in symbols)
 
 
+def _normalize_market_panel(data: pd.DataFrame) -> pd.DataFrame:
+    """Return a market-data panel with unique date and column labels."""
+    if data.empty:
+        return data
+
+    normalized = data
+    if hasattr(normalized.index, 'tz') and normalized.index.tz is not None:
+        normalized = normalized.copy()
+        normalized.index = normalized.index.tz_localize(None)
+    if normalized.index.has_duplicates:
+        normalized = normalized.loc[~normalized.index.duplicated(keep='last')]
+    if normalized.columns.has_duplicates:
+        normalized = normalized.loc[:, ~normalized.columns.duplicated(keep='last')]
+    return normalized.sort_index()
+
+
+def _trim_to_completed_session(
+    data: pd.DataFrame,
+    expected_session: pd.Timestamp | None = None,
+) -> pd.DataFrame:
+    """Drop bars after the latest completed NYSE daily session."""
+    if data.empty or not getattr(settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", True):
+        return data
+
+    normalized = _normalize_market_panel(data)
+    if normalized.empty:
+        return normalized
+
+    completed = pd.Timestamp(
+        expected_session if expected_session is not None else latest_completed_session()
+    ).normalize()
+    try:
+        index_dates = pd.DatetimeIndex(normalized.index).normalize()
+    except Exception:
+        return normalized
+    return normalized.loc[index_dates <= completed]
+
+
 def _patch_market_data(base: pd.DataFrame, patch: pd.DataFrame) -> pd.DataFrame:
+    base = _normalize_market_panel(base)
     if patch.empty:
         return base
     # Both frames must have unique column labels. A duplicate label makes
     # ``frame[column]`` return a DataFrame instead of a Series, and
     # ``Series.combine_first(DataFrame)`` then crashes on ``other.dtype``.
-    # The incremental merge upstream can leave duplicate (ticker, field)
-    # columns in ``base``, so dedupe both sides here (mirrors the patch-side
-    # dedupe in _repair_latest_session) before the column-wise combine.
-    base = base.loc[:, ~base.columns.duplicated(keep='last')]
-    patch = patch.loc[:, ~patch.columns.duplicated(keep='last')]
+    # The same merge/repair path can also leave duplicate date labels, which
+    # makes the Series alignment inside ``combine_first`` raise
+    # "cannot reindex on an axis with duplicate labels".
+    patch = _normalize_market_panel(patch)
     merged = base.reindex(base.index.union(patch.index)).sort_index()
     for column in patch.columns:
         if column in merged.columns:
             merged[column] = patch[column].combine_first(merged[column])
         else:
             merged[column] = patch[column]
-    return merged
+    return _normalize_market_panel(merged)
 
 
 def _repair_latest_session(
@@ -382,17 +423,14 @@ def _repair_latest_session(
             max_retries=2,
         )
         if not repaired.empty and isinstance(repaired.columns, pd.MultiIndex):
-            if hasattr(repaired.index, 'tz') and repaired.index.tz is not None:
-                repaired.index = repaired.index.tz_localize(None)
-            frames.append(repaired)
+            frames.append(_normalize_market_panel(repaired))
         time.sleep(sleep_seconds)
 
     if not frames:
         print(f"  {label} repair yielded no usable data.", flush=True)
-        return data
+        return _normalize_market_panel(data)
 
-    repaired_panel = pd.concat(frames, axis=1)
-    repaired_panel = repaired_panel.loc[:, ~repaired_panel.columns.duplicated(keep='last')]
+    repaired_panel = _normalize_market_panel(pd.concat(frames, axis=1))
     repaired = _patch_market_data(data, repaired_panel)
     repaired_coverage = close_coverage_on(repaired, symbols, expected_session)
     print(f"  {label} repair coverage after patch: {repaired_coverage.format()}.",
@@ -405,6 +443,8 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     Download market data via yfinance with PyArrow Parquet caching.
 
     Daily-run strategy:
+    - If enabled, trim all panels to the latest completed NYSE session before
+      they feed the scan or get written back to cache.
     - If cache is fresh (< TTL_FRESH_HOURS), return it as-is.
     - If cache is stale but recent (gap ≤ INCREMENTAL_MAX_GAP_BDAYS) and last
       full refresh is within FULL_REFRESH_INTERVAL_DAYS, do an incremental
@@ -450,7 +490,10 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         ttl = (settings.TTL_FRESH_HOURS_MARKET if _is_market_hours()
                else settings.TTL_FRESH_HOURS_OFFHOURS)
         if cache_age_hours < ttl:
-            cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+            cached_data = _trim_to_completed_session(
+                _normalize_market_panel(pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)),
+                expected_session,
+            )
             last_reference_date = last_complete_reference_date(cached_data, index_symbols)
             coverage = close_coverage_on(cached_data, tickers_with_indexes, expected_session)
             if (_has_all_symbols(cached_data, index_symbols)
@@ -468,9 +511,10 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     cached: pd.DataFrame | None = None
     if os.path.exists(cache_file):
         try:
-            cached = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
-            if hasattr(cached.index, 'tz') and cached.index.tz is not None:
-                cached.index = cached.index.tz_localize(None)
+            cached = _trim_to_completed_session(
+                _normalize_market_panel(pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)),
+                expected_session,
+            )
         except Exception as e:
             print(f"  Cached parquet unreadable ({e}); falling back to full refetch.")
             cached = None
@@ -531,7 +575,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         data = _incremental_fetch(cached, tickers_with_indexes, gap_bdays)
         if data is not None and not data.empty:
             data = _trim_to_period(data, settings.DOWNLOAD_PERIOD)
-            data = data.loc[:, ~data.columns.duplicated(keep='last')]
+            data = _trim_to_completed_session(_normalize_market_panel(data), expected_session)
             _atomic_write_parquet(data, cache_file)
             meta['last_modified'] = _now_iso()
             # Health only — the cold full-refetch owns quarantine updates (a ticker
@@ -555,8 +599,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     if data.empty:
         return data
 
-    if isinstance(data.columns, pd.MultiIndex):
-        data = data.loc[:, ~data.columns.duplicated(keep='last')]
+    data = _trim_to_completed_session(_normalize_market_panel(data), expected_session)
 
     data = _repair_latest_session(
         data,
@@ -565,6 +608,7 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         min_latest_coverage,
         "Full refetch",
     )
+    data = _trim_to_completed_session(data, expected_session)
     coverage = close_coverage_on(data, tickers_with_indexes, expected_session)
     if (not has_all_closes_on(data, index_symbols, expected_session)
             or coverage.ratio < min_latest_coverage):
@@ -618,6 +662,7 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     """
     index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
     expected_session = latest_completed_session()
+    cached = _trim_to_completed_session(_normalize_market_panel(cached), expected_session)
     min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
     last_cached_date = (
         last_complete_reference_date(cached, index_symbols)
@@ -640,6 +685,7 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         print("  Incremental download returned empty/malformed data.")
         return None
 
+    fresh = _trim_to_completed_session(fresh, expected_session)
     fresh = _repair_latest_session(
         fresh,
         tickers_with_spy,
@@ -647,6 +693,7 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         min_latest_coverage,
         "Incremental",
     )
+    fresh = _trim_to_completed_session(fresh, expected_session)
     fresh_coverage = close_coverage_on(fresh, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session
             and (not has_all_closes_on(fresh, index_symbols, expected_session)
@@ -678,9 +725,7 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         merged = cached
     else:
         # Align columns: take union, fill NaN where needed.
-        merged = pd.concat([cached, new_rows], axis=0)
-        merged = merged[~merged.index.duplicated(keep='last')]
-        merged = merged.sort_index()
+        merged = _normalize_market_panel(pd.concat([cached, new_rows], axis=0))
 
     # New listings: tickers in universe but absent from the cached columns
     # → fetch their full history via the existing recovery path.
@@ -695,6 +740,7 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         print(f"  Refetching {len(drifted)} split-drifted ticker(s) in full...", flush=True)
         merged = _recover_missing_data(merged, drifted)
 
+    merged = _trim_to_completed_session(merged, expected_session)
     merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session
             and (not has_all_closes_on(merged, index_symbols, expected_session)
@@ -704,4 +750,4 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
               "falling back to full refetch.")
         return None
 
-    return merged
+    return _trim_to_completed_session(_normalize_market_panel(merged), expected_session)

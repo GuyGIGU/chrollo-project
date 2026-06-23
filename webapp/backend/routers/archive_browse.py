@@ -15,14 +15,22 @@ from services.archive_queries import (
     _episode_context,
     _episode_key,
 )
+from services.db_write import commit_or_http
 
 router = APIRouter(tags=["archive"])
+
+_PAGE_LIMIT_MAX = 500
+_SETUP_SORT_COLUMNS = {
+    name: column
+    for name, column in SetupArchive.__table__.columns.items()
+}
+_EPISODE_SORT_FIELDS = set(EpisodeOut.model_fields)
 
 
 @router.get("/setups", response_model=List[SetupOut])
 def list_setups(
-    skip: int = 0,
-    limit: int = 200,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=_PAGE_LIMIT_MAX),
     tier: Optional[str] = Query(None),
     setup_type: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
@@ -31,7 +39,7 @@ def list_setups(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     sort_by: str = Query("scan_date"),
-    sort_dir: str = Query("desc"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
     """List archived setups with filtering and sorting."""
@@ -42,15 +50,17 @@ def list_setups(
         date_from=date_from, date_to=date_to,
     )
 
-    sort_col = getattr(SetupArchive, sort_by, SetupArchive.scan_date)
+    sort_col = _SETUP_SORT_COLUMNS.get(sort_by)
+    if sort_col is None:
+        raise HTTPException(status_code=400, detail=f"Unsupported sort field: {sort_by}")
     q = q.order_by(sort_col if sort_dir == "asc" else desc(sort_col))
     return q.offset(skip).limit(limit).all()
 
 
 @router.get("/episodes", response_model=List[EpisodeOut])
 def list_episodes(
-    skip: int = 0,
-    limit: int = 200,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=_PAGE_LIMIT_MAX),
     tier: Optional[str] = Query(None),
     setup_type: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
@@ -59,7 +69,7 @@ def list_episodes(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     sort_by: str = Query("first_seen"),
-    sort_dir: str = Query("desc"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
     """List setups collapsed to one row per *episode*.
@@ -70,6 +80,9 @@ def list_episodes(
     table shows one row per real setup and stats aren't inflated. Grouping runs
     over the full filtered set, then the result is sorted and paginated.
     """
+    if sort_by not in _EPISODE_SORT_FIELDS:
+        raise HTTPException(status_code=400, detail=f"Unsupported sort field: {sort_by}")
+
     eps, row_by_id, passed_notes = _episode_context(
         db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
@@ -280,7 +293,7 @@ def update_label(setup_id: int, payload: LabelUpdate, db: Session = Depends(get_
     if payload.notes is not None:
         setup.notes = payload.notes
 
-    db.commit()
+    commit_or_http(db)
     db.refresh(setup)
     return {"status": "ok", "id": setup.id, "quality_label": setup.quality_label}
 

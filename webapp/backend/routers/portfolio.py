@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -16,6 +16,7 @@ router = APIRouter(prefix="", tags=["portfolio"])
 # Reject statement uploads larger than this. Typical multi-year statements are
 # under 1 MB; anything bigger is almost certainly the wrong file.
 _MAX_CSV_BYTES = 5 * 1024 * 1024
+_CSV_CHUNK_BYTES = 64 * 1024
 
 
 @router.get("/portfolio/account-summary")
@@ -35,7 +36,10 @@ def open_orders() -> List[Dict[str, Any]]:
 
 
 @router.get("/portfolio/executions")
-def executions(db: Session = Depends(get_db), limit: int = 100) -> List[Dict[str, Any]]:
+def executions(
+    db: Session = Depends(get_db),
+    limit: int = Query(100, ge=1, le=500),
+) -> List[Dict[str, Any]]:
     """Return stored executions persisted by auto-import."""
     return stored_executions(db, limit)
 
@@ -43,10 +47,7 @@ def executions(db: Session = Depends(get_db), limit: int = 100) -> List[Dict[str
 @router.post("/ibkr/import-csv")
 async def import_ibkr_csv(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Bulk import an IBKR Activity Statement CSV."""
-    raw = await file.read()
-    if len(raw) > _MAX_CSV_BYTES:
-        size_mb = _MAX_CSV_BYTES // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"CSV too large (>{size_mb} MB)")
+    raw = await _read_limited_upload(file)
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file")
 
@@ -62,3 +63,18 @@ def _decode_statement(raw: bytes) -> str:
         return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         return raw.decode("latin-1")
+
+
+async def _read_limited_upload(file: UploadFile) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_CSV_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > _MAX_CSV_BYTES:
+            size_mb = _MAX_CSV_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"CSV too large (>{size_mb} MB)")
+        chunks.append(chunk)
+    return b"".join(chunks)

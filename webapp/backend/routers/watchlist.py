@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
+from services.db_write import commit_or_http
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
 
@@ -40,7 +41,7 @@ def add_to_watchlist(ticker: str, db: Session = Depends(get_db)):
         return existing
     item = models.Watchlist(ticker=sym, created_at=datetime.utcnow())
     db.add(item)
-    db.commit()
+    commit_or_http(db, conflict_detail=f"{sym} is already on the watchlist")
     db.refresh(item)
     return item
 
@@ -52,5 +53,5 @@ def remove_from_watchlist(ticker: str, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Ticker not on watchlist")
     db.delete(item)
-    db.commit()
+    commit_or_http(db)
     return {"status": "removed", "ticker": sym}

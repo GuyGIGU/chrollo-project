@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,11 +13,15 @@ from sqlalchemy.orm import Session
 from archive_models import SetupArchive
 from database import get_db
 from routers.archive_schemas import ManualSetupIn, SetupOut
+from services import archive_jobs
+from services.db_write import commit_or_http
 
 router = APIRouter(tags=["archive"])
 
 # Three levels up from routers/ reaches the project root, where core/ lives.
 _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_ANALYSIS_LOCK = threading.Lock()
+_ANALYSIS_SOURCES = {"screener", "seed", "manual"}
 
 
 @router.post("/add-setup", response_model=SetupOut)
@@ -274,7 +279,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         **fwd_returns,
     )
     db.add(row)
-    db.commit()
+    commit_or_http(db, conflict_detail=f"{ticker} @ {scan_dt} already in archive")
     db.refresh(row)
     return row
 
@@ -291,6 +296,9 @@ def get_archive_analysis(
     and return it as text. Cached ~5 minutes per process unless ``refresh=true``."""
     import time as _time
 
+    if source is not None and source not in _ANALYSIS_SOURCES:
+        raise HTTPException(status_code=400, detail=f"Unsupported source: {source}")
+
     now = _time.time()
     if (
         not refresh
@@ -300,6 +308,9 @@ def get_archive_analysis(
     ):
         return {"report": _ANALYSIS_CACHE["report"], "cached": True}
 
+    if not _ANALYSIS_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Archive analysis is already running")
+
     cmd = [sys.executable, "-m", "core.archive.analyze"]
     if source:
         cmd += ["--source", source]
@@ -308,19 +319,22 @@ def get_archive_analysis(
     env["PYTHONIOENCODING"] = "utf-8"
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=_ROOT_DIR,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=120,
-            creationflags=flags,
-            env=env,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=_ROOT_DIR,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=120,
+                creationflags=flags,
+                env=env,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _ANALYSIS_LOCK.release()
 
     if result.returncode != 0:
         raise HTTPException(status_code=500, detail=(result.stderr or "analysis failed")[-1000:])
@@ -334,22 +348,10 @@ def get_archive_analysis(
 @router.post("/update-returns")
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""
-    try:
-        script = os.path.join(_ROOT_DIR, "core", "archive", "forward_returns.py")
-        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        result = subprocess.run(
-            [sys.executable, script],
-            cwd=_ROOT_DIR,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            creationflags=flags,
-        )
-        return {
-            "status": "ok",
-            "stdout": result.stdout[-2000:] if result.stdout else "",
-            "stderr": result.stderr[-500:] if result.stderr else "",
-            "returncode": result.returncode,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return archive_jobs.start_forward_returns_job()
+
+
+@router.get("/update-returns/status")
+def update_returns_status():
+    """Return the latest forward-return maintenance job status."""
+    return archive_jobs.get_job_status("forward_returns")

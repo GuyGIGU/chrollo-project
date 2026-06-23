@@ -10,7 +10,8 @@ from sqlalchemy import text
 
 from database import engine
 from ibkr import get_ibkr_service
-from services import scan_status, scheduler
+from services.core_settings import load_core_settings
+from services import scan_status, scheduler, trade_alerts
 
 
 def build_health_report(screener_json_path: str) -> dict:
@@ -20,6 +21,7 @@ def build_health_report(screener_json_path: str) -> dict:
     _add_scan_check(checks)
     _add_screener_data_check(checks, screener_json_path)
     _add_scheduler_check(checks)
+    _add_trade_alerts_check(checks)
     _add_ibkr_check(checks)
 
     return {
@@ -70,6 +72,22 @@ def _add_scheduler_check(checks: dict) -> None:
     except Exception:
         scheduler_ok = False
     checks["scheduler"] = {"ok": scheduler_ok}
+
+
+def _add_trade_alerts_check(checks: dict) -> None:
+    try:
+        status = trade_alerts.get_trade_alert_status()
+        settings = load_core_settings()
+        configured_enabled = bool(getattr(settings, "TRADE_ALERTS_ENABLED", False))
+    except Exception as exc:
+        checks["trade_alerts"] = {"ok": False, "status": "error", "last_error": str(exc)[:200]}
+        return
+
+    checks["trade_alerts"] = {
+        "ok": status.get("status") != "error",
+        "configured_enabled": configured_enabled,
+        **status,
+    }
 
 
 def _add_ibkr_check(checks: dict) -> None:

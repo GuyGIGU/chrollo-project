@@ -419,6 +419,7 @@ HTF_MONTHLY_WINDOWS = {
 # Incremental fetch tuning
 TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars if cache is older than this during market hours
 TTL_FRESH_HOURS_OFFHOURS = 12     # ...or this outside market hours
+TRIM_MARKET_DATA_TO_COMPLETED_SESSION = True  # Drop forming daily bars before scans/cache writes
 FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 5y refetch at least weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
@@ -494,4 +495,9 @@ SCAN_SCHEDULE_MINUTE_ET = 0
 FORWARD_RETURNS_MIN_AGE_DAYS = 5
 ALERT_WEBHOOK_URL_ENV = "ALERT_WEBHOOK_URL"
 ALERT_ON_ZERO_RESULTS = True
+# Open-trade stop/target webhook alerts. Default-off: the always-on service does
+# not evaluate or notify open-trade risk until the operator opts in.
+TRADE_ALERTS_ENABLED = False
+TRADE_ALERT_POLL_MINUTES = 5
+TRADE_ALERT_COOLDOWN_MINUTES = 0
 ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetch-health came back unhealthy (low return ratio) — an early warning before a stale_data failure

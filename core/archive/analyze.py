@@ -152,6 +152,13 @@ EDGE_MIN_MINORITY = 8    # minimum of the minority class (e.g. losers) for a bin
 # then realized R, then the raw 20d return.
 EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d"]
 
+HTF_TAG_COLUMNS = [
+    "htf_w_reaccum",
+    "htf_w_daily_nested",
+    "htf_m_reaccum",
+    "htf_m_daily_nested",
+]
+
 # Tightness features specifically - the prime directive.
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "lps_descent_frac", "contraction_quality",
@@ -221,6 +228,75 @@ def describe_col(s: pd.Series) -> dict:
     }
 
 
+def _counts(series: pd.Series) -> dict:
+    return series.fillna("?").value_counts().to_dict()
+
+
+def matured_subset_summary(df: pd.DataFrame, target: str = "fwd_return_20d") -> dict:
+    """Describe the subset whose 20d confirmation target is populated."""
+    if target not in df.columns:
+        matured = df.iloc[0:0].copy()
+    else:
+        matured = df[pd.to_numeric(df[target], errors="coerce").notna()].copy()
+
+    summary = {
+        "target": target,
+        "n": int(len(matured)),
+        "total": int(len(df)),
+        "date_min": None,
+        "date_max": None,
+        "spy_trend": {},
+        "tier": {},
+        "setup_type": {},
+        "htf_tag_rows": 0,
+        "htf_value_rows": 0,
+        "traversal_quality_n": 0,
+        "traversal_quality_positive": 0,
+    }
+    if matured.empty:
+        return summary
+
+    if "scan_date" in matured.columns:
+        dates = matured["scan_date"].dropna()
+        if not dates.empty:
+            summary["date_min"] = str(dates.min())
+            summary["date_max"] = str(dates.max())
+    for col in ("spy_trend", "tier", "setup_type"):
+        if col in matured.columns:
+            summary[col] = _counts(matured[col])
+
+    available_htf = [c for c in HTF_TAG_COLUMNS if c in matured.columns]
+    if available_htf:
+        htf = matured[available_htf].apply(pd.to_numeric, errors="coerce")
+        summary["htf_value_rows"] = int(htf.notna().any(axis=1).sum())
+        summary["htf_tag_rows"] = int((htf.fillna(0) > 0).any(axis=1).sum())
+
+    if "score_traversal_quality" in matured.columns:
+        trav = pd.to_numeric(matured["score_traversal_quality"], errors="coerce")
+        summary["traversal_quality_n"] = int(trav.notna().sum())
+        summary["traversal_quality_positive"] = int((trav.fillna(0) > 0).sum())
+    return summary
+
+
+def _emit_matured_subset_banner(summary: dict) -> None:
+    subhdr(f"Matured subset for {summary['target']}")
+    n, total = summary["n"], summary["total"]
+    emit(f"Rows with {summary['target']}: {n} / {total}")
+    if n == 0:
+        emit("No rows have the 20d confirmation target yet; Sections 3-5 remain")
+        emit("plumbing/directional for that target until the first cohort matures.")
+        return
+
+    emit(f"Scan-date span: {summary['date_min']} -> {summary['date_max']}")
+    emit(f"spy_trend mix:  {summary['spy_trend']}")
+    emit(f"tier mix:       {summary['tier']}")
+    emit(f"setup_type mix: {summary['setup_type']}")
+    emit(f"HTF tag rows:   {summary['htf_tag_rows']} "
+         f"(HTF fields populated on {summary['htf_value_rows']} rows)")
+    emit(f"Traversal-quality rows: {summary['traversal_quality_n']} "
+         f"({summary['traversal_quality_positive']} positive)")
+
+
 def safe_corr(x: pd.Series, y: pd.Series, min_n: int = 8) -> Optional[float]:
     """Pearson correlation, NaN-safe; None if too few pairs or no variance."""
     xx = pd.to_numeric(x, errors="coerce")
@@ -274,6 +350,7 @@ def section_composition(df: pd.DataFrame, min_rows: int) -> dict:
 
     with_ret = df["fwd_return_20d"].notna().sum()
     emit(f"With fwd_return_20d: {with_ret} / {n}")
+    _emit_matured_subset_banner(matured_subset_summary(df))
 
     # Trigger-rate bias check. Seeds are hand-picked winners -> ~100% triggered.
     triggered = pd.to_numeric(df["triggered"], errors="coerce")
@@ -684,9 +761,12 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
         if int(feat_vals.notna().sum()) == 0:
             continue
         corr_by = {}
+        target_stats = {}
         for t in targets:
             if t in df.columns:
+                target_vals = pd.to_numeric(df[t], errors="coerce")
                 corr_by[t] = safe_rank_corr(df[feat], df[t], min_n=min_n)
+                target_stats[t] = _target_edge_stats(feat_vals, target_vals)
         pc = corr_by.get(primary) if primary else None
         if pc is None or noise is None:
             verdict = "unknown"
@@ -698,6 +778,7 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
             verdict = "inert"
         rows.append({
             "feature": feat, "n": nn, "corr_by_target": corr_by,
+            "target_stats": target_stats,
             "primary_corr": pc, "verdict": verdict,
         })
 
@@ -707,6 +788,129 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
     return {"primary_target": primary, "n_primary": n_primary,
             "noise_floor": noise, "is_binary": is_binary, "n_minority": n_minority,
             "verdicts_trustworthy": trustworthy, "rows": rows}
+
+
+def _target_edge_stats(feature_vals: pd.Series, target_vals: pd.Series) -> dict:
+    pair = feature_vals.notna() & target_vals.notna()
+    paired_target = target_vals[pair].dropna()
+    n = int(pair.sum())
+    noise = max(0.15, 1.0 / np.sqrt(n - 3)) if n > 4 else None
+    is_binary = len(paired_target) > 0 and set(pd.unique(paired_target)) <= {0.0, 1.0}
+    n_minority = None
+    if is_binary:
+        n_minority = int(min((paired_target == 1).sum(), (paired_target == 0).sum()))
+    trustworthy = n >= EDGE_MIN_N
+    if is_binary:
+        trustworthy = trustworthy and n_minority >= EDGE_MIN_MINORITY
+    return {
+        "n": n,
+        "noise_floor": noise,
+        "is_binary": is_binary,
+        "n_minority": n_minority,
+        "trustworthy": trustworthy,
+    }
+
+
+def _corr_direction(value, noise_floor: float | None) -> Optional[str]:
+    if value is None or noise_floor is None:
+        return None
+    try:
+        corr = float(value)
+    except (TypeError, ValueError):
+        return None
+    if np.isnan(corr):
+        return None
+    if corr >= noise_floor:
+        return "positive"
+    if corr <= -noise_floor:
+        return "negative"
+    return "neutral"
+
+
+def verdict_consistency(
+    rows: list[dict],
+    targets: Optional[list] = None,
+    noise_floor: float | None = None,
+    min_decisive_targets: int = 2,
+) -> list[dict]:
+    """Classify whether each sub-score has same-direction edge across targets."""
+    targets = targets or EDGE_TARGETS
+    out = []
+    for row in rows:
+        corr_by = row.get("corr_by_target") or {}
+        stats_by = row.get("target_stats") or {}
+        signs = {}
+        for target in targets:
+            corr = corr_by.get(target)
+            if corr is None:
+                continue
+            stats = stats_by.get(target)
+            target_noise = (stats or {}).get("noise_floor", noise_floor)
+            trustworthy = (stats or {}).get("trustworthy", True)
+            if not trustworthy:
+                signs[target] = "untrusted"
+                continue
+            signs[target] = _corr_direction(corr, target_noise)
+        decisive = {t: s for t, s in signs.items() if s in {"positive", "negative"}}
+        directions = set(decisive.values())
+        if len(decisive) < min_decisive_targets:
+            status = "insufficient"
+            direction = None
+        elif len(directions) == 1:
+            sign = next(iter(directions))
+            status = "confirmed"
+            direction = "beneficial" if sign == "positive" else "harmful"
+        else:
+            status = "flip"
+            direction = "mixed"
+        out.append({
+            "feature": row.get("feature"),
+            "corr_by_target": corr_by,
+            "signs": signs,
+            "decisive_targets": sorted(decisive),
+            "status": status,
+            "direction": direction,
+        })
+    return out
+
+
+def _emit_consistency_matrix(edge: dict) -> None:
+    rows = edge.get("rows") or []
+    if not rows:
+        return
+    available_targets = [
+        target for target in EDGE_TARGETS
+        if any((row.get("corr_by_target") or {}).get(target) is not None for row in rows)
+    ]
+    if len(available_targets) < 2:
+        return
+
+    consistency = verdict_consistency(
+        rows,
+        targets=available_targets,
+        noise_floor=edge.get("noise_floor"),
+    )
+    by_feature = {row["feature"]: row for row in consistency}
+
+    subhdr("Cross-target consistency")
+    emit("Confirmed = at least two trustworthy decisive targets agree, with no decisive flip.")
+    emit(f"{'sub-score':<26}" + "".join(f"{target[:13]:>14}" for target in available_targets)
+         + f"{'consistent?':>16}")
+    emit("-" * (42 + 14 * len(available_targets)))
+    for row in rows:
+        feature = row["feature"]
+        c = by_feature.get(feature, {})
+        status = c.get("status")
+        direction = c.get("direction")
+        if status == "confirmed":
+            label = f"yes/{direction}"
+        elif status == "flip":
+            label = "no/flip"
+        else:
+            label = "pending"
+        corr_by = row.get("corr_by_target") or {}
+        cells = "".join(f"{fmt(corr_by.get(target)):>14}" for target in available_targets)
+        emit(f"{feature:<26}{cells}{label:>16}")
 
 
 def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
@@ -761,6 +965,8 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
     emit("-" * 56)
     for r in edge["rows"]:
         emit(f"{r['feature']:<26}{r['n']:>4}{fmt(r['primary_corr']):>9}  {r['verdict']}")
+
+    _emit_consistency_matrix(edge)
 
     harmful = [r["feature"] for r in edge["rows"] if r["verdict"] == "harmful"]
     inert = [r["feature"] for r in edge["rows"] if r["verdict"] == "inert"]

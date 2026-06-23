@@ -7,9 +7,10 @@ import json
 import subprocess
 import sys
 import threading
-import urllib.request
 from dataclasses import dataclass
 from typing import Iterator
+
+from services.notify import post_webhook
 
 log = logging.getLogger("chrollo.scan")
 
@@ -93,13 +94,16 @@ def _result_status(result: ScanProcessResult) -> str:
     return "failed"
 
 
-def _tail_error(output: str, limit: int = 1000) -> str | None:
+def _tail_error(output: str, limit: int = 4000) -> str | None:
     text = output.strip()
     if not text:
         return None
     for line in reversed(text.splitlines()):
         if "stale market data" in line.lower():
             return line.strip()
+    traceback_idx = text.rfind("Traceback (most recent call last):")
+    if traceback_idx >= 0:
+        return text[traceback_idx:][-limit:]
     return text[-limit:]
 
 
@@ -157,22 +161,7 @@ def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str 
         message = f"{message}; error={error[:300]}"
     log.warning(message)
 
-    env_name = getattr(settings, "ALERT_WEBHOOK_URL_ENV", "ALERT_WEBHOOK_URL")
-    url = os.environ.get(env_name)
-    if not url:
-        return
-
-    payload = json.dumps({"text": message}).encode("utf-8")
-    request = urllib.request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        urllib.request.urlopen(request, timeout=10).close()
-    except Exception:
-        log.exception("scan alert webhook failed")
+    post_webhook(message)
 
 
 def stream_manual_scan() -> Iterator[str]:
@@ -185,6 +174,8 @@ def stream_manual_scan() -> Iterator[str]:
         return
 
     run_id = scan_status.start_run("manual")
+    process = None
+    finished = False
     lines: list[str] = []
     try:
         process = _create_process()
@@ -204,17 +195,39 @@ def stream_manual_scan() -> Iterator[str]:
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
         scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
+        finished = True
         alert_if_needed("manual", status, result.n_setups, error)
         if process.returncode != 0:
             yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
         yield "data: [DONE]\n\n"
+    except GeneratorExit:
+        if not finished:
+            _terminate_process(process)
+            error = "manual scan stream disconnected"
+            scan_status.finish_run(run_id, status="failed", error=error)
+            log.warning(error)
+        raise
     except Exception as exc:
+        _terminate_process(process)
         scan_status.finish_run(run_id, status="failed", error=str(exc))
         alert_if_needed("manual", "failed", None, str(exc))
         yield f"data: ERROR: {exc}\n\n"
         yield "data: [DONE]\n\n"
     finally:
         SCAN_LOCK.release()
+
+
+def _terminate_process(process) -> None:
+    if process is None or process.poll() is not None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=5)
+    except Exception:
+        try:
+            process.kill()
+        except Exception:
+            pass
 
 
 def run_scheduled_scan_and_forward_returns() -> None:

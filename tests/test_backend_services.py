@@ -2,12 +2,14 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import create_engine, text
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
@@ -258,6 +260,105 @@ def test_last_fetch_health_missing_or_malformed(tmp_path, monkeypatch):
     assert scan_runner._last_fetch_health() is None  # malformed
     (tmp_path / "cache_meta.json").write_text("null", encoding="utf-8")
     assert scan_runner._last_fetch_health() is None  # valid JSON, not an object
+
+
+def test_manual_scan_stream_disconnect_marks_run_failed(monkeypatch):
+    calls = {"finished": None, "terminated": False}
+
+    class FakeStdout:
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return "scan line\n"
+
+        def close(self):
+            pass
+
+    class FakeProcess:
+        stdout = FakeStdout()
+        returncode = None
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            calls["terminated"] = True
+            self.returncode = -15
+
+        def wait(self, timeout=None):
+            return self.returncode
+
+    import services.scan_status as scan_status_mod
+
+    monkeypatch.setattr(scan_runner, "_create_process", lambda: FakeProcess())
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger: 123)
+
+    def _finish(run_id, status, n_setups=None, error=None):
+        calls["finished"] = {
+            "run_id": run_id,
+            "status": status,
+            "n_setups": n_setups,
+            "error": error,
+        }
+
+    monkeypatch.setattr(scan_status_mod, "finish_run", _finish)
+
+    stream = scan_runner.stream_manual_scan()
+    try:
+        assert next(stream) == "data: scan line\n\n\n"
+    finally:
+        stream.close()
+
+    assert calls["terminated"] is True
+    assert calls["finished"] == {
+        "run_id": 123,
+        "status": "failed",
+        "n_setups": None,
+        "error": "manual scan stream disconnected",
+    }
+    assert not scan_runner.SCAN_LOCK.locked()
+
+
+def test_scan_status_marks_stale_running_rows_failed(tmp_path, monkeypatch):
+    import services.scan_status as scan_status_mod
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'scan_status.db'}")
+    with engine.begin() as conn:
+        conn.execute(text(
+            """
+            CREATE TABLE scan_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                started_at VARCHAR NOT NULL,
+                finished_at VARCHAR,
+                status VARCHAR NOT NULL,
+                n_setups INTEGER,
+                error TEXT,
+                trigger VARCHAR NOT NULL
+            )
+            """
+        ))
+        old_started = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+        fresh_started = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        conn.execute(
+            text("INSERT INTO scan_runs (started_at, status, trigger) VALUES (:started_at, 'running', 'manual')"),
+            [{"started_at": old_started}, {"started_at": fresh_started}],
+        )
+
+    monkeypatch.setattr(scan_status_mod, "engine", engine)
+
+    scan_status_mod.mark_stale_running(max_age_minutes=120)
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT id, finished_at, status, error FROM scan_runs ORDER BY id")
+        ).mappings().all()
+
+    assert rows[0]["status"] == "failed"
+    assert rows[0]["finished_at"] is not None
+    assert rows[0]["error"] == "scan status expired before completion"
+    assert rows[1]["status"] == "running"
+    assert rows[1]["finished_at"] is None
 
 
 def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatch):

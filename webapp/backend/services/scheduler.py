@@ -2,14 +2,22 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
+from core.pipeline.market_calendar import is_trading_session
 from services.core_settings import load_core_settings
 from services.scan_runner import run_scheduled_scan_and_forward_returns
 from services.scan_watchdog import run_scan_health_watchdog
+from services.trade_alerts import (
+    record_trade_alert_error,
+    record_trade_alert_skip,
+    run_trade_alert_sweep,
+)
 
 log = logging.getLogger("chrollo.scheduler")
 _scheduler: BackgroundScheduler | None = None
@@ -51,9 +59,22 @@ def start_scheduler() -> None:
         max_instances=1,
         coalesce=True,
     )
+    trade_alerts_enabled = bool(getattr(settings, "TRADE_ALERTS_ENABLED", False))
+    if trade_alerts_enabled:
+        poll_minutes = max(1, int(getattr(settings, "TRADE_ALERT_POLL_MINUTES", 5) or 5))
+        scheduler.add_job(
+            run_trade_alert_sweep_if_due,
+            IntervalTrigger(minutes=poll_minutes, timezone=tz),
+            id="trade-alert-sweep",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.start()
     _scheduler = scheduler
     log.info("scheduled scan enabled for %02d:%02d America/New_York (+ morning health watchdog)", hour, minute)
+    if trade_alerts_enabled:
+        log.info("trade alert sweep enabled every %d minute(s) during regular market hours", poll_minutes)
 
 
 def stop_scheduler() -> None:
@@ -64,3 +85,36 @@ def stop_scheduler() -> None:
         _scheduler.shutdown(wait=False)
     _scheduler = None
     log.info("scheduled scan stopped")
+
+
+def run_trade_alert_sweep_if_due() -> None:
+    settings = load_core_settings()
+    enabled = bool(getattr(settings, "TRADE_ALERTS_ENABLED", False))
+    if not enabled:
+        record_trade_alert_skip("disabled", enabled=False, market_window=False)
+        return
+    market_window = _is_trade_alert_window()
+    if not market_window:
+        record_trade_alert_skip("outside_market_hours", enabled=True, market_window=False)
+        return
+    try:
+        sent = run_trade_alert_sweep()
+        if sent:
+            log.info("trade alert sweep sent %d alert(s)", sent)
+    except Exception as exc:
+        record_trade_alert_error(exc, enabled=True, market_window=True)
+        log.exception("trade alert sweep failed")
+
+
+def _is_trade_alert_window(now_et: datetime | None = None) -> bool:
+    tz = ZoneInfo("America/New_York")
+    now_et = now_et or datetime.now(tz)
+    if now_et.tzinfo is None:
+        now_et = now_et.replace(tzinfo=tz)
+    else:
+        now_et = now_et.astimezone(tz)
+
+    if not is_trading_session(now_et.date()):
+        return False
+    minutes = now_et.hour * 60 + now_et.minute
+    return 9 * 60 + 30 <= minutes < 16 * 60

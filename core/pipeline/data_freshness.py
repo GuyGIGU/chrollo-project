@@ -38,11 +38,17 @@ def _row_labels_for_date(data: pd.DataFrame, day: pd.Timestamp) -> pd.Index:
 
 
 def _has_symbol_close(data: pd.DataFrame, symbol: str, row_label) -> bool:
-    try:
-        value = data.loc[row_label, (symbol, 'Close')]
-    except KeyError:
+    close_columns = [
+        column
+        for column in data.columns
+        if isinstance(column, tuple) and len(column) > 1 and column[0] == symbol and column[1] == 'Close'
+    ]
+    if not close_columns:
         return False
 
+    value = data.loc[row_label, data.columns.isin(close_columns)]
+    if isinstance(value, pd.DataFrame):
+        return bool(value.notna().to_numpy().any())
     if isinstance(value, pd.Series):
         return bool(value.notna().any())
     return not pd.isna(value)

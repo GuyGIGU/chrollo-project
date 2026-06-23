@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
+from services.db_write import commit_or_http
 
 router = APIRouter(prefix="", tags=["journal"])
 
@@ -106,7 +107,7 @@ def set_plan(trade_id: int, payload: PlanPayload, db: Session = Depends(get_db))
         db.add(plan)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(plan, key, value)
-    db.commit()
+    commit_or_http(db, conflict_detail="Plan already exists for this trade")
     db.refresh(plan)
     return _plan_dict(trade_id, plan)
 
@@ -149,7 +150,7 @@ def set_note(trade_id: int, payload: NotePayload, db: Session = Depends(get_db))
         note.updated_at = now
     note.body = payload.body
     note.mood = payload.mood
-    db.commit()
+    commit_or_http(db, conflict_detail="Note already exists for this trade")
     db.refresh(note)
     return _note_dict(trade_id, note)
 
@@ -253,7 +254,7 @@ async def upload_attachment(
         uploaded_at=datetime.utcnow(),
     )
     db.add(att)
-    db.commit()
+    commit_or_http(db)
     db.refresh(att)
     return _attachment_dict(att, request)
 
@@ -294,7 +295,7 @@ def delete_attachment(attachment_id: int, db: Session = Depends(get_db)):
     except OSError:
         pass
     db.delete(a)
-    db.commit()
+    commit_or_http(db)
     return {"status": "deleted"}
 
 

@@ -24,6 +24,7 @@ from core.archive.forward_returns import (
 )
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from core.pipeline.cache import _atomic_write_parquet, _write_meta
+from core.pipeline.data_freshness import close_coverage_on
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
@@ -99,6 +100,27 @@ def test_cache_writer_optimizes_market_panel_roundtrip(tmp_path):
     assert out[("AAA", "Volume")].dtype == "Int64"
     assert abs(float(out[("AAA", "Close")].iloc[0]) - 10.2) < 1e-5
     assert pd.isna(out[("AAA", "Volume")].iloc[1])
+
+
+def test_cache_writer_dedupes_market_panel_labels(tmp_path):
+    idx = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, 11.0], "Volume": [1000, 1100]}, index=idx),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1100]}, index=idx),
+        },
+        axis=1,
+    )
+    panel = pd.concat([panel, panel[[("AAA", "Close")]]], axis=1)
+    panel = pd.concat([panel, panel.loc[[idx[-1]]]], axis=0)
+
+    path = tmp_path / "market_cache.parquet"
+    _atomic_write_parquet(panel, str(path))
+    out = pd.read_parquet(path)
+
+    assert not out.columns.duplicated().any()
+    assert not out.index.duplicated().any()
+    assert out.loc[idx[-1], ("AAA", "Close")] == pytest.approx(11.0)
 
 
 def test_json_safe_handles_scan_payload_scalars():
@@ -330,6 +352,65 @@ def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monke
     assert set(out.columns.get_level_values(0)) == {"AAA", "SPY", "QQQ"}
 
 
+def test_trim_to_completed_session_drops_forming_bar_by_default(monkeypatch):
+    dates = pd.to_datetime(["2026-06-18", "2026-06-19"])
+    panel = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [10.0, 11.0], "Volume": [1000, 1000]}, index=dates)},
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module.settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", True)
+
+    out = downloads_module._trim_to_completed_session(panel, pd.Timestamp("2026-06-18"))
+
+    assert list(out.index) == [dates[0]]
+
+
+def test_trim_to_completed_session_can_be_disabled(monkeypatch):
+    dates = pd.to_datetime(["2026-06-18", "2026-06-19"])
+    panel = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [10.0, 11.0], "Volume": [1000, 1000]}, index=dates)},
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module.settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", False)
+
+    out = downloads_module._trim_to_completed_session(panel, pd.Timestamp("2026-06-18"))
+
+    assert list(out.index) == list(dates)
+
+
+def test_fetch_data_trims_forming_bar_before_cache_write(tmp_path, monkeypatch):
+    cache_file = tmp_path / "market_cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    completed = pd.Timestamp("2026-06-18")
+    forming = pd.Timestamp("2026-06-19")
+    dates = pd.DatetimeIndex([completed, forming])
+    full_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, 11.0], "Volume": [1000, 1000]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1000]}, index=dates),
+            "QQQ": pd.DataFrame({"Close": [120.0, 121.0], "Volume": [1000, 1000]}, index=dates),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "_cache_paths", lambda: (str(cache_file), str(meta_file)))
+    monkeypatch.setattr(downloads_module, "_is_market_hours", lambda: True)
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: completed)
+    monkeypatch.setattr(downloads_module.settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", True)
+    monkeypatch.setattr(downloads_module, "_full_refetch", lambda _symbols: full_panel)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+
+    out = downloads_module.fetch_data(["AAA"])
+    saved = pd.read_parquet(cache_file, engine=downloads_module.settings.PARQUET_ENGINE)
+
+    assert out.index.max() == completed
+    assert saved.index.max() == completed
+    assert forming not in out.index
+    assert forming not in saved.index
+
+
 def test_expected_session_date_skips_juneteenth_market_holiday():
     now = datetime(2026, 6, 20, 12, 0, tzinfo=ZoneInfo("America/New_York"))
 
@@ -490,6 +571,72 @@ def test_patch_market_data_tolerates_duplicate_base_columns():
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
 
 
+def test_patch_market_data_tolerates_duplicate_base_index():
+    # Regression: latest-session repair can also encounter duplicate date
+    # labels. Pandas then raises "cannot reindex on an axis with duplicate
+    # labels" during Series alignment unless the index is normalized first.
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    base = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, None], "Volume": [1000, None]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [1000, 1100]}, index=dates),
+        },
+        axis=1,
+    )
+    base = pd.concat([base, base.loc[[dates[-1]]]], axis=0)
+    assert base.index.duplicated().any()
+
+    patch = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]])},
+        axis=1,
+    )
+
+    out = downloads_module._patch_market_data(base, patch)
+
+    assert not out.index.duplicated().any()
+    assert out.loc[dates[0], ("AAA", "Close")] == 10.0
+    assert out.loc[dates[-1], ("AAA", "Close")] == 11.0
+    assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+
+
+def test_close_coverage_tolerates_duplicate_close_columns():
+    day = pd.Timestamp("2026-06-18")
+    panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[day]),
+            "SPY": pd.DataFrame({"Close": [101.0], "Volume": [1100]}, index=[day]),
+        },
+        axis=1,
+    )
+    panel = pd.concat([panel, panel[[("AAA", "Close")]]], axis=1)
+
+    coverage = close_coverage_on(panel, ["AAA", "SPY"], day)
+
+    assert coverage.present == 2
+    assert coverage.total == 2
+
+
+def test_split_probe_tolerates_duplicate_panel_labels(monkeypatch):
+    dates = pd.date_range("2026-06-15", periods=3, freq="B")
+    cached = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [10.0, 10.5, 11.0]}, index=dates)},
+        axis=1,
+    )
+    fresh = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [10.0, 10.5, 11.0]}, index=dates)},
+        axis=1,
+    )
+    cached = pd.concat([cached, cached[[("AAA", "Close")]]], axis=1)
+    fresh = pd.concat([fresh, fresh.loc[[dates[-1]]]], axis=0)
+    monkeypatch.setattr(downloads_module.settings, "SPLIT_PROBE_SAMPLE_SIZE", 1)
+    monkeypatch.setattr(downloads_module.settings, "SPLIT_PROBE_REFERENCE_SYMBOL", "SPY")
+
+    force_full, drifted = downloads_module._detect_splits(cached, fresh, ["AAA"])
+
+    assert force_full is False
+    assert drifted == []
+
+
 def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
     day = pd.Timestamp("2026-06-18")
     panel = pd.concat(
@@ -507,6 +654,24 @@ def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
 
     with pytest.raises(scan_job_module.StaleMarketDataError, match="latest-session close coverage 3/4"):
         scan_job_module._assert_fresh_for_archive(panel, ["AAA", "BBB"])
+
+
+def test_archive_freshness_rejects_forming_bar_when_trim_enabled(monkeypatch):
+    dates = pd.to_datetime(["2026-06-18", "2026-06-19"])
+    panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0, 12.0], "Volume": [1100, 1200]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [101.0, 102.0], "Volume": [1100, 1200]}, index=dates),
+            "QQQ": pd.DataFrame({"Close": [121.0, 122.0], "Volume": [1100, 1200]}, index=dates),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: "2026-06-18")
+    monkeypatch.setattr(scan_job_module.settings, "TRIM_MARKET_DATA_TO_COMPLETED_SESSION", True)
+
+    with pytest.raises(scan_job_module.StaleMarketDataError, match="immature market data"):
+        scan_job_module._assert_fresh_for_archive(panel, ["AAA"])
 
 
 def test_parse_n_setups_reads_json_before_stale_traceback():
@@ -532,6 +697,20 @@ def test_scan_tail_error_prefers_stale_market_data_line():
     assert _tail_error(output) == (
         "Aborting archive write: stale market data: last bar 2026-06-17, expected >= 2026-06-18"
     )
+
+
+def test_scan_tail_error_keeps_traceback_header():
+    output = "\n".join([
+        "Downloading...",
+        "Traceback (most recent call last):",
+        "  File \"core/pipeline/downloads.py\", line 333, in _patch_market_data",
+        "ValueError: cannot reindex on an axis with duplicate labels",
+    ])
+
+    error = _tail_error(output)
+
+    assert error.startswith("Traceback (most recent call last):")
+    assert "cannot reindex on an axis with duplicate labels" in error
 
 
 def test_live_prices_ignores_option_contract_symbol(monkeypatch):

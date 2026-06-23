@@ -1,11 +1,13 @@
 """Small persistence helpers for scan run status."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
 
 from database import engine
+
+STALE_RUNNING_MINUTES = 120
 
 
 def _now_iso() -> str:
@@ -13,6 +15,7 @@ def _now_iso() -> str:
 
 
 def start_run(trigger: str) -> int:
+    mark_stale_running()
     with engine.begin() as conn:
         result = conn.execute(
             text(
@@ -53,7 +56,31 @@ def finish_run(run_id: int, status: str, n_setups: int | None = None, error: str
         )
 
 
+def mark_stale_running(max_age_minutes: int = STALE_RUNNING_MINUTES) -> None:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE scan_runs
+                SET finished_at = :finished_at,
+                    status = :status,
+                    error = :error
+                WHERE status = 'running'
+                  AND started_at < :cutoff
+                """
+            ),
+            {
+                "finished_at": _now_iso(),
+                "status": "failed",
+                "error": "scan status expired before completion",
+                "cutoff": cutoff.isoformat(),
+            },
+        )
+
+
 def latest_run() -> dict | None:
+    mark_stale_running()
     with engine.connect() as conn:
         row = conn.execute(
             text(
@@ -70,6 +97,7 @@ def latest_run() -> dict | None:
 
 def recent_runs(limit: int = 20) -> list[dict]:
     """Most recent scan runs, newest first (for the in-app scan-history view)."""
+    mark_stale_running()
     limit = max(1, min(int(limit), 100))
     with engine.connect() as conn:
         rows = conn.execute(

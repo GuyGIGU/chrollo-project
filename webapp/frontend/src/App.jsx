@@ -76,9 +76,11 @@ function App() {
       if (!res.ok) {
         alert(`Import failed: ${body.detail || res.statusText}`);
       } else {
+        const failed = Number(body.trade_logs_failed || 0);
         alert(
           `Imported ${body.imported} new fills (${body.skipped} duplicates skipped).\n` +
-          `Trade logs rebuilt for ${body.trade_logs_rebuilt} symbols.`,
+          `Trade logs rebuilt for ${body.trade_logs_rebuilt} symbols.` +
+          (failed ? `\nWarning: ${failed} symbols need attention.` : ''),
         );
         fetchDashboardData();
       }
