@@ -344,7 +344,10 @@ def _market_context_impl(scan_date: str) -> dict:
     result = {"spy_trend": None, "vix_level": None}
     try:
         end = pd.Timestamp(scan_date) + pd.Timedelta(days=5)
-        start = pd.Timestamp(scan_date) - pd.Timedelta(days=250)
+        # SMA-200 below needs >=200 trading bars; 250 calendar days is only
+        # ~172 trading days, so the rolling(200) was all-NaN and spy_trend
+        # silently stayed None. 400 calendar days (~275 trading bars) clears it.
+        start = pd.Timestamp(scan_date) - pd.Timedelta(days=400)
 
         spy = yf.download("SPY", start=start.strftime("%Y-%m-%d"),
                           end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
