@@ -135,6 +135,21 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # / spread / zone / window-box-range gates + the graded quality still filter.
 LPS_MIN_DESCENT_FRAC = 0.0
 LPS_MIN_HIGH_DESCENT_FRAC = 0.0
+# Operator definition of the LPS swing: measured from the HIGH of the first bar
+# to the LOW of the last bar — a "peak that goes down". When enabled, the window
+# must START at its peak (first-bar High == window High, within tolerance) AND
+# END at its trough (last-bar Low == window Low, within tolerance). This rejects
+# the "up-swing LPS": a window that climbs into a LATER peak (peak_not_first) or
+# dips to an interior low then RISES into the last bars (trough_not_last — the
+# rising_support_shelf shape). Tolerance is a fraction of box height so bar noise
+# and RMAX/PLXS-class (last Low ~0.02 box above the min) stay valid. Rejection at
+# the candidate level lets the selector re-anchor to a clean peak->trough window
+# if one exists, else the setup drops ("re-anchor, else drop").
+# NOTE: this intersects the deliberate "ascending support = good VCP pivot"
+# decision below (descent floor 0) that recovered KEYS/MSGS/EWTX/NBR/PKE — so it
+# ships default-OFF and is gated on a seed-recall measurement before any flip.
+LPS_REQUIRE_PEAK_DOWN = False
+LPS_PEAK_DOWN_TOL_BOX = 0.10
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75

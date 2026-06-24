@@ -232,6 +232,73 @@ def test_find_lps_returns_none_when_detector_rejects(monkeypatch):
     assert find_lps(df, box, 2.0) is None
 
 
+def _lps_frame_with_window(window):
+    """Build an LPS-shaped frame whose final window is the given (H, L, C) bars."""
+    rows = []
+    for _ in range(26):
+        rows.append({
+            "Open": 105.0, "High": 110.0, "Low": 100.0, "Close": 105.0,
+            "Spread": 10.0, "Volume": 1000.0, "Vol_50": 1000.0,
+        })
+    for high, low, close in window:
+        rows.append({
+            "Open": close, "High": high, "Low": low, "Close": close,
+            "Spread": high - low, "Volume": 500.0, "Vol_50": 1000.0,
+        })
+    return pd.DataFrame(rows)
+
+
+def test_find_lps_peak_down_gate_on_rejects_trough_not_last(monkeypatch):
+    """Flag ON rejects a window that ends on an up-move (operator definition:
+    LPS = first-bar High -> last-bar Low must be a peak that goes down)."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
+    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
+    df = _lps_frame_with_window([
+        (108.0, 106.5, 107.0),
+        (107.0, 104.5, 105.5),
+        (106.0, 103.5, 104.0),
+        (105.5, 105.0, 105.2),  # last_low far above window_low
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is None
+
+
+def test_find_lps_peak_down_gate_on_rejects_peak_not_first(monkeypatch):
+    """Flag ON rejects a window whose peak is NOT the first bar (price climbs
+    into a later high before pulling back — the GSL/MTX/TRIN/PRA shape)."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
+    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
+    df = _lps_frame_with_window([
+        (107.0, 106.0, 106.5),
+        (109.0, 105.0, 106.0),  # window_high in the MIDDLE, not the first bar
+        (106.0, 103.5, 104.0),
+        (105.0, 102.5, 104.0),
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is None
+
+
+def test_find_lps_peak_down_gate_on_still_accepts_clean_peak_to_trough(monkeypatch):
+    """Flag ON does NOT touch a clean peak-to-trough LPS (the user-good cases
+    GTX/RMAX/SMG/RRR/PLXS/MTRX shape)."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
+    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
+    df = _lps_frame_with_window([
+        (108.0, 106.5, 107.0),  # first bar IS the peak
+        (107.0, 105.0, 105.5),
+        (106.0, 103.5, 104.0),
+        (105.0, 102.5, 104.0),  # last bar IS the trough
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is not None
+
+
 def test_resolve_phase_a_prefers_local_bridge_into_box_start():
     df = _piecewise_frame([
         (0, 50.0),
