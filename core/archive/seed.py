@@ -316,6 +316,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
             excess_return_6m, dist_52w_high_pct,
             None,  # breadth_pct unknown for historical seed dates
             contraction['quality'], support['quality'], adr_quality,
+            adr_value=adr_value,
             **score_traversal_args(traversal, equilibrium, bins),
         )
         score = score_result["total"]

@@ -276,6 +276,15 @@ SCORE_VOL_CONTRACTION = 20      # Volume dry-up (was 10)
 SCORE_LPS_TIGHTNESS = 20        # Final candle tightness (was 35)
 SCORE_BOX_TIGHTNESS = 22        # Tightness now bites (was 15) — separates a tight coil from a wide-but-clean range
 SCORE_ATR_SQUEEZE = 8           # Volatility contraction (was 10)
+# ADR-relative box tightness (measure-first, default-off). The absolute-% tightness grade
+# above rewards flat low-ADR drifts as "coils" — corr(box_tightness, ADR) = -0.73 on the
+# 2026-06-25 universe (GBTG @ 0.52% ADR earned the book's highest tightness for a 1.3% box
+# that is ~2.5 ADR wide). When enabled, tightness is measured in ADR units: a box wider than
+# MAX_BOX_WIDTH_ADR daily-ranges earns zero tightness, matching how a VCP / the eye reads
+# contraction relative to the stock's OWN volatility. Absolute MAX_BOX_WIDTH stays the
+# validity GATE (which setups fire is unchanged) — this only re-bases the SCORE component.
+TIGHTNESS_ADR_AWARE = False
+MAX_BOX_WIDTH_ADR = 4.5         # (R-S)/S expressed in ADRs; >= this earns zero tightness credit
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

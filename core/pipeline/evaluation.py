@@ -359,6 +359,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
             excess_return_6m, dist_52w_high_pct, breadth_pct,
             contraction['quality'], support['quality'], adr_quality,
+            adr_value=adr_value,
             **score_traversal_args(traversal, equilibrium, bins),
         )
         score = score_result['total']

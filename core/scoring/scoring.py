@@ -47,6 +47,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 contraction_quality: float = 0.0,
                 support_quality: float = 0.0,
                 adr_quality: float = 0.0,
+                adr_value: float = 0.0,
                 traversal_density: float = 0.0,
                 max_swing_frac: float = 1.0,
                 dwell_asymmetry: float = 0.0,
@@ -68,8 +69,19 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     """
     touches = r_touches + s_touches
 
-    # Box tightness — flat linear scale, removing exponential penalty for wider boxes
-    box_tightness_ratio = (settings.MAX_BOX_WIDTH - box_width) / settings.MAX_BOX_WIDTH
+    # Box tightness — flat linear scale, removing exponential penalty for wider boxes.
+    # When TIGHTNESS_ADR_AWARE, the width is measured in ADR units rather than absolute %:
+    # a genuine VCP coil is tight vs the stock's OWN daily range, whereas the absolute grade
+    # rewards flat low-ADR drifts as "coils" (corr(box_tightness, ADR) = -0.73). box_width is
+    # (R-S)/S, so *100 -> %, /adr_value -> ADR-widths. A box wider than MAX_BOX_WIDTH_ADR ADRs
+    # earns no tightness (the _clamp floors the negative ratio at 0). The absolute MAX_BOX_WIDTH
+    # validity gate upstream is unchanged — this only re-bases the SCORE.
+    if settings.TIGHTNESS_ADR_AWARE and adr_value and adr_value > 0:
+        box_width_adr = (box_width * 100.0) / adr_value
+        box_tightness_ratio = ((settings.MAX_BOX_WIDTH_ADR - box_width_adr)
+                               / settings.MAX_BOX_WIDTH_ADR)
+    else:
+        box_tightness_ratio = (settings.MAX_BOX_WIDTH - box_width) / settings.MAX_BOX_WIDTH
     s_box = _clamp(box_tightness_ratio * settings.SCORE_BOX_TIGHTNESS,
                     settings.SCORE_BOX_TIGHTNESS)
 

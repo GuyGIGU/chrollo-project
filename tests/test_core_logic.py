@@ -2664,6 +2664,38 @@ def test_base_age_dead_space_dock_spares_tight_boxes():
     assert clean_wide["base_age"] == tight["base_age"]    # density past full-credit -> no dock
 
 
+def test_adr_relative_box_tightness_demotes_flat_low_adr_drift(monkeypatch):
+    """With TIGHTNESS_ADR_AWARE on, box tightness is measured in ADR units: the SAME
+    absolute box width is a tight coil on a real mover but a wide drift on a flat
+    low-ADR name (the GBTG case). With the flag off, ADR is ignored and both score
+    the identical absolute tightness (the shadow-preserving default)."""
+    from core.scoring.scoring import score_setup
+
+    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
+                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
+    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+                  atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
+                  base_len=40, yearly_return=0.0, traversal_density=0.3)
+    # Same 4% absolute box: the mover (5% ADR) is 0.8 ADR wide; the flat drift
+    # (0.5% ADR) is 8 ADR wide -> past the 4.5-ADR ceiling.
+    mover = dict(box_width=0.04, adr_value=5.0)
+    flat = dict(box_width=0.04, adr_value=0.5)
+
+    # Flag OFF: ADR ignored -> identical absolute tightness (byte-preserving default).
+    monkeypatch.setattr(settings, "TIGHTNESS_ADR_AWARE", False, raising=False)
+    assert (score_setup(**common, **mover)["box_tightness"]
+            == score_setup(**common, **flat)["box_tightness"])
+
+    # Flag ON: the flat low-ADR drift collapses to zero; the mover keeps strong tightness.
+    monkeypatch.setattr(settings, "TIGHTNESS_ADR_AWARE", True, raising=False)
+    monkeypatch.setattr(settings, "MAX_BOX_WIDTH_ADR", 4.5, raising=False)
+    on_mover = score_setup(**common, **mover)["box_tightness"]
+    on_flat = score_setup(**common, **flat)["box_tightness"]
+    assert on_mover > 15.0      # 0.8 ADR wide -> near the 22-pt cap
+    assert on_flat == 0.0       # 8 ADR wide (> 4.5) -> zero tightness credit
+    assert on_mover > on_flat
+
+
 def test_traversal_overshoot_exempt_for_tight_box_and_spring():
     """The max_swing_frac overshoot penalty must not fire on a tight box (overshoot
     is inevitable when the box is tiny, e.g. PRA) or a confirmed spring (the undercut
