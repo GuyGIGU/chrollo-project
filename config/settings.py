@@ -27,6 +27,17 @@ PIVOT_ORDER_SHORT = 1            # Used when equity window < 40 bars
 PIVOT_ORDER_LONG = 2             # Used when equity window >= 40 bars
 PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
 
+# PIP (Perceptually Important Points) swing skeleton — Phase-2 measure-first wire
+# (see core/structure/pip.py, docs/segmentation_research.md). When enabled,
+# segment_swings sources its zigzag from the multi-resolution PIP substrate
+# instead of fixed-order pivots. segment_swings feeds ONLY the Phase-A OVERLAY
+# (resolve_phase_a) in the live path — never R/S/score/tier — so this is
+# shadow-canonical-safe (flag-ON shadow stays byte-identical). Default OFF until
+# the eyeball + seed-recall gate clears. dist_min = fraction of the window price
+# range that counts as a salient turn (scale-free, adapts across lookbacks).
+PIP_PIVOTS_ENABLED = False
+PIP_PIVOTS_DIST_MIN = 0.03
+
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)

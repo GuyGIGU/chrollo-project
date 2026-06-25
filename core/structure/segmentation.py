@@ -138,15 +138,25 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         return _empty()
     n = len(highs)
 
-    if order is None:
-        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
-                 else settings.PIVOT_ORDER_SHORT)
-
-    peaks, valleys = _find_pivots(highs, lows, order)
-    if not peaks or not valleys:
-        return _empty()
-
-    zigzag = _build_zigzag(peaks, valleys, highs, lows)
+    if settings.PIP_PIVOTS_ENABLED:
+        # Phase-2 (measure-first): source the swing skeleton from the
+        # multi-resolution PIP substrate (core.structure.pip) instead of
+        # fixed-order pivots. Same (bar, kind, price) shape, so the swing /
+        # efficiency / root logic below is untouched. In the live path
+        # segment_swings feeds only resolve_phase_a (the Phase-A OVERLAY), never
+        # R/S/score/tier — so this can shift the drawn climax->AR but cannot
+        # drift a shadow-canonical field. dist_min is a scale-free fraction of
+        # the window price range, so it adapts across lookback lengths.
+        from core.structure.pip import pip_pivots
+        zigzag = pip_pivots(highs, lows, dist_min=settings.PIP_PIVOTS_DIST_MIN)
+    else:
+        if order is None:
+            order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
+                     else settings.PIVOT_ORDER_SHORT)
+        peaks, valleys = _find_pivots(highs, lows, order)
+        if not peaks or not valleys:
+            return _empty()
+        zigzag = _build_zigzag(peaks, valleys, highs, lows)
     if len(zigzag) < 2:
         return _empty()
 
