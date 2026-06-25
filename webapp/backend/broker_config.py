@@ -49,7 +49,6 @@ class Settings:
     ibkr_mode: Mode
     ibkr_client: Client
     ibkr_auto_connect: bool
-    ibkr_live_confirmed: bool
     # Was the port set explicitly via IBKR_PORT env? If so, set_mode()/set_client()
     # preserve it; otherwise we swap to the mode/client default port when either changes.
     ibkr_port_is_explicit: bool = False
@@ -72,7 +71,6 @@ class Settings:
             ibkr_mode=mode,
             ibkr_client=client,
             ibkr_auto_connect=_env_bool("IBKR_AUTO_CONNECT", False),
-            ibkr_live_confirmed=_env_bool("IBKR_LIVE_CONFIRMED", False),
             ibkr_port_is_explicit=bool(port_env),
         )
 

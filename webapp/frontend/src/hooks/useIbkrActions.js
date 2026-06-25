@@ -81,13 +81,22 @@ function useIbkrActions(ibkrStatus) {
 
   const toggleIbkrClient = async () => {
     if (switchingClient) return;
+    const next = isGateway ? 'tws' : 'gateway';
+    let confirmed = false;
+    if (isLive) {
+      const nextIsGateway = next === 'gateway';
+      if (!confirmLiveClientSwitch(nextIsGateway)) {
+        return;
+      }
+      confirmed = true;
+    }
+
     setSwitchingClient(true);
     try {
-      const next = isGateway ? 'tws' : 'gateway';
       const res = await fetch(`${API_BASE}/ibkr/client`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client: next }),
+        body: JSON.stringify({ client: next, confirm: confirmed }),
       });
       if (!res.ok) {
         alert(`Client switch failed: ${await res.text()}`);
@@ -127,6 +136,14 @@ function confirmLiveMode(isGateway) {
     'Switch to LIVE trading mode?\n\n' +
     `This connects to your real-money IBKR account on port ${livePort}. ` +
     `Make sure ${livePeer} is logged into the live account.`,
+  );
+}
+
+function confirmLiveClientSwitch(isGateway) {
+  const { port: livePort, peer: livePeer } = liveTarget(isGateway);
+  return window.confirm(
+    `Switch Chrollo's LIVE IBKR connection to ${livePeer} on port ${livePort}?\n\n` +
+    `This hands your single IBKR API session to Chrollo until you disconnect.`,
   );
 }
 

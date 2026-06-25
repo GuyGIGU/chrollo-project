@@ -20,6 +20,7 @@ class ModePayload(BaseModel):
 
 class ClientPayload(BaseModel):
     client: str
+    confirm: bool = False
 
 
 class ReconnectPayload(BaseModel):
@@ -68,12 +69,14 @@ def set_ibkr_client(payload: ClientPayload):
     client = payload.client.strip().lower()
     if client not in ("tws", "gateway"):
         raise HTTPException(status_code=400, detail="client must be 'tws' or 'gateway'")
+    if broker_config.is_live_mode() and not payload.confirm:
+        raise HTTPException(status_code=400, detail="switching live IBKR client requires confirm=true")
 
     svc = get_ibkr_service()
     _stop_service(svc, "client switch")
     broker_config.set_client(client)
     svc.apply_settings()
-    _start_service(svc, "client switch")
+    _start_service(svc, "client switch", confirmed=payload.confirm)
     return _connection_response(svc)
 
 

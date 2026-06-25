@@ -184,7 +184,10 @@ def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> 
         if hasattr(frames[j].index, 'tz') and frames[j].index.tz is not None:
             frames[j].index = frames[j].index.tz_localize(None)
 
-    return pd.concat(frames, axis=1)
+    data = pd.concat(frames, axis=1)
+    if isinstance(data.columns, pd.MultiIndex):
+        data = data.loc[:, ~data.columns.duplicated(keep='last')]
+    return data
 
 
 def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,

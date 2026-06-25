@@ -21,6 +21,9 @@ const PositionCalculator = () => {
     }
     return { shares: 0, stopSize: 0, positionSize: 0 };
   }, [riskAmount, entryPrice, stopPrice]);
+  const sharesText = fixed(results.shares);
+  const stopSizeText = fixed(results.stopSize);
+  const positionSizeText = money(results.positionSize);
 
   return (
     <div className="glass-panel">
@@ -71,20 +74,30 @@ const PositionCalculator = () => {
         <div style={{display: "flex", justifyContent: "space-between", marginBottom: "0.75rem"}}>
           <span className="text-muted" style={{fontWeight: '600'}}>SHARES TO BUY</span>
           <span style={{fontWeight: "700", fontSize: "1.2rem", color: "var(--accent-blue)"}}>
-            {results.shares.toFixed(2)}
+            {sharesText}
           </span>
         </div>
         <div style={{display: "flex", justifyContent: "space-between", marginBottom: "0.75rem"}}>
           <span className="text-muted" style={{fontWeight: '600'}}>STOP SIZE</span>
-          <span style={{fontWeight: '600', color: "var(--text-main)"}}>${results.stopSize.toFixed(2)}</span>
+          <span style={{fontWeight: '600', color: "var(--text-main)"}}>${stopSizeText}</span>
         </div>
         <div style={{display: "flex", justifyContent: "space-between"}}>
           <span className="text-muted" style={{fontWeight: '600'}}>TOTAL CAPITAL REQUIRED</span>
-          <span style={{fontWeight: "700"}}>${results.positionSize.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          <span style={{fontWeight: "700"}}>${positionSizeText}</span>
         </div>
       </div>
     </div>
   );
 };
+
+const fixed = (value, digits = 2) => (
+  value == null || !Number.isFinite(Number(value)) ? '0.00' : Number(value).toFixed(digits)
+);
+
+const money = (value) => (
+  value == null || !Number.isFinite(Number(value))
+    ? '0.00'
+    : Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+);
 
 export default PositionCalculator;

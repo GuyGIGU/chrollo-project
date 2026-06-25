@@ -1,4 +1,4 @@
-import { pct, signColor, tierColor } from '../../utils/archiveTabUtils';
+import { fixed, pct, signColor, tierColor } from '../../utils/archiveTabUtils';
 
 export default function ArchiveTierCards({ performance }) {
   if (!performance || Object.keys(performance).length === 0) return null;
@@ -25,8 +25,8 @@ function TierCard({ data, tier }) {
         <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{data.count} setups</span>
       </div>
       <div style={{ display: 'grid', fontSize: '12px', gap: '8px', gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <Metric label="Expectancy" value={data.expectancy_r != null ? `${data.expectancy_r.toFixed(2)}R` : '-'} color={signColor(data.expectancy_r)} sub={`n=${data.r_sample_size || 0}`} />
-        <Metric label="Avg R 20d" value={data.avg_r_multiple_20d != null ? `${data.avg_r_multiple_20d.toFixed(2)}R` : '-'} color={signColor(data.avg_r_multiple_20d)} />
+        <Metric label="Expectancy" value={rValue(data.expectancy_r)} color={signColor(data.expectancy_r)} sub={`n=${data.r_sample_size || 0}`} />
+        <Metric label="Avg R 20d" value={rValue(data.avg_r_multiple_20d)} color={signColor(data.avg_r_multiple_20d)} />
         <Metric label="Win Rate" value={pct(data.win_rate)} />
         <Metric label="20d Return" value={pct(data.avg_fwd_20d)} color={signColor(data.avg_fwd_20d)} />
         <Metric label="Trigger Rate" value={pct(data.trigger_rate)} />
@@ -47,3 +47,7 @@ function Metric({ color, label, sub, value }) {
 }
 
 // signColor imported from archiveTabUtils.
+const rValue = (value) => {
+  const formatted = fixed(value, 2);
+  return formatted === '-' ? '-' : `${formatted}R`;
+};

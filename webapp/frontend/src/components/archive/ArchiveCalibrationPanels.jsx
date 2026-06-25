@@ -1,4 +1,4 @@
-import { pct } from '../../utils/archiveTabUtils';
+import { fixed, pct } from '../../utils/archiveTabUtils';
 
 export default function ArchiveCalibrationPanels({ calibration }) {
   if (!calibration) return null;
@@ -82,9 +82,11 @@ function DualCorrelationBar({ label, value20, value60 }) {
 }
 
 function CorrelationBar({ value }) {
-  const abs = Math.abs(value || 0);
+  const numberValue = Number(value);
+  const hasValue = value != null && Number.isFinite(numberValue);
+  const abs = hasValue ? Math.abs(numberValue) : 0;
   const width = Math.min(abs * 250, 100);
-  const positive = (value || 0) >= 0;
+  const positive = hasValue && numberValue >= 0;
   return (
     <div style={{ alignItems: 'center', display: 'flex', flex: 1, gap: '6px' }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '3px', flex: 1, height: '12px', overflow: 'hidden' }}>
@@ -99,14 +101,14 @@ function CorrelationBar({ value }) {
         }} />
       </div>
       <div style={{
-        color: positive ? 'var(--success)' : 'var(--danger)',
+        color: hasValue ? (positive ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)',
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '10px',
         fontWeight: 600,
         textAlign: 'right',
         width: '42px',
       }}>
-        {value != null ? value.toFixed(3) : '-'}
+        {fixed(value, 3)}
       </div>
     </div>
   );

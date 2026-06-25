@@ -183,7 +183,8 @@ This matters for any human or agent touching the code:
 
 - **The app never executes trades, moves money, or places orders.** IBKR is used *only* for
   read-only portfolio snapshots; real trading happens in TWS / TradingView.
-- The unattended service runs **broker-free at boot**: it does **not** set `IBKR_LIVE_CONFIRMED` and
+- The app defaults to `IBKR_MODE=live` because Chrollo reads the real portfolio, but the unattended
+  service still runs **broker-free at boot**: it does **not** set `IBKR_LIVE_CONFIRMED` and
   runs with `IBKR_AUTO_CONNECT=false`, so a reboot or crash-restart never auto-grabs the IBKR session
   (which would fight TradingView for the single allowed login). Connecting is always a **deliberate
   human action**: the dashboard **Connect IBKR** button pops a real-money confirmation in live mode
@@ -191,12 +192,10 @@ This matters for any human or agent touching the code:
   again. That confirmation is per-click and **never persisted** — the next boot is broker-free.
   The link is **read-only** (portfolio snapshots only); keeping IB Gateway's *Read-Only API* enabled
   is recommended as a broker-level guarantee that Chrollo can never place an order.
-- `IBKR_LIVE_CONFIRMED=true` exists as a human-confirmation gate for connecting to a *live*
-  brokerage. Do **not** set it in code, scripts, service configs, or automation. The in-app
-  **Connect IBKR** button satisfies the same gate at runtime via a per-click `confirm=true` flag
-  (`/ibkr/reconnect`, `service.start(confirmed=…)`) — a deliberate human click, never the env var,
-  never persisted. The manual launcher (`start_dashboard.bat`) sets the env var as the human's own
-  choice and is out of scope for automation.
+- Do **not** use `IBKR_LIVE_CONFIRMED` in code, scripts, service configs, env files, or automation.
+  The in-app **Connect IBKR** button is the live gate: it sends a per-click `confirm=true` flag
+  (`/ibkr/reconnect`, `service.start(confirmed=...)`) after the user accepts the real-money prompt.
+  That confirmation is never persisted and cannot pre-authorize the next boot.
 
 ---
 

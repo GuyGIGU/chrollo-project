@@ -90,6 +90,33 @@ def test_batched_download_gates_each_ticker_and_disables_inner_threads(monkeypat
     assert len(seen) == 3            # throttle invoked once per single-ticker download
 
 
+def test_batched_download_dedupes_duplicate_ohlcv_columns(monkeypatch):
+    from core.pipeline import downloads
+
+    monkeypatch.setattr(rate_limit, "throttle", lambda n=1: None)
+
+    idx = pd.date_range("2024-01-01", periods=3)
+
+    def fake_download(batch, **kwargs):
+        ticker = batch[0]
+        columns = pd.MultiIndex.from_tuples(
+            [(ticker, field) for field in ("Open", "High", "Low", "Close", "Volume")]
+            + [(ticker, field) for field in ("Open", "High", "Low", "Close", "Volume")]
+        )
+        return pd.DataFrame(
+            [[1.0, 2.0, 0.5, 1.5, 100, 1.1, 2.1, 0.6, 1.6, 110]] * len(idx),
+            index=idx,
+            columns=columns,
+        )
+
+    monkeypatch.setattr(downloads.yf, "download", fake_download)
+
+    out = downloads._batched_download(["AAA"], {"period": "2y"}, "Test")
+
+    assert list(out["AAA"].columns) == ["Open", "High", "Low", "Close", "Volume"]
+    assert out["AAA"]["Close"].tolist() == [1.6, 1.6, 1.6]
+
+
 def test_archive_download_paths_use_shared_batched_downloader():
     root = Path(__file__).resolve().parents[1]
     for rel in (

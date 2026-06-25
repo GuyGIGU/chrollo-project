@@ -36,7 +36,10 @@ export const SOURCE_FILTERS = [
   ['screener', 'Screener', 'screener'],
 ];
 
-export const pct = (value) => (value != null ? `${(value * 100).toFixed(2)}%` : '-');
+export const pct = (value) => {
+  const n = Number(value);
+  return value == null || !Number.isFinite(n) ? '-' : `${(n * 100).toFixed(2)}%`;
+};
 
 export const fixed = (value, digits = 2) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : Number(value).toFixed(digits)

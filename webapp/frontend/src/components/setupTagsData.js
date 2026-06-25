@@ -83,7 +83,7 @@ const TAG_DEFS = [
         use: 'Prefer it when the final pullback is quiet and tight; still require demand to show up on the breakout.',
       });
       const vt = flags?.contractionVolTrend;
-      if (typeof vt !== 'number') return base;
+      if (typeof vt !== 'number' || !Number.isFinite(vt)) return base;
       const pts = `${(vt * 100).toFixed(0)}/100`;
       return base + (vt >= CONTRACTION_VOL_TREND_CONFIRM
         ? ` Volume context: dry-up confirms across the contractions (${pts}), with the final coil among the quietest areas.`

@@ -15,11 +15,14 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 from webapp.backend.routers.position_calculator import calculate_position
+from webapp.backend.routers import ibkr as ibkr_router
 from webapp.backend.routers import portfolio, portfolio_streams
 from webapp.backend.routers.archive_schemas import SetupOut
 from core.archive import forward_returns as archive_forward_returns
 from core.archive import writer as archive_writer
 import archive_models
+import broker_config
+from webapp.backend.ibkr import service as ibkr_service
 from webapp.backend.services.journal_stats import calculate_journal_stats
 from webapp.backend.services import portfolio_snapshot, screener_data, startup
 from webapp.backend.services import scan_runner
@@ -86,6 +89,50 @@ def test_portfolio_routes_are_registered_after_split():
     assert "/ibkr/import-csv" in rest_paths
     assert "/stream/portfolio" in stream_paths
     assert "/stream/executions" in stream_paths
+
+
+def test_broker_config_defaults_to_live_without_autoconnect(monkeypatch):
+    monkeypatch.delenv("IBKR_MODE", raising=False)
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+    monkeypatch.delenv("IBKR_AUTO_CONNECT", raising=False)
+
+    cfg = broker_config.Settings.from_env()
+
+    assert cfg.ibkr_mode == "live"
+    assert cfg.ibkr_client == "gateway"
+    assert cfg.ibkr_port == 4001
+    assert cfg.ibkr_auto_connect is False
+
+
+def test_broker_config_treats_unknown_mode_as_live_default(monkeypatch):
+    monkeypatch.setenv("IBKR_MODE", "typo")
+    monkeypatch.delenv("IBKR_PORT", raising=False)
+
+    cfg = broker_config.Settings.from_env()
+
+    assert cfg.ibkr_mode == "live"
+    assert cfg.ibkr_port == 4001
+
+
+def test_live_ibkr_start_requires_runtime_click(monkeypatch):
+    monkeypatch.setattr(ibkr_service, "_IB_AVAILABLE", True)
+    monkeypatch.setattr(ibkr_service.settings, "ibkr_mode", "live")
+
+    svc = ibkr_service.IBKRService()
+    svc.start(confirmed=False)
+
+    assert svc.snapshot()["last_error"] == "live start blocked: runtime confirmation required"
+    assert svc._thread is None
+
+
+def test_live_ibkr_client_switch_requires_runtime_click(monkeypatch):
+    monkeypatch.setattr(broker_config.settings, "ibkr_mode", "live")
+
+    with pytest.raises(HTTPException) as exc:
+        ibkr_router.set_ibkr_client(ibkr_router.ClientPayload(client="tws"))
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "switching live IBKR client requires confirm=true"
 
 
 def test_archive_writer_columns_are_modeled_and_migrated():

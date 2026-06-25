@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 import { API_BASE } from '../api';
 
+const fx = (value, digits = 2) => (
+  value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(digits)
+);
+
 export default function RMultipleHistogram() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,21 +16,36 @@ export default function RMultipleHistogram() {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>Loading R-multiple…</div>;
   if (!data || !data.series?.length) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>No eligible trades (need entry, stop, and closed P&L).</div>;
 
-  const chartData = data.series.map(b => ({
-    label: `${b.bin_start >= 0 ? '+' : ''}${b.bin_start.toFixed(1)}R`,
-    count: b.count,
-    mid: (b.bin_start + b.bin_end) / 2,
-  }));
+  const chartData = data.series
+    .map((bucket) => {
+      const start = Number(bucket.bin_start);
+      const end = Number(bucket.bin_end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+      return {
+        label: `${start >= 0 ? '+' : ''}${start.toFixed(1)}R`,
+        count: Number.isFinite(Number(bucket.count)) ? Number(bucket.count) : 0,
+        mid: (start + end) / 2,
+      };
+    })
+    .filter(Boolean);
+
+  if (!chartData.length) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>No eligible trades (need entry, stop, and closed P&L).</div>;
+
+  const avgR = Number(data.avg_r);
+  const avgColor = !Number.isFinite(avgR)
+    ? 'var(--text-muted)'
+    : avgR >= 0 ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', padding: '0 4px 6px' }}>
-        <span>Avg R: <strong style={{ color: data.avg_r >= 0 ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)' }}>{data.avg_r.toFixed(2)}R</strong></span>
+        <span>Avg R: <strong style={{ color: avgColor }}>{fx(data.avg_r, 2)}R</strong></span>
         <span>Total: {data.total}{data.skipped > 0 && <> • skipped {data.skipped}</>}</span>
       </div>
       <div style={{ width: '100%', height: 200, minWidth: 0, minHeight: 180 }}>

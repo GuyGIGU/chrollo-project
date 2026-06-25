@@ -6,7 +6,7 @@ Chrollo connects to Interactive Brokers over the TWS API (`ib_async`). Before st
 
 1. **File → Global Configuration → API → Settings**
 2. Check **"Enable ActiveX and Socket Clients"**
-3. Uncheck **"Read-Only API"** only if you later need order placement (Chrollo is read-only today)
+3. Keep **"Read-Only API"** checked. Chrollo is read-only and never places orders.
 4. **Socket port**:
    - Paper: **7497** (TWS) / **4002** (Gateway)
    - Live:  **7496** (TWS) / **4001** (Gateway)
@@ -19,14 +19,14 @@ Chrollo connects to Interactive Brokers over the TWS API (`ib_async`). Before st
 | Variable              | Default       | Notes                                          |
 |-----------------------|---------------|------------------------------------------------|
 | `IBKR_HOST`           | `127.0.0.1`   | TWS host                                       |
-| `IBKR_PORT`           | auto          | Defaults to 7497 (paper) or 7496 (live)        |
+| `IBKR_PORT`           | auto          | TWS: 7497/7496; Gateway: 4002/4001             |
 | `IBKR_CLIENT_ID`      | `137`         | Must be unique across connected clients        |
-| `IBKR_MODE`           | `paper`       | Set to `live` to switch ports + show LIVE UI   |
-| `IBKR_AUTO_CONNECT`   | `true`        | Set `false` to connect only via API action     |
+| `IBKR_MODE`           | `live`        | Set to `paper` only when using a paper account |
+| `IBKR_AUTO_CONNECT`   | `false`       | Keep broker-free at boot; connect from the UI  |
 | `ALPACA_KEY_ID`       | _(unset)_     | Alpaca Market Data API key. If set together with `ALPACA_SECRET_KEY`, the `/live-prices/` endpoint serves real-time IEX quotes via Alpaca's batch endpoint instead of polling yfinance one-symbol-at-a-time. Missing keys → silently falls back to yfinance. |
 | `ALPACA_SECRET_KEY`   | _(unset)_     | Alpaca Market Data API secret (paired with `ALPACA_KEY_ID`). Free signup at [alpaca.markets](https://alpaca.markets); the Market Data v2 endpoint is included on the free tier (real-time IEX, 200 req/min). |
 
-When `IBKR_MODE=live`, the sidebar shows a red **LIVE** badge. Default stays on paper — the backend refuses nothing on its own, so treat `live` as a deliberate opt-in.
+When `IBKR_MODE=live`, the sidebar shows a red **LIVE** badge. Default is live because Chrollo reads the real portfolio, but boot still stays broker-free: live connections require the dashboard's per-click confirmation before the backend starts IBKR.
 
 ## Running
 
@@ -50,15 +50,7 @@ To start from a fresh DB: delete `trading_journal.db` and restart the backend.
 
 ## Live-mode guardrail
 
-Chrollo is read-only against IBKR. If any future endpoint places orders, it must assert:
-
-```python
-from broker_config import is_live_mode
-if not is_live_mode():
-    raise HTTPException(400, "Order placement disabled in paper mode")
-```
-
-…and the matching port must be set. The red LIVE badge is the operator-facing reminder that real money is connected.
+Chrollo is read-only against IBKR. Do not add order-placement, order-modification, or money-movement endpoints to this backend. The red LIVE badge is only an operator-facing reminder that portfolio snapshots are coming from a real-money account.
 
 ## Logging
 

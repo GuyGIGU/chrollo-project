@@ -15,10 +15,14 @@ It answers the original question behind the seed archive: "is the engine good
 enough to find the winners I already know?" (The live ``/archive/missed-winners``
 track answers the forward-looking question; this is the backward-looking recall.)
 
-Read-only: never writes to the DB and never re-downloads market data.
+The default archive-backed report is read-only and never downloads market data.
+Fresh modes re-download historical seed data; ``--fresh-capture`` writes only the
+baseline JSON, never the archive DB.
 
 Usage:
     python -m core.archive.seed_recall
+    python -m core.archive.seed_recall --fresh-check
+    python -m core.archive.seed_recall --fresh-capture
 """
 from __future__ import annotations
 
@@ -161,6 +165,35 @@ def summarize_recall(hits: list[dict], misses: list[dict], ignored: Optional[lis
     }
 
 
+def summarize_fresh_results(
+    seed_setups: list[tuple[str, str]],
+    results: Mapping[SeedKey, Optional[dict]],
+    ignored_seeds: Optional[Mapping[SeedKey, str]] = None,
+) -> tuple[dict, list[dict], list[dict], list[dict]]:
+    """Build a recall scorecard from fresh engine results.
+
+    ``core.archive.seed.fired_seeds_fresh`` returns ``result|None`` by seed key.
+    This normalizes those results to the same ``(summary, hits, misses, ignored)``
+    shape used by the archive-backed report.
+    """
+    active, ignored = filter_ignored_seeds(seed_setups, ignored_seeds)
+    hits: list[dict] = []
+    misses: list[dict] = []
+    for ticker, trigger in active:
+        result = results.get((ticker, trigger))
+        if result is None:
+            misses.append({"ticker": ticker, "trigger_date": trigger})
+            continue
+        hits.append({
+            "ticker": ticker,
+            "trigger_date": trigger,
+            "scan_date": result.get("scan_date"),
+            "tier": result.get("tier"),
+            "score": result.get("score"),
+        })
+    return summarize_recall(hits, misses, ignored), hits, misses, ignored
+
+
 def diff_against_baseline(
     current: dict,
     current_misses: list[dict],
@@ -246,10 +279,9 @@ def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict], 
     return summarize_recall(hits, misses, ignored), hits, misses, ignored
 
 
-def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> dict:
-    """Snapshot the current recall + miss-set to a baseline JSON for the guard."""
-    s, _hits, misses, ignored = _recall_now(db_path)
-    baseline = {
+def _baseline_payload(s: dict, misses: list[dict], ignored: list[dict], basis: str) -> dict:
+    return {
+        "basis": basis,
         "recall": s["recall"],
         "fired": s["fired"],
         "missed": s["missed"],
@@ -265,9 +297,19 @@ def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PAT
             key=lambda m: (m["trigger_date"], m["ticker"]),
         ),
     }
+
+
+def _write_baseline(baseline: dict, baseline_path: str) -> None:
     os.makedirs(os.path.dirname(baseline_path), exist_ok=True)
     with open(baseline_path, "w", encoding="utf-8") as f:
         json.dump(baseline, f, indent=2)
+
+
+def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> dict:
+    """Snapshot the current recall + miss-set to a baseline JSON for the guard."""
+    s, _hits, misses, ignored = _recall_now(db_path)
+    baseline = _baseline_payload(s, misses, ignored, basis="archive")
+    _write_baseline(baseline, baseline_path)
     print(f"Captured recall baseline -> {baseline_path}")
     print(
         f"  recall {s['recall'] * 100:.1f}%  "
@@ -277,25 +319,76 @@ def capture_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PAT
 
 
 def check_baseline(db_path: str = _DB_PATH, baseline_path: str = _BASELINE_PATH) -> bool:
-    """Compare current recall to the captured baseline. Returns True if it holds."""
+    """Compare current recall to the captured baseline. Returns True if it holds.
+
+    The baseline records its measurement basis. ``basis=fresh`` means the guard
+    re-runs the current engine instead of comparing against possibly stale local
+    archive rows.
+    """
     if not os.path.exists(baseline_path):
-        print(f"No baseline at {baseline_path} — run with --capture first.")
+        print(f"No baseline at {baseline_path} - run with --capture or --fresh-capture first.")
         return False
     with open(baseline_path, "r", encoding="utf-8") as f:
         baseline = json.load(f)
+    if baseline.get("basis") == "fresh":
+        print("Baseline basis is fresh; running the fresh engine guard.")
+        return fresh_check_baseline(baseline_path=baseline_path)
 
     s, _hits, misses, _ignored = _recall_now(db_path)
     ok, lines = diff_against_baseline(s, misses, baseline)
 
     print("=" * 64)
-    print("  SEED RECALL GUARD - current vs. captured baseline")
+    print("  SEED RECALL GUARD - archive rows vs. captured baseline")
     print("=" * 64)
     for line in lines:
         print(line)
     print()
     print("PASS - recall held and no winners were lost." if ok
-          else "FAIL - recall regressed; see drift above.")
+          else "FAIL - recall guard failed; see drift above.")
+    if not ok:
+        print("Tip: run with --fresh-check before re-seeding; an archive-only fail can mean stale seed rows.")
     return ok
+
+
+def fresh_check_baseline(baseline_path: str = _BASELINE_PATH) -> bool:
+    """Compare the current engine on fresh data to the captured baseline."""
+    if not os.path.exists(baseline_path):
+        print(f"No baseline at {baseline_path} - run with --capture or --fresh-capture first.")
+        return False
+    with open(baseline_path, "r", encoding="utf-8") as f:
+        baseline = json.load(f)
+
+    from core.archive.seed import SEED_SETUPS, fired_seeds_fresh
+
+    results = fired_seeds_fresh(SEED_SETUPS)
+    s, _hits, misses, _ignored = summarize_fresh_results(SEED_SETUPS, results)
+    ok, lines = diff_against_baseline(s, misses, baseline)
+
+    print("=" * 64)
+    print("  SEED RECALL GUARD - fresh engine vs. captured baseline")
+    print("=" * 64)
+    for line in lines:
+        print(line)
+    print()
+    print("PASS - fresh recall held and no winners were lost." if ok
+          else "FAIL - fresh recall guard failed; see drift above.")
+    return ok
+
+
+def capture_fresh_baseline(baseline_path: str = _BASELINE_PATH) -> dict:
+    """Snapshot fresh current-engine recall + miss-set to the baseline JSON."""
+    from core.archive.seed import SEED_SETUPS, fired_seeds_fresh
+
+    results = fired_seeds_fresh(SEED_SETUPS)
+    s, _hits, misses, ignored = summarize_fresh_results(SEED_SETUPS, results)
+    baseline = _baseline_payload(s, misses, ignored, basis="fresh")
+    _write_baseline(baseline, baseline_path)
+    print(f"Captured fresh recall baseline -> {baseline_path}")
+    print(
+        f"  recall {s['recall'] * 100:.1f}%  "
+        f"({s['fired']}/{s['total']} active fired, {s['missed']} missed, {s['ignored']} ignored)"
+    )
+    return baseline
 
 
 def run(db_path: str = _DB_PATH) -> None:
@@ -361,34 +454,32 @@ def run_fresh() -> None:
     re-runs the live engine on freshly downloaded data so engine changes that
     silently drop winners surface immediately (the blind spot that hid a
     14-winner regression in 2026-06). Needs network + a few minutes — use
-    ``--check`` for CI's fast path; reach for ``--fresh`` when you suspect the
-    archive is stale or after touching the detector.
+    ``--fresh-check`` after touching the detector. Plain ``--check`` also runs
+    the fresh guard when the captured baseline is ``basis=fresh``.
     """
     from collections import Counter
 
     from core.archive.seed import SEED_SETUPS, fired_seeds_fresh
 
-    active, ignored = filter_ignored_seeds(SEED_SETUPS)
-    total = len(active)
     print("=" * 64)
     print("  SEED RECALL — FRESH re-eval of the CURRENT engine (not the archive)")
     print("=" * 64)
     results = fired_seeds_fresh(SEED_SETUPS)
-    fired = {k: r for k, r in results.items() if r is not None}
-    missed = sorted(k for k, r in results.items() if r is None)
+    s, hits, misses, ignored = summarize_fresh_results(SEED_SETUPS, results)
+    total = s["total"]
 
     print()
     print(f"Measured seeds:   {total}")
-    print(f"Re-detected:      {len(fired)}")
-    print(f"Missed:           {len(missed)}")
-    print(f"RECALL (fresh):   {len(fired) / total * 100:.1f}%" if total else "RECALL: n/a")
-    tiers = Counter(r["tier"] for r in fired.values())
+    print(f"Re-detected:      {s['fired']}")
+    print(f"Missed:           {s['missed']}")
+    print(f"RECALL (fresh):   {s['recall'] * 100:.1f}%" if total else "RECALL: n/a")
+    tiers = Counter(hit["tier"] for hit in hits)
     print(f"Hit tiers:        {dict(sorted(tiers.items()))}")
 
     print()
-    print(f"MISSES ({len(missed)}) — winners the live engine did NOT re-fire in-window:")
-    for ticker, trigger in sorted(missed, key=lambda x: x[1]):
-        print(f"  {ticker:<6} {trigger}")
+    print(f"MISSES ({len(misses)}) — winners the live engine did NOT re-fire in-window:")
+    for miss in sorted(misses, key=lambda x: x["trigger_date"]):
+        print(f"  {miss['ticker']:<6} {miss['trigger_date']}")
     if ignored:
         print()
         print(f"IGNORED ({len(ignored)}): "
@@ -406,12 +497,19 @@ def main() -> None:
     ap.add_argument("--baseline", default=_BASELINE_PATH, help="Path to the recall baseline JSON")
     group = ap.add_mutually_exclusive_group()
     group.add_argument("--capture", action="store_true",
-                       help="Snapshot current recall + miss-set as the baseline")
+                       help="Snapshot current archive-row recall + miss-set as the baseline")
     group.add_argument("--check", action="store_true",
-                       help="Fail (exit 1) if recall regressed or a known winner is newly missed")
+                       help="Fail (exit 1) if recall regressed or a known winner is newly missed. "
+                            "Uses the captured baseline basis.")
     group.add_argument("--fresh", action="store_true",
                        help="Re-evaluate the CURRENT engine on fresh data, bypassing the "
                             "(possibly stale) archive (network; slower)")
+    group.add_argument("--fresh-check", action="store_true",
+                       help="Run the baseline guard against fresh engine results instead of "
+                            "archive rows (network; slower; read-only)")
+    group.add_argument("--fresh-capture", action="store_true",
+                       help="Snapshot fresh current-engine recall + miss-set as the baseline "
+                            "(network; slower; writes only the baseline JSON)")
     args = ap.parse_args()
 
     try:
@@ -422,6 +520,11 @@ def main() -> None:
             sys.exit(0 if ok else 1)
         elif args.fresh:
             run_fresh()
+        elif args.fresh_check:
+            ok = fresh_check_baseline(baseline_path=args.baseline)
+            sys.exit(0 if ok else 1)
+        elif args.fresh_capture:
+            capture_fresh_baseline(baseline_path=args.baseline)
         else:
             run(db_path=args.db)
     except RuntimeError as e:

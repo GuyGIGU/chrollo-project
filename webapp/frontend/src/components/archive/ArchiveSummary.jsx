@@ -69,13 +69,13 @@ function StructurePanel({ setup }) {
   return (
     <SummaryPanel title="Structure">
       <SummaryRow label="Base" value={setup.base_length != null ? `${setup.base_length}d` : null} />
-      <SummaryRow label="Box W" value={setup.box_width != null ? `${(setup.box_width * 100).toFixed(1)}%` : null} />
+      <SummaryRow label="Box W" value={percent1(setup.box_width)} />
       <SummaryRow label="Touches" value={setup.touches != null ? `${setup.touches} (${setup.r_touches ?? '-'}/${setup.s_touches ?? '-'})` : null} />
       <SummaryRow label="ATR Ratio" value={fixed(setup.atr_ratio, 3)} />
       <SummaryRow label="LPS Len" value={setup.lps_length != null ? `${setup.lps_length}d` : null} />
       <SummaryRow label="Tightness" value={fixed(setup.tightness_ratio, 3)} />
       <SummaryRow label="Vol Contr." value={pct(setup.vol_contraction)} />
-      <SummaryRow label="Trigger" value={setup.trigger_price != null ? `$${setup.trigger_price.toFixed(2)}` : null} />
+      <SummaryRow label="Trigger" value={money(setup.trigger_price)} />
     </SummaryPanel>
   );
 }
@@ -98,10 +98,10 @@ function ReturnsPanel({ setup }) {
 function TradeMathPanel({ setup }) {
   return (
     <SummaryPanel title="Trade Math">
-      <SummaryRow label="R-Mult 20d" value={setup.r_multiple_20d != null ? `${setup.r_multiple_20d.toFixed(2)}R` : null} color={rMultipleColor(setup.r_multiple_20d)} />
-      <SummaryRow label="R-Mult 60d" value={setup.r_multiple_60d != null ? `${setup.r_multiple_60d.toFixed(2)}R` : null} color={rMultipleColor(setup.r_multiple_60d)} />
-      <SummaryRow label="Trig Vol x" value={setup.trigger_volume_ratio != null ? `${setup.trigger_volume_ratio.toFixed(2)}x` : null} color={ratioColor(setup.trigger_volume_ratio)} />
-      <SummaryRow label="Dist 52w High" value={pct(setup.dist_52w_high_pct)} color={setup.dist_52w_high_pct > -0.10 ? 'var(--success)' : setup.dist_52w_high_pct < -0.25 ? 'var(--danger)' : undefined} />
+      <SummaryRow label="R-Mult 20d" value={rValue(setup.r_multiple_20d)} color={rMultipleColor(setup.r_multiple_20d)} />
+      <SummaryRow label="R-Mult 60d" value={rValue(setup.r_multiple_60d)} color={rMultipleColor(setup.r_multiple_60d)} />
+      <SummaryRow label="Trig Vol x" value={xValue(setup.trigger_volume_ratio)} color={ratioColor(setup.trigger_volume_ratio)} />
+      <SummaryRow label="Dist 52w High" value={pct(setup.dist_52w_high_pct)} color={distanceColor(setup.dist_52w_high_pct)} />
       <SummaryRow label="RS vs Sector" value={pct(setup.rs_vs_sector_pct)} color={signColor(setup.rs_vs_sector_pct)} />
     </SummaryPanel>
   );
@@ -110,10 +110,10 @@ function TradeMathPanel({ setup }) {
 function RiskPanel({ setup }) {
   return (
     <SummaryPanel title="Risk Profile">
-      <SummaryRow label="MFE 20d" value={pct(setup.mfe_20d)} color="var(--success)" />
-      <SummaryRow label="MAE 20d" value={pct(setup.mae_20d)} color="var(--danger)" />
-      <SummaryRow label="MFE 60d" value={pct(setup.mfe_60d)} color="var(--success)" />
-      <SummaryRow label="MAE 60d" value={pct(setup.mae_60d)} color="var(--danger)" />
+      <SummaryRow label="MFE 20d" value={pct(setup.mfe_20d)} color={valueColor(setup.mfe_20d, 'var(--success)')} />
+      <SummaryRow label="MAE 20d" value={pct(setup.mae_20d)} color={valueColor(setup.mae_20d, 'var(--danger)')} />
+      <SummaryRow label="MFE 60d" value={pct(setup.mfe_60d)} color={valueColor(setup.mfe_60d, 'var(--success)')} />
+      <SummaryRow label="MAE 60d" value={pct(setup.mae_60d)} color={valueColor(setup.mae_60d, 'var(--danger)')} />
       <SummaryRow label="Triggered" value={triggeredLabel(setup)} color={setup.triggered === 1 ? 'var(--success)' : undefined} />
     </SummaryPanel>
   );
@@ -123,7 +123,7 @@ function ContextPanel({ setup }) {
   return (
     <SummaryPanel title="Context">
       <SummaryRow label="SPY" value={setup.spy_trend} color={trendColor(setup.spy_trend)} />
-      <SummaryRow label="VIX" value={setup.vix_level != null ? setup.vix_level.toFixed(2) : null} />
+      <SummaryRow label="VIX" value={fixed(setup.vix_level, 2)} />
       <SummaryRow label="Sector ETF" value={setup.sector_etf} />
       <SummaryRow label="Sector Trend" value={setup.sector_trend} color={trendColor(setup.sector_trend)} />
       <SummaryRow label="Source" value={setup.source} />
@@ -173,5 +173,30 @@ function LinkedTradesPanel({ trades }) {
 
 // signColor and rMultipleColor imported from archiveTabUtils.
 const trendColor = (trend) => (trend === 'BULLISH' ? 'var(--success)' : trend === 'BEARISH' ? 'var(--danger)' : undefined);
-const ratioColor = (value) => (value > 1.5 ? 'var(--success)' : value < 1 ? 'var(--danger)' : undefined);
+const hasNumber = (value) => value != null && Number.isFinite(Number(value));
+const valueColor = (value, color) => (hasNumber(value) ? color : undefined);
+const distanceColor = (value) => {
+  if (!hasNumber(value)) return undefined;
+  return Number(value) > -0.10 ? 'var(--success)' : Number(value) < -0.25 ? 'var(--danger)' : undefined;
+};
+const ratioColor = (value) => {
+  if (!hasNumber(value)) return undefined;
+  return Number(value) > 1.5 ? 'var(--success)' : Number(value) < 1 ? 'var(--danger)' : undefined;
+};
 const triggeredLabel = (setup) => (setup.triggered === 1 ? `Yes ${setup.trigger_date || ''}` : setup.triggered === 0 ? 'No' : '-');
+const money = (value) => {
+  const formatted = fixed(value, 2);
+  return formatted === '-' ? '-' : `$${formatted}`;
+};
+const percent1 = (value) => {
+  const n = Number(value);
+  return value == null || !Number.isFinite(n) ? '-' : `${(n * 100).toFixed(1)}%`;
+};
+const rValue = (value) => {
+  const formatted = fixed(value, 2);
+  return formatted === '-' ? '-' : `${formatted}R`;
+};
+const xValue = (value) => {
+  const formatted = fixed(value, 2);
+  return formatted === '-' ? '-' : `${formatted}x`;
+};

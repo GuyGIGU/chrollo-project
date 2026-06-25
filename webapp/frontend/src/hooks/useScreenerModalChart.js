@@ -147,11 +147,13 @@ const buildMarkers = (annotations) => {
   if (annotations.trigger_date) {
     markers.push({ time: annotations.trigger_date, position: 'belowBar', color: '#3fb950', shape: 'arrowUp', text: 'TRIG' });
   }
-  if (annotations.mfe_20d_date && annotations.mfe_20d != null) {
-    markers.push({ time: annotations.mfe_20d_date, position: 'aboveBar', color: '#3fb950', shape: 'circle', text: `MFE ${(annotations.mfe_20d * 100).toFixed(1)}%` });
+  const mfe20d = finiteNumber(annotations.mfe_20d);
+  const mae20d = finiteNumber(annotations.mae_20d);
+  if (annotations.mfe_20d_date && mfe20d != null) {
+    markers.push({ time: annotations.mfe_20d_date, position: 'aboveBar', color: '#3fb950', shape: 'circle', text: `MFE ${(mfe20d * 100).toFixed(1)}%` });
   }
-  if (annotations.mae_20d_date && annotations.mae_20d != null) {
-    markers.push({ time: annotations.mae_20d_date, position: 'belowBar', color: '#c76b73', shape: 'circle', text: `MAE ${(annotations.mae_20d * 100).toFixed(1)}%` });
+  if (annotations.mae_20d_date && mae20d != null) {
+    markers.push({ time: annotations.mae_20d_date, position: 'belowBar', color: '#c76b73', shape: 'circle', text: `MAE ${(mae20d * 100).toFixed(1)}%` });
   }
   return markers;
 };

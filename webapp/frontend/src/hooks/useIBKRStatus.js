@@ -12,7 +12,7 @@ export default function useIBKRStatus(pollMs = 10000) {
   const [status, setStatus] = useState({
     connected: false,
     available: false,
-    mode: 'paper',
+    mode: 'live',
     stale: false,
     daily_restart: false,
   });

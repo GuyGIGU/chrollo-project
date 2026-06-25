@@ -83,6 +83,8 @@ export default function TagPicker({ value = [], onChange, category = 'custom', d
         setAll(prev => prev.some(t => t.id === tag.id) ? prev : [...prev, tag]);
         addTag(tag);
       }
+    } catch (error) {
+      console.error('Failed to create tag:', error);
     } finally {
       setLoading(false);
     }

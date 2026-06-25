@@ -20,7 +20,7 @@ export default function ArchiveEquityCurve({ data }) {
       <div style={{ alignItems: 'baseline', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600 }}>Equity Curve (R)</div>
         <div style={{ color: lineColor, fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700 }}>
-          {chart.finalCum >= 0 ? '+' : ''}{chart.finalCum.toFixed(2)}R
+          {chart.finalCum >= 0 ? '+' : ''}{fixed(chart.finalCum, 2)}R
         </div>
       </div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '8px' }}>
@@ -42,15 +42,26 @@ export default function ArchiveEquityCurve({ data }) {
 const buildCurve = (points) => {
   const width = 600;
   const height = 140;
-  const cums = points.map(point => point.cum_r);
+  const cums = points
+    .map(point => Number(point.cum_r))
+    .filter(Number.isFinite);
+  if (!cums.length) {
+    return {
+      finalCum: 0,
+      height,
+      path: '',
+      width,
+      zeroY: height / 2,
+    };
+  }
   const minR = Math.min(0, ...cums);
   const maxR = Math.max(0, ...cums);
   const span = maxR - minR || 1;
-  const xStep = points.length > 1 ? width / (points.length - 1) : width / 2;
+  const xStep = cums.length > 1 ? width / (cums.length - 1) : width / 2;
   const yFor = (value) => height - ((value - minR) / span) * (height - 4) - 2;
-  const path = points.map((point, index) => {
+  const path = cums.map((cumR, index) => {
     const x = index * xStep;
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${yFor(point.cum_r).toFixed(1)}`;
+    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${yFor(cumR).toFixed(1)}`;
   }).join(' ');
   const finalValue = cums[cums.length - 1];
 

@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 import { API_BASE } from '../api';
 
-const fmt$ = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`);
+const fmt$ = (value) => (
+  value == null || !Number.isFinite(Number(value)) ? '-' : `$${Number(value).toFixed(2)}`
+);
 
 export default function EquityCurve() {
   const [data, setData] = useState([]);
@@ -12,19 +14,19 @@ export default function EquityCurve() {
     let cancelled = false;
     fetch(`${API_BASE}/analytics/equity-curve`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
+      .then(d => { if (!cancelled) { setData(Array.isArray(d) ? d : []); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 11, padding: '0.5rem' }}>Loading equity curve…</div>;
+  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 11, padding: '0.5rem' }}>Loading equity curve...</div>;
   if (!data.length) return <div style={{ color: 'var(--text-muted)', fontSize: 11, padding: '0.5rem' }}>No closed trades yet.</div>;
 
   const chartData = data.map((pt, i) => ({
     idx: i + 1,
     date: pt.date?.slice(0, 10),
-    cum: pt.cumulative_pnl,
-    pnl: pt.pnl,
+    cum: Number.isFinite(Number(pt.cumulative_pnl)) ? Number(pt.cumulative_pnl) : 0,
+    pnl: Number.isFinite(Number(pt.pnl)) ? Number(pt.pnl) : 0,
     ticker: pt.ticker,
   }));
 
@@ -52,7 +54,7 @@ export default function EquityCurve() {
             formatter={(val, name) => [fmt$(val), name === 'cum' ? 'Equity' : 'Trade P&L']}
             labelFormatter={(i) => {
               const pt = chartData[i - 1];
-              return pt ? `#${i} • ${pt.date} • ${pt.ticker || ''}` : `#${i}`;
+              return pt ? `#${i} - ${pt.date} - ${pt.ticker || ''}` : `#${i}`;
             }}
           />
           <Line type="monotone" dataKey="cum" stroke={lineColor} strokeWidth={1.8} dot={false} fill={fillColor} />

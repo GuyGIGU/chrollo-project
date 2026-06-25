@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { API_BASE } from '../api';
 
-const fmt$ = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`);
+const fx = (value, digits = 2) => (
+  value == null || !Number.isFinite(Number(value)) ? '-' : Number(value).toFixed(digits)
+);
+const fmt$ = (value) => fx(value) === '-' ? '-' : `$${fx(value)}`;
+const fmtPct = (value) => fx(value) === '-' ? '-' : `${fx(value)}%`;
 
 export default function DrawdownChart() {
   const [data, setData] = useState({ series: [], max_drawdown: 0, max_drawdown_pct: 0 });
@@ -12,26 +16,26 @@ export default function DrawdownChart() {
     let cancelled = false;
     fetch(`${API_BASE}/analytics/drawdown`)
       .then(r => r.ok ? r.json() : { series: [] })
-      .then(d => { if (!cancelled) { setData(d); setLoading(false); } })
+      .then(d => { if (!cancelled) { setData(d || { series: [] }); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>Loading drawdown…</div>;
+  if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>Loading drawdown...</div>;
   if (!data.series?.length) return <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '1rem' }}>No closed trades yet.</div>;
 
   const chartData = data.series.map((pt, i) => ({
     idx: i + 1,
     date: pt.date?.slice(0, 10),
-    dd: pt.drawdown,
-    ddPct: pt.drawdown_pct,
+    dd: Number.isFinite(Number(pt.drawdown)) ? Number(pt.drawdown) : 0,
+    ddPct: Number.isFinite(Number(pt.drawdown_pct)) ? Number(pt.drawdown_pct) : 0,
   }));
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', padding: '0 4px 6px' }}>
         <span>Max DD: <strong style={{ color: 'var(--danger, #ef4444)' }}>{fmt$(data.max_drawdown)}</strong></span>
-        <span>Max DD %: <strong style={{ color: 'var(--danger, #ef4444)' }}>{Number(data.max_drawdown_pct).toFixed(2)}%</strong></span>
+        <span>Max DD %: <strong style={{ color: 'var(--danger, #ef4444)' }}>{fmtPct(data.max_drawdown_pct)}</strong></span>
       </div>
       <div style={{ width: '100%', height: 200, minWidth: 0, minHeight: 180 }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={180}>

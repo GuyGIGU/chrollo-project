@@ -4,7 +4,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.archive.seed_recall import filter_ignored_seeds, match_seeds, summarize_recall
+from core.archive import seed_recall
+from core.archive.seed_recall import (
+    _baseline_payload,
+    filter_ignored_seeds,
+    match_seeds,
+    summarize_fresh_results,
+    summarize_recall,
+)
 
 
 def _row(ticker, scan_date, tier="S", score=80.0):
@@ -91,6 +98,76 @@ def test_summarize_recall_reports_ignored_without_penalizing_recall():
     s = summarize_recall(hits, misses, ignored)
     assert s["total"] == 2 and s["raw_total"] == 3 and s["ignored"] == 1
     assert abs(s["recall"] - 0.5) < 1e-9
+
+
+def test_summarize_fresh_results_matches_report_shape():
+    seeds = [("AAA", "2026-03-13"), ("BBB", "2026-03-14"), ("CCC", "2026-03-15")]
+    results = {
+        ("AAA", "2026-03-13"): {"scan_date": "2026-03-10", "tier": "S", "score": 90.0},
+        ("BBB", "2026-03-14"): None,
+    }
+    s, hits, misses, ignored = summarize_fresh_results(
+        seeds,
+        results,
+        {("CCC", "2026-03-15"): "bad vendor history"},
+    )
+
+    assert s["fired"] == 1
+    assert s["missed"] == 1
+    assert s["ignored"] == 1
+    assert hits == [{
+        "ticker": "AAA",
+        "trigger_date": "2026-03-13",
+        "scan_date": "2026-03-10",
+        "tier": "S",
+        "score": 90.0,
+    }]
+    assert misses == [{"ticker": "BBB", "trigger_date": "2026-03-14"}]
+    assert ignored == [{
+        "ticker": "CCC",
+        "trigger_date": "2026-03-15",
+        "reason": "bad vendor history",
+    }]
+
+
+def test_baseline_payload_records_basis_and_sorts_rows():
+    summary = {
+        "recall": 0.5,
+        "fired": 1,
+        "missed": 1,
+        "total": 2,
+        "raw_total": 3,
+        "ignored": 1,
+    }
+    misses = [
+        {"ticker": "ZZZ", "trigger_date": "2026-03-15"},
+        {"ticker": "AAA", "trigger_date": "2026-03-15"},
+    ]
+    ignored = [{"ticker": "BBB", "trigger_date": "2026-01-01", "reason": "bad vendor history"}]
+
+    payload = _baseline_payload(summary, misses, ignored, basis="fresh")
+
+    assert payload["basis"] == "fresh"
+    assert payload["misses"] == [
+        {"ticker": "AAA", "trigger_date": "2026-03-15"},
+        {"ticker": "ZZZ", "trigger_date": "2026-03-15"},
+    ]
+    assert payload["ignored_seeds"] == ignored
+
+
+def test_check_baseline_delegates_to_fresh_guard_for_fresh_baseline(tmp_path, monkeypatch):
+    baseline_path = tmp_path / "seed_recall_baseline.json"
+    baseline_path.write_text('{"basis": "fresh"}', encoding="utf-8")
+    calls = []
+
+    def fake_fresh_check(baseline_path):
+        calls.append(baseline_path)
+        return True
+
+    monkeypatch.setattr(seed_recall, "fresh_check_baseline", fake_fresh_check)
+
+    assert seed_recall.check_baseline(db_path="unused.db", baseline_path=str(baseline_path)) is True
+    assert calls == [str(baseline_path)]
 
 
 def test_summarize_empty():
