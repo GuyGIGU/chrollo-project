@@ -314,17 +314,27 @@ def find_lps(
     df: "pd.DataFrame",
     box: EquilibriumBox,
     atr,
-) -> Lps | None:
-    """Find the calibrated Phase-D LPS that completes the structure."""
+    *,
+    diagnose: bool = False,
+):
+    """Find the calibrated Phase-D LPS that completes the structure.
+
+    With ``diagnose=True`` returns ``(lps_or_None, rejects)`` — the detector's
+    reject counter — so the narrative trace can report WHY no LPS completed.
+    Without it, returns ``lps_or_None`` (unchanged signature for the live path).
+    """
+    def _out(lps, rejects=None):
+        return (lps, rejects) if diagnose else lps
+
     if df is None or box is None or len(df) == 0:
-        return None
+        return _out(None)
     if not _finite(atr) or float(atr) <= 0:
-        return None
+        return _out(None)
     required = {"High", "Low", "Close", "Volume", "Vol_50"}
     if not (required <= set(df.columns)):
-        return None
+        return _out(None)
     if box.base_len <= 0 or box.start_bar < 0 or box.start_bar >= len(df):
-        return None
+        return _out(None)
 
     work_df = df
     if "Spread" not in work_df.columns:
@@ -332,14 +342,14 @@ def find_lps(
 
     base_df = work_df.iloc[box.start_bar:]
     if base_df.empty:
-        return None
+        return _out(None)
 
     base_range_threshold = max(
         float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
         1.2 * float(atr),
     )
     swing_complete_idx = max(int(box.r_anchor_bar), int(box.s_anchor_bar))
-    result = detect_lps(
+    detected = detect_lps(
         work_df,
         work_df.iloc[-1],
         box.S,
@@ -348,13 +358,15 @@ def find_lps(
         base_range_threshold,
         box.base_len,
         swing_complete_idx,
+        diagnose=diagnose,
     )
+    result, rejects = detected if diagnose else (detected, None)
     if not result:
-        return None
+        return _out(None, rejects)
 
     start = int(result["start_index"])
     end = int(result["end_index"])
-    return Lps(
+    lps = Lps(
         low_bar=int(result["low_index"]),
         start_bar=start,
         end_bar=end,
@@ -392,6 +404,7 @@ def find_lps(
         lps_swing_depth_atr=result.get("lps_swing_depth_atr"),
         lps_swing_depth_box=result.get("lps_swing_depth_box"),
     )
+    return _out(lps, rejects)
 
 
 def resolve_phase_a(

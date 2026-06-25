@@ -221,19 +221,82 @@ def _phase_d_boundary(df, atr, box, inner, spring, lps, lps_in_inner):
     )
 
 
-def read_structure(df, atr, *, bricks=None) -> Optional[Structure]:
+def _box_brief(box) -> Optional[dict]:
+    """Duck-typed snapshot of an equilibrium/inner box for the narrative trace."""
+    if box is None:
+        return None
+    return {
+        "R": round(float(box.R), 4),
+        "S": round(float(box.S), 4),
+        "start_bar": int(box.start_bar),
+        "box_width": round(float(box.box_width), 4),
+        "base_len": int(getattr(box, "base_len", 0)),
+        "n_full_traversals": int(getattr(box, "n_full_traversals", 0)),
+        "traversal_density": round(float(getattr(box, "traversal_density", 0.0)), 3),
+        "r_touches": int(getattr(box, "r_touches", 0)),
+        "s_touches": int(getattr(box, "s_touches", 0)),
+    }
+
+
+def _spring_brief(spring) -> Optional[dict]:
+    if spring is None:
+        return None
+    return {
+        "tip_bar": int(spring.tip_bar),
+        "recovery_bar": int(getattr(spring, "recovery_bar", -1)),
+        "undercut_atr": round(float(getattr(spring, "undercut_atr", 0.0)), 2),
+    }
+
+
+def _lps_brief(lps, in_inner: bool) -> Optional[dict]:
+    if lps is None:
+        return None
+    return {
+        "in_inner": bool(in_inner),
+        "start_bar": int(lps.start_bar),
+        "low_bar": int(getattr(lps, "low_bar", -1)),
+        "length": int(getattr(lps, "length", 0)),
+        "offset": int(getattr(lps, "offset", 0)),
+        "zone_type": getattr(lps, "zone_type", None),
+        "swing_type": getattr(lps, "swing_type", None),
+        "trigger": round(float(getattr(lps, "trigger", 0.0)), 2),
+    }
+
+
+def _lps_reject_brief(bricks, df, box, inner, atr) -> dict:
+    """Why did Phase D fail? Re-run the LPS detector in diagnose mode on each
+    candidate box and report the reject counters. Trace-only (never on the live
+    path), so it can afford the extra detector passes."""
+    out: dict = {}
+    if inner is not None:
+        res = bricks.find_lps(df, inner, atr, diagnose=True)
+        rej = res[1] if isinstance(res, tuple) else None
+        out["inner"] = dict(rej) if rej else {}
+    res = bricks.find_lps(df, box, atr, diagnose=True)
+    rej = res[1] if isinstance(res, tuple) else None
+    out["parent"] = dict(rej) if rej else {}
+    return out
+
+
+def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     """Walk candidate root swings oldest-first; return the first that yields a
     complete A -> B -> (C?) -> D narrative, or ``None`` if no coherent story holds.
 
     ``bricks`` is the brick-validator provider; it defaults to the real
     ``core.structure.bricks`` (the calibrated detectors). Inject a fake to
     unit-test the orchestration in isolation.
+
+    ``trace``: pass a list to record the story the spine builds — one entry per
+    root attempted, with each brick's verdict + (on failure) the reject reasons,
+    and the outcome ("no_box" / "no_lps" / "complete"). Default ``None`` = no
+    trace, zero behaviour change (the live path never pays for it). This is the
+    engine explaining its own walk, so consumers stop re-deriving it externally.
     """
     if bricks is None:
         from core.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
     search_from = 0
-    for _ in range(_MAX_ANCHORS):
+    for i in range(_MAX_ANCHORS):
         # Phase A: the next root swing at/after the cursor (oldest-first = longest cause).
         root = bricks.find_root_swing(df, search_from_bar=search_from, atr=atr)
         if root is None:
@@ -241,14 +304,34 @@ def read_structure(df, atr, *, bricks=None) -> Optional[Structure]:
         # Backtrack target: the next pair of limbs, so a failed story advances.
         search_from = int(root.climax_bar) + 1
 
+        rec = None
+        if trace is not None:
+            rec = {
+                "root_index": i,
+                "climax_bar": int(root.climax_bar),
+                "ar_bar": int(root.ar_bar),
+                "kind": getattr(root, "kind", None),
+                "reaction_pct": round(float(getattr(root, "reaction_pct", 0.0)), 3),
+                "box": None, "spring": None, "inner": None,
+                "lps": None, "lps_rejects": None, "outcome": None,
+            }
+            trace.append(rec)
+
         # Phase B: is the region a genuinely worked equilibrium?
         box = bricks.validate_equilibrium(df, root, atr)
         if box is None:
+            if rec is not None:
+                rec["outcome"] = "no_box"
             continue                                      # not a worked range -> backtrack
+        if rec is not None:
+            rec["box"] = _box_brief(box)
 
         # Phase C (optional) and the nested Phase-D mini-range (tighter trigger).
         spring = bricks.find_spring(df, box, atr)          # don't force it; may be None
         inner = bricks.find_inner_box(df, box, atr)
+        if rec is not None:
+            rec["spring"] = _spring_brief(spring)
+            rec["inner"] = _box_brief(inner)
 
         # Phase D (required): prefer the tighter inner-box LPS (closer trigger /
         # stop), else the parent. Reject only when NEITHER yields one — the same
@@ -261,7 +344,13 @@ def read_structure(df, atr, *, bricks=None) -> Optional[Structure]:
         if lps is None:
             lps = bricks.find_lps(df, box, atr)
         if lps is None:
+            if rec is not None:
+                rec["outcome"] = "no_lps"
+                rec["lps_rejects"] = _lps_reject_brief(bricks, df, box, inner, atr)
             continue                                      # no Phase-D minimum -> not a setup
+        if rec is not None:
+            rec["lps"] = _lps_brief(lps, lps_in_inner)
+            rec["outcome"] = "complete"
 
         # Phase A is the LOCAL root swing of THIS box — the climax -> AR bridge
         # whose reaction low lands at the box start, not the distant trend anchor

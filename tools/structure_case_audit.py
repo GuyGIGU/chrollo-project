@@ -434,6 +434,76 @@ def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
     return None, None, None
 
 
+def print_engine_trace(ticker: str, raw: pd.DataFrame) -> None:
+    """Print the engine's OWN narrative trace (read_structure(trace=...)) rather
+    than re-walking the roots externally. Groups identical stories so the
+    emergent box (same box from ~every root) reads as 'N roots -> this story'."""
+    print("=" * 92)
+    print(f"{ticker}  — engine narrative trace")
+    df, atr = _prep(raw)
+    if df is None:
+        print(f"  {atr}")
+        return
+    trace: list = []
+    structure = read_structure(df, atr, trace=trace)
+    if not trace:
+        print("  no root swings — no story to tell.")
+        return
+
+    n_box = sum(1 for r in trace if r["box"] is not None)
+    n_done = sum(1 for r in trace if r["outcome"] == "complete")
+    print(f"  roots tried: {len(trace)}   reached a worked box: {n_box}   "
+          f"completed A->B->(C?)->D: {n_done}")
+    print(f"  RESULT: {'FIRES' if structure is not None else 'NO SETUP'}")
+    print()
+
+    # Collapse identical (box-start, outcome, parent-LPS-rejects) stories.
+    groups: dict = {}
+    order: list = []
+    for r in trace:
+        key = (
+            r["box"]["start_bar"] if r["box"] else None,
+            r["outcome"],
+            tuple(sorted((r["lps_rejects"] or {}).get("parent", {}).items())),
+        )
+        if key not in groups:
+            groups[key] = {"count": 0, "rep": r}
+            order.append(key)
+        groups[key]["count"] += 1
+
+    for key in order:
+        g = groups[key]
+        r = g["rep"]
+        tag = {"complete": "<< COMPLETE", "no_lps": "box OK, NO LPS",
+               "no_box": "no worked box"}.get(r["outcome"], r["outcome"])
+        print(f"  [{g['count']:>3} root(s)]  e.g. #{r['root_index']} "
+              f"{_date(df, r['climax_bar'])}->{_date(df, r['ar_bar'])} {r['kind']} "
+              f"rx{r['reaction_pct'] * 100:.0f}%   {tag}")
+        b = r["box"]
+        if b:
+            print(f"       B box {_date(df, b['start_bar'])}  R={b['R']:.2f} S={b['S']:.2f} "
+                  f"w={b['box_width']:.3f} len={b['base_len']} "
+                  f"trav={b['n_full_traversals']}/{b['traversal_density']:.2f} "
+                  f"touch r/s={b['r_touches']}/{b['s_touches']}")
+        if r["spring"]:
+            sp = r["spring"]
+            print(f"       C spring tip {_date(df, sp['tip_bar'])} undercut {sp['undercut_atr']:.2f}ATR")
+        if r["inner"]:
+            inr = r["inner"]
+            print(f"       inner {_date(df, inr['start_bar'])} w={inr['box_width']:.3f} len={inr['base_len']}")
+        if r["lps"]:
+            l = r["lps"]
+            where = "inner" if l["in_inner"] else "parent"
+            print(f"       D LPS [{where}] {_date(df, l['start_bar'])} len={l['length']} "
+                  f"off={l['offset']} zone={l['zone_type']} swing={l['swing_type']} trig={l['trigger']:.2f}")
+        elif r["outcome"] == "no_lps" and r["lps_rejects"]:
+            rj = r["lps_rejects"]
+            print(f"       D NO LPS — parent rejects: {dict(rj.get('parent', {}))}")
+            if rj.get("inner"):
+                print(f"                  inner rejects: {dict(rj['inner'])}")
+        print()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Root-swing / box-integrity case audit.")
     ap.add_argument("tickers", nargs="*",
@@ -445,6 +515,9 @@ def main() -> None:
     ap.add_argument("--as-of", type=str, default=None, metavar="YYYY-MM-DD",
                     help="slice each ticker to end at this date (later bars treated as "
                          "non-existent) before auditing — for historical seed cases.")
+    ap.add_argument("--trace", action="store_true",
+                    help="print the engine's own narrative trace (read_structure's "
+                         "per-root story + LPS reject reasons) instead of the audit walk.")
     a = ap.parse_args()
 
     d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
@@ -460,6 +533,9 @@ def main() -> None:
         raw = d[t].dropna()
         if a.as_of:
             raw = raw[raw.index <= pd.Timestamp(a.as_of)]
+        if a.trace:
+            print_engine_trace(t, raw)
+            continue
         if a.scan_back:
             off, res, sl = find_last_valid(raw, spy_6m, a.scan_back)
             if res is None:

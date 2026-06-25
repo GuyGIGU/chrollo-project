@@ -248,6 +248,30 @@ def _lps_frame_with_window(window):
     return pd.DataFrame(rows)
 
 
+def test_find_lps_diagnose_returns_lps_and_rejects_tuple(monkeypatch):
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    df = _lps_frame(lps_volume=500.0)
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+
+    lps, rejects = find_lps(df, box, 2.0, diagnose=True)
+
+    assert lps is not None          # same election as the non-diagnose path
+    assert rejects is not None      # the detector's reject counter rides along
+
+
+def test_find_lps_diagnose_reports_rejects_when_none(monkeypatch):
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    df = _lps_frame(lps_volume=950.0)   # high pullback volume -> vol_contraction reject
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+
+    lps, rejects = find_lps(df, box, 2.0, diagnose=True)
+
+    assert lps is None
+    assert sum(rejects.values()) >= 1   # the trace can report WHY it failed
+
+
 def test_find_lps_peak_down_gate_on_rejects_trough_not_last(monkeypatch):
     """Flag ON rejects a window that ends on an up-move (operator definition:
     LPS = first-bar High -> last-bar Low must be a peak that goes down)."""

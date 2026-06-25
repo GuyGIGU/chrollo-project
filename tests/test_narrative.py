@@ -49,8 +49,12 @@ class _Bricks:
     def find_spring(self, df, box, atr):
         return self._springs.get(box.start_bar)
 
-    def find_lps(self, df, box, atr):
-        return self._lpss.get(box.start_bar)
+    def find_lps(self, df, box, atr, *, diagnose=False):
+        lps = self._lpss.get(box.start_bar)
+        if diagnose:
+            from collections import Counter
+            return lps, (Counter() if lps is not None else Counter({"terminal_low": 1}))
+        return lps
 
     def resolve_phase_a(self, df, root, box, atr):
         # Identity passthrough: these tests exercise the spine's control flow /
@@ -142,6 +146,45 @@ def _full_structure(*, inner, spring):
         phase_d_start_bar=58, phase_d_source="lps", phase_d_evidence={},
         terminator="spring" if spring is not None else "lps",
     )
+
+
+def test_read_structure_trace_records_complete_story():
+    bricks = _Bricks([_root(10, 20)], {10: _box(20)},
+                     {20: _spring(80, 83)}, {20: _lps(85)})
+    trace: list = []
+    s = read_structure(df=None, atr=1.0, bricks=bricks, trace=trace)
+    assert s is not None
+    assert len(trace) == 1
+    rec = trace[0]
+    assert rec["outcome"] == "complete"
+    assert rec["box"] is not None and rec["box"]["start_bar"] == 20
+    assert rec["spring"] is not None
+    assert rec["lps"] is not None and rec["lps"]["start_bar"] == 85
+    assert rec["lps_rejects"] is None
+
+
+def test_read_structure_trace_records_no_lps_then_backtracks():
+    # root1: worked box but NO lps -> a 'no_lps' record carrying reject reasons;
+    # the spine backtracks to root2, which completes.
+    bricks = _Bricks(
+        [_root(10, 20), _root(40, 50)],
+        {10: _box(20), 40: _box(50)},
+        {20: None, 50: None},
+        {20: None, 50: _lps(90)},
+    )
+    trace: list = []
+    s = read_structure(None, 1.0, bricks=bricks, trace=trace)
+    assert s is not None and s.climax_bar == 40
+    assert [r["outcome"] for r in trace] == ["no_lps", "complete"]
+    assert trace[0]["box"] is not None            # box validated...
+    assert trace[0]["lps"] is None                # ...but no LPS
+    assert trace[0]["lps_rejects"]["parent"]      # and we recorded why
+
+
+def test_read_structure_trace_is_opt_in_noop_by_default():
+    # No trace arg -> identical result, no crash (the live-path guarantee).
+    bricks = _Bricks([_root(10, 20)], {10: _box(20)}, {20: None}, {20: _lps(85)})
+    assert read_structure(None, 1.0, bricks=bricks) is not None
 
 
 def test_structure_views_compose_brick_fields():
