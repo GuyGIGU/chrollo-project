@@ -37,6 +37,13 @@ from core.pipeline.fetch_health import (
 )
 from core.pipeline.market_calendar import latest_completed_session, session_gap
 from core.pipeline import rate_limit
+from core.pipeline.ticker_admission import (
+    count_active_skips,
+    load_admission,
+    record_history_results,
+    save_admission,
+    split_downloadable,
+)
 
 
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
@@ -77,13 +84,28 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
     Returns the corrected DataFrame.
     """
     missing_or_short = []
+    current_but_short = []
+    min_history_bars = int(getattr(settings, "ADMISSION_MIN_HISTORY_BARS", 200))
+    expected_session = latest_completed_session()
     for ticker in tickers:
         if ticker in data:
-            df_ticker = data[ticker].dropna()
-            if len(df_ticker) < 200:
-                missing_or_short.append(ticker)
+            try:
+                closes = data[ticker]["Close"].dropna()
+            except KeyError:
+                closes = pd.Series(dtype="float64")
+            if len(closes) < min_history_bars:
+                latest_close = closes.index.max().normalize() if not closes.empty else None
+                if latest_close is not None and latest_close >= expected_session:
+                    current_but_short.append(ticker)
+                else:
+                    missing_or_short.append(ticker)
         else:
             missing_or_short.append(ticker)
+
+    if current_but_short:
+        print(f"Skipping fallback for {len(current_but_short)} current but <{min_history_bars}-bar "
+              "ticker(s); admission will recheck later.",
+              flush=True)
 
     if not missing_or_short:
         return data
@@ -403,6 +425,28 @@ def _repair_latest_session(
     return repaired
 
 
+def _record_admission_history(admission: dict, admission_path: str, requested: list[str],
+                              data: pd.DataFrame, label: str, *,
+                              mark_missing: bool = True,
+                              only_untracked: bool = False) -> dict[str, int]:
+    if not getattr(settings, "TICKER_ADMISSION_ENABLED", True) or not requested:
+        return {}
+    if only_untracked:
+        requested = [ticker for ticker in requested if ticker not in admission]
+        if not requested:
+            return {}
+    admission, summary = record_history_results(
+        admission, requested, data, mark_missing=mark_missing
+    )
+    if summary:
+        save_admission(admission_path, admission)
+        detail = ", ".join(f"{status}={count}" for status, count in sorted(summary.items()))
+        print(f"  Admission: {label} updated {sum(summary.values())} ticker(s)"
+              f"{f' ({detail})' if detail else ''}.",
+              flush=True)
+    return summary
+
+
 def fetch_data(tickers: list[str]) -> pd.DataFrame:
     """
     Download market data via yfinance with PyArrow Parquet caching.
@@ -441,6 +485,19 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
               f"ticker(s); re-probe in <= {getattr(settings, 'QUARANTINE_COOLDOWN_DAYS', 7)}d.",
               flush=True)
     tickers_with_indexes = active_symbols
+
+    admission_path = os.path.join(os.path.dirname(meta_file),
+                                  getattr(settings, "TICKER_ADMISSION_FILENAME", "ticker_admission.json"))
+    admission = load_admission(admission_path) if getattr(settings, "TICKER_ADMISSION_ENABLED", True) else {}
+    tickers_with_indexes, skipped_admission, admission_skip_counts = split_downloadable(
+        tickers_with_indexes, admission, index_symbols=index_symbols
+    )
+    if skipped_admission:
+        detail = ", ".join(f"{status}={count}" for status, count in sorted(admission_skip_counts.items()))
+        print(f"  Admission: skipping {len(skipped_admission)} ticker(s)"
+              f"{f' ({detail})' if detail else ''}.",
+              flush=True)
+
     requested_non_index = [t for t in tickers_with_indexes if t not in index_symbols]
 
     expected_session = latest_completed_session()
@@ -460,6 +517,10 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
                     and last_reference_date is not None
                     and last_reference_date >= expected_session
                     and coverage.ratio >= min_latest_coverage):
+                _record_admission_history(
+                    admission, admission_path, requested_non_index, cached_data,
+                    "cache", mark_missing=False, only_untracked=True
+                )
                 print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
                       f"TTL {ttl}h)...", flush=True)
                 return cached_data
@@ -513,6 +574,10 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
               f"touching mtime and returning.", flush=True)
         _atomic_write_parquet(cached, cache_file)
         meta['last_modified'] = _now_iso()
+        _record_admission_history(
+            admission, admission_path, requested_non_index, cached,
+            "cache", mark_missing=False, only_untracked=True
+        )
         _write_meta(meta_file, meta)
         return cached
     if (cached is not None and not cached.empty and gap_bdays == 0
@@ -540,11 +605,20 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
             # Health only — the cold full-refetch owns quarantine updates (a ticker
             # absent from a small incremental window is not necessarily dead).
             returned_active = present_tickers(data) & set(requested_non_index)
+            admission_updates = _record_admission_history(
+                admission, admission_path, requested_non_index, data, "incremental"
+            )
             meta['fetch_health'] = summarize(
                 "incremental", requested_non_index, returned_active,
                 len(skipped_quarantined), 0, count_quarantined(quarantine),
                 time.time() - t_fetch_start,
             )
+            meta['ticker_admission'] = {
+                "skipped": len(skipped_admission),
+                "skip_counts": admission_skip_counts,
+                "updates": admission_updates,
+                "active_skip_counts": count_active_skips(admission),
+            }
             # Preserve last_full_refresh on incremental writes.
             _write_meta(meta_file, meta)
             print(f"Saved incremental update to {cache_file}. New last bar: "
@@ -578,6 +652,12 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
             "cold", requested_non_index, returned_active, len(skipped_quarantined),
             0, count_quarantined(quarantine), time.time() - t_fetch_start,
         )
+        meta['ticker_admission'] = {
+            "skipped": len(skipped_admission),
+            "skip_counts": admission_skip_counts,
+            "updates": {},
+            "active_skip_counts": count_active_skips(admission),
+        }
         _write_meta(meta_file, meta)
         print(f"Full refetch latest-session coverage is {coverage.format()} for "
               f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
@@ -593,6 +673,9 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     if getattr(settings, "QUARANTINE_ENABLED", True) and is_healthy(requested_non_index, returned_active):
         quarantine, newly = record_results(quarantine, requested_non_index, returned)
         save_quarantine(quar_path, quarantine)
+    admission_updates = _record_admission_history(
+        admission, admission_path, requested_non_index, data, "cold"
+    )
     health = summarize(
         "cold", requested_non_index, returned_active, len(skipped_quarantined),
         len(newly), count_quarantined(quarantine), time.time() - t_fetch_start,
@@ -601,6 +684,12 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
         'last_full_refresh': _now_iso(),
         'last_modified': _now_iso(),
         'fetch_health': health,
+        'ticker_admission': {
+            "skipped": len(skipped_admission),
+            "skip_counts": admission_skip_counts,
+            "updates": admission_updates,
+            "active_skip_counts": count_active_skips(admission),
+        },
     }
     _write_meta(meta_file, meta)
     if newly:

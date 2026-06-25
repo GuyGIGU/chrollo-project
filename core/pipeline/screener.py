@@ -23,6 +23,7 @@ import pandas as pd
 from config import settings
 from core.pipeline.data import get_market_context, get_provider, get_tickers
 from core.pipeline.evaluation import _evaluate_ticker, apply_baseline_filters
+from core.pipeline.scan_metrics import ScanTimer, format_scan_metrics, persist_scan_metrics
 
 __all__ = ["run_screener", "_evaluate_ticker", "apply_baseline_filters"]
 
@@ -111,26 +112,42 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
         - tickers: list of tickers that were evaluated
         - market_context: run-level context for dashboard/archive
     """
-    tickers = get_tickers()
-    data = get_provider().fetch(tickers)
-    ticker_frames = _prepare_ticker_frames(tickers, data)
+    timer = ScanTimer()
+    with timer.phase("ticker_universe"):
+        tickers = get_tickers()
+    with timer.phase("market_data_fetch"):
+        data = get_provider().fetch(tickers)
+    with timer.phase("frame_prep"):
+        ticker_frames = _prepare_ticker_frames(tickers, data)
 
-    market_context = get_market_context(data, ticker_frames)
+    with timer.phase("market_context"):
+        market_context = get_market_context(data, ticker_frames)
     spy_6m_return = float(market_context.get('spy_6m_return') or 0.0)
     breadth_pct = market_context.get('breadth_pct')
 
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
 
-    results = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
+    with timer.phase("evaluation"):
+        results = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
 
     print()
 
     if results:
-        results_df = pd.DataFrame(results).sort_values(by='Score', ascending=False)
-        for key, value in _regime_archive_fields(market_context).items():
-            results_df[key] = value
+        with timer.phase("result_assembly"):
+            results_df = pd.DataFrame(results).sort_values(by='Score', ascending=False)
+            for key, value in _regime_archive_fields(market_context).items():
+                results_df[key] = value
     else:
         results_df = pd.DataFrame()
+
+    metrics = timer.finish(
+        universe_tickers=len(tickers),
+        evaluated_tickers=len(ticker_frames),
+        setups=len(results_df),
+    )
+    market_context["_scan_metrics"] = metrics
+    persist_scan_metrics(metrics)
+    print(format_scan_metrics(metrics), flush=True)
 
     return results_df, data, tickers, market_context

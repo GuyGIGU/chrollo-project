@@ -1,0 +1,4 @@
+# One ticker per line. Lines can include comments after "#".
+# Use this for known delisted/problem symbols that should never enter a scan.
+
+GTERR  # rights issue; Yahoo returns no price data and it is filtered by rule too

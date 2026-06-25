@@ -37,9 +37,21 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 
 1. Read from cached `config/tickers.csv` if it exists and is younger than `TICKER_CACHE_MAX_AGE_DAYS` (1 day).
 2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'` and `ETF == 'N'`.
-3. Keep symbols that are **alpha-only and ≤ 5 chars** — drops dotted/class-share tickers (e.g. `BRK.B`) because yfinance handles them inconsistently.
-4. Dedupe (preserving order) and write back to the CSV cache.
-5. Hard fallback to a 15-stock sample if FTP fails.
+3. Apply the screenable-symbol filter on both cached CSV reads and fresh FTP downloads:
+   alpha-only, <= 5 chars, and excluding 5th-character `R` / `U` / `W` special
+   issues (rights, units, warrants) that waste Yahoo requests while still keeping
+   real 5-letter common names like `GOOGL`.
+4. On fresh NASDAQ directory refreshes, also read `Security Name` and reject
+   obvious non-common instruments (warrants/rights/units, preferreds, notes,
+   debentures, ETNs, and closed-end funds). Rejected directory facts are persisted
+   to `ticker_admission.json` as `invalid_instrument` so Yahoo never has to teach
+   us the same lesson with empty history requests.
+5. Exclude any one-symbol-per-line entries in `config/ticker_skiplist.txt` before
+   market data is requested. This is the manual escape hatch for known delisted or
+   permanently broken symbols; the runtime dead-ticker quarantine still handles
+   repeated empty Yahoo responses automatically.
+6. Dedupe (preserving order) and write back to the CSV cache.
+7. Hard fallback to a 15-stock sample if FTP fails.
 
 ### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/downloads.py](../core/pipeline/downloads.py))
 
@@ -51,6 +63,18 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 - The daily structure read still trims to `DAILY_STRUCTURE_PERIOD = "2y"` before `read_structure()`, so the deeper cache feeds HTF context without changing the daily root walk.
 - `_recover_missing_data()` re-downloads tickers that came back missing or with < 200 bars (skipped if more than half the universe is missing — likely rate-limit). Recovered columns replace the bad columns and the merged frame is written back to Parquet.
 - SPY rides in the same parquet as the screened universe but is excluded from screening — it exists only to feed `get_market_context()` (SPY 6m return + breadth).
+- `ticker_admission.json` is checked before every Yahoo fetch:
+  - `active_ready` downloads normally.
+  - `active_young` has live history but fewer than `ADMISSION_MIN_HISTORY_BARS`
+    (200), so it cannot pass the baseline history gate yet; it is skipped until
+    `ADMISSION_YOUNG_RECHECK_DAYS`.
+  - `yahoo_empty` returned no usable history and is re-probed after
+    `ADMISSION_EMPTY_RECHECK_DAYS`.
+  - `invalid_instrument` comes from directory facts and is skipped indefinitely.
+  Index symbols are never skipped by admission.
+- Successful healthy fetches update the admission ledger from actual Close-bar
+  counts. A current-but-short symbol is **not** treated as delisted and no longer
+  gets an immediate per-ticker fallback retry; it is marked/rechecked as too young.
 
 ---
 
@@ -503,7 +527,17 @@ Important structure payloads:
 
 The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`, `_phase_a_end_date`, `_phase_b_start_date`, `_phase_d_start_date`, optional `_phase_c_event_date`, `_lps_zone_low`, `_lps_zone_high`, `_lps_zone_start_date`, `_lps_zone_end_date`, `_has_mini_consolidation`, `_scope_confidence`, and `_phase_d_evidence_json`. These fields are visualization/diagnostic facts only; no downstream filtering or scoring consumes them.
 
-Pipeline returns `(results_df, market_data, tickers)` — `results_df` is sorted by `Score` descending.
+Pipeline returns `(results_df, market_data, tickers, market_context)` — `results_df` is sorted by `Score` descending.
+
+Every scan also writes timing telemetry:
+
+- `cache_meta.json["scan_metrics"]` — latest run summary.
+- `output/scan_metrics.jsonl` — append-only history, one JSON record per scan.
+- `market_context["_scan_metrics"]` — included in `output/screener_data.json`.
+
+The phase timings are `ticker_universe`, `market_data_fetch`, `frame_prep`,
+`market_context`, `evaluation`, and `result_assembly`; counts include the loaded
+universe size, evaluated ticker-frame count, and setup count.
 
 ---
 
@@ -641,6 +675,12 @@ YAHOO_RATE_LIMIT_PER_SEC = 8.0
 YAHOO_RATE_LIMIT_BURST = 15
 YAHOO_DOWNLOAD_WORKERS = 10
 TICKER_CACHE_MAX_AGE_DAYS = 1
+TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"
+TICKER_ADMISSION_ENABLED = True
+TICKER_ADMISSION_FILENAME = "ticker_admission.json"
+ADMISSION_MIN_HISTORY_BARS = 200
+ADMISSION_YOUNG_RECHECK_DAYS = 21
+ADMISSION_EMPTY_RECHECK_DAYS = 7
 SPY_SYMBOL = "SPY"                # Stored in parquet for market context, not screened
 MARKET_CONTEXT_TTL_HOURS_MARKET = 1
 MARKET_CONTEXT_TTL_HOURS_OFFHOURS = 12

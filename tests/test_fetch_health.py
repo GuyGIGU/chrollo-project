@@ -185,6 +185,29 @@ def test_fetch_data_filters_quarantined_and_writes_health(tmp_path, monkeypatch)
     assert "DEAD" in json.loads(quar_file.read_text(encoding="utf-8"))
 
 
+def test_fetch_data_filters_admission_skips_before_download(tmp_path, monkeypatch):
+    full_panel = _one_bar_panel({"AAA": 10.0, "SPY": 100.0, "QQQ": 120.0})
+    _, meta_file, called = _wire_cold_path(tmp_path, monkeypatch, full_panel)
+
+    admission_file = tmp_path / "ticker_admission.json"
+    admission_file.write_text(
+        json.dumps({
+            "YOUNG": {
+                "status": "active_young",
+                "next_check": (datetime.now(UTC) + timedelta(days=10)).isoformat(),
+            }
+        }),
+        encoding="utf-8",
+    )
+
+    downloads_module.fetch_data(["AAA", "YOUNG"])
+
+    assert called["symbols"] == ["AAA", "SPY", "QQQ"]
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["ticker_admission"]["skipped"] == 1
+    assert meta["ticker_admission"]["skip_counts"] == {"active_young": 1}
+
+
 def test_fetch_data_accrues_empty_streak_on_healthy_cold_run(tmp_path, monkeypatch):
     # full_panel is missing BBB; relax coverage so the run still reaches the success path.
     full_panel = _one_bar_panel({"AAA": 10.0, "SPY": 100.0, "QQQ": 120.0})
@@ -198,3 +221,24 @@ def test_fetch_data_accrues_empty_streak_on_healthy_cold_run(tmp_path, monkeypat
     quar = json.loads((tmp_path / "ticker_quarantine.json").read_text(encoding="utf-8"))
     assert quar["BBB"]["empty_streak"] == 1  # absent -> streak started (threshold 2, not yet quarantined)
     assert "AAA" not in quar                  # returned -> kept clean
+
+
+def test_recover_missing_data_does_not_retry_current_short_history(monkeypatch):
+    latest = pd.Timestamp("2026-06-25")
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: latest)
+    monkeypatch.setattr(downloads_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
+
+    panel = pd.concat({
+        "YOUNG": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[latest])
+    }, axis=1)
+    called = []
+    monkeypatch.setattr(
+        downloads_module,
+        "_download_batch_with_retry",
+        lambda batch, period, max_retries=3: called.append(batch) or pd.DataFrame(),
+    )
+
+    out = downloads_module._recover_missing_data(panel, ["YOUNG"])
+
+    assert out is panel
+    assert called == []

@@ -373,6 +373,12 @@ DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) an
                                  # does NOT change daily behavior (see HTF section below + core.structure.htf).
                                  # Renaming the cache file forces a clean cold 5y backfill on next run.
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
+TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"  # One symbol per line; skipped before any Yahoo request
+TICKER_ADMISSION_ENABLED = True
+TICKER_ADMISSION_FILENAME = "ticker_admission.json"
+ADMISSION_MIN_HISTORY_BARS = 200   # Same minimum used by the baseline history gate
+ADMISSION_YOUNG_RECHECK_DAYS = 21  # Alive but too young: re-test after it may have gained bars
+ADMISSION_EMPTY_RECHECK_DAYS = 7   # No Yahoo history: short cooldown before re-probing
 
 # ============================================================
 # HIGHER-TIMEFRAME (HTF) STRUCTURE CONTEXT
