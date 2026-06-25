@@ -407,13 +407,58 @@ def find_lps(
     return _out(lps, rejects)
 
 
+def _enforce_bc_downswing(df, root, box, climax_bar, ar_bar):
+    """Keep a Buying-Climax overlay a genuine high -> reaction-low (DOWN) swing.
+
+    A BC root *is* a high topping into its reaction, so the painted climax must
+    sit ABOVE the AR. When the resolved anchor is an UP swing instead (the climax
+    sits below the AR -- a stale low-altitude BC climax wired to a box-level
+    reaction, e.g. XMTR climax@48.7 -> AR@82.1), relocate the climax to the
+    prominent run-up high in the lead-in before the box so the overlay reads the
+    way the operator's eye does.
+
+    SC roots (a selling-climax low -> rally high, a legitimately UP overlay) and
+    every genuine down-swing are left untouched: root.kind is partly a stale scan
+    origin (see tools.structure_case_audit / the emergent-box note), so only the
+    unambiguous BC-up contradiction is repaired. Overlay-only -> shadow-safe.
+    """
+    if getattr(root, "kind", None) != "BC":
+        return climax_bar, ar_bar
+    highs = df["High"].values
+    n = len(df)
+    if not (0 <= climax_bar < n and 0 <= ar_bar < n):
+        return climax_bar, ar_bar
+    if float(highs[ar_bar]) <= float(highs[climax_bar]):
+        return climax_bar, ar_bar          # already a high -> (lower) reaction
+    pbs = int(box.start_bar)
+    lo = max(0, pbs - _SEG_LEAD_IN)
+    window = highs[lo:pbs]
+    if not len(window):
+        return climax_bar, ar_bar
+    return lo + int(np.argmax(window)), pbs
+
+
 def resolve_phase_a(
     df: "pd.DataFrame",
     root: RootSwing,
     box: EquilibriumBox,
     atr,
 ) -> tuple[int, int]:
-    """Return the local Phase-A root swing for an already-validated box."""
+    """Return the local Phase-A root swing for an already-validated box.
+
+    Resolves the raw anchor, then enforces the BC-down invariant so a buying
+    climax never paints as an up-swing (see _enforce_bc_downswing)."""
+    climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
+    return _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
+
+
+def _resolve_phase_a_raw(
+    df: "pd.DataFrame",
+    root: RootSwing,
+    box: EquilibriumBox,
+    atr,
+) -> tuple[int, int]:
+    """The unguarded resolution: bridge -> segmentation root -> local fallbacks."""
     phase_b_start_bar = box.start_bar
     base_len = box.base_len
     bc_anchor_bar = root.climax_bar

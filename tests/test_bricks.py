@@ -4,6 +4,7 @@ import pandas as pd
 from core.structure.bricks import (
     EquilibriumBox,
     RootSwing,
+    _enforce_bc_downswing,
     find_inner_box,
     find_lps,
     find_root_swing,
@@ -355,6 +356,45 @@ def test_resolve_phase_a_falls_back_to_segmentation_root():
     box = _box(start_bar=130, base_len=40)
 
     assert resolve_phase_a(df, raw_root, box, 1.0) == (95, 110)
+
+
+def test_enforce_bc_downswing_repairs_upswing_overlay():
+    # A BC climax stranded at a low altitude (80) wired to a box-level AR (110)
+    # paints an up-swing; the guard relocates the climax to the run-up high (120).
+    closes = [100.0] * 130
+    closes[90] = 120.0    # prominent run-up high feeding the box
+    closes[95] = 80.0     # stale low-altitude BC "climax"
+    closes[100] = 110.0   # box-level reaction the AR was wired to
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 95, 100, 120.0, 80.0, 0.1, 5)
+    box = _box(start_bar=100, base_len=30)
+
+    climax, ar = _enforce_bc_downswing(df, root, box, 95, 100)
+    assert (climax, ar) == (90, 100)
+    assert df["High"].iloc[climax] > df["High"].iloc[ar]   # now a genuine DOWN swing
+
+
+def test_enforce_bc_downswing_leaves_valid_downswing():
+    closes = [100.0] * 130
+    closes[95] = 120.0    # BC climax already a real high
+    closes[100] = 105.0   # reaction below it
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 95, 100, 120.0, 105.0, 0.1, 5)
+    box = _box(start_bar=100, base_len=30)
+
+    assert _enforce_bc_downswing(df, root, box, 95, 100) == (95, 100)
+
+
+def test_enforce_bc_downswing_leaves_sc_upswing():
+    # Selling climax (low) -> rally high is a legitimately UP overlay; untouched.
+    closes = [100.0] * 130
+    closes[95] = 80.0
+    closes[100] = 110.0
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("SC", 95, 100, 110.0, 80.0, 0.1, 5)
+    box = _box(start_bar=100, base_len=30)
+
+    assert _enforce_bc_downswing(df, root, box, 95, 100) == (95, 100)
 
 
 def test_resolve_phase_a_last_resort_uses_raw_anchor():
