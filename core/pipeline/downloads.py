@@ -46,6 +46,77 @@ from core.pipeline.ticker_admission import (
 )
 
 
+def _is_yahoo_rate_limit_text(text: str) -> bool:
+    text = str(text).lower()
+    return (
+        "yfratelimiterror" in text
+        or "too many requests" in text
+        or "rate limited" in text
+    )
+
+
+def _is_yahoo_rate_limit_error(exc: Exception) -> bool:
+    return _is_yahoo_rate_limit_text(f"{type(exc).__name__}: {exc}")
+
+
+def _is_yahoo_no_history_error(exc: Exception) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return (
+        "yftzmissingerror" in text
+        or "possibly delisted" in text
+        or "no price data found" in text
+        or "no timezone found" in text
+    )
+
+
+def _retry_wait_seconds(attempt: int, exc: Exception | None = None, error_text: str = "") -> float:
+    wait = float(2 ** attempt)
+    if ((exc is not None and _is_yahoo_rate_limit_error(exc))
+            or (error_text and _is_yahoo_rate_limit_text(error_text))):
+        wait = max(wait, float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0)))
+        rate_limit.note_rate_limit(wait)
+    return wait
+
+
+def _last_yahoo_batch_error_text(batch: list[str]) -> str:
+    """Return yfinance's latest batch errors after a sequential yf.download call."""
+    try:
+        from yfinance import shared as yf_shared
+        errors = getattr(yf_shared, "_ERRORS", {}) or {}
+    except Exception:
+        return ""
+    parts = [str(errors.get(ticker.upper(), "")) for ticker in batch]
+    return " | ".join(part for part in parts if part)
+
+
+def _single_ticker_history(ticker: str, period_or_dates: dict) -> pd.DataFrame:
+    """Fetch one symbol without yf.download's process-global multi-ticker state."""
+    data = yf.Ticker(ticker).history(
+        actions=False,
+        auto_adjust=True,
+        timeout=30,
+        **period_or_dates,
+    )
+    if data is None or data.empty:
+        return pd.DataFrame()
+    if not isinstance(data.columns, pd.MultiIndex):
+        data.columns = pd.MultiIndex.from_product([[ticker], data.columns])
+    return data
+
+
+def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
+    if len(batch) == 1:
+        return _single_ticker_history(batch[0], period_or_dates)
+    return yf.download(
+        batch,
+        group_by='ticker',
+        threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
+        progress=False,
+        timeout=30,
+        **period_or_dates,
+    )
+
+
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
     """
     Download a batch of tickers with automatic retry on failure.
@@ -54,23 +125,31 @@ def _download_batch_with_retry(batch: list[str], period: str, max_retries: int =
     for attempt in range(1, max_retries + 1):
         try:
             rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
-            batch_data = yf.download(
-                batch,
-                period=period,
-                group_by='ticker',
-                threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
-                progress=False,
-                timeout=30,  # 30s timeout to handle slow connections
-            )
+            batch_data = _download_once(batch, {"period": period})
             if not batch_data.empty:
+                if len(batch) > 1:
+                    error_text = _last_yahoo_batch_error_text(batch)
+                    if _is_yahoo_rate_limit_text(error_text):
+                        rate_limit.note_rate_limit(
+                            float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0))
+                        )
                 # If only 1 ticker in batch, it doesn't return a MultiIndex, so we force it
                 if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
                     batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
                 return batch_data
+            error_text = _last_yahoo_batch_error_text(batch) if len(batch) > 1 else ""
+            if attempt < max_retries and _is_yahoo_rate_limit_text(error_text):
+                wait = _retry_wait_seconds(attempt, error_text=error_text)
+                print(f"    Attempt {attempt}/{max_retries} rate-limited. Retrying in {wait:g}s...")
+                time.sleep(wait)
+                continue
+            return pd.DataFrame()
         except Exception as e:
+            if _is_yahoo_no_history_error(e):
+                return pd.DataFrame()
             if attempt < max_retries:
-                wait = 2 ** attempt  # Exponential backoff: 2s, 4s, 8s
-                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait}s...")
+                wait = _retry_wait_seconds(attempt, e)
+                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait:g}s...")
                 time.sleep(wait)
             else:
                 print(f"    Batch failed after {max_retries} retries: {e}")
@@ -78,7 +157,9 @@ def _download_batch_with_retry(batch: list[str], period: str, max_retries: int =
     return pd.DataFrame()
 
 
-def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+def _recover_missing_data(data: pd.DataFrame, tickers: list[str], *,
+                          skip_current_short: bool = True,
+                          allow_large_fallback: bool = False) -> pd.DataFrame:
     """
     Check for missing or incomplete data (<200 bars) and attempt to re-download.
     Returns the corrected DataFrame.
@@ -95,7 +176,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
                 closes = pd.Series(dtype="float64")
             if len(closes) < min_history_bars:
                 latest_close = closes.index.max().normalize() if not closes.empty else None
-                if latest_close is not None and latest_close >= expected_session:
+                if skip_current_short and latest_close is not None and latest_close >= expected_session:
                     current_but_short.append(ticker)
                 else:
                     missing_or_short.append(ticker)
@@ -110,7 +191,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
     if not missing_or_short:
         return data
 
-    if len(missing_or_short) > len(tickers) * 0.5:
+    if not allow_large_fallback and len(missing_or_short) > len(tickers) * 0.5:
         print(f"Warning: {len(missing_or_short)} dropouts detected. Rate limit severe. Skipping individual fallback to avoid IP ban.")
         return data
 
@@ -155,7 +236,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
             if hasattr(fallback_frames[i].index, 'tz') and fallback_frames[i].index.tz is not None:
                 fallback_frames[i].index = fallback_frames[i].index.tz_localize(None)
 
-        data = pd.concat([data] + fallback_frames, axis=1)
+        data = pd.concat([data] + fallback_frames, axis=1, sort=False)
 
     if recovered_count > 0:
         print(f"Successfully recovered full data for {recovered_count} tickers using fallback batches!")
@@ -218,22 +299,30 @@ def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,
     for attempt in range(1, max_retries + 1):
         try:
             rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
-            batch_data = yf.download(
-                batch,
-                group_by='ticker',
-                threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
-                progress=False,
-                timeout=30,
-                **period_or_dates,
-            )
+            batch_data = _download_once(batch, period_or_dates)
             if not batch_data.empty:
+                if len(batch) > 1:
+                    error_text = _last_yahoo_batch_error_text(batch)
+                    if _is_yahoo_rate_limit_text(error_text):
+                        rate_limit.note_rate_limit(
+                            float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0))
+                        )
                 if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
                     batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
                 return batch_data
+            error_text = _last_yahoo_batch_error_text(batch) if len(batch) > 1 else ""
+            if attempt < max_retries and _is_yahoo_rate_limit_text(error_text):
+                wait = _retry_wait_seconds(attempt, error_text=error_text)
+                print(f"    Attempt {attempt}/{max_retries} rate-limited. Retrying in {wait:g}s...")
+                time.sleep(wait)
+                continue
+            return pd.DataFrame()
         except Exception as e:
+            if _is_yahoo_no_history_error(e):
+                return pd.DataFrame()
             if attempt < max_retries:
-                wait = 2 ** attempt
-                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait}s...")
+                wait = _retry_wait_seconds(attempt, e)
+                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait:g}s...")
                 time.sleep(wait)
             else:
                 print(f"    Batch failed after {max_retries} retries: {e}")
@@ -780,12 +869,16 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     new_listings = [t for t in tickers_with_spy if t not in cached_ticker_set]
     if new_listings:
         print(f"  Fetching full history for {len(new_listings)} new listing(s)...", flush=True)
-        merged = _recover_missing_data(merged, new_listings)
+        merged = _recover_missing_data(
+            merged, new_listings, skip_current_short=False, allow_large_fallback=True
+        )
 
     # Drifted tickers: fetch their full 2y individually.
     if drifted:
         print(f"  Refetching {len(drifted)} split-drifted ticker(s) in full...", flush=True)
-        merged = _recover_missing_data(merged, drifted)
+        merged = _recover_missing_data(
+            merged, drifted, skip_current_short=False, allow_large_fallback=True
+        )
 
     merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session

@@ -317,6 +317,11 @@ function TagsPanel({ data }) {
           htfWeeklyPhase: data.htf_w_phase,
           htfDailyNested: data.htf_w_daily_nested,
           htfMonthlyReaccum: data.htf_m_reaccum,
+          lpsStretchAtr: data.lps_stretch_atr,
+          lpsStretchBox: data.lps_stretch_box,
+          lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
+          lastSupperSourceBoxAge: data.last_supper_source_box_age,
+          lastSupperReclaimQuality: data.last_supper_reclaim_quality,
         }}
         maxTags={null}
         style={{ padding: 0 }}

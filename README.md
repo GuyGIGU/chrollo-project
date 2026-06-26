@@ -175,6 +175,17 @@ python -m core.archive.seed              # bootstrap known-winner setups (--forc
 python -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
 ```
 
+### Verification guard stack
+
+Use the smallest guard that proves the change, then widen only when the touched surface warrants it:
+
+- Local edits: run focused tests for the touched module, then `python -m pytest -q` before merge.
+- Detector or market-data intake changes: run `python -m tools.shadow_diff --check` to catch canonical drift.
+- Structure-reader, fetch, or seed-recall-sensitive changes: run `python -m core.archive.seed_recall --check`.
+  The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
+- Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
+  and `npm --prefix webapp\frontend run build`.
+
 ---
 
 ## IBKR / live-trading safety

@@ -73,6 +73,8 @@ function StructurePanel({ setup }) {
       <SummaryRow label="Touches" value={setup.touches != null ? `${setup.touches} (${setup.r_touches ?? '-'}/${setup.s_touches ?? '-'})` : null} />
       <SummaryRow label="ATR Ratio" value={fixed(setup.atr_ratio, 3)} />
       <SummaryRow label="LPS Len" value={setup.lps_length != null ? `${setup.lps_length}d` : null} />
+      <SummaryRow label="LPS Swing" value={swingTypeLabel(setup.lps_swing_type)} />
+      <SummaryRow label="Swing Depth" value={percent1(setup.lps_swing_depth_pct)} />
       <SummaryRow label="Tightness" value={fixed(setup.tightness_ratio, 3)} />
       <SummaryRow label="Vol Contr." value={pct(setup.vol_contraction)} />
       <SummaryRow label="Trigger" value={money(setup.trigger_price)} />
@@ -115,6 +117,11 @@ function RiskPanel({ setup }) {
       <SummaryRow label="MFE 60d" value={pct(setup.mfe_60d)} color={valueColor(setup.mfe_60d, 'var(--success)')} />
       <SummaryRow label="MAE 60d" value={pct(setup.mae_60d)} color={valueColor(setup.mae_60d, 'var(--danger)')} />
       <SummaryRow label="Triggered" value={triggeredLabel(setup)} color={setup.triggered === 1 ? 'var(--success)' : undefined} />
+      <SummaryRow label="Last Supper" value={lastSupperLabel(setup)} color={lastSupperColor(setup)} />
+      <SummaryRow label="LS Stretch" value={stretchValue(setup)} color={lastSupperColor(setup)} />
+      <SummaryRow label="LS Pullback" value={percent1(setup.last_supper_pullback_from_extension_pct)} />
+      <SummaryRow label="LS Age" value={barsValue(setup.last_supper_source_box_age)} />
+      <SummaryRow label="LS Reclaim" value={fixed(setup.last_supper_reclaim_quality, 2)} />
     </SummaryPanel>
   );
 }
@@ -199,4 +206,23 @@ const rValue = (value) => {
 const xValue = (value) => {
   const formatted = fixed(value, 2);
   return formatted === '-' ? '-' : `${formatted}x`;
+};
+const swingTypeLabel = (value) => (
+  value ? String(value).replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) : null
+);
+const barsValue = (value) => (hasNumber(value) ? `${Number(value)} bars` : null);
+const isLastSupper = (setup) => (
+  (hasNumber(setup.lps_stretch_box) && Number(setup.lps_stretch_box) > 0)
+  || (hasNumber(setup.lps_stretch_atr) && Number(setup.lps_stretch_atr) > 0)
+);
+const lastSupperLabel = (setup) => {
+  if (!hasNumber(setup.lps_stretch_box) && !hasNumber(setup.lps_stretch_atr)) return null;
+  return isLastSupper(setup) ? 'Caution' : 'Neutral';
+};
+const lastSupperColor = (setup) => (isLastSupper(setup) ? 'var(--danger)' : undefined);
+const stretchValue = (setup) => {
+  const box = fixed(setup.lps_stretch_box, 2);
+  const atr = fixed(setup.lps_stretch_atr, 2);
+  if (box === '-' && atr === '-') return null;
+  return `${box} box / ${atr} ATR`;
 };

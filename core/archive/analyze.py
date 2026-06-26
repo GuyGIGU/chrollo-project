@@ -86,6 +86,10 @@ STRUCTURAL_FEATURES = [
     "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
     "bin_d_vs_b_support_quality_delta",
     "lps_stretch_atr", "lps_stretch_box",
+    "lps_anchor_bar", "lps_low_bar",
+    "lps_swing_depth_pct", "lps_swing_depth_atr", "lps_swing_depth_box",
+    "last_supper_pullback_from_extension_pct",
+    "last_supper_source_box_age", "last_supper_reclaim_quality",
     # Minervini Stage-2 trend template (raw context)
     "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct",
     "stage2_52w_low_pct", "stage2_trend_pass_count", "stage2_trend_pass",
@@ -105,6 +109,7 @@ HORIZONTAL_FEATURES = [
     "base_length", "r_touches", "s_touches",
     "eq_r_touches", "eq_s_touches", "eq_r_touch_thirds", "eq_s_touch_thirds",
     "breach_days", "lps_length", "bin_lps_bars", "lps_position_in_box",
+    "lps_anchor_bar", "lps_low_bar", "last_supper_source_box_age",
     "trav_n_full_traversals", "trav_n_swings",
     "trav_rail_reaches_high", "trav_rail_reaches_low", "trav_last_support_frac",
     "bin_c_time_loc", "bin_d_bars",
@@ -115,6 +120,8 @@ VERTICAL_FEATURES = [
     "box_width", "tightness_ratio", "atr_ratio",
     "lps_descent_frac", "bin_c_undercut_atr",
     "lps_stretch_atr", "lps_stretch_box",
+    "lps_swing_depth_pct", "lps_swing_depth_atr", "lps_swing_depth_box",
+    "last_supper_pullback_from_extension_pct", "last_supper_reclaim_quality",
     "trav_top_dead_space", "trav_bottom_dead_space", "trav_max_swing_frac",
     "trav_coil_floor_pos",
     "final_contraction_depth", "bin_d_vs_b_range_ratio",
@@ -468,6 +475,8 @@ def section_performance(df: pd.DataFrame, valid: bool) -> None:
         _print_segments(df, "phase_d_inner", label="inner_exists(0/1)")
     if "lps_in_inner" in df.columns and df["lps_in_inner"].notna().any():
         _print_segments(df, "lps_in_inner", label="lps_in_inner(0/1)")
+    if "lps_swing_type" in df.columns and df["lps_swing_type"].notna().any():
+        _print_segments(df, "lps_swing_type", label="lps_swing")
     if "inner_source" in df.columns and df["inner_source"].notna().any():
         _print_segments(df, "inner_source", label="inner_source")
     if "spy_trend" in df.columns and df["spy_trend"].notna().any():

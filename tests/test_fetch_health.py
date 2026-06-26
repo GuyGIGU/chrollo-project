@@ -242,3 +242,113 @@ def test_recover_missing_data_does_not_retry_current_short_history(monkeypatch):
 
     assert out is panel
     assert called == []
+
+
+def test_recover_missing_data_can_force_retry_current_short_history(monkeypatch):
+    latest = pd.Timestamp("2026-06-25")
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: latest)
+    monkeypatch.setattr(downloads_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
+
+    panel = pd.concat({
+        "GOOGL": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[latest])
+    }, axis=1)
+    recovered = pd.concat({
+        "GOOGL": pd.DataFrame(
+            {"Close": list(range(250)), "Volume": [1000] * 250},
+            index=pd.date_range("2025-01-01", periods=250, freq="B"),
+        )
+    }, axis=1)
+    called = []
+    monkeypatch.setattr(
+        downloads_module,
+        "_download_batch_with_retry",
+        lambda batch, period, max_retries=3: called.append(batch) or recovered,
+    )
+
+    out = downloads_module._recover_missing_data(
+        panel, ["GOOGL"], skip_current_short=False, allow_large_fallback=True
+    )
+
+    assert called == [["GOOGL"]]
+    assert len(out["GOOGL"]["Close"].dropna()) == 250
+
+
+def test_rate_limit_error_triggers_shared_backoff(monkeypatch):
+    idx = pd.date_range("2026-06-01", periods=5, freq="B")
+    recovered = pd.DataFrame({"Close": [10, 11, 12, 13, 14], "Volume": 1000}, index=idx)
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            if len(calls) == 1:
+                raise RuntimeError("YFRateLimitError('Too Many Requests. Rate limited.')")
+            return recovered
+
+    noted = []
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.rate_limit, "note_rate_limit", lambda seconds: noted.append(seconds))
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["AAA"], {"period": "1mo"}, max_retries=2
+    )
+
+    assert noted == [45.0]
+    assert len(calls) == 2
+    assert "AAA" in out
+
+
+def test_no_history_error_does_not_retry(monkeypatch):
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            raise RuntimeError("YFPricesMissingError: possibly delisted; no price data found")
+
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["DEAD"], {"period": "1mo"}, max_retries=3
+    )
+
+    assert out.empty
+    assert len(calls) == 1
+
+
+def test_transient_price_error_can_retry(monkeypatch):
+    idx = pd.date_range("2026-06-01", periods=5, freq="B")
+    recovered = pd.DataFrame({"Close": [10, 11, 12, 13, 14], "Volume": 1000}, index=idx)
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            if len(calls) == 1:
+                raise RuntimeError("YFPricesMissingError: (Yahoo status_code = 502)")
+            return recovered
+
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["AAA"], {"period": "1mo"}, max_retries=2
+    )
+
+    assert len(calls) == 2
+    assert "AAA" in out

@@ -159,6 +159,16 @@ def test_dashboard_exports_phase_c_and_d_bar_indices(monkeypatch):
         "_bin_c_event_bar": 7,
         "_bin_c_recovery_bar": 8,
         "_bin_d_start_bar": 6,
+        "_lps_swing_type": "clean_downswing",
+        "_lps_anchor_bar": 6,
+        "_lps_anchor_date": "2026-01-07",
+        "_lps_low_bar": 8,
+        "_lps_low_date": "2026-01-09",
+        "_lps_swing_depth_pct": 0.05,
+        "_lps_stretch_box": 0.25,
+        "_last_supper_pullback_from_extension_pct": 0.05,
+        "_last_supper_source_box_age": 2,
+        "_last_supper_reclaim_quality": 0.75,
     }])
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker", lambda *_args: None)
 
@@ -167,6 +177,60 @@ def test_dashboard_exports_phase_c_and_d_bar_indices(monkeypatch):
     assert chart["bin_c_event_bar"] == 7
     assert chart["bin_c_recovery_bar"] == 8
     assert chart["bin_d_start_bar"] == 6
+    assert chart["lps_swing_type"] == "clean_downswing"
+    assert chart["lps_anchor_bar"] == 6
+    assert chart["lps_low_bar"] == 8
+    assert chart["lps_swing_depth_pct"] == 0.05
+    assert chart["lps_stretch_box"] == 0.25
+    assert chart["last_supper_pullback_from_extension_pct"] == 0.05
+    assert chart["last_supper_source_box_age"] == 2
+    assert chart["last_supper_reclaim_quality"] == 0.75
+
+
+def test_dashboard_keeps_lps_raw_bars_when_chart_window_is_trimmed(monkeypatch):
+    dates = pd.date_range("2025-01-01", periods=30, freq="B", name="Date")
+    data = pd.DataFrame({
+        "Open": np.linspace(10, 13, len(dates)),
+        "High": np.linspace(10.5, 13.5, len(dates)),
+        "Low": np.linspace(9.5, 12.5, len(dates)),
+        "Close": np.linspace(10.2, 13.2, len(dates)),
+        "Volume": np.linspace(1000, 1300, len(dates)),
+    }, index=dates)
+    results = pd.DataFrame([{
+        "Ticker": "AAA",
+        "Tier": "A",
+        "Score": 100,
+        "Setup": "LPS",
+        "Current Price": 13.2,
+        "_trigger_price": 13.6,
+        "_R": 13.5,
+        "_S": 9.5,
+        "_base_len": 20,
+        "_lps_len": 2,
+        "_lps_offset": 0,
+        "_r_anchor_bar": 24,
+        "_s_anchor_bar": 25,
+        "_bin_c_event_bar": 26,
+        "_bin_c_recovery_bar": 27,
+        "_bin_d_start_bar": 25,
+        "_lps_anchor_bar": 6,
+        "_lps_anchor_date": "2025-01-09",
+        "_lps_low_bar": 8,
+        "_lps_low_date": "2025-01-13",
+    }])
+    monkeypatch.setattr(dashboard_module.settings, "DASHBOARD_CHART_DAYS", 10)
+    monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker", lambda *_args: None)
+
+    chart = dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
+
+    assert chart["candles"][0]["time"] == "2025-01-29"
+    assert chart["bin_c_event_bar"] == 6
+    assert chart["bin_c_recovery_bar"] == 7
+    assert chart["bin_d_start_bar"] == 5
+    assert chart["lps_anchor_bar"] == 6
+    assert chart["lps_anchor_date"] == "2025-01-09"
+    assert chart["lps_low_bar"] == 8
+    assert chart["lps_low_date"] == "2025-01-13"
 
 
 def test_meta_writer_sanitizes_scan_context(tmp_path):

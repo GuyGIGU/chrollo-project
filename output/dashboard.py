@@ -237,6 +237,14 @@ def _extract_chart_data(data, results_df, tickers):
                 'lps_last_low': row.get('_lps_last_low'),
                 'lps_window_high': row.get('_lps_window_high'),
                 'lps_window_low': row.get('_lps_window_low'),
+                'lps_swing_type': row.get('_lps_swing_type'),
+                'lps_anchor_bar': row.get('_lps_anchor_bar'),
+                'lps_anchor_date': row.get('_lps_anchor_date'),
+                'lps_low_bar': row.get('_lps_low_bar'),
+                'lps_low_date': row.get('_lps_low_date'),
+                'lps_swing_depth_pct': row.get('_lps_swing_depth_pct'),
+                'lps_swing_depth_atr': row.get('_lps_swing_depth_atr'),
+                'lps_swing_depth_box': row.get('_lps_swing_depth_box'),
                 'lps_tests': row.get('_lps_tests') or [],
                 'lps_zone_type': row.get('_lps_zone_type'),
                 # VCP contraction footprint (for tooltips / tag)
@@ -280,6 +288,11 @@ def _extract_chart_data(data, results_df, tickers):
                 'bin_d_ascending_support_quality': row.get('_bin_d_ascending_support_quality'),
                 'bin_d_vs_b_support_quality_delta': row.get('_bin_d_vs_b_support_quality_delta'),
                 'bin_d_boundary_source': row.get('_bin_d_boundary_source'),
+                'lps_stretch_atr': row.get('_lps_stretch_atr'),
+                'lps_stretch_box': row.get('_lps_stretch_box'),
+                'last_supper_pullback_from_extension_pct': row.get('_last_supper_pullback_from_extension_pct'),
+                'last_supper_source_box_age': row.get('_last_supper_source_box_age'),
+                'last_supper_reclaim_quality': row.get('_last_supper_reclaim_quality'),
                 'phase_d_evidence_json': row.get('_phase_d_evidence_json'),
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.

@@ -175,6 +175,17 @@ class SetupOut(BaseModel):
     bin_d_vs_b_support_quality_delta: Optional[float] = None
     lps_stretch_atr: Optional[float] = None
     lps_stretch_box: Optional[float] = None
+    lps_swing_type: Optional[str] = None
+    lps_anchor_bar: Optional[int] = None
+    lps_anchor_date: Optional[str] = None
+    lps_low_bar: Optional[int] = None
+    lps_low_date: Optional[str] = None
+    lps_swing_depth_pct: Optional[float] = None
+    lps_swing_depth_atr: Optional[float] = None
+    lps_swing_depth_box: Optional[float] = None
+    last_supper_pullback_from_extension_pct: Optional[float] = None
+    last_supper_source_box_age: Optional[int] = None
+    last_supper_reclaim_quality: Optional[float] = None
     # ADR% absolute-volatility character
     adr_pct: Optional[float] = None
     score_adr: Optional[float] = None
