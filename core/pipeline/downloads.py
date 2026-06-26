@@ -5,6 +5,7 @@ import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -46,6 +47,20 @@ from core.pipeline.ticker_admission import (
 )
 
 
+@dataclass
+class _FetchScope:
+    tickers_with_indexes: list[str]
+    index_symbols: list[str]
+    quarantine_path: str
+    quarantine: dict
+    skipped_quarantined: list[str]
+    admission_path: str
+    admission: dict
+    skipped_admission: list[str]
+    admission_skip_counts: dict[str, int]
+    requested_non_index: list[str]
+
+
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
     """
     Download a batch of tickers with automatic retry on failure.
@@ -78,9 +93,19 @@ def _download_batch_with_retry(batch: list[str], period: str, max_retries: int =
     return pd.DataFrame()
 
 
-def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
+def _recover_missing_data(
+    data: pd.DataFrame,
+    tickers: list[str],
+    *,
+    skip_current_short: bool = True,
+    dropout_guard: bool = True,
+) -> pd.DataFrame:
     """
     Check for missing or incomplete data (<200 bars) and attempt to re-download.
+    By default, current-but-short histories are left to the admission ledger
+    instead of hammering Yahoo every run; new listings and split-drift recovery
+    can force a full retry with ``skip_current_short=False`` and
+    ``dropout_guard=False``.
     Returns the corrected DataFrame.
     """
     missing_or_short = []
@@ -95,7 +120,9 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
                 closes = pd.Series(dtype="float64")
             if len(closes) < min_history_bars:
                 latest_close = closes.index.max().normalize() if not closes.empty else None
-                if latest_close is not None and latest_close >= expected_session:
+                if (skip_current_short
+                        and latest_close is not None
+                        and latest_close >= expected_session):
                     current_but_short.append(ticker)
                 else:
                     missing_or_short.append(ticker)
@@ -110,7 +137,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
     if not missing_or_short:
         return data
 
-    if len(missing_or_short) > len(tickers) * 0.5:
+    if dropout_guard and len(missing_or_short) > len(tickers) * 0.5:
         print(f"Warning: {len(missing_or_short)} dropouts detected. Rate limit severe. Skipping individual fallback to avoid IP ban.")
         return data
 
@@ -155,7 +182,7 @@ def _recover_missing_data(data: pd.DataFrame, tickers: list[str]) -> pd.DataFram
             if hasattr(fallback_frames[i].index, 'tz') and fallback_frames[i].index.tz is not None:
                 fallback_frames[i].index = fallback_frames[i].index.tz_localize(None)
 
-        data = pd.concat([data] + fallback_frames, axis=1)
+        data = pd.concat([data] + fallback_frames, axis=1, sort=True)
 
     if recovered_count > 0:
         print(f"Successfully recovered full data for {recovered_count} tickers using fallback batches!")
@@ -447,6 +474,349 @@ def _record_admission_history(admission: dict, admission_path: str, requested: l
     return summary
 
 
+def _symbols_with_indexes(tickers: list[str]) -> tuple[list[str], list[str]]:
+    index_symbols = list(getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
+    tickers_with_indexes = list(tickers)
+    for symbol in index_symbols:
+        if symbol not in tickers_with_indexes:
+            tickers_with_indexes.append(symbol)
+    return tickers_with_indexes, index_symbols
+
+
+def _state_path(meta_file: str, setting_name: str, default_name: str) -> str:
+    return os.path.join(os.path.dirname(meta_file), getattr(settings, setting_name, default_name))
+
+
+def _prepare_fetch_scope(tickers: list[str], meta_file: str) -> _FetchScope:
+    tickers_with_indexes, index_symbols = _symbols_with_indexes(tickers)
+
+    quarantine_path = _state_path(meta_file, "QUARANTINE_FILENAME", "ticker_quarantine.json")
+    quarantine = (
+        load_quarantine(quarantine_path)
+        if getattr(settings, "QUARANTINE_ENABLED", True)
+        else {}
+    )
+    tickers_with_indexes, skipped_quarantined = split_active(
+        tickers_with_indexes, quarantine, index_symbols=index_symbols
+    )
+    if skipped_quarantined:
+        print(f"  Quarantine: skipping {len(skipped_quarantined)} repeatedly-empty "
+              f"ticker(s); re-probe in <= {getattr(settings, 'QUARANTINE_COOLDOWN_DAYS', 7)}d.",
+              flush=True)
+
+    admission_path = _state_path(
+        meta_file, "TICKER_ADMISSION_FILENAME", "ticker_admission.json"
+    )
+    admission = (
+        load_admission(admission_path)
+        if getattr(settings, "TICKER_ADMISSION_ENABLED", True)
+        else {}
+    )
+    tickers_with_indexes, skipped_admission, admission_skip_counts = split_downloadable(
+        tickers_with_indexes, admission, index_symbols=index_symbols
+    )
+    if skipped_admission:
+        detail = ", ".join(
+            f"{status}={count}" for status, count in sorted(admission_skip_counts.items())
+        )
+        print(f"  Admission: skipping {len(skipped_admission)} ticker(s)"
+              f"{f' ({detail})' if detail else ''}.",
+              flush=True)
+
+    requested_non_index = [t for t in tickers_with_indexes if t not in index_symbols]
+    return _FetchScope(
+        tickers_with_indexes=tickers_with_indexes,
+        index_symbols=index_symbols,
+        quarantine_path=quarantine_path,
+        quarantine=quarantine,
+        skipped_quarantined=skipped_quarantined,
+        admission_path=admission_path,
+        admission=admission,
+        skipped_admission=skipped_admission,
+        admission_skip_counts=admission_skip_counts,
+        requested_non_index=requested_non_index,
+    )
+
+
+def _try_fresh_cache(
+    cache_file: str,
+    scope: _FetchScope,
+    expected_session: pd.Timestamp,
+    min_latest_coverage: float,
+) -> pd.DataFrame | None:
+    if not os.path.exists(cache_file):
+        return None
+
+    cache_age_hours = (time.time() - os.path.getmtime(cache_file)) / 3600.0
+    ttl = (settings.TTL_FRESH_HOURS_MARKET if _is_market_hours()
+           else settings.TTL_FRESH_HOURS_OFFHOURS)
+    if cache_age_hours >= ttl:
+        return None
+
+    cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+    last_reference_date = last_complete_reference_date(cached_data, scope.index_symbols)
+    coverage = close_coverage_on(cached_data, scope.tickers_with_indexes, expected_session)
+    if (_has_all_symbols(cached_data, scope.index_symbols)
+            and last_reference_date is not None
+            and last_reference_date >= expected_session
+            and coverage.ratio >= min_latest_coverage):
+        _record_admission_history(
+            scope.admission, scope.admission_path, scope.requested_non_index, cached_data,
+            "cache", mark_missing=False, only_untracked=True
+        )
+        print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
+              f"TTL {ttl}h)...", flush=True)
+        return cached_data
+
+    print(f"Local cache is fresh by mtime but latest-session coverage is "
+          f"{coverage.format()} for {expected_session.date()} "
+          f"(required >= {min_latest_coverage:.0%}); updating cache.", flush=True)
+    return None
+
+
+def _read_cached_panel(cache_file: str) -> pd.DataFrame | None:
+    if not os.path.exists(cache_file):
+        return None
+    try:
+        cached = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+        if hasattr(cached.index, 'tz') and cached.index.tz is not None:
+            cached.index = cached.index.tz_localize(None)
+        return cached
+    except Exception as e:
+        print(f"  Cached parquet unreadable ({e}); falling back to full refetch.")
+        return None
+
+
+def _weekly_refresh_due(meta: dict) -> bool:
+    last_full_refresh = meta.get('last_full_refresh')
+    if not last_full_refresh:
+        return True
+    try:
+        ts = datetime.fromisoformat(last_full_refresh)
+        age_days = (datetime.now(timezone.utc) - ts).days
+        return age_days >= settings.FULL_REFRESH_INTERVAL_DAYS
+    except Exception:
+        return True
+
+
+def _cache_status(
+    cached: pd.DataFrame | None,
+    scope: _FetchScope,
+    expected_session: pd.Timestamp,
+) -> tuple[pd.Timestamp | None, int | None, object | None]:
+    if cached is None or cached.empty:
+        return None, None, None
+    last_cached_date = (
+        last_complete_reference_date(cached, scope.index_symbols)
+        or cached.index.max().normalize()
+    )
+    gap_bdays = session_gap(last_cached_date, expected_session)
+    latest_coverage = close_coverage_on(cached, scope.tickers_with_indexes, expected_session)
+    return last_cached_date, gap_bdays, latest_coverage
+
+
+def _try_current_cache(
+    cached: pd.DataFrame | None,
+    cache_file: str,
+    meta_file: str,
+    meta: dict,
+    scope: _FetchScope,
+    last_cached_date: pd.Timestamp | None,
+    gap_bdays: int | None,
+    latest_coverage,
+    weekly_refresh_due: bool,
+    min_latest_coverage: float,
+) -> pd.DataFrame | None:
+    if cached is None or cached.empty or gap_bdays != 0 or weekly_refresh_due:
+        return None
+
+    if (_has_all_symbols(cached, scope.index_symbols)
+            and latest_coverage is not None
+            and latest_coverage.ratio >= min_latest_coverage):
+        print(f"Cache last market-regime bar is current ({last_cached_date.date()}); "
+              f"touching mtime and returning.", flush=True)
+        _atomic_write_parquet(cached, cache_file)
+        meta['last_modified'] = _now_iso()
+        _record_admission_history(
+            scope.admission, scope.admission_path, scope.requested_non_index, cached,
+            "cache", mark_missing=False, only_untracked=True
+        )
+        _write_meta(meta_file, meta)
+        return cached
+
+    coverage_text = latest_coverage.format() if latest_coverage else "none"
+    print(f"Cache last market-regime bar is current but latest-session coverage is "
+          f"{coverage_text} (required >= {min_latest_coverage:.0%}); "
+          "falling back to full refetch.", flush=True)
+    return None
+
+
+def _write_incremental_result(
+    data: pd.DataFrame,
+    cache_file: str,
+    meta_file: str,
+    meta: dict,
+    scope: _FetchScope,
+    started_at: float,
+) -> pd.DataFrame:
+    data = _trim_to_period(data, settings.DOWNLOAD_PERIOD)
+    data = data.loc[:, ~data.columns.duplicated(keep='last')]
+    _atomic_write_parquet(data, cache_file)
+    meta['last_modified'] = _now_iso()
+    # Health only: the cold full-refetch owns quarantine updates. A ticker
+    # absent from a small incremental window is not necessarily dead.
+    returned_active = present_tickers(data) & set(scope.requested_non_index)
+    admission_updates = _record_admission_history(
+        scope.admission, scope.admission_path, scope.requested_non_index, data, "incremental"
+    )
+    meta['fetch_health'] = summarize(
+        "incremental", scope.requested_non_index, returned_active,
+        len(scope.skipped_quarantined), 0, count_quarantined(scope.quarantine),
+        time.time() - started_at,
+    )
+    meta['ticker_admission'] = {
+        "skipped": len(scope.skipped_admission),
+        "skip_counts": scope.admission_skip_counts,
+        "updates": admission_updates,
+        "active_skip_counts": count_active_skips(scope.admission),
+    }
+    # Preserve last_full_refresh on incremental writes.
+    _write_meta(meta_file, meta)
+    print(f"Saved incremental update to {cache_file}. New last bar: "
+          f"{data.index.max().date()}.", flush=True)
+    return data
+
+
+def _try_incremental_update(
+    cached: pd.DataFrame,
+    cache_file: str,
+    meta_file: str,
+    meta: dict,
+    scope: _FetchScope,
+    gap_bdays: int,
+    started_at: float,
+) -> pd.DataFrame | None:
+    data = _incremental_fetch(cached, scope.tickers_with_indexes, gap_bdays)
+    if data is not None and not data.empty:
+        return _write_incremental_result(data, cache_file, meta_file, meta, scope, started_at)
+
+    print("  Incremental fetch yielded no usable data; falling back to full refetch.")
+    return None
+
+
+def _write_unhealthy_cold_result(
+    data: pd.DataFrame,
+    cached: pd.DataFrame | None,
+    meta_file: str,
+    meta: dict,
+    scope: _FetchScope,
+    coverage,
+    expected_session: pd.Timestamp,
+    min_latest_coverage: float,
+    started_at: float,
+) -> pd.DataFrame:
+    # Unhealthy cold run (likely rate-limited): record health for observability
+    # but do not touch quarantine, and preserve last_full_refresh in meta.
+    returned_active = present_tickers(data) & set(scope.requested_non_index)
+    meta['fetch_health'] = summarize(
+        "cold", scope.requested_non_index, returned_active, len(scope.skipped_quarantined),
+        0, count_quarantined(scope.quarantine), time.time() - started_at,
+    )
+    meta['ticker_admission'] = {
+        "skipped": len(scope.skipped_admission),
+        "skip_counts": scope.admission_skip_counts,
+        "updates": {},
+        "active_skip_counts": count_active_skips(scope.admission),
+    }
+    _write_meta(meta_file, meta)
+    print(f"Full refetch latest-session coverage is {coverage.format()} for "
+          f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+          "keeping existing cache if possible.", flush=True)
+    if cached is not None and not cached.empty:
+        return cached
+    return data
+
+
+def _write_successful_cold_result(
+    data: pd.DataFrame,
+    cache_file: str,
+    meta_file: str,
+    scope: _FetchScope,
+    started_at: float,
+) -> pd.DataFrame:
+    _atomic_write_parquet(data, cache_file)
+    returned = present_tickers(data)
+    returned_active = returned & set(scope.requested_non_index)
+    newly: list[str] = []
+    if (getattr(settings, "QUARANTINE_ENABLED", True)
+            and is_healthy(scope.requested_non_index, returned_active)):
+        scope.quarantine, newly = record_results(
+            scope.quarantine, scope.requested_non_index, returned
+        )
+        save_quarantine(scope.quarantine_path, scope.quarantine)
+    admission_updates = _record_admission_history(
+        scope.admission, scope.admission_path, scope.requested_non_index, data, "cold"
+    )
+    health = summarize(
+        "cold", scope.requested_non_index, returned_active, len(scope.skipped_quarantined),
+        len(newly), count_quarantined(scope.quarantine), time.time() - started_at,
+    )
+    meta = {
+        'last_full_refresh': _now_iso(),
+        'last_modified': _now_iso(),
+        'fetch_health': health,
+        'ticker_admission': {
+            "skipped": len(scope.skipped_admission),
+            "skip_counts": scope.admission_skip_counts,
+            "updates": admission_updates,
+            "active_skip_counts": count_active_skips(scope.admission),
+        },
+    }
+    _write_meta(meta_file, meta)
+    if newly:
+        print(f"  Quarantine: +{len(newly)} ticker(s) after "
+              f"{getattr(settings, 'QUARANTINE_EMPTY_STREAK', 2)} empty refetch(es); "
+              f"{health['quarantined_total']} total quarantined.", flush=True)
+    print(f"Saved optimized cache to {cache_file} "
+          f"(returned {health['returned']}/{health['requested']}).")
+    return data
+
+
+def _cold_fetch(
+    cache_file: str,
+    meta_file: str,
+    meta: dict,
+    cached: pd.DataFrame | None,
+    scope: _FetchScope,
+    expected_session: pd.Timestamp,
+    min_latest_coverage: float,
+    started_at: float,
+) -> pd.DataFrame:
+    data = _full_refetch(scope.tickers_with_indexes)
+    if data.empty:
+        return data
+
+    if isinstance(data.columns, pd.MultiIndex):
+        data = data.loc[:, ~data.columns.duplicated(keep='last')]
+
+    data = _repair_latest_session(
+        data,
+        scope.tickers_with_indexes,
+        expected_session,
+        min_latest_coverage,
+        "Full refetch",
+    )
+    coverage = close_coverage_on(data, scope.tickers_with_indexes, expected_session)
+    if (not has_all_closes_on(data, scope.index_symbols, expected_session)
+            or coverage.ratio < min_latest_coverage):
+        return _write_unhealthy_cold_result(
+            data, cached, meta_file, meta, scope, coverage, expected_session,
+            min_latest_coverage, started_at
+        )
+
+    return _write_successful_cold_result(data, cache_file, meta_file, scope, started_at)
+
+
 def fetch_data(tickers: list[str]) -> pd.DataFrame:
     """
     Download market data via yfinance with PyArrow Parquet caching.
@@ -466,126 +836,32 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     t_fetch_start = time.time()
     cache_file, meta_file = _cache_paths()
 
-    index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
-    tickers_with_indexes = list(tickers)
-    for symbol in index_symbols:
-        if symbol not in tickers_with_indexes:
-            tickers_with_indexes.append(symbol)
-
-    # Dead-ticker quarantine: skip symbols that keep returning nothing (re-probed
-    # after a cooldown). Cheap, runs every fetch; index symbols are never skipped.
-    quar_path = os.path.join(os.path.dirname(meta_file),
-                             getattr(settings, "QUARANTINE_FILENAME", "ticker_quarantine.json"))
-    quarantine = load_quarantine(quar_path) if getattr(settings, "QUARANTINE_ENABLED", True) else {}
-    active_symbols, skipped_quarantined = split_active(
-        tickers_with_indexes, quarantine, index_symbols=index_symbols
-    )
-    if skipped_quarantined:
-        print(f"  Quarantine: skipping {len(skipped_quarantined)} repeatedly-empty "
-              f"ticker(s); re-probe in <= {getattr(settings, 'QUARANTINE_COOLDOWN_DAYS', 7)}d.",
-              flush=True)
-    tickers_with_indexes = active_symbols
-
-    admission_path = os.path.join(os.path.dirname(meta_file),
-                                  getattr(settings, "TICKER_ADMISSION_FILENAME", "ticker_admission.json"))
-    admission = load_admission(admission_path) if getattr(settings, "TICKER_ADMISSION_ENABLED", True) else {}
-    tickers_with_indexes, skipped_admission, admission_skip_counts = split_downloadable(
-        tickers_with_indexes, admission, index_symbols=index_symbols
-    )
-    if skipped_admission:
-        detail = ", ".join(f"{status}={count}" for status, count in sorted(admission_skip_counts.items()))
-        print(f"  Admission: skipping {len(skipped_admission)} ticker(s)"
-              f"{f' ({detail})' if detail else ''}.",
-              flush=True)
-
-    requested_non_index = [t for t in tickers_with_indexes if t not in index_symbols]
+    scope = _prepare_fetch_scope(tickers, meta_file)
 
     expected_session = latest_completed_session()
     min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
     # ── Fast path: fresh cache ─────────────────────────────────────────────
     meta = _read_meta(meta_file)
-    if os.path.exists(cache_file):
-        cache_age_hours = (time.time() - os.path.getmtime(cache_file)) / 3600.0
-        ttl = (settings.TTL_FRESH_HOURS_MARKET if _is_market_hours()
-               else settings.TTL_FRESH_HOURS_OFFHOURS)
-        if cache_age_hours < ttl:
-            cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
-            last_reference_date = last_complete_reference_date(cached_data, index_symbols)
-            coverage = close_coverage_on(cached_data, tickers_with_indexes, expected_session)
-            if (_has_all_symbols(cached_data, index_symbols)
-                    and last_reference_date is not None
-                    and last_reference_date >= expected_session
-                    and coverage.ratio >= min_latest_coverage):
-                _record_admission_history(
-                    admission, admission_path, requested_non_index, cached_data,
-                    "cache", mark_missing=False, only_untracked=True
-                )
-                print(f"Loading market data from local cache ({cache_age_hours:.2f}h old, "
-                      f"TTL {ttl}h)...", flush=True)
-                return cached_data
-            print(f"Local cache is fresh by mtime but latest-session coverage is "
-                  f"{coverage.format()} for {expected_session.date()} "
-                  f"(required >= {min_latest_coverage:.0%}); updating cache.", flush=True)
+    fresh_cache = _try_fresh_cache(
+        cache_file, scope, expected_session, min_latest_coverage
+    )
+    if fresh_cache is not None:
+        return fresh_cache
 
     # ── Decide cold vs. incremental ────────────────────────────────────────
-    cached: pd.DataFrame | None = None
-    if os.path.exists(cache_file):
-        try:
-            cached = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
-            if hasattr(cached.index, 'tz') and cached.index.tz is not None:
-                cached.index = cached.index.tz_localize(None)
-        except Exception as e:
-            print(f"  Cached parquet unreadable ({e}); falling back to full refetch.")
-            cached = None
+    cached = _read_cached_panel(cache_file)
+    weekly_refresh_due = _weekly_refresh_due(meta)
+    last_cached_date, gap_bdays, latest_coverage = _cache_status(
+        cached, scope, expected_session
+    )
 
-    last_full_refresh = meta.get('last_full_refresh')
-    weekly_refresh_due = True
-    if last_full_refresh:
-        try:
-            ts = datetime.fromisoformat(last_full_refresh)
-            age_days = (datetime.now(timezone.utc) - ts).days
-            weekly_refresh_due = age_days >= settings.FULL_REFRESH_INTERVAL_DAYS
-        except Exception:
-            weekly_refresh_due = True
-
-    gap_bdays = None
-    last_cached_date = None
-    if cached is not None and not cached.empty:
-        last_cached_date = (
-            last_complete_reference_date(cached, index_symbols)
-            or cached.index.max().normalize()
-        )
-        gap_bdays = session_gap(last_cached_date, expected_session)
-        latest_coverage = close_coverage_on(cached, tickers_with_indexes, expected_session)
-    else:
-        latest_coverage = None
-
-    # Cache exists, weekly refresh not due, and we already have the latest
-    # trading day's bar → just refresh mtime and return. This avoids a full
-    # refetch when the cache is "stale" only by clock-time (e.g., we ran 13h
-    # ago but it's still the same trading day).
-    if (cached is not None and not cached.empty and gap_bdays == 0
-            and not weekly_refresh_due
-            and _has_all_symbols(cached, index_symbols)
-            and latest_coverage is not None
-            and latest_coverage.ratio >= min_latest_coverage):
-        print(f"Cache last market-regime bar is current ({last_cached_date.date()}); "
-              f"touching mtime and returning.", flush=True)
-        _atomic_write_parquet(cached, cache_file)
-        meta['last_modified'] = _now_iso()
-        _record_admission_history(
-            admission, admission_path, requested_non_index, cached,
-            "cache", mark_missing=False, only_untracked=True
-        )
-        _write_meta(meta_file, meta)
-        return cached
-    if (cached is not None and not cached.empty and gap_bdays == 0
-            and not weekly_refresh_due):
-        coverage_text = latest_coverage.format() if latest_coverage else "none"
-        print(f"Cache last market-regime bar is current but latest-session coverage is "
-              f"{coverage_text} (required >= {min_latest_coverage:.0%}); "
-              "falling back to full refetch.", flush=True)
+    current_cache = _try_current_cache(
+        cached, cache_file, meta_file, meta, scope, last_cached_date, gap_bdays,
+        latest_coverage, weekly_refresh_due, min_latest_coverage
+    )
+    if current_cache is not None:
+        return current_cache
 
     do_incremental = (
         cached is not None
@@ -596,109 +872,16 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     )
 
     if do_incremental:
-        data = _incremental_fetch(cached, tickers_with_indexes, gap_bdays)
-        if data is not None and not data.empty:
-            data = _trim_to_period(data, settings.DOWNLOAD_PERIOD)
-            data = data.loc[:, ~data.columns.duplicated(keep='last')]
-            _atomic_write_parquet(data, cache_file)
-            meta['last_modified'] = _now_iso()
-            # Health only — the cold full-refetch owns quarantine updates (a ticker
-            # absent from a small incremental window is not necessarily dead).
-            returned_active = present_tickers(data) & set(requested_non_index)
-            admission_updates = _record_admission_history(
-                admission, admission_path, requested_non_index, data, "incremental"
-            )
-            meta['fetch_health'] = summarize(
-                "incremental", requested_non_index, returned_active,
-                len(skipped_quarantined), 0, count_quarantined(quarantine),
-                time.time() - t_fetch_start,
-            )
-            meta['ticker_admission'] = {
-                "skipped": len(skipped_admission),
-                "skip_counts": admission_skip_counts,
-                "updates": admission_updates,
-                "active_skip_counts": count_active_skips(admission),
-            }
-            # Preserve last_full_refresh on incremental writes.
-            _write_meta(meta_file, meta)
-            print(f"Saved incremental update to {cache_file}. New last bar: "
-                  f"{data.index.max().date()}.", flush=True)
-            return data
-        # Fall through to cold path if incremental returned nothing usable.
-        print("  Incremental fetch yielded no usable data; falling back to full refetch.")
-
-    # ── Cold path ──────────────────────────────────────────────────────────
-    data = _full_refetch(tickers_with_indexes)
-    if data.empty:
-        return data
-
-    if isinstance(data.columns, pd.MultiIndex):
-        data = data.loc[:, ~data.columns.duplicated(keep='last')]
-
-    data = _repair_latest_session(
-        data,
-        tickers_with_indexes,
-        expected_session,
-        min_latest_coverage,
-        "Full refetch",
-    )
-    coverage = close_coverage_on(data, tickers_with_indexes, expected_session)
-    if (not has_all_closes_on(data, index_symbols, expected_session)
-            or coverage.ratio < min_latest_coverage):
-        # Unhealthy cold run (likely rate-limited): record health for observability
-        # but DON'T touch quarantine, and preserve last_full_refresh in meta.
-        returned_active = present_tickers(data) & set(requested_non_index)
-        meta['fetch_health'] = summarize(
-            "cold", requested_non_index, returned_active, len(skipped_quarantined),
-            0, count_quarantined(quarantine), time.time() - t_fetch_start,
+        incremental = _try_incremental_update(
+            cached, cache_file, meta_file, meta, scope, gap_bdays, t_fetch_start
         )
-        meta['ticker_admission'] = {
-            "skipped": len(skipped_admission),
-            "skip_counts": admission_skip_counts,
-            "updates": {},
-            "active_skip_counts": count_active_skips(admission),
-        }
-        _write_meta(meta_file, meta)
-        print(f"Full refetch latest-session coverage is {coverage.format()} for "
-              f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
-              "keeping existing cache if possible.", flush=True)
-        if cached is not None and not cached.empty:
-            return cached
-        return data
+        if incremental is not None:
+            return incremental
 
-    _atomic_write_parquet(data, cache_file)
-    returned = present_tickers(data)
-    returned_active = returned & set(requested_non_index)
-    newly: list[str] = []
-    if getattr(settings, "QUARANTINE_ENABLED", True) and is_healthy(requested_non_index, returned_active):
-        quarantine, newly = record_results(quarantine, requested_non_index, returned)
-        save_quarantine(quar_path, quarantine)
-    admission_updates = _record_admission_history(
-        admission, admission_path, requested_non_index, data, "cold"
+    return _cold_fetch(
+        cache_file, meta_file, meta, cached, scope, expected_session,
+        min_latest_coverage, t_fetch_start
     )
-    health = summarize(
-        "cold", requested_non_index, returned_active, len(skipped_quarantined),
-        len(newly), count_quarantined(quarantine), time.time() - t_fetch_start,
-    )
-    meta = {
-        'last_full_refresh': _now_iso(),
-        'last_modified': _now_iso(),
-        'fetch_health': health,
-        'ticker_admission': {
-            "skipped": len(skipped_admission),
-            "skip_counts": admission_skip_counts,
-            "updates": admission_updates,
-            "active_skip_counts": count_active_skips(admission),
-        },
-    }
-    _write_meta(meta_file, meta)
-    if newly:
-        print(f"  Quarantine: +{len(newly)} ticker(s) after "
-              f"{getattr(settings, 'QUARANTINE_EMPTY_STREAK', 2)} empty refetch(es); "
-              f"{health['quarantined_total']} total quarantined.", flush=True)
-    print(f"Saved optimized cache to {cache_file} "
-          f"(returned {health['returned']}/{health['requested']}).")
-    return data
 
 
 def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
@@ -780,12 +963,16 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
     new_listings = [t for t in tickers_with_spy if t not in cached_ticker_set]
     if new_listings:
         print(f"  Fetching full history for {len(new_listings)} new listing(s)...", flush=True)
-        merged = _recover_missing_data(merged, new_listings)
+        merged = _recover_missing_data(
+            merged, new_listings, skip_current_short=False, dropout_guard=False
+        )
 
     # Drifted tickers: fetch their full 2y individually.
     if drifted:
         print(f"  Refetching {len(drifted)} split-drifted ticker(s) in full...", flush=True)
-        merged = _recover_missing_data(merged, drifted)
+        merged = _recover_missing_data(
+            merged, drifted, skip_current_short=False, dropout_guard=False
+        )
 
     merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session

@@ -242,3 +242,111 @@ def test_recover_missing_data_does_not_retry_current_short_history(monkeypatch):
 
     assert out is panel
     assert called == []
+
+
+def test_recover_missing_data_can_force_retry_current_short_history(monkeypatch):
+    latest = pd.Timestamp("2026-06-25")
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: latest)
+    monkeypatch.setattr(downloads_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
+
+    panel = pd.concat({
+        "YOUNG": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[latest])
+    }, axis=1)
+    recovered_idx = pd.date_range("2026-06-23", periods=3, freq="B")
+    recovered_panel = pd.concat({
+        "YOUNG": pd.DataFrame(
+            {"Close": [8.0, 9.0, 10.0], "Volume": [900, 950, 1000]},
+            index=recovered_idx,
+        )
+    }, axis=1)
+    called = []
+
+    def fake_download(batch, period, max_retries=3):
+        called.append((batch, period, max_retries))
+        return recovered_panel
+
+    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", fake_download)
+
+    out = downloads_module._recover_missing_data(
+        panel, ["YOUNG"], skip_current_short=False, dropout_guard=False
+    )
+
+    assert called == [(["YOUNG"], downloads_module.settings.DOWNLOAD_PERIOD, 2)]
+    assert out[("YOUNG", "Close")].dropna().tolist() == [8.0, 9.0, 10.0]
+
+
+def test_incremental_fetch_forces_full_recovery_for_new_listings(monkeypatch):
+    dates = pd.to_datetime(["2026-06-24", "2026-06-25"])
+    cached_panel = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[dates[0]])
+            for symbol in ["AAA", "SPY", "QQQ"]
+        },
+        axis=1,
+    )
+    fresh_panel = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]])
+            for symbol in ["AAA", "YOUNG", "SPY", "QQQ"]
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
+    calls = []
+
+    def fake_recover(data, tickers, *, skip_current_short=True, dropout_guard=True):
+        calls.append((tickers, skip_current_short, dropout_guard))
+        return data
+
+    monkeypatch.setattr(downloads_module, "_recover_missing_data", fake_recover)
+
+    out = downloads_module._incremental_fetch(
+        cached_panel, ["AAA", "YOUNG", "SPY", "QQQ"], 1
+    )
+
+    assert out is not None
+    assert calls == [(["YOUNG"], False, False)]
+
+
+def test_incremental_fetch_forces_full_recovery_for_split_drift(monkeypatch):
+    dates = pd.to_datetime(["2026-06-24", "2026-06-25"])
+    cached_panel = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[dates[0]])
+            for symbol in ["AAA", "SPLT", "SPY", "QQQ"]
+        },
+        axis=1,
+    )
+    fresh_panel = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [11.0], "Volume": [1100]}, index=[dates[-1]])
+            for symbol in ["AAA", "SPLT", "SPY", "QQQ"]
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.7)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, ["SPLT"]))
+    calls = []
+
+    def fake_recover(data, tickers, *, skip_current_short=True, dropout_guard=True):
+        calls.append((tickers, skip_current_short, dropout_guard))
+        return data
+
+    monkeypatch.setattr(downloads_module, "_recover_missing_data", fake_recover)
+
+    out = downloads_module._incremental_fetch(
+        cached_panel, ["AAA", "SPLT", "SPY", "QQQ"], 1
+    )
+
+    assert out is not None
+    assert calls == [(["SPLT"], False, False)]
