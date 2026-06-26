@@ -175,6 +175,513 @@ def score_traversal_args(traversal, equilibrium, bins) -> dict:
     }
 
 
+def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
+    baseline = apply_baseline_filters(df)
+    if baseline is None:
+        return None
+    full_df, yearly_return = baseline
+
+    # Keep the full (up to 5y) frame for HTF resampling, but run the DAILY
+    # structure read on a stable trailing window so deepening the cache for HTF
+    # does NOT feed the oldest-first root walk extra history and drift it.
+    daily_df = _trim_to_period(full_df, settings.DAILY_STRUCTURE_PERIOD).copy()
+    latest = daily_df.iloc[-1]
+    daily_df['ATR_10'] = calculate_atr(daily_df, 10)
+    daily_df['ATR_50'] = calculate_atr(daily_df, 50)
+
+    return {
+        "full_df": full_df,
+        "df": daily_df,
+        "latest": latest,
+        "yearly_return": yearly_return,
+    }
+
+
+def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
+    # Parent (outer) is the base of record; inner is the nested companion. One
+    # chronological A->B->(C?)->D narrative is the structure source of truth.
+    structure = read_structure(df, float(df.iloc[-6]['ATR_10']))
+    if structure is None:
+        return None
+
+    boxes = _structure_to_boxes(structure, len(df))
+    base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
+        r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
+        is_inner_box = boxes["parent"]
+    inner = boxes["inner"]
+
+    if base_len == 0:
+        return None
+
+    atr_eval = df.iloc[-6]
+    atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
+
+    if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):
+        return None
+    if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
+        return None
+
+    base_df = df.iloc[-base_len:]
+    atr_for_zone = float(atr_eval['ATR_10'])
+    base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
+    phase_b_start = len(df) - base_len
+    swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
+
+    return {
+        "structure": structure,
+        "base_len": base_len,
+        "res_avg": res_avg,
+        "sup_avg": sup_avg,
+        "box_width": box_width,
+        "r_touches": r_touches,
+        "s_touches": s_touches,
+        "breach_days": breach_days,
+        "r_anchor_bar": r_anchor_bar,
+        "s_anchor_bar": s_anchor_bar,
+        "bc_anchor_bar": bc_anchor_bar,
+        "phase_b_start_bar": phase_b_start_bar,
+        "is_inner_box": is_inner_box,
+        "inner": inner,
+        "atr_ratio": atr_ratio,
+        "base_df": base_df,
+        "atr_for_zone": atr_for_zone,
+        "phase_b_start": phase_b_start,
+        "parent_ctx": (
+            sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx,
+        ),
+    }
+
+
+def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict) -> Optional[dict]:
+    lps_result, lps_in_inner, lps_context = select_active_lps(
+        df,
+        latest,
+        structure_ctx["parent_ctx"],
+        structure_ctx["inner"],
+        structure_ctx["atr_for_zone"],
+    )
+    if not lps_result:
+        return None
+
+    trigger_price = lps_result['trigger_price']
+    current_price = latest['Close']
+    distance_to_trigger = (trigger_price - current_price) / current_price
+    if distance_to_trigger <= 0:
+        return None
+
+    lps_tests = detect_lps_tests(
+        df, latest, lps_context[0], lps_context[1],
+        structure_ctx["atr_for_zone"], lps_context[2], lps_context[3], lps_context[4],
+    )
+
+    return {
+        "lps_result": lps_result,
+        "lps_in_inner": lps_in_inner,
+        "lps_context": lps_context,
+        "setup_state": lps_result['setup_type'],
+        "lps_length": lps_result['length'],
+        "lps_offset": lps_result['offset'],
+        "trigger_price": trigger_price,
+        "current_price": current_price,
+        "vol_contraction": lps_result['vol_contraction'],
+        "tightness_ratio": lps_result['tightness_ratio'],
+        "lps_tests": lps_tests,
+    }
+
+
+def _relative_strength_context(df: pd.DataFrame, current_price, spy_6m_return: float) -> dict:
+    last_252 = df['High'].iloc[-min(252, len(df)):]
+    max_252 = float(last_252.max()) if len(last_252) else 0.0
+    dist_52w_high_pct = (
+        (float(current_price) - max_252) / max_252 if max_252 > 0 else None
+    )
+
+    rs_lookback = settings.RS_LOOKBACK_BARS
+    if len(df) > rs_lookback:
+        stock_6m_return = (
+            float(current_price) / float(df['Close'].iloc[-rs_lookback - 1]) - 1.0
+        )
+    else:
+        stock_6m_return = 0.0
+    return {
+        "dist_52w_high_pct": dist_52w_high_pct,
+        "excess_return_6m": stock_6m_return - spy_6m_return,
+    }
+
+
+def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
+                          sup_avg: float, atr_for_zone: float) -> dict:
+    r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
+        base_df, res_avg, sup_avg, atr_for_zone
+    )
+    return {
+        "r_touch_vol_z": r_touch_vol_z,
+        "s_touch_vol_z": s_touch_vol_z,
+        "contraction": measure_contractions(base_df),
+        "bar_compression": measure_bar_compression(
+            base_df, res_avg - sup_avg, atr_for_zone
+        ),
+        "support": measure_support_slope(base_df, atr_for_zone),
+        "equilibrium": measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone),
+        "traversal": measure_traversal(base_df, res_avg, sup_avg, atr_for_zone),
+    }
+
+
+def _phase_d_context(df: pd.DataFrame, structure_ctx: dict, lps_ctx: dict) -> dict:
+    structure = structure_ctx["structure"]
+    inner = structure_ctx["inner"]
+    lps_result = lps_ctx["lps_result"]
+    lps_tests = lps_ctx["lps_tests"]
+    lps_context = lps_ctx["lps_context"]
+
+    # Phase A is already the resolved LOCAL root swing (resolve_phase_a brick).
+    bc_anchor_bar, phase_a_end_bar = int(structure.climax_bar), int(structure.ar_bar)
+    phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
+    phase_d_evidence_starts = (
+        {"support_tests": None, "sos_reclaim": None, "rising_support": None}
+        if inner is not None
+        else support_test_evidence_starts(
+            lps_tests, structure_ctx["phase_b_start"], structure_ctx["base_len"]
+        )
+    )
+    support_test_start_bar = phase_d_evidence_starts["support_tests"]
+    v_tip_bar = (
+        None if inner is not None
+        else final_v_tip_bar(
+            df, structure_ctx["phase_b_start"], structure_ctx["base_len"]
+        )
+    )
+
+    bins = measure_bins(
+        df,
+        bc_anchor_bar=bc_anchor_bar,
+        phase_b_start_bar=structure_ctx["phase_b_start_bar"],
+        base_len=structure_ctx["base_len"],
+        is_inner_box=structure_ctx["is_inner_box"],
+        lps_offset=lps_ctx["lps_offset"],
+        lps_length=lps_ctx["lps_length"],
+        R=structure_ctx["res_avg"],
+        S=structure_ctx["sup_avg"],
+        atr_val=structure_ctx["atr_for_zone"],
+        phase_d_start_bar=phase_d_start_bar,
+        support_test_start_bar=support_test_start_bar,
+        sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
+        rising_support_start_bar=phase_d_evidence_starts["rising_support"],
+        phase_a_end_bar=phase_a_end_bar,
+        lps_R=lps_context[1],
+        lps_S=lps_context[0],
+        lps_anchor_bar=lps_result.get("lps_anchor_bar"),
+        lps_low_bar=lps_result.get("lps_low_bar"),
+        v_tip_bar=v_tip_bar,
+    )
+
+    spring_recovery_bar = bins.get("bin_c_recovery_bar")
+    lps_draw_floor = (
+        spring_recovery_bar if spring_recovery_bar is not None
+        else v_tip_bar if v_tip_bar is not None
+        else phase_d_start_bar
+    )
+    drawn_lps_tests = drawn_support_tests(
+        lps_tests,
+        right_floor_bar=lps_draw_floor,
+        min_descent_frac=settings.LPS_DRAW_MIN_DESCENT_FRAC,
+    )
+
+    scope = scope_consolidation(
+        df,
+        bc_anchor_bar=bc_anchor_bar,
+        phase_b_start_bar=structure_ctx["phase_b_start_bar"],
+        base_len=structure_ctx["base_len"],
+        is_inner_box=structure_ctx["is_inner_box"],
+        lps_offset=lps_ctx["lps_offset"],
+        lps_length=lps_ctx["lps_length"],
+        lps_zone_type=lps_result.get("zone_type", "INSIDE"),
+        atr_val=structure_ctx["atr_for_zone"],
+        phase_d_start_bar=phase_d_start_bar,
+        support_test_start_bar=support_test_start_bar,
+        sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
+        rising_support_start_bar=phase_d_evidence_starts["rising_support"],
+        phase_a_end_bar=phase_a_end_bar,
+        phase_c_recovery_bar=bins.get("bin_c_recovery_bar"),
+        v_tip_bar=v_tip_bar,
+        lps_zone_draw_min_descent=settings.LPS_DRAW_MIN_DESCENT_FRAC,
+    )
+
+    return {
+        "bc_anchor_bar": bc_anchor_bar,
+        "phase_a_end_bar": phase_a_end_bar,
+        "phase_d_start_bar": phase_d_start_bar,
+        "phase_d_evidence_starts": phase_d_evidence_starts,
+        "support_test_start_bar": support_test_start_bar,
+        "v_tip_bar": v_tip_bar,
+        "bins": bins,
+        "drawn_lps_tests": drawn_lps_tests,
+        "scope": scope,
+        "phase_c_event_date": bins['bin_c_event_date'] or scope['phase_c_event_date'],
+    }
+
+
+def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
+                        rel_ctx: dict, measurements: dict,
+                        phase_ctx: dict, breadth_pct: Optional[float]) -> dict:
+    df = prepared["df"]
+    full_df = prepared["full_df"]
+    base_df = structure_ctx["base_df"]
+    bins = phase_ctx["bins"]
+    contraction = measurements["contraction"]
+    support = measurements["support"]
+
+    trend = trend_template(df, dist_52w_high_pct=rel_ctx["dist_52w_high_pct"])
+    adr_value = adr_pct(df, settings.ADR_WINDOW)
+    adr_quality = (
+        min(adr_value / settings.ADR_FULL_PCT, 1.0)
+        if settings.ADR_FULL_PCT else 0.0
+    )
+
+    score_result = score_setup(
+        structure_ctx["box_width"],
+        structure_ctx["r_touches"],
+        structure_ctx["s_touches"],
+        structure_ctx["res_avg"],
+        structure_ctx["sup_avg"],
+        base_df,
+        structure_ctx["atr_ratio"],
+        lps_ctx["tightness_ratio"],
+        lps_ctx["vol_contraction"],
+        structure_ctx["base_len"],
+        prepared["yearly_return"],
+        rel_ctx["excess_return_6m"],
+        rel_ctx["dist_52w_high_pct"],
+        breadth_pct,
+        contraction['quality'],
+        support['quality'],
+        adr_quality,
+        adr_value=adr_value,
+        **score_traversal_args(
+            measurements["traversal"], measurements["equilibrium"], bins
+        ),
+    )
+    score = score_result['total']
+
+    htf_ctx: dict = {}
+    if settings.HTF_CONTEXT_ENABLED:
+        daily_box = (structure_ctx["res_avg"], structure_ctx["sup_avg"])
+        htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=daily_box))
+        htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=daily_box))
+
+    return {
+        "trend": trend,
+        "adr_value": adr_value,
+        "adr_quality": adr_quality,
+        "score_result": score_result,
+        "score": score,
+        "tier": calculate_tier(score, structure_ctx["box_width"]),
+        "htf_ctx": htf_ctx,
+    }
+
+
+def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
+                       lps_ctx: dict, rel_ctx: dict, measurements: dict,
+                       phase_ctx: dict, score_ctx: dict,
+                       breadth_pct: Optional[float]) -> dict:
+    df = prepared["df"]
+    base_df = structure_ctx["base_df"]
+    inner = structure_ctx["inner"]
+    lps_result = lps_ctx["lps_result"]
+    contraction = measurements["contraction"]
+    bar_compression = measurements["bar_compression"]
+    support = measurements["support"]
+    equilibrium = measurements["equilibrium"]
+    traversal = measurements["traversal"]
+    bins = phase_ctx["bins"]
+    scope = phase_ctx["scope"]
+    trend = score_ctx["trend"]
+
+    return {
+        'Ticker': ticker,
+        'Tier': score_ctx["tier"],
+        'Setup': lps_ctx["setup_state"],
+        'Score': score_ctx["score"],
+        'Current Price': round(float(lps_ctx["current_price"]), 2),
+
+        'Base Len': int(structure_ctx["base_len"]),
+        'Box Width': float(structure_ctx["box_width"]),
+        'Touches': int(structure_ctx["r_touches"] + structure_ctx["s_touches"]),
+        'ATR Ratio': float(structure_ctx["atr_ratio"]),
+        'LPS Length': int(lps_ctx["lps_length"]),
+        'Breach Days': int(structure_ctx["breach_days"]),
+
+        '_r_touches': int(structure_ctx["r_touches"]),
+        '_s_touches': int(structure_ctx["s_touches"]),
+        '_vol_contraction': float(lps_ctx["vol_contraction"]),
+        '_tightness_ratio': float(lps_ctx["tightness_ratio"]),
+        '_trigger_price': float(lps_ctx["trigger_price"]),
+        '_sub_scores': score_ctx["score_result"],
+        '_R': float(structure_ctx["res_avg"]),
+        '_S': float(structure_ctx["sup_avg"]),
+        '_base_len': int(structure_ctx["base_len"]),
+        '_lps_len': int(lps_ctx["lps_length"]),
+        '_lps_offset': int(lps_ctx["lps_offset"]),
+        '_r_anchor_bar': int(structure_ctx["r_anchor_bar"]),
+        '_s_anchor_bar': int(structure_ctx["s_anchor_bar"]),
+        '_bars_since_BC': int(len(df) - phase_ctx["bc_anchor_bar"]),
+        '_descent_length': int(
+            structure_ctx["phase_b_start_bar"] - phase_ctx["bc_anchor_bar"]
+        ),
+        '_phase_d_inner': bool(inner is not None),
+        '_lps_in_inner': bool(lps_ctx["lps_in_inner"]),
+        '_inner_R': float(inner['R']) if inner is not None else None,
+        '_inner_S': float(inner['S']) if inner is not None else None,
+        '_inner_box_width': float(inner['box_width']) if inner is not None else None,
+        '_inner_start_bar': int(inner['start_bar']) if inner is not None else None,
+        '_inner_source': inner.get('source') if inner is not None else None,
+        '_inner_search_start_bar': (
+            int(inner['search_start_bar']) if inner is not None else None
+        ),
+        '_inner_climax_bar': (int(inner['climax_bar'])
+                              if inner is not None and inner.get('climax_bar') is not None
+                              else None),
+        '_inner_reaction_bar': (int(inner['reaction_bar'])
+                                if inner is not None and inner.get('reaction_bar') is not None
+                                else None),
+        '_inner_reaction_pct': (float(inner['reaction_pct'])
+                                if inner is not None and inner.get('reaction_pct') is not None
+                                else None),
+        '_inner_reaction_bars': (int(inner['reaction_bars'])
+                                 if inner is not None and inner.get('reaction_bars') is not None
+                                 else None),
+        '_dist_52w_high_pct': (float(rel_ctx["dist_52w_high_pct"])
+                               if rel_ctx["dist_52w_high_pct"] is not None else None),
+        '_excess_return_6m': float(rel_ctx["excess_return_6m"]),
+        '_breadth_pct': float(breadth_pct) if breadth_pct is not None else None,
+        '_r_touch_vol_z': measurements["r_touch_vol_z"],
+        '_s_touch_vol_z': measurements["s_touch_vol_z"],
+        '_lps_descent_frac': float(lps_result.get('descent_frac', 1.0)),
+        '_lps_high_descent_frac': float(lps_result.get('high_descent_frac', 1.0)),
+        '_lps_window_range_pct_box': float(lps_result.get('window_range_pct_box', 0.0)),
+        '_lps_high_extension_box': float(lps_result.get('high_extension_box', 0.0)),
+        '_lps_high_extension_atr': float(lps_result.get('high_extension_atr', 0.0)),
+        '_lps_profile_unit': float(lps_result.get('profile_unit', 0.0)),
+        '_lps_profile_unit_pct': float(lps_result.get('profile_unit_pct', 0.0)),
+        '_lps_pullback_profile': float(lps_result.get('pullback_profile', 0.0)),
+        '_lps_terminal_low_tolerance': float(lps_result.get('terminal_low_tolerance', 0.0)),
+        '_lps_spread_expansion_profile': float(lps_result.get('spread_expansion_profile', 0.0)),
+        '_lps_first_high': float(lps_result.get('first_high', 0.0)),
+        '_lps_last_low': float(lps_result.get('last_low', 0.0)),
+        '_lps_window_high': float(lps_result.get('window_high', 0.0)),
+        '_lps_window_low': float(lps_result.get('window_low', 0.0)),
+        '_lps_swing_type': lps_result.get('swing_type', 'terminal_valley'),
+        '_lps_anchor_bar': (int(lps_result['lps_anchor_bar'])
+                            if lps_result.get('lps_anchor_bar') is not None else None),
+        '_lps_anchor_date': lps_result.get('lps_anchor_date'),
+        '_lps_low_bar': (int(lps_result['lps_low_bar'])
+                         if lps_result.get('lps_low_bar') is not None else None),
+        '_lps_low_date': lps_result.get('lps_low_date'),
+        '_lps_swing_depth_pct': lps_result.get('lps_swing_depth_pct'),
+        '_lps_swing_depth_atr': lps_result.get('lps_swing_depth_atr'),
+        '_lps_swing_depth_box': lps_result.get('lps_swing_depth_box'),
+        '_lps_tests': phase_ctx["drawn_lps_tests"],
+        '_lps_zone_type': lps_result.get('zone_type', 'INSIDE'),
+        '_contraction_count': int(contraction['n_contractions']),
+        '_contraction_quality': float(contraction['quality']),
+        '_final_contraction_depth': (float(contraction['final_depth'])
+                                     if contraction['final_depth'] is not None else None),
+        '_contraction_vol_trend': (float(contraction['vol_trend'])
+                                   if contraction['vol_trend'] is not None else None),
+        '_base_median_spread_atr': bar_compression['median_spread_atr'],
+        '_base_p80_spread_atr': bar_compression['p80_spread_atr'],
+        '_base_median_spread_pct_box': bar_compression['median_spread_pct_box'],
+        '_base_tight_bar_pct': float(bar_compression['tight_bar_pct']),
+        '_support_slope_atr': (float(support['slope_atr'])
+                               if support['slope_atr'] is not None else None),
+        '_support_higher_low_frac': float(support['higher_low_frac']),
+        '_ascending_support_quality': float(support['quality']),
+        '_eq_r_touches': int(equilibrium['r_touches']),
+        '_eq_s_touches': int(equilibrium['s_touches']),
+        '_eq_r_touch_thirds': int(equilibrium['r_touch_thirds']),
+        '_eq_s_touch_thirds': int(equilibrium['s_touch_thirds']),
+        '_eq_lower_dwell': float(equilibrium['lower_dwell']),
+        '_eq_mid_dwell': float(equilibrium['mid_dwell']),
+        '_eq_upper_dwell': float(equilibrium['upper_dwell']),
+        '_eq_coverage': float(equilibrium['coverage']),
+        '_trav_n_full_traversals': int(traversal['n_full_traversals']),
+        '_trav_n_swings': int(traversal['n_swings']),
+        '_trav_top_dead_space': (float(traversal['top_dead_space'])
+                                 if traversal['top_dead_space'] is not None else None),
+        '_trav_bottom_dead_space': (float(traversal['bottom_dead_space'])
+                                    if traversal['bottom_dead_space'] is not None else None),
+        '_trav_rail_reaches_high': int(traversal['rail_reaches_high']),
+        '_trav_rail_reaches_low': int(traversal['rail_reaches_low']),
+        '_trav_max_swing_frac': (float(traversal['max_swing_frac'])
+                                 if traversal['max_swing_frac'] is not None else None),
+        '_trav_last_support_frac': (float(traversal['last_support_frac'])
+                                    if traversal['last_support_frac'] is not None else None),
+        '_trav_coil_floor_pos': (float(traversal['coil_floor_pos'])
+                                 if traversal['coil_floor_pos'] is not None else None),
+        '_adr_pct': float(score_ctx["adr_value"]),
+        '_adr_quality': float(score_ctx["adr_quality"]),
+        '_phase_a_start_date': scope['phase_a_start_date'],
+        '_phase_a_end_date': scope['phase_a_end_date'],
+        '_phase_b_start_date': scope['phase_b_start_date'],
+        '_phase_d_start_date': scope['phase_d_start_date'],
+        '_phase_c_event_date': phase_ctx["phase_c_event_date"],
+        '_lps_zone_low': scope['lps_zone_low'],
+        '_lps_zone_high': scope['lps_zone_high'],
+        '_lps_zone_start_date': scope['lps_zone_start_date'],
+        '_lps_zone_end_date': scope['lps_zone_end_date'],
+        '_has_mini_consolidation': bool(scope['has_mini_consolidation']),
+        '_scope_confidence': float(scope['scope_confidence']),
+        '_bin_a_bars': bins['bin_a_bars'],
+        '_bin_a_range_pct': bins['bin_a_range_pct'],
+        '_bin_a_volume_ratio': bins['bin_a_volume_ratio'],
+        '_bin_b_bars': bins['bin_b_bars'],
+        '_bin_b_range_pct': bins['bin_b_range_pct'],
+        '_bin_b_volume_ratio': bins['bin_b_volume_ratio'],
+        '_bin_b_cog_end': bins['bin_b_cog_end'],
+        '_bin_b_cog_crossings': bins['bin_b_cog_crossings'],
+        '_bin_b_cog_rng': bins['bin_b_cog_rng'],
+        '_bin_b_cog_corr': bins['bin_b_cog_corr'],
+        '_bin_c_present': bins['bin_c_present'],
+        '_bin_c_type': bins['bin_c_type'],
+        '_bin_c_event_date': bins['bin_c_event_date'],
+        '_bin_c_event_bar': bins['bin_c_event_bar'],
+        '_bin_c_undercut_atr': bins['bin_c_undercut_atr'],
+        '_bin_c_recovery_bars': bins['bin_c_recovery_bars'],
+        '_bin_c_recovery_bar': bins['bin_c_recovery_bar'],
+        '_bin_c_time_loc': bins['bin_c_time_loc'],
+        '_bin_c_spring_vol_z': bins['bin_c_spring_vol_z'],
+        '_bin_d_bars': bins['bin_d_bars'],
+        '_bin_d_start_bar': bins['bin_d_start_bar'],
+        '_bin_d_range_pct': bins['bin_d_range_pct'],
+        '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
+        '_bin_d_support_slope_atr': bins['bin_d_support_slope_atr'],
+        '_bin_d_higher_low_frac': bins['bin_d_higher_low_frac'],
+        '_bin_d_ascending_support_quality': bins['bin_d_ascending_support_quality'],
+        '_bin_d_boundary_source': bins['bin_d_boundary_source'],
+        '_phase_d_evidence_json': bins['phase_d_evidence_json'] or scope['phase_d_evidence_json'],
+        '_bin_lps_bars': bins['bin_lps_bars'],
+        '_lps_position_in_box': bins['lps_position_in_box'],
+        '_bin_d_vs_b_range_ratio': bins['bin_d_vs_b_range_ratio'],
+        '_bin_d_vs_b_volume_ratio': bins['bin_d_vs_b_volume_ratio'],
+        '_bin_d_vs_b_support_quality_delta': bins['bin_d_vs_b_support_quality_delta'],
+        '_lps_stretch_atr': bins['lps_stretch_atr'],
+        '_lps_stretch_box': bins['lps_stretch_box'],
+        '_last_supper_pullback_from_extension_pct': bins['last_supper_pullback_from_extension_pct'],
+        '_last_supper_source_box_age': bins['last_supper_source_box_age'],
+        '_last_supper_reclaim_quality': bins['last_supper_reclaim_quality'],
+        '_stage2_ma_stack_pass': trend['stage2_ma_stack_pass'],
+        '_stage2_ma200_slope_1m_pct': trend['stage2_ma200_slope_1m_pct'],
+        '_stage2_52w_low_pct': trend['stage2_52w_low_pct'],
+        '_stage2_trend_pass_count': trend['stage2_trend_pass_count'],
+        '_stage2_trend_pass': trend['stage2_trend_pass'],
+        '_base_close_start': float(base_df['Close'].iloc[0]),
+        '_base_close_end': float(base_df['Close'].iloc[-1]),
+        '_base_date_start': str(base_df.index[0])[:10],
+        '_base_date_end': str(base_df.index[-1])[:10],
+        **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
+    }
+
+
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None) -> Optional[dict]:
@@ -184,397 +691,48 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
     try:
-        baseline = apply_baseline_filters(df)
-        if baseline is None:
-            return None
-        df, yearly_return = baseline
-
-        # Keep the full (up to 5y) frame for HTF resampling, but run the DAILY
-        # structure read on a stable trailing window so deepening the cache for
-        # HTF does NOT feed the oldest-first root walk extra history and drift it
-        # (the FOSL _MAX_ANCHORS sensitivity). See config.DAILY_STRUCTURE_PERIOD.
-        full_df = df
-        df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
-
-        latest = df.iloc[-1]
-
-        df['ATR_10'] = calculate_atr(df, 10)
-        df['ATR_50'] = calculate_atr(df, 50)
-
-        # Parent (outer) is the base of record; the inner box is the nested
-        # companion — drawn separately and used to score the LPS when the LPS sits
-        # inside it. See docs/structure_legend.md "Parent + Inner: the nested
-        # range model (draw both)".
-        # One chronological A->B->(C?)->D narrative is the structure source of
-        # truth; it is adapted to the legacy box shape so the rest of the pass is
-        # unchanged. The narrative always reads the oldest valid root swing by
-        # construction, so there is no box-selection mode to choose.
-        structure = read_structure(df, float(df.iloc[-6]['ATR_10']))
-        if structure is None:
-            return None
-        boxes = _structure_to_boxes(structure, len(df))
-        base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
-            r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
-            is_inner_box = boxes["parent"]
-        inner = boxes["inner"]
-
-        if base_len == 0:
+        prepared = _prepare_eval_frame(df)
+        if prepared is None:
             return None
 
-        atr_eval = df.iloc[-6]
-        atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
-
-        if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):
-            return None
-        if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
+        eval_df = prepared["df"]
+        structure_ctx = _resolve_structure_context(eval_df, prepared["latest"])
+        if structure_ctx is None:
             return None
 
-        base_df = df.iloc[-base_len:]
-        atr_for_zone = float(atr_eval['ATR_10'])
-
-        base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
-        phase_b_start = len(df) - base_len
-        swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
-
-        # Use the inner box when it yields an LPS (tighter box -> closer trigger /
-        # stop), else the parent. Only the LPS (trigger / zone / tightness /
-        # setup type) follows the inner; the base above stays parent.
-        parent_ctx = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
-        lps_result, lps_in_inner, lps_context = select_active_lps(
-            df, latest, parent_ctx, inner, atr_for_zone)
-
-        if not lps_result:
+        lps_ctx = _resolve_lps_context(eval_df, prepared["latest"], structure_ctx)
+        if lps_ctx is None:
             return None
 
-        setup_state = lps_result['setup_type']
-        lps_length = lps_result['length']
-        lps_offset = lps_result['offset']
-        trigger_price = lps_result['trigger_price']
-        vol_contraction = lps_result['vol_contraction']
-        tightness_ratio = lps_result['tightness_ratio']
-        lps_tests = detect_lps_tests(
-            df, latest, lps_context[0], lps_context[1],
-            atr_for_zone, lps_context[2], lps_context[3], lps_context[4],
+        rel_ctx = _relative_strength_context(
+            eval_df, lps_ctx["current_price"], spy_6m_return
+        )
+        measurements = _measure_base_context(
+            structure_ctx["base_df"],
+            structure_ctx["res_avg"],
+            structure_ctx["sup_avg"],
+            structure_ctx["atr_for_zone"],
         )
 
-        current_price = latest['Close']
-        distance_to_trigger = (trigger_price - current_price) / current_price
-        if distance_to_trigger <= 0:
+        if descent_tail_drops(
+            eval_df,
+            measurements["traversal"],
+            structure_ctx["box_width"],
+            structure_ctx["inner"],
+            lps_ctx["lps_in_inner"],
+            structure_ctx["atr_for_zone"],
+        ):
             return None
 
-        last_252 = df['High'].iloc[-min(252, len(df)):]
-        max_252 = float(last_252.max()) if len(last_252) else 0.0
-        dist_52w_high_pct = (
-            (float(current_price) - max_252) / max_252 if max_252 > 0 else None
+        phase_ctx = _phase_d_context(eval_df, structure_ctx, lps_ctx)
+        score_ctx = _score_eval_context(
+            prepared, structure_ctx, lps_ctx, rel_ctx, measurements, phase_ctx, breadth_pct
         )
 
-        rs_lookback = settings.RS_LOOKBACK_BARS
-        if len(df) > rs_lookback:
-            stock_6m_return = (float(current_price) / float(df['Close'].iloc[-rs_lookback - 1]) - 1.0)
-        else:
-            stock_6m_return = 0.0
-        excess_return_6m = stock_6m_return - spy_6m_return
-
-        r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
-            base_df, res_avg, sup_avg, atr_for_zone
+        return _build_live_result(
+            ticker, prepared, structure_ctx, lps_ctx, rel_ctx,
+            measurements, phase_ctx, score_ctx, breadth_pct
         )
-        contraction = measure_contractions(base_df)
-        bar_compression = measure_bar_compression(
-            base_df, res_avg - sup_avg, atr_for_zone
-        )
-        support = measure_support_slope(base_df, atr_for_zone)
-        equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
-        traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
-
-        # Descent-tail gate: drop a wide box that abandoned its support rail early
-        # into dead space (CHCT/DGII); a clean promotable inner survives (QUAD).
-        if descent_tail_drops(df, traversal, box_width, inner, lps_in_inner, atr_for_zone):
-            return None
-
-        # Phase A is already the resolved LOCAL root swing (resolve_phase_a brick);
-        # no after-the-fact reconciliation needed.
-        bc_anchor_bar, phase_a_end_bar = int(structure.climax_bar), int(structure.ar_bar)
-        phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
-        phase_d_evidence_starts = (
-            {"support_tests": None, "sos_reclaim": None, "rising_support": None}
-            if inner is not None
-            else support_test_evidence_starts(lps_tests, phase_b_start, base_len)
-        )
-        support_test_start_bar = phase_d_evidence_starts["support_tests"]
-        # The V-tip (final recovered low) is the Phase B->D divider. Used only
-        # when there's no inner Phase-D box of record.
-        v_tip_bar = (
-            None if inner is not None
-            else final_v_tip_bar(df, phase_b_start, base_len)
-        )
-
-        bins = measure_bins(
-            df,
-            bc_anchor_bar=bc_anchor_bar,
-            phase_b_start_bar=phase_b_start_bar,
-            base_len=base_len,
-            is_inner_box=is_inner_box,
-            lps_offset=lps_offset,
-            lps_length=lps_length,
-            R=res_avg,
-            S=sup_avg,
-            atr_val=atr_for_zone,
-            phase_d_start_bar=phase_d_start_bar,
-            support_test_start_bar=support_test_start_bar,
-            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
-            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
-            phase_a_end_bar=phase_a_end_bar,
-            lps_R=lps_context[1],
-            lps_S=lps_context[0],
-            lps_anchor_bar=lps_result.get("lps_anchor_bar"),
-            lps_low_bar=lps_result.get("lps_low_bar"),
-            v_tip_bar=v_tip_bar,
-        )
-
-        # Drawn LPS/Test staircase: display-only filter (recall-safe — the
-        # staircase elects nothing and gates nothing). Keep clean right-side
-        # down/sideways footprints; the unfiltered lps_tests above still feed the
-        # Phase-D evidence. Right-side floor = spring recovery, else V-tip, else
-        # the inner-box Phase-D start.
-        spring_recovery_bar = bins.get("bin_c_recovery_bar")
-        lps_draw_floor = (
-            spring_recovery_bar if spring_recovery_bar is not None
-            else v_tip_bar if v_tip_bar is not None
-            else phase_d_start_bar
-        )
-        drawn_lps_tests = drawn_support_tests(
-            lps_tests,
-            right_floor_bar=lps_draw_floor,
-            min_descent_frac=settings.LPS_DRAW_MIN_DESCENT_FRAC,
-        )
-
-        scope = scope_consolidation(
-            df,
-            bc_anchor_bar=bc_anchor_bar,
-            phase_b_start_bar=phase_b_start_bar,
-            base_len=base_len,
-            is_inner_box=is_inner_box,
-            lps_offset=lps_offset,
-            lps_length=lps_length,
-            lps_zone_type=lps_result.get("zone_type", "INSIDE"),
-            atr_val=atr_for_zone,
-            phase_d_start_bar=phase_d_start_bar,
-            support_test_start_bar=support_test_start_bar,
-            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
-            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
-            phase_a_end_bar=phase_a_end_bar,
-            phase_c_recovery_bar=bins.get("bin_c_recovery_bar"),
-            v_tip_bar=v_tip_bar,
-        )
-
-        trend = trend_template(df, dist_52w_high_pct=dist_52w_high_pct)
-
-        adr_value = adr_pct(df, settings.ADR_WINDOW)
-        adr_quality = (
-            min(adr_value / settings.ADR_FULL_PCT, 1.0)
-            if settings.ADR_FULL_PCT else 0.0
-        )
-
-        score_result = score_setup(
-            box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
-            atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
-            excess_return_6m, dist_52w_high_pct, breadth_pct,
-            contraction['quality'], support['quality'], adr_quality,
-            adr_value=adr_value,
-            **score_traversal_args(traversal, equilibrium, bins),
-        )
-        score = score_result['total']
-        tier = calculate_tier(score, box_width)
-
-        phase_c_event_date = bins['bin_c_event_date'] or scope['phase_c_event_date']
-
-        # HTF context (measure-only): the same Trend+Box engine on weekly/monthly
-        # bars, enriching this firing setup. Resampled from the FULL frame; never
-        # gates. Archived as htf_w_* / htf_m_* (core.structure.htf, config HTF_*).
-        htf_ctx: dict = {}
-        if settings.HTF_CONTEXT_ENABLED:
-            _hbox = (res_avg, sup_avg)
-            htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=_hbox))
-            htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=_hbox))
-
-        return {
-            'Ticker': ticker,
-            'Tier': tier,
-            'Setup': setup_state,
-            'Score': score,
-            'Current Price': round(float(current_price), 2),
-
-            'Base Len': int(base_len),
-            'Box Width': float(box_width),
-            'Touches': int(r_touches + s_touches),
-            'ATR Ratio': float(atr_ratio),
-            'LPS Length': int(lps_length),
-            'Breach Days': int(breach_days),
-
-            '_r_touches': int(r_touches),
-            '_s_touches': int(s_touches),
-            '_vol_contraction': float(vol_contraction),
-            '_tightness_ratio': float(tightness_ratio),
-            '_trigger_price': float(trigger_price),
-            '_sub_scores': score_result,
-            '_R': float(res_avg),
-            '_S': float(sup_avg),
-            '_base_len': int(base_len),
-            '_lps_len': int(lps_length),
-            '_lps_offset': int(lps_offset),
-            '_r_anchor_bar': int(r_anchor_bar),
-            '_s_anchor_bar': int(s_anchor_bar),
-            '_bars_since_BC': int(len(df) - bc_anchor_bar),
-            '_descent_length': int(phase_b_start_bar - bc_anchor_bar),
-            '_phase_d_inner': bool(inner is not None),
-            '_lps_in_inner': bool(lps_in_inner),
-            '_inner_R': float(inner['R']) if inner is not None else None,
-            '_inner_S': float(inner['S']) if inner is not None else None,
-            '_inner_box_width': float(inner['box_width']) if inner is not None else None,
-            '_inner_start_bar': int(inner['start_bar']) if inner is not None else None,
-            '_inner_source': inner.get('source') if inner is not None else None,
-            '_inner_search_start_bar': int(inner['search_start_bar']) if inner is not None else None,
-            '_inner_climax_bar': (int(inner['climax_bar'])
-                                  if inner is not None and inner.get('climax_bar') is not None
-                                  else None),
-            '_inner_reaction_bar': (int(inner['reaction_bar'])
-                                    if inner is not None and inner.get('reaction_bar') is not None
-                                    else None),
-            '_inner_reaction_pct': (float(inner['reaction_pct'])
-                                    if inner is not None and inner.get('reaction_pct') is not None
-                                    else None),
-            '_inner_reaction_bars': (int(inner['reaction_bars'])
-                                     if inner is not None and inner.get('reaction_bars') is not None
-                                     else None),
-            '_dist_52w_high_pct': float(dist_52w_high_pct) if dist_52w_high_pct is not None else None,
-            '_excess_return_6m': float(excess_return_6m),
-            '_breadth_pct': float(breadth_pct) if breadth_pct is not None else None,
-            '_r_touch_vol_z': r_touch_vol_z,
-            '_s_touch_vol_z': s_touch_vol_z,
-            '_lps_descent_frac': float(lps_result.get('descent_frac', 1.0)),
-            '_lps_high_descent_frac': float(lps_result.get('high_descent_frac', 1.0)),
-            '_lps_window_range_pct_box': float(lps_result.get('window_range_pct_box', 0.0)),
-            '_lps_high_extension_box': float(lps_result.get('high_extension_box', 0.0)),
-            '_lps_high_extension_atr': float(lps_result.get('high_extension_atr', 0.0)),
-            '_lps_profile_unit': float(lps_result.get('profile_unit', 0.0)),
-            '_lps_profile_unit_pct': float(lps_result.get('profile_unit_pct', 0.0)),
-            '_lps_pullback_profile': float(lps_result.get('pullback_profile', 0.0)),
-            '_lps_terminal_low_tolerance': float(lps_result.get('terminal_low_tolerance', 0.0)),
-            '_lps_spread_expansion_profile': float(lps_result.get('spread_expansion_profile', 0.0)),
-            '_lps_first_high': float(lps_result.get('first_high', 0.0)),
-            '_lps_last_low': float(lps_result.get('last_low', 0.0)),
-            '_lps_window_high': float(lps_result.get('window_high', 0.0)),
-            '_lps_window_low': float(lps_result.get('window_low', 0.0)),
-            '_lps_swing_type': lps_result.get('swing_type', 'terminal_valley'),
-            '_lps_anchor_bar': (int(lps_result['lps_anchor_bar'])
-                                if lps_result.get('lps_anchor_bar') is not None else None),
-            '_lps_anchor_date': lps_result.get('lps_anchor_date'),
-            '_lps_low_bar': (int(lps_result['lps_low_bar'])
-                             if lps_result.get('lps_low_bar') is not None else None),
-            '_lps_low_date': lps_result.get('lps_low_date'),
-            '_lps_swing_depth_pct': lps_result.get('lps_swing_depth_pct'),
-            '_lps_swing_depth_atr': lps_result.get('lps_swing_depth_atr'),
-            '_lps_swing_depth_box': lps_result.get('lps_swing_depth_box'),
-            '_lps_tests': drawn_lps_tests,
-            '_lps_zone_type': lps_result.get('zone_type', 'INSIDE'),
-            '_contraction_count': int(contraction['n_contractions']),
-            '_contraction_quality': float(contraction['quality']),
-            '_final_contraction_depth': (float(contraction['final_depth'])
-                                         if contraction['final_depth'] is not None else None),
-            '_contraction_vol_trend': (float(contraction['vol_trend'])
-                                       if contraction['vol_trend'] is not None else None),
-            '_base_median_spread_atr': bar_compression['median_spread_atr'],
-            '_base_p80_spread_atr': bar_compression['p80_spread_atr'],
-            '_base_median_spread_pct_box': bar_compression['median_spread_pct_box'],
-            '_base_tight_bar_pct': float(bar_compression['tight_bar_pct']),
-            '_support_slope_atr': (float(support['slope_atr'])
-                                   if support['slope_atr'] is not None else None),
-            '_support_higher_low_frac': float(support['higher_low_frac']),
-            '_ascending_support_quality': float(support['quality']),
-            '_eq_r_touches': int(equilibrium['r_touches']),
-            '_eq_s_touches': int(equilibrium['s_touches']),
-            '_eq_r_touch_thirds': int(equilibrium['r_touch_thirds']),
-            '_eq_s_touch_thirds': int(equilibrium['s_touch_thirds']),
-            '_eq_lower_dwell': float(equilibrium['lower_dwell']),
-            '_eq_mid_dwell': float(equilibrium['mid_dwell']),
-            '_eq_upper_dwell': float(equilibrium['upper_dwell']),
-            '_eq_coverage': float(equilibrium['coverage']),
-            '_trav_n_full_traversals': int(traversal['n_full_traversals']),
-            '_trav_n_swings': int(traversal['n_swings']),
-            '_trav_top_dead_space': (float(traversal['top_dead_space'])
-                                     if traversal['top_dead_space'] is not None else None),
-            '_trav_bottom_dead_space': (float(traversal['bottom_dead_space'])
-                                        if traversal['bottom_dead_space'] is not None else None),
-            '_trav_rail_reaches_high': int(traversal['rail_reaches_high']),
-            '_trav_rail_reaches_low': int(traversal['rail_reaches_low']),
-            '_trav_max_swing_frac': (float(traversal['max_swing_frac'])
-                                     if traversal['max_swing_frac'] is not None else None),
-            '_trav_last_support_frac': (float(traversal['last_support_frac'])
-                                        if traversal['last_support_frac'] is not None else None),
-            '_trav_coil_floor_pos': (float(traversal['coil_floor_pos'])
-                                     if traversal['coil_floor_pos'] is not None else None),
-            '_adr_pct': float(adr_value),
-            '_adr_quality': float(adr_quality),
-            '_phase_a_start_date': scope['phase_a_start_date'],
-            '_phase_a_end_date': scope['phase_a_end_date'],
-            '_phase_b_start_date': scope['phase_b_start_date'],
-            '_phase_d_start_date': scope['phase_d_start_date'],
-            '_phase_c_event_date': phase_c_event_date,
-            '_lps_zone_low': scope['lps_zone_low'],
-            '_lps_zone_high': scope['lps_zone_high'],
-            '_lps_zone_start_date': scope['lps_zone_start_date'],
-            '_lps_zone_end_date': scope['lps_zone_end_date'],
-            '_has_mini_consolidation': bool(scope['has_mini_consolidation']),
-            '_scope_confidence': float(scope['scope_confidence']),
-            '_bin_a_bars': bins['bin_a_bars'],
-            '_bin_a_range_pct': bins['bin_a_range_pct'],
-            '_bin_a_volume_ratio': bins['bin_a_volume_ratio'],
-            '_bin_b_bars': bins['bin_b_bars'],
-            '_bin_b_range_pct': bins['bin_b_range_pct'],
-            '_bin_b_volume_ratio': bins['bin_b_volume_ratio'],
-            '_bin_b_cog_end': bins['bin_b_cog_end'],
-            '_bin_b_cog_crossings': bins['bin_b_cog_crossings'],
-            '_bin_b_cog_rng': bins['bin_b_cog_rng'],
-            '_bin_b_cog_corr': bins['bin_b_cog_corr'],
-            '_bin_c_present': bins['bin_c_present'],
-            '_bin_c_type': bins['bin_c_type'],
-            '_bin_c_event_date': bins['bin_c_event_date'],
-            '_bin_c_event_bar': bins['bin_c_event_bar'],
-            '_bin_c_undercut_atr': bins['bin_c_undercut_atr'],
-            '_bin_c_recovery_bars': bins['bin_c_recovery_bars'],
-            '_bin_c_recovery_bar': bins['bin_c_recovery_bar'],
-            '_bin_c_time_loc': bins['bin_c_time_loc'],
-            '_bin_c_spring_vol_z': bins['bin_c_spring_vol_z'],
-            '_bin_d_bars': bins['bin_d_bars'],
-            '_bin_d_start_bar': bins['bin_d_start_bar'],
-            '_bin_d_range_pct': bins['bin_d_range_pct'],
-            '_bin_d_volume_ratio': bins['bin_d_volume_ratio'],
-            '_bin_d_support_slope_atr': bins['bin_d_support_slope_atr'],
-            '_bin_d_higher_low_frac': bins['bin_d_higher_low_frac'],
-            '_bin_d_ascending_support_quality': bins['bin_d_ascending_support_quality'],
-            '_bin_d_boundary_source': bins['bin_d_boundary_source'],
-            '_phase_d_evidence_json': bins['phase_d_evidence_json'] or scope['phase_d_evidence_json'],
-            '_bin_lps_bars': bins['bin_lps_bars'],
-            '_lps_position_in_box': bins['lps_position_in_box'],
-            '_bin_d_vs_b_range_ratio': bins['bin_d_vs_b_range_ratio'],
-            '_bin_d_vs_b_volume_ratio': bins['bin_d_vs_b_volume_ratio'],
-            '_bin_d_vs_b_support_quality_delta': bins['bin_d_vs_b_support_quality_delta'],
-            '_lps_stretch_atr': bins['lps_stretch_atr'],
-            '_lps_stretch_box': bins['lps_stretch_box'],
-            '_last_supper_pullback_from_extension_pct': bins['last_supper_pullback_from_extension_pct'],
-            '_last_supper_source_box_age': bins['last_supper_source_box_age'],
-            '_last_supper_reclaim_quality': bins['last_supper_reclaim_quality'],
-            '_stage2_ma_stack_pass': trend['stage2_ma_stack_pass'],
-            '_stage2_ma200_slope_1m_pct': trend['stage2_ma200_slope_1m_pct'],
-            '_stage2_52w_low_pct': trend['stage2_52w_low_pct'],
-            '_stage2_trend_pass_count': trend['stage2_trend_pass_count'],
-            '_stage2_trend_pass': trend['stage2_trend_pass'],
-            '_base_close_start': float(base_df['Close'].iloc[0]),
-            '_base_close_end': float(base_df['Close'].iloc[-1]),
-            '_base_date_start': str(base_df.index[0])[:10],
-            '_base_date_end': str(base_df.index[-1])[:10],
-            **{f"_{_k}": _v for _k, _v in htf_ctx.items()},
-        }
 
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)

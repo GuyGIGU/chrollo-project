@@ -537,6 +537,7 @@ def test_scan_tail_error_prefers_stale_market_data_line():
 def test_live_prices_ignores_option_contract_symbol(monkeypatch):
     called = []
     monkeypatch.setattr(prices_module.alpaca_prices, "fetch_quotes", lambda tickers: {})
+    monkeypatch.setattr(prices_module, "_scan_is_running", lambda: False)
     monkeypatch.setattr(prices_module, "_fetch_yfinance_price", lambda ticker: called.append(ticker) or 1.0)
 
     out = prices_module.get_live_prices("JAZZ,UNG 22MAY26 12.5 C")
@@ -2798,16 +2799,36 @@ def test_eval_twins_share_the_folded_core():
     them — the drift that let the descent-tail gate land in one path only and that
     the seed-recall guard exists to measure. If you re-inline one of these in a
     single path, fold it back into the shared helper instead."""
+    import ast
     import inspect
+    import textwrap
 
     from core.archive.seed import _evaluate_at_date
+    from core.pipeline import evaluation as evaluation_module
     from core.pipeline.evaluation import _evaluate_ticker
 
-    live_src = inspect.getsource(_evaluate_ticker)
-    seed_src = inspect.getsource(_evaluate_at_date)
+    def called_names(fn):
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        calls = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                calls.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                calls.add(node.func.attr)
+        return calls
+
+    live_calls = called_names(_evaluate_ticker)
+    assert "_resolve_lps_context" in live_calls
+    assert "descent_tail_drops" in live_calls
+    assert "_score_eval_context" in live_calls
+    assert "select_active_lps" in called_names(evaluation_module._resolve_lps_context)
+    assert "score_traversal_args" in called_names(evaluation_module._score_eval_context)
+
+    seed_calls = called_names(_evaluate_at_date)
     for helper in ("select_active_lps", "descent_tail_drops", "score_traversal_args"):
-        assert helper in live_src, f"_evaluate_ticker no longer routes through {helper}"
-        assert helper in seed_src, f"_evaluate_at_date no longer routes through {helper}"
+        assert helper in seed_calls, f"_evaluate_at_date no longer routes through {helper}"
 
 
 def test_score_traversal_args_maps_measure_facts():
