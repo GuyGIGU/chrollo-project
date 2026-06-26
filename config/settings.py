@@ -509,12 +509,13 @@ MARKET_DATA_REPAIR_SECOND_RETRY_MINUTES = 20  # Sparse eligible-symbol repair: s
 # download pool is bounded (workers) to cap concurrent connections. (yfinance 1.2.1
 # requires a curl_cffi session and rejects a stdlib requests.Session, so a
 # requests-ratelimiter LimiterSession can't be injected — hence the explicit gate.)
-# Conservative defaults; raise PER_SEC/WORKERS if scans are too slow and Yahoo
-# tolerates it (with the bounded pool, a higher rate genuinely speeds the refetch).
+# Tuned from read-only probes on the active-ready universe. Higher rates (40-70/s)
+# can complete after retries, but they trip Yahoo's rolling Too Many Requests path.
 YAHOO_RATE_LIMIT_ENABLED = True
-YAHOO_RATE_LIMIT_PER_SEC = 8.0     # sustained outbound requests/sec to Yahoo (global ceiling)
-YAHOO_RATE_LIMIT_BURST = 15        # token-bucket capacity (max short burst)
-YAHOO_DOWNLOAD_WORKERS = 10        # bounded download-pool size (caps simultaneous connections)
+YAHOO_RATE_LIMIT_PER_SEC = 20.0    # sustained outbound requests/sec to Yahoo (global ceiling)
+YAHOO_RATE_LIMIT_BURST = 40        # token-bucket capacity (max short burst)
+YAHOO_DOWNLOAD_WORKERS = 24        # bounded download-pool size (caps simultaneous connections)
+YAHOO_RATE_LIMIT_BACKOFF_SECONDS = 45.0  # shared cooldown after explicit Yahoo 429/rate-limit errors
 
 # Split-detection probe (defends against yfinance's auto_adjust=True silently rescaling history)
 SPLIT_PROBE_SAMPLE_SIZE = 30                 # Number of cached tickers (+ SPY) to probe for split-induced drift

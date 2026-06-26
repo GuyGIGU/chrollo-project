@@ -62,6 +62,8 @@ class TokenBucket:
 
 _bucket: "TokenBucket | None" = None
 _bucket_lock = threading.Lock()
+_cooldown_until = 0.0
+_cooldown_lock = threading.Lock()
 
 
 def yahoo_rate_limiter() -> TokenBucket:
@@ -85,7 +87,27 @@ def throttle(n: int = 1) -> None:
     from config import settings  # lazy
     if not getattr(settings, "YAHOO_RATE_LIMIT_ENABLED", True):
         return
+    _respect_cooldown()
     yahoo_rate_limiter().acquire(n)
+
+
+def _respect_cooldown() -> None:
+    """Sleep while a shared Yahoo backoff window is active."""
+    while True:
+        with _cooldown_lock:
+            remaining = _cooldown_until - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(remaining, 1.0))
+
+
+def note_rate_limit(seconds: float) -> None:
+    """Ask all downloader threads to pause before their next Yahoo request."""
+    global _cooldown_until
+    until = time.monotonic() + max(float(seconds), 0.0)
+    with _cooldown_lock:
+        if until > _cooldown_until:
+            _cooldown_until = until
 
 
 def download_workers(default: int = 10) -> int:
@@ -99,9 +121,11 @@ def download_workers(default: int = 10) -> int:
 
 def reset_for_test(rate: "float | None" = None, capacity: "float | None" = None) -> None:
     """Rebuild (or clear) the global bucket. Tests only."""
-    global _bucket
+    global _bucket, _cooldown_until
     with _bucket_lock:
         if rate is None:
             _bucket = None
         else:
             _bucket = TokenBucket(rate, capacity if capacity is not None else rate)
+    with _cooldown_lock:
+        _cooldown_until = 0.0

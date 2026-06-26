@@ -91,6 +91,11 @@ function buildTagMap(screenerData) {
       binCUndercutAtr: data.bin_c_undercut_atr,
       binCRecoveryBars: data.bin_c_recovery_bars,
       binCSpringVolZ: data.bin_c_spring_vol_z,
+      lpsStretchAtr: data.lps_stretch_atr,
+      lpsStretchBox: data.lps_stretch_box,
+      lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
+      lastSupperSourceBoxAge: data.last_supper_source_box_age,
+      lastSupperReclaimQuality: data.last_supper_reclaim_quality,
     });
     map[ticker] = new Set(tags.map(tag => tag.id));
   }

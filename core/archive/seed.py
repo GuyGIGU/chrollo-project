@@ -734,6 +734,17 @@ def seed_archive(
             bin_d_vs_b_support_quality_delta=best_result.get("bin_d_vs_b_support_quality_delta"),
             lps_stretch_atr=best_result.get("lps_stretch_atr"),
             lps_stretch_box=best_result.get("lps_stretch_box"),
+            lps_swing_type=best_result.get("lps_swing_type"),
+            lps_anchor_bar=best_result.get("lps_anchor_bar"),
+            lps_anchor_date=best_result.get("lps_anchor_date"),
+            lps_low_bar=best_result.get("lps_low_bar"),
+            lps_low_date=best_result.get("lps_low_date"),
+            lps_swing_depth_pct=best_result.get("lps_swing_depth_pct"),
+            lps_swing_depth_atr=best_result.get("lps_swing_depth_atr"),
+            lps_swing_depth_box=best_result.get("lps_swing_depth_box"),
+            last_supper_pullback_from_extension_pct=best_result.get("last_supper_pullback_from_extension_pct"),
+            last_supper_source_box_age=best_result.get("last_supper_source_box_age"),
+            last_supper_reclaim_quality=best_result.get("last_supper_reclaim_quality"),
             # Minervini Stage-2 trend-template context (raw, no scoring)
             stage2_ma_stack_pass=(int(bool(best_result.get("stage2_ma_stack_pass")))
                                   if best_result.get("stage2_ma_stack_pass") is not None else None),

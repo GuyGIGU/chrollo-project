@@ -350,3 +350,84 @@ def test_incremental_fetch_forces_full_recovery_for_split_drift(monkeypatch):
 
     assert out is not None
     assert calls == [(["SPLT"], False, False)]
+
+
+def test_rate_limit_error_triggers_shared_backoff(monkeypatch):
+    idx = pd.date_range("2026-06-01", periods=5, freq="B")
+    recovered = pd.DataFrame({"Close": [10, 11, 12, 13, 14], "Volume": 1000}, index=idx)
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            if len(calls) == 1:
+                raise RuntimeError("YFRateLimitError('Too Many Requests. Rate limited.')")
+            return recovered
+
+    noted = []
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.rate_limit, "note_rate_limit", lambda seconds: noted.append(seconds))
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["AAA"], {"period": "1mo"}, max_retries=2
+    )
+
+    assert noted == [45.0]
+    assert len(calls) == 2
+    assert "AAA" in out
+
+
+def test_no_history_error_does_not_retry(monkeypatch):
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            raise RuntimeError("YFPricesMissingError: possibly delisted; no price data found")
+
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["DEAD"], {"period": "1mo"}, max_retries=3
+    )
+
+    assert out.empty
+    assert len(calls) == 1
+
+
+def test_transient_price_error_can_retry(monkeypatch):
+    idx = pd.date_range("2026-06-01", periods=5, freq="B")
+    recovered = pd.DataFrame({"Close": [10, 11, 12, 13, 14], "Volume": 1000}, index=idx)
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            self.ticker = ticker
+
+        def history(self, **kwargs):
+            calls.append((self.ticker, kwargs))
+            if len(calls) == 1:
+                raise RuntimeError("YFPricesMissingError: (Yahoo status_code = 502)")
+            return recovered
+
+    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+
+    out = downloads_module._download_batch_with_retry_kwargs(
+        ["AAA"], {"period": "1mo"}, max_retries=2
+    )
+
+    assert len(calls) == 2
+    assert "AAA" in out

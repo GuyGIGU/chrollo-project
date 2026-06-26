@@ -44,6 +44,9 @@ const firesAt = (scores, key, fraction) => (
 const fmt = (value, digits = 1) => (
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—'
 );
+const fmtPct = (value) => (
+  typeof value === 'number' && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—'
+);
 
 const tag = (id, label, group, title, weight, fires) => ({
   id,
@@ -202,6 +205,35 @@ const TAG_DEFS = [
     why: 'High ADR can create more room for momentum, but it also means larger normal swings.',
     use: 'Match position size and stop distance to the volatility; a tight base matters more when ADR is high.',
   }), 62, scores => firesAt(scores, 'adr', 0.80)),
+  tag(
+    'last_supper',
+    'Last Supper',
+    'warning',
+    (_scores, flags) => {
+      const stretch = typeof flags.lpsStretchBox === 'number'
+        ? ` Stretch: ${fmt(flags.lpsStretchBox, 2)} box.`
+        : '';
+      const pullback = typeof flags.lastSupperPullbackPct === 'number'
+        ? ` Pullback: ${fmtPct(flags.lastSupperPullbackPct)}.`
+        : '';
+      const age = typeof flags.lastSupperSourceBoxAge === 'number'
+        ? ` Source-box age: ${flags.lastSupperSourceBoxAge} bar${flags.lastSupperSourceBoxAge === 1 ? '' : 's'}.`
+        : '';
+      const reclaim = typeof flags.lastSupperReclaimQuality === 'number'
+        ? ` Reclaim quality: ${fmt(flags.lastSupperReclaimQuality, 2)}.`
+        : '';
+      return `${explainTip({
+        what: 'The LPS foot formed above the box that produced the move.',
+        why: 'That can be a Last Supper risk: a valid-looking support test may already be stretched away from its energy source.',
+        use: 'Treat it as a caution tag only. It does not reject, score, or filter the setup by itself.',
+      })}${stretch}${pullback}${age}${reclaim}`;
+    },
+    94,
+    (_scores, flags) => (
+      (typeof flags.lpsStretchBox === 'number' && flags.lpsStretchBox > 0)
+      || (typeof flags.lpsStretchAtr === 'number' && flags.lpsStretchAtr > 0)
+    ),
+  ),
   tag(
     'heavy_resistance',
     '⚠️ Heavy Resistance',

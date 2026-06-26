@@ -216,6 +216,17 @@ class SetupArchive(Base):
     bin_d_vs_b_support_quality_delta = Column(Float, nullable=True) # Phase D support quality - full-base support quality
     lps_stretch_atr = Column(Float, nullable=True)         # (lps_low - R)/ATR: how far the LPS sits above the box ceiling
     lps_stretch_box = Column(Float, nullable=True)         # (lps_low - R)/(R - S): same, in box-heights (Last-Supper risk)
+    lps_swing_type = Column(String, nullable=True)         # terminal_valley / shelf / clean downswing / undercut rebound
+    lps_anchor_bar = Column(Integer, nullable=True)        # df-positional anchor high for the elected LPS swing
+    lps_anchor_date = Column(String, nullable=True)
+    lps_low_bar = Column(Integer, nullable=True)           # df-positional elected LPS valley
+    lps_low_date = Column(String, nullable=True)
+    lps_swing_depth_pct = Column(Float, nullable=True)     # (anchor_high - lps_low) / anchor_high
+    lps_swing_depth_atr = Column(Float, nullable=True)     # same swing depth in ATR units
+    lps_swing_depth_box = Column(Float, nullable=True)     # same swing depth in active box-heights
+    last_supper_pullback_from_extension_pct = Column(Float, nullable=True) # anchor-high to LPS-low pullback fraction
+    last_supper_source_box_age = Column(Integer, nullable=True)            # bars since price first left the source box
+    last_supper_reclaim_quality = Column(Float, nullable=True)             # [0,1] cleanup/reclaim quality after the LPS low
 
     # ── Minervini Stage-2 trend template (raw context, no scoring) ──
     stage2_ma_stack_pass = Column(Integer, nullable=True)       # 1 if price > SMA50 > SMA150 > SMA200
