@@ -27,7 +27,11 @@ from core.structure import (
     trend_template,
 )
 from core.structure.narrative import read_structure
-from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
+from core.structure.phase_d import (
+    drawn_support_tests,
+    final_v_tip_bar,
+    support_test_evidence_starts,
+)
 from core.pipeline.downloads import _trim_to_period
 
 
@@ -327,6 +331,23 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             v_tip_bar=v_tip_bar,
         )
 
+        # Drawn LPS/Test staircase: display-only filter (recall-safe — the
+        # staircase elects nothing and gates nothing). Keep clean right-side
+        # down/sideways footprints; the unfiltered lps_tests above still feed the
+        # Phase-D evidence. Right-side floor = spring recovery, else V-tip, else
+        # the inner-box Phase-D start.
+        spring_recovery_bar = bins.get("bin_c_recovery_bar")
+        lps_draw_floor = (
+            spring_recovery_bar if spring_recovery_bar is not None
+            else v_tip_bar if v_tip_bar is not None
+            else phase_d_start_bar
+        )
+        drawn_lps_tests = drawn_support_tests(
+            lps_tests,
+            right_floor_bar=lps_draw_floor,
+            min_descent_frac=settings.LPS_DRAW_MIN_DESCENT_FRAC,
+        )
+
         scope = scope_consolidation(
             df,
             bc_anchor_bar=bc_anchor_bar,
@@ -454,7 +475,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
             '_lps_swing_depth_pct': lps_result.get('lps_swing_depth_pct'),
             '_lps_swing_depth_atr': lps_result.get('lps_swing_depth_atr'),
             '_lps_swing_depth_box': lps_result.get('lps_swing_depth_box'),
-            '_lps_tests': lps_tests,
+            '_lps_tests': drawn_lps_tests,
             '_lps_zone_type': lps_result.get('zone_type', 'INSIDE'),
             '_contraction_count': int(contraction['n_contractions']),
             '_contraction_quality': float(contraction['quality']),

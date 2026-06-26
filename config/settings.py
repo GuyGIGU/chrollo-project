@@ -183,6 +183,19 @@ LPS_TERMINAL_LOW_TOL_PROFILE = 0.10    # Last Low may sit this many profile unit
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25     # Any LPS bar spread must stay within this profile multiple
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by this many profile units
 
+# Drawn LPS/Test staircase filter (DISPLAY-ONLY, recall-safe). The screener's
+# `_lps_tests` staircase is measure-only — it does NOT elect the active LPS or
+# gate firing — but it is what paints the gold support-test bands on the chart.
+# Unlike the active election it had no direction/right-side filter, so the
+# rising_support_shelf rescue + the descent gates above (deliberately 0.0) leaked
+# up-march footprints onto the chart (e.g. NCV Jun 9-15: an 80%-rising shelf
+# spanning 83% of the box, starting pre-Phase-D). Draw only footprints whose
+# low-descent fraction is at least this (a pure reaction is 1.0, sideways ~0.5,
+# an up-swing <0.3) AND that start at/after the right-side floor (spring recovery,
+# else V-tip). Separate knob from LPS_MIN_DESCENT_FRAC so the recall-sensitive
+# election is untouched. The raw staircase still feeds the Phase-D evidence.
+LPS_DRAW_MIN_DESCENT_FRAC = 0.40
+
 # Zone gate — LPS low must sit in one of 3 zones relative to the box:
 #   INSIDE        : S <= low <= R
 #   OVERSHOOT_R   : R < low <= R + k*ATR       (backtest of breakout)
