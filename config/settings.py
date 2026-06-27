@@ -177,13 +177,16 @@ LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/
 # shelf) — HELD uncommitted for the operator's chart eyeball, revert to None to
 # disable (see project_lps_peak_down). Midpoint of winner-max +0.096 and the
 # run-up cluster +0.324; SPCB (+0.234) is the lone borderline to eyeball.
-LPS_RESCUE_MAX_ADVANCE_BOX = None
+LPS_RESCUE_MAX_ADVANCE_BOX = 0.21
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
 LPS_SCAN_OFFSET_MAX = 7         # Today + up to 6 days back (offsets 0..6) — last 7 active LPS bars
 LPS_LENGTH_MIN = 2               # Shortest LPS formation (days)
 LPS_LENGTH_MAX = 7               # Longest LPS formation (days)
-LPS_HOLD_TOLERANCE = 0.97        # Price can't crash > 3% below LPS low
+LPS_HOLD_TOLERANCE = 0.95        # Price can't crash > 5% below LPS low (was 0.97;
+                                 # loosened 2026-06-27 to admit slightly deeper
+                                 # tests/springs as still-holding — a loosening,
+                                 # so recall can only grow)
 LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15  # Profile unit floor: wider boxes get more absolute wiggle room
 LPS_PULLBACK_PROFILE_MIN = 0.40        # Min first-bar High -> last-bar Low pullback in profile units.
                                        # 0.65 (the old floor) fought tightness: a tight contracting VCP pivot
