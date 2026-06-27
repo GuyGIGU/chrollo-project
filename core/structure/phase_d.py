@@ -13,6 +13,9 @@ from typing import Optional
 import pandas as pd
 
 from config import settings
+# Canonical monotonicity metric — reused so the DRAWN trim is consistent with
+# the engine's reported ``descent_frac`` (lps is a leaf module; no import cycle).
+from core.structure.lps import _pairwise_descent_fraction
 
 
 @dataclass(frozen=True)
@@ -176,6 +179,37 @@ def drawn_support_tests(
             continue
         out.append(test)
     return out
+
+
+def drawn_lps_zone_start(low_values, *, min_descent_frac: float) -> int:
+    """Offset into the elected LPS window where its DRAWN zone should start.
+
+    The active LPS zone is the bounding box of the elected window's bars. For a
+    rising shelf (an ascending-support pivot the election deliberately keeps —
+    see ``LPS_MIN_DESCENT_FRAC = 0``), that window includes the climb INTO the
+    shelf, so the drawn gold box reads as an up-swing. This trims the DRAWN start
+    forward to the longest down/sideways suffix (pairwise low-descent fraction
+    ``>= min_descent_frac``), so the highlight shows the reaction, not the run-up.
+
+    Display-only and recall-safe: callers apply the returned offset to the zone's
+    drawn start/low/high alone — the structural window (LPS length, V-tip, Phase-D
+    boundary, every gate/score) is computed on the full window and never moves.
+    Returns 0 (no trim) when the threshold is off, the full window already
+    qualifies, no >=3-bar suffix qualifies, or the window is shorter than 4 bars.
+    """
+    threshold = float(min_descent_frac)
+    if threshold <= 0.0:
+        return 0
+    n = len(low_values)
+    if n < 4:
+        return 0
+    # Always leave >= 3 bars in the drawn suffix: shaving a valid shelf to a 2-bar
+    # stub reads as "too aggressive" (operator feedback — one or two more bars
+    # still fit the LPS definition).
+    for start in range(0, n - 2):
+        if _pairwise_descent_fraction(low_values[start:]) >= threshold:
+            return start
+    return 0
 
 
 def _coerce_evidence_items(items: Optional[list[PhaseDEvidence | dict]]) -> list[PhaseDEvidence]:

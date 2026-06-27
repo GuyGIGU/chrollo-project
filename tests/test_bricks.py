@@ -324,6 +324,59 @@ def test_find_lps_peak_down_gate_on_still_accepts_clean_peak_to_trough(monkeypat
     assert find_lps(df, box, 2.0) is not None
 
 
+def test_find_lps_rescue_markup_gate_on_rejects_steep_runup(monkeypatch):
+    """Gate ON rejects a rising_support_shelf that is really a steep markup leg
+    (OHI-class: the low merely launched from support, then price ran up to a new
+    high). net advance (last Close - first Close)/box = (105.5-101.5)/10 = 0.40."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_SCAN_OFFSET_MAX", 1)
+    monkeypatch.setattr("config.settings.LPS_RESCUE_MAX_ADVANCE_BOX", 0.21)
+    df = _lps_frame_with_window([
+        (103.0, 101.0, 101.5),   # window low at support; launch point
+        (104.0, 102.0, 103.0),
+        (105.0, 103.0, 104.0),
+        (106.0, 104.0, 105.5),   # last_low >> window_low (rescue shape), closes near a new high
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is None
+
+
+def test_find_lps_rescue_markup_gate_off_is_unchanged(monkeypatch):
+    """Gate OFF (None = default) leaves the rescue untouched: the same rising
+    shelf is still elected, so the gate is recall-safe by default."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_SCAN_OFFSET_MAX", 1)
+    monkeypatch.setattr("config.settings.LPS_RESCUE_MAX_ADVANCE_BOX", None)
+    df = _lps_frame_with_window([
+        (103.0, 101.0, 101.5),
+        (104.0, 102.0, 103.0),
+        (105.0, 103.0, 104.0),
+        (106.0, 104.0, 105.5),
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is not None
+
+
+def test_find_lps_rescue_markup_gate_on_keeps_gradual_shelf(monkeypatch):
+    """Gate ON does NOT touch a gradual (near-flat) ascending-support shelf --
+    the genuine rising_support_shelf the rescue exists to catch. net advance
+    (102.2-102.0)/10 = 0.02, well under the 0.21 ceiling."""
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
+    monkeypatch.setattr("config.settings.LPS_SCAN_OFFSET_MAX", 1)
+    monkeypatch.setattr("config.settings.LPS_RESCUE_MAX_ADVANCE_BOX", 0.21)
+    df = _lps_frame_with_window([
+        (103.0, 101.0, 102.0),   # window low at support
+        (103.2, 101.5, 102.2),
+        (103.4, 102.0, 102.3),
+        (103.0, 101.5, 102.2),   # last_low > window_low (rescue), near-flat closes
+    ])
+    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
+    assert find_lps(df, box, 2.0) is not None
+
+
 def test_resolve_phase_a_prefers_local_bridge_into_box_start():
     df = _piecewise_frame([
         (0, 50.0),

@@ -41,7 +41,7 @@ from typing import Optional
 
 import pandas as pd
 
-from core.structure.phase_d import resolve_phase_d_boundary
+from core.structure.phase_d import drawn_lps_zone_start, resolve_phase_d_boundary
 
 
 def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
@@ -114,6 +114,7 @@ def scope_consolidation(
     phase_a_end_bar: Optional[int] = None,
     phase_c_recovery_bar: Optional[int] = None,
     v_tip_bar: Optional[int] = None,
+    lps_zone_draw_min_descent: float = 0.0,
 ) -> dict:
     """Scope the right-most region of an already-detected base. Pure measurement.
 
@@ -248,24 +249,42 @@ def scope_consolidation(
     # ── Phase C spring marker (UNDERCUT_S only) — the undercut low (V tip) ───
     c = lps_low_bar if (lps_zone_type == "UNDERCUT_S" and lps_low_bar is not None) else None
 
-    # ── LPS zone: the bounding box of the exact LPS candidate bars ──────────
+    # ── LPS zone: the bounding box of the drawn LPS candidate bars ──────────
     # Chrollo's convention highlights the specific bars that form the LPS, so
     # the zone wraps those bars tightly in BOTH axes: price spans their true
     # [min low, max high], and the start/end dates bound them in time. A flat
     # one-bar window still needs drawable height, so atr_val is a visibility
     # floor only (never the band's meaning).
+    #
+    # DISPLAY TRIM (recall-safe): when ``lps_zone_draw_min_descent`` is set, a
+    # rising shelf's drawn start is advanced to its longest down/sideways suffix
+    # so the gold box shows the reaction, not the climb into it. This narrows
+    # ONLY the drawn box — the structural window (lps_start/lps_end, lps_low_bar
+    # V-tip, Phase-D resolution above, and every gate/score) is unchanged.
     lps_zone_low = None
     lps_zone_high = None
     lps_zone_start_date = None
     lps_zone_end_date = None
     if lps_low is not None and lps_high is not None:
-        lps_zone_low = round(lps_low, 4)
-        hi = lps_high
-        if hi <= lps_low:
-            band = float(atr_val) if (atr_val is not None and atr_val > 0) else lps_low * 0.005
-            hi = lps_low + band
+        zone_start = lps_start
+        zone_low = lps_low
+        zone_high = lps_high
+        try:
+            low_vals = df["Low"].iloc[lps_start:lps_end].to_numpy()
+            trim = drawn_lps_zone_start(low_vals, min_descent_frac=lps_zone_draw_min_descent)
+            if trim > 0:
+                zone_start = lps_start + trim
+                zone_low = float(low_vals[trim:].min())
+                zone_high = float(df["High"].iloc[zone_start:lps_end].max())
+        except (KeyError, ValueError, TypeError):
+            pass
+        lps_zone_low = round(zone_low, 4)
+        hi = zone_high
+        if hi <= zone_low:
+            band = float(atr_val) if (atr_val is not None and atr_val > 0) else zone_low * 0.005
+            hi = zone_low + band
         lps_zone_high = round(hi, 4)
-        lps_zone_start_date = _date_at(df, lps_start)
+        lps_zone_start_date = _date_at(df, zone_start)
         lps_zone_end_date = _date_at(df, lps_end - 1)
 
     # ── Confidence: weight Phase D heaviest (it's the region that matters) ──

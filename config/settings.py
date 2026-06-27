@@ -162,6 +162,22 @@ LPS_MIN_HIGH_DESCENT_FRAC = 0.0
 LPS_REQUIRE_PEAK_DOWN = False
 LPS_PEAK_DOWN_TOL_BOX = 0.10
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
+# "Reaction not markup" gate for the rising_support_shelf rescue (default OFF =
+# None). The rescue (core/structure/lps.py) re-admits a non-terminal-low window
+# whose LOW sits near support, but checks only the low's LOCATION, never the
+# window's CHARACTER. A vertical markup that merely LAUNCHED from support (OHI
+# 2026-06: +6.6% close-to-close, 0 down-bars, closes at R, elected S-Tier "LPS")
+# therefore passes. The genuine ascending-support coils the rescue exists to
+# catch are near-FLAT (curated winners DIBS/GRDN/SILC: net close-to-close all
+# <= ~+0.7%). When set, a rescued shelf whose net advance
+# (last Close - first Close)/box_height exceeds this is rejected as a markup —
+# the selector re-anchors to a shorter terminal test if one exists, else drops.
+# None = disabled. Set to 0.21 (validated 2026-06-26: seed-recall 0 curated
+# winners dropped; live it drops OHI/AEF/NVT/SPCB run-ups + keeps NMAI's gradual
+# shelf) — HELD uncommitted for the operator's chart eyeball, revert to None to
+# disable (see project_lps_peak_down). Midpoint of winner-max +0.096 and the
+# run-up cluster +0.324; SPCB (+0.234) is the lone borderline to eyeball.
+LPS_RESCUE_MAX_ADVANCE_BOX = None
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
 LPS_SCAN_OFFSET_MAX = 7         # Today + up to 6 days back (offsets 0..6) — last 7 active LPS bars
