@@ -27,6 +27,7 @@ from core.pipeline.cache import _atomic_write_parquet, _write_meta
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
+import core.pipeline.market_calendar as market_calendar_module
 import core.pipeline.market_context as market_context_module
 import core.pipeline.scan_job as scan_job_module
 import output.dashboard as dashboard_module
@@ -336,6 +337,26 @@ def test_expected_session_date_skips_juneteenth_market_holiday():
     assert scan_job_module._expected_session_date(now) == "2026-06-18"
 
 
+def test_market_calendar_reports_weekend_and_holiday_closures():
+    weekend = datetime(2026, 6, 20, 12, 0, tzinfo=ZoneInfo("America/New_York"))
+    thanksgiving = datetime(2026, 11, 26, 12, 0, tzinfo=ZoneInfo("America/New_York"))
+
+    assert market_calendar_module.market_closed_reason(weekend) == "weekend"
+    assert market_calendar_module.latest_completed_session(weekend) == pd.Timestamp("2026-06-18")
+    assert market_calendar_module.market_closed_reason(thanksgiving) == "holiday"
+    assert market_calendar_module.latest_completed_session(thanksgiving) == pd.Timestamp("2026-11-25")
+
+
+def test_market_calendar_uses_early_close_for_black_friday():
+    before_close = datetime(2026, 11, 27, 12, 59, tzinfo=ZoneInfo("America/New_York"))
+    after_close = datetime(2026, 11, 27, 13, 1, tzinfo=ZoneInfo("America/New_York"))
+
+    assert market_calendar_module.is_early_close_session("2026-11-27")
+    assert market_calendar_module.latest_completed_session(before_close) == pd.Timestamp("2026-11-25")
+    assert market_calendar_module.latest_completed_session(after_close) == pd.Timestamp("2026-11-27")
+    assert market_calendar_module.session_close_at("2026-11-27").hour == 13
+
+
 def test_incremental_fetch_replaces_sparse_latest_reference_row(monkeypatch):
     dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
     cached_panel = pd.concat(
@@ -505,7 +526,7 @@ def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
     monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: "2026-06-18")
     monkeypatch.setattr(scan_job_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
 
-    with pytest.raises(scan_job_module.StaleMarketDataError, match="latest-session close coverage 3/4"):
+    with pytest.raises(scan_job_module.StaleMarketDataError, match="eligible coverage 3/4"):
         scan_job_module._assert_fresh_for_archive(panel, ["AAA", "BBB"])
 
 
@@ -2443,6 +2464,65 @@ def test_scope_outer_box_orders_a_b_d_bands():
     # Tight in time too: the box spans the exact candidate bars.
     assert out["lps_zone_start_date"] == str(df.index[25])[:10]
     assert out["lps_zone_end_date"] == str(df.index[28])[:10]
+
+
+def test_scope_rising_shelf_zone_draw_trims_to_down_sideways_suffix():
+    # A rising-shelf LPS window [24:29): lows climb 90 -> 96 -> 100, then sit
+    # sideways (99, 100). The election keeps such ascending-support pivots on
+    # purpose, but the DRAWN gold box should show the reaction, not the climb.
+    df = _scope_df(30)
+    for bar, low in ((24, 90.0), (25, 96.0), (26, 100.0), (27, 99.0), (28, 100.0)):
+        df.iloc[bar, df.columns.get_loc("Low")] = low
+    common = dict(
+        bc_anchor_bar=2, phase_b_start_bar=5, base_len=25, is_inner_box=False,
+        lps_offset=1, lps_length=5, lps_zone_type="INSIDE", atr_val=1.0,
+    )
+
+    # Default (threshold off) — zone wraps the full window, climb included.
+    full = scope_consolidation(df, **common)
+    assert full["lps_zone_start_date"] == str(df.index[24])[:10]
+    assert full["lps_zone_low"] == 90.0
+
+    # Threshold on — the drawn start advances to the longest down/sideways suffix
+    # (bar 26: [100, 99, 100] is non-rising), keeping >= 3 bars; the low/high
+    # re-tighten to that suffix and the window END is unchanged.
+    trimmed = scope_consolidation(df, lps_zone_draw_min_descent=0.40, **common)
+    assert trimmed["lps_zone_start_date"] == str(df.index[26])[:10]
+    assert trimmed["lps_zone_end_date"] == str(df.index[28])[:10]
+    assert trimmed["lps_zone_low"] == 99.0
+    assert trimmed["lps_zone_high"] == 101.0
+
+
+def test_scope_zone_draw_keeps_min_three_bars():
+    # A window whose ONLY down/sideways suffix is the last 2 bars ([100, 99]).
+    # The drawn trim must NOT shave to a 2-bar stub — it keeps >= 3 bars, so here
+    # it makes no trim at all rather than collapse to [100, 99] (operator: "one
+    # or two more bars could still fill the LPS definition").
+    df = _scope_df(30)
+    for bar, low in ((25, 90.0), (26, 95.0), (27, 100.0), (28, 99.0)):
+        df.iloc[bar, df.columns.get_loc("Low")] = low
+    trimmed = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25, is_inner_box=False,
+        lps_offset=1, lps_length=4, lps_zone_type="INSIDE", atr_val=1.0,
+        lps_zone_draw_min_descent=0.40,
+    )
+    assert trimmed["lps_zone_start_date"] == str(df.index[25])[:10]  # no 2-bar stub
+    assert trimmed["lps_zone_low"] == 90.0
+
+
+def test_scope_clean_reaction_zone_draw_not_trimmed():
+    # A clean reaction into support (lows fall 100 -> 95) already reads as a
+    # down move, so the trim must be a no-op even with the threshold on.
+    df = _scope_df(30)
+    df.iloc[26, df.columns.get_loc("Low")] = 95.0
+    df.iloc[27, df.columns.get_loc("Low")] = 95.0
+    df.iloc[28, df.columns.get_loc("Low")] = 95.0
+    out = scope_consolidation(
+        df, bc_anchor_bar=2, phase_b_start_bar=5, base_len=25, is_inner_box=False,
+        lps_offset=1, lps_length=4, lps_zone_type="INSIDE", atr_val=1.0,
+        lps_zone_draw_min_descent=0.40,
+    )
+    assert out["lps_zone_start_date"] == str(df.index[25])[:10]
 
 
 def test_scope_phase_a_can_end_before_phase_b_body():

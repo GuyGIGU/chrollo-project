@@ -67,13 +67,17 @@ const ScreenerGrid = () => {
       <ScreenerToolbar
         screenerData={screenerData}
         isScanning={scan.isScanning}
+        isEvaluating={scan.isEvaluating}
+        isDownloading={scan.isDownloading}
+        marketDataStatus={scan.marketDataStatus}
         matchedCount={filters.filteredTickers.length}
         watchlistSize={watchlist.size}
         filters={filters}
-        onRunScan={scan.handleRunScan}
+        onEvaluateCached={scan.handleEvaluateCached}
+        onDownloadData={scan.handleDownloadData}
       />
 
-      {screenerData && !scan.isScanning && (
+      {screenerData && !scan.isEvaluating && (
         <MarketRegimeBanner marketContext={screenerData.market_context} />
       )}
 
@@ -81,7 +85,7 @@ const ScreenerGrid = () => {
         <ScreenerWatchlistPanel
           watchlist={watchlist}
           screenerData={screenerData}
-          isScanning={scan.isScanning}
+          isScanning={scan.isEvaluating}
           onToggleWatchlist={toggleWatchlist}
         />
       )}
@@ -94,12 +98,12 @@ const ScreenerGrid = () => {
       />
 
       {scan.scanError && !scan.isScanning && (
-        <ScanErrorBanner message={scan.scanError} onRetry={scan.handleRunScan} />
+        <ScanErrorBanner message={scan.scanError} onRetry={scan.handleRetryLastJob} />
       )}
 
-      {!hasScreenerData && !scan.isScanning && !scan.scanError && <EmptyState message="Loading Screener Data... (If this takes more than a moment, run a new market scan!)" />}
-      {hasScreenerData && !scan.isScanning && filters.paginatedTickers.length === 0 && <EmptyState message="No setups found matching current filters." />}
-      {hasScreenerData && !scan.isScanning && filters.paginatedTickers.length > 0 && (
+      {!hasScreenerData && !scan.isEvaluating && !scan.scanError && <EmptyState message="Loading Screener Data... (If this takes more than a moment, evaluate the cached data.)" />}
+      {hasScreenerData && !scan.isEvaluating && filters.paginatedTickers.length === 0 && <EmptyState message="No setups found matching current filters." />}
+      {hasScreenerData && !scan.isEvaluating && filters.paginatedTickers.length > 0 && (
         <>
           <div style={gridStyle}>
             {filters.paginatedTickers.map(ticker => (
@@ -145,9 +149,10 @@ function EmptyState({ message }) {
   );
 }
 
-// Shown when a scan stops before results arrive (the EventSource errored). Tells
-// the user what happened and offers a one-click retry, instead of stranding them
-// on the generic "Loading…" line.
+// Shown when a data job (evaluation or download) stops before it finishes (the
+// EventSource errored or the backend reported ERROR). Tells the user what
+// happened and offers a one-click retry of the last job, instead of stranding
+// them on the generic "Loading…" line.
 function ScanErrorBanner({ message, onRetry }) {
   return (
     <div
@@ -165,9 +170,9 @@ function ScanErrorBanner({ message, onRetry }) {
       }}
     >
       <span style={{ fontSize: '13px' }}>
-        <strong style={{ color: 'var(--danger)' }}>Scan failed.</strong> {message}
+        <strong style={{ color: 'var(--danger)' }}>Action failed.</strong> {message}
       </span>
-      <button onClick={onRetry} style={retryButtonStyle}>Run scan again</button>
+      <button onClick={onRetry} style={retryButtonStyle}>Try again</button>
     </div>
   );
 }

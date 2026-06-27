@@ -452,6 +452,27 @@ def _repair_latest_session(
     return repaired
 
 
+def repair_latest_session_cache(
+    data: pd.DataFrame,
+    cache_file: str,
+    meta_file: str,
+    symbols: list[str],
+    expected_session: pd.Timestamp,
+    min_latest_coverage: float,
+    label: str = "Manual repair",
+) -> pd.DataFrame:
+    """Patch latest-session closes for ``symbols`` and persist the cache if changed."""
+    repaired = _repair_latest_session(
+        data, symbols, expected_session, min_latest_coverage, label
+    )
+    if repaired is not data:
+        _atomic_write_parquet(repaired, cache_file)
+        meta = _read_meta(meta_file)
+        meta["last_modified"] = _now_iso()
+        _write_meta(meta_file, meta)
+    return repaired
+
+
 def _record_admission_history(admission: dict, admission_path: str, requested: list[str],
                               data: pd.DataFrame, label: str, *,
                               mark_missing: bool = True,

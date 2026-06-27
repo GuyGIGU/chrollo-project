@@ -76,6 +76,30 @@ def _format_filter_stats(stats: dict[str, int]) -> str:
     return f" (filtered {', '.join(parts)})" if parts else ""
 
 
+def get_cached_tickers(csv_path: str | None = None) -> list[str]:
+    """Load the cached ticker universe without refreshing it from the network."""
+    if csv_path is None:
+        csv_path = _default_ticker_csv_path()
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"cached ticker universe not found: {csv_path}")
+
+    df = pd.read_csv(csv_path)
+    if 'Ticker' in df.columns:
+        raw_tickers = df['Ticker'].dropna().tolist()
+    elif 'Symbol' in df.columns:
+        raw_tickers = df['Symbol'].dropna().tolist()
+    else:
+        raw_tickers = df.iloc[:, 0].dropna().tolist()
+
+    tickers, stats = screen_symbols(raw_tickers, _load_skiplist())
+    print(f"Loaded {len(tickers)} cached tickers from {csv_path}"
+          f"{_format_filter_stats(stats)}",
+          flush=True)
+    if not tickers:
+        raise ValueError(f"cached ticker universe is empty: {csv_path}")
+    return tickers
+
+
 def get_tickers(csv_path: str | None = None) -> list[str]:
     """
     Load ticker universe from CSV. Falls back to the NASDAQ Trader FTP dump

@@ -19,9 +19,11 @@ _MIGRATIONS = [
         status VARCHAR NOT NULL,
         n_setups INTEGER,
         error TEXT,
-        trigger VARCHAR NOT NULL
+        trigger VARCHAR NOT NULL,
+        kind VARCHAR DEFAULT 'scan'
     )
     """,
+    "ALTER TABLE scan_runs ADD COLUMN kind VARCHAR DEFAULT 'scan'",
     "ALTER TABLE trade_logs ADD COLUMN actions_json TEXT",
     "ALTER TABLE trade_logs ADD COLUMN source VARCHAR DEFAULT 'manual'",
     "ALTER TABLE trade_logs ADD COLUMN ibkr_account VARCHAR",

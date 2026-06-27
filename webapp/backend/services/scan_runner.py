@@ -32,7 +32,7 @@ class ScanProcessResult:
         return self.returncode == 0
 
 
-def _create_process() -> subprocess.Popen:
+def _create_process(args: list[str] | None = None) -> subprocess.Popen:
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     # Force UTF-8 on the child's stdio. Under the Windows service (and any piped
     # subprocess) Python otherwise defaults stdout to the locale codec (cp1252),
@@ -42,8 +42,11 @@ def _create_process() -> subprocess.Popen:
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    command = [sys.executable, SCREENER_SCRIPT]
+    if args:
+        command.extend(args)
     return subprocess.Popen(
-        [sys.executable, SCREENER_SCRIPT],
+        command,
         cwd=ROOT_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -56,8 +59,8 @@ def _create_process() -> subprocess.Popen:
     )
 
 
-def _run_scan_process_unlocked() -> ScanProcessResult:
-    process = _create_process()
+def _run_scan_process_unlocked(args: list[str] | None = None) -> ScanProcessResult:
+    process = _create_process(args)
     lines: list[str] = []
     assert process.stdout is not None
     for line in process.stdout:
@@ -175,19 +178,21 @@ def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str 
         log.exception("scan alert webhook failed")
 
 
-def stream_manual_scan() -> Iterator[str]:
-    """Run a manual scan and stream its stdout as server-sent events."""
+def _stream_process(trigger: str, args: list[str] | None = None,
+                    kind: str = "scan") -> Iterator[str]:
+    """Run a manual subprocess job and stream its stdout as server-sent events."""
     from services import scan_status
 
     if not SCAN_LOCK.acquire(blocking=False):
-        yield "data: ERROR: another scan is already running\n\n"
+        yield "data: ERROR: another scan or data job is already running\n\n"
         yield "data: [DONE]\n\n"
         return
 
-    run_id = scan_status.start_run("manual")
+    run_id = None
     lines: list[str] = []
     try:
-        process = _create_process()
+        run_id = scan_status.start_run(trigger, kind=kind)
+        process = _create_process(args)
         assert process.stdout is not None
         for line in process.stdout:
             lines.append(line)
@@ -204,17 +209,33 @@ def stream_manual_scan() -> Iterator[str]:
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
         scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-        alert_if_needed("manual", status, result.n_setups, error)
+        alert_if_needed(trigger, status, result.n_setups, error)
         if process.returncode != 0:
             yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as exc:
-        scan_status.finish_run(run_id, status="failed", error=str(exc))
-        alert_if_needed("manual", "failed", None, str(exc))
+        if run_id is not None:
+            scan_status.finish_run(run_id, status="failed", error=str(exc))
+        alert_if_needed(trigger, "failed", None, str(exc))
         yield f"data: ERROR: {exc}\n\n"
         yield "data: [DONE]\n\n"
     finally:
         SCAN_LOCK.release()
+
+
+def stream_manual_scan() -> Iterator[str]:
+    """Run a full manual scan and stream its stdout as server-sent events."""
+    yield from _stream_process("manual")
+
+
+def stream_cached_evaluation() -> Iterator[str]:
+    """Evaluate the local market-data cache and stream stdout as SSE."""
+    yield from _stream_process("manual_evaluation", ["--cached"], kind="scan")
+
+
+def stream_data_download() -> Iterator[str]:
+    """Refresh market-data cache only and stream stdout as SSE."""
+    yield from _stream_process("manual_download", ["--download-only"], kind="download")
 
 
 def run_scheduled_scan_and_forward_returns() -> None:

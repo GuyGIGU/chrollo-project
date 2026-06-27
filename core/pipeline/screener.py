@@ -21,11 +21,21 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import pandas as pd
 
 from config import settings
+from core.pipeline.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
 from core.pipeline.evaluation import _evaluate_ticker, apply_baseline_filters
+from core.pipeline.market_data_health import (
+    compute_market_data_health,
+    eligible_tickers_for,
+)
 from core.pipeline.scan_metrics import ScanTimer, format_scan_metrics, persist_scan_metrics
+from core.pipeline.tickers import get_cached_tickers
 
-__all__ = ["run_screener", "_evaluate_ticker", "apply_baseline_filters"]
+__all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker", "apply_baseline_filters"]
+
+
+class CachedMarketDataError(RuntimeError):
+    """Raised when cached evaluation cannot safely use the local market-data panel."""
 
 
 def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame) -> dict[str, pd.DataFrame]:
@@ -101,7 +111,25 @@ def _regime_archive_fields(market_context: dict) -> dict:
     }
 
 
-def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
+def _read_cached_market_data(tickers: list[str]) -> pd.DataFrame:
+    cache_file, meta_file = _cache_paths()
+    if not os.path.exists(cache_file):
+        raise CachedMarketDataError(f"stale market data: cache file not found at {cache_file}")
+
+    print(f"Loading market data from local cache for evaluation: {cache_file}", flush=True)
+    data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+    if hasattr(data.index, 'tz') and data.index.tz is not None:
+        data.index = data.index.tz_localize(None)
+
+    health = compute_market_data_health(data, tickers, meta_file=meta_file)
+    if not health["can_evaluate"]:
+        raise CachedMarketDataError(f"stale market data: {health['diagnosis']}")
+    if health["coverage"]["raw"]["ratio"] < health["coverage"]["eligible"]["ratio"]:
+        print(f"Cached market-data health: {health['diagnosis']}", flush=True)
+    return data
+
+
+def run_screener(mode: str = "download") -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     """
     Execute the full Wyckoff VCP/LPS screening pipeline.
 
@@ -112,13 +140,21 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
         - tickers: list of tickers that were evaluated
         - market_context: run-level context for dashboard/archive
     """
+    if mode not in {"download", "cache"}:
+        raise ValueError(f"unknown screener data mode: {mode}")
+
     timer = ScanTimer()
     with timer.phase("ticker_universe"):
-        tickers = get_tickers()
+        tickers = get_cached_tickers() if mode == "cache" else get_tickers()
     with timer.phase("market_data_fetch"):
-        data = get_provider().fetch(tickers)
+        data = _read_cached_market_data(tickers) if mode == "cache" else get_provider().fetch(tickers)
     with timer.phase("frame_prep"):
-        ticker_frames = _prepare_ticker_frames(tickers, data)
+        evaluation_tickers = eligible_tickers_for(tickers)
+        skipped = len(tickers) - len(evaluation_tickers)
+        if skipped > 0:
+            print(f"Evaluating eligible cache universe ({len(evaluation_tickers)} tickers; skipped {skipped}).",
+                  flush=True)
+        ticker_frames = _prepare_ticker_frames(evaluation_tickers, data)
 
     with timer.phase("market_context"):
         market_context = get_market_context(data, ticker_frames)
@@ -150,4 +186,4 @@ def run_screener() -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     persist_scan_metrics(metrics)
     print(format_scan_metrics(metrics), flush=True)
 
-    return results_df, data, tickers, market_context
+    return results_df, data, evaluation_tickers, market_context

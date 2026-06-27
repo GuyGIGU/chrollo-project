@@ -66,3 +66,19 @@ def run_screener_scan_stream():
             invalidate_screener_cache()
 
     return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
+
+
+@router.get("/run-evaluation-stream/")
+def run_cached_evaluation_stream():
+    def execute_and_yield():
+        try:
+            yield from scan_runner.stream_cached_evaluation()
+        finally:
+            invalidate_screener_cache()
+
+    return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
+
+
+@router.get("/download-data-stream/")
+def download_market_data_stream():
+    return StreamingResponse(scan_runner.stream_data_download(), media_type="text/event-stream")

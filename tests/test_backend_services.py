@@ -2,10 +2,12 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pandas as pd
 import pytest
 from fastapi import HTTPException
 
@@ -26,6 +28,8 @@ from webapp.backend.ibkr import service as ibkr_service
 from webapp.backend.services.journal_stats import calculate_journal_stats
 from webapp.backend.services import portfolio_snapshot, screener_data, startup
 from webapp.backend.services import scan_runner
+from core.pipeline import cache_status as cache_status_module
+from core.pipeline import scan_job as scan_job_module
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -167,6 +171,13 @@ def test_archive_outcome_columns_are_modeled_and_migrated():
         assert f"ADD COLUMN {field} " in migration_sql
 
 
+def test_scan_run_kind_column_is_migrated():
+    migration_sql = "\n".join(startup._MIGRATIONS)
+
+    assert "kind VARCHAR DEFAULT 'scan'" in migration_sql
+    assert "ALTER TABLE scan_runs ADD COLUMN kind " in migration_sql
+
+
 def test_portfolio_stream_listens_to_snapshot_changing_channels():
     assert portfolio_streams._PORTFOLIO_CHANNELS == (
         "portfolio",
@@ -258,6 +269,326 @@ async def _first_stream_event(request):
         return await anext(stream)
     finally:
         await stream.aclose()
+
+
+def _status_panel(symbols, day):
+    return pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[pd.Timestamp(day)])
+            for symbol in symbols
+        },
+        axis=1,
+    )
+
+
+def _wire_cache_status(tmp_path, monkeypatch, panel=None, tickers=None,
+                       expected="2026-06-25", meta=None, admission=None):
+    cache_file = tmp_path / "market_cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text(
+        json.dumps(meta or {"last_full_refresh": datetime.now(timezone.utc).isoformat()}),
+        encoding="utf-8",
+    )
+    if admission is not None:
+        (tmp_path / "ticker_admission.json").write_text(
+            json.dumps(admission),
+            encoding="utf-8",
+        )
+    if panel is not None:
+        panel.to_parquet(cache_file)
+    monkeypatch.setattr(cache_status_module, "_cache_paths", lambda: (str(cache_file), str(meta_file)))
+    monkeypatch.setattr(cache_status_module, "get_cached_tickers", lambda: tickers or ["AAA"])
+    monkeypatch.setattr(cache_status_module, "latest_completed_session", lambda now_et=None: pd.Timestamp(expected))
+    monkeypatch.setattr(
+        cache_status_module,
+        "next_session_close",
+        lambda now_et=None: (
+            pd.Timestamp("2026-06-26"),
+            datetime(2026, 6, 26, 16, 0, tzinfo=timezone.utc),
+        ),
+    )
+    monkeypatch.setattr(cache_status_module, "market_closed_reason", lambda now_et=None: None)
+    monkeypatch.setattr(cache_status_module, "is_early_close_session", lambda day: False)
+    monkeypatch.setattr(cache_status_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+
+
+def test_market_data_status_reports_missing_cache(tmp_path, monkeypatch):
+    _wire_cache_status(tmp_path, monkeypatch, panel=None)
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "cache_missing"
+    assert status["can_download"] is True
+    assert status["can_evaluate"] is False
+
+
+def test_market_data_status_reports_current_cache(tmp_path, monkeypatch):
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-25"),
+    )
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "healthy"
+    assert status["can_download"] is False
+    assert status["can_evaluate"] is True
+    assert status["coverage"]["text"] == "3/3 (100.0%)"
+
+
+def test_market_data_status_reports_new_data_available(tmp_path, monkeypatch):
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-24"),
+    )
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "stale_session"
+    assert status["can_download"] is True
+    assert status["can_evaluate"] is False
+
+
+def test_market_data_status_reports_low_coverage(tmp_path, monkeypatch):
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-25"),
+        tickers=["AAA", "BBB"],
+    )
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "needs_repair"
+    assert status["can_download"] is True
+    assert status["can_evaluate"] is False
+    assert status["coverage"]["text"] == "3/4 (75.0%)"
+
+
+def test_market_data_status_uses_eligible_coverage_for_raw_partial_cache(tmp_path, monkeypatch):
+    next_check = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-25"),
+        tickers=["AAA", "YNG"],
+        admission={
+            "YNG": {
+                "status": "active_young",
+                "next_check": next_check,
+            },
+        },
+    )
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "healthy"
+    assert status["can_download"] is False
+    assert status["can_evaluate"] is True
+    assert status["can_archive"] is True
+    assert status["coverage"]["raw"]["text"] == "3/4 (75.0%)"
+    assert status["coverage"]["eligible"]["text"] == "3/3 (100.0%)"
+    assert status["missing_summary"]["skipped_missing_count"] == 1
+
+
+def test_market_data_status_cools_down_repair_and_blocks_low_eligible_eval(tmp_path, monkeypatch):
+    cooldown_until = datetime(2026, 6, 25, 14, 30, tzinfo=timezone.utc)
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-25"),
+        tickers=["AAA", "BBB"],
+        meta={
+            "last_full_refresh": datetime.now(timezone.utc).isoformat(),
+            "repair_state": {
+                "next_retry_at": cooldown_until.isoformat(),
+                "retry_reason": "1 symbol(s) still missing the latest close",
+                "error_class": "sparse_symbols",
+                "attempt_count": 1,
+            },
+        },
+    )
+
+    status = cache_status_module.build_market_data_status(
+        datetime(2026, 6, 25, 14, 10, tzinfo=timezone.utc)
+    )
+
+    assert status["status"] == "needs_repair"
+    assert status["can_download"] is False
+    assert status["can_evaluate"] is False
+    assert status["download_label"] == "Cooldown 20m"
+
+
+def test_download_only_refresh_does_not_evaluate_or_archive(tmp_path, monkeypatch):
+    expected = "2026-06-25"
+    panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
+    meta_file = tmp_path / "cache_meta.json"
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module, "get_tickers", lambda: ["AAA"])
+    monkeypatch.setattr(
+        scan_job_module,
+        "get_provider",
+        lambda: SimpleNamespace(fetch=lambda tickers: panel),
+    )
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (_ for _ in ()).throw(AssertionError("evaluated")))
+    monkeypatch.setattr(scan_job_module, "generate_dashboard", lambda *a, **k: (_ for _ in ()).throw(AssertionError("dashboard")))
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", lambda *a, **k: (_ for _ in ()).throw(AssertionError("archive")))
+
+    result = scan_job_module.refresh_market_data_cache()
+
+    assert result.n_tickers == 1
+    assert result.latest_session == expected
+    assert result.coverage == "3/3 (100.0%)"
+
+
+def test_download_only_partial_coverage_sets_cooldown_without_failing(tmp_path, monkeypatch):
+    expected = "2026-06-25"
+    panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
+    meta_file = tmp_path / "cache_meta.json"
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module.settings, "MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES", 12)
+    monkeypatch.setattr(scan_job_module, "get_tickers", lambda: ["AAA", "BBB"])
+    monkeypatch.setattr(
+        scan_job_module,
+        "get_provider",
+        lambda: SimpleNamespace(fetch=lambda tickers: panel),
+    )
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (_ for _ in ()).throw(AssertionError("evaluated")))
+    monkeypatch.setattr(scan_job_module, "generate_dashboard", lambda *a, **k: (_ for _ in ()).throw(AssertionError("dashboard")))
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", lambda *a, **k: (_ for _ in ()).throw(AssertionError("archive")))
+
+    result = scan_job_module.refresh_market_data_cache()
+
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert result.ready is False
+    assert result.partial is True
+    assert result.coverage == "3/4 (75.0%)"
+    assert result.health_state == "needs_repair"
+    assert result.cooldown_until == meta["repair_state"]["next_retry_at"]
+    assert meta["repair_state"]["error_class"] == "sparse_symbols"
+    assert meta["repair_state"]["retry_reason"] == "1 symbol(s) still missing the latest close"
+
+
+def test_cached_raw_partial_evaluation_archives_when_eligible_cache_is_healthy(tmp_path, monkeypatch):
+    expected = "2026-06-25"
+    panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}])
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text(
+        json.dumps({"last_full_refresh": datetime.now(timezone.utc).isoformat()}),
+        encoding="utf-8",
+    )
+    (tmp_path / "ticker_admission.json").write_text(
+        json.dumps({
+            "YNG": {
+                "status": "active_young",
+                "next_check": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda mode="download": (results, panel, ["AAA", "YNG"], {}))
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
+    monkeypatch.setattr(scan_job_module, "print_results", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(scan_job_module, "save_csv", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(scan_job_module, "print_finviz_url", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(scan_job_module, "generate_dashboard", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(scan_job_module.settings, "ARCHIVE_LIVE_SCANS", True)
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", lambda *a, **k: 1)
+
+    result = scan_job_module.run_scan_and_export(mode="cache")
+
+    assert result.n_setups == 1
+    assert result.n_archived == 1
+
+
+@pytest.mark.parametrize(
+    ("stream_name", "expected_args", "expected_trigger", "expected_kind", "output", "expected_setups"),
+    [
+        (
+            "stream_cached_evaluation",
+            ["--cached"],
+            "manual_evaluation",
+            "scan",
+            'SCAN_RESULT_JSON:{"n_setups": 7, "n_archived": 7}\n',
+            7,
+        ),
+        (
+            "stream_data_download",
+            ["--download-only"],
+            "manual_download",
+            "download",
+            'DOWNLOAD_RESULT_JSON:{"n_tickers": 3}\n',
+            None,
+        ),
+    ],
+)
+def test_manual_job_streams_use_args_kind_and_release_lock(monkeypatch, stream_name,
+                                                           expected_args, expected_trigger,
+                                                           expected_kind, output,
+                                                           expected_setups):
+    import services.scan_status as scan_status_mod
+
+    calls = {}
+
+    class FakeStdout:
+        def __iter__(self):
+            return iter([output])
+
+        def close(self):
+            calls["stdout_closed"] = True
+
+    class FakeProcess:
+        stdout = FakeStdout()
+        returncode = 0
+
+        def wait(self):
+            calls["waited"] = True
+
+    def fake_create_process(args=None):
+        calls["args"] = args
+        return FakeProcess()
+
+    def fake_start_run(trigger, kind="scan"):
+        calls["trigger"] = trigger
+        calls["kind"] = kind
+        return 42
+
+    def fake_finish_run(run_id, status, n_setups=None, error=None):
+        calls["finish"] = (run_id, status, n_setups, error)
+
+    monkeypatch.setattr(scan_runner, "_create_process", fake_create_process)
+    monkeypatch.setattr(scan_status_mod, "start_run", fake_start_run)
+    monkeypatch.setattr(scan_status_mod, "finish_run", fake_finish_run)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+
+    events = list(getattr(scan_runner, stream_name)())
+
+    assert calls["args"] == expected_args
+    assert calls["trigger"] == expected_trigger
+    assert calls["kind"] == expected_kind
+    assert calls["finish"] == (42, "ok", expected_setups, None)
+    assert any("[DONE]" in event for event in events)
+    assert not scan_runner.SCAN_LOCK.locked()
+
+
+def test_manual_job_stream_releases_lock_when_status_start_fails(monkeypatch):
+    import services.scan_status as scan_status_mod
+
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+
+    events = list(scan_runner.stream_cached_evaluation())
+
+    assert any("ERROR:" in event and "db down" in event for event in events)
+    assert any("[DONE]" in event for event in events)
+    assert not scan_runner.SCAN_LOCK.locked()
 
 
 # ---- scan-runner alert decision (fetch-health degradation early warning) ----

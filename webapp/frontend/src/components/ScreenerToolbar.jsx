@@ -5,10 +5,14 @@ import { TAG_CATALOG } from './setupTagsData';
 function ScreenerToolbar({
   screenerData,
   isScanning,
+  isEvaluating,
+  isDownloading,
+  marketDataStatus,
   matchedCount,
   watchlistSize,
   filters,
-  onRunScan,
+  onEvaluateCached,
+  onDownloadData,
 }) {
   // Primary triage controls (tier + search) stay always-on; setup, sort, tags,
   // and the legend live behind a disclosure so they don't crowd the grid. The
@@ -25,12 +29,32 @@ function ScreenerToolbar({
         <div style={{ color: 'var(--text-muted)' }}>
           {matchedCount} setups matched your constraints.
         </div>
-        <button onClick={onRunScan} disabled={isScanning} style={scanButtonStyle(isScanning)}>
-          {isScanning ? 'Running Scan...' : 'Run Market Scan Now'}
-        </button>
+        <div style={actionClusterStyle}>
+          <MarketDataStatus status={marketDataStatus} />
+          <button
+            onClick={onDownloadData}
+            disabled={isScanning || marketDataStatus?.can_download === false}
+            title={marketDataStatus?.diagnosis || marketDataStatus?.message || 'Refresh market-data cache'}
+            style={downloadButtonStyle(
+              isScanning || marketDataStatus?.can_download === false,
+              marketDataStatus?.health_state || marketDataStatus?.status,
+              marketDataStatus?.severity,
+            )}
+          >
+            {isDownloading ? 'Downloading Data...' : marketDataStatus?.download_label || 'Download New Data'}
+          </button>
+          <button
+            onClick={onEvaluateCached}
+            disabled={isScanning || marketDataStatus?.can_evaluate === false}
+            title={marketDataStatus?.diagnosis || marketDataStatus?.message || 'Evaluate the current local market-data cache.'}
+            style={scanButtonStyle(isScanning || marketDataStatus?.can_evaluate === false)}
+          >
+            {isEvaluating ? 'Evaluating Cache...' : 'Evaluate Cached Data'}
+          </button>
+        </div>
       </div>
 
-      {screenerData && !isScanning && (
+      {screenerData && !isEvaluating && (
         <div style={panelStyle}>
           <FilterRow
             filters={filters}
@@ -50,6 +74,52 @@ function ScreenerToolbar({
       )}
     </>
   );
+}
+
+function MarketDataStatus({ status }) {
+  if (!status) {
+    return (
+      <span style={statusStripStyle('loading')} title="Checking market-data cache status.">
+        <span style={statusDotStyle('loading')} />
+        Checking data...
+      </span>
+    );
+  }
+  const state = status.health_state || status.status;
+  return (
+    <span style={statusStripStyle(state, status.severity)} title={status.diagnosis || status.message}>
+      <span style={statusDotStyle(state, status.severity)} />
+      {statusLabel(status)}
+    </span>
+  );
+}
+
+function statusLabel(status) {
+  const state = status.health_state || status.status;
+  if (state === 'healthy' || state === 'market_wait') {
+    return `Healthy: ${pct(status.coverage?.eligible?.ratio ?? status.coverage?.ratio)}`;
+  }
+  if (state === 'needs_repair') return `Repair ${status.missing_summary?.eligible_missing_count ?? ''}`.trim();
+  if (state === 'provider_cooldown') return `Provider limited: ${cooldownText(status.retry_seconds)}`;
+  if (state === 'symbol_lagging') return 'Needs help';
+  if (state === 'stale_session') return `Stale: ${status.cache_last_session || '-'}`;
+  if (state === 'cache_missing') return 'No cache';
+  if (state === 'cache_unreadable') return 'Cache unreadable';
+  if (state === 'missing_universe') return 'No ticker cache';
+  return status.diagnosis || status.message || 'Data status unknown';
+}
+
+function cooldownText(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return 'soon';
+  const minutes = Math.max(1, Math.ceil(value / 60));
+  return `${minutes}m`;
+}
+
+function pct(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '-';
+  return `${(num * 100).toFixed(1)}%`;
 }
 
 function FilterRow({ filters, watchlistSize, showMore, onToggleMore, advancedCount }) {
@@ -172,6 +242,66 @@ const scanButtonStyle = (isScanning) => ({
   cursor: isScanning ? 'not-allowed' : 'pointer',
   fontWeight: '600', transition: 'all 0.2s', fontFamily: 'inherit',
 });
+
+const downloadButtonStyle = (disabled, status, severity) => ({
+  background: disabled ? 'var(--bg-hover)' : downloadColor(status, severity),
+  color: disabled ? 'var(--text-muted)' : '#fff',
+  border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  fontWeight: '600', transition: 'all 0.2s', fontFamily: 'inherit',
+  whiteSpace: 'nowrap',
+});
+
+const downloadColor = (status, severity) => {
+  if (severity === 'repair' || status === 'needs_repair') return 'var(--accent-pink, #bb86fc)';
+  if (severity === 'blocked' || status === 'stale_session') return 'var(--danger)';
+  return 'var(--accent-blue)';
+};
+
+const actionClusterStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  flexWrap: 'wrap',
+};
+
+const statusStripStyle = (status, severity) => ({
+  alignItems: 'center',
+  background: 'var(--bg-panel)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--radius-sm)',
+  color: severity === 'repair' || status === 'needs_repair'
+    ? 'var(--text-main)'
+    : 'var(--text-muted)',
+  display: 'inline-flex',
+  fontSize: '12px',
+  fontWeight: 600,
+  gap: '7px',
+  minHeight: '32px',
+  maxWidth: '280px',
+  overflow: 'hidden',
+  padding: '0 10px',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+});
+
+const statusDotStyle = (status, severity) => ({
+  background: statusColor(status, severity),
+  borderRadius: '50%',
+  display: 'inline-block',
+  flex: '0 0 auto',
+  height: 7,
+  width: 7,
+});
+
+const statusColor = (status, severity) => {
+  if (severity === 'ok' || status === 'healthy' || status === 'market_wait') return 'var(--success)';
+  if (status === 'provider_cooldown') return 'var(--warning, #f2c94c)';
+  if (severity === 'repair' || status === 'needs_repair') return 'var(--accent-pink, #bb86fc)';
+  if (severity === 'blocked' || status === 'cache_missing' || status === 'cache_unreadable' || status === 'stale_session' || status === 'symbol_lagging') return 'var(--danger)';
+  return 'var(--text-muted)';
+};
 
 const panelStyle = {
   padding: '10px 16px', background: 'var(--bg-panel)',

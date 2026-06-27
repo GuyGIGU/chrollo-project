@@ -495,6 +495,8 @@ INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch in
 MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage before cache/archive is trusted
 LATEST_REPAIR_BATCH_SIZE = 100     # Smaller latest-bar repair batches after a sparse Yahoo response
 LATEST_REPAIR_SLEEP_SECONDS = 2.0  # Gentle pause between repair batches to reduce Yahoo rate limits
+MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES = 10   # Sparse eligible-symbol repair: first unchanged retry window
+MARKET_DATA_REPAIR_SECOND_RETRY_MINUTES = 20  # Sparse eligible-symbol repair: second unchanged retry window
 
 # Outbound Yahoo request rate limit (core.pipeline.rate_limit). yfinance spawns its
 # own download threads and the screener fans the universe across a worker pool, so

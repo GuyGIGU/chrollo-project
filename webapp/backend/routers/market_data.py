@@ -73,3 +73,10 @@ def chart(symbol: str, days: int = Query(180, ge=20, le=730)) -> Dict[str, Any]:
     if not candles:
         raise HTTPException(status_code=404, detail="No usable chart data found")
     return {"symbol": ticker, "candles": candles, "volumes": volumes}
+
+
+@router.get("/status")
+def market_data_status() -> Dict[str, Any]:
+    from core.pipeline.cache_status import build_market_data_status
+
+    return build_market_data_status()

@@ -69,3 +69,38 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     }
     for phase in ("ticker_universe", "market_data_fetch", "frame_prep", "market_context", "evaluation"):
         assert phase in metrics["phases_s"]
+
+
+def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
+    dates = pd.date_range("2026-01-01", periods=3, freq="B")
+    panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [1.0, 2.0, 3.0], "Volume": [1, 1, 1]}, index=dates),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(screener_module, "get_cached_tickers", lambda: ["AAA"])
+    monkeypatch.setattr(screener_module, "_read_cached_market_data", lambda tickers: panel)
+    monkeypatch.setattr(
+        screener_module,
+        "get_provider",
+        lambda: (_ for _ in ()).throw(AssertionError("provider fetched")),
+    )
+    monkeypatch.setattr(
+        screener_module,
+        "get_market_context",
+        lambda data, frames: {"spy_6m_return": 0.0, "breadth_pct": 1.0},
+    )
+    monkeypatch.setattr(
+        screener_module,
+        "_evaluate_frames",
+        lambda frames, spy, breadth: [{"Ticker": "AAA", "Score": 10}],
+    )
+    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics: None)
+
+    results_df, data, tickers, _ = screener_module.run_screener(mode="cache")
+
+    assert tickers == ["AAA"]
+    assert data is panel
+    assert len(results_df) == 1
