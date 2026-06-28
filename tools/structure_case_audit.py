@@ -27,13 +27,9 @@ calibrated bricks. It changes nothing and gates nothing.
 """
 from __future__ import annotations
 
-import os
-import sys
+from tools._bootstrap import configure_path
 
-_THIS = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.normpath(os.path.join(_THIS, ".."))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+configure_path()
 
 import argparse
 

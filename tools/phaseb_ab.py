@@ -17,12 +17,11 @@ decide whether earliest-valid is a net improvement before flipping the default.
 """
 from __future__ import annotations
 
-import os
 import sys
 
-_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+from tools._bootstrap import configure_path
+
+configure_path()
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker

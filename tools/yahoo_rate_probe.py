@@ -14,12 +14,14 @@ import contextlib
 import io
 import json
 import random
-import sys
 import time
 from pathlib import Path
 
+from tools._bootstrap import configure_path
+
+configure_path()
+
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 from config import settings
 from core.pipeline import downloads, rate_limit

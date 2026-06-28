@@ -19,10 +19,11 @@ from __future__ import annotations
 import os
 import sys
 
+from tools._bootstrap import configure_path
+
+configure_path()
+
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.normpath(os.path.join(_THIS_DIR, ".."))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker

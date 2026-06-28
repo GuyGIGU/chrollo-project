@@ -48,7 +48,6 @@ Run:
 from __future__ import annotations
 
 import os
-import sys
 from collections import Counter
 from typing import Optional
 
@@ -56,9 +55,9 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+from tools._bootstrap import configure_path
+
+PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.scoring import calculate_tier, score_setup

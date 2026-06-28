@@ -29,9 +29,11 @@ from typing import Any, Iterable, Optional
 import numpy as np
 import pandas as pd
 
+from tools._bootstrap import configure_path
+
+configure_path()
+
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from config import settings
 from core.pipeline.evaluation import apply_baseline_filters

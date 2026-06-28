@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
+
+from tools._bootstrap import configure_path
+
+configure_path()
 
 _THIS = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.normpath(os.path.join(_THIS, ".."))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
 
 import pandas as pd
 

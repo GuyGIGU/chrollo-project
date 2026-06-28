@@ -35,10 +35,14 @@ import os
 import random
 import sys
 
+try:  # works under both `python -m tools.fidelity_harness` and `python tools/fidelity_harness.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
+
+configure_path()
+
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.normpath(os.path.join(_THIS_DIR, ".."))
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
 
 _OUT_DIR = os.path.join(_THIS_DIR, "fidelity")
 _CHARTS_DIR = os.path.join(_OUT_DIR, "charts")

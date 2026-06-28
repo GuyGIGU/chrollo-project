@@ -53,9 +53,9 @@ import sys
 import numpy as np
 import pandas as pd
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
+from tools._bootstrap import configure_path
+
+_PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.pipeline.providers import available_providers, get_provider
