@@ -200,7 +200,7 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
 def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
     # Parent (outer) is the base of record; inner is the nested companion. One
     # chronological A->B->(C?)->D narrative is the structure source of truth.
-    structure = read_structure(df, float(df.iloc[-6]['ATR_10']))
+    structure = read_structure(df, float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]['ATR_10']))
     if structure is None:
         return None
 
@@ -213,7 +213,7 @@ def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
     if base_len == 0:
         return None
 
-    atr_eval = df.iloc[-6]
+    atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
     atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
 
     if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):

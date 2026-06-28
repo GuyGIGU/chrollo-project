@@ -191,7 +191,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         df_ind["ATR_10"] = calculate_atr(df_ind, 10)
         df_ind["ATR_50"] = calculate_atr(df_ind, 50)
         # Mirror the live chronological reader so seed recall measures the same engine.
-        structure = read_structure(df_ind, float(df_ind.iloc[-6]["ATR_10"]))
+        structure = read_structure(df_ind, float(df_ind.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"]))
         if structure is None:
             return None
         boxes = _structure_to_boxes(structure, len(df_ind))
@@ -203,7 +203,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         if base_len == 0:
             return None
 
-        atr_eval = df_ind.iloc[-6]
+        atr_eval = df_ind.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
         atr_ratio = atr_eval["ATR_10"] / atr_eval["ATR_50"]
 
         if latest["Close"] < (sup_avg * settings.CRASH_FILTER_MULT):

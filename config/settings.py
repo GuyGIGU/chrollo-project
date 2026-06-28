@@ -265,6 +265,12 @@ LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
 
 # Shared structural-frame constants.
 STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action when anchoring boxes
+# Daily ATR is sampled one bar before the reserved edge-skip window so the volatility
+# frame matches the bars the box/LPS were anchored on (df.iloc[-(skip+1)]). Bound ONCE
+# at import to the DAILY value (5+1=6); do NOT recompute settings.STRUCTURE_EDGE_SKIP_BARS+1
+# at a call site — that knob is overridden to 1 inside HTF weekly/monthly window contexts,
+# whereas this daily eval bar must stay fixed.
+STRUCTURE_ATR_SAMPLE_OFFSET = STRUCTURE_EDGE_SKIP_BARS + 1   # = 6 (daily)
 INNER_SEARCH_FRACTION = 0.5       # Search recent half for nested Phase-D mini-consolidation
 INNER_TIGHTNESS_RATIO = 0.75      # Inner box must be at least 25% tighter than parent
 INNER_MIN_DAYS = 15               # Min length of an inner CANDIDATE box (room pre-filter only; inner_zigzag separately requires the search WINDOW >= MIN_BASE_DAYS — the binding floor)
