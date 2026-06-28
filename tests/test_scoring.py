@@ -423,3 +423,95 @@ def test_durable_win_degrades_to_barrier_win_without_timing_columns():
     out = derive_outcomes(df)
     assert out["durable_win"].tolist() == [1.0, 0.0, 0.0, 1.0]
     assert out["barrier_win"].tolist() == [1.0, 0.0, 0.0, 1.0]
+
+
+# ──────────────────────────────────────────────────────────────────
+# Tier boundaries + individual scorer contributions (D7 backfill).
+# These pin the score->tier mapping and the breadth / touch-density
+# sub-scores against the live settings thresholds, so a calibration
+# change shows up as an intentional test edit rather than silent drift.
+# ──────────────────────────────────────────────────────────────────
+def _score_base():
+    return pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
+                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
+
+
+def _score_common(**overrides):
+    common = dict(box_width=0.1, r_touches=0, s_touches=0, res_avg=11.0, sup_avg=10.0,
+                  base_df=_score_base(), atr_ratio=0.5, tightness_ratio=0.5,
+                  vol_contraction=0.5, base_len=40, yearly_return=0.0)
+    common.update(overrides)
+    return common
+
+
+def test_calculate_tier_maps_each_band_at_its_threshold():
+    from core.scoring.scoring import calculate_tier
+
+    # Exactly at each threshold lands in that tier; one point below drops a band.
+    assert calculate_tier(settings.TIER_S) == "S"
+    assert calculate_tier(settings.TIER_A) == "A"
+    assert calculate_tier(settings.TIER_S - 1) == "A"
+    assert calculate_tier(settings.TIER_B) == "B"
+    assert calculate_tier(settings.TIER_A - 1) == "B"
+    assert calculate_tier(settings.TIER_C) == "C"
+    assert calculate_tier(settings.TIER_B - 1) == "C"
+    assert calculate_tier(settings.TIER_C - 1) == "D"
+    assert calculate_tier(0) == "D"
+
+
+def test_calculate_tier_width_cap_demotes_wide_s_to_a():
+    from core.scoring.scoring import calculate_tier
+
+    high = settings.TIER_S + 10
+    # A tight enough box keeps S; a box wider than the S cap is demoted to A,
+    # however high the score. No width supplied -> cap not applied.
+    assert calculate_tier(high, box_width=settings.S_MAX_BOX_WIDTH) == "S"
+    assert calculate_tier(high, box_width=settings.S_MAX_BOX_WIDTH + 0.01) == "A"
+    assert calculate_tier(high) == "S"
+
+
+def test_breadth_bonus_ramps_between_zero_and_full_thresholds():
+    from core.scoring.scoring import score_setup
+
+    # Below the zero point -> no breadth credit; None (no breadth measured) -> 0.
+    assert score_setup(**_score_common(breadth_pct=settings.BREADTH_ZERO_PCT))["breadth_bonus"] == 0.0
+    assert score_setup(**_score_common(breadth_pct=None))["breadth_bonus"] == 0.0
+    # At/above the full point -> the full SCORE_BREADTH_BONUS cap.
+    full = score_setup(**_score_common(breadth_pct=settings.BREADTH_FULL_PCT))["breadth_bonus"]
+    assert full == round(float(settings.SCORE_BREADTH_BONUS), 2)
+    # The midpoint earns roughly half the cap and strictly between the two ends.
+    mid_pct = (settings.BREADTH_ZERO_PCT + settings.BREADTH_FULL_PCT) / 2
+    mid = score_setup(**_score_common(breadth_pct=mid_pct))["breadth_bonus"]
+    assert 0.0 < mid < full
+    assert mid == pytest.approx(settings.SCORE_BREADTH_BONUS / 2, abs=0.05)
+
+
+def test_touch_density_awards_bonus_only_when_touch_floors_met():
+    from core.scoring.scoring import score_setup
+
+    # Sparse touches: base density only, no bonus.
+    sparse = score_setup(**_score_common(r_touches=1, s_touches=1))["touch_density"]
+    # >= TOUCH_BONUS_INDIVIDUAL on EACH side fires the bonus.
+    each = score_setup(**_score_common(r_touches=settings.TOUCH_BONUS_INDIVIDUAL,
+                                       s_touches=settings.TOUCH_BONUS_INDIVIDUAL))["touch_density"]
+    # >= TOUCH_BONUS_TOTAL overall (lopsided) also fires it.
+    total = score_setup(**_score_common(r_touches=settings.TOUCH_BONUS_TOTAL, s_touches=0))["touch_density"]
+    # Just under both floors: total = TOTAL-1 and one side under INDIVIDUAL -> no bonus.
+    near = score_setup(**_score_common(r_touches=settings.TOUCH_BONUS_TOTAL - 1, s_touches=0))["touch_density"]
+
+    assert each >= sparse + settings.TOUCH_BONUS_POINTS
+    assert total >= settings.TOUCH_BONUS_POINTS
+    assert near < total
+    # The whole term is capped at SCORE_TOUCH_DENSITY (15 base + 10 bonus).
+    saturated = score_setup(**_score_common(r_touches=20, s_touches=20))["touch_density"]
+    assert saturated == round(float(settings.SCORE_TOUCH_DENSITY), 2)
+
+
+def test_box_tightness_contribution_is_capped_and_rewards_tighter_boxes():
+    from core.scoring.scoring import score_setup
+
+    tight = score_setup(**_score_common(box_width=0.02))["box_tightness"]
+    wide = score_setup(**_score_common(box_width=settings.MAX_BOX_WIDTH))["box_tightness"]
+    assert tight > wide
+    assert wide == 0.0  # a box at the absolute width ceiling earns no tightness credit
+    assert tight <= round(float(settings.SCORE_BOX_TIGHTNESS), 2)

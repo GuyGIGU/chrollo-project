@@ -129,6 +129,52 @@ def test_compute_returns_defers_timeout_until_60_bar_window_complete():
     assert "fwd_return_60d" not in res
 
 
+# ──────────────────────────────────────────────────────────────────
+# Look-ahead bias guard (core.archive.forward_returns): no forward-return /
+# MFE / trigger field may read a bar AT or BEFORE the scan timestamp. The
+# production slice is ``fwd_df = df[df.index > scan_ts]`` (strictly after the
+# scan bar). This pins that boundary: an extreme spike planted on the scan bar
+# and on every earlier bar must never leak into any forward outcome.
+# ──────────────────────────────────────────────────────────────────
+def test_forward_returns_never_read_a_bar_at_or_before_scan():
+    scan_pos = 10
+    # Enough forward bars (>= 60) that a clean forward tape yields a real
+    # "timeout" label rather than the still-maturing None.
+    n = scan_pos + FORWARD_RETURN_HORIZON_BARS + 5
+    idx = pd.date_range("2026-01-02", periods=n, freq="B")
+    scan_ts = idx[scan_pos]
+
+    # Flat tape everywhere EXCEPT a giant spike on the scan bar and all bars
+    # before it. If any field read index <= scan_ts, the trigger/MFE would catch
+    # the spike; the strict ``> scan_ts`` slice must keep it invisible.
+    highs = [9999.0] * (scan_pos + 1) + [101.0] * (n - scan_pos - 1)
+    lows = [0.01] * (scan_pos + 1) + [99.0] * (n - scan_pos - 1)
+    closes = [9999.0] * (scan_pos + 1) + [100.0] * (n - scan_pos - 1)
+    df = pd.DataFrame({
+        "Open": closes,
+        "High": highs,
+        "Low": lows,
+        "Close": closes,
+        "Volume": [1000.0] * n,
+    }, index=idx)
+
+    # The exact production boundary from update_forward_returns().
+    fwd_df = df[df.index > scan_ts]
+    assert (fwd_df.index > scan_ts).all()
+    assert scan_ts not in fwd_df.index
+
+    res = _compute_returns(
+        fwd_df, scan_close=100.0, trigger_price=120.0, s_level=95.0, vol_50_at_scan=1000.0,
+    )
+
+    # Forward window saw only the flat 101/99 tape: no spike leaked in.
+    assert res["fwd_return_20d"] == 0.0          # 100 -> 100 flat
+    assert res["mfe_20d"] == pytest.approx(0.01)  # (101 - 100) / 100
+    assert res["mae_20d"] == pytest.approx(-0.01)  # (99 - 100) / 100
+    assert res["triggered"] == 0                  # 120 trigger never hit by the 101 cap
+    assert res["barrier_label"] == "timeout"      # neither target nor stop reached forward
+
+
 def test_seed_recall_guard_fails_on_new_miss():
     baseline = {"recall": 0.8, "misses": [{"ticker": "AAA", "trigger_date": "2026-01-01"}]}
     current = {"recall": 0.8}
