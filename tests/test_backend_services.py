@@ -41,6 +41,50 @@ def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
     )
 
 
+def test_get_trade_or_404_returns_row_and_raises(tmp_path):
+    """E2: the shared trade-lookup dependency returns the row by id and raises a
+    404 for a missing id — the identical behavior the trades and journal routers
+    previously duplicated in _get_trade / _ensure_trade."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import database
+    import models
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'trades.db'}")
+    # Create the full schema so TradeLog's relationships resolve.
+    database.Base.metadata.create_all(bind=eng)
+    Session = sessionmaker(bind=eng)
+    db = Session()
+    try:
+        row = models.TradeLog(ticker="AAA", direction="L", entry_price=10.0)
+        db.add(row)
+        db.commit()
+        trade_id = row.id
+
+        found = database.get_trade_or_404(db, trade_id)
+        assert found.id == trade_id and found.ticker == "AAA"
+
+        with pytest.raises(HTTPException) as exc:
+            database.get_trade_or_404(db, 999999)
+        assert exc.value.status_code == 404
+        assert exc.value.detail == "Trade not found"
+    finally:
+        db.close()
+
+
+def test_trade_routers_share_the_lookup_dependency():
+    """E2: both routers route their per-trade lookup through the one shared
+    helper — neither still defines its own copy."""
+    from routers import journal as journal_router
+    from routers import trades as trades_router
+
+    assert trades_router.get_trade_or_404 is journal_router.get_trade_or_404
+    # The old per-router duplicates are gone.
+    assert not hasattr(trades_router, "_get_trade")
+    assert not hasattr(journal_router, "_ensure_trade")
+
+
 def test_calculate_journal_stats_handles_empty_list():
     stats = calculate_journal_stats([])
 

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import models
-from database import get_db
+from database import get_db, get_trade_or_404
 
 router = APIRouter(prefix="", tags=["journal"])
 
@@ -49,13 +49,6 @@ class PlanPayload(BaseModel):
 class NotePayload(BaseModel):
     body: Optional[str] = None
     mood: Optional[str] = None
-
-
-def _ensure_trade(db: Session, trade_id: int) -> models.TradeLog:
-    trade = db.query(models.TradeLog).filter(models.TradeLog.id == trade_id).first()
-    if not trade:
-        raise HTTPException(status_code=404, detail="Trade not found")
-    return trade
 
 
 def _iso(dt: Optional[datetime]) -> Optional[str]:
@@ -92,14 +85,14 @@ def _plan_dict(trade_id: int, plan: Optional[models.TradePlan]) -> dict:
 
 @router.get("/trades/{trade_id}/plan")
 def get_plan(trade_id: int, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     plan = db.query(models.TradePlan).filter(models.TradePlan.trade_log_id == trade_id).first()
     return _plan_dict(trade_id, plan)
 
 
 @router.put("/trades/{trade_id}/plan")
 def set_plan(trade_id: int, payload: PlanPayload, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     plan = db.query(models.TradePlan).filter(models.TradePlan.trade_log_id == trade_id).first()
     if not plan:
         plan = models.TradePlan(trade_log_id=trade_id, created_at=datetime.utcnow())
@@ -132,14 +125,14 @@ def _note_dict(trade_id: int, note: Optional[models.TradeNote]) -> dict:
 
 @router.get("/trades/{trade_id}/notes")
 def get_note(trade_id: int, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     note = db.query(models.TradeNote).filter(models.TradeNote.trade_log_id == trade_id).first()
     return _note_dict(trade_id, note)
 
 
 @router.put("/trades/{trade_id}/notes")
 def set_note(trade_id: int, payload: NotePayload, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     note = db.query(models.TradeNote).filter(models.TradeNote.trade_log_id == trade_id).first()
     now = datetime.utcnow()
     if not note:
@@ -174,7 +167,7 @@ def _attachment_dict(a: models.TradeAttachment, request: Optional[Request] = Non
 
 @router.get("/trades/{trade_id}/attachments")
 def list_attachments(trade_id: int, request: Request, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     rows = (
         db.query(models.TradeAttachment)
         .filter(models.TradeAttachment.trade_log_id == trade_id)
@@ -191,7 +184,7 @@ async def upload_attachment(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     mime = (file.content_type or "").lower()
     if mime not in ALLOWED_MIMES:
         raise HTTPException(status_code=400, detail=f"Only {sorted(ALLOWED_MIMES)} allowed")
@@ -301,7 +294,7 @@ def delete_attachment(attachment_id: int, db: Session = Depends(get_db)):
 # ── Executions tab ───────────────────────────────────────────────
 @router.get("/trades/{trade_id}/executions")
 def list_trade_executions(trade_id: int, db: Session = Depends(get_db)):
-    _ensure_trade(db, trade_id)
+    get_trade_or_404(db, trade_id)
     rows = (
         db.query(models.Execution)
         .filter(models.Execution.trade_log_id == trade_id)

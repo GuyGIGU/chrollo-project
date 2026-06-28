@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import models
 import schemas
-from database import get_db
+from database import get_db, get_trade_or_404
 from routers import journal as journal_router
 from services.journal_stats import calculate_journal_stats
 
@@ -31,7 +31,7 @@ def create_trade(trade: schemas.TradeLogCreate, db: Session = Depends(get_db)):
 
 @router.put("/trades/{trade_id}", response_model=schemas.TradeLog)
 def update_trade(trade_id: int, trade_update: schemas.TradeLogUpdate, db: Session = Depends(get_db)):
-    db_trade = _get_trade(db, trade_id)
+    db_trade = get_trade_or_404(db, trade_id)
     for key, value in trade_update.model_dump(exclude_unset=True).items():
         setattr(db_trade, key, value)
 
@@ -42,7 +42,7 @@ def update_trade(trade_id: int, trade_update: schemas.TradeLogUpdate, db: Sessio
 
 @router.delete("/trades/{trade_id}")
 def delete_trade(trade_id: int, db: Session = Depends(get_db)):
-    db_trade = _get_trade(db, trade_id)
+    db_trade = get_trade_or_404(db, trade_id)
     db.delete(db_trade)
     db.commit()
     journal_router.wipe_trade_uploads(trade_id)
@@ -52,10 +52,3 @@ def delete_trade(trade_id: int, db: Session = Depends(get_db)):
 @router.get("/journal-stats/")
 def get_journal_stats(db: Session = Depends(get_db)):
     return calculate_journal_stats(db.query(models.TradeLog).all())
-
-
-def _get_trade(db: Session, trade_id: int) -> models.TradeLog:
-    trade = db.query(models.TradeLog).filter(models.TradeLog.id == trade_id).first()
-    if not trade:
-        raise HTTPException(status_code=404, detail="Trade not found")
-    return trade

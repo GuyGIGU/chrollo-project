@@ -71,3 +71,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_trade_or_404(db, trade_id: int):
+    """Fetch a ``TradeLog`` by id or raise 404. Shared by the trade and journal
+    routers, which both gate their per-trade operations on this lookup.
+
+    ``models``/``fastapi`` are imported lazily so this DB-layer module stays free
+    of an import cycle with ``models`` (which imports ``Base`` from here).
+    """
+    from fastapi import HTTPException
+
+    import models
+
+    trade = db.query(models.TradeLog).filter(models.TradeLog.id == trade_id).first()
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found")
+    return trade
