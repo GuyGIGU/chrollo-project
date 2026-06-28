@@ -105,6 +105,15 @@ def test_l1_all_up_window_is_a_rising_march():
     assert out["up_steps"] == 4
 
 
+def test_l1_two_bar_up_shuffle_is_not_a_march():
+    # BBN/CII/PCQ class: a len-2 window where both H and L tick up is ONE step,
+    # net advance ~0 -> a flat base poke, not a markup. The min-steps floor keeps
+    # it out of rising_march (it is honest "mixed", not an over-confident march).
+    out = classify_window_descent([10.0, 10.2], [9.8, 9.9])
+    assert out["rising_march"] is False
+    assert out["classification"] == "mixed"
+
+
 def test_l1_confirmed_higher_low_then_higher_high_ends_the_test():
     # Descent, then a higher-low that the next bar carries above -> turn (BOS-up).
     highs = [10.0, 9.5, 9.2, 9.4, 9.7]
@@ -112,6 +121,30 @@ def test_l1_confirmed_higher_low_then_higher_high_ends_the_test():
     out = classify_window_descent(highs, lows)
     assert out["confirmed_turn_bar"] == 3
     assert out["classification"] == "turned"
+
+
+def test_l1_early_up_blip_overrun_by_new_low_is_not_turned():
+    # AAON/BTX class: a confirmed up-blip early (bar 2) that the window then
+    # OVERRUNS with a new low (bar 4) is not a real ending turn. The raw
+    # confirmed_turn_bar still records the blip, but the window stays a dip
+    # because its lowest low sits AFTER the turn.
+    highs = [10.0, 9.4, 9.6, 9.7, 9.0]
+    lows = [9.6, 9.1, 9.3, 9.5, 8.7]
+    out = classify_window_descent(highs, lows)
+    assert out["confirmed_turn_bar"] == 2          # the blip is still measured
+    assert out["window_low_idx"] == 4              # but a new low comes after it
+    assert out["classification"] != "turned"
+    assert out["classification"] == "clean_dip"
+
+
+def test_l1_three_bar_all_up_is_not_a_valley_turn():
+    # A fully-up 3-bar window has its low at bar 0 — there is no descent into a
+    # valley, so it must NOT read as an ending valley-turn. Below the march
+    # step-floor it lands in honest 'mixed', never the backwards 'turned'.
+    out = classify_window_descent([10.0, 11.0, 12.0], [9.0, 10.0, 11.0])
+    assert out["window_low_idx"] == 0
+    assert out["classification"] != "turned"
+    assert out["classification"] == "mixed"
 
 
 def test_l1_flat_tail_reads_as_flat_end():

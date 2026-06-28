@@ -165,6 +165,7 @@ def _median(values) -> float:
 def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
                             atr: Optional[float] = None,
                             rising_march_frac: float = 0.6,
+                            rising_march_min_steps: int = 3,
                             flat_band_frac: float = 0.5,
                             end_window: int = 3,
                             big_dip_depth_atr: Optional[float] = None) -> dict:
@@ -189,12 +190,17 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
                          test. ``confirmed_turn_bar`` is the first one.
       * ``flat``       — high and low both unchanged.
 
-    Window ``classification``: ``rising_march`` (mostly both-up steps with a net
-    rising low — a markup, not a test), ``turned`` (a confirmed up-turn before the
-    last bar), ``clean_dip`` (down steps dominate), else ``mixed``. ``end_shape``
-    is ``descending`` / ``valley`` / ``flat`` / ``mixed``. ``big_dip`` is returned
-    only when ``big_dip_depth_atr`` is supplied (deep AND bars not tighter than the
-    base average); otherwise ``None`` (measure-first — threshold set after eyeball).
+    Window ``classification``: ``rising_march`` (a SUSTAINED markup, not a test —
+    mostly both-up steps with a net rising low over at least ``rising_march_min_
+    steps`` steps, so a 2-bar tick-up near support is not mislabelled), ``turned``
+    (a genuine VALLEY-turn: the window descended to an INTERIOR low that sits
+    at/before a confirmed up-turn preceding the last bar — an all-up window with
+    no descent, or an early up-blip later overrun by a new low, is not a turn),
+    ``clean_dip`` (down steps dominate), else ``mixed``.
+    ``end_shape`` is ``descending`` / ``valley`` / ``flat`` / ``mixed``.
+    ``big_dip`` is returned only when ``big_dip_depth_atr`` is supplied (deep AND
+    bars not tighter than the base average); otherwise ``None`` (measure-first —
+    threshold set after eyeball).
     """
     highs = [float(h) for h in highs]
     lows = [float(l) for l in lows]
@@ -247,7 +253,13 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
 
     total = n - 1
     rising_frac = up_steps / total if total else 0.0
-    rising_march = bool(rising_frac >= rising_march_frac and lows[-1] > lows[0])
+    # A markup "march" needs SUSTAINED up-structure, not a lone up-step: a 2-bar
+    # both-up shuffle (1 step, net advance ~0) is a flat base poke, not a markup.
+    # Require a minimum step count so the BBN/CII/PCQ class (len-2, descent 0,
+    # netAdv/box <= 0.4) is not mislabelled; OHI (4 steps, +7.8%) still qualifies.
+    rising_march = bool(total >= rising_march_min_steps
+                        and rising_frac >= rising_march_frac
+                        and lows[-1] > lows[0])
 
     window_low = min(lows)
     window_low_idx = lows.index(window_low)
@@ -279,9 +291,19 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
     else:
         big_dip = None
 
+    # A confirmed up-turn only ENDS the test when it is a genuine valley-turn: the
+    # window descended to an INTERIOR low (window_low_idx > 0) that sits at/before
+    # the turn (no new low afterwards), with the turn before the last bar. Two
+    # shapes are NOT valley-turns: an early up-blip later overrun by a new low
+    # (AAON turn@bar1 then net -0.34; BTX@bar3 ends descending — low sits AFTER the
+    # turn); and an all-up window with no descent at all (low at bar 0 — a short
+    # markup, not a test). The raw confirmed_turn_bar still records the blip.
+    turned = bool(confirmed_turn_bar is not None
+                  and confirmed_turn_bar < n - 1
+                  and 0 < window_low_idx <= confirmed_turn_bar)
     if rising_march:
         classification = "rising_march"
-    elif confirmed_turn_bar is not None and confirmed_turn_bar < n - 1:
+    elif turned:
         classification = "turned"
     elif down_steps >= up_steps:
         classification = "clean_dip"
