@@ -91,7 +91,14 @@ def _structure_to_boxes(s, n: int) -> dict:
         base_len, float(s.R), float(s.S), float(s.box_width),
         int(box.r_touches), int(box.s_touches), int(box.breach_days),
         int(box.r_anchor_bar) - pbs, int(box.s_anchor_bar) - pbs,
-        int(s.climax_bar), pbs, False,
+        int(s.climax_bar), pbs,
+        # is_inner_box (slot 11): the PARENT box is never itself the inner box, so this
+        # is always False. Both the live chain and the seed path read it via
+        # structure_ctx["is_inner_box"] and feed it to measure_bins, so they pass an
+        # identical False by construction — the live/seed convergence on this flag is
+        # inert. If a future change makes this a real flag, the shared _run_eval_chain
+        # moves live + seed together and seed-recall owns the attributable delta.
+        False,
     )
     inner = None
     if s.inner is not None:

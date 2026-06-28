@@ -60,6 +60,30 @@ def test_adapter_does_not_mutate_input():
     assert canon == {"Setup": "LPS", "_R": 1.0}
 
 
+def test_parent_is_inner_box_is_always_false():
+    """The parent box is never itself 'inner' (_structure_to_boxes slot 11 = False), so
+    structure_ctx['is_inner_box'] is False on BOTH live and seed by construction — the
+    live/seed convergence on this flag is inert (locks finding A of the eval unify)."""
+    from tools.shadow_diff import _load_fixture
+    from core.pipeline.evaluation import _prepare_eval_frame, _resolve_structure_context
+
+    frames, scalars = _load_fixture()
+    checked = 0
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        prepared = _prepare_eval_frame(df)
+        if prepared is None:
+            continue
+        ctx = _resolve_structure_context(prepared["df"], prepared["latest"])
+        if ctx is None:
+            continue
+        assert ctx["is_inner_box"] is False, f"{ticker}: parent is_inner_box must be False"
+        checked += 1
+    assert checked > 0, "fixture produced no resolvable structure contexts"
+
+
 def test_live_breadth_none_equals_seed_on_fixture():
     """The load-bearing equivalence: live(breadth=None) ≡ seed on the frozen fixture,
     re-keyed through the adapter. Proves the A3 extraction will be lossless."""
