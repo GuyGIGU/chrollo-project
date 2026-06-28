@@ -24,13 +24,6 @@ def _ohlc_from_closes(closes, *, band=1.0, volume=1000.0):
     })
 
 
-def _flat_ohlc(n, *, high=101.0, low=99.0, close=100.0, volume=1000.0):
-    return pd.DataFrame([
-        {"Open": close, "High": high, "Low": low, "Close": close, "Volume": volume}
-        for _ in range(n)
-    ])
-
-
 def _box(**overrides):
     values = {
         "S": 100.0,
@@ -150,7 +143,7 @@ def test_find_inner_box_start_bar_matches_base_len():
     assert inner.start_bar == len(df) - inner.base_len
 
 
-def test_find_spring_accepts_phase_c_spring():
+def test_find_spring_accepts_phase_c_spring(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
@@ -168,7 +161,7 @@ def test_find_spring_accepts_phase_c_spring():
     assert spring.spring_type == "SPRING"
 
 
-def test_find_spring_returns_none_for_shallow_undercut():
+def test_find_spring_returns_none_for_shallow_undercut(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 98.8
     df.loc[95, "Close"] = 98.9

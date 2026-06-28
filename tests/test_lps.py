@@ -1,0 +1,790 @@
+import math
+import json
+from datetime import datetime, timezone
+import sys
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import numpy as np
+import pandas as pd
+import pytest
+from fastapi import HTTPException
+
+from config import settings
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "webapp" / "backend"
+sys.path.insert(0, str(ROOT))
+sys.path.insert(1, str(BACKEND_DIR))
+
+from core.structure.metrics import (
+    _vol_trend_from_contractions,
+    measure_bar_compression,
+    measure_contractions,
+    measure_equilibrium,
+    measure_traversal,
+)
+from core.structure.box_primitives import (
+    _detect_inner_phase_b_start,
+    _validate_base_quality,
+    detect_inner_root_swing,
+    select_phase_b_candidate,
+)
+from core.structure.lps import (
+    detect_lps,
+    detect_lps_candidates,
+    detect_lps_tests,
+    select_active_lps_candidate,
+)
+
+
+_VCP_LEVELS = [
+    10, 12, 14, 16, 30, 22, 18, 14, 6, 12, 16, 20,
+    26, 18, 14, 9, 13, 17, 22, 16, 13, 11, 12, 13,
+]
+
+
+def test_vol_trend_from_contractions_scores_drying_up():
+    # Lighter each contraction, quietest at the final coil -> full credit.
+    assert _vol_trend_from_contractions([1000, 800, 500]) == 1.0
+    # Heaviest at the final contraction -> zero.
+    assert _vol_trend_from_contractions([500, 800, 1000]) == 0.0
+    # A trend needs two points; non-finite values are dropped before scoring.
+    assert _vol_trend_from_contractions([1000]) is None
+    assert _vol_trend_from_contractions([]) is None
+    assert _vol_trend_from_contractions([float("nan"), 900, 700, 500]) == 1.0
+    # Flat volume -> every step non-rising (1.0), final-lightest neutral (0.5).
+    assert _vol_trend_from_contractions([800, 800, 800]) == 0.75
+
+
+def test_measure_contractions_volume_does_not_touch_quality(_contraction_frame):
+    n = len(_VCP_LEVELS)
+    drying = _contraction_frame(_VCP_LEVELS, [2000 - 60 * i for i in range(n)])
+    rising = _contraction_frame(_VCP_LEVELS, [620 + 60 * i for i in range(n)])
+
+    rd = measure_contractions(drying, order=2)
+    rr = measure_contractions(rising, order=2)
+
+    # Identical price -> identical contractions and IDENTICAL quality: volume is
+    # measured but never folded into the score (the measure-first invariant).
+    assert rd["n_contractions"] >= 2
+    assert rd["quality"] == rr["quality"]
+    # ...but the volume read separates them: drying up ranks far above rising in.
+    assert rd["vol_trend"] is not None and rr["vol_trend"] is not None
+    assert rd["vol_trend"] > rr["vol_trend"]
+
+
+def test_measure_contractions_vol_trend_none_without_contractions(_contraction_frame):
+    flat = _contraction_frame([10, 10, 10, 10, 10], [500, 500, 500, 500, 500])
+    assert measure_contractions(flat, order=2)["vol_trend"] is None
+
+
+def test_detect_inner_phase_b_start_finds_recent_climax(_contraction_frame):
+    # 12 bars rising to a clear peak (118), a ~17% drop over 5 bars to the inner
+    # AR (~98), then 21 tight bars — a textbook inner climax → reaction → inner range.
+    levels = (
+        [90, 93, 96, 99, 102, 105, 108, 111, 114, 116, 117, 118]
+        + [112, 108, 104, 100, 98]
+        + [100, 99, 101, 100, 102, 99, 100, 101, 99, 100, 102,
+           100, 99, 101, 100, 99, 100, 101, 99, 100, 101]
+    )
+    frame = _contraction_frame(levels, [1000] * len(levels))
+    off = _detect_inner_phase_b_start(frame)
+    assert off is not None
+    # Lands after the peak, leaves >= INNER_MIN_DAYS room, and is a real reaction.
+    assert 11 < off <= len(frame) - 15
+    assert frame['Low'].iloc[off] <= 0.95 * frame['High'].iloc[:off].max()
+
+
+def test_detect_inner_root_swing_reports_reaction_measurements(_contraction_frame):
+    levels = (
+        [90, 93, 96, 99, 102, 105, 108, 111, 114, 116, 117, 118]
+        + [112, 108, 104, 100, 98]
+        + [100, 99, 101, 100, 102, 99, 100, 101, 99, 100, 102,
+           100, 99, 101, 100, 99, 100, 101, 99, 100, 101]
+    )
+    frame = _contraction_frame(levels, [1000] * len(levels))
+
+    root = detect_inner_root_swing(frame)
+
+    assert root is not None
+    assert root["bc_bar"] < root["ar_bar"]
+    assert root["ar_bar"] == _detect_inner_phase_b_start(frame)
+    assert root["reaction_bars"] == root["ar_bar"] - root["bc_bar"]
+    assert root["reaction_pct"] >= settings.AR_MIN_DROP_PCT
+
+
+def test_detect_inner_phase_b_start_none_when_no_reaction(_contraction_frame):
+    # 40 near-flat bars (~3% wiggle) — no >= 5% reaction, so no inner climax.
+    levels = [100 + (1.5 if i % 2 else -1.5) for i in range(40)]
+    assert _detect_inner_phase_b_start(_contraction_frame(levels, [1000] * 40)) is None
+
+
+def test_detect_inner_phase_b_start_none_when_too_short(_contraction_frame):
+    levels = [100, 102, 98, 101, 99, 100, 103, 97, 100, 101]
+    assert _detect_inner_phase_b_start(_contraction_frame(levels, [1000] * 10)) is None
+
+
+def test_lps_trigger_uses_last_lps_bar_high():
+    df = pd.DataFrame([
+        {"High": 118, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 117, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 110, "Low": 106, "Close": 107, "Spread": 2, "Volume": 500, "Vol_50": 1000},
+        {"High": 107, "Low": 103, "Close": 106, "Spread": 1, "Volume": 500, "Vol_50": 1000},
+    ])
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=2,
+    )
+
+    assert result["trigger_price"] == 107
+
+
+def test_lps_candidate_detector_and_selector_match_wrapper():
+    df = pd.DataFrame([
+        {"High": 118, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 117, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 116, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 110, "Low": 106, "Close": 107, "Spread": 2, "Volume": 500, "Vol_50": 1000},
+        {"High": 107, "Low": 103, "Close": 106, "Spread": 1, "Volume": 500, "Vol_50": 1000},
+    ])
+    kwargs = dict(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=2,
+    )
+
+    wrapper, wrapper_rejects = detect_lps(diagnose=True, **kwargs)
+    candidates, candidate_rejects = detect_lps_candidates(diagnose=True, **kwargs)
+    elected = select_active_lps_candidate(candidates, df.iloc[-1])
+
+    assert elected is not None
+    assert wrapper_rejects == candidate_rejects
+    for key in ("start_index", "end_index", "low_index", "trigger_price", "zone_type"):
+        assert wrapper[key] == elected[key]
+    assert "_quality" in elected
+    assert "_quality" not in wrapper
+
+
+def test_lps_accepts_compact_reaction_behavior(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106, 105],
+        lows=[106, 104, 102, 101],
+        closes=[107, 105, 103, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["window_range_pct_box"] == 0.7
+    assert result["high_descent_frac"] == 1.0
+
+
+def test_lps_accepts_shallow_pullback_on_tight_clean_coil(monkeypatch, _lps_behavior_frame):
+    # A tight, clean-descent coil (lows AND highs strictly descending) whose
+    # first-high -> last-low pullback is only 0.5 profile units. The old 0.65
+    # floor rejected these tight VCP pivots purely on pullback magnitude (the
+    # BP / NVMI seed misses, both descent_frac 1.0); the shipped 0.40 floor
+    # accepts them while the descent / vol / spread / zone gates still apply.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106, 105],
+        lows=[107, 106, 105, 104],
+        closes=[107, 106, 105, 104],
+    )
+    kw = dict(
+        latest=df.iloc[-1], sup_avg=100, res_avg=110, atr_val=2,
+        base_range_threshold=8, base_len=20, swing_complete_idx=-1,
+    )
+
+    # Accepted at the shipped 0.40 floor, with a genuinely shallow (<0.65) pullback.
+    monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.40)
+    accepted = detect_lps(df=df, **kw)
+    assert accepted is not None
+    assert 0.40 <= accepted["pullback_profile"] < 0.65
+    assert accepted["descent_frac"] == 1.0  # the coil is a clean descent, not chop
+    assert accepted["swing_type"] == "clean_downswing"
+
+    # The retired 0.65 floor rejected exactly this coil on pullback magnitude alone.
+    monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.65)
+    rejected, rejects = detect_lps(df=df, diagnose=True, **kw)
+    assert rejected is None
+    assert any(str(k).startswith("pullback_profile") for k in rejects)
+
+
+def test_lps_rejects_window_that_spans_most_of_box(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[110, 114, 113, 112, 106],
+        lows=[105, 104, 103, 102, 101],
+        closes=[106, 105, 104, 103, 102],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=10,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert rejects["window_box_range"] == 1
+
+
+def test_lps_accepts_clean_downswing_even_when_window_spans_box(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 107],
+        lows=[108, 105, 102],
+        closes=[109, 106, 103],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["window_range_pct_box"] > settings.LPS_MAX_WINDOW_BOX_RANGE
+    assert result["descent_frac"] == 1.0
+    assert result["high_descent_frac"] == 1.0
+    assert result["swing_type"] == "clean_downswing"
+    assert result["lps_anchor_bar"] == 0
+    assert result["lps_low_bar"] == 2
+    assert result["lps_swing_depth_box"] == pytest.approx((112 - 102) / (110 - 100))
+
+
+def test_lps_rising_edge_is_graded_not_hard_rejected(monkeypatch, _lps_behavior_frame):
+    # Reframed 2026-06-19: a rising upper edge is NOT a hard reject. A rising
+    # coil ties into ASCENDING SUPPORT (gradual rising buyer pressure), which the
+    # engine already rewards via SCORE_ASCENDING_SUPPORT — so the old high_up_march
+    # reject double-counted it as a defect. The descent floors are retired to 0;
+    # descent_frac / high_descent_frac stay GRADED quality inputs (clean descents
+    # still outrank), but no longer gate. This frame (lows cleanly testing the
+    # terminal support low, rising upper edge) now elects an LPS.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[104, 105, 106, 107, 108],
+        lows=[104, 103, 102, 101, 100],
+        closes=[104, 103, 102, 101, 101],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=10,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    # The rising upper edge is recorded as a graded signal (low high_descent_frac),
+    # not a rejection; the lows still register a clean descent into support.
+    assert result["high_descent_frac"] == 0.0
+    assert result["descent_frac"] == 1.0
+
+
+def test_lps_spread_widening_discounts_quality_not_gate(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[110.0, 109.0, 108.0, 107.0, 106.0],
+        lows=[108.8, 107.6, 106.3, 105.6, 104.2],
+        closes=[109.0, 108.0, 107.0, 106.0, 105.0],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=2.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["spread_decline_quality"] < 1.0
+
+
+def test_lps_scans_last_seven_active_bars(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[116, 115, 110, 108, 109, 110, 111, 112, 113, 114],
+        lows=[114, 113, 105, 102, 103, 104, 105, 106, 107, 108],
+        closes=[115, 114, 106, 103, 104, 105, 106, 107, 108, 107],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=115,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=30,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["offset"] == 6
+    assert result["start_index"] == 2
+
+
+def test_lps_rejects_stale_candidate_when_later_lower_low(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[110, 108, 107, 106, 107, 108],
+        lows=[105, 102, 101, 100, 101, 102],
+        closes=[106, 103, 102, 101, 102, 103],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=99,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 2
+    assert result["end_index"] == 4
+
+
+def test_lps_prefers_full_pullback_into_latest_low(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 7)
+    df = _lps_behavior_frame(
+        highs=[72.89, 72.83, 72.76, 72.29, 72.28, 72.98],
+        lows=[71.68, 71.39, 71.04, 70.83, 70.51, 71.41],
+        closes=[72.08, 71.41, 71.40, 71.68, 70.91, 72.20],
+    )
+    df.index = pd.to_datetime([
+        "2026-06-02", "2026-06-03", "2026-06-04",
+        "2026-06-05", "2026-06-08", "2026-06-09",
+    ])
+    df["Volume"] = [117000, 105800, 77700, 152700, 76500, 126200]
+    df["Vol_50"] = [151010, 148000, 146088, 146834, 144268, 146428]
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=65.05789189179512,
+        res_avg=74.15060505040422,
+        atr_val=2.182,
+        base_range_threshold=2.62,
+        base_len=73,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_date"] == "2026-06-02"
+    assert result["end_date"] == "2026-06-08"
+    assert result["low_index"] == 4
+
+
+def test_lps_profile_uses_first_high_not_window_high(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[106, 112, 105],
+        lows=[104, 108, 101],
+        closes=[105, 109, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=120,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["first_high"] == 106
+    assert result["window_high"] == 112
+    assert result["pullback_profile"] == pytest.approx((106 - 101) / 4)
+
+
+def test_lps_terminal_low_guard_rejects_earlier_lower_low(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[108, 107, 106],
+        lows=[105, 100, 102],
+        closes=[106, 101, 105],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=99,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert rejects["terminal_low"] == 1
+
+
+def test_lps_accepts_compact_rising_support_shelf(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[106.0, 105.0, 105.2, 105.4, 105.6],
+        lows=[104.0, 101.0, 102.0, 102.5, 103.0],
+        closes=[105.0, 102.0, 103.0, 103.5, 104.5],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["low_index"] == 1
+    assert result["low"] == 101.0
+    assert result["last_low"] == 103.0
+    assert result["swing_type"] == "rising_support_shelf"
+
+
+def test_lps_swing_dates_follow_anchor_and_elected_valley(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[106.0, 105.0, 105.2, 105.4, 105.6],
+        lows=[104.0, 101.0, 102.0, 102.5, 103.0],
+        closes=[105.0, 102.0, 103.0, 103.5, 104.5],
+    )
+    df.index = pd.date_range("2026-01-05", periods=len(df), freq="B")
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["lps_anchor_date"] == "2026-01-05"
+    assert result["lps_low_date"] == "2026-01-06"
+    assert result["lps_swing_depth_pct"] == pytest.approx((106 - 101) / 106)
+    assert result["lps_swing_depth_atr"] == pytest.approx((106 - 101) / 2)
+
+
+def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[113.0, 112.2, 111.8, 111.6, 111.3],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[111.2, 110.8, 110.9, 111.0, 110.8],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["zone_type"] == "OVERSHOOT_R"
+    assert result["swing_type"] == "buec_shelf"
+    assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+
+
+def test_lps_swing_type_labels_undercut_rebound(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[108, 106, 104],
+        lows=[103, 100, 98],
+        closes=[104, 101, 100],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=4,
+        base_range_threshold=5,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["setup_type"] == "REBOUND"
+    assert result["zone_type"] == "UNDERCUT_S"
+    assert result["swing_type"] == "undercut_rebound"
+
+
+def test_lps_rejects_extended_shallow_overshoot_shelf(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    df = _lps_behavior_frame(
+        highs=[114.5, 114.2, 114.1, 114.0, 114.2],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[113.8, 113.9, 113.8, 113.9, 113.8],
+    )
+
+    result, rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert result is None
+    assert any(str(k).startswith("pullback_profile") for k in rejects)
+
+
+def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[105, 102],
+        closes=[106, 104],
+    )
+
+    tight, tight_rejects = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=2.4,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+    wide = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert tight is None
+    assert tight_rejects["spread_profile"] == 1
+    assert wide is not None
+    assert wide["profile_unit"] == 4.0
+
+
+def test_lps_spread_can_expand_slightly_but_not_a_lot(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    small = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[106, 103],
+        closes=[107, 104],
+    )
+    large = _lps_behavior_frame(
+        highs=[108, 106],
+        lows=[107, 102.5],
+        closes=[107, 104],
+    )
+
+    ok = detect_lps(
+        df=small,
+        latest=small.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+    bad, rejects = detect_lps(
+        df=large,
+        latest=large.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=4.0,
+        base_len=20,
+        swing_complete_idx=-1,
+        diagnose=True,
+    )
+
+    assert ok is not None
+    assert ok["spread_expansion_profile"] == pytest.approx(0.25)
+    assert bad is None
+    assert rejects["spread_expansion"] == 1
+
+
+def test_lps_selector_latest_actionable_beats_older_quality(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 108, 106],
+        lows=[106, 102, 105, 102],
+        closes=[107, 103, 106, 104],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=7,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 2
+    assert result["end_index"] == 4
+
+
+def test_lps_selector_skips_non_actionable_latest(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[112, 110, 109, 107],
+        lows=[105, 102, 105, 102],
+        closes=[106, 103, 106, 107],
+    )
+
+    result = detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=112,
+        atr_val=2,
+        base_range_threshold=7,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert result is not None
+    assert result["start_index"] == 0
+    assert result["end_index"] == 2
+
+
+def test_detect_lps_tests_returns_non_overlapping_support_tests(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(
+        highs=[118, 117, 108, 106, 116, 115, 107, 105],
+        lows=[116, 115, 102, 100, 114, 113, 101, 100],
+        closes=[117, 116, 104, 103, 115, 114, 103, 103],
+    )
+    df.index = pd.date_range("2026-01-01", periods=len(df), freq="D")
+
+    tests = detect_lps_tests(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=100,
+        res_avg=110,
+        atr_val=2,
+        base_range_threshold=8,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+    assert len(tests) >= 2
+    assert all("start_date" in test and "end_date" in test for test in tests)
+    spans = {(test["start_index"], test["end_index"]) for test in tests}
+    assert len(spans) == len(tests)
+
+
+def test_measure_bar_compression_reports_base_spread_texture():
+    base_df = pd.DataFrame([
+        {"High": 102.0, "Low": 100.0, "Spread": 2.0},
+        {"High": 103.0, "Low": 102.0, "Spread": 1.0},
+        {"High": 104.0, "Low": 101.0, "Spread": 3.0},
+        {"High": 105.0, "Low": 103.0, "Spread": 2.0},
+        {"High": 106.0, "Low": 105.0, "Spread": 1.0},
+    ])
+
+    result = measure_bar_compression(base_df, box_height=10.0, atr_val=2.0)
+
+    assert result["median_spread_atr"] == 1.0
+    assert result["p80_spread_atr"] == 1.1
+    assert result["median_spread_pct_box"] == 0.2
+    assert result["tight_bar_pct"] == 0.8
