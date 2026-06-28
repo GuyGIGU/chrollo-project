@@ -16,7 +16,10 @@ from __future__ import annotations
 import argparse
 import os
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.htf_audit` and `python tools/htf_audit.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 configure_path()
 

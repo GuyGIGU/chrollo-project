@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import sys
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.phaseb_ab` and `python tools/phaseb_ab.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 configure_path()
 

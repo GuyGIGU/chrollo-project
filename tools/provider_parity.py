@@ -53,7 +53,10 @@ import sys
 import numpy as np
 import pandas as pd
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.provider_parity` and `python tools/provider_parity.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 _PROJECT_ROOT = configure_path()
 

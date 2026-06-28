@@ -17,7 +17,10 @@ import random
 import time
 from pathlib import Path
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.yahoo_rate_probe` and `python tools/yahoo_rate_probe.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 configure_path()
 

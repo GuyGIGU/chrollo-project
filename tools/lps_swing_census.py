@@ -21,7 +21,10 @@ import argparse
 import os
 import sqlite3
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.lps_swing_census` and `python tools/lps_swing_census.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 _ROOT = configure_path()
 

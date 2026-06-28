@@ -27,7 +27,10 @@ calibrated bricks. It changes nothing and gates nothing.
 """
 from __future__ import annotations
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.structure_case_audit` and `python tools/structure_case_audit.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 configure_path()
 

@@ -55,7 +55,10 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.backtest_watchlist` and `python tools/backtest_watchlist.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 PROJECT_ROOT = configure_path()
 

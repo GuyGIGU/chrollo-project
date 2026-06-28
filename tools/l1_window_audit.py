@@ -24,7 +24,10 @@ from __future__ import annotations
 
 import argparse
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.l1_window_audit` and `python tools/l1_window_audit.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 configure_path()
 

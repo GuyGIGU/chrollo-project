@@ -31,7 +31,10 @@ import sys
 
 import pandas as pd
 
-from tools._bootstrap import configure_path
+try:  # works under both `python -m tools.shadow_diff` and `python tools/shadow_diff.py`
+    from tools._bootstrap import configure_path
+except ModuleNotFoundError:
+    from _bootstrap import configure_path
 
 _PROJECT_ROOT = configure_path()
 
