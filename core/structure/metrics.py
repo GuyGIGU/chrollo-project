@@ -623,3 +623,116 @@ def descent_tail_rejects(last_support_frac, coil_floor_pos, box_width) -> bool:
         return False
     return (last_support_frac <= settings.DESCENT_TAIL_LSF_MAX
             and coil_floor_pos >= settings.DESCENT_TAIL_CFP_MIN)
+
+
+# ---------------------------------------------------------------------------
+# L2 staircase — the labeled, chronological HH/HL/LH/LL sequence INSIDE the box
+# ---------------------------------------------------------------------------
+
+def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
+    """The labeled, chronological HH/HL/LH/LL staircase INSIDE an equilibrium box.
+
+    The sibling measures read the in-box swing sequence as STATISTICS
+    (``measure_contractions`` depths, ``measure_support_slope`` slope,
+    ``measure_traversal`` density). This composes the SAME calibrated
+    significant-swing skeleton (``_collapse_swings`` — the one ``measure_traversal``
+    uses, so the staircase swings ARE the worked-equilibrium swings) with the L0
+    swing labelling (``label_market_structure``) and annotates each swing with its
+    box-position and rail event: ONE chronological sequence the Wyckoff events
+    (upthrust / shakeout / spring / test / LPS) can later be read off, each
+    relative to the rail it sits at and the swing before it. Measure-only — it
+    moves no rail, gates nothing, scores nothing.
+
+    Each swing dict: ``{bar, kind, price, label, box_pos, zone, rail_event}``:
+      * ``label``      HH / HL / LH / LL / first (L0 ``label_market_structure``).
+      * ``box_pos``    ``(price - S) / (R - S)``; 0 = S rail, 1 = R rail; <0 or >1
+                       is a breach beyond the rail.
+      * ``zone``       low (``<= TRAVERSAL_LOW_ZONE``) / high
+                       (``>= TRAVERSAL_HIGH_ZONE``) / mid.
+      * ``rail_event`` peak: ``breach_R`` (above R + ATR buffer) / ``touch_R``
+                       (in the high zone) / ``interior``; valley symmetrically
+                       ``breach_S`` / ``touch_S`` / ``interior``.
+
+    Returns dict (safe defaults on a degenerate window):
+        swings        list[dict] chronological (bar = ``base_df``-relative)
+        n_swings      significant swings after amplitude filtering
+        counts        {HH, HL, LH, LL}
+        trend_state   L0 running trend at the last swing
+        rail_to_rail  a genuine two-sided zigzag: a peak reaches the high zone AND
+                      a valley reaches the low zone
+        is_zigzag     ``rail_to_rail`` AND ``n_swings >= 3``
+    """
+    empty = {"swings": [], "n_swings": 0,
+             "counts": {"HH": 0, "HL": 0, "LH": 0, "LL": 0},
+             "trend_state": "range", "rail_to_rail": False, "is_zigzag": False}
+    if base_df is None or len(base_df) == 0:
+        return empty
+    box = float(R) - float(S)
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return empty
+
+    highs = base_df["High"].values.astype(float)
+    lows = base_df["Low"].values.astype(float)
+    if len(highs) < 3:
+        return empty
+
+    # The SAME sensitive (order-1) zigzag + amplitude collapse measure_traversal
+    # uses, so the labeled staircase rides on the worked-equilibrium swings rather
+    # than a fresh skeleton.
+    peaks, valleys = _find_pivots(highs, lows, 1)
+    if not peaks or not valleys:
+        return empty
+    zz = _build_zigzag(peaks, valleys, highs, lows)
+    if len(zz) < 3:
+        return empty
+    min_amp = (noise_frac if noise_frac is not None
+               else settings.TRAVERSAL_NOISE_FRAC) * box
+    swings = _collapse_swings(zz, min_amp)
+    if len(swings) < 2:
+        return empty
+
+    # Lazy import keeps the L0 labeller a leaf dependency (no module-load cycle).
+    from core.structure.market_structure import label_market_structure
+    labelled = label_market_structure(swings)
+
+    low_zone = settings.TRAVERSAL_LOW_ZONE
+    high_zone = settings.TRAVERSAL_HIGH_ZONE
+    breach_tol = (settings.BOUNDARY_ATR_BUFFER * float(atr_val)) / box
+    out_swings = []
+    for pt in labelled["points"]:
+        price = float(pt["price"])
+        box_pos = (price - float(S)) / box
+        if box_pos <= low_zone:
+            zone = "low"
+        elif box_pos >= high_zone:
+            zone = "high"
+        else:
+            zone = "mid"
+        if pt["kind"] == "peak":
+            rail_event = ("breach_R" if box_pos > 1.0 + breach_tol
+                          else "touch_R" if box_pos >= high_zone else "interior")
+        else:
+            rail_event = ("breach_S" if box_pos < -breach_tol
+                          else "touch_S" if box_pos <= low_zone else "interior")
+        out_swings.append({
+            "bar": int(pt["bar"]), "kind": pt["kind"], "price": round(price, 4),
+            "label": pt["label"], "box_pos": round(box_pos, 4),
+            "zone": zone, "rail_event": rail_event,
+        })
+
+    counts = {"HH": 0, "HL": 0, "LH": 0, "LL": 0}
+    for s in out_swings:
+        if s["label"] in counts:
+            counts[s["label"]] += 1
+    rail_to_rail = (
+        any(s["kind"] == "peak" and s["zone"] == "high" for s in out_swings)
+        and any(s["kind"] == "valley" and s["zone"] == "low" for s in out_swings)
+    )
+    return {
+        "swings": out_swings,
+        "n_swings": len(out_swings),
+        "counts": counts,
+        "trend_state": labelled["trend_state"],
+        "rail_to_rail": bool(rail_to_rail),
+        "is_zigzag": bool(rail_to_rail and len(out_swings) >= 3),
+    }

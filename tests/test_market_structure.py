@@ -8,6 +8,7 @@ from core.structure.market_structure import (
     label_market_structure,
     read_market_structure,
 )
+from core.structure.metrics import read_box_staircase
 
 
 def _labels(out):
@@ -170,3 +171,36 @@ def test_l1_big_dip_only_when_deep_and_not_tight():
 def test_l1_insufficient_window():
     out = classify_window_descent([10.0], [9.0])
     assert out["classification"] == "insufficient"
+
+
+# --- Layer 2: the labeled in-box staircase (read_box_staircase) ----------------
+
+def test_l2_staircase_reads_a_two_sided_zigzag():
+    # A clean sawtooth between S=10 and R=12: peaks tag R, valleys tag S -> a
+    # genuine two-sided equilibrium zigzag.
+    highs = [12.0, 11.0, 12.0, 11.0, 12.0, 11.0, 12.0]
+    lows = [11.0, 10.0, 11.0, 10.0, 11.0, 10.0, 11.0]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    out = read_box_staircase(df, R=12.0, S=10.0, atr_val=0.5)
+    assert out["is_zigzag"] is True
+    assert out["n_swings"] >= 3
+    assert any(s["kind"] == "peak" and s["rail_event"] == "touch_R" for s in out["swings"])
+    assert any(s["kind"] == "valley" and s["rail_event"] == "touch_S" for s in out["swings"])
+
+
+def test_l2_staircase_flags_rail_breaches():
+    # A peak pokes above R (upthrust shape) and a valley pokes below S (spring
+    # shape): both must surface as rail breaches for the event layer to read.
+    highs = [12.0, 11.0, 12.6, 11.0, 12.0, 11.0, 12.0]
+    lows = [11.0, 10.0, 11.0, 9.4, 11.0, 10.0, 11.0]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    out = read_box_staircase(df, R=12.0, S=10.0, atr_val=0.5)
+    assert any(s["rail_event"] == "breach_R" for s in out["swings"])
+    assert any(s["rail_event"] == "breach_S" for s in out["swings"])
+
+
+def test_l2_staircase_empty_on_degenerate_box():
+    df = pd.DataFrame({"High": [12.0, 11.0, 12.0], "Low": [11.0, 10.0, 11.0]})
+    out = read_box_staircase(df, R=10.0, S=12.0, atr_val=0.5)   # R <= S
+    assert out["n_swings"] == 0
+    assert out["is_zigzag"] is False
