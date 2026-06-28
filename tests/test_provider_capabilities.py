@@ -15,8 +15,11 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
+sys.path.insert(1, str(BACKEND_DIR))
 
+import archive_models  # noqa: E402  (resolved via BACKEND_DIR above)
 import core.pipeline.providers as providers_module
 from core.pipeline.providers import YahooProvider
 
@@ -242,3 +245,67 @@ def test_sector_trend_bearish_below_sma(fake_yf):
 def test_sector_trend_empty_returns_none(fake_yf):
     fake_yf(download=lambda *a, **k: pd.DataFrame())
     assert YahooProvider().sector_trend("XLK", "2026-03-21") is None
+
+
+# ── Provider <-> archive_models twin parity (Track C scaffolding guard) ──────
+# providers.index_context / sector_trend / sector were added in Track C as
+# line-for-line copies of archive_models.get_market_context / get_sector_trend /
+# get_sector_etf. They have no production caller yet, so nothing binds the copy
+# to its twin — a Phase-2 reroute through the provider could silently drift the
+# archived sector_trend / market_context values. These tests feed BOTH the
+# provider method and its archive twin the SAME mocked yfinance and assert
+# identical output, pinning the pair together so the reroute is safe. The codebase
+# guards exactly this eval-twins hazard elsewhere (test_eval_fold,
+# tools/provider_parity.py); this extends it to the as-yet-uncalled copies.
+#
+# Note: provider.sector(ticker) returns the RAW Yahoo label ('Technology'), while
+# archive_models.get_sector_etf(ticker) maps that label to its SPDR ETF ('XLK')
+# via _SECTOR_TO_ETF. The twin binding is therefore the mapped value:
+# _SECTOR_TO_ETF.get(provider.sector(t)) == archive_models.get_sector_etf(t).
+def test_provider_index_context_matches_archive_get_market_context(fake_yf):
+    spy = _trend_frame([100.0 + i for i in range(300)])
+    vix = _trend_frame([18.0, 19.0, 20.0])
+
+    def _dl(symbol, **k):
+        return spy if symbol == "SPY" else vix
+
+    fake_yf(download=_dl)
+    as_of = "2026-09-30"
+    assert (
+        YahooProvider().index_context(as_of)
+        == archive_models.get_market_context(as_of)
+    )
+
+
+def test_provider_sector_trend_matches_archive_get_sector_trend(fake_yf):
+    # 80 sessions falling → BEARISH; both impls read the same mocked frame.
+    data = _trend_frame([200.0 - i for i in range(80)])
+    fake_yf(download=lambda *a, **k: data)
+    etf, as_of = "XLK", "2026-03-21"
+    result = YahooProvider().sector_trend(etf, as_of)
+    assert result == archive_models.get_sector_trend(etf, as_of)
+    assert result == "BEARISH"  # both agree on a real (non-None) classification
+
+
+def test_provider_sector_matches_archive_get_sector_etf(fake_yf):
+    fake_yf(ticker=lambda s: SimpleNamespace(info={"sector": "Technology"}))
+    ticker = "AAA"
+    raw_label = YahooProvider().sector(ticker)
+    assert raw_label == "Technology"
+    # The archive twin maps the same raw label to its SPDR ETF.
+    assert (
+        archive_models._SECTOR_TO_ETF.get(raw_label)
+        == archive_models.get_sector_etf(ticker)
+        == "XLK"
+    )
+
+
+def test_provider_sector_unmapped_label_matches_archive_none(fake_yf):
+    # A label with no SPDR ETF: provider returns the raw label, the archive twin
+    # returns None — and the mapping bridges them identically.
+    fake_yf(ticker=lambda s: SimpleNamespace(info={"sector": "Conglomerates"}))
+    ticker = "ZZZ"
+    raw_label = YahooProvider().sector(ticker)
+    assert raw_label == "Conglomerates"
+    assert archive_models._SECTOR_TO_ETF.get(raw_label) is None
+    assert archive_models.get_sector_etf(ticker) is None
