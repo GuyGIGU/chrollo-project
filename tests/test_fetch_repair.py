@@ -600,6 +600,66 @@ def test_live_prices_skips_yfinance_fallback_while_scan_running(monkeypatch):
     assert called == []
 
 
+def test_fetch_yfinance_price_unwraps_provider_result(monkeypatch):
+    # C3: the per-symbol fallback now reads through the provider's bounded
+    # latest_price and unwraps the single symbol. get_provider is imported
+    # lazily inside the function, so patch it at its source module.
+    from types import SimpleNamespace
+
+    import core.pipeline.providers as providers_module
+
+    monkeypatch.setattr(
+        providers_module,
+        "get_provider",
+        lambda *a, **k: SimpleNamespace(latest_price=lambda syms: {syms[0]: 12.34}),
+    )
+    assert prices_module._fetch_yfinance_price("AAA") == 12.34
+
+
+def test_fetch_yfinance_price_absent_symbol_is_none(monkeypatch):
+    from types import SimpleNamespace
+
+    import core.pipeline.providers as providers_module
+
+    monkeypatch.setattr(
+        providers_module,
+        "get_provider",
+        lambda *a, **k: SimpleNamespace(latest_price=lambda syms: {}),
+    )
+    assert prices_module._fetch_yfinance_price("AAA") is None
+
+
+def test_fetch_yfinance_price_cannot_stall_on_yahoo_hang(monkeypatch):
+    # C3 hazard proof: a hung yfinance .fast_info must NOT block the open-position
+    # poll. The provider's daemon-thread timeout bounds the call, so the request
+    # path returns None promptly instead of stalling the one worker thread.
+    import time
+
+    import core.pipeline.providers as providers_module
+
+    monkeypatch.setattr(providers_module, "_INFO_TIMEOUT_S", 0.05)
+
+    class _Hang:
+        @property
+        def fast_info(self):
+            time.sleep(5)  # simulate Yahoo wedging on the untimed scrape
+            return {"lastPrice": 1.0}
+
+    class _FakeYF:
+        def Ticker(self, symbol):  # noqa: N802
+            return _Hang()
+
+    monkeypatch.setitem(sys.modules, "yfinance", _FakeYF())
+    # Real provider path (no get_provider patch) so the bound is actually exercised.
+
+    started = time.monotonic()
+    price = prices_module._fetch_yfinance_price("AAA")
+    elapsed = time.monotonic() - started
+
+    assert price is None
+    assert elapsed < 2.0  # bounded — did not wait for the 5s hang
+
+
 def test_dashboard_sector_cache_resolves_missing_ticker(tmp_path, monkeypatch):
     cache_path = tmp_path / "sector_etf_cache.json"
     monkeypatch.setattr(dashboard_module, "SECTOR_ETF_CACHE_PATH", str(cache_path))

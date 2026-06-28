@@ -1,16 +1,13 @@
 """Live quote endpoints."""
 from __future__ import annotations
 
-import logging
 import re
 
-import yfinance as yf
 from fastapi import APIRouter, Query
 
 from services import alpaca_prices, scan_status
 
 router = APIRouter(prefix="", tags=["prices"])
-_log = logging.getLogger("chrollo.prices")
 _QUOTE_SYMBOL_RE = re.compile(r"^[A-Z0-9._-]{1,16}$")
 
 
@@ -54,10 +51,15 @@ def _scan_is_running() -> bool:
 
 
 def _fetch_yfinance_price(ticker: str) -> float | None:
-    try:
-        ticker_obj = yf.Ticker(ticker)
-        value = ticker_obj.fast_info.get("lastPrice") or ticker_obj.info.get("currentPrice")
-        return round(float(value), 2) if value else None
-    except Exception as exc:
-        _log.warning("live price fetch failed for %s: %s", ticker, exc)
-        return None
+    """Single-symbol live price via the provider's timeout-bounded latest_price.
+
+    The previous implementation called yfinance ``.fast_info``/``.info`` raw and
+    UNTIMED — a slow Yahoo could stall this per-symbol loop indefinitely, freezing
+    the open-position poll (and the one worker thread serving every request). The
+    provider hard-bounds each lookup with a daemon thread, so a hung Yahoo now
+    degrades to "no quote" (None) promptly instead of blocking. A symbol that
+    fails or times out is simply absent from the provider result → None here.
+    """
+    from core.pipeline.providers import get_provider
+
+    return get_provider().latest_price([ticker]).get(ticker)
