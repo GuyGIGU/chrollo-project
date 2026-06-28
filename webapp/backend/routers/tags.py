@@ -9,20 +9,12 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
+from schemas import TagOut  # single source of truth (was duplicated here)
 
 router = APIRouter(prefix="", tags=["tags"])
 
 
 VALID_CATEGORIES = {"setup", "mistake", "custom"}
-
-
-class TagOut(BaseModel):
-    id: int
-    name: str
-    category: str
-    color: Optional[str] = None
-
-    model_config = {"from_attributes": True}
 
 
 class TagCreate(BaseModel):
