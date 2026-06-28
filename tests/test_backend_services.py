@@ -171,6 +171,89 @@ def test_archive_outcome_columns_are_modeled_and_migrated():
         assert f"ADD COLUMN {field} " in migration_sql
 
 
+# Frozen snapshot of the SetupOut response field set. SetupArchive.__table__ is
+# the single source of truth for the schema: SetupOut is a *curated projection*
+# (subset) of those columns, deliberately NOT exposing internal columns such as
+# score_traversal_quality, breadth_pct, the regime_*/scope_*/stage2_* context, or
+# the trav_last_support_frac / trav_coil_floor_pos descent-tail internals. The two
+# guards below enforce (a) every exposed field maps to a real column — so a stale
+# or typo'd field name fails the build — and (b) the API shape itself does not drift
+# silently: changing SetupOut must update this snapshot, which forces a deliberate
+# review. Regenerate with:
+#   python -c "import routers.archive_schemas as s; print(tuple(s.SetupOut.model_fields))"
+_SETUP_OUT_FIELDS = (
+    "id", "ticker", "scan_date", "setup_type", "tier", "score", "current_price",
+    "r_level", "s_level", "trigger_price", "base_length", "box_width", "touches",
+    "r_touches", "s_touches", "r_anchor", "s_anchor", "atr_ratio", "lps_length",
+    "breach_days", "vol_contraction", "tightness_ratio", "score_box_tightness",
+    "score_touch_density", "score_atr_squeeze", "score_lps_tightness",
+    "score_vol_contraction", "score_base_age", "score_uptrend_bonus", "triggered",
+    "trigger_date", "fwd_return_1d", "fwd_return_5d", "fwd_return_10d",
+    "fwd_return_20d", "fwd_return_60d", "mfe_20d", "mae_20d", "mfe_60d", "mae_60d",
+    "mfe_20d_date", "mae_20d_date", "r_multiple_20d", "r_multiple_60d",
+    "trigger_volume_ratio", "days_to_trigger", "days_to_2_5r", "days_to_15pct",
+    "days_to_stop", "barrier_label", "win_barrier", "spy_trend", "vix_level",
+    "sector_etf", "sector_trend", "rs_vs_sector_pct", "dist_52w_high_pct",
+    "regime_state", "regime_breadth_50_pct", "regime_breadth_200_pct",
+    "regime_distribution_days", "regime_spy_above_50", "regime_spy_above_200",
+    "regime_spy_50d_slope_pct", "regime_qqq_above_50", "regime_qqq_above_200",
+    "regime_qqq_50d_slope_pct", "phase_d_inner", "lps_in_inner", "inner_source",
+    "inner_search_start_bar", "inner_climax_bar", "inner_reaction_bar",
+    "inner_reaction_pct", "inner_reaction_bars", "htf_w_stage2", "htf_w_trend_state",
+    "htf_w_in_consol", "htf_w_phase", "htf_w_box_r", "htf_w_box_s", "htf_w_box_width",
+    "htf_w_reaccum", "htf_w_daily_nested", "htf_m_stage2", "htf_m_trend_state",
+    "htf_m_in_consol", "htf_m_phase", "htf_m_box_r", "htf_m_box_s", "htf_m_box_width",
+    "htf_m_reaccum", "htf_m_daily_nested", "r_touch_vol_z", "s_touch_vol_z",
+    "lps_descent_frac", "lps_zone_type", "score_high_proximity", "score_breadth_bonus",
+    "score_rs_bonus", "contraction_count", "contraction_quality",
+    "final_contraction_depth", "contraction_vol_trend", "score_contraction",
+    "base_median_spread_atr", "base_p80_spread_atr", "base_median_spread_pct_box",
+    "base_tight_bar_pct", "support_slope_atr", "ascending_support_quality",
+    "score_ascending_support", "eq_r_touches", "eq_s_touches", "eq_r_touch_thirds",
+    "eq_s_touch_thirds", "eq_lower_dwell", "eq_mid_dwell", "eq_upper_dwell",
+    "eq_coverage", "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio", "bin_b_bars",
+    "bin_b_range_pct", "bin_b_volume_ratio", "bin_b_cog_end", "bin_b_cog_crossings",
+    "bin_b_cog_rng", "bin_b_cog_corr", "bin_c_present", "bin_c_type", "bin_c_event_date",
+    "bin_c_event_bar", "bin_c_undercut_atr", "bin_c_recovery_bars", "bin_c_recovery_bar",
+    "bin_c_time_loc", "bin_c_spring_vol_z", "bin_d_bars", "bin_d_start_bar",
+    "bin_d_range_pct", "bin_d_volume_ratio", "bin_d_support_slope_atr",
+    "bin_d_higher_low_frac", "bin_d_ascending_support_quality", "bin_d_boundary_source",
+    "phase_d_evidence_json", "bin_lps_bars", "lps_position_in_box",
+    "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
+    "bin_d_vs_b_support_quality_delta", "lps_stretch_atr", "lps_stretch_box",
+    "lps_swing_type", "lps_anchor_bar", "lps_anchor_date", "lps_low_bar", "lps_low_date",
+    "lps_swing_depth_pct", "lps_swing_depth_atr", "lps_swing_depth_box",
+    "last_supper_pullback_from_extension_pct", "last_supper_source_box_age",
+    "last_supper_reclaim_quality", "adr_pct", "score_adr", "quality_label", "notes",
+    "source",
+)
+
+
+def test_setup_out_fields_are_all_real_archive_columns():
+    """Single-source guard: SetupArchive.__table__ is the source of truth, and
+    every SetupOut response field must be a column-backed projection of it. A field
+    that names no model column (a typo, or a column renamed/removed under it) fails
+    here — so the response model can never silently drift away from the table.
+    The EpisodeOut subclass adds nested non-column fields (episode_key, scan_count,
+    …); those are intentionally excluded by testing the base SetupOut only."""
+    model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
+    schema_fields = set(SetupOut.model_fields)
+
+    orphan_fields = schema_fields - model_columns
+    assert not orphan_fields, (
+        "SetupOut fields with no backing SetupArchive column "
+        f"(schema drifted from the model): {sorted(orphan_fields)}"
+    )
+
+
+def test_setup_out_shape_is_unchanged():
+    """API shape tripwire: the SetupOut field set must match the frozen snapshot
+    exactly — same names, same order. Adding/removing/renaming a response field
+    (the day someone exposes a new column, or drops one) must update _SETUP_OUT_FIELDS
+    in the same commit, making the public-API change deliberate and reviewable."""
+    assert tuple(SetupOut.model_fields) == _SETUP_OUT_FIELDS
+
+
 def test_scan_run_kind_column_is_migrated():
     migration_sql = "\n".join(startup._MIGRATIONS)
 
