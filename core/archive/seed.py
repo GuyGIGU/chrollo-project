@@ -18,7 +18,6 @@ import os
 import sys
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -31,34 +30,10 @@ if _BACKEND_DIR not in sys.path:
 
 from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
-from core.pipeline.evaluation import (
-    _structure_to_boxes,
-    apply_baseline_filters,
-    descent_tail_drops,
-    score_traversal_args,
-    select_active_lps,
-)
-from core.pipeline.downloads import _batched_download, _trim_to_period
-from core.scoring import calculate_tier, score_setup
-from core.structure import (
-    adr_pct,
-    calculate_atr,
-    detect_lps,
-    detect_lps_tests,
-    lps_range_threshold,
-    measure_bar_compression,
-    measure_bins,
-    measure_contractions,
-    measure_equilibrium,
-    measure_support_slope,
-    measure_touch_volume,
-    measure_traversal,
-    read_htf_context,
-    trend_template,
-)
+from core.pipeline.evaluation import _run_eval_chain
+from core.archive.result_adapter import seed_row_from_result
+from core.pipeline.downloads import _batched_download
 from core.structure.htf import htf_archive_values
-from core.structure.narrative import read_structure
-from core.structure.phase_d import final_v_tip_bar, support_test_evidence_starts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -168,297 +143,23 @@ def _close_series(raw: pd.DataFrame, ticker: str):
 
 
 def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[dict]:
-    """Run the full screener pipeline against df (last bar = evaluation date).
+    """Evaluate df (last bar = evaluation date) through the SAME numeric chain the
+    live screener uses, then re-key the canonical result to the unprefixed shape the
+    seed archive writer consumes.
 
-    Returns the result dict on pass, or None on reject. Mirrors _evaluate_ticker
-    but works on a pre-sliced DataFrame: it reads ONE chronological narrative
-    structure (the oldest valid root swing), so there is no box-selection mode.
+    Delegates to ``core.pipeline.evaluation._run_eval_chain`` so that "replay at T ==
+    live at T" holds by construction rather than by a recall test. Seed runs with
+    ``breadth_pct=None`` (there is no live universe-breadth at a historical replay
+    date), matching the prior behaviour. ``seed_row_from_result`` is the single
+    boundary translating the canonical contract to the writer's historical key names.
     """
     try:
-        baseline = apply_baseline_filters(df)
-        if baseline is None:
-            return None
-        df, yearly_return = baseline
-
-        # Keep the full frame for HTF resampling, but trim the daily structure read
-        # exactly like the live pipeline so the seed path does not drift when the
-        # history window grows for weekly/monthly context.
-        full_df = df
-        df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
-
-        latest = df.iloc[-1]
-        df_ind = df.copy()
-        df_ind["ATR_10"] = calculate_atr(df_ind, 10)
-        df_ind["ATR_50"] = calculate_atr(df_ind, 50)
-        # Mirror the live chronological reader so seed recall measures the same engine.
-        structure = read_structure(df_ind, float(df_ind.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"]))
-        if structure is None:
-            return None
-        boxes = _structure_to_boxes(structure, len(df_ind))
-        base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
-            r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
-            _is_inner = boxes["parent"]
-        inner = boxes["inner"]
-
-        if base_len == 0:
-            return None
-
-        atr_eval = df_ind.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
-        atr_ratio = atr_eval["ATR_10"] / atr_eval["ATR_50"]
-
-        if latest["Close"] < (sup_avg * settings.CRASH_FILTER_MULT):
-            return None
-        if latest["Close"] >= (res_avg * settings.EXTENSION_FILTER_MULT):
-            return None
-
-        atr_for_zone = float(atr_eval["ATR_10"])
-
-        base_df = df.iloc[-base_len:]
-        base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
-
-        phase_b_start = len(df_ind) - base_len
-        swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
-
-        parent_ctx = (sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx)
-        lps_result, lps_in_inner, lps_context = select_active_lps(
-            df_ind, latest, parent_ctx, inner, atr_for_zone)
-
-        if not lps_result:
-            return None
-
-        setup_state = lps_result["setup_type"]
-        is_lps = True
-        lps_length = lps_result["length"]
-        lps_offset = lps_result["offset"]
-        trigger_price = lps_result["trigger_price"]
-        vol_contraction = lps_result["vol_contraction"]
-        tightness_ratio = lps_result["tightness_ratio"]
-        lps_tests = detect_lps_tests(
-            df_ind, latest, lps_context[0], lps_context[1],
-            atr_for_zone, lps_context[2], lps_context[3], lps_context[4],
-        )
-
-        current_price = latest["Close"]
-        distance_to_trigger = (trigger_price - current_price) / current_price
-        if distance_to_trigger <= 0:
-            return None
-
-        # Soft RS — stock 6m return − SPY 6m return at this historical eval date.
-        rs_lookback = settings.RS_LOOKBACK_BARS
-        if len(df) > rs_lookback:
-            stock_6m_return = (float(current_price) / float(df["Close"].iloc[-rs_lookback - 1]) - 1.0)
-        else:
-            stock_6m_return = 0.0
-        excess_return_6m = stock_6m_return - spy_6m_return
-
-        # 52w high distance — pass into scorer for the high-proximity bonus.
-        last_252 = df["High"].iloc[-min(252, len(df)):]
-        max_252 = float(last_252.max()) if len(last_252) else 0.0
-        dist_52w_high_pct = (
-            (float(current_price) - max_252) / max_252 if max_252 > 0 else None
-        )
-
-        contraction = measure_contractions(base_df)
-        bar_compression = measure_bar_compression(base_df, res_avg - sup_avg, atr_for_zone)
-        support = measure_support_slope(base_df, atr_for_zone)
-        equilibrium = measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone)
-        traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
-
-        # Descent-tail gate (parity with the live pipeline) — active box, tight exempt.
-        if descent_tail_drops(df_ind, traversal, box_width, inner, lps_in_inner, atr_for_zone):
-            return None
-
-        adr_value = adr_pct(df, settings.ADR_WINDOW)
-        adr_quality = (
-            min(adr_value / settings.ADR_FULL_PCT, 1.0)
-            if settings.ADR_FULL_PCT else 0.0
-        )
-
-        phase_d_start_bar = int(inner["start_bar"]) if inner is not None else None
-        phase_b_start = len(df_ind) - base_len
-        bc_anchor_bar, phase_a_end_bar = int(structure.climax_bar), int(structure.ar_bar)
-        phase_d_evidence_starts = (
-            {"support_tests": None, "sos_reclaim": None, "rising_support": None}
-            if inner is not None
-            else support_test_evidence_starts(lps_tests, phase_b_start, base_len)
-        )
-        support_test_start_bar = phase_d_evidence_starts["support_tests"]
-        v_tip_bar = None if inner is not None else final_v_tip_bar(df_ind, phase_b_start, base_len)
-        # Region (bin) features + Minervini trend template (measure-first parity
-        # with the live pipeline).
-        bins = measure_bins(
-            df_ind,
-            bc_anchor_bar=bc_anchor_bar,
-            phase_b_start_bar=phase_b_start_bar,
-            base_len=base_len,
-            is_inner_box=False,
-            lps_offset=lps_offset,
-            lps_length=lps_length,
-            R=res_avg,
-            S=sup_avg,
-            atr_val=atr_for_zone,
-            phase_d_start_bar=phase_d_start_bar,
-            support_test_start_bar=support_test_start_bar,
-            sos_reclaim_start_bar=phase_d_evidence_starts["sos_reclaim"],
-            rising_support_start_bar=phase_d_evidence_starts["rising_support"],
-            phase_a_end_bar=phase_a_end_bar,
-            v_tip_bar=v_tip_bar,
-            lps_R=lps_context[1],
-            lps_S=lps_context[0],
-            lps_anchor_bar=lps_result.get("lps_anchor_bar"),
-            lps_low_bar=lps_result.get("lps_low_bar"),
-        )
-        trend = trend_template(df_ind, dist_52w_high_pct=dist_52w_high_pct)
-
-        score_result = score_setup(
-            box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
-            atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
-            excess_return_6m, dist_52w_high_pct,
-            None,  # breadth_pct unknown for historical seed dates
-            contraction['quality'], support['quality'], adr_quality,
-            adr_value=adr_value,
-            **score_traversal_args(traversal, equilibrium, bins),
-        )
-        score = score_result["total"]
-        tier = calculate_tier(score, box_width)
-
-        # Volume signature at R/S touch bars (shared helper — parity with live).
-        r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
-            base_df, res_avg, sup_avg, atr_for_zone)
-
-        # HTF context (measure-only) — parity with the live path; resampled from
-        # the full frame. Keys are htf_* without the live row's leading "_".
-        htf_ctx: dict = {}
-        if settings.HTF_CONTEXT_ENABLED:
-            _hbox = (res_avg, sup_avg)
-            htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=_hbox))
-            htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=_hbox))
-
-        return {
-            "setup_type": setup_state,
-            "tier": tier,
-            "score": score,
-            "current_price": round(float(current_price), 2),
-            "r_level": float(res_avg),
-            "s_level": float(sup_avg),
-            "trigger_price": float(trigger_price),
-            "base_length": int(base_len),
-            "box_width": float(box_width),
-            "touches": int(r_touches + s_touches),
-            "r_touches": int(r_touches),
-            "s_touches": int(s_touches),
-            "r_anchor": int(r_anchor_bar),
-            "s_anchor": int(s_anchor_bar),
-            "atr_ratio": float(atr_ratio),
-            "lps_length": int(lps_length),
-            "breach_days": int(breach_days),
-            "vol_contraction": float(vol_contraction),
-            "tightness_ratio": float(tightness_ratio),
-            "sub_scores": score_result,
-            "dist_52w_high_pct": dist_52w_high_pct,
-            "excess_return_6m": float(excess_return_6m),
-            "bars_since_BC": int(len(df) - bc_anchor_bar),
-            "descent_length": int(phase_b_start_bar - bc_anchor_bar),
-            "base_date_start": str(base_df.index[0])[:10],
-            "base_date_end": str(base_df.index[-1])[:10],
-            "base_close_start": float(base_df["Close"].iloc[0]),
-            "base_close_end": float(base_df["Close"].iloc[-1]),
-            "r_touch_vol_z": r_touch_vol_z,
-            "s_touch_vol_z": s_touch_vol_z,
-            "lps_descent_frac": float(lps_result.get("descent_frac", 1.0)),
-            "lps_high_descent_frac": float(lps_result.get("high_descent_frac", 1.0)),
-            "lps_window_range_pct_box": float(lps_result.get("window_range_pct_box", 0.0)),
-            "lps_high_extension_box": float(lps_result.get("high_extension_box", 0.0)),
-            "lps_high_extension_atr": float(lps_result.get("high_extension_atr", 0.0)),
-            "lps_profile_unit": float(lps_result.get("profile_unit", 0.0)),
-            "lps_profile_unit_pct": float(lps_result.get("profile_unit_pct", 0.0)),
-            "lps_pullback_profile": float(lps_result.get("pullback_profile", 0.0)),
-            "lps_terminal_low_tolerance": float(lps_result.get("terminal_low_tolerance", 0.0)),
-            "lps_spread_expansion_profile": float(lps_result.get("spread_expansion_profile", 0.0)),
-            "lps_first_high": float(lps_result.get("first_high", 0.0)),
-            "lps_last_low": float(lps_result.get("last_low", 0.0)),
-            "lps_window_high": float(lps_result.get("window_high", 0.0)),
-            "lps_window_low": float(lps_result.get("window_low", 0.0)),
-            "lps_swing_type": lps_result.get("swing_type", "terminal_valley"),
-            "lps_anchor_bar": (int(lps_result["lps_anchor_bar"])
-                               if lps_result.get("lps_anchor_bar") is not None else None),
-            "lps_anchor_date": lps_result.get("lps_anchor_date"),
-            "lps_low_bar": (int(lps_result["lps_low_bar"])
-                            if lps_result.get("lps_low_bar") is not None else None),
-            "lps_low_date": lps_result.get("lps_low_date"),
-            "lps_swing_depth_pct": lps_result.get("lps_swing_depth_pct"),
-            "lps_swing_depth_atr": lps_result.get("lps_swing_depth_atr"),
-            "lps_swing_depth_box": lps_result.get("lps_swing_depth_box"),
-            "lps_zone_type": lps_result.get("zone_type", "INSIDE"),
-            "phase_d_inner": bool(inner is not None),
-            "lps_in_inner": bool(lps_in_inner),
-            "inner_R": float(inner["R"]) if inner is not None else None,
-            "inner_S": float(inner["S"]) if inner is not None else None,
-            "inner_box_width": float(inner["box_width"]) if inner is not None else None,
-            "inner_start_bar": phase_d_start_bar,
-            "inner_source": inner.get("source") if inner is not None else None,
-            "inner_search_start_bar": (int(inner["search_start_bar"])
-                                       if inner is not None else None),
-            "inner_climax_bar": (int(inner["climax_bar"])
-                                 if inner is not None and inner.get("climax_bar") is not None
-                                 else None),
-            "inner_reaction_bar": (int(inner["reaction_bar"])
-                                   if inner is not None and inner.get("reaction_bar") is not None
-                                   else None),
-            "inner_reaction_pct": (float(inner["reaction_pct"])
-                                   if inner is not None and inner.get("reaction_pct") is not None
-                                   else None),
-            "inner_reaction_bars": (int(inner["reaction_bars"])
-                                    if inner is not None and inner.get("reaction_bars") is not None
-                                    else None),
-            "contraction_count": int(contraction["n_contractions"]),
-            "contraction_quality": float(contraction["quality"]),
-            "final_contraction_depth": (float(contraction["final_depth"])
-                                        if contraction["final_depth"] is not None else None),
-            "contraction_vol_trend": (float(contraction["vol_trend"])
-                                      if contraction["vol_trend"] is not None else None),
-            "base_median_spread_atr": bar_compression["median_spread_atr"],
-            "base_p80_spread_atr": bar_compression["p80_spread_atr"],
-            "base_median_spread_pct_box": bar_compression["median_spread_pct_box"],
-            "base_tight_bar_pct": float(bar_compression["tight_bar_pct"]),
-            "support_slope_atr": (float(support["slope_atr"])
-                                  if support["slope_atr"] is not None else None),
-            "ascending_support_quality": float(support["quality"]),
-            "eq_r_touches": int(equilibrium["r_touches"]),
-            "eq_s_touches": int(equilibrium["s_touches"]),
-            "eq_r_touch_thirds": int(equilibrium["r_touch_thirds"]),
-            "eq_s_touch_thirds": int(equilibrium["s_touch_thirds"]),
-            "eq_lower_dwell": float(equilibrium["lower_dwell"]),
-            "eq_mid_dwell": float(equilibrium["mid_dwell"]),
-            "eq_upper_dwell": float(equilibrium["upper_dwell"]),
-            "eq_coverage": float(equilibrium["coverage"]),
-            "trav_n_full_traversals": int(traversal["n_full_traversals"]),
-            "trav_n_swings": int(traversal["n_swings"]),
-            "trav_top_dead_space": (float(traversal["top_dead_space"])
-                                    if traversal["top_dead_space"] is not None else None),
-            "trav_bottom_dead_space": (float(traversal["bottom_dead_space"])
-                                       if traversal["bottom_dead_space"] is not None else None),
-            "trav_rail_reaches_high": int(traversal["rail_reaches_high"]),
-            "trav_rail_reaches_low": int(traversal["rail_reaches_low"]),
-            "trav_max_swing_frac": (float(traversal["max_swing_frac"])
-                                    if traversal["max_swing_frac"] is not None else None),
-            "trav_last_support_frac": (float(traversal["last_support_frac"])
-                                       if traversal["last_support_frac"] is not None else None),
-            "trav_coil_floor_pos": (float(traversal["coil_floor_pos"])
-                                    if traversal["coil_floor_pos"] is not None else None),
-            "adr_pct": float(adr_value),
-            "adr_quality": float(adr_quality),
-            # Region (bin) features + Minervini trend template (measure-first).
-            **bins,
-            **trend,
-            **htf_ctx,
-        }
-
+        result = _run_eval_chain("", df, spy_6m_return, None)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
             AttributeError):
-        # Parity with the live _evaluate_ticker guard: the structure-adapter path
-        # can raise AttributeError on a degenerate frame; skip the date, never crash.
+        # Parity with the live _evaluate_ticker guard: skip the date, never crash.
         return None
+    return seed_row_from_result(result) if result is not None else None
 
 
 def seed_archive(

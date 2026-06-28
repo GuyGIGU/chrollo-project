@@ -82,10 +82,12 @@ def test_live_breadth_none_equals_seed_on_fixture():
         if live is None:
             continue
         adapted = seed_row_from_result(live)
+        # "Ticker" is the only ticker-dependent field; seed runs the chain with
+        # ticker="" so exclude that label from the numeric-equivalence comparison.
         mismatches = {
             k: (seed[k], adapted.get(k))
             for k in seed
-            if not _close(seed[k], adapted.get(k))
+            if k != "Ticker" and not _close(seed[k], adapted.get(k))
         }
         assert not mismatches, f"{ticker}: adapter/seed mismatch on {list(mismatches)[:8]}"
         compared += 1

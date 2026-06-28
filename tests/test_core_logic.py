@@ -2937,19 +2937,20 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
 
 
 def test_eval_twins_share_the_folded_core():
-    """The live (``_evaluate_ticker``) and seed (``_evaluate_at_date``) paths must
-    BOTH route through the shared eval helpers, so the structural logic (LPS
-    selection, descent-tail gate, scorer args) can never silently diverge between
-    them — the drift that let the descent-tail gate land in one path only and that
-    the seed-recall guard exists to measure. If you re-inline one of these in a
-    single path, fold it back into the shared helper instead."""
+    """The live (``_evaluate_ticker``) and seed (``_evaluate_at_date``) paths must BOTH
+    route through the SINGLE shared numeric chain (``_run_eval_chain``), so the
+    structural logic (LPS selection, descent-tail gate, scorer args) can never silently
+    diverge between them. "Replay at T == live at T" is true by construction: both call
+    the same chain on a frame; seed only differs by working on a pre-sliced frame and
+    re-keying the canonical result through ``seed_row_from_result``. If you re-inline the
+    orchestration in one path, fold it back onto ``_run_eval_chain`` instead."""
     import ast
     import inspect
     import textwrap
 
     from core.archive.seed import _evaluate_at_date
     from core.pipeline import evaluation as evaluation_module
-    from core.pipeline.evaluation import _evaluate_ticker
+    from core.pipeline.evaluation import _evaluate_ticker, _run_eval_chain
 
     def called_names(fn):
         tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
@@ -2963,16 +2964,22 @@ def test_eval_twins_share_the_folded_core():
                 calls.add(node.func.attr)
         return calls
 
-    live_calls = called_names(_evaluate_ticker)
-    assert "_resolve_lps_context" in live_calls
-    assert "descent_tail_drops" in live_calls
-    assert "_score_eval_context" in live_calls
+    # Both entry points delegate to the one shared chain.
+    assert "_run_eval_chain" in called_names(_evaluate_ticker)
+    seed_calls = called_names(_evaluate_at_date)
+    assert "_run_eval_chain" in seed_calls, "_evaluate_at_date no longer routes through the shared chain"
+    assert "seed_row_from_result" in seed_calls, "_evaluate_at_date must re-key via the adapter"
+
+    # The shared chain routes through the structural helpers (the real anti-drift guard).
+    chain_calls = called_names(_run_eval_chain)
+    assert "_resolve_structure_context" in chain_calls
+    assert "_resolve_lps_context" in chain_calls
+    assert "descent_tail_drops" in chain_calls
+    assert "_score_eval_context" in chain_calls
+
+    # Deeper folds preserved.
     assert "select_active_lps" in called_names(evaluation_module._resolve_lps_context)
     assert "score_traversal_args" in called_names(evaluation_module._score_eval_context)
-
-    seed_calls = called_names(_evaluate_at_date)
-    for helper in ("select_active_lps", "descent_tail_drops", "score_traversal_args"):
-        assert helper in seed_calls, f"_evaluate_at_date no longer routes through {helper}"
 
 
 def test_score_traversal_args_maps_measure_facts():

@@ -682,6 +682,62 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
     }
 
 
+def _run_eval_chain(ticker: str, df: pd.DataFrame,
+                    spy_6m_return: float = 0.0,
+                    breadth_pct: Optional[float] = None) -> Optional[dict]:
+    """The single numeric evaluation chain shared by the live screener
+    (`_evaluate_ticker`) and the seed/replay path
+    (`core.archive.seed._evaluate_at_date`).
+
+    Returns the canonical result dict, or None on a structural reject. It may RAISE
+    on a degenerate frame; callers wrap it with the standard skip-guard. Keeping this
+    as one function is what makes "replay at T == live at T" true by construction
+    rather than by a recall test.
+    """
+    prepared = _prepare_eval_frame(df)
+    if prepared is None:
+        return None
+
+    eval_df = prepared["df"]
+    structure_ctx = _resolve_structure_context(eval_df, prepared["latest"])
+    if structure_ctx is None:
+        return None
+
+    lps_ctx = _resolve_lps_context(eval_df, prepared["latest"], structure_ctx)
+    if lps_ctx is None:
+        return None
+
+    rel_ctx = _relative_strength_context(
+        eval_df, lps_ctx["current_price"], spy_6m_return
+    )
+    measurements = _measure_base_context(
+        structure_ctx["base_df"],
+        structure_ctx["res_avg"],
+        structure_ctx["sup_avg"],
+        structure_ctx["atr_for_zone"],
+    )
+
+    if descent_tail_drops(
+        eval_df,
+        measurements["traversal"],
+        structure_ctx["box_width"],
+        structure_ctx["inner"],
+        lps_ctx["lps_in_inner"],
+        structure_ctx["atr_for_zone"],
+    ):
+        return None
+
+    phase_ctx = _phase_d_context(eval_df, structure_ctx, lps_ctx)
+    score_ctx = _score_eval_context(
+        prepared, structure_ctx, lps_ctx, rel_ctx, measurements, phase_ctx, breadth_pct
+    )
+
+    return _build_live_result(
+        ticker, prepared, structure_ctx, lps_ctx, rel_ctx,
+        measurements, phase_ctx, score_ctx, breadth_pct
+    )
+
+
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None) -> Optional[dict]:
@@ -691,49 +747,7 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
     try:
-        prepared = _prepare_eval_frame(df)
-        if prepared is None:
-            return None
-
-        eval_df = prepared["df"]
-        structure_ctx = _resolve_structure_context(eval_df, prepared["latest"])
-        if structure_ctx is None:
-            return None
-
-        lps_ctx = _resolve_lps_context(eval_df, prepared["latest"], structure_ctx)
-        if lps_ctx is None:
-            return None
-
-        rel_ctx = _relative_strength_context(
-            eval_df, lps_ctx["current_price"], spy_6m_return
-        )
-        measurements = _measure_base_context(
-            structure_ctx["base_df"],
-            structure_ctx["res_avg"],
-            structure_ctx["sup_avg"],
-            structure_ctx["atr_for_zone"],
-        )
-
-        if descent_tail_drops(
-            eval_df,
-            measurements["traversal"],
-            structure_ctx["box_width"],
-            structure_ctx["inner"],
-            lps_ctx["lps_in_inner"],
-            structure_ctx["atr_for_zone"],
-        ):
-            return None
-
-        phase_ctx = _phase_d_context(eval_df, structure_ctx, lps_ctx)
-        score_ctx = _score_eval_context(
-            prepared, structure_ctx, lps_ctx, rel_ctx, measurements, phase_ctx, breadth_pct
-        )
-
-        return _build_live_result(
-            ticker, prepared, structure_ctx, lps_ctx, rel_ctx,
-            measurements, phase_ctx, score_ctx, breadth_pct
-        )
-
+        return _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         return None
