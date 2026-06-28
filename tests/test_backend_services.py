@@ -229,6 +229,83 @@ _SETUP_OUT_FIELDS = (
 )
 
 
+def test_archive_row_from_result_maps_passthrough_and_respects_overrides():
+    """Round-trip guard for the manual-add row mapping (B2).
+
+    archive_row_from_result must: (a) flat-map every model column from
+    result.get(col); (b) let the caller's `overrides` win over the flat value;
+    (c) never emit `id` or any column in _MANUAL_UNMAPPED_COLUMNS (those are
+    filled by the route's **fwd_returns splat or left NULL); and (d) build a
+    valid SetupArchive whose column values match. This pins the byte-parity of
+    the refactor that replaced the ~80-line inline result.get(...) block."""
+    from services.archive_queries import (
+        archive_row_from_result,
+        _MANUAL_UNMAPPED_COLUMNS,
+    )
+
+    columns = [c.name for c in archive_models.SetupArchive.__table__.columns]
+    # Unique sentinel per column so a mis-key would surface as a value mismatch.
+    result = {c: f"R:{c}" for c in columns}
+
+    overrides = {
+        "ticker": "ABCD",
+        "scan_date": "2026-06-01",
+        "source": "manual",
+        # An override must beat the flat result.get for the same column.
+        "bin_a_bars": 99,
+        # A forward-return splat column (in _MANUAL_UNMAPPED) the route supplies.
+        "triggered": 1,
+    }
+
+    kwargs = archive_row_from_result(result, overrides=overrides)
+
+    # id is never set by the mapping (auto-increment).
+    assert "id" not in kwargs
+    # _MANUAL_UNMAPPED columns are not auto-filled from result; only those the
+    # caller explicitly passed in overrides appear.
+    for name in _MANUAL_UNMAPPED_COLUMNS:
+        if name in overrides:
+            assert kwargs[name] == overrides[name]
+        else:
+            assert name not in kwargs, f"{name} should not be auto-filled"
+    # Overrides win over the flat pass-through.
+    assert kwargs["ticker"] == "ABCD"
+    assert kwargs["bin_a_bars"] == 99
+    assert kwargs["triggered"] == 1
+    # A representative flat column is pulled straight from result.
+    assert kwargs["lps_swing_type"] == "R:lps_swing_type"
+    assert kwargs["eq_coverage"] == "R:eq_coverage"
+    # The kwargs build a real SetupArchive without unexpected/unknown columns.
+    row = archive_models.SetupArchive(**kwargs)
+    assert row.ticker == "ABCD"
+    assert row.bin_a_bars == 99
+    assert row.lps_swing_type == "R:lps_swing_type"
+
+
+def test_archive_row_partition_is_exhaustive():
+    """Every SetupArchive column is accounted for: it is either auto-mapped by
+    archive_row_from_result, or explicitly in _MANUAL_UNMAPPED_COLUMNS, or the
+    auto-increment id. Guards against a new column being silently neither — which
+    would otherwise mean a flat column the route stops populating, or an unmapped
+    column with no documented reason."""
+    from services.archive_queries import (
+        archive_row_from_result,
+        _MANUAL_UNMAPPED_COLUMNS,
+    )
+
+    columns = {c.name for c in archive_models.SetupArchive.__table__.columns}
+    # With empty overrides, the helper auto-fills exactly the flat columns.
+    auto_mapped = set(archive_row_from_result({}, overrides={}))
+
+    accounted = auto_mapped | set(_MANUAL_UNMAPPED_COLUMNS) | {"id"}
+    assert accounted == columns, (
+        f"unaccounted columns: {sorted(columns - accounted)}; "
+        f"stale entries: {sorted(accounted - columns)}"
+    )
+    # The two groups are disjoint — a column is auto-mapped XOR unmapped.
+    assert not (auto_mapped & set(_MANUAL_UNMAPPED_COLUMNS))
+
+
 def test_setup_out_fields_are_all_real_archive_columns():
     """Single-source guard: SetupArchive.__table__ is the source of truth, and
     every SetupOut response field must be a column-backed projection of it. A field

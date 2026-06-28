@@ -164,3 +164,63 @@ def _episode_context(db, **filters):
 def _episode_key(ticker: str, setup_type: str, first_seen: str) -> str:
     """Stable logical setup key shared by archive rows and UI state."""
     return f"{ticker.upper()}|{setup_type.upper()}|{first_seen}"
+
+
+# ── Manual-add row mapping ───────────────────────────────────────────────────
+# The manual-add route maps a (seed) eval-result dict onto a SetupArchive row.
+# Most columns are a flat ``result.get(col)`` pass-through; the rest are sourced
+# elsewhere (sub-scores, coercions, market-context enrichment, the HTF / forward-
+# return splats) and are passed by the route as ``overrides``. ``archive_row_from
+# _result`` makes SetupArchive.__table__ the single source for the pass-through
+# columns: a new flat column on the model flows through with no route edit.
+#
+# Columns the manual route does NOT source from ``result`` directly. These are
+# either filled by the route's ``**fwd_returns`` splat (forward-return / triple-
+# barrier outcomes, populated after the fact) or deliberately left NULL on a
+# manual row (run-level context the single-ticker manual path does not compute:
+# regime_*, scope_*, stage2_*, breadth/excess return, and a few engine internals).
+# Frozen so a new model column can't silently start auto-filling here.
+_MANUAL_UNMAPPED_COLUMNS = frozenset({
+    # forward-return / triple-barrier outcomes (route passes **fwd_returns)
+    "triggered", "trigger_date",
+    "fwd_return_1d", "fwd_return_5d", "fwd_return_10d", "fwd_return_20d",
+    "fwd_return_60d", "mfe_20d", "mae_20d", "mfe_60d", "mae_60d",
+    "mfe_20d_date", "mae_20d_date", "r_multiple_20d", "r_multiple_60d",
+    "trigger_volume_ratio", "days_to_trigger", "days_to_2_5r", "days_to_15pct",
+    "days_to_stop", "barrier_label", "win_barrier",
+    # deliberately NULL on a manual row (not computed on this path)
+    "score_traversal_quality", "excess_return_6m", "breadth_pct",
+    "bars_since_bc", "descent_length",
+    "trav_last_support_frac", "trav_coil_floor_pos",
+    "regime_state", "regime_breadth_50_pct", "regime_breadth_200_pct",
+    "regime_distribution_days", "regime_spy_above_50", "regime_spy_above_200",
+    "regime_spy_50d_slope_pct", "regime_qqq_above_50", "regime_qqq_above_200",
+    "regime_qqq_50d_slope_pct",
+    "scope_phase_a_date", "scope_phase_b_date", "scope_phase_d_date",
+    "scope_phase_c_date", "scope_has_mini", "scope_confidence",
+    "stage2_ma_stack_pass", "stage2_ma200_slope_1m_pct", "stage2_52w_low_pct",
+    "stage2_trend_pass_count", "stage2_trend_pass",
+})
+
+
+def archive_row_from_result(result: dict, *, overrides: dict) -> dict:
+    """Build SetupArchive(**kwargs) for a manually-added setup from an eval-result.
+
+    Iterates ``SetupArchive.__table__.columns`` so the model is the single source
+    of truth for the flat pass-through columns. For each column it takes, in order:
+    the caller's ``overrides`` (special-cased values: identity, required fields,
+    sub-scores, coercions, market context), else ``result.get(col)`` — except the
+    auto-increment ``id`` and the ``_MANUAL_UNMAPPED_COLUMNS`` (filled by the
+    route's ``**fwd_returns`` splat or intentionally left NULL).
+
+    The route still passes its HTF / forward-return splats and ``overrides``
+    explicitly; this only replaces the ~80-line block of identical ``col=result
+    .get("col")`` lines, preserving the exact set of populated columns and values.
+    """
+    kwargs = dict(overrides)
+    for column in SetupArchive.__table__.columns:
+        name = column.name
+        if name == "id" or name in kwargs or name in _MANUAL_UNMAPPED_COLUMNS:
+            continue
+        kwargs[name] = result.get(name)
+    return kwargs
