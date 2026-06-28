@@ -106,12 +106,13 @@ def _last_yahoo_batch_error_text(batch: list[str]) -> str:
 
 def _single_ticker_history(ticker: str, period_or_dates: dict) -> pd.DataFrame:
     """Fetch one symbol without yf.download's process-global multi-ticker state."""
-    data = yf.Ticker(ticker).history(
-        actions=False,
-        auto_adjust=True,
-        timeout=30,
-        **period_or_dates,
-    )
+    # These are DEFAULTS the caller may override via period_or_dates. Merging (rather
+    # than splatting alongside fixed kwargs) avoids "got multiple values for keyword
+    # argument 'auto_adjust'" when a caller passes auto_adjust in the dict (seed /
+    # forward-returns / archive paths all do).
+    params = {"actions": False, "auto_adjust": True, "timeout": 30}
+    params.update(period_or_dates)
+    data = yf.Ticker(ticker).history(**params)
     if data is None or data.empty:
         return pd.DataFrame()
     if not isinstance(data.columns, pd.MultiIndex):
@@ -122,14 +123,11 @@ def _single_ticker_history(ticker: str, period_or_dates: dict) -> pd.DataFrame:
 def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
     if len(batch) == 1:
         return _single_ticker_history(batch[0], period_or_dates)
-    return yf.download(
-        batch,
-        group_by='ticker',
-        threads=False,  # no uncontrolled yfinance inner threads; pool + throttle govern concurrency
-        progress=False,
-        timeout=30,
-        **period_or_dates,
-    )
+    # no uncontrolled yfinance inner threads; pool + throttle govern concurrency.
+    # Defaults overridable by period_or_dates (same anti-collision reason as above).
+    params = {"group_by": "ticker", "threads": False, "progress": False, "timeout": 30}
+    params.update(period_or_dates)
+    return yf.download(batch, **params)
 
 
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
