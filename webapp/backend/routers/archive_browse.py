@@ -116,40 +116,31 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
     if not setup:
         raise HTTPException(status_code=404, detail="Setup not found")
 
-    import yfinance as yf
     import pandas as pd
+
+    from services.market_data import chart_candles, daily_candle_frame
 
     target_date = pd.Timestamp(setup.scan_date)
     start_date = (target_date - pd.Timedelta(days=500)).strftime('%Y-%m-%d')
     end_date = (target_date + pd.Timedelta(days=45)).strftime('%Y-%m-%d')
 
-    raw = yf.download(setup.ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
+    raw = daily_candle_frame(
+        setup.ticker, 0, start=start_date, end=end_date, auto_adjust=True
+    )
     if raw.empty:
         raise HTTPException(status_code=404, detail="Market data not found for ticker")
-
-    if raw.columns.nlevels > 1:
-        raw.columns = raw.columns.droplevel('Ticker')
 
     # Re-scale stored R/S/trigger onto the freshly-adjusted candle scale.
     ratio = _adjustment_ratio(raw, target_date, setup.current_price)
 
-    candles = []
-    volumes = []
-    forward_bars = 0
-
-    for dt, row in raw.iterrows():
-        dt_str = dt.strftime('%Y-%m-%d')
-        if dt > target_date:
-            forward_bars += 1
-            
-        o = float(row['Open'])
-        h = float(row['High'])
-        l = float(row['Low'])
-        c = float(row['Close'])
-        v = int(row['Volume'])
-        candles.append({"time": dt_str, "open": o, "high": h, "low": l, "close": c})
-        color = 'rgba(38, 166, 154, 0.5)' if c >= o else 'rgba(239, 83, 80, 0.5)'
-        volumes.append({"time": dt_str, "value": v, "color": color})
+    candles, volumes = chart_candles(
+        raw,
+        up_color='rgba(38, 166, 154, 0.5)',
+        down_color='rgba(239, 83, 80, 0.5)',
+        require_finite=False,
+        volume_as_int=True,
+    )
+    forward_bars = int((raw.index > target_date).sum())
 
     return {
         "candles": candles,

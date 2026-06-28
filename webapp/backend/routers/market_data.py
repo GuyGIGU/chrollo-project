@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, Query
+
+from services.market_data import chart_candles, daily_candle_frame
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 
@@ -27,48 +29,22 @@ def _is_number(value: Any) -> bool:
 @router.get("/chart/{symbol}")
 def chart(symbol: str, days: int = Query(180, ge=20, le=730)) -> Dict[str, Any]:
     """Return real daily OHLCV candles for a portfolio symbol."""
-    import yfinance as yf
-
     ticker = _clean_symbol(symbol)
     try:
-        raw = yf.download(
-            ticker,
-            period=f"{days}d",
-            interval="1d",
-            progress=False,
-            auto_adjust=False,
-            timeout=20,
-        )
+        raw = daily_candle_frame(ticker, days, auto_adjust=False)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Market data fetch failed: {exc}") from exc
 
     if raw is None or raw.empty:
         raise HTTPException(status_code=404, detail="No chart data found")
-    if hasattr(raw.columns, "nlevels") and raw.columns.nlevels > 1:
-        raw.columns = raw.columns.get_level_values(0)
 
-    candles: List[Dict[str, Any]] = []
-    volumes: List[Dict[str, Any]] = []
-    for timestamp, row in raw.iterrows():
-        values = {name: row.get(name) for name in ("Open", "High", "Low", "Close")}
-        if not all(_is_number(value) for value in values.values()):
-            continue
-        date = timestamp.strftime("%Y-%m-%d")
-        close = float(values["Close"])
-        candles.append({
-            "time": date,
-            "open": float(values["Open"]),
-            "high": float(values["High"]),
-            "low": float(values["Low"]),
-            "close": close,
-        })
-        volume = row.get("Volume")
-        if _is_number(volume):
-            volumes.append({
-                "time": date,
-                "value": float(volume),
-                "color": "rgba(95, 184, 130, 0.28)" if close >= float(values["Open"]) else "rgba(238, 99, 82, 0.28)",
-            })
+    candles, volumes = chart_candles(
+        raw,
+        up_color="rgba(95, 184, 130, 0.28)",
+        down_color="rgba(238, 99, 82, 0.28)",
+        require_finite=True,
+        volume_as_int=False,
+    )
 
     if not candles:
         raise HTTPException(status_code=404, detail="No usable chart data found")

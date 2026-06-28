@@ -9,13 +9,10 @@ the cache stores ``None`` so subsequent lookups don't re-query.
 """
 from __future__ import annotations
 
-import logging
 import time
 from datetime import datetime
 from threading import Lock
 from typing import Optional
-
-log = logging.getLogger("chrollo.earnings")
 
 # {ticker: (epoch_when_cached, isodate_or_None)}
 _CACHE: dict[str, tuple[float, Optional[str]]] = {}
@@ -24,43 +21,16 @@ _LOCK = Lock()
 
 
 def _resolve(ticker: str) -> Optional[str]:
-    """Look up the next earnings date via yfinance. Returns ISO date or None."""
-    try:
-        import yfinance as yf
-        cal = yf.Ticker(ticker).calendar
-    except Exception as e:
-        log.debug("earnings lookup failed for %s: %s", ticker, e)
-        return None
+    """Look up the next earnings date. Returns ISO date or None.
 
-    if cal is None:
-        return None
+    Routes through the market-data provider's ``earnings_date`` (which owns the
+    yfinance ``.calendar`` shape-handling and the daemon-thread timeout) instead
+    of calling yfinance raw, so a hung ``.calendar`` scrape can't stall the
+    earnings-batch endpoint.
+    """
+    from core.pipeline.providers import get_provider
 
-    # yfinance has shipped a few shapes for `calendar` — handle dict and DataFrame.
-    earnings_date = None
-    try:
-        if isinstance(cal, dict):
-            ed = cal.get("Earnings Date")
-            if ed:
-                earnings_date = ed[0] if isinstance(ed, (list, tuple)) and ed else ed
-        else:
-            # Older yfinance: DataFrame with "Earnings Date" row
-            if hasattr(cal, "loc") and "Earnings Date" in getattr(cal, "index", []):
-                row = cal.loc["Earnings Date"]
-                earnings_date = row.iloc[0] if hasattr(row, "iloc") else row
-    except Exception as e:
-        log.debug("earnings parse failed for %s: %s", ticker, e)
-        return None
-
-    if earnings_date is None:
-        return None
-
-    try:
-        # Normalize to ISO date string
-        if hasattr(earnings_date, "strftime"):
-            return earnings_date.strftime("%Y-%m-%d")
-        return str(earnings_date)[:10]
-    except Exception:
-        return None
+    return get_provider().earnings_date(ticker)
 
 
 def get_next_earnings(ticker: str) -> Optional[str]:
