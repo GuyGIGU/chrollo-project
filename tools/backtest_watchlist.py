@@ -5,6 +5,13 @@ For each entry, evaluates the screener on bars in a [-7, +3] day window
 around the added date and reports whether a signal would have fired on any
 bar in that window, plus the rejection reason for misses.
 
+DIAGNOSTIC TOOL — standalone recall harness, NOT the live engine. Its `Score`/`Tier`
+columns are computed with the LEGACY short score_setup signature (no excess-return /
+breadth / contraction / traversal / ADR terms) and serve only to rank LPS offsets
+WITHIN this tool. They are NOT the live screener's score — the single source of truth
+for evaluation is core.pipeline.evaluation._run_eval_chain (shared by the live screener
+and seed replay). Do not compare these numbers to archive scores.
+
 Status — banked at 28/44 hits (63.6%) against the seed watchlist (post-shape-gate).
 
 Two LPS-scaling adaptations live in this harness (NOT in the live screener)
@@ -227,6 +234,8 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         if distance_to_trigger <= 0:
             return None, "LPS already above trigger"
 
+        # LEGACY short-signature scorer — diagnostic ranking within this tool ONLY,
+        # NOT the live score (see module docstring; live score = _run_eval_chain).
         score_result = score_setup(
             box_width, r_touches, s_touches, res_avg, sup_avg, base_df,
             atr_ratio, tightness_ratio, vol_contraction, base_len, yearly_return,
