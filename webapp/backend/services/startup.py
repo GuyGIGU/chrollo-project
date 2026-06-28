@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 import archive_models
 import models
@@ -200,6 +200,7 @@ def initialize_database() -> None:
     models.Base.metadata.create_all(bind=engine)
     archive_models.SetupArchive.metadata.create_all(bind=engine)
     _apply_migrations()
+    _apply_model_add_columns(engine)
 
 
 def _apply_migrations() -> None:
@@ -218,3 +219,53 @@ def _apply_migrations() -> None:
                         or "no such column" in message):
                     continue
                 _log.warning("migration skipped (%s): %s", exc.__class__.__name__, statement)
+
+
+def model_add_column_migrations(bind) -> list[str]:
+    """ADD-only migrations to bring `setup_archive` up to the model's columns.
+
+    Diffs ``SetupArchive.__table__.columns`` against the live table (via
+    ``PRAGMA table_info``, exposed through SQLAlchemy's inspector) and returns one
+    ``ALTER TABLE ... ADD COLUMN`` per column the model declares but the DB lacks.
+    The model is the single source of truth: a new column on SetupArchive flows
+    into the DB on the next boot with no hand-written migration.
+
+    ADD-only by design — Brandur/SQLite: there is no safe in-place DROP/ALTER, so
+    a removed-from-model column is left in place (its retirement is an explicit
+    one-off DROP in _MIGRATIONS, never inferred here). Returns [] when the DB is
+    already at the model (idempotent, no spurious ALTERs), or when the table does
+    not exist yet (create_all handles a fresh DB). The auto-increment ``id`` PK is
+    never ADDed.
+    """
+    inspector = inspect(bind)
+    if "setup_archive" not in inspector.get_table_names():
+        return []
+    existing = {col["name"] for col in inspector.get_columns("setup_archive")}
+    statements: list[str] = []
+    for column in archive_models.SetupArchive.__table__.columns:
+        if column.primary_key or column.name in existing:
+            continue
+        statements.append(
+            f"ALTER TABLE setup_archive ADD COLUMN {column.name} {column.type}"
+        )
+    return statements
+
+
+def _apply_model_add_columns(bind) -> None:
+    """Execute the model-derived ADD COLUMN migrations (see above). Idempotent and
+    safe on every boot: an empty diff is a no-op."""
+    statements = model_add_column_migrations(bind)
+    if not statements:
+        return
+    with bind.connect() as conn:
+        for statement in statements:
+            try:
+                conn.execute(text(statement))
+                conn.commit()
+                _log.info("applied (model-derived): %s", statement)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "duplicate column" in message or "already exists" in message:
+                    continue
+                _log.warning("model migration skipped (%s): %s",
+                             exc.__class__.__name__, statement)

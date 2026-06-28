@@ -331,6 +331,53 @@ def test_setup_out_shape_is_unchanged():
     assert tuple(SetupOut.model_fields) == _SETUP_OUT_FIELDS
 
 
+def test_model_add_column_migrations_empty_when_db_matches_model(tmp_path):
+    """B3: against a DB created from the current model, the generator proposes
+    ZERO ALTERs — it is idempotent and emits no spurious ADD COLUMN."""
+    from sqlalchemy import create_engine
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'match.db'}")
+    archive_models.SetupArchive.__table__.create(bind=eng)
+
+    assert startup.model_add_column_migrations(eng) == []
+
+
+def test_model_add_column_migrations_proposes_exactly_the_missing_column(tmp_path):
+    """B3: against a DB missing one column, the generator proposes exactly that
+    one ADD COLUMN (ADD-only, model-typed) and nothing else."""
+    from sqlalchemy import Column, MetaData, Table, create_engine
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'missing.db'}")
+    full = archive_models.SetupArchive.__table__
+    dropped = "adr_pct"  # a real, late-added FLOAT column
+    # Build a table identical to the model but lacking exactly one column, using
+    # fresh Column objects on a throwaway MetaData (no clobbering the model).
+    partial = Table(
+        full.name,
+        MetaData(),
+        *[
+            Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+            for c in full.columns
+            if c.name != dropped
+        ],
+    )
+    partial.create(bind=eng)
+
+    statements = startup.model_add_column_migrations(eng)
+
+    assert statements == [f"ALTER TABLE setup_archive ADD COLUMN {dropped} FLOAT"]
+
+
+def test_model_add_column_migrations_empty_when_table_absent(tmp_path):
+    """B3: with no setup_archive table yet, the generator is a no-op (create_all
+    builds the fresh table; the generator never tries to CREATE)."""
+    from sqlalchemy import create_engine
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'empty.db'}")
+
+    assert startup.model_add_column_migrations(eng) == []
+
+
 def test_scan_run_kind_column_is_migrated():
     migration_sql = "\n".join(startup._MIGRATIONS)
 
