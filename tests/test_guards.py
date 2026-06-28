@@ -21,6 +21,7 @@ from core.archive.forward_returns import (
     FORWARD_RETURN_HORIZON_BARS,
     _compute_returns,
     compute_barrier_events,
+    update_forward_returns,
 )
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
 from tools.shadow_diff import canonical_fields
@@ -133,46 +134,106 @@ def test_compute_returns_defers_timeout_until_60_bar_window_complete():
 # Look-ahead bias guard (core.archive.forward_returns): no forward-return /
 # MFE / trigger field may read a bar AT or BEFORE the scan timestamp. The
 # production slice is ``fwd_df = df[df.index > scan_ts]`` (strictly after the
-# scan bar). This pins that boundary: an extreme spike planted on the scan bar
-# and on every earlier bar must never leak into any forward outcome.
+# scan bar) at forward_returns.py:384. This drives the REAL production function
+# ``update_forward_returns()`` end-to-end against an in-memory archive and a
+# mocked download: an extreme spike planted on the scan bar and on every earlier
+# bar must never leak into any forward outcome the updater writes. Flipping the
+# production slice to ``>= scan_ts`` lets the scan-bar spike through and MUST make
+# this test fail — that is the whole point of the guard.
 # ──────────────────────────────────────────────────────────────────
-def test_forward_returns_never_read_a_bar_at_or_before_scan():
-    scan_pos = 10
-    # Enough forward bars (>= 60) that a clean forward tape yields a real
-    # "timeout" label rather than the still-maturing None.
-    n = scan_pos + FORWARD_RETURN_HORIZON_BARS + 5
-    idx = pd.date_range("2026-01-02", periods=n, freq="B")
-    scan_ts = idx[scan_pos]
+def _planted_spike_panel(ticker: str, scan_date: str):
+    """A single-ticker MultiIndex OHLCV panel (the shape ``_batched_download``
+    returns) with a giant High/Low spike on the scan bar and EVERY bar before
+    it, then a flat 101/99 tape forward for >= 60 sessions so a clean run yields
+    'timeout'.
 
-    # Flat tape everywhere EXCEPT a giant spike on the scan bar and all bars
-    # before it. If any field read index <= scan_ts, the trigger/MFE would catch
-    # the spike; the strict ``> scan_ts`` slice must keep it invisible.
+    The scan bar's CLOSE is deliberately clean (100.0) — that bar is the legit
+    scan_close reference the updater reads via ``df.index <= scan_ts``. The
+    look-ahead hazard we pin is the FORWARD window (High/Low/trigger), so the
+    scan bar carries a 9999/0.01 High/Low spike: it is invisible while the slice
+    is ``> scan_ts`` and would detonate the assertions the instant it became
+    ``>= scan_ts``.
+    """
+    scan_ts = pd.Timestamp(scan_date)
+    scan_pos = 10
+    n = scan_pos + FORWARD_RETURN_HORIZON_BARS + 5
+    # Anchor the index so idx[scan_pos] lands exactly on scan_date.
+    idx = pd.bdate_range(end=scan_ts, periods=scan_pos + 1)
+    idx = idx.append(pd.bdate_range(start=scan_ts, periods=n - scan_pos)[1:])
+    assert idx[scan_pos] == scan_ts
+
+    # Bars 0..scan_pos (inclusive) carry the High/Low spike; bars after the scan
+    # bar are the flat 101/99 forward tape. The scan bar's Close stays 100.0.
     highs = [9999.0] * (scan_pos + 1) + [101.0] * (n - scan_pos - 1)
     lows = [0.01] * (scan_pos + 1) + [99.0] * (n - scan_pos - 1)
-    closes = [9999.0] * (scan_pos + 1) + [100.0] * (n - scan_pos - 1)
-    df = pd.DataFrame({
-        "Open": closes,
-        "High": highs,
-        "Low": lows,
-        "Close": closes,
-        "Volume": [1000.0] * n,
-    }, index=idx)
-
-    # The exact production boundary from update_forward_returns().
-    fwd_df = df[df.index > scan_ts]
-    assert (fwd_df.index > scan_ts).all()
-    assert scan_ts not in fwd_df.index
-
-    res = _compute_returns(
-        fwd_df, scan_close=100.0, trigger_price=120.0, s_level=95.0, vol_50_at_scan=1000.0,
+    closes = [100.0] * n
+    cols = pd.MultiIndex.from_product(
+        [[ticker], ["Open", "High", "Low", "Close", "Volume"]]
     )
+    data = {
+        (ticker, "Open"): closes,
+        (ticker, "High"): highs,
+        (ticker, "Low"): lows,
+        (ticker, "Close"): closes,
+        (ticker, "Volume"): [1000.0] * n,
+    }
+    return pd.DataFrame(data, index=idx)[cols], scan_ts
 
-    # Forward window saw only the flat 101/99 tape: no spike leaked in.
-    assert res["fwd_return_20d"] == 0.0          # 100 -> 100 flat
-    assert res["mfe_20d"] == pytest.approx(0.01)  # (101 - 100) / 100
-    assert res["mae_20d"] == pytest.approx(-0.01)  # (99 - 100) / 100
-    assert res["triggered"] == 0                  # 120 trigger never hit by the 101 cap
-    assert res["barrier_label"] == "timeout"      # neither target nor stop reached forward
+
+def test_forward_returns_never_read_a_bar_at_or_before_scan(monkeypatch):
+    import core.archive.forward_returns as fr
+    import core.pipeline.downloads as downloads
+    from sqlalchemy.orm import sessionmaker
+
+    import archive_models
+    import database
+
+    ticker = "SPIKE"
+    scan_date = "2026-03-02"
+    panel, scan_ts = _planted_spike_panel(ticker, scan_date)
+    # The scan bar carries a High/Low spike (Close stays the clean 100.0
+    # reference): a forward leak across the slice boundary is unmistakable.
+    assert panel[(ticker, "Close")].loc[scan_ts] == 100.0
+    assert panel[(ticker, "High")].loc[scan_ts] == 9999.0
+    assert panel[(ticker, "Low")].loc[scan_ts] == 0.01
+
+    # In-memory archive holding ONE row that needs forward returns. The updater
+    # derives scan_close from the panel's scan bar (Close=100.0) and computes
+    # forward outcomes from the bars STRICTLY after it.
+    engine = database.make_sqlite_engine(":memory:")
+    archive_models.SetupArchive.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    session = Session()
+    row = archive_models.SetupArchive(
+        ticker=ticker, scan_date=scan_date, setup_type="LPS",
+        tier="A", score=100.0, s_level=95.0, trigger_price=120.0,
+    )
+    session.add(row)
+    session.commit()
+    session.close()
+
+    # Route update_forward_returns() at the in-memory engine and the planted
+    # panel instead of the on-disk DB / yfinance. force=True so the maturing-row
+    # filter is skipped and the single row is always processed.
+    monkeypatch.setattr(database, "make_sqlite_engine", lambda _db_path: engine)
+    monkeypatch.setattr(downloads, "_batched_download", lambda *a, **k: panel)
+
+    updated = update_forward_returns(min_age_days=0, force=True)
+    assert updated == 1
+
+    # Read the row back through a fresh session on the same engine.
+    out_session = sessionmaker(bind=engine, autoflush=False)()
+    saved = out_session.query(archive_models.SetupArchive).filter_by(ticker=ticker).one()
+
+    # The forward window saw ONLY the flat 101/99 tape strictly after the scan
+    # bar. If forward_returns.py:384 used ``>=`` the 9999/0.01 scan-bar spike
+    # would land in fwd_df and blow every one of these up.
+    assert saved.fwd_return_20d == 0.0            # 100 -> 100 flat forward
+    assert saved.mfe_20d == pytest.approx(0.01)   # (101 - 100) / 100
+    assert saved.mae_20d == pytest.approx(-0.01)  # (99 - 100) / 100
+    assert saved.triggered == 0                   # 120 trigger never hit by the 101 cap
+    assert saved.barrier_label == "timeout"       # neither target nor stop reached forward
+    out_session.close()
 
 
 def test_seed_recall_guard_fails_on_new_miss():
