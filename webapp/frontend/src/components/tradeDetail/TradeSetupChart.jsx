@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { createChart, BarSeries, HistogramSeries } from 'lightweight-charts';
+import CandleChart from '../CandleChart';
 import usePositionChartData from '../../hooks/usePositionChartData';
 import { isOptionSymbol, optionUnderlyingSymbol } from '../../utils/tradeUtils';
 import { fmtMoney } from '../../utils/tradeTableUtils';
+import { tradeVisibleLogicalRange } from '../chartGeometry';
 
 const chartOptions = (width, height) => ({
   width,
@@ -34,30 +34,10 @@ export default function TradeSetupChart({ derived, trade }) {
   const optionSymbol = isOptionSymbol(rawSymbol);
   const symbol = optionSymbol ? optionUnderlyingSymbol(rawSymbol) : rawSymbol;
   const { loading, error, data } = usePositionChartData(symbol);
-  const containerRef = useRef(null);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !data?.candles?.length) return undefined;
-    container.innerHTML = '';
+  const candles = data?.candles;
 
-    const chart = createChart(container, chartOptions(container.clientWidth || 720, container.clientHeight || 300));
-    const candleSeries = chart.addSeries(BarSeries, {
-      upColor: '#d8dbe5',
-      downColor: '#d8dbe5',
-      thinBars: false,
-    });
-    candleSeries.setData(data.candles);
-
-    if (data.volumes?.length) {
-      const volumeSeries = chart.addSeries(HistogramSeries, {
-        priceFormat: { type: 'volume' },
-        priceScaleId: 'volume',
-      });
-      volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-      volumeSeries.setData(data.volumes);
-    }
-
+  const onReady = (chart, candleSeries) => {
     if (!optionSymbol) {
       addPriceLine(candleSeries, trade?.entry_price, '#d5b85b', 'Entry');
       addPriceLine(candleSeries, derived?.stopVal ?? trade?.stop_loss, '#f26770', 'Stop');
@@ -67,18 +47,10 @@ export default function TradeSetupChart({ derived, trade }) {
       });
     }
 
-    const visible = visibleRangeFor(data.candles, trade?.opening_date);
+    const visible = tradeVisibleLogicalRange(candles, trade?.opening_date);
     if (visible) chart.timeScale().setVisibleLogicalRange(visible);
     else chart.timeScale().fitContent();
-
-    const handleResize = () => chart.applyOptions({ width: container.clientWidth || 720 });
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-      container.innerHTML = '';
-    };
-  }, [data, derived, optionSymbol, trade]);
+  };
 
   return (
     <section style={sectionStyle}>
@@ -93,7 +65,24 @@ export default function TradeSetupChart({ derived, trade }) {
         {loading && <div style={messageStyle}>Loading chart...</div>}
         {error && !loading && <div style={messageStyle}>{error}</div>}
         {!symbol && !loading && !error && <div style={messageStyle}>Chart unavailable.</div>}
-        {symbol && !loading && !error && <div ref={containerRef} style={canvasStyle} />}
+        {symbol && !loading && !error && (
+          <CandleChart
+            spec={{
+              chartOptions: (container) =>
+                chartOptions(container.clientWidth || 720, container.clientHeight || 300),
+              candles,
+              volumes: data?.volumes,
+              showVolume: !!data?.volumes?.length,
+              volumeScaleTop: 0.82,
+              onReady,
+              onResize: (chart, container) =>
+                chart.applyOptions({ width: container.clientWidth || 720 }),
+              deps: [data, derived, optionSymbol, trade],
+            }}
+            candles={candles}
+            style={canvasStyle}
+          />
+        )}
       </div>
     </section>
   );
@@ -110,16 +99,6 @@ const addPriceLine = (series, value, color, title) => {
     axisLabelVisible: true,
     title: `${title} ${fmtMoney(price)}`,
   });
-};
-
-const visibleRangeFor = (candles, openingDate) => {
-  if (!openingDate) return null;
-  const entryIndex = candles.findIndex(candle => String(candle.time) >= String(openingDate).slice(0, 10));
-  if (entryIndex < 0) return null;
-  return {
-    from: Math.max(0, entryIndex - 45),
-    to: Math.min(candles.length - 1, entryIndex + 45),
-  };
 };
 
 const sectionStyle = {

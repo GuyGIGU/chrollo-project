@@ -14,7 +14,10 @@ import { buildHl2SmaData, hl2Sma20Options } from '../components/chartIndicators'
 // site's background / interactivity / autoSize is its identity, not noise.
 //
 // Spec fields:
-//   chartOptions : object passed straight to createChart (required)
+//   chartOptions : options for createChart — either a plain object, or a
+//                  (container) => object function so a site can measure the live
+//                  container (clientWidth/clientHeight) at creation time, exactly
+//                  as the hand-rolled sites did (required)
 //   candles      : bar data for the base BarSeries (required to draw)
 //   barOptions   : options for the base BarSeries (default: whitewashed bars)
 //   volumes      : if showVolume, histogram volume data
@@ -72,7 +75,9 @@ export default function useLightweightChart(containerRef, spec) {
     };
 
     try {
-      chart = createChart(container, chartOptions);
+      const resolvedOptions =
+        typeof chartOptions === 'function' ? chartOptions(container) : chartOptions;
+      chart = createChart(container, resolvedOptions);
 
       const candleSeries = chart.addSeries(BarSeries, barOptions);
       candleSeries.setData(candles);
