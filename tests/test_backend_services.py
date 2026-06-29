@@ -525,6 +525,26 @@ def test_screener_data_bad_first_read_returns_empty(tmp_path):
     }
 
 
+def test_run_all_universe_scans_isolates_failures(monkeypatch):
+    from core.pipeline import scan_job as sj
+
+    calls = []
+
+    def fake_scan(mode="download", universe=None):
+        calls.append(universe.key)
+        if universe.key == "us_sectors":
+            raise RuntimeError("boom")
+        return sj.ScanExportResult(n_setups=1, n_archived=0)
+
+    monkeypatch.setattr(sj, "run_scan_and_export", fake_scan)
+    results = sj.run_all_universe_scans(mode="cache")
+
+    assert calls[0] == "us_stocks"  # stocks first (context source)
+    assert results["us_sectors"] is None  # failure isolated, did not abort the run
+    assert results["us_stocks"].n_setups == 1
+    assert results["commodities_etf"].n_setups == 1  # ran despite sectors failing
+
+
 def test_screener_data_endpoint_rejects_unknown_universe():
     from fastapi import HTTPException
     from routers import screener as screener_router
@@ -984,7 +1004,7 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     calls = {"backfill": 0, "finish_status": None}
     result = SimpleNamespace(output="boom", returncode=1, n_setups=None)
 
-    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda: result)
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")
     monkeypatch.setattr(scan_runner, "_tail_error", lambda out: "scan failed: boom")
     monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)

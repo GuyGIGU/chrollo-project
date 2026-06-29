@@ -338,9 +338,11 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
     lockstep on a single closed set of artifact names.
     """
 
-    # Extract chart data if market data is provided
+    # Extract chart data if market data is provided. Skip on an empty result set:
+    # an empty scan still writes a valid (empty) artifact so the universe reads as
+    # "scanned, matched nothing" rather than "never scanned".
     chart_data = {}
-    if data is not None and tickers is not None:
+    if data is not None and tickers is not None and not results_df.empty:
         chart_data = _extract_chart_data(data, results_df, tickers)
         print(f"\nExtracted {len(chart_data)} interactive chart models for React dashboard...", flush=True)
 

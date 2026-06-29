@@ -166,6 +166,14 @@ def universe_keys() -> tuple[str, ...]:
     return tuple(_build_registry().keys())
 
 
+def all_universes() -> list["Universe"]:
+    """Every universe in scan order — US-Stocks FIRST, so its broad-market context
+    (SPY/breadth/regime) is computed before the small ETF universes that borrow it."""
+    registry = _build_registry()
+    ordered = [DEFAULT_UNIVERSE_KEY] + [k for k in registry if k != DEFAULT_UNIVERSE_KEY]
+    return [registry[k] for k in ordered]
+
+
 def default_universe() -> "Universe":
     """The US-Stocks universe — the byte-identical default for every call site."""
     return _build_registry()[DEFAULT_UNIVERSE_KEY]

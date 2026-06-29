@@ -116,6 +116,14 @@ def test_drilldown_map_loads_and_is_clean():
     assert all(k == k.upper() for k in m)
 
 
+def test_all_universes_orders_stocks_first():
+    from core.pipeline.universe import all_universes
+
+    unis = all_universes()
+    assert [u.key for u in unis][0] == 'us_stocks'  # context source must run first
+    assert {u.key for u in unis} == {'us_stocks', 'us_sectors', 'commodities_etf'}
+
+
 def test_universe_is_frozen():
     u = default_universe()
     with pytest.raises(Exception):

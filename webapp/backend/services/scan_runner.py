@@ -256,7 +256,10 @@ def run_scheduled_scan_and_forward_returns() -> None:
     run_id = scan_status.start_run("scheduled")
     try:
         try:
-            result = _run_scan_process_unlocked()
+            # The daily run covers every universe (US-Stocks first); the parsed
+            # n_setups reflects the primary US-Stocks run. ETF universes generate
+            # their own artifacts and are isolated from each other's failures.
+            result = _run_scan_process_unlocked(["--all-universes"])
             status = _result_status(result)
             error = _tail_error(result.output) if status != "ok" else None
             if status != "ok":

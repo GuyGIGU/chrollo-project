@@ -20,7 +20,7 @@ from core.pipeline.market_data_health import (
 )
 from core.pipeline.market_calendar import latest_completed_session
 from core.pipeline.screener import CachedMarketDataError
-from core.pipeline.universe import resolve_universe
+from core.pipeline.universe import DEFAULT_UNIVERSE_KEY, all_universes, resolve_universe
 from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
@@ -131,6 +131,10 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
 
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
+        # Write an empty artifact so this universe reads as "scanned, matched
+        # nothing" rather than "never scanned" — and so an empty day clears any
+        # stale setups instead of leaving the previous scan's names on screen.
+        generate_dashboard(results_df, data, tickers, market_context, universe=uni)
         return ScanExportResult(n_setups=0, n_archived=0)
 
     print_results(results_df)
@@ -145,8 +149,14 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
     # Forward returns are filled in later by core/archive/forward_returns.py.
     # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
+    #
+    # ONLY the US-Stocks universe is archived for now: the archive's identity key
+    # is still (ticker, scan_date) with no universe dimension, so archiving an ETF
+    # universe would pollute the us_equities recall/forward-return population.
+    # ETF archiving lights up once the universe_type migration lands (Tasks 3/6);
+    # the dashboard artifact is written for every universe regardless.
     n_archived = 0
-    if settings.ARCHIVE_LIVE_SCANS:
+    if settings.ARCHIVE_LIVE_SCANS and uni.key == DEFAULT_UNIVERSE_KEY:
         try:
             _assert_fresh_for_archive(data, tickers, uni)
         except StaleMarketDataError as exc:
@@ -161,8 +171,37 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
             raise
         n_archived = archive_scan_results(results_df, enable=True)
         print(f"\nArchived {n_archived} live setups to setup_archive (source='screener').")
+    elif settings.ARCHIVE_LIVE_SCANS:
+        print(
+            f"\nArchive deferred for universe '{uni.key}' "
+            f"(pending the universe_type migration); dashboard artifact written.",
+            flush=True,
+        )
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+
+
+def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResult | None"]:
+    """Scan every universe sequentially in one process, US-Stocks first.
+
+    US-Stocks runs first so its broad-market context is on disk before the small
+    ETF universes (which borrow it). Each universe's failure is ISOLATED — a stale
+    or crashing universe logs and yields ``None`` for its slot without aborting the
+    others — so one bad universe never starves the rest. Runs under whatever lock
+    the caller holds (the scheduler's single SCAN_LOCK); universes are serial, so
+    they don't contend on the CPU pool or the Yahoo rate budget.
+    """
+    results: dict[str, ScanExportResult | None] = {}
+    for uni in all_universes():
+        try:
+            results[uni.key] = run_scan_and_export(mode=mode, universe=uni)
+        except StaleMarketDataError as exc:
+            log.warning("universe scan stale/aborted [%s]: %s", uni.key, exc)
+            results[uni.key] = None
+        except Exception:
+            log.exception("universe scan failed [%s]", uni.key)
+            results[uni.key] = None
+    return results
 
 
 def refresh_market_data_cache() -> DownloadOnlyResult:

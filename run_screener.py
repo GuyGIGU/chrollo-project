@@ -21,7 +21,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.pipeline.scan_job import StaleMarketDataError, refresh_market_data_cache, run_scan_and_export
+from core.pipeline.scan_job import (
+    StaleMarketDataError,
+    refresh_market_data_cache,
+    run_all_universe_scans,
+    run_scan_and_export,
+)
+from core.pipeline.universe import DEFAULT_UNIVERSE_KEY
 
 
 def _print_result_json(n_setups: int, n_archived: int) -> None:
@@ -60,6 +66,10 @@ def _parse_args() -> argparse.Namespace:
                        help="evaluate the existing market-data cache without downloading")
     group.add_argument("--download-only", action="store_true",
                        help="refresh ticker universe and market-data cache without evaluation")
+    parser.add_argument("--universe", default=None,
+                        help="scan a single universe by key (default: us_stocks)")
+    parser.add_argument("--all-universes", action="store_true",
+                        help="scan every universe sequentially (US-Stocks first)")
     return parser.parse_args()
 
 
@@ -70,7 +80,16 @@ def main() -> None:
             download_result = refresh_market_data_cache()
             _print_download_json(download_result)
             return
-        result = run_scan_and_export(mode="cache" if args.cached else "download")
+        mode = "cache" if args.cached else "download"
+        if args.all_universes:
+            # The canonical SCAN_RESULT_JSON reports the PRIMARY (US-Stocks) run so
+            # the scan-status record stays meaningful; per-universe results log above.
+            results = run_all_universe_scans(mode=mode)
+            primary = results.get(DEFAULT_UNIVERSE_KEY)
+            _print_result_json(primary.n_setups if primary else 0,
+                               primary.n_archived if primary else 0)
+            return
+        result = run_scan_and_export(mode=mode, universe=args.universe)
     except StaleMarketDataError as exc:
         _print_result_json(exc.n_setups or 0, 0)
         raise
