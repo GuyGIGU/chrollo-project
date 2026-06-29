@@ -2,16 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import TimeframeMainChart from './TimeframeMainChart';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
-
-const tierColor = (tier) => {
-  switch (tier) {
-    case 'S': return '#ff9f43';
-    case 'A': return '#bb86fc';
-    case 'B': return '#58a6ff';
-    case 'C': return '#3fb950';
-    default: return '#8b949e';
-  }
-};
+import { tierColor } from '../theme';
 
 const buttonStyle = {
   background: 'rgba(255,255,255,0.03)',

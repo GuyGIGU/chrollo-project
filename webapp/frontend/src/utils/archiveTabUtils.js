@@ -45,31 +45,11 @@ export const fixed = (value, digits = 2) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : Number(value).toFixed(digits)
 );
 
-export const tierColor = (tier) => ({
-  S: '#ff8c00',
-  A: '#bb86fc',
-  B: '#58a6ff',
-  C: '#3fb950',
-  D: '#8b949e',
-}[tier] || '#8b949e');
-
-export const labelColor = (label) => ({
-  perfect: '#3fb950',
-  good: '#58a6ff',
-  noise: '#8b949e',
-  miss: '#c76b73',
-}[label] || 'var(--text-muted)');
-
-// Sign-based coloring for returns, P&L, forward-return values: positive = success.
-export const signColor = (value) => (
-  value == null ? undefined : value > 0 ? 'var(--success)' : value < 0 ? 'var(--danger)' : undefined
-);
-
-// R-multiple coloring: green only above 1R (more than 1× risk returned),
-// danger below 0, neutral for the 0–1 range (profitable but sub-1R).
-export const rMultipleColor = (value) => (
-  value == null ? undefined : value > 1 ? 'var(--success)' : value < 0 ? 'var(--danger)' : undefined
-);
+// Color helpers now live in the shared theme module (one tier ladder for the
+// whole app). Re-exported here so existing archive imports keep working. NOTE:
+// the archive's S tier was #ff8c00; it now resolves to the DESIGN.md #FF9F43
+// like the rest of the app — a deliberate one-shade reconciliation.
+export { tierColor, labelColor, signColor, rMultipleColor } from '../theme';
 
 export const archiveButtonStyle = (active) => ({
   background: active ? 'var(--accent-blue)' : 'transparent',

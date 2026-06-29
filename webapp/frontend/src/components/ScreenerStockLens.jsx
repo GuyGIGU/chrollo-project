@@ -2,6 +2,7 @@ import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import { explainTip } from './tooltipText';
+import { tierColor } from '../theme';
 
 const scoreLabel = (value) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
@@ -14,16 +15,6 @@ const money = (value) => (
 const pct = (value, digits = 1) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(digits)}%`
 );
-
-const tierColor = (tier) => {
-  switch (tier) {
-    case 'S': return '#ff9f43';
-    case 'A': return '#bb86fc';
-    case 'B': return '#58a6ff';
-    case 'C': return '#3fb950';
-    default: return '#8b949e';
-  }
-};
 
 const finiteNumber = (value) => {
   if (value == null || value === '') return null;

@@ -7,13 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/utils/tradeTableUtils.test.js src/utils/portfolioPlanUtils.test.js",
+    "test": "node --test src/utils/tradeTableUtils.test.js src/utils/portfolioPlanUtils.test.js src/components/chartGeometry.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "lightweight-charts": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.18.0",
     "recharts": "^3.8.1"
   },
   "devDependencies": {

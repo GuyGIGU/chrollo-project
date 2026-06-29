@@ -26,6 +26,15 @@
   --accent-yellow: #D4B85A;
   --accent-orange: #E0A05A;
 
+  /* Setup tier identity (DESIGN.md tier ladder). Reserved hues — one source of
+     truth so the card and the modal can never render a tier a different shade.
+     --tier-d is the neutral fallback used by the archive's D row. */
+  --tier-s: #FF9F43;
+  --tier-a: #BB86FC;
+  --tier-b: #58A6FF;
+  --tier-c: #3FB950;
+  --tier-d: #8B949E;
+
   /* Status — slightly brighter to read clearly on the lighter bg */
   --success: #3DD37A;
   --success-bg: rgba(61, 211, 122, 0.14);
@@ -154,6 +163,9 @@ body {
   background: transparent;
   font: inherit;
   text-align: left;
+  /* nav-link is used on both <button> (Calculator) and <NavLink>/<a> (routes);
+     strip the anchor default so both render identically. */
+  text-decoration: none;
 }
 
 .nav-link:hover {
