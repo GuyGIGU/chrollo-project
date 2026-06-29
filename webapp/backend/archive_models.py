@@ -72,6 +72,17 @@ class SetupArchive(Base):
     r_multiple_60d = Column(Float, nullable=True)
     trigger_volume_ratio = Column(Float, nullable=True)  # vol_on_trigger_day / Vol_50_at_scan
 
+    # ── Elapsed-window outcome (window-agnostic edge metric) ─────
+    # Measured over min(bars_elapsed, 60) forward bars, recomputed every run as
+    # the window grows — NOT gated on a full 20/60. Lets the backtest harness read
+    # an unbiased edge TODAY instead of "no mature data; wait months". Computed by
+    # the single source of truth core/archive/outcomes.py.
+    mfe_to_date = Column(Float, nullable=True)          # max favorable excursion so far (frac of scan close)
+    mae_to_date = Column(Float, nullable=True)          # max adverse  excursion so far (frac of scan close)
+    ret_to_date = Column(Float, nullable=True)          # close-to-close return at the last available bar
+    bars_to_date = Column(Integer, nullable=True)       # forward bars used (1..60)
+    abnormal_ret_to_date = Column(Float, nullable=True) # ret_to_date minus SPY's same-window return (bias control)
+
     # ── Triple-barrier outcome label (path events + derived win/loss/timeout) ──
     # Anchored to the scan close. Stop = s_level*0.97; targets = entry+2.5*risk
     # and entry*1.15. Raw event timings stored so the label can be re-cut later.

@@ -60,6 +60,12 @@ class SetupOut(BaseModel):
     days_to_stop: Optional[int] = None
     barrier_label: Optional[str] = None
     win_barrier: Optional[str] = None
+    # Elapsed-window outcome (window-agnostic edge metric)
+    mfe_to_date: Optional[float] = None
+    mae_to_date: Optional[float] = None
+    ret_to_date: Optional[float] = None
+    bars_to_date: Optional[int] = None
+    abnormal_ret_to_date: Optional[float] = None
     # Market context
     spy_trend: Optional[str] = None
     vix_level: Optional[float] = None

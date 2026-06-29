@@ -46,6 +46,12 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN days_to_stop INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN barrier_label VARCHAR",
     "ALTER TABLE setup_archive ADD COLUMN win_barrier VARCHAR",
+    # Elapsed-window outcome (window-agnostic edge metric) — recomputed each run.
+    "ALTER TABLE setup_archive ADD COLUMN mfe_to_date FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN mae_to_date FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN ret_to_date FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN bars_to_date INTEGER",
+    "ALTER TABLE setup_archive ADD COLUMN abnormal_ret_to_date FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN rs_vs_sector_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN dist_52w_high_pct FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN excess_return_6m FLOAT",

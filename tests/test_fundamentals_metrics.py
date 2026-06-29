@@ -277,3 +277,53 @@ def test_compute_metrics_as_of_too_early_yields_none():
     )
     assert out["eps_growth_yoy"] is None
     assert out["eps_growth_accel"] is None
+
+
+# ── tz-AWARE earnings index (the dormant-bug guard) ──────────────────────────
+# yfinance ships the earnings-history index tz-AWARE (US/Eastern). The cutoff is
+# tz-naive, so ``idx <= cutoff`` raised a TypeError that the advisory wiring
+# swallowed -> ALL fundamentals silently vanished when FUNDAMENTALS_ENABLED=True.
+# These pin that a tz-aware index now filters correctly instead of raising.
+def _tz_aware_earnings(dates, *, estimate, reported, tz="America/New_York"):
+    return pd.DataFrame(
+        {"EPS Estimate": estimate, "Reported EPS": reported},
+        index=pd.to_datetime(dates).tz_localize(tz),
+    )
+
+
+def test_available_earnings_tz_aware_index_does_not_raise():
+    df = _tz_aware_earnings(
+        ["2026-07-15", "2026-04-15"], estimate=[2.00, 1.00], reported=[5.00, 1.20]
+    )
+    # Pre-fix this raised TypeError (tz-aware vs tz-naive comparison).
+    out = metrics.available_earnings(df, as_of="2026-05-01")
+    # The 2026-07-15 report is in the future relative to as_of -> dropped; the
+    # 2026-04-15 report survives.
+    assert len(out) == 1
+    assert metrics.earnings_surprise(out) == pytest.approx(0.20)
+
+
+def test_compute_metrics_tz_aware_earnings_surprise_populates():
+    # End-to-end: with a tz-aware earnings frame, the surprise metric is populated
+    # (not silently None from a swallowed TypeError).
+    df = _tz_aware_earnings(
+        ["2026-04-15"], estimate=[1.00], reported=[1.20]
+    )
+    out = metrics.compute_metrics(
+        "AAA", as_of="2026-05-01", provider=_FakeProvider(pd.DataFrame(), df)
+    )
+    assert out["earnings_surprise"] == pytest.approx(0.20)
+
+
+def test_available_income_stmt_tz_aware_columns_do_not_raise():
+    # Defensive: a tz-aware column header on the income statement must not raise
+    # and must filter on the same period-end + filing-lag rule.
+    ends = pd.to_datetime(
+        ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    ).tz_localize("America/New_York")
+    eps = [9.99, 1.20, 1.10, 1.05, 1.00, 1.00]
+    stmt = pd.DataFrame({c: {"Diluted EPS": eps[i]} for i, c in enumerate(ends)})
+    avail = metrics.available_income_stmt(stmt, as_of="2026-04-10")
+    # The not-yet-filed 2026-03-31 quarter is dropped (75-day lag).
+    parsed = [pd.Timestamp(c).tz_convert("UTC").tz_localize(None) for c in avail.columns]
+    assert pd.Timestamp("2026-03-31") not in parsed

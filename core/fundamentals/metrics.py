@@ -109,15 +109,40 @@ def available_income_stmt(
     if stmt is None or getattr(stmt, "empty", True):
         return stmt
     cutoff = pd.Timestamp(as_of) - pd.Timedelta(days=_filing_lag_days(filing_lag_days))
+    if cutoff.tz is not None:
+        cutoff = cutoff.tz_localize(None)
     keep = []
     for col in stmt.columns:
+        # Defensive tz normalization: an occasional tz-aware column header would
+        # otherwise raise on the comparison and silently drop every quarter.
         period_end = pd.to_datetime(col, errors="coerce")
         # Unparseable header -> conservatively NOT available.
         if pd.isna(period_end):
             continue
+        if getattr(period_end, "tz", None) is not None:
+            period_end = period_end.tz_convert("UTC").tz_localize(None)
         if period_end <= cutoff:
             keep.append(col)
     return stmt[keep]
+
+
+def _naive_index(index) -> pd.DatetimeIndex:
+    """Parse a (possibly tz-AWARE) index to a tz-NAIVE DatetimeIndex.
+
+    yfinance ships the earnings-history index tz-AWARE (US/Eastern), and the
+    income-statement column headers occasionally come back tz-aware too. Comparing
+    a tz-aware index against a tz-naive cutoff raises
+    ``TypeError: Invalid comparison between dtype=datetime64[..., tz] and Timestamp``
+    — which the advisory wiring swallows, making ALL fundamentals silently vanish
+    when FUNDAMENTALS_ENABLED is True. Coercing to UTC then dropping the tz puts
+    both sides in the same naive frame so the ``<=`` cutoff is well-defined. The
+    one-day resolution of a filing/report date makes the UTC shift immaterial.
+    """
+    idx = pd.to_datetime(index, errors="coerce", utc=True)
+    # utc=True yields a tz-aware index even for already-naive input; strip it.
+    if getattr(idx, "tz", None) is not None:
+        idx = idx.tz_localize(None)
+    return idx
 
 
 def available_earnings(earnings: pd.DataFrame, as_of) -> pd.DataFrame:
@@ -127,13 +152,19 @@ def available_earnings(earnings: pd.DataFrame, as_of) -> pd.DataFrame:
     estimate is needed — a row is usable iff ``report_date <= as_of``. Order is
     preserved (most-recent-first). ``as_of=None`` / empty frame -> unchanged. A row
     whose index cannot be parsed as a date is dropped (conservatively unavailable).
+
+    Handles a tz-AWARE index (yfinance's native form): both sides are normalized to
+    tz-naive before the comparison so the ``<=`` never raises a tz-mismatch
+    TypeError that would silently drop every fundamental.
     """
     if as_of is None:
         return earnings
     if earnings is None or getattr(earnings, "empty", True):
         return earnings
     cutoff = pd.Timestamp(as_of)
-    idx = pd.to_datetime(earnings.index, errors="coerce")
+    if cutoff.tz is not None:
+        cutoff = cutoff.tz_localize(None)
+    idx = _naive_index(earnings.index)
     mask = idx.notna() & (idx <= cutoff)
     return earnings[mask]
 

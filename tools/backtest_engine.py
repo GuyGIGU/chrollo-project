@@ -101,7 +101,7 @@ def _f(v, nd: int = 3) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Section 1 — composition + maturity caveat
 # ─────────────────────────────────────────────────────────────────────────────
-def section_composition(df: pd.DataFrame) -> dict:
+def section_composition(df: pd.DataFrame, source: Optional[str] = None) -> dict:
     header("1. SAMPLE COMPOSITION & MATURITY CAVEAT")
     n = len(df)
     emit(f"Episodes (de-duplicated, one row per logical setup): {n}")
@@ -122,46 +122,58 @@ def section_composition(df: pd.DataFrame) -> dict:
         return int(pd.to_numeric(df[col], errors="coerce").notna().sum()) if col in df else 0
 
     n_barrier = int(df["barrier_label"].notna().sum()) if "barrier_label" in df else 0
+    n_elapsed = _cnt("mfe_to_date")
     n_mfe20 = _cnt("mfe_20d")
     n_mfe60 = _cnt("mfe_60d")
     n_fwd20 = _cnt("fwd_return_20d")
     n_fwd60 = _cnt("fwd_return_60d")
     emit()
     emit(f"Resolved barrier_label: {n_barrier}")
-    emit(f"mfe_20d present: {n_mfe20}   mfe_60d present: {n_mfe60}")
+    emit(f"mfe_to_date present: {n_elapsed}  (elapsed-window headline; always-on)")
+    emit(f"mfe_20d present: {n_mfe20}   mfe_60d present: {n_mfe60}  (fixed, maturing)")
     emit(f"fwd_return_20d present: {n_fwd20}   fwd_return_60d present: {n_fwd60}")
 
     subhdr("Maturity verdict")
-    # Matured MFE rows that are SEED/MANUAL are a hand-picked winners gallery —
-    # they inflate the headline. Only LIVE 'screener' MFE rows are an unbiased
-    # standalone-edge read. Flag the contamination explicitly.
-    n_live_mfe20 = 0
-    if "source" in df.columns and "mfe_20d" in df.columns:
-        live = df[df["source"] == "screener"]
-        n_live_mfe20 = int(pd.to_numeric(live["mfe_20d"], errors="coerce").notna().sum())
-    mature = n_live_mfe20 >= MATURE_MIN_N
-    emit("!  PRELIMINARY / UNDERPOWERED READ.")
-    emit("   This archive is YOUNG. The 20-bar MFE window is only just maturing and")
-    emit("   the 60-bar window has barely any resolved rows. Treat every number")
-    emit("   below as DIRECTIONAL, not conclusive — it strengthens as the archive")
-    emit("   matures (20d fills over the next weeks; 60d ~late Aug).")
+    # The PRIMARY headline is the elapsed-window mfe_to_date on the unbiased LIVE
+    # ('screener') subset — it is populated as soon as a setup has any forward bar,
+    # so the report is never "stuck on no mature data". Seed/manual rows are a
+    # hand-picked winners gallery; they are excluded from the headline and flagged.
+    n_live_elapsed = 0
+    if "source" in df.columns and "mfe_to_date" in df.columns:
+        live = df[df["source"] == edge_report.UNBIASED_SOURCE]
+        n_live_elapsed = int(pd.to_numeric(live["mfe_to_date"], errors="coerce").notna().sum())
+    mature = n_live_elapsed >= MATURE_MIN_N
+    emit("!  ELAPSED-WINDOW READ (window-agnostic; always-on).")
+    emit("   The headline is the favorable excursion over WHATEVER forward window has")
+    emit("   elapsed so far (capped at 60 bars), recomputed every run as the window")
+    emit("   grows. It is a real edge TODAY; the fixed 20d/60d MFE are SECONDARY and")
+    emit("   shown as they mature. Read it as DIRECTIONAL on a thin sample, sharper")
+    emit("   as the archive ages.")
     if not mature:
-        emit(f"   LIVE (source='screener') mfe_20d n={n_live_mfe20} < {MATURE_MIN_N}"
-             " -> headline edge is indicative only.")
-    if n_mfe20 > n_live_mfe20:
-        emit(f"   !! {n_mfe20 - n_live_mfe20} of {n_mfe20} matured mfe_20d rows are"
-             " SEED/MANUAL (a hand-picked winners gallery) — they INFLATE the")
-        emit("      headline. Re-run with --source screener for the UNBIASED read.")
-    emit("   LIVE archive only; re-scans are excluded (survivorship bias).")
-    return {"n": n, "mature": mature, "n_mfe20": n_mfe20,
-            "n_live_mfe20": n_live_mfe20, "n_barrier": n_barrier}
+        emit(f"   LIVE (source='{edge_report.UNBIASED_SOURCE}') mfe_to_date "
+             f"n={n_live_elapsed} < {MATURE_MIN_N} -> headline edge is indicative only.")
+    if n_elapsed > n_live_elapsed:
+        emit(f"   !! {n_elapsed - n_live_elapsed} of {n_elapsed} mfe_to_date rows are"
+             " SEED/MANUAL (a hand-picked winners gallery) — EXCLUDED from the")
+        emit(f"      headline by construction (it is computed on source="
+             f"'{edge_report.UNBIASED_SOURCE}' only).")
+    # Provenance line — TRUE to what this run actually included (no false claim).
+    if source is None:
+        emit("   Composition above spans ALL sources; the HEADLINE edge is computed")
+        emit(f"   on the unbiased source='{edge_report.UNBIASED_SOURCE}' subset only.")
+    else:
+        emit(f"   This run is filtered to source='{source}'.")
+    return {"n": n, "mature": mature, "n_elapsed": n_elapsed,
+            "n_live_elapsed": n_live_elapsed, "n_mfe20": n_mfe20,
+            "n_barrier": n_barrier}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Section 2 — screener-side edge report (MFE headline)
 # ─────────────────────────────────────────────────────────────────────────────
 def _emit_edge_block(block: dict, indent: str = "  ") -> None:
-    emit(f"{indent}n={block['n']}   headline MFE_20d median: "
+    hcol = block.get("headline_mfe_col", edge_report.HEADLINE_MFE_COL)
+    emit(f"{indent}n={block['n']}   headline {hcol} median: "
          f"{_pct(block.get('headline_mfe_median'))} (n={block.get('headline_mfe_n', 0)})")
     mfe = block.get("mfe", {})
     for col, d in mfe.items():
@@ -181,14 +193,45 @@ def _emit_edge_block(block: dict, indent: str = "  ") -> None:
              f" / timeout {_pct(sh.get('timeout'))}  (n={bar['n_labelled']})")
 
 
-def section_edge(df: pd.DataFrame) -> dict:
-    header("2. SCREENER-SIDE EDGE  (MFE = headline; realized R deliberately omitted)")
-    emit("MFE = max favorable excursion: what the setup made available. Realized R")
-    emit("is omitted on purpose — the operator exits discretionarily, so realized R")
-    emit("would conflate the screener with the human exit.")
-    report = edge_report.build_edge_report(df)
+def _emit_headline(h: dict) -> None:
+    """Emit the bias-safe headline edge + its provenance flags."""
+    emit(f"  basis: source='{h['source_basis']}'  unbiased={h['unbiased']}  "
+         f"n_unbiased={h['n_unbiased']} of n_input={h['n_input']}")
+    if h.get("contaminated_input"):
+        emit("  !! input contained SEED/MANUAL rows — EXCLUDED from this headline by")
+        emit("     construction (contaminated_input=True). They never enter THE edge.")
+    bars = h.get("bars_to_date") or {}
+    bar_ctx = f"  (avg {_f(bars.get('median'), 0)} forward bars elapsed)" if bars.get("n") else ""
+    emit(f"  HEADLINE {h['headline_mfe_col']} median: {_pct(h.get('headline_mfe_median'))}"
+         f"  (n={h.get('headline_mfe_n', 0)}){bar_ctx}")
+    ab = h.get("abnormal") or {}
+    if ab.get("n"):
+        emit(f"  abnormal (excess vs SPY, same window) median: "
+             f"{_pct(ab.get('median'))} (n={ab['n']})")
+    sec = h.get("secondary_mfe", {})
+    shown = [(c, d) for c, d in sec.items() if d.get("n")]
+    if shown:
+        emit("  secondary (fixed windows, shown as they mature):")
+        for c, d in shown:
+            emit(f"    {c}: median {_pct(d.get('median'))}  n={d['n']}")
 
-    subhdr("Overall")
+
+def section_edge(df: pd.DataFrame, source: Optional[str] = None) -> dict:
+    header("2. SCREENER-SIDE EDGE  (elapsed-window MFE = headline; realized R omitted)")
+    emit("MFE = max favorable excursion: what the setup made available. The HEADLINE")
+    emit("is the elapsed-window mfe_to_date on the unbiased source='screener' subset")
+    emit("(always-on, never gated on a full 20/60 window). Realized R is omitted on")
+    emit("purpose — the operator exits discretionarily, so realized R would conflate")
+    emit("the screener with the human exit.")
+    # In a default run the headline basis is 'screener'; an explicit --source run
+    # reports its own basis (so a --source seed inspection is still honest).
+    basis = source if source is not None else edge_report.UNBIASED_SOURCE
+    report = edge_report.build_edge_report(df, source_basis=basis)
+
+    subhdr("Headline edge (BIAS-SAFE)")
+    _emit_headline(report["headline"])
+
+    subhdr("Overall (descriptive — over the loaded frame, NOT the edge)")
     _emit_edge_block(report["overall"])
 
     subhdr("By tier")
@@ -275,11 +318,11 @@ def section_is_oos(df: pd.DataFrame) -> dict:
     emit(f"  config versions: {split.n_versions}")
     emit(f"  in-sample  versions={list(split.is_versions)}  n={len(split.is_index)}")
     emit(f"  out-sample version ={list(split.oos_versions)}  n={len(split.oos_index)}")
+    hcol = edge_report.HEADLINE_MFE_COL
     for name, idx in (("IN-SAMPLE", split.is_index), ("OUT-OF-SAMPLE", split.oos_index)):
         sub = df.loc[list(idx)]
-        d = edge_report.describe(sub[edge_report.HEADLINE_MFE_COL]) if \
-            edge_report.HEADLINE_MFE_COL in sub.columns else {"n": 0, "median": None}
-        emit(f"  {name}: headline MFE_20d median {_pct(d.get('median'))} (n={d.get('n', 0)})")
+        d = edge_report.describe(sub[hcol]) if hcol in sub.columns else {"n": 0, "median": None}
+        emit(f"  {name}: headline {hcol} median {_pct(d.get('median'))} (n={d.get('n', 0)})")
     return split.as_dict()
 
 
@@ -420,13 +463,13 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
     if source:
         emit(f"Filtered to source = '{source}'")
 
-    comp = section_composition(df)
+    comp = section_composition(df, source=source)
     if comp["n"] == 0:
         report = "\n".join(_LINES)
         _safe_print(report)
         return {"composition": comp}
 
-    edge = section_edge(df)
+    edge = section_edge(df, source=source)
     null_res = section_null(df, universe_returns, metric_col, seed)
     split = section_is_oos(df)
     abnormal = section_abnormal(df, spy_col, metric_col)

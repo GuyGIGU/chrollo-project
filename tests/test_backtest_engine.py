@@ -52,41 +52,61 @@ def _build_fixture_df(with_config: bool = False) -> pd.DataFrame:
         r_multiple_20d=[],
         r_multiple_60d=[],
         barrier_label=[],
+        mfe_to_date=[],
+        mae_to_date=[],
+        ret_to_date=[],
+        bars_to_date=[],
+        abnormal_ret_to_date=[],
     )
     rows = [
         # AAA: persisting base — 3 consecutive scans => ONE episode (first-seen anchor).
         dict(id=1, ticker="AAA", scan_date="2026-04-01", setup_type="LPS", tier="S",
              source="screener", score=90, mfe_20d=0.20, mae_20d=-0.03, mfe_60d=0.30,
              mae_60d=-0.04, fwd_return_20d=0.15, fwd_return_60d=0.25,
-             r_multiple_20d=3.0, r_multiple_60d=4.0, barrier_label="win"),
+             r_multiple_20d=3.0, r_multiple_60d=4.0, barrier_label="win",
+             mfe_to_date=0.20, mae_to_date=-0.03, ret_to_date=0.15, bars_to_date=30,
+             abnormal_ret_to_date=0.18),
         dict(id=2, ticker="AAA", scan_date="2026-04-02", setup_type="LPS", tier="S",
              source="screener", score=91, mfe_20d=0.19, mae_20d=-0.02, mfe_60d=0.29,
              mae_60d=-0.03, fwd_return_20d=0.14, fwd_return_60d=0.24,
-             r_multiple_20d=2.9, r_multiple_60d=3.9, barrier_label="win"),
+             r_multiple_20d=2.9, r_multiple_60d=3.9, barrier_label="win",
+             mfe_to_date=0.19, mae_to_date=-0.02, ret_to_date=0.14, bars_to_date=29,
+             abnormal_ret_to_date=0.17),
         dict(id=3, ticker="AAA", scan_date="2026-04-03", setup_type="LPS", tier="S",
              source="screener", score=92, mfe_20d=0.18, mae_20d=-0.02, mfe_60d=0.28,
              mae_60d=-0.03, fwd_return_20d=0.13, fwd_return_60d=0.23,
-             r_multiple_20d=2.8, r_multiple_60d=3.8, barrier_label="win"),
+             r_multiple_20d=2.8, r_multiple_60d=3.8, barrier_label="win",
+             mfe_to_date=0.18, mae_to_date=-0.02, ret_to_date=0.13, bars_to_date=28,
+             abnormal_ret_to_date=0.16),
         # BBB: distinct, a loss
         dict(id=4, ticker="BBB", scan_date="2026-04-01", setup_type="LPS", tier="A",
              source="screener", score=70, mfe_20d=0.02, mae_20d=-0.15, mfe_60d=0.03,
              mae_60d=-0.20, fwd_return_20d=-0.10, fwd_return_60d=-0.12,
-             r_multiple_20d=-1.0, r_multiple_60d=-1.0, barrier_label="loss"),
+             r_multiple_20d=-1.0, r_multiple_60d=-1.0, barrier_label="loss",
+             mfe_to_date=0.02, mae_to_date=-0.15, ret_to_date=-0.10, bars_to_date=30,
+             abnormal_ret_to_date=-0.13),
         # CCC: REBOUND, a timeout
         dict(id=5, ticker="CCC", scan_date="2026-04-02", setup_type="REBOUND", tier="A",
              source="screener", score=65, mfe_20d=0.05, mae_20d=-0.05, mfe_60d=0.06,
              mae_60d=-0.06, fwd_return_20d=0.01, fwd_return_60d=0.02,
-             r_multiple_20d=0.5, r_multiple_60d=0.6, barrier_label="timeout"),
+             r_multiple_20d=0.5, r_multiple_60d=0.6, barrier_label="timeout",
+             mfe_to_date=0.05, mae_to_date=-0.05, ret_to_date=0.01, bars_to_date=29,
+             abnormal_ret_to_date=0.04),
         # DDD: REBOUND, a win, distinct day
         dict(id=6, ticker="DDD", scan_date="2026-04-03", setup_type="REBOUND", tier="S",
              source="screener", score=88, mfe_20d=0.25, mae_20d=-0.04, mfe_60d=0.35,
              mae_60d=-0.05, fwd_return_20d=0.20, fwd_return_60d=0.30,
-             r_multiple_20d=3.5, r_multiple_60d=5.0, barrier_label="win"),
-        # EEE: still maturing — no outcomes yet
+             r_multiple_20d=3.5, r_multiple_60d=5.0, barrier_label="win",
+             mfe_to_date=0.25, mae_to_date=-0.04, ret_to_date=0.20, bars_to_date=28,
+             abnormal_ret_to_date=0.23),
+        # EEE: still maturing — fixed windows empty, but the ELAPSED window already
+        # has a (short) read: this is the whole point — never "stuck on no data".
         dict(id=7, ticker="EEE", scan_date="2026-06-25", setup_type="LPS", tier="B",
              source="screener", score=60, mfe_20d=None, mae_20d=None, mfe_60d=None,
              mae_60d=None, fwd_return_20d=None, fwd_return_60d=None,
-             r_multiple_20d=None, r_multiple_60d=None, barrier_label=None),
+             r_multiple_20d=None, r_multiple_60d=None, barrier_label=None,
+             mfe_to_date=0.04, mae_to_date=-0.01, ret_to_date=0.02, bars_to_date=2,
+             abnormal_ret_to_date=0.03),
     ]
     df = pd.DataFrame(rows)
     if with_config:
@@ -164,13 +184,18 @@ def test_loader_opens_readonly(fixture_db):
 # ─────────────────────────────────────────────────────────────────────────────
 # Edge report — MFE headline + slices
 # ─────────────────────────────────────────────────────────────────────────────
-def test_edge_block_headline_is_mfe(fixture_df):
+def test_edge_block_headline_is_elapsed_mfe(fixture_df):
     ep = collapse_to_episodes(fixture_df)
     block = edge_report.edge_block(ep)
-    # 5 episodes, but only 4 have mfe_20d (EEE is unmatured).
-    assert block["headline_mfe_n"] == 4
-    # Median of [0.20(AAA), 0.02(BBB), 0.05(CCC), 0.25(DDD)] = 0.125
-    assert block["headline_mfe_median"] == pytest.approx(0.125, abs=1e-9)
+    # The headline is the ELAPSED-window mfe_to_date — window-agnostic, so ALL 5
+    # episodes have it (incl. EEE, which only has a 2-bar window). This is the
+    # whole point: never "stuck on no mature data".
+    assert block["headline_mfe_col"] == "mfe_to_date"
+    assert block["headline_mfe_n"] == 5
+    # Median of [0.20(AAA), 0.02(BBB), 0.05(CCC), 0.25(DDD), 0.04(EEE)] = 0.05
+    assert block["headline_mfe_median"] == pytest.approx(0.05, abs=1e-9)
+    # bars_to_date context is carried so a thin elapsed read is visible.
+    assert block["bars_to_date"]["n"] == 5
 
 
 def test_barrier_distribution(fixture_df):
@@ -195,6 +220,68 @@ def test_slice_by_tier_and_type(fixture_df):
 def test_describe_nan_safe():
     d = edge_report.describe(pd.Series([np.nan, np.nan]))
     assert d["n"] == 0 and d["median"] is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bias-safe headline (bug class #2: seed-contaminated default headline)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_headline_is_screener_only_and_flags_contamination(fixture_df):
+    """A mixed-source frame must yield a headline computed on the screener subset
+    only, with the contamination machine-flagged — never silently averaged in."""
+    df = fixture_df.copy()
+    # Plant a hand-picked seed winner with a sky-high elapsed MFE. If it leaked
+    # into the headline it would inflate it grossly.
+    df.loc[df["ticker"] == "DDD", "source"] = "seed"
+    df.loc[df["ticker"] == "DDD", "mfe_to_date"] = 5.0  # +500% gallery winner
+    ep = collapse_to_episodes(df)
+
+    h = edge_report.headline_edge(ep)  # default basis = 'screener'
+    assert h["source_basis"] == "screener"
+    assert h["unbiased"] is True
+    assert h["contaminated_input"] is True          # seed row present -> flagged
+    assert h["n_unbiased"] == 4                      # AAA, BBB, CCC, EEE (DDD excluded)
+    assert h["n_input"] == 5
+    # The +500% seed winner is NOT in the headline; median of the 4 screener rows.
+    assert h["headline_mfe_median"] == pytest.approx(
+        float(np.median([0.20, 0.02, 0.05, 0.04])), abs=1e-9
+    )
+
+
+def test_headline_clean_frame_not_flagged(fixture_df):
+    ep = collapse_to_episodes(fixture_df)  # all 'screener'
+    h = edge_report.headline_edge(ep)
+    assert h["contaminated_input"] is False
+    assert h["unbiased"] is True
+    assert h["n_unbiased"] == h["n_input"] == 5
+
+
+def test_headline_explicit_seed_basis_is_flagged_not_unbiased(fixture_df):
+    """Inspecting the seed gallery is allowed, but it is never 'unbiased'."""
+    df = fixture_df.copy()
+    df["source"] = "seed"
+    ep = collapse_to_episodes(df)
+    h = edge_report.headline_edge(ep, source_basis="seed")
+    assert h["source_basis"] == "seed"
+    assert h["unbiased"] is False
+    # all rows are on the requested basis -> nothing excluded -> not contaminated
+    assert h["contaminated_input"] is False
+
+
+def test_default_cli_run_headlines_screener_when_seed_present(tmp_path):
+    """End-to-end: a default run over a mixed archive headlines the screener edge
+    and stamps the contamination flag (the exact bug we are guarding)."""
+    from tools import backtest_engine
+    df = _build_fixture_df()
+    df.loc[df["ticker"] == "DDD", "source"] = "seed"
+    df.loc[df["ticker"] == "DDD", "mfe_to_date"] = 5.0
+    path = os.path.join(str(tmp_path), "mixed.db")
+    _write_fixture_db(df, path)
+    result = backtest_engine.run(db_path=path)
+    h = result["edge"]["headline"]
+    assert h["source_basis"] == "screener"
+    assert h["unbiased"] is True
+    assert h["contaminated_input"] is True
+    assert h["headline_mfe_median"] < 0.5  # the +500% seed winner did NOT leak in
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -363,7 +450,13 @@ def test_cli_run_over_fixture_db(fixture_db, tmp_path):
     json_out = os.path.join(str(tmp_path), "report.json")
     result = backtest_engine.run(db_path=fixture_db, json_path=json_out)
     assert result["composition"]["n"] == 5
-    assert result["edge"]["overall"]["headline_mfe_n"] == 4
+    # The headline is the elapsed-window mfe_to_date — all 5 episodes carry it.
+    assert result["edge"]["headline"]["headline_mfe_col"] == "mfe_to_date"
+    assert result["edge"]["headline"]["headline_mfe_n"] == 5
+    assert result["edge"]["headline"]["source_basis"] == "screener"
+    assert result["edge"]["headline"]["unbiased"] is True
+    # overall stays descriptive over the loaded frame.
+    assert result["edge"]["overall"]["headline_mfe_n"] == 5
     # null model defers (no universe injected)
     assert result["null_model"]["overall"]["available"] is False
     # IS/OOS degrades (fixture has no config column)

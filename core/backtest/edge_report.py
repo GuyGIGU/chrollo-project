@@ -24,18 +24,28 @@ import pandas as pd
 
 # Stored MFE/MAE horizons and forward-return horizons (match the archive schema
 # written by core/archive/forward_returns.py). MFE is the headline.
-MFE_COLS = ["mfe_20d", "mfe_60d"]
-MAE_COLS = ["mae_20d", "mae_60d"]
+# The ELAPSED-WINDOW columns come FIRST so they appear first in every report.
+MFE_COLS = ["mfe_to_date", "mfe_20d", "mfe_60d"]
+MAE_COLS = ["mae_to_date", "mae_20d", "mae_60d"]
 FWD_RETURN_COLS = [
+    "ret_to_date",
     "fwd_return_1d",
     "fwd_return_5d",
     "fwd_return_10d",
     "fwd_return_20d",
     "fwd_return_60d",
 ]
-# MFE_20d is the headline horizon: 20 bars is mature enough to capture a swing yet
-# the most-populated long-ish window in a young archive.
-HEADLINE_MFE_COL = "mfe_20d"
+# mfe_to_date is the PRIMARY headline: the window-agnostic elapsed-window edge that
+# is ALWAYS populated as soon as a setup has any forward bar, so the report is
+# never "stuck on no mature data". The fixed mfe_20d / mfe_60d are SECONDARY and
+# shown as they mature.
+HEADLINE_MFE_COL = "mfe_to_date"
+SECONDARY_MFE_COLS = ["mfe_20d", "mfe_60d"]
+ELAPSED_BARS_COL = "bars_to_date"
+ABNORMAL_COL = "abnormal_ret_to_date"
+# The one unbiased standalone-edge basis. Seed / manual rows are a hand-picked
+# winners gallery and re-scans carry survivorship bias.
+UNBIASED_SOURCE = "screener"
 BARRIER_LABELS = ["win", "loss", "timeout"]
 
 
@@ -101,6 +111,13 @@ def edge_block(df: pd.DataFrame) -> dict:
     headline = block["mfe"].get(HEADLINE_MFE_COL, {})
     block["headline_mfe_median"] = headline.get("median")
     block["headline_mfe_n"] = headline.get("n", 0)
+    block["headline_mfe_col"] = HEADLINE_MFE_COL
+    # Elapsed-window context: how many forward bars the elapsed read averages over,
+    # plus the abnormal (excess-vs-SPY) elapsed return when it has been computed.
+    if ELAPSED_BARS_COL in df.columns:
+        block["bars_to_date"] = describe(df[ELAPSED_BARS_COL])
+    if ABNORMAL_COL in df.columns:
+        block["abnormal"] = describe(df[ABNORMAL_COL])
     return block
 
 
@@ -121,19 +138,78 @@ def slice_by(df: pd.DataFrame, column: str, min_n: int = 1) -> dict:
     return out
 
 
-def build_edge_report(df: pd.DataFrame) -> dict:
+def headline_edge(df: pd.DataFrame, source_basis: str = UNBIASED_SOURCE) -> dict:
+    """The bias-safe headline edge — computed on ONE explicit source basis.
+
+    Bias-safety is enforced by CONSTRUCTION: the headline is always computed on the
+    ``source_basis`` subset (default ``'screener'`` = the unbiased standalone-edge
+    read), never on a silently-mixed frame. Seed / manual rows are a hand-picked
+    winners gallery; if any are present in the input they are EXCLUDED from the
+    headline and flagged, never averaged in.
+
+    The headline metric is the ELAPSED-WINDOW ``mfe_to_date`` (window-agnostic, so
+    always populated) — the fixed ``mfe_20d`` / ``mfe_60d`` are reported as
+    secondary, maturing reads.
+
+    Returns the headline metrics PLUS machine-readable provenance flags:
+        source_basis        the basis the headline was computed on ('screener')
+        unbiased            True iff source_basis is the unbiased basis
+        contaminated_input  True iff the input frame contained non-basis rows
+                            (seed / manual / re-scan) that were excluded
+        n_input             rows in the input frame (before the basis filter)
+        n_unbiased          rows on the headline basis
+        headline_mfe_col / _median / _n   the elapsed-window headline
+        secondary_mfe       {col: describe(...)} for the maturing fixed windows
+        bars_to_date        describe() of the elapsed-window bar counts
+        abnormal            describe() of the excess-vs-SPY elapsed return
+    """
+    n_input = len(df)
+    if "source" in df.columns:
+        basis_df = df[df["source"] == source_basis]
+        contaminated = bool((df["source"] != source_basis).any())
+    else:
+        # No source column -> can't prove the basis; treat as the basis itself but
+        # flag that we could not verify provenance.
+        basis_df = df
+        contaminated = False
+
+    block = edge_block(basis_df)
+    return {
+        "source_basis": source_basis,
+        "unbiased": source_basis == UNBIASED_SOURCE,
+        "contaminated_input": contaminated,
+        "n_input": n_input,
+        "n_unbiased": len(basis_df),
+        "headline_mfe_col": HEADLINE_MFE_COL,
+        "headline_mfe_median": block.get("headline_mfe_median"),
+        "headline_mfe_n": block.get("headline_mfe_n", 0),
+        "secondary_mfe": {c: block["mfe"][c] for c in SECONDARY_MFE_COLS
+                          if c in block.get("mfe", {})},
+        "bars_to_date": block.get("bars_to_date"),
+        "abnormal": block.get("abnormal"),
+    }
+
+
+def build_edge_report(df: pd.DataFrame, source_basis: str = UNBIASED_SOURCE) -> dict:
     """Assemble the screener-side edge report sliced by tier, setup_type, horizon.
 
     Returns a nested dict:
         {
-          "overall": edge_block,
+          "headline": headline_edge,   # BIAS-SAFE: screener basis + flags
+          "overall": edge_block,       # descriptive, on whatever was passed in
           "by_tier": {tier: edge_block, ...},
           "by_setup_type": {type: edge_block, ...},
         }
+    The ``headline`` is the only number to quote as THE edge — it is computed on the
+    unbiased ``source_basis`` and carries contamination flags. ``overall`` and the
+    slices stay descriptive over the input frame (so a ``--source seed`` run can
+    still inspect that gallery), but they are never THE edge.
+
     Horizon slicing is INSIDE each edge_block (mfe/mae/fwd_return keyed by horizon
     column), so every slice carries every horizon.
     """
     return {
+        "headline": headline_edge(df, source_basis=source_basis),
         "overall": edge_block(df),
         "by_tier": slice_by(df, "tier"),
         "by_setup_type": slice_by(df, "setup_type"),
