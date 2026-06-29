@@ -30,6 +30,7 @@ from core.pipeline.market_data_health import (
 )
 from core.pipeline.scan_metrics import ScanTimer, format_scan_metrics, persist_scan_metrics
 from core.pipeline.tickers import get_cached_tickers
+from core.pipeline.universe import resolve_universe
 
 __all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker", "apply_baseline_filters"]
 
@@ -38,10 +39,11 @@ class CachedMarketDataError(RuntimeError):
     """Raised when cached evaluation cannot safely use the local market-data panel."""
 
 
-def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame) -> dict[str, pd.DataFrame]:
+def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
+                           universe=None) -> dict[str, pd.DataFrame]:
     """Extract per-ticker OHLCV frames for worker processes."""
     multi_ticker = len(tickers) > 1
-    index_symbols = set(getattr(settings, 'INDEX_SYMBOLS', [settings.SPY_SYMBOL]))
+    index_symbols = set(resolve_universe(universe).index_symbols)
     ticker_frames: dict[str, pd.DataFrame] = {}
 
     for ticker in tickers:
@@ -111,8 +113,8 @@ def _regime_archive_fields(market_context: dict) -> dict:
     }
 
 
-def _read_cached_market_data(tickers: list[str]) -> pd.DataFrame:
-    cache_file, meta_file = _cache_paths()
+def _read_cached_market_data(tickers: list[str], universe=None) -> pd.DataFrame:
+    cache_file, meta_file = _cache_paths(universe)
     if not os.path.exists(cache_file):
         raise CachedMarketDataError(f"stale market data: cache file not found at {cache_file}")
 
@@ -129,9 +131,14 @@ def _read_cached_market_data(tickers: list[str]) -> pd.DataFrame:
     return data
 
 
-def run_screener(mode: str = "download") -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
+def run_screener(mode: str = "download",
+                 universe=None) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     """
     Execute the full Wyckoff VCP/LPS screening pipeline.
+
+    ``universe`` selects which market to scan (a :class:`Universe`, a key string,
+    or ``None`` for US-Stocks). The default resolves to the exact current ticker
+    source / cache / index set, so the US-Stocks run is byte-identical.
 
     Returns:
         (results_df, market_data, tickers, market_context)
@@ -143,18 +150,20 @@ def run_screener(mode: str = "download") -> tuple[pd.DataFrame, pd.DataFrame, li
     if mode not in {"download", "cache"}:
         raise ValueError(f"unknown screener data mode: {mode}")
 
+    uni = resolve_universe(universe)
+
     timer = ScanTimer()
     with timer.phase("ticker_universe"):
-        tickers = get_cached_tickers() if mode == "cache" else get_tickers()
+        tickers = get_cached_tickers(uni.ticker_csv) if mode == "cache" else get_tickers(uni.ticker_csv)
     with timer.phase("market_data_fetch"):
-        data = _read_cached_market_data(tickers) if mode == "cache" else get_provider().fetch(tickers)
+        data = _read_cached_market_data(tickers, uni) if mode == "cache" else get_provider().fetch(tickers)
     with timer.phase("frame_prep"):
         evaluation_tickers = eligible_tickers_for(tickers)
         skipped = len(tickers) - len(evaluation_tickers)
         if skipped > 0:
             print(f"Evaluating eligible cache universe ({len(evaluation_tickers)} tickers; skipped {skipped}).",
                   flush=True)
-        ticker_frames = _prepare_ticker_frames(evaluation_tickers, data)
+        ticker_frames = _prepare_ticker_frames(evaluation_tickers, data, uni)
 
     with timer.phase("market_context"):
         market_context = get_market_context(data, ticker_frames)

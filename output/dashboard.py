@@ -9,6 +9,7 @@ import sys
 
 from config import settings
 from core.pipeline.json_safety import to_json_safe
+from core.pipeline.universe import resolve_universe
 from core.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -328,22 +329,28 @@ def _extract_chart_data(data, results_df, tickers):
     return chart_data
 
 
-def generate_dashboard(results_df, data=None, tickers=None, market_context=None):
-    """Extract chart data and export it as JSON for the React frontend."""
-    
+def generate_dashboard(results_df, data=None, tickers=None, market_context=None, universe=None):
+    """Extract chart data and export it as JSON for the React frontend.
+
+    ``universe`` selects which artifact to write (``None`` = US-Stocks ->
+    ``output/screener_data.json``, byte-identical to before); the path is resolved
+    through the universe descriptor so the writer and the serving reader stay in
+    lockstep on a single closed set of artifact names.
+    """
+
     # Extract chart data if market data is provided
     chart_data = {}
     if data is not None and tickers is not None:
         chart_data = _extract_chart_data(data, results_df, tickers)
         print(f"\nExtracted {len(chart_data)} interactive chart models for React dashboard...", flush=True)
-    
+
     ordered_tickers = []
     for _, row in results_df.iterrows():
         if row['Ticker'] in chart_data:
             ordered_tickers.append(row['Ticker'])
-            
-    json_path = os.path.join(OUTPUT_DIR, "screener_data.json")
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    json_path = resolve_universe(universe).artifact_path()
+    os.makedirs(os.path.dirname(json_path), exist_ok=True)
         
     payload = _json_safe({
         "chart_data": chart_data,

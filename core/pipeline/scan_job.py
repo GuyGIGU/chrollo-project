@@ -20,6 +20,7 @@ from core.pipeline.market_data_health import (
 )
 from core.pipeline.market_calendar import latest_completed_session
 from core.pipeline.screener import CachedMarketDataError
+from core.pipeline.universe import resolve_universe
 from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
@@ -84,7 +85,7 @@ def _last_bar_date(data: pd.DataFrame, tickers: list[str]) -> str | None:
     return pd.Timestamp(valid.index[-1]).strftime("%Y-%m-%d")
 
 
-def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
+def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str], universe=None) -> None:
     expected = _expected_session_date()
     last_bar = _last_bar_date(data, tickers)
     # Stale only if the data is OLDER than the latest completed session — i.e.
@@ -96,7 +97,7 @@ def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str]) -> None:
         log.warning("Aborting archive write: %s", msg)
         raise StaleMarketDataError(msg)
 
-    _, meta_file = _cache_paths()
+    _, meta_file = _cache_paths(universe)
     health = compute_market_data_health(
         data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file
     )
@@ -114,10 +115,17 @@ def _is_latest_coverage_error(exc: Exception) -> bool:
     return "latest-session close coverage" in str(exc).lower()
 
 
-def run_scan_and_export(mode: str = "download") -> ScanExportResult:
-    """Run the screener and write every non-broker output artifact."""
+def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
+    """Run the screener and write every non-broker output artifact.
+
+    ``universe`` selects the market to scan (``None`` = US-Stocks). It threads
+    through the screener, the freshness gate, and the dashboard artifact path so
+    each universe reads and writes its own files; the US-Stocks default is
+    byte-identical to the prior single-universe behavior.
+    """
+    uni = resolve_universe(universe)
     try:
-        results_df, data, tickers, market_context = run_screener(mode=mode)
+        results_df, data, tickers, market_context = run_screener(mode=mode, universe=uni)
     except CachedMarketDataError as exc:
         raise StaleMarketDataError(str(exc), n_setups=0) from exc
 
@@ -132,7 +140,7 @@ def run_scan_and_export(mode: str = "download") -> ScanExportResult:
     save_csv(results_df, output_dir)
     print_finviz_url(results_df)
 
-    generate_dashboard(results_df, data, tickers, market_context)
+    generate_dashboard(results_df, data, tickers, market_context, universe=uni)
 
     # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
     # Forward returns are filled in later by core/archive/forward_returns.py.
@@ -140,7 +148,7 @@ def run_scan_and_export(mode: str = "download") -> ScanExportResult:
     n_archived = 0
     if settings.ARCHIVE_LIVE_SCANS:
         try:
-            _assert_fresh_for_archive(data, tickers)
+            _assert_fresh_for_archive(data, tickers, uni)
         except StaleMarketDataError as exc:
             if mode == "cache" and _is_latest_coverage_error(exc):
                 print(

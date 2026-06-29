@@ -10,18 +10,20 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.json_safety import to_json_safe
+from core.pipeline.universe import resolve_universe
 
 
 def _project_root() -> str:
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
-def _cache_paths() -> tuple[str, str]:
-    root = _project_root()
-    return (
-        os.path.join(root, settings.CACHE_FILENAME),
-        os.path.join(root, settings.CACHE_META_FILENAME),
-    )
+def _cache_paths(universe=None) -> tuple[str, str]:
+    """(market-data parquet, cache-meta json) for a universe.
+
+    ``universe=None`` resolves to US-Stocks, so every existing call is unchanged
+    and the returned paths are byte-identical to the previous hardcoded tuple.
+    """
+    return resolve_universe(universe).cache_paths()
 
 
 def _read_meta(meta_path: str) -> dict:

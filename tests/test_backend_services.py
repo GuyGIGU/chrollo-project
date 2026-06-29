@@ -806,8 +806,8 @@ def test_cached_raw_partial_evaluation_archives_when_eligible_cache_is_healthy(t
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
-    monkeypatch.setattr(scan_job_module, "run_screener", lambda mode="download": (results, panel, ["AAA", "YNG"], {}))
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda *a, **k: (str(tmp_path / "cache.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (results, panel, ["AAA", "YNG"], {}))
     monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
     monkeypatch.setattr(scan_job_module, "print_results", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(scan_job_module, "save_csv", lambda *_args, **_kwargs: None)

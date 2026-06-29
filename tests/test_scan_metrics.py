@@ -41,7 +41,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
             assert tickers == ["AAA"]
             return panel
 
-    monkeypatch.setattr(screener_module, "get_tickers", lambda: ["AAA"])
+    monkeypatch.setattr(screener_module, "get_tickers", lambda *a, **k: ["AAA"])
     monkeypatch.setattr(screener_module, "get_provider", lambda: FakeProvider())
     monkeypatch.setattr(
         screener_module,
@@ -80,8 +80,8 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(screener_module, "get_cached_tickers", lambda: ["AAA"])
-    monkeypatch.setattr(screener_module, "_read_cached_market_data", lambda tickers: panel)
+    monkeypatch.setattr(screener_module, "get_cached_tickers", lambda *a, **k: ["AAA"])
+    monkeypatch.setattr(screener_module, "_read_cached_market_data", lambda *a, **k: panel)
     monkeypatch.setattr(
         screener_module,
         "get_provider",
