@@ -255,6 +255,13 @@ class SetupArchive(Base):
     htf_m_reaccum = Column(Integer, nullable=True)
     htf_m_daily_nested = Column(Integer, nullable=True)
 
+    # ── Engine provenance (frozen-config reproducibility) ────────
+    # sha256 of the frozen engine-config manifest (core/freeze/manifest.py) that
+    # produced this row. Lets a freeze + backtest trace any signal to the exact
+    # config version and detect silent drift. Nullable: pre-existing rows have
+    # no stamp. Pure provenance — never a computed engine field.
+    engine_config_version = Column(String, nullable=True)
+
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)

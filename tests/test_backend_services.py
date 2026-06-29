@@ -198,6 +198,68 @@ def test_archive_writer_columns_are_modeled_and_migrated():
         assert f"ADD COLUMN {field} " in migration_sql
 
 
+def test_engine_config_version_is_modeled_and_auto_migrated():
+    """The frozen-config stamp column is a MODEL-ONLY add: it must be a real
+    SetupArchive column, must NOT be hand-listed in the legacy writer _NEW_COLUMNS
+    (it relies on Track B + model-diff instead), and Track B's model-derived
+    auto-migration must emit its ADD on an existing table that lacks it."""
+    import sqlalchemy as sa
+    from sqlalchemy import inspect, text
+
+    model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
+    assert "engine_config_version" in model_columns
+    # deliberately not in the hand-listed writer column SQL (model-only add)
+    assert "engine_config_version" not in archive_writer._NEW_COLUMNS
+
+    # Track B auto-migration emits the ADD on an existing pre-change table.
+    eng = sa.create_engine("sqlite:///:memory:")
+    cols = [c for c in archive_models.SetupArchive.__table__.columns
+            if c.name != "engine_config_version"]
+    coldefs = ", ".join(f"{c.name} {c.type}" for c in cols)
+    with eng.begin() as conn:
+        conn.execute(text(f"CREATE TABLE setup_archive ({coldefs})"))
+    stmts = startup.model_add_column_migrations(eng)
+    assert any("engine_config_version" in s for s in stmts)
+
+
+def test_ensure_new_columns_adds_model_only_columns(tmp_path):
+    """The writer/seed self-sufficiency helper (_ensure_new_columns) brings an
+    existing table up to the MODEL even for columns absent from _NEW_COLUMNS, so
+    the standalone seed CLI can stamp engine_config_version before the backend's
+    Track B migration has run. Idempotent on re-run."""
+    import sqlalchemy as sa
+    from sqlalchemy import inspect, text
+
+    db = tmp_path / "seed.db"
+    eng = sa.create_engine(f"sqlite:///{db}")
+    cols = [c for c in archive_models.SetupArchive.__table__.columns
+            if c.name != "engine_config_version"]
+    coldefs = ", ".join(f"{c.name} {c.type}" for c in cols)
+    with eng.begin() as conn:
+        conn.execute(text(f"CREATE TABLE setup_archive ({coldefs})"))
+
+    archive_writer._ensure_new_columns(eng)
+    present = {c["name"] for c in inspect(eng).get_columns("setup_archive")}
+    assert "engine_config_version" in present
+
+    # A row carrying the stamp inserts and round-trips.
+    from core.freeze.manifest import manifest_hash
+    h = manifest_hash()
+    with eng.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO setup_archive "
+            "(ticker, scan_date, setup_type, tier, score, engine_config_version, source) "
+            "VALUES ('TST', '2026-06-29', 'LPS', 'A', 1.0, :h, 'seed')"
+        ), {"h": h})
+        got = conn.execute(
+            text("SELECT engine_config_version FROM setup_archive WHERE ticker='TST'")
+        ).scalar()
+    assert got == h
+
+    archive_writer._ensure_new_columns(eng)  # idempotent, must not raise
+    eng.dispose()
+
+
 def test_archive_outcome_columns_are_modeled_and_migrated():
     model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
     schema_fields = set(SetupOut.model_fields)

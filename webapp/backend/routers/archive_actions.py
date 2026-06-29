@@ -44,6 +44,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.downloads import _batched_download
+    from core.freeze.manifest import manifest_hash
     from core.structure.htf import htf_archive_values
     from archive_models import (
         SetupArchive,
@@ -204,6 +205,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "rs_vs_sector_pct": rs_vs_sector,
         # Provenance + curation
         "source": "manual",
+        "engine_config_version": manifest_hash(),
         "quality_label": payload.quality_label,
         "notes": payload.notes,
         # HTF (higher-timeframe) context splat — seed result, unprefixed keys
