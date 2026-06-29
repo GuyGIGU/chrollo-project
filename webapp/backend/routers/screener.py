@@ -7,7 +7,13 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from core.pipeline.universe import DEFAULT_UNIVERSE_KEY, resolve_universe, universe_keys
+from core.pipeline.universe import (
+    DEFAULT_UNIVERSE_KEY,
+    default_universe,
+    drilldown_map,
+    resolve_universe,
+    universe_keys,
+)
 from services import scan_runner, scan_status
 from services.earnings import days_until, get_next_earnings_batch
 from services.screener_data import invalidate_screener_cache, read_screener_data
@@ -48,6 +54,46 @@ def get_screener_data(
     status = "ready" if os.path.exists(path) else "never_scanned"
     payload = read_screener_data(path)
     return {**payload, "universe": uni.key, "status": status}
+
+
+@router.get("/screener-data/drilldown/")
+def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
+    """Top-down cross-link: the US-Stock setups related to a firing sector/commodity
+    ETF, intersected with the latest US-Stocks scan.
+
+    - Sector ETFs (XLK, …) resolve via each stock setup's ``sector_etf`` tag.
+    - Commodity/thematic ETFs resolve via the curated ``commodity_equity_map``.
+    ``basis`` lets the UI tell "no curated mapping" from "mapped, none fired today".
+    """
+    etf_u = etf.strip().upper()
+    us = read_screener_data(default_universe().artifact_path())
+    us_chart = us.get("chart_data", {}) or {}
+    us_ordered = us.get("ordered_tickers", []) or []
+
+    cmap = drilldown_map()
+    if etf_u in cmap:
+        targets = set(cmap[etf_u])
+        members = [t for t in us_ordered if t in targets]
+        basis = "commodity"
+    else:
+        from output.dashboard import SECTOR_ETF_NAMES  # lazy: heavier import
+
+        if etf_u in SECTOR_ETF_NAMES:
+            members = [
+                t for t in us_ordered
+                if str((us_chart.get(t) or {}).get("sector_etf") or "").upper() == etf_u
+            ]
+            basis = "sector"
+        else:
+            members, basis = [], "none"
+
+    return {
+        "etf": etf_u,
+        "basis": basis,  # 'sector' | 'commodity' | 'none' (no curated mapping)
+        "source_universe": DEFAULT_UNIVERSE_KEY,
+        "ordered_tickers": members,
+        "chart_data": {t: us_chart[t] for t in members if t in us_chart},
+    }
 
 
 @router.get("/scan-status/latest")

@@ -567,6 +567,33 @@ def test_screener_data_endpoint_tags_universe_and_status(monkeypatch):
     assert out["status"] in ("ready", "never_scanned")
 
 
+def test_drilldown_resolves_sector_commodity_and_none(monkeypatch):
+    from routers import screener as screener_router
+
+    us = {
+        "ordered_tickers": ["AAA", "BBB", "CCC"],
+        "chart_data": {
+            "AAA": {"sector_etf": "XLK"},
+            "BBB": {"sector_etf": "XLF"},
+            "CCC": {"sector_etf": "XLK"},
+        },
+    }
+    monkeypatch.setattr(screener_router, "read_screener_data", lambda path: us)
+
+    sector = screener_router.get_drilldown(etf="xlk")  # case-insensitive
+    assert sector["basis"] == "sector"
+    assert set(sector["ordered_tickers"]) == {"AAA", "CCC"}
+    assert sector["source_universe"] == "us_stocks"
+
+    commodity = screener_router.get_drilldown(etf="GLD")  # in the curated map
+    assert commodity["basis"] == "commodity"  # mapped; no gold miners in this scan -> empty
+    assert commodity["ordered_tickers"] == []
+
+    unmapped = screener_router.get_drilldown(etf="ZZZZ")
+    assert unmapped["basis"] == "none"
+    assert unmapped["ordered_tickers"] == []
+
+
 def test_portfolio_sse_data_is_strict_json_safe():
     event = portfolio_streams._sse_data({
         "value": np.float32(0.5),

@@ -229,7 +229,25 @@ function TimeframeBand({ data }) {
   );
 }
 
-const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick }) => (
+// Quiet full-width drill affordance, only on ETF-universe cards (when onDrilldown
+// is passed). Visually separate from the card's open-the-chart click, and it
+// stops propagation so the two never fire together.
+const drillButtonStyle = {
+  background: 'var(--bg-main)',
+  border: 'none',
+  borderTop: '1px solid var(--border-color)',
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  padding: '7px 8px',
+  textAlign: 'left',
+  width: '100%',
+};
+
+const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick, onDrilldown }) => (
   <div
     className="screener-card"
     role="button"
@@ -327,6 +345,18 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         rowGap: 5,
       }}
     />
+    {onDrilldown && (
+      <button
+        type="button"
+        title={`Show the US-stocks related to ${ticker}`}
+        onClick={(event) => { event.stopPropagation(); onDrilldown(ticker); }}
+        style={drillButtonStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-blue)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+      >
+        Members →
+      </button>
+    )}
   </div>
 ));
 
