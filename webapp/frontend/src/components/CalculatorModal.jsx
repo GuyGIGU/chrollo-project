@@ -1,16 +1,22 @@
 import PositionCalculator from './PositionCalculator';
+import Modal from './ui/Modal';
 
 function CalculatorModal({ onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '600px' }} onClick={event => event.stopPropagation()}>
-        <div className="modal-header">
-          <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Position Size Utility</h2>
-          <button className="modal-close" onClick={onClose}>x</button>
-        </div>
-        <PositionCalculator />
+    <Modal
+      onClose={onClose}
+      closeOnEscape={false}
+      overlayClassName="modal-overlay"
+      overlayStyle={null}
+      contentClassName="modal-content"
+      contentStyle={{ maxWidth: '600px' }}
+    >
+      <div className="modal-header">
+        <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Position Size Utility</h2>
+        <button className="modal-close" onClick={onClose}>x</button>
       </div>
-    </div>
+      <PositionCalculator />
+    </Modal>
   );
 }
 

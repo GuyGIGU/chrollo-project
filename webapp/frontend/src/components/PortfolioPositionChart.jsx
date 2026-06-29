@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
+import Modal from './ui/Modal';
 import usePositionChartData from '../hooks/usePositionChartData';
 import { buildPositiveLevel } from './chartGeometry';
 import { fmtMoney, fmtNum, pnlColor } from './portfolioFormat';
@@ -128,36 +128,28 @@ const PositionChartHeader = ({ symbol, position, onClose }) => {
 const PortfolioPositionChart = ({ selectedSymbol, position, positions, summary, open, onClose }) => {
   const { loading, error, data } = usePositionChartData(open ? selectedSymbol : '');
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <section
-        style={chartShellStyle}
-        onClick={(event) => event.stopPropagation()}
-        title={explainTip({
+    <Modal
+      onClose={onClose}
+      overlayStyle={overlayStyle}
+      contentStyle={chartShellStyle}
+      contentProps={{
+        title: explainTip({
           what: 'A daily OHLCV chart for the selected open position, using the local market-data endpoint.',
           why: 'It lets us compare the broker position with the actual price and volume path.',
           use: 'Use the chart to review behavior around average cost, support, and planned exit levels.',
-        })}
-      >
-        <PositionChartHeader symbol={selectedSymbol} position={position} onClose={onClose} />
-        {!selectedSymbol && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Select a position to load its chart.</div>}
-        {selectedSymbol && loading && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Loading chart data...</div>}
-        {selectedSymbol && error && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>{error}</div>}
-        {selectedSymbol && data && <PositionChartCanvas symbol={selectedSymbol} data={data} position={position} />}
-        <PortfolioPositionInsights position={position} positions={positions} summary={summary} />
-      </section>
-    </div>
+        }),
+      }}
+    >
+      <PositionChartHeader symbol={selectedSymbol} position={position} onClose={onClose} />
+      {!selectedSymbol && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Select a position to load its chart.</div>}
+      {selectedSymbol && loading && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>Loading chart data...</div>}
+      {selectedSymbol && error && <div style={{ padding: 28, color: 'var(--text-muted)', textAlign: 'center' }}>{error}</div>}
+      {selectedSymbol && data && <PositionChartCanvas symbol={selectedSymbol} data={data} position={position} />}
+      <PortfolioPositionInsights position={position} positions={positions} summary={summary} />
+    </Modal>
   );
 };
 
