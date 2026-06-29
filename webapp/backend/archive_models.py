@@ -255,6 +255,23 @@ class SetupArchive(Base):
     htf_m_reaccum = Column(Integer, nullable=True)
     htf_m_daily_nested = Column(Integer, nullable=True)
 
+    # ── Advisory metadata (Lane E) — GRADED context, NOT a veto, NOT scored ──
+    # Flag-gated (FUNDAMENTALS_ENABLED / RS_LINE_ENABLED / SECTOR_RANKING_ENABLED),
+    # all default OFF -> these stay NULL and the engine output is byte-identical.
+    # Surfaced only as advisory tag chips; geometry remains the only veto, missing
+    # data -> no chip (never a penalty). Fundamentals are point-in-time (filing-lag
+    # gated, see core/fundamentals/metrics.py) so no future quarter leaks.
+    fund_eps_growth_yoy = Column(Float, nullable=True)      # latest-available qtr EPS YoY (signed fraction)
+    fund_sales_growth_yoy = Column(Float, nullable=True)    # latest-available qtr revenue YoY (signed fraction)
+    fund_eps_growth_accel = Column(Float, nullable=True)    # EPS-growth acceleration (latest YoY - prior YoY)
+    fund_earnings_surprise = Column(Float, nullable=True)   # most-recent-available earnings surprise (signed fraction)
+    days_to_earnings = Column(Integer, nullable=True)       # calendar days to next earnings (forward warning chip)
+    rs_rating = Column(Float, nullable=True)                # in-house RS rating: universe percentile (0..100) of trailing return
+    rs_line_latest = Column(Float, nullable=True)           # latest stock/SPY RS-line ratio
+    rs_line_new_high = Column(Integer, nullable=True)       # 1 if the RS line is at a trailing new high (leadership tell)
+    sector_rank_pct = Column(Float, nullable=True)          # setup's SPDR-sector composite RS percentile (scan-wide)
+    sector_rank_pos = Column(Integer, nullable=True)        # setup's sector rank position (1 = strongest sector this scan)
+
     # ── Engine provenance (frozen-config reproducibility) ────────
     # sha256 of the frozen engine-config manifest (core/freeze/manifest.py) that
     # produced this row. Lets a freeze + backtest trace any signal to the exact

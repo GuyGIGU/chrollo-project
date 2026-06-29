@@ -185,3 +185,95 @@ def test_compute_metrics_partial_does_not_contaminate():
     assert out["sales_growth_yoy"] is None      # no revenue row
     assert out["earnings_surprise"] is None     # no earnings frame
     assert out["rs_rating"] is None
+
+
+# ── as_of point-in-time / lookahead gate ─────────────────────────────────────
+def _income_dated(end_dates, eps=None, revenue=None):
+    """Income statement with EXPLICIT period-end dates (most-recent-first).
+
+    ``end_dates`` are ISO strings ordered most-recent-first; the *i*-th maps to
+    the *i*-th value in eps/revenue. Lets a test pin exactly which quarters are
+    available as of a date."""
+    cols = [pd.Timestamp(d) for d in end_dates]
+    data = {}
+    if revenue is not None:
+        data["Total Revenue"] = revenue
+    if eps is not None:
+        data["Diluted EPS"] = eps
+    return pd.DataFrame({c: {k: data[k][i] for k in data} for i, c in enumerate(cols)})
+
+
+def test_available_income_stmt_drops_not_yet_filed_quarter():
+    # 6 quarters ending each calendar quarter. As of 2026-04-10, the quarter that
+    # ENDED 2026-03-31 has not had time to file (75-day lag -> needs >= 2026-06-14),
+    # so it must be DROPPED; the latest available quarter is 2025-12-31.
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    eps = [9.99, 1.20, 1.10, 1.05, 1.00, 1.00]   # 9.99 is the leaking future qtr
+    stmt = _income_dated(ends, eps=eps)
+    avail = metrics.available_income_stmt(stmt, as_of="2026-04-10")
+    # The future quarter is gone; the most-recent surviving column is 2025-12-31.
+    assert pd.Timestamp("2026-03-31") not in [pd.Timestamp(c) for c in avail.columns]
+    assert pd.Timestamp(avail.columns[0]) == pd.Timestamp("2025-12-31")
+
+
+def test_compute_metrics_as_of_excludes_future_quarter():
+    # With the leaking 9.99 quarter dropped, YoY is read off 2025-12-31 (1.20) vs
+    # 2024-12-31 (1.00) = +20% — NOT off the not-yet-filed 9.99 quarter.
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    eps = [9.99, 1.20, 1.10, 1.05, 1.00, 1.00]
+    out = metrics.compute_metrics(
+        "AAA", as_of="2026-04-10", provider=_FakeProvider(_income_dated(ends, eps=eps), pd.DataFrame())
+    )
+    assert out["eps_growth_yoy"] == pytest.approx(0.20)
+
+
+def test_compute_metrics_as_of_after_filing_includes_quarter():
+    # Same data, but as_of is well after the 2026-03-31 quarter could file
+    # (>= 2026-06-14). Now the 9.99 quarter IS available -> YoY off it: 9.99 vs
+    # 1.00 (2025-03-31) = +899%.
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    eps = [9.99, 1.20, 1.10, 1.05, 1.00, 1.00]
+    out = metrics.compute_metrics(
+        "AAA", as_of="2026-07-01", provider=_FakeProvider(_income_dated(ends, eps=eps), pd.DataFrame())
+    )
+    assert out["eps_growth_yoy"] == pytest.approx(8.99)
+
+
+def test_available_income_stmt_no_as_of_is_passthrough():
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30"]
+    stmt = _income_dated(ends, eps=[3.0, 2.0, 1.0])
+    assert metrics.available_income_stmt(stmt, as_of=None) is stmt
+
+
+def test_available_earnings_drops_unreported_future_rows():
+    # A row REPORTED in the future relative to as_of must not contribute the
+    # surprise. As of 2026-05-01, the 2026-07-15 report is dropped; the 2026-04-15
+    # report (surprise 0.20) is used.
+    df = pd.DataFrame(
+        {"EPS Estimate": [2.00, 1.00], "Reported EPS": [5.00, 1.20]},
+        index=pd.to_datetime(["2026-07-15", "2026-04-15"]),
+    )
+    out = metrics.compute_metrics(
+        "AAA", as_of="2026-05-01", provider=_FakeProvider(pd.DataFrame(), df)
+    )
+    assert out["earnings_surprise"] == pytest.approx(0.20)
+
+
+def test_available_earnings_no_as_of_is_passthrough():
+    df = pd.DataFrame(
+        {"EPS Estimate": [1.00], "Reported EPS": [1.20]},
+        index=pd.to_datetime(["2026-04-15"]),
+    )
+    assert metrics.available_earnings(df, as_of=None) is df
+
+
+def test_compute_metrics_as_of_too_early_yields_none():
+    # As of a date before ANY quarter could have filed -> nothing available -> the
+    # YoY-dependent metrics degrade to None (never an exception, never a leak).
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31"]
+    out = metrics.compute_metrics(
+        "AAA", as_of="2024-01-01",
+        provider=_FakeProvider(_income_dated(ends, eps=[1.2, 1.15, 1.1, 1.05, 1.0]), pd.DataFrame()),
+    )
+    assert out["eps_growth_yoy"] is None
+    assert out["eps_growth_accel"] is None

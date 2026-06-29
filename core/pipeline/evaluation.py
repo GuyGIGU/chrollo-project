@@ -745,6 +745,28 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     )
 
 
+def _attach_advisory_metadata(ticker: str, df: pd.DataFrame, result: dict) -> None:
+    """Attach flag-gated ADVISORY (fundamentals / RS-line / days-to-earnings)
+    metadata onto an ALREADY-BUILT firing result, in place.
+
+    Deliberately OUTSIDE ``_run_eval_chain``: the canonical numeric chain (shared
+    with the seed/shadow path) must stay byte-identical, so this runs only on the
+    live wrapper, only after a setup has fired, and only when an advisory flag is
+    ON. With all flags OFF ``per_ticker_advisory`` returns ``{}`` and makes zero
+    provider calls — so flags-OFF output is unchanged (shadow guard). The fields
+    it adds are ``_``-prefixed advisory metadata the writer/dashboard surface as
+    tag-chip data; they NEVER feed Score/Tier or any geometric veto. Any failure
+    is swallowed so the advisory layer can never drop or break a real setup."""
+    try:
+        from core.fundamentals.advisory import per_ticker_advisory
+
+        extra = per_ticker_advisory(ticker, df)
+        if extra:
+            result.update(extra)
+    except Exception as e:  # advisory must never fail a firing setup
+        print(f"  [advisory skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
+
+
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None) -> Optional[dict]:
@@ -754,7 +776,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
     try:
-        return _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
+        result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         return None
+    if result is not None:
+        _attach_advisory_metadata(ticker, df, result)
+    return result
