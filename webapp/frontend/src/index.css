@@ -154,6 +154,9 @@ body {
   background: transparent;
   font: inherit;
   text-align: left;
+  /* nav-link is used on both <button> (Calculator) and <NavLink>/<a> (routes);
+     strip the anchor default so both render identically. */
+  text-decoration: none;
 }
 
 .nav-link:hover {

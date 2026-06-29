@@ -1,27 +1,26 @@
+import { NavLink } from 'react-router-dom';
 import IbkrModeControls from './IbkrModeControls';
 
 const navSections = [
   {
     label: 'Trading',
     items: [
-      { key: 'portfolio', label: 'Portfolio' },
-      { key: 'dashboard', label: 'Dashboard' },
-      { key: 'options', label: 'Options' },
+      { to: '/portfolio', label: 'Portfolio' },
+      { to: '/dashboard', label: 'Dashboard' },
+      { to: '/options', label: 'Options' },
     ],
   },
   {
     label: 'Research',
     items: [
-      { key: 'screener', label: 'Screener Grid' },
-      { key: 'archive', label: 'Setup Archive' },
+      { to: '/screener', label: 'Screener Grid' },
+      { to: '/archive', label: 'Setup Archive' },
     ],
   },
 ];
 
 function AppSidebar({
   logoUrl,
-  activeTab,
-  onTabChange,
   onOpenCalculator,
   onNewTrade,
   csvInputRef,
@@ -62,14 +61,13 @@ function AppSidebar({
           <div className="nav-section" key={section.label}>
             <div className="nav-section-label">{section.label}</div>
             {section.items.map(item => (
-              <button
-                type="button"
-                key={item.key}
-                className={`nav-link ${activeTab === item.key ? 'active' : ''}`}
-                onClick={() => onTabChange(item.key)}
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 {item.label}
-              </button>
+              </NavLink>
             ))}
           </div>
         ))}
