@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ScreenerCard from './ScreenerCard';
 import MarketRegimeBanner from './MarketRegimeBanner';
 import ScreenerModal from './ScreenerModal';
@@ -6,20 +7,29 @@ import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from './ScreenerWatchlistPanel';
+import UniverseSwitcher, { universeLabel, isEtfUniverse } from './UniverseSwitcher';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../hooks/useReviews';
-import useScreenerData from '../hooks/useScreenerData';
+import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../hooks/useWatchlist';
 
 const ScreenerGrid = () => {
   const [activeModalTicker, setActiveModalTicker] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const universe = searchParams.get('u') || DEFAULT_UNIVERSE;
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { passed, togglePassed } = useReviews();
-  const { screenerData, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData();
+  const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
   const filters = useScreenerFilters(screenerData, watchlist);
   const scan = useScanRunner(fetchScreener);
-  const hasScreenerData = !!screenerData?.ordered_tickers;
+
+  // The selected universe lives in the URL (?u=) so it survives reload and any
+  // deep link agrees with what's on screen. Switching resets to page 1.
+  const handleUniverseChange = (key) => {
+    setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
+    filters.setCurrentPage(1);
+  };
 
   useEffect(() => {
     fetchEarnings(filters.paginatedTickers);
@@ -64,6 +74,13 @@ const ScreenerGrid = () => {
     // side padding so the chart wall runs edge-to-edge; a small inner padding
     // keeps cards off the very edge. Other tabs keep their padding.
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
+      <UniverseSwitcher universe={universe} onChange={handleUniverseChange} />
+      {isEtfUniverse(universe) && (
+        <div style={etfNoteStyle}>
+          Breadth is anchored to the broad market — not the ETFs on screen — and breadth-based score components are neutralized for this universe.
+        </div>
+      )}
+
       <ScreenerToolbar
         screenerData={screenerData}
         isScanning={scan.isScanning}
@@ -101,30 +118,47 @@ const ScreenerGrid = () => {
         <ScanErrorBanner message={scan.scanError} onRetry={scan.handleRetryLastJob} />
       )}
 
-      {!hasScreenerData && !scan.isEvaluating && !scan.scanError && <EmptyState message="Loading Screener Data... (If this takes more than a moment, evaluate the cached data.)" />}
-      {hasScreenerData && !scan.isEvaluating && filters.paginatedTickers.length === 0 && <EmptyState message="No setups found matching current filters." />}
-      {hasScreenerData && !scan.isEvaluating && filters.paginatedTickers.length > 0 && (
+      {!scan.isEvaluating && !scan.scanError && (
         <>
-          <div style={gridStyle}>
-            {filters.paginatedTickers.map(ticker => (
-              <ScreenerCard
-                key={ticker}
-                ticker={ticker}
-                data={screenerData.chart_data[ticker]}
-                earnings={earningsByTicker[ticker]}
-                watchlisted={watchlist.has(ticker)}
-                onToggleWatchlist={toggleWatchlist}
-                passed={passed.has(ticker)}
-                onTogglePassed={togglePassed}
-                onClick={setActiveModalTicker}
+          {status === 'loading' && (
+            <EmptyState message="Loading screener data… (if this takes more than a moment, evaluate the cached data above.)" />
+          )}
+          {status === 'error' && (
+            <EmptyState message="Couldn't load this screener. Check the backend is running and try again." />
+          )}
+          {status === 'never_scanned' && (
+            <EmptyState message={`No scan yet for ${universeLabel(universe)}. Its setups will appear here once a scan has run for this universe.`} />
+          )}
+          {status === 'empty' && (
+            <EmptyState message="This scan matched no setups." />
+          )}
+          {status === 'ready' && filters.paginatedTickers.length === 0 && (
+            <EmptyState message="No setups match the current filters." />
+          )}
+          {status === 'ready' && filters.paginatedTickers.length > 0 && (
+            <>
+              <div style={gridStyle}>
+                {filters.paginatedTickers.map(ticker => (
+                  <ScreenerCard
+                    key={ticker}
+                    ticker={ticker}
+                    data={screenerData.chart_data[ticker]}
+                    earnings={earningsByTicker[ticker]}
+                    watchlisted={watchlist.has(ticker)}
+                    onToggleWatchlist={toggleWatchlist}
+                    passed={passed.has(ticker)}
+                    onTogglePassed={togglePassed}
+                    onClick={setActiveModalTicker}
+                  />
+                ))}
+              </div>
+              <ScreenerPager
+                currentPage={filters.currentPage}
+                totalPages={filters.totalPages}
+                onPageChange={filters.setCurrentPage}
               />
-            ))}
-          </div>
-          <ScreenerPager
-            currentPage={filters.currentPage}
-            totalPages={filters.totalPages}
-            onPageChange={filters.setCurrentPage}
-          />
+            </>
+          )}
         </>
       )}
 
@@ -188,6 +222,18 @@ const retryButtonStyle = {
   fontWeight: 600,
   padding: '6px 14px',
   whiteSpace: 'nowrap',
+};
+
+// Honest-instrument note for the ETF universes: the regime/breadth on screen is
+// borrowed from the broad market, not measured over the handful of ETFs.
+const etfNoteStyle = {
+  fontSize: '12px',
+  color: 'var(--text-muted)',
+  background: 'var(--bg-panel)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '8px 12px',
+  marginTop: '-8px',
 };
 
 const gridStyle = {
