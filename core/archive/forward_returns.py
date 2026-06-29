@@ -269,6 +269,48 @@ def _ensure_outcome_columns(engine) -> None:
                 conn.execute(text(f"ALTER TABLE setup_archive ADD COLUMN {name} {sql_type}"))
 
 
+def _ensure_model_columns(engine) -> None:
+    """Bring ``setup_archive`` up to the FULL ``SetupArchive`` model schema.
+
+    The standalone job (``python -m core.archive.forward_returns``) queries the
+    ENTIRE ORM model, but the prod DB only gets its NON-outcome columns ALTERed in
+    on backend boot (``startup._apply_model_add_columns``). When the standalone job
+    runs against a DB the backend has not yet migrated, ``session.query(
+    SetupArchive)`` crashes with ``no such column: setup_archive.<col>`` (e.g.
+    ``engine_config_version``, the ``fund_*`` / ``rs_*`` / ``sector_*`` columns).
+    So the archive jobs must be SELF-SUFFICIENT, not rely on the backend booting.
+
+    Model-derived and ADD-only (idempotent): diff ``SetupArchive.__table__.columns``
+    against the live table via SQLAlchemy ``inspect`` (``PRAGMA table_info``) and
+    ``ALTER TABLE ... ADD COLUMN`` for each column the model declares but the DB
+    lacks (nullable; the auto-increment PK is never ADDed). The model is the single
+    source of truth — no hardcoded column list — so a new column on SetupArchive
+    flows in on the next run with no hand-written migration. Mirrors
+    ``startup.model_add_column_migrations`` / ``writer._ensure_new_columns``'s
+    model-derived pass. Imported lazily (the model lives under the backend dir,
+    mind the config/cwd boot collision). Calls ``_ensure_outcome_columns`` first so
+    the legacy explicit outcome SQL types are preserved.
+    """
+    from sqlalchemy import inspect, text
+
+    from archive_models import SetupArchive
+
+    _ensure_outcome_columns(engine)
+
+    inspector = inspect(engine)
+    if "setup_archive" not in inspector.get_table_names():
+        return  # create_all will handle a fresh table
+    existing = {col["name"] for col in inspector.get_columns("setup_archive")}
+    with engine.begin() as conn:
+        for column in SetupArchive.__table__.columns:
+            if column.primary_key or column.name in existing:
+                continue
+            conn.execute(
+                text(f"ALTER TABLE setup_archive ADD COLUMN {column.name} {column.type}")
+            )
+            existing.add(column.name)
+
+
 def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     """Update forward returns for all archived setups old enough.
 
@@ -287,7 +329,12 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
     engine = make_sqlite_engine(db_path)
     SetupArchive.metadata.create_all(bind=engine)
-    _ensure_outcome_columns(engine)
+    # Ensure the FULL model schema before querying — not just the outcome subset.
+    # The query below reads the entire SetupArchive model, so a DB the backend has
+    # not yet migrated (missing engine_config_version / fund_* / etc.) would crash.
+    # _ensure_model_columns is model-derived + idempotent and calls
+    # _ensure_outcome_columns internally, keeping this job self-sufficient.
+    _ensure_model_columns(engine)
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
 

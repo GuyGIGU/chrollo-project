@@ -185,6 +185,60 @@ def test_ensure_outcome_columns_adds_elapsed_columns(tmp_path):
     engine.dispose()
 
 
+def test_ensure_model_columns_makes_full_model_queryable(tmp_path):
+    """The standalone forward-return job queries the FULL SetupArchive model, but
+    the prod DB only gets its NON-outcome columns ALTERed in on backend boot. A DB
+    that lags the model on those columns (engine_config_version, fund_*, mfe_to_date,
+    ...) must be brought fully up to the model by ``_ensure_model_columns`` BEFORE
+    the query — otherwise ``session.query(SetupArchive)`` crashes with
+    ``no such column: setup_archive.<col>``. Regression for that standalone crash.
+
+    Temp sqlite only — never the prod DB.
+    """
+    import sqlite3
+
+    from sqlalchemy import create_engine, inspect
+    from sqlalchemy.orm import sessionmaker
+
+    import archive_models
+    from core.archive.forward_returns import _ensure_model_columns
+
+    db = os.path.join(str(tmp_path), "behind.db")
+    con = sqlite3.connect(db)
+    # An OLD-schema archive missing many model columns — both NON-outcome
+    # (engine_config_version, fund_eps_growth_yoy, current_price) and outcome
+    # (mfe_to_date) ones — the exact lag that crashed the standalone job.
+    con.execute(
+        "CREATE TABLE setup_archive (id INTEGER PRIMARY KEY, ticker TEXT, "
+        "scan_date TEXT, setup_type TEXT, tier TEXT, score REAL)"
+    )
+    con.commit()
+    con.close()
+
+    # Sanity: the model declares the columns we deliberately omitted.
+    model_cols = {c.name for c in archive_models.SetupArchive.__table__.columns}
+    for absent in ("engine_config_version", "fund_eps_growth_yoy", "mfe_to_date",
+                   "current_price"):
+        assert absent in model_cols
+
+    engine = create_engine(f"sqlite:///{db}")
+    _ensure_model_columns(engine)
+
+    # EVERY model column is present afterward (model is the single source).
+    cols = {c["name"] for c in inspect(engine).get_columns("setup_archive")}
+    missing = model_cols - cols
+    assert not missing, f"columns still missing after ensure: {sorted(missing)}"
+
+    # And the full-model query — the one the standalone job runs — does NOT raise.
+    session = sessionmaker(bind=engine, autoflush=False)()
+    session.query(archive_models.SetupArchive).first()  # must not raise
+    session.close()
+
+    # Idempotent: a second run is a clean no-op (no duplicate-column error).
+    _ensure_model_columns(engine)
+    engine.dispose()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # abnormal_ret_to_date baseline aligns to the setup's forward END DATE, not by
 # SPY's first-N-bars-by-position (regression for the halted/thin-ticker desync)
