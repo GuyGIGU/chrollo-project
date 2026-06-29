@@ -24,7 +24,7 @@ const chartOptions = (width, height) => ({
     horzLines: { color: 'rgba(70, 77, 98, 0.18)' },
   },
   crosshair: { mode: 1 },
-  rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.08, bottom: 0.22 } },
+  rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
   timeScale: { borderColor: '#2f3447', timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
   handleScroll: true,
   handleScale: true,
@@ -75,7 +75,21 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
       }).setData(buildFullLevelData(railBars, (r + s) / 2));
     }
 
-    chart.timeScale().fitContent();
+    // Bounded recent window keeps weekly/monthly bars at a faithful per-bar
+    // width (fitContent on a long resampled series stretches few bars across the
+    // wide pane — the most distorted path). Fall back to fitContent when the box
+    // origin predates the recent window, so the rails never start off-screen-left.
+    const n = cand.length;
+    const show = label === 'WEEKLY' ? 160 : 120;
+    const viewFrom = Math.max(0, n - show);
+    if (boxStart) {
+      const anchor = cand.findIndex((candle) => candle.time >= boxStart);
+      if (anchor >= 0 && anchor < viewFrom) {
+        chart.timeScale().fitContent();
+        return;
+      }
+    }
+    chart.timeScale().setVisibleLogicalRange({ from: viewFrom, to: n - 1 });
   };
 
   if (!candles?.length) {
@@ -95,7 +109,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
           candles: coloredCandles,
           volumes,
           showVolume: !!volumes?.length,
-          volumeScaleTop: 0.82,
+          volumeScaleTop: 0.84,
           showSma: true,
           onReady,
           onResize: (chart, container) =>

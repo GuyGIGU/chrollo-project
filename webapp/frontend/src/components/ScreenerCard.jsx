@@ -207,10 +207,10 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
   });
   return (
     <div title={title} style={{ alignItems: 'center', display: 'flex', flex: 1, gap: 5, minWidth: 0 }}>
-      <span style={{ color: 'var(--text-faint)', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>
-      <span style={{ color: trend.col, fontSize: 11, lineHeight: 1 }}>{trend.sym}</span>
-      <span style={{ color: stateCol, fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{state}</span>
-      {nested ? <span style={{ color: '#ff9f43', fontSize: 11, lineHeight: 1 }}>⊂</span> : null}
+      <span style={{ color: 'var(--text-faint)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>
+      <span style={{ color: trend.col, fontSize: 13, lineHeight: 1 }}>{trend.sym}</span>
+      <span style={{ color: stateCol, fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{state}</span>
+      {nested ? <span style={{ color: '#ff9f43', fontSize: 13, lineHeight: 1 }}>⊂</span> : null}
     </div>
   );
 }
@@ -220,7 +220,8 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
 function TimeframeBand({ data }) {
   if (data.htf_w_trend_state == null && data.htf_m_trend_state == null) return null;
   return (
-    <div style={{ alignItems: 'center', background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: 8, padding: '4px 8px' }}>
+    <div style={{ alignItems: 'center', background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: 8, padding: '8px' }}>
+      <span style={{ color: 'var(--text-faint)', fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>HTF</span>
       <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
       <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', width: 1 }} />
       <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
@@ -314,13 +315,16 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       }}
       compact
       maxTags="auto"
+      rows={2}
       style={{
+        alignContent: 'flex-start',
         background: 'var(--bg-main)',
         borderTop: '1px solid var(--border-color)',
-        flexWrap: 'nowrap',
-        height: 28,
+        flexWrap: 'wrap',
+        height: 52,
         overflow: 'hidden',
-        padding: '4px 8px',
+        padding: '7px 8px',
+        rowGap: 5,
       }}
     />
   </div>

@@ -8,7 +8,12 @@ import {
   setupIndexes,
 } from './chartGeometry';
 
-const MAX_VISIBLE_BARS = 72;
+// Faithful daily density: ~90-130 bars in a ~480px screener card ≈ 3.7-5.3px/bar
+// (Finviz-like), vs the old ~48 bars ≈ 10px/bar that let a tight base sprawl
+// edge-to-edge and read tighter than it is. Overridable so the small Home tiles
+// (~165px) can pass a lower budget instead of cramming 90 bars into a sliver.
+const DEFAULT_MAX_BARS = 130;
+const DEFAULT_MIN_BARS = 90;
 
 const chartOptions = (width, height) => ({
   width,
@@ -28,7 +33,9 @@ const chartOptions = (width, height) => ({
     horzLines: { color: 'rgba(47, 52, 71, 0.13)' },
   },
   crosshair: { mode: 0 },
-  rightPriceScale: { borderColor: 'rgba(47, 52, 71, 0.56)', scaleMargins: { top: 0.08, bottom: 0.2 } },
+  // Tight vertical fit (Finviz pillar #2): small margins so the visible high-low
+  // fills the pane and a real consolidation reads at its true height, not flattened.
+  rightPriceScale: { borderColor: 'rgba(47, 52, 71, 0.56)', scaleMargins: { top: 0.06, bottom: 0.14 }, autoScale: true },
   timeScale: {
     borderColor: 'rgba(47, 52, 71, 0.56)',
     timeVisible: false,
@@ -39,7 +46,7 @@ const chartOptions = (width, height) => ({
   handleScale: false,
 });
 
-const ScreenerMiniChart = ({ ticker, data }) => {
+const ScreenerMiniChart = ({ ticker, data, maxBars = DEFAULT_MAX_BARS, minBars = DEFAULT_MIN_BARS }) => {
   const candles = data.candles;
   const coloredCandles = colorMiniCandles(data);
 
@@ -81,7 +88,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
     }
 
     if (data.base_len > 0 && data.candles?.length > 0) {
-      const range = miniFocusLogicalRange(data, MAX_VISIBLE_BARS);
+      const range = miniFocusLogicalRange(data, maxBars, minBars);
       if (range) chart.timeScale().setVisibleLogicalRange(range);
     } else {
       chart.timeScale().fitContent();
@@ -103,6 +110,7 @@ const ScreenerMiniChart = ({ ticker, data }) => {
         },
         volumes: data.volumes,
         showVolume: true,
+        volumeScaleTop: 0.86,
         onReady,
         onError: (err) => console.error(`[ScreenerMiniChart] Chart init failed for ${ticker}:`, err),
         deps: [ticker, data],

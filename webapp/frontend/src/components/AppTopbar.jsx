@@ -1,4 +1,5 @@
 import { scanStatusColor, tabTitle } from '../utils/appFormat';
+import IbkrModeControls from './IbkrModeControls';
 
 function AppTopbar({
   activeTab,
@@ -7,6 +8,8 @@ function AppTopbar({
   scanStatusText,
   stockTradeCount,
   optionTradeCount,
+  ibkrStatus,
+  ibkrActions,
 }) {
   return (
     <header className="topbar" style={{ justifyContent: 'space-between' }}>
@@ -57,6 +60,21 @@ function AppTopbar({
         </span>
         {activeTab === 'dashboard' && <span style={{ color: 'var(--text-muted)' }}>{stockTradeCount} stock trades loaded.</span>}
         {activeTab === 'options' && <span style={{ color: 'var(--text-muted)' }}>{optionTradeCount} option trades loaded.</span>}
+        {ibkrActions && (
+          <IbkrModeControls
+            ibkrStatus={ibkrStatus}
+            isConnected={ibkrActions.isConnected}
+            isLive={ibkrActions.isLive}
+            isGateway={ibkrActions.isGateway}
+            reconnecting={ibkrActions.reconnecting}
+            switchingClient={ibkrActions.switchingClient}
+            switchingMode={ibkrActions.switchingMode}
+            onToggleClient={ibkrActions.toggleIbkrClient}
+            onToggleMode={ibkrActions.toggleIbkrMode}
+            onReconnect={ibkrActions.reconnectIbkr}
+            onDisconnect={ibkrActions.disconnectIbkr}
+          />
+        )}
       </div>
     </header>
   );

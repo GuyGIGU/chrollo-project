@@ -31,7 +31,10 @@ export const GROUP_LABELS = {
 const TOUCH_VOL_Z_NO_SUPPLY = -0.30;
 const TOUCH_VOL_Z_SPRING = 0.30;
 const TOUCH_VOL_Z_HEAVY_R = 0.50;
-const MAX_TAGS = 4;
+// Up to two rows of "why ranked" chips now fit on the card (TagRow rows=2), so
+// surface more of the firing signals instead of only the top 4. Chips beyond
+// what fits the two rows collapse to a +N overflow.
+const MAX_TAGS = 8;
 // Volume drying up ACROSS the contractions (lightest at the final coil) at or
 // above this [0,1] read flips the VCP-Coil tooltip from "not confirming yet" to
 // "volume confirms". Tooltip wording only — it never changes which chips fire.

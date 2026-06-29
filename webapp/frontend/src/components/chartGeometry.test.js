@@ -104,15 +104,15 @@ test('setupIndexes: baseEnd subtracts forward bars; baseStart clamps at 0', () =
   assert.equal(idx2.baseEnd, 29);
 });
 
-test('miniFocusLogicalRange: padded window around the base, capped at maxVisibleBars', () => {
+test('miniFocusLogicalRange: window adds real pre-base context (leftPadding >= 40)', () => {
   const candles = makeCandles(60);
   const range = miniFocusLogicalRange({ candles, base_len: 12, forward_bars: 2 }, 72);
   // baseEnd = 60-1-2 = 57, baseStart = 57-12+1 = 46
-  // rightPadding = clamp(2+5,5,9)=7 -> rightEdge = min(59, 57+7)=59 (... 64 capped to 59)
+  // rightPadding = clamp(2+5,5,9)=7 -> rightEdge = min(59, 57+7)=59
   assert.equal(range.to, 59);
-  // leftPadding = clamp(round(12*0.28)=3, 6,10)=6 -> leftEdge = max(0, 46-6)=40
-  // from = max(40, 59-72) = 40
-  assert.equal(range.from, 40);
+  // leftPadding = max(40, 12) = 40 -> desiredFrom = max(0, 46-40)=6
+  // maxFrom = max(0, 59-72)=0 -> from = max(6,0)=6; min floor inert (minFrom=59) -> 6
+  assert.equal(range.from, 6);
   assert.equal(miniFocusLogicalRange({ candles: [], base_len: 1, forward_bars: 0 }, 72), null);
 });
 
@@ -121,6 +121,16 @@ test('miniFocusLogicalRange: maxVisibleBars caps a wide window', () => {
   const range = miniFocusLogicalRange({ candles, base_len: 200, forward_bars: 0 }, 72);
   // rightEdge near 299; from must be rightEdge - 72 because the base is huge
   assert.equal(range.to - range.from, 72);
+});
+
+test('miniFocusLogicalRange: minVisibleBars pads a tiny base out to the floor', () => {
+  const candles = makeCandles(200);
+  // base_len 10, fwd 0: baseEnd=199, baseStart=190, rightEdge=199.
+  // desiredFrom = 190 - max(40,10)=150; without a floor the window would be only
+  // ~49 bars. minVisibleBars=90 -> minFrom = 199-90 = 109 -> from clamped to 109.
+  const range = miniFocusLogicalRange({ candles, base_len: 10, forward_bars: 0 }, 130, 90);
+  assert.equal(range.to, 199);
+  assert.equal(range.to - range.from, 90);
 });
 
 test('colorMiniCandles: clones input, paints limb grey and lps gold', () => {

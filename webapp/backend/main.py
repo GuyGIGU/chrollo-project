@@ -20,6 +20,7 @@ from ibkr import get_ibkr_service
 from middleware.request_id import RequestIDMiddleware
 from routers import analytics as analytics_router
 from routers import archive as archive_router
+from routers import engine_edge as engine_edge_router
 from routers import ibkr as ibkr_router
 from routers import journal as journal_router
 from routers import market_data as market_data_router
@@ -98,6 +99,7 @@ app.include_router(portfolio_streams_router.router)
 app.include_router(market_data_router.router)
 app.include_router(tags_router.router)
 app.include_router(analytics_router.router)
+app.include_router(engine_edge_router.router)
 app.include_router(journal_router.router)
 app.include_router(archive_router.router)
 app.include_router(watchlist_router.router)

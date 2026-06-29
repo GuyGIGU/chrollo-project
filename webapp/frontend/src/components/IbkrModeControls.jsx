@@ -24,7 +24,7 @@ function IbkrModeControls({
   const connection = getConnectionPill({ ibkrStatus, isConnected, reconnecting });
 
   return (
-    <div style={{ padding: '0 1.5rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
       <button
         type="button"
         onClick={onToggleClient}

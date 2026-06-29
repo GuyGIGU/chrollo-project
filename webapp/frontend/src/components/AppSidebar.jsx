@@ -1,23 +1,44 @@
 import { NavLink } from 'react-router-dom';
-import IbkrModeControls from './IbkrModeControls';
+import {
+  HomeIcon, PortfolioIcon, JournalIcon, OptionsIcon,
+  ScreenerIcon, ArchiveIcon, PlusIcon, UploadIcon, CalcIcon,
+} from './NavIcons';
 
+// Compact icon rail: icon + tiny label per item, grouped into sections by a
+// faint divider. Reclaims ~130px of width vs the old text list. IBKR mode
+// controls moved to the topbar (they belong with the other status indicators);
+// the rail is now pure navigation + the three primary actions.
 const navSections = [
   {
-    label: 'Trading',
+    label: 'Trade',
     items: [
-      { to: '/portfolio', label: 'Portfolio' },
-      { to: '/dashboard', label: 'Dashboard' },
-      { to: '/options', label: 'Options' },
+      { to: '/portfolio', label: 'Portfolio', Icon: PortfolioIcon },
+      { to: '/dashboard', label: 'Journal', Icon: JournalIcon },
+      { to: '/options', label: 'Options', Icon: OptionsIcon },
     ],
   },
   {
     label: 'Research',
     items: [
-      { to: '/screener', label: 'Screener Grid' },
-      { to: '/archive', label: 'Setup Archive' },
+      { to: '/screener', label: 'Screener', Icon: ScreenerIcon },
+      { to: '/archive', label: 'Archive', Icon: ArchiveIcon },
     ],
   },
 ];
+
+function RailLink({ to, label, Icon, end }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      title={label}
+      className={({ isActive }) => `rail-link ${isActive ? 'active' : ''}`}
+    >
+      <Icon className="rail-icon" />
+      <span className="rail-label">{label}</span>
+    </NavLink>
+  );
+}
 
 function AppSidebar({
   logoUrl,
@@ -26,59 +47,30 @@ function AppSidebar({
   csvInputRef,
   importingCsv,
   onCsvImport,
-  ibkrStatus,
-  ibkrActions,
 }) {
   return (
     <aside className="sidebar">
-      <div className="brand" style={{
-        gap: '12px',
-        fontSize: '1.4rem',
-        letterSpacing: '2px',
-        textTransform: 'uppercase',
-        marginBottom: '0.8rem',
-      }}>
-        <img src={logoUrl} alt="Chrollo" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
-        <span className="brand-text">Chrollo</span>
+      <div className="rail-brand" title="Chrollo">
+        <img src={logoUrl} alt="Chrollo" />
       </div>
 
-      <IbkrModeControls
-        ibkrStatus={ibkrStatus}
-        isConnected={ibkrActions.isConnected}
-        isLive={ibkrActions.isLive}
-        isGateway={ibkrActions.isGateway}
-        reconnecting={ibkrActions.reconnecting}
-        switchingClient={ibkrActions.switchingClient}
-        switchingMode={ibkrActions.switchingMode}
-        onToggleClient={ibkrActions.toggleIbkrClient}
-        onToggleMode={ibkrActions.toggleIbkrMode}
-        onReconnect={ibkrActions.reconnectIbkr}
-        onDisconnect={ibkrActions.disconnectIbkr}
-      />
-
-      <nav className="nav-menu">
+      <nav className="rail-nav">
+        <RailLink to="/" end label="Home" Icon={HomeIcon} />
         {navSections.map(section => (
-          <div className="nav-section" key={section.label}>
-            <div className="nav-section-label">{section.label}</div>
+          <div className="rail-section" key={section.label}>
+            <div className="rail-section-label">{section.label}</div>
             {section.items.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              >
-                {item.label}
-              </NavLink>
+              <RailLink key={item.to} to={item.to} label={item.label} Icon={item.Icon} />
             ))}
           </div>
         ))}
-        <div className="nav-section">
-          <div className="nav-section-label">Tools</div>
-          <button type="button" className="nav-link" onClick={onOpenCalculator}>Calculator</button>
-        </div>
       </nav>
 
-      <div className="action-buttons">
-        <button className="btn-action btn-trade" onClick={onNewTrade}><span>+</span> New Trade</button>
+      <div className="rail-actions">
+        <button type="button" className="rail-action rail-action-primary" onClick={onNewTrade} title="New Trade">
+          <PlusIcon className="rail-icon" />
+          <span className="rail-label">Trade</span>
+        </button>
         <input
           ref={csvInputRef}
           type="file"
@@ -88,21 +80,18 @@ function AppSidebar({
         />
         <button
           type="button"
-          className="btn-action"
+          className="rail-action"
           disabled={importingCsv}
           onClick={() => csvInputRef.current?.click()}
-          title="Upload an IBKR Activity Statement CSV to bulk-import historical fills"
-          style={{
-            marginTop: '8px',
-            background: 'transparent',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-muted)',
-            fontSize: '11px',
-            cursor: importingCsv ? 'wait' : 'pointer',
-            opacity: importingCsv ? 0.6 : 1,
-          }}
+          title="Import an IBKR Activity Statement CSV"
+          style={{ cursor: importingCsv ? 'wait' : 'pointer', opacity: importingCsv ? 0.6 : 1 }}
         >
-          {importingCsv ? 'Importing...' : 'Import IBKR CSV'}
+          <UploadIcon className="rail-icon" />
+          <span className="rail-label">{importingCsv ? '…' : 'Import'}</span>
+        </button>
+        <button type="button" className="rail-action" onClick={onOpenCalculator} title="Position Calculator">
+          <CalcIcon className="rail-icon" />
+          <span className="rail-label">Calc</span>
         </button>
       </div>
     </aside>

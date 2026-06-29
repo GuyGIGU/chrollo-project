@@ -18,6 +18,7 @@ export const scanStatusColor = (status) => {
 };
 
 export const tabTitle = (activeTab) => {
+  if (activeTab === 'home') return 'Command Center';
   if (activeTab === 'dashboard') return 'Trading Journal Analytics';
   if (activeTab === 'options') return 'Options Trades';
   if (activeTab === 'portfolio') return 'Live IBKR Portfolio';

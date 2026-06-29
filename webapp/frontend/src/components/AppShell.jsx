@@ -21,11 +21,13 @@ const ModalFallback = () => null;
 
 // Map the current path to the in-app tab key the topbar/title helpers expect.
 const tabFromPath = (pathname) => {
+  if (pathname === '/' || pathname.startsWith('/home')) return 'home';
   if (pathname.startsWith('/dashboard')) return 'dashboard';
   if (pathname.startsWith('/options')) return 'options';
   if (pathname.startsWith('/portfolio')) return 'portfolio';
   if (pathname.startsWith('/archive')) return 'archive';
-  return 'screener';
+  if (pathname.startsWith('/screener')) return 'screener';
+  return 'home';
 };
 
 // AppShell owns the persistent frame (sidebar + topbar + risk-alert strip) and
@@ -125,6 +127,7 @@ function AppShell() {
     onDetailClick: setDetailTrade,
     onTradeUpdate: fetchDashboardData,
     priceFor,
+    scanStatus,
   };
 
   return (
@@ -136,8 +139,6 @@ function AppShell() {
         csvInputRef={csvInputRef}
         importingCsv={importingCsv}
         onCsvImport={handleCsvImport}
-        ibkrStatus={ibkrStatus}
-        ibkrActions={ibkrActions}
       />
 
       <main className="main-content">
@@ -148,6 +149,8 @@ function AppShell() {
           scanStatusText={scanStatusText}
           stockTradeCount={stockTrades.length}
           optionTradeCount={optionTrades.length}
+          ibkrStatus={ibkrStatus}
+          ibkrActions={ibkrActions}
         />
         <ErrorBoundary>
           <div className="content-scroll">

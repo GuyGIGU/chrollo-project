@@ -20,7 +20,10 @@ const chartOptions = (width, height) => ({
   crosshair: { mode: 1 },
   rightPriceScale: {
     borderColor: '#2f3447',
-    scaleMargins: { top: 0.08, bottom: 0.22 },
+    // Tight vertical fit so amplitude isn't flattened; bottom band sized to the
+    // (now smaller) volume footprint so price/volume don't overlap.
+    scaleMargins: { top: 0.06, bottom: 0.16 },
+    autoScale: true,
   },
   timeScale: {
     borderColor: '#2f3447',
@@ -155,7 +158,10 @@ const buildMarkers = (annotations) => {
 
 const setFocusedRange = (chart, data, baseEnd) => {
   if (!data.candles?.length) return;
-  const displayStart = Math.max(0, baseEnd - Math.max(data.base_len + 22, 42));
+  // Show the base with substantial pre-base trend context (~120-160 bars) so it
+  // renders at a faithful daily density (~9-12px/bar in the wide modal pane)
+  // instead of ~52 bars stretched to ~20-28px/bar, which flattened the base.
+  const displayStart = Math.max(0, baseEnd - Math.max(data.base_len + 90, 120));
   chart.timeScale().setVisibleRange({
     from: data.candles[displayStart].time,
     to: data.candles[data.candles.length - 1].time,
@@ -185,7 +191,7 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
     barOptions: { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false },
     volumes: data?.volumes,
     showVolume: true,
-    volumeScaleTop: 0.82,
+    volumeScaleTop: 0.84,
     showSma: true,
     onReady: (chart, candleSeries) => {
       const phaseOverlay = attachPhaseOverlay({

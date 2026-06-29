@@ -31,8 +31,12 @@ function TagChip({ compact, tagDef, style }) {
   );
 }
 
-function fitTags(containerWidth, tagWidths) {
+function fitTags(containerWidth, tagWidths, rows = 1) {
   if (!containerWidth || tagWidths.length === 0) return tagWidths.length;
+
+  // Budget = `rows` rows worth of width. A width-sum heuristic (not a true
+  // greedy wrap), good enough to decide how many chips show before the +N.
+  const budget = containerWidth * Math.max(1, rows);
 
   for (let count = tagWidths.length; count >= 0; count -= 1) {
     const hiddenCount = tagWidths.length - count;
@@ -42,7 +46,7 @@ function fitTags(containerWidth, tagWidths) {
     const gapCount = count + (hiddenCount > 0 ? 1 : 0) - 1;
     const overflowWidth = hiddenCount > 0 ? OVERFLOW_CHIP_WIDTH : 0;
     const totalWidth = tagWidth + overflowWidth + Math.max(0, gapCount) * TAG_GAP;
-    if (totalWidth <= containerWidth) return count;
+    if (totalWidth <= budget) return count;
   }
 
   return 0;
@@ -76,7 +80,7 @@ export function TagLegend({ style }) {
   );
 }
 
-export function TagRow({ subScores, flags, maxTags, compact = false, style }) {
+export function TagRow({ subScores, flags, maxTags, compact = false, rows = 1, style }) {
   const tags = deriveTags(subScores, flags);
   const containerRef = useRef(null);
   const measureRef = useRef(null);
@@ -98,7 +102,7 @@ export function TagRow({ subScores, flags, maxTags, compact = false, style }) {
       if (!container || !measure) return;
 
       const widths = Array.from(measure.children).map(child => child.getBoundingClientRect().width);
-      setFitCount(fitTags(container.clientWidth, widths));
+      setFitCount(fitTags(container.clientWidth, widths, rows));
     };
 
     updateFitCount();
@@ -111,7 +115,7 @@ export function TagRow({ subScores, flags, maxTags, compact = false, style }) {
     const observer = new ResizeObserver(updateFitCount);
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [maxTags, tagKey]);
+  }, [maxTags, tagKey, rows]);
 
   if (tags.length === 0) return null;
 

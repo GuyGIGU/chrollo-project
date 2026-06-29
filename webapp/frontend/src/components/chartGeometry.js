@@ -73,19 +73,31 @@ export const setupIndexes = (data) => {
 
 // The focused logical range for the mini-chart (pure computation; the caller
 // applies it via chart.timeScale().setVisibleLogicalRange).
-export const miniFocusLogicalRange = (data, maxVisibleBars) => {
+//
+// Faithful-density window (Finviz-style): show the base WITH real pre-base
+// trend context so it occupies a true FRACTION of the pane, never sprawling
+// edge-to-edge (which flattens a tight base into looking even tighter). The
+// window width is clamped to [minVisibleBars .. maxVisibleBars]: maxFrom caps
+// huge bases to the budget; minFrom pads a tiny base out to the floor. With the
+// default minVisibleBars=0 the floor is inert (old single-arg behavior).
+export const miniFocusLogicalRange = (data, maxVisibleBars, minVisibleBars = 0) => {
   const { baseEnd, baseStart, candles, forwardBars } = setupIndexes(data);
   if (!candles.length) return null;
 
-  const leftPadding = Math.max(6, Math.min(10, Math.round(data.base_len * 0.28)));
   const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
   const rightEdge = Math.min(candles.length - 1, baseEnd + rightPadding);
-  const leftEdge = Math.max(0, baseStart - leftPadding);
 
-  return {
-    from: Math.max(leftEdge, rightEdge - maxVisibleBars),
-    to: rightEdge,
-  };
+  const leftPadding = Math.max(40, Math.round(data.base_len));
+  const desiredFrom = Math.max(0, baseStart - leftPadding);
+  const maxFrom = Math.max(0, rightEdge - maxVisibleBars);
+  const minFrom = Math.max(0, rightEdge - minVisibleBars);
+
+  // Don't exceed the max budget (>= maxFrom), then ensure at least the min
+  // window (<= minFrom). With min=0, minFrom===rightEdge so this is a no-op.
+  let from = Math.max(desiredFrom, maxFrom);
+  from = Math.min(from, minFrom);
+
+  return { from, to: rightEdge };
 };
 
 // --- candle coloring ---
