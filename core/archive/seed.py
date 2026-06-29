@@ -201,6 +201,11 @@ def seed_archive(
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
 
+    # Frozen engine-config version stamped on every seeded row (computed once —
+    # provenance only, never a computed engine field).
+    from core.freeze.manifest import manifest_hash
+    engine_config_version = manifest_hash()
+
     # Batch download all tickers
     unique_tickers = sorted({t for t, _ in setups})
     earliest = min(pd.Timestamp(d) for _, d in setups)
@@ -477,6 +482,8 @@ def seed_archive(
             inner_reaction_bar=best_result.get("inner_reaction_bar"),
             inner_reaction_pct=best_result.get("inner_reaction_pct"),
             inner_reaction_bars=best_result.get("inner_reaction_bars"),
+            # Engine provenance (frozen-config reproducibility)
+            engine_config_version=engine_config_version,
             # Labels
             source="seed",
             quality_label="perfect",

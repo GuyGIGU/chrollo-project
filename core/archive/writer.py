@@ -186,6 +186,13 @@ _NEW_COLUMNS: dict[str, str] = {
     "regime_qqq_above_200":         "INTEGER",
     "regime_qqq_50d_slope_pct":     "FLOAT",
 }
+# NOTE: engine_config_version (the frozen-config stamp) is intentionally NOT in
+# _NEW_COLUMNS. It is added to the live schema by Track B's model-derived
+# auto-migration (webapp/backend/services/startup._apply_model_add_columns,
+# which diffs SetupArchive.__table__ at backend boot) and by create_all on a
+# fresh table — so the writer needs no hand-listed ALTER for it, and the
+# _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
+# and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
 # HTF (higher-timeframe) context columns — single source of truth in
 # core.structure.htf so the writer / model / migrations / seed stay in sync.
@@ -193,8 +200,20 @@ _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
 
 def _ensure_new_columns(engine) -> None:
-    """Add post-schema columns to setup_archive if they don't exist yet."""
+    """Add post-schema columns to setup_archive if they don't exist yet.
+
+    Two passes, both ADD-only and idempotent:
+      1. the hand-listed ``_NEW_COLUMNS`` (legacy explicit SQL types);
+      2. a MODEL-DERIVED diff — any column on SetupArchive.__table__ missing from
+         the live table. This keeps the writer / seed paths self-sufficient on an
+         existing table for MODEL-ONLY columns (e.g. engine_config_version, which
+         is deliberately absent from _NEW_COLUMNS) when run standalone — i.e.
+         before the backend's Track B auto-migration has booted. Mirrors
+         startup.model_add_column_migrations; the model stays the single source.
+    """
     from sqlalchemy import inspect, text
+
+    from archive_models import SetupArchive as _Model
 
     inspector = inspect(engine)
     if "setup_archive" not in inspector.get_table_names():
@@ -204,6 +223,14 @@ def _ensure_new_columns(engine) -> None:
         for name, sql_type in _NEW_COLUMNS.items():
             if name not in existing:
                 conn.execute(text(f"ALTER TABLE setup_archive ADD COLUMN {name} {sql_type}"))
+                existing.add(name)
+        for column in _Model.__table__.columns:
+            if column.primary_key or column.name in existing:
+                continue
+            conn.execute(
+                text(f"ALTER TABLE setup_archive ADD COLUMN {column.name} {column.type}")
+            )
+            existing.add(column.name)
 
 
 def archive_scan_results(
@@ -278,6 +305,11 @@ def archive_scan_results(
     # original "database is locked" error. We commit explicitly at the end.
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
+
+    # Frozen engine-config version stamped on every row written this run
+    # (computed once — provenance only, never a computed engine field).
+    from core.freeze.manifest import manifest_hash
+    engine_config_version = manifest_hash()
 
     # Fetch market context once for the whole scan (hard-bounded internally).
     print(f"  Fetching market context for {scan_dt}...", flush=True)
@@ -539,6 +571,7 @@ def archive_scan_results(
                                if row.get("_stage2_trend_pass") is not None else None),
             # HTF (higher-timeframe) context — same engine on weekly/monthly bars
             **htf_archive_values(row.get, prefixed=True),
+            engine_config_version=engine_config_version,
             source="screener",
         )
 

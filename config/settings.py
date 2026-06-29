@@ -122,6 +122,9 @@ ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a
                                  # the rolling mean isn't all-NaN on the shorter resampled frame.
 
 # Phase-B ATR window (median over recent N base bars; used when no override is given)
+# FROZEN-CONFIG MANIFEST (Lane A): part of the frozen ATR/volatility frame —
+# changing it is a new engine_config_version (re-baseline). See the marked region
+# at STRUCTURE_EDGE_SKIP_BARS / STRUCTURE_ATR_SAMPLE_OFFSET below.
 PHASE_B_ATR_WINDOW = 30
 
 # Automatic Reaction validation (required)
@@ -264,6 +267,13 @@ LPS_SPREAD_MUST_DECLINE = True    # Declining final spread earns full quality; w
 LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
 
 # Shared structural-frame constants.
+# --- FROZEN-CONFIG MANIFEST (Lane A) ---
+# The four constants below define the engine's daily VOLATILITY/EDGE FRAME and
+# are part of the frozen-config contract (core/freeze/manifest.py). DECISION:
+# the ATR window is FROZEN as-is (no EWMA switch). Changing any value here is a
+# new engine_config_version => the shadow baseline must be re-captured and the
+# archive re-baselined. Do NOT tweak these casually. (PHASE_B_ATR_WINDOW and
+# DAILY_STRUCTURE_PERIOD, also frozen, are likewise tagged at their definitions.)
 STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action when anchoring boxes
 # Daily ATR is sampled one bar before the reserved edge-skip window so the volatility
 # frame matches the bars the box/LPS were anchored on (df.iloc[-(skip+1)]). Bound ONCE
@@ -271,6 +281,7 @@ STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action 
 # at a call site — that knob is overridden to 1 inside HTF weekly/monthly window contexts,
 # whereas this daily eval bar must stay fixed.
 STRUCTURE_ATR_SAMPLE_OFFSET = STRUCTURE_EDGE_SKIP_BARS + 1   # = 6 (daily)
+# --- end FROZEN-CONFIG MANIFEST (Lane A) region ---
 INNER_SEARCH_FRACTION = 0.5       # Search recent half for nested Phase-D mini-consolidation
 INNER_TIGHTNESS_RATIO = 0.75      # Inner box must be at least 25% tighter than parent
 INNER_MIN_DAYS = 15               # Min length of an inner CANDIDATE box (room pre-filter only; inner_zigzag separately requires the search WINDOW >= MIN_BASE_DAYS — the binding floor)
@@ -444,6 +455,8 @@ HTF_CONTEXT_ENABLED = True        # compute + archive + chip HTF context on FIRI
 # 5y cache (needed for HTF resampling) does NOT feed the daily oldest-first root
 # walk extra history and drift it (the FOSL _MAX_ANCHORS sensitivity). Keeps daily
 # byte-identical; validate with tools.shadow_diff once real 5y data is present.
+# FROZEN-CONFIG MANIFEST (Lane A): the daily read window is part of the frozen
+# engine contract — changing it is a new engine_config_version (re-baseline).
 DAILY_STRUCTURE_PERIOD = "2y"
 
 HTF_STAGE_MA = 30                 # HTF Stage-2 trend MA (Weinstein weekly MA-30 ~ daily MA-150/200)

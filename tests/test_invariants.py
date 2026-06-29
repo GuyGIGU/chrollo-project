@@ -1,0 +1,266 @@
+"""Geometry & manifest invariants (Lane A — engine-freeze track).
+
+These are PROPERTY tests, not example tests: they assert structural invariants
+that must hold for *every* Structure / swing skeleton the engine emits, over the
+committed shadow fixture (real OHLC for the recently-firing tickers, offline).
+They tolerate None / empty — the engine is free not to fire — and only assert
+when a structure exists. That makes them robust to calibration changes (they
+never force a particular fire) while still catching a geometry regression
+(support above resistance, phases out of order, a NaN level, a broken zigzag).
+
+Plus a focused contract test for the frozen-config manifest
+(core/freeze/manifest.py): determinism, ops-knob exclusion, and the
+"a listed key vanished" guard.
+
+All offline. Reuses the shadow fixture + conftest fixtures; touches no DB.
+"""
+from __future__ import annotations
+
+import math
+
+import pytest
+
+import config.settings as settings
+from core.pipeline.evaluation import _prepare_eval_frame
+from core.structure.narrative import read_structure
+from core.structure.pivots import _build_zigzag, _find_pivots
+from core.structure.segmentation import segment_swings
+
+
+# ── Shared fixture: real Structures over the committed shadow fixture ─────────
+def _structures_from_fixture():
+    """Yield (ticker, df, Structure) for every fixture ticker that produces a
+    non-None Structure. Built once, module-scoped, so the parquet read + ATR
+    compute happen a single time.
+    """
+    from tools.shadow_diff import _load_fixture
+
+    frames, _scalars = _load_fixture()
+    out = []
+    for ticker, df in frames.items():
+        prep = _prepare_eval_frame(df)
+        if prep is None:
+            continue
+        daily = prep["df"]
+        try:
+            atr = float(daily.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
+        except (KeyError, IndexError, ValueError):
+            continue
+        structure = read_structure(daily, atr)
+        if structure is None:
+            continue
+        out.append((ticker, daily, structure))
+    return out
+
+
+@pytest.fixture(scope="module")
+def fixture_structures():
+    structures = _structures_from_fixture()
+    if not structures:
+        pytest.skip("shadow fixture produced no structures (no fixture data?)")
+    return structures
+
+
+# ── Geometry invariants on emitted Structures ────────────────────────────────
+def test_support_below_resistance(fixture_structures):
+    """Vertical invariant: the support rail is strictly below resistance."""
+    for ticker, _df, s in fixture_structures:
+        assert s.S < s.R, f"{ticker}: S ({s.S}) not below R ({s.R})"
+
+
+def test_levels_are_finite(fixture_structures):
+    """No NaN / inf in the emitted price levels (R, S) or box width."""
+    for ticker, _df, s in fixture_structures:
+        for name in ("R", "S", "box_width"):
+            val = float(getattr(s, name))
+            assert math.isfinite(val), f"{ticker}: {name} not finite ({val})"
+        # The vertical view recomposes the levels — it must be finite too.
+        for name in ("R", "S", "box_height"):
+            val = float(s.vertical[name])
+            assert math.isfinite(val), f"{ticker}: vertical[{name}] not finite ({val})"
+
+
+def test_phase_ordering_monotone(fixture_structures):
+    """Time invariant: A -> B opens in chronological order.
+
+      climax_bar <= ar_bar <= phase_b_start_bar <= phase_b_end_bar
+
+    The root swing climax precedes its automatic reaction, the box opens at /
+    after the AR low, and Phase B cannot end before it starts. The state machine
+    builds these sequentially, so the bars must never go backwards (equality is
+    allowed for a degenerate zero-length phase).
+
+    NOTE: phase_d_start_bar is asserted separately (test_phase_d_after_b_start).
+    phase_b_end_bar and phase_d_start_bar are TWO DIFFERENT boundary semantics —
+    phase_b_end_bar is the LPS start (terminator='lps') or spring tip, while
+    phase_d_start_bar is the right-side region resolved from support-test
+    evidence, which legitimately begins EARLIER than the LPS. So B_end vs D_start
+    is intentionally NOT a monotone pair and must not be asserted as one.
+    """
+    for ticker, _df, s in fixture_structures:
+        bars = [
+            ("climax_bar", s.climax_bar),
+            ("ar_bar", s.ar_bar),
+            ("phase_b_start_bar", s.phase_b_start_bar),
+            ("phase_b_end_bar", s.phase_b_end_bar),
+        ]
+        for (an, av), (bn, bv) in zip(bars, bars[1:]):
+            assert av <= bv, (
+                f"{ticker}: phase order broken {an}={av} > {bn}={bv}"
+            )
+
+
+def test_phase_d_after_b_start(fixture_structures):
+    """Phase D (the right-side region) opens at or after Phase B opens — it is a
+    later region of the same base, never before the box began."""
+    for ticker, _df, s in fixture_structures:
+        assert s.phase_b_start_bar <= s.phase_d_start_bar, (
+            f"{ticker}: phase_d_start {s.phase_d_start_bar} precedes "
+            f"phase_b_start {s.phase_b_start_bar}"
+        )
+
+
+def test_phase_bars_in_range(fixture_structures):
+    """Every phase boundary bar indexes a real bar of the daily frame."""
+    for ticker, df, s in fixture_structures:
+        n = len(df)
+        for name in (
+            "climax_bar", "ar_bar", "phase_b_start_bar",
+            "phase_b_end_bar", "phase_d_start_bar",
+        ):
+            bar = int(getattr(s, name))
+            assert 0 <= bar < n, f"{ticker}: {name}={bar} out of range [0,{n})"
+
+
+def test_spring_tip_inside_phase_b(fixture_structures):
+    """The spring tip sits inside Phase B (at/after B opens, at/before B ends).
+    When a spring terminates B (terminator='spring'), the tip ends B, so it must
+    not precede phase_b_start_bar nor exceed phase_b_end_bar."""
+    for ticker, _df, s in fixture_structures:
+        if s.spring is None:
+            continue
+        tip = getattr(s.spring, "tip_bar", None)
+        if tip is None:
+            continue
+        assert s.phase_b_start_bar <= int(tip) <= s.phase_b_end_bar, (
+            f"{ticker}: spring tip {tip} outside B window "
+            f"[{s.phase_b_start_bar}, {s.phase_b_end_bar}]"
+        )
+
+
+# ── Swing-skeleton invariant: strict pivot (peak/valley) alternation ─────────
+def _zigzag_for(df):
+    n = len(df)
+    order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
+             else settings.PIVOT_ORDER_SHORT)
+    highs = df["High"].values.astype(float)
+    lows = df["Low"].values.astype(float)
+    peaks, valleys = _find_pivots(highs, lows, order)
+    if not peaks or not valleys:
+        return []
+    return _build_zigzag(peaks, valleys, highs, lows)
+
+
+def test_zigzag_strict_kind_alternation(fixture_structures):
+    """The swing skeleton's pivots strictly alternate peak/valley.
+
+    This is the canonical "strict pivot alternation" guarantee of _build_zigzag
+    (consecutive same-type pivots are merged to the more extreme one). It is the
+    structural property — NOT the derived swing `direction` sign, which can
+    legitimately repeat across a zero-displacement swing.
+    """
+    checked = 0
+    for ticker, df, _s in fixture_structures:
+        zz = _zigzag_for(df)
+        if len(zz) < 2:
+            continue
+        kinds = [p[1] for p in zz]
+        for i in range(len(kinds) - 1):
+            assert kinds[i] != kinds[i + 1], (
+                f"{ticker}: zigzag kinds not alternating at {i}: "
+                f"{kinds[i]} == {kinds[i + 1]}"
+            )
+        checked += 1
+    assert checked > 0, "no zigzags with >=2 pivots in the fixture"
+
+
+def test_zigzag_bars_non_decreasing(fixture_structures):
+    """Zigzag pivots are ordered in time (non-decreasing bar index).
+
+    NOT strictly increasing: a single wide outside bar can be BOTH a local high
+    (peak) and a local low (valley), so the same bar index appears twice with
+    different kinds. Time must never run backwards, but a tie at one bar is real.
+    """
+    for ticker, df, _s in fixture_structures:
+        zz = _zigzag_for(df)
+        bars = [p[0] for p in zz]
+        for i in range(len(bars) - 1):
+            assert bars[i] <= bars[i + 1], (
+                f"{ticker}: zigzag bars decreasing at {i}: "
+                f"{bars[i]} > {bars[i + 1]}"
+            )
+
+
+def test_segment_swings_alternation_on_ramp(_ramp_frame):
+    """On a clean synthetic zig-zag ramp, segment_swings emits alternating-sign
+    swings — the well-behaved case the conftest fixture is built for."""
+    df = _ramp_frame([100.0, 120.0, 105.0, 130.0, 110.0, 140.0])
+    # Synthetic flat-OHLC ramp; ATR is a small positive constant.
+    seg = segment_swings(df, atr_val=1.0)
+    dirs = [s["direction"] for s in seg.get("swings", [])]
+    assert len(dirs) >= 2
+    for i in range(len(dirs) - 1):
+        assert dirs[i] != dirs[i + 1], f"ramp swings not alternating: {dirs}"
+
+
+# ── Frozen-config manifest contract ──────────────────────────────────────────
+def test_manifest_hash_is_deterministic():
+    from core.freeze.manifest import manifest_hash
+
+    h1 = manifest_hash()
+    h2 = manifest_hash()
+    assert h1 == h2
+    assert isinstance(h1, str) and len(h1) == 64
+    int(h1, 16)  # valid hex
+
+
+def test_manifest_includes_engine_excludes_ops():
+    from core.freeze.manifest import collect_manifest
+
+    m = collect_manifest()
+    # representative engine constants are present
+    for key in ("MAX_BOX_WIDTH", "STRUCTURE_ATR_SAMPLE_OFFSET", "TIER_S",
+                "LPS_PULLBACK_PROFILE_MIN", "DAILY_STRUCTURE_PERIOD"):
+        assert key in m, f"engine constant {key} missing from manifest"
+    # ops / observability knobs are excluded
+    for key in ("MARKET_DATA_PROVIDER", "YAHOO_RATE_LIMIT_PER_SEC",
+                "ARCHIVE_LIVE_SCANS", "DASHBOARD_CHART_DAYS",
+                "SCAN_SCHEDULE_HOUR_ET", "QUARANTINE_ENABLED"):
+        assert key not in m, f"ops knob {key} leaked into manifest"
+
+
+def test_manifest_raises_when_listed_key_vanishes(monkeypatch):
+    """The contract must not silently rot: a listed key that no longer exists
+    on settings raises, rather than dropping silently from the hash."""
+    import core.freeze.manifest as mod
+
+    monkeypatch.setattr(
+        mod, "ENGINE_SETTINGS_KEYS",
+        mod.ENGINE_SETTINGS_KEYS + ("DEFINITELY_NOT_A_SETTING_XYZ",),
+    )
+    with pytest.raises(KeyError):
+        mod.collect_manifest()
+
+
+def test_manifest_json_is_canonical_sorted():
+    """manifest_json is stable, sorted, and round-trips to collect_manifest."""
+    import json
+
+    from core.freeze.manifest import collect_manifest, manifest_json
+
+    js = manifest_json()
+    parsed = json.loads(js)
+    assert parsed == collect_manifest()
+    # keys are sorted in the serialized form
+    keys = list(parsed.keys())
+    assert keys == sorted(keys)
