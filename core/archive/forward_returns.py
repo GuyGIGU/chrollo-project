@@ -74,16 +74,20 @@ def _cap_forward_window(fwd_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _spy_window_return(
-    spy_df: pd.DataFrame, scan_ts: pd.Timestamp, n_bars: int
+    spy_df: pd.DataFrame, scan_ts: pd.Timestamp, fwd_end_ts: pd.Timestamp | None
 ) -> float | None:
-    """SPY's close-to-close return over the SAME ``n_bars`` forward window.
+    """SPY's close-to-close return over the setup's SAME CALENDAR forward window.
 
-    Anchored to SPY's close on/at the scan bar and measured to SPY's close on the
-    setup's last available forward bar, so the abnormal return subtracts a
-    market move over an identical elapsed horizon. Returns ``None`` when SPY data
-    is missing or the scan bar can't be located (-> abnormal_ret_to_date None).
+    Anchored to SPY's close on/at the scan bar and measured to SPY's last close
+    on or before ``fwd_end_ts`` (the setup's last available forward bar), so the
+    abnormal return subtracts a market move over the IDENTICAL elapsed calendar
+    horizon. Aligning by DATE — not by SPY's first-N-bars-by-position — is what
+    keeps the baseline correct when the setup ticker dropped sessions (halt /
+    thin / late listing) and so has fewer forward bars than SPY over the same
+    span. Returns ``None`` when SPY data is missing or an endpoint can't be
+    located (-> abnormal_ret_to_date None).
     """
-    if spy_df is None or getattr(spy_df, "empty", True) or n_bars <= 0:
+    if spy_df is None or getattr(spy_df, "empty", True) or fwd_end_ts is None:
         return None
     on = spy_df.index <= scan_ts
     if not on.any():
@@ -92,10 +96,10 @@ def _spy_window_return(
     if hasattr(spy_close, "columns"):
         spy_close = spy_close.iloc[:, 0]
     base = float(spy_close.loc[spy_df.index[on][-1]])
-    fwd = spy_close[spy_df.index > scan_ts]
+    fwd = spy_close[(spy_df.index > scan_ts) & (spy_df.index <= fwd_end_ts)]
     if fwd.empty:
         return None
-    return window_return(fwd.values.astype(float).tolist(), base, bars=n_bars)
+    return window_return(fwd.values.astype(float).tolist(), base)
 
 
 def _compute_returns(
@@ -402,10 +406,14 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
                     vol_series = vol_series.iloc[:, 0]
                 vol_50_at_scan = float(vol_series.tail(50).mean())
 
-            # SPY's return over the SAME elapsed forward window (capped at 60
-            # bars to match the setup's window) — the abnormal-return baseline.
-            n_fwd_bars = min(len(_cap_forward_window(fwd_df)), FORWARD_RETURN_HORIZON_BARS)
-            spy_window_return = _spy_window_return(spy_df, scan_ts, n_fwd_bars)
+            # SPY's return over the setup's SAME CALENDAR forward window — aligned
+            # by DATE to the setup's last available forward bar (capped at 60), so
+            # a halted/thin setup with fewer bars than SPY still subtracts the
+            # market move over its own horizon. The abnormal-return baseline.
+            capped_fwd = _cap_forward_window(fwd_df)
+            fwd_end_ts = (capped_fwd.index[-1]
+                          if capped_fwd is not None and not capped_fwd.empty else None)
+            spy_window_return = _spy_window_return(spy_df, scan_ts, fwd_end_ts)
 
             returns = _compute_returns(
                 fwd_df, scan_close, setup.trigger_price,

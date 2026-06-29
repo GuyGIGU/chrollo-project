@@ -470,7 +470,14 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         return {"composition": comp}
 
     edge = section_edge(df, source=source)
-    null_res = section_null(df, universe_returns, metric_col, seed)
+    # The null model treats its frame as the screener-fired set; on a default
+    # (unfiltered) run, restrict it to the unbiased source so a future injected
+    # universe_returns can't quote a seed/manual-contaminated edge (mirrors
+    # section_edge's source_basis — bias-safe by construction here too).
+    null_df = df if source is not None else (
+        df[df["source"] == edge_report.UNBIASED_SOURCE] if "source" in df.columns else df
+    )
+    null_res = section_null(null_df, universe_returns, metric_col, seed)
     split = section_is_oos(df)
     abnormal = section_abnormal(df, spy_col, metric_col)
     haircut = section_haircut(null_res.get("p_values", {}))

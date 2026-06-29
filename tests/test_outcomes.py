@@ -183,3 +183,32 @@ def test_ensure_outcome_columns_adds_elapsed_columns(tmp_path):
     # Idempotent: a second run does not raise (columns already exist).
     _ensure_outcome_columns(engine)
     engine.dispose()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# abnormal_ret_to_date baseline aligns to the setup's forward END DATE, not by
+# SPY's first-N-bars-by-position (regression for the halted/thin-ticker desync)
+# ─────────────────────────────────────────────────────────────────────────────
+def test_spy_window_return_aligns_by_date_not_position():
+    """The SPY abnormal baseline must end on the setup's last forward DATE.
+
+    When a halted/thin setup has fewer forward bars than SPY over the same span,
+    aligning SPY by bar COUNT lands on an earlier calendar date and subtracts the
+    wrong market move. Align by date: SPY's last close on/before ``fwd_end_ts``.
+    """
+    from core.archive import forward_returns as fr
+
+    idx = pd.to_datetime(["2026-03-02", "2026-03-03", "2026-03-04",
+                          "2026-03-05", "2026-03-06", "2026-03-09"])
+    spy = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0]}, index=idx)
+    scan_ts = pd.Timestamp("2026-03-02")  # base close 100
+
+    # Setup's last forward bar is 2026-03-09 even though it (a halted name) only
+    # held 3 bars in between — the baseline must run scan->03-09 = +5%, NOT SPY's
+    # positional 3rd bar (03-05 = +3%, the old bug).
+    assert fr._spy_window_return(spy, scan_ts, pd.Timestamp("2026-03-09")) == pytest.approx(0.05)
+    # An earlier endpoint follows the date too.
+    assert fr._spy_window_return(spy, scan_ts, pd.Timestamp("2026-03-04")) == pytest.approx(0.02)
+    # Missing endpoint / missing SPY -> None (abnormal stays None, never wrong).
+    assert fr._spy_window_return(spy, scan_ts, None) is None
+    assert fr._spy_window_return(pd.DataFrame(), scan_ts, pd.Timestamp("2026-03-09")) is None
