@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { createChart, BarSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
+import React, { useEffect } from 'react';
+import { LineSeries } from 'lightweight-charts';
+import CandleChart from './CandleChart';
 import usePositionChartData from '../hooks/usePositionChartData';
+import { buildPositiveLevel } from './chartGeometry';
 import { fmtMoney, fmtNum, pnlColor } from './portfolioFormat';
 import PortfolioPositionInsights from './PortfolioPositionInsights';
 import { explainTip } from './tooltipText';
@@ -49,33 +51,10 @@ const chartShellStyle = {
   boxShadow: '0 24px 70px rgba(0,0,0,0.42)',
 };
 
-const buildLevel = (candles, value) => {
-  const price = Number(value);
-  if (!Number.isFinite(price) || price <= 0) return [];
-  return candles.map((candle) => ({ time: candle.time, value: price }));
-};
-
 const PositionChartCanvas = ({ symbol, data, position }) => {
-  const containerRef = useRef(null);
+  const candles = data?.candles;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !data?.candles?.length) return undefined;
-    container.innerHTML = '';
-
-    const chart = createChart(container, chartOptions(container.clientWidth || 760, container.clientHeight || 310));
-    const candles = data.candles;
-    const candleSeries = chart.addSeries(BarSeries, {
-      upColor: '#d8dbe5',
-      downColor: '#d8dbe5',
-      thinBars: false,
-    });
-    candleSeries.setData(candles);
-
-    const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
-    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-    volumeSeries.setData(data.volumes || []);
-
+  const onReady = (chart) => {
     const avgLine = chart.addSeries(LineSeries, {
       color: '#d4b85a',
       lineWidth: 1,
@@ -84,20 +63,28 @@ const PositionChartCanvas = ({ symbol, data, position }) => {
       priceLineVisible: false,
       crosshairMarkerVisible: false,
     });
-    avgLine.setData(buildLevel(candles, position?.avg_cost ?? position?.average_cost));
+    avgLine.setData(buildPositiveLevel(candles, position?.avg_cost ?? position?.average_cost));
 
     chart.timeScale().fitContent();
+  };
 
-    const handleResize = () => chart.applyOptions({ width: container.clientWidth || 760 });
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-      container.innerHTML = '';
-    };
-  }, [symbol, data, position]);
-
-  return <div ref={containerRef} style={{ height: 310, minHeight: 260, position: 'relative' }} />;
+  return (
+    <CandleChart
+      spec={{
+        chartOptions: (container) =>
+          chartOptions(container.clientWidth || 760, container.clientHeight || 310),
+        candles,
+        volumes: data?.volumes,
+        showVolume: true,
+        onReady,
+        onResize: (chart, container) =>
+          chart.applyOptions({ width: container.clientWidth || 760 }),
+        deps: [symbol, data, position],
+      }}
+      candles={candles}
+      style={{ height: 310, minHeight: 260, position: 'relative' }}
+    />
+  );
 };
 
 const PositionChartHeader = ({ symbol, position, onClose }) => {
