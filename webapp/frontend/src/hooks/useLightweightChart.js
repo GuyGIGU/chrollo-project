@@ -26,11 +26,18 @@ import { buildHl2SmaData, hl2Sma20Options } from '../components/chartIndicators'
 //   showSma      : draw the hl2 SMA-20 line (chartIndicators)
 //   onReady(chart, candleSeries) : draw everything site-specific here; may
 //                  return a cleanup fn (run before chart.remove(), e.g. to
-//                  detach the phase-overlay primitive)
+//                  detach the phase-overlay primitive). Should be allocation-
+//                  atomic: allocate, then return cleanup, with nothing throwable
+//                  in between — a throw mid-onReady runs cleanup() before the
+//                  returned cleanup is captured (chart.remove() still disposes
+//                  the chart/series, so this only matters for external subs).
 //   onResize(chart, container)   : window-resize handler; omit for autoSize sites
 //   resizeDelayMs : if set, also call onResize once after this delay (the
 //                   existing 100ms post-mount nudge some sites use)
 //   onError(err) : called if createChart/draw throws (site flips a fallback)
+//   onRebuildStart() : fires at the top of every (re)build on the hook's deps;
+//                  a wrapper uses it to clear a prior error flag in lockstep
+//                  with the rebuild (one deps array, no desync)
 //   deps         : effect dependency array (default [containerRef])
 //
 // The base whitewashed bar color matches all five existing sites.
@@ -49,10 +56,16 @@ export default function useLightweightChart(containerRef, spec) {
     onResize,
     resizeDelayMs,
     onError,
+    onRebuildStart,
     deps = [containerRef],
   } = spec;
 
   useEffect(() => {
+    // Fires on every (re)build, driven by the hook's single deps array — the
+    // place a wrapper clears a prior error flag so reset and rebuild can never
+    // desync (no second effect mirroring deps).
+    onRebuildStart?.();
+
     const container = containerRef.current;
     if (!container || !candles?.length) return undefined;
 

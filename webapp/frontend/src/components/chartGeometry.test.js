@@ -22,11 +22,14 @@ const makeCandles = (n) =>
     return { time: `2024-${month}-${day}`, open: 10 + i, high: 11 + i, low: 9 + i, close: 10 + i };
   });
 
-test('finiteNumber: null/empty/NaN -> null, finite -> number', () => {
+test('finiteNumber: null/empty/NaN/Infinity -> null, finite -> number', () => {
   assert.equal(finiteNumber(null), null);
   assert.equal(finiteNumber(undefined), null);
   assert.equal(finiteNumber(''), null);
   assert.equal(finiteNumber('abc'), null);
+  assert.equal(finiteNumber(NaN), null); // the value the Number.isFinite guard exists for
+  assert.equal(finiteNumber(Infinity), null); // must be null or it draws a phantom rail at the edge
+  assert.equal(finiteNumber(-Infinity), null);
   assert.equal(finiteNumber(0), 0); // 0 is finite, must NOT become null
   assert.equal(finiteNumber('12.5'), 12.5);
   assert.equal(finiteNumber(42), 42);
@@ -37,14 +40,18 @@ test('buildLevelData: repeats value from startIndex to end', () => {
   const out = buildLevelData(candles, 2, 99);
   assert.equal(out.length, 3);
   assert.deepEqual(out[0], { time: candles[2].time, value: 99 });
-  assert.equal(out.at(-1).time, candles[4].time);
+  assert.deepEqual(out.at(-1), { time: candles[4].time, value: 99 }); // tail value too
+  assert.deepEqual(buildLevelData([], 0, 5), []); // empty candles -> empty
 });
 
-test('buildFullLevelData: one point per candle', () => {
+test('buildFullLevelData: one point per candle, correct time mapping', () => {
   const candles = makeCandles(4);
   const out = buildFullLevelData(candles, 7);
   assert.equal(out.length, 4);
   assert.ok(out.every((p) => p.value === 7));
+  assert.equal(out[0].time, candles[0].time);
+  assert.equal(out.at(-1).time, candles[3].time); // time carried, not just value
+  assert.deepEqual(buildFullLevelData([], 7), []);
 });
 
 test('buildPositiveLevel: empty for non-finite or <= 0', () => {
@@ -52,8 +59,10 @@ test('buildPositiveLevel: empty for non-finite or <= 0', () => {
   assert.deepEqual(buildPositiveLevel(candles, 0), []);
   assert.deepEqual(buildPositiveLevel(candles, -5), []);
   assert.deepEqual(buildPositiveLevel(candles, null), []);
+  assert.deepEqual(buildPositiveLevel(candles, Infinity), []);
   assert.equal(buildPositiveLevel(candles, 12.3).length, 3);
   assert.equal(buildPositiveLevel(candles, 12.3)[0].value, 12.3);
+  assert.deepEqual(buildPositiveLevel([], 12.3), []); // empty candles -> empty
 });
 
 test('candleDate: string slice and object form', () => {
@@ -68,6 +77,18 @@ test('indexOnOrAfter: first candle on/after the target date', () => {
   assert.equal(indexOnOrAfter(candles, '2024-01-05'), 4);
   assert.equal(indexOnOrAfter(candles, '2024-01-04T12:00:00'), 3); // sliced to date
   assert.equal(indexOnOrAfter(candles, null), null);
+});
+
+test('indexOnOrAfter: resolves over object-form (business-day) candles', () => {
+  // lightweight-charts business-day time is {year,month,day}; the unpadded month
+  // must still compare lexicographically right via candleDate's padding.
+  const candles = [
+    { time: { year: 2024, month: 1, day: 3 } },
+    { time: { year: 2024, month: 1, day: 9 } },
+    { time: { year: 2024, month: 10, day: 1 } },
+  ];
+  assert.equal(indexOnOrAfter(candles, '2024-01-09'), 1);
+  assert.equal(indexOnOrAfter(candles, '2024-05-01'), 2); // skips into Oct, not before Jan
 });
 
 test('setupIndexes: baseEnd subtracts forward bars; baseStart clamps at 0', () => {
@@ -139,6 +160,35 @@ test('colorMiniCandles: lps_offset path paints gold', () => {
   assert.equal(out[17].color, '#d4b85a');
 });
 
+test('colorMiniCandles: date-keyed lps_tests span paints gold; out-of-range skipped', () => {
+  const candles = makeCandles(20); // 2024-01-01 .. (28-day wrap)
+  const out = colorMiniCandles({
+    candles,
+    base_len: 4,
+    forward_bars: 0,
+    r_anchor: 0,
+    s_anchor: 1,
+    lps_len: 0,
+    lps_tests: [
+      { start_date: '2024-01-06', end_date: '2024-01-08' }, // indices 5..7
+      { start_date: '2099-01-01', end_date: '2099-02-01' }, // out of range -> skipped, no crash
+    ],
+  });
+  assert.equal(out[5].color, '#d4b85a');
+  assert.equal(out[6].color, '#d4b85a');
+  assert.equal(out[7].color, '#d4b85a');
+  assert.equal(out[4].color, undefined); // before the span
+  assert.equal(out[8].color, undefined); // after the span
+});
+
+test('colorMiniCandles: base_len <= 0 returns an uncolored clone', () => {
+  const candles = makeCandles(6);
+  const out = colorMiniCandles({ candles, base_len: 0, forward_bars: 0 });
+  assert.equal(out.length, 6);
+  assert.ok(out.every((c) => c.color === undefined));
+  assert.notEqual(out, candles); // still a clone, source untouched
+});
+
 test('colorTimeframeCandles: paints by date span, shallow-clones', () => {
   const candles = makeCandles(10);
   const out = colorTimeframeCandles(candles, {
@@ -148,10 +198,13 @@ test('colorTimeframeCandles: paints by date span, shallow-clones', () => {
     lpsEnd: '2024-01-08',
   });
   assert.equal(candles[1].color, undefined); // source untouched
-  assert.equal(out[1].color, '#5d6474'); // 2024-01-02 limb grey
-  assert.equal(out[3].color, '#5d6474'); // 2024-01-04 limb grey
-  assert.equal(out[6].color, '#e3b341'); // 2024-01-07 lps gold
-  assert.equal(out[0].color, undefined); // outside both spans
+  assert.equal(out[1].color, '#5d6474'); // 2024-01-02 limb grey (span start, inclusive)
+  assert.equal(out[3].color, '#5d6474'); // 2024-01-04 limb grey (span end, inclusive)
+  assert.equal(out[6].color, '#e3b341'); // 2024-01-07 lps gold (span start)
+  assert.equal(out[7].color, '#e3b341'); // 2024-01-08 lps gold (span end, inclusive upper bound)
+  assert.equal(out[0].color, undefined); // before the limb span
+  assert.equal(out[4].color, undefined); // gap between the two spans stays unpainted
+  assert.equal(out[5].color, undefined); // gap between the two spans stays unpainted
 });
 
 test('colorTimeframeCandles: missing dates paint nothing', () => {

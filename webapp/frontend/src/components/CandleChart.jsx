@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import useLightweightChart from '../hooks/useLightweightChart';
 
 // Thin presentational wrapper around useLightweightChart: owns the canvas
@@ -9,11 +9,13 @@ import useLightweightChart from '../hooks/useLightweightChart';
 // CandleChart is composed INTO those shells, it does not own them.
 //
 // Props:
-//   spec          : the useLightweightChart spec (see that hook). `onError` is
-//                   wired internally to flip the error fallback; a caller
-//                   onError still runs.
-//   candles       : convenience — when absent/empty, render emptyFallback
-//                   (also forwarded into the spec so the hook no-ops).
+//   spec          : the useLightweightChart spec (see that hook). spec.candles
+//                   is ALWAYS what gets drawn (e.g. the colored bar array);
+//                   onError is wired internally to flip the error fallback while
+//                   still running any caller onError.
+//   candles       : the empty/error GATE only — the raw (uncolored) payload used
+//                   to decide whether to render emptyFallback. It is NOT drawn;
+//                   spec.candles is. Defaults to spec.candles when omitted.
 //   className     : class on the canvas container div
 //   style         : style on the canvas container div
 //   errorFallback : node shown if createChart/draw throws
@@ -28,17 +30,19 @@ function CandleChart({
 }) {
   const containerRef = useRef(null);
   const [chartError, setChartError] = useState(false);
-  const resolvedCandles = candles ?? spec.candles;
-
-  // Reset the error flag whenever the inputs that drive a rebuild change, so a
-  // recovered payload clears a prior failure.
-  useEffect(() => {
-    setChartError(false);
-  }, spec.deps ?? [containerRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The gate uses the raw `candles` prop (presence of data); drawing always
+  // uses spec.candles so a colored bar array is never silently discarded.
+  const gateCandles = candles ?? spec.candles;
 
   useLightweightChart(containerRef, {
     ...spec,
-    candles: resolvedCandles,
+    // Clear a prior error in lockstep with the rebuild (driven by the hook's
+    // own deps array — no second effect mirroring spec.deps), so a recovered
+    // payload always clears the fallback regardless of what deps the caller set.
+    onRebuildStart: () => {
+      setChartError(false);
+      spec.onRebuildStart?.();
+    },
     onError: (err) => {
       setChartError(true);
       spec.onError?.(err);
@@ -46,7 +50,7 @@ function CandleChart({
   });
 
   if (chartError && errorFallback) return errorFallback;
-  if (!resolvedCandles?.length && emptyFallback) return emptyFallback;
+  if (!gateCandles?.length && emptyFallback) return emptyFallback;
 
   return <div ref={containerRef} className={className} style={style} />;
 }

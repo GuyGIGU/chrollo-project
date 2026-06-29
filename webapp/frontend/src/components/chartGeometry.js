@@ -8,12 +8,15 @@
 // distinct functions rather than a merged one.
 //
 // NOTE: the modal's structure-candle colorer stays in useScreenerModalChart
-// because it depends on chartPhaseOverlay (a DOM-coupled module); keeping it out
-// of here keeps this module a pure, Node-testable unit.
+// because it is modal-specific coloring that consumes buildPhaseRegions output
+// plus modal-only anchor/lps_offset fallbacks — not because of DOM coupling
+// (buildPhaseRegions itself is pure). Keeping it out keeps this module a pure,
+// Node-testable unit.
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
-// price 0 on any timeframe with no box. Was triplicated across the chart sites
-// and the two chart helper modules.
+// price 0 on any timeframe with no box. This is the canonical copy used by the
+// chart sites; chartIndicators.js and chartPhaseOverlay.js keep their own
+// private copies on purpose, so those two modules stay dependency-free.
 export const finiteNumber = (value) => {
   if (value == null || value === '') return null;
   const number = Number(value);
