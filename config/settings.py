@@ -609,6 +609,14 @@ ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetc
 FUNDAMENTALS_ENABLED = False
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to request
 FUNDAMENTALS_MIN_QUARTERS_YOY = 5          # need >= this many quarters for a YoY-acceleration read (4-back + prior 4-back)
+# Point-in-time filing lag: yfinance carries no per-quarter SEC filing date, so a
+# quarter keyed by its PERIOD-END date would be read before it was actually filed
+# (lookahead leak). A quarter is only treated as usable when
+# period_end + this many days <= as_of. 75 days is the conservative ceiling — the
+# SEC 10-Q deadline for a non-accelerated filer (45 days) plus margin — so the
+# gate can be a few weeks LATE but never admits a not-yet-filed quarter. Earnings
+# history is gated on its own report-date index (no lag needed there).
+FUNDAMENTALS_FILING_LAG_DAYS = 75
 
 # RS line (core/regime/rs_line.py) — stock/SPY ratio series + rs_line_new_high.
 RS_LINE_ENABLED = False

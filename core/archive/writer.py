@@ -186,6 +186,14 @@ _NEW_COLUMNS: dict[str, str] = {
     "regime_qqq_above_200":         "INTEGER",
     "regime_qqq_50d_slope_pct":     "FLOAT",
 }
+# NOTE: the Lane E advisory columns (fund_*, days_to_earnings, rs_rating,
+# rs_line_*, sector_rank_*) are intentionally NOT hand-listed here. Like
+# engine_config_version, they are MODEL-ONLY adds: the backend's Track B
+# auto-migration (startup._apply_model_add_columns) and this writer's own
+# model-derived second pass in _ensure_new_columns ADD them from
+# SetupArchive.__table__, so the model stays the single source and the
+# _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
+# and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 # NOTE: engine_config_version (the frozen-config stamp) is intentionally NOT in
 # _NEW_COLUMNS. It is added to the live schema by Track B's model-derived
 # auto-migration (webapp/backend/services/startup._apply_model_add_columns,
@@ -370,6 +378,18 @@ def archive_scan_results(
     sector_trend_memo: dict[str, str | None] = {
         etf: get_sector_trend(etf, scan_dt) for etf in unique_etfs
     }
+
+    # Scan-wide ADVISORY sector ranking (Lane E). No-op + {} when
+    # SECTOR_RANKING_ENABLED is OFF, so nothing is added to flags-OFF rows.
+    from core.regime.scan_context import compute_scan_sector_ranking, sector_rank_fields
+    sector_ranking = compute_scan_sector_ranking()
+
+    def sector_rank_columns(sector_etf: str | None) -> dict:
+        """Map the advisory ``_``-prefixed sector-rank fields to archive columns
+        (``_sector_rank_pct`` -> ``sector_rank_pct``). Empty dict -> no values
+        set (column stays NULL), so flags-OFF rows are untouched."""
+        fields = sector_rank_fields(sector_etf, sector_ranking)
+        return {k.lstrip("_"): v for k, v in fields.items()}
 
     written = 0
     for _, row in results_df.iterrows():
@@ -571,6 +591,20 @@ def archive_scan_results(
                                if row.get("_stage2_trend_pass") is not None else None),
             # HTF (higher-timeframe) context — same engine on weekly/monthly bars
             **htf_archive_values(row.get, prefixed=True),
+            # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
+            # Per-ticker fundamentals / RS-line / days-to-earnings come from the
+            # eval result (set by core.fundamentals.advisory when the flags are on;
+            # absent -> NULL). The universe RS rating was attached in the screener
+            # post-pass; sector rank is resolved here from the scan-wide ranking.
+            fund_eps_growth_yoy=row.get("_fund_eps_growth_yoy"),
+            fund_sales_growth_yoy=row.get("_fund_sales_growth_yoy"),
+            fund_eps_growth_accel=row.get("_fund_eps_growth_accel"),
+            fund_earnings_surprise=row.get("_fund_earnings_surprise"),
+            days_to_earnings=row.get("_days_to_earnings"),
+            rs_rating=row.get("_rs_rating"),
+            rs_line_latest=row.get("_rs_line_latest"),
+            rs_line_new_high=_bool_int(row.get("_rs_line_new_high")),
+            **sector_rank_columns(sector_etf),
             engine_config_version=engine_config_version,
             source="screener",
         )

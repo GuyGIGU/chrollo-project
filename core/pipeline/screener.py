@@ -167,6 +167,13 @@ def run_screener(mode: str = "download") -> tuple[pd.DataFrame, pd.DataFrame, li
     with timer.phase("evaluation"):
         results = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
 
+    # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
+    # into a universe-relative in-house RS rating (percentile across the firing
+    # set). No-op + zero added fields when FUNDAMENTALS_ENABLED is OFF, so the
+    # flags-OFF scan output stays byte-identical. Never changes Score/Tier.
+    from core.regime.scan_context import attach_rs_ratings
+    attach_rs_ratings(results)
+
     print()
 
     if results:

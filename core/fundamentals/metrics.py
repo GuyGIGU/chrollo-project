@@ -21,6 +21,29 @@ Every metric is independently null-safe: a missing line item, too-shallow histor
 (YoY needs >= 5 quarters, acceleration needs >= 6), a zero/sign-flipped base, or a
 NaN cell yields ``None`` for THAT metric only — never an exception, never
 contaminating the others. Growth fractions are signed (e.g. 0.25 = +25%).
+
+POINT-IN-TIME / LOOKAHEAD DISCIPLINE
+------------------------------------
+yfinance ships the income statement keyed by the quarter's PERIOD-END date and
+carries NO per-quarter SEC FILING date. A quarter that ended (say) 2026-03-31 is
+not public until the 10-Q is filed weeks later, so a point-in-time consumer that
+read it on its period-end date would be using data that did not yet exist — the
+classic fundamentals lookahead leak. Mirroring the trailing-window discipline in
+``rs_line.py`` / ``sector_ranking.py`` (which only ever read bars at/before the
+evaluated bar), the public entry points take an explicit ``as_of`` date and a
+conservative fixed FILING LAG: a quarter is usable only when
+``period_end + filing_lag <= as_of``. The lag (``settings.FUNDAMENTALS_FILING_LAG_DAYS``,
+default 75 days — the SEC 10-Q deadline ceiling for a non-accelerated filer, so
+the quarter is assumed unknowable until then) is a deliberate WORST-CASE: it can
+make a metric ``None`` for a few weeks longer than reality, but it can NEVER admit
+a quarter before it was actually filed. The earnings-history frame is gated on its
+OWN report-date index (that index already IS the availability date), so only rows
+reported on/before ``as_of`` contribute.
+
+When ``as_of`` is ``None`` (the default), NO availability gate is applied and the
+frames are read as-is — the pre-existing latest-quarter behavior, used by callers
+that have already point-in-time-sliced their input or that explicitly want the
+newest data regardless of filing lag.
 """
 from __future__ import annotations
 
@@ -34,6 +57,9 @@ import pandas as pd
 _EPS_ROWS = ("Diluted EPS", "Basic EPS")
 _REVENUE_ROWS = ("Total Revenue", "Operating Revenue")
 
+# Conservative default filing lag if settings is unreadable (config/cwd shadowing).
+_DEFAULT_FILING_LAG_DAYS = 75
+
 
 def _finite(x) -> Optional[float]:
     """Coerce ``x`` to a finite float, else ``None``."""
@@ -44,6 +70,72 @@ def _finite(x) -> Optional[float]:
     except (TypeError, ValueError):
         return None
     return f if math.isfinite(f) else None
+
+
+def _filing_lag_days(filing_lag_days: Optional[int]) -> int:
+    """Resolve the filing-lag (in days). Explicit arg wins; else read lazily from
+    settings (config/cwd shadowing tolerated), else the conservative default."""
+    if filing_lag_days is not None:
+        return int(filing_lag_days)
+    try:
+        from config import settings
+
+        return int(getattr(settings, "FUNDAMENTALS_FILING_LAG_DAYS",
+                           _DEFAULT_FILING_LAG_DAYS))
+    except Exception:  # pragma: no cover - settings import guard
+        return _DEFAULT_FILING_LAG_DAYS
+
+
+def available_income_stmt(
+    stmt: pd.DataFrame,
+    as_of,
+    *,
+    filing_lag_days: Optional[int] = None,
+) -> pd.DataFrame:
+    """Return ``stmt`` with only the quarters AVAILABLE as of ``as_of`` kept.
+
+    The income-statement columns are quarter PERIOD-END dates. A quarter is
+    available only when ``period_end + filing_lag <= as_of`` (the filing lag
+    models the unknown SEC filing date conservatively). Column order is preserved
+    (most-recent-first), so the surviving ``[0]`` is the most-recent quarter that
+    was actually public on ``as_of`` — never a future / not-yet-filed quarter.
+
+    ``as_of=None`` (or an empty/unparseable frame) -> returned unchanged. A column
+    whose label cannot be parsed as a date is treated as NOT-yet-available
+    (dropped) so an ambiguous header can never leak future data.
+    """
+    if as_of is None:
+        return stmt
+    if stmt is None or getattr(stmt, "empty", True):
+        return stmt
+    cutoff = pd.Timestamp(as_of) - pd.Timedelta(days=_filing_lag_days(filing_lag_days))
+    keep = []
+    for col in stmt.columns:
+        period_end = pd.to_datetime(col, errors="coerce")
+        # Unparseable header -> conservatively NOT available.
+        if pd.isna(period_end):
+            continue
+        if period_end <= cutoff:
+            keep.append(col)
+    return stmt[keep]
+
+
+def available_earnings(earnings: pd.DataFrame, as_of) -> pd.DataFrame:
+    """Return ``earnings`` with only rows REPORTED on/before ``as_of`` kept.
+
+    The earnings-history index IS the report (availability) date, so no filing-lag
+    estimate is needed — a row is usable iff ``report_date <= as_of``. Order is
+    preserved (most-recent-first). ``as_of=None`` / empty frame -> unchanged. A row
+    whose index cannot be parsed as a date is dropped (conservatively unavailable).
+    """
+    if as_of is None:
+        return earnings
+    if earnings is None or getattr(earnings, "empty", True):
+        return earnings
+    cutoff = pd.Timestamp(as_of)
+    idx = pd.to_datetime(earnings.index, errors="coerce")
+    mask = idx.notna() & (idx <= cutoff)
+    return earnings[mask]
 
 
 def _signed_growth(current, base) -> Optional[float]:
@@ -80,7 +172,11 @@ def _ordered_quarterly_series(stmt: pd.DataFrame, row_labels) -> list[Optional[f
 
 
 def eps_growth_yoy(stmt: pd.DataFrame) -> Optional[float]:
-    """Most-recent quarterly diluted-EPS growth vs the same quarter a year ago."""
+    """Most-recent quarterly diluted-EPS growth vs the same quarter a year ago.
+
+    Reads the frame as-given (already point-in-time-sliced by the caller, or the
+    full frame). ``compute_metrics`` applies the ``as_of`` availability gate before
+    calling this so the ``[0]`` quarter is the latest one public on ``as_of``."""
     eps = _ordered_quarterly_series(stmt, _EPS_ROWS)
     if len(eps) < 5:
         return None
@@ -143,11 +239,13 @@ def earnings_surprise(earnings: pd.DataFrame) -> Optional[float]:
 def compute_metrics(
     ticker: str,
     *,
+    as_of=None,
     rs_rating: Optional[float] = None,
     provider=None,
     earnings_limit: Optional[int] = None,
+    filing_lag_days: Optional[int] = None,
 ) -> dict:
-    """Fetch + compute the five metrics for ``ticker``.
+    """Fetch + compute the five metrics for ``ticker`` AS OF ``as_of``.
 
     Returns a dict with keys ``eps_growth_yoy``, ``sales_growth_yoy``,
     ``eps_growth_accel``, ``earnings_surprise``, ``rs_rating`` — each ``float`` or
@@ -155,6 +253,12 @@ def compute_metrics(
     the caller computes via ``core.regime.percentile`` over trailing returns;
     there is no single-ticker RS rating). Data is read through the provider seam;
     any miss degrades the affected metric to ``None``.
+
+    ``as_of`` (an ISO string / Timestamp / date) enforces point-in-time safety: the
+    income statement is filtered to quarters whose ``period_end + filing_lag`` is
+    on/before ``as_of`` (so a not-yet-filed quarter never leaks), and the earnings
+    history to rows reported on/before ``as_of``. ``as_of=None`` reads the frames
+    as-is (latest data, no filing-lag gate) — the legacy behavior.
     """
     if provider is None:
         from core.pipeline.providers import get_provider
@@ -167,6 +271,10 @@ def compute_metrics(
 
     stmt = provider.get_income_stmt(ticker, quarterly=True)
     earnings = provider.get_earnings_dates(ticker, limit=earnings_limit)
+
+    # Point-in-time gate: drop quarters / earnings rows not yet public on as_of.
+    stmt = available_income_stmt(stmt, as_of, filing_lag_days=filing_lag_days)
+    earnings = available_earnings(earnings, as_of)
 
     return {
         "eps_growth_yoy": eps_growth_yoy(stmt),

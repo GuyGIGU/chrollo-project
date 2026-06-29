@@ -307,6 +307,20 @@ def _extract_chart_data(data, results_df, tickers):
                 '_lps_zone_end_date': row.get('_lps_zone_end_date'),
                 '_has_mini_consolidation': bool(row.get('_has_mini_consolidation', False)),
                 '_scope_confidence': row.get('_scope_confidence'),
+                # Advisory metadata (Lane E) — graded tag-chip data, NOT scored /
+                # NOT a veto. Only present when the relevant flag is ON (else the
+                # eval result carries no such key and these read None -> no chip).
+                # Fundamentals are point-in-time (filing-lag gated). The held
+                # frontend lane maps these to ⚡ RS Leader / Earnings Accel /
+                # days-to-earnings chips.
+                'fund_eps_growth_yoy': row.get('_fund_eps_growth_yoy'),
+                'fund_sales_growth_yoy': row.get('_fund_sales_growth_yoy'),
+                'fund_eps_growth_accel': row.get('_fund_eps_growth_accel'),
+                'fund_earnings_surprise': row.get('_fund_earnings_surprise'),
+                'days_to_earnings': row.get('_days_to_earnings'),
+                'rs_rating': row.get('_rs_rating'),
+                'rs_line_latest': row.get('_rs_line_latest'),
+                'rs_line_new_high': row.get('_rs_line_new_high'),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")
