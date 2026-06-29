@@ -100,6 +100,27 @@ class MarketDataProvider(Protocol):
         """Return the next earnings date (ISO ``YYYY-MM-DD``) or ``None``."""
         ...
 
+    def info(self, ticker: str) -> dict:
+        """Return the raw yfinance ``.info`` dict for ``ticker`` (or ``{}``)."""
+        ...
+
+    def get_income_stmt(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
+        """Return the (quarterly) income statement frame for ``ticker``.
+
+        Columns are period-end dates (most-recent-first, as yfinance ships them);
+        rows are line items (``Total Revenue``, ``Diluted EPS``, ...). Empty frame
+        on miss. Modern yfinance surface (``Ticker.income_stmt`` /
+        ``Ticker.quarterly_income_stmt``) — NOT the broken legacy
+        ``.quarterly_financials`` property."""
+        ...
+
+    def get_earnings_dates(self, ticker: str, limit: int = 12) -> pd.DataFrame:
+        """Return the earnings-history frame for ``ticker`` (reported + estimate
+        + surprise columns), most-recent-first. Empty frame on miss. Modern
+        ``Ticker.get_earnings_dates(...)`` surface — NOT the broken legacy
+        ``.earnings`` / ``.quarterly_earnings`` properties."""
+        ...
+
     def index_context(self, as_of: str) -> dict:
         """Return ``{'spy_trend', 'vix_level'}`` market context as of a date."""
         ...
@@ -229,6 +250,66 @@ class YahooProvider:
         if hasattr(earnings_date, "strftime"):
             return earnings_date.strftime("%Y-%m-%d")
         return str(earnings_date)[:10]
+
+    # ── Fundamentals accessors (Lane C) ────────────────────────────────────
+    # The fundamentals layer (core/fundamentals) reads ONLY through these three
+    # surfaces. They wrap the MODERN yfinance API — ``.info``,
+    # ``Ticker.quarterly_income_stmt``, ``Ticker.get_earnings_dates(...)`` — and
+    # deliberately avoid the legacy ``.earnings`` / ``.quarterly_financials`` /
+    # ``.quarterly_earnings`` properties, which return empty frames in current
+    # yfinance. Each call reuses the existing ``_run_bounded`` daemon-thread wall
+    # so one hung scrape can't stall a universe sweep; a miss degrades to ``{}`` /
+    # an empty frame, never an exception.
+
+    def info(self, ticker: str) -> dict:
+        """Raw yfinance ``.info`` dict for ``ticker`` (``{}`` on miss), bounded."""
+        result = _run_bounded(lambda: self._info_impl(ticker), _INFO_TIMEOUT_S)
+        return result if result is not None else {}
+
+    @staticmethod
+    def _info_impl(ticker: str) -> dict:
+        import yfinance as yf
+
+        info = yf.Ticker(ticker).info
+        return dict(info) if info else {}
+
+    def get_income_stmt(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
+        """Quarterly (or annual) income-statement frame for ``ticker``.
+
+        Empty frame on miss. Uses ``Ticker.quarterly_income_stmt`` /
+        ``Ticker.income_stmt`` (modern surface), bounded against a hang."""
+        result = _run_bounded(
+            lambda: self._income_stmt_impl(ticker, quarterly), _INFO_TIMEOUT_S
+        )
+        return result if result is not None else pd.DataFrame()
+
+    @staticmethod
+    def _income_stmt_impl(ticker: str, quarterly: bool) -> pd.DataFrame:
+        import yfinance as yf
+
+        obj = yf.Ticker(ticker)
+        stmt = obj.quarterly_income_stmt if quarterly else obj.income_stmt
+        if stmt is None or getattr(stmt, "empty", True):
+            return pd.DataFrame()
+        return stmt
+
+    def get_earnings_dates(self, ticker: str, limit: int = 12) -> pd.DataFrame:
+        """Earnings-history frame (reported EPS, estimate, surprise) for
+        ``ticker``, most-recent-first; empty frame on miss. Uses
+        ``Ticker.get_earnings_dates(limit=...)`` (modern surface), bounded."""
+        result = _run_bounded(
+            lambda: self._earnings_dates_impl(ticker, limit), _INFO_TIMEOUT_S
+        )
+        return result if result is not None else pd.DataFrame()
+
+    @staticmethod
+    def _earnings_dates_impl(ticker: str, limit: int) -> pd.DataFrame:
+        import yfinance as yf
+
+        frame = yf.Ticker(ticker).get_earnings_dates(limit=limit)
+        if frame is None or getattr(frame, "empty", True):
+            return pd.DataFrame()
+        return frame
 
     def index_context(self, as_of: str) -> dict:
         """SPY trend + VIX level as of ``as_of`` (ISO date), each fetch bounded.

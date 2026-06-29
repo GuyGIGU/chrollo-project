@@ -577,3 +577,38 @@ FORWARD_RETURNS_MIN_AGE_DAYS = 5
 ALERT_WEBHOOK_URL_ENV = "ALERT_WEBHOOK_URL"
 ALERT_ON_ZERO_RESULTS = True
 ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetch-health came back unhealthy (low return ratio) — an early warning before a stale_data failure
+
+# ============================================================
+# --- DATA PRIMITIVES (Lane C) ---
+# ============================================================
+# Additive, NOT-YET-WIRED data layers (core/fundamentals, core/regime) that a
+# later scoring/enrichment wave will consume. They read market data ONLY through
+# core.pipeline.providers.get_provider() and compute pure functions over already-
+# fetched frames, so nothing here changes the engine's computed output today.
+# Every flag defaults OFF; the modules read these lazily via getattr(settings, ...)
+# to respect the backend's config-vs-cwd shadowing constraint. Wire-up (feeding
+# scoring / archive_models) is a separate, later wave — see each module docstring.
+
+# Fundamentals: the 5 per-ticker metrics (core/fundamentals/metrics.py) — qtr EPS
+# growth YoY, qtr sales growth YoY, EPS-growth acceleration, earnings surprise %,
+# in-house RS rating. Null-safe (missing -> None). Read via the provider's
+# get_income_stmt / get_earnings_dates / info accessors.
+FUNDAMENTALS_ENABLED = False
+FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to request
+FUNDAMENTALS_MIN_QUARTERS_YOY = 5          # need >= this many quarters for a YoY-acceleration read (4-back + prior 4-back)
+
+# RS line (core/regime/rs_line.py) — stock/SPY ratio series + rs_line_new_high.
+RS_LINE_ENABLED = False
+RS_LINE_NEW_HIGH_LOOKBACK = 252            # ratio is a "new high" vs its rolling max over this many sessions (~52w)
+
+# In-house RS rating (core/regime/percentile.py drives it via trailing return).
+RS_RATING_LOOKBACK = 252                   # trailing-return window the RS rating percentile-ranks across the universe
+
+# SPDR sector ranking (core/regime/sector_ranking.py) — rank the 11 SPDR sector
+# ETFs by sector/SPY rs_ratio momentum over multiple lookbacks.
+SECTOR_RANKING_ENABLED = False
+SECTOR_RANKING_LOOKBACKS = (21, 63, 126)   # trading-day windows for the multi-horizon sector RS rank
+SECTOR_RANKING_ETFS = (
+    "XLK", "XLV", "XLF", "XLY", "XLP", "XLC",
+    "XLI", "XLE", "XLU", "XLRE", "XLB",
+)
