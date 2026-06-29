@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ScreenerCard from './ScreenerCard';
-import MarketRegimeBanner from './MarketRegimeBanner';
 import ScreenerModal from './ScreenerModal';
 import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
@@ -112,10 +111,6 @@ const ScreenerGrid = () => {
         onEvaluateCached={scan.handleEvaluateCached}
         onDownloadData={scan.handleDownloadData}
       />
-
-      {screenerData && !scan.isEvaluating && (
-        <MarketRegimeBanner marketContext={screenerData.market_context} />
-      )}
 
       {filters.tierFilter === 'WATCHLIST' && (
         <ScreenerWatchlistPanel
