@@ -53,8 +53,11 @@ def percentile_rank(
 
     ordered = sorted(rankable.values())
     for key, x in rankable.items():
-        # Count strictly-below and equal via the sorted list (small universes;
-        # clarity over micro-optimization, and it stays O(n log n) overall).
+        # Count strictly-below and equal via the sorted list. This inner pass is
+        # O(n) per key -> O(n^2) overall; fine for the current small universes
+        # (sector ETFs / today's call site). When wired to the full scan universe
+        # (thousands of tickers, Wave 2), swap in np.searchsorted over `ordered`
+        # for genuine O(n log n).
         below = sum(1 for v in ordered if v < x)
         equal = sum(1 for v in ordered if v == x)
         out[key] = round(100.0 * (below + 0.5 * equal) / n, 2)
