@@ -6,7 +6,7 @@ its scoring decomposition, market context, and (once computed) the actual
 forward returns / MFE / MAE.  This is the ground-truth table that the
 calibration engine uses to validate and refine the screener's parameters.
 """
-from sqlalchemy import Column, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Column, Float, Index, Integer, String, Text, UniqueConstraint
 
 from database import Base
 
@@ -294,9 +294,20 @@ class SetupArchive(Base):
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
     notes = Column(Text, nullable=True)
     source = Column(String, default="screener")       # screener / seed / manual
+    # Which universe this setup belongs to: us_equities (US stocks) / us_sectors /
+    # commodities_etf. Part of the identity key so the same symbol can be archived
+    # independently per universe on one date. NOT NULL + server default keeps every
+    # pre-existing row valid (they backfill to us_equities); the CHECK keeps the set
+    # closed so a typo can't fork the identity space.
+    universe_type = Column(String, nullable=False, server_default="us_equities")
 
     __table_args__ = (
-        UniqueConstraint("ticker", "scan_date", name="uq_ticker_scan_date"),
+        UniqueConstraint("ticker", "scan_date", "universe_type", name="uq_ticker_scan_date_universe"),
+        CheckConstraint(
+            "universe_type IN ('us_equities', 'us_sectors', 'commodities_etf')",
+            name="ck_setup_archive_universe_type",
+        ),
+        Index("ix_setup_archive_universe_type", "universe_type"),
     )
 
 

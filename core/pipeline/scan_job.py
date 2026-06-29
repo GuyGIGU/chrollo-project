@@ -20,7 +20,7 @@ from core.pipeline.market_data_health import (
 )
 from core.pipeline.market_calendar import latest_completed_session
 from core.pipeline.screener import CachedMarketDataError
-from core.pipeline.universe import DEFAULT_UNIVERSE_KEY, all_universes, resolve_universe
+from core.pipeline.universe import all_universes, resolve_universe
 from output.dashboard import generate_dashboard
 from output.terminal import print_finviz_url, print_results, save_csv
 
@@ -146,17 +146,16 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
 
     generate_dashboard(results_df, data, tickers, market_context, universe=uni)
 
-    # Persist every setup to setup_archive (idempotent upsert by ticker+scan_date).
-    # Forward returns are filled in later by core/archive/forward_returns.py.
-    # Gated by settings.ARCHIVE_LIVE_SCANS so the behavior is config-visible.
+    # Persist every setup to setup_archive (idempotent upsert by
+    # ticker+scan_date+universe_type). Forward returns are filled in later by
+    # core/archive/forward_returns.py. Gated by settings.ARCHIVE_LIVE_SCANS.
     #
-    # ONLY the US-Stocks universe is archived for now: the archive's identity key
-    # is still (ticker, scan_date) with no universe dimension, so archiving an ETF
-    # universe would pollute the us_equities recall/forward-return population.
-    # ETF archiving lights up once the universe_type migration lands (Tasks 3/6);
-    # the dashboard artifact is written for every universe regardless.
+    # All universes archive now that universe_type is part of the identity key
+    # (Tasks 3/6): each row is stamped with its universe, so an ETF setup coexists
+    # with a same-named stock on one date, and the stock-only edge metric filters
+    # on universe_type='us_equities'.
     n_archived = 0
-    if settings.ARCHIVE_LIVE_SCANS and uni.key == DEFAULT_UNIVERSE_KEY:
+    if settings.ARCHIVE_LIVE_SCANS:
         try:
             _assert_fresh_for_archive(data, tickers, uni)
         except StaleMarketDataError as exc:
@@ -169,14 +168,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                 return ScanExportResult(n_setups=len(results_df), n_archived=0)
             exc.n_setups = len(results_df)
             raise
-        n_archived = archive_scan_results(results_df, enable=True)
-        print(f"\nArchived {n_archived} live setups to setup_archive (source='screener').")
-    elif settings.ARCHIVE_LIVE_SCANS:
-        print(
-            f"\nArchive deferred for universe '{uni.key}' "
-            f"(pending the universe_type migration); dashboard artifact written.",
-            flush=True,
-        )
+        n_archived = archive_scan_results(results_df, enable=True, universe=uni)
+        print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
+              f"(source='screener', universe_type='{uni.universe_type}').")
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
 

@@ -206,6 +206,9 @@ def initialize_database() -> None:
     models.Base.metadata.create_all(bind=engine)
     archive_models.SetupArchive.metadata.create_all(bind=engine)
     _apply_migrations()
+    # Non-additive one-off (widen the identity key); must run BEFORE the ADD-only
+    # auto-migrator so the latter sees universe_type already present and skips it.
+    migrate_universe_type(engine)
     _apply_model_add_columns(engine)
 
 
@@ -225,6 +228,95 @@ def _apply_migrations() -> None:
                         or "no such column" in message):
                     continue
                 _log.warning("migration skipped (%s): %s", exc.__class__.__name__, statement)
+
+
+def migrate_universe_type(bind) -> bool:
+    """One-off: widen the setup_archive identity to (ticker, scan_date, universe_type).
+
+    SQLite cannot ALTER a UNIQUE constraint in place, so this rebuilds the table:
+    rename old -> create new from the model (3-col UNIQUE + CHECK + index) ->
+    INSERT…SELECT copying every shared column and backfilling universe_type to
+    'us_equities' -> drop old. The whole rebuild runs in ONE transaction
+    (isolation_level=None + explicit BEGIN gives transactional DDL, so any failure
+    rolls back to the original table), and a checkpoint+file backup is taken first.
+    A post-rebuild row-count check rolls back on any drift.
+
+    Idempotent: returns immediately once ``universe_type`` exists (so a fresh DB,
+    where create_all already built the new schema, and a re-run are both no-ops).
+    Returns True if it performed the rebuild, False if it was already migrated.
+    """
+    import shutil
+    import sqlite3
+
+    from sqlalchemy.dialects import sqlite as sqlite_dialect
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    inspector = inspect(bind)
+    if "setup_archive" not in inspector.get_table_names():
+        return False  # fresh DB — create_all already built the new schema
+    old_cols = [col["name"] for col in inspector.get_columns("setup_archive")]
+    if "universe_type" in old_cols:
+        return False  # already migrated
+
+    db_path = bind.url.database
+    model_cols = {c.name for c in archive_models.SetupArchive.__table__.columns}
+    copy_cols = [c for c in old_cols if c in model_cols]  # intersection (drift-safe)
+    col_sql = ", ".join(copy_cols)
+    dialect = sqlite_dialect.dialect()
+    create_table_sql = str(CreateTable(archive_models.SetupArchive.__table__).compile(dialect=dialect))
+    create_index_sqls = [
+        str(CreateIndex(ix).compile(dialect=dialect))
+        for ix in archive_models.SetupArchive.__table__.indexes
+    ]
+
+    # Fold WAL into the main file, then back it up before any structural change.
+    with bind.connect() as conn:
+        conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+    backup = db_path + ".premigration.bak"
+    shutil.copy2(db_path, backup)
+    _log.info("universe_type migration: backed up %s -> %s", db_path, backup)
+
+    raw = sqlite3.connect(db_path, timeout=30)
+    raw.isolation_level = None  # manage the transaction ourselves -> transactional DDL
+    try:
+        raw.execute("PRAGMA foreign_keys=OFF")
+        raw.execute("BEGIN")
+        pre = raw.execute("SELECT COUNT(*) FROM setup_archive").fetchone()[0]
+        raw.execute("ALTER TABLE setup_archive RENAME TO setup_archive_old")
+        # SQLite keeps an index's NAME when its table is renamed, so the old
+        # table's explicit ix_* indexes would collide with the new table's. Drop
+        # them first (they're not needed for the INSERT…SELECT scan). Autoindexes
+        # for the UNIQUE constraint have NULL sql and are dropped with the table.
+        stale_indexes = [
+            row[0] for row in raw.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' "
+                "AND tbl_name='setup_archive_old' AND sql IS NOT NULL"
+            ).fetchall()
+        ]
+        for name in stale_indexes:
+            raw.execute(f'DROP INDEX "{name}"')
+        raw.execute(create_table_sql)
+        for ix_sql in create_index_sqls:
+            raw.execute(ix_sql)
+        raw.execute(
+            f"INSERT INTO setup_archive ({col_sql}, universe_type) "
+            f"SELECT {col_sql}, 'us_equities' FROM setup_archive_old"
+        )
+        post = raw.execute("SELECT COUNT(*) FROM setup_archive").fetchone()[0]
+        if pre != post:
+            raise RuntimeError(f"row-count drift during rebuild: {pre} -> {post}")
+        raw.execute("DROP TABLE setup_archive_old")
+        raw.execute("COMMIT")
+        _log.info("universe_type migration: rebuilt setup_archive (%d rows, +universe_type, "
+                  "3-col unique key); backup at %s", post, backup)
+        return True
+    except Exception:
+        raw.execute("ROLLBACK")
+        _log.exception("universe_type migration failed; rolled back. Restore from %s if needed.", backup)
+        raise
+    finally:
+        raw.execute("PRAGMA foreign_keys=ON")
+        raw.close()
 
 
 def model_add_column_migrations(bind) -> list[str]:

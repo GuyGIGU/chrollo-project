@@ -65,7 +65,10 @@ def _empty() -> dict:
 
 def _compute() -> dict:
     try:
-        df_all = load_episodes()  # all sources, read-only, collapsed to episodes
+        # Stock universe only: the edge tile measures the US-equities screener, and
+        # the ETF universes now archive under the same source='screener'. Pinning
+        # universe_type keeps their setups out of this population.
+        df_all = load_episodes(universe_type="us_equities")
     except FileNotFoundError:
         return _empty()
     if df_all is None or getattr(df_all, "empty", True):

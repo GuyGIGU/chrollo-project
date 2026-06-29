@@ -245,6 +245,7 @@ def archive_scan_results(
     results_df: pd.DataFrame,
     scan_date_str: str | None = None,
     enable: bool = False,
+    universe=None,
 ) -> int:
     """Persist every row in results_df to the setup_archive table.
 
@@ -264,7 +265,13 @@ def archive_scan_results(
 
     import yfinance as yf
     from archive_models import SetupArchive, get_market_context, get_sector_etf, get_sector_trend
+    from core.pipeline.universe import resolve_universe
     from database import make_sqlite_engine
+
+    # Which universe these rows belong to (default us_stocks -> 'us_equities'),
+    # stamped on every row and part of the upsert identity so the same symbol can
+    # be archived independently per universe on one scan date.
+    universe_type = resolve_universe(universe).universe_type
 
     def _rs_from_series(close, base_start, base_end,
                         stock_start_close: float, stock_end_close: float) -> float | None:
@@ -413,10 +420,10 @@ def archive_scan_results(
         if not isinstance(sub, dict):
             sub = {}
 
-        # Upsert: check if record exists for this (ticker, scan_date)
+        # Upsert: check if record exists for this (ticker, scan_date, universe_type)
         existing = (
             session.query(SetupArchive)
-            .filter_by(ticker=ticker, scan_date=scan_dt)
+            .filter_by(ticker=ticker, scan_date=scan_dt, universe_type=universe_type)
             .first()
         )
 
@@ -607,6 +614,7 @@ def archive_scan_results(
             **sector_rank_columns(sector_etf),
             engine_config_version=engine_config_version,
             source="screener",
+            universe_type=universe_type,
         )
 
         if existing:

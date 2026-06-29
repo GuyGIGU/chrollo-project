@@ -47,6 +47,7 @@ def load_archive(
     db_path: Optional[str] = None,
     source: Optional[str] = None,
     con: Optional[sqlite3.Connection] = None,
+    universe_type: Optional[str] = None,
 ) -> pd.DataFrame:
     """Read the ``setup_archive`` table into a DataFrame (read-only).
 
@@ -57,6 +58,10 @@ def load_archive(
             a hand-picked winners gallery and re-scans carry survivorship bias.
         con: an already-open connection (e.g. an in-memory fixture in tests). When
             given, ``db_path`` is ignored and the connection is NOT closed here.
+        universe_type: optional universe filter ('us_equities' / 'us_sectors' /
+            'commodities_etf'). Pass 'us_equities' to keep a stock-only population
+            once the ETF universes also archive under source='screener'. Ignored on
+            a pre-migration DB that lacks the column.
     """
     own_con = con is None
     if own_con:
@@ -72,6 +77,8 @@ def load_archive(
 
     if source is not None and "source" in df.columns:
         df = df[df["source"] == source].copy()
+    if universe_type is not None and "universe_type" in df.columns:
+        df = df[df["universe_type"] == universe_type].copy()
     return df
 
 
@@ -127,6 +134,9 @@ def load_episodes(
     db_path: Optional[str] = None,
     source: Optional[str] = None,
     con: Optional[sqlite3.Connection] = None,
+    universe_type: Optional[str] = None,
 ) -> pd.DataFrame:
     """Convenience: load the archive then collapse to one row per episode."""
-    return collapse_to_episodes(load_archive(db_path=db_path, source=source, con=con))
+    return collapse_to_episodes(
+        load_archive(db_path=db_path, source=source, con=con, universe_type=universe_type)
+    )
