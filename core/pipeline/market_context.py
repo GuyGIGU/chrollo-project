@@ -56,7 +56,12 @@ def _etf_market_context(data: pd.DataFrame, universe) -> dict:
     UI signal honestly that breadth is anchored to the broad market, not measured
     over the names on screen.
     """
-    etf_asof = _panel_last_bar_date(data)
+    # Derive the as-of session the SAME way the broad context derived its
+    # spy_last_bar_date (SPY's last Close) when SPY is in this panel, so the
+    # same-session borrow gate compares like with like rather than equating two
+    # different "latest session" definitions. Falls back to the panel's last bar
+    # for a universe without SPY (commodities).
+    etf_asof = _last_bar_date(_get_index_frame(data, settings.SPY_SYMBOL)) or _panel_last_bar_date(data)
     broad = _read_meta(default_universe().market_context_path())
     can_borrow = (
         isinstance(broad, dict)
@@ -74,6 +79,15 @@ def _etf_market_context(data: pd.DataFrame, universe) -> dict:
         spy_6m_return = 0.0
         regime = _neutral_regime()
         basis = "neutral"
+        # A neutral fallback DESPITE a present broad context means the sessions
+        # drifted — make that observable rather than a silent under-scoring.
+        if isinstance(broad, dict) and broad.get("spy_last_bar_date") is not None:
+            print(
+                f"  [context {universe.key}] broad context present but session "
+                f"mismatch (broad {broad.get('spy_last_bar_date')} vs as-of {etf_asof}); "
+                f"falling back to neutral regime.",
+                flush=True,
+            )
 
     context = {
         "spy_6m_return": spy_6m_return,

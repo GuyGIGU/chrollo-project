@@ -21,6 +21,7 @@ import time
 
 from core.backtest.edge_report import UNBIASED_SOURCE, headline_edge, slice_by
 from core.backtest.loader import load_episodes
+from core.pipeline.universe import default_universe
 
 _TTL_SECONDS = 300.0
 _lock = threading.Lock()
@@ -66,9 +67,10 @@ def _empty() -> dict:
 def _compute() -> dict:
     try:
         # Stock universe only: the edge tile measures the US-equities screener, and
-        # the ETF universes now archive under the same source='screener'. Pinning
-        # universe_type keeps their setups out of this population.
-        df_all = load_episodes(universe_type="us_equities")
+        # the ETF universes now archive under the same source='screener'. Pin the
+        # universe_type via the descriptor (single source for the key<->universe_type
+        # duality) so their setups stay out of this population.
+        df_all = load_episodes(universe_type=default_universe().universe_type)
     except FileNotFoundError:
         return _empty()
     if df_all is None or getattr(df_all, "empty", True):

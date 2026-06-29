@@ -580,8 +580,13 @@ def _record_admission_history(admission: dict, admission_path: str, requested: l
     return summary
 
 
-def _symbols_with_indexes(tickers: list[str]) -> tuple[list[str], list[str]]:
-    index_symbols = list(getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
+def _symbols_with_indexes(tickers: list[str], universe=None) -> tuple[list[str], list[str]]:
+    # Per-universe regime symbols: us_stocks/us_sectors carry SPY/QQQ; the
+    # commodities universe carries none (its regime is borrowed from the broad
+    # market), so it doesn't redundantly re-pull SPY/QQQ. Defaults to the
+    # US-Stocks index set, byte-identical to the prior global read.
+    from core.pipeline.universe import resolve_universe
+    index_symbols = list(resolve_universe(universe).index_symbols)
     tickers_with_indexes = list(tickers)
     for symbol in index_symbols:
         if symbol not in tickers_with_indexes:
@@ -593,8 +598,8 @@ def _state_path(meta_file: str, setting_name: str, default_name: str) -> str:
     return os.path.join(os.path.dirname(meta_file), getattr(settings, setting_name, default_name))
 
 
-def _prepare_fetch_scope(tickers: list[str], meta_file: str) -> _FetchScope:
-    tickers_with_indexes, index_symbols = _symbols_with_indexes(tickers)
+def _prepare_fetch_scope(tickers: list[str], meta_file: str, universe=None) -> _FetchScope:
+    tickers_with_indexes, index_symbols = _symbols_with_indexes(tickers, universe)
 
     quarantine_path = _state_path(meta_file, "QUARANTINE_FILENAME", "ticker_quarantine.json")
     quarantine = (
@@ -802,7 +807,7 @@ def _try_incremental_update(
     gap_bdays: int,
     started_at: float,
 ) -> pd.DataFrame | None:
-    data = _incremental_fetch(cached, scope.tickers_with_indexes, gap_bdays)
+    data = _incremental_fetch(cached, scope.tickers_with_indexes, gap_bdays, scope.index_symbols)
     if data is not None and not data.empty:
         return _write_incremental_result(data, cache_file, meta_file, meta, scope, started_at)
 
@@ -923,9 +928,14 @@ def _cold_fetch(
     return _write_successful_cold_result(data, cache_file, meta_file, scope, started_at)
 
 
-def fetch_data(tickers: list[str]) -> pd.DataFrame:
+def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
     """
     Download market data via yfinance with PyArrow Parquet caching.
+
+    ``universe`` selects which per-universe cache + regime index set to use
+    (``None`` = US-Stocks, byte-identical to before). Each universe reads and
+    writes ONLY its own cache file, so an ETF scan can never corrupt the
+    US-Stocks parquet / cache_meta.
 
     Daily-run strategy:
     - If cache is fresh (< TTL_FRESH_HOURS), return it as-is.
@@ -940,9 +950,9 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
     market context from the same parquet without separate yfinance calls.
     """
     t_fetch_start = time.time()
-    cache_file, meta_file = _cache_paths()
+    cache_file, meta_file = _cache_paths(universe)
 
-    scope = _prepare_fetch_scope(tickers, meta_file)
+    scope = _prepare_fetch_scope(tickers, meta_file, universe)
 
     expected_session = latest_completed_session()
     min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
@@ -991,13 +1001,17 @@ def fetch_data(tickers: list[str]) -> pd.DataFrame:
 
 
 def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
-                       gap_bdays: int) -> pd.DataFrame | None:
+                       gap_bdays: int, index_symbols=None) -> pd.DataFrame | None:
     """
     Fetch only the last (overlap + gap) business days, probe for splits, then
     merge into the cached panel. Returns the merged DataFrame on success or
     None on a soft failure that should fall through to the cold path.
+
+    ``index_symbols`` is the universe's regime set (the caller passes
+    ``scope.index_symbols``); defaults to the US-Stocks global set.
     """
-    index_symbols = getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])
+    index_symbols = (list(index_symbols) if index_symbols is not None
+                     else getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
     expected_session = latest_completed_session()
     min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
     last_cached_date = (

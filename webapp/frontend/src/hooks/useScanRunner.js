@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api';
 
-function useScanRunner(fetchScreener) {
+function useScanRunner(fetchScreener, universe) {
   const [activeJob, setActiveJob] = useState(null);
   const [scanLogs, setScanLogs] = useState([]);
   const [scanProgress, setScanProgress] = useState(0);
@@ -52,7 +52,7 @@ function useScanRunner(fetchScreener) {
       setScanProgress(0);
       setScanPhase('');
       await fetchMarketDataStatus();
-      await fetchScreener();
+      await fetchScreener(universe);
     };
 
     const finishJob = async () => {
@@ -64,7 +64,7 @@ function useScanRunner(fetchScreener) {
       setScanPhase('');
       await fetchMarketDataStatus();
       if (job === 'evaluation' && !resultsRevealed && !jobHadError) {
-        await fetchScreener();
+        await fetchScreener(universe);
       }
     };
 
@@ -105,7 +105,7 @@ function useScanRunner(fetchScreener) {
         setScanError(errorMessageForJob(job));
       }
     };
-  }, [fetchMarketDataStatus, fetchScreener]);
+  }, [fetchMarketDataStatus, fetchScreener, universe]);
 
   const handleEvaluateCached = useCallback(() => startJob('evaluation'), [startJob]);
   const handleDownloadData = useCallback(() => startJob('download'), [startJob]);

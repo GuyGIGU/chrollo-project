@@ -12,40 +12,39 @@ import useReviews from '../hooks/useReviews';
 import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../hooks/useWatchlist';
-import { API_BASE } from '../api';
+import useDrilldown from '../hooks/useDrilldown';
 
 const ScreenerGrid = () => {
   const [activeModalTicker, setActiveModalTicker] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const universe = searchParams.get('u') || DEFAULT_UNIVERSE;
+  const etfUniverse = isEtfUniverse(universe);
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { passed, togglePassed } = useReviews();
   const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
   const filters = useScreenerFilters(screenerData, watchlist);
-  const scan = useScanRunner(fetchScreener);
+  const scan = useScanRunner(fetchScreener, universe);
+  const { drilldown, openDrilldown, closeDrilldown } = useDrilldown();
 
-  // The selected universe lives in the URL (?u=) so it survives reload and any
-  // deep link agrees with what's on screen. Switching resets to page 1.
+  const backToGrid = useCallback(() => { closeDrilldown(); setActiveModalTicker(null); }, [closeDrilldown]);
+
+  // The selected universe lives in the URL (?u=) so it survives reload. Switching
+  // resets the page AND the filters (a tag/setup/tier valid in one universe need
+  // not exist in another — a stale filter would fake a "no matches" empty state)
+  // and closes any open drill-down, so the switch is never silently masked.
   const handleUniverseChange = (key) => {
-    setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
+    if (key === universe) return;
+    backToGrid();
+    filters.resetFilters();
     filters.setCurrentPage(1);
+    setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };
 
-  // Top-down drill-down: a firing sector/commodity ETF -> its related US-stock
-  // setups (resolved server-side, intersected with the latest US-Stocks scan).
-  const [drilldown, setDrilldown] = useState(null);
-  const openDrilldown = useCallback((etf) => {
-    setActiveModalTicker(null);
-    setDrilldown({ etf, loading: true, ordered_tickers: [], chart_data: {} });
-    fetch(`${API_BASE}/screener-data/drilldown/?etf=${encodeURIComponent(etf)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('drilldown'))))
-      .then((d) => setDrilldown({ ...d, loading: false }))
-      .catch(() => setDrilldown({ etf, basis: 'error', ordered_tickers: [], chart_data: {}, loading: false }));
-  }, []);
-  const closeDrilldown = useCallback(() => { setDrilldown(null); setActiveModalTicker(null); }, []);
+  // Opening a drill-down clears any open modal first.
+  const handleDrilldown = useCallback((etf) => { setActiveModalTicker(null); openDrilldown(etf); }, [openDrilldown]);
 
-  // The modal + arrow-key cycling read from the drill-down members when one is
-  // open, otherwise from the active universe's filtered list.
+  // The modal + arrow-key cycling read the drill-down members when one is open,
+  // otherwise the active universe's filtered list.
   const modalChart = drilldown ? (drilldown.chart_data || {}) : (screenerData?.chart_data || {});
   const modalTickers = drilldown ? (drilldown.ordered_tickers || []) : filters.filteredTickers;
 
@@ -110,6 +109,7 @@ const ScreenerGrid = () => {
         filters={filters}
         onEvaluateCached={scan.handleEvaluateCached}
         onDownloadData={scan.handleDownloadData}
+        etfUniverse={etfUniverse}
       />
 
       {filters.tierFilter === 'WATCHLIST' && (
@@ -135,7 +135,7 @@ const ScreenerGrid = () => {
       {drilldown ? (
         <DrilldownView
           dd={drilldown}
-          onBack={closeDrilldown}
+          onBack={backToGrid}
           onCardClick={setActiveModalTicker}
           watchlist={watchlist}
           toggleWatchlist={toggleWatchlist}
@@ -146,13 +146,17 @@ const ScreenerGrid = () => {
       ) : (!scan.isEvaluating && !scan.scanError && (
         <>
           {status === 'loading' && (
-            <EmptyState message="Loading screener data… (if this takes more than a moment, evaluate the cached data above.)" />
+            <EmptyState message={etfUniverse
+              ? 'Loading…'
+              : 'Loading screener data… (if this takes more than a moment, evaluate the cached data above.)'} />
           )}
           {status === 'error' && (
             <EmptyState message="Couldn't load this screener. Check the backend is running and try again." />
           )}
           {status === 'never_scanned' && (
-            <EmptyState message={`No scan yet for ${universeLabel(universe)}. Its setups will appear here once a scan has run for this universe.`} />
+            <EmptyState message={etfUniverse
+              ? `No scan yet for ${universeLabel(universe)}. This universe is refreshed by the scheduled daily scan.`
+              : `No scan yet for ${universeLabel(universe)}. Its setups will appear here once a scan has run.`} />
           )}
           {status === 'empty' && (
             <EmptyState message="This scan matched no setups." />
@@ -174,7 +178,7 @@ const ScreenerGrid = () => {
                     passed={passed.has(ticker)}
                     onTogglePassed={togglePassed}
                     onClick={setActiveModalTicker}
-                    onDrilldown={isEtfUniverse(universe) ? openDrilldown : undefined}
+                    onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />
                 ))}
               </div>
@@ -215,24 +219,24 @@ function EmptyState({ message }) {
 // "no curated mapping" apart from "mapped, but none fired today".
 function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, passed, togglePassed, earningsByTicker }) {
   const members = dd.ordered_tickers || [];
-  const showGrid = !dd.loading && dd.basis !== 'error' && dd.basis !== 'none' && members.length > 0;
+  const { status, basis } = dd;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={lineageHeaderStyle}>
         <button type="button" onClick={onBack} style={backButtonStyle}>← Back</button>
         <span style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14 }}>{dd.etf}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-          related US stocks{dd.loading ? ' …' : ` · ${members.length}`}
-          <span style={{ opacity: 0.7 }}> · from the US-Stocks scan</span>
+        <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
+          related US stocks{status === 'loading' ? ' …' : ` · ${members.length}`}
+          {' · from the US-Stocks scan'}
         </span>
       </div>
-      {dd.loading && <EmptyState message="Loading related stocks…" />}
-      {!dd.loading && dd.basis === 'error' && <EmptyState message="Couldn't load related stocks. Go back and try again." />}
-      {!dd.loading && dd.basis === 'none' && <EmptyState message={`No curated stock mapping for ${dd.etf} yet.`} />}
-      {!dd.loading && (dd.basis === 'sector' || dd.basis === 'commodity') && members.length === 0 && (
+      {status === 'loading' && <EmptyState message="Loading related stocks…" />}
+      {status === 'error' && <EmptyState message="Couldn't load related stocks. Go back and try again." />}
+      {status === 'empty' && basis === 'none' && <EmptyState message={`No curated stock mapping for ${dd.etf} yet.`} />}
+      {status === 'empty' && basis !== 'none' && (
         <EmptyState message={`No ${dd.etf} member stocks set up in today's US-Stocks scan.`} />
       )}
-      {showGrid && (
+      {status === 'ready' && (
         <div style={gridStyle}>
           {members.map(t => (
             <ScreenerCard

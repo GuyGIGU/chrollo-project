@@ -79,8 +79,9 @@ class MarketDataProvider(Protocol):
 
     name: str
 
-    def fetch(self, tickers: list[str]) -> pd.DataFrame:
-        """Return the canonical panel for ``tickers`` (+ index symbols)."""
+    def fetch(self, tickers: list[str], universe=None) -> pd.DataFrame:
+        """Return the canonical panel for ``tickers`` (+ index symbols), reading
+        and writing the cache for ``universe`` (``None`` = US-Stocks)."""
         ...
 
     def daily_candles(self, symbol: str, days: int) -> pd.DataFrame:
@@ -142,10 +143,10 @@ class YahooProvider:
 
     name = "yahoo"
 
-    def fetch(self, tickers: list[str]) -> pd.DataFrame:
+    def fetch(self, tickers: list[str], universe=None) -> pd.DataFrame:
         from core.pipeline.downloads import fetch_data
 
-        return fetch_data(tickers)
+        return fetch_data(tickers, universe)
 
     # ── Capability methods (UI / enrichment, not the engine read) ──────────
     # These wrap the hang-prone single-symbol yfinance surfaces the web layer

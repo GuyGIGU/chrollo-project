@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -51,9 +52,18 @@ def get_screener_data(
     path = uni.artifact_path()
     # 'never_scanned' (valid universe, no artifact yet) is distinct from a real
     # scan that matched nothing — so the UI can say "run a scan" vs "0 matched".
-    status = "ready" if os.path.exists(path) else "never_scanned"
+    exists = os.path.exists(path)
+    status = "ready" if exists else "never_scanned"
+    # Artifact mtime so the UI can distinguish a fresh "ready" from a stale one
+    # (the ETF universes refresh only on the scheduled scan).
+    scanned_at = None
+    if exists:
+        try:
+            scanned_at = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc).isoformat()
+        except OSError:
+            pass
     payload = read_screener_data(path)
-    return {**payload, "universe": uni.key, "status": status}
+    return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
 
 
 @router.get("/screener-data/drilldown/")

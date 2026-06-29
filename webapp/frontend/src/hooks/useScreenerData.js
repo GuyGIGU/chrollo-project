@@ -24,6 +24,10 @@ function useScreenerData(universe = DEFAULT_UNIVERSE) {
   const mountedRef = useRef(true);
   // Mirror of the per-universe cache for synchronous reads inside effects.
   const cacheRef = useRef({});
+  // The universe currently selected — so a slow fetch that resolves AFTER the
+  // user switched away updates only the cache (keyed, safe) and not the status
+  // (which belongs to whatever universe is now on screen).
+  const activeUniverseRef = useRef(universe);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -32,36 +36,39 @@ function useScreenerData(universe = DEFAULT_UNIVERSE) {
 
   const fetchScreener = useCallback(async (target) => {
     const u = target || DEFAULT_UNIVERSE;
+    const isActive = () => mountedRef.current && activeUniverseRef.current === u;
     // Only blank to "loading" when we have nothing cached for this universe;
     // otherwise keep the cached payload on screen while we revalidate.
-    if (!cacheRef.current[u] && mountedRef.current) setStatus('loading');
+    if (!cacheRef.current[u] && isActive()) setStatus('loading');
     try {
       const response = await fetch(`${API_BASE}/screener-data/?universe=${encodeURIComponent(u)}`);
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         console.error(`screener-data ${response.status}: ${body.slice(0, 200)}`);
-        if (mountedRef.current) {
+        if (isActive()) {
           setStatus(cacheRef.current[u] ? deriveStatus(cacheRef.current[u]) : 'error');
         }
         return;
       }
       const data = await response.json();
       if (!mountedRef.current) return;
+      // Cache write is always safe (keyed by u); status only if still selected.
       cacheRef.current = { ...cacheRef.current, [u]: data };
       setByUniverse(cacheRef.current);
-      setStatus(deriveStatus(data));
+      if (isActive()) setStatus(deriveStatus(data));
     } catch (error) {
       console.error('Failed to load screener data', error);
-      if (mountedRef.current) {
+      if (isActive()) {
         setStatus(cacheRef.current[u] ? deriveStatus(cacheRef.current[u]) : 'error');
       }
     }
   }, []);
 
-  // Refetch whenever the selected universe changes. Set status from the cached
-  // payload (if any) synchronously so a switch never shows the prior universe's
-  // status for a frame, then revalidate.
+  // Refetch whenever the selected universe changes. Mark it active first (so a
+  // late prior-universe response can't stamp its status here), set status from
+  // the cached payload synchronously to avoid a stale-status frame, then fetch.
   useEffect(() => {
+    activeUniverseRef.current = universe;
     const cached = cacheRef.current[universe];
     setStatus(cached ? deriveStatus(cached) : 'loading');
     fetchScreener(universe);

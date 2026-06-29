@@ -37,7 +37,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     )
 
     class FakeProvider:
-        def fetch(self, tickers):
+        def fetch(self, tickers, universe=None):
             assert tickers == ["AAA"]
             return panel
 

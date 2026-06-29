@@ -54,15 +54,17 @@ def test_yahoo_provider_delegates_to_fetch_data(monkeypatch):
     # so moving the screener behind the interface is a behavioral no-op.
     captured = {}
 
-    def fake_fetch_data(tickers):
+    def fake_fetch_data(tickers, universe=None):
         captured["tickers"] = tickers
+        captured["universe"] = universe
         return "PANEL"
 
     import core.pipeline.downloads as downloads_module
     monkeypatch.setattr(downloads_module, "fetch_data", fake_fetch_data)
 
-    out = YahooProvider().fetch(["AAA", "BBB"])
+    out = YahooProvider().fetch(["AAA", "BBB"], "us_sectors")
     assert out == "PANEL"
+    assert captured["universe"] == "us_sectors"  # universe is delegated through
     assert captured["tickers"] == ["AAA", "BBB"]
 
 

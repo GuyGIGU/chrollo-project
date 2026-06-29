@@ -134,7 +134,7 @@ def _wire_cold_path(tmp_path, monkeypatch, full_panel):
     """Point fetch_data at tmp cache/meta and a fake cold refetch returning full_panel."""
     cache_file = tmp_path / "cache.parquet"
     meta_file = tmp_path / "cache_meta.json"
-    monkeypatch.setattr(downloads_module, "_cache_paths", lambda: (str(cache_file), str(meta_file)))
+    monkeypatch.setattr(downloads_module, "_cache_paths", lambda *a, **k: (str(cache_file), str(meta_file)))
     monkeypatch.setattr(downloads_module, "_is_market_hours", lambda: False)
     monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *a, **k: data)
 

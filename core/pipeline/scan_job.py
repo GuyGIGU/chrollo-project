@@ -179,22 +179,31 @@ def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResul
     """Scan every universe sequentially in one process, US-Stocks first.
 
     US-Stocks runs first so its broad-market context is on disk before the small
-    ETF universes (which borrow it). Each universe's failure is ISOLATED — a stale
-    or crashing universe logs and yields ``None`` for its slot without aborting the
-    others — so one bad universe never starves the rest. Runs under whatever lock
-    the caller holds (the scheduler's single SCAN_LOCK); universes are serial, so
-    they don't contend on the CPU pool or the Yahoo rate budget.
+    ETF universes (which borrow it). A NON-PRIMARY (ETF) universe's failure is
+    ISOLATED — it logs and yields ``None`` without aborting the others. But a
+    failure of the PRIMARY (US-Stocks) universe is re-raised AFTER the others run,
+    so the scheduled run's exit code / status / alert reflect the primary outcome
+    exactly as the prior single-universe path did (a stale/crashed primary must
+    not be silently logged as 'ok' with n_setups=0). Runs under whatever lock the
+    caller holds; universes are serial, so they don't contend on the pool or rate.
     """
+    universes = all_universes()
+    primary_key = universes[0].key  # all_universes() is US-Stocks-first by contract
     results: dict[str, ScanExportResult | None] = {}
-    for uni in all_universes():
+    primary_error: Exception | None = None
+    for uni in universes:
         try:
             results[uni.key] = run_scan_and_export(mode=mode, universe=uni)
-        except StaleMarketDataError as exc:
-            log.warning("universe scan stale/aborted [%s]: %s", uni.key, exc)
+        except Exception as exc:  # noqa: BLE001 — isolate ETF universes, capture primary
             results[uni.key] = None
-        except Exception:
-            log.exception("universe scan failed [%s]", uni.key)
-            results[uni.key] = None
+            if isinstance(exc, StaleMarketDataError):
+                log.warning("universe scan stale/aborted [%s]: %s", uni.key, exc)
+            else:
+                log.exception("universe scan failed [%s]", uni.key)
+            if uni.key == primary_key:
+                primary_error = exc
+    if primary_error is not None:
+        raise primary_error  # propagate the primary outcome to exit/status/alert
     return results
 
 

@@ -161,7 +161,7 @@ def run_screener(mode: str = "download",
         else:
             tickers = get_cached_tickers(uni.ticker_csv) if mode == "cache" else get_tickers(uni.ticker_csv)
     with timer.phase("market_data_fetch"):
-        data = _read_cached_market_data(tickers, uni) if mode == "cache" else get_provider().fetch(tickers)
+        data = _read_cached_market_data(tickers, uni) if mode == "cache" else get_provider().fetch(tickers, uni)
     with timer.phase("frame_prep"):
         evaluation_tickers = eligible_tickers_for(tickers)
         skipped = len(tickers) - len(evaluation_tickers)

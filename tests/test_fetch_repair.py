@@ -337,7 +337,7 @@ def test_fetch_data_refetches_current_cache_missing_regime_index(tmp_path, monke
     )
 
     called = {}
-    monkeypatch.setattr(downloads_module, "_cache_paths", lambda: (str(cache_file), str(meta_file)))
+    monkeypatch.setattr(downloads_module, "_cache_paths", lambda *a, **k: (str(cache_file), str(meta_file)))
     monkeypatch.setattr(downloads_module, "_is_market_hours", lambda: False)
     monkeypatch.setattr(downloads_module.settings, "TTL_FRESH_HOURS_OFFHOURS", 0)
     def fake_full_refetch(symbols):

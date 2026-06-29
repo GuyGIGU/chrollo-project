@@ -554,17 +554,29 @@ def test_screener_data_endpoint_rejects_unknown_universe():
     assert exc.value.status_code == 422
 
 
-def test_screener_data_endpoint_tags_universe_and_status(monkeypatch):
+def test_screener_data_endpoint_status_never_scanned(monkeypatch):
     from routers import screener as screener_router
 
-    monkeypatch.setattr(
-        screener_router, "read_screener_data",
-        lambda path: {"ordered_tickers": [], "chart_data": {}},
-    )
+    monkeypatch.setattr(screener_router, "read_screener_data",
+                        lambda path: {"ordered_tickers": [], "chart_data": {}})
+    monkeypatch.setattr(screener_router.os.path, "exists", lambda path: False)
     out = screener_router.get_screener_data(universe="commodities_etf")
     assert out["universe"] == "commodities_etf"
-    # No commodities scan artifact in the test repo -> distinct 'never_scanned'.
-    assert out["status"] in ("ready", "never_scanned")
+    assert out["status"] == "never_scanned"  # no artifact -> distinct sentinel
+    assert out["scanned_at"] is None
+
+
+def test_screener_data_endpoint_status_ready(monkeypatch):
+    from routers import screener as screener_router
+
+    monkeypatch.setattr(screener_router, "read_screener_data",
+                        lambda path: {"ordered_tickers": ["AAA"], "chart_data": {"AAA": {}}})
+    monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
+    monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
+    out = screener_router.get_screener_data(universe="us_stocks")
+    assert out["universe"] == "us_stocks"
+    assert out["status"] == "ready"  # artifact present -> ready, with a timestamp
+    assert out["scanned_at"] is not None
 
 
 def test_drilldown_resolves_sector_commodity_and_none(monkeypatch):

@@ -13,7 +13,14 @@ function ScreenerToolbar({
   filters,
   onEvaluateCached,
   onDownloadData,
+  etfUniverse = false,
 }) {
+  // The Download/Evaluate actions operate ONLY on the US-Stocks cache; the ETF
+  // universes are refreshed by the scheduled daily scan, so these controls are
+  // disabled there rather than misleading the user into a no-op (council #14).
+  const scanDisabledTitle = etfUniverse
+    ? 'Sector/commodity universes refresh on the scheduled daily scan, not from here.'
+    : null;
   // Primary triage controls (tier + search) stay always-on; setup, sort, tags,
   // and the legend live behind a disclosure so they don't crowd the grid. The
   // count of active hidden filters keeps that state visible while collapsed.
@@ -33,10 +40,10 @@ function ScreenerToolbar({
           <MarketDataStatus status={marketDataStatus} />
           <button
             onClick={onDownloadData}
-            disabled={isScanning || marketDataStatus?.can_download === false}
-            title={marketDataStatus?.diagnosis || marketDataStatus?.message || 'Refresh market-data cache'}
+            disabled={isScanning || etfUniverse || marketDataStatus?.can_download === false}
+            title={scanDisabledTitle || marketDataStatus?.diagnosis || marketDataStatus?.message || 'Refresh market-data cache'}
             style={downloadButtonStyle(
-              isScanning || marketDataStatus?.can_download === false,
+              isScanning || etfUniverse || marketDataStatus?.can_download === false,
               marketDataStatus?.health_state || marketDataStatus?.status,
               marketDataStatus?.severity,
             )}
@@ -45,9 +52,9 @@ function ScreenerToolbar({
           </button>
           <button
             onClick={onEvaluateCached}
-            disabled={isScanning || marketDataStatus?.can_evaluate === false}
-            title={marketDataStatus?.diagnosis || marketDataStatus?.message || 'Evaluate the current local market-data cache.'}
-            style={scanButtonStyle(isScanning || marketDataStatus?.can_evaluate === false)}
+            disabled={isScanning || etfUniverse || marketDataStatus?.can_evaluate === false}
+            title={scanDisabledTitle || marketDataStatus?.diagnosis || marketDataStatus?.message || 'Evaluate the current local market-data cache.'}
+            style={scanButtonStyle(isScanning || etfUniverse || marketDataStatus?.can_evaluate === false)}
           >
             {isEvaluating ? 'Evaluating Cache...' : 'Evaluate Cached Data'}
           </button>

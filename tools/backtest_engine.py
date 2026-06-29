@@ -454,9 +454,13 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         universe_returns: Optional[pd.DataFrame] = None,
         metric_col: str = "mfe_20d", seed: int = 1337,
         spy_col: Optional[str] = None,
-        json_path: Optional[str] = None) -> dict:
+        json_path: Optional[str] = None,
+        universe_type: Optional[str] = "us_equities") -> dict:
     _LINES.clear()
-    df = load_episodes(db_path=db_path, source=source)
+    # Stock-only standalone-edge population by default: the ETF universes now
+    # archive under source='screener' too, so pin universe_type to keep this
+    # calibration ground truth uncontaminated (mirrors services/engine_edge.py).
+    df = load_episodes(db_path=db_path, source=source, universe_type=universe_type)
 
     header("CHROLLO STANDALONE-EDGE BACKTEST HARNESS  (PRELIMINARY)")
     emit(f"DB: {db_path or DEFAULT_DB_PATH}  (read-only)")

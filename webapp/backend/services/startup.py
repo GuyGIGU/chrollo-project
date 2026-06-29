@@ -230,6 +230,23 @@ def _apply_migrations() -> None:
                 _log.warning("migration skipped (%s): %s", exc.__class__.__name__, statement)
 
 
+def _has_universe_identity(bind) -> bool:
+    """True iff setup_archive carries the widened (ticker, scan_date, universe_type)
+    UNIQUE identity — not merely a universe_type column added out-of-band (the scan
+    writer / forward-returns ADD-COLUMN passes can materialize the column without
+    the constraint). Read via PRAGMA for reliable SQLite unique-index reflection."""
+    target = {"ticker", "scan_date", "universe_type"}
+    with bind.connect() as conn:
+        for row in conn.exec_driver_sql("PRAGMA index_list('setup_archive')").fetchall():
+            name, unique = row[1], row[2]
+            if not unique:
+                continue
+            cols = {r[2] for r in conn.exec_driver_sql(f"PRAGMA index_info('{name}')").fetchall()}
+            if cols == target:
+                return True
+    return False
+
+
 def migrate_universe_type(bind) -> bool:
     """One-off: widen the setup_archive identity to (ticker, scan_date, universe_type).
 
@@ -241,9 +258,10 @@ def migrate_universe_type(bind) -> bool:
     rolls back to the original table), and a checkpoint+file backup is taken first.
     A post-rebuild row-count check rolls back on any drift.
 
-    Idempotent: returns immediately once ``universe_type`` exists (so a fresh DB,
-    where create_all already built the new schema, and a re-run are both no-ops).
-    Returns True if it performed the rebuild, False if it was already migrated.
+    Idempotent: a no-op once the full identity is in place (the universe_type
+    column AND the 3-col UNIQUE) — so a fresh DB (create_all built it) and a re-run
+    are both skipped, but a column added out-of-band WITHOUT the constraint still
+    triggers the rebuild. Returns True if it rebuilt, False if already migrated.
     """
     import shutil
     import sqlite3
@@ -255,13 +273,21 @@ def migrate_universe_type(bind) -> bool:
     if "setup_archive" not in inspector.get_table_names():
         return False  # fresh DB — create_all already built the new schema
     old_cols = [col["name"] for col in inspector.get_columns("setup_archive")]
-    if "universe_type" in old_cols:
-        return False  # already migrated
+    if "universe_type" in old_cols and _has_universe_identity(bind):
+        return False  # fully migrated: the column AND the 3-col unique are present
 
     db_path = bind.url.database
     model_cols = {c.name for c in archive_models.SetupArchive.__table__.columns}
-    copy_cols = [c for c in old_cols if c in model_cols]  # intersection (drift-safe)
+    # Always exclude universe_type from the copied set — it is supplied by the
+    # backfill below. This keeps the rebuild correct even when universe_type was
+    # already added out-of-band (as a plain nullable column) but the widened
+    # constraint is still missing.
+    has_ut_col = "universe_type" in old_cols
+    copy_cols = [c for c in old_cols if c in model_cols and c != "universe_type"]
     col_sql = ", ".join(copy_cols)
+    # Literal for a clean add; COALESCE preserves any out-of-band values (a plain
+    # ADD COLUMN with no default leaves NULLs) while still backfilling the rest.
+    ut_select = "COALESCE(universe_type, 'us_equities')" if has_ut_col else "'us_equities'"
     dialect = sqlite_dialect.dialect()
     create_table_sql = str(CreateTable(archive_models.SetupArchive.__table__).compile(dialect=dialect))
     create_index_sqls = [
@@ -300,7 +326,7 @@ def migrate_universe_type(bind) -> bool:
             raw.execute(ix_sql)
         raw.execute(
             f"INSERT INTO setup_archive ({col_sql}, universe_type) "
-            f"SELECT {col_sql}, 'us_equities' FROM setup_archive_old"
+            f"SELECT {col_sql}, {ut_select} FROM setup_archive_old"
         )
         post = raw.execute("SELECT COUNT(*) FROM setup_archive").fetchone()[0]
         if pre != post:
