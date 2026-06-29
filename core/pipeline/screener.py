@@ -154,7 +154,12 @@ def run_screener(mode: str = "download",
 
     timer = ScanTimer()
     with timer.phase("ticker_universe"):
-        tickers = get_cached_tickers(uni.ticker_csv) if mode == "cache" else get_tickers(uni.ticker_csv)
+        if uni.ticker_source == "csv":
+            # Curated universes (sector / commodity ETFs) read their fixed list
+            # directly — never the NASDAQ FTP pull or the young/dead admission gate.
+            tickers = get_cached_tickers(uni.ticker_csv)
+        else:
+            tickers = get_cached_tickers(uni.ticker_csv) if mode == "cache" else get_tickers(uni.ticker_csv)
     with timer.phase("market_data_fetch"):
         data = _read_cached_market_data(tickers, uni) if mode == "cache" else get_provider().fetch(tickers)
     with timer.phase("frame_prep"):
@@ -166,7 +171,7 @@ def run_screener(mode: str = "download",
         ticker_frames = _prepare_ticker_frames(evaluation_tickers, data, uni)
 
     with timer.phase("market_context"):
-        market_context = get_market_context(data, ticker_frames)
+        market_context = get_market_context(data, ticker_frames, uni)
     spy_6m_return = float(market_context.get('spy_6m_return') or 0.0)
     breadth_pct = market_context.get('breadth_pct')
 

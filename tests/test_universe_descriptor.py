@@ -67,11 +67,53 @@ def test_resolve_universe_is_a_closed_set():
     with pytest.raises(ValueError):
         resolve_universe("../../etc/passwd")
     with pytest.raises(ValueError):
-        resolve_universe("commodities_etf")  # not registered until Task 2
+        resolve_universe("screener_data")  # not a registered universe key
 
 
 def test_default_key_is_registered():
     assert DEFAULT_UNIVERSE_KEY in universe_keys()
+
+
+def test_three_universes_registered():
+    keys = universe_keys()
+    assert set(keys) == {"us_stocks", "us_sectors", "commodities_etf"}
+    sectors = resolve_universe("us_sectors")
+    commodities = resolve_universe("commodities_etf")
+    assert sectors.ticker_source == "csv"
+    assert commodities.ticker_source == "csv"
+
+
+def test_universe_artifact_and_cache_paths_are_distinct():
+    paths = {
+        resolve_universe(k).artifact_path()
+        for k in ("us_stocks", "us_sectors", "commodities_etf")
+    }
+    assert len(paths) == 3  # no two universes share an artifact
+    caches = {
+        resolve_universe(k).cache_paths()[0]
+        for k in ("us_stocks", "us_sectors", "commodities_etf")
+    }
+    assert len(caches) == 3  # no two universes share a market-data cache
+
+
+def test_etf_ticker_lists_load():
+    from core.pipeline.tickers import get_cached_tickers
+
+    sectors = get_cached_tickers(resolve_universe("us_sectors").ticker_csv)
+    assert "XLK" in sectors and "SPY" in sectors
+    commodities = get_cached_tickers(resolve_universe("commodities_etf").ticker_csv)
+    assert "GLD" in commodities and "SMH" in commodities
+
+
+def test_drilldown_map_loads_and_is_clean():
+    from core.pipeline.universe import drilldown_map
+
+    m = drilldown_map()
+    assert isinstance(m, dict)
+    assert "_comment" not in m  # comment/underscore keys dropped
+    assert "GDX" in m["GLD"]  # gold ETF -> miners basket
+    # keys and values are upper-cased symbols
+    assert all(k == k.upper() for k in m)
 
 
 def test_universe_is_frozen():

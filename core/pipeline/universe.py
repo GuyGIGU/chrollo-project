@@ -23,6 +23,7 @@ Two discipline points baked in here:
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 
@@ -82,8 +83,16 @@ DEFAULT_UNIVERSE_KEY = "us_stocks"
 def _build_registry() -> dict[str, "Universe"]:
     """Construct the universe registry (settings read here, at call time).
 
-    Only US-Stocks is registered today; the two ETF universes are added in a later
-    step as additional entries — no other code changes when they land.
+    Three universes, all driven by the same engine:
+    - ``us_stocks``      — the existing NASDAQ common-stock scan (byte-identical default).
+    - ``us_sectors``     — the 11 SPDR sector ETFs + broad-market indices.
+    - ``commodities_etf``— curated commodity + thematic/industry ETFs.
+
+    The ETF universes draw from curated CSVs (``ticker_source="csv"``: no NASDAQ FTP
+    pull, no admission gate) and own their cache / artifact / context filenames so
+    they never collide with US-Stocks. Their ``index_symbols`` only gate which
+    members are skipped from evaluation as pure regime benchmarks; the broad-market
+    regime/breadth sourcing for these small universes is handled separately (Task 4).
     """
     us_stocks = Universe(
         key=DEFAULT_UNIVERSE_KEY,
@@ -97,7 +106,59 @@ def _build_registry() -> dict[str, "Universe"]:
         artifact_filename="screener_data.json",
         index_symbols=tuple(getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL])),
     )
-    return {us_stocks.key: us_stocks}
+    us_sectors = Universe(
+        key="us_sectors",
+        label="US Sectors + Market",
+        universe_type="us_sectors",
+        ticker_source="csv",
+        ticker_csv=os.path.join(_config_dir(), "tickers_us_sectors.csv"),
+        cache_filename="market_data_cache_5y_us_sectors.parquet",
+        cache_meta_filename="cache_meta_us_sectors.json",
+        market_context_filename="market_context_us_sectors.json",
+        artifact_filename="screener_data_us_sectors.json",
+        index_symbols=("SPY", "QQQ"),
+    )
+    commodities_etf = Universe(
+        key="commodities_etf",
+        label="Commodities + ETFs",
+        universe_type="commodities_etf",
+        ticker_source="csv",
+        ticker_csv=os.path.join(_config_dir(), "tickers_commodities_etf.csv"),
+        cache_filename="market_data_cache_5y_commodities_etf.parquet",
+        cache_meta_filename="cache_meta_commodities_etf.json",
+        market_context_filename="market_context_commodities_etf.json",
+        artifact_filename="screener_data_commodities_etf.json",
+        index_symbols=(),
+    )
+    return {u.key: u for u in (us_stocks, us_sectors, commodities_etf)}
+
+
+_DRILLDOWN_MAP_FILENAME = "commodity_equity_map.json"
+
+
+def drilldown_map() -> dict[str, list[str]]:
+    """Curated commodity/thematic-ETF -> related-equity basket (read at call time).
+
+    Returns an empty dict if the file is missing or malformed; the leading
+    ``_comment`` key (and any other underscore-prefixed key) is dropped. Used by
+    the top-down drill-down so a firing commodity/thematic ETF can resolve to the
+    equities it represents. Sector SPDRs are NOT here — they drill via the
+    existing ``sector_etf`` mapping carried on each stock setup.
+    """
+    path = os.path.join(_config_dir(), _DRILLDOWN_MAP_FILENAME)
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, list[str]] = {}
+    for key, value in raw.items():
+        if key.startswith("_") or not isinstance(value, list):
+            continue
+        out[str(key).upper()] = [str(v).strip().upper() for v in value if str(v).strip()]
+    return out
 
 
 def universe_keys() -> tuple[str, ...]:

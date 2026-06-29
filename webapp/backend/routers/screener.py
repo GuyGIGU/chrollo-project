@@ -1,10 +1,13 @@
 """Screener data, scan status, and manual scan stream endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+import os
+
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from core.pipeline.universe import DEFAULT_UNIVERSE_KEY, resolve_universe, universe_keys
 from services import scan_runner, scan_status
 from services.earnings import days_until, get_next_earnings_batch
 from services.screener_data import invalidate_screener_cache, read_screener_data
@@ -19,13 +22,32 @@ class EarningsBatchIn(BaseModel):
 
 
 def configure_screener_routes(screener_json_path: str) -> None:
+    # Retained for the US-Stocks default / health report; the data route resolves
+    # each universe's artifact through the descriptor below.
     global _screener_json_path
     _screener_json_path = screener_json_path
 
 
 @router.get("/screener-data/")
-def get_screener_data():
-    return read_screener_data(_screener_json_path)
+def get_screener_data(
+    universe: str = Query(
+        DEFAULT_UNIVERSE_KEY,
+        description=f"Which universe's latest scan to serve. One of: {', '.join(universe_keys())}.",
+    )
+):
+    # Validate against the closed registry BEFORE any path is built — an unknown
+    # universe is a 422, never a filesystem lookup (no path traversal).
+    try:
+        uni = resolve_universe(universe)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"unknown universe '{universe}'")
+
+    path = uni.artifact_path()
+    # 'never_scanned' (valid universe, no artifact yet) is distinct from a real
+    # scan that matched nothing — so the UI can say "run a scan" vs "0 matched".
+    status = "ready" if os.path.exists(path) else "never_scanned"
+    payload = read_screener_data(path)
+    return {**payload, "universe": uni.key, "status": status}
 
 
 @router.get("/scan-status/latest")

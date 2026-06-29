@@ -525,6 +525,28 @@ def test_screener_data_bad_first_read_returns_empty(tmp_path):
     }
 
 
+def test_screener_data_endpoint_rejects_unknown_universe():
+    from fastapi import HTTPException
+    from routers import screener as screener_router
+
+    with pytest.raises(HTTPException) as exc:
+        screener_router.get_screener_data(universe="../../etc/passwd")
+    assert exc.value.status_code == 422
+
+
+def test_screener_data_endpoint_tags_universe_and_status(monkeypatch):
+    from routers import screener as screener_router
+
+    monkeypatch.setattr(
+        screener_router, "read_screener_data",
+        lambda path: {"ordered_tickers": [], "chart_data": {}},
+    )
+    out = screener_router.get_screener_data(universe="commodities_etf")
+    assert out["universe"] == "commodities_etf"
+    # No commodities scan artifact in the test repo -> distinct 'never_scanned'.
+    assert out["status"] in ("ready", "never_scanned")
+
+
 def test_portfolio_sse_data_is_strict_json_safe():
     event = portfolio_streams._sse_data({
         "value": np.float32(0.5),

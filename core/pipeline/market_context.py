@@ -8,10 +8,90 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.cache import _is_market_hours, _now_iso, _project_root, _read_meta, _write_meta
+from core.pipeline.universe import DEFAULT_UNIVERSE_KEY, default_universe, resolve_universe
 
 
 def _market_context_path() -> str:
     return os.path.join(_project_root(), settings.MARKET_CONTEXT_FILENAME)
+
+
+def _panel_last_bar_date(data: pd.DataFrame) -> str | None:
+    """Latest trading session present in a market-data panel (any column)."""
+    if data is None or getattr(data, "empty", True):
+        return None
+    valid = data.dropna(how="all")
+    if valid.empty:
+        return None
+    try:
+        return pd.Timestamp(valid.index[-1]).strftime("%Y-%m-%d")
+    except Exception:
+        return None
+
+
+def _neutral_regime() -> dict:
+    return {
+        "state": "NEUTRAL",
+        "indexes": {},
+        "breadth_50_pct": None,
+        "breadth_50_count": 0,
+        "breadth_50_total": 0,
+        "breadth_200_pct": None,
+        "breadth_200_count": 0,
+        "breadth_200_total": 0,
+        "distribution_days": 0,
+    }
+
+
+def _etf_market_context(data: pd.DataFrame, universe) -> dict:
+    """Market context for a small (10-40 name) ETF universe.
+
+    Breadth over a handful of ETFs is degenerate, so the breadth SCORING input is
+    neutralized to ``None`` (``_ramp`` -> exactly 0.0 breadth bonus; every ETF
+    setup earns zero rather than a value derived from a near-empty denominator).
+    The SPY 6m reference and the regime are BORROWED from the broad US-Stocks
+    context — but only when that context is for the SAME trading session as this
+    scan's as-of bar, so an ETF setup is never scored against a regime it could
+    not have known (lookahead guard). When the broad context is missing or is for
+    a different session, fall back to a neutral context. ``context_basis`` lets the
+    UI signal honestly that breadth is anchored to the broad market, not measured
+    over the names on screen.
+    """
+    etf_asof = _panel_last_bar_date(data)
+    broad = _read_meta(default_universe().market_context_path())
+    can_borrow = (
+        isinstance(broad, dict)
+        and broad.get("spy_6m_return") is not None
+        and isinstance(broad.get("regime"), dict)
+        and broad.get("spy_last_bar_date") is not None
+        and etf_asof is not None
+        and broad.get("spy_last_bar_date") == etf_asof
+    )
+    if can_borrow:
+        spy_6m_return = float(broad["spy_6m_return"])
+        regime = broad["regime"]
+        basis = "broad_market"
+    else:
+        spy_6m_return = 0.0
+        regime = _neutral_regime()
+        basis = "neutral"
+
+    context = {
+        "spy_6m_return": spy_6m_return,
+        "breadth_pct": None,  # neutralized — breadth over a tiny ETF set is meaningless
+        "regime": regime,
+        "spy_last_bar_date": etf_asof,
+        "index_last_bar_dates": {},
+        "computed_at": _now_iso(),
+        "context_basis": basis,  # 'broad_market' (anchored) | 'neutral' (fallback)
+    }
+    _write_meta(universe.market_context_path(), context)
+    print(
+        f"Market context [{universe.key}]: breadth neutralized; SPY/regime {basis} "
+        f"(as-of {etf_asof}, SPY 6m={spy_6m_return * 100:.2f}%, "
+        f"regime={regime.get('state', 'UNKNOWN')})",
+        flush=True,
+    )
+    return context
 
 
 def _finite_float(value) -> float | None:
@@ -172,7 +252,8 @@ def _has_required_index_trends(regime: dict, index_last_bar_dates: dict[str, str
 
 
 def get_market_context(data: pd.DataFrame,
-                       ticker_frames: dict[str, pd.DataFrame]) -> dict:
+                       ticker_frames: dict[str, pd.DataFrame],
+                       universe=None) -> dict:
     """
     Return a run-level market-context dict. ``spy_6m_return`` and
     ``breadth_pct`` remain the only scoring inputs; ``regime`` is descriptive
@@ -183,7 +264,14 @@ def get_market_context(data: pd.DataFrame,
       if SPY 6m return is to be computed). If SPY is missing, returns 0.0 for
       the RS reference (consistent with the previous fallback behavior).
     - ``ticker_frames``: per-ticker DataFrames used to compute breadth.
+    - ``universe``: which market is being scanned (``None`` = US-Stocks). For the
+      small ETF universes, breadth is neutralized and the SPY/regime context is
+      borrowed from the broad US-Stocks context (see ``_etf_market_context``); the
+      US-Stocks path below is unchanged.
     """
+    if resolve_universe(universe).key != DEFAULT_UNIVERSE_KEY:
+        return _etf_market_context(data, resolve_universe(universe))
+
     path = _market_context_path()
     cached = _read_meta(path)  # JSON read/write helpers are general-purpose
 

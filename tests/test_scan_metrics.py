@@ -46,7 +46,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(
         screener_module,
         "get_market_context",
-        lambda data, frames: {"spy_6m_return": 0.0, "breadth_pct": 1.0},
+        lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0},
     )
     monkeypatch.setattr(
         screener_module,
@@ -90,7 +90,7 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
     monkeypatch.setattr(
         screener_module,
         "get_market_context",
-        lambda data, frames: {"spy_6m_return": 0.0, "breadth_pct": 1.0},
+        lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0},
     )
     monkeypatch.setattr(
         screener_module,
