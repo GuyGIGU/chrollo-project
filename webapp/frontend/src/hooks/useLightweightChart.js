@@ -24,7 +24,9 @@ import { buildHl2SmaData, hl2Sma20Options } from '../components/chartIndicators'
 //   showVolume   : draw the standard bottom-anchored volume histogram
 //   volumeScaleTop : top scaleMargin for the volume pane (default 0.8)
 //   showSma      : draw the hl2 SMA-20 line (chartIndicators)
-//   onReady(chart, candleSeries) : draw everything site-specific here
+//   onReady(chart, candleSeries) : draw everything site-specific here; may
+//                  return a cleanup fn (run before chart.remove(), e.g. to
+//                  detach the phase-overlay primitive)
 //   onResize(chart, container)   : window-resize handler; omit for autoSize sites
 //   resizeDelayMs : if set, also call onResize once after this delay (the
 //                   existing 100ms post-mount nudge some sites use)
@@ -59,11 +61,21 @@ export default function useLightweightChart(containerRef, spec) {
     let disposed = false;
     let handleResize = null;
     let resizeTimeout = null;
+    let readyCleanup = null;
 
     const cleanup = () => {
       disposed = true;
       if (resizeTimeout) clearTimeout(resizeTimeout);
       if (handleResize) window.removeEventListener('resize', handleResize);
+      // Site-specific teardown (e.g. detach the phase-overlay primitive) runs
+      // BEFORE chart.remove(), matching the original hand-rolled ordering.
+      if (typeof readyCleanup === 'function') {
+        try {
+          readyCleanup();
+        } catch {
+          /* safe to ignore — best-effort teardown */
+        }
+      }
       if (chart) {
         try {
           chart.remove();
@@ -98,7 +110,9 @@ export default function useLightweightChart(containerRef, spec) {
         }
       }
 
-      onReady?.(chart, candleSeries);
+      // onReady draws everything site-specific; if it returns a function, that
+      // function is the site's extra teardown (run before chart.remove()).
+      readyCleanup = onReady?.(chart, candleSeries);
 
       if (onResize) {
         handleResize = () => {

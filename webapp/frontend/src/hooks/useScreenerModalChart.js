@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { createChart, BarSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts';
+import { LineSeries, createSeriesMarkers } from 'lightweight-charts';
+import useLightweightChart from './useLightweightChart';
 import { attachPhaseOverlay, buildPhaseRegions } from '../components/chartPhaseOverlay';
-import { buildHl2SmaData, hl2Sma20Options } from '../components/chartIndicators';
+import { buildLevelData, finiteNumber } from '../components/chartGeometry';
 
 const chartOptions = (width, height) => ({
   width,
@@ -39,6 +40,9 @@ const levelOptions = {
   priceLineVisible: false,
 };
 
+// --- structure candle coloring (modal variant: r/s anchors grey, LPS regions
+// from buildPhaseRegions gold). Lives here because it depends on the DOM-coupled
+// chartPhaseOverlay module; chartGeometry stays pure/Node-testable. ---
 const colorStructureCandles = (data, baseEnd) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
@@ -84,15 +88,6 @@ const colorLps = (candles, data, baseEnd) => {
   for (let index = lpsStart; index <= lpsEnd; index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = '#e3b341';
   }
-};
-
-const buildLevelData = (candles, startIndex, value) =>
-  candles.slice(startIndex).map(candle => ({ time: candle.time, value }));
-
-const finiteNumber = (value) => {
-  if (value == null || value === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
 };
 
 const addStructureLevels = (chart, data, baseEnd) => {
@@ -176,57 +171,43 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
     phaseOverlayRef.current?.setActiveRegion(activePhaseRegion);
   }, [activePhaseRegion]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    // Only the daily timeframe uses this rich structure-overlay chart; the
-    // weekly/monthly tabs render TimeframeMainChart instead (and unmount this
-    // container, so `container` is null then anyway). Guarding on interval makes
-    // returning to Daily re-init cleanly via the deps below.
-    if (!container || interval !== 'D' || !data?.candles?.length) return undefined;
+  // Only the daily timeframe uses this rich structure-overlay chart; the
+  // weekly/monthly tabs render TimeframeMainChart instead. Guarding on interval
+  // (via candles passed to the hook) keeps returning to Daily re-init cleanly.
+  const dailyCandles = interval === 'D' ? data?.candles : null;
+  const forwardBars = data?.forward_bars || 0;
+  const baseEnd = (data?.candles?.length || 0) - 1 - forwardBars;
+  const coloredCandles = dailyCandles?.length ? colorStructureCandles(data, baseEnd) : null;
 
-    container.innerHTML = '';
-    let disposed = false;
-    const chart = createChart(container, chartOptions(container.clientWidth, container.clientHeight));
-    const forwardBars = data.forward_bars || 0;
-    const baseEnd = data.candles.length - 1 - forwardBars;
-    const candleSeries = chart.addSeries(BarSeries, { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false });
+  useLightweightChart(containerRef, {
+    chartOptions: (container) => chartOptions(container.clientWidth, container.clientHeight),
+    candles: coloredCandles,
+    barOptions: { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false },
+    volumes: data?.volumes,
+    showVolume: true,
+    volumeScaleTop: 0.82,
+    showSma: true,
+    onReady: (chart, candleSeries) => {
+      const phaseOverlay = attachPhaseOverlay({
+        activeRegion: activeRegionRef.current,
+        candleSeries,
+        chart,
+        container: containerRef.current,
+        data,
+      });
+      phaseOverlayRef.current = phaseOverlay;
+      addStructureLevels(chart, data, baseEnd);
+      addAnnotations(candleSeries, data.annotations || {});
+      setFocusedRange(chart, data, baseEnd);
 
-    candleSeries.setData(colorStructureCandles(data, baseEnd));
-    const phaseOverlay = attachPhaseOverlay({
-      activeRegion: activeRegionRef.current,
-      candleSeries,
-      chart,
-      container,
-      data,
-    });
-    phaseOverlayRef.current = phaseOverlay;
-    const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
-    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-    volumeSeries.setData(data.volumes || []);
-    const hl2Sma20 = buildHl2SmaData(data.candles || []);
-    if (hl2Sma20.length) {
-      chart.addSeries(LineSeries, hl2Sma20Options).setData(hl2Sma20);
-    }
-    addStructureLevels(chart, data, baseEnd);
-    addAnnotations(candleSeries, data.annotations || {});
-    setFocusedRange(chart, data, baseEnd);
-
-    const handleResize = () => {
-      if (!disposed && container.isConnected) {
-        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    const resizeTimeout = setTimeout(handleResize, 100);
-
-    return () => {
-      disposed = true;
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
-      phaseOverlay.remove();
-      if (phaseOverlayRef.current === phaseOverlay) phaseOverlayRef.current = null;
-      chart.remove();
-      container.innerHTML = '';
-    };
-  }, [containerRef, data, ticker, interval]);
+      return () => {
+        phaseOverlay.remove();
+        if (phaseOverlayRef.current === phaseOverlay) phaseOverlayRef.current = null;
+      };
+    },
+    onResize: (chart, container) =>
+      chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }),
+    resizeDelayMs: 100,
+    deps: [containerRef, data, ticker, interval],
+  });
 }
