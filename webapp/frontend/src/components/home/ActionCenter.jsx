@@ -23,12 +23,6 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-function lastClose(data) {
-  const c = data?.candles?.[data.candles.length - 1];
-  const v = c?.close ?? c?.c ?? null;
-  return Number.isFinite(Number(v)) ? Number(v) : null;
-}
-
 export default function ActionCenter({ screenerData, trades, priceFor }) {
   const { watchlist } = useWatchlist();
   const [prices, setPrices] = useState({});
