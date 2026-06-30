@@ -98,6 +98,9 @@ def _etf_market_context(data: pd.DataFrame, universe) -> dict:
         "computed_at": _now_iso(),
         "context_basis": basis,  # 'broad_market' (anchored) | 'neutral' (fallback)
     }
+    # Lock-free for the same reason as the broad-context write below (separate
+    # artifact from the lock-guarded cache, atomic self-contained overwrite, no
+    # cross-writer RMW): see the rationale in get_market_context.
     _write_meta(universe.market_context_path(), context)
     print(
         f"Market context [{universe.key}]: breadth neutralized; SPY/regime {basis} "
@@ -366,5 +369,21 @@ def get_market_context(data: pd.DataFrame,
         'index_last_bar_dates': index_last_bar_dates,
         'computed_at': _now_iso(),
     }
+    # Written WITHOUT the cache_lock, and that is safe TODAY (unlike scan_metrics,
+    # which re-takes the lock) on two conditions that currently hold:
+    #   1. market_context*.json is a SEPARATE artifact from the cache parquet /
+    #      cache_meta the lock guards, and no lock-holding writer (fetch_data,
+    #      scan_metrics) touches it — so there is no cross-writer read-modify-write
+    #      that could drop another writer's keys.
+    #   2. Each writer emits a COMPLETE, self-contained context (a full overwrite,
+    #      not a forward-merge), and _write_meta is atomic (temp + os.replace) — so
+    #      a concurrent reader, including the ETF universes that borrow this broad
+    #      context (_etf_market_context), always sees an old-or-new whole file,
+    #      never a torn one. The only contention is context-vs-context on the same
+    #      file: a benign last-writer-wins with a valid value (at worst a differing
+    #      computed_at for the same session).
+    # These are invariants, not permanent facts: if a future change couples this
+    # file to cache_meta or turns the write into a read-modify-merge, this write
+    # must move under cache_lock the way persist_scan_metrics did.
     _write_meta(path, context)
     return context
