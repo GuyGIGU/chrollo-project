@@ -6,12 +6,18 @@ import LoadingPanel from './LoadingPanel';
 const PortfolioTab = lazy(() => import('../components/PortfolioTab'));
 
 function PortfolioRoute() {
-  const { trades, onDetailClick } = useOutletContext();
+  const { trades, onDetailClick, riskFor, riskSummary } = useOutletContext();
 
   return (
     <Suspense fallback={<LoadingPanel />}>
       <ErrorBoundary>
-        <PortfolioTab key="portfolio" trades={trades} onTradeDetailClick={onDetailClick} />
+        <PortfolioTab
+          key="portfolio"
+          trades={trades}
+          onTradeDetailClick={onDetailClick}
+          riskFor={riskFor}
+          riskSummary={riskSummary}
+        />
       </ErrorBoundary>
     </Suspense>
   );

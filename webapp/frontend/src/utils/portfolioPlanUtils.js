@@ -1,8 +1,6 @@
 import { buildTradeAlerts, deriveTradeRow } from './tradeTableUtils.js';
 import { inferDirection, isOptionSymbol } from './tradeUtils.js';
 
-const nullPriceFor = () => ({ price: null, source: null });
-
 export const positionPlanKey = (position) => [
   position?.account || '',
   normalizePlanSymbol(position?.symbol),
@@ -11,14 +9,14 @@ export const positionPlanKey = (position) => [
   position?.exchange || '',
 ].join('|');
 
-export const buildPortfolioPlanMap = (positions = [], trades = []) => {
+export const buildPortfolioPlanMap = (positions = [], trades = [], riskFor) => {
   const openTradesByInstrument = groupOpenTradesByInstrument(trades);
   const planMap = new Map();
 
   for (const position of positions || []) {
     const key = positionInstrumentKey(position);
     const matches = key ? openTradesByInstrument.get(key) || [] : [];
-    planMap.set(positionPlanKey(position), buildPositionPlan(position, matches));
+    planMap.set(positionPlanKey(position), buildPositionPlan(position, matches, riskFor));
   }
 
   return planMap;
@@ -62,11 +60,12 @@ const normalizeInstrumentType = (value, symbol) => {
 const isOpenJournalTrade = (trade) => {
   if (!trade?.ticker) return false;
   if (trade.closing_date || trade.pnl != null) return false;
-  const derived = deriveTradeRow(trade, nullPriceFor);
+  // Status is price-independent (ledger-derived) — no live price needed here.
+  const derived = deriveTradeRow(trade);
   return derived.status === 'open' || derived.status === 'partial';
 };
 
-const buildPositionPlan = (position, matches) => {
+const buildPositionPlan = (position, matches, riskFor) => {
   if (!matches.length) {
     return {
       state: 'missing',
@@ -83,8 +82,9 @@ const buildPositionPlan = (position, matches) => {
   }
 
   const trade = matches[0];
-  const price = finiteNumber(position?.market_price);
-  const derived = deriveTradeRow(trade, () => ({ price, source: price == null ? null : 'ibkr' }));
+  // Live overlay from the server (it already prices off the same IBKR snapshot);
+  // fall back to the price-independent derivation when no server row is available.
+  const derived = riskFor ? riskFor(trade) : deriveTradeRow(trade);
   const brokerDirection = positionDirection(position);
   const planDirection = inferDirection(trade);
 

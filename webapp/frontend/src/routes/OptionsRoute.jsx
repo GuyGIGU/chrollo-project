@@ -7,7 +7,7 @@ const TradeTable = lazy(() => import('../components/TradeTable'));
 
 // Options = the same trade table scoped to option symbols, no draft-row path.
 function OptionsRoute() {
-  const { optionTrades, onDetailClick, onTradeUpdate, priceFor } = useOutletContext();
+  const { optionTrades, onDetailClick, onTradeUpdate, riskFor } = useOutletContext();
 
   return (
     <Suspense fallback={<LoadingPanel />}>
@@ -18,7 +18,7 @@ function OptionsRoute() {
           setDraftRow={() => {}}
           onDetailClick={onDetailClick}
           onTradeUpdate={onTradeUpdate}
-          priceFor={priceFor}
+          riskFor={riskFor}
         />
       </ErrorBoundary>
     </Suspense>

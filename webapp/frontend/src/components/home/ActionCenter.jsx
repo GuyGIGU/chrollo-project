@@ -4,7 +4,6 @@ import ScreenerModal from '../ScreenerModal';
 import BridgeOut from './BridgeOut';
 import usePollingInterval from '../../hooks/usePollingInterval';
 import useWatchlist from '../../hooks/useWatchlist';
-import { deriveTradeRow } from '../../utils/tradeTableUtils';
 import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 
@@ -23,13 +22,7 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-function lastClose(data) {
-  const c = data?.candles?.[data.candles.length - 1];
-  const v = c?.close ?? c?.c ?? null;
-  return Number.isFinite(Number(v)) ? Number(v) : null;
-}
-
-export default function ActionCenter({ screenerData, trades, priceFor }) {
+export default function ActionCenter({ screenerData, trades, riskFor }) {
   const { watchlist } = useWatchlist();
   const [prices, setPrices] = useState({});
   const [peek, setPeek] = useState(null);
@@ -52,10 +45,10 @@ export default function ActionCenter({ screenerData, trades, priceFor }) {
   const atRisk = useMemo(() => {
     const open = (trades || []).filter((t) => t.pnl == null && !t.closing_date && t.ticker);
     return open
-      .map((t) => ({ ticker: String(t.ticker).toUpperCase(), d: deriveTradeRow(t, priceFor) }))
+      .map((t) => ({ ticker: String(t.ticker).toUpperCase(), d: riskFor(t) }))
       .filter((r) => r.d && (r.d.status === 'open' || r.d.status === 'partial') && STOP_RANK[r.d.stopRiskTone] != null)
       .sort((a, b) => STOP_RANK[a.d.stopRiskTone] - STOP_RANK[b.d.stopRiskTone]);
-  }, [trades, priceFor]);
+  }, [trades, riskFor]);
 
   // Watchlist names at / approaching their trigger.
   const { triggered, near } = useMemo(() => {

@@ -8,11 +8,11 @@ import LoadingPanel from './LoadingPanel';
 const HomeView = lazy(() => import('../components/home/HomeView'));
 
 function HomeRoute() {
-  const { trades, stats, priceFor, scanStatus } = useOutletContext();
+  const { trades, stats, riskFor, riskStatus, scanStatus } = useOutletContext();
   return (
     <Suspense fallback={<LoadingPanel />}>
       <ErrorBoundary>
-        <HomeView trades={trades} stats={stats} priceFor={priceFor} scanStatus={scanStatus} />
+        <HomeView trades={trades} stats={stats} riskFor={riskFor} riskStatus={riskStatus} scanStatus={scanStatus} />
       </ErrorBoundary>
     </Suspense>
   );

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE } from '../api';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import usePortfolioSnapshot from '../hooks/usePortfolioSnapshot';
-import useTradeLivePrices from '../hooks/useTradeLivePrices';
 import { buildPortfolioPlanMap, positionPlanKey } from '../utils/portfolioPlanUtils';
 import { inferDirection } from '../utils/tradeUtils';
 import {
@@ -70,7 +69,7 @@ const emptyPlan = () => ({
   risk_plan: '',
 });
 
-export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate }) {
+export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskFor }) {
   const [savedTrade, setSavedTrade] = useState(trade);
   const [draft, setDraft] = useState(() => buildDraft(trade));
   const [planDraft, setPlanDraft] = useState(emptyPlan);
@@ -104,10 +103,17 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate }) {
     () => mergeDraftIntoTrade(savedTrade, draft),
     [draft, savedTrade],
   );
-  const priceFor = useTradeLivePrices(workingTrade ? [workingTrade] : []);
+  // Sizing preview off the (possibly edited) draft — price-independent, so editing
+  // entry/stop/qty updates risk-$ live without a round-trip.
+  const draftDerived = useMemo(
+    () => (workingTrade ? deriveTradeRow(workingTrade) : null),
+    [workingTrade],
+  );
+  // Live overlay (price / P&L / to-stop / targets) for the SAVED position from the
+  // backend single source of truth; falls back to the draft when no server row.
   const derived = useMemo(
-    () => (workingTrade ? deriveTradeRow(workingTrade, priceFor) : null),
-    [priceFor, workingTrade],
+    () => (trade && riskFor ? riskFor(trade) : draftDerived),
+    [trade, riskFor, draftDerived],
   );
   const alerts = useMemo(
     () => buildTradeAlerts(workingTrade, derived),
@@ -116,11 +122,11 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate }) {
   const positions = snapshot?.positions || EMPTY_POSITIONS;
   const netLiquidation = finiteNumber(summaryValue(snapshot?.account_summary, 'NetLiquidation'));
   const brokerMatch = useMemo(
-    () => findBrokerMatch(positions, workingTrade),
-    [positions, workingTrade],
+    () => findBrokerMatch(positions, workingTrade, riskFor),
+    [positions, workingTrade, riskFor],
   );
-  const riskDollars = derived?.riskDistance != null && derived?.riskQty
-    ? derived.riskDistance * derived.riskQty * derived.multiplier
+  const riskDollars = draftDerived?.riskDistance != null && draftDerived?.riskQty
+    ? draftDerived.riskDistance * draftDerived.riskQty * draftDerived.multiplier
     : null;
   const riskPct = riskDollars != null && netLiquidation
     ? riskDollars / netLiquidation * 100
@@ -508,9 +514,9 @@ const buildTradePayload = (draft, savedTrade) => {
   return payload;
 };
 
-const findBrokerMatch = (positions, trade) => {
+const findBrokerMatch = (positions, trade, riskFor) => {
   if (!trade?.id || !positions?.length) return null;
-  const planMap = buildPortfolioPlanMap(positions, [trade]);
+  const planMap = buildPortfolioPlanMap(positions, [trade], riskFor);
   for (const position of positions) {
     const plan = planMap.get(positionPlanKey(position));
     if (plan?.trade?.id === trade.id || plan?.matches?.some(match => match.id === trade.id)) {

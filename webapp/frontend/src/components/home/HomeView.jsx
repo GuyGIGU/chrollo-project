@@ -16,7 +16,7 @@ import useScreenerData from '../../hooks/useScreenerData';
 // top→bottom: market context → ideas/watch/open risk → performance/edge.
 // Regime + Fresh Setups read ONE scan source so they can't desync; each panel
 // owns its own status + ErrorBoundary so one dead source degrades only itself.
-export default function HomeView({ trades, stats, priceFor, scanStatus }) {
+export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatus }) {
   const { screenerData, fetchScreener } = useScreenerData();
   usePollingInterval(fetchScreener, 300000, { immediate: false });
   const marketContext = screenerData?.market_context;
@@ -24,7 +24,7 @@ export default function HomeView({ trades, stats, priceFor, scanStatus }) {
   return (
     <div className="home-view">
       <ErrorBoundary>
-        <ActionCenter screenerData={screenerData} trades={trades} priceFor={priceFor} />
+        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} />
       </ErrorBoundary>
 
       <div className="home-grid">
@@ -32,7 +32,7 @@ export default function HomeView({ trades, stats, priceFor, scanStatus }) {
         <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-fresh"><FreshSetupsZone screenerData={screenerData} scanStatus={scanStatus} /></div>
         <div className="ga-watch"><WatchlistZone screenerData={screenerData} /></div>
-        <div className="ga-book"><OpenBookZone trades={trades} priceFor={priceFor} /></div>
+        <div className="ga-book"><OpenBookZone trades={trades} riskFor={riskFor} status={riskStatus} /></div>
         <div className="ga-journal"><JournalPulseZone stats={stats} trades={trades} /></div>
         <div className="ga-edge"><EdgePulse /></div>
       </div>

@@ -7,7 +7,7 @@ import TradeRiskAlerts from './tradeTable/TradeRiskAlerts';
 import useDashboardData from '../hooks/useDashboardData';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import useIbkrActions from '../hooks/useIbkrActions';
-import useTradeLivePrices from '../hooks/useTradeLivePrices';
+import useLiveRisk from '../hooks/useLiveRisk';
 import { API_BASE } from '../api';
 import logoUrl from '../assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 import { buildHealthPill, buildScanStatusText } from '../utils/appFormat';
@@ -65,10 +65,10 @@ function AppShell() {
   const healthPill = useMemo(() => buildHealthPill(health), [health]);
   const scanStatusText = useMemo(() => buildScanStatusText(scanStatus), [scanStatus]);
 
-  const priceFor = useTradeLivePrices(trades);
+  const { riskFor, summary: riskSummary, status: riskStatus } = useLiveRisk(trades);
   const riskAlerts = useMemo(
-    () => deriveTradeAlerts(trades, priceFor),
-    [priceFor, trades],
+    () => deriveTradeAlerts(trades, riskFor),
+    [riskFor, trades],
   );
 
   const startNewTrade = () => {
@@ -126,7 +126,9 @@ function AppShell() {
     setDraftRow,
     onDetailClick: setDetailTrade,
     onTradeUpdate: fetchDashboardData,
-    priceFor,
+    riskFor,
+    riskSummary,
+    riskStatus,
     scanStatus,
   };
 
@@ -169,6 +171,7 @@ function AppShell() {
               trade={detailTrade}
               onClose={() => setDetailTrade(null)}
               onTradeUpdate={handleTradeUpdated}
+              riskFor={riskFor}
             />
           )}
         </Suspense>

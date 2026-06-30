@@ -15,12 +15,14 @@ export default function TradeTable({
   onDetailClick,
   onTradeUpdate,
   pageSize = DEFAULT_PAGE_SIZE,
-  priceFor,
+  riskFor,
   setDraftRow,
   trades = [],
 }) {
   const [currentPage, setCurrentPage] = useState(1);
-  const getPriceFor = priceFor || noPriceFor;
+  // Open rows come from the server (live overlay); closed/draft rows fall back to
+  // the price-independent client derivation. `riskFor` already encodes both.
+  const getRisk = riskFor || deriveTradeRow;
   const pageCount = Math.max(1, Math.ceil(trades.length / pageSize));
   const pageStart = (currentPage - 1) * pageSize;
   const pageEnd = Math.min(pageStart + pageSize, trades.length);
@@ -87,7 +89,7 @@ export default function TradeTable({
             {pageTrades.map(trade => (
               <TradeRow
                 key={trade.id}
-                derived={deriveTradeRow(trade, getPriceFor)}
+                derived={getRisk(trade)}
                 editing={editing}
                 fills={fills.fillsBuffer[trade.id] || []}
                 fillsActions={fills}
@@ -115,8 +117,6 @@ export default function TradeTable({
     </div>
   );
 }
-
-const noPriceFor = () => ({ price: null, source: null });
 
 function EmptyTradeTable() {
   return (

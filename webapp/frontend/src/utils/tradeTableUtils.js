@@ -45,9 +45,9 @@ export const fmtDateShort = (value) => {
   return `${months[Number(match[2]) - 1]} ${Number(match[3])}`;
 };
 
-export const deriveTradeAlerts = (trades = [], priceFor) => (
+export const deriveTradeAlerts = (trades = [], riskFor) => (
   trades
-    .flatMap(trade => buildTradeAlerts(trade, deriveTradeRow(trade, priceFor)))
+    .flatMap(trade => buildTradeAlerts(trade, riskFor(trade)))
     .sort(compareAlerts)
 );
 
@@ -194,7 +194,14 @@ export const summarizeFillLedger = (fills, direction, multiplier = 1) => {
   };
 };
 
-export const deriveTradeRow = (trade, priceFor) => {
+// Price-INDEPENDENT derivation: status, realized/stored P&L, the fill ledger
+// (partials/VWAP/fees), the R basis, and the target prices. The live overlay
+// (live price, unrealized P&L, distance-to-stop, stop tone) is owned by the
+// backend (`GET /live-risk` → `useLiveRisk`/`riskFor`); this function is the
+// fallback for closed/draft trades the server doesn't price. Live-price fields
+// resolve to null here by construction (no live price in), so a closed row is
+// byte-identical to before and an open row degrades cleanly to "no quote".
+export const deriveTradeRow = (trade) => {
   const direction = inferDirection(trade);
   const isLong = direction === 'LONG';
   const multiplier = isOptionSymbol(trade.ticker) ? 100 : 1;
@@ -224,7 +231,8 @@ export const deriveTradeRow = (trade, priceFor) => {
   const openQty = ledger.openQty;
   const riskQty = ledger.riskQty || openQty || initialQty;
   const totalWorth = entryVwap != null && openQty ? entryVwap * openQty * multiplier : null;
-  const { price: livePrice, source: liveSource } = priceFor?.(trade.ticker) || {};
+  const livePrice = null;
+  const liveSource = null;
   const { currentExit, currentExitSource } = getExitPrice({
     closeCash: ledger.cycleCloseCash,
     closeQty: ledger.cycleCloseQty,
@@ -243,25 +251,34 @@ export const deriveTradeRow = (trade, priceFor) => {
     position,
     trade,
   });
-  const stopVal = trade.stop_loss && Number(trade.stop_loss) !== 0 ? Number(trade.stop_loss) : null;
-  const stopPct = stopVal != null && entryVwap != null
-    ? Math.abs(entryVwap - stopVal) / entryVwap * 100
+  // Two stop bases: the working stop (current stop_loss) drives distance + tone
+  // (what will actually execute); the R basis anchors 1R to planned_stop when
+  // recorded (the original risk), falling back to the working stop. Never
+  // fabricated — both resolve to null when no stop is recorded.
+  const workingStop = trade.stop_loss && Number(trade.stop_loss) !== 0 ? Number(trade.stop_loss) : null;
+  const plannedStop = trade.planned_stop && Number(trade.planned_stop) !== 0 ? Number(trade.planned_stop) : null;
+  const rBasisStop = plannedStop != null ? plannedStop : workingStop;
+  const stopVal = workingStop;
+  const stopPct = workingStop != null && entryVwap != null
+    ? Math.abs(entryVwap - workingStop) / entryVwap * 100
     : null;
-  const riskDistance = stopVal != null && entryVwap != null ? Math.abs(entryVwap - stopVal) : null;
+  const workingDistance = workingStop != null && entryVwap != null ? Math.abs(entryVwap - workingStop) : null;
+  const riskDistance = rBasisStop != null && entryVwap != null ? Math.abs(entryVwap - rBasisStop) : null;
   const rValue = riskDistance && riskDistance > 0 && riskQty && pnl != null
     ? pnl / (riskDistance * riskQty * multiplier)
     : null;
-  const distToStop = currentExit != null && stopVal != null
-    ? (isLong ? currentExit - stopVal : stopVal - currentExit)
+  const distToStop = currentExit != null && workingStop != null
+    ? (isLong ? currentExit - workingStop : workingStop - currentExit)
     : null;
   const distToStopPct = distToStop != null && currentExit
     ? distToStop / currentExit * 100
     : null;
-  // R-to-stop must come straight from prices, NOT rValue + 1: on a scaled-out
-  // (partial) position rValue folds in realized P&L and fees that don't cancel,
-  // so rValue + 1 drifts. distToStop / riskDistance is exact for full and partial.
-  const rToStop = distToStop != null && riskDistance ? distToStop / riskDistance : null;
+  // R-to-stop is price-based against the WORKING stop (NOT rValue + 1): on a
+  // scaled-out position rValue folds in realized P&L/fees that don't cancel, so
+  // rValue + 1 drifts. distToStop / workingDistance is exact for full and partial.
+  const rToStop = distToStop != null && workingDistance ? distToStop / workingDistance : null;
   const stopRiskTone = riskToneFor(rToStop);
+  const pnlPct = pnl != null && totalWorth ? pnl / totalWorth * 100 : null;
   const targetLadder = buildTargetLadder({ currentExit, isLong, riskDistance, trade });
   const nextTarget = targetLadder.find(target => target.isNext) || null;
   const distToTargetPct = nextTarget?.distToTargetPct ?? null;
@@ -269,6 +286,7 @@ export const deriveTradeRow = (trade, priceFor) => {
 
   return {
     distToStopPct,
+    distToStopR: rToStop,
     distToTargetPct,
     direction,
     entryVwap,
@@ -278,6 +296,7 @@ export const deriveTradeRow = (trade, priceFor) => {
     nextTarget,
     openQty,
     pnl,
+    pnlPct,
     position,
     riskDistance,
     riskQty,
@@ -287,6 +306,7 @@ export const deriveTradeRow = (trade, priceFor) => {
     stopPct,
     stopRiskTone,
     stopVal,
+    plannedStopVal: rBasisStop,
     targetLadder,
     totalExit: ledger.cycleCloseQty > 0 ? ledger.cycleCloseCash : null,
     totalWorth,

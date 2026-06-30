@@ -47,7 +47,7 @@ const disconnect = async () => {
   if (!response.ok) throw new Error(await response.text());
 };
 
-const PortfolioTab = ({ onTradeDetailClick, trades = [] }) => {
+const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary }) => {
   const status = useIBKRStatus(10000);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
@@ -62,8 +62,8 @@ const PortfolioTab = ({ onTradeDetailClick, trades = [] }) => {
   const sessionCompetition = !!snapshot.session_competition || !!status?.session_competition;
   const netLiquidation = Number(summaryValue(summary, 'NetLiquidation')) || 0;
   const positionPlans = useMemo(
-    () => buildPortfolioPlanMap(positions, trades),
-    [positions, trades],
+    () => buildPortfolioPlanMap(positions, trades, riskFor),
+    [positions, trades, riskFor],
   );
 
   const largestPosition = useMemo(() => (
@@ -137,6 +137,7 @@ const PortfolioTab = ({ onTradeDetailClick, trades = [] }) => {
         sessionCompetition={sessionCompetition}
         onReconnect={handleReconnect}
         onDisconnect={handleDisconnect}
+        riskSummary={riskSummary}
       />
       <PortfolioDailyPnl summary={summary} />
       <AccountSummaryCard summary={summary} positions={positions} />

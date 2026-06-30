@@ -30,6 +30,7 @@ from routers import position_calculator as position_calculator_router
 from routers import prices as prices_router
 from routers import screener as screener_router
 from routers import tags as tags_router
+from routers import trade_risk as trade_risk_router
 from routers import trades as trades_router
 from routers import watchlist as watchlist_router
 from services import auto_import, scheduler
@@ -106,6 +107,7 @@ app.include_router(watchlist_router.router)
 app.include_router(ibkr_router.router)
 app.include_router(position_calculator_router.router)
 app.include_router(trades_router.router)
+app.include_router(trade_risk_router.router)
 app.include_router(screener_router.router)
 app.include_router(prices_router.router)
 

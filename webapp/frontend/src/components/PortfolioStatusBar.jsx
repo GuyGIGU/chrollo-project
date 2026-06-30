@@ -63,6 +63,41 @@ const buttonStyle = (primary = false) => ({
   fontFamily: 'inherit',
 });
 
+const fmtSignedMoney = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return null;
+  const n = Number(value);
+  return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+};
+
+// Ambient open-risk readout: glanceable from the cockpit chrome, deliberately
+// quieter than the connection pills. The at-risk clause reads as ambient tinted
+// text (NOT a bold full-saturation phrase competing with the pills — the loud
+// stop signal belongs on the Open Book flag, where the trader acts), appears only
+// when something is at risk, and the whole strip mutes + flags "stale" when the
+// connection behind the numbers is degraded so frozen figures don't read confident.
+const OpenRiskStrip = ({ riskSummary, degraded }) => {
+  if (!riskSummary || !riskSummary.nOpen) return null;
+  const pnl = riskSummary.totalUnrealizedPnl;
+  const pnlColor = degraded || pnl == null ? 'var(--text-muted)' : pnl >= 0 ? 'var(--success)' : 'var(--danger)';
+  const parts = [];
+  if (riskSummary.nBreached) parts.push(`${riskSummary.nBreached} through stop`);
+  if (riskSummary.nDanger) parts.push(`${riskSummary.nDanger} near stop`);
+  if (riskSummary.nWarning) parts.push(`${riskSummary.nWarning} watch`);
+  const atRiskColor = degraded ? 'var(--text-muted)' : (riskSummary.nBreached || riskSummary.nDanger) ? 'var(--danger)' : 'var(--warning)';
+  const partial = riskSummary.nPriced != null && riskSummary.nPriced < riskSummary.nOpen;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 11, fontVariantNumeric: 'tabular-nums', opacity: degraded ? 0.6 : 1 }}>
+      <span>
+        Open P&amp;L <strong style={{ color: pnlColor }}>{fmtSignedMoney(pnl) ?? '—'}</strong>
+        <span style={{ opacity: 0.6 }}> · {riskSummary.nOpen} pos</span>
+        {partial && <span style={{ opacity: 0.6 }}> · {riskSummary.nPriced}/{riskSummary.nOpen} priced</span>}
+      </span>
+      {parts.length > 0 && <span style={{ color: atRiskColor }}>{parts.join(' · ')}</span>}
+      {degraded && <span style={{ opacity: 0.7 }}>stale</span>}
+    </span>
+  );
+};
+
 const connectionLabel = ({ available, connected, dailyRestart, sessionCompetition }) => {
   if (!available) return ['Not installed', 'rgba(136,136,150,0.15)', 'var(--text-muted)'];
   if (sessionCompetition) return ['Session conflict', 'rgba(242,103,112,0.14)', 'var(--danger)'];
@@ -81,6 +116,7 @@ const PortfolioStatusBar = ({
   sessionCompetition,
   onReconnect,
   onDisconnect,
+  riskSummary,
 }) => {
   const isLive = status?.mode === 'live';
   const connected = !!status?.connected;
@@ -140,6 +176,7 @@ const PortfolioStatusBar = ({
         <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>Stream: {sseStatus === 'reconnecting' ? 'retrying' : sseStatus}</span>
         {status?.host && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{status.host}:{status.port} / client {status.client_id}</span>}
         {lastUpdate && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>Updated {fmtTime(lastUpdate)}</span>}
+        <OpenRiskStrip riskSummary={riskSummary} degraded={!connected || sessionCompetition || stale} />
         {status?.available && connected && (
           <button type="button" onClick={onDisconnect} title="Release the IBKR API session." style={{ ...buttonStyle(), marginLeft: 'auto' }}>
             Disconnect

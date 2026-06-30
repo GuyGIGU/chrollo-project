@@ -11,7 +11,7 @@ const AnalyticsPanel = lazy(() => import('../components/AnalyticsPanel'));
 // table (with the draft-row entry path) + the analytics panel. Trade data,
 // filtering and draft state are owned by AppShell and arrive via outlet context.
 function DashboardRoute() {
-  const { stats, trades, tradeFilter, onTradeFilterChange, stockTrades, draftRow, setDraftRow, onDetailClick, onTradeUpdate, priceFor } =
+  const { stats, trades, tradeFilter, onTradeFilterChange, stockTrades, draftRow, setDraftRow, onDetailClick, onTradeUpdate, riskFor } =
     useOutletContext();
 
   const filteredTrades = useMemo(
@@ -33,7 +33,7 @@ function DashboardRoute() {
         setDraftRow={setDraftRow}
         onDetailClick={onDetailClick}
         onTradeUpdate={onTradeUpdate}
-        priceFor={priceFor}
+        riskFor={riskFor}
       />
       <ErrorBoundary>
         <AnalyticsPanel />

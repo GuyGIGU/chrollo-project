@@ -22,7 +22,7 @@ const METRIC_HINTS = {
   lastbar: 'The date of the latest price bar feeding this read.',
 };
 
-function MarketRegimeDetailModal({ symbol, trend, regime, meta, reasons, onClose }) {
+function MarketRegimeDetailModal({ symbol, trend, meta, reasons, onClose }) {
   const above50 = trend?.above_sma_50;
   const above200 = trend?.above_sma_200;
   const slope = Number(trend?.sma_50_slope_pct);

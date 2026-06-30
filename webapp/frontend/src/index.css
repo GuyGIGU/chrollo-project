@@ -1838,10 +1838,24 @@ td.cell-editable { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .home-ob-row:last-child { border-bottom: none; }
+.home-ob-cell { display: flex; flex-direction: column; min-width: 0; }
+.home-ob-num { align-items: flex-end; }
 .home-ob-name { font-weight: 800; font-size: 13px; color: var(--text-main); }
-.home-ob-pnl { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right; }
-.home-ob-r, .home-ob-stop { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; }
-.home-ob-flag { font-size: 10px; font-weight: 700; border: 1px solid transparent; border-radius: var(--radius-xs); padding: 0 4px; min-width: 72px; text-align: center; }
+/* Assert tabular figures locally on every changeable number (not just via row
+   inheritance) so the live sub-column can't reflow its neighbours on each poll. */
+.home-ob-pnl { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.home-ob-r, .home-ob-stop { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+/* Derived companion figures (live price, P&L %, dist-in-R) — one ink step down,
+   smaller, so each numeric cell reads as one group, not two equal atoms. */
+.home-ob-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.3; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.home-ob-faint { color: var(--text-faint); }
+.home-ob-nostop { font-size: 11px; color: var(--text-faint); }
+.home-ob-flag { font-size: 10px; font-weight: 700; border: 1px solid transparent; border-radius: var(--radius-xs); padding: 0 4px; min-width: 72px; text-align: center; align-self: center; }
+/* Zone-level feed/attention header: at-risk count + partial-coverage + stale feed. */
+.home-ob-head { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+.home-ob-atrisk { font-size: 10px; font-weight: 800; letter-spacing: 0.02em; color: var(--danger); }
+.home-ob-note { font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.home-ob-stale { color: var(--warning); }
 
 /* Journal Pulse — figures over the equity curve, avg W/L beneath. */
 .home-jp { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }

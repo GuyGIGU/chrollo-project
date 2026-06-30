@@ -37,6 +37,25 @@ module-level attribute reads). Do NOT hoist the registry to a module-level mater
 **Rationale:** An unattended scan breaks (and silently archives wrong setups) if a yfinance release changes
 Yahoo's scraper / OHLC adjustment — it is a supply-chain + byte-parity control, upgraded only deliberately.
 
+### AP-5: The price-independent fill ledger is a necessary JS↔Python twin
+**Pattern:** `summarizeFillLedger` (and the price-independent half of `deriveTradeRow`) stays in
+`webapp/frontend/src/utils/tradeTableUtils.js` even though `webapp/backend/services/trade_risk.py`
+ports the same ledger. The JS copy backs a WRITE path (the fill-save payload in `useTradeFills` +
+inline `position_size` in `useTradeCellEditing`) that a read-only GET cannot serve. Do NOT flag this
+as a dual implementation / EC-3 violation — it is a deliberate cross-language twin reconciled by the
+parity test (`tests/test_trade_risk.py`).
+**Origin:** Fowler / McKinney — Council Review 2026-06-30-1338
+**Rationale:** Only the price-DEPENDENT live overlay was centralized; the ledger twin is forced by the write path.
+
+### AP-6: `_js_number(None) == 0.0` in `trade_risk.py` is intentional
+**Pattern:** `services/trade_risk.py` maps `None`→`0.0` (mirroring JS `Number(null)`), which differs from
+JS `Number(undefined)=NaN` only on a literally key-absent `entry_price`. Do NOT "fix" `infer_direction`
+to treat `None` as not-knowable: the router always materializes `entry_price` present-as-None (the
+agreeing case), so the current code matches JS on every reachable input, and the proposed fix would
+INTRODUCE a divergence on the reachable present-null case.
+**Origin:** McKinney — Council Review 2026-06-30-1338
+**Rationale:** Parity is correct on the whole reachable input domain; the divergence is unreachable.
+
 ---
 
 ## Enforced Conventions
@@ -69,5 +88,22 @@ screener, seed, forward-returns/manual — must stamp the new column AND include
 not just the primary writer.
 **Origin:** Leach — Council Review 2026-06-30-1124
 **Principle:** `references/quality-postgres.md` → P1/P4 (constraints are assertions; upsert matches the key)
+
+### EC-5: Live open-trade risk is derived once, server-side
+**Convention:** The price-dependent live-trade risk overlay (live price, unrealized P&L $/%, R-multiple,
+distance-to-stop %/R, stop tone, target distances) is derived ONLY in `webapp/backend/services/trade_risk.py`
+(the single source of truth); the frontend consumes it via the `riskFor` accessor. Never re-add a live-risk
+computation in JS. R-multiple/`riskDistance` anchor 1R to `planned_stop`→`stop_loss`→None (never fabricated);
+distance-to-stop and the stop tone use the CURRENT working `stop_loss` on both sides.
+**Origin:** Fowler / McKinney — Council Review 2026-06-30-1338
+**Principle:** `references/refactoring.md` → P5 (twin code paths) ; `conventions.md` EC-3
+
+### EC-6: `/live-risk` degrades, never 500s
+**Convention:** The read-only `GET /live-risk/` must degrade to null-price rows on any operational failure,
+never raise: parse `actions_json` tolerantly (drop non-dict cells), coerce the live price at the boundary,
+read only the EXISTING IBKR snapshot (no new connection) and release the DB read before the price fetch.
+Programmer errors may still surface (do not blanket-swallow); operational failures log + degrade.
+**Origin:** Leach / Ramírez / Hunt — Council Review 2026-06-30-1338
+**Principle:** `references/quality-backend.md` → P1 (operational vs programmer errors)
 
 ---
