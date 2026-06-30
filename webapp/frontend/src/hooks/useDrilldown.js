@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api';
 
 // Owns the top-down drill-down fetch (a firing sector/commodity ETF -> its
@@ -37,8 +37,14 @@ function useDrilldown() {
     setDrilldown(null);
   }, []);
 
-  // React strict-mode/unmount guard (one-time).
-  if (typeof window !== 'undefined') mountedRef.current = true;
+  // Flip the mounted flag false on unmount so a drilldown fetch that resolves
+  // after the grid unmounts can't setState on a dead component. The prior
+  // render-body assignment re-asserted `true` every render and never reset it,
+  // so the `!mountedRef.current` guards in open()'s handlers could never fire.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   return { drilldown, openDrilldown: open, closeDrilldown: close };
 }

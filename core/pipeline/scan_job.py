@@ -10,7 +10,7 @@ import pandas as pd
 from config import settings
 from core.archive.writer import archive_scan_results
 from core.pipeline import run_screener
-from core.pipeline.cache import _cache_paths, _read_meta
+from core.pipeline.cache import _cache_paths, _read_meta, _weekly_refresh_due
 from core.pipeline.data import get_provider, get_tickers
 from core.pipeline.downloads import repair_latest_session_cache
 from core.pipeline.file_lock import cache_lock
@@ -346,18 +346,6 @@ def _cached_health(cache_file: str, meta_file: str, tickers: list[str],
         meta=_read_meta(meta_file),
         weekly_refresh_due=_weekly_refresh_due(_read_meta(meta_file)),
     )
-
-
-def _weekly_refresh_due(meta: dict) -> bool:
-    value = meta.get("last_full_refresh")
-    if not value:
-        return True
-    try:
-        ts = datetime.fromisoformat(value)
-    except ValueError:
-        return True
-    age_days = (datetime.now(ts.tzinfo) - ts).days if ts.tzinfo else (datetime.now() - ts).days
-    return age_days >= int(getattr(settings, "FULL_REFRESH_INTERVAL_DAYS", 7))
 
 
 def _download_result(tickers: list[str], health: dict) -> DownloadOnlyResult:

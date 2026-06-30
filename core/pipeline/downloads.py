@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -18,6 +19,7 @@ from core.pipeline.cache import (
     _is_market_hours,
     _now_iso,
     _read_meta,
+    _weekly_refresh_due,
     _write_meta,
 )
 from core.pipeline.data_freshness import (
@@ -401,7 +403,12 @@ def _detect_splits(cached: pd.DataFrame, fresh: pd.DataFrame,
         # consistent constant ratio (e.g., 0.5 for a 2:1) across every bar.
         # Random noise won't be consistent. We flag if mean relative diff
         # exceeds the threshold AND the ratio is roughly constant.
-        ratios = (f / c).dropna()
+        # A zero / halt-bar Close makes f/c +/-inf; inf SURVIVES .dropna() and then
+        # poisons ratio_mean/ratio_std (both become inf), so is_constant (inf < inf)
+        # is False and a genuinely split-drifted ticker silently escapes the probe
+        # — leaving the screener on pre-split, mis-scaled prices. Drop non-finite
+        # ratios first (mirrors the metrics code's replace([inf,-inf],nan) pattern).
+        ratios = (f / c).replace([np.inf, -np.inf], np.nan).dropna()
         if ratios.empty:
             continue
         ratio_mean = float(ratios.mean())
@@ -721,18 +728,6 @@ def _read_cached_panel(cache_file: str) -> pd.DataFrame | None:
     except Exception as e:
         print(f"  Cached parquet unreadable ({e}); falling back to full refetch.")
         return None
-
-
-def _weekly_refresh_due(meta: dict) -> bool:
-    last_full_refresh = meta.get('last_full_refresh')
-    if not last_full_refresh:
-        return True
-    try:
-        ts = datetime.fromisoformat(last_full_refresh)
-        age_days = (datetime.now(timezone.utc) - ts).days
-        return age_days >= settings.FULL_REFRESH_INTERVAL_DAYS
-    except Exception:
-        return True
 
 
 def _cache_status(

@@ -35,7 +35,13 @@ const ScreenerGrid = () => {
   const handleUniverseChange = (key) => {
     if (key === universe) return;
     backToGrid();
+    // resetFilters() only clears the advanced filters (setup/tag/sort); the tier
+    // pill and search box are separate controls, so clear them here too — a stale
+    // WATCHLIST/tier or typed search carried into a new universe would match
+    // nothing and fake a "no setups" empty state.
     filters.resetFilters();
+    filters.setTierFilter('ALL');
+    filters.setSearchTerm('');
     filters.setCurrentPage(1);
     setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };

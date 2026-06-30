@@ -57,11 +57,21 @@ def _apply_setup_filters(
     return q
 
 
-def _archive_version(db) -> tuple[int, int]:
+def _archive_version(db, universe_type: Optional[str] = None) -> tuple[int, int]:
     """Coarse signature of the archive's grouping-relevant state. ticker /
     scan_date / setup_type are immutable after insert, so (max id, row count)
-    fully captures whether episode membership could have changed."""
-    mx, count = db.query(func.max(SetupArchive.id), func.count(SetupArchive.id)).one()
+    fully captures whether episode membership could have changed.
+
+    Scoped to ``universe_type`` when given so a grouping cached for one universe
+    only invalidates when ITS OWN rows change. The signature was whole-table, so a
+    commodities/ETF insert (the daily multi-universe scan) busted the cached
+    us_equities grouping even though no equities row changed — forcing a full
+    re-group on the next /episodes + /missed-winners request. ``None`` (the
+    all-universes grouping) keeps the whole-table signature, which is correct."""
+    q = db.query(func.max(SetupArchive.id), func.count(SetupArchive.id))
+    if universe_type:
+        q = q.filter(SetupArchive.universe_type == universe_type)
+    mx, count = q.one()
     return (mx or 0, count or 0)
 
 
@@ -120,7 +130,7 @@ def _grouped_episodes(db, filters: dict):
     if "quality_label" in active:
         return _build_grouping(db, filters)
     cache_key = tuple(sorted(active.items()))
-    version = _archive_version(db)
+    version = _archive_version(db, filters.get("universe_type"))
     return _EPISODE_CACHE.get_or_compute(cache_key, version, lambda: _build_grouping(db, filters))
 
 

@@ -26,6 +26,26 @@ def _cache_paths(universe=None) -> tuple[str, str]:
     return resolve_universe(universe).cache_paths()
 
 
+def _weekly_refresh_due(meta: dict) -> bool:
+    """True when a full cold refetch is due: ``last_full_refresh`` is missing,
+    unparseable, or older than ``FULL_REFRESH_INTERVAL_DAYS``.
+
+    Single source for the weekly-refresh cadence shared by the downloader
+    (``downloads.fetch_data``) and the download-only refresh path (``scan_job``),
+    so the two can't drift on tz handling or the interval default (was a divergent
+    twin). Handles both tz-aware and naive ``last_full_refresh`` stamps.
+    """
+    value = meta.get("last_full_refresh")
+    if not value:
+        return True
+    try:
+        ts = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return True
+    now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+    return (now - ts).days >= int(getattr(settings, "FULL_REFRESH_INTERVAL_DAYS", 7))
+
+
 def _read_meta(meta_path: str) -> dict:
     if not os.path.exists(meta_path):
         return {}
