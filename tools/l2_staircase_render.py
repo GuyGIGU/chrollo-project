@@ -35,9 +35,13 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import read_box_staircase
+from core.structure.metrics import measure_resistance_events, read_box_staircase
 from tools.lps_swing_census import CLUSTER, _first_complete, _latest_scan_fires
 from tools.structure_case_audit import _prep
+
+# R-rail event zone shading (Brick 2): SOS held = green band, upthrust = red,
+# in_progress = gray. Rejections are ordinary range work — not shaded.
+_ZONE_STYLE = {"SOS": "#1f9d8b", "upthrust": "#e04848", "in_progress": "#9aa0aa"}
 
 _SCRATCH = os.environ.get(
     "CLAUDE_SCRATCH",
@@ -107,6 +111,21 @@ def _render_one(ax, ticker, df, atr, box):
                             textcoords="offset points", xytext=(0, 9 * dy),
                             ha="center", fontsize=7.5, color="#333",
                             va="bottom" if dy > 0 else "top")
+
+    # Brick 2: shade each R-rail event zone + label its peak (rejections are
+    # ordinary range work, not shaded).
+    for e in measure_resistance_events(df.iloc[start:], R, S, atr):
+        if e["type"] in ("rejection", "range"):   # range = Phase-B, not an SOS
+            continue
+        col = _ZONE_STYLE.get(e["type"], "#9aa0aa")
+        ax.axvspan(e["zone_start"] - 0.4, e["zone_end"] + 0.4,
+                   color=col, alpha=0.10, zorder=1)
+        tag = e["type"] + (f" str{e['strength_box']:.1f}"
+                           if e.get("strength_box") is not None else "")
+        ax.annotate(tag, (e["peak_bar"], e["peak_price"]),
+                    textcoords="offset points", xytext=(0, 24), ha="center",
+                    fontsize=8, fontweight="bold", color=col,
+                    arrowprops=dict(arrowstyle="->", color=col, lw=1.1))
 
     # Sparse date ticks.
     n = len(base)

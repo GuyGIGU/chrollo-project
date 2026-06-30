@@ -1,6 +1,7 @@
 import ErrorBoundary from '../ErrorBoundary';
 import MarketPulse from '../MarketPulse';
 import RegimePanel from '../RegimePanel';
+import ActionCenter from './ActionCenter';
 import FreshSetupsZone from './FreshSetupsZone';
 import WatchlistZone from './WatchlistZone';
 import OpenBookZone from './OpenBookZone';
@@ -22,6 +23,10 @@ export default function HomeView({ trades, stats, priceFor, scanStatus }) {
 
   return (
     <div className="home-view">
+      <ErrorBoundary>
+        <ActionCenter screenerData={screenerData} trades={trades} priceFor={priceFor} />
+      </ErrorBoundary>
+
       <div className="home-grid">
         <div className="ga-pulse"><ErrorBoundary><MarketPulse marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>

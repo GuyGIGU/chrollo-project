@@ -8,7 +8,7 @@ from core.structure.market_structure import (
     label_market_structure,
     read_market_structure,
 )
-from core.structure.metrics import read_box_staircase
+from core.structure.metrics import measure_resistance_events, read_box_staircase
 
 
 def _labels(out):
@@ -204,3 +204,35 @@ def test_l2_staircase_empty_on_degenerate_box():
     out = read_box_staircase(df, R=10.0, S=12.0, atr_val=0.5)   # R <= S
     assert out["n_swings"] == 0
     assert out["is_zigzag"] is False
+
+
+# --- Layer 2 Brick 2: R-rail event zones (measure_resistance_events) ------------
+
+def test_l2_sos_advance_that_holds():
+    # Phase-D advance breaches R=12 then HOLDS above support (no drop to the
+    # low-zone 10.6) for >= hold_min_bars -> a confirmed SOS (held, not continued).
+    highs = [11.0, 10.6, 12.3, 11.5, 11.6, 11.5]
+    lows = [10.5, 10.2, 11.8, 11.2, 11.3, 11.2]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    events = measure_resistance_events(df, R=12.0, S=10.0, atr_val=0.5, hold_min_bars=2)
+    sos = [e for e in events if e["type"] == "SOS"]
+    assert sos
+    assert sos[0]["breached"] is True and sos[0]["resolution"] == "held"
+    assert sos[0]["strength_box"] is not None and sos[0]["strength_box"] > 0
+
+
+def test_l2_upthrust_wave_that_fails_back():
+    # Phase-D advance breaches R=12 then GIVES IT BACK to the low-zone within
+    # hold_min_bars (no hold) -> the run-up is an upthrust, not a string of SOS.
+    highs = [11.0, 10.6, 12.3, 10.8, 10.4, 11.1, 10.5]
+    lows = [10.5, 10.2, 11.8, 10.4, 10.0, 10.6, 10.2]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    events = measure_resistance_events(df, R=12.0, S=10.0, atr_val=0.5, hold_min_bars=2)
+    ut = [e for e in events if e["breached"]]
+    assert ut and ut[0]["type"] == "upthrust"
+    assert ut[0]["resolution"] == "failed"
+
+
+def test_l2_resistance_events_empty_on_degenerate_box():
+    df = pd.DataFrame({"High": [12.0, 12.4, 11.0], "Low": [11.0, 11.8, 10.5]})
+    assert measure_resistance_events(df, R=10.0, S=12.0, atr_val=0.5) == []   # R<=S

@@ -9,7 +9,7 @@ import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 import { signedPct } from './homeFormat';
 
-const NEAR_TRIGGER_PCT = 0.02; // within 2% below the breakout (R) level
+const NEAR_TRIGGER_PCT = 0.02; // within 2% below the trigger (high of the last LPS bar)
 const ICON = <EyeIcon className="home-zone-iconsvg" />;
 
 function lastClose(data) {
@@ -49,10 +49,10 @@ export default function WatchlistZone({ screenerData }) {
     const live = prices[t];
     const close = lastClose(data);
     const chg = (live != null && close) ? (live - close) / close : null;
-    const r = data?.R;
-    const triggered = (live != null && Number.isFinite(Number(r))) ? live >= r : false;
-    const nearTrigger = (live != null && Number.isFinite(Number(r)) && !triggered)
-      ? (r - live) / r <= NEAR_TRIGGER_PCT
+    const trig = data?.trigger;
+    const triggered = (live != null && Number.isFinite(Number(trig))) ? live >= trig : false;
+    const nearTrigger = (live != null && Number.isFinite(Number(trig)) && !triggered)
+      ? (trig - live) / trig <= NEAR_TRIGGER_PCT
       : false;
     const stale = priceErr && live == null;
     return { t, data, live, chg, triggered, nearTrigger, stale };
@@ -88,7 +88,7 @@ export default function WatchlistZone({ screenerData }) {
               {triggered
                 ? <span className="home-wl-flag triggered">▲ trigger</span>
                 : nearTrigger
-                  ? <span className="home-wl-flag near">near R</span>
+                  ? <span className="home-wl-flag near">near trig</span>
                   : <span className="home-wl-flag">{stale ? <span className="home-wl-stale">stale</span> : null}</span>}
               <BridgeOut ticker={t} compact />
             </div>

@@ -1966,3 +1966,46 @@ td.cell-editable { overflow: hidden; }
 .rp-posture-sym { font-weight: 800; font-size: 12px; color: var(--text-main); }
 .rp-posture-badges { display: flex; gap: 10px; font-size: 11px; color: var(--text-muted); }
 .rp-posture-badges b { color: var(--text-main); font-weight: 600; }
+
+/* ===================================================================
+   ACTION CENTER — the "what needs me now" digest above the grid.
+   Urgency-ordered chip groups: at risk → triggered → near trigger →
+   fresh S-tier. Collapses to a quiet "all clear" line when empty.
+   =================================================================== */
+.home-action {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.ac-head { display: flex; align-items: baseline; gap: 10px; }
+.ac-title { font-size: 15px; font-weight: 850; color: var(--text-main); line-height: 1; }
+.ac-count { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.ac-clear { color: var(--text-muted); font-size: 13px; }
+.ac-groups { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.ac-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.ac-glabel { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.ac-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.ac-chip:hover { background: rgba(255, 255, 255, 0.07); }
+.ac-chip-sub { font-size: 10px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ac-more { font-size: 11px; font-weight: 600; color: var(--accent-blue); text-decoration: none; white-space: nowrap; }
+.ac-more:hover { text-decoration: underline; }

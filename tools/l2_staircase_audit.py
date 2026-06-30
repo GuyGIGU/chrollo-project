@@ -29,7 +29,7 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import read_box_staircase
+from core.structure.metrics import measure_resistance_events, read_box_staircase
 from tools.lps_swing_census import CLUSTER, _first_complete, _latest_scan_fires
 from tools.structure_case_audit import _prep
 
@@ -79,6 +79,22 @@ def audit(tickers: list[str]) -> None:
             date = _date_at(df, start + int(s["bar"]))
             print(f"    {date:>10} {s['kind']:>6} {s['label']:>5} "
                   f"{s['box_pos']:>7.2f} {s['zone']:>5} {s['rail_event']:>10}")
+
+        events = measure_resistance_events(df.iloc[start:], float(box.R),
+                                           float(box.S), atr)
+        named = [e for e in events if e["type"] in ("SOS", "upthrust", "in_progress")]
+        if named:
+            print(f"    R-rail events: "
+                  + "; ".join(
+                      f"{e['type']}@{_date_at(df, start + e['peak_bar'])}"
+                      f"(ph{e['phase']} linger={e['linger_bars']} "
+                      f"strBox={e['strength_box']} pkPos={e['peak_box_pos']})"
+                      for e in named))
+        n_rej = sum(1 for e in events if e["type"] == "rejection")
+        n_range = sum(1 for e in events if e["type"] == "range")
+        if n_rej or n_range:
+            print(f"    (+ {n_rej} R-rejections, {n_range} Phase-B range reaches "
+                  f"[not SOS])")
 
 
 def main() -> None:

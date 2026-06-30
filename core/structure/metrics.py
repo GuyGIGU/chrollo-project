@@ -736,3 +736,157 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
         "rail_to_rail": bool(rail_to_rail),
         "is_zigzag": bool(rail_to_rail and len(out_swings) >= 3),
     }
+
+
+# ---------------------------------------------------------------------------
+# L2 Brick 2 — R-rail event ZONES: SOS (strength that holds) vs upthrust (fail)
+# ---------------------------------------------------------------------------
+
+def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
+                              hold_min_bars=6, noise_frac=None):
+    """Independent R-rail event ZONES anchored on the BOX-RELATIVE staircase.
+
+    Anchoring on an ATR band (``R - k*ATR``) over-fires in tight boxes — 0.5 ATR
+    is a big slice of a short box, so "reached R" lands mid-box. Instead this
+    rides the L0/L2 staircase (``read_box_staircase``): every PEAK that turns in
+    the R high-zone (``box_pos >= TRAVERSAL_HIGH_ZONE``) is an R-rail interaction.
+    For each, measure the rally STRENGTH into it (from the prior valley), whether
+    it BREACHED R, the LINGER (contiguous bars whose High held the high-zone), and
+    — from the NEXT staircase valley (or a later higher-high) — whether it HELD or
+    FAILED back into the range. AREA-based (linger-tolerant) and INDEPENDENT:
+    nothing is gated on another event (an LPS is found separately by
+    ``detect_lps`` and is NEVER a precondition).
+
+      * ``SOS``        a Phase-D advance to R that HELD — it consolidated above
+                       support for >= ``hold_min_bars`` (a mini-consolidation /
+                       LPS) instead of giving the gains back. CONFIRMED BY A HOLD,
+                       not by continuation. One SOS per wave.
+      * ``upthrust``   a Phase-D advance that FAILED — it gave back to the support
+                       low-zone before establishing a hold; the WHOLE run-up wave
+                       is the upthrust (a false break; short side). One per wave.
+      * ``range``      a held advance LEFT of the V (Phase B) — ordinary cause-
+                       building, NOT a Sign of Strength.
+      * ``rejection``  reached R, no clean breach, then gave back — ordinary range
+                       oscillation at the ceiling, not a named event.
+      * ``in_progress`` still climbing at the right edge — not enough bars after
+                       the wave top to confirm a hold and no failure yet.
+
+    An SOS is confirmed by a HOLD (a mini-consolidation/LPS), NOT by continuation:
+    a vertical run of higher-highs that ENDS IN A FAILED BREACH is ONE upthrust
+    wave, not a string of SOS (operator, 2026-06-28) — the outcome reclassifies
+    the whole wave. So consecutive higher-high R-reaches (no drop to support
+    between them) are grouped into a WAVE and typed by its TERMINAL outcome: it
+    gave back to the low-zone within ``hold_min_bars`` -> FAILED (upthrust); it
+    held above support >= ``hold_min_bars`` -> HELD (SOS); a hold, once
+    established, is shakeout-tolerant. SOS/range split is by the ``v_bar`` (the V:
+    the structural low; defaults to the deepest staircase valley, or pass the
+    spring tip). Upthrusts stay stage-agnostic. Measure-only — gates/scores
+    nothing. Returns one event per wave, in chronological order.
+    """
+    box = float(R) - float(S)
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return []
+    staircase = read_box_staircase(base_df, R, S, atr_val, noise_frac=noise_frac)
+    swings = staircase["swings"]
+    if not swings:
+        return []
+
+    highs = base_df["High"].values.astype(float)
+    lows = base_df["Low"].values.astype(float)
+    n = len(highs)
+    high_zone_price = float(S) + settings.TRAVERSAL_HIGH_ZONE * box
+    low_zone_price = float(S) + settings.TRAVERSAL_LOW_ZONE * box
+    breach_buf = settings.BOUNDARY_ATR_BUFFER * float(atr_val)
+
+    # The "V": the structural low that opens the right side / Phase D. SOS is
+    # noted only to the right of it; default = the deepest staircase valley.
+    if v_bar is None:
+        valleys = [s for s in swings if s["kind"] == "valley"]
+        v_bar = (min(valleys, key=lambda s: s["box_pos"])["bar"]
+                 if valleys else 0)
+
+    def _linger(peak_bar):
+        lo = peak_bar
+        while lo > 0 and highs[lo - 1] >= high_zone_price:
+            lo -= 1
+        hi = peak_bar
+        while hi + 1 < n and highs[hi + 1] >= high_zone_price:
+            hi += 1
+        return lo, hi
+
+    # R-reach peaks (peaks turning in the high zone) — the wave material.
+    reach = [(i, s) for i, s in enumerate(swings)
+             if s["kind"] == "peak" and s["zone"] == "high"]
+
+    events = []
+    m = 0
+    while m < len(reach):
+        start_i, start_p = reach[m]
+        top_i, top_p = reach[m]
+        m2 = m
+        # Extend the wave while the next R-reach is a higher-high reached with NO
+        # drop to the support low-zone in between — a continuous advance (no hold
+        # between pushes). A vertical run is therefore ONE wave.
+        while m2 + 1 < len(reach):
+            _ni, nxt = reach[m2 + 1]
+            if float(nxt["price"]) <= float(top_p["price"]):
+                break
+            seg = lows[int(top_p["bar"]) + 1: int(nxt["bar"]) + 1]
+            if len(seg) and float(seg.min()) <= low_zone_price:
+                break
+            m2 += 1
+            top_i, top_p = reach[m2]
+
+        top_bar = int(top_p["bar"])
+        breached = float(top_p["price"]) > R + breach_buf
+
+        # Terminal outcome after the wave top. A drop to the support low-zone
+        # BEFORE a hold of >= hold_min_bars = the advance gave the gains back =
+        # FAILED (the whole run-up is the upthrust). Holding above support for
+        # >= hold_min_bars = a mini-consolidation = HELD (SOS); once established a
+        # later shakeout doesn't un-confirm it. Too few bars after = in_progress.
+        after_lows = lows[top_bar + 1:]
+        drop_at = next((d for d, lo in enumerate(after_lows)
+                        if lo <= low_zone_price), None)
+        bars_after = n - top_bar - 1
+        if drop_at is not None and drop_at < hold_min_bars:
+            resolution = "failed"
+        elif drop_at is None and bars_after < hold_min_bars:
+            resolution = "in_progress"
+        else:
+            resolution = "held"
+
+        in_phase_d = top_bar > v_bar
+        if resolution == "in_progress":
+            etype = "in_progress"
+        elif resolution == "held":
+            etype = "SOS" if in_phase_d else "range"   # SOS only right of the V
+        elif breached:
+            etype = "upthrust"
+        else:
+            etype = "rejection"
+
+        launch = (swings[start_i - 1]
+                  if start_i > 0 and swings[start_i - 1]["kind"] == "valley" else None)
+        strength_box = ((float(top_p["price"]) - float(launch["price"])) / box
+                        if launch else None)
+        lo_b, hi_b = _linger(top_bar)
+        zone_start = int(launch["bar"]) if launch else lo_b
+
+        events.append({
+            "type": etype,
+            "phase": "D" if in_phase_d else "B",
+            "peak_bar": top_bar,
+            "zone_start": int(zone_start),
+            "zone_end": int(hi_b),
+            "peak_price": round(float(top_p["price"]), 4),
+            "peak_box_pos": round(float(top_p["box_pos"]), 4),
+            "breached": bool(breached),
+            "linger_bars": int(hi_b - lo_b + 1),
+            "strength_box": (round(strength_box, 4) if strength_box is not None else None),
+            "resolution": resolution,
+            "wave_bars": int(top_bar - int(start_p["bar"]) + 1),
+        })
+        m = m2 + 1
+
+    return events
