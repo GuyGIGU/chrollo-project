@@ -1013,13 +1013,14 @@ def measure_support_tests(base_df, R, S, atr_val, *, hold_min_bars=6,
 # L2 — unified independent event view (the pieces E2 assembles into the puzzle)
 # ---------------------------------------------------------------------------
 
-def read_box_events(df, box, atr_val, *, v_bar=None):
-    """The independent Wyckoff event ZONES inside ``box``, all box-relative.
+def _box_events_with_meta(df, box, atr_val, *, v_bar=None):
+    """The independent L2 event ZONES inside ``box`` + the shared assembly meta.
 
-    The measure-only unified L2 view E2 (chronological assembly) will read. Each
-    event is detected on its OWN geometry and is NEVER gated on another; the
-    bullish chronology (spring -> SOS -> LPS) is a future quality grade, not a
-    definition here. Composed by REUSING the calibrated detectors:
+    The single chokepoint behind BOTH ``read_box_events`` (which discards the
+    meta) and ``assemble_box_narrative`` (which consumes it). Each event is
+    detected on its OWN geometry and is NEVER gated on another; the bullish
+    chronology (spring -> SOS -> LPS) is a future quality grade, not a definition
+    here. Composed by REUSING the calibrated detectors:
       * SOS / markup / upthrust / range / rejection / in_progress  (R-rail waves)
         via ``measure_resistance_events``
       * test  (S-rail touch-that-holds)  via ``measure_support_tests``
@@ -1031,22 +1032,27 @@ def read_box_events(df, box, atr_val, *, v_bar=None):
     ``find_spring``/``find_lps`` index into the FULL ``df``; their bars are
     translated to box-relative (``- box.start_bar``) so every zone shares ONE
     origin — the box / base (0 = box.start_bar), which is also the render's frame.
-    Returns a flat list of zone dicts, each carrying ``type``/``zone_start``/
-    ``zone_end``/``anchor_bar``, ordered by ``(zone_start, type-priority, rail)``.
-    Measure-only — gates/scores nothing.
+
+    Builds the staircase ONCE and resolves the V ONCE: returns
+    ``(events, v_bar, base_n, has_valley)`` where ``v_bar`` is the SAME resolved
+    structural-low int threaded into the SOS stage-gate and the LPS Phase-D gate
+    (single-sourced so phase segmentation cannot desync from the gates), ``base_n``
+    is the rendered base-frame length, and ``has_valley`` says whether a real V
+    exists (>=1 valley swing) so callers don't read a defaulted ``v_bar==0`` as a
+    real structural low. Measure-only — gates/scores nothing.
     """
     # Leaf import keeps bricks a downstream dependency (no module-load cycle).
     from core.structure.bricks import find_lps, find_spring
 
     if (df is None or box is None or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):
-        return []
+        return [], 0, 0, False
     start = int(box.start_bar)
     if start < 0 or start >= len(df) or int(box.base_len) <= 0:
-        return []
+        return [], 0, 0, False
     R, S = float(box.R), float(box.S)
     if R - S <= 0:
-        return []
+        return [], 0, 0, False
     base_df = df.iloc[start:]
     base_n = len(base_df)
 
@@ -1056,6 +1062,7 @@ def read_box_events(df, box, atr_val, *, v_bar=None):
     # Build the staircase ONCE and share it: the V, the R-rail waves and the S-rail
     # tests all read the SAME swings (the heaviest L2 primitive runs once, not 3x).
     swings = read_box_staircase(base_df, R, S, atr_val)["swings"]
+    has_valley = any(s["kind"] == "valley" for s in swings)
     if v_bar is None:
         v_bar = _deepest_valley_bar(swings)
 
@@ -1099,4 +1106,180 @@ def read_box_events(df, box, atr_val, *, v_bar=None):
     events.sort(key=lambda e: (int(e["zone_start"]),
                                _PRIORITY.get(e["type"], 99),
                                e.get("rail", ""), int(e.get("anchor_bar", 0))))
-    return events
+    return events, int(v_bar), int(base_n), bool(has_valley)
+
+
+def read_box_events(df, box, atr_val, *, v_bar=None):
+    """The independent Wyckoff event ZONES inside ``box``, all box-relative.
+
+    The flat, deterministically-ordered list of measure-only L2 event zones —
+    spring / test / SOS / markup / upthrust / range / rejection / lps /
+    in_progress — each detected on its OWN geometry and NEVER gated on another;
+    the bullish chronology is a future quality grade (see ``assemble_box_narrative``),
+    not a definition here. Thin public wrapper over ``_box_events_with_meta`` (which
+    carries the shared V / base_n the assembler also reads). Returns a flat list of
+    zone dicts, each carrying ``type``/``zone_start``/``zone_end``/``anchor_bar``,
+    ordered by ``(zone_start, type-priority, rail)``. Measure-only — gates/scores
+    nothing.
+    """
+    return _box_events_with_meta(df, box, atr_val, v_bar=v_bar)[0]
+
+
+# ---------------------------------------------------------------------------
+# L2 — E2: chronological assembly of the independent pieces into the PUZZLE
+# ---------------------------------------------------------------------------
+
+def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
+    """Assemble the independent L2 event ZONES (``read_box_events``) into the
+    Wyckoff puzzle + an explainable trace. MEASURE-ONLY — the assembled read E3
+    will later score; this gates/scores nothing and encodes no veto.
+
+    Consumes ONLY the pieces ``_box_events_with_meta`` already detected (one
+    staircase build, one V, no new ``find_spring``/``find_lps``/``measure_*``
+    calls): the whole spine is selected by FILTERING the passthrough ``events`` by
+    ``type``, so the V, the LPS Phase-D gate, and the chronology can never desync
+    from E1.
+
+    The chronology spring -> SOS -> LPS is a DESCRIPTIVE quality signal when
+    present and bar-ordered; it is NEVER a gate, and a missing piece is reported,
+    never fabricated. The returned dict's only reads are descriptive grades — a
+    raw 0..4 ``completeness`` tally, a 3-valued ``chronology`` enum, and
+    ``upthrust_terminal`` (a read of the detected outcome) — none shaped as a
+    pass/fail another layer could consume as a filter. Every leaf is a native
+    Python int/str/bool/None/float (JSON-friendly, byte-stable).
+
+    spine bars (the canonical chronology comparator, frozen): spring -> anchor_bar
+    (tip), SOS -> anchor_bar (= peak_bar), LPS -> anchor_bar (low_bar).
+    ``chronology == "intact"`` iff all three present AND
+    ``spring.anchor_bar < sos.anchor_bar < lps.anchor_bar`` (strict).
+    ``upthrust_terminal`` (the TITN read) iff an upthrust exists, NO SOS exists
+    anywhere, and nothing after the last upthrust resolves it up or is still
+    developing (no markup / in_progress R-wave at or after it) — so it is mutually
+    exclusive with a spine SOS and never overrides E1's right-edge no-lookahead.
+    Phases are O(1) derivations off the shared V (only when a real V exists):
+    ``B = [0, v_bar]``; ``C = spring zone`` (a marked sub-zone that may overlap B);
+    ``D = [v_bar+1, base_n-1]`` iff any Phase-D event (SOS / markup / lps) exists.
+    """
+    events, v_bar, base_n, has_valley = _box_events_with_meta(
+        df, box, atr_val, v_bar=v_bar)
+
+    spine = {"spring": None, "sos": None, "lps": None}
+    if not events and not has_valley:
+        # Degenerate / structureless box -> a well-formed empty narrative. The
+        # trace is intentionally EMPTY here (nothing was read), distinct from the
+        # summary-only trace the main path emits for a valid box that has a V but
+        # no named pieces -- do not unify the two paths.
+        return {
+            "events": events, "v_bar": int(v_bar), "base_n": int(base_n),
+            "spine": spine, "tests": 0, "upthrust_terminal": False,
+            "completeness": 0, "chronology": "absent",
+            "phases": {"B": None, "C": None, "D": None}, "trace": [],
+        }
+
+    # ONE linear pass over the (already chronologically-sorted) pieces — adds zero
+    # detector calls; spine is references into events[] (do not mutate).
+    spring = lps = None
+    sos_events = []
+    upthrusts = []
+    tests = 0
+    has_phase_d_event = False
+    for e in events:
+        t = e["type"]
+        if t == "spring":
+            spring = e
+        elif t == "lps":
+            lps = e
+            has_phase_d_event = True
+        elif t == "test":
+            tests += 1
+        elif t == "SOS":
+            sos_events.append(e)
+            has_phase_d_event = True
+        elif t == "upthrust":
+            upthrusts.append(e)
+        elif t == "markup":
+            has_phase_d_event = True
+
+    # First chronological SOS = the creek-jump that opens markup; later held
+    # reaches stay in events[] but are not the spine SOS. Full key is defensive —
+    # SOS waves are non-overlapping so anchor_bar is already unique.
+    sos = (min(sos_events, key=lambda e: (int(e["anchor_bar"]),
+                                          int(e["zone_start"]),
+                                          float(e["peak_price"])))
+           if sos_events else None)
+    spine["spring"], spine["sos"], spine["lps"] = spring, sos, lps
+
+    # upthrust_terminal: the run-up IS the terminal event (TITN) — an upthrust with
+    # zero SOS anywhere (mutually exclusive with a spine SOS) and nothing after the
+    # last upthrust that resolves up (markup) or is still developing (in_progress).
+    upthrust_terminal = False
+    if upthrusts and sos is None:
+        last_up = max(int(e["anchor_bar"]) for e in upthrusts)
+        resolved_after = any(
+            e.get("rail") == "R" and e["type"] in ("markup", "in_progress")
+            and int(e["anchor_bar"]) >= last_up for e in events)
+        upthrust_terminal = not resolved_after
+
+    # Descriptive grades — NEVER gates. completeness counts distinct canonical
+    # pieces present (held tests only, each class at most 1); the test slot reuses
+    # the SAME held-test filter as ``tests`` so the two cannot drift.
+    completeness = ((spring is not None) + (sos is not None)
+                    + (lps is not None) + (tests > 0))
+
+    if (spring is not None and sos is not None and lps is not None
+            and spring["anchor_bar"] < sos["anchor_bar"] < lps["anchor_bar"]):
+        chronology = "intact"
+    elif spring is not None or sos is not None or lps is not None:
+        chronology = "partial"
+    else:
+        chronology = "absent"
+
+    # Phases — only when a real V exists. B/C/D are pure derivations off the shared
+    # v_bar/base_n; the V bar belongs to B (matching in_phase_d = top_bar > v_bar),
+    # so B.end + 1 == D.start with no overlap. C (the spring zone) may overlap B —
+    # a marked sub-zone, not a partition member.
+    phases = {"B": None, "C": None, "D": None}
+    if has_valley:
+        phases["B"] = [0, int(v_bar)]
+        if spring is not None:
+            phases["C"] = [int(spring["zone_start"]), int(spring["zone_end"])]
+        if has_phase_d_event and int(v_bar) + 1 <= int(base_n) - 1:
+            phases["D"] = [int(v_bar) + 1, int(base_n) - 1]
+
+    # Trace — a pure render of the spine/phases (no recomputation, no second code
+    # path). Interpolates only ints / already-rounded values so it is byte-stable.
+    steps = []
+    if spring is not None:
+        steps.append((int(spring["anchor_bar"]),
+                      f"C[bar {int(spring['anchor_bar'])}]: spring - breach S, "
+                      f"reclaimed in {int(spring['recovery_bars'])} bars "
+                      f"(undercut {spring['undercut_atr']} ATR)"))
+    if sos is not None:
+        steps.append((int(sos["anchor_bar"]),
+                      f"D[bar {int(sos['anchor_bar'])}]: SOS - creek-jump held "
+                      f"near R (hold {sos['hold_range_box']} box)"))
+    if lps is not None:
+        steps.append((int(lps["anchor_bar"]),
+                      f"D[bar {int(lps['anchor_bar'])}]: LPS - support test held "
+                      f"({lps['swing_type']})"))
+    steps.sort(key=lambda s: s[0])
+    trace = [line for _, line in steps]
+    if tests:
+        trace.append(f"test x{tests}: support touch(es) that held")
+    if upthrust_terminal:
+        trace.append("terminal upthrust - run-up topped above R and failed back "
+                     "(no SOS)")
+    trace.append(f"-> chronology {chronology}, completeness {completeness}/4")
+
+    return {
+        "events": events,
+        "v_bar": int(v_bar),
+        "base_n": int(base_n),
+        "spine": spine,
+        "tests": int(tests),
+        "upthrust_terminal": bool(upthrust_terminal),
+        "completeness": int(completeness),
+        "chronology": chronology,
+        "phases": phases,
+        "trace": trace,
+    }

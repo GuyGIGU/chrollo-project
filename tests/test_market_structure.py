@@ -9,6 +9,9 @@ from core.structure.market_structure import (
     read_market_structure,
 )
 from core.structure.metrics import (
+    _box_events_with_meta,
+    _deepest_valley_bar,
+    assemble_box_narrative,
     measure_resistance_events,
     measure_support_tests,
     read_box_events,
@@ -360,3 +363,279 @@ def test_l2_read_box_events_offset_origin_translation_and_tiebreak(monkeypatch):
     assert lps[0]["zone_start"] == 2 and lps[0]["anchor_bar"] == 3         # low start+3 -> 3
     order = {e["type"]: i for i, e in enumerate(ev)}
     assert order["spring"] < order["lps"]                  # tie-break: priority spring(0) < lps(3)
+
+
+# --- Layer 2 — E2: chronological assembly (assemble_box_narrative) ---------------
+
+def _ohlc(highs, lows):
+    n = len(highs)
+    return pd.DataFrame({
+        "High": highs, "Low": lows,
+        "Close": [(h + lo) / 2 for h, lo in zip(highs, lows)],
+        "Volume": [1.0] * n, "Vol_50": [1.0] * n,
+    })
+
+
+def _box(start, n, R=12.0, S=10.0):
+    from types import SimpleNamespace
+    return SimpleNamespace(start_bar=start, base_len=n - start, R=R, S=S,
+                           r_anchor_bar=start, s_anchor_bar=start + 1)
+
+
+# A clean bullish staircase: oscillation -> Phase-D wave breaches R=12 NEAR R and
+# HOLDS tight for >= the default hold_min_bars(6) -> a confirmed SOS at bar 4.
+_CLEAN_BULL_H = [11.0, 10.6, 11.3, 10.7, 12.6, 12.3, 12.4, 12.2, 12.5, 12.3, 12.4]
+_CLEAN_BULL_L = [10.5, 10.1, 10.8, 10.2, 11.5, 11.6, 11.7, 11.6, 11.8, 11.7, 11.6]
+# A terminal upthrust: breach R at bar 4, collapse to the support low-zone (fails),
+# then STAY low -> one upthrust, zero SOS (the TITN read).
+_TERMINAL_UT_H = [11.0, 10.6, 11.3, 10.7, 12.6, 11.0, 10.5, 10.4, 10.5, 10.4, 10.5]
+_TERMINAL_UT_L = [10.5, 10.1, 10.8, 10.2, 11.8, 10.5, 10.1, 10.0, 10.1, 10.0, 10.1]
+
+
+def test_e2_read_box_events_unchanged_and_v_single_sourced():
+    # The helper extraction must be output-preserving AND single-source the V: the
+    # v_bar the assembler reads for phases == the V the detectors gated events on.
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    events_pub = read_box_events(df, box, atr_val=0.5)
+    events_meta, v_bar, base_n, has_valley = _box_events_with_meta(df, box, atr_val=0.5)
+    assert events_pub == events_meta                        # public contract unchanged
+    base = df.iloc[box.start_bar:]
+    swings = read_box_staircase(base, box.R, box.S, 0.5)["swings"]
+    assert v_bar == _deepest_valley_bar(swings)             # same V the gates used
+    assert base_n == len(base) and has_valley is True
+
+
+def test_e2_clean_bullish_chronology_is_intact(monkeypatch):
+    import core.structure.bricks as bricks
+    from types import SimpleNamespace
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    # spring tip at the V (bar 1); LPS low at bar 9 (right of the V) -> Phase-D.
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: SimpleNamespace(
+        tip_bar=1, recovery_bar=3, undercut_atr=0.9, recovery_bars=2))
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: SimpleNamespace(
+        start_bar=8, end_bar=10, low_bar=9, swing_type="terminal_valley"))
+    nar = assemble_box_narrative(df, box, atr_val=0.5)
+    s = nar["spine"]
+    assert s["spring"] and s["sos"] and s["lps"]
+    assert s["spring"]["anchor_bar"] < s["sos"]["anchor_bar"] < s["lps"]["anchor_bar"]
+    assert nar["chronology"] == "intact" and nar["completeness"] == 4
+    assert nar["upthrust_terminal"] is False
+    assert nar["phases"]["B"] == [0, nar["v_bar"]]
+    assert nar["phases"]["C"] == [s["spring"]["zone_start"], s["spring"]["zone_end"]]
+    assert nar["phases"]["D"][0] == nar["v_bar"] + 1        # B.end + 1 == D.start
+    # trace is a pure render of the spine: one line per piece + summary.
+    assert any("spring" in ln for ln in nar["trace"])
+    assert any("SOS" in ln for ln in nar["trace"])
+    assert nar["trace"][-1] == "-> chronology intact, completeness 4/4"
+
+
+def test_e2_titn_upthrust_terminal_zero_sos(monkeypatch):
+    # The headline anchor: a run-up that tops in one upthrust reads zero SOS +
+    # upthrust_terminal, WITHOUT suppressing the independent spring/test/lps.
+    import core.structure.bricks as bricks
+    from types import SimpleNamespace
+    df = _ohlc(_TERMINAL_UT_H, _TERMINAL_UT_L)
+    box = _box(0, len(_TERMINAL_UT_H))
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: SimpleNamespace(
+        tip_bar=1, recovery_bar=3, undercut_atr=1.1, recovery_bars=2))
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: SimpleNamespace(
+        start_bar=8, end_bar=10, low_bar=8, swing_type="terminal_valley"))
+    nar = assemble_box_narrative(df, box, atr_val=0.5)
+    assert nar["spine"]["sos"] is None                      # zero SOS in the spine
+    assert nar["upthrust_terminal"] is True
+    assert nar["spine"]["spring"] is not None               # independence preserved
+    assert nar["spine"]["lps"] is not None
+    assert nar["chronology"] == "partial"
+    # cross-field invariant: a spine SOS and a terminal upthrust are exclusive.
+    assert not (nar["spine"]["sos"] is not None and nar["upthrust_terminal"])
+    assert any("terminal upthrust" in ln for ln in nar["trace"])
+
+
+def test_e2_first_sos_is_the_spine_sos(monkeypatch):
+    # Two confirmed SOS waves: the spine SOS is the FIRST by bar (the creek-jump);
+    # the later held reach stays visible in events[]. Feed synthetic pieces so the
+    # selection logic is pinned independent of staircase geometry.
+    import core.structure.metrics as metrics
+    early = {"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
+             "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}
+    late = {"type": "SOS", "rail": "R", "anchor_bar": 11, "zone_start": 9,
+            "peak_price": 12.9, "peak_box_pos": 1.45, "hold_range_box": 0.5}
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: ([late, early], 1, 16, True))
+    nar = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar["spine"]["sos"]["anchor_bar"] == 4           # first by bar, not by quality
+    assert sum(1 for e in nar["events"] if e["type"] == "SOS") == 2  # both still visible
+
+
+def test_e2_completeness_counts_held_tests_only(monkeypatch):
+    # The completeness test-slot + the tests count both use the SAME held filter:
+    # failed / in_progress S-touches never inflate the tally.
+    import core.structure.metrics as metrics
+    events = [
+        {"type": "test", "rail": "S", "anchor_bar": 2, "zone_start": 2},
+        {"type": "test", "rail": "S", "anchor_bar": 5, "zone_start": 5},
+        {"type": "failed", "rail": "S", "anchor_bar": 8, "zone_start": 8},
+    ]
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: (events, 1, 12, True))
+    nar = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar["tests"] == 2                                # held only (failed excluded)
+    assert nar["completeness"] == 1                         # the one test class, capped at 1
+    assert nar["chronology"] == "absent"
+
+
+def test_e2_phases_none_when_no_real_v(monkeypatch):
+    # A valid box with zero valley swings has no real V (v_bar defaults to 0) ->
+    # phases must be None, not [0,0], even when a Phase-D event exists.
+    import core.structure.metrics as metrics
+    events = [{"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
+               "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}]
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: (events, 0, 8, False))
+    nar = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar["phases"] == {"B": None, "C": None, "D": None}
+
+
+def test_e2_no_veto_shaped_field(monkeypatch):
+    # Story-2 negative: the narrative encodes NO pass/fail another layer could read
+    # as a gate. Only descriptive grades + upthrust_terminal (a read of the outcome).
+    import core.structure.bricks as bricks
+    from types import SimpleNamespace
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: SimpleNamespace(
+        tip_bar=1, recovery_bar=3, undercut_atr=0.9, recovery_bars=2))
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: SimpleNamespace(
+        start_bar=8, end_bar=10, low_bar=9, swing_type="terminal_valley"))
+    nar = assemble_box_narrative(df, box, atr_val=0.5)
+    veto_names = {"pass", "fail", "ok", "valid", "invalid", "reject", "veto",
+                  "gate", "eligible", "qualifies", "is_complete", "passes"}
+    assert not (set(nar) & veto_names)
+    # the only bare bool in the top-level dict is the explicitly-descriptive one.
+    bool_keys = [k for k, v in nar.items() if isinstance(v, bool)]
+    assert bool_keys == ["upthrust_terminal"]
+    assert isinstance(nar["completeness"], int) and 0 <= nar["completeness"] <= 4
+
+
+def test_e2_degenerate_box_is_well_formed_empty():
+    df = _ohlc([12.0, 12.4, 11.0], [11.0, 11.8, 10.5])
+    box = _box(0, 3, R=10.0, S=12.0)                        # R <= S
+    nar = assemble_box_narrative(df, box, atr_val=0.5)
+    assert nar["events"] == [] and nar["trace"] == []
+    assert nar["spine"] == {"spring": None, "sos": None, "lps": None}
+    assert nar["completeness"] == 0 and nar["chronology"] == "absent"
+    assert nar["upthrust_terminal"] is False
+    assert nar["phases"] == {"B": None, "C": None, "D": None}
+    assert type(nar["v_bar"]) is int and type(nar["base_n"]) is int
+
+
+def test_e2_deterministic_and_json_native(monkeypatch):
+    # Built twice -> byte-identical when serialized; every leaf a native python
+    # type (no numpy scalar leaking through).
+    import json
+    import core.structure.bricks as bricks
+    from types import SimpleNamespace
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: SimpleNamespace(
+        tip_bar=1, recovery_bar=3, undercut_atr=0.9, recovery_bars=2))
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: SimpleNamespace(
+        start_bar=8, end_bar=10, low_bar=9, swing_type="terminal_valley"))
+    a = assemble_box_narrative(df, box, atr_val=0.5)
+    b = assemble_box_narrative(df, box, atr_val=0.5)
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    assert type(a["v_bar"]) is int and type(a["completeness"]) is int
+
+    def _leaves(o):
+        if isinstance(o, dict):
+            for v in o.values():
+                yield from _leaves(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from _leaves(v)
+        else:
+            yield o
+    # every leaf is a native python type — no numpy scalar leaked through.
+    assert all(isinstance(x, (int, float, str, bool, type(None)))
+               for x in _leaves(a))
+    assert all(type(x).__module__ == "builtins" for x in _leaves(a))
+
+
+def test_e2_assembler_not_imported_by_pipeline():
+    # Measure-only insurance: the assembly layer is wired into nothing live.
+    import glob
+    import os
+    pipe = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "core", "pipeline")
+    for path in glob.glob(os.path.join(pipe, "*.py")):
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        assert "assemble_box_narrative" not in src
+        assert "_box_events_with_meta" not in src
+
+
+def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
+    # The no-lookahead contract: an R-rail markup OR in_progress at/after the last
+    # upthrust un-terminals it (the run-up resolved up / is still developing); an
+    # S-rail in_progress does NOT (it says nothing about the R-rail run-up).
+    import core.structure.metrics as metrics
+
+    def _ut():
+        return {"type": "upthrust", "rail": "R", "anchor_bar": 4, "zone_start": 2}
+    cases = [
+        ([_ut(), {"type": "markup", "rail": "R", "anchor_bar": 7, "zone_start": 5}], False),
+        ([_ut(), {"type": "in_progress", "rail": "R", "anchor_bar": 9, "zone_start": 7}], False),
+        ([_ut(), {"type": "in_progress", "rail": "S", "anchor_bar": 9, "zone_start": 9}], True),
+    ]
+    for events, expected in cases:
+        monkeypatch.setattr(metrics, "_box_events_with_meta",
+                            lambda *a, _e=events, **k: (_e, 1, 12, True))
+        nar = metrics.assemble_box_narrative(None, None, 0.5)
+        assert nar["upthrust_terminal"] is expected
+        assert nar["spine"]["sos"] is None          # terminal is exclusive with a spine SOS
+
+
+def test_e2_chronology_strict_order_boundary(monkeypatch):
+    # intact requires STRICT spring.anchor < sos.anchor < lps.anchor; a tie or an
+    # out-of-order trio reads partial (never intact), though completeness is 3.
+    import core.structure.metrics as metrics
+
+    def _spring(b):
+        return {"type": "spring", "rail": "S", "anchor_bar": b, "zone_start": b,
+                "zone_end": b + 1, "recovery_bars": 1, "undercut_atr": 0.9}
+
+    def _sos(b):
+        return {"type": "SOS", "rail": "R", "anchor_bar": b, "zone_start": b - 1,
+                "peak_price": 12.4, "hold_range_box": 0.4}
+
+    def _lps(b):
+        return {"type": "lps", "rail": "S", "anchor_bar": b, "zone_start": b - 1,
+                "zone_end": b + 1, "swing_type": "terminal_valley"}
+
+    tie = [_spring(5), _sos(5), _lps(9)]        # spring tip == sos peak -> not strict
+    ooo = [_spring(2), _sos(8), _lps(4)]        # lps low before sos peak -> out of order
+    for events in (tie, ooo):
+        monkeypatch.setattr(metrics, "_box_events_with_meta",
+                            lambda *a, _e=events, **k: (_e, 1, 12, True))
+        nar = metrics.assemble_box_narrative(None, None, 0.5)
+        assert nar["chronology"] == "partial" and nar["completeness"] == 3
+
+
+def test_e2_partial_from_single_piece_and_phase_d_at_right_edge(monkeypatch):
+    import core.structure.metrics as metrics
+    # Exactly one canonical piece -> chronology partial (some present, not all).
+    spring_only = [{"type": "spring", "rail": "S", "anchor_bar": 3, "zone_start": 3,
+                    "zone_end": 4, "recovery_bars": 1, "undercut_atr": 0.8}]
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: (spring_only, 1, 12, True))
+    nar = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar["chronology"] == "partial" and nar["completeness"] == 1
+    # V at the last base bar -> Phase-D span suppressed (no inverted [v+1, v] span).
+    events = [{"type": "lps", "rail": "S", "anchor_bar": 7, "zone_start": 7,
+               "zone_end": 7, "swing_type": "terminal_valley"}]
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: (events, 7, 8, True))   # v_bar == base_n - 1
+    nar2 = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar2["phases"]["D"] is None and nar2["phases"]["B"] == [0, 7]

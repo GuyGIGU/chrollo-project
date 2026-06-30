@@ -29,7 +29,11 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import measure_resistance_events, read_box_staircase
+from core.structure.metrics import (
+    assemble_box_narrative,
+    measure_resistance_events,
+    read_box_staircase,
+)
 from tools.lps_swing_census import CLUSTER, _first_complete, _latest_scan_fires
 from tools.structure_case_audit import _prep
 
@@ -95,6 +99,21 @@ def audit(tickers: list[str]) -> None:
         if n_rej or n_range:
             print(f"    (+ {n_rej} R-rejections, {n_range} Phase-B range reaches "
                   f"[not SOS])")
+
+        # E2: the assembled narrative (the puzzle) + the explainable trace.
+        nar = assemble_box_narrative(df, box, atr)
+        s = nar["spine"]
+
+        def _anchor(piece):
+            return _date_at(df, start + int(piece["anchor_bar"])) if piece else "-"
+
+        ut = " +terminal-upthrust" if nar["upthrust_terminal"] else ""
+        print(f"    narrative: chronology={nar['chronology']} "
+              f"completeness={nar['completeness']}/4{ut}  "
+              f"spine[spring={_anchor(s['spring'])} sos={_anchor(s['sos'])} "
+              f"lps={_anchor(s['lps'])}]  tests={nar['tests']}")
+        for line in nar["trace"]:
+            print(f"      | {line}")
 
 
 def main() -> None:
