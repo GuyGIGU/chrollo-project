@@ -338,6 +338,38 @@ SCORE_ATR_SQUEEZE = 8           # Volatility contraction (was 10)
 # re-captured to match. Was default-off & measure-first since 2026-06-25.
 TIGHTNESS_ADR_AWARE = True
 MAX_BOX_WIDTH_ADR = 4.5         # (R-S)/S expressed in ADRs; >= this earns zero tightness credit
+# Candle-spread readability multiplier on box_tightness. Box width says how tight the RANGE
+# is; this grades the TEXTURE inside it — a base whose bars are individually quiet vs its OWN
+# box and ATR reads as a more genuine coil than one of equal width with choppy bars. SELF-
+# REFERENTIAL by construction (spread/box, spread/ATR, tight-bar % are already box/ATR-
+# normalized), NEVER an absolute bar-width threshold — so a high-ADR but orderly mover (TITN:
+# spread/box 0.34, spread/ATR 0.68, tight-bar 0.77) is read against its own volatility, not
+# penalized for raw bar width, while a messy wide-bar base (DHX: spread/box ~0.55) is docked.
+# Multiplicative grade in [CANDLE_GRADE_FLOOR, 1.0]: a silent box keeps full tightness, a noisy
+# box is discounted toward the floor (a GRADE, never a veto). Measure-first / DEFAULT OFF until
+# an operator chart-eyeball clears it (sibling of the ADR flip); flag-off is byte-identical (the
+# term lives ONLY inside `if CANDLE_SPREAD_AWARE` in score_setup). Missing texture -> neutral 1.0.
+CANDLE_SPREAD_AWARE = False
+CANDLE_GRADE_FLOOR = 0.55       # worst-case multiplier — a choppy base keeps >= 55% of its tightness
+# Ramp anchors (universe medians, 2026-06-30 scan: spread/box ~0.31, spread/ATR ~0.85, tight-bar
+# ~0.68). Each sub-grade ramps full(1)->zero(0) across clean->messy; these are CALIBRATION
+# references the operator tunes on the A/B pack, not hard gates.
+CANDLE_SPREAD_BOX_CLEAN = 0.35  # median spread/box <= this -> full readability (lower = tighter)
+CANDLE_SPREAD_BOX_MESSY = 0.60  # median spread/box >= this -> zero on this measure (DHX ~0.55)
+CANDLE_SPREAD_ATR_CLEAN = 0.90  # median spread/ATR <= this -> full readability
+CANDLE_SPREAD_ATR_MESSY = 1.40  # median spread/ATR >= this -> zero on this measure
+CANDLE_TIGHTBAR_CLEAN = 0.65    # tight-bar % >= this -> full readability (higher = cleaner)
+CANDLE_TIGHTBAR_MESSY = 0.30    # tight-bar % <= this -> zero on this measure
+# L2 SOS calibration (measure-only event reader; gates/scores nothing). An SOS is a Phase-D
+# creek-jump that TESTS the rail and HOLDS. Two box-relative bounds keep markup out of the SOS
+# bucket so it stops over-firing in active/extended boxes (AMRZ fired ~15 SOS):
+#  (1) NEAR R — the wave-top peak must sit near R (peak_box_pos <= SOS_NEAR_R_MAX_BOX); a reach
+#      far above R (AMRZ pkPos 2.0-2.4) is post-breakout MARKUP, typed `markup`, not SOS.
+#  (2) REAL HOLD — the post-top hold window must be a genuine mini-consolidation (its High-Low
+#      span <= SOS_HOLD_MAX_RANGE_BOX of the box), not merely "no drop to the low-zone in N bars".
+# Both are box fractions so they scale across the universe; operator-eyeball-tuned.
+SOS_NEAR_R_MAX_BOX = 1.5        # wave-top box_pos ceiling for an SOS (1.0 = R; > this box-frac above R = markup)
+SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box fraction to count as a consolidation
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

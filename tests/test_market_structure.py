@@ -8,7 +8,12 @@ from core.structure.market_structure import (
     label_market_structure,
     read_market_structure,
 )
-from core.structure.metrics import measure_resistance_events, read_box_staircase
+from core.structure.metrics import (
+    measure_resistance_events,
+    measure_support_tests,
+    read_box_events,
+    read_box_staircase,
+)
 
 
 def _labels(out):
@@ -236,3 +241,122 @@ def test_l2_upthrust_wave_that_fails_back():
 def test_l2_resistance_events_empty_on_degenerate_box():
     df = pd.DataFrame({"High": [12.0, 12.4, 11.0], "Low": [11.0, 11.8, 10.5]})
     assert measure_resistance_events(df, R=10.0, S=12.0, atr_val=0.5) == []   # R<=S
+
+
+# --- Layer 2 SOS calibration: near-R bound + real-consolidation hold ------------
+
+def test_l2_held_far_above_R_is_markup_not_sos():
+    # A two-sided box that oscillates, then a Phase-D wave breaks FAR above R=12
+    # (peak_box_pos ~2.5) and holds tight: that is post-breakout MARKUP, not a
+    # creek-jump SOS — the AMRZ over-fire fix (a reach far above R is never SOS).
+    highs = [11.8, 10.5, 11.9, 10.6, 15.0, 14.8, 14.9, 14.8, 14.9]
+    lows = [11.0, 10.1, 11.0, 10.1, 14.5, 14.6, 14.6, 14.6, 14.6]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    events = measure_resistance_events(df, R=12.0, S=10.0, atr_val=0.5, hold_min_bars=2)
+    assert not any(e["type"] == "SOS" for e in events)        # never SOS this far above R
+    mk = [e for e in events if e["type"] == "markup"]
+    assert mk and mk[0]["near_r"] is False and mk[0]["breached"] is True
+
+
+def test_l2_sos_carries_near_r_and_consolidation_fields():
+    # The genuine near-R held SOS exposes the calibration fields used to gate it.
+    highs = [11.0, 10.6, 12.3, 11.5, 11.6, 11.5]
+    lows = [10.5, 10.2, 11.8, 11.2, 11.3, 11.2]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    sos = [e for e in measure_resistance_events(df, R=12.0, S=10.0, atr_val=0.5,
+                                                hold_min_bars=2) if e["type"] == "SOS"]
+    assert sos
+    e = sos[0]
+    assert e["near_r"] is True and e["consolidation"] is True
+    assert isinstance(e["hold_range_box"], float)
+
+
+# --- Layer 2 Brick 3: S-rail TEST zones (measure_support_tests) ------------------
+
+def test_l2_support_touch_that_holds_is_a_test():
+    highs = [11.5, 10.6, 11.8, 10.7, 11.9, 11.0, 11.8]
+    lows = [10.8, 10.1, 11.0, 10.2, 11.0, 10.4, 11.0]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    ev = measure_support_tests(df, R=12.0, S=10.0, atr_val=0.5, hold_min_bars=2)
+    held = [e for e in ev if e["type"] == "test"]
+    assert held
+    assert held[0]["resolution"] == "held" and held[0]["valley_box_pos"] <= 0.30
+
+
+def test_l2_support_touch_that_breaks_down_fails():
+    # A valley that touches S then breaks well below it is a failed test, not held.
+    highs = [11.5, 10.7, 11.2, 10.4, 10.3, 10.0, 10.1]
+    lows = [10.8, 10.2, 10.3, 9.7, 9.5, 9.3, 9.4]
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    ev = measure_support_tests(df, R=12.0, S=10.0, atr_val=0.5, hold_min_bars=2)
+    assert any(e["type"] == "failed" for e in ev)
+    assert not any(e["type"] == "test" for e in ev)
+
+
+# --- Layer 2 unified event view (read_box_events) -------------------------------
+
+def test_l2_read_box_events_assembles_base_relative_and_ordered():
+    from types import SimpleNamespace
+    highs = [11.0, 10.6, 12.3, 11.5, 11.6, 11.5, 10.4, 11.2]
+    lows = [10.5, 10.2, 11.8, 11.2, 11.3, 11.2, 10.1, 10.6]
+    n = len(highs)
+    df = pd.DataFrame({
+        "High": highs, "Low": lows,
+        "Close": [(h + lo) / 2 for h, lo in zip(highs, lows)],
+        "Volume": [1.0] * n, "Vol_50": [1.0] * n,
+    })
+    box = SimpleNamespace(start_bar=0, base_len=n, R=12.0, S=10.0,
+                          r_anchor_bar=0, s_anchor_bar=1)
+    ev = read_box_events(df, box, atr_val=0.5)
+    assert ev  # at least the R/S rail events
+    # Every zone is box-relative (0 <= bar < base_len) and tagged with rail/type.
+    for e in ev:
+        assert 0 <= e["zone_start"] < n and 0 <= e["anchor_bar"] < n
+        assert e["rail"] in ("R", "S") and "type" in e
+    # Deterministically ordered by zone_start.
+    starts = [e["zone_start"] for e in ev]
+    assert starts == sorted(starts)
+
+
+def test_l2_read_box_events_empty_on_degenerate_box():
+    from types import SimpleNamespace
+    df = pd.DataFrame({"High": [12.0, 12.4, 11.0], "Low": [11.0, 11.8, 10.5]})
+    box = SimpleNamespace(start_bar=0, base_len=3, R=10.0, S=12.0,
+                          r_anchor_bar=0, s_anchor_bar=1)
+    assert read_box_events(df, box, atr_val=0.5) == []   # R<=S
+
+
+def test_l2_read_box_events_offset_origin_translation_and_tiebreak(monkeypatch):
+    # The KEY risk: find_spring/find_lps return df-relative bars; the assembler must
+    # translate them to box-relative by (- box.start_bar). With box.start_bar=0 the
+    # translation is invisible, so use a box that starts at bar 3 and stub the reused
+    # detectors at KNOWN df-relative bars to pin the origin shift AND the tie-break.
+    from types import SimpleNamespace
+    import core.structure.bricks as bricks
+
+    highs = [20.0, 20.0, 20.0] + [11.0, 10.6, 12.3, 11.5, 11.6, 11.5, 10.4, 11.2]
+    lows = [19.0, 19.0, 19.0] + [10.5, 10.2, 11.8, 11.2, 11.3, 11.2, 10.1, 10.6]
+    n, start = len(highs), 3
+    df = pd.DataFrame({
+        "High": highs, "Low": lows,
+        "Close": [(h + lo) / 2 for h, lo in zip(highs, lows)],
+        "Volume": [1.0] * n, "Vol_50": [1.0] * n,
+    })
+    box = SimpleNamespace(start_bar=start, base_len=n - start, R=12.0, S=10.0,
+                          r_anchor_bar=start, s_anchor_bar=start + 1)
+    # Both anchor at df-bar start+2 so they collide at box-relative zone_start 2.
+    fake_spring = SimpleNamespace(tip_bar=start + 2, recovery_bar=start + 4,
+                                  undercut_atr=0.9, recovery_bars=2)
+    fake_lps = SimpleNamespace(start_bar=start + 2, end_bar=start + 5,
+                               low_bar=start + 3, swing_type="terminal_valley")
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: fake_spring)
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: fake_lps)
+
+    ev = read_box_events(df, box, atr_val=0.5, v_bar=0)  # v_bar=0 -> lps clears Phase-D gate
+    spring = [e for e in ev if e["type"] == "spring"]
+    lps = [e for e in ev if e["type"] == "lps"]
+    assert spring and lps                                  # reused detector paths emit
+    assert spring[0]["zone_start"] == 2 and spring[0]["anchor_bar"] == 2   # start+2 -> 2
+    assert lps[0]["zone_start"] == 2 and lps[0]["anchor_bar"] == 3         # low start+3 -> 3
+    order = {e["type"]: i for i, e in enumerate(ev)}
+    assert order["spring"] < order["lps"]                  # tie-break: priority spring(0) < lps(3)

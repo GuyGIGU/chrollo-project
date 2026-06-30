@@ -35,13 +35,21 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import measure_resistance_events, read_box_staircase
+from core.structure.metrics import read_box_events, read_box_staircase
 from tools.lps_swing_census import CLUSTER, _first_complete, _latest_scan_fires
 from tools.structure_case_audit import _prep
 
-# R-rail event zone shading (Brick 2): SOS held = green band, upthrust = red,
-# in_progress = gray. Rejections are ordinary range work — not shaded.
-_ZONE_STYLE = {"SOS": "#1f9d8b", "upthrust": "#e04848", "in_progress": "#9aa0aa"}
+# Unified event-zone shading (read_box_events): one FIXED color per event CLASS so
+# the operator learns one legend. SOS green (strength that held), markup amber (held
+# far above R = post-breakout markup), upthrust red (failed breach), spring purple
+# (breach-S-that-reclaims), test blue (touch-of-S-that-holds), LPS teal. range +
+# rejection are ordinary range work — not shaded.
+_ZONE_STYLE = {
+    "SOS": "#1f9d8b", "markup": "#e0a030", "upthrust": "#e04848",
+    "spring": "#8b5cf6", "test": "#5b8aff", "lps": "#0ea5a5",
+    "in_progress": "#9aa0aa", "failed": "#c98a8a",
+}
+_ZONE_SKIP = {"rejection", "range"}
 
 _SCRATCH = os.environ.get(
     "CLAUDE_SCRATCH",
@@ -51,11 +59,14 @@ _SCRATCH = os.environ.get(
 # RAW GEOMETRIC rail events — NOT classified Wyckoff verdicts. breach_R is just
 # "broke R"; SOS (holds, confirmed by an LPS) vs upthrust (fails back in) is a
 # Brick-2 read of what comes after, not a property of the breach itself.
+# Neutral grey for the RAW breach markers so "a swing poked the rail" (geometry)
+# never shares a hue with a CLASSIFIED zone (e.g. green SOS / red upthrust) — the
+# raw marker and the confirmed class are opposite epistemic statuses.
 _EVENT_STYLE = {
-    "breach_S": ("v", "#e04848", "breach S (raw)"),
-    "breach_R": ("^", "#1f9d8b", "breach R (raw)"),
-    "touch_R": ("o", "#5b8aff", "touch R"),
-    "touch_S": ("o", "#5b8aff", "touch S"),
+    "breach_S": ("v", "#444444", "breach S (raw)"),
+    "breach_R": ("^", "#444444", "breach R (raw)"),
+    "touch_R": ("o", "#8aa0c8", "touch R"),
+    "touch_S": ("o", "#8aa0c8", "touch S"),
     "interior": (".", "#9aa0aa", "interior"),
 }
 
@@ -112,20 +123,32 @@ def _render_one(ax, ticker, df, atr, box):
                             ha="center", fontsize=7.5, color="#333",
                             va="bottom" if dy > 0 else "top")
 
-    # Brick 2: shade each R-rail event zone + label its peak (rejections are
-    # ordinary range work, not shaded).
-    for e in measure_resistance_events(df.iloc[start:], R, S, atr):
-        if e["type"] in ("rejection", "range"):   # range = Phase-B, not an SOS
+    # Unified independent event view (read_box_events): each Wyckoff piece as an
+    # AREA, one fixed color per CLASS. R-rail labels float up (near R), S-rail
+    # labels float down (near S) so overlapping zones stay individually readable.
+    events = read_box_events(df, box, atr)
+    counts = {}
+    for e in events:
+        t = e["type"]
+        counts[t] = counts.get(t, 0) + 1
+        if t in _ZONE_SKIP:
             continue
-        col = _ZONE_STYLE.get(e["type"], "#9aa0aa")
+        col = _ZONE_STYLE.get(t, "#9aa0aa")
         ax.axvspan(e["zone_start"] - 0.4, e["zone_end"] + 0.4,
-                   color=col, alpha=0.10, zorder=1)
-        tag = e["type"] + (f" str{e['strength_box']:.1f}"
-                           if e.get("strength_box") is not None else "")
-        ax.annotate(tag, (e["peak_bar"], e["peak_price"]),
-                    textcoords="offset points", xytext=(0, 24), ha="center",
-                    fontsize=8, fontweight="bold", color=col,
-                    arrowprops=dict(arrowstyle="->", color=col, lw=1.1))
+                   color=col, alpha=0.11, zorder=1)
+        midx = (e["zone_start"] + e["zone_end"]) / 2.0
+        up = e.get("rail") == "R"
+        tag = t
+        if e.get("strength_box") is not None:
+            tag += f" {e['strength_box']:.1f}"
+        elif e.get("undercut_atr") is not None:
+            tag += f" {e['undercut_atr']:.1f}atr"
+        ax.annotate(tag, (midx, R if up else S),
+                    textcoords="offset points", xytext=(0, 26 if up else -26),
+                    ha="center", fontsize=7.5, fontweight="bold", color=col,
+                    va="bottom" if up else "top",
+                    bbox=dict(boxstyle="round,pad=0.15", fc="white", ec=col, lw=0.8, alpha=0.85))
+    setattr(ax, "_l2_event_counts", counts)
 
     # Sparse date ticks.
     n = len(base)
@@ -136,11 +159,19 @@ def _render_one(ax, ticker, df, atr, box):
                        rotation=35, ha="right", fontsize=7)
 
     c = out["counts"]
+    ec = getattr(ax, "_l2_event_counts", {})
+    named = [f"{k}:{ec[k]}" for k in
+             ("spring", "test", "SOS", "lps", "upthrust", "markup") if ec.get(k)]
+    prov = [f"{k}:{ec[k]}" for k in ("in_progress", "failed") if ec.get(k)]
+    event_line = "  ".join(named) if named else "no named events"
+    if prov:
+        event_line += "   (provisional: " + " ".join(prov) + ")"
     ax.set_title(
         f"{ticker}   S={S:.2f} R={R:.2f}   "
         f"HH:{c['HH']} HL:{c['HL']} LH:{c['LH']} LL:{c['LL']}   "
-        f"trend={out['trend_state']}   is_zigzag={out['is_zigzag']}",
-        fontsize=11, fontweight="bold", loc="left",
+        f"trend={out['trend_state']}   is_zigzag={out['is_zigzag']}\n"
+        f"events:  {event_line}",
+        fontsize=10.5, fontweight="bold", loc="left",
     )
     ax.set_xlim(-1, last_x + 1)
     ax.margins(y=0.10)
@@ -174,12 +205,20 @@ def render(tickers, out_dir):
 
         fig, ax = plt.subplots(figsize=(14, 7))
         _render_one(ax, t, df, atr, box)
-        # Legend for the rail-event markers.
+        # Two legends: raw swing markers (geometry) AND the classified event-zone
+        # colors, so every shaded class the operator signs off on is self-documented.
         from matplotlib.lines import Line2D
-        handles = [Line2D([0], [0], marker=m, color="w", markerfacecolor=col,
-                          markersize=9, label=lbl)
-                   for (m, col, lbl) in _EVENT_STYLE.values()]
-        ax.legend(handles=handles, loc="upper left", fontsize=8, framealpha=0.9)
+        from matplotlib.patches import Patch
+        marker_handles = [Line2D([0], [0], marker=m, color="w", markerfacecolor=col,
+                                 markersize=9, label=lbl)
+                          for (m, col, lbl) in _EVENT_STYLE.values()]
+        zone_handles = [Patch(facecolor=col, alpha=0.45, label=cls)
+                        for cls, col in _ZONE_STYLE.items()]
+        leg1 = ax.legend(handles=marker_handles, loc="upper left",
+                         fontsize=8, framealpha=0.9, title="raw swing markers")
+        ax.add_artist(leg1)
+        ax.legend(handles=zone_handles, loc="upper right", fontsize=7.5,
+                  framealpha=0.9, title="event zones", ncol=2)
         fig.tight_layout()
         path = os.path.join(out_dir, f"l2_{t}.png")
         fig.savefig(path, dpi=130)

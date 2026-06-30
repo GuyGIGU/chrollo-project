@@ -742,8 +742,18 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
 # L2 Brick 2 — R-rail event ZONES: SOS (strength that holds) vs upthrust (fail)
 # ---------------------------------------------------------------------------
 
+def _deepest_valley_bar(swings) -> int:
+    """The structural V: the deepest staircase valley, box_pos ties broken by bar
+    (earliest) for determinism. ``box_pos`` is the rounded value ``read_box_staircase``
+    emits — the SINGLE basis the SOS stage-gate and the LPS Phase-D gate both share,
+    so they cannot desync. Returns 0 when there are no valleys."""
+    valleys = [s for s in swings if s["kind"] == "valley"]
+    return (min(valleys, key=lambda s: (s["box_pos"], s["bar"]))["bar"]
+            if valleys else 0)
+
+
 def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
-                              hold_min_bars=6, noise_frac=None):
+                              hold_min_bars=6, swings=None):
     """Independent R-rail event ZONES anchored on the BOX-RELATIVE staircase.
 
     Anchoring on an ATR band (``R - k*ATR``) over-fires in tight boxes — 0.5 ATR
@@ -757,15 +767,20 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     nothing is gated on another event (an LPS is found separately by
     ``detect_lps`` and is NEVER a precondition).
 
-      * ``SOS``        a Phase-D advance to R that HELD — it consolidated above
-                       support for >= ``hold_min_bars`` (a mini-consolidation /
-                       LPS) instead of giving the gains back. CONFIRMED BY A HOLD,
-                       not by continuation. One SOS per wave.
+      * ``SOS``        a Phase-D creek-jump that HELD: the wave-top sits NEAR R
+                       (``peak_box_pos <= SOS_NEAR_R_MAX_BOX``) AND the printed
+                       post-top hold window is a genuine mini-consolidation (a tight
+                       band, ``<= SOS_HOLD_MAX_RANGE_BOX`` of the box) — CONFIRMED BY
+                       A HOLD, not by continuation. One SOS per wave.
+      * ``markup``     a Phase-D advance that held FAR above R (``peak_box_pos >
+                       SOS_NEAR_R_MAX_BOX``) — post-breakout markup, not a creek-jump
+                       test of the rail (this is what over-fired SOS in active boxes).
       * ``upthrust``   a Phase-D advance that FAILED — it gave back to the support
                        low-zone before establishing a hold; the WHOLE run-up wave
                        is the upthrust (a false break; short side). One per wave.
-      * ``range``      a held advance LEFT of the V (Phase B) — ordinary cause-
-                       building, NOT a Sign of Strength.
+      * ``range``      a held advance that is NOT a confirmed SOS — either left of
+                       the V (Phase B cause-building) or held at R without a genuine
+                       mini-consolidation. NOT a Sign of Strength.
       * ``rejection``  reached R, no clean breach, then gave back — ordinary range
                        oscillation at the ceiling, not a named event.
       * ``in_progress`` still climbing at the right edge — not enough bars after
@@ -786,8 +801,8 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     box = float(R) - float(S)
     if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
         return []
-    staircase = read_box_staircase(base_df, R, S, atr_val, noise_frac=noise_frac)
-    swings = staircase["swings"]
+    if swings is None:   # caller (read_box_events) may pass a precomputed staircase
+        swings = read_box_staircase(base_df, R, S, atr_val)["swings"]
     if not swings:
         return []
 
@@ -801,9 +816,7 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     # The "V": the structural low that opens the right side / Phase D. SOS is
     # noted only to the right of it; default = the deepest staircase valley.
     if v_bar is None:
-        valleys = [s for s in swings if s["kind"] == "valley"]
-        v_bar = (min(valleys, key=lambda s: s["box_pos"])["bar"]
-                 if valleys else 0)
+        v_bar = _deepest_valley_bar(swings)
 
     def _linger(peak_bar):
         lo = peak_bar
@@ -838,13 +851,15 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
             top_i, top_p = reach[m2]
 
         top_bar = int(top_p["bar"])
+        peak_box_pos = float(top_p["box_pos"])
         breached = float(top_p["price"]) > R + breach_buf
 
         # Terminal outcome after the wave top. A drop to the support low-zone
         # BEFORE a hold of >= hold_min_bars = the advance gave the gains back =
-        # FAILED (the whole run-up is the upthrust). Holding above support for
-        # >= hold_min_bars = a mini-consolidation = HELD (SOS); once established a
-        # later shakeout doesn't un-confirm it. Too few bars after = in_progress.
+        # FAILED (the whole run-up is the upthrust). No such drop with enough
+        # PRINTED bars after = the wave resolved up; too few bars after = still
+        # developing at the right edge (never confirm a hold off a partially
+        # printed window — no right-edge lookahead).
         after_lows = lows[top_bar + 1:]
         drop_at = next((d for d, lo in enumerate(after_lows)
                         if lo <= low_zone_price), None)
@@ -856,11 +871,36 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
         else:
             resolution = "held"
 
+        # An SOS is confirmed ONLY by a genuine mini-consolidation, not by merely
+        # "didn't collapse" (the old over-firing cause — a shallow drift counted as
+        # a hold). Measure the fully-printed hold window (the bars right after the
+        # top, capped at hold_min_bars and at n) and require it CONTAINED: a tight
+        # band <= SOS_HOLD_MAX_RANGE_BOX of the box. A late shakeout AFTER this
+        # window doesn't un-confirm it (shakeout-tolerant).
+        hold_end = min(top_bar + 1 + hold_min_bars, n)
+        hold_hi = highs[top_bar + 1:hold_end]
+        hold_lo = lows[top_bar + 1:hold_end]
+        hold_range_box = (float(hold_hi.max() - hold_lo.min()) / box
+                          if len(hold_hi) else None)
+        consolidation = (hold_range_box is not None
+                         and hold_range_box <= settings.SOS_HOLD_MAX_RANGE_BOX)
+        # A creek-jump TESTS the rail: the wave-top sits NEAR R (box-relative). A
+        # reach far above R (peak_box_pos > SOS_NEAR_R_MAX_BOX) is post-breakout
+        # MARKUP, not an SOS — this is what over-fired in active/extended boxes.
+        near_r = peak_box_pos <= settings.SOS_NEAR_R_MAX_BOX
+
         in_phase_d = top_bar > v_bar
         if resolution == "in_progress":
             etype = "in_progress"
         elif resolution == "held":
-            etype = "SOS" if in_phase_d else "range"   # SOS only right of the V
+            if not in_phase_d:
+                etype = "range"          # Phase B (left of the V): cause-building, never an SOS
+            elif not near_r:
+                etype = "markup"         # held far above R: post-breakout markup, not a creek-jump
+            elif not consolidation:
+                etype = "range"          # held at R but no genuine mini-consolidation: unconfirmed
+            else:
+                etype = "SOS"            # Phase D + near R + a real consolidation hold
         elif breached:
             etype = "upthrust"
         else:
@@ -880,8 +920,12 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
             "zone_start": int(zone_start),
             "zone_end": int(hi_b),
             "peak_price": round(float(top_p["price"]), 4),
-            "peak_box_pos": round(float(top_p["box_pos"]), 4),
+            "peak_box_pos": round(peak_box_pos, 4),
             "breached": bool(breached),
+            "near_r": bool(near_r),
+            "consolidation": bool(consolidation),
+            "hold_range_box": (round(hold_range_box, 4)
+                               if hold_range_box is not None else None),
             "linger_bars": int(hi_b - lo_b + 1),
             "strength_box": (round(strength_box, 4) if strength_box is not None else None),
             "resolution": resolution,
@@ -889,4 +933,170 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
         })
         m = m2 + 1
 
+    return events
+
+
+# ---------------------------------------------------------------------------
+# L2 Brick 3 — S-rail TEST zones: a touch of S that HOLDS (stage-agnostic)
+# ---------------------------------------------------------------------------
+
+def measure_support_tests(base_df, R, S, atr_val, *, hold_min_bars=6,
+                          swings=None):
+    """Independent S-rail TEST zones: a touch of S that HOLDS. Stage-agnostic.
+
+    The S-rail sibling of ``measure_resistance_events`` — but deliberately NOT a
+    mirror of the R-rail wave machinery (a test needs no wave grouping and no
+    Phase-D split). A ``test`` is a staircase VALLEY that reaches the support
+    low-zone WITHOUT a deep breach (the breach-and-reclaim case is a SPRING,
+    detected separately by ``find_spring``) and then HOLDS: price makes no
+    sustained breakdown below the valley within the printed hold window. AREA-based
+    (the excursion + recovery), one zone per qualifying valley, in chronological
+    order. ``failed`` = broke below the valley (not a hold); ``in_progress`` = too
+    few printed bars after the valley to confirm (no right-edge lookahead).
+    Measure-only — gates/scores nothing.
+    """
+    box = float(R) - float(S)
+    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return []
+    if swings is None:   # caller (read_box_events) may pass a precomputed staircase
+        swings = read_box_staircase(base_df, R, S, atr_val)["swings"]
+    if not swings:
+        return []
+
+    highs = base_df["High"].values.astype(float)
+    lows = base_df["Low"].values.astype(float)
+    n = len(lows)
+    breach_buf = settings.BOUNDARY_ATR_BUFFER * float(atr_val)
+
+    events = []
+    for s in swings:
+        if s["kind"] != "valley" or s["zone"] != "low":
+            continue
+        # A clean test touches S; a deep breach is spring territory (handled by
+        # find_spring) — skip it here so the two never double-emit.
+        if s["rail_event"] == "breach_S":
+            continue
+        valley_bar = int(s["bar"])
+        valley_low = float(s["price"])
+        # HOLD: within the printed window after the valley, price must not make a
+        # sustained breakdown below the valley low (a held test). Too few printed
+        # bars after -> in_progress (no right-edge lookahead).
+        bars_after = n - valley_bar - 1
+        hold_end = min(valley_bar + 1 + hold_min_bars, n)
+        after_lows = lows[valley_bar + 1:hold_end]
+        broke_down = (len(after_lows) > 0
+                      and float(after_lows.min()) < valley_low - breach_buf)
+        if broke_down:
+            resolution = "failed"
+        elif bars_after < hold_min_bars:
+            resolution = "in_progress"
+        else:
+            resolution = "held"
+        rec_hi = highs[valley_bar:hold_end]
+        recovery_box = (float(rec_hi.max() - valley_low) / box
+                        if len(rec_hi) > 0 else None)
+        events.append({
+            "type": "test" if resolution == "held" else resolution,
+            "valley_bar": valley_bar,
+            "zone_start": valley_bar,
+            "zone_end": int(hold_end - 1),
+            "valley_price": round(valley_low, 4),
+            "valley_box_pos": round(float(s["box_pos"]), 4),
+            "recovery_box": (round(recovery_box, 4)
+                             if recovery_box is not None else None),
+            "resolution": resolution,
+        })
+    return events
+
+
+# ---------------------------------------------------------------------------
+# L2 — unified independent event view (the pieces E2 assembles into the puzzle)
+# ---------------------------------------------------------------------------
+
+def read_box_events(df, box, atr_val, *, v_bar=None):
+    """The independent Wyckoff event ZONES inside ``box``, all box-relative.
+
+    The measure-only unified L2 view E2 (chronological assembly) will read. Each
+    event is detected on its OWN geometry and is NEVER gated on another; the
+    bullish chronology (spring -> SOS -> LPS) is a future quality grade, not a
+    definition here. Composed by REUSING the calibrated detectors:
+      * SOS / markup / upthrust / range / rejection / in_progress  (R-rail waves)
+        via ``measure_resistance_events``
+      * test  (S-rail touch-that-holds)  via ``measure_support_tests``
+      * spring  (breach-S-that-reclaims) via ``find_spring`` (the calibrated Phase-C
+        detector — not re-derived here)
+      * LPS  (Phase-D support test) via ``find_lps`` — gated PURELY on bar position
+        (right of the V), NEVER on an SOS existing.
+
+    ``find_spring``/``find_lps`` index into the FULL ``df``; their bars are
+    translated to box-relative (``- box.start_bar``) so every zone shares ONE
+    origin — the box / base (0 = box.start_bar), which is also the render's frame.
+    Returns a flat list of zone dicts, each carrying ``type``/``zone_start``/
+    ``zone_end``/``anchor_bar``, ordered by ``(zone_start, type-priority, rail)``.
+    Measure-only — gates/scores nothing.
+    """
+    # Leaf import keeps bricks a downstream dependency (no module-load cycle).
+    from core.structure.bricks import find_lps, find_spring
+
+    if (df is None or box is None or atr_val is None or atr_val <= 0
+            or not np.isfinite(atr_val)):
+        return []
+    start = int(box.start_bar)
+    if start < 0 or start >= len(df) or int(box.base_len) <= 0:
+        return []
+    R, S = float(box.R), float(box.S)
+    if R - S <= 0:
+        return []
+    base_df = df.iloc[start:]
+    base_n = len(base_df)
+
+    def _clip(b):  # bound translated brick bars into the rendered base frame
+        return max(0, min(int(b), base_n - 1))
+
+    # Build the staircase ONCE and share it: the V, the R-rail waves and the S-rail
+    # tests all read the SAME swings (the heaviest L2 primitive runs once, not 3x).
+    swings = read_box_staircase(base_df, R, S, atr_val)["swings"]
+    if v_bar is None:
+        v_bar = _deepest_valley_bar(swings)
+
+    events = []
+    for e in measure_resistance_events(base_df, R, S, atr_val, v_bar=v_bar,
+                                       swings=swings):
+        events.append({**e, "rail": "R", "anchor_bar": int(e["peak_bar"])})
+    for e in measure_support_tests(base_df, R, S, atr_val, swings=swings):
+        events.append({**e, "rail": "S", "anchor_bar": int(e["valley_bar"])})
+
+    sp = find_spring(df, box, atr_val)
+    if sp is not None:
+        tip = int(sp.tip_bar) - start
+        rec = int(sp.recovery_bar) - start
+        if tip >= 0:   # the brick guarantees in-box bars; clip is a belt-and-braces bound
+            tip, rec = _clip(tip), _clip(rec)
+            events.append({
+                "type": "spring", "rail": "S", "phase": "C",
+                "zone_start": tip, "zone_end": max(tip, rec), "anchor_bar": tip,
+                "undercut_atr": round(float(sp.undercut_atr), 4),
+                "recovery_bars": int(sp.recovery_bars),
+            })
+
+    lps = find_lps(df, box, atr_val)
+    if lps is not None:
+        lstart = int(lps.start_bar) - start
+        lend = int(lps.end_bar) - start
+        llow = int(lps.low_bar) - start
+        # Phase-D gate: PURELY bar position (right of the V) — never SOS presence.
+        if lstart >= 0 and lstart > v_bar:
+            lstart, lend, llow = _clip(lstart), _clip(lend), _clip(llow)
+            events.append({
+                "type": "lps", "rail": "S", "phase": "D",
+                "zone_start": lstart, "zone_end": max(lstart, lend),
+                "anchor_bar": llow, "swing_type": lps.swing_type,
+            })
+
+    _PRIORITY = {"spring": 0, "test": 1, "SOS": 2, "lps": 3, "upthrust": 4,
+                 "markup": 5, "range": 6, "rejection": 7, "failed": 8,
+                 "in_progress": 9}
+    events.sort(key=lambda e: (int(e["zone_start"]),
+                               _PRIORITY.get(e["type"], 99),
+                               e.get("rail", ""), int(e.get("anchor_bar", 0))))
     return events
