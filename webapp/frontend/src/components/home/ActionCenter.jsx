@@ -28,8 +28,8 @@ export default function ActionCenter({ screenerData, trades, priceFor }) {
   const [prices, setPrices] = useState({});
   const [peek, setPeek] = useState(null);
 
-  const chartData = screenerData?.chart_data || {};
-  const ordered = screenerData?.ordered_tickers || [];
+  const chartData = useMemo(() => screenerData?.chart_data || {}, [screenerData]);
+  const ordered = useMemo(() => screenerData?.ordered_tickers || [], [screenerData]);
   const wlTickers = useMemo(() => [...watchlist].sort(), [watchlist]);
   const wlKey = wlTickers.join(',');
 
