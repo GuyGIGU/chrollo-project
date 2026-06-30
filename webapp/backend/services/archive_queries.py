@@ -23,8 +23,18 @@ def _apply_setup_filters(
     min_score: Optional[float] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    universe_type: Optional[str] = "us_equities",
 ):
-    """Apply the shared setup_archive filters used by the list + episode views."""
+    """Apply the shared setup_archive filters used by the list + episode views.
+
+    ``universe_type`` defaults to ``'us_equities'`` so every equities read surface
+    (/setups, /episodes, /missed-winners, calibration stats) excludes the ETF /
+    sector screener rows that now share ``source='screener'`` — they are physically
+    separate (3-col unique key) but would otherwise pool into the equities
+    population and inflate counts / win-rate. Pass ``universe_type=None`` to query
+    every universe."""
+    if universe_type:
+        q = q.filter(SetupArchive.universe_type == universe_type)
     if tier:
         q = q.filter(SetupArchive.tier == tier.upper())
     if setup_type:
@@ -63,11 +73,13 @@ def _build_grouping(db, filters: dict):
         db.query(
             SetupArchive.id, SetupArchive.ticker,
             SetupArchive.scan_date, SetupArchive.setup_type,
+            SetupArchive.universe_type,
         ),
         **filters,
     )
     return ep_mod.build_episodes(
-        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date,
+                        setup_type=r.setup_type, universe_type=r.universe_type)
         for r in q.all()
     )
 
@@ -97,6 +109,12 @@ def _grouped_episodes(db, filters: dict):
     ``(max_id, count)`` moving. Bypass the cache when it's in play; every other
     filter keys on immutable identity columns and is safe to cache.
     """
+    # Default the equities scope EXPLICITLY here (not only via _apply_setup_filters'
+    # param default) so it lands in the cache key — otherwise the default
+    # (us_equities) and an explicit universe_type=None (all universes) would both
+    # key on the same empty signature and collide in _EPISODE_CACHE.
+    filters = {**filters}
+    filters.setdefault("universe_type", "us_equities")
     active = {k: v for k, v in filters.items() if v is not None}
     if "quality_label" in active:
         return _build_grouping(db, filters)
@@ -130,11 +148,13 @@ def _latest_episode_first_seen(db, ticker: str) -> Optional[str]:
     rows = db.query(
         SetupArchive.id, SetupArchive.ticker,
         SetupArchive.scan_date, SetupArchive.setup_type,
+        SetupArchive.universe_type,
     ).filter(func.upper(SetupArchive.ticker) == ticker).all()
     if not rows:
         return None
     eps = ep_mod.build_episodes(
-        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date, setup_type=r.setup_type)
+        ep_mod.SetupRow(id=r.id, ticker=r.ticker, scan_date=r.scan_date,
+                        setup_type=r.setup_type, universe_type=r.universe_type)
         for r in rows
     )
     if not eps:

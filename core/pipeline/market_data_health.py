@@ -16,6 +16,7 @@ from core.pipeline.cache import _cache_paths, _read_meta, _write_meta
 from core.pipeline.data_freshness import (
     CloseCoverage,
     close_coverage_on,
+    deep_history_ratio,
     last_complete_reference_date,
     symbols_missing_closes_on,
     unique_symbols,
@@ -41,10 +42,18 @@ class SymbolScope:
     admission_skip_counts: dict[str, int]
 
 
-def build_symbol_scope(tickers: list[str], meta_file: str | None = None) -> SymbolScope:
+def build_symbol_scope(tickers: list[str], meta_file: str | None = None,
+                       index_symbols: list[str] | None = None) -> SymbolScope:
     if meta_file is None:
         _, meta_file = _cache_paths()
-    index_symbols = list(getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
+    # ``index_symbols`` is the universe's regime set (callers pass the resolved
+    # Universe.index_symbols). Default = the US-Stocks global, so an unparameterized
+    # call is byte-identical. An index-less universe (commodities_etf → ()) carries
+    # no SPY/QQQ, so it must NOT be forced through them (the universe-blind bug).
+    if index_symbols is None:
+        index_symbols = list(getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
+    else:
+        index_symbols = list(index_symbols)
     raw_tickers = unique_symbols(list(tickers))
     raw_symbols = unique_symbols(raw_tickers + index_symbols)
 
@@ -78,8 +87,9 @@ def build_symbol_scope(tickers: list[str], meta_file: str | None = None) -> Symb
     )
 
 
-def eligible_tickers_for(tickers: list[str], meta_file: str | None = None) -> list[str]:
-    return build_symbol_scope(tickers, meta_file).eligible_tickers
+def eligible_tickers_for(tickers: list[str], meta_file: str | None = None,
+                         index_symbols: list[str] | None = None) -> list[str]:
+    return build_symbol_scope(tickers, meta_file, index_symbols).eligible_tickers
 
 
 def compute_market_data_health(
@@ -89,6 +99,7 @@ def compute_market_data_health(
     expected_session: pd.Timestamp | None = None,
     meta: dict | None = None,
     meta_file: str | None = None,
+    index_symbols: list[str] | None = None,
     now_utc: datetime | None = None,
     closed_reason: str | None = None,
     weekly_refresh_due: bool = False,
@@ -104,7 +115,7 @@ def compute_market_data_health(
     now_utc = _as_utc(now_utc)
 
     panel = _normalize_index(data)
-    scope = build_symbol_scope(tickers, meta_file)
+    scope = build_symbol_scope(tickers, meta_file, index_symbols)
     min_coverage = float(getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95))
 
     raw_coverage = close_coverage_on(panel, scope.raw_symbols, expected_session)
@@ -116,11 +127,31 @@ def compute_market_data_health(
     cache_last_session = last_reference
     if cache_last_session is None and panel is not None and not panel.empty:
         cache_last_session = pd.Timestamp(panel.index.max()).normalize()
+    if not scope.index_symbols:
+        # Index-less universe (e.g. commodities_etf): there is no SPY/QQQ reference
+        # bar to anchor on, so freshness is judged purely on the panel's own latest
+        # session + eligible coverage. Without this, last_reference is always None
+        # and _classify reads the universe as stale_session on EVERY run, making it
+        # permanently un-evaluable and un-archivable.
+        last_reference = cache_last_session
 
     repair_state = repair_state_from_meta(meta, now_utc)
     missing_summary = _missing_summary(
         panel, scope, raw_missing, eligible_missing, expected_session
     )
+    # Deep-history integrity (the "second half" of the multi-universe cache bug).
+    # Only judged when the panel itself spans >= the bar floor — a short/new cache
+    # can't carry deep symbols and must NOT be flagged. Below the coverage floor =>
+    # the NaN-wipe shape (recent bars, hollow history) => not trustworthy for
+    # archive/eval; refresh / fetch_data force a full cold refetch instead.
+    min_history_bars = int(getattr(settings, "MARKET_DATA_MIN_HISTORY_BARS", 100))
+    min_history_cov = float(getattr(settings, "MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5))
+    history_ok = True
+    if (scope.eligible_symbols and panel is not None and not panel.empty
+            and len(panel.index) >= min_history_bars):
+        history_ok = deep_history_ratio(
+            panel, scope.eligible_symbols, min_history_bars
+        ) >= min_history_cov
     health_state, severity, can_evaluate, can_archive, can_download, help_needed = _classify(
         cache_last_session,
         last_reference,
@@ -131,6 +162,7 @@ def compute_market_data_health(
         repair_state,
         closed_reason,
         weekly_refresh_due,
+        history_ok,
     )
 
     diagnosis = _diagnosis(
@@ -308,12 +340,18 @@ def missing_signature(symbols: list[str]) -> str:
 
 def _classify(cache_last_session, last_reference, expected_session, index_missing,
               eligible_coverage, min_coverage, repair_state, closed_reason,
-              weekly_refresh_due):
+              weekly_refresh_due, history_ok=True):
     if last_reference is None or index_missing or cache_last_session is None:
         return "stale_session", "blocked", False, False, True, True
     if pd.Timestamp(last_reference).normalize() < expected_session:
         return "stale_session", "blocked", False, False, True, True
     if eligible_coverage.ratio >= min_coverage:
+        if not history_ok:
+            # Latest session is current but most symbols lost their multi-year
+            # history (the NaN-wipe shape). Refuse to trust it for archive/eval and
+            # force a full cold refetch — never a latest-session-only repair, which
+            # would leave the deep history hollow.
+            return "shallow_history", "repair", False, False, True, True
         if weekly_refresh_due:
             return "healthy", "watch", True, True, True, False
         if closed_reason in {"weekend", "holiday", "before_open"}:
@@ -350,6 +388,11 @@ def _diagnosis(health_state, raw_coverage, eligible_coverage, min_coverage,
             f"Cache reference session is {cache_last_session.date() if cache_last_session is not None else 'missing'}; "
             f"expected {expected_session.date()}."
         )
+    if health_state == "shallow_history":
+        return (
+            f"{base} Cache is current but most symbols are missing their deep "
+            f"history (truncated cache); a full cold refetch is required."
+        )
     if health_state == "provider_cooldown":
         return f"{base} Provider retry is cooling down: {repair_state.get('retry_reason') or 'rate limited'}."
     if health_state == "symbol_lagging":
@@ -370,6 +413,8 @@ def _download_label(health_state, can_download, weekly_refresh_due, eligible_mis
         return "Provider limited"
     if health_state == "stale_session":
         return "Download New Data"
+    if health_state == "shallow_history":
+        return "Rebuild Data"
     if health_state == "needs_repair":
         return f"Repair {eligible_missing}" if eligible_missing else "Repair Data"
     return "Download New Data"

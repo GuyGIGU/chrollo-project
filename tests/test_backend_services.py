@@ -903,6 +903,104 @@ def test_cached_raw_partial_evaluation_archives_when_eligible_cache_is_healthy(t
     assert result.n_archived == 1
 
 
+def test_canonical_setups_excludes_etf_rows_by_default(tmp_path):
+    """Fix ⑤: the archive read surfaces default to universe_type='us_equities', so
+    ETF/sector screener rows (same source='screener') no longer pool into the
+    equities population. Passing universe_type=None opts back into every universe."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import archive_models
+    from services.archive_queries import _canonical_setups
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'arch.db'}")
+    archive_models.SetupArchive.__table__.create(bind=eng)
+    db = sessionmaker(bind=eng)()
+
+    # Fill every NOT NULL column with a type-appropriate benign placeholder, then
+    # override the identity fields the test asserts on.
+    required_cols = [c for c in archive_models.SetupArchive.__table__.columns
+                     if not c.nullable and not c.primary_key]
+
+    def _placeholder(col):
+        try:
+            pt = col.type.python_type
+        except Exception:
+            return "x"
+        if pt is bool:
+            return False
+        if pt is int:
+            return 0
+        if pt is float:
+            return 0.0
+        return "x"
+
+    def _row(ticker, universe_type):
+        kw = {c.name: _placeholder(c) for c in required_cols}
+        kw.update(ticker=ticker, scan_date="2026-06-01", setup_type="LPS",
+                  source="screener", universe_type=universe_type)
+        return archive_models.SetupArchive(**kw)
+
+    try:
+        db.add_all([
+            _row("AAA", "us_equities"),
+            _row("BBB", "us_equities"),
+            _row("GLD", "commodities_etf"),
+        ])
+        db.commit()
+
+        default_scope = _canonical_setups(db)
+        assert {r.ticker for r in default_scope} == {"AAA", "BBB"}  # ETF excluded
+
+        live_screener = _canonical_setups(db, source="screener")
+        assert {r.ticker for r in live_screener} == {"AAA", "BBB"}  # still equities-only
+
+        all_universes = _canonical_setups(db, universe_type=None)
+        assert {r.ticker for r in all_universes} == {"AAA", "BBB", "GLD"}  # opt-in to all
+    finally:
+        db.close()
+        eng.dispose()
+
+
+def test_empty_results_on_stale_data_does_not_clobber_dashboard(tmp_path, monkeypatch):
+    """Fix ③: an empty result on DEGRADED/stale data must NOT overwrite the live
+    dashboard with an empty payload — it raises (reported stale), not a clean
+    'matched nothing' ok-day that wipes the prior scan's setups off the screen."""
+    expected = "2026-06-25"
+    stale_panel = _status_panel(["AAA", "SPY", "QQQ"], "2026-06-20")  # behind expected
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text("{}", encoding="utf-8")
+    dashboard_calls = []
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda *a, **k: (str(tmp_path / "c.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (pd.DataFrame(), stale_panel, ["AAA"], {}))
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
+    monkeypatch.setattr(scan_job_module, "generate_dashboard", lambda *a, **k: dashboard_calls.append(1))
+    monkeypatch.setattr(scan_job_module.settings, "ARCHIVE_LIVE_SCANS", True)
+
+    with pytest.raises(scan_job_module.StaleMarketDataError):
+        scan_job_module.run_scan_and_export(mode="download")
+    assert dashboard_calls == []  # the live artifact was NOT clobbered
+
+
+def test_empty_results_on_healthy_data_writes_empty_artifact(tmp_path, monkeypatch):
+    """A genuine zero-setup day on HEALTHY data still writes the valid empty
+    artifact, so the universe reads 'scanned, matched nothing' (not 'never scanned')."""
+    expected = "2026-06-25"
+    panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text("{}", encoding="utf-8")
+    dashboard_calls = []
+    monkeypatch.setattr(scan_job_module, "_cache_paths", lambda *a, **k: (str(tmp_path / "c.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (pd.DataFrame(), panel, ["AAA"], {}))
+    monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: expected)
+    monkeypatch.setattr(scan_job_module, "generate_dashboard", lambda *a, **k: dashboard_calls.append(1))
+    monkeypatch.setattr(scan_job_module.settings, "ARCHIVE_LIVE_SCANS", True)
+
+    result = scan_job_module.run_scan_and_export(mode="download")
+    assert result.n_setups == 0
+    assert dashboard_calls == [1]  # empty artifact written exactly once
+
+
 @pytest.mark.parametrize(
     ("stream_name", "expected_args", "expected_trigger", "expected_kind", "output", "expected_setups"),
     [

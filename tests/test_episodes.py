@@ -23,6 +23,17 @@ def test_single_scan_is_one_episode():
     assert eps[0].scan_count == 1
 
 
+def test_same_ticker_in_two_universes_forms_two_episodes():
+    """Fix ⑤: the same ticker+setup_type in two universes is TWO distinct setups —
+    an ETF and a like-named stock must never merge into one episode."""
+    eps = build_episodes([
+        SetupRow(id=1, ticker="XLE", scan_date="2026-06-01", setup_type="LPS", universe_type="us_equities"),
+        SetupRow(id=2, ticker="XLE", scan_date="2026-06-02", setup_type="LPS", universe_type="commodities_etf"),
+    ])
+    assert len(eps) == 2
+    assert {e.canonical_id for e in eps} == {1, 2}
+
+
 def test_consecutive_days_collapse_into_one_episode():
     eps = build_episodes([
         _row(1, "AAA", "2026-06-01"),

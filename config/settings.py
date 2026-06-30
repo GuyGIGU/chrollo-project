@@ -515,6 +515,14 @@ FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 5y refetch at least weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
 MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage before cache/archive is trusted
+# Deep-history corruption floor (the "second half" of the multi-universe cache bug).
+# A trusted cache spans years; the NaN-wipe failure leaves recent bars but ~6 bars of
+# deep history. Only judged when the PANEL itself spans >= MIN_HISTORY_BARS rows (so a
+# short/new cache is never falsely flagged); below MIN_HISTORY_COVERAGE of symbols
+# clearing the bar floor => cache is deep-history-corrupted => force a full cold refetch.
+# 100 is well below ADMISSION_MIN_HISTORY_BARS(200) yet ~16x above a wiped cache.
+MARKET_DATA_MIN_HISTORY_BARS = 100
+MARKET_DATA_MIN_HISTORY_COVERAGE = 0.5
 LATEST_REPAIR_BATCH_SIZE = 100     # Smaller latest-bar repair batches after a sparse Yahoo response
 LATEST_REPAIR_SLEEP_SECONDS = 2.0  # Gentle pause between repair batches to reduce Yahoo rate limits
 MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES = 10   # Sparse eligible-symbol repair: first unchanged retry window

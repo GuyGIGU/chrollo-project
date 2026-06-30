@@ -123,7 +123,10 @@ def _read_cached_market_data(tickers: list[str], universe=None) -> pd.DataFrame:
     if hasattr(data.index, 'tz') and data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
-    health = compute_market_data_health(data, tickers, meta_file=meta_file)
+    health = compute_market_data_health(
+        data, tickers, meta_file=meta_file,
+        index_symbols=list(resolve_universe(universe).index_symbols),
+    )
     if not health["can_evaluate"]:
         raise CachedMarketDataError(f"stale market data: {health['diagnosis']}")
     if health["coverage"]["raw"]["ratio"] < health["coverage"]["eligible"]["ratio"]:
@@ -163,7 +166,12 @@ def run_screener(mode: str = "download",
     with timer.phase("market_data_fetch"):
         data = _read_cached_market_data(tickers, uni) if mode == "cache" else get_provider().fetch(tickers, uni)
     with timer.phase("frame_prep"):
-        evaluation_tickers = eligible_tickers_for(tickers)
+        # Judge eligibility against THIS universe's own admission/quarantine ledger
+        # and regime set — not the US-Stocks ledger (the universe-blind bug ⑥).
+        _, meta_file = _cache_paths(uni)
+        evaluation_tickers = eligible_tickers_for(
+            tickers, meta_file=meta_file, index_symbols=list(uni.index_symbols)
+        )
         skipped = len(tickers) - len(evaluation_tickers)
         if skipped > 0:
             print(f"Evaluating eligible cache universe ({len(evaluation_tickers)} tickers; skipped {skipped}).",

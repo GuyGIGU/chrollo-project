@@ -81,6 +81,29 @@ def has_all_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp)
     return coverage.total > 0 and coverage.present == coverage.total
 
 
+def deep_history_ratio(data: pd.DataFrame, symbols: list[str], min_bars: int) -> float:
+    """Fraction of ``symbols`` carrying at least ``min_bars`` non-NaN Close bars.
+
+    Detects the deep-history NaN-wipe corruption shape (recent bars survive while
+    multi-year history is gone) that a latest-session-only coverage check is blind
+    to. Returns 1.0 when there is nothing to judge (no symbols) and 0.0 for a
+    panel with no usable Close columns. Vectorised: one ``notna().sum()`` over the
+    panel, so it is cheap even across the full ~5.5k-ticker universe.
+    """
+    symbols = unique_symbols(symbols)
+    if not symbols:
+        return 1.0
+    if data.empty or not isinstance(data.columns, pd.MultiIndex):
+        return 0.0
+    try:
+        closes = data.xs("Close", axis=1, level=1)
+    except KeyError:
+        return 0.0
+    counts = closes.notna().sum()
+    deep = sum(1 for s in symbols if int(counts.get(s, 0)) >= min_bars)
+    return deep / len(symbols)
+
+
 def last_complete_reference_date(data: pd.DataFrame, symbols: list[str]) -> pd.Timestamp | None:
     if data.empty or not isinstance(data.columns, pd.MultiIndex):
         return None

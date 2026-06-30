@@ -40,6 +40,8 @@ class SetupRow:
     ticker: str
     scan_date: str        # ISO "YYYY-MM-DD" — sorts and diffs chronologically
     setup_type: str
+    universe_type: str = "us_equities"  # episodes never span universes (same ticker
+    #                                     in two universes is two distinct setups)
 
 
 @dataclass(frozen=True)
@@ -83,15 +85,18 @@ def build_episodes(
     """Group rows into episodes. Order of the input does not matter.
 
     Returns one ``Episode`` per logical setup, each anchored to its first-seen
-    row. The ``setup_archive`` unique constraint is (ticker, scan_date), so a
-    given (ticker, setup_type) group has at most one row per date.
+    row. The ``setup_archive`` unique constraint is (ticker, scan_date,
+    universe_type), so a given (ticker, setup_type, universe_type) group has at
+    most one row per date. Grouping includes universe_type so the same ticker
+    appearing in two universes (e.g. an ETF and a stock) forms two episodes, not
+    one merged event.
     """
-    groups: dict[tuple[str, str], list[SetupRow]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[SetupRow]] = defaultdict(list)
     for row in rows:
-        groups[(row.ticker, row.setup_type)].append(row)
+        groups[(row.ticker, row.setup_type, row.universe_type)].append(row)
 
     episodes: list[Episode] = []
-    for (ticker, setup_type), members in groups.items():
+    for (ticker, setup_type, _universe_type), members in groups.items():
         members.sort(key=lambda r: r.scan_date)
 
         run: list[SetupRow] = []

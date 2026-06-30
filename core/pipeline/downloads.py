@@ -22,10 +22,12 @@ from core.pipeline.cache import (
 )
 from core.pipeline.data_freshness import (
     close_coverage_on,
+    deep_history_ratio,
     has_all_closes_on,
     last_complete_reference_date,
     symbols_missing_closes_on,
 )
+from core.pipeline.file_lock import cache_lock
 from core.pipeline.fetch_health import (
     count_quarantined,
     is_healthy,
@@ -665,6 +667,11 @@ def _try_fresh_cache(
         return None
 
     cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+    if _history_too_shallow(cached_data, scope.tickers_with_indexes):
+        print("Local cache is fresh by mtime but its deep history is truncated "
+              "(most symbols missing their multi-year bars); forcing a full refetch.",
+              flush=True)
+        return None
     last_reference_date = last_complete_reference_date(cached_data, scope.index_symbols)
     coverage = close_coverage_on(cached_data, scope.tickers_with_indexes, expected_session)
     if (_has_all_symbols(cached_data, scope.index_symbols)
@@ -683,6 +690,23 @@ def _try_fresh_cache(
           f"{coverage.format()} for {expected_session.date()} "
           f"(required >= {min_latest_coverage:.0%}); updating cache.", flush=True)
     return None
+
+
+def _history_too_shallow(panel: pd.DataFrame | None, symbols: list[str]) -> bool:
+    """True when the cached panel spans years but most symbols lost their deep
+    history (the NaN-wipe corruption shape). Judged ONLY when the panel itself has
+    >= MIN_HISTORY_BARS rows, so a short/new cache is never falsely flagged — and
+    a HEALTHY cache (deep history intact) returns False, leaving the fast paths
+    byte-identical. When True, the caller forces a full cold refetch (self-repair),
+    so a corrupted cache no longer blocks its own recovery via the latest-session
+    freshness check that is blind to depth."""
+    if panel is None or panel.empty:
+        return False
+    min_bars = int(getattr(settings, "MARKET_DATA_MIN_HISTORY_BARS", 100))
+    if len(panel.index) < min_bars:
+        return False
+    min_cov = float(getattr(settings, "MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5))
+    return deep_history_ratio(panel, symbols, min_bars) < min_cov
 
 
 def _read_cached_panel(cache_file: str) -> pd.DataFrame | None:
@@ -739,6 +763,10 @@ def _try_current_cache(
     min_latest_coverage: float,
 ) -> pd.DataFrame | None:
     if cached is None or cached.empty or gap_bdays != 0 or weekly_refresh_due:
+        return None
+    if _history_too_shallow(cached, scope.tickers_with_indexes):
+        print("Cache last bar is current but its deep history is truncated; "
+              "forcing a full refetch.", flush=True)
         return None
 
     if (_has_all_symbols(cached, scope.index_symbols)
@@ -952,52 +980,59 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
     t_fetch_start = time.time()
     cache_file, meta_file = _cache_paths(universe)
 
-    scope = _prepare_fetch_scope(tickers, meta_file, universe)
+    # Serialize the whole read-fetch-write window across processes (CLI scan vs
+    # in-process scheduler vs manual SSE) so they cannot interleave and clobber
+    # this universe's parquet/meta. Re-entrant within a process.
+    with cache_lock(cache_file):
+        scope = _prepare_fetch_scope(tickers, meta_file, universe)
 
-    expected_session = latest_completed_session()
-    min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+        expected_session = latest_completed_session()
+        min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
-    # ── Fast path: fresh cache ─────────────────────────────────────────────
-    meta = _read_meta(meta_file)
-    fresh_cache = _try_fresh_cache(
-        cache_file, scope, expected_session, min_latest_coverage
-    )
-    if fresh_cache is not None:
-        return fresh_cache
-
-    # ── Decide cold vs. incremental ────────────────────────────────────────
-    cached = _read_cached_panel(cache_file)
-    weekly_refresh_due = _weekly_refresh_due(meta)
-    last_cached_date, gap_bdays, latest_coverage = _cache_status(
-        cached, scope, expected_session
-    )
-
-    current_cache = _try_current_cache(
-        cached, cache_file, meta_file, meta, scope, last_cached_date, gap_bdays,
-        latest_coverage, weekly_refresh_due, min_latest_coverage
-    )
-    if current_cache is not None:
-        return current_cache
-
-    do_incremental = (
-        cached is not None
-        and not cached.empty
-        and gap_bdays is not None
-        and 1 <= gap_bdays <= settings.INCREMENTAL_MAX_GAP_BDAYS
-        and not weekly_refresh_due
-    )
-
-    if do_incremental:
-        incremental = _try_incremental_update(
-            cached, cache_file, meta_file, meta, scope, gap_bdays, t_fetch_start
+        # ── Fast path: fresh cache ─────────────────────────────────────────────
+        meta = _read_meta(meta_file)
+        fresh_cache = _try_fresh_cache(
+            cache_file, scope, expected_session, min_latest_coverage
         )
-        if incremental is not None:
-            return incremental
+        if fresh_cache is not None:
+            return fresh_cache
 
-    return _cold_fetch(
-        cache_file, meta_file, meta, cached, scope, expected_session,
-        min_latest_coverage, t_fetch_start
-    )
+        # ── Decide cold vs. incremental ────────────────────────────────────────
+        cached = _read_cached_panel(cache_file)
+        weekly_refresh_due = _weekly_refresh_due(meta)
+        last_cached_date, gap_bdays, latest_coverage = _cache_status(
+            cached, scope, expected_session
+        )
+
+        current_cache = _try_current_cache(
+            cached, cache_file, meta_file, meta, scope, last_cached_date, gap_bdays,
+            latest_coverage, weekly_refresh_due, min_latest_coverage
+        )
+        if current_cache is not None:
+            return current_cache
+
+        do_incremental = (
+            cached is not None
+            and not cached.empty
+            and gap_bdays is not None
+            and 1 <= gap_bdays <= settings.INCREMENTAL_MAX_GAP_BDAYS
+            and not weekly_refresh_due
+            # A truncated cache must NOT be incrementally patched (that only adds
+            # recent rows, leaving the deep history hollow) — go cold to rebuild it.
+            and not _history_too_shallow(cached, scope.tickers_with_indexes)
+        )
+
+        if do_incremental:
+            incremental = _try_incremental_update(
+                cached, cache_file, meta_file, meta, scope, gap_bdays, t_fetch_start
+            )
+            if incremental is not None:
+                return incremental
+
+        return _cold_fetch(
+            cache_file, meta_file, meta, cached, scope, expected_session,
+            min_latest_coverage, t_fetch_start
+        )
 
 
 def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],

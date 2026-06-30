@@ -13,6 +13,7 @@ from core.pipeline import run_screener
 from core.pipeline.cache import _cache_paths, _read_meta
 from core.pipeline.data import get_provider, get_tickers
 from core.pipeline.downloads import repair_latest_session_cache
+from core.pipeline.file_lock import cache_lock
 from core.pipeline.market_data_health import (
     clear_repair_state,
     compute_market_data_health,
@@ -99,7 +100,8 @@ def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str], universe=N
 
     _, meta_file = _cache_paths(universe)
     health = compute_market_data_health(
-        data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file
+        data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
+        index_symbols=list(resolve_universe(universe).index_symbols),
     )
     if not health["can_archive"]:
         msg = (
@@ -131,6 +133,22 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
 
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
+        # An empty result is only a legitimate "scanned, matched nothing" day when
+        # the data is trustworthy. A degraded fetch (thin/shallow panel) can also
+        # yield zero setups — writing that empty payload would WIPE the prior day's
+        # real setups off the live dashboard while the run still reports ok. Gate the
+        # empty branch with the SAME freshness check as the archive path so degraded
+        # zeros raise (reported stale) instead of silently clobbering the screen. A
+        # genuine zero-setup day on healthy data still writes the valid empty artifact.
+        if settings.ARCHIVE_LIVE_SCANS:
+            try:
+                _assert_fresh_for_archive(data, tickers, uni)
+            except StaleMarketDataError as exc:
+                if not (mode == "cache" and _is_latest_coverage_error(exc)):
+                    exc.n_setups = 0
+                    raise
+                # cache-mode partial-coverage eval is a legitimate empty day — keep
+                # the dashboard refresh below.
         # Write an empty artifact so this universe reads as "scanned, matched
         # nothing" rather than "never scanned" — and so an empty day clears any
         # stale setups instead of leaving the previous scan's names on screen.
@@ -211,6 +229,16 @@ def refresh_market_data_cache() -> DownloadOnlyResult:
     """Refresh ticker universe + market-data cache without evaluating setups."""
     tickers = get_tickers()
     cache_file, meta_file = _cache_paths()
+    # Hold the per-universe cache lock across the whole read-fetch-write-meta
+    # sequence so a CLI download-only run and the scheduler subprocess cannot
+    # interleave on the same files (fetch_data re-acquires it re-entrantly).
+    with cache_lock(cache_file):
+        return _refresh_market_data_cache_locked(tickers, cache_file, meta_file)
+
+
+def _refresh_market_data_cache_locked(
+    tickers: list[str], cache_file: str, meta_file: str
+) -> DownloadOnlyResult:
     expected = _expected_session_date()
     before_health = _cached_health(cache_file, meta_file, tickers, expected)
     if before_health and before_health["can_archive"] and not before_health.get("weekly_refresh_due"):
@@ -277,7 +305,7 @@ def refresh_market_data_cache() -> DownloadOnlyResult:
             meta=_read_meta(meta_file)
         )
 
-    if after_health["health_state"] == "stale_session":
+    if after_health["health_state"] in ("stale_session", "shallow_history"):
         msg = f"stale market data: {after_health['diagnosis']}"
         log.warning("Download-only cache refresh did not reach current data: %s", msg)
         raise StaleMarketDataError(msg, n_setups=None)

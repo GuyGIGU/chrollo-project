@@ -37,7 +37,10 @@ def _read_meta(meta_path: str) -> dict:
 
 
 def _write_meta(meta_path: str, meta: dict) -> None:
-    tmp = meta_path + '.tmp'
+    # PID-suffixed temp so two processes writing the same meta can't share one
+    # .tmp and tear each other's write (the cross-process cache_lock serializes
+    # the real window; this is belt-and-suspenders for the os.replace target).
+    tmp = f'{meta_path}.{os.getpid()}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(to_json_safe(meta), f, indent=2, allow_nan=False)
     os.replace(tmp, meta_path)
@@ -68,7 +71,7 @@ def _is_market_hours() -> bool:
 
 
 def _atomic_write_parquet(data: pd.DataFrame, path: str) -> None:
-    tmp = path + '.tmp'
+    tmp = f'{path}.{os.getpid()}.tmp'
     optimized = _optimize_market_data_for_cache(data)
     optimized.to_parquet(
         tmp,
