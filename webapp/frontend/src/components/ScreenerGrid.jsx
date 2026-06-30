@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ScreenerCard from './ScreenerCard';
 import ScreenerModal from './ScreenerModal';
@@ -6,7 +6,8 @@ import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from './ScreenerWatchlistPanel';
-import UniverseSwitcher, { universeLabel, isEtfUniverse } from './UniverseSwitcher';
+import UniverseSwitcher from './UniverseSwitcher';
+import { universeLabel, isEtfUniverse } from './universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../hooks/useReviews';
 import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
@@ -46,7 +47,10 @@ const ScreenerGrid = () => {
   // The modal + arrow-key cycling read the drill-down members when one is open,
   // otherwise the active universe's filtered list.
   const modalChart = drilldown ? (drilldown.chart_data || {}) : (screenerData?.chart_data || {});
-  const modalTickers = drilldown ? (drilldown.ordered_tickers || []) : filters.filteredTickers;
+  const modalTickers = useMemo(
+    () => (drilldown ? (drilldown.ordered_tickers || []) : filters.filteredTickers),
+    [drilldown, filters.filteredTickers],
+  );
 
   useEffect(() => {
     fetchEarnings(filters.paginatedTickers);

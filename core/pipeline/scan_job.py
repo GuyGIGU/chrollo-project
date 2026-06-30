@@ -245,18 +245,29 @@ def refresh_market_data_cache() -> DownloadOnlyResult:
     """Refresh ticker universe + market-data cache without evaluating setups."""
     tickers = get_tickers()
     cache_file, meta_file = _cache_paths()
+    # Bind the health checks below to THIS universe's regime index set rather than
+    # leaning on build_symbol_scope's global default. This download-only path is
+    # us_stocks-only today (the ETF universes refresh through the scheduled
+    # run_all_universe_scans), so the value is unchanged — but threading it
+    # explicitly mirrors _assert_fresh_for_archive / _read_cached_market_data and
+    # closes the latent gap where a future non-equities refresh would otherwise be
+    # judged against SPY/QQQ coverage it does not carry.
+    index_symbols = list(resolve_universe(None).index_symbols)
     # Hold the per-universe cache lock across the whole read-fetch-write-meta
     # sequence so a CLI download-only run and the scheduler subprocess cannot
     # interleave on the same files (fetch_data re-acquires it re-entrantly).
     with cache_lock(cache_file):
-        return _refresh_market_data_cache_locked(tickers, cache_file, meta_file)
+        return _refresh_market_data_cache_locked(
+            tickers, cache_file, meta_file, index_symbols
+        )
 
 
 def _refresh_market_data_cache_locked(
-    tickers: list[str], cache_file: str, meta_file: str
+    tickers: list[str], cache_file: str, meta_file: str,
+    index_symbols: list[str],
 ) -> DownloadOnlyResult:
     expected = _expected_session_date()
-    before_health = _cached_health(cache_file, meta_file, tickers, expected)
+    before_health = _cached_health(cache_file, meta_file, tickers, expected, index_symbols)
     if before_health and before_health["can_archive"] and not before_health.get("weekly_refresh_due"):
         clear_repair_state(meta_file)
         print(f"\nMarket-data cache already healthy: {before_health['diagnosis']}", flush=True)
@@ -283,7 +294,7 @@ def _refresh_market_data_cache_locked(
         )
         after_health = compute_market_data_health(
             repaired, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
-            meta=_read_meta(meta_file)
+            meta=_read_meta(meta_file), index_symbols=index_symbols,
         )
         if after_health["can_archive"]:
             clear_repair_state(meta_file)
@@ -291,7 +302,7 @@ def _refresh_market_data_cache_locked(
             record_repair_attempt(meta_file, before_health, after_health)
             after_health = compute_market_data_health(
                 repaired, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
-                meta=_read_meta(meta_file)
+                meta=_read_meta(meta_file), index_symbols=index_symbols,
             )
         print(f"\nManual repair checked {len(symbols)} eligible laggard(s).")
         print(after_health["diagnosis"], flush=True)
@@ -310,7 +321,7 @@ def _refresh_market_data_cache_locked(
 
     after_health = compute_market_data_health(
         data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
-        meta=_read_meta(meta_file)
+        meta=_read_meta(meta_file), index_symbols=index_symbols,
     )
     if after_health["can_archive"]:
         clear_repair_state(meta_file)
@@ -318,7 +329,7 @@ def _refresh_market_data_cache_locked(
         record_repair_attempt(meta_file, before_health, after_health)
         after_health = compute_market_data_health(
             data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
-            meta=_read_meta(meta_file)
+            meta=_read_meta(meta_file), index_symbols=index_symbols,
         )
 
     if after_health["health_state"] in ("stale_session", "shallow_history"):
@@ -331,7 +342,7 @@ def _refresh_market_data_cache_locked(
 
 
 def _cached_health(cache_file: str, meta_file: str, tickers: list[str],
-                   expected: str) -> dict | None:
+                   expected: str, index_symbols: list[str]) -> dict | None:
     if not os.path.exists(cache_file):
         return None
     try:
@@ -344,6 +355,7 @@ def _cached_health(cache_file: str, meta_file: str, tickers: list[str],
         expected_session=pd.Timestamp(expected),
         meta_file=meta_file,
         meta=_read_meta(meta_file),
+        index_symbols=index_symbols,
         weekly_refresh_due=_weekly_refresh_due(_read_meta(meta_file)),
     )
 

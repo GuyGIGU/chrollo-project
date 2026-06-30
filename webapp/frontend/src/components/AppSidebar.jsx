@@ -26,6 +26,7 @@ const navSections = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars -- Icon is rendered as a JSX element below; this config lacks react/jsx-uses-vars so it isn't seen as used.
 function RailLink({ to, label, Icon, end }) {
   return (
     <NavLink
