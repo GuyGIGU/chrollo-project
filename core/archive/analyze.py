@@ -46,6 +46,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from core.archive.episodes import SetupRow, build_episodes, canonical_ids
+
 # ------------------------------------------------------------------
 # Paths & loading
 # ------------------------------------------------------------------
@@ -182,6 +184,44 @@ def load_archive(source: Optional[str] = None) -> pd.DataFrame:
     return df
 
 
+def dedup_to_episodes(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse continuation re-flags to one canonical (first-seen) row per episode.
+
+    The screener re-flags a persisting base every day it holds, so the raw
+    setup_archive carries many continuation rows for one logical setup. Counting
+    each as an independent observation inflates n and biases every correlation /
+    edge verdict toward whatever the long-persisting bases happened to do — a base
+    seen 15 days that then ran contributes 15 correlated points, not 1. (The
+    inflation is real but often modest: e.g. score_rs_bonus vs durable_win moves
+    only ~-0.20 -> -0.18 under dedup and stays HARMFUL; the larger swing to INERT
+    that some cuts show is target/cohort-specific — notably vs fwd_return_20d on a
+    single matured cohort — not a general guarantee that dedup neutralizes a
+    signal. Dedup fixes n-inflation; it does not by itself de-confound regime.)
+
+    Reuses the SAME first-seen grouper the archive episode table and the
+    ``/calibration`` canonical path use (``core.archive.episodes``), so this stays
+    in lock-step with them. The kept row is each episode's first-seen anchor — the
+    correct entry date, carrying its own (non-stale) forward returns.
+
+    Degrades gracefully: returns the frame unchanged if it is empty or lacks the
+    identity columns episodes needs (an older/partial DB).
+    """
+    needed = {"id", "ticker", "scan_date", "setup_type"}
+    if df.empty or not needed.issubset(df.columns):
+        return df
+    universe = (df["universe_type"].fillna("us_equities")
+                if "universe_type" in df.columns
+                else pd.Series("us_equities", index=df.index))
+    rows = [
+        SetupRow(id=int(i), ticker=str(t), scan_date=str(d),
+                 setup_type=str(s), universe_type=str(u))
+        for i, t, d, s, u in zip(df["id"], df["ticker"], df["scan_date"],
+                                 df["setup_type"], universe)
+    ]
+    keep = canonical_ids(build_episodes(rows))
+    return df[df["id"].isin(keep)].copy()
+
+
 # ------------------------------------------------------------------
 # Formatting helpers
 # ------------------------------------------------------------------
@@ -266,7 +306,7 @@ def section_composition(df: pd.DataFrame, min_rows: int) -> dict:
     """Report what we have and decide which analyses are statistically valid."""
     header("1. SAMPLE COMPOSITION & BIAS DETECTION")
     n = len(df)
-    emit(f"Total rows: {n}")
+    emit(f"Total setups (episodes): {n}")
     if n == 0:
         emit("Archive is empty - nothing to analyze.")
         return {"valid_outcome": False, "valid_corr": False}
@@ -781,14 +821,25 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
 # ------------------------------------------------------------------
 # Orchestrator
 # ------------------------------------------------------------------
-def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str] = None) -> None:
+def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str] = None,
+        dedup: bool = True) -> None:
     _LINES.clear()
-    df = load_archive(source=source)
+    raw = load_archive(source=source)
+    df = dedup_to_episodes(raw) if dedup else raw
 
     header("CHROLLO ARCHIVE ANALYSIS")
     emit(f"DB: {_DB_PATH}")
     if source:
         emit(f"Filtered to source = '{source}'")
+    if dedup:
+        n_removed = len(raw) - len(df)
+        emit(f"Episode dedup: {len(raw)} raw rows -> {len(df)} episodes "
+             f"({n_removed} continuation re-flags collapsed to the first-seen anchor).")
+        emit("All sections below run on EPISODES (one row per logical setup) via the same")
+        emit("first-seen grouping the archive episode table + /calibration use — raw")
+        emit("continuation re-flags would inflate n and bias every correlation / edge verdict.")
+    else:
+        emit("!! --no-dedup: continuation re-flags NOT collapsed; stats are inflated (debug only).")
 
     comp = section_composition(df, min_rows)
     section_fingerprint(df)
@@ -816,8 +867,10 @@ def main() -> None:
     ap.add_argument("--min-rows", type=int, default=30,
                     help="Min live rows for correlation/outcome validity (default 30)")
     ap.add_argument("--md", default=None, help="Also write a markdown copy to this path")
+    ap.add_argument("--no-dedup", action="store_true",
+                    help="Do NOT collapse continuation re-flags to episodes (debug; inflates stats)")
     args = ap.parse_args()
-    run(source=args.source, min_rows=args.min_rows, md_path=args.md)
+    run(source=args.source, min_rows=args.min_rows, md_path=args.md, dedup=not args.no_dedup)
 
 
 if __name__ == "__main__":
