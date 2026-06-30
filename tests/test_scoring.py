@@ -515,3 +515,54 @@ def test_box_tightness_contribution_is_capped_and_rewards_tighter_boxes():
     assert tight > wide
     assert wide == 0.0  # a box at the absolute width ceiling earns no tightness credit
     assert tight <= round(float(settings.SCORE_BOX_TIGHTNESS), 2)
+
+
+_CLEAN_TEXTURE = {"median_spread_pct_box": 0.30, "median_spread_atr": 0.65,
+                  "tight_bar_pct": 0.80, "p80_spread_atr": 1.0}
+_MESSY_TEXTURE = {"median_spread_pct_box": 0.60, "median_spread_atr": 1.40,
+                  "tight_bar_pct": 0.25, "p80_spread_atr": 1.6}
+_EMPTY_TEXTURE = {"median_spread_atr": None, "p80_spread_atr": None,
+                  "median_spread_pct_box": None, "tight_bar_pct": 0.0}
+
+
+def test_candle_readability_neutral_on_missing_metrics():
+    from core.scoring.scoring import _candle_readability
+
+    # No dict, and the degenerate-base empty dict (spread ratios None), both -> 1.0
+    # so absent texture data never silently demotes a setup.
+    assert _candle_readability(None) == 1.0
+    assert _candle_readability({}) == 1.0
+    assert _candle_readability(_EMPTY_TEXTURE) == 1.0
+
+
+def test_candle_readability_preserves_clean_discounts_messy():
+    from core.scoring.scoring import _candle_readability
+
+    clean = _candle_readability(_CLEAN_TEXTURE)
+    messy = _candle_readability(_MESSY_TEXTURE)
+    assert clean == pytest.approx(1.0)               # quiet bars -> full credit
+    assert settings.CANDLE_GRADE_FLOOR <= messy < clean   # choppy bars discounted, bounded by floor
+    assert messy == pytest.approx(settings.CANDLE_GRADE_FLOOR)
+
+
+def test_candle_spread_flag_off_is_byte_identical():
+    from core.scoring.scoring import score_setup
+
+    # Default flag OFF: bar_compression must NOT move box_tightness (containment).
+    assert settings.CANDLE_SPREAD_AWARE is False
+    base = score_setup(**_score_common())["box_tightness"]
+    with_messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]
+    with_clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
+    assert base == with_messy == with_clean
+
+
+def test_candle_spread_flag_on_discounts_messy_preserves_clean(monkeypatch):
+    from core.scoring.scoring import score_setup
+
+    monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", True)
+    neutral = score_setup(**_score_common())["box_tightness"]                       # None -> neutral
+    clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
+    messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]
+    assert clean == pytest.approx(neutral)            # a clean texture is read as a real coil
+    assert messy < neutral                            # a choppy texture is discounted
+    assert messy == pytest.approx(neutral * settings.CANDLE_GRADE_FLOOR, rel=0.02)

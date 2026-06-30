@@ -37,6 +37,43 @@ def _ramp(value: Optional[float], zero_at: float, full_at: float, cap: float) ->
     return progress * cap
 
 
+def _candle_readability(bar_compression: Optional[dict]) -> float:
+    """Self-referential bar-texture readability in ``[CANDLE_GRADE_FLOOR, 1.0]``.
+
+    1.0 = the base's bars are quiet/orderly vs its OWN box and ATR; the floor =
+    choppy wide bars. Built ONLY from the already-guarded ``measure_bar_compression``
+    scalars (median spread/box, median spread/ATR, tight-bar %) — each already
+    normalized by the base's own box / ATR, so this NEVER applies a global/absolute
+    bar-width threshold (a high-ADR but orderly mover is read against its own
+    volatility). The two spread ratios are missing (``None``) together on a
+    degenerate/flat base — that case returns neutral 1.0 (absent texture data never
+    silently demotes a setup); a present-but-0.0 ``tight_bar_pct`` is a real
+    "no tight bars" signal and is kept. Multiplicative grade: can only preserve or
+    discount, never inflate (grades-not-vetoes)."""
+    if not isinstance(bar_compression, dict):
+        return 1.0
+    msb = bar_compression.get("median_spread_pct_box")
+    msa = bar_compression.get("median_spread_atr")
+    tbp = bar_compression.get("tight_bar_pct")
+    # The spread ratios are None together on a degenerate base -> neutral full credit.
+    if msb is None or msa is None or pd.isna(msb) or pd.isna(msa):
+        return 1.0
+    grades = [
+        # spread/box and spread/ATR: lower is cleaner -> invert the up-ramp.
+        1.0 - _ramp(msb, settings.CANDLE_SPREAD_BOX_CLEAN,
+                    settings.CANDLE_SPREAD_BOX_MESSY, 1.0),
+        1.0 - _ramp(msa, settings.CANDLE_SPREAD_ATR_CLEAN,
+                    settings.CANDLE_SPREAD_ATR_MESSY, 1.0),
+    ]
+    if tbp is not None and not pd.isna(tbp):
+        # tight-bar %: higher is cleaner (a real 0.0 ramps to zero credit here).
+        grades.append(_ramp(tbp, settings.CANDLE_TIGHTBAR_MESSY,
+                            settings.CANDLE_TIGHTBAR_CLEAN, 1.0))
+    composite = sum(grades) / len(grades)
+    floor = settings.CANDLE_GRADE_FLOOR
+    return floor + (1.0 - floor) * composite
+
+
 def score_setup(box_width: float, r_touches: int, s_touches: int,
                 res_avg: float, sup_avg: float, base_df: pd.DataFrame,
                 atr_ratio: float, tightness_ratio: float,
@@ -51,7 +88,8 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 traversal_density: float = 0.0,
                 max_swing_frac: float = 1.0,
                 dwell_asymmetry: float = 0.0,
-                has_spring: bool = False) -> dict:
+                has_spring: bool = False,
+                bar_compression: Optional[dict] = None) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -82,6 +120,12 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                                / settings.MAX_BOX_WIDTH_ADR)
     else:
         box_tightness_ratio = (settings.MAX_BOX_WIDTH - box_width) / settings.MAX_BOX_WIDTH
+    # Candle-spread readability: discount tightness for a base whose interior bars are
+    # choppy vs its OWN box/ATR, preserve it for a quiet base (self-referential — never an
+    # absolute bar-width threshold). Flag-gated + multiplicative in [floor, 1] (grades-not-
+    # vetoes); flag-off leaves box_tightness_ratio untouched -> byte-identical.
+    if settings.CANDLE_SPREAD_AWARE:
+        box_tightness_ratio *= _candle_readability(bar_compression)
     s_box = _clamp(box_tightness_ratio * settings.SCORE_BOX_TIGHTNESS,
                     settings.SCORE_BOX_TIGHTNESS)
 

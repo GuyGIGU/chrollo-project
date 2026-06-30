@@ -464,6 +464,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         support['quality'],
         adr_quality,
         adr_value=adr_value,
+        bar_compression=measurements["bar_compression"],
         **score_traversal_args(
             measurements["traversal"], measurements["equilibrium"], bins
         ),
