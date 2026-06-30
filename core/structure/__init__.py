@@ -51,6 +51,7 @@ from core.structure.metrics import (
 
 # ── Layer: Phase B texture — the VCP progressive-tightening / quiet-bar / touch footprint ─
 from core.structure.metrics import (
+    assemble_box_narrative,
     measure_bar_compression,
     measure_contractions,
     measure_support_slope,
@@ -94,6 +95,7 @@ __all__ = [
     "measure_traversal",
     "descent_tail_rejects",
     # Phase B texture
+    "assemble_box_narrative",
     "measure_bar_compression",
     "measure_contractions",
     "measure_support_slope",

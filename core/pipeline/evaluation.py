@@ -13,6 +13,7 @@ from core.structure import (
     calculate_atr,
     descent_tail_rejects,
     detect_lps,
+    assemble_box_narrative,
     detect_lps_tests,
     lps_range_threshold,
     measure_bar_compression,
@@ -445,6 +446,19 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         if settings.ADR_FULL_PCT else 0.0
     )
 
+    # E3 puzzle-quality: read the L2 Wyckoff puzzle on the engine's OWN elected box
+    # (structure.box — the exact EquilibriumBox read_structure passed to find_spring/
+    # find_lps), with the SAME df and the SAME atr (atr_for_zone) it used, so the scored
+    # narrative reproduces the fired spring/LPS bit-for-bit. Computed ONLY when the flag
+    # is on (flag-off pays zero cost); threaded through the single shared score_setup
+    # call so both eval-twins inherit it. Pass structure.box UNMODIFIED (its anchors are
+    # absolute, as find_lps expects — never rebase).
+    narrative = None
+    if settings.PUZZLE_SCORE_ENABLED:
+        narrative = assemble_box_narrative(
+            df, structure_ctx["structure"].box, structure_ctx["atr_for_zone"]
+        )
+
     score_result = score_setup(
         structure_ctx["box_width"],
         structure_ctx["r_touches"],
@@ -465,6 +479,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         adr_quality,
         adr_value=adr_value,
         bar_compression=measurements["bar_compression"],
+        narrative=narrative,
         **score_traversal_args(
             measurements["traversal"], measurements["equilibrium"], bins
         ),
@@ -477,6 +492,18 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=daily_box))
         htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=daily_box))
 
+    # Puzzle grades for surfacing (the A/B + a future "why ranked" chip) — present
+    # ONLY when the flag is on (narrative computed); flag-off this is {} and the
+    # spread into the result dict adds nothing -> byte-identical.
+    puzzle_fields = (
+        {
+            "_puzzle_completeness": int(narrative["completeness"]),
+            "_puzzle_chronology": narrative["chronology"],
+            "_puzzle_upthrust_terminal": bool(narrative["upthrust_terminal"]),
+        }
+        if narrative is not None else {}
+    )
+
     return {
         "trend": trend,
         "adr_value": adr_value,
@@ -485,6 +512,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "score": score,
         "tier": calculate_tier(score, structure_ctx["box_width"]),
         "htf_ctx": htf_ctx,
+        "puzzle_fields": puzzle_fields,
     }
 
 
@@ -687,6 +715,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_base_date_start': str(base_df.index[0])[:10],
         '_base_date_end': str(base_df.index[-1])[:10],
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
+        **score_ctx.get("puzzle_fields", {}),   # E3: empty flag-off -> byte-identical
     }
 
 

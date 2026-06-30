@@ -74,6 +74,36 @@ def _candle_readability(bar_compression: Optional[dict]) -> float:
     return floor + (1.0 - floor) * composite
 
 
+def _puzzle_quality(narrative: Optional[dict]) -> float:
+    """The L2 assembled Wyckoff puzzle as a single ``[0, 1]`` composite — the more
+    high-quality pieces present in bullish order, the higher it reads.
+
+    Built from the E2 ``assemble_box_narrative`` DESCRIPTIVE grades only:
+    ``completeness`` (0..4 distinct canonical pieces: spring / SOS / LPS / held-test)
+    and ``chronology`` (intact / partial / absent). These are CORRELATED — an
+    ``intact`` chronology is structurally impossible without the full spine — so they
+    fold into ONE composite, never two independent terms (which would double-count the
+    full-puzzle case). Neutral ``0.0`` on a missing/``None`` (flag-off) or malformed
+    narrative (absence never demotes a setup below its geometry merits). Monotonic:
+    non-decreasing in completeness, and intact >= partial >= absent at equal
+    completeness. A pure bonus grade — the caller clamps it into ``[0, cap]``."""
+    if not isinstance(narrative, dict):
+        return 0.0
+    try:
+        completeness = int(narrative.get("completeness", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0                       # non-numeric completeness -> neutral
+    completeness = min(4, max(0, completeness))   # self-enforce the [0,1] bound here,
+    #                                               not only via the caller's clamp
+    chrono_factor = {
+        "intact": 1.0,
+        "partial": settings.PUZZLE_CHRONO_PARTIAL,
+        "absent": 0.0,
+    }.get(narrative.get("chronology", "absent"), 0.0)
+    return (settings.PUZZLE_W_COMPLETENESS * (completeness / 4.0)
+            + settings.PUZZLE_W_CHRONOLOGY * chrono_factor)
+
+
 def score_setup(box_width: float, r_touches: int, s_touches: int,
                 res_avg: float, sup_avg: float, base_df: pd.DataFrame,
                 atr_ratio: float, tightness_ratio: float,
@@ -89,7 +119,8 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 max_swing_frac: float = 1.0,
                 dwell_asymmetry: float = 0.0,
                 has_spring: bool = False,
-                bar_compression: Optional[dict] = None) -> dict:
+                bar_compression: Optional[dict] = None,
+                narrative: Optional[dict] = None) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -222,11 +253,22 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # be worth trading. Bonus-only; quiet names simply earn zero here.
     s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
 
+    # Puzzle-quality bonus (E3) — the L2 assembled Wyckoff puzzle as an additive,
+    # bonus-only term, behind the default-off flag. BOTH the +total arithmetic AND the
+    # breakdown key live ONLY inside the flag: flag-off _puzzle_quality is never called,
+    # no key is added, and `+ s_puzzle` is a 0.0 no-op -> Score/Tier/breakdown
+    # byte-identical (mirrors the CANDLE_SPREAD_AWARE containment). Grades-not-vetoes:
+    # >=0 and clamped to the cap, it can only raise a score.
+    s_puzzle = 0.0
+    if settings.PUZZLE_SCORE_ENABLED:
+        s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
+                          settings.SCORE_PUZZLE_QUALITY)
+
     total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
                   + s_uptrend + s_rs + s_high + s_breadth + s_contraction
-                  + s_ascending + s_adr, 1)
+                  + s_ascending + s_adr + s_puzzle, 1)
 
-    return {
+    result = {
         'total': total,
         'box_tightness': round(s_box, 2),
         'touch_density': round(s_touch, 2),
@@ -243,6 +285,9 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'ascending_support': round(s_ascending, 2),
         'adr': round(s_adr, 2),
     }
+    if settings.PUZZLE_SCORE_ENABLED:
+        result['puzzle_quality'] = round(s_puzzle, 2)
+    return result
 
 
 def calculate_tier(score: float, box_width: Optional[float] = None) -> str:

@@ -370,6 +370,19 @@ CANDLE_TIGHTBAR_MESSY = 0.30    # tight-bar % <= this -> zero on this measure
 # Both are box fractions so they scale across the universe; operator-eyeball-tuned.
 SOS_NEAR_R_MAX_BOX = 1.5        # wave-top box_pos ceiling for an SOS (1.0 = R; > this box-frac above R = markup)
 SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box fraction to count as a consolidation
+# E3 puzzle-quality graded sub-score — wires the L2 assembled Wyckoff puzzle (assemble_box_narrative,
+# read on the engine's OWN elected box) into the score as ONE additive, BONUS-ONLY term: a single
+# [0,1] composite * cap. Sibling of CANDLE_SPREAD_AWARE: flag-off the term AND its computation are
+# fully inert (byte-identical, zero new compute; _puzzle_quality + assemble_box_narrative both live
+# ONLY inside `if PUZZLE_SCORE_ENABLED`). Grades-not-vetoes: it can only RAISE a score, never gate /
+# reject / touch firing. completeness and chronology are CORRELATED (intact => full spine), so they
+# combine into ONE composite (not two terms). The live flip + the forward-return validation are
+# operator-gated (matured ~07-15+ data).
+PUZZLE_SCORE_ENABLED = False    # default-off; the flip is an operator chart-eyeball + matured-data decision
+SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
+PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
+PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
+PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

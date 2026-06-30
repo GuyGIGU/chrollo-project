@@ -563,8 +563,11 @@ def test_e2_deterministic_and_json_native(monkeypatch):
     assert all(type(x).__module__ == "builtins" for x in _leaves(a))
 
 
-def test_e2_assembler_not_imported_by_pipeline():
-    # Measure-only insurance: the assembly layer is wired into nothing live.
+def test_e2_assembler_internals_not_imported_by_pipeline():
+    # E3 wired the public assemble_box_narrative into the pipeline (behind the
+    # PUZZLE_SCORE_ENABLED flag) as a scoring input — so that name now legitimately
+    # appears in core/pipeline. The INTERNAL helper must stay contained: nothing in
+    # core/pipeline may reach past the public assembler into _box_events_with_meta.
     import glob
     import os
     pipe = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -572,7 +575,6 @@ def test_e2_assembler_not_imported_by_pipeline():
     for path in glob.glob(os.path.join(pipe, "*.py")):
         with open(path, encoding="utf-8") as fh:
             src = fh.read()
-        assert "assemble_box_narrative" not in src
         assert "_box_events_with_meta" not in src
 
 

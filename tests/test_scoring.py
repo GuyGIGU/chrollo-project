@@ -566,3 +566,179 @@ def test_candle_spread_flag_on_discounts_messy_preserves_clean(monkeypatch):
     assert clean == pytest.approx(neutral)            # a clean texture is read as a real coil
     assert messy < neutral                            # a choppy texture is discounted
     assert messy == pytest.approx(neutral * settings.CANDLE_GRADE_FLOOR, rel=0.02)
+
+
+# --- E3: puzzle-quality graded sub-score (flag-gated) ---------------------------
+
+def _nar(completeness, chronology, upthrust_terminal=False):
+    return {"completeness": completeness, "chronology": chronology,
+            "upthrust_terminal": upthrust_terminal}
+
+
+def test_puzzle_quality_neutral_on_missing():
+    from core.scoring.scoring import _puzzle_quality
+    assert _puzzle_quality(None) == 0.0           # flag-off passes None
+    assert _puzzle_quality({}) == 0.0             # malformed dict -> neutral
+    assert _puzzle_quality("nope") == 0.0         # non-dict -> neutral
+    assert _puzzle_quality(_nar(0, "absent")) == 0.0   # well-formed empty narrative
+
+
+def test_puzzle_quality_monotonic_and_bounded():
+    from core.scoring.scoring import _puzzle_quality
+    chronos = ["absent", "partial", "intact"]
+    # Bounded [0,1] over the whole completeness x chronology domain.
+    for c in range(0, 5):
+        for ch in chronos:
+            q = _puzzle_quality(_nar(c, ch))
+            assert 0.0 <= q <= 1.0
+    # Non-decreasing in completeness at fixed chronology.
+    for ch in chronos:
+        seq = [_puzzle_quality(_nar(c, ch)) for c in range(0, 5)]
+        assert seq == sorted(seq) and seq[0] < seq[-1]
+    # intact >= partial >= absent at fixed completeness.
+    for c in range(0, 5):
+        a = _puzzle_quality(_nar(c, "absent"))
+        p = _puzzle_quality(_nar(c, "partial"))
+        i = _puzzle_quality(_nar(c, "intact"))
+        assert a <= p <= i
+
+
+def test_puzzle_flag_off_is_byte_identical(monkeypatch):
+    from core.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
+    # Default flag OFF: a narrative must NOT change the score OR add a key.
+    base = score_setup(**_score_common())
+    with_nar = score_setup(**_score_common(narrative=_nar(4, "intact")))
+    assert "puzzle_quality" not in base and "puzzle_quality" not in with_nar
+    assert base == with_nar                        # total + every sub-score byte-identical
+
+
+def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
+    from core.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
+    none_on = score_setup(**_score_common(narrative=None))   # flag on, no narrative -> 0 bonus
+    rich = score_setup(**_score_common(narrative=_nar(4, "intact")))
+    poor = score_setup(**_score_common(narrative=_nar(1, "absent")))
+    assert none_on["puzzle_quality"] == 0.0 and "puzzle_quality" in rich
+    assert rich["puzzle_quality"] == settings.SCORE_PUZZLE_QUALITY   # full puzzle -> the cap
+    assert rich["puzzle_quality"] > poor["puzzle_quality"] > 0.0
+    # the bonus is exactly the total lift over the no-narrative (0-bonus) baseline.
+    assert rich["total"] == pytest.approx(none_on["total"] + rich["puzzle_quality"], abs=0.05)
+    assert rich["total"] > poor["total"]
+
+
+def test_puzzle_term_is_bonus_only_and_capped(monkeypatch):
+    from core.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
+    off = score_setup(**_score_common(narrative=None))["total"]
+    for c in range(0, 5):
+        for ch in ("absent", "partial", "intact"):
+            r = score_setup(**_score_common(narrative=_nar(c, ch)))
+            assert 0.0 <= r["puzzle_quality"] <= settings.SCORE_PUZZLE_QUALITY  # bounded bonus
+            assert r["total"] >= off                                           # never demotes
+
+
+def test_e3_eval_feeds_engine_elected_box_unmodified(monkeypatch):
+    # The puzzle is read on the engine's OWN elected PARENT box object (object
+    # identity), with the EXACT same df + atr read_structure used — never a
+    # reconstruction — for EVERY fire, including inner-LPS fires (the parent
+    # equilibrium box is the puzzle frame regardless of which box won the LPS).
+    from tools.shadow_diff import _load_fixture
+    import core.pipeline.evaluation as evaluation
+
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
+    frames, scalars = _load_fixture()
+    spy_6m = float(scalars.get("spy_6m_return", 0.0))
+
+    real_rs, real_nar = evaluation.read_structure, evaluation.assemble_box_narrative
+    seen = {}
+
+    def _rs(df, atr, **k):
+        s = real_rs(df, atr, **k)
+        seen["rs_df"], seen["rs_atr"], seen["structure"] = df, atr, s
+        return s
+
+    def _nar_spy(df, box, atr, *, v_bar=None):
+        seen["df"], seen["box"], seen["atr"] = df, box, atr
+        return real_nar(df, box, atr, v_bar=v_bar)
+
+    monkeypatch.setattr(evaluation, "read_structure", _rs)
+    monkeypatch.setattr(evaluation, "assemble_box_narrative", _nar_spy)
+
+    fires = inner_fires = 0
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        seen.clear()
+        if evaluation._evaluate_ticker(ticker, df, spy_6m, None) is None:
+            continue
+        fires += 1
+        s = seen["structure"]
+        assert seen["box"] is s.box                 # the exact elected box, unmodified
+        assert seen["df"] is seen["rs_df"]          # same df read_structure used
+        assert seen["atr"] == seen["rs_atr"]        # same atr read_structure used
+        if s.inner is not None:                     # inner-LPS fire -> still the PARENT box
+            inner_fires += 1
+            assert seen["box"] is not s.inner
+    assert fires > 0
+    # If the fixture carries an inner-box fire, the parent-frame invariant is pinned
+    # on it too (well-formed, no crash, reads structure.box not structure.inner).
+
+
+def test_e3_flag_off_result_has_no_puzzle_and_runs_no_narrative(monkeypatch):
+    # Result-LEVEL flag-off containment (the puzzle_fields spread + the zero-cost
+    # guarantee), which the score_setup-level test cannot see: flag-off, a real fire
+    # carries NO puzzle key anywhere AND assemble_box_narrative is never called.
+    from tools.shadow_diff import _load_fixture
+    import core.pipeline.evaluation as evaluation
+
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
+
+    def _boom(*a, **k):  # AssertionError is NOT in _evaluate_ticker's except list -> propagates
+        raise AssertionError("assemble_box_narrative must not run flag-off")
+    monkeypatch.setattr(evaluation, "assemble_box_narrative", _boom)
+
+    frames, scalars = _load_fixture()
+    spy_6m = float(scalars.get("spy_6m_return", 0.0))
+    fires = 0
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        res = evaluation._evaluate_ticker(ticker, df, spy_6m, None)
+        if res is None:
+            continue
+        fires += 1
+        assert not any("puzzle" in k for k in res)                  # no result-level key
+        assert not any("puzzle" in k for k in res["_sub_scores"])   # none in the breakdown
+    assert fires > 0
+
+
+def test_e3_eval_twins_agree_on_puzzle(monkeypatch):
+    # Both eval-twins (live + seed) route through the single score_setup call, so
+    # flag-on they compute the identical puzzle bonus (EC-3 fold).
+    from tools.shadow_diff import _load_fixture
+    from core.pipeline.evaluation import _evaluate_ticker
+    from core.archive.seed import _evaluate_at_date
+    from core.archive.result_adapter import seed_row_from_result
+
+    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
+    frames, scalars = _load_fixture()
+    spy_6m = float(scalars.get("spy_6m_return", 0.0))
+
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        live = _evaluate_ticker(ticker, df, spy_6m, None)
+        seed = _evaluate_at_date(df, spy_6m)        # already the adapter-stripped shape
+        if live is None or seed is None:
+            continue
+        alive = seed_row_from_result(live)           # adapt live to the same shape
+        # Both twins compute the identical puzzle bonus (and the adapter re-keys it).
+        assert (alive["sub_scores"].get("puzzle_quality")
+                == seed["sub_scores"].get("puzzle_quality"))
+        assert alive["puzzle_completeness"] == seed["puzzle_completeness"]
+        return
+    pytest.skip("no firing ticker in fixture")
