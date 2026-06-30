@@ -52,6 +52,7 @@ config/tickers.csv
 # Personal trading data — NEVER commit
 *.db
 *.db.pre-*
+*.db.premigration.bak
 *.db-wal
 *.db-shm
 *.db.bak*

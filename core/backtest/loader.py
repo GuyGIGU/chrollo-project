@@ -22,6 +22,7 @@ from core.archive.episodes import (
     canonical_ids,
     episode_by_member_id,
 )
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 
 # Absolute path to the production archive. Read-only here; the harness never
 # writes. Mirrors core/archive/analyze._DB_PATH but resolved independently so a
@@ -82,6 +83,20 @@ def load_archive(
     return df
 
 
+def _clean_cell(value, default: str = "") -> str:
+    """Coerce an ``itertuples`` cell to a stripped string, mapping a missing value
+    to ``default``.
+
+    pandas reads a SQL ``NULL`` as ``np.nan`` (a *float*), and ``bool(np.nan)`` is
+    ``True`` — so a plain truthiness fallback would leak the literal string
+    ``"nan"`` into an episode grouping key, splitting a mixed-NULL ticker into
+    bogus extra episodes. Treat ``None`` / ``NaN`` / blank as the default.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return default
+    return str(value).strip() or default
+
+
 def _setup_rows(df: pd.DataFrame) -> list[SetupRow]:
     """Project archive rows into the minimal ``SetupRow`` episodes needs."""
     rows: list[SetupRow] = []
@@ -90,6 +105,13 @@ def _setup_rows(df: pd.DataFrame) -> list[SetupRow]:
         ticker = getattr(r, "ticker", None)
         scan_date = getattr(r, "scan_date", None)
         setup_type = getattr(r, "setup_type", None)
+        # build_episodes groups on (ticker, setup_type, universe_type), so the
+        # column MUST be threaded through — otherwise every row defaults to
+        # us_equities and an ETF episode merges with a like-named stock episode
+        # on a multi-universe archive (the cross-universe merge this projection
+        # is meant to prevent). A NULL universe_type (pre-migration / mixed DB)
+        # falls back to the us_equities default via _clean_cell (NaN-safe).
+        universe_type = getattr(r, "universe_type", None)
         if sid is None or ticker is None or scan_date is None:
             continue
         rows.append(
@@ -97,7 +119,8 @@ def _setup_rows(df: pd.DataFrame) -> list[SetupRow]:
                 id=int(sid),
                 ticker=str(ticker),
                 scan_date=str(scan_date),
-                setup_type=str(setup_type) if setup_type is not None else "",
+                setup_type=_clean_cell(setup_type, ""),
+                universe_type=_clean_cell(universe_type, DEFAULT_UNIVERSE_TYPE),
             )
         )
     return rows

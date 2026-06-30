@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from archive_models import SetupArchive
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from database import get_db
 from routers.archive_schemas import EpisodeOut, LabelUpdate, SetupOut
 from services.archive_queries import (
@@ -17,6 +18,21 @@ from services.archive_queries import (
 )
 
 router = APIRouter(tags=["archive"])
+
+
+def _resolve_universe_type(universe_type: Optional[str]) -> Optional[str]:
+    """Map the browse ``universe_type`` query param to a filter value.
+
+    Defaults to ``'us_equities'`` (the same scope the stats / calibration surfaces
+    use), but ``'all'`` (or an empty value) lifts the filter so the raw browse
+    lists can surface sector / commodity setups too — the multi-universe escape
+    hatch these list endpoints otherwise lack."""
+    if universe_type is None:
+        return DEFAULT_UNIVERSE_TYPE
+    cleaned = universe_type.strip().lower()
+    if cleaned in ("", "all"):
+        return None
+    return cleaned
 
 
 @router.get("/setups", response_model=List[SetupOut])
@@ -30,6 +46,9 @@ def list_setups(
     min_score: Optional[float] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    universe_type: Optional[str] = Query(
+        DEFAULT_UNIVERSE_TYPE, description="Universe scope; 'all' surfaces every universe."
+    ),
     sort_by: str = Query("scan_date"),
     sort_dir: str = Query("desc"),
     db: Session = Depends(get_db),
@@ -40,6 +59,7 @@ def list_setups(
         tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
+        universe_type=_resolve_universe_type(universe_type),
     )
 
     sort_col = getattr(SetupArchive, sort_by, SetupArchive.scan_date)
@@ -58,6 +78,9 @@ def list_episodes(
     min_score: Optional[float] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    universe_type: Optional[str] = Query(
+        DEFAULT_UNIVERSE_TYPE, description="Universe scope; 'all' surfaces every universe."
+    ),
     sort_by: str = Query("first_seen"),
     sort_dir: str = Query("desc"),
     db: Session = Depends(get_db),
@@ -74,6 +97,7 @@ def list_episodes(
         db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
+        universe_type=_resolve_universe_type(universe_type),
     )
 
     out: List[EpisodeOut] = []

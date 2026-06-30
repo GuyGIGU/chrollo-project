@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from core.backtest.loader import load_archive
+from core.backtest.loader import collapse_to_episodes, load_archive
 
 _COLS = "id INTEGER PRIMARY KEY, ticker TEXT, scan_date TEXT, setup_type TEXT, source TEXT, universe_type TEXT"
 
@@ -44,5 +44,38 @@ def test_universe_filter_is_noop_on_legacy_schema():
     con.commit()
     try:
         assert len(load_archive(con=con, universe_type="us_equities")) == 1
+    finally:
+        con.close()
+
+
+def test_collapse_keeps_same_ticker_in_two_universes_separate():
+    # The same ticker appearing as a stock AND an ETF on the same date must form
+    # TWO episodes — episodes never span universes (the cross-universe merge bug).
+    con = _con([
+        ("GLD", "2026-06-29", "LPS", "screener", "us_equities"),
+        ("GLD", "2026-06-29", "LPS", "screener", "commodities_etf"),
+    ])
+    try:
+        eps = collapse_to_episodes(load_archive(con=con))
+        assert len(eps) == 2
+        assert set(eps["universe_type"]) == {"us_equities", "commodities_etf"}
+    finally:
+        con.close()
+
+
+def test_collapse_null_universe_type_falls_back_not_nan():
+    # Regression: pandas reads SQL NULL as np.nan (a float, and bool(nan) is True),
+    # so a truthiness fallback would coerce NULL to the literal "nan" and split a
+    # mixed-NULL ticker into a bogus "nan" episode separate from its us_equities
+    # rows. NULL must collapse with us_equities into ONE episode (consecutive days).
+    con = _con([
+        ("AAA", "2026-06-01", "LPS", "screener", None),
+        ("AAA", "2026-06-02", "LPS", "screener", "us_equities"),
+        ("AAA", "2026-06-03", "LPS", "screener", None),
+    ])
+    try:
+        eps = collapse_to_episodes(load_archive(con=con))
+        assert len(eps) == 1, eps[["ticker", "scan_date", "universe_type"]].to_dict("records")
+        assert eps.iloc[0]["scan_date"] == "2026-06-01"  # first-seen anchor preserved
     finally:
         con.close()

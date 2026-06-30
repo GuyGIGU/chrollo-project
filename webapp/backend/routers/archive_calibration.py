@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from archive_models import SetupArchive
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from database import get_db
 from services import scan_status
 from services.archive_queries import _canonical_setups
@@ -79,7 +80,15 @@ def archive_health(db: Session = Depends(get_db)) -> Dict[str, Any]:
     live scans are arriving, forward returns are keeping up, and curated seed
     rows are not being mistaken for unbiased evidence.
     """
-    all_rows = db.query(SetupArchive).all()
+    # Scope raw rows to us_equities so the row-derived signals (latest_scan_date,
+    # row counts) stay in the SAME universe as the episode-derived ones below
+    # (_canonical_setups defaults to us_equities). Mixing scopes let the endpoint
+    # report "scans arriving" off an ETF row while "no live sample" off the empty
+    # equities episodes — a self-contradicting health verdict. Calibration is
+    # equities-only, so equities is the right scope for the whole endpoint.
+    all_rows = db.query(SetupArchive).filter(
+        SetupArchive.universe_type == DEFAULT_UNIVERSE_TYPE
+    ).all()
     all_episodes = _canonical_setups(db)
     live_episodes = _canonical_setups(db, source="screener")
     live_rows = [row for row in all_rows if (row.source or "screener") == "screener"]

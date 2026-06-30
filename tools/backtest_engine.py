@@ -52,6 +52,7 @@ from core.archive.missed_winners import (  # reused verbatim
 )
 from core.backtest import edge_report, is_oos, null_model, stats
 from core.backtest.loader import DEFAULT_DB_PATH, load_episodes
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 
 # Outcome-maturity floors below which a number is "directional at best".
 MATURE_MIN_N = 25          # mirrors analyze.EDGE_MIN_N
@@ -455,7 +456,7 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         metric_col: str = "mfe_20d", seed: int = 1337,
         spy_col: Optional[str] = None,
         json_path: Optional[str] = None,
-        universe_type: Optional[str] = "us_equities") -> dict:
+        universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE) -> dict:
     _LINES.clear()
     # Stock-only standalone-edge population by default: the ETF universes now
     # archive under source='screener' too, so pin universe_type to keep this

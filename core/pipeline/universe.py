@@ -79,6 +79,14 @@ class Universe:
 
 DEFAULT_UNIVERSE_KEY = "us_stocks"
 
+# Archive identity tag of the default (US-Stocks) universe. THE single source for
+# the "equities is the default population" scope: every archive read surface that
+# defaults to equities (stats, calibration, edge, missed-winners, the backtest
+# harness, the loader fallback) must reference this rather than re-typing the bare
+# string, so the policy has one definition (conventions.md EC-1). The deliberate
+# key (`us_stocks`) vs type (`us_equities`) split (AP-1) lives only here.
+DEFAULT_UNIVERSE_TYPE = "us_equities"
+
 
 def _build_registry() -> dict[str, "Universe"]:
     """Construct the universe registry (settings read here, at call time).
@@ -97,7 +105,7 @@ def _build_registry() -> dict[str, "Universe"]:
     us_stocks = Universe(
         key=DEFAULT_UNIVERSE_KEY,
         label="US Stocks",
-        universe_type="us_equities",
+        universe_type=DEFAULT_UNIVERSE_TYPE,
         ticker_source="nasdaq",
         ticker_csv=os.path.join(_config_dir(), "tickers.csv"),
         cache_filename=settings.CACHE_FILENAME,
@@ -177,6 +185,14 @@ def all_universes() -> list["Universe"]:
 def default_universe() -> "Universe":
     """The US-Stocks universe — the byte-identical default for every call site."""
     return _build_registry()[DEFAULT_UNIVERSE_KEY]
+
+
+def default_universe_type() -> str:
+    """The archive ``universe_type`` of the default (US-Stocks) universe — the
+    single source for the equities-default scope (conventions.md EC-1). Equal to
+    ``DEFAULT_UNIVERSE_TYPE`` and to ``default_universe().universe_type``; exposed
+    as a cheap accessor so read sites need not rebuild the registry."""
+    return DEFAULT_UNIVERSE_TYPE
 
 
 def resolve_universe(universe: "Universe | str | None") -> "Universe":

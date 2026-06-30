@@ -22,8 +22,8 @@ from core.pipeline.cache import (
 )
 from core.pipeline.data_freshness import (
     close_coverage_on,
-    deep_history_ratio,
     has_all_closes_on,
+    history_too_shallow,
     last_complete_reference_date,
     symbols_missing_closes_on,
 )
@@ -699,14 +699,15 @@ def _history_too_shallow(panel: pd.DataFrame | None, symbols: list[str]) -> bool
     a HEALTHY cache (deep history intact) returns False, leaving the fast paths
     byte-identical. When True, the caller forces a full cold refetch (self-repair),
     so a corrupted cache no longer blocks its own recovery via the latest-session
-    freshness check that is blind to depth."""
-    if panel is None or panel.empty:
-        return False
+    freshness check that is blind to depth.
+
+    Delegates the bar-floor + coverage predicate to the shared
+    ``data_freshness.history_too_shallow`` so the downloader and the health
+    classifier can never drift on the depth logic (they intentionally differ only
+    in which symbol set they judge)."""
     min_bars = int(getattr(settings, "MARKET_DATA_MIN_HISTORY_BARS", 100))
-    if len(panel.index) < min_bars:
-        return False
     min_cov = float(getattr(settings, "MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5))
-    return deep_history_ratio(panel, symbols, min_bars) < min_cov
+    return history_too_shallow(panel, symbols, min_bars=min_bars, min_cov=min_cov)
 
 
 def _read_cached_panel(cache_file: str) -> pd.DataFrame | None:
@@ -853,9 +854,12 @@ def _write_unhealthy_cold_result(
     expected_session: pd.Timestamp,
     min_latest_coverage: float,
     started_at: float,
+    reason: str | None = None,
 ) -> pd.DataFrame:
-    # Unhealthy cold run (likely rate-limited): record health for observability
-    # but do not touch quarantine, and preserve last_full_refresh in meta.
+    # Unhealthy cold run (rate-limited OR came back shallow): record health for
+    # observability but do not persist the panel, do not touch quarantine, and
+    # preserve last_full_refresh in meta. The new panel is NOT written, so the
+    # existing (possibly deeper) cache on disk is left intact.
     returned_active = present_tickers(data) & set(scope.requested_non_index)
     meta['fetch_health'] = summarize(
         "cold", scope.requested_non_index, returned_active, len(scope.skipped_quarantined),
@@ -868,9 +872,10 @@ def _write_unhealthy_cold_result(
         "active_skip_counts": count_active_skips(scope.admission),
     }
     _write_meta(meta_file, meta)
-    print(f"Full refetch latest-session coverage is {coverage.format()} for "
-          f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
-          "keeping existing cache if possible.", flush=True)
+    print(reason or (
+        f"Full refetch latest-session coverage is {coverage.format()} for "
+        f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
+        "keeping existing cache if possible."), flush=True)
     if cached is not None and not cached.empty:
         return cached
     return data
@@ -951,6 +956,22 @@ def _cold_fetch(
         return _write_unhealthy_cold_result(
             data, cached, meta_file, meta, scope, coverage, expected_session,
             min_latest_coverage, started_at
+        )
+
+    # Depth chokepoint: the cold path is where the deep-history guard routes a
+    # corrupted/truncated cache for repair, so a full refetch that comes back
+    # current-but-shallow (a thin Yahoo response — recent bars only) must NOT be
+    # persisted as the cache. Writing it would clobber the deeper on-disk history
+    # and ping-pong with the depth guard that keeps re-triggering the refetch.
+    # Treat it as unhealthy so the existing cache is preserved.
+    if _history_too_shallow(data, scope.tickers_with_indexes):
+        return _write_unhealthy_cold_result(
+            data, cached, meta_file, meta, scope, coverage, expected_session,
+            min_latest_coverage, started_at,
+            reason=("Full refetch came back current but its deep history is still "
+                    f"truncated for {expected_session.date()} (thin provider "
+                    "response); not persisting the shallow panel — keeping the "
+                    "existing cache if possible."),
         )
 
     return _write_successful_cold_result(data, cache_file, meta_file, scope, started_at)

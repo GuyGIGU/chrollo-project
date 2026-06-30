@@ -287,7 +287,11 @@ def migrate_universe_type(bind) -> bool:
     col_sql = ", ".join(copy_cols)
     # Literal for a clean add; COALESCE preserves any out-of-band values (a plain
     # ADD COLUMN with no default leaves NULLs) while still backfilling the rest.
-    ut_select = "COALESCE(universe_type, 'us_equities')" if has_ut_col else "'us_equities'"
+    # Local import keeps the equities-scope literal sourced from the one constant
+    # (conventions.md EC-1) without a module-level universe import at backend boot.
+    from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+    ut_select = (f"COALESCE(universe_type, '{DEFAULT_UNIVERSE_TYPE}')"
+                 if has_ut_col else f"'{DEFAULT_UNIVERSE_TYPE}'")
     dialect = sqlite_dialect.dialect()
     create_table_sql = str(CreateTable(archive_models.SetupArchive.__table__).compile(dialect=dialect))
     create_index_sqls = [

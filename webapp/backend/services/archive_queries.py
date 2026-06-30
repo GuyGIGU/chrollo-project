@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import func
 
 from archive_models import SetupArchive
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from services.episode_cache import VersionedCache
 
 # Caches the expensive episode grouping per (filter, archive-version) so
@@ -23,7 +24,7 @@ def _apply_setup_filters(
     min_score: Optional[float] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    universe_type: Optional[str] = "us_equities",
+    universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE,
 ):
     """Apply the shared setup_archive filters used by the list + episode views.
 
@@ -114,7 +115,7 @@ def _grouped_episodes(db, filters: dict):
     # (us_equities) and an explicit universe_type=None (all universes) would both
     # key on the same empty signature and collide in _EPISODE_CACHE.
     filters = {**filters}
-    filters.setdefault("universe_type", "us_equities")
+    filters.setdefault("universe_type", DEFAULT_UNIVERSE_TYPE)
     active = {k: v for k, v in filters.items() if v is not None}
     if "quality_label" in active:
         return _build_grouping(db, filters)
@@ -142,6 +143,13 @@ def _latest_episode_first_seen(db, ticker: str) -> Optional[str]:
     two surfaces disagree and a passed winner buckets as 'never engaged'.
     Resolving to the latest episode's first-seen keeps them in lock-step.
     Returns None if the ticker has never been archived (nothing to mark yet).
+
+    Scoped to ``us_equities`` because this serves the equities screener's
+    saw-&-passed marker, which keys on the same equities episode the
+    missed-winners / canonical path (also us_equities-default) does. Without the
+    filter, a ticker present in two universes could resolve its first_seen to the
+    ETF episode while missed-winners keyed on the equities episode — exactly the
+    cross-surface disagreement this function exists to prevent.
     """
     from core.archive import episodes as ep_mod
 
@@ -149,7 +157,10 @@ def _latest_episode_first_seen(db, ticker: str) -> Optional[str]:
         SetupArchive.id, SetupArchive.ticker,
         SetupArchive.scan_date, SetupArchive.setup_type,
         SetupArchive.universe_type,
-    ).filter(func.upper(SetupArchive.ticker) == ticker).all()
+    ).filter(
+        func.upper(SetupArchive.ticker) == ticker,
+        SetupArchive.universe_type == DEFAULT_UNIVERSE_TYPE,
+    ).all()
     if not rows:
         return None
     eps = ep_mod.build_episodes(

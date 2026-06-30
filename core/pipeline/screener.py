@@ -212,7 +212,7 @@ def run_screener(mode: str = "download",
         setups=len(results_df),
     )
     market_context["_scan_metrics"] = metrics
-    persist_scan_metrics(metrics)
+    persist_scan_metrics(metrics, universe=uni)
     print(format_scan_metrics(metrics), flush=True)
 
     return results_df, data, evaluation_tickers, market_context

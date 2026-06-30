@@ -14,7 +14,7 @@ import core.pipeline.screener as screener_module
 def test_persist_scan_metrics_updates_meta_and_appends_history(tmp_path, monkeypatch):
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text('{"fetch_health": {"healthy": true}}', encoding="utf-8")
-    monkeypatch.setattr(scan_metrics, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
+    monkeypatch.setattr(scan_metrics, "_cache_paths", lambda *a, **k: (str(tmp_path / "cache.parquet"), str(meta_file)))
     monkeypatch.setattr(scan_metrics, "_project_root", lambda: str(tmp_path))
 
     metrics = {"total_s": 1.23, "phases_s": {"evaluation": 0.5}, "counts": {"setups": 2}}
@@ -54,7 +54,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
         lambda frames, spy, breadth: [{"Ticker": "AAA", "Score": 10}],
     )
     saved = {}
-    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics: saved.update(metrics))
+    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: saved.update(metrics))
 
     results_df, _, tickers, market_context = screener_module.run_screener()
 
@@ -97,7 +97,7 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
         "_evaluate_frames",
         lambda frames, spy, breadth: [{"Ticker": "AAA", "Score": 10}],
     )
-    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics: None)
+    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
 
     results_df, data, tickers, _ = screener_module.run_screener(mode="cache")
 

@@ -33,6 +33,7 @@ from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_
 from core.pipeline.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from core.structure.htf import htf_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -292,8 +293,14 @@ def seed_archive(
 
         eval_date_str = best_eval_date.strftime("%Y-%m-%d")
 
-        # Check if already exists (by the actual signal date, not trigger date)
-        existing = session.query(SetupArchive).filter_by(ticker=ticker, scan_date=eval_date_str).first()
+        # Check if already exists (by the actual signal date, not trigger date).
+        # Seed rows are the hand-picked equities winners gallery, so the existence
+        # check must match the widened 3-col identity key (conventions.md EC-4) —
+        # otherwise it ignores the universe dimension and could overwrite the wrong
+        # row once any non-equities universe is ever seeded.
+        existing = session.query(SetupArchive).filter_by(
+            ticker=ticker, scan_date=eval_date_str, universe_type=DEFAULT_UNIVERSE_TYPE
+        ).first()
         if existing and not force:
             log.info(f"  {ticker} @ {eval_date_str}: already in archive, skipping (use --force to overwrite).")
             continue
@@ -331,6 +338,7 @@ def seed_archive(
         values = dict(
             ticker=ticker,
             scan_date=eval_date_str,
+            universe_type=DEFAULT_UNIVERSE_TYPE,  # equities winners gallery (EC-4)
             setup_type=best_result["setup_type"],
             tier=best_result["tier"],
             score=best_result["score"],

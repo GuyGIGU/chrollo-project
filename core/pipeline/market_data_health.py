@@ -16,7 +16,7 @@ from core.pipeline.cache import _cache_paths, _read_meta, _write_meta
 from core.pipeline.data_freshness import (
     CloseCoverage,
     close_coverage_on,
-    deep_history_ratio,
+    history_too_shallow,
     last_complete_reference_date,
     symbols_missing_closes_on,
     unique_symbols,
@@ -146,12 +146,12 @@ def compute_market_data_health(
     # archive/eval; refresh / fetch_data force a full cold refetch instead.
     min_history_bars = int(getattr(settings, "MARKET_DATA_MIN_HISTORY_BARS", 100))
     min_history_cov = float(getattr(settings, "MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5))
-    history_ok = True
-    if (scope.eligible_symbols and panel is not None and not panel.empty
-            and len(panel.index) >= min_history_bars):
-        history_ok = deep_history_ratio(
-            panel, scope.eligible_symbols, min_history_bars
-        ) >= min_history_cov
+    # Same depth predicate as the downloader (data_freshness.history_too_shallow),
+    # just scoped to the eligible symbols. The shared helper already returns
+    # "not shallow" for an empty/short panel, so the prior len-guard is folded in.
+    history_ok = not history_too_shallow(
+        panel, scope.eligible_symbols, min_bars=min_history_bars, min_cov=min_history_cov
+    )
     health_state, severity, can_evaluate, can_archive, can_download, help_needed = _classify(
         cache_last_session,
         last_reference,

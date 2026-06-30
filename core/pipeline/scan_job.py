@@ -117,6 +117,31 @@ def _is_latest_coverage_error(exc: Exception) -> bool:
     return "latest-session close coverage" in str(exc).lower()
 
 
+def _passes_archive_freshness(
+    data: pd.DataFrame, tickers: list[str], universe, mode: str, n_setups: int
+) -> bool:
+    """Run the archive freshness gate; return whether the scan may be archived.
+
+    Returns ``True`` when the data is fresh enough to archive, and ``False`` for
+    the single tolerated case — a cache-mode eval that used partial latest-session
+    coverage (a legitimate empty/partial day; the dashboard is still refreshed).
+    Raises ``StaleMarketDataError`` (stamped with ``n_setups``) on a genuine
+    stale-data abort.
+
+    Both the empty-result and non-empty branches route through this so their
+    stale-handling logic (the ``mode == "cache" and _is_latest_coverage_error``
+    tolerance + the ``n_setups`` stamp) stays in ONE place and can't drift.
+    """
+    try:
+        _assert_fresh_for_archive(data, tickers, universe)
+    except StaleMarketDataError as exc:
+        if mode == "cache" and _is_latest_coverage_error(exc):
+            return False
+        exc.n_setups = n_setups
+        raise
+    return True
+
+
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
     """Run the screener and write every non-broker output artifact.
 
@@ -141,14 +166,10 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # zeros raise (reported stale) instead of silently clobbering the screen. A
         # genuine zero-setup day on healthy data still writes the valid empty artifact.
         if settings.ARCHIVE_LIVE_SCANS:
-            try:
-                _assert_fresh_for_archive(data, tickers, uni)
-            except StaleMarketDataError as exc:
-                if not (mode == "cache" and _is_latest_coverage_error(exc)):
-                    exc.n_setups = 0
-                    raise
-                # cache-mode partial-coverage eval is a legitimate empty day — keep
-                # the dashboard refresh below.
+            # Genuine stale data raises (reported stale); a fresh day and the
+            # tolerated cache-mode partial-coverage case both fall through to the
+            # dashboard refresh below (the empty artifact clears stale names).
+            _passes_archive_freshness(data, tickers, uni, mode, n_setups=0)
         # Write an empty artifact so this universe reads as "scanned, matched
         # nothing" rather than "never scanned" — and so an empty day clears any
         # stale setups instead of leaving the previous scan's names on screen.
@@ -174,18 +195,13 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # on universe_type='us_equities'.
     n_archived = 0
     if settings.ARCHIVE_LIVE_SCANS:
-        try:
-            _assert_fresh_for_archive(data, tickers, uni)
-        except StaleMarketDataError as exc:
-            if mode == "cache" and _is_latest_coverage_error(exc):
-                print(
-                    "\nCached evaluation used partial latest-session coverage; "
-                    "dashboard updated, archive write skipped.",
-                    flush=True,
-                )
-                return ScanExportResult(n_setups=len(results_df), n_archived=0)
-            exc.n_setups = len(results_df)
-            raise
+        if not _passes_archive_freshness(data, tickers, uni, mode, n_setups=len(results_df)):
+            print(
+                "\nCached evaluation used partial latest-session coverage; "
+                "dashboard updated, archive write skipped.",
+                flush=True,
+            )
+            return ScanExportResult(n_setups=len(results_df), n_archived=0)
         n_archived = archive_scan_results(results_df, enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")

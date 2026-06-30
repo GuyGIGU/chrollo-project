@@ -99,9 +99,48 @@ def deep_history_ratio(data: pd.DataFrame, symbols: list[str], min_bars: int) ->
         closes = data.xs("Close", axis=1, level=1)
     except KeyError:
         return 0.0
+    # A torn-merge cache can carry a duplicate (ticker, 'Close') column (a
+    # documented corruption shape — see test_patch_market_data_tolerates_duplicate
+    # _base_columns). That leaves ``closes`` with duplicate labels, so
+    # ``counts.get(s)`` returns a Series and ``int(Series)`` raises TypeError —
+    # aborting the very fetch whose job is to refetch this corrupted cache. Dedupe
+    # so each symbol maps to one count (mirrors the ~columns.duplicated dedupe the
+    # cache writers already apply).
+    if closes.columns.duplicated().any():
+        closes = closes.loc[:, ~closes.columns.duplicated(keep="last")]
     counts = closes.notna().sum()
     deep = sum(1 for s in symbols if int(counts.get(s, 0)) >= min_bars)
     return deep / len(symbols)
+
+
+def history_too_shallow(
+    data: pd.DataFrame | None,
+    symbols: list[str],
+    *,
+    min_bars: int,
+    min_cov: float,
+) -> bool:
+    """True when the panel spans years but most ``symbols`` lost their deep
+    history — the NaN-wipe corruption shape a latest-session coverage check is
+    blind to.
+
+    Single source of truth for the depth predicate shared by the downloader
+    (``downloads._history_too_shallow``) and the health classifier
+    (``market_data_health.compute_market_data_health``), so the bar-floor +
+    coverage logic can't drift between them. Each caller still supplies its OWN
+    symbol set (the downloader judges tickers+indexes, health judges eligible
+    tickers) — only the predicate is shared, not the scope.
+
+    Returns False ("can't judge / fine") when the panel is empty or shorter than
+    ``min_bars`` (a short/new cache can't carry deep history and must not be
+    flagged), and when deep coverage meets ``min_cov`` — so the healthy fast paths
+    stay byte-identical.
+    """
+    if data is None or data.empty:
+        return False
+    if len(data.index) < min_bars:
+        return False
+    return deep_history_ratio(data, symbols, min_bars) < min_cov
 
 
 def last_complete_reference_date(data: pd.DataFrame, symbols: list[str]) -> pd.Timestamp | None:
