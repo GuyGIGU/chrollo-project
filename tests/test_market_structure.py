@@ -457,12 +457,13 @@ def test_e2_first_sos_is_the_spine_sos(monkeypatch):
     # Two confirmed SOS waves: the spine SOS is the FIRST by bar (the creek-jump);
     # the later held reach stays visible in events[]. Feed synthetic pieces so the
     # selection logic is pinned independent of staircase geometry.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
     early = {"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
              "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}
     late = {"type": "SOS", "rail": "R", "anchor_bar": 11, "zone_start": 9,
             "peak_price": 12.9, "peak_box_pos": 1.45, "hold_range_box": 0.5}
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: ([late, early], 1, 16, True))
     nar = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar["spine"]["sos"]["anchor_bar"] == 4           # first by bar, not by quality
@@ -472,13 +473,14 @@ def test_e2_first_sos_is_the_spine_sos(monkeypatch):
 def test_e2_completeness_counts_held_tests_only(monkeypatch):
     # The completeness test-slot + the tests count both use the SAME held filter:
     # failed / in_progress S-touches never inflate the tally.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
     events = [
         {"type": "test", "rail": "S", "anchor_bar": 2, "zone_start": 2},
         {"type": "test", "rail": "S", "anchor_bar": 5, "zone_start": 5},
         {"type": "failed", "rail": "S", "anchor_bar": 8, "zone_start": 8},
     ]
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: (events, 1, 12, True))
     nar = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar["tests"] == 2                                # held only (failed excluded)
@@ -489,10 +491,11 @@ def test_e2_completeness_counts_held_tests_only(monkeypatch):
 def test_e2_phases_none_when_no_real_v(monkeypatch):
     # A valid box with zero valley swings has no real V (v_bar defaults to 0) ->
     # phases must be None, not [0,0], even when a Phase-D event exists.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
     events = [{"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
                "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}]
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: (events, 0, 8, False))
     nar = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar["phases"] == {"B": None, "C": None, "D": None}
@@ -584,6 +587,7 @@ def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
     # The no-lookahead contract: an R-rail markup OR in_progress at/after the last
     # upthrust un-terminals it (the run-up resolved up / is still developing); an
     # S-rail in_progress does NOT (it says nothing about the R-rail run-up).
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
 
     def _ut():
@@ -594,7 +598,7 @@ def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
         ([_ut(), {"type": "in_progress", "rail": "S", "anchor_bar": 9, "zone_start": 9}], True),
     ]
     for events, expected in cases:
-        monkeypatch.setattr(metrics, "_box_events_with_meta",
+        monkeypatch.setattr(box_events, "_box_events_with_meta",
                             lambda *a, _e=events, **k: (_e, 1, 12, True))
         nar = metrics.assemble_box_narrative(None, None, 0.5)
         assert nar["upthrust_terminal"] is expected
@@ -604,6 +608,7 @@ def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
 def test_e2_chronology_strict_order_boundary(monkeypatch):
     # intact requires STRICT spring.anchor < sos.anchor < lps.anchor; a tie or an
     # out-of-order trio reads partial (never intact), though completeness is 3.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
 
     def _spring(b):
@@ -621,25 +626,26 @@ def test_e2_chronology_strict_order_boundary(monkeypatch):
     tie = [_spring(5), _sos(5), _lps(9)]        # spring tip == sos peak -> not strict
     ooo = [_spring(2), _sos(8), _lps(4)]        # lps low before sos peak -> out of order
     for events in (tie, ooo):
-        monkeypatch.setattr(metrics, "_box_events_with_meta",
+        monkeypatch.setattr(box_events, "_box_events_with_meta",
                             lambda *a, _e=events, **k: (_e, 1, 12, True))
         nar = metrics.assemble_box_narrative(None, None, 0.5)
         assert nar["chronology"] == "partial" and nar["completeness"] == 3
 
 
 def test_e2_partial_from_single_piece_and_phase_d_at_right_edge(monkeypatch):
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
     # Exactly one canonical piece -> chronology partial (some present, not all).
     spring_only = [{"type": "spring", "rail": "S", "anchor_bar": 3, "zone_start": 3,
                     "zone_end": 4, "recovery_bars": 1, "undercut_atr": 0.8}]
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: (spring_only, 1, 12, True))
     nar = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar["chronology"] == "partial" and nar["completeness"] == 1
     # V at the last base bar -> Phase-D span suppressed (no inverted [v+1, v] span).
     events = [{"type": "lps", "rail": "S", "anchor_bar": 7, "zone_start": 7,
                "zone_end": 7, "swing_type": "terminal_valley"}]
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: (events, 7, 8, True))   # v_bar == base_n - 1
     nar2 = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar2["phases"]["D"] is None and nar2["phases"]["B"] == [0, 7]
@@ -684,6 +690,7 @@ def test_e2_upthrust_terminal_phase_d_range_clears_phase_b_range_does_not(monkey
     # F3: a held Phase-D "range" (anchor > v_bar) after the last upthrust clears the
     # terminal read (price recovered near R); a Phase-B "range" (left of the V, which
     # shares the type label) must NOT clear it. markup/in_progress keep no phase guard.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
 
     def _ut(b=4):
@@ -695,7 +702,7 @@ def test_e2_upthrust_terminal_phase_d_range_clears_phase_b_range_does_not(monkey
         ([_ut(), {"type": "markup", "rail": "R", "anchor_bar": 6, "zone_start": 5}], False),  # markup: no phase guard, still clears
     ]
     for events, expected in cases:
-        monkeypatch.setattr(metrics, "_box_events_with_meta",
+        monkeypatch.setattr(box_events, "_box_events_with_meta",
                             lambda *a, _e=events, **k: (_e, v_bar, 12, True))
         nar = metrics.assemble_box_narrative(None, None, 0.5)
         assert nar["upthrust_terminal"] is expected
@@ -706,12 +713,13 @@ def test_e2_injected_lps_gate_drop_is_observable(monkeypatch):
     # injected but the Phase-D gate emits no lps event (the rare late-V case),
     # lps_pre_v_dropped is True + a trace note fires. The default (detect) path,
     # which has no "elected" brick, never flags it.
+    import core.structure.box_events as box_events
     import core.structure.metrics as metrics
     from types import SimpleNamespace
     # Events with an SOS but NO lps event -> stands in for the gate having dropped it.
     events = [{"type": "SOS", "rail": "R", "anchor_bar": 6, "zone_start": 5,
                "peak_price": 12.4, "hold_range_box": 0.4}]
-    monkeypatch.setattr(metrics, "_box_events_with_meta",
+    monkeypatch.setattr(box_events, "_box_events_with_meta",
                         lambda *a, **k: (events, 8, 12, True))
     brick = SimpleNamespace(start_bar=2, end_bar=4, low_bar=3,
                             swing_type="terminal_valley")

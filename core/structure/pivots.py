@@ -74,3 +74,47 @@ def _build_zigzag(peaks_idx, valleys_idx, highs, lows):
                 zigzag[-1] = pv
 
     return zigzag
+
+
+# ---------------------------------------------------------------------------
+# Helper: Amplitude-collapse a zigzag to its significant swings
+# ---------------------------------------------------------------------------
+
+def _collapse_swings(zigzag, min_amp):
+    """Amplitude-filter an alternating zigzag down to its significant swings.
+
+    A percentage/ATR-style zigzag built ON TOP of ``_build_zigzag``: walk the raw
+    alternating pivots left-to-right and absorb any reversal smaller than
+    ``min_amp`` into the running directional extreme, so only swings that move a
+    meaningful fraction of the box survive. This is what makes the traversal read
+    adaptive — in a tight box a small absolute move is still a real swing; in a
+    wide box the same absolute move is noise — because ``min_amp`` scales with box
+    height at the call site.
+
+    Single O(n) left-to-right pass (no fixed-point deletion). The input alternates
+    peak/valley, and every branch preserves that alternation, so the output is a
+    clean alternating list of ``(bar_index, 'peak'|'valley', price)`` tuples.
+    """
+    if not zigzag:
+        return []
+    out = [zigzag[0]]
+    for piv in zigzag[1:]:
+        last = out[-1]
+        if piv[1] == last[1]:
+            # Same type (post-merge can produce this): keep the more extreme.
+            if ((piv[1] == 'peak' and piv[2] >= last[2]) or
+                    (piv[1] == 'valley' and piv[2] <= last[2])):
+                out[-1] = piv
+        elif abs(piv[2] - last[2]) >= min_amp:
+            out.append(piv)                       # a genuine reversal — commit it
+        elif len(out) >= 2:
+            # Sub-threshold counter-swing: drop the small reversal's start and let
+            # the prior same-type extreme (out[-2]) absorb this pivot.
+            out.pop()
+            prev = out[-1]
+            if ((piv[1] == 'peak' and piv[2] >= prev[2]) or
+                    (piv[1] == 'valley' and piv[2] <= prev[2])):
+                out[-1] = piv
+        # else: a sub-threshold move off the very first pivot — skip it; the
+        # anchor stays until a real reversal arrives.
+    return out
