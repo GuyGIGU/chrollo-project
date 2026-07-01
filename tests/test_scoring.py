@@ -640,6 +640,15 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
         assert k not in out, f"v2 key {k!r} leaked with the flag off"
 
 
+def test_taxonomy_emitted_keys_match_score_setup_output():
+    """The registry's emitted keys must exactly equal score_setup's sub-score keys
+    (default flags) — the score-dict coupling that keeps the taxonomy authoritative."""
+    from core.scoring.scoring import score_setup
+    from core.scoring import taxonomy
+    out = score_setup(**_score_common())
+    assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
+
+
 def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
     from core.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
