@@ -1,116 +1,113 @@
-# Spec — Technical Analysis Score (regime-agnostic structural quality grade)
+# Spec — Technical Analysis Score (the Visual half of the scoring system)
 
-Status: DRAFT (framing lock before council-plan) · Branch: `engine/ta-score-rework`
-Evidence basis: `docs/archive_edge_read_2026-07-01.md`
+Status: DRAFT v2 (reframed by operator 2026-07-01) · Branch: `engine/ta-score-rework`
+Evidence basis: `docs/archive_edge_read_2026-07-01.md` · Plan: `specs/ta-score-rework-plan.md`
+(the plan predates this reframe — its engineering spine holds; buckets + formula phases are
+superseded by §3–§5 below).
 
-## 1. Purpose & reframe
+## 1. Purpose & the two-half system
 
-There are **two different jobs**, and the current scorer conflates them:
+The scoring system is split into two halves:
 
-- **Job A — define & grade what a good setup *is*** (this rework). A **regime-agnostic,
-  descriptive quality grade of the chart's bar/structure characteristics.** It does not
-  know or care what the market regime is. This is "read the picture."
-- **Job B — measure that grade's *edge*** (deferred). How the grade's realized returns
-  hold up across regimes, eras, and setup varieties. This is where the "bull-only sample"
-  caveat lives — and it needs an adverse cohort we don't have yet.
+- **Technical Analysis Score (Visual / chart-reading)** — THIS rework. A single **0–100**,
+  **hybrid + dynamic** number that scores the *entire visual read* of a setup from its chart.
+- **Fundamental Score** — a separate future half (to be continued). Out of scope here.
 
-The edge read is therefore **input and sanity-check, not the objective function.** The
-spine of the score is the operator's discretionary theory of good structure
-(Minervini/VCP tightness + contraction, Qullamaggie momentum containment, Wyckoff
-worked-equilibrium / LPS). Data tells us which characteristics co-move with outcomes and
-flags freight that grades nothing — it does not get to *define* "good," because one bull
-regime can't.
+We **ditch the old "visual vs market" framing.** Market **regime is no longer a score input**
+— it becomes a small informational **label** (§4). The letter tier / grade derives from the
+Technical Analysis Score alone.
 
-## 2. The core problem in today's scorer
+Two jobs remain distinct (unchanged from v1):
+- **Job A — define & grade what a good setup *is*** (this rework): a regime-agnostic
+  descriptive quality grade of the chart. The operator's discretionary eye
+  (Minervini/VCP + Qullamaggie + Wyckoff) is the spine.
+- **Job B — measure its *edge* across regimes/eras** (deferred): needs an adverse cohort we
+  don't have yet. The edge read is **input/tie-breaker, not the objective function.**
 
-`core/scoring/scoring.py::calculate_score` sums **14 sub-scores** into one `total`, mapped
-to a letter tier by `TIER_*` thresholds. That single total mixes two categories:
+## 2. What "hybrid + dynamic" means
 
-| Category | Sub-scores |
-|---|---|
-| **Structural** (chart bar characteristics) | `box_tightness`, `touch_density`, `traversal_quality`, `atr_squeeze`, `lps_tightness`, `vol_contraction`, `base_age`, `contraction`, `ascending_support` (+ `puzzle_quality`, flag-gated) |
-| **Context / regime** (NOT chart structure) | `uptrend_bonus`, `rs_bonus`, `breadth_bonus`, `high_proximity`, (`adr` = tradeability) |
+- **Hybrid** — the score fuses the **quantitative sub-scores** with the **qualitative
+  setup-tags** (today's "why ranked" chips: worked-equilibrium, touch-volume, HTF re-accum,
+  spring/LPS reads, etc.). Tags stop being display-only and become **graded scoring inputs**,
+  folded/rewritten into one coherent formula.
+- **Dynamic** — the formula **adapts to the structure actually present** rather than a rigid
+  fixed additive sum: features that don't exist for a given setup don't dilute it, and
+  setup-shape (e.g. spring vs flat coil vs LPS) can weight its own relevant reads. Exact
+  mechanism is a plan/design question (§7).
 
-Two independent reasons this is wrong for Job A:
-1. **Conceptual (operator):** context terms describe the market/instrument, not whether
-   the base is well-formed. They contaminate "what is a good setup."
-2. **Empirical (edge read, live cut):** those context terms are the dead weight —
-   `rs_bonus` weak-**harmful** (−0.17 vs durable-win), `uptrend`/`breadth`/`high_proximity`
-   **inert** — while the structural earners `base_age` (+0.31) and `traversal_quality`
-   (+0.19) are buried in the same sum.
+## 3. Architecture — the layers ✅ LOCKED (operator, 2026-07-01)
 
-## 3. Proposed direction — the key architectural decision  ✅ LOCKED (operator, 2026-07-01)
+- **Technical Analysis Score (0–100)** — built from **every single-chart, chart-readable
+  signal**, folding in the tags. Its distribution is normalized to a **0–100** grade, and the
+  **letter tier derives from it.**
+- **Regime label** (§4) — universe breadth + SPY trend; **annotation only, never scored.**
+- **Fundamental Score** — future half; not built here.
 
-**Decision: FULL SPLIT, tier derives from the structural layer ONLY.** Context terms
-become a separate confluence readout; they never enter the letter grade. ADR is grouped
-with context (tradeability), not structure.
+**New formula, reweighting everything** (§5) — not a conservative cap-nudge. Still
+**flag-gated, byte-identical when off**, and gated by the standing guards.
 
-**Split the single total into two transparent layers:**
+### Term taxonomy (locked)
 
-- **(A) TA Structure Score** — regime-agnostic; built ONLY from chart-structure terms.
-  This is the grade of "what a good setup is," and the **letter tier derives from this.**
-- **(B) Context layer** — trend / RS / breadth / 52w-proximity / tradeability, kept as a
-  **separate, explicit readout (confluence)**, never folded into the structural grade.
-  Preserved for Job B (regime study) and optionally for a *capped* ranking nudge, but it
-  cannot move the definition of good structure.
+| Signal | Home | Notes |
+|---|---|---|
+| box_tightness, touch_density, traversal_quality, atr_squeeze, lps_tightness, vol_contraction, base_age, contraction, ascending_support | **TA Score** | core structure |
+| right_side_improvement, worked_eq_touch (new) | **TA Score** | promoted structural reads (edge §4) |
+| puzzle_quality (E3) | **TA Score** | L2 Wyckoff narrative, its own flag |
+| uptrend_bonus, high_proximity, adr | **TA Score** | single-chart trend / position / volatility |
+| **rs_bonus** (relative strength vs SPY) | **TA Score** | leadership is a technical read (operator-locked) |
+| setup **tags** ("why ranked" chips) | **TA Score** | folded in as graded inputs (hybrid) |
+| **breadth** (universe % > SMA50) | **Regime label** | market state, not chart |
+| **spy_trend** | **Regime label** | market state, not chart |
+| fundamentals | **Fundamental Score** | future half |
 
-This is a **re-architecture into layers + a reweight, not a rebuild.** The composite's
-ordinal ranking already works (S +8.6% > A +5.5% > B −3.3%, monotonic), so we keep the
-mechanism and clean its inputs. Flag-gated; **byte-identical when the flag is off.**
+## 4. Regime label (replaces the old context layer)
 
-## 4. Reweighting *within* the structural layer (Job A)
+Breadth + SPY-trend (and any market-state facts) render as a compact **label on the setup**:
+"found in a {bullish/…} tape, breadth {n}%." It informs the reader where/when the setup was
+found and feeds **Job B** later, but it **does not move the number or the tier.**
 
-- **Promote** the edge-supported, operator-core terms: `base_age`, `traversal_quality` /
-  worked-equilibrium, and add/strengthen a **right-side-improvement** term
-  (`bin_d_vs_b_support_quality_delta` +0.40, `bin_d_range_pct` −0.39 — currently unscored)
-  and a **worked-equilibrium touch-distribution** term (`eq_s_touch_thirds` +0.39,
-  `eq_lower_dwell` +0.34).
-- **Reframe tightness as a consistency lever, not a magnitude one,** and locate it on the
-  right side of the base — that's where it pays (tight boxes win 90% @1.91R vs loose 74%
-  @1.64R; the raw-mean "contradiction" is a fat-tail artifact). Keep tightness; stop
-  over-rewarding gross box width.
-- **Audit the inert block** (`touch_density`, `atr_squeeze`, `lps_tightness`,
-  `vol_contraction`, `contraction`, `ascending_support`): reweight so they don't dilute
-  the earners — but **inert ≠ delete.** "Inert on durable-win over one bull regime" is not
-  "not part of good structure." The operator's eye is the arbiter for the structural
-  terms; the data is a tie-breaker, not a veto.
+## 5. Reweighting — the new formula (Job A)
 
-## 5. Non-goals (explicit)
+- **Fold the current 14 sub-scores + tags** into one hybrid formula normalized to **0–100**.
+- **Promote** the edge-supported, operator-core reads: `base_age` (+0.31), `traversal_quality`
+  (+0.19), and the new `right_side_improvement` + `worked_eq_touch` terms.
+- **Reframe tightness as a consistency lever** (tight boxes win 90% @1.91R; the raw-mean
+  "contradiction" is a fat-tail artifact), located on the right side of the base.
+- **Weak/inert terms are down-weighted, not deleted** — "inert over one bull regime" ≠ "not
+  part of good structure." The operator's eye is the arbiter; the edge read is a tie-breaker.
+- `rs_bonus` was weak-harmful on the bull sample → **low weight, but kept** (it's a technical
+  leadership read the operator wants visible in the number).
 
-- **No regime conditioning** of the score — that is Job B.
-- **No edge-maximization as the objective** — single-regime data would overfit the tape.
-- **No blind rebuild** — keep the working ordinal composite; incremental, flag-gated steps.
-- **No change to geometry/validity GATES** — vetoes stay geometric; this touches SCORING
-  only (grades-not-vetoes, per the reading roadmap).
+## 6. Constraints & guards (unchanged)
 
-## 6. Constraints & guards
-
-- Flag-gated (e.g. `TA_SCORE_LAYERED`), **default-off byte-parity** (mirrors the
-  CANDLE_SPREAD / ADR / PUZZLE containment pattern).
-- Gates green every step: `pytest -q`, `tools.shadow_diff --check` (engine byte-parity),
-  `core.archive.seed_recall --check` (firing invariant).
-- Small evidence-driven steps; A/B surface on live fires for operator eyeball before flip.
-- Archive writer + `/calibration` + analyze.py sub-score lists kept in lock-step (the
-  archive's 5-way coupling — see the blindspot audit).
+- Flag-gated (e.g. `TA_SCORE_V2`), **default-off byte-parity** (mirror CANDLE/PUZZLE containment).
+- Gates green every step: `pytest -q`, `tools.shadow_diff --check`, `core.archive.seed_recall --check`.
+- Small evidence-driven steps; **A/B surface on live fires for operator eyeball before flip.**
+- One sub-score/tag **registry** feeds the 5 coupled sites (writer + seed writer + archive_actions
+  + analyze + calibration); a set-equality invariant test guards it.
+- Geometry/validity **gates untouched** — scoring only (grades-not-vetoes).
 
 ## 7. Decisions
 
 **Resolved (operator, 2026-07-01):**
-1. ✅ Structure/context **SPLIT** — yes (§3).
-2. ✅ **Tier derivation** — structure layer ONLY.
-5. ✅ **ADR** — grouped with context (tradeability), not structure.
+1. ✅ System split = **Visual (this) + Fundamental (future)**; ditch visual-vs-market.
+2. ✅ TA Score = **hybrid + dynamic**, folds current sub-scores **+ tags**, 100% visual.
+3. ✅ **Scale = 0–100**; tier derives from it.
+4. ✅ **Regime → label only** (breadth + SPY); never scored.
+5. ✅ **Relative strength stays IN the TA Score** (technical leadership read).
+6. ✅ **Reweight everything with a new formula** (not a cap-nudge).
+7. ✅ **Flip gated on operator eyeball** of the A/B set, never an aggregate edge number.
 
-**Still open (resolve during plan):**
-3. **Rebrand** — the "Technical Analysis Score" name/label in UI + archive columns.
-4. **Context terms' role** — pure display, or a capped secondary input to *ranking/sort*
-   (never to the tier)?
-6. **New structural terms** — exact definition/weights for the right-side-improvement and
-   worked-equilibrium touch-distribution terms (plan + calibration work).
+**Still open (plan/design phase):**
+- The exact **hybrid/dynamic mechanism** (how tags combine with sub-scores; how the formula
+  adapts to present features / setup shape).
+- **Per-tag + per-term weights** and the 0–100 normalization anchors (calibration + eyeball).
+- Whether the regime label also drives any **secondary sort** (default: no).
 
 ## 8. Validation plan
 
 - Flag-off byte-parity + gates (mechanical correctness).
-- A/B the layered score vs current on live fires; operator eyeballs the calibration set.
-- **Job B (regime / era / setup-variety edge) is deferred** until a corrective cohort
-  matures under the now-reliable tick — that is the test that separates "grades good
-  structure" from "rode a bull market."
+- A/B the new 0–100 TA Score vs the current tier on live fires; operator eyeballs the
+  calibration set; **flip is a human decision.**
+- **Job B (regime/era/setup-variety edge)** deferred until a corrective cohort matures under
+  the now-reliable tick.
