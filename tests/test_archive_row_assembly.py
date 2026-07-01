@@ -1,31 +1,38 @@
 """
 Archive row-assembly column-drift guard (hermetic — NO DB, NO scan).
 
-Both real archive writers build a ~130-key ``values = dict(...)`` and then call
-``SetupArchive(**values)``:
+The two real archive writers assemble a SetupArchive row two different ways now:
 
-  * ``core/archive/writer.py``  -> ``archive_scan_results``  (live screener path)
-  * ``core/archive/seed.py``    -> ``seed_archive``          (winners seed path)
+  * ``core/archive/writer.py`` -> ``archive_scan_results`` (live screener path)
+    still hand-writes a ~130-key ``values = dict(...)`` then ``SetupArchive(**
+    values)``.
+  * ``core/archive/seed.py`` -> ``seed_archive`` (winners seed path) builds its
+    row through the model-driven mapper — ``archive_row_from_result(best_result,
+    overrides=dict(...))`` (the SAME single-source assembler the manual-add
+    route uses). Its hand literal is now the ``overrides = dict(...)`` block,
+    carrying only the special-cased seed keys; the mapper flat-maps the rest from
+    ``SetupArchive.__table__``.
 
 Every *other* test in the suite monkeypatches these writers away, so a stray or
 renamed key (``foo=...`` where the model has no ``foo`` column) raises
-``TypeError`` only during a real live scan — i.e. in production, never in CI.
+``TypeError`` only during a real live scan/seed — i.e. in production, never in CI.
 
-This test closes that gap statically. It parses the source of each writer with
-``ast``, collects every key the ``values`` dict would assign, and asserts that
-set is a SUBSET of the SetupArchive ORM columns. Nothing is executed against a
-database and no scan runs; the two literal ``dict(...)`` calls are read directly
-from source, and the handful of ``**splat`` helpers are driven hermetically
-(pure functions given synthetic inputs) so the columns THEY contribute are
-covered as well.
+This test closes that gap statically. For the live writer it parses the ``values
+= dict(...)`` source with ``ast`` and asserts its keys are a SUBSET of the ORM
+columns. For the seed writer it asserts the mapper's auto-mapped columns AND the
+``overrides = dict(...)`` keys are all real columns. Nothing is executed against
+a database and no scan runs; the literal ``dict(...)`` calls are read directly
+from source, and the ``**splat`` helpers are driven hermetically (pure functions
+given synthetic inputs) so the columns THEY contribute are covered as well.
 
 APPROACH (reported to the orchestrator): asserted STATICALLY via AST key
-enumeration + hermetic splat-helper resolution. No ``build_scan_values`` helper
-was extracted — the live writer's dict interleaves per-row ``**`` splats with
-closures over scan-wide state (market_ctx, sector_ranking, engine_config_version,
-universe_type), so a safe byte-identical extraction was not worth the risk to the
-flag-off path. The AST approach also has the virtue of tracking the real source,
-so it keeps guarding after future edits without a hand-maintained key list.
+enumeration + hermetic splat-helper resolution + the model-driven mapper. The
+live writer's dict interleaves per-row ``**`` splats with closures over scan-wide
+state (market_ctx, sector_ranking, engine_config_version, universe_type), so a
+safe byte-identical extraction was not worth the risk to the flag-off path; the
+seed writer was collapsed onto ``archive_row_from_result`` (proven byte-identical
+at the persisted-row level). The AST approach tracks the real source, so it keeps
+guarding after future edits without a hand-maintained key list.
 """
 from __future__ import annotations
 
@@ -59,8 +66,14 @@ def _model_columns() -> frozenset[str]:
     return frozenset(SetupArchive.__table__.columns.keys())
 
 
-def _values_dict_keys(func) -> tuple[frozenset[str], list[str]]:
-    """Statically enumerate the keys the writer's ``values = dict(...)`` assigns.
+def _values_dict_keys(func, var: str = "values") -> tuple[frozenset[str], list[str]]:
+    """Statically enumerate the keys the writer's ``<var> = dict(...)`` assigns.
+
+    ``var`` is ``values`` for the live writer's hand literal and ``overrides`` for
+    the seed writer, which now builds its row through the model-driven mapper
+    (``archive_row_from_result(best_result, overrides=dict(...))``) instead of a
+    full hand literal — the ``overrides = dict(...)`` block carries only the
+    special-cased seed keys.
 
     Returns (literal_keys, splat_call_names) where:
       * literal_keys      = every ``name=...`` keyword the dict() call passes,
@@ -74,19 +87,19 @@ def _values_dict_keys(func) -> tuple[frozenset[str], list[str]]:
     src = inspect.getsource(func)
     tree = ast.parse(src)
 
-    # Find the `values = dict(...)` assignment inside the function body.
+    # Find the `<var> = dict(...)` assignment inside the function body.
     dict_call = None
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             targets = [t for t in node.targets if isinstance(t, ast.Name)]
-            if any(t.id == "values" for t in targets):
+            if any(t.id == var for t in targets):
                 call = node.value
                 if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) \
                         and call.func.id == "dict":
                     dict_call = call
                     break
     assert dict_call is not None, (
-        f"could not locate `values = dict(...)` in {func.__qualname__}; the "
+        f"could not locate `{var} = dict(...)` in {func.__qualname__}; the "
         f"archive row-assembly guard is stale — update the test to the new shape."
     )
 
@@ -172,17 +185,35 @@ def test_writer_values_dict_is_subset_of_model_columns():
 
 
 def test_seed_values_dict_is_subset_of_model_columns():
-    model = _model_columns()
-    literal, splats = _values_dict_keys(seed_mod.seed_archive)
+    """Seed row-assembly column-drift guard, now on the model-driven mapper.
 
+    ``seed_archive`` no longer hand-writes the full ~161-key ``values = dict(...)``;
+    it builds the row through ``archive_row_from_result(best_result, overrides=dict(
+    ...))`` (the same single-source mapper the manual-add route uses). The row's
+    columns are therefore: the mapper's auto-mapped flat columns, PLUS the seed
+    ``overrides`` (special-cased keys), PLUS the ``**`` splats inside ``overrides``.
+    Every one of those must be a real SetupArchive column."""
+    from services.archive_queries import archive_row_from_result
+
+    model = _model_columns()
+
+    # 1. The mapper's own auto-mapped columns are model-derived by construction,
+    #    but assert it so a mapper regression surfaces here too.
+    auto_mapped = frozenset(archive_row_from_result({}, overrides={}))
+    assert auto_mapped <= model
+
+    # 2. The seed `overrides = dict(...)` literal keys are all real columns.
+    literal, splats = _values_dict_keys(seed_mod.seed_archive, var="overrides")
     stray = literal - model
     assert not stray, (
-        f"seed_archive assigns non-column key(s) {sorted(stray)}; a live seed "
-        f"would raise TypeError on SetupArchive(**values)."
+        f"seed_archive overrides assign non-column key(s) {sorted(stray)}; a live "
+        f"seed would raise TypeError on SetupArchive(**archive_row_from_result(...))."
     )
 
+    # 3. The **splats inside overrides are the ones we resolve hermetically (fail
+    #    loudly on a new/renamed splat so the guard is extended, not blind).
     assert set(splats) == {"htf_archive_values", "fwd_returns"}, (
-        f"unexpected **splat(s) in seed_archive: {splats}; extend the "
+        f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
     )
     splat_cols = _htf_splat_keys(prefixed=False) | _fwd_return_splat_keys()
@@ -191,7 +222,8 @@ def test_seed_values_dict_is_subset_of_model_columns():
         f"seed **splat contributes non-column key(s) {sorted(stray_splat)}."
     )
 
-    assert (literal | splat_cols) <= model
+    # 4. The whole assembled column set (auto-map ∪ overrides ∪ splats) ⊆ model.
+    assert (auto_mapped | literal | splat_cols) <= model
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -335,7 +335,21 @@ def seed_archive(
 
         sub = best_result.get("sub_scores", {})
 
-        values = dict(
+        # Build the row via the model-driven mapper (services.archive_queries.
+        # archive_row_from_result) — the SAME single-source assembler the manual-
+        # add route uses. It iterates SetupArchive.__table__ and fills every flat
+        # pass-through column from best_result.get(col); `overrides` below carry
+        # only the genuinely special-cased seed keys (identity, required-via-[]
+        # fields, sub-score remaps, the int(bool(...)) coercions, the renamed
+        # bars_since_bc/descent_length source keys, market-context enrichment,
+        # provenance/labels, and the HTF + forward-return splats). Proven byte-
+        # identical to the former ~161-line hand literal (same populated columns
+        # and values; the mapper's extra pass-through columns are all None-valued
+        # nullable columns a real seed result never carries — the persisted row is
+        # unchanged). See tests/test_archive_row_assembly.py for the guard.
+        from services.archive_queries import archive_row_from_result
+
+        overrides = dict(
             ticker=ticker,
             scan_date=eval_date_str,
             universe_type=DEFAULT_UNIVERSE_TYPE,  # equities winners gallery (EC-4)
@@ -351,14 +365,12 @@ def seed_archive(
             touches=best_result["touches"],
             r_touches=best_result["r_touches"],
             s_touches=best_result["s_touches"],
-            r_anchor=best_result.get("r_anchor"),
-            s_anchor=best_result.get("s_anchor"),
             atr_ratio=best_result["atr_ratio"],
             lps_length=best_result["lps_length"],
             breach_days=best_result["breach_days"],
             vol_contraction=best_result["vol_contraction"],
             tightness_ratio=best_result["tightness_ratio"],
-            # Sub-scores
+            # Sub-scores (column score_X <- sub["X"], the score_ prefix dropped)
             score_box_tightness=sub.get("box_tightness"),
             score_touch_density=sub.get("touch_density"),
             score_traversal_quality=sub.get("traversal_quality"),
@@ -370,133 +382,49 @@ def seed_archive(
             score_rs_bonus=sub.get("rs_bonus"),
             score_high_proximity=sub.get("high_proximity"),
             score_breadth_bonus=sub.get("breadth_bonus"),
-            # Volume-around-touches signature + LPS shape/zone detail
-            r_touch_vol_z=best_result.get("r_touch_vol_z"),
-            s_touch_vol_z=best_result.get("s_touch_vol_z"),
-            lps_descent_frac=best_result.get("lps_descent_frac"),
-            lps_zone_type=best_result.get("lps_zone_type"),
-            # VCP contraction footprint
-            contraction_count=best_result.get("contraction_count"),
-            contraction_quality=best_result.get("contraction_quality"),
-            final_contraction_depth=best_result.get("final_contraction_depth"),
-            contraction_vol_trend=best_result.get("contraction_vol_trend"),
             score_contraction=sub.get("contraction"),
-            # Base bar-compression texture
-            base_median_spread_atr=best_result.get("base_median_spread_atr"),
-            base_p80_spread_atr=best_result.get("base_p80_spread_atr"),
-            base_median_spread_pct_box=best_result.get("base_median_spread_pct_box"),
-            base_tight_bar_pct=best_result.get("base_tight_bar_pct"),
-            # Ascending-support / higher-lows footprint
-            support_slope_atr=best_result.get("support_slope_atr"),
-            ascending_support_quality=best_result.get("ascending_support_quality"),
             score_ascending_support=sub.get("ascending_support"),
-            # Worked-equilibrium occupancy metrics (raw, measure-first)
-            eq_r_touches=best_result.get("eq_r_touches"),
-            eq_s_touches=best_result.get("eq_s_touches"),
-            eq_r_touch_thirds=best_result.get("eq_r_touch_thirds"),
-            eq_s_touch_thirds=best_result.get("eq_s_touch_thirds"),
-            eq_lower_dwell=best_result.get("eq_lower_dwell"),
-            eq_mid_dwell=best_result.get("eq_mid_dwell"),
-            eq_upper_dwell=best_result.get("eq_upper_dwell"),
-            eq_coverage=best_result.get("eq_coverage"),
-            # Limb-traversal read (raw, measure-first)
-            trav_n_full_traversals=best_result.get("trav_n_full_traversals"),
-            trav_n_swings=best_result.get("trav_n_swings"),
-            trav_top_dead_space=best_result.get("trav_top_dead_space"),
-            trav_bottom_dead_space=best_result.get("trav_bottom_dead_space"),
-            trav_rail_reaches_high=best_result.get("trav_rail_reaches_high"),
-            trav_rail_reaches_low=best_result.get("trav_rail_reaches_low"),
-            trav_max_swing_frac=best_result.get("trav_max_swing_frac"),
-            trav_last_support_frac=best_result.get("trav_last_support_frac"),
-            trav_coil_floor_pos=best_result.get("trav_coil_floor_pos"),
-            # ADR% absolute-volatility character
-            adr_pct=best_result.get("adr_pct"),
             score_adr=sub.get("adr"),
-            # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
-            bin_a_bars=best_result.get("bin_a_bars"),
-            bin_a_range_pct=best_result.get("bin_a_range_pct"),
-            bin_a_volume_ratio=best_result.get("bin_a_volume_ratio"),
-            bin_b_bars=best_result.get("bin_b_bars"),
-            bin_b_range_pct=best_result.get("bin_b_range_pct"),
-            bin_b_volume_ratio=best_result.get("bin_b_volume_ratio"),
-            bin_b_cog_end=best_result.get("bin_b_cog_end"),
-            bin_b_cog_crossings=best_result.get("bin_b_cog_crossings"),
-            bin_b_cog_rng=best_result.get("bin_b_cog_rng"),
-            bin_b_cog_corr=best_result.get("bin_b_cog_corr"),
+            # int(bool(...)) coercions (nullable 0/1)
             bin_c_present=(int(bool(best_result.get("bin_c_present")))
                            if best_result.get("bin_c_present") is not None else None),
-            bin_c_type=best_result.get("bin_c_type"),
-            bin_c_event_date=best_result.get("bin_c_event_date"),
-            bin_c_event_bar=best_result.get("bin_c_event_bar"),
-            bin_c_undercut_atr=best_result.get("bin_c_undercut_atr"),
-            bin_c_recovery_bars=best_result.get("bin_c_recovery_bars"),
-            bin_c_recovery_bar=best_result.get("bin_c_recovery_bar"),
-            bin_c_time_loc=best_result.get("bin_c_time_loc"),
-            bin_c_spring_vol_z=best_result.get("bin_c_spring_vol_z"),
-            bin_d_bars=best_result.get("bin_d_bars"),
-            bin_d_start_bar=best_result.get("bin_d_start_bar"),
-            bin_d_range_pct=best_result.get("bin_d_range_pct"),
-            bin_d_volume_ratio=best_result.get("bin_d_volume_ratio"),
-            bin_d_support_slope_atr=best_result.get("bin_d_support_slope_atr"),
-            bin_d_higher_low_frac=best_result.get("bin_d_higher_low_frac"),
-            bin_d_ascending_support_quality=best_result.get("bin_d_ascending_support_quality"),
-            bin_d_boundary_source=best_result.get("bin_d_boundary_source"),
-            phase_d_evidence_json=best_result.get("phase_d_evidence_json"),
-            bin_lps_bars=best_result.get("bin_lps_bars"),
-            lps_position_in_box=best_result.get("lps_position_in_box"),
-            bin_d_vs_b_range_ratio=best_result.get("bin_d_vs_b_range_ratio"),
-            bin_d_vs_b_volume_ratio=best_result.get("bin_d_vs_b_volume_ratio"),
-            bin_d_vs_b_support_quality_delta=best_result.get("bin_d_vs_b_support_quality_delta"),
-            lps_stretch_atr=best_result.get("lps_stretch_atr"),
-            lps_stretch_box=best_result.get("lps_stretch_box"),
-            lps_swing_type=best_result.get("lps_swing_type"),
-            lps_anchor_bar=best_result.get("lps_anchor_bar"),
-            lps_anchor_date=best_result.get("lps_anchor_date"),
-            lps_low_bar=best_result.get("lps_low_bar"),
-            lps_low_date=best_result.get("lps_low_date"),
-            lps_swing_depth_pct=best_result.get("lps_swing_depth_pct"),
-            lps_swing_depth_atr=best_result.get("lps_swing_depth_atr"),
-            lps_swing_depth_box=best_result.get("lps_swing_depth_box"),
-            last_supper_pullback_from_extension_pct=best_result.get("last_supper_pullback_from_extension_pct"),
-            last_supper_source_box_age=best_result.get("last_supper_source_box_age"),
-            last_supper_reclaim_quality=best_result.get("last_supper_reclaim_quality"),
-            # Minervini Stage-2 trend-template context (raw, no scoring)
             stage2_ma_stack_pass=(int(bool(best_result.get("stage2_ma_stack_pass")))
                                   if best_result.get("stage2_ma_stack_pass") is not None else None),
-            stage2_ma200_slope_1m_pct=best_result.get("stage2_ma200_slope_1m_pct"),
-            stage2_52w_low_pct=best_result.get("stage2_52w_low_pct"),
-            stage2_trend_pass_count=best_result.get("stage2_trend_pass_count"),
             stage2_trend_pass=(int(bool(best_result.get("stage2_trend_pass")))
                                if best_result.get("stage2_trend_pass") is not None else None),
-            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
-            **htf_archive_values(best_result.get, prefixed=False),
-            # Forward returns
-            **fwd_returns,
-            # Market context
-            spy_trend=market_ctx.get("spy_trend"),
-            vix_level=market_ctx.get("vix_level"),
-            sector_etf=sector_etf,
-            sector_trend=sector_trend,
-            dist_52w_high_pct=best_result.get("dist_52w_high_pct"),
-            excess_return_6m=best_result.get("excess_return_6m"),
-            bars_since_bc=best_result.get("bars_since_BC"),
-            descent_length=best_result.get("descent_length"),
             phase_d_inner=(int(bool(best_result.get("phase_d_inner")))
                            if best_result.get("phase_d_inner") is not None else None),
             lps_in_inner=(int(bool(best_result.get("lps_in_inner")))
                           if best_result.get("lps_in_inner") is not None else None),
-            inner_source=best_result.get("inner_source"),
-            inner_search_start_bar=best_result.get("inner_search_start_bar"),
-            inner_climax_bar=best_result.get("inner_climax_bar"),
-            inner_reaction_bar=best_result.get("inner_reaction_bar"),
-            inner_reaction_pct=best_result.get("inner_reaction_pct"),
-            inner_reaction_bars=best_result.get("inner_reaction_bars"),
+            # Renamed source keys: result carries bars_since_BC (upper); column is
+            # bars_since_bc. descent_length column <- best_result.descent_length.
+            bars_since_bc=best_result.get("bars_since_BC"),
+            descent_length=best_result.get("descent_length"),
+            # Columns the SEED path fills from `result` that live in the mapper's
+            # _MANUAL_UNMAPPED_COLUMNS (the manual route leaves them NULL). Pass
+            # them explicitly so the mapper does not drop them for this path.
+            excess_return_6m=best_result.get("excess_return_6m"),
+            trav_last_support_frac=best_result.get("trav_last_support_frac"),
+            trav_coil_floor_pos=best_result.get("trav_coil_floor_pos"),
+            stage2_ma200_slope_1m_pct=best_result.get("stage2_ma200_slope_1m_pct"),
+            stage2_52w_low_pct=best_result.get("stage2_52w_low_pct"),
+            stage2_trend_pass_count=best_result.get("stage2_trend_pass_count"),
+            # Market context (computed above, not from result)
+            spy_trend=market_ctx.get("spy_trend"),
+            vix_level=market_ctx.get("vix_level"),
+            sector_etf=sector_etf,
+            sector_trend=sector_trend,
             # Engine provenance (frozen-config reproducibility)
             engine_config_version=engine_config_version,
             # Labels
             source="seed",
             quality_label="perfect",
+            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
+            **htf_archive_values(best_result.get, prefixed=False),
+            # Forward returns (computed above for this historical date)
+            **fwd_returns,
         )
+        values = archive_row_from_result(best_result, overrides=overrides)
 
         if existing:
             for k, v in values.items():
