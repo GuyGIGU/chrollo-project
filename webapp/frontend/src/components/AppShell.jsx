@@ -8,6 +8,7 @@ import useDashboardData from '../hooks/useDashboardData';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import useIbkrActions from '../hooks/useIbkrActions';
 import useLiveRisk from '../hooks/useLiveRisk';
+import usePortfolioSnapshot from '../hooks/usePortfolioSnapshot';
 import { API_BASE } from '../api';
 import logoUrl from '../assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 import { buildHealthPill, buildScanStatusText } from '../utils/appFormat';
@@ -52,6 +53,15 @@ function AppShell() {
   const [detailTrade, setDetailTrade] = useState(null);
   const [importingCsv, setImportingCsv] = useState(false);
   const csvInputRef = useRef(null);
+
+  // Single portfolio-SSE owner for the trade-detail drawer's Broker link +
+  // portfolio-risk-%. Threaded to the drawer via props so the drawer no longer
+  // opens its own /stream/portfolio EventSource. Gated on IBKR-available AND a
+  // drawer being open, preserving the exact stream lifecycle the drawer had when
+  // it mounted the snapshot itself (only while rendered, only when available).
+  const { snapshot: portfolioSnapshot } = usePortfolioSnapshot(
+    Boolean(ibkrStatus?.available) && Boolean(detailTrade),
+  );
 
   const sortedTrades = useMemo(() => sortTrades(trades), [trades]);
   const stockTrades = useMemo(
@@ -172,6 +182,7 @@ function AppShell() {
               onClose={() => setDetailTrade(null)}
               onTradeUpdate={handleTradeUpdated}
               riskFor={riskFor}
+              snapshot={portfolioSnapshot}
             />
           )}
         </Suspense>
