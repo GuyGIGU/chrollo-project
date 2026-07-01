@@ -36,7 +36,24 @@ jobs:
       - name: Shadow-output regression guard
         run: python -m tools.shadow_diff --check
 
-      # Seed-recall guard. ADVISORY-ONLY on CI, by design.
+      # Hermetic seed-recall drift guard. Offline + deterministic, HARD gate.
+      #
+      # Replays the committed frozen fixture (tests/baselines/seed_recall_fixture
+      # .parquet -- every active seed winner's OHLCV + SPY) through the seed twin
+      # `_evaluate_at_date` and fails on any known winner the current engine no
+      # longer re-finds. Sibling of the shadow guard above, but over the curated
+      # winners via a DIFFERENT code path (the -WINDOW_BACK/+WINDOW_FWD scan-back).
+      # No network, so unlike the advisory step below it can truly red the build.
+      #
+      # This is the SOLE full replay: it runs the eval chain ~700x (a few minutes),
+      # too slow for the default pytest suite, so it is NOT a pytest test. Instead
+      # tests/test_seed_recall_hermetic.py guards the plumbing cheaply (fixture +
+      # baseline committed, frozen baseline mirrors the live recall, guard bites),
+      # and this step is the hard offline gate that actually re-runs the engine.
+      - name: Hermetic seed-recall regression guard
+        run: python -m core.archive.seed_recall --hermetic-check
+
+      # Seed-recall guard, FRESH-DATA basis. ADVISORY-ONLY on CI, by design.
       #
       # The committed baseline (tests/baselines/seed_recall_baseline.json) is
       # basis=fresh, so `--check` routes through the FRESH engine guard: it
@@ -48,20 +65,15 @@ jobs:
       # (removing it would red every build). It is kept wired + visible so a
       # local/manual run surfaces in the logs, but it does NOT gate the build.
       #
-      # The HARD drift gate is the "Shadow-output regression guard" step above
-      # (offline, deterministic, NOT continue-on-error). A real detector drift
-      # is caught there and reds the build; this seed-recall step never can.
+      # The HARD recall gate is now the "Hermetic seed-recall regression guard"
+      # step above (offline, deterministic): it catches a real seed-winner drop
+      # on FROZEN inputs and reds the build. This fresh step adds live-vendor
+      # drift visibility on top (data the frozen fixture cannot see), which is
+      # why it is kept despite being advisory.
       #
       # Run locally against real data:
       #   python -m core.archive.seed_recall --fresh-check  (network re-eval; matches the committed basis=fresh baseline)
       #   python -m core.archive.seed_recall --check        (uses the captured baseline basis; fresh baseline => same fresh re-eval)
-      #
-      # TODO(follow-up): make this a HERMETIC offline hard-fail guard. Freeze
-      # each seed winner's eval-window OHLCV into a committed parquet fixture and
-      # add a @pytest.mark.regression test that re-runs `_evaluate_at_date`
-      # against that fixture (no network). That guard could then drop
-      # continue-on-error and truly red the build on a seed-winner drop. Not
-      # built here: it needs a real OHLCV capture and would otherwise be flaky.
       - name: Seed-recall regression guard (advisory; needs network/live data)
         continue-on-error: true
         run: python -m core.archive.seed_recall --check

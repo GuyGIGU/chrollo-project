@@ -445,28 +445,16 @@ def seed_archive(
     return archived
 
 
-def fired_seeds_fresh(
-    setups: list[tuple[str, str]] | None = None,
-) -> dict[tuple[str, str], Optional[dict]]:
-    """Re-evaluate each seed winner with the CURRENT engine on FRESH data,
-    WITHOUT writing the archive.
+def _download_seed_data(
+    active: list[tuple[str, str]],
+) -> tuple[dict[str, pd.DataFrame], Optional[pd.Series]]:
+    """Download OHLCV frames + the SPY close series covering every active seed (network).
 
-    Downloads the tickers and runs the SAME ``-WINDOW_BACK / +WINDOW_FWD``
-    best-by-score scan-back ``seed_archive`` uses, returning
-    ``{(ticker, trigger_date): result_dict_or_None}``. This is the read-only
-    truth the seed-recall guard's ``--fresh`` mode needs: it measures what the
-    live engine fires TODAY rather than what a (possibly stale) archive recorded,
-    so engine changes that silently drop winners surface immediately. Bad-data
-    seeds (USO/BRZU) are filtered out.
+    Split out of ``fired_seeds_fresh`` so the hermetic offline recall guard can
+    freeze EXACTLY these frames into a committed fixture and replay them through the
+    SAME ``_scan_back_seeds`` fold — "frozen == live" then holds by construction, not
+    by a separate re-implementation. Returns ``({ticker: frame}, spy_close|None)``.
     """
-    from core.archive.seed_recall import filter_ignored_seeds
-
-    if setups is None:
-        setups = SEED_SETUPS
-    active, _ignored = filter_ignored_seeds(setups)
-    if not active:
-        return {}
-
     unique = sorted({t for t, _ in active})
     earliest = min(pd.Timestamp(d) for _, d in active)
     latest = max(pd.Timestamp(d) for _, d in active)
@@ -491,7 +479,22 @@ def fired_seeds_fresh(
         df = _ticker_frame(raw, t)
         if not df.empty:
             data[t] = df
+    return data, spy_close
 
+
+def _scan_back_seeds(
+    active: list[tuple[str, str]],
+    data: dict[str, pd.DataFrame],
+    spy_close: Optional[pd.Series],
+) -> dict[tuple[str, str], Optional[dict]]:
+    """Pure, offline scan-back over already-loaded frames — no network, no download.
+
+    For each active seed run the SAME ``-WINDOW_BACK / +WINDOW_FWD`` best-by-score
+    window ``seed_archive`` uses, returning ``{(ticker, trigger_date): result|None}``.
+    Shared by the live fresh recall (``fired_seeds_fresh``, which feeds freshly
+    downloaded frames) and the hermetic offline guard (which feeds a frozen fixture),
+    so both paths exercise identical evaluation logic.
+    """
     def _spy6(eval_date) -> float:
         if spy_close is None:
             return 0.0
@@ -522,6 +525,32 @@ def fired_seeds_fresh(
                 best = result
         out[(ticker, date_str)] = best
     return out
+
+
+def fired_seeds_fresh(
+    setups: list[tuple[str, str]] | None = None,
+) -> dict[tuple[str, str], Optional[dict]]:
+    """Re-evaluate each seed winner with the CURRENT engine on FRESH data,
+    WITHOUT writing the archive.
+
+    Downloads the tickers and runs the SAME ``-WINDOW_BACK / +WINDOW_FWD``
+    best-by-score scan-back ``seed_archive`` uses, returning
+    ``{(ticker, trigger_date): result_dict_or_None}``. This is the read-only
+    truth the seed-recall guard's ``--fresh`` mode needs: it measures what the
+    live engine fires TODAY rather than what a (possibly stale) archive recorded,
+    so engine changes that silently drop winners surface immediately. Bad-data
+    seeds (USO/BRZU) are filtered out.
+    """
+    from core.archive.seed_recall import filter_ignored_seeds
+
+    if setups is None:
+        setups = SEED_SETUPS
+    active, _ignored = filter_ignored_seeds(setups)
+    if not active:
+        return {}
+
+    data, spy_close = _download_seed_data(active)
+    return _scan_back_seeds(active, data, spy_close)
 
 
 if __name__ == "__main__":

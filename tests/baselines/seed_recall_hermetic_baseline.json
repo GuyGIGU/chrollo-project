@@ -1,0 +1,123 @@
+{
+  "basis": "hermetic",
+  "recall": 0.5454545454545454,
+  "fired": 30,
+  "missed": 25,
+  "total": 55,
+  "raw_total": 57,
+  "ignored": 2,
+  "ignored_seeds": [
+    {
+      "ticker": "USO",
+      "trigger_date": "2026-02-26",
+      "reason": "yfinance adjusted-history drift on fund data"
+    },
+    {
+      "ticker": "BRZU",
+      "trigger_date": "2026-03-31",
+      "reason": "yfinance adjusted-history drift on leveraged-fund data"
+    }
+  ],
+  "misses": [
+    {
+      "ticker": "WMT",
+      "trigger_date": "2025-09-11"
+    },
+    {
+      "ticker": "BWA",
+      "trigger_date": "2026-01-26"
+    },
+    {
+      "ticker": "IBP",
+      "trigger_date": "2026-02-03"
+    },
+    {
+      "ticker": "GXO",
+      "trigger_date": "2026-02-11"
+    },
+    {
+      "ticker": "NOK",
+      "trigger_date": "2026-02-17"
+    },
+    {
+      "ticker": "SHEL",
+      "trigger_date": "2026-02-18"
+    },
+    {
+      "ticker": "TERN",
+      "trigger_date": "2026-02-23"
+    },
+    {
+      "ticker": "GASS",
+      "trigger_date": "2026-02-24"
+    },
+    {
+      "ticker": "PKE",
+      "trigger_date": "2026-02-24"
+    },
+    {
+      "ticker": "VLO",
+      "trigger_date": "2026-02-26"
+    },
+    {
+      "ticker": "VIST",
+      "trigger_date": "2026-03-05"
+    },
+    {
+      "ticker": "SNDX",
+      "trigger_date": "2026-03-06"
+    },
+    {
+      "ticker": "PUMP",
+      "trigger_date": "2026-03-11"
+    },
+    {
+      "ticker": "NE",
+      "trigger_date": "2026-03-13"
+    },
+    {
+      "ticker": "RGR",
+      "trigger_date": "2026-03-13"
+    },
+    {
+      "ticker": "NTCT",
+      "trigger_date": "2026-03-16"
+    },
+    {
+      "ticker": "XWIN",
+      "trigger_date": "2026-03-19"
+    },
+    {
+      "ticker": "FOSL",
+      "trigger_date": "2026-03-30"
+    },
+    {
+      "ticker": "PGC",
+      "trigger_date": "2026-03-30"
+    },
+    {
+      "ticker": "RRBI",
+      "trigger_date": "2026-03-31"
+    },
+    {
+      "ticker": "DNTH",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "LPTH",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "SKYT",
+      "trigger_date": "2026-04-08"
+    },
+    {
+      "ticker": "CAPR",
+      "trigger_date": "2026-04-13"
+    },
+    {
+      "ticker": "NKTR",
+      "trigger_date": "2026-04-13"
+    }
+  ]
+}

@@ -38,6 +38,12 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__
 _DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
 _BASELINE_PATH = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_baseline.json")
 
+# Hermetic offline guard: a committed OHLCV fixture (frozen seed-winner frames +
+# SPY) replayed through the real engine with no network, and its own baseline.
+_HERMETIC_FIXTURE = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_fixture.parquet")
+_HERMETIC_BASELINE = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_hermetic_baseline.json")
+_HERMETIC_SPY_KEY = "SPY"  # reserved fixture column-group for the RS reference (never a seed)
+
 SeedKey = tuple[str, str]
 
 # Known seed setups where yfinance's adjusted fund history has drifted enough
@@ -391,6 +397,141 @@ def capture_fresh_baseline(baseline_path: str = _BASELINE_PATH) -> dict:
     return baseline
 
 
+# ------------------------------------------------------------------
+# Hermetic offline guard — frozen OHLCV fixture, no network, hard-gates CI
+# ------------------------------------------------------------------
+#
+# ``--fresh-check`` above is the TRUTH but needs the network + live vendor data,
+# so on CI it can only be advisory (a rate-limited runner reds on the FETCH, not
+# on a real recall regression). This guard closes that gap: it freezes every
+# active seed winner's full download frame + SPY into a committed parquet
+# (``--build-fixture``, one-time, network) and then replays those frozen frames
+# through the SAME ``_scan_back_seeds`` fold the live recall uses — offline and
+# deterministic. Once frozen, the ONLY thing that can move a seed from fired to
+# missed is an engine code change, so a detector edit that silently drops a known
+# winner reds the build with no network (the sibling of ``tools.shadow_diff``,
+# but over the curated winners via the seed twin ``_evaluate_at_date``). The
+# frozen closes are a point-in-time adjusted snapshot; that is irrelevant to
+# regression detection — the guard measures engine drift on FIXED inputs.
+def build_hermetic_fixture(fixture_path: str = _HERMETIC_FIXTURE) -> list[str]:
+    """Freeze every active seed winner's download frame + SPY into a committed
+    parquet so the recall guard can replay them offline (network; one-time)."""
+    import pandas as pd
+
+    from config import settings
+    from core.archive.seed import SEED_SETUPS, _download_seed_data
+
+    active, _ignored = filter_ignored_seeds(SEED_SETUPS)
+    data, spy_close = _download_seed_data(active)
+
+    frames: dict[str, "pd.DataFrame"] = dict(data)
+    if spy_close is not None:
+        # Only the Close is consumed by the RS reference — freeze just that.
+        frames[_HERMETIC_SPY_KEY] = spy_close.to_frame("Close")
+    if not frames:
+        raise RuntimeError("No seed frames downloaded — cannot build a hermetic fixture.")
+
+    combined = pd.concat(frames, axis=1)  # MultiIndex columns: (ticker, field)
+    os.makedirs(os.path.dirname(fixture_path), exist_ok=True)
+    combined.to_parquet(fixture_path, engine=settings.PARQUET_ENGINE)
+
+    frozen = sorted(frames)
+    covered = [t for t in frozen if t != _HERMETIC_SPY_KEY]
+    missing = sorted({t for t, _ in active} - set(covered))
+    print(f"Built hermetic seed fixture: {len(covered)} seed tickers + SPY -> {fixture_path}")
+    if missing:
+        print(f"  WARNING: {len(missing)} seed tickers had no data and will read as MISSES: {', '.join(missing)}")
+    return frozen
+
+
+def _load_hermetic_fixture(
+    fixture_path: str = _HERMETIC_FIXTURE,
+) -> tuple[dict, Optional[object]]:
+    """Load the frozen fixture back into ``({ticker: frame}, spy_close|None)``."""
+    import pandas as pd
+
+    from config import settings
+
+    if not os.path.exists(fixture_path):
+        raise FileNotFoundError(
+            f"No hermetic seed fixture at {fixture_path} — run "
+            "`python -m core.archive.seed_recall --build-fixture` first (network, one-time)."
+        )
+    combined = pd.read_parquet(fixture_path, engine=settings.PARQUET_ENGINE)
+    level0 = list(dict.fromkeys(combined.columns.get_level_values(0)))
+    frames = {t: combined[t].dropna() for t in level0}
+    spy_frame = frames.pop(_HERMETIC_SPY_KEY, None)
+    spy_close = None
+    if spy_frame is not None and "Close" in spy_frame.columns:
+        spy_close = spy_frame["Close"]
+    return frames, spy_close
+
+
+def hermetic_replay(fixture_path: str = _HERMETIC_FIXTURE) -> dict:
+    """Replay the frozen seed fixture through the real engine, offline.
+
+    Returns ``{(ticker, trigger_date): result|None}`` — the same shape as
+    ``core.archive.seed.fired_seeds_fresh``, but reading the committed parquet
+    instead of the network.
+    """
+    from core.archive.seed import SEED_SETUPS, _scan_back_seeds
+
+    active, _ignored = filter_ignored_seeds(SEED_SETUPS)
+    frames, spy_close = _load_hermetic_fixture(fixture_path)
+    return _scan_back_seeds(active, frames, spy_close)
+
+
+def capture_hermetic_baseline(
+    fixture_path: str = _HERMETIC_FIXTURE,
+    baseline_path: str = _HERMETIC_BASELINE,
+) -> dict:
+    """Snapshot the offline-replay recall + miss-set as the hermetic baseline."""
+    from core.archive.seed import SEED_SETUPS
+
+    results = hermetic_replay(fixture_path)
+    s, _hits, misses, ignored = summarize_fresh_results(SEED_SETUPS, results)
+    baseline = _baseline_payload(s, misses, ignored, basis="hermetic")
+    _write_baseline(baseline, baseline_path)
+    print(f"Captured hermetic recall baseline -> {baseline_path}")
+    print(
+        f"  recall {s['recall'] * 100:.1f}%  "
+        f"({s['fired']}/{s['total']} active fired, {s['missed']} missed, {s['ignored']} ignored)"
+    )
+    return baseline
+
+
+def hermetic_check_baseline(
+    fixture_path: str = _HERMETIC_FIXTURE,
+    baseline_path: str = _HERMETIC_BASELINE,
+) -> bool:
+    """Replay the frozen fixture offline and fail if a winner is newly missed.
+
+    Deterministic + network-free — the hard CI gate the advisory ``--fresh-check``
+    cannot be. Returns True if recall held and no known winner was dropped.
+    """
+    from core.archive.seed import SEED_SETUPS
+
+    if not os.path.exists(baseline_path):
+        print(f"No hermetic baseline at {baseline_path} - run with --hermetic-capture first.")
+        return False
+    with open(baseline_path, "r", encoding="utf-8") as f:
+        baseline = json.load(f)
+
+    results = hermetic_replay(fixture_path)
+    s, _hits, misses, _ignored = summarize_fresh_results(SEED_SETUPS, results)
+    ok, lines = diff_against_baseline(s, misses, baseline)
+
+    print("=" * 64)
+    print("  SEED RECALL GUARD - HERMETIC offline replay vs. captured baseline")
+    print("=" * 64)
+    for line in lines:
+        print(line)
+    print()
+    print("PASS - hermetic recall held and no winners were lost." if ok
+          else "FAIL - hermetic recall guard failed; a known winner was dropped.")
+    return ok
+
+
 def run(db_path: str = _DB_PATH) -> None:
     print("=" * 64)
     print("  SEED RECALL — can the engine re-find the winners I picked?")
@@ -510,6 +651,15 @@ def main() -> None:
     group.add_argument("--fresh-capture", action="store_true",
                        help="Snapshot fresh current-engine recall + miss-set as the baseline "
                             "(network; slower; writes only the baseline JSON)")
+    group.add_argument("--build-fixture", action="store_true",
+                       help="Freeze each active seed winner's OHLCV + SPY into the committed "
+                            "hermetic fixture parquet (network; one-time)")
+    group.add_argument("--hermetic-capture", action="store_true",
+                       help="Snapshot the OFFLINE fixture-replay recall + miss-set as the "
+                            "hermetic baseline (no network; needs the fixture)")
+    group.add_argument("--hermetic-check", action="store_true",
+                       help="Replay the committed fixture OFFLINE and fail (exit 1) if a known "
+                            "winner is newly missed — the hard, network-free CI gate")
     args = ap.parse_args()
 
     try:
@@ -525,6 +675,13 @@ def main() -> None:
             sys.exit(0 if ok else 1)
         elif args.fresh_capture:
             capture_fresh_baseline(baseline_path=args.baseline)
+        elif args.build_fixture:
+            build_hermetic_fixture()
+        elif args.hermetic_capture:
+            capture_hermetic_baseline()
+        elif args.hermetic_check:
+            ok = hermetic_check_baseline()
+            sys.exit(0 if ok else 1)
         else:
             run(db_path=args.db)
     except RuntimeError as e:
