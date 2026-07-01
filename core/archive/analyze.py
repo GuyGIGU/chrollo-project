@@ -47,6 +47,7 @@ import numpy as np
 import pandas as pd
 
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
+from core.scoring import taxonomy
 
 # ------------------------------------------------------------------
 # Paths & loading
@@ -129,16 +130,10 @@ VERTICAL_FEATURES = [
     "final_contraction_depth", "bin_d_vs_b_range_ratio",
 ]
 
-# Sub-scores (the Scoring Engine decomposition).
-SUB_SCORES = [
-    "score_box_tightness", "score_touch_density",
-    "score_traversal_quality",
-    "score_atr_squeeze", "score_lps_tightness", "score_vol_contraction",
-    "score_base_age", "score_uptrend_bonus", "score_rs_bonus",
-    "score_high_proximity", "score_breadth_bonus", "score_contraction",
-    "score_ascending_support",
-    "score_adr",
-]
+# Sub-scores (the Scoring Engine decomposition) — sourced from the ONE registry
+# (core/scoring/taxonomy.py) so a new/renamed/dropped sub-score can't silently
+# drift out of the correlation + signal-edge analysis. Same 14 columns, same order.
+SUB_SCORES = taxonomy.archive_columns()
 
 # Outcome targets (filled by update_forward_returns).
 OUTCOME_TARGETS = ["fwd_return_20d", "fwd_return_60d", "r_multiple_20d"]

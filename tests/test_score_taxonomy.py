@@ -18,11 +18,20 @@ from core.scoring import taxonomy
 from core.archive.analyze import SUB_SCORES
 
 
-def test_registry_columns_match_analyze_sub_scores():
-    # The persisted columns the registry declares must equal the set analyze.py
-    # correlates over — the archive/analysis coupling.
-    assert set(taxonomy.archive_columns()) == set(SUB_SCORES)
-    assert len(taxonomy.archive_columns()) == len(SUB_SCORES)   # no dupes
+def test_analyze_sub_scores_are_registry_sourced():
+    # analyze.py now derives its list FROM the registry (not a re-typed literal),
+    # so they are identical by construction — this pins that wiring stays in place.
+    assert SUB_SCORES == taxonomy.archive_columns()
+    assert len(SUB_SCORES) == len(set(SUB_SCORES))   # no dupes
+
+
+def test_persisted_columns_follow_score_prefix_convention():
+    # Every persisted column is 'score_' + its result key. Combined with the
+    # engine anchor (test_taxonomy_emitted_keys_match_score_setup_output), this ties
+    # the registry's columns back to real score_setup output, not just to itself.
+    for term in taxonomy.REGISTRY:
+        if term.column is not None:
+            assert term.column == f"score_{term.key}"
 
 
 def test_every_cap_setting_resolves_to_a_number():
