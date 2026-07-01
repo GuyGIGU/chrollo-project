@@ -100,3 +100,30 @@ creating new inversions the way flat did. GBTG/PLSE/CGNX and the archive's
 over-long-base cases (CACC/MSCI/BMRN/CWT, edge-read Finding 5) no longer fire
 on today's frame, so the judgement set is today's movers — or as-of replays via
 `structure_case_audit` if a historical re-litigation is wanted.
+
+## First universe read (2026-07-02, 5y cache of Jun 30)
+
+Full 3-way scan, 5,502 tickers → 1,932 survive baseline → **79 fire**:
+
+| measurement | result |
+|---|---|
+| off ↔ MACRO overlay changes | **57 / 79** |
+| off ↔ FLAT overlay changes | 47 / 79 (the d43e7fd reference read) |
+| stolen climaxes (climax ≥ box start) | **0 / 0 / 0** — blatant theft absent in all modes on this frame |
+
+**The live failure taxonomy turned out to be degenerate STUBS, not thefts.**
+On the big movers the current read paints 1–6-bar climax→AR stubs parked at
+the right edge (GOOD 466→467, BYD 414→415, PH 453→456 …): the bridge search
+finds only micro-wiggles near the box start at order-N resolution, because the
+real AR leg either ends outside `_SEG_AR_TOL` or is fragmented. The macro read
+re-anchors those to 15–35-bar genuine reactions (GOOD 415→439, BYD 382→397,
+SAFE 418→443) — same protection mechanism (only macro legs exist in the
+skeleton), different symptom than predicted. Rendered eyeball on
+GOOD/BYD/SAFE/ATI: macro's climax→AR is the visually correct trend→range
+bridge on all four; on ATI (climax moves LATER, +29) flat independently agrees
+with macro against the current read — the "fixes some" half of the d43e7fd
+wash, kept. No new inversions observed in the eyeballed set.
+
+**Verdict so far: strongly macro-favorable, pending the operator's own pass
+over `tools/fidelity/pip_phase_a/` before flipping
+`PIP_MACRO_PHASE_A_ENABLED`.** (House rule: the operator flips, not the build.)

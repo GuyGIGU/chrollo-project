@@ -55,7 +55,6 @@ from core.pipeline.downloads import _trim_to_period
 from core.pipeline.evaluation import apply_baseline_filters
 from core.structure.indicators import calculate_atr
 from core.structure.narrative import read_structure
-from tools.pip_preview import _draw_ohlc
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "pip_phase_a")
 _MODES = ("off", "flat", "macro")
@@ -134,26 +133,60 @@ def _load_cache():
 
 # ---------------------------------------------------------------- scan ----
 
-def scan(d, level0):
+def _capture_one(args):
+    """Pool worker: one ticker's 3-way capture (top-level for pickling)."""
+    t, df, atr = args
+    return t, capture_overlays(df, atr)
+
+
+def scan(d, level0, jobs: int = 1):
     """Faithful universe measurement: per ticker, the 3-way overlay on the live
     2y frame. Returns rows [(ticker, {mode: ov}, shift_off_macro)] for FIRING
-    setups (off not None), sorted by shift desc. Prints the summary + tables."""
+    setups (off not None), sorted by shift desc. Prints the summary + tables.
+
+    ``jobs`` > 1 fans the captures (the expensive part — 3 ``read_structure``
+    calls each) over a process pool; the cheap baseline/prep pass stays in the
+    parent. Flag flips inside ``capture_overlays`` are per-worker-process, so
+    parallel captures cannot interfere."""
     exclude = {getattr(settings, "MARKET_INDEX_SYMBOL", "SPY"), "SPY"}
-    rows = []
     tickers = sorted(t for t in level0 if t not in exclude)
+
+    prepped = []
     for i, t in enumerate(tickers):
-        if i and i % 200 == 0:
-            print(f"  ...scanned {i}/{len(tickers)}", file=sys.stderr)
+        if i and i % 500 == 0:
+            print(f"  ...prepped {i}/{len(tickers)}", file=sys.stderr, flush=True)
         try:
             df, atr = _prep_live(d[t].dropna())
         except Exception:                            # malformed column -> skip
             continue
         if df is None:
             continue
-        ovs = capture_overlays(df, atr)
+        prepped.append((t, df, atr))
+    print(f"  {len(prepped)}/{len(tickers)} tickers survive baseline; "
+          f"capturing 3-way overlays with jobs={jobs}", file=sys.stderr, flush=True)
+
+    rows = []
+
+    def _collect(t, ovs):
         if ovs["off"] is None:
-            continue                                 # no live overlay to compare
+            return                                   # no live overlay to compare
         rows.append((t, ovs, _shift(ovs["off"], ovs["macro"])))
+
+    if jobs > 1:
+        from multiprocessing import Pool
+        with Pool(jobs) as pool:
+            for i, (t, ovs) in enumerate(
+                    pool.imap_unordered(_capture_one, prepped, chunksize=8)):
+                if i and i % 200 == 0:
+                    print(f"  ...captured {i}/{len(prepped)}",
+                          file=sys.stderr, flush=True)
+                _collect(t, ovs)
+    else:
+        for i, (t, df, atr) in enumerate(prepped):
+            if i and i % 200 == 0:
+                print(f"  ...captured {i}/{len(prepped)}",
+                      file=sys.stderr, flush=True)
+            _collect(t, capture_overlays(df, atr))
 
     n_fire = len(rows)
     macro_changed = [r for r in rows if r[2]]
@@ -214,6 +247,7 @@ def render(tickers, window, d, level0):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
+    from tools.pip_preview import _draw_ohlc
 
     os.makedirs(_OUT_DIR, exist_ok=True)
     table = []
@@ -286,6 +320,9 @@ def main():
                     help="with --scan: measure only, don't render")
     ap.add_argument("--top", type=int, default=6,
                     help="how many top movers to render after a scan (default 6)")
+    ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 4) - 2),
+                    help="process-pool size for the scan captures "
+                         "(default: cores - 2; 1 = sequential)")
     a = ap.parse_args()
 
     d, level0 = _load_cache()
@@ -295,7 +332,7 @@ def main():
         return
 
     # No tickers -> scan (the honest default), then render the top movers.
-    changed = scan(d, level0)
+    changed = scan(d, level0, jobs=a.jobs)
     if a.no_render or not changed:
         return
     top = [r[0] for r in changed[:a.top]]
