@@ -38,6 +38,16 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | `box_primitives.py` | Shared box toolkit: root anchors, zigzag R/S candidates, boundary respect, R/S touch density, and worked-equilibrium dwell/coverage. |
 | `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
 | `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
+| `pip.py` | Alternative multi-resolution swing skeleton (Perceptually Important Points): ranks turning points by importance so the same chart can be read coarse (macro trend) to fine (inner structure). Flag-gated; feeds only the Phase-A overlay. |
+| `segmentation.py` | The trend/range middle layer: labels swings with ATR displacement, measures swing efficiency, and locates the **root swing** (climax → first big counter-burst) that bridges trend into range. |
+| `narrative.py` | The chronological "pair of eyes": reads A → B → (C?) → D left-to-right as one story, each phase validated by a calibrated detector brick. Its `Structure` is the single source of truth consumers read. |
+| `bricks.py` | The narrative's building blocks: each phase detector wrapped as a pure `fits_here?` function (root swing, box, spring, LPS, Phase-A overlay resolution). |
+| `market_structure.py` | The chart in Highs & Lows: labels the swing skeleton HH/HL/LH/LL and marks mechanical breaks (BOS / reversal). Layer 0 of the event reader. |
+| `box_events.py` | The Wyckoff event reader (L2): calibrated SOS / spring / test / LPS / markup pieces + `assemble_box_narrative`, which orders them into a scored, traceable story. |
+| `bin_features.py` | Splits the base into left/right halves (bins) and measures how the right side improves on the left — range, support quality, tight-bar share. |
+| `phase_d.py` | Phase-D boundary resolution: where the right side of the base actually starts. |
+| `htf.py` | The same trend+box engine on resampled weekly/monthly bars — the higher-timeframe context read. |
+| `scope.py` | Chart-region labels: which bars belong to which phase, for display and archiving. |
 | `lps.py` | Finds the **Last Point of Support** — the quiet, tight pullback that defines the actionable support test. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
 | `indicators.py` | The math helpers — ATR (volatility), ADX (trend strength), and ADR% (absolute daily range). |
 
@@ -51,6 +61,7 @@ them into a number and a letter grade (S / A / B / C / D).
 | File | What it does |
 |------|--------------|
 | `scoring.py` | `score_setup` adds up 14 ingredients (box tightness, touches, volume dry-up, contraction footprint, ADR%, 52-week-high proximity, market breadth, ...) into a total. `calculate_tier` maps that total to a letter. |
+| `taxonomy.py` | The single registry of every sub-score term (its key, archive column, point cap, layer, flag) — the one place consumers derive their lists from instead of re-declaring literals. |
 
 **Want to change how much a factor is *worth*?** Edit the numbers in `config/settings.py`
 (the `SCORE_*` and `TIER_*` constants) — never the measurement code.

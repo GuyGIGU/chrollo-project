@@ -38,6 +38,20 @@ PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
 PIP_PIVOTS_ENABLED = False
 PIP_PIVOTS_DIST_MIN = 0.03
 
+# Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag). The flat wire above
+# was eyeball-gated OFF as a wash (fixes some inverted climax->AR overlays,
+# creates others — GBTG/PLSE/CGNX, commit d43e7fd); this is the multi-resolution
+# retry: source segment_swings' zigzag from the SMALLEST top-K importance prefix
+# holding a confirmed climax->AR bridge (interior AR), so late range retests /
+# noise dips are not in the skeleton to steal the climax or AR. Independent of
+# PIP_PIVOTS_ENABLED (checked FIRST when both are on) and deliberately NOT
+# applied to read_market_structure — event labels want the fine skeleton, the
+# Phase-A bridge wants the coarse one. Same safe surface as the flat wire:
+# feeds ONLY the Phase-A overlay via resolve_phase_a, never R/S/score/tier.
+# Default OFF until the eyeball gate clears (tools/phase_a_pip_diff.py).
+PIP_MACRO_PHASE_A_ENABLED = False
+PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried
+
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)

@@ -1,10 +1,12 @@
 """Unit tests for the PIP (Perceptually Important Points) swing skeleton.
 
-Pure-function contract only — PIP is measure-only and nothing live consumes it.
+Pure-function contract for the substrate, plus the flag-gated MACRO Phase-A
+read (``macro_bridge_zigzag``) and its ``segment_swings`` wire.
 """
 import numpy as np
 
-from core.structure.pip import pip_indices, pip_pivots, pip_skeleton
+from config import settings
+from core.structure.pip import macro_bridge_zigzag, pip_indices, pip_pivots, pip_skeleton
 
 
 def test_pip_indices_picks_biggest_swing_first():
@@ -71,3 +73,77 @@ def test_pip_skeleton_returns_each_level():
     assert set(sk.keys()) == {5, 15, 30}
     # finer levels resolve at least as many turning points as coarser ones
     assert len(sk[30]) >= len(sk[5]) >= 2
+
+
+# ---------------------------------------------------------- macro bridge ----
+
+def _markup_range_frame():
+    """Markup -> AR -> worked range, with a LATE range retest poking marginally
+    ABOVE the true climax (the climax thief a fine skeleton falls for).
+
+    bars 0..39   linear markup 100 -> 140 (true climax @39)
+    bars 40..45  reaction 140 -> 122     (true AR low @45)
+    bars 46..99  oscillating range ~125..138
+    bar  80      poke to 141 — higher than the climax, but a range event
+    """
+    up = np.linspace(100.0, 140.0, 40)
+    drop = np.linspace(140.0, 122.0, 7)[1:]
+    t = np.arange(54, dtype=float)
+    rng = 131.5 + 6.5 * np.sin(t * (2 * np.pi / 18.0))
+    P = np.concatenate([up, drop, rng])
+    P[80] = 141.0
+    return P + 0.5, P - 0.5          # highs, lows
+
+
+def test_macro_bridge_stops_before_the_climax_thief():
+    highs, lows = _markup_range_frame()
+    zz, k = macro_bridge_zigzag(highs, lows, with_k=True)
+    assert k == 4                          # confirmed at the coarsest bridge
+    bars = [b for b, _, _ in zz]
+    assert 39 in bars and 45 in bars       # true climax + true AR
+    assert 80 not in bars                  # the thief never enters the skeleton
+    peaks = [(b, p) for b, kind, p in zz if kind == "peak"]
+    assert max(peaks, key=lambda t: t[1])[0] == 39   # climax = the LEFT top
+
+
+def test_macro_bridge_fresh_climax_falls_back():
+    # Monotone wiggly rise: the extreme is the right edge, no AR has held yet.
+    t = np.arange(60, dtype=float)
+    P = 100.0 + t + 0.8 * np.sin(t)
+    zz, k = macro_bridge_zigzag(P + 0.5, P - 0.5, with_k=True)
+    assert k is None                       # no confirmed bridge by k_max
+    assert len(zz) >= 2                    # falls back to the finest prefix
+
+
+def test_macro_bridge_downtrend_mirror_sc():
+    # Vertical mirror of the markup frame: decline -> SC -> rally -> range,
+    # with a late poke BELOW the SC.
+    highs_u, lows_u = _markup_range_frame()
+    P = 250.0 - (highs_u + lows_u) / 2.0   # mirror the hl2 path
+    highs, lows = P + 0.5, P - 0.5
+    zz, k = macro_bridge_zigzag(highs, lows, with_k=True)
+    assert k == 4
+    bars = [b for b, _, _ in zz]
+    assert 39 in bars and 45 in bars and 80 not in bars
+    valleys = [(b, p) for b, kind, p in zz if kind == "valley"]
+    assert min(valleys, key=lambda t: t[1])[0] == 39  # SC = the LEFT bottom
+
+
+def test_segment_swings_macro_wire_and_flag_default(monkeypatch):
+    import pandas as pd
+    from core.structure.segmentation import segment_swings
+
+    assert settings.PIP_MACRO_PHASE_A_ENABLED is False   # ships dark
+
+    highs, lows = _markup_range_frame()
+    df = pd.DataFrame({"High": highs, "Low": lows})
+    monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", True)
+    seg = segment_swings(df, atr_val=2.0)
+    root = seg["root_swing"]
+    assert root is not None
+    assert root["bc_bar"] == 39 and root["ar_bar"] == 45
+
+    # Precedence: macro wins when both PIP flags are on.
+    monkeypatch.setattr(settings, "PIP_PIVOTS_ENABLED", True)
+    seg_both = segment_swings(df, atr_val=2.0)
+    assert seg_both["root_swing"] == root

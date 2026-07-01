@@ -14,9 +14,20 @@ top-40 = the inner structure — nested resolutions of one skeleton, which is th
 It emits the SAME shape as ``pivots._build_zigzag`` — ``list[(bar, 'peak'|
 'valley', price)]`` — and reuses that helper for High/Low snapping and strict
 alternation, so PIP is a drop-in-comparable skeleton (and a clean future swap
-point). NOTHING in the live path imports this yet: it exists to be rendered and
-eyeballed (``tools/pip_preview.py``) before any integration. The measure-first
-discipline mirrors how the segmentation layer was added — see
+point). Two flag-gated wires exist, both default-off and both feeding ONLY the
+Phase-A overlay via ``segment_swings`` (never R/S/score/tier):
+
+  * ``PIP_PIVOTS_ENABLED``        — the FLAT read (one ``dist_min`` threshold).
+    Eyeball-gated OFF (commit d43e7fd): a wash — fixes some inverted
+    climax->AR overlays, creates others (GBTG/PLSE/CGNX).
+  * ``PIP_MACRO_PHASE_A_ENABLED`` — the MACRO read (``macro_bridge_zigzag``):
+    coarse->fine over top-K prefixes, stopping at the SMALLEST skeleton that
+    holds a confirmed climax->AR bridge. This uses the multi-resolution
+    property the flat wire threw away: at the stop-K only macro turns exist,
+    so late range retests and noise dips are not in the skeleton to steal the
+    climax or the AR.
+
+The measure-first discipline mirrors how the segmentation layer was added — see
 ``docs/segmentation_research.md``.
 """
 from __future__ import annotations
@@ -124,8 +135,14 @@ def pip_pivots(highs, lows, *, n_points: Optional[int] = None,
     idx = pip_indices(P, n_points=n_points, dist_min=dist_min, metric=metric)
     if len(idx) < 2:
         return []
+    return _zigzag_from_indices(sorted(idx), P, highs, lows)
 
-    idx_sorted = sorted(idx)
+
+def _zigzag_from_indices(idx_sorted: list[int], P: np.ndarray,
+                         highs: np.ndarray, lows: np.ndarray) -> list:
+    """Classify already-elected PIP bars as peaks/valleys vs their PIP
+    neighbours, then route through ``_build_zigzag`` for High/Low snapping and
+    strict alternation — the shared tail of every PIP->zigzag conversion."""
     peaks: list[int] = []
     valleys: list[int] = []
     for pos, i in enumerate(idx_sorted):
@@ -141,6 +158,79 @@ def pip_pivots(highs, lows, *, n_points: Optional[int] = None,
             valleys.append(i)
 
     return _build_zigzag(peaks, valleys, highs, lows)
+
+
+def _confirmed_bridge(zigzag: list, last_bar: int) -> bool:
+    """Does this skeleton hold a CONFIRMED macro climax->AR bridge?
+
+    Mirrors ``segmentation._find_root_swing``'s conventions: dominant direction
+    from the zigzag's net displacement; climax = the extreme pivot in that
+    direction (leftmost on ties — the pivot that BIRTHS the range). Confirmed
+    means a pivot exists after the climax AND it is INTERIOR (bar < last_bar):
+    the right edge is "now", an unconfirmed extreme, never an AR.
+    """
+    if len(zigzag) < 2:
+        return False
+    net = float(zigzag[-1][2]) - float(zigzag[0][2])
+    if net == 0.0:
+        return False
+    if net > 0:
+        cands = [i for i, (_b, kind, _p) in enumerate(zigzag) if kind == "peak"]
+        if not cands:
+            return False
+        climax_i = max(cands, key=lambda i: zigzag[i][2])
+    else:
+        cands = [i for i, (_b, kind, _p) in enumerate(zigzag) if kind == "valley"]
+        if not cands:
+            return False
+        climax_i = min(cands, key=lambda i: zigzag[i][2])
+    if climax_i + 1 >= len(zigzag):
+        return False
+    return int(zigzag[climax_i + 1][0]) < int(last_bar)
+
+
+def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
+                        metric: str = "vertical", series: str = "hl2",
+                        with_k: bool = False):
+    """The coarse->fine MACRO Phase-A read: the zigzag at the SMALLEST top-K
+    importance prefix that holds a confirmed climax->AR bridge.
+
+    Because ``pip_indices`` is strictly nested, the ranking is computed ONCE at
+    ``k_max`` and every coarser skeleton is a free prefix. Walking K upward and
+    stopping at the first confirmed bridge is the theft protection: at the
+    stop-K the skeleton contains only the macro turns elected SO FAR, so a late
+    range retest a few cents above the true climax — or a shallow first dip in
+    front of the real AR — is simply not in the skeleton to be chosen. (The
+    flat ``dist_min`` read admits every above-threshold turn at once, which is
+    exactly how it created the GBTG/PLSE/CGNX inversions.)
+
+    No confirmed bridge by ``k_max`` (e.g. a fresh climax whose reaction hasn't
+    held yet) falls back to the finest prefix zigzag — no strong macro claim;
+    downstream ``resolve_phase_a`` fallbacks behave as today.
+
+    Returns the zigzag, or ``(zigzag, k)`` when ``with_k`` (``k`` is ``None``
+    on fallback) for tools/tests.
+    """
+    highs = np.asarray(highs, dtype=float)
+    lows = np.asarray(lows, dtype=float)
+    n = len(highs)
+    if n < 3 or len(lows) != n:
+        return ([], None) if with_k else []
+    P = _series(highs, lows, series)
+    order = pip_indices(P, n_points=k_max, metric=metric)
+    if len(order) < 2:
+        return ([], None) if with_k else []
+
+    last_bar = n - 1
+    fallback: list = []
+    for k in range(min(max(k_start, 2), len(order)), len(order) + 1):
+        zigzag = _zigzag_from_indices(sorted(order[:k]), P, highs, lows)
+        if len(zigzag) < 2:
+            continue
+        fallback = zigzag
+        if _confirmed_bridge(zigzag, last_bar):
+            return (zigzag, k) if with_k else zigzag
+    return (fallback, None) if with_k else fallback
 
 
 def pip_skeleton(df, levels=(5, 15, 40), *, metric: str = "vertical",

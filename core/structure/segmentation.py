@@ -138,7 +138,16 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         return _empty()
     n = len(highs)
 
-    if settings.PIP_PIVOTS_ENABLED:
+    if settings.PIP_MACRO_PHASE_A_ENABLED:
+        # The coarse->fine MACRO read (checked FIRST): the zigzag at the
+        # smallest top-K importance prefix holding a confirmed climax->AR
+        # bridge, so late range retests / noise dips are not in the skeleton to
+        # steal the climax or AR. Same (bar, kind, price) shape and the same
+        # safe surface as the flat wire below — segment_swings feeds only
+        # resolve_phase_a (the Phase-A OVERLAY), never R/S/score/tier.
+        from core.structure.pip import macro_bridge_zigzag
+        zigzag = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
+    elif settings.PIP_PIVOTS_ENABLED:
         # Phase-2 (measure-first): source the swing skeleton from the
         # multi-resolution PIP substrate (core.structure.pip) instead of
         # fixed-order pivots. Same (bar, kind, price) shape, so the swing /
@@ -147,6 +156,7 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         # R/S/score/tier — so this can shift the drawn climax->AR but cannot
         # drift a shadow-canonical field. dist_min is a scale-free fraction of
         # the window price range, so it adapts across lookback lengths.
+        # NB: eyeball-gated OFF as a wash (d43e7fd); kept reachable for A/B.
         from core.structure.pip import pip_pivots
         zigzag = pip_pivots(highs, lows, dist_min=settings.PIP_PIVOTS_DIST_MIN)
     else:

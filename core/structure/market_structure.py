@@ -116,9 +116,12 @@ def label_market_structure(zigzag) -> dict:
 def read_market_structure(df, *, lookback: Optional[int] = None,
                           order: Optional[int] = None) -> dict:
     """Build the swing skeleton off ``df`` and label it. Bar indices in the
-    result are df-positional. Mirrors ``segment_swings`` exactly: same pivot
-    order selection and the same PIP-substrate flag, so the labels line up with
-    the swings the rest of the engine reads."""
+    result are df-positional. Mirrors ``segment_swings``' pivot order selection
+    and the flat PIP-substrate flag, so the labels line up with the swings the
+    rest of the engine reads. The MACRO Phase-A read
+    (``PIP_MACRO_PHASE_A_ENABLED``) deliberately does NOT apply here: event
+    labels want the fine skeleton, the Phase-A bridge wants the coarse one —
+    same substrate, different zoom."""
     n_all = len(df)
     if n_all < 5:
         return _empty()
