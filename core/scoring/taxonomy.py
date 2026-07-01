@@ -82,3 +82,17 @@ def archive_columns() -> list[str]:
 def caps() -> dict[str, float]:
     """{key: point cap} for every registered term, resolved from settings."""
     return {t.key: t.cap() for t in REGISTRY}
+
+
+def ta_layer_terms() -> tuple[TermSpec, ...]:
+    """The terms that make up the Technical Analysis Score (layer 'ta') and are
+    emitted under the current flags — i.e. everything except the regime label."""
+    return tuple(t for t in REGISTRY if t.layer == "ta" and t.is_emitted())
+
+
+def structural_cap_sum() -> float:
+    """Fixed 0-100 divisor for the TA Score: summed point caps of the emitted
+    TA-layer terms (the regime-label term is excluded). A pure function of config
+    that grows as new TA terms are registered — never a per-row or cohort max
+    (that would be lookahead), so the 0-100 map stays strictly monotonic."""
+    return sum(t.cap() for t in ta_layer_terms())

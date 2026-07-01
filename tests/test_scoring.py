@@ -636,8 +636,29 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     from core.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
-    for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
+    for k in ("ta_score", "ta_raw", "ta_structure_score", "structure_tier", "context_score"):
         assert k not in out, f"v2 key {k!r} leaked with the flag off"
+
+
+def test_ta_score_v2_flag_on_publishes_bounded_rank_preserving_score(monkeypatch):
+    """Flag-ON: score_setup adds ta_score in [0,100] = (total - breadth) rescaled by
+    the fixed TA-layer cap sum, WITHOUT changing total or the sub-scores. Within a
+    run (breadth constant) ta_score is monotonic in total, so the composite ranking
+    is preserved — the invariant that lets the 0-100 rebrand not reorder anything."""
+    from core.scoring.scoring import score_setup
+    from core.scoring import taxonomy
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    at_breadth = dict(breadth_pct=settings.BREADTH_FULL_PCT)   # same per-run constant
+    weak = score_setup(**_score_common(box_width=settings.MAX_BOX_WIDTH, r_touches=1,
+                                       s_touches=1, **at_breadth))
+    strong = score_setup(**_score_common(box_width=0.02, r_touches=12, s_touches=12,
+                                         base_len=120, **at_breadth))
+    for out in (weak, strong):
+        assert 0.0 <= out["ta_score"] <= 100.0
+        assert out["ta_raw"] == pytest.approx(out["total"] - out["breadth_bonus"], abs=0.02)
+    # Ordering preserved (breadth equal), and breadth is excluded from the divisor.
+    assert (strong["ta_score"] > weak["ta_score"]) == (strong["total"] > weak["total"])
+    assert "breadth_bonus" not in {t.key for t in taxonomy.ta_layer_terms()}
 
 
 def test_taxonomy_emitted_keys_match_score_setup_output():

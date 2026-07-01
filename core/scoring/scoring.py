@@ -295,7 +295,35 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     }
     if settings.PUZZLE_SCORE_ENABLED:
         result['puzzle_quality'] = round(s_puzzle, 2)
+    # Technical Analysis Score v2 (hybrid 0-100) — flag-gated, byte-identical off.
+    # Sibling of the PUZZLE / CANDLE containment: flag-off the whole block is
+    # skipped, no new keys, zero new compute. It publishes ta_score alongside the
+    # legacy total; it does NOT change total or the tier yet (the tier re-source
+    # waits on the recalibrated TIER_*_STRUCT thresholds + operator eyeball).
+    if settings.TA_SCORE_V2:
+        result.update(_ta_score_v2(total, s_breadth))
     return result
+
+
+def _ta_score_v2(total: float, breadth_points: float) -> dict:
+    """Two-stage Technical Analysis Score v2: rescale the composite (minus the
+    regime-only breadth term) onto a fixed 0-100 grade.
+
+        ta_score = clamp((total - breadth) / STRUCTURAL_CAP_SUM * 100, 0, 100)
+
+    STRUCTURAL_CAP_SUM is the fixed sum of the TA-layer caps (every scored term
+    except breadth), a pure function of config — never a per-row or cohort max —
+    so the transform is strictly monotonic and provably preserves the composite's
+    rank order. breadth is a universe-wide per-run constant, so subtracting it is a
+    constant shift within a scan (rank within a run is preserved exactly). Rounds
+    ONCE at the end, on the scaled value. Grades-not-vetoes; no tier change here.
+    """
+    from core.scoring import taxonomy
+    raw_ta = total - (breadth_points or 0.0)
+    cap_sum = taxonomy.structural_cap_sum()
+    ta = 0.0 if cap_sum <= 0 else (raw_ta / cap_sum) * 100.0
+    ta = max(0.0, min(100.0, ta))
+    return {'ta_raw': round(raw_ta, 2), 'ta_score': round(ta, 1)}
 
 
 def calculate_tier(score: float, box_width: Optional[float] = None) -> str:

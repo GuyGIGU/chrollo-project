@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
+import pytest
+
 from config import settings
 from core.scoring import taxonomy
 from core.archive.analyze import SUB_SCORES
@@ -57,3 +59,15 @@ def test_only_breadth_is_regime_layer():
 
 def test_layers_are_only_ta_or_regime():
     assert {t.layer for t in taxonomy.REGISTRY} == {"ta", "regime"}
+
+
+def test_structural_cap_sum_is_all_ta_caps_excluding_breadth():
+    # The 0-100 divisor sums every emitted TA-layer cap; breadth (regime) is the
+    # only scored term excluded, and it must be a pure config function > 0.
+    ta_keys = {t.key for t in taxonomy.ta_layer_terms()}
+    assert "breadth_bonus" not in ta_keys
+    assert taxonomy.structural_cap_sum() > 0
+    caps = taxonomy.caps()  # default flags -> puzzle off, so also excluded
+    expected = sum(c for k, c in caps.items()
+                   if k not in ("breadth_bonus", "puzzle_quality"))
+    assert taxonomy.structural_cap_sum() == pytest.approx(expected)
