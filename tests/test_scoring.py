@@ -486,6 +486,22 @@ def test_breadth_bonus_ramps_between_zero_and_full_thresholds():
     assert mid == pytest.approx(settings.SCORE_BREADTH_BONUS / 2, abs=0.05)
 
 
+def test_ramp_zero_divisor_guard_returns_neutral():
+    # F5: a degenerate/inverted band (a misconfigured operator knob where CLEAN and
+    # MESSY collapse or cross) returns the polarity-safe neutral 0.0 instead of
+    # dividing by zero. A normal band (full_at > zero_at) is unaffected — the guard
+    # is dead code for every shipped anchor, so no live bonus moves.
+    from core.scoring.scoring import _ramp
+    assert _ramp(0.5, 0.4, 0.4, 1.0) == 0.0      # full_at == zero_at (collapsed)
+    assert _ramp(0.5, 0.6, 0.4, 1.0) == 0.0      # full_at < zero_at (inverted)
+    assert _ramp(1.0, 0.4, 0.4, 1.0) == 0.0      # value >> band, guard first -> neutral, no crash
+    assert _ramp(None, 0.4, 0.4, 1.0) == 0.0     # None + degenerate: guard is BEFORE the None check
+    # A well-formed band still ramps exactly as before.
+    assert _ramp(0.30, 0.30, 0.60, 1.0) == 0.0   # at zero_at
+    assert _ramp(0.60, 0.30, 0.60, 1.0) == 1.0   # at full_at (cap)
+    assert _ramp(0.45, 0.30, 0.60, 1.0) == pytest.approx(0.5)   # midpoint
+
+
 def test_touch_density_awards_bonus_only_when_touch_floors_met():
     from core.scoring.scoring import score_setup
 
@@ -638,11 +654,14 @@ def test_puzzle_term_is_bonus_only_and_capped(monkeypatch):
             assert r["total"] >= off                                           # never demotes
 
 
-def test_e3_eval_feeds_engine_elected_box_unmodified(monkeypatch):
+def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     # The puzzle is read on the engine's OWN elected PARENT box object (object
     # identity), with the EXACT same df + atr read_structure used — never a
-    # reconstruction — for EVERY fire, including inner-LPS fires (the parent
-    # equilibrium box is the puzzle frame regardless of which box won the LPS).
+    # reconstruction — AND it REUSES the engine's elected spring/LPS bricks
+    # (structure.spring / structure.lps) rather than re-detecting on the parent
+    # box. This is the faithfulness fix: on an inner-LPS fire, the puzzle must
+    # describe the LPS that actually fired (the inner election), never a fresh
+    # parent-box re-detection, and it must never SILENTLY drop the elected LPS.
     from tools.shadow_diff import _load_fixture
     import core.pipeline.evaluation as evaluation
 
@@ -658,14 +677,19 @@ def test_e3_eval_feeds_engine_elected_box_unmodified(monkeypatch):
         seen["rs_df"], seen["rs_atr"], seen["structure"] = df, atr, s
         return s
 
-    def _nar_spy(df, box, atr, *, v_bar=None):
+    def _nar_spy(df, box, atr, **kw):
+        # Capture the injected kwargs (spring / lps) verbatim so we can prove the
+        # call site passed the ELECTED bricks, and capture the returned narrative.
         seen["df"], seen["box"], seen["atr"] = df, box, atr
-        return real_nar(df, box, atr, v_bar=v_bar)
+        seen["spring_arg"], seen["lps_arg"] = kw.get("spring"), kw.get("lps")
+        nar = real_nar(df, box, atr, **kw)
+        seen["nar"] = nar
+        return nar
 
     monkeypatch.setattr(evaluation, "read_structure", _rs)
     monkeypatch.setattr(evaluation, "assemble_box_narrative", _nar_spy)
 
-    fires = inner_fires = 0
+    fires = inner_fires = lps_represented = 0
     for ticker in scalars["tickers"]:
         df = frames.get(ticker)
         if df is None:
@@ -675,15 +699,29 @@ def test_e3_eval_feeds_engine_elected_box_unmodified(monkeypatch):
             continue
         fires += 1
         s = seen["structure"]
-        assert seen["box"] is s.box                 # the exact elected box, unmodified
+        assert seen["box"] is s.box                 # the exact elected PARENT box, unmodified
         assert seen["df"] is seen["rs_df"]          # same df read_structure used
         assert seen["atr"] == seen["rs_atr"]        # same atr read_structure used
-        if s.inner is not None:                     # inner-LPS fire -> still the PARENT box
+        # The narrative REUSES the engine's elected bricks (object identity) — not
+        # a re-detected parent-box LPS. lps is required for a fire; spring may be None.
+        assert seen["lps_arg"] is s.lps and s.lps is not None
+        assert seen["spring_arg"] is s.spring
+        # The elected LPS is NEVER silently dropped: either it lands as the spine
+        # LPS piece (so completeness counts it) or the rare gate-drop is flagged.
+        nar = seen["nar"]
+        if nar["spine"]["lps"] is not None:
+            lps_represented += 1
+            # bit-for-bit: the spine LPS anchor is the elected low_bar, box-relative.
+            exp_anchor = max(0, min(int(s.lps.low_bar) - int(s.box.start_bar),
+                                    int(nar["base_n"]) - 1))
+            assert nar["spine"]["lps"]["anchor_bar"] == exp_anchor
+        else:
+            assert nar["lps_pre_v_dropped"] is True   # dropped -> observable, not silent
+        if s.inner is not None:                     # inner-LPS fire -> still the PARENT frame
             inner_fires += 1
             assert seen["box"] is not s.inner
     assert fires > 0
-    # If the fixture carries an inner-box fire, the parent-frame invariant is pinned
-    # on it too (well-formed, no crash, reads structure.box not structure.inner).
+    assert lps_represented > 0                       # the elected LPS is normally represented
 
 
 def test_e3_flag_off_result_has_no_puzzle_and_runs_no_narrative(monkeypatch):

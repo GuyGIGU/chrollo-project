@@ -86,7 +86,8 @@ def audit(tickers: list[str]) -> None:
 
         events = measure_resistance_events(df.iloc[start:], float(box.R),
                                            float(box.S), atr)
-        named = [e for e in events if e["type"] in ("SOS", "upthrust", "in_progress")]
+        named = [e for e in events
+                 if e["type"] in ("SOS", "markup", "upthrust", "in_progress")]
         if named:
             print(f"    R-rail events: "
                   + "; ".join(

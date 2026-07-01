@@ -446,17 +446,23 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         if settings.ADR_FULL_PCT else 0.0
     )
 
-    # E3 puzzle-quality: read the L2 Wyckoff puzzle on the engine's OWN elected box
-    # (structure.box — the exact EquilibriumBox read_structure passed to find_spring/
-    # find_lps), with the SAME df and the SAME atr (atr_for_zone) it used, so the scored
-    # narrative reproduces the fired spring/LPS bit-for-bit. Computed ONLY when the flag
-    # is on (flag-off pays zero cost); threaded through the single shared score_setup
-    # call so both eval-twins inherit it. Pass structure.box UNMODIFIED (its anchors are
-    # absolute, as find_lps expects — never rebase).
+    # E3 puzzle-quality: read the L2 Wyckoff puzzle by REUSING the bricks the engine
+    # already elected onto the Structure. read_structure ran find_spring / find_lps
+    # once and parked the winners on structure.spring / structure.lps (the LPS may be
+    # the tighter INNER-box election). Injecting those makes the scored narrative
+    # describe the spring/LPS that ACTUALLY fired — not a fresh parent-box
+    # re-detection, which would mis-describe (and understate completeness for) an
+    # inner-box setup. structure.box is the parent geometry frame (absolute anchors);
+    # the elected LPS carries absolute df bars translated by -box.start_bar
+    # (inner ⊆ parent, so no rebasing). Computed ONLY when the flag is on (flag-off
+    # pays zero cost); single call site so both eval-twins inherit it. Reusing the
+    # elected bricks also drops two redundant detector passes per fire.
     narrative = None
     if settings.PUZZLE_SCORE_ENABLED:
+        _struct = structure_ctx["structure"]
         narrative = assemble_box_narrative(
-            df, structure_ctx["structure"].box, structure_ctx["atr_for_zone"]
+            df, _struct.box, structure_ctx["atr_for_zone"],
+            spring=_struct.spring, lps=_struct.lps,
         )
 
     score_result = score_setup(

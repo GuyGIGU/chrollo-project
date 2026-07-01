@@ -1013,7 +1013,15 @@ def measure_support_tests(base_df, R, S, atr_val, *, hold_min_bars=6,
 # L2 — unified independent event view (the pieces E2 assembles into the puzzle)
 # ---------------------------------------------------------------------------
 
-def _box_events_with_meta(df, box, atr_val, *, v_bar=None):
+# Sentinel distinguishing "not provided -> detect the piece" (the measure-only
+# default) from an injected brick, INCLUDING an injected ``None`` (= the engine
+# elected no such piece; never re-detect and fabricate one). Compared with ``is``
+# only — never ``==`` (which would touch a dataclass ``__eq__``).
+_DETECT = object()
+
+
+def _box_events_with_meta(df, box, atr_val, *, v_bar=None,
+                          spring=_DETECT, lps=_DETECT):
     """The independent L2 event ZONES inside ``box`` + the shared assembly meta.
 
     The single chokepoint behind BOTH ``read_box_events`` (which discards the
@@ -1024,14 +1032,24 @@ def _box_events_with_meta(df, box, atr_val, *, v_bar=None):
       * SOS / markup / upthrust / range / rejection / in_progress  (R-rail waves)
         via ``measure_resistance_events``
       * test  (S-rail touch-that-holds)  via ``measure_support_tests``
-      * spring  (breach-S-that-reclaims) via ``find_spring`` (the calibrated Phase-C
-        detector — not re-derived here)
-      * LPS  (Phase-D support test) via ``find_lps`` — gated PURELY on bar position
-        (right of the V), NEVER on an SOS existing.
+      * spring  (breach-S-that-reclaims) — the calibrated Phase-C brick
+      * LPS  (Phase-D support test) — gated PURELY on bar position (right of the
+        V), NEVER on an SOS existing.
+
+    The spring / LPS bricks come from ONE of two sources, selected per-arg by the
+    ``spring``/``lps`` kwargs: the default ``_DETECT`` re-runs ``find_spring`` /
+    ``find_lps`` here (the measure-only ``read_box_events`` path — byte-identical
+    to before), while a caller that already elected them (E3 scoring passes
+    ``structure.spring``/``structure.lps``) injects them so the read describes the
+    bricks that ACTUALLY fired — including a tighter inner-box LPS. An injected
+    ``None`` means "the engine elected no such piece" and is honored (no re-detect).
 
     ``find_spring``/``find_lps`` index into the FULL ``df``; their bars are
     translated to box-relative (``- box.start_bar``) so every zone shares ONE
     origin — the box / base (0 = box.start_bar), which is also the render's frame.
+    An injected inner-box LPS still carries ABSOLUTE df bars and ``inner ⊆ parent``
+    guarantees ``start_bar >= box.start_bar``, so the same ``- start`` translation
+    applies with no rebasing.
 
     Builds the staircase ONCE and resolves the V ONCE: returns
     ``(events, v_bar, base_n, has_valley)`` where ``v_bar`` is the SAME resolved
@@ -1073,7 +1091,7 @@ def _box_events_with_meta(df, box, atr_val, *, v_bar=None):
     for e in measure_support_tests(base_df, R, S, atr_val, swings=swings):
         events.append({**e, "rail": "S", "anchor_bar": int(e["valley_bar"])})
 
-    sp = find_spring(df, box, atr_val)
+    sp = find_spring(df, box, atr_val) if spring is _DETECT else spring
     if sp is not None:
         tip = int(sp.tip_bar) - start
         rec = int(sp.recovery_bar) - start
@@ -1086,18 +1104,23 @@ def _box_events_with_meta(df, box, atr_val, *, v_bar=None):
                 "recovery_bars": int(sp.recovery_bars),
             })
 
-    lps = find_lps(df, box, atr_val)
-    if lps is not None:
-        lstart = int(lps.start_bar) - start
-        lend = int(lps.end_bar) - start
-        llow = int(lps.low_bar) - start
+    lp = find_lps(df, box, atr_val) if lps is _DETECT else lps
+    if lp is not None:
+        if lps is not _DETECT:
+            # Injected = read_structure's ELECTED brick (may be the inner-box LPS);
+            # its bars are absolute df indices and inner ⊆ parent, so start_bar is
+            # never left of the box start. Pin the geometry invariant loudly.
+            assert int(lp.start_bar) >= start, "elected LPS left of box start (inner⊄parent)"
+        lstart = int(lp.start_bar) - start
+        lend = int(lp.end_bar) - start
+        llow = int(lp.low_bar) - start
         # Phase-D gate: PURELY bar position (right of the V) — never SOS presence.
         if lstart >= 0 and lstart > v_bar:
             lstart, lend, llow = _clip(lstart), _clip(lend), _clip(llow)
             events.append({
                 "type": "lps", "rail": "S", "phase": "D",
                 "zone_start": lstart, "zone_end": max(lstart, lend),
-                "anchor_bar": llow, "swing_type": lps.swing_type,
+                "anchor_bar": llow, "swing_type": lp.swing_type,
             })
 
     _PRIORITY = {"spring": 0, "test": 1, "SOS": 2, "lps": 3, "upthrust": 4,
@@ -1129,16 +1152,21 @@ def read_box_events(df, box, atr_val, *, v_bar=None):
 # L2 — E2: chronological assembly of the independent pieces into the PUZZLE
 # ---------------------------------------------------------------------------
 
-def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
+def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
+                           spring=_DETECT, lps=_DETECT):
     """Assemble the independent L2 event ZONES (``read_box_events``) into the
     Wyckoff puzzle + an explainable trace. MEASURE-ONLY — the assembled read E3
     will later score; this gates/scores nothing and encodes no veto.
 
-    Consumes ONLY the pieces ``_box_events_with_meta`` already detected (one
-    staircase build, one V, no new ``find_spring``/``find_lps``/``measure_*``
-    calls): the whole spine is selected by FILTERING the passthrough ``events`` by
-    ``type``, so the V, the LPS Phase-D gate, and the chronology can never desync
-    from E1.
+    Consumes ONLY the pieces ``_box_events_with_meta`` returns (one staircase
+    build, one V): the whole spine is selected by FILTERING the passthrough
+    ``events`` by ``type``, so the V, the LPS Phase-D gate, and the chronology can
+    never desync from E1. The ``spring``/``lps`` kwargs are forwarded verbatim to
+    ``_box_events_with_meta``: the default ``_DETECT`` re-detects (measure-only,
+    byte-identical), while E3 scoring injects the engine's already-elected
+    ``structure.spring``/``structure.lps`` so the assembled read describes the
+    bricks that ACTUALLY fired — including a tighter inner-box LPS — rather than a
+    fresh parent-box re-detection.
 
     The chronology spring -> SOS -> LPS is a DESCRIPTIVE quality signal when
     present and bar-ordered; it is NEVER a gate, and a missing piece is reported,
@@ -1154,14 +1182,15 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
     ``spring.anchor_bar < sos.anchor_bar < lps.anchor_bar`` (strict).
     ``upthrust_terminal`` (the TITN read) iff an upthrust exists, NO SOS exists
     anywhere, and nothing after the last upthrust resolves it up or is still
-    developing (no markup / in_progress R-wave at or after it) — so it is mutually
-    exclusive with a spine SOS and never overrides E1's right-edge no-lookahead.
+    developing (no markup / in_progress / genuine Phase-D ``range`` R-wave at or
+    after it) — so it is mutually exclusive with a spine SOS and never overrides
+    E1's right-edge no-lookahead.
     Phases are O(1) derivations off the shared V (only when a real V exists):
     ``B = [0, v_bar]``; ``C = spring zone`` (a marked sub-zone that may overlap B);
     ``D = [v_bar+1, base_n-1]`` iff any Phase-D event (SOS / markup / lps) exists.
     """
     events, v_bar, base_n, has_valley = _box_events_with_meta(
-        df, box, atr_val, v_bar=v_bar)
+        df, box, atr_val, v_bar=v_bar, spring=spring, lps=lps)
 
     spine = {"spring": None, "sos": None, "lps": None}
     if not events and not has_valley:
@@ -1173,12 +1202,13 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
             "events": events, "v_bar": int(v_bar), "base_n": int(base_n),
             "spine": spine, "tests": 0, "upthrust_terminal": False,
             "completeness": 0, "chronology": "absent",
-            "phases": {"B": None, "C": None, "D": None}, "trace": [],
+            "phases": {"B": None, "C": None, "D": None},
+            "lps_pre_v_dropped": False, "trace": [],
         }
 
     # ONE linear pass over the (already chronologically-sorted) pieces — adds zero
     # detector calls; spine is references into events[] (do not mutate).
-    spring = lps = None
+    spring = lps_event = None
     sos_events = []
     upthrusts = []
     tests = 0
@@ -1188,7 +1218,7 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
         if t == "spring":
             spring = e
         elif t == "lps":
-            lps = e
+            lps_event = e
             has_phase_d_event = True
         elif t == "test":
             tests += 1
@@ -1207,29 +1237,45 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
                                           int(e["zone_start"]),
                                           float(e["peak_price"])))
            if sos_events else None)
-    spine["spring"], spine["sos"], spine["lps"] = spring, sos, lps
+    spine["spring"], spine["sos"], spine["lps"] = spring, sos, lps_event
+
+    # An injected (engine-elected) LPS that the Phase-D bar-position gate dropped
+    # (a rare late-V parent where the elected LPS anchors at/left of the parent V)
+    # would silently understate completeness — surface it rather than hide it. The
+    # gate itself stays (it is the Phase-D placement guard); this only makes the
+    # drop auditable. ``lps`` here is the injection PARAM (a brick or None when the
+    # engine elected/rejected one, else the _DETECT sentinel); ``lps_event`` is the
+    # zone that survived the gate. Only meaningful for an injected LPS.
+    lps_pre_v_dropped = (lps is not _DETECT and lps is not None
+                         and lps_event is None and has_valley)
 
     # upthrust_terminal: the run-up IS the terminal event (TITN) — an upthrust with
     # zero SOS anywhere (mutually exclusive with a spine SOS) and nothing after the
-    # last upthrust that resolves up (markup) or is still developing (in_progress).
+    # last upthrust that resolves up. A held R-wave after the last upthrust clears
+    # the terminal read: markup / in_progress (unchanged), plus a genuine Phase-D
+    # "range" (held near R). The Phase-D guard (anchor > v_bar) on the "range" term
+    # keeps a Phase-B cause-building range (left of the V, which shares the label)
+    # from wrongly clearing a terminal upthrust.
     upthrust_terminal = False
     if upthrusts and sos is None:
         last_up = max(int(e["anchor_bar"]) for e in upthrusts)
         resolved_after = any(
-            e.get("rail") == "R" and e["type"] in ("markup", "in_progress")
-            and int(e["anchor_bar"]) >= last_up for e in events)
+            e.get("rail") == "R" and int(e["anchor_bar"]) >= last_up
+            and (e["type"] in ("markup", "in_progress")
+                 or (e["type"] == "range" and int(e["anchor_bar"]) > v_bar))
+            for e in events)
         upthrust_terminal = not resolved_after
 
     # Descriptive grades — NEVER gates. completeness counts distinct canonical
     # pieces present (held tests only, each class at most 1); the test slot reuses
     # the SAME held-test filter as ``tests`` so the two cannot drift.
     completeness = ((spring is not None) + (sos is not None)
-                    + (lps is not None) + (tests > 0))
+                    + (lps_event is not None) + (tests > 0))
 
-    if (spring is not None and sos is not None and lps is not None
-            and spring["anchor_bar"] < sos["anchor_bar"] < lps["anchor_bar"]):
+    if (spring is not None and sos is not None and lps_event is not None
+            and spring["anchor_bar"] < sos["anchor_bar"] < lps_event["anchor_bar"]):
         chronology = "intact"
-    elif spring is not None or sos is not None or lps is not None:
+    elif spring is not None or sos is not None or lps_event is not None:
         chronology = "partial"
     else:
         chronology = "absent"
@@ -1258,10 +1304,10 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
         steps.append((int(sos["anchor_bar"]),
                       f"D[bar {int(sos['anchor_bar'])}]: SOS - creek-jump held "
                       f"near R (hold {sos['hold_range_box']} box)"))
-    if lps is not None:
-        steps.append((int(lps["anchor_bar"]),
-                      f"D[bar {int(lps['anchor_bar'])}]: LPS - support test held "
-                      f"({lps['swing_type']})"))
+    if lps_event is not None:
+        steps.append((int(lps_event["anchor_bar"]),
+                      f"D[bar {int(lps_event['anchor_bar'])}]: LPS - support test held "
+                      f"({lps_event['swing_type']})"))
     steps.sort(key=lambda s: s[0])
     trace = [line for _, line in steps]
     if tests:
@@ -1269,6 +1315,9 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
     if upthrust_terminal:
         trace.append("terminal upthrust - run-up topped above R and failed back "
                      "(no SOS)")
+    if lps_pre_v_dropped:
+        trace.append("note: engine-elected LPS anchors at/left of the V "
+                     "(Phase-D gate dropped it) - completeness excludes the LPS")
     trace.append(f"-> chronology {chronology}, completeness {completeness}/4")
 
     return {
@@ -1281,5 +1330,6 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None):
         "completeness": int(completeness),
         "chronology": chronology,
         "phases": phases,
+        "lps_pre_v_dropped": bool(lps_pre_v_dropped),
         "trace": trace,
     }

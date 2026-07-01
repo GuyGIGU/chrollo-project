@@ -31,6 +31,14 @@ def _ramp(value: Optional[float], zero_at: float, full_at: float, cap: float) ->
     in between. The single shape shared by the uptrend / RS / 52w-high / breadth
     bonuses — each rewards a measurement that scales between a zero point and a
     saturation point. ``None`` (a missing measurement, e.g. no 52w history) → 0."""
+    # Degenerate / inverted band (a misconfigured operator knob where the CLEAN and
+    # MESSY anchors collapse or cross): return the polarity-safe neutral 0.0 rather
+    # than divide by zero. 0.0 (not cap) is correct — callers that INVERT this ramp
+    # (``1.0 - _ramp(...)``) then read full credit, and additive-bonus callers read
+    # "no bonus". Guarded BEFORE the value check so an equal/inverted band can't
+    # reach the divide. Dead code for every shipped anchor (all full_at > zero_at).
+    if full_at <= zero_at:
+        return 0.0
     if value is None or value <= zero_at:
         return 0.0
     progress = min(1.0, (value - zero_at) / (full_at - zero_at))

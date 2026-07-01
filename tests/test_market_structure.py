@@ -513,9 +513,11 @@ def test_e2_no_veto_shaped_field(monkeypatch):
     veto_names = {"pass", "fail", "ok", "valid", "invalid", "reject", "veto",
                   "gate", "eligible", "qualifies", "is_complete", "passes"}
     assert not (set(nar) & veto_names)
-    # the only bare bool in the top-level dict is the explicitly-descriptive one.
+    # the only bare bools in the top-level dict are the explicitly-descriptive
+    # reads (the outcome read + the elected-LPS gate-drop diagnostic) — neither is
+    # a pass/fail another layer could consume as a gate.
     bool_keys = [k for k, v in nar.items() if isinstance(v, bool)]
-    assert bool_keys == ["upthrust_terminal"]
+    assert set(bool_keys) == {"upthrust_terminal", "lps_pre_v_dropped"}
     assert isinstance(nar["completeness"], int) and 0 <= nar["completeness"] <= 4
 
 
@@ -641,3 +643,83 @@ def test_e2_partial_from_single_piece_and_phase_d_at_right_edge(monkeypatch):
                         lambda *a, **k: (events, 7, 8, True))   # v_bar == base_n - 1
     nar2 = metrics.assemble_box_narrative(None, None, 0.5)
     assert nar2["phases"]["D"] is None and nar2["phases"]["B"] == [0, 7]
+
+
+def test_e2_sentinel_three_state_injection(monkeypatch):
+    # The elected-brick fix, pinned at the source: the spring/lps kwargs have THREE
+    # states. Default _DETECT re-detects (the measure-only path, unchanged); an
+    # injected brick is used VERBATIM (describes the LPS that actually fired, not a
+    # re-detection); an injected None means "the engine elected no such piece" and
+    # is honored (never fabricate one).
+    import core.structure.bricks as bricks
+    import core.structure.metrics as metrics
+    from types import SimpleNamespace
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    detected = SimpleNamespace(start_bar=8, end_bar=10, low_bar=9,
+                               swing_type="terminal_valley")
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: SimpleNamespace(
+        tip_bar=1, recovery_bar=3, undercut_atr=0.9, recovery_bars=2))
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: detected)
+
+    def _lps(events):
+        return [e for e in events if e["type"] == "lps"]
+
+    # (1) default -> detect: the (monkeypatched) find_lps result is used.
+    ev_detect = metrics.read_box_events(df, box, 0.5)
+    assert len(_lps(ev_detect)) == 1 and _lps(ev_detect)[0]["anchor_bar"] == 9
+
+    # (2) injected brick -> used verbatim (a DIFFERENT low_bar); find_lps ignored.
+    injected = SimpleNamespace(start_bar=7, end_bar=9, low_bar=8,
+                               swing_type="terminal_valley")
+    ev_inject = metrics._box_events_with_meta(df, box, 0.5, lps=injected)[0]
+    assert len(_lps(ev_inject)) == 1 and _lps(ev_inject)[0]["anchor_bar"] == 8
+
+    # (3) injected None -> honored: NO lps event despite find_lps returning one.
+    ev_none = metrics._box_events_with_meta(df, box, 0.5, lps=None)[0]
+    assert _lps(ev_none) == []
+
+
+def test_e2_upthrust_terminal_phase_d_range_clears_phase_b_range_does_not(monkeypatch):
+    # F3: a held Phase-D "range" (anchor > v_bar) after the last upthrust clears the
+    # terminal read (price recovered near R); a Phase-B "range" (left of the V, which
+    # shares the type label) must NOT clear it. markup/in_progress keep no phase guard.
+    import core.structure.metrics as metrics
+
+    def _ut(b=4):
+        return {"type": "upthrust", "rail": "R", "anchor_bar": b, "zone_start": b - 1}
+    v_bar = 8
+    cases = [
+        ([_ut(), {"type": "range", "rail": "R", "anchor_bar": 9, "zone_start": 8}], False),   # Phase-D range -> clears
+        ([_ut(), {"type": "range", "rail": "R", "anchor_bar": 6, "zone_start": 5}], True),    # Phase-B range -> does NOT clear
+        ([_ut(), {"type": "markup", "rail": "R", "anchor_bar": 6, "zone_start": 5}], False),  # markup: no phase guard, still clears
+    ]
+    for events, expected in cases:
+        monkeypatch.setattr(metrics, "_box_events_with_meta",
+                            lambda *a, _e=events, **k: (_e, v_bar, 12, True))
+        nar = metrics.assemble_box_narrative(None, None, 0.5)
+        assert nar["upthrust_terminal"] is expected
+
+
+def test_e2_injected_lps_gate_drop_is_observable(monkeypatch):
+    # The elected LPS is never SILENTLY dropped: when an engine-elected LPS is
+    # injected but the Phase-D gate emits no lps event (the rare late-V case),
+    # lps_pre_v_dropped is True + a trace note fires. The default (detect) path,
+    # which has no "elected" brick, never flags it.
+    import core.structure.metrics as metrics
+    from types import SimpleNamespace
+    # Events with an SOS but NO lps event -> stands in for the gate having dropped it.
+    events = [{"type": "SOS", "rail": "R", "anchor_bar": 6, "zone_start": 5,
+               "peak_price": 12.4, "hold_range_box": 0.4}]
+    monkeypatch.setattr(metrics, "_box_events_with_meta",
+                        lambda *a, **k: (events, 8, 12, True))
+    brick = SimpleNamespace(start_bar=2, end_bar=4, low_bar=3,
+                            swing_type="terminal_valley")
+    nar = metrics.assemble_box_narrative(None, None, 0.5, lps=brick)
+    assert nar["lps_pre_v_dropped"] is True and nar["spine"]["lps"] is None
+    assert any("Phase-D gate dropped" in ln for ln in nar["trace"])
+    # Control: injected None (engine elected no LPS) is NOT a drop; nor is detect.
+    nar_none = metrics.assemble_box_narrative(None, None, 0.5, lps=None)
+    assert nar_none["lps_pre_v_dropped"] is False
+    nar_detect = metrics.assemble_box_narrative(None, None, 0.5)
+    assert nar_detect["lps_pre_v_dropped"] is False
