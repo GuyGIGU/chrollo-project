@@ -63,3 +63,43 @@ def test_shadow_output_guard_no_drift():
         "--check` locally to see the exact ticker/field, then either fix the "
         "regression or, if the change is intended, re-capture the baseline."
     )
+
+
+def test_run_fixture_drops_eval_error_without_raising(monkeypatch):
+    """A swallowed eval crash (EVAL_ERROR sentinel) must be DROPPED, not crash.
+
+    ``_evaluate_ticker`` returns the ``EVAL_ERROR`` enum (not ``None``) when the
+    eval chain throws and is swallowed. ``EVAL_ERROR`` has no ``.get`` method, so
+    if ``run_fixture`` treated it as a firing result it would call
+    ``canonical_fields(EVAL_ERROR)`` -> ``EVAL_ERROR.get(...)`` -> AttributeError,
+    crashing the CI drift guard. This forces one fixture ticker's eval to return
+    EVAL_ERROR and asserts ``run_fixture`` completes gracefully, dropping it.
+
+    Bite proof: revert the ``or result is EVAL_ERROR`` clause in
+    ``shadow_diff.run_fixture`` and this test raises AttributeError.
+    """
+    from core.pipeline.evaluation import EVAL_ERROR
+
+    frames, scalars = shadow_diff._load_fixture()
+    fixture_tickers = [t for t in scalars["tickers"] if t in frames]
+    assert fixture_tickers, "fixture has no frames to exercise"
+    poisoned = fixture_tickers[0]
+
+    real_eval = shadow_diff._evaluate_ticker
+
+    def fake_eval(ticker, df, *args, **kwargs):
+        if ticker == poisoned:
+            return EVAL_ERROR
+        return real_eval(ticker, df, *args, **kwargs)
+
+    # run_fixture calls the name bound in the shadow_diff module namespace.
+    monkeypatch.setattr(shadow_diff, "_evaluate_ticker", fake_eval)
+
+    snapshot = shadow_diff.run_fixture()  # must NOT raise
+
+    assert poisoned not in snapshot["fields"], (
+        "EVAL_ERROR ticker leaked into the canonical fields instead of being dropped"
+    )
+    assert poisoned not in snapshot["ranking"], (
+        "EVAL_ERROR ticker leaked into the ranking instead of being dropped"
+    )

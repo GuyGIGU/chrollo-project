@@ -19,8 +19,10 @@ renamed key (``foo=...`` where the model has no ``foo`` column) raises
 
 This test closes that gap statically. For the live writer it parses the ``values
 = dict(...)`` source with ``ast`` and asserts its keys are a SUBSET of the ORM
-columns. For the seed writer it asserts the mapper's auto-mapped columns AND the
-``overrides = dict(...)`` keys are all real columns. Nothing is executed against
+columns. For the seed writer it pins the mapper's auto-mapped column set EXACTLY
+(model columns minus ``id`` minus the frozen ``_MANUAL_UNMAPPED_COLUMNS``) so a
+mapper that drops or over-skips a column is caught, and asserts the ``overrides =
+dict(...)`` keys are all real columns. Nothing is executed against
 a database and no scan runs; the literal ``dict(...)`` calls are read directly
 from source, and the ``**splat`` helpers are driven hermetically (pure functions
 given synthetic inputs) so the columns THEY contribute are covered as well.
@@ -193,14 +195,27 @@ def test_seed_values_dict_is_subset_of_model_columns():
     columns are therefore: the mapper's auto-mapped flat columns, PLUS the seed
     ``overrides`` (special-cased keys), PLUS the ``**`` splats inside ``overrides``.
     Every one of those must be a real SetupArchive column."""
-    from services.archive_queries import archive_row_from_result
+    from services.archive_queries import (
+        _MANUAL_UNMAPPED_COLUMNS,
+        archive_row_from_result,
+    )
 
     model = _model_columns()
 
-    # 1. The mapper's own auto-mapped columns are model-derived by construction,
-    #    but assert it so a mapper regression surfaces here too.
+    # 1. Pin the mapper's auto-mapped column set EXACTLY. With empty
+    #    result/overrides the mapper flat-maps every model column except the
+    #    auto-increment ``id`` and the frozen ``_MANUAL_UNMAPPED_COLUMNS`` (route
+    #    splat / deliberately-NULL). Asserting equality (not just ⊆) makes this a
+    #    real drift guard: a mapper that silently drops a column (under-maps) or
+    #    stops skipping one it should (over-maps) breaks the equality here.
     auto_mapped = frozenset(archive_row_from_result({}, overrides={}))
-    assert auto_mapped <= model
+    expected_auto_mapped = model - {"id"} - _MANUAL_UNMAPPED_COLUMNS
+    assert auto_mapped == expected_auto_mapped, (
+        "archive_row_from_result no longer auto-maps exactly "
+        "(model columns) - {id} - _MANUAL_UNMAPPED_COLUMNS; the mapper drifted. "
+        f"missing={sorted(expected_auto_mapped - auto_mapped)} "
+        f"extra={sorted(auto_mapped - expected_auto_mapped)}"
+    )
 
     # 2. The seed `overrides = dict(...)` literal keys are all real columns.
     literal, splats = _values_dict_keys(seed_mod.seed_archive, var="overrides")

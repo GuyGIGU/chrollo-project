@@ -266,38 +266,91 @@ def test_manifest_json_is_canonical_sorted():
     assert keys == sorted(keys)
 
 
-def test_every_scoring_settings_symbol_is_in_manifest():
-    """Provenance completeness: EVERY ``settings.NAME`` the scorer reads must be
-    in ``ENGINE_SETTINGS_KEYS`` and hashed into engine_config_version.
+# Ops / observability knobs that the engine EVAL PATH legitimately reads but
+# which must NOT churn the engine config version (they change how data is
+# fetched/serialized, never a detector decision). Enumerated by reading the
+# current reads across the scanned files; kept small and explicit so a NEW
+# score-affecting setting cannot hide behind a blanket exclusion. Mirror of
+# manifest.py's DELIBERATELY EXCLUDED block for the eval-path subset:
+#   SPY_SYMBOL   — market-context fetch symbol (screener.py)
+#   PARQUET_ENGINE — cache (de)serialization engine (screener.py)
+ALLOWED_OPS_EXCLUSIONS = frozenset({"SPY_SYMBOL", "PARQUET_ENGINE"})
 
-    The scorer is the JUDGE layer — every constant it touches moves a score/tier,
-    so flipping any of them changes archived output and MUST bump the manifest
-    hash. This static-source scan makes a future score-affecting flag/weight
-    unable to silently escape provenance: add a ``settings.X`` read in
-    scoring.py and this fails until X is added to the allow-list. (Regression
-    guard for the CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED omission.)
+# The engine's decision-making eval path. Every ``settings.NAME`` read here can
+# move which setups fire / how they score / where phase boundaries land — the
+# hashable engine identity — EXCEPT the ops knobs enumerated above.
+_ENGINE_EVAL_PATH_MODULES = (
+    "core.scoring.scoring",
+    "core.pipeline.evaluation",
+    "core.pipeline.screener",
+    "core.structure.box_events",
+)
+
+
+def test_every_scoring_settings_symbol_is_in_manifest():
+    """Provenance completeness: EVERY ``settings.NAME`` the engine eval path reads
+    must be in ``ENGINE_SETTINGS_KEYS`` and hashed into engine_config_version —
+    unless it is one of the explicitly enumerated ops-only exclusions.
+
+    The eval path (scoring + evaluation + screener + box_events) is the layer that
+    decides which setups fire, how they score/rank, and where phase boundaries
+    land — every score/structure-affecting constant it touches changes archived
+    output and MUST bump the manifest hash. This static-source scan (over BOTH the
+    ``settings.NAME`` and ``getattr(settings, "NAME")`` read forms) makes a future
+    score-affecting flag/weight unable to silently escape provenance: add a read in
+    any scanned module and this fails until the name is either added to the
+    allow-list or explicitly declared an ops exclusion. (Regression guard for the
+    CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions.)
     """
+    import importlib
     import re
     from pathlib import Path
 
-    import core.scoring.scoring as scoring_mod
     from core.freeze.manifest import ENGINE_SETTINGS_KEYS
 
-    src = Path(scoring_mod.__file__).read_text(encoding="utf-8")
-    referenced = set(re.findall(r"settings\.([A-Z][A-Z0-9_]+)", src))
-    assert referenced, "scanner found no settings.<NAME> reads in scoring.py"
+    # Union settings reads across the whole eval path, matching both the direct
+    # attribute form (``settings.NAME``) and the string-literal getattr form
+    # (``getattr(settings, "NAME")`` / single-quoted).
+    pat_attr = re.compile(r"settings\.([A-Z][A-Z0-9_]+)")
+    pat_getattr = re.compile(r"getattr\(\s*settings\s*,\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
+    referenced: set[str] = set()
+    for mod_name in _ENGINE_EVAL_PATH_MODULES:
+        mod = importlib.import_module(mod_name)
+        src = Path(mod.__file__).read_text(encoding="utf-8")
+        referenced |= set(pat_attr.findall(src))
+        referenced |= set(pat_getattr.findall(src))
+    assert referenced, "scanner found no settings.<NAME> reads on the eval path"
 
-    missing = sorted(referenced - set(ENGINE_SETTINGS_KEYS))
-    assert not missing, (
-        "score-affecting settings read by core/scoring/scoring.py are absent from "
+    # Every read must be either provenance-hashed OR an explicit ops exclusion —
+    # nothing may silently fall between the two.
+    unaccounted = sorted(referenced - set(ENGINE_SETTINGS_KEYS) - ALLOWED_OPS_EXCLUSIONS)
+    assert not unaccounted, (
+        "score/structure-affecting settings read by the engine eval path "
+        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)}) are absent from "
         "core.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
-        "scores WITHOUT bumping engine_config_version, corrupting archive "
-        f"provenance): {missing}. Add them to the manifest allow-list."
+        "engine output WITHOUT bumping engine_config_version, corrupting archive "
+        f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "
+        "one is genuinely an ops-only knob, to ALLOWED_OPS_EXCLUSIONS with a reason."
+    )
+
+    # The exclusion set must not rot: every declared ops exclusion has to actually
+    # be read somewhere on the eval path (else it is stale) and must NOT also be in
+    # the manifest (that would be a contradictory double-listing).
+    stale_exclusions = sorted(ALLOWED_OPS_EXCLUSIONS - referenced)
+    assert not stale_exclusions, (
+        f"ALLOWED_OPS_EXCLUSIONS lists names no longer read on the eval path: "
+        f"{stale_exclusions}. Remove them."
+    )
+    double_listed = sorted(ALLOWED_OPS_EXCLUSIONS & set(ENGINE_SETTINGS_KEYS))
+    assert not double_listed, (
+        f"names are BOTH ops-excluded and in the manifest allow-list: {double_listed}. "
+        "Pick one."
     )
 
     # Every referenced symbol must actually EXIST on settings — a stale name in
-    # the scorer (or the regex) would otherwise mask a real gap.
+    # the eval path (or the regex) would otherwise mask a real gap.
     for name in referenced:
         assert hasattr(settings, name), (
-            f"scoring.py reads settings.{name} which does not exist on config.settings"
+            f"the eval path reads settings.{name} which does not exist on "
+            "config.settings"
         )

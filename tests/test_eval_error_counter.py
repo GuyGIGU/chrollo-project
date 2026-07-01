@@ -11,11 +11,12 @@ cache, a real scan, or the scoring math:
 
   * ``_evaluate_ticker`` returns the distinct ``EVAL_ERROR`` sentinel (not None)
     when the eval chain throws, and still returns None for a structural reject.
-  * ``_evaluate_frames`` counts sentinels separately (``_LAST_EVAL_ERRORED``),
-    never appends them to results, and a structural reject is NOT counted as an
-    error while a normal fire is unaffected.
+  * ``_evaluate_frames`` returns the sentinel count in-band ``(results, errored)``,
+    never appends sentinels to results, and a structural reject is NOT counted as
+    an error while a normal fire is unaffected.
   * The count surfaces in the metrics formatter and drives the alert decision.
-  * The scan-runner parses the count back out of stdout.
+  * The scan-runner parses the count back out of the SCAN_RESULT_JSON channel —
+    reading the PRIMARY universe's count on a multi-universe run.
 
 All fixtures are local + in-memory; no shared conftest fixtures are used.
 """
@@ -140,12 +141,12 @@ def test_evaluate_frames_counts_error_not_reject_and_keeps_fire(monkeypatch):
         "REJECT": _price_frame(),
         "FIRE": _price_frame(),
     }
-    results = screener._evaluate_frames(frames, 0.0, None)
+    results, errored = screener._evaluate_frames(frames, 0.0, None)
 
     # The fire is kept; neither the reject nor the error is appended.
     assert results == [fire]
     # Exactly ONE errored ticker — the structural reject is NOT counted as errored.
-    assert screener._LAST_EVAL_ERRORED == 1
+    assert errored == 1
 
 
 def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
@@ -158,28 +159,30 @@ def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
     monkeypatch.setattr(screener, "_evaluate_ticker", _fake_eval)
 
     frames = {"A": _price_frame(), "REJECT": _price_frame(), "B": _price_frame()}
-    results = screener._evaluate_frames(frames, 0.0, None)
+    results, errored = screener._evaluate_frames(frames, 0.0, None)
 
-    assert len(results) == 2                 # both fires kept
-    assert screener._LAST_EVAL_ERRORED == 0  # no swallowed crash
+    assert len(results) == 2  # both fires kept
+    assert errored == 0       # no swallowed crash
 
 
-def test_evaluate_frames_resets_counter_each_call(monkeypatch):
+def test_evaluate_frames_count_is_per_call_not_carried_over(monkeypatch):
+    # The count is returned in-band (no module global), so each call reports its
+    # OWN errored count with no stale carry-over from a prior call.
     monkeypatch.setattr(screener, "ProcessPoolExecutor", _SyncExecutor)
     monkeypatch.setattr(screener, "as_completed", _as_completed_passthrough)
     monkeypatch.setattr(
         screener, "_evaluate_ticker",
         lambda t, df, spy, breadth: evaluation.EVAL_ERROR,
     )
-    screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
-    assert screener._LAST_EVAL_ERRORED == 1
-    # A subsequent clean call must reset the stale count to 0.
+    _, errored = screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
+    assert errored == 1
+    # A subsequent clean call reports 0 — the prior 1 does not leak forward.
     monkeypatch.setattr(
         screener, "_evaluate_ticker",
         lambda t, df, spy, breadth: {"Ticker": t, "Score": 1},
     )
-    screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)
-    assert screener._LAST_EVAL_ERRORED == 0
+    _, errored = screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)
+    assert errored == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -231,17 +234,76 @@ def test_alert_decision_silent_when_no_errors():
     assert scan_runner._alert_decision("ok", 5, None, True, True) is None
 
 
-def test_parse_n_errored_round_trips_from_formatter_line():
+def test_parse_scan_result_reads_errored_from_json_channel():
     scan_runner = _load_scan_runner()
-    line = scan_metrics.format_scan_metrics({
+    output = (
+        "some earlier line\n"
+        'SCAN_RESULT_JSON:{"n_setups": 1, "n_archived": 1, "n_errored": 4}\n'
+    )
+    n_setups, n_errored = scan_runner._parse_scan_result(output)
+    assert n_setups == 1
+    assert n_errored == 4
+
+
+def test_parse_scan_result_defaults_errored_to_zero_when_key_absent():
+    # An older child (or clean scan) omits n_errored; a swallowed-crash count is a
+    # tripwire, so "unknown" means "no known crashes" -> 0 (never a phantom alert).
+    scan_runner = _load_scan_runner()
+    n_setups, n_errored = scan_runner._parse_scan_result(
+        'SCAN_RESULT_JSON:{"n_setups": 5, "n_archived": 5}\n'
+    )
+    assert n_setups == 5
+    assert n_errored == 0
+
+
+def test_parse_scan_result_none_setups_when_payload_absent():
+    scan_runner = _load_scan_runner()
+    n_setups, n_errored = scan_runner._parse_scan_result("no result line here\n")
+    assert n_setups is None
+    assert n_errored == 0
+
+
+def test_multi_universe_errored_reads_primary_not_last_universe():
+    """Regression for the multi-universe silent-drop bug.
+
+    On the scheduled --all-universes run US-Stocks (the PRIMARY) runs FIRST and
+    prints its errored count onto the ONE SCAN_RESULT_JSON line; small ETF
+    universes run LAST and print their own "Scan timing: ... errored=0" line at the
+    very bottom of stdout. The alert must see the PRIMARY count (N), not the last
+    universe's 0.
+
+    This asserts the JSON-channel value the alert consumes is N. It FAILS against
+    the old reversed(splitlines()) scrape of the "errored=" timing line (which
+    returns the LAST universe's 0) and PASSES with the SCAN_RESULT_JSON fix.
+    """
+    scan_runner = _load_scan_runner()
+    # Primary (US-Stocks) errored=3, threaded onto SCAN_RESULT_JSON. A later ETF
+    # universe's timing line (errored=0) is the LAST timing line in stdout.
+    primary_json = 'SCAN_RESULT_JSON:{"n_setups": 12, "n_archived": 12, "n_errored": 3}'
+    primary_timing = scan_metrics.format_scan_metrics({
         "total_s": 1.0, "phases_s": {},
-        "counts": {"universe_tickers": 3, "evaluated_tickers": 3,
-                   "setups": 1, "errored_tickers": 4},
+        "counts": {"universe_tickers": 500, "evaluated_tickers": 480,
+                   "setups": 12, "errored_tickers": 3},
     })
-    output = f"some earlier line\n{line}\nSCAN_RESULT_JSON:{{}}\n"
-    assert scan_runner._parse_n_errored(output) == 4
+    etf_timing = scan_metrics.format_scan_metrics({
+        "total_s": 0.2, "phases_s": {},
+        "counts": {"universe_tickers": 11, "evaluated_tickers": 11, "setups": 0},
+    })
+    # Stdout order: primary universe first (JSON + its timing), ETF universe last.
+    output = "\n".join([primary_timing, primary_json, "Scanning ETF universe...", etf_timing]) + "\n"
 
+    _, n_errored = scan_runner._parse_scan_result(output)
+    assert n_errored == 3, "alert must read the PRIMARY universe's errored count, not the last universe's 0"
 
-def test_parse_n_errored_none_when_absent():
-    scan_runner = _load_scan_runner()
-    assert scan_runner._parse_n_errored("no timing line here\n") is None
+    # The old reversed-scrape read the LAST "errored=" timing line — prove that
+    # would have returned the ETF's 0, i.e. the exact bug this fix removes.
+    def _old_reversed_scrape(text: str):
+        for line in reversed(text.splitlines()):
+            if line.startswith("Scan timing:"):
+                for token in line.split():
+                    stripped = token.rstrip(",")
+                    if stripped.startswith("errored="):
+                        return int(stripped[len("errored="):])
+        return None
+
+    assert _old_reversed_scrape(output) == 0  # the masked-bug behaviour

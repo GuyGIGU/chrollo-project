@@ -256,6 +256,44 @@ def test_traversal_quality_now_populated_by_both_paths():
     assert "score_traversal_quality" in _seed_effective_cols()
 
 
+def test_all_score_subscores_pinned_in_seed_overrides():
+    """The WHOLE ``score_*`` sub-score family must be listed explicitly in the
+    seed writer's ``overrides`` literal — not left to the auto-mapper.
+
+    The name-set parity guard above is blind to this class of drift: the seed
+    path's effective column set includes ``_mapper_auto_cols()`` (every model
+    column not in ``_MANUAL_UNMAPPED_COLUMNS``), so a ``score_*`` column's NAME is
+    "populated" by the seed path whether or not seed.py maps its VALUE. But the
+    seed sub-scores arrive NESTED under ``best_result["sub_scores"][...]``, while
+    the auto-mapper only tries ``best_result.get("score_box_tightness")`` — which
+    is ``None`` for the flat ``score_*`` key. So dropping e.g.
+    ``score_box_tightness=sub.get("box_tightness")`` from the overrides leaves
+    every parity/name-set test green while NULLing that column for the whole
+    seeded population (exactly the ``score_traversal_quality`` bug, generalized).
+
+    Pin it by VALUE-mapping: every ``score_*`` model column must appear as a key
+    in the seed ``overrides`` literal so the mapper never silently resolves it to
+    None."""
+    score_cols = frozenset(c for c in _model_columns() if c.startswith("score_"))
+    assert len(score_cols) >= 10, (
+        f"expected the full score_* sub-score family (~14 columns); found only "
+        f"{sorted(score_cols)} — the model changed shape or the guard is stale."
+    )
+    seed_overrides = _literal_kwargs(seed_mod.seed_archive, "overrides")
+    missing = score_cols - seed_overrides
+    assert not missing, (
+        f"score_* sub-score column(s) {sorted(missing)} are NOT explicitly mapped "
+        "in core/archive/seed.py's `overrides` dict. These sub-scores arrive "
+        'nested under best_result["sub_scores"][...], but the model-driven mapper '
+        "(archive_row_from_result) only tries best_result.get('score_<name>') for "
+        "unlisted columns — which resolves to None. So an omitted score_* override "
+        "silently NULLs that column for the ENTIRE seeded population (the "
+        "score_traversal_quality bug, generalized to the whole family). The name-"
+        "set parity guard cannot catch this because the auto-mapper still 'owns' "
+        "the column NAME. Re-add `score_<name>=sub.get('<name>')` to the overrides."
+    )
+
+
 def test_allowlist_has_no_dead_entries():
     """Every allowlisted key must actually be a real divergence — a stale
     allowlist entry (later mapped in both paths, or removed) is dead weight that

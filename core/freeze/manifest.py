@@ -84,6 +84,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SOS_TRIM_ENABLED",
     "SOS_TRIM_MIN_RUN",
     "SOS_TRIM_MIN_PREFIX_FRAC",
+    # SOS event detection (box_events.read_box_events -> puzzle completeness)
+    "SOS_NEAR_R_MAX_BOX",
+    "SOS_HOLD_MAX_RANGE_BOX",
     # Markup-leg qualification (Phase A)
     "TREND_MIN_GAIN_PCT",
     "TREND_MIN_MOVE_BARS",

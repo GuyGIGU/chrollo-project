@@ -77,45 +77,46 @@ def _run_scan_process_unlocked(args: list[str] | None = None) -> ScanProcessResu
     process.stdout.close()
     process.wait()
     output = "".join(lines)
+    n_setups, n_errored = _parse_scan_result(output)
     return ScanProcessResult(
         returncode=process.returncode,
         output=output,
-        n_setups=_parse_n_setups(output),
-        n_errored=_parse_n_errored(output),
+        n_setups=n_setups,
+        n_errored=n_errored,
     )
 
 
-def _parse_n_setups(output: str) -> int | None:
+def _parse_scan_result(output: str) -> tuple[int | None, int]:
+    """Parse the child's single ``SCAN_RESULT_JSON:`` line, returning
+    ``(n_setups, n_errored)``.
+
+    Both ride the ONE structured payload the child prints for the PRIMARY
+    (US-Stocks) universe (``run_screener._print_result_json``), so a multi-universe
+    ``--all-universes`` run reports the PRIMARY universe's counts — not the last
+    small ETF universe's. This replaces the old ``errored=N`` stdout scrape, which
+    read ``reversed(output.splitlines())`` and so returned the LAST universe's
+    timing line (ETF errored=0), masking a real US-Stocks silent-drop.
+
+    ``n_setups`` is ``None`` when the payload is missing/unparseable (so the alert
+    can tell "no data" from zero). ``n_errored`` defaults to 0 when the key is
+    absent (clean scan, or an older child that predates the threaded count) — a
+    swallowed-eval-crash count is a tripwire, and "unknown" there means "no known
+    crashes", matching the pre-fix zero-on-clean behaviour.
+    """
     prefix = "SCAN_RESULT_JSON:"
     for line in reversed(output.splitlines()):
         if line.startswith(prefix):
             try:
                 payload = json.loads(line[len(prefix):].strip())
-                return int(payload.get("n_setups", 0))
+                return int(payload.get("n_setups", 0)), int(payload.get("n_errored", 0))
             except Exception:
-                return None
-    return None
+                return None, 0
+    return None, 0
 
 
-def _parse_n_errored(output: str) -> int | None:
-    """Number of tickers whose eval chain THREW and was swallowed, parsed from the
-    child's "Scan timing: ... errored=N" line (``format_scan_metrics``).
-
-    Distinct from a structural reject: a nonzero value means a regression is
-    silently dropping tickers on an otherwise-green (exit 0) build. Returns None
-    when the token is absent (older child, or a run that never reached the timing
-    line) so the alert decision can tell "no data" from "zero errors".
-    """
-    for line in reversed(output.splitlines()):
-        if line.startswith("Scan timing:"):
-            for token in line.split():
-                stripped = token.rstrip(",")
-                if stripped.startswith("errored="):
-                    try:
-                        return int(stripped[len("errored="):])
-                    except ValueError:
-                        return None
-    return None
+def _parse_n_setups(output: str) -> int | None:
+    """Back-compat thin wrapper: the setup count from the structured payload."""
+    return _parse_scan_result(output)[0]
 
 
 def _result_status(result: ScanProcessResult) -> str:
@@ -244,11 +245,12 @@ def _stream_process(trigger: str, args: list[str] | None = None,
         process.stdout.close()
         process.wait()
         output = "".join(lines)
+        n_setups, n_errored = _parse_scan_result(output)
         result = ScanProcessResult(
             returncode=process.returncode,
             output=output,
-            n_setups=_parse_n_setups(output),
-            n_errored=_parse_n_errored(output),
+            n_setups=n_setups,
+            n_errored=n_errored,
         )
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None

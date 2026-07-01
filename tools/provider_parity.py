@@ -61,6 +61,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
+from core.pipeline.evaluation import EVAL_ERROR
 from core.pipeline.providers import available_providers, get_provider
 from core.pipeline.screener import _evaluate_ticker
 from tools.shadow_diff import CANONICAL_FIELDS, canonical_fields
@@ -269,7 +270,12 @@ def engine_parity(left: pd.DataFrame, right: pd.DataFrame, tickers: list[str],
         rframe = right[t].dropna()
         lres = _evaluate_ticker(t, lframe, spy_6m, breadth)
         rres = _evaluate_ticker(t, rframe, spy_6m, breadth)
-        lfire, rfire = lres is not None, rres is not None
+        # EVAL_ERROR (a swallowed eval crash) counts as NOT-fired, exactly like
+        # None: the engine could not read the ticker, so it is dropped rather
+        # than diffed. It is an Enum (no ``.get``), so it must never reach
+        # _diff_canonical -> canonical_fields, which would raise AttributeError.
+        lfire = lres is not None and lres is not EVAL_ERROR
+        rfire = rres is not None and rres is not EVAL_ERROR
 
         if not lfire and not rfire:
             neither.append(t)

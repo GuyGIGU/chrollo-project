@@ -39,6 +39,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
+from core.pipeline.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
@@ -159,7 +160,12 @@ def run_fixture() -> dict:
         if df is None:
             continue
         result = _evaluate_ticker(ticker, df, spy_6m, breadth)
-        if result is None:
+        # EVAL_ERROR (a swallowed eval crash) is DROPPED exactly like None (a
+        # structural reject): the guard measures output STABILITY, and a ticker
+        # the engine can no longer evaluate is a dropped ticker, not a canonical
+        # dict. Passing EVAL_ERROR (an Enum, no ``.get``) into canonical_fields
+        # would raise AttributeError and crash the CI drift guard.
+        if result is None or result is EVAL_ERROR:
             continue
         fields[ticker] = canonical_fields(result)
         scored.append((ticker, float(result["Score"])))

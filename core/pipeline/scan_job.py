@@ -41,6 +41,11 @@ class StaleMarketDataError(RuntimeError):
 class ScanExportResult:
     n_setups: int
     n_archived: int
+    # Tickers whose eval chain THREW and was swallowed by the skip-guard (distinct
+    # from a structural reject). Threaded onto SCAN_RESULT_JSON for the alert
+    # tripwire; 0 on a clean scan. Sourced from the run's own scan metrics so the
+    # PRIMARY universe carries its OWN count.
+    n_errored: int = 0
 
 
 @dataclass
@@ -220,6 +225,16 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     except CachedMarketDataError as exc:
         raise StaleMarketDataError(str(exc), n_setups=0) from exc
 
+    # Swallowed-eval-crash count for THIS run, read from its own scan metrics. 0 on
+    # a clean scan (the key is only present when non-zero — byte-parity). Threaded
+    # onto every ScanExportResult so the primary universe carries its own count out
+    # to SCAN_RESULT_JSON for the alert tripwire.
+    n_errored = int(
+        (market_context.get("_scan_metrics", {}).get("counts", {}) or {}).get(
+            "errored_tickers", 0
+        )
+    )
+
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
         # An empty result is only a legitimate "scanned, matched nothing" day when
@@ -238,7 +253,7 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # nothing" rather than "never scanned" — and so an empty day clears any
         # stale setups instead of leaving the previous scan's names on screen.
         generate_dashboard(results_df, data, tickers, market_context, universe=uni)
-        return ScanExportResult(n_setups=0, n_archived=0)
+        return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored)
 
     print_results(results_df)
 
@@ -286,12 +301,14 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                       f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
                       f"(degraded universe coverage; source='screener', "
                       f"universe_type='{uni.universe_type}').", flush=True)
-                return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+                return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
+                                        n_errored=n_errored)
             # status == "fresh" → archive the whole cohort.
             n_archived = archive_scan_results(results_df, enable=True, universe=uni)
             print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
                   f"(source='screener', universe_type='{uni.universe_type}').")
-            return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+            return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
+                                    n_errored=n_errored)
 
         # Cache mode: unchanged all-or-nothing gate (tolerates a partial-coverage
         # cached eval by skipping the archive write; genuine staleness raises).
@@ -301,12 +318,14 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                 "dashboard updated, archive write skipped.",
                 flush=True,
             )
-            return ScanExportResult(n_setups=len(results_df), n_archived=0)
+            return ScanExportResult(n_setups=len(results_df), n_archived=0,
+                                    n_errored=n_errored)
         n_archived = archive_scan_results(results_df, enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
 
-    return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+    return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
+                            n_errored=n_errored)
 
 
 def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResult | None"]:

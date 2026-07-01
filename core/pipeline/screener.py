@@ -64,29 +64,17 @@ def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
     return ticker_frames
 
 
-# Errored-ticker count from the MOST RECENT ``_evaluate_frames`` call. The eval
-# skip-guard swallows exceptions (returning ``EVAL_ERROR``) so one crashing worker
-# never fails the whole scan; that used to be indistinguishable from a structural
-# reject on a green build. ``_evaluate_frames`` returns a bare ``list[dict]`` (its
-# call arity + return contract are pinned by tests / monkeypatched fakes), so the
-# out-of-band count is stashed here and read by ``run_screener`` post-eval. Reset
-# at the top of every call, so a monkeypatched ``_evaluate_frames`` that never
-# touches it leaves 0 (no phantom errors on the flags-OFF / test paths).
-_LAST_EVAL_ERRORED = 0
-
-
 def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
-                     breadth_pct: float | None) -> list[dict]:
+                     breadth_pct: float | None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
-    Sets the module-level ``_LAST_EVAL_ERRORED`` to the number of tickers whose
-    eval chain THREW (and was swallowed by the skip-guard) — distinct from a
+    Returns ``(results, errored)`` where ``errored`` is the number of tickers
+    whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
     structural reject (``None``). Both are dropped from ``results`` identically;
-    only the error count is tracked separately.
+    only the error count is tracked separately, returned in-band so there is no
+    stale-read hazard across calls.
     """
-    global _LAST_EVAL_ERRORED
-    _LAST_EVAL_ERRORED = 0
     results: list[dict] = []
     errored = 0
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
@@ -114,8 +102,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
             elif result is not None:
                 results.append(result)
 
-    _LAST_EVAL_ERRORED = errored
-    return results
+    return results, errored
 
 
 def _regime_archive_fields(market_context: dict) -> dict:
@@ -211,11 +198,10 @@ def run_screener(mode: str = "download",
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
 
     with timer.phase("evaluation"):
-        results = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
-    # Number of tickers whose eval chain THREW and was swallowed (distinct from a
-    # structural reject). Read immediately after the call, before anything else can
-    # re-enter _evaluate_frames.
-    errored_tickers = _LAST_EVAL_ERRORED
+        # Number of tickers whose eval chain THREW and was swallowed (distinct from
+        # a structural reject) is returned in-band alongside the results, so there
+        # is no cross-call stale-read hazard.
+        results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
 
     # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
     # into a universe-relative in-house RS rating (percentile across the firing

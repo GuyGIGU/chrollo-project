@@ -36,14 +36,33 @@ jobs:
       - name: Shadow-output regression guard
         run: python -m tools.shadow_diff --check
 
-      # Seed-recall guard. Needs the archive SQLite DB (--check) and can need the
-      # network (--fresh), so it is a SEPARATE step, NOT a default pytest test.
-      # CI runners have no committed archive DB / no guaranteed network, so this
-      # is continue-on-error: it is wired and visible, but a missing DB/network
-      # must not red-fail the whole build. Run locally with the real archive:
-      #   python -m core.archive.seed_recall --check      (archive DB)
-      #   python -m core.archive.seed_recall --fresh-check (network, re-eval)
-      - name: Seed-recall regression guard (network/archive-dependent)
+      # Seed-recall guard. ADVISORY-ONLY on CI, by design.
+      #
+      # The committed baseline (tests/baselines/seed_recall_baseline.json) is
+      # basis=fresh, so `--check` routes through the FRESH engine guard: it
+      # re-downloads each seed winner's OHLCV and re-evaluates it live. That
+      # means this step needs the network AND live vendor data, neither of
+      # which a CI runner is guaranteed to have. On a network-less/rate-limited
+      # runner it will therefore go red on the FETCH, not on any real recall
+      # regression -- so it is continue-on-error and MUST stay that way
+      # (removing it would red every build). It is kept wired + visible so a
+      # local/manual run surfaces in the logs, but it does NOT gate the build.
+      #
+      # The HARD drift gate is the "Shadow-output regression guard" step above
+      # (offline, deterministic, NOT continue-on-error). A real detector drift
+      # is caught there and reds the build; this seed-recall step never can.
+      #
+      # Run locally against real data:
+      #   python -m core.archive.seed_recall --fresh-check  (network re-eval; matches the committed basis=fresh baseline)
+      #   python -m core.archive.seed_recall --check        (uses the captured baseline basis; fresh baseline => same fresh re-eval)
+      #
+      # TODO(follow-up): make this a HERMETIC offline hard-fail guard. Freeze
+      # each seed winner's eval-window OHLCV into a committed parquet fixture and
+      # add a @pytest.mark.regression test that re-runs `_evaluate_at_date`
+      # against that fixture (no network). That guard could then drop
+      # continue-on-error and truly red the build on a seed-winner drop. Not
+      # built here: it needs a real OHLCV capture and would otherwise be flaky.
+      - name: Seed-recall regression guard (advisory; needs network/live data)
         continue-on-error: true
         run: python -m core.archive.seed_recall --check
 

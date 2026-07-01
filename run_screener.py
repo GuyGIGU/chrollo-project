@@ -30,10 +30,12 @@ from core.pipeline.scan_job import (
 from core.pipeline.universe import DEFAULT_UNIVERSE_KEY
 
 
-def _print_result_json(n_setups: int, n_archived: int) -> None:
+def _print_result_json(n_setups: int, n_archived: int, n_errored: int = 0) -> None:
     print(
         "SCAN_RESULT_JSON:"
-        + json.dumps({"n_setups": n_setups, "n_archived": n_archived}),
+        + json.dumps(
+            {"n_setups": n_setups, "n_archived": n_archived, "n_errored": n_errored}
+        ),
         flush=True,
     )
 
@@ -84,16 +86,20 @@ def main() -> None:
         if args.all_universes:
             # The canonical SCAN_RESULT_JSON reports the PRIMARY (US-Stocks) run so
             # the scan-status record stays meaningful; per-universe results log above.
+            # n_errored rides this SAME primary payload so the alert reads the
+            # PRIMARY universe's swallowed-eval-crash count — never a later ETF
+            # universe's (which prints its own timing line last).
             results = run_all_universe_scans(mode=mode)
             primary = results.get(DEFAULT_UNIVERSE_KEY)
             _print_result_json(primary.n_setups if primary else 0,
-                               primary.n_archived if primary else 0)
+                               primary.n_archived if primary else 0,
+                               primary.n_errored if primary else 0)
             return
         result = run_scan_and_export(mode=mode, universe=args.universe)
     except StaleMarketDataError as exc:
         _print_result_json(exc.n_setups or 0, 0)
         raise
-    _print_result_json(result.n_setups, result.n_archived)
+    _print_result_json(result.n_setups, result.n_archived, result.n_errored)
 
 
 if __name__ == '__main__':
