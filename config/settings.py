@@ -392,6 +392,10 @@ PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, a
 # are inert (byte-identical, zero new compute); the ON behavior lands incrementally behind
 # this flag. The live flip is an operator A/B-eyeball decision.
 TA_SCORE_V2 = False
+# Wave-1 tag-fold caps (v2 only) — promote currently-invisible tag reads into graded
+# bonus terms. STARTING values (tuned at the operator A/B); each bounded, present-mask
+# neutral (missing input -> 0), grades-not-vetoes.
+SCORE_SPRING = 8               # 🪝 Phase-C spring/test present (effort-result at the floor)
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

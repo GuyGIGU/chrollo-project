@@ -636,7 +636,7 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     from core.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
-    for k in ("ta_score", "ta_raw", "ta_structure_score", "structure_tier", "context_score"):
+    for k in ("ta_score", "ta_raw", "spring", "ta_structure_score", "structure_tier", "context_score"):
         assert k not in out, f"v2 key {k!r} leaked with the flag off"
 
 
@@ -659,6 +659,20 @@ def test_ta_score_v2_flag_on_publishes_bounded_rank_preserving_score(monkeypatch
     # Ordering preserved (breadth equal), and breadth is excluded from the divisor.
     assert (strong["ta_score"] > weak["ta_score"]) == (strong["total"] > weak["total"])
     assert "breadth_bonus" not in {t.key for t in taxonomy.ta_layer_terms()}
+
+
+def test_ta_score_v2_spring_promotes_the_score(monkeypatch):
+    """Wave-1 tag-fold: a present spring adds exactly its cap to raw_ta and lifts
+    ta_score — a signal that was invisible to the number before. Present-mask neutral:
+    no spring, no contribution. (has_spring already fed the legacy scorer; the new
+    spring TERM only feeds ta_score.)"""
+    from core.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    base = score_setup(**_score_common())                    # has_spring defaults False
+    sprung = score_setup(**_score_common(has_spring=True))
+    assert base["spring"] == 0.0 and sprung["spring"] == pytest.approx(settings.SCORE_SPRING)
+    assert sprung["ta_raw"] == pytest.approx(base["ta_raw"] + settings.SCORE_SPRING, abs=0.02)
+    assert sprung["ta_score"] > base["ta_score"]
 
 
 def test_taxonomy_emitted_keys_match_score_setup_output():

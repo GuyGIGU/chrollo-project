@@ -61,13 +61,24 @@ def test_layers_are_only_ta_or_regime():
     assert {t.layer for t in taxonomy.REGISTRY} == {"ta", "regime"}
 
 
+def test_spring_term_is_gated_on_ta_score_v2(monkeypatch):
+    # The Wave-1 spring term is registered but emitted only behind TA_SCORE_V2, so it
+    # joins the 0-100 divisor exactly when the v2 score is computed — never flag-off.
+    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
+    assert "spring" not in taxonomy.emitted_keys()
+    base_sum = taxonomy.structural_cap_sum()
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    assert "spring" in taxonomy.emitted_keys()
+    assert taxonomy.structural_cap_sum() == pytest.approx(base_sum + settings.SCORE_SPRING)
+
+
 def test_structural_cap_sum_is_all_ta_caps_excluding_breadth():
     # The 0-100 divisor sums every emitted TA-layer cap; breadth (regime) is the
     # only scored term excluded, and it must be a pure config function > 0.
     ta_keys = {t.key for t in taxonomy.ta_layer_terms()}
     assert "breadth_bonus" not in ta_keys
     assert taxonomy.structural_cap_sum() > 0
-    caps = taxonomy.caps()  # default flags -> puzzle off, so also excluded
-    expected = sum(c for k, c in caps.items()
-                   if k not in ("breadth_bonus", "puzzle_quality"))
-    assert taxonomy.structural_cap_sum() == pytest.approx(expected)
+    # Default flags (puzzle + TA_SCORE_V2 off): the divisor is exactly the always-on
+    # TA-layer caps — flag-gated terms (puzzle, the Wave-1 promotions) join only when live.
+    always_ta = [t for t in taxonomy.REGISTRY if t.layer == "ta" and t.present_when is None]
+    assert taxonomy.structural_cap_sum() == pytest.approx(sum(t.cap() for t in always_ta))

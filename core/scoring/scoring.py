@@ -301,29 +301,47 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # legacy total; it does NOT change total or the tier yet (the tier re-source
     # waits on the recalibrated TIER_*_STRUCT thresholds + operator eyeball).
     if settings.TA_SCORE_V2:
-        result.update(_ta_score_v2(total, s_breadth))
+        result.update(_ta_score_v2(total, s_breadth, has_spring=has_spring))
     return result
 
 
-def _ta_score_v2(total: float, breadth_points: float) -> dict:
-    """Two-stage Technical Analysis Score v2: rescale the composite (minus the
-    regime-only breadth term) onto a fixed 0-100 grade.
+def _ta_v2_terms(*, has_spring: bool = False) -> dict:
+    """Wave-1 tag-fold: promoted graded terms that feed the v2 raw score. Each is
+    bounded [0, cap], present-mask neutral (a missing/false input contributes 0.0 and
+    never demotes below the geometry merits), grades-not-vetoes. Returned at FULL
+    precision — the caller rounds only for display, never before summing."""
+    terms: dict = {}
+    # 🪝 Spring / Phase-C: an effort-result undercut+reclaim at the base floor. Binary
+    # promotion for now (has_spring already flows through both eval twins); an
+    # undercut-significance-graded refinement can follow.
+    terms['spring'] = float(settings.SCORE_SPRING) if has_spring else 0.0
+    return terms
 
-        ta_score = clamp((total - breadth) / STRUCTURAL_CAP_SUM * 100, 0, 100)
 
-    STRUCTURAL_CAP_SUM is the fixed sum of the TA-layer caps (every scored term
-    except breadth), a pure function of config — never a per-row or cohort max —
-    so the transform is strictly monotonic and provably preserves the composite's
-    rank order. breadth is a universe-wide per-run constant, so subtracting it is a
-    constant shift within a scan (rank within a run is preserved exactly). Rounds
-    ONCE at the end, on the scaled value. Grades-not-vetoes; no tier change here.
+def _ta_score_v2(total: float, breadth_points: float, **inputs) -> dict:
+    """Two-stage Technical Analysis Score v2: the composite (minus the regime-only
+    breadth term) PLUS the Wave-1 promoted tag-reads, rescaled onto a fixed 0-100 grade.
+
+        raw_ta   = (total - breadth) + Σ promoted tag-reads
+        ta_score = clamp(raw_ta / STRUCTURAL_CAP_SUM * 100, 0, 100)
+
+    STRUCTURAL_CAP_SUM is the fixed sum of the emitted TA-layer caps (every scored term
+    except breadth; grows as promoted terms register) — a pure function of config, never
+    a per-row or cohort max — so the transform is strictly monotonic. breadth is a
+    universe-wide per-run constant, so among setups with the SAME tag profile the map
+    is a constant-shift rescale that preserves the composite rank order. Rounds ONCE at
+    the end, on the scaled value. Grades-not-vetoes; no tier change here.
     """
     from core.scoring import taxonomy
-    raw_ta = total - (breadth_points or 0.0)
+    v2 = _ta_v2_terms(**inputs)
+    raw_ta = (total - (breadth_points or 0.0)) + sum(v2.values())
     cap_sum = taxonomy.structural_cap_sum()
     ta = 0.0 if cap_sum <= 0 else (raw_ta / cap_sum) * 100.0
     ta = max(0.0, min(100.0, ta))
-    return {'ta_raw': round(raw_ta, 2), 'ta_score': round(ta, 1)}
+    out = {'ta_raw': round(raw_ta, 2), 'ta_score': round(ta, 1)}
+    for key, pts in v2.items():
+        out[key] = round(pts, 2)
+    return out
 
 
 def calculate_tier(score: float, box_width: Optional[float] = None) -> str:

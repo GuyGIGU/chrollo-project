@@ -174,8 +174,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PUZZLE_W_COMPLETENESS",
     "PUZZLE_W_CHRONOLOGY",
     "PUZZLE_CHRONO_PARTIAL",
-    # Technical Analysis Score v2 (hybrid 0-100 rescale, flag-gated)
+    # Technical Analysis Score v2 (hybrid 0-100 rescale + Wave-1 tag-fold, flag-gated)
     "TA_SCORE_V2",
+    "SCORE_SPRING",
     "SCORE_TRAVERSAL_QUALITY",
     "TRAVERSAL_QUALITY_DENSITY_FULL",
     "TRAVERSAL_QUALITY_DWELL_PENALTY",
