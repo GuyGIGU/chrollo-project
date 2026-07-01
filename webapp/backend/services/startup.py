@@ -210,6 +210,9 @@ def initialize_database() -> None:
     # auto-migrator so the latter sees universe_type already present and skips it.
     migrate_universe_type(engine)
     _apply_model_add_columns(engine)
+    # Clear any scan_runs row orphaned in 'running' by a prior hard kill, so
+    # latest_run() reflects reality and the live-price fallback gate unsticks.
+    _reconcile_orphaned_runs(engine)
 
 
 def _apply_migrations() -> None:
@@ -228,6 +231,41 @@ def _apply_migrations() -> None:
                         or "no such column" in message):
                     continue
                 _log.warning("migration skipped (%s): %s", exc.__class__.__name__, statement)
+
+
+def _reconcile_orphaned_runs(bind) -> None:
+    """Mark any scan_runs row left status='running' as failed on boot.
+
+    start_run() inserts status='running' and finish_run() only runs if the process
+    survives; a hard kill (SIGKILL / OOM / power loss / container stop) between them
+    orphans the row forever. Nothing else ever rewrites it, so latest_run() would
+    keep returning 'running' — mislabeling a crash and, worse, pinning
+    _scan_is_running() True, which silently suppresses the live-price fallback until
+    a new run completes. Reconciling at boot is safe: the scheduler has not started
+    and no scan/maturation is in flight yet, so every 'running' row here is genuinely
+    orphaned. Idempotent and best-effort — a missing table or transient error must
+    never block backend boot.
+    """
+    from datetime import datetime, timezone
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        with bind.begin() as conn:
+            result = conn.execute(
+                text(
+                    "UPDATE scan_runs SET status = 'failed', "
+                    "finished_at = COALESCE(finished_at, :now), "
+                    "error = COALESCE(error, 'process died before completion "
+                    "(reconciled at boot)') "
+                    "WHERE status = 'running'"
+                ),
+                {"now": now_iso},
+            )
+            n = result.rowcount
+        if n:
+            _log.warning("reconciled %d orphaned 'running' scan_runs row(s) at boot", n)
+    except Exception as exc:  # pragma: no cover - defensive; boot must not fail
+        _log.warning("orphaned scan_runs reconcile skipped (%s)", exc.__class__.__name__)
 
 
 def _has_universe_identity(bind) -> bool:

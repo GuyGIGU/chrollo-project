@@ -274,7 +274,11 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # Forward-return backfill is independent of the scan: it matures
             # already-archived rows and needs no fresh scan, so run it regardless
             # of scan outcome. Isolated so its own failure neither masks nor is
-            # masked by the scan result.
+            # masked by the scan result. Recorded as its OWN scan_runs row
+            # (kind='maturation') so a maturation that stalls or throws is visible
+            # to the watchdog / health surface instead of vanishing into a swallowed
+            # log line (the historical silent-stall root cause).
+            mat_run_id = scan_status.start_run("scheduled", kind="maturation")
             try:
                 from services.core_settings import load_core_settings
 
@@ -282,8 +286,11 @@ def run_scheduled_scan_and_forward_returns() -> None:
                 updated = update_forward_returns(
                     min_age_days=getattr(root_settings, "FORWARD_RETURNS_MIN_AGE_DAYS", 5)
                 )
+                scan_status.finish_run(mat_run_id, status="ok", n_setups=updated)
                 log.info("scheduled forward-return update completed: %d setup(s)", updated)
-            except Exception:
+            except Exception as exc:
+                scan_status.finish_run(mat_run_id, status="failed", error=str(exc))
+                alert_if_needed("scheduled-maturation", "failed", None, str(exc))
                 log.exception("scheduled forward-return update failed")
     finally:
         SCAN_LOCK.release()

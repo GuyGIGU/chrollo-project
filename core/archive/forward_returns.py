@@ -58,7 +58,14 @@ from core.archive.outcomes import (  # noqa: E402
 
 BARRIER_HORIZON_DAYS = FORWARD_RETURN_HORIZON_BARS
 FORWARD_RETURN_DOWNLOAD_DAYS = 120  # calendar buffer to capture 60 market sessions
-FORWARD_RETURN_MAX_SCAN_AGE_DAYS = FORWARD_RETURN_DOWNLOAD_DAYS
+# Re-touch stragglers well past the 60-bar (~87 calendar day) fill point so a
+# maturation gap (e.g. backend downtime) can't permanently abandon a row's
+# fixed-window columns (fwd_return_60d / r_multiple_60d / mfe_60d) before they
+# fill. Decoupled from — and wider than — the per-setup download buffer above; the
+# re-touch predicate below only re-selects rows still missing a window, so
+# fully-matured rows are never re-downloaded regardless of this cap. The cap only
+# bounds re-download of rows that will never fill (dead / delisted tickers).
+FORWARD_RETURN_MAX_SCAN_AGE_DAYS = 200
 
 # SPY is fetched in the same batch as the setups so abnormal_ret_to_date (the bias
 # control on the elapsed-window return) can be computed offline against the same
@@ -351,8 +358,8 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
         # window can still grow (bars_to_date is null or < the 60-bar horizon), so
         # the window-agnostic edge metric recomputes every run as the bars
         # accumulate. The scan_date >= oldest_cutoff bound above caps re-touching:
-        # once a row ages past the download window it drops out regardless, so
-        # this never re-downloads the whole archive forever.
+        # once a row ages past FORWARD_RETURN_MAX_SCAN_AGE_DAYS it drops out
+        # regardless, so this never re-downloads the whole archive forever.
         from sqlalchemy import or_
         query = query.filter(
             or_(
@@ -385,7 +392,13 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     # Find the date range we need
     all_tickers = list(ticker_setups.keys())
     earliest = min(s.scan_date for s in setups)
-    start = pd.Timestamp(earliest)
+    # Pad the download start back a few calendar days so the trading close ON or
+    # BEFORE a non-trading-day earliest scan_date (weekend / market holiday) is
+    # always in-frame. yfinance's `start` is INCLUSIVE, so without this the first
+    # returned bar for a non-trading earliest date lands AFTER scan_ts, mask_on is
+    # all-False, and that earliest row's scan_close can never resolve — it is
+    # skipped on every run until it ages out (silent single-cohort data loss).
+    start = pd.Timestamp(earliest) - pd.Timedelta(days=5)
     latest_needed = max(
         pd.Timestamp(s.scan_date) + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)
         for s in setups
@@ -488,4 +501,25 @@ if __name__ == "__main__":
     parser.add_argument("--force", action="store_true", help="Re-compute even if already populated")
     args = parser.parse_args()
 
-    update_forward_returns(min_age_days=args.min_age, force=args.force)
+    # Record this standalone (OS-scheduled) run in scan_runs (kind='maturation')
+    # so a backend-INDEPENDENT nightly task is just as visible to the watchdog /
+    # health surface as the in-process path — the whole point of moving the tick
+    # off the FastAPI lifecycle. Best-effort bookkeeping: if the backend status
+    # helpers can't be imported/opened, still run the maturation (never let the
+    # scan_runs record block the actual work).
+    _status = None
+    _run_id = None
+    try:
+        from services import scan_status as _status
+        _run_id = _status.start_run("os_task", kind="maturation")
+    except Exception:
+        _status = None
+        _run_id = None
+    try:
+        _updated = update_forward_returns(min_age_days=args.min_age, force=args.force)
+        if _status is not None and _run_id is not None:
+            _status.finish_run(_run_id, status="ok", n_setups=_updated)
+    except Exception as _exc:
+        if _status is not None and _run_id is not None:
+            _status.finish_run(_run_id, status="failed", error=str(_exc))
+        raise

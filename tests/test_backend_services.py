@@ -1145,11 +1145,16 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")
     monkeypatch.setattr(scan_runner, "_tail_error", lambda out: "scan failed: boom")
     monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
-    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger: 1)
+    finishes = []
+
+    def fake_start_run(trigger, kind="scan"):
+        # scan run -> id 1; the maturation backfill now records its OWN run -> id 2.
+        return 1 if kind == "scan" else 2
 
     def _finish(run_id, status, n_setups=None, error=None):
-        calls["finish_status"] = status
+        finishes.append((run_id, status))
 
+    monkeypatch.setattr(scan_status_mod, "start_run", fake_start_run)
     monkeypatch.setattr(scan_status_mod, "finish_run", _finish)
     monkeypatch.setattr(
         core_settings_mod, "load_core_settings",
@@ -1164,6 +1169,7 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
 
     scan_runner.run_scheduled_scan_and_forward_returns()
 
-    assert calls["backfill"] == 1              # backfill ran despite the failed scan
-    assert calls["finish_status"] == "failed"  # scan run still recorded as failed
+    assert calls["backfill"] == 1          # backfill ran despite the failed scan
+    assert (1, "failed") in finishes       # scan run still recorded as failed
+    assert (2, "ok") in finishes           # maturation recorded as its OWN run (now visible)
     assert not scan_runner.SCAN_LOCK.locked()  # lock released on every path

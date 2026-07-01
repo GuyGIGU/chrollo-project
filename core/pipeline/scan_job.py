@@ -86,31 +86,95 @@ def _last_bar_date(data: pd.DataFrame, tickers: list[str]) -> str | None:
     return pd.Timestamp(valid.index[-1]).strftime("%Y-%m-%d")
 
 
-def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str], universe=None) -> None:
+def _archive_freshness(data: pd.DataFrame, tickers: list[str], universe=None) -> tuple[str, str | None]:
+    """Non-raising archive-freshness classifier — the single decision the archive
+    path branches on. Returns ``(status, message)``:
+
+      ``'fresh'``             archive everything.
+      ``'degraded_coverage'`` the latest session IS present but eligible universe-
+                              wide coverage misses the archive bar (thin/halted
+                              names, EOD publish lag). The panel is current, so
+                              per-ticker-fresh setups ARE archivable — the caller
+                              archives that subset instead of discarding the whole
+                              cohort (the historical permanent-hole bug).
+      ``'stale_session'``     the feed is a session behind, or the panel is
+                              otherwise untrustworthy (shallow / NaN-wiped history)
+                              — do not archive.
+
+    ``_assert_fresh_for_archive`` delegates here, so the raising path (empty branch,
+    cache mode) and the classifying path (non-empty download branch) can never
+    diverge.
+    """
     expected = _expected_session_date()
     last_bar = _last_bar_date(data, tickers)
-    # Stale only if the data is OLDER than the latest completed session — i.e.
-    # the feed is missing a session it should have. A bar that is current or
-    # newer (e.g. today's forming bar during an intraday manual scan) is fine.
-    # ISO "YYYY-MM-DD" strings compare chronologically, so "<" is correct here.
+    # Stale only if the data is OLDER than the latest completed session — i.e. the
+    # feed is missing a session it should have. A bar that is current or newer
+    # (e.g. today's forming bar during an intraday manual scan) is fine. ISO
+    # "YYYY-MM-DD" strings compare chronologically, so "<" is correct here.
     if last_bar is None or last_bar < expected:
-        msg = f"stale market data: last bar {last_bar or 'none'}, expected >= {expected}"
-        log.warning("Aborting archive write: %s", msg)
-        raise StaleMarketDataError(msg)
+        return "stale_session", (
+            f"stale market data: last bar {last_bar or 'none'}, expected >= {expected}"
+        )
 
     _, meta_file = _cache_paths(universe)
     health = compute_market_data_health(
         data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
         index_symbols=list(resolve_universe(universe).index_symbols),
     )
-    if not health["can_archive"]:
-        msg = (
-            f"stale market data: {health['diagnosis']} "
-            f"(eligible coverage {health['coverage']['eligible']['text']}, "
-            f"raw coverage {health['coverage']['raw']['text']})"
-        )
+    if health["can_archive"]:
+        return "fresh", None
+
+    msg = (
+        f"stale market data: {health['diagnosis']} "
+        f"(eligible coverage {health['coverage']['eligible']['text']}, "
+        f"raw coverage {health['coverage']['raw']['text']})"
+    )
+    # A CURRENT-session coverage shortfall (repairable / lagging / provider-limited)
+    # is per-ticker archivable; a shallow/NaN-wiped panel or a genuinely stale
+    # session is not — treat those as stale_session so they still abort.
+    if health["health_state"] in {"needs_repair", "symbol_lagging", "provider_cooldown"}:
+        return "degraded_coverage", msg
+    return "stale_session", msg
+
+
+def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str], universe=None) -> None:
+    """Raise ``StaleMarketDataError`` unless the panel is fresh enough to archive.
+
+    Any non-``'fresh'`` status raises (a degraded-coverage day and a stale-session
+    day both abort here), preserving the all-or-nothing behavior for callers that
+    want it — the empty-results branch and cache mode. The non-empty download path
+    consults ``_archive_freshness`` directly so it can partial-archive instead.
+    """
+    status, msg = _archive_freshness(data, tickers, universe)
+    if status != "fresh":
         log.warning("Aborting archive write: %s", msg)
         raise StaleMarketDataError(msg)
+
+
+def _fresh_result_subset(
+    results_df: pd.DataFrame, data: pd.DataFrame, tickers: list[str], universe=None
+) -> tuple[pd.DataFrame, int]:
+    """Split fired setups into the per-ticker-fresh subset (whose OWN ticker carries
+    a close on the latest expected session) and the count dropped as stale.
+
+    Archiving is per-ticker (upsert by ticker+scan_date+universe_type), so a ticker
+    that individually has today's bar is a valid archive row even when the
+    universe-wide coverage misses the 95% bar. A setup whose ticker lacks today's
+    close was evaluated on a stale bar and is skipped so its scan_close stays
+    aligned. Conservative: a malformed/empty panel drops everything (returns empty).
+    """
+    from core.pipeline.data_freshness import symbols_missing_closes_on
+
+    expected = pd.Timestamp(_expected_session_date()).normalize()
+    panel = data
+    if getattr(panel.index, "tz", None) is not None:
+        panel = panel.copy()
+        panel.index = panel.index.tz_localize(None)
+    result_syms = [str(t) for t in results_df["Ticker"].tolist()]
+    missing = set(symbols_missing_closes_on(panel, result_syms, expected))
+    fresh_mask = ~results_df["Ticker"].astype(str).isin(missing)
+    fresh_df = results_df[fresh_mask]
+    return fresh_df, int(len(results_df) - len(fresh_df))
 
 
 def _is_latest_coverage_error(exc: Exception) -> bool:
@@ -195,6 +259,42 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # on universe_type='us_equities'.
     n_archived = 0
     if settings.ARCHIVE_LIVE_SCANS:
+        # DOWNLOAD (scheduled accumulation) mode classifies without raising so a
+        # CURRENT-session-but-degraded-coverage day archives the per-ticker-fresh
+        # subset instead of discarding the whole cohort (the historical permanent-
+        # hole bug: a <95%-coverage day silently dropped every fired setup and never
+        # re-archived them). Cache mode + the empty-results branch keep the
+        # all-or-nothing behavior via the untouched _passes_archive_freshness path.
+        if mode != "cache":
+            status, msg = _archive_freshness(data, tickers, uni)
+            if status == "stale_session":
+                log.warning("Aborting archive write: %s", msg)
+                raise StaleMarketDataError(msg, n_setups=len(results_df))
+            if status == "degraded_coverage":
+                fresh_df, n_stale = _fresh_result_subset(results_df, data, tickers, uni)
+                if fresh_df.empty:
+                    # Session is current but NONE of the fired tickers carry today's
+                    # close, so there is nothing per-ticker-fresh to salvage. Do NOT
+                    # exit ok/silent here — that would reintroduce the very silent-stall
+                    # this effort removes (an 'ok' run with n_setups>0/n_archived=0 fires
+                    # no alert). Raise so the run reports stale_data and alerts, exactly
+                    # as the pre-partial-archive all-or-nothing gate did for this input.
+                    log.warning("Aborting archive write: %s", msg)
+                    raise StaleMarketDataError(msg, n_setups=len(results_df))
+                n_archived = archive_scan_results(fresh_df, enable=True, universe=uni)
+                print(f"\nArchived {n_archived} per-ticker-fresh {uni.key} setups to "
+                      f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
+                      f"(degraded universe coverage; source='screener', "
+                      f"universe_type='{uni.universe_type}').", flush=True)
+                return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+            # status == "fresh" → archive the whole cohort.
+            n_archived = archive_scan_results(results_df, enable=True, universe=uni)
+            print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
+                  f"(source='screener', universe_type='{uni.universe_type}').")
+            return ScanExportResult(n_setups=len(results_df), n_archived=n_archived)
+
+        # Cache mode: unchanged all-or-nothing gate (tolerates a partial-coverage
+        # cached eval by skipping the archive write; genuine staleness raises).
         if not _passes_archive_freshness(data, tickers, uni, mode, n_setups=len(results_df)):
             print(
                 "\nCached evaluation used partial latest-session coverage; "

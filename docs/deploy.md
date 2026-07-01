@@ -82,6 +82,45 @@ Schedule it daily:
 schtasks /Create /TN "Chrollo Daily Backup" /SC DAILY /ST 20:30 /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%USERPROFILE%\ChrolloBackup.ps1`"" /F
 ```
 
+## 4b. Schedule Forward-Return Maturation (backend-independent tick)
+
+The scheduled scan runs *inside* the ChrolloDashboard service (in-process APScheduler,
+weekdays 18:00 ET) and backfills forward returns in the same job. That is fine while the
+service is up — but if the service is down or the PC is off at 18:00 ET, that day's
+maturation never ticks, and archived setups stall one bar short of maturing. Because the
+maturation record is what proves the engine's edge, add a **second, backend-independent**
+nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
+its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it, and — with
+`-StartWhenAvailable` — **catches up a missed run** at the next boot/logon instead of losing
+the day.
+
+The repo ships `tools\run_maturation.bat` (it `cd`s to the repo and runs
+`python -m core.archive.forward_returns`, logging to `output\maturation.log`). Register it
+from an Administrator PowerShell:
+
+```powershell
+$action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\run_maturation.bat"
+# Evening LOCAL time, after the US EOD data has settled. Adjust if your PC is not on US time.
+$trigger = New-ScheduledTaskTrigger -Daily -At 7:00PM
+# StartWhenAvailable = "run as soon as possible after a scheduled start is missed" (the catch-up).
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+Register-ScheduledTask -TaskName "Chrollo Forward Returns" -Action $action -Trigger $trigger `
+  -Settings $settings -RunLevel Limited `
+  -Description "Backend-independent nightly forward-return maturation; catches up a missed run." -Force
+```
+
+The updater re-downloads fresh per-ticker data itself, so exact timing is not critical — any
+evening slot after the US close works; the important part is that it runs (and catches up)
+daily. Verify after the first run:
+
+```powershell
+# A kind='maturation' row should appear, status 'ok'.
+python -c "import sqlite3; c=sqlite3.connect(r'C:\Users\User\Documents\Projects\Chrollo Project\webapp\backend\trading_journal.db'); print(c.execute(\"select started_at,status,n_setups from scan_runs where kind='maturation' order by id desc limit 3\").fetchall())"
+```
+
+If maturation ever fails or stalls, the morning watchdog (Tue–Sat 08:00 ET, while the service
+is up) now alerts on it through the same webhook as scan failures.
+
 ## 5. Verify It Is Live
 
 1. Reboot the PC.
