@@ -40,22 +40,3 @@ export const btnPrimary = {
   textTransform: 'uppercase',
   letterSpacing: '1px',
 };
-
-export const convBtnBase = {
-  flex: 1,
-  padding: '8px 0',
-  fontSize: 13,
-  fontWeight: 700,
-  borderRadius: 'var(--radius-md, 6px)',
-  border: '1px solid var(--border-color)',
-  background: 'var(--bg-main)',
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-};
-
-export const convBtnActive = {
-  background: 'var(--accent-blue)',
-  borderColor: 'var(--accent-blue)',
-  color: '#fff',
-};

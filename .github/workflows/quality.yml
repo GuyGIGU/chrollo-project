@@ -29,6 +29,24 @@ jobs:
       - name: Run Python tests
         run: python -m pytest
 
+      # Headline shadow-output drift guard. Offline + deterministic: replays the
+      # committed frozen fixture through the pipeline and fails on any canonical
+      # output drift. (Also covered by tests/test_regression_guards.py, but kept
+      # as an explicit CI step so a drift is unmistakable in the logs.)
+      - name: Shadow-output regression guard
+        run: python -m tools.shadow_diff --check
+
+      # Seed-recall guard. Needs the archive SQLite DB (--check) and can need the
+      # network (--fresh), so it is a SEPARATE step, NOT a default pytest test.
+      # CI runners have no committed archive DB / no guaranteed network, so this
+      # is continue-on-error: it is wired and visible, but a missing DB/network
+      # must not red-fail the whole build. Run locally with the real archive:
+      #   python -m core.archive.seed_recall --check      (archive DB)
+      #   python -m core.archive.seed_recall --fresh-check (network, re-eval)
+      - name: Seed-recall regression guard (network/archive-dependent)
+        continue-on-error: true
+        run: python -m core.archive.seed_recall --check
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:

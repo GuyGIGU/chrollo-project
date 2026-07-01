@@ -21,11 +21,19 @@ if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
 
+# Alert when strictly MORE than this many tickers had their eval chain throw and
+# get swallowed by the skip-guard. 0 = any swallowed eval crash alerts. A crash on
+# a SUBSET of setups silently drops real winners on an otherwise-green (exit 0)
+# build, so this is the tripwire that makes that visible.
+ERRORED_TICKERS_ALERT_THRESHOLD = 0
+
+
 @dataclass
 class ScanProcessResult:
     returncode: int
     output: str
     n_setups: int | None = None
+    n_errored: int | None = None
 
     @property
     def ok(self) -> bool:
@@ -73,6 +81,7 @@ def _run_scan_process_unlocked(args: list[str] | None = None) -> ScanProcessResu
         returncode=process.returncode,
         output=output,
         n_setups=_parse_n_setups(output),
+        n_errored=_parse_n_errored(output),
     )
 
 
@@ -85,6 +94,27 @@ def _parse_n_setups(output: str) -> int | None:
                 return int(payload.get("n_setups", 0))
             except Exception:
                 return None
+    return None
+
+
+def _parse_n_errored(output: str) -> int | None:
+    """Number of tickers whose eval chain THREW and was swallowed, parsed from the
+    child's "Scan timing: ... errored=N" line (``format_scan_metrics``).
+
+    Distinct from a structural reject: a nonzero value means a regression is
+    silently dropping tickers on an otherwise-green (exit 0) build. Returns None
+    when the token is absent (older child, or a run that never reached the timing
+    line) so the alert decision can tell "no data" from "zero errors".
+    """
+    for line in reversed(output.splitlines()):
+        if line.startswith("Scan timing:"):
+            for token in line.split():
+                stripped = token.rstrip(",")
+                if stripped.startswith("errored="):
+                    try:
+                        return int(stripped[len("errored="):])
+                    except ValueError:
+                        return None
     return None
 
 
@@ -119,16 +149,27 @@ def _last_fetch_health() -> dict | None:
 
 
 def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None,
-                    alert_on_zero: bool, alert_on_degraded: bool) -> str | None:
+                    alert_on_zero: bool, alert_on_degraded: bool,
+                    errored_tickers: int | None = None) -> str | None:
     """Return a human-readable alert reason, or None if no alert is warranted.
 
     Pure (no I/O) so it is unit-testable. A failed/stale scan alerts on its
-    status; a successful scan with zero results alerts when enabled; a successful
-    scan whose fetch came back unhealthy (low return ratio) alerts as an early
-    warning, before the degradation escalates to a stale_data failure.
+    status; a scan that swallowed one or more eval-chain crashes alerts as an
+    early warning (a regression that throws on a SUBSET of tickers silently drops
+    real winners on an otherwise-green build); a successful scan with zero results
+    alerts when enabled; a successful scan whose fetch came back unhealthy (low
+    return ratio) alerts as an early warning, before the degradation escalates to
+    a stale_data failure.
+
+    ``errored_tickers`` defaults to None so existing positional callers keep their
+    prior behaviour; None means "no data" (never alerts).
     """
     if status in ("failed", "stale_data"):
         return status
+    if (errored_tickers is not None
+            and errored_tickers > ERRORED_TICKERS_ALERT_THRESHOLD):
+        return (f"{errored_tickers} ticker(s) errored during evaluation "
+                f"(swallowed eval crash — possible silent winner drop)")
     if n_setups == 0 and alert_on_zero:
         return "zero scan results"
     if (alert_on_degraded and isinstance(fetch_health, dict)
@@ -138,7 +179,8 @@ def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None
     return None
 
 
-def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str | None = None) -> None:
+def alert_if_needed(trigger: str, status: str, n_setups: int | None,
+                    error: str | None = None, errored_tickers: int | None = None) -> None:
     from services.core_settings import load_core_settings
 
     settings = load_core_settings()
@@ -151,6 +193,7 @@ def alert_if_needed(trigger: str, status: str, n_setups: int | None, error: str 
         fetch_health,
         bool(getattr(settings, "ALERT_ON_ZERO_RESULTS", True)),
         bool(getattr(settings, "ALERT_ON_DEGRADED_FETCH", True)),
+        errored_tickers,
     )
     if reason is None:
         return
@@ -205,11 +248,12 @@ def _stream_process(trigger: str, args: list[str] | None = None,
             returncode=process.returncode,
             output=output,
             n_setups=_parse_n_setups(output),
+            n_errored=_parse_n_errored(output),
         )
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
         scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-        alert_if_needed(trigger, status, result.n_setups, error)
+        alert_if_needed(trigger, status, result.n_setups, error, result.n_errored)
         if process.returncode != 0:
             yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
         yield "data: [DONE]\n\n"
@@ -265,7 +309,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
             if status != "ok":
                 log.error("scheduled scan failed with exit code %s", result.returncode)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-            alert_if_needed("scheduled", status, result.n_setups, error)
+            alert_if_needed("scheduled", status, result.n_setups, error, result.n_errored)
         except Exception as exc:
             scan_status.finish_run(run_id, status="failed", error=str(exc))
             alert_if_needed("scheduled", "failed", None, str(exc))

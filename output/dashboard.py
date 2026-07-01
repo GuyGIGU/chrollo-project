@@ -1,6 +1,33 @@
+# ============================================================================
+# ⚠️  DO NOT DELETE — THIS MODULE IS LIVE, NOT RETIRED HTML RESIDUE  ⚠️
+# ----------------------------------------------------------------------------
+# The path (output/) and the name `generate_dashboard` LOOK like the retired
+# static-HTML dashboard, but they are NOT. This module is the LIVE writer of
+# the React frontend's data artifact and is on the hot path of every scan.
+# A name-trusting dead-code sweep that deletes this file WILL break scan -> UI.
+#
+#   • Writes   output/screener_data.json  (+ per-universe variants) — the data
+#     artifact the React frontend loads. No writer => the UI never updates.
+#   • Called   on EVERY scan by core/pipeline/scan_job.py (~lines 176 & 186).
+#   • Exports  SECTOR_ETF_NAMES — imported by
+#     webapp/backend/routers/screener.py (~line 89) for the sector drill-down.
+#   • Coupled  to DASHBOARD_CHART_TIERS (tiering of the chart payload).
+#   • Emits    the "UI update available on local webapp." stdout sentinel that
+#     the frontend's scan stream waits on to reveal fresh results.
+#
+# Renaming the module/function is a DEFERRED nicety — do it deliberately and
+# update ALL call sites + imports above; do not "clean it up" as dead code.
+# ============================================================================
 """
 Data export module for Wyckoff VCP/LPS Screener.
-Generates a JSON data file for the React dashboard to consume.
+
+LIVE artifact writer — DO NOT DELETE (see banner above). Despite living in
+output/ and being named generate_dashboard, this is the current, on-every-scan
+writer of the React frontend's JSON data artifact (output/screener_data.json),
+NOT the retired static-HTML dashboard. It also exports SECTOR_ETF_NAMES for the
+sector drill-down and prints the "UI update available on local webapp." reveal
+sentinel the frontend's scan stream watches. Removing or stubbing this module
+silently breaks the scan -> UI pipeline.
 """
 import os
 import json
@@ -335,6 +362,8 @@ def _extract_chart_data(data, results_df, tickers):
     return chart_data
 
 
+# ⚠️ LIVE — invoked on every scan by core/pipeline/scan_job.py; writes the React
+#    frontend's screener_data.json artifact. DO NOT delete as retired HTML residue.
 def generate_dashboard(results_df, data=None, tickers=None, market_context=None, universe=None):
     """Extract chart data and export it as JSON for the React frontend.
 

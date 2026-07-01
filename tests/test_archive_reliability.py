@@ -88,7 +88,7 @@ def test_scheduled_maturation_records_own_run_and_alerts_on_failure(monkeypatch)
         return 1 if kind == "scan" else 2
 
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked",
-                        lambda *a, **k: SimpleNamespace(output="ok", returncode=0, n_setups=5))
+                        lambda *a, **k: SimpleNamespace(output="ok", returncode=0, n_setups=5, n_errored=0))
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "ok")
     monkeypatch.setattr(scan_runner, "_tail_error", lambda out: None)
     monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))

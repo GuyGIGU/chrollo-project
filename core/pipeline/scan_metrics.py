@@ -76,5 +76,10 @@ def format_scan_metrics(metrics: dict) -> str:
         f"universe={counts.get('universe_tickers')}",
         f"evaluated={counts.get('evaluated_tickers')}",
         f"setups={counts.get('setups')}",
+        # Tickers whose eval chain THREW and was swallowed by the skip-guard —
+        # distinct from a structural reject. Always shown (0 when clean) so the
+        # scan-runner can parse it from stdout for the alert decision, and so a
+        # silent-drop regression is operator-visible in the timing line.
+        f"errored={counts.get('errored_tickers', 0)}",
     ]
     return "Scan timing: " + ", ".join(parts)

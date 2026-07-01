@@ -264,3 +264,40 @@ def test_manifest_json_is_canonical_sorted():
     # keys are sorted in the serialized form
     keys = list(parsed.keys())
     assert keys == sorted(keys)
+
+
+def test_every_scoring_settings_symbol_is_in_manifest():
+    """Provenance completeness: EVERY ``settings.NAME`` the scorer reads must be
+    in ``ENGINE_SETTINGS_KEYS`` and hashed into engine_config_version.
+
+    The scorer is the JUDGE layer — every constant it touches moves a score/tier,
+    so flipping any of them changes archived output and MUST bump the manifest
+    hash. This static-source scan makes a future score-affecting flag/weight
+    unable to silently escape provenance: add a ``settings.X`` read in
+    scoring.py and this fails until X is added to the allow-list. (Regression
+    guard for the CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED omission.)
+    """
+    import re
+    from pathlib import Path
+
+    import core.scoring.scoring as scoring_mod
+    from core.freeze.manifest import ENGINE_SETTINGS_KEYS
+
+    src = Path(scoring_mod.__file__).read_text(encoding="utf-8")
+    referenced = set(re.findall(r"settings\.([A-Z][A-Z0-9_]+)", src))
+    assert referenced, "scanner found no settings.<NAME> reads in scoring.py"
+
+    missing = sorted(referenced - set(ENGINE_SETTINGS_KEYS))
+    assert not missing, (
+        "score-affecting settings read by core/scoring/scoring.py are absent from "
+        "core.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
+        "scores WITHOUT bumping engine_config_version, corrupting archive "
+        f"provenance): {missing}. Add them to the manifest allow-list."
+    )
+
+    # Every referenced symbol must actually EXIST on settings — a stale name in
+    # the scorer (or the regex) would otherwise mask a real gap.
+    for name in referenced:
+        assert hasattr(settings, name), (
+            f"scoring.py reads settings.{name} which does not exist on config.settings"
+        )

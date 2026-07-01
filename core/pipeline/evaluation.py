@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from enum import Enum
 from typing import Optional
 
 import pandas as pd
@@ -34,6 +35,28 @@ from core.structure.phase_d import (
     support_test_evidence_starts,
 )
 from core.pipeline.downloads import _trim_to_period
+
+
+# Distinct return sentinel for the skip-guard's caught-exception branch. A plain
+# ``None`` return means a *legitimate structural reject* (the engine looked and
+# saw no setup); ``EVAL_ERROR`` means the eval chain *threw* and was swallowed —
+# a fundamentally different, alert-worthy event (a regression that raises on a
+# SUBSET of tickers silently drops real winners on an otherwise-green build).
+# The consumer (``screener._evaluate_frames``) counts these separately and never
+# appends them to results (same drop behaviour as ``None``), so the flags-OFF
+# scoring path stays byte-identical — this only makes the two skips DISTINGUISHABLE.
+#
+# It MUST be an Enum member, not a bare ``object()``: ``_evaluate_ticker`` runs in
+# a ProcessPoolExecutor worker and its return value crosses the process boundary
+# via pickle. A bare ``object()`` unpickles to a NEW instance, so ``is`` identity
+# would fail in the parent and the count would silently stay 0. Enum members
+# pickle by qualified name and round-trip to the SAME singleton, so ``result is
+# EVAL_ERROR`` holds across processes.
+class _EvalSkip(Enum):
+    ERROR = "error"
+
+
+EVAL_ERROR = _EvalSkip.ERROR
 
 
 def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
@@ -815,7 +838,9 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
-        return None
+        # Return the error sentinel — NOT None — so the caller can distinguish a
+        # swallowed eval crash from a genuine structural reject and count it.
+        return EVAL_ERROR
     if result is not None:
         _attach_advisory_metadata(ticker, df, result)
     return result

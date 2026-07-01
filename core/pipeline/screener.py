@@ -23,7 +23,7 @@ import pandas as pd
 from config import settings
 from core.pipeline.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
-from core.pipeline.evaluation import _evaluate_ticker, apply_baseline_filters
+from core.pipeline.evaluation import EVAL_ERROR, _evaluate_ticker, apply_baseline_filters
 from core.pipeline.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,
@@ -64,11 +64,31 @@ def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
     return ticker_frames
 
 
+# Errored-ticker count from the MOST RECENT ``_evaluate_frames`` call. The eval
+# skip-guard swallows exceptions (returning ``EVAL_ERROR``) so one crashing worker
+# never fails the whole scan; that used to be indistinguishable from a structural
+# reject on a green build. ``_evaluate_frames`` returns a bare ``list[dict]`` (its
+# call arity + return contract are pinned by tests / monkeypatched fakes), so the
+# out-of-band count is stashed here and read by ``run_screener`` post-eval. Reset
+# at the top of every call, so a monkeypatched ``_evaluate_frames`` that never
+# touches it leaves 0 (no phantom errors on the flags-OFF / test paths).
+_LAST_EVAL_ERRORED = 0
+
+
 def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None) -> list[dict]:
-    """Run per-ticker evaluation across worker processes with progress output."""
+    """Run per-ticker evaluation across worker processes with progress output.
+
+    Sets the module-level ``_LAST_EVAL_ERRORED`` to the number of tickers whose
+    eval chain THREW (and was swallowed by the skip-guard) — distinct from a
+    structural reject (``None``). Both are dropped from ``results`` identically;
+    only the error count is tracked separately.
+    """
+    global _LAST_EVAL_ERRORED
+    _LAST_EVAL_ERRORED = 0
     results: list[dict] = []
+    errored = 0
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
@@ -88,9 +108,13 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
-            if result is not None:
+            if result is EVAL_ERROR:
+                # Swallowed eval crash — NOT a structural reject. Counted, not appended.
+                errored += 1
+            elif result is not None:
                 results.append(result)
 
+    _LAST_EVAL_ERRORED = errored
     return results
 
 
@@ -188,6 +212,10 @@ def run_screener(mode: str = "download",
 
     with timer.phase("evaluation"):
         results = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
+    # Number of tickers whose eval chain THREW and was swallowed (distinct from a
+    # structural reject). Read immediately after the call, before anything else can
+    # re-enter _evaluate_frames.
+    errored_tickers = _LAST_EVAL_ERRORED
 
     # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
     # into a universe-relative in-house RS rating (percentile across the firing
@@ -206,11 +234,18 @@ def run_screener(mode: str = "download",
     else:
         results_df = pd.DataFrame()
 
-    metrics = timer.finish(
+    # ``errored_tickers`` is included in counts ONLY when non-zero so a clean scan's
+    # counts stay byte-identical to before (the common case, and what the metrics
+    # shape test pins); a swallowed eval crash surfaces the count for the alerting
+    # decision and the operator-visible formatter.
+    finish_counts = dict(
         universe_tickers=len(tickers),
         evaluated_tickers=len(ticker_frames),
         setups=len(results_df),
     )
+    if errored_tickers:
+        finish_counts["errored_tickers"] = errored_tickers
+    metrics = timer.finish(**finish_counts)
     market_context["_scan_metrics"] = metrics
     persist_scan_metrics(metrics, universe=uni)
     print(format_scan_metrics(metrics), flush=True)

@@ -1139,7 +1139,7 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     import services.core_settings as core_settings_mod
 
     calls = {"backfill": 0, "finish_status": None}
-    result = SimpleNamespace(output="boom", returncode=1, n_setups=None)
+    result = SimpleNamespace(output="boom", returncode=1, n_setups=None, n_errored=0)
 
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")

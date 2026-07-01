@@ -18,7 +18,7 @@ import logging
 import queue
 import threading
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -209,25 +209,6 @@ def _ensure_and_attach_tag(db: Session, tl: models.TradeLog, name: str, category
         tl.tags.append(tag)
 
 
-def _find_tl_by_opener(db: Session, account: Optional[str], symbol: str, opener_exec_id: str):
-    tls = (
-        db.query(models.TradeLog)
-        .filter(models.TradeLog.source == "ibkr")
-        .filter(models.TradeLog.ibkr_account == account)
-        .filter(models.TradeLog.ticker == symbol)
-        .all()
-    )
-    for tl in tls:
-        if tl.actions_json:
-            try:
-                acts = json.loads(tl.actions_json)
-                if acts and acts[0].get("exec_id") == opener_exec_id:
-                    return tl
-            except Exception:
-                continue
-    return None
-
-
 def _group_round_trips(rows: Iterable[models.Execution]) -> List[Dict[str, Any]]:
     """Walk executions; whenever signed position returns to 0, close a round-trip."""
     trips: List[Dict[str, Any]] = []
@@ -392,18 +373,3 @@ def _apply_trip_to_trade_log(tl: models.TradeLog, trip: Dict[str, Any]) -> Dict[
     tl.actions_json = json.dumps(actions)
 
     return flags
-
-
-def backfill_from_db() -> None:
-    """Re-derive trade logs from every existing execution. Safe to call on startup."""
-    db: Session = SessionLocal()
-    try:
-        pairs: List[Tuple[Optional[str], str]] = (
-            db.query(models.Execution.account, models.Execution.symbol)
-            .distinct()
-            .all()
-        )
-        for account, symbol in pairs:
-            rebuild_trade_logs_for(db, account, symbol)
-    finally:
-        db.close()
