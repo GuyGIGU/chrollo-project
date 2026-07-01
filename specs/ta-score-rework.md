@@ -2,8 +2,9 @@
 
 Status: DRAFT v2 (reframed by operator 2026-07-01) · Branch: `engine/ta-score-rework`
 Evidence basis: `docs/archive_edge_read_2026-07-01.md` · Plan: `specs/ta-score-rework-plan.md`
+· **Design: `specs/ta-score-hybrid-design.md`** (the buildable formula/tag-fold synthesis)
 (the plan predates this reframe — its engineering spine holds; buckets + formula phases are
-superseded by §3–§5 below).
+superseded by §3–§5 here and the hybrid-design doc).
 
 ## 1. Purpose & the two-half system
 

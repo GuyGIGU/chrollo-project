@@ -383,6 +383,15 @@ SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap
 PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
 PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
 PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
+
+# ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
+# Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
+# folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived
+# from it, and demotes market regime (breadth + SPY) to an informational label. Sibling of
+# PUZZLE_SCORE_ENABLED / CANDLE_SPREAD_AWARE: flag-OFF the entire v2 formula and any new keys
+# are inert (byte-identical, zero new compute); the ON behavior lands incrementally behind
+# this flag. The live flip is an operator A/B-eyeball decision.
+TA_SCORE_V2 = False
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

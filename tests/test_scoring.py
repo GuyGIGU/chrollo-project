@@ -629,6 +629,17 @@ def test_puzzle_flag_off_is_byte_identical(monkeypatch):
     assert base == with_nar                        # total + every sub-score byte-identical
 
 
+def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
+    """Phase-0 tripwire for the hybrid Technical Analysis Score rework
+    (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
+    and stays the frozen composite. Guards that flag-off never drifts as v2 lands."""
+    from core.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
+    out = score_setup(**_score_common())
+    for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
+        assert k not in out, f"v2 key {k!r} leaked with the flag off"
+
+
 def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
     from core.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
