@@ -242,6 +242,36 @@ def _compute_returns(
     return result
 
 
+def _price_scale_factor(fresh_scan_close: float, stored_scan_close) -> float:
+    """Factor mapping stored scan-time absolutes onto the downloaded price scale.
+
+    1.0 whenever the scales agree (same regime, no post-scan adjustment), the
+    stored close is unusable, or the implied factor is absurd (distrust it
+    rather than rescale by garbage). Snaps float noise to exactly 1.0."""
+    try:
+        stored = float(stored_scan_close)
+    except (TypeError, ValueError):
+        return 1.0
+    if not (stored > 0 and fresh_scan_close > 0):
+        return 1.0
+    factor = fresh_scan_close / stored
+    if not (0.2 <= factor <= 5.0):
+        return 1.0
+    if abs(factor - 1.0) < 1e-3:
+        return 1.0
+    return factor
+
+
+def _rescaled(value, factor: float):
+    """``value * factor`` tolerant of None/garbage (returns the input as-is)."""
+    if value is None or factor == 1.0:
+        return value
+    try:
+        return float(value) * factor
+    except (TypeError, ValueError):
+        return value
+
+
 # Outcome columns added after the initial schema. create_all() only creates
 # missing TABLES, not missing COLUMNS on an existing table, so we ALTER them in
 # on demand (idempotent — a duplicate-column error means it already exists).
@@ -412,10 +442,10 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     # extra fetch. De-duped so a setup ON SPY itself doesn't double-list it.
     download_tickers = list(dict.fromkeys([*all_tickers, SPY_TICKER]))
     log.info(f"Downloading data for {len(all_tickers)} tickers (+SPY) from {start.date()} to {end.date()}...")
-    from core.pipeline.downloads import _batched_download
+    from core.pipeline.downloads import _batched_download, price_auto_adjust
     raw = _batched_download(
         download_tickers,
-        {"start": start_str, "end": end_str, "auto_adjust": True},
+        {"start": start_str, "end": end_str, "auto_adjust": price_auto_adjust()},
         "Forward returns",
     )
 
@@ -452,6 +482,15 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
             else:
                 scan_close = float(scan_close_series)
 
+            # Cross-regime/adjustment guard: trigger_price and s_level were
+            # stored on the SCAN-TIME price scale; the freshly-downloaded series
+            # can sit on another (pre-cutover dividend-adjusted rows read under
+            # the as-traded regime, or any post-scan split). Recover the one-bar
+            # factor from the same scan close we just re-read vs the stored one
+            # and rescale the absolutes onto the downloaded scale. All ratio
+            # metrics already use the downloaded scan_close, so they need no fix.
+            scale = _price_scale_factor(scan_close, getattr(setup, "current_price", None))
+
             # Forward data: everything AFTER the scan date
             fwd_df = df[df.index > scan_ts]
             if fwd_df.empty:
@@ -476,8 +515,8 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
             spy_window_return = _spy_window_return(spy_df, scan_ts, fwd_end_ts)
 
             returns = _compute_returns(
-                fwd_df, scan_close, setup.trigger_price,
-                s_level=setup.s_level, vol_50_at_scan=vol_50_at_scan,
+                fwd_df, scan_close, _rescaled(setup.trigger_price, scale),
+                s_level=_rescaled(setup.s_level, scale), vol_50_at_scan=vol_50_at_scan,
                 spy_window_return=spy_window_return,
             )
             if not returns:

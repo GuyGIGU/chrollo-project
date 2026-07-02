@@ -106,20 +106,63 @@ def _last_yahoo_batch_error_text(batch: list[str]) -> str:
     return " | ".join(part for part in parts if part)
 
 
+def price_auto_adjust() -> bool:
+    """The ONE source for every price download's ``auto_adjust`` flag.
+
+    False (the shipped default via ``DATA_DIVIDEND_ADJUSTED = False``) =
+    as-traded OHLC, split-adjusted only — what TradingView shows and what the
+    operator trades. Seed / forward-returns / writer downloads must import this
+    so their series can never diverge from the cache regime (eval-twin rule).
+    The getattr fallback matches the settings default (as-traded) so a process
+    with a shadowed/stale config degrades to the SAME regime, never a mix."""
+    return bool(getattr(settings, "DATA_DIVIDEND_ADJUSTED", False))
+
+
+def _price_regime() -> str:
+    """The regime tag stamped into cache meta for the current settings."""
+    return "div_adjusted" if price_auto_adjust() else "as_traded"
+
+
+def _meta_regime_mismatch(meta: dict) -> bool:
+    """True when the on-disk cache was fetched under a DIFFERENT price regime.
+
+    Caches written before the tag existed are dividend-adjusted (the old
+    default). A mismatched cache must never be served fresh, returned current,
+    or incrementally patched — mixing regimes in one panel corrupts every
+    structural read. Only a full cold refetch may replace it."""
+    return meta.get("price_series", "div_adjusted") != _price_regime()
+
+
+def _drop_adj_close(data: pd.DataFrame) -> pd.DataFrame:
+    """Strip yfinance's extra 'Adj Close' field — the cache schema (and every
+    downstream reader) is strictly OHLCV.
+
+    Needed on BOTH download shapes when auto_adjust=False: the pinned yfinance
+    1.2.1 emits 'Adj Close' from ``Ticker().history`` too (even with
+    ``actions=False``), and every production download goes through the
+    single-ticker path. An asymmetric drop would also poison repair patches:
+    frames with mismatched field sets combine into NaN-striped rows that
+    ``dropna`` then silently eats."""
+    if (data is not None and not data.empty
+            and isinstance(data.columns, pd.MultiIndex)):
+        return data.drop(columns="Adj Close", level=1, errors="ignore")
+    return data
+
+
 def _single_ticker_history(ticker: str, period_or_dates: dict) -> pd.DataFrame:
     """Fetch one symbol without yf.download's process-global multi-ticker state."""
     # These are DEFAULTS the caller may override via period_or_dates. Merging (rather
     # than splatting alongside fixed kwargs) avoids "got multiple values for keyword
     # argument 'auto_adjust'" when a caller passes auto_adjust in the dict (seed /
     # forward-returns / archive paths all do).
-    params = {"actions": False, "auto_adjust": True, "timeout": 30}
+    params = {"actions": False, "auto_adjust": price_auto_adjust(), "timeout": 30}
     params.update(period_or_dates)
     data = yf.Ticker(ticker).history(**params)
     if data is None or data.empty:
         return pd.DataFrame()
     if not isinstance(data.columns, pd.MultiIndex):
         data.columns = pd.MultiIndex.from_product([[ticker], data.columns])
-    return data
+    return _drop_adj_close(data)
 
 
 def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
@@ -127,9 +170,10 @@ def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
         return _single_ticker_history(batch[0], period_or_dates)
     # no uncontrolled yfinance inner threads; pool + throttle govern concurrency.
     # Defaults overridable by period_or_dates (same anti-collision reason as above).
-    params = {"group_by": "ticker", "threads": False, "progress": False, "timeout": 30}
+    params = {"group_by": "ticker", "threads": False, "progress": False, "timeout": 30,
+              "auto_adjust": price_auto_adjust()}
     params.update(period_or_dates)
-    return yf.download(batch, **params)
+    return _drop_adj_close(yf.download(batch, **params))
 
 
 def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
@@ -549,6 +593,17 @@ def repair_latest_session_cache(
     label: str = "Manual repair",
 ) -> pd.DataFrame:
     """Patch latest-session closes for ``symbols`` and persist the cache if changed."""
+    # Regime guard: never patch NEW-regime bars into an old-regime panel — a
+    # mixed parquet corrupts every structural read. Skip the repair unchanged;
+    # the health machinery keeps reporting the gap and the next download-mode
+    # fetch_data run replaces the cache cold.
+    meta = _read_meta(meta_file)
+    if _meta_regime_mismatch(meta):
+        print(f"  {label}: cache price-series regime "
+              f"({meta.get('price_series', 'div_adjusted')}) differs from settings "
+              f"({_price_regime()}); skipping repair — a full cold refetch must "
+              "replace this cache first.", flush=True)
+        return data
     repaired = _repair_latest_session(
         data, symbols, expected_session, min_latest_coverage, label
     )
@@ -803,6 +858,7 @@ def _write_incremental_result(
     data = data.loc[:, ~data.columns.duplicated(keep='last')]
     _atomic_write_parquet(data, cache_file)
     meta['last_modified'] = _now_iso()
+    meta['price_series'] = _price_regime()   # reachable only when regimes match
     # Health only: the cold full-refetch owns quarantine updates. A ticker
     # absent from a small incremental window is not necessarily dead.
     returned_active = present_tickers(data) & set(scope.requested_non_index)
@@ -876,7 +932,11 @@ def _write_unhealthy_cold_result(
         f"Full refetch latest-session coverage is {coverage.format()} for "
         f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
         "keeping existing cache if possible."), flush=True)
-    if cached is not None and not cached.empty:
+    # On a regime-mismatch run the kept cache is the WRONG price series — the
+    # guard that forced this cold fetch must not be undone by its failure path.
+    # Serve the (unhealthy but right-regime) fresh panel instead; health gating
+    # downstream still blocks archiving from it.
+    if cached is not None and not cached.empty and not _meta_regime_mismatch(meta):
         return cached
     return data
 
@@ -908,6 +968,7 @@ def _write_successful_cold_result(
     meta = {
         'last_full_refresh': _now_iso(),
         'last_modified': _now_iso(),
+        'price_series': _price_regime(),
         'fetch_health': health,
         'ticker_admission': {
             "skipped": len(scope.skipped_admission),
@@ -1010,9 +1071,20 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
         expected_session = latest_completed_session()
         min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
-        # ── Fast path: fresh cache ─────────────────────────────────────────────
+        # ── Price-regime guard ─────────────────────────────────────────────────
+        # A cache fetched under a different DATA_DIVIDEND_ADJUSTED regime must
+        # never be served, returned current, or incrementally patched — mixed
+        # regimes in one panel corrupt every structural read. Cold refetch only.
         meta = _read_meta(meta_file)
-        fresh_cache = _try_fresh_cache(
+        regime_mismatch = _meta_regime_mismatch(meta)
+        if regime_mismatch:
+            print(f"Cache price-series regime "
+                  f"({meta.get('price_series', 'div_adjusted')}) differs from "
+                  f"settings ({_price_regime()}); forcing a full cold refetch.",
+                  flush=True)
+
+        # ── Fast path: fresh cache ─────────────────────────────────────────────
+        fresh_cache = None if regime_mismatch else _try_fresh_cache(
             cache_file, scope, expected_session, min_latest_coverage
         )
         if fresh_cache is not None:
@@ -1025,7 +1097,7 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
             cached, scope, expected_session
         )
 
-        current_cache = _try_current_cache(
+        current_cache = None if regime_mismatch else _try_current_cache(
             cached, cache_file, meta_file, meta, scope, last_cached_date, gap_bdays,
             latest_coverage, weekly_refresh_due, min_latest_coverage
         )
@@ -1033,7 +1105,8 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
             return current_cache
 
         do_incremental = (
-            cached is not None
+            not regime_mismatch
+            and cached is not None
             and not cached.empty
             and gap_bdays is not None
             and 1 <= gap_bdays <= settings.INCREMENTAL_MAX_GAP_BDAYS

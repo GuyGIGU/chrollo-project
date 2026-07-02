@@ -367,12 +367,13 @@ def archive_scan_results(
     # Batch-download each unique sector ETF ONCE over the global base window.
     etf_close: dict[str, "pd.Series"] = {}
     if unique_etfs and starts and ends:
+        from core.pipeline.downloads import price_auto_adjust  # noqa: PLC0415 — call-site import; module-level would trip the backend config-shadow trap
         g_start, g_end = min(starts), max(ends)
         print(f"  Fetching {len(unique_etfs)} sector ETF series...", flush=True)
         for etf in unique_etfs:
             try:
                 d = yf.download(etf, start=g_start, end=g_end, progress=False,
-                                timeout=20, auto_adjust=True)
+                                timeout=20, auto_adjust=price_auto_adjust())
                 if d is not None and not d.empty:
                     c = d["Close"]
                     if hasattr(c, "columns"):

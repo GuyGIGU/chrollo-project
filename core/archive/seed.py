@@ -32,7 +32,7 @@ from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
 from core.pipeline.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
-from core.pipeline.downloads import _batched_download
+from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from core.structure.htf import htf_archive_values
 
@@ -218,7 +218,7 @@ def seed_archive(
     log.info(f"Downloading {len(unique_tickers)} tickers from {dl_start} -> {dl_end}...")
     raw = _batched_download(
         unique_tickers,
-        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        {"start": dl_start, "end": dl_end, "auto_adjust": price_auto_adjust()},
         "Seed download",
     )
 
@@ -227,7 +227,7 @@ def seed_archive(
     log.info("Downloading SPY for RS reference...")
     spy_raw = _batched_download(
         ["SPY"],
-        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        {"start": dl_start, "end": dl_end, "auto_adjust": price_auto_adjust()},
         "Seed SPY",
     )
     spy_close_series = _close_series(spy_raw, "SPY")
@@ -464,12 +464,12 @@ def _download_seed_data(
     log.info(f"[fresh recall] downloading {len(unique)} tickers {dl_start} -> {dl_end} ...")
     raw = _batched_download(
         unique,
-        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        {"start": dl_start, "end": dl_end, "auto_adjust": price_auto_adjust()},
         "Fresh seed recall",
     )
     spy_raw = _batched_download(
         ["SPY"],
-        {"start": dl_start, "end": dl_end, "auto_adjust": True},
+        {"start": dl_start, "end": dl_end, "auto_adjust": price_auto_adjust()},
         "Fresh seed SPY",
     )
     spy_close = _close_series(spy_raw, "SPY")

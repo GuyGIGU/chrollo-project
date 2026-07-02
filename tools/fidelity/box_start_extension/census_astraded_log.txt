@@ -1,0 +1,69 @@
+  ...prepped 500/5491
+  ...prepped 1000/5491
+  ...prepped 1500/5491
+  ...prepped 2000/5491
+  ...prepped 2500/5491
+  ...prepped 3000/5491
+  ...prepped 3500/5491
+  ...prepped 4000/5491
+  ...prepped 4500/5491
+  ...prepped 5000/5491
+  1886/5491 tickers survive baseline; reading structures with jobs=14
+  ...read 200/1886
+  ...read 400/1886
+  ...read 600/1886
+  ...read 800/1886
+  ...read 1000/1886
+  ...read 1200/1886
+  ...read 1400/1886
+  ...read 1600/1886
+  ...read 1800/1886
+
+  box-start back-extension census: 140 firing setups
+    0 (start already earliest-conforming)     9  (6%)
+    1-2 bars                                 22  (16%)
+    3-5 bars                                 45  (32%)
+    6-10 bars                                34  (24%)
+    >10 bars                                 30  (21%)
+    extensions > 0: 131/140 (94%), median 5 / max 56 bars
+    extensions containing rail TOUCHES (worked, AGCO-class): 130/140 (93%)
+
+  ticker   elected start  ext start    +bars  extR/extS touch  base_len
+  ------------------------------------------------------------------------
+  FELE     2025-10-10    2025-07-23     56   0/9              182
+  CNP      2026-05-01    2026-02-13     53   18/9               43
+  GCV      2025-11-05    2025-08-25     51   15/14             164
+  BYD      2025-09-16    2025-07-15     44   3/9              200
+  RBC      2026-05-14    2026-04-06     28   4/2               34
+  HON      2026-04-17    2026-03-12     25   11/0               53
+  AZZ      2026-05-11    2026-04-08     23   1/11              37
+  DHI      2026-01-08    2025-12-05     22   1/2              121
+  TAC      2026-01-15    2025-12-15     21   2/4              116
+  BKH      2026-02-06    2026-01-08     20   1/6              101
+  DTE      2026-03-17    2026-02-18     19   9/2               75
+  EMA      2026-05-08    2026-04-13     19   8/5               38
+  INMD     2026-04-10    2026-03-13     19   0/10              58
+  LOVE     2026-05-19    2026-04-22     19   5/7               31
+  MLAB     2026-05-07    2026-04-10     19   1/11              39
+  MXF      2026-04-29    2026-04-01     19   10/3               45
+  PH       2026-03-30    2026-03-03     19   3/0               66
+  RUSHA    2026-05-27    2026-05-04     16   8/0               26
+  BMY      2026-01-29    2026-01-07     15   0/7              107
+  EPR      2026-01-27    2026-01-05     15   0/4              109
+  HR       2026-05-27    2026-05-05     15   8/1               26
+  SPNT     2026-04-27    2026-04-06     15   3/1               47
+  TOL      2026-04-21    2026-03-31     14   0/6               51
+  MTG      2026-02-02    2026-01-13     13   1/2              105
+  CUBE     2026-04-28    2026-04-10     12   0/7               46
+
+  rendering top 10 extenders
+  rendered FELE -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\FELE.png
+  rendered CNP -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\CNP.png
+  rendered GCV -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\GCV.png
+  rendered BYD -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\BYD.png
+  rendered RBC -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\RBC.png
+  rendered HON -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\HON.png
+  rendered AZZ -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\AZZ.png
+  rendered DHI -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\DHI.png
+  rendered TAC -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\TAC.png
+  rendered BKH -> C:\Users\User\Documents\Projects\Chrollo Project\tools\fidelity\box_start_extension\BKH.png

@@ -268,6 +268,7 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
 
 def _download_universe(tickers: list[str], start: str, end: str) -> dict[str, pd.DataFrame]:
     print(f"Downloading {len(tickers)} tickers from {start} -> {end} ...")
+    from core.pipeline.downloads import price_auto_adjust
     raw = yf.download(
         tickers,
         start=start,
@@ -275,8 +276,12 @@ def _download_universe(tickers: list[str], start: str, end: str) -> dict[str, pd
         group_by='ticker',
         threads=True,
         progress=False,
-        auto_adjust=True,
+        auto_adjust=price_auto_adjust(),
     )
+    if isinstance(raw.columns, pd.MultiIndex):
+        raw = raw.drop(columns="Adj Close", level=1, errors="ignore")
+    elif "Adj Close" in raw.columns:
+        raw = raw.drop(columns="Adj Close")
 
     out: dict[str, pd.DataFrame] = {}
     if len(tickers) == 1:

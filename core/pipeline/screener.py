@@ -129,6 +129,18 @@ def _read_cached_market_data(tickers: list[str], universe=None) -> pd.DataFrame:
     if not os.path.exists(cache_file):
         raise CachedMarketDataError(f"stale market data: cache file not found at {cache_file}")
 
+    # Regime guard (mirrors fetch_data): cache-mode evaluation must never feed
+    # the engine an old-regime panel — the archive would stamp rows with a
+    # manifest hash claiming the new regime over data from the old one.
+    from core.pipeline.cache import _read_meta  # noqa: PLC0415 — lazy, matches module style
+    from core.pipeline.downloads import _meta_regime_mismatch, _price_regime  # noqa: PLC0415
+    meta = _read_meta(meta_file)
+    if _meta_regime_mismatch(meta):
+        raise CachedMarketDataError(
+            "stale market data: cache price-series regime "
+            f"({meta.get('price_series', 'div_adjusted')}) differs from settings "
+            f"({_price_regime()}); run a download scan to rebuild the cache")
+
     print(f"Loading market data from local cache for evaluation: {cache_file}", flush=True)
     data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
     if hasattr(data.index, 'tz') and data.index.tz is not None:

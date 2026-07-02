@@ -43,7 +43,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
 
     from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
-    from core.pipeline.downloads import _batched_download
+    from core.pipeline.downloads import _batched_download, price_auto_adjust
     from core.freeze.manifest import manifest_hash
     from core.structure.htf import htf_archive_values
     from archive_models import (
@@ -54,9 +54,11 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     )
 
     def _download_one(symbol: str, start_date: str, end_date: str, label: str):
+        # Regime rule: this path re-runs the live engine (_evaluate_at_date),
+        # so its series must match the scan cache — one auto_adjust source.
         raw_frame = _batched_download(
             [symbol],
-            {"start": start_date, "end": end_date, "auto_adjust": True},
+            {"start": start_date, "end": end_date, "auto_adjust": price_auto_adjust()},
             label,
         )
         if raw_frame is None or raw_frame.empty:

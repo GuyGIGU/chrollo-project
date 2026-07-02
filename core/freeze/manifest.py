@@ -41,6 +41,8 @@ from typing import Any, Dict
 # frozen contract, add its name here (and accept the new hash + re-baseline).
 # ─────────────────────────────────────────────────────────────────────────────
 ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
+    # Phase 0 — price-series regime (every read's provenance)
+    "DATA_DIVIDEND_ADJUSTED",
     # Phase 1 — universe baseline filters
     "MIN_PRICE",
     "MIN_VOLUME_50D",

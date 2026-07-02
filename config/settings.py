@@ -505,6 +505,15 @@ ARCHIVE_LIVE_SCANS = True
 # "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
 MARKET_DATA_PROVIDER = "yahoo"
 
+# Price-series regime (operator rule, 2026-07-02): structural analysis runs on
+# REAL traded prices. False = as-traded OHLC (split-adjusted only — exactly what
+# TradingView shows); True = legacy dividend+split-adjusted series, which
+# repaints history every ex-div and shows prices that were never traded
+# (confirmed distorting income names: GOOD/ENIC passed baseline only on
+# adjusted data, DKL's box start moved). The cache meta is stamped with the
+# regime; a mismatch forces a full cold refetch — regimes are never mixed.
+DATA_DIVIDEND_ADJUSTED = False
+
 CACHE_FILENAME = "market_data_cache_5y.parquet"
 CACHE_META_FILENAME = "cache_meta.json"
 MARKET_CONTEXT_FILENAME = "market_context.json"

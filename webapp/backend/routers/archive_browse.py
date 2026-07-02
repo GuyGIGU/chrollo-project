@@ -148,8 +148,14 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
     start_date = (target_date - pd.Timedelta(days=500)).strftime('%Y-%m-%d')
     end_date = (target_date + pd.Timedelta(days=45)).strftime('%Y-%m-%d')
 
+    # As-traded candles (regime rule 2026-07-02): rows archived under the
+    # as-traded regime overlay with ratio == 1.0 exactly. Pre-cutover
+    # div-adjusted rows get the one-bar _adjustment_ratio rescale, which is
+    # exact at the scan bar but cannot recover PRE-scan dividend steps — old
+    # income-name overlays may sit slightly off far from the scan date
+    # (display-only, bounded by the cumulative pre-scan dividends).
     raw = daily_candle_frame(
-        setup.ticker, 0, start=start_date, end=end_date, auto_adjust=True
+        setup.ticker, 0, start=start_date, end=end_date, auto_adjust=False
     )
     if raw.empty:
         raise HTTPException(status_code=404, detail="Market data not found for ticker")
