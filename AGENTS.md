@@ -24,6 +24,10 @@ books — it never places trades.**
   user the command instead.
 
 ## 🧮 Engine rules (the screener's prime directive)
+- **Read [`docs/strategy_v2.md`](docs/strategy_v2.md) BEFORE touching any chart-reading algorithm code**
+  (`core/structure/`, `core/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
+  Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
+  of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.
 - **structure measures, scoring judges, pipeline coordinates.** `core/structure/` reports facts and never
   assigns points. `core/scoring/` turns facts into points and never reads a chart.
 - **To change a factor's *weight*, edit `config/settings.py`** (`SCORE_*` / `TIER_*`) — never the

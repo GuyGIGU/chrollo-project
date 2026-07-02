@@ -1,10 +1,106 @@
 # Wyckoff-Minervini Stock Screener — Strategy & Implementation Reference
 
-This document is the **single source of truth** for what the screener actually does. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
+> **RULE — read this before touching the reading engine.** Any change to chart-reading
+> algorithm code (`core/structure/`, `core/scoring/`, or their detection/scoring knobs in
+> `config/settings.py`) **starts by reading this document — the Reading Model section at
+> minimum — and lands with this document updated in the same change** when behavior
+> moves. This file is the source of truth for *how Chrollo understands a chart*, not just
+> a description of the code; letting them drift is a defect. (The rule is mirrored in
+> `AGENTS.md` and the root `CLAUDE.md` so every agent session loads it.)
+
+This document is the **single source of truth** for what the screener actually does — and, in the [Reading Model](#the-reading-model--the-operators-chart-language) below, for *how we understand chart analysis in the first place*. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
 
 The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A/B/C/D structure. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by actual High/Low swing geometry.
 
 The live structure reader is now chronological: one left-to-right daily-chart narrative, not a set of independent detectors reconciled afterward. It walks **Trend / root swing -> Phase A -> Phase B -> optional Phase C -> Phase D -> LPS**, backtracking to the next root swing when any brick fails. That single `Structure` is the shared reading object for horizontal analysis (time, cause, rail travel, compression) and vertical analysis (R/S levels, box height, undercut depth, trigger shelf).
+
+---
+
+## The Reading Model — the operator's chart language
+
+Everything in this document implements ONE reading procedure — the operator's (stated
+2026-07-02, AGCO dissection). This section is the canonical statement of that procedure.
+The rest of the doc mirrors the implementation; *this section states the intent the
+implementation serves.* When a detector and this model disagree, the model wins and the
+detector is the bug (or the model gets amended here, explicitly — never silently).
+
+### The legend (strict vocabulary)
+
+| Term | Meaning | Reserved for |
+|------|---------|--------------|
+| **BC → AR** | Buying Climax → Automatic Reaction | the end of the **main uptrend** only |
+| **SC → AR** | Selling Climax → Automatic Rally | the end of the **main downtrend** only |
+| **Root Swing** | the climax→reaction pair *responsible for* the consolidation | whichever pair the cascade below settles on |
+| **mini climax / mini reaction** | smaller fractal analogues of BC/AR — every swing peak→valley pair is one | limbs inside/after the base; **never** labeled BC/AR |
+
+BC/AR/SC are trend-end terms, full stop. Swings are fractal — small peaks and valleys are
+miniature climax→reaction pairs — but the *names* BC/AR belong to the main trend so the
+story stays readable.
+
+### The Root-Swing cascade (the linear narrative)
+
+The reader walks the chart left to right and anchors by descent:
+
+1. **Find where the trend ends** — the true BC & AR (or SC & AR). This is **Phase A**.
+2. **Seed R and S from that pair** and test the framing: does price actually *work* both
+   rails — touch, respect, and zigzag between them constantly, with no dead space?
+3. **If there is dead space, advance to the next pair of limbs.** Keep descending pair by
+   pair until you reach the pair that is *responsible for the earliest actual worked
+   consolidation*.
+4. **That pair is the Root Swing**, and the consolidation it births is **Phase B**. Often
+   the Root Swing *is* the BC/AR; after a one-way climax leg it is a later, smaller pair.
+   (Worked example — AGCO 2026: BC 02-12 @143.11 → AR 03-20 @107.44 is the true Phase-A
+   read, but rails at those extremes leave permanent dead space; the cascade settles on
+   the 04-02 low 111.30 → 04-10 rebound 123.32 pair — 12 R-touches / 21 S-touches and
+   8 full rail-to-rail traversals by the engine's own measure.)
+
+   > **Known divergence — box-start pinning (open calibration item, 2026-07-02).** On
+   > the same AGCO base the operator reads the earlier **03-25 → 03-30 pair** (H 119.24 →
+   > L 111.83) as the Root Swing. Dissection agreed with the *start* while keeping the
+   > engine's rails: the ELECTED rails (123.32/111.30) are **fully valid by every engine
+   > gate from 03-25** (respect 4-outside unchanged, MORE S-touches 21→24, traversal
+   > holds) — but that framing is *unproposable*, because candidate starts are pinned to
+   > the anchor pair (`cand_start = min(r_anchor, s_anchor)`). The earliest-valid
+   > election cannot reach an earlier start its own gates would bless: the
+   > "earliest-of-valid / longest cause" principle is undersold by candidate generation.
+   > Lever when the pattern clusters: band-conforming back-extension of the elected
+   > start (walk `cand_start` left over bars inside the buffered band) — rails and
+   > respect untouched; affects base_len / base-age score / occupancy windows, so
+   > flag-gated + shadow-checked. Secondary lever (the operator's shelf-R read itself —
+   > R at the touch-cluster mode with April pushes as tolerated overshoot): parked
+   > separately; the respect gate kills shelf-R framings on 16 above-R bars, and that
+   > band is also the upthrust defense.
+5. **Decide the right side — are we past the tip of the final 'V'?** A box alone is not a
+   setup; the reader must see evidence the base has turned:
+   - a **Phase C spring** that *conducts* the turn (undercut below S → reclaim → hold), OR
+   - direct **Phase D evidence**: an SOS, a mini-consolidation (inner box), rising
+     support / a support-test cluster.
+
+   Either way the **LPS is the mandatory terminal evidence** — no LPS in the right-most
+   region means no Phase D and no setup.
+
+### Where each step lives
+
+| Reading step | Implementation |
+|---|---|
+| Trend end (Phase A) | `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgradeable by the flag-gated macro-PIP read (`macro_bridge_zigzag`, `PIP_MACRO_PHASE_A_ENABLED`, abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read") |
+| The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election. The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
+| "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
+| Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
+| Phase D evidence | `resolve_phase_d_boundary()` (support_tests / sos_reclaim / rising_support / inner_box / v_tip; LPS fallback) |
+| LPS (mandatory) | `detect_lps()` |
+
+### The explainability rule
+
+**The engine is never allowed to be blind to *why* it chose the pair it chose.**
+`read_structure(df, atr, trace=[...])` narrates the whole walk: every root swing tried,
+every candidate pair inside the box election with the stage that rejected it (`width` /
+`window` / `respect` / `occupancy` — with the failing checks named, e.g. "dead space low" /
+`traversal` / `rescue_unused`) and why the winner was elected (`selection`,
+earliest-of-valid). `python -m tools.structure_case_audit <TICKER> --trace` renders it.
+The trace is opt-in and free on the live path (`trace=None` = zero cost, byte-identical).
+New reading logic must **extend the trace, not bypass it** — the narrated process is what
+lets richer story-building (the event puzzle, graded confidence reads) trust the geometry.
 
 ---
 
@@ -151,6 +247,40 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 `resolve_phase_a()` ([core/structure/bricks.py](../core/structure/bricks.py)) repackages `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands near `box.start_bar`; if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
+
+### Phase A — Macro bridge read (flag-gated, default off)
+
+`macro_bridge_zigzag()` ([core/structure/pip.py](../core/structure/pip.py)), wired through
+`segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) when
+`PIP_MACRO_PHASE_A_ENABLED` is on. A multi-resolution PIP (Perceptually Important Points)
+skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
+exact prefix of top-K+1), then walked coarse→fine from `K=4` up to `PIP_MACRO_K_MAX` (24):
+the read stops at the **smallest** skeleton holding a validated climax→AR bridge, so the
+macro trend-end is found before range noise can steal the climax.
+
+`_validated_bridge` enforces the **True-Root rule** — *a bridge qualifies only if it leads
+to an actual equilibrium*:
+
+- **interior AR** — the right edge is "now", never an AR;
+- **room for a base** — ≥ `PIP_MACRO_MIN_BASE_BARS` (= `MIN_BASE_DAYS`) bars after the AR;
+- **AR extremity** — the AR is its own leg's extreme (no crash hiding inside the bridge);
+- **climax terminality** — post-AR highs ≤ climax + `PIP_MACRO_MAX_POST_EXCESS` (0.25) × bridge height;
+- **floor holds** — post-AR breakdown ≤ `PIP_MACRO_EQ_FLOOR_FRAC` (0.5) × height (spring-tolerant);
+- **two-sided oscillation** — rally off the AR **and** give-back each ≥ `PIP_MACRO_EQ_OSC_FRAC` (0.3) × height.
+
+Climax candidates are tried in descending extremity, so an unconfirmable right-edge
+higher-high can't block a genuine older climax. Any failure → the macro read **abstains**
+(returns nothing) and the calibrated order-N read speaks — the merge contract. On
+validation the story is **truncated at the AR** (binding: downstream can never draw an
+unvalidated sibling swing), the root direction comes from the bridge type (never
+re-derived from window net sign), and `resolve_phase_a()` passes box-relation constraints
+(bridge kind must match the canonical BC/SC root; the AR must not overrun the box birth by
+more than `_SEG_AR_TOL` (10) bars — a one-sided upper bound, an earlier AR is allowed
+within the `_SEG_LEAD_IN` (60) lookback; AR price must reach the box level ± touch
+tolerance) so a macro story can never float away from the elected box. Affects the **Phase-A overlay only** — R/S selection,
+LPS, scoring, tiering are untouched; both flag states are byte-identical on the canonical
+shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
+`python -m tools.phase_a_pip_diff --jobs N`.
 
 ### Phase B — Zigzag S/R Anchoring
 
@@ -615,6 +745,16 @@ LOCAL_PEAK_BARS = 30
 PHASE_B_ATR_WINDOW = 30
 AR_MIN_DROP_PCT = 0.05
 AR_MAX_BARS = 15
+
+# Phase A — PIP swing skeleton (both wires flag-gated, default off)
+PIP_PIVOTS_ENABLED = False       # flat wire: PIP as drop-in pivot substrate
+PIP_PIVOTS_DIST_MIN = 0.03
+PIP_MACRO_PHASE_A_ENABLED = False  # macro wire: coarse->fine trend-end bridge read
+PIP_MACRO_K_MAX = 24
+PIP_MACRO_MAX_POST_EXCESS = 0.25   # climax terminality (x bridge height)
+PIP_MACRO_MIN_BASE_BARS = MIN_BASE_DAYS
+PIP_MACRO_EQ_FLOOR_FRAC = 0.5      # post-AR floor holds (spring-tolerant)
+PIP_MACRO_EQ_OSC_FRAC = 0.3        # two-sided oscillation (x bridge height)
 
 # Phase 3 — LPS detection
 LPS_MIN_DESCENT_FRAC = 0.0      # Graded quality input; no hard descent floor
