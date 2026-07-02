@@ -203,8 +203,34 @@ The merge contract, now built into the macro read (all flag-gated dark):
 Jury-set outcome of the merged read vs the INCUMBENT: better on GOOD (+6)
 and SAFE (+6.2), fixes TNC/ATI by abstention, ties (= incumbent) on
 BYD/SABS/MTRX/PH, one known miss (POCI, SC-story accepted, 2/10 vs 5/10).
-The four ties are recoverable upside: the unguarded macro won them 5.8–8.2,
-so the kind/end-max/level constraints are candidates for LOOSENING — a
-calibration pass over the full 57-mover census with the operator's eyeball,
-per the incremental-loop discipline. Guard knobs are individually visible in
-`resolve_phase_a`'s call; the census tool is `tools/phase_a_pip_diff.py`.
+
+## The True-Root rule (operator feedback round, 2026-07-02 late)
+
+Operator review of the render folder found two failures: empty PNGs (tickers
+with no structure under any read — tool noise, now skipped and purged) and
+**marks on setups with no base**. The fix is the operator's rule stated
+directly: *a candidate trend-end only qualifies as a True Phase-A root swing
+if it LEADS TO AN ACTUAL EQUILIBRIUM* — the read stays linear (find where the
+trend ends first, coarse->fine), but the trend-end claim is validated by what
+follows it. Four guards in `pip._validated_bridge` (all manifested knobs):
+
+| guard | knob | kills |
+|---|---|---|
+| base exists in TIME (>= the engine's own MIN_BASE_DAYS after the AR) | `PIP_MACRO_MIN_BASE_BARS` | fresh reactions with no room for a base (fixed POCI's spanning line) |
+| climax terminality, tightened 0.5 -> 0.25 x bridge height | `PIP_MACRO_MAX_POST_EXCESS` | pullback-in-trend marks (ATI/AXTA class — "setups with no base") |
+| floor holds (post-AR breakdown <= 0.5 x bridge height, spring-tolerant) | `PIP_MACRO_EQ_FLOOR_FRAC` | "AR" that was a waypoint in a continuing markdown |
+| it OSCILLATES (rally >= 0.3 x H off the AR AND give-back >= 0.3 x H) | `PIP_MACRO_EQ_OSC_FRAC` | V-reversals that never based |
+
+**Census under the True-Root rule: 15/79 overlays change** (vs 57 unguarded,
+47 flat) — the macro read became a surgical override that only speaks with a
+validated, equilibrium-backed story. Top movers = the jury-approved re-anchors
+(GOOD −51 bars, PH −36, SAFE −35); the tail is refinement-scale. Jury-set:
+4-5 upgrades (GOOD/SAFE/PH/POCI-fixed/likely MO), 6 abstention-ties, ZERO
+regressions vs the incumbent, zero bad marks. Renders in
+`tools/fidelity/pip_phase_a/` now contain ONLY charts with real signals.
+
+Recoverable upside for a later census pass: SABS/BYD/MTRX abstain where the
+unguarded macro had jury-liked reads (5.8-8.2) — loosening candidates:
+`PIP_MACRO_EQ_OSC_FRAC`, the kind guard, `PIP_MACRO_EQ_FLOOR_FRAC`. A
+minimum bridge LENGTH is a possible future knob (MO validates a 1-bar-AR
+bridge — correct on that chart, but thin).

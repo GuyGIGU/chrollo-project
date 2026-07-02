@@ -124,24 +124,33 @@ def test_confirmed_bridge_guards_tnc_class():
     P = np.concatenate([
         np.linspace(100.0, 140.0, 11),      # bars 0..10, old top 140 @10
         np.linspace(140.0, 60.0, 11)[1:],   # bars 11..20, crash low 60 @20
-        np.linspace(60.0, 120.0, 21)[1:],   # bars 21..40, recovery to 120
-        np.linspace(120.0, 110.0, 11)[1:],  # bars 41..50, pullback low @50
-        np.linspace(110.0, 118.0, 10)[1:],  # bars 51..59, right edge
+        np.linspace(60.0, 86.0, 11)[1:],    # bars 21..30, range rally
+        np.linspace(86.0, 61.0, 11)[1:],    # bars 31..40, range retest low @40
+        np.linspace(61.0, 82.0, 11)[1:],    # bars 41..50, range rally
+        np.linspace(82.0, 75.0, 10)[1:],    # bars 51..59, right-edge drift
     ])
     highs, lows = P + 0.5, P - 0.5
 
-    # Bad bridge: old top -> POST-RECOVERY pullback; the crash lies inside the
+    # Bad bridge: old top -> the RANGE RETEST low; the crash lies inside the
     # leg, so the AR is not its own extreme -> rejected.
     bad = [(0, "valley", lows[0]), (10, "peak", highs[10]),
-           (50, "valley", lows[50]), (59, "peak", highs[59])]
+           (40, "valley", lows[40]), (50, "peak", highs[50])]
     assert _validated_bridge(bad, 59, highs, lows) is None
 
-    # Honest bridge on the same chart: old top -> crash low IS a clean
-    # climax->AR leg (recovery never decisively exceeds the top) -> accepted,
-    # with the bridge indices pointing at the climax and its AR.
+    # Honest story on the same chart: the window nets DOWN, so the SC form
+    # wins — crash low (SC) -> automatic rally (AR), followed by the worked
+    # 60-86 equilibrium (two-sided traversal, floor holds) -> accepted.
     ok = [(0, "valley", lows[0]), (10, "peak", highs[10]),
-          (20, "valley", lows[20]), (59, "peak", highs[59])]
-    assert _validated_bridge(ok, 59, highs, lows) == (1, 2)
+          (20, "valley", lows[20]), (30, "peak", highs[30])]
+    assert _validated_bridge(ok, 59, highs, lows) == (2, 3)
+
+
+def test_macro_bridge_needs_room_for_a_base():
+    # A confirmed reaction with only a handful of bars after it is a CLAIM,
+    # not a story: no equilibrium can exist in 5 bars -> abstain.
+    highs, lows = _markup_range_frame()
+    zz, k = macro_bridge_zigzag(highs[:51], lows[:51], with_k=True)
+    assert k is None and zz == []
 
 
 def test_macro_bridge_rejects_taken_out_climax():

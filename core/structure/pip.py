@@ -163,7 +163,10 @@ def _zigzag_from_indices(idx_sorted: list[int], P: np.ndarray,
 
 def _validated_bridge(zigzag: list, last_bar: int,
                       highs: np.ndarray, lows: np.ndarray,
-                      max_post_excess: float = 0.5):
+                      max_post_excess: float = 0.25,
+                      min_base_bars: int = 10,
+                      floor_frac: float = 0.5,
+                      osc_frac: float = 0.3):
     """The CONFIRMED, VALIDATED macro climax->AR bridge in this skeleton —
     ``(climax_i, ar_i)`` zigzag indices, or ``None``.
 
@@ -173,19 +176,29 @@ def _validated_bridge(zigzag: list, last_bar: int,
     means a pivot exists after the climax AND it is INTERIOR (bar < last_bar):
     the right edge is "now", an unconfirmed extreme, never an AR.
 
-    Two validity guards (the chart-jury failure classes, 2026-07-02):
+    A bridge is a TRUE Phase-A root swing only if it LEADS TO AN ACTUAL
+    EQUILIBRIUM (operator rule, 2026-07-02): the read stays linear — find
+    where the trend ends first — but the trend-end claim is validated by what
+    follows it. Guards, in order (BC form; SC mirrored):
 
     * AR EXTREMITY — the AR must be the extreme of its own reaction leg. A
       bridge whose leg contains a deeper low (BC roots) / higher high (SC
       roots) than its AR endpoint is glued ACROSS other structure — the TNC
       class, where the "reaction" spanned an entire crash and recovery.
+    * BASE EXISTS IN TIME — at least ``min_base_bars`` bars after the AR;
+      a reaction with no room for a base yet is a claim, not a story.
     * CLIMAX TERMINALITY — after the AR, price may exceed the climax by at
       most ``max_post_excess`` x the bridge height. A "climax" that is
-      immediately and decisively taken out was a pause in an ongoing trend,
-      not the swing that birthed a range — the ATI/AXTA class. The tolerance
-      is bridge-relative (scale-free): honest range pokes above the climax
-      (BYD +0.20x, GOOD +0.13x) pass; trend continuation (ATI +0.93x,
-      AXTA +1.79x) fails.
+      taken out was a pause in an ongoing trend, not the swing that birthed
+      a range — the ATI/AXTA "setups with no base" class. Honest range pokes
+      (BYD +0.20x, GOOD +0.13x) pass; trend continuation (ATI +0.93x) fails.
+    * FLOOR HOLDS — post-AR lows may undercut the AR by at most
+      ``floor_frac`` x the bridge height (spring-tolerant). Deeper = the
+      "AR" was a waypoint in a continuing markdown, no equilibrium.
+    * IT OSCILLATES — after the AR, price must rally >= ``osc_frac`` x the
+      bridge height off the AR AND subsequently give back the same amount:
+      one real two-sided traversal, the minimal signature of a worked
+      equilibrium. A V that runs straight back up never based.
     """
     if len(zigzag) < 2:
         return None
@@ -210,30 +223,74 @@ def _validated_bridge(zigzag: list, last_bar: int,
         ar_bar = int(zigzag[climax_i + 1][0])
         if ar_bar >= int(last_bar):
             continue
+        # Base exists in time: room for an equilibrium after the AR.
+        if int(last_bar) - ar_bar < int(min_base_bars):
+            continue
         cb = int(zigzag[climax_i][0])
         if net > 0:
             # AR extremity: no deeper low inside the leg than the AR itself.
             if float(np.min(lows[cb:ar_bar + 1])) < float(lows[ar_bar]) - 1e-9:
                 continue
-            # Climax terminality: post-AR highs bounded vs bridge height.
             bridge_h = float(highs[cb]) - float(lows[ar_bar])
             if bridge_h <= 0:
                 continue
-            post = highs[ar_bar + 1:]
-            if post.size and float(np.max(post)) > float(highs[cb]) + max_post_excess * bridge_h:
+            post_hi = highs[ar_bar + 1:]
+            post_lo = lows[ar_bar + 1:]
+            # Climax terminality: post-AR highs bounded vs bridge height.
+            if post_hi.size and float(np.max(post_hi)) > float(highs[cb]) + max_post_excess * bridge_h:
+                continue
+            # Floor holds: the equilibrium may not break down below the AR.
+            if post_lo.size and float(np.min(post_lo)) < float(lows[ar_bar]) - floor_frac * bridge_h:
+                continue
+            if not _oscillates_up(post_hi, post_lo, float(lows[ar_bar]),
+                                  osc_frac * bridge_h):
                 continue
         else:
-            # SC-root mirror of both guards.
+            # SC-root mirror of every guard.
             if float(np.max(highs[cb:ar_bar + 1])) > float(highs[ar_bar]) + 1e-9:
                 continue
             bridge_h = float(highs[ar_bar]) - float(lows[cb])
             if bridge_h <= 0:
                 continue
-            post = lows[ar_bar + 1:]
-            if post.size and float(np.min(post)) < float(lows[cb]) - max_post_excess * bridge_h:
+            post_hi = highs[ar_bar + 1:]
+            post_lo = lows[ar_bar + 1:]
+            if post_lo.size and float(np.min(post_lo)) < float(lows[cb]) - max_post_excess * bridge_h:
+                continue
+            if post_hi.size and float(np.max(post_hi)) > float(highs[ar_bar]) + floor_frac * bridge_h:
+                continue
+            if not _oscillates_down(post_hi, post_lo, float(highs[ar_bar]),
+                                    osc_frac * bridge_h):
                 continue
         return climax_i, climax_i + 1
     return None
+
+
+def _oscillates_up(post_hi: np.ndarray, post_lo: np.ndarray,
+                   ar_low: float, amp: float) -> bool:
+    """One two-sided traversal after a BC->AR: price rallies >= ``amp`` off
+    the AR low, then gives back >= ``amp`` from the running high. O(n)."""
+    if post_hi.size == 0:
+        return False
+    run_max = -np.inf
+    for h, low in zip(post_hi, post_lo):
+        run_max = max(run_max, float(h))
+        if run_max - ar_low >= amp and run_max - float(low) >= amp:
+            return True
+    return False
+
+
+def _oscillates_down(post_hi: np.ndarray, post_lo: np.ndarray,
+                     ar_high: float, amp: float) -> bool:
+    """SC mirror: price reacts >= ``amp`` down off the AR high, then recovers
+    >= ``amp`` from the running low."""
+    if post_lo.size == 0:
+        return False
+    run_min = np.inf
+    for h, low in zip(post_hi, post_lo):
+        run_min = min(run_min, float(low))
+        if ar_high - run_min >= amp and float(h) - run_min >= amp:
+            return True
+    return False
 
 
 def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
@@ -272,12 +329,16 @@ def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
         return ([], None) if with_k else []
 
     last_bar = n - 1
-    excess = float(getattr(settings, "PIP_MACRO_MAX_POST_EXCESS", 0.5))
+    excess = float(getattr(settings, "PIP_MACRO_MAX_POST_EXCESS", 0.25))
+    min_base = int(getattr(settings, "PIP_MACRO_MIN_BASE_BARS", 10))
+    floor_frac = float(getattr(settings, "PIP_MACRO_EQ_FLOOR_FRAC", 0.5))
+    osc_frac = float(getattr(settings, "PIP_MACRO_EQ_OSC_FRAC", 0.3))
     for k in range(min(max(k_start, 2), len(order)), len(order) + 1):
         zigzag = _zigzag_from_indices(sorted(order[:k]), P, highs, lows)
         if len(zigzag) < 2:
             continue
-        bridge = _validated_bridge(zigzag, last_bar, highs, lows, excess)
+        bridge = _validated_bridge(zigzag, last_bar, highs, lows, excess,
+                                   min_base, floor_frac, osc_frac)
         if bridge is not None:
             # BINDING validation: hand downstream ONLY the validated story —
             # the approach legs up to the climax, ending at the AR. Every

@@ -261,6 +261,9 @@ def render(tickers, window, d, level0):
             print(f"  [skip {t}] {atr}")              # atr carries the reason
             continue
         ovs = capture_overlays(df, atr)
+        if all(ovs[m] is None for m in _MODES):
+            print(f"  [skip {t}] no structure under any read — nothing to eyeball")
+            continue
         table.append((t, ovs))
 
         n_all = len(df)
