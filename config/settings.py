@@ -138,6 +138,31 @@ SOS_TRIM_ENABLED = True
 SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
 SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
 
+# Box-START shared-rail back-extension (calibration gap #3 — AGCO, 2026-07-02).
+# Candidate starts are pinned to their anchor pair (cand_start = min(r_anchor,
+# s_anchor)), so the earliest-valid election can never reach an earlier start
+# its own gates would bless (AGCO: dissection proved the elected rails valid
+# from 03-25; the anchor pair proposes only 04-02). When enabled, the ELECTED
+# box's start walks LEFT to the earliest zigzag pivot that re-touches an
+# elected rail within TOUCH_TOLERANCE_ATR (peak~R / valley~S) with every
+# intervening bar inside the BOUNDARY_ATR_BUFFER band — on AGCO it lands on the
+# 03-30 S-touching valley (3 bars shy of full validity: the 03-25 peak never
+# re-touches R). Requiring the rail re-touch is what separates worked cause
+# from drift: raw band-conformance alone swallowed WDI's descent leg (+80) and
+# BYD's mid-band chop (+26) in the PRE-cutover adjusted-price census. On
+# as-traded data 94% of fires band-conform leftward (median +5), but the built
+# lever moves only 42/140 starts (median 6 bars) with 0 fires gained/lost/
+# re-storied (tools/box_backext_ab.py A/B). Rails, gate verdicts and the
+# election are untouched — but every read anchored to the box start re-measures
+# over the extended span (the base-window suite: base-age, traversal,
+# contractions, support slope, dwell, touch-volume, bar compression; plus the
+# spring / inner-box / LPS windows, bin evidence and the event-puzzle read).
+# Implemented in box_primitives.backext_shared_rail; applied post-election in
+# BOTH bricks.validate_equilibrium (live) and phase_b_zigzag (diagnostics).
+# FLIPPED ON 2026-07-03 after the operator eyeballed the A/B renders
+# (tools/fidelity/box_backext/); shadow baseline re-captured at the flip.
+BOX_BACKEXT_ENABLED = True
+
 # Markup-leg qualification (Phase A in find_outer_box)
 TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
 TREND_MIN_MOVE_BARS = 20         # Markup leg must span at least this many bars

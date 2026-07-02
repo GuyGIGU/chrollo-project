@@ -15,6 +15,7 @@ import pandas as pd
 from config import settings
 from core.structure.bin_features import _phase_c_candidate
 from core.structure.box_primitives import (
+    backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
     select_inner_box,
@@ -191,7 +192,9 @@ def validate_equilibrium(
     ``trace``: optional list; when given, the pair election narrates itself —
     every candidate R/S pair examined is recorded with its verdict (rejection
     gate, or "elected" for the winner), bars df-positional. ``None`` (the live
-    default) records nothing and changes nothing.
+    default) records nothing and changes nothing. When the flag-gated
+    shared-rail back-extension moves the elected start, the elected record
+    carries ``backext_bars`` and says so in its detail.
     """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
@@ -228,8 +231,21 @@ def validate_equilibrium(
         return None
 
     selected = select_phase_b_candidate(candidates, "earliest")
+    # Trailing *_ absorbs the judged-window length (slot 10); this path rebases
+    # the anchors itself against root.ar_bar below, so it reads the raw candidate.
+    quality, R, S, box_width, r_touches, s_touches, breach_days, \
+        r_anchor, s_anchor, cand_start, *_ = selected
+
+    # Shared-rail back-extension (BOX_BACKEXT_ENABLED, default off): candidate
+    # starts are pinned to their anchor pair, so the earliest-valid election
+    # cannot reach an earlier start its own gates would bless (gap #3, AGCO).
+    # Walk the ELECTED start left to the earliest rail-touching pivot with a
+    # band-conforming span; rails and the election itself are untouched.
+    ext_start = backext_shared_rail(eq_df, float(R), float(S), int(cand_start),
+                                    float(atr))
+
     if trace is not None:
-        key = (int(selected[7]), int(selected[8]), int(selected[9]))
+        key = (int(r_anchor), int(s_anchor), int(cand_start))
         n_valid = 0
         winner = None
         for rec in cascade:
@@ -243,14 +259,15 @@ def validate_equilibrium(
             winner["stage"] = "selection"
             winner["detail"] = "earliest-of-valid (longest cause)" + (
                 f"; beat {n_valid - 1} later valid framing(s)" if n_valid > 1 else "")
+            if ext_start != cand_start:
+                winner["backext_bars"] = int(cand_start - ext_start)
+                winner["detail"] += (
+                    f"; start back-extended {int(cand_start - ext_start)} bar(s) "
+                    "to a shared-rail pivot (BOX_BACKEXT)")
         _rebase_pair_trace(cascade, 0, root.ar_bar)
         trace.extend(cascade)
-    # Trailing *_ absorbs the judged-window length (slot 10); this path rebases
-    # the anchors itself against root.ar_bar below, so it reads the raw candidate.
-    quality, R, S, box_width, r_touches, s_touches, breach_days, \
-        r_anchor, s_anchor, cand_start, *_ = selected
 
-    start_bar = int(root.ar_bar + cand_start)
+    start_bar = int(root.ar_bar + ext_start)
     base_len = int(len(df) - start_bar)
     box_df = df.iloc[start_bar:]
     traversal = measure_traversal(box_df, float(R), float(S), float(atr))

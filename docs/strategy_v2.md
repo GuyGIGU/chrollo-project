@@ -54,19 +54,39 @@ The reader walks the chart left to right and anchors by descent:
    the 04-02 low 111.30 → 04-10 rebound 123.32 pair — 12 R-touches / 21 S-touches and
    8 full rail-to-rail traversals by the engine's own measure.)
 
-   > **Known divergence — box-start pinning (open calibration item, 2026-07-02).** On
-   > the same AGCO base the operator reads the earlier **03-25 → 03-30 pair** (H 119.24 →
-   > L 111.83) as the Root Swing. Dissection agreed with the *start* while keeping the
-   > engine's rails: the ELECTED rails (123.32/111.30) are **fully valid by every engine
-   > gate from 03-25** (respect 4-outside unchanged, MORE S-touches 21→24, traversal
-   > holds) — but that framing is *unproposable*, because candidate starts are pinned to
-   > the anchor pair (`cand_start = min(r_anchor, s_anchor)`). The earliest-valid
-   > election cannot reach an earlier start its own gates would bless: the
-   > "earliest-of-valid / longest cause" principle is undersold by candidate generation.
-   > Lever when the pattern clusters: band-conforming back-extension of the elected
-   > start (walk `cand_start` left over bars inside the buffered band) — rails and
-   > respect untouched; affects base_len / base-age score / occupancy windows, so
-   > flag-gated + shadow-checked. Secondary lever (the operator's shelf-R read itself —
+   > **Known divergence — box-start pinning (RESOLVED: lever built 2026-07-02, flipped
+   > LIVE 2026-07-03 after operator eyeball).** On the same AGCO base the operator reads the
+   > earlier **03-25 → 03-30 pair** (H 119.24 → L 111.83) as the Root Swing. Dissection
+   > agreed with the *start* while keeping the engine's rails: the ELECTED rails
+   > (123.32/111.30) are **fully valid by every engine gate from 03-25** — but that
+   > framing is *unproposable*, because candidate starts are pinned to the anchor pair
+   > (`cand_start = min(r_anchor, s_anchor)`); the earliest-valid election cannot reach
+   > an earlier start its own gates would bless. The census confirmed this is systemic
+   > (as-traded re-run: 94% of fires extend under raw band-conformance, median +5 bars)
+   > but the pre-cutover adjusted-price run also showed raw conformance is too loose
+   > (WDI +80 swallowed its descent leg; BYD +26 was mid-band chop). **The built lever
+   > = shared-rail back-extension** (`box_primitives.backext_shared_rail`, flag
+   > `BOX_BACKEXT_ENABLED`, default OFF): after election the start walks left to the
+   > earliest zigzag pivot that re-touches an elected rail within touch tolerance
+   > (peak≈R / valley≈S), with every intervening bar inside the buffered band. The
+   > rail re-touch requirement is the drift filter: AGCO extends onto the 03-30
+   > S-touching valley (3 bars shy of the proven 03-25 validity — the 03-25 peak never
+   > re-touches R); on as-traded data WDI no longer fires at all, and BYD's extension
+   > *survives* (44→41 bars) because a genuine S re-touch anchors it — the lever keeps
+   > worked cause, it does not veto wide boxes. A/B over the live universe: 42/140
+   > fire starts move (median 6 bars, max 49), **0 fires gained/lost, 0 re-storied**.
+   > Rails, gate verdicts and the election are untouched — but every read anchored to
+   > the box start re-measures over the extended span: the base-window suite (base-age,
+   > traversal quality, contractions, support slope, dwell, touch-volume, bar
+   > compression), the spring / inner-box / LPS windows, bin evidence, and the
+   > flag-gated event-puzzle read. Applied post-election in BOTH the live reader
+   > (`bricks.validate_equilibrium`) and the diagnostic mirror (`phase_b_zigzag` →
+   > `detect_boxes`), so every path frames the same box. The operator eyeballed the
+   > A/B renders (`tools/fidelity/box_backext/`, `tools/box_backext_ab.py`) and the
+   > flag went LIVE 2026-07-03; the shadow baseline was re-captured at the flip; a
+   > seeded backtest over cherry-picked setups remains the planned deeper validation.
+   > The trace annotates the elected pair with
+   > `backext_bars`. Secondary lever (the operator's shelf-R read —
    > R at the touch-cluster mode with April pushes as tolerated overshoot): parked
    > separately; the respect gate kills shelf-R framings on 16 above-R bars, and that
    > band is also the upthrust defense.
@@ -84,7 +104,7 @@ The reader walks the chart left to right and anchors by descent:
 | Reading step | Implementation |
 |---|---|
 | Trend end (Phase A) | `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgradeable by the flag-gated macro-PIP read (`macro_bridge_zigzag`, `PIP_MACRO_PHASE_A_ENABLED`, abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read") |
-| The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election. The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
+| The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the flag-gated `backext_shared_rail` start refinement, `BOX_BACKEXT_ENABLED`). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
 | Phase D evidence | `resolve_phase_d_boundary()` (support_tests / sos_reclaim / rising_support / inner_box / v_tip; LPS fallback) |

@@ -147,7 +147,9 @@ test('colorMiniCandles: clones input, paints limb grey and lps gold', () => {
   const out = colorMiniCandles(data);
   // source untouched (deep clone)
   assert.equal(candles[15].color, undefined);
-  // baseEnd = 19, baseStart = 14; limbStart=15, limbEnd=18 -> grey
+  // baseEnd = 19, baseStart = 14; limbStart = min(15, 18, baseStart) = 14
+  // (left edge pinned to the box start - the back-extension seam), limbEnd=18
+  assert.equal(out[14].color, '#596070');
   assert.equal(out[15].color, '#596070');
   assert.equal(out[18].color, '#596070');
   assert.equal(out[13].color, undefined);

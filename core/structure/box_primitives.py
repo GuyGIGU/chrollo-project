@@ -24,6 +24,7 @@ EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
 
 __all__ = [
     "EMPTY_BOX",
+    "backext_shared_rail",
     "collect_root_anchors",
     "inner_box_at",
     "collect_zigzag_candidates",
@@ -624,6 +625,51 @@ def select_phase_b_candidate(valid_candidates, select):
     return max(valid_candidates, key=lambda x: x[0])
 
 
+def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
+    """Shared-rail back-extension of an ELECTED framing's start (gap #3).
+
+    Candidate starts are pinned to their anchor pair (``cand_start =
+    min(r_anchor, s_anchor)``), so the earliest-valid election can never reach
+    an earlier start its own gates would bless (AGCO: the dissection proved
+    the elected rails valid from 03-25, but the anchor pair proposes only
+    04-02). When ``BOX_BACKEXT_ENABLED``, walk the elected start LEFT to the
+    EARLIEST zigzag pivot that re-touches an elected rail within touch
+    tolerance (peak ~ R or valley ~ S) with every intervening bar inside the
+    buffered band [S - buf, R + buf]. On AGCO that lands on the 03-30
+    S-touching valley — 3 bars shy of full validity, because the 03-25 peak
+    never re-touches R. Anchoring the extension to a rail re-touch is what
+    separates worked cause from drift (a descent leg or mid-band chop never
+    qualifies, however band-conforming).
+
+    POST-election refinement: rails, the respect/occupancy verdicts and the
+    election itself are untouched, and the extended span is conforming-by-
+    construction so boundary respect can only improve. But the start moves,
+    so every read anchored to it re-measures: the base-window suite
+    (base-age, traversal, contractions, support slope, dwell, touch-volume,
+    bar compression), the spring / inner-box / LPS windows, bin evidence,
+    the event puzzle. Returns the (possibly unchanged) window-relative start.
+    """
+    if not settings.BOX_BACKEXT_ENABLED or cand_start <= 0:
+        return cand_start
+    eq_highs = eq_df['High'].values
+    eq_lows = eq_df['Low'].values
+    peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(len(eq_df)))
+    zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
+    tol = settings.TOUCH_TOLERANCE_ATR * atr_val
+    buf = settings.BOUNDARY_ATR_BUFFER * atr_val
+    for bar, kind, price in zigzag:                     # oldest pivot first
+        if bar >= cand_start:
+            break
+        touches_rail = (abs(price - R_val) <= tol if kind == 'peak'
+                        else abs(price - S_val) <= tol)
+        if not touches_rail:
+            continue
+        if float(eq_highs[bar:cand_start].max()) <= R_val + buf \
+                and float(eq_lows[bar:cand_start].min()) >= S_val - buf:
+            return int(bar)
+    return cand_start
+
+
 def _debug_candidates(valid_candidates, base_length):
     return [
         {
@@ -671,6 +717,14 @@ def phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
         return _debug_candidates(valid_candidates, base_length)
 
     selected = select_phase_b_candidate(valid_candidates, select)
+    # The diagnostic mirror applies the same flag-gated shared-rail
+    # back-extension as the live reader (bricks.validate_equilibrium), so
+    # detect_boxes-based tools frame the SAME box as production. No-op when
+    # the flag is off or nothing extends.
+    ext_start = backext_shared_rail(eq_df, selected[1], selected[2],
+                                    int(selected[9]), atr_val)
+    if ext_start != selected[9]:
+        selected = selected[:9] + (int(ext_start),) + selected[10:]
     return _rebase_selected_candidate(selected, base_length)
 
 

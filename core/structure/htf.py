@@ -296,7 +296,11 @@ def chart_box(daily_df: pd.DataFrame, tf: str) -> Optional[dict]:
             "s": round(float(box.S), 4),
             "start_date": _date(box.start_bar),
             "phase": s["phase"],
-            "limb_start_date": _date(min(int(box.r_anchor_bar), int(box.s_anchor_bar))),
+            # start_bar in the min: the shared-rail back-extension can open the
+            # box before the anchor pair; the grey limb must still mark its left
+            # edge (mirrors the daily-chart sites in chartGeometry/overlay).
+            "limb_start_date": _date(min(int(box.r_anchor_bar), int(box.s_anchor_bar),
+                                         int(box.start_bar))),
             "limb_end_date": _date(max(int(box.r_anchor_bar), int(box.s_anchor_bar))),
             "lps_start_date": _date(lps.start_bar) if lps is not None else None,
             "lps_end_date": _date(lps.end_bar) if lps is not None else None,

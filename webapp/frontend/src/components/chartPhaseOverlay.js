@@ -234,7 +234,11 @@ export const buildPhaseRegions = (data) => {
     const baseStart = baseEnd - baseLen + 1;
     const rBar = baseStart + rAnchor;
     const sBar = baseStart + sAnchor;
-    const region = buildRegion('a', candles, Math.min(rBar, sBar), Math.max(rBar, sBar));
+    // Left edge pinned to the box start: with the engine's shared-rail
+    // back-extension the box can open BEFORE the anchor pair, and the A band
+    // must keep leading into Phase B rather than float inside it. (Without the
+    // extension min(rBar, sBar) === baseStart, so this changes nothing.)
+    const region = buildRegion('a', candles, Math.min(rBar, sBar, baseStart), Math.max(rBar, sBar));
     if (region) regions.push(region);
   } else if (indexes.phaseAStart != null) {
     const fallbackEnd = indexes.phaseBStart != null

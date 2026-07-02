@@ -92,6 +92,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SOS_TRIM_ENABLED",
     "SOS_TRIM_MIN_RUN",
     "SOS_TRIM_MIN_PREFIX_FRAC",
+    # Box-start shared-rail back-extension (Phase B)
+    "BOX_BACKEXT_ENABLED",
     # SOS event detection (box_events.read_box_events -> puzzle completeness)
     "SOS_NEAR_R_MAX_BOX",
     "SOS_HOLD_MAX_RANGE_BOX",

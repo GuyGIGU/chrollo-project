@@ -111,7 +111,9 @@ export const colorMiniCandles = (data) => {
   const forwardBars = data.forward_bars || 0;
   const baseEnd = candles.length - 1 - forwardBars;
   const baseStart = baseEnd - data.base_len + 1;
-  const limbStart = Math.min(baseStart + data.r_anchor, baseStart + data.s_anchor);
+  // baseStart in the min: the shared-rail back-extension can open the box
+  // before the anchor pair; the grey base-limb must still mark its left edge.
+  const limbStart = Math.min(baseStart + data.r_anchor, baseStart + data.s_anchor, baseStart);
   const limbEnd = Math.max(baseStart + data.r_anchor, baseStart + data.s_anchor);
   for (let index = limbStart; index <= limbEnd; index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = '#596070';

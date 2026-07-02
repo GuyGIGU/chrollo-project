@@ -67,7 +67,9 @@ const colorBase = (candles, data, baseStart, baseEnd) => {
   const rawBaseStart = baseEnd - data.base_len + 1;
   const rBar = rawBaseStart + data.r_anchor;
   const sBar = rawBaseStart + data.s_anchor;
-  for (let index = Math.min(rBar, sBar); index <= Math.max(rBar, sBar); index += 1) {
+  // rawBaseStart in the min: the shared-rail back-extension can open the box
+  // before the anchor pair; the base coloring must still cover its left edge.
+  for (let index = Math.min(rBar, sBar, rawBaseStart); index <= Math.max(rBar, sBar); index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = '#5d6474';
   }
 };
