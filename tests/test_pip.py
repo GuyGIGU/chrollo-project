@@ -106,13 +106,55 @@ def test_macro_bridge_stops_before_the_climax_thief():
     assert max(peaks, key=lambda t: t[1])[0] == 39   # climax = the LEFT top
 
 
-def test_macro_bridge_fresh_climax_falls_back():
+def test_macro_bridge_fresh_climax_abstains():
     # Monotone wiggly rise: the extreme is the right edge, no AR has held yet.
     t = np.arange(60, dtype=float)
     P = 100.0 + t + 0.8 * np.sin(t)
     zz, k = macro_bridge_zigzag(P + 0.5, P - 0.5, with_k=True)
-    assert k is None                       # no confirmed bridge by k_max
-    assert len(zz) >= 2                    # falls back to the finest prefix
+    assert k is None                       # no validated bridge by k_max
+    assert zz == []                        # ABSTAINS -> caller uses order-N
+
+
+def test_confirmed_bridge_guards_tnc_class():
+    # TNC class, tested on the pure guard: a shallow old-top bridge whose leg
+    # CONTAINS the crash low (AR extremity) — and, separately, whose climax is
+    # later exceeded by far more than the bridge height (terminality).
+    from core.structure.pip import _validated_bridge
+
+    P = np.concatenate([
+        np.linspace(100.0, 140.0, 11),      # bars 0..10, old top 140 @10
+        np.linspace(140.0, 60.0, 11)[1:],   # bars 11..20, crash low 60 @20
+        np.linspace(60.0, 120.0, 21)[1:],   # bars 21..40, recovery to 120
+        np.linspace(120.0, 110.0, 11)[1:],  # bars 41..50, pullback low @50
+        np.linspace(110.0, 118.0, 10)[1:],  # bars 51..59, right edge
+    ])
+    highs, lows = P + 0.5, P - 0.5
+
+    # Bad bridge: old top -> POST-RECOVERY pullback; the crash lies inside the
+    # leg, so the AR is not its own extreme -> rejected.
+    bad = [(0, "valley", lows[0]), (10, "peak", highs[10]),
+           (50, "valley", lows[50]), (59, "peak", highs[59])]
+    assert _validated_bridge(bad, 59, highs, lows) is None
+
+    # Honest bridge on the same chart: old top -> crash low IS a clean
+    # climax->AR leg (recovery never decisively exceeds the top) -> accepted,
+    # with the bridge indices pointing at the climax and its AR.
+    ok = [(0, "valley", lows[0]), (10, "peak", highs[10]),
+          (20, "valley", lows[20]), (59, "peak", highs[59])]
+    assert _validated_bridge(ok, 59, highs, lows) == (1, 2)
+
+
+def test_macro_bridge_rejects_taken_out_climax():
+    # ATI class: a pullback whose "climax" is decisively taken out by the
+    # continuing trend right after — terminality must reject the bridge.
+    up1 = np.linspace(100.0, 150.0, 40)                  # markup leg 1
+    dip = np.linspace(150.0, 138.0, 5)[1:]               # small pullback
+    up2 = np.linspace(138.0, 185.0, 30)[1:]              # trend continues WAY up
+    P = np.concatenate([up1, dip, up2])
+    zz, k = macro_bridge_zigzag(P + 0.5, P - 0.5, with_k=True)
+    # The only interior bridge is 150->138, exceeded by +35 (~2.9x bridge
+    # height) afterwards -> reject -> abstain (fresh-trend chart, no story).
+    assert k is None and zz == []
 
 
 def test_macro_bridge_downtrend_mirror_sc():

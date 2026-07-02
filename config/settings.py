@@ -51,6 +51,12 @@ PIP_PIVOTS_DIST_MIN = 0.03
 # Default OFF until the eyeball gate clears (tools/phase_a_pip_diff.py).
 PIP_MACRO_PHASE_A_ENABLED = False
 PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried
+# Climax-terminality guard: post-AR highs may exceed the climax by at most this
+# fraction of the bridge height (chart-jury calibration 2026-07-02: honest range
+# pokes BYD +0.20x / GOOD +0.13x pass, trend continuation ATI +0.93x /
+# AXTA +1.79x fails). No validated bridge => the macro read ABSTAINS and the
+# calibrated order-N read speaks — the merge contract.
+PIP_MACRO_MAX_POST_EXCESS = 0.5
 
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone

@@ -57,6 +57,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIP_PIVOTS_DIST_MIN",
     "PIP_MACRO_PHASE_A_ENABLED",
     "PIP_MACRO_K_MAX",
+    "PIP_MACRO_MAX_POST_EXCESS",
     # Dynamic recursive S/R scanning (Phase B)
     "BOUNDARY_ATR_BUFFER",
     "MAX_CONSECUTIVE_OUTSIDE_DAYS",

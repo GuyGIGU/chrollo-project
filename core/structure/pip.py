@@ -37,6 +37,7 @@ from typing import Optional
 
 import numpy as np
 
+from config import settings
 from core.structure.pivots import _build_zigzag
 
 
@@ -160,33 +161,79 @@ def _zigzag_from_indices(idx_sorted: list[int], P: np.ndarray,
     return _build_zigzag(peaks, valleys, highs, lows)
 
 
-def _confirmed_bridge(zigzag: list, last_bar: int) -> bool:
-    """Does this skeleton hold a CONFIRMED macro climax->AR bridge?
+def _validated_bridge(zigzag: list, last_bar: int,
+                      highs: np.ndarray, lows: np.ndarray,
+                      max_post_excess: float = 0.5):
+    """The CONFIRMED, VALIDATED macro climax->AR bridge in this skeleton —
+    ``(climax_i, ar_i)`` zigzag indices, or ``None``.
 
     Mirrors ``segmentation._find_root_swing``'s conventions: dominant direction
     from the zigzag's net displacement; climax = the extreme pivot in that
     direction (leftmost on ties — the pivot that BIRTHS the range). Confirmed
     means a pivot exists after the climax AND it is INTERIOR (bar < last_bar):
     the right edge is "now", an unconfirmed extreme, never an AR.
+
+    Two validity guards (the chart-jury failure classes, 2026-07-02):
+
+    * AR EXTREMITY — the AR must be the extreme of its own reaction leg. A
+      bridge whose leg contains a deeper low (BC roots) / higher high (SC
+      roots) than its AR endpoint is glued ACROSS other structure — the TNC
+      class, where the "reaction" spanned an entire crash and recovery.
+    * CLIMAX TERMINALITY — after the AR, price may exceed the climax by at
+      most ``max_post_excess`` x the bridge height. A "climax" that is
+      immediately and decisively taken out was a pause in an ongoing trend,
+      not the swing that birthed a range — the ATI/AXTA class. The tolerance
+      is bridge-relative (scale-free): honest range pokes above the climax
+      (BYD +0.20x, GOOD +0.13x) pass; trend continuation (ATI +0.93x,
+      AXTA +1.79x) fails.
     """
     if len(zigzag) < 2:
-        return False
+        return None
     net = float(zigzag[-1][2]) - float(zigzag[0][2])
     if net == 0.0:
-        return False
+        return None
     if net > 0:
-        cands = [i for i, (_b, kind, _p) in enumerate(zigzag) if kind == "peak"]
-        if not cands:
-            return False
-        climax_i = max(cands, key=lambda i: zigzag[i][2])
+        # Climax CANDIDATES by descending extremity — not just the argmax. An
+        # unconfirmable extreme (a fresh right-edge higher-high with no held
+        # reaction after it) must not kill the read when the next-most-extreme
+        # peak has a validated bridge; the terminality guard still bounds how
+        # far any later high may exceed the chosen climax (the BYD case).
+        cands = sorted((i for i, (_b, k, _p) in enumerate(zigzag) if k == "peak"),
+                       key=lambda i: -zigzag[i][2])
     else:
-        cands = [i for i, (_b, kind, _p) in enumerate(zigzag) if kind == "valley"]
-        if not cands:
-            return False
-        climax_i = min(cands, key=lambda i: zigzag[i][2])
-    if climax_i + 1 >= len(zigzag):
-        return False
-    return int(zigzag[climax_i + 1][0]) < int(last_bar)
+        cands = sorted((i for i, (_b, k, _p) in enumerate(zigzag) if k == "valley"),
+                       key=lambda i: zigzag[i][2])
+
+    for climax_i in cands:
+        if climax_i + 1 >= len(zigzag):
+            continue
+        ar_bar = int(zigzag[climax_i + 1][0])
+        if ar_bar >= int(last_bar):
+            continue
+        cb = int(zigzag[climax_i][0])
+        if net > 0:
+            # AR extremity: no deeper low inside the leg than the AR itself.
+            if float(np.min(lows[cb:ar_bar + 1])) < float(lows[ar_bar]) - 1e-9:
+                continue
+            # Climax terminality: post-AR highs bounded vs bridge height.
+            bridge_h = float(highs[cb]) - float(lows[ar_bar])
+            if bridge_h <= 0:
+                continue
+            post = highs[ar_bar + 1:]
+            if post.size and float(np.max(post)) > float(highs[cb]) + max_post_excess * bridge_h:
+                continue
+        else:
+            # SC-root mirror of both guards.
+            if float(np.max(highs[cb:ar_bar + 1])) > float(highs[ar_bar]) + 1e-9:
+                continue
+            bridge_h = float(highs[ar_bar]) - float(lows[cb])
+            if bridge_h <= 0:
+                continue
+            post = lows[ar_bar + 1:]
+            if post.size and float(np.min(post)) < float(lows[cb]) - max_post_excess * bridge_h:
+                continue
+        return climax_i, climax_i + 1
+    return None
 
 
 def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
@@ -204,12 +251,15 @@ def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
     flat ``dist_min`` read admits every above-threshold turn at once, which is
     exactly how it created the GBTG/PLSE/CGNX inversions.)
 
-    No confirmed bridge by ``k_max`` (e.g. a fresh climax whose reaction hasn't
-    held yet) falls back to the finest prefix zigzag — no strong macro claim;
-    downstream ``resolve_phase_a`` fallbacks behave as today.
+    No VALIDATED bridge by ``k_max`` (a fresh climax whose reaction hasn't
+    held, a trend still making highs, a leg glued across other structure) is
+    an ABSTENTION: return ``[]`` and let the caller use the calibrated order-N
+    read instead. The macro read speaks only when it has a validated story —
+    that is the merge contract with the shipped engine (chart-jury decision,
+    2026-07-02).
 
-    Returns the zigzag, or ``(zigzag, k)`` when ``with_k`` (``k`` is ``None``
-    on fallback) for tools/tests.
+    Returns the zigzag (``[]`` on abstention), or ``(zigzag, k)`` when
+    ``with_k`` (``k`` is ``None`` on abstention) for tools/tests.
     """
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
@@ -222,15 +272,22 @@ def macro_bridge_zigzag(highs, lows, *, k_start: int = 4, k_max: int = 24,
         return ([], None) if with_k else []
 
     last_bar = n - 1
-    fallback: list = []
+    excess = float(getattr(settings, "PIP_MACRO_MAX_POST_EXCESS", 0.5))
     for k in range(min(max(k_start, 2), len(order)), len(order) + 1):
         zigzag = _zigzag_from_indices(sorted(order[:k]), P, highs, lows)
         if len(zigzag) < 2:
             continue
-        fallback = zigzag
-        if _confirmed_bridge(zigzag, last_bar):
-            return (zigzag, k) if with_k else zigzag
-    return (fallback, None) if with_k else fallback
+        bridge = _validated_bridge(zigzag, last_bar, highs, lows, excess)
+        if bridge is not None:
+            # BINDING validation: hand downstream ONLY the validated story —
+            # the approach legs up to the climax, ending at the AR. Every
+            # downstream read (the resolve_phase_a bridge search over swings,
+            # or _find_root_swing's climax->next-pivot) can then only ever
+            # draw the guarded bridge, never an unvalidated sibling swing.
+            _climax_i, ar_i = bridge
+            out = zigzag[:ar_i + 1]
+            return (out, k) if with_k else out
+    return ([], None) if with_k else []
 
 
 def pip_skeleton(df, levels=(5, 15, 40), *, metric: str = "vertical",

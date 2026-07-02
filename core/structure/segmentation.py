@@ -101,7 +101,11 @@ def _find_root_swing(zigzag, swings, atr_val, dominant, base_off) -> Optional[di
 
 
 def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
-                   order: Optional[int] = None) -> dict:
+                   order: Optional[int] = None,
+                   bridge_end_max: Optional[int] = None,
+                   bridge_kind: Optional[str] = None,
+                   bridge_ar_price_max: Optional[float] = None,
+                   bridge_ar_price_min: Optional[float] = None) -> dict:
     """Measure the swing structure of ``df`` and locate the root swing.
 
     Args:
@@ -114,9 +118,28 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
             whole frame.
         order: pivot half-window. None picks PIVOT_ORDER_LONG/SHORT by window
             size, matching the rest of the structure engine.
+        bridge_end_max: df-positional bar the MACRO read's AR must not overrun
+            (the box birth + tolerance, passed by resolve_phase_a). Read ONLY
+            by the macro branch: a validated bridge whose AR lands beyond it
+            tells a post-breakout story, not this box's Phase A -> abstain.
+        bridge_kind: the canonical root kind ("BC"/"SC") the macro story must
+            match — a peak climax for BC, a valley climax for SC. A macro SC
+            story on a BC root contradicts the canonical read (and would be
+            clobbered by _enforce_bc_downswing anyway) -> abstain. None = no
+            constraint.
+        bridge_ar_price_max / bridge_ar_price_min: the box-level relation. A
+            BC story's AR low must reach DOWN to the box (<= R + tolerance);
+            an SC story's AR high must reach UP to it (>= S - tolerance). A
+            story floating above/below the box is a breakout/other-leg tale,
+            not this box's Phase A (the AXTA class) -> abstain.
 
     Returns a JSON-safe dict (see module docstring / _empty for the shape).
-    All measurement, no opinion.
+    All measurement, no opinion — except the flag-gated MACRO branch, whose
+    ``root_swing`` and ``dominant_direction`` are the VALIDATED story (the
+    guarded climax->AR bridge), not re-derived from the window's net sign:
+    the story's trend direction is part of what was validated, and window-net
+    re-derivation is exactly what mis-painted GOOD (window opens above a deep
+    AR -> net flips negative -> the story got lost downstream).
     """
     if atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
         return _empty()
@@ -138,16 +161,37 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         return _empty()
     n = len(highs)
 
+    zigzag = None
+    macro_story = False
     if settings.PIP_MACRO_PHASE_A_ENABLED:
         # The coarse->fine MACRO read (checked FIRST): the zigzag at the
-        # smallest top-K importance prefix holding a confirmed climax->AR
-        # bridge, so late range retests / noise dips are not in the skeleton to
-        # steal the climax or AR. Same (bar, kind, price) shape and the same
-        # safe surface as the flat wire below — segment_swings feeds only
+        # smallest top-K importance prefix holding a confirmed, guard-validated
+        # climax->AR bridge, so late range retests / noise dips are not in the
+        # skeleton to steal the climax or AR. The returned STORY ends at the
+        # validated AR (story[-2] = climax, story[-1] = AR, by construction).
+        # Same safe surface as the flat wire below — segment_swings feeds only
         # resolve_phase_a (the Phase-A OVERLAY), never R/S/score/tier.
+        # Abstention ([] or an AR beyond bridge_end_max — a post-breakout
+        # story, not this box's Phase A) falls through to the calibrated
+        # order-N read below — the merge contract.
         from core.structure.pip import macro_bridge_zigzag
-        zigzag = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
-    elif settings.PIP_PIVOTS_ENABLED:
+        story = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
+        if len(story) >= 2:
+            ar_df_pos = base_off + int(story[-1][0])
+            is_bc = story[-2][1] == "peak"
+            ar_price = float(story[-1][2])
+            kind_ok = (bridge_kind is None
+                       or is_bc == (bridge_kind == "BC"))
+            level_ok = (
+                (bridge_ar_price_max is None or ar_price <= float(bridge_ar_price_max))
+                if is_bc else
+                (bridge_ar_price_min is None or ar_price >= float(bridge_ar_price_min))
+            )
+            if kind_ok and level_ok and (bridge_end_max is None
+                                         or ar_df_pos <= int(bridge_end_max)):
+                zigzag = story
+                macro_story = True
+    if zigzag is None and settings.PIP_PIVOTS_ENABLED:
         # Phase-2 (measure-first): source the swing skeleton from the
         # multi-resolution PIP substrate (core.structure.pip) instead of
         # fixed-order pivots. Same (bar, kind, price) shape, so the swing /
@@ -159,7 +203,7 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         # NB: eyeball-gated OFF as a wash (d43e7fd); kept reachable for A/B.
         from core.structure.pip import pip_pivots
         zigzag = pip_pivots(highs, lows, dist_min=settings.PIP_PIVOTS_DIST_MIN)
-    else:
+    if zigzag is None:
         if order is None:
             order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
                      else settings.PIVOT_ORDER_SHORT)
@@ -188,7 +232,29 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
     efficiency = (abs(net_disp) / path) if path > 0 else None
     dominant = 1 if net_disp > 0 else (-1 if net_disp < 0 else 0)
 
-    root = _find_root_swing(zigzag, swings, atr_val, dominant, base_off)
+    if macro_story:
+        # The validated story IS the root: story[-2] = climax, story[-1] = AR.
+        # Direction comes from the bridge type (peak climax = BC after an
+        # up-trend, valley climax = SC), never from the window's net sign.
+        climax_i = len(zigzag) - 2
+        bc_pivot, ar_pivot = zigzag[climax_i], zigzag[-1]
+        dominant = 1 if bc_pivot[1] == "peak" else -1
+        prior_pullbacks = [s["abs_disp_atr"] for s in swings[:climax_i]
+                           if s["direction"] == -dominant]
+        ref = float(np.median(prior_pullbacks)) if prior_pullbacks else None
+        counter_disp = abs(ar_pivot[2] - bc_pivot[2]) / atr_val
+        root = {
+            "swing_index": int(climax_i),
+            "bc_bar": int(base_off + bc_pivot[0]),
+            "ar_bar": int(base_off + ar_pivot[0]),
+            "trend_direction": int(dominant),
+            "trend_disp_atr": round(abs(float(bc_pivot[2] - zigzag[0][2])) / atr_val, 4),
+            "counter_disp_atr": round(float(counter_disp), 4),
+            "counter_burst_ratio": (round(float(counter_disp / ref), 4)
+                                    if (ref is not None and ref > 0) else None),
+        }
+    else:
+        root = _find_root_swing(zigzag, swings, atr_val, dominant, base_off)
 
     return {
         "swings": swings,

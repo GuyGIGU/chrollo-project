@@ -127,3 +127,84 @@ wash, kept. No new inversions observed in the eyeballed set.
 **Verdict so far: strongly macro-favorable, pending the operator's own pass
 over `tools/fidelity/pip_phase_a/` before flipping
 `PIP_MACRO_PHASE_A_ENABLED`.** (House rule: the operator flips, not the build.)
+
+---
+
+# The full engine comparison (2026-07-02): pick one or merge?
+
+The operator asked the bigger question: which SKELETON should the engine read
+charts with, judged by "tighter = better for Box, LPS, Bar Spread, Uptrend"?
+Answered with a three-front evidence campaign (multi-agent chart juries +
+code analysis + a full-stack substrate A/B, `tools/substrate_ab.py`).
+
+## Scope fact first: what each criterion actually depends on
+
+LPS detection (`lps.py`) imports no pivots — pure bar geometry. Bar spread,
+ATR, volume, ADR, RS, breadth: bar-level. The MA/return uptrend context:
+bar-level. **Only the BOX (box_primitives) and the zigzag-derived measures
+(contraction / ascending-support / traversal in metrics.py) are
+substrate-dependent** — plus the Phase-A overlay and the L2 event labels.
+
+## Front 1 — full-stack substrate A/B (the real pipeline, both skeletons)
+
+5,498 tickers through `_evaluate_ticker` twice (A = shipped pivots, B = PIP
+election patched into box_primitives+metrics only): A fires 73, B fires 95
+(both 66, only-A 7, only-B 29); on the 35 common fires whose box moved, B is
+numerically tighter 25:9 (median −0.0033 width).
+
+**The chart jury reversed the numbers.** On the 12 most divergent boxes
+(2 lenses each): **A wins 18:6 lens-votes; B flagged FALSELY TIGHT in 14/24
+judgements** — B buys width by slicing rails through real excursions (BCH's R
+overrun by ~8% twice; SANM's R through the right-edge chop; GOOD's R through a
+real high cluster). Mechanism (code analysis, `pip-failure-modes`, BLOCKER):
+hl2-chord election + a dist_min floor that starves small coil swings in
+VCP-shaped windows + rails anchored off the true High/Low bar + gap phantom
+limbs + 1–2 orders of magnitude cost. B's honest wins (BBT, PAGP) are the
+known "S anchored on a one-time birth low" class. Of B's 7 drops, 5 were
+WRONG (RPRX's base scored 7.5/10); of its 29 new fires, 4/8 sampled were junk
+dilution (the traversal gate's floors are order-1-census-calibrated —
+swapping the skeleton silently changes the gate's meaning; the extra fires
+are largely an artifact). Calibration coupling is concentrated in
+`TRAVERSAL_*`; the `EQ_*`/touch/respect gates are bar-level and
+substrate-neutral.
+
+**DECISION — Box/LPS substrate: the shipped engine WINS. Full migration
+REJECTED on evidence.** The one open idea worth parking: PIP as an
+*additional candidate generator* feeding the existing substrate-neutral
+validity gates (never a substrate swap), for the BBT/PAGP/ECL/HRI gap class.
+
+## Front 2 — Phase-A overlay: MERGE, implemented as guarded macro
+
+Chart jury on 10 movers (Wyckoff purist + macro-skeptic per chart, unanimous
+pairs): macro sweeps 6 (OFF = degenerate stubs, 1–2/10), OFF wins 4 — macro's
+failure classes: bridging across a crash (TNC), SC-story-vs-BC-root
+inversion (POCI), and right-edge stubs on fresh-breakout charts (ATI/AXTA).
+
+The merge contract, now built into the macro read (all flag-gated dark):
+
+1. **Guard-validated bridge** (`pip._validated_bridge`): climax candidates by
+   descending extremity (not just the argmax — an unconfirmable fresh
+   right-edge higher-high must not kill the read); AR EXTREMITY (the AR is
+   its own leg's extreme — kills crash-spanning bridges); CLIMAX TERMINALITY
+   (post-AR excess bounded by `PIP_MACRO_MAX_POST_EXCESS` × bridge height —
+   kills taken-out climaxes).
+2. **Binding validation**: the story handed downstream is truncated at the
+   validated AR (`story[-2]` = climax, `story[-1]` = AR) so no downstream
+   swing-search can draw an unvalidated sibling swing.
+3. **Explicit root**: `segment_swings` (macro branch) emits the validated
+   bridge AS `root_swing` with the story's own direction — never re-derived
+   from the window's net sign (the GOOD failure).
+4. **Box relation** (via `resolve_phase_a`): the story must match the
+   canonical root kind (BC/SC — else `_enforce_bc_downswing` fights it), its
+   AR may not land beyond the box birth + tolerance, and its AR must reach
+   the box's level. Any failure → ABSTAIN → the calibrated order-N read
+   speaks.
+
+Jury-set outcome of the merged read vs the INCUMBENT: better on GOOD (+6)
+and SAFE (+6.2), fixes TNC/ATI by abstention, ties (= incumbent) on
+BYD/SABS/MTRX/PH, one known miss (POCI, SC-story accepted, 2/10 vs 5/10).
+The four ties are recoverable upside: the unguarded macro won them 5.8–8.2,
+so the kind/end-max/level constraints are candidates for LOOSENING — a
+calibration pass over the full 57-mover census with the operator's eyeball,
+per the incremental-loop discipline. Guard knobs are individually visible in
+`resolve_phase_a`'s call; the census tool is `tools/phase_a_pip_diff.py`.
