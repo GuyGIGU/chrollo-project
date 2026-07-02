@@ -170,12 +170,29 @@ def find_root_swing(
     return None
 
 
+def _rebase_pair_trace(trace, from_idx, offset):
+    """Shift pair-cascade bars recorded window-relative into df positions."""
+    if trace is None:
+        return
+    for rec in trace[from_idx:]:
+        rec["r_anchor_bar"] += offset
+        rec["s_anchor_bar"] += offset
+        rec["cand_start"] += offset
+
+
 def validate_equilibrium(
     df: "pd.DataFrame",
     root: RootSwing,
     atr,
+    trace=None,
 ) -> EquilibriumBox | None:
-    """Validate a worked Phase-B range born from ``root``."""
+    """Validate a worked Phase-B range born from ``root``.
+
+    ``trace``: optional list; when given, the pair election narrates itself —
+    every candidate R/S pair examined is recorded with its verdict (rejection
+    gate, or "elected" for the winner), bars df-positional. ``None`` (the live
+    default) records nothing and changes nothing.
+    """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
     if not ({"High", "Low", "Close"} <= set(df.columns)):
@@ -193,16 +210,41 @@ def validate_equilibrium(
     if len(eq_df) < settings.MIN_BASE_DAYS:
         return None
 
+    # Scope the cascade to THIS call: collect + the traversal gate match records
+    # inside the list they are handed, so a caller-reused list must never leak
+    # earlier calls' records into their view. Appended back at the end.
+    cascade = [] if trace is not None else None
     candidates = collect_zigzag_candidates(
         eq_df,
         len(df) - root.ar_bar,   # base_length in full-df terms (matches legacy)
         float(atr),
         enforce_traversal=True,
+        trace=cascade,
     )
     if not candidates:
+        if trace is not None:
+            _rebase_pair_trace(cascade, 0, root.ar_bar)
+            trace.extend(cascade)
         return None
 
     selected = select_phase_b_candidate(candidates, "earliest")
+    if trace is not None:
+        key = (int(selected[7]), int(selected[8]), int(selected[9]))
+        n_valid = 0
+        winner = None
+        for rec in cascade:
+            if rec["verdict"] != "valid":
+                continue
+            n_valid += 1
+            if (rec["r_anchor_bar"], rec["s_anchor_bar"], rec["cand_start"]) == key:
+                winner = rec
+        if winner is not None:
+            winner["verdict"] = "elected"
+            winner["stage"] = "selection"
+            winner["detail"] = "earliest-of-valid (longest cause)" + (
+                f"; beat {n_valid - 1} later valid framing(s)" if n_valid > 1 else "")
+        _rebase_pair_trace(cascade, 0, root.ar_bar)
+        trace.extend(cascade)
     # Trailing *_ absorbs the judged-window length (slot 10); this path rebases
     # the anchors itself against root.ar_bar below, so it reads the raw candidate.
     quality, R, S, box_width, r_touches, s_touches, breach_days, \

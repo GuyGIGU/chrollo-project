@@ -43,7 +43,9 @@ class _Bricks:
                 return r
         return None
 
-    def validate_equilibrium(self, df, root, atr):
+    def validate_equilibrium(self, df, root, atr, trace=None):
+        # ``trace`` mirrors the real brick's pair-cascade kwarg; the spine passes
+        # it only when the caller is tracing (same contract as find_lps diagnose).
         return self._boxes.get(root.climax_bar)
 
     def find_spring(self, df, box, atr):
@@ -179,6 +181,23 @@ def test_read_structure_trace_records_no_lps_then_backtracks():
     assert trace[0]["box"] is not None            # box validated...
     assert trace[0]["lps"] is None                # ...but no LPS
     assert trace[0]["lps_rejects"]["parent"]      # and we recorded why
+
+
+def test_read_structure_trace_carries_the_box_cascade():
+    # The spine hands the brick a cascade list and attaches it to the root
+    # record — the pair election narrating itself travels with the story.
+    class _CascadeBricks(_Bricks):
+        def validate_equilibrium(self, df, root, atr, trace=None):
+            if trace is not None:
+                trace.append({"verdict": "elected", "stage": "selection"})
+            return super().validate_equilibrium(df, root, atr)
+
+    bricks = _CascadeBricks([_root(10, 20)], {10: _box(20)},
+                            {20: None}, {20: _lps(85)})
+    trace: list = []
+    s = read_structure(None, 1.0, bricks=bricks, trace=trace)
+    assert s is not None
+    assert trace[0]["box_cascade"] == [{"verdict": "elected", "stage": "selection"}]
 
 
 def test_read_structure_trace_is_opt_in_noop_by_default():

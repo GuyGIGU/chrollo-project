@@ -288,9 +288,15 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
 
     ``trace``: pass a list to record the story the spine builds — one entry per
     root attempted, with each brick's verdict + (on failure) the reject reasons,
-    and the outcome ("no_box" / "no_lps" / "complete"). Default ``None`` = no
-    trace, zero behaviour change (the live path never pays for it). This is the
-    engine explaining its own walk, so consumers stop re-deriving it externally.
+    and the outcome ("no_box" / "no_lps" / "complete"). Each entry also carries
+    ``box_cascade``: the pair election narrating itself — every candidate R/S
+    pair examined inside ``validate_equilibrium`` with the stage that rejected
+    it (width / window / respect / occupancy / traversal / rescue_unused), or
+    "elected" (stage "selection") for the winner. This
+    is the Root-Swing cascade of the Reading Model (strategy_v2.md) made
+    explicit. Default ``None`` = no trace, zero behaviour change (the live path
+    never pays for it). This is the engine explaining its own walk, so consumers
+    stop re-deriving it externally.
     """
     if bricks is None:
         from core.structure import bricks  # noqa: PLC0415 — lazy: real validators
@@ -312,13 +318,20 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
                 "ar_bar": int(root.ar_bar),
                 "kind": getattr(root, "kind", None),
                 "reaction_pct": round(float(getattr(root, "reaction_pct", 0.0)), 3),
-                "box": None, "spring": None, "inner": None,
+                "box": None, "box_cascade": None, "spring": None, "inner": None,
                 "lps": None, "lps_rejects": None, "outcome": None,
             }
             trace.append(rec)
 
-        # Phase B: is the region a genuinely worked equilibrium?
-        box = bricks.validate_equilibrium(df, root, atr)
+        # Phase B: is the region a genuinely worked equilibrium? When tracing,
+        # the pair election narrates its cascade — every candidate R/S pair
+        # examined, the gate that rejected it, and why the winner was elected.
+        if rec is not None:
+            cascade: list = []
+            box = bricks.validate_equilibrium(df, root, atr, trace=cascade)
+            rec["box_cascade"] = cascade
+        else:
+            box = bricks.validate_equilibrium(df, root, atr)
         if box is None:
             if rec is not None:
                 rec["outcome"] = "no_box"

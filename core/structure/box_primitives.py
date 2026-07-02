@@ -338,6 +338,64 @@ def _pivot_order(n_bars):
     return settings.PIVOT_ORDER_SHORT
 
 
+def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
+                r_anchor_bar, s_anchor_bar, cand_start, rescued=False):
+    """Record one pair-cascade entry (the election narrating itself).
+
+    No-op when ``trace`` is None — the live path never pays for it. Bars are
+    window-relative here; ``validate_equilibrium`` rebases them df-positional.
+    """
+    if trace is None:
+        return
+    trace.append({
+        "r_anchor_bar": int(r_anchor_bar),
+        "s_anchor_bar": int(s_anchor_bar),
+        "cand_start": int(cand_start),
+        "R": round(float(R_val), 4),
+        "S": round(float(S_val), 4),
+        "box_width": round(float(box_width), 4),
+        "verdict": verdict,        # "rejected" | "valid" | "elected"
+        "stage": stage,            # width|window|respect|occupancy|traversal|rescue_unused|selection
+        "detail": detail,
+        "rescued": bool(rescued),
+        "traversal": None,
+    })
+
+
+def _trace_find(trace, cand):
+    """The 'valid' cascade record belonging to candidate tuple ``cand``."""
+    key = (int(cand[7]), int(cand[8]), int(cand[9]))
+    for rec in trace:
+        if rec["verdict"] == "valid" \
+                and (rec["r_anchor_bar"], rec["s_anchor_bar"], rec["cand_start"]) == key:
+            return rec
+    return None
+
+
+def _occupancy_failures(eq, r_touches, s_touches):
+    """Trace-only: name the worked-equilibrium occupancy checks a framing failed."""
+    s = settings
+    checks = [
+        (r_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
+         f"r_touches {r_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
+        (s_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
+         f"s_touches {s_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
+        (eq["r_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
+         f"r_touch_thirds {eq['r_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
+        (eq["s_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
+         f"s_touch_thirds {eq['s_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
+        (eq["lower_dwell"] < s.EQ_MIN_HALF_DWELL,
+         f"dead space low (lower_dwell {eq['lower_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
+        (eq["upper_dwell"] < s.EQ_MIN_HALF_DWELL,
+         f"dead space high (upper_dwell {eq['upper_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
+        (eq["mid_dwell"] > s.EQ_MAX_MID_DWELL,
+         f"mid churn (mid_dwell {eq['mid_dwell']}>{s.EQ_MAX_MID_DWELL})"),
+        (eq["coverage"] < s.EQ_MIN_COVERAGE,
+         f"coverage {eq['coverage']}<{s.EQ_MIN_COVERAGE}"),
+    ]
+    return [msg for failed, msg in checks if failed]
+
+
 def _score_candidate(box_width, r_touches, s_touches, coverage):
     """Combined quality of a (valid) candidate framing — drives "best"/debug
     selection and breaks "earliest" ties. All inputs already passed validity."""
@@ -347,7 +405,8 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
     return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * coverage_score
 
 
-def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal):
+def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
+                          trace=None):
     """Limb-traversal quality gate (v2): keep only framings whose swing limbs
     genuinely travel rail-to-rail, so the earliest-valid selection re-anchors R/S
     to the real swing envelope instead of a dead-space climax framing.
@@ -381,14 +440,28 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal):
     def _passes(c):
         trav = measure_traversal(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
         nf, ns = trav["n_full_traversals"], trav["n_swings"]
-        return (nf >= settings.TRAVERSAL_MIN
-                and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)
+        ok = (nf >= settings.TRAVERSAL_MIN
+              and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)
+        if trace is not None:
+            rec = _trace_find(trace, c)
+            if rec is not None:
+                density = (nf / ns) if ns > 0 else 0.0
+                rec["traversal"] = {"full": int(nf), "swings": int(ns),
+                                    "density": round(density, 3)}
+                if not ok:
+                    rec["verdict"] = "rejected"
+                    rec["stage"] = "traversal"
+                    rec["detail"] = (
+                        f"full={nf} density={density:.3f} (floors "
+                        f"{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})")
+        return ok
 
     return [c for c in valid_candidates if _passes(c)]
 
 
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
-                     r_anchor_bar, s_anchor_bar, cand_start, atr_val):
+                     r_anchor_bar, s_anchor_bar, cand_start, atr_val,
+                     trace=None, rescued=False):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -400,13 +473,35 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
         highs, lows, R_val, S_val, atr_val,
     )
     if not respected:
+        if trace is not None:
+            # Name the sub-condition that actually fired: respect fails on the
+            # outside SHARE or on a too-long consecutive RUN. When the share
+            # passed, the run cap is — by elimination — the killer.
+            n = len(highs)
+            share = 1.0 - (total_outside / n) if n else 0.0
+            if share < settings.MIN_BOUNDARY_RESPECT_PCT:
+                detail = (f"{total_outside}/{n} bars outside the buffered rails "
+                          f"(respect {share:.2f} < {settings.MIN_BOUNDARY_RESPECT_PCT})")
+            else:
+                detail = ("an outside run exceeded MAX_CONSECUTIVE_OUTSIDE_DAYS "
+                          f"{settings.MAX_CONSECUTIVE_OUTSIDE_DAYS} "
+                          f"({total_outside}/{n} bars outside in total)")
+            _trace_pair(trace, "rejected", "respect", detail, R_val, S_val,
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
         return None
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val,
     )
     if not is_valid:
+        if trace is not None:
+            detail = ("crash filter: min Low < S x CRASH_FILTER_MULT" if eq is None
+                      else "; ".join(_occupancy_failures(eq, r_touches, s_touches)))
+            _trace_pair(trace, "rejected", "occupancy", detail, R_val, S_val,
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
         return None
     combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
+    _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
+                r_anchor_bar, s_anchor_bar, cand_start, rescued)
     # Last slot = the JUDGED window length (= len(highs), relative to cand_start):
     # the full candidate window for a strict framing, or its trimmed worked cause
     # for a rescued one. The traversal gate measures over the SAME window, so a
@@ -416,8 +511,17 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
 
 
 def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
-                              enforce_traversal=False):
-    """Build valid R/S candidates from consecutive zigzag limbs."""
+                              enforce_traversal=False, trace=None):
+    """Build valid R/S candidates from consecutive zigzag limbs.
+
+    ``trace``: optional list; when given, every pair examined is recorded with
+    its verdict and (on rejection) the gate that killed it — the Root-Swing
+    cascade narrating itself (see strategy_v2.md "The explainability rule").
+    ``None`` (the live default) records nothing and changes nothing. The list
+    must be scoped to a single call (pass a fresh one, as
+    ``validate_equilibrium`` does): the rescue bookkeeping and the traversal
+    gate match records across the WHOLE list they are handed.
+    """
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
@@ -451,18 +555,26 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
+            _trace_pair(trace, "rejected", "width",
+                        f"box_width {box_width:.3f} > MAX_BOX_WIDTH {settings.MAX_BOX_WIDTH}",
+                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                        min(r_anchor_bar, s_anchor_bar))
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
         cand_eq_df = eq_df.iloc[cand_start:]
         if len(cand_eq_df) < min_candidate_days:
+            _trace_pair(trace, "rejected", "window",
+                        f"window {len(cand_eq_df)} < min_candidate_days {min_candidate_days}",
+                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                        cand_start)
             continue
 
         cand_highs = eq_highs[cand_start:]
         cand_lows = eq_lows[cand_start:]
         tup = _build_candidate(cand_highs, cand_lows, cand_eq_df, R_val, S_val,
                                box_width, r_anchor_bar, s_anchor_bar, cand_start,
-                               atr_val)
+                               atr_val, trace=trace)
         if tup is not None:
             strict.append(tup)
             continue
@@ -482,12 +594,19 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     cand_highs[:work_end], cand_lows[:work_end],
                     cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
                     r_anchor_bar, s_anchor_bar, cand_start, atr_val,
+                    trace=trace, rescued=True,
                 )
                 if tup is not None:
                     rescued.append(tup)
 
     pool = strict if strict else rescued
-    return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal)
+    if trace is not None and strict and rescued:
+        for rec in trace:
+            if rec["verdict"] == "valid" and rec["rescued"]:
+                rec["verdict"] = "rejected"
+                rec["stage"] = "rescue_unused"
+                rec["detail"] = "strict framings exist; the rescued pool is discarded"
+    return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal, trace=trace)
 
 
 def select_phase_b_candidate(valid_candidates, select):

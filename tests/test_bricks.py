@@ -108,6 +108,48 @@ def test_validate_equilibrium_rejects_dead_space_range():
     assert validate_equilibrium(df, root, 1.0) is None
 
 
+def test_validate_equilibrium_trace_narrates_the_pair_cascade():
+    # A wide climax pair descending into a genuinely worked range: the cascade
+    # must record the wide framing rejected by NAME and the worked pair elected
+    # — the engine is never blind to why it chose the pair it chose.
+    crash = [120, 118, 140, 120, 110, 104]            # one-way leg into the base
+    worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
+    df = _ohlc_from_closes(crash + worked)
+    root = RootSwing("BC", 0, 1, 141.0, 100.0, 0.29, 1)
+
+    trace: list = []
+    box = validate_equilibrium(df, root, 1.0, trace=trace)
+
+    assert box is not None
+    assert trace, "the election must narrate its cascade"
+    elected = [r for r in trace if r["verdict"] == "elected"]
+    assert len(elected) == 1
+    # bars are df-positional: the elected pair IS the box the engine returned
+    assert elected[0]["cand_start"] == box.start_bar
+    assert elected[0]["R"] == box.R and elected[0]["S"] == box.S
+    assert "earliest-of-valid" in elected[0]["detail"]
+    # the wide crash framing was examined and rejected with a named gate
+    rejected = [r for r in trace if r["verdict"] == "rejected"]
+    assert any(r["stage"] == "width" for r in rejected)
+    assert all(r["stage"] and r["detail"] for r in rejected)
+
+
+def test_validate_equilibrium_trace_explains_a_no_box_rejection():
+    # When no pair qualifies, the cascade says WHY for every pair examined —
+    # a "no_box" outcome is a narrated verdict, not a silent drop. (The frame
+    # must be long enough to reach pair enumeration: mid-hugging chop that
+    # fails occupancy/coverage on every framing.)
+    chop = [100, 102] + [106, 109, 107, 108] * 7
+    df = _ohlc_from_closes(chop)
+    root = RootSwing("BC", 0, 0, 110.0, 100.0, 0.1, 0)
+
+    trace: list = []
+    assert validate_equilibrium(df, root, 1.0, trace=trace) is None
+    assert trace, "rejection must still narrate the pairs it examined"
+    assert all(r["verdict"] == "rejected" for r in trace)
+    assert all(r["stage"] and r["detail"] for r in trace)
+
+
 def test_find_inner_box_returns_tighter_recent_subrange_with_absolute_anchors():
     wide = [100, 106, 112, 118, 116, 110, 104, 102] * 5
     tight = [101, 103, 105, 107, 109, 107, 105, 103] * 5

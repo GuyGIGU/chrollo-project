@@ -433,6 +433,51 @@ def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
     return None, None, None
 
 
+def _print_pair_cascade(df, cascade, cap: int = 8) -> None:
+    """Render the pair election narrating itself (rec['box_cascade']): each
+    candidate R/S pair examined, the gate that rejected it, or ELECTED."""
+    if not cascade:
+        return
+    # Window around the winner when there is one: the operator's question is
+    # "why not an EARLIER pair?", so the rejects just before the elected pair
+    # are the interesting ones — not the oldest rejects in a years-long walk.
+    elected_at = next((i for i, p in enumerate(cascade)
+                       if p["verdict"] == "elected"), None)
+    if elected_at is not None and len(cascade) > cap:
+        lo = max(0, elected_at - (cap - 2))
+        shown = cascade[lo:min(len(cascade), lo + cap)]
+        skipped_before = lo
+        if skipped_before:
+            print(f"       pair cascade ({len(cascade)} pair(s) examined; "
+                  f"first {skipped_before} not shown):")
+        else:
+            print(f"       pair cascade ({len(cascade)} pair(s) examined):")
+        _print_pair_lines(df, shown)
+        if len(cascade) > lo + len(shown):
+            print(f"         ... {len(cascade) - lo - len(shown)} more pair(s) not shown")
+        return
+    shown = list(cascade[:cap])
+    print(f"       pair cascade ({len(cascade)} pair(s) examined):")
+    _print_pair_lines(df, shown)
+    if len(cascade) > len(shown):
+        print(f"         ... {len(cascade) - len(shown)} more pair(s) not shown")
+
+
+def _print_pair_lines(df, pairs) -> None:
+    for p in pairs:
+        mark = {"elected": "<< ELECTED", "valid": "valid (not elected)"}.get(
+            p["verdict"], f"x {p['stage']}")
+        extra = f" — {p['detail']}" if p.get("detail") else ""
+        if p.get("traversal") and p["verdict"] != "rejected":
+            t = p["traversal"]
+            extra += f" [trav {t['full']}/{t['density']:.2f}]"
+        resc = " [rescued]" if p.get("rescued") else ""
+        print(f"         {_date(df, p['cand_start'])}  "
+              f"R={p['R']:.2f}@{_date(df, p['r_anchor_bar'])} "
+              f"S={p['S']:.2f}@{_date(df, p['s_anchor_bar'])} "
+              f"w={p['box_width']:.3f}{resc}  {mark}{extra}")
+
+
 def print_engine_trace(ticker: str, raw: pd.DataFrame) -> None:
     """Print the engine's OWN narrative trace (read_structure(trace=...)) rather
     than re-walking the roots externally. Groups identical stories so the
@@ -484,6 +529,7 @@ def print_engine_trace(ticker: str, raw: pd.DataFrame) -> None:
                   f"w={b['box_width']:.3f} len={b['base_len']} "
                   f"trav={b['n_full_traversals']}/{b['traversal_density']:.2f} "
                   f"touch r/s={b['r_touches']}/{b['s_touches']}")
+        _print_pair_cascade(df, r.get("box_cascade"))
         if r["spring"]:
             sp = r["spring"]
             print(f"       C spring tip {_date(df, sp['tip_bar'])} undercut {sp['undercut_atr']:.2f}ATR")
