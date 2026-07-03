@@ -36,6 +36,17 @@ jobs:
       - name: Shadow-output regression guard
         run: python -m tools.shadow_diff --check
 
+      # Negative-corpus precision guard. Offline + deterministic: replays the
+      # committed must-NOT-fire fixture (operator/dissection-labeled junk
+      # charts) through the pipeline and fails if any starts firing. This is
+      # the precision direction the two guards above cannot see - the shadow
+      # fixture holds only previously-firing tickers and seed-recall only
+      # fails on lost winners. (Also covered by tests/test_negative_corpus.py,
+      # but kept as an explicit CI step so a precision regression is
+      # unmistakable in the logs.)
+      - name: Negative-corpus precision guard
+        run: python -m tools.negative_corpus --check
+
       # Hermetic seed-recall drift guard. Offline + deterministic, HARD gate.
       #
       # Replays the committed frozen fixture (tests/baselines/seed_recall_fixture

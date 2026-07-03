@@ -14,18 +14,21 @@ top-40 = the inner structure — nested resolutions of one skeleton, which is th
 It emits the SAME shape as ``pivots._build_zigzag`` — ``list[(bar, 'peak'|
 'valley', price)]`` — and reuses that helper for High/Low snapping and strict
 alternation, so PIP is a drop-in-comparable skeleton (and a clean future swap
-point). Two flag-gated wires exist, both default-off and both feeding ONLY the
-Phase-A overlay via ``segment_swings`` (never R/S/score/tier):
+point). One flag-gated wire remains, default-off, feeding ONLY the Phase-A
+overlay via ``segment_swings`` (never R/S/score/tier):
 
-  * ``PIP_PIVOTS_ENABLED``        — the FLAT read (one ``dist_min`` threshold).
-    Eyeball-gated OFF (commit d43e7fd): a wash — fixes some inverted
-    climax->AR overlays, creates others (GBTG/PLSE/CGNX).
   * ``PIP_MACRO_PHASE_A_ENABLED`` — the MACRO read (``macro_bridge_zigzag``):
     coarse->fine over top-K prefixes, stopping at the SMALLEST skeleton that
-    holds a confirmed climax->AR bridge. This uses the multi-resolution
-    property the flat wire threw away: at the stop-K only macro turns exist,
+    holds a confirmed climax->AR bridge. At the stop-K only macro turns exist,
     so late range retests and noise dips are not in the skeleton to steal the
     climax or the AR.
+
+(The earlier FLAT wire — ``PIP_PIVOTS_ENABLED``, one ``dist_min`` threshold as
+a drop-in ``segment_swings`` substrate — was eyeball-gated OFF as a wash
+(commit d43e7fd: fixes some inverted climax->AR overlays, creates others —
+GBTG/PLSE/CGNX) and deleted 2026-07-03; see docs/flag_ledger.md. ``pip_pivots``
+itself stays: it is the substrate the macro read refines, and the direct API
+for tools/tests.)
 
 The measure-first discipline mirrors how the segmentation layer was added — see
 ``docs/segmentation_research.md``.

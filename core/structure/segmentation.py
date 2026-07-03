@@ -191,18 +191,6 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
                                          or ar_df_pos <= int(bridge_end_max)):
                 zigzag = story
                 macro_story = True
-    if zigzag is None and settings.PIP_PIVOTS_ENABLED:
-        # Phase-2 (measure-first): source the swing skeleton from the
-        # multi-resolution PIP substrate (core.structure.pip) instead of
-        # fixed-order pivots. Same (bar, kind, price) shape, so the swing /
-        # efficiency / root logic below is untouched. In the live path
-        # segment_swings feeds only resolve_phase_a (the Phase-A OVERLAY), never
-        # R/S/score/tier — so this can shift the drawn climax->AR but cannot
-        # drift a shadow-canonical field. dist_min is a scale-free fraction of
-        # the window price range, so it adapts across lookback lengths.
-        # NB: eyeball-gated OFF as a wash (d43e7fd); kept reachable for A/B.
-        from core.structure.pip import pip_pivots
-        zigzag = pip_pivots(highs, lows, dist_min=settings.PIP_PIVOTS_DIST_MIN)
     if zigzag is None:
         if order is None:
             order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
