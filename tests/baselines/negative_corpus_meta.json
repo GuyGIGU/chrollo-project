@@ -1,0 +1,159 @@
+{
+  "captured_at": "2026-07-03T12:20:14+00:00",
+  "breadth_pct": 0.5,
+  "cases": [
+    {
+      "ticker": "CHCT",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "descent-tail dead-space",
+      "evidence": "settings.DESCENT_TAIL_GATE_ENABLED comment; operator dissection 2026-06-19"
+    },
+    {
+      "ticker": "DGII",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "descent-tail dead-space",
+      "evidence": "settings.DESCENT_TAIL_GATE_ENABLED comment; operator dissection 2026-06-19"
+    },
+    {
+      "ticker": "BMRN",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "limb-traversal dead-space",
+      "evidence": "settings.TRAVERSAL_MIN_DENSITY comment (BMRN density 0.045); 2026-06-15"
+    },
+    {
+      "ticker": "FRPH",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "limb-traversal dead-space",
+      "evidence": "settings.TRAVERSAL_MIN_DENSITY rationale; ranking-A dissection 2026-06-15"
+    },
+    {
+      "ticker": "OHI",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "rescue-markup run-up",
+      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI +6.6% launch, 2026-06)"
+    },
+    {
+      "ticker": "AEF",
+      "as_of": "2026-06-12",
+      "bars": 1242,
+      "spy_6m_return": 0.07879924774169922,
+      "baseline_pass_at_freeze": true,
+      "label": "rescue-markup run-up",
+      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI/AEF/NVT/SPCB drop set)"
+    },
+    {
+      "ticker": "NVT",
+      "as_of": "2026-06-26",
+      "bars": 1251,
+      "spy_6m_return": 0.05964004993438721,
+      "baseline_pass_at_freeze": true,
+      "label": "rescue-markup run-up",
+      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI/AEF/NVT/SPCB drop set)"
+    },
+    {
+      "ticker": "SPCB",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "rescue-markup run-up (borderline +0.234)",
+      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (lone borderline to eyeball)"
+    },
+    {
+      "ticker": "KWR",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+    },
+    {
+      "ticker": "DBD",
+      "as_of": "2026-06-05",
+      "bars": 706,
+      "spy_6m_return": 0.07846283912658691,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space",
+      "evidence": "docs/segmentation_research.md Change C; trimmed to era (fires on a NEWER base at the 2026-07 live edge)"
+    },
+    {
+      "ticker": "RLGT",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+    },
+    {
+      "ticker": "FLG",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+    },
+    {
+      "ticker": "BBVA",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space (Change C demotion set)",
+      "evidence": "docs/segmentation_research.md Change C (BBVA/ABEV/COLM -> A)"
+    },
+    {
+      "ticker": "ABEV",
+      "as_of": "2026-06-15",
+      "bars": 1243,
+      "spy_6m_return": 0.09527409076690674,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space (Change C demotion set)",
+      "evidence": "docs/segmentation_research.md Change C; fired B at 2026-05-15, rejects from 2026-06-15 on as-traded data"
+    },
+    {
+      "ticker": "COLM",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "worked-equilibrium dead-space (Change C demotion set)",
+      "evidence": "docs/segmentation_research.md Change C (BBVA/ABEV/COLM -> A)"
+    },
+    {
+      "ticker": "GOOD",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "dividend-adjustment artifact",
+      "evidence": "as-traded price cutover 3b4c808 (passed baseline only on adjusted data)"
+    },
+    {
+      "ticker": "ENIC",
+      "as_of": "2026-07-02",
+      "bars": 1255,
+      "spy_6m_return": 0.09087204933166504,
+      "baseline_pass_at_freeze": true,
+      "label": "dividend-adjustment artifact",
+      "evidence": "as-traded price cutover 3b4c808 (passed baseline only on adjusted data)"
+    }
+  ]
+}

@@ -1,13 +1,14 @@
-"""Phase-A overlay 3-way — current zigzag vs flat-PIP vs MACRO-PIP (the eyeball gate).
+"""Phase-A overlay diff — current zigzag vs MACRO-PIP (the eyeball gate).
 
 History: the flat PIP->segment_swings wire (commit c08e61f, ``PIP_PIVOTS_ENABLED``)
 was judged with the 2-way ancestor of this tool (d43e7fd) and ruled a WASH — it
-fixed some inverted climax->AR overlays and created others (GBTG/PLSE/CGNX) — so
-it stayed default-off. The MACRO read (``PIP_MACRO_PHASE_A_ENABLED``,
-``pip.macro_bridge_zigzag``) is the multi-resolution retry: stop at the smallest
-top-K skeleton holding a confirmed climax->AR bridge, so late range retests and
-noise dips are not in the skeleton to steal the climax/AR. This tool renders all
-THREE reads so the operator can judge whether macro beats both.
+fixed some inverted climax->AR overlays and created others (GBTG/PLSE/CGNX) — and
+was deleted 2026-07-03 (docs/flag_ledger.md). The MACRO read
+(``PIP_MACRO_PHASE_A_ENABLED``, ``pip.macro_bridge_zigzag``) is the
+multi-resolution retry: stop at the smallest top-K skeleton holding a confirmed
+climax->AR bridge, so late range retests and noise dips are not in the skeleton
+to steal the climax/AR. This tool renders both reads so the operator can judge
+whether macro beats the current zigzag.
 
 It captures the EXACT overlay the pipeline archives: ``read_structure`` ->
 ``structure.climax_bar`` / ``.ar_bar`` (the same call + fields as
@@ -22,10 +23,10 @@ Alongside the shift table it reports a programmatic sanity proxy per mode:
 the box is a late R-touch theft).
 
 Two modes:
-  scan (default, no tickers)  : faithful off/flat/macro capture over the whole
+  scan (default, no tickers)  : faithful off/macro capture over the whole
                                 cache; report which overlays CHANGE (off vs
-                                macro), the flat reference count, the stolen-
-                                climax counts; render the top movers.
+                                macro) and the stolen-climax counts; render
+                                the top movers.
   render (tickers given)      : render those specific tickers.
 
 Read-only: reads the parquet cache, restores the flags after every capture,
@@ -57,10 +58,10 @@ from core.structure.indicators import calculate_atr
 from core.structure.narrative import read_structure
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "pip_phase_a")
-_MODES = ("off", "flat", "macro")
-_COLORS = {"off": "#8b5cf6", "flat": "#94a3b8", "macro": "#2563eb"}
-_LABELS = {"off": "OFF current zigzag", "flat": "FLAT PIP", "macro": "MACRO PIP"}
-_CLIMAX_DY = {"off": 0.012, "flat": 0.028, "macro": 0.044}
+_MODES = ("off", "macro")
+_COLORS = {"off": "#8b5cf6", "macro": "#2563eb"}
+_LABELS = {"off": "OFF current zigzag", "macro": "MACRO PIP"}
+_CLIMAX_DY = {"off": 0.012, "macro": 0.044}
 
 
 def _prep_live(raw: pd.DataFrame):
@@ -93,23 +94,17 @@ def _overlay(df, atr):
 
 
 def capture_overlays(df, atr) -> dict:
-    """Capture the Phase-A overlay under all three reads, ALWAYS restoring the
-    flags (a leaked True would corrupt later in-process reads). Returns
+    """Capture the Phase-A overlay under both reads, ALWAYS restoring the
+    flag (a leaked True would corrupt later in-process reads). Returns
     {mode: (climax, ar, box_start) | None}."""
-    prev_flat = settings.PIP_PIVOTS_ENABLED
     prev_macro = settings.PIP_MACRO_PHASE_A_ENABLED
     out = {}
     try:
-        settings.PIP_PIVOTS_ENABLED = False
         settings.PIP_MACRO_PHASE_A_ENABLED = False
         out["off"] = _overlay(df, atr)
-        settings.PIP_PIVOTS_ENABLED = True
-        out["flat"] = _overlay(df, atr)
-        settings.PIP_PIVOTS_ENABLED = False
         settings.PIP_MACRO_PHASE_A_ENABLED = True
         out["macro"] = _overlay(df, atr)
     finally:
-        settings.PIP_PIVOTS_ENABLED = prev_flat
         settings.PIP_MACRO_PHASE_A_ENABLED = prev_macro
     return out
 
@@ -190,16 +185,14 @@ def scan(d, level0, jobs: int = 1):
 
     n_fire = len(rows)
     macro_changed = [r for r in rows if r[2]]
-    flat_changed = [r for r in rows if _shift(r[1]["off"], r[1]["flat"])]
     macro_changed.sort(key=lambda r: r[2], reverse=True)
 
     print(f"\n  faithful 2y-frame scan: {len(tickers)} tickers, {n_fire} fire "
           f"(have an overlay)")
     print(f"    off vs MACRO : {len(macro_changed)} overlays change")
-    print(f"    off vs FLAT  : {len(flat_changed)} overlays change  (d43e7fd reference)")
     stolen = {m: sum(1 for _, ovs, _s in rows if _stolen(ovs[m])) for m in _MODES}
     print(f"    stolen climaxes (climax bar >= box start, of {n_fire}): "
-          f"off {stolen['off']}  flat {stolen['flat']}  macro {stolen['macro']}")
+          f"off {stolen['off']}  macro {stolen['macro']}")
 
     if macro_changed:
         print("\n  ticker   OFF(cx,AR)       MACRO(cx,AR)     dCx     dAR   theft off->macro")
@@ -286,7 +279,7 @@ def render(tickers, window, d, level0):
             Line2D([0], [0], color=_COLORS[m], lw=2, marker="*", label=_LABELS[m])
             for m in _MODES
         ], loc="upper left", fontsize=9, framealpha=0.85)
-        fig.suptitle(f"{t}  —  Phase-A overlay: current vs flat-PIP vs MACRO-PIP  "
+        fig.suptitle(f"{t}  —  Phase-A overlay: current vs MACRO-PIP  "
                      f"(faithful 2y frame, last {win} bars)",
                      fontsize=13, fontweight="bold")
         fig.tight_layout(rect=(0, 0, 1, 0.97))
@@ -300,11 +293,11 @@ def render(tickers, window, d, level0):
 def _print_table(rows):
     if not rows:
         return
-    print("\n  ticker   OFF(cx,AR)       FLAT(cx,AR)      MACRO(cx,AR)")
-    print("  " + "-" * 60)
+    print("\n  ticker   OFF(cx,AR)       MACRO(cx,AR)")
+    print("  " + "-" * 44)
     for t, ovs in rows:
         cells = [str(ovs[m][:2]) if ovs[m] else "None" for m in _MODES]
-        print(f"  {t:<7}  {cells[0]:<15}  {cells[1]:<15}  {cells[2]:<15}")
+        print(f"  {t:<7}  {cells[0]:<15}  {cells[1]:<15}")
 
 
 # ---------------------------------------------------------------- main ----
@@ -312,13 +305,13 @@ def _print_table(rows):
 def main():
     ap = argparse.ArgumentParser(
         description="Eyeball the Phase-A overlay (climax->AR) under the current "
-                    "zigzag vs flat-PIP vs MACRO-PIP, on the faithful live 2y frame.")
+                    "zigzag vs MACRO-PIP, on the faithful live 2y frame.")
     ap.add_argument("tickers", nargs="*",
                     help="render these tickers (default: scan + render top movers)")
     ap.add_argument("--window", type=int, default=260,
                     help="bars to show (default 260; 0 = all)")
     ap.add_argument("--scan", action="store_true",
-                    help="run the faithful universe 3-way measurement")
+                    help="run the faithful universe off-vs-macro measurement")
     ap.add_argument("--no-render", action="store_true",
                     help="with --scan: measure only, don't render")
     ap.add_argument("--top", type=int, default=6,

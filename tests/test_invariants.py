@@ -279,12 +279,28 @@ ALLOWED_OPS_EXCLUSIONS = frozenset({"SPY_SYMBOL", "PARQUET_ENGINE"})
 # The engine's decision-making eval path. Every ``settings.NAME`` read here can
 # move which setups fire / how they score / where phase boundaries land — the
 # hashable engine identity — EXCEPT the ops knobs enumerated above.
+# core/structure/ is GLOBBED (every module, see _engine_eval_path_sources), not
+# hand-listed: a new detector file is covered the day it lands and cannot be
+# forgotten here. The scoring/pipeline conductors stay explicit.
 _ENGINE_EVAL_PATH_MODULES = (
     "core.scoring.scoring",
     "core.pipeline.evaluation",
     "core.pipeline.screener",
-    "core.structure.box_events",
 )
+
+
+def _engine_eval_path_sources():
+    """Source files of the engine eval path: the explicit conductor modules
+    plus EVERY ``core/structure/*.py`` (globbed)."""
+    import importlib
+    from pathlib import Path
+
+    import core.structure
+
+    paths = [Path(importlib.import_module(m).__file__)
+             for m in _ENGINE_EVAL_PATH_MODULES]
+    paths += sorted(Path(core.structure.__file__).parent.glob("*.py"))
+    return paths
 
 
 def test_every_scoring_settings_symbol_is_in_manifest():
@@ -292,31 +308,32 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     must be in ``ENGINE_SETTINGS_KEYS`` and hashed into engine_config_version —
     unless it is one of the explicitly enumerated ops-only exclusions.
 
-    The eval path (scoring + evaluation + screener + box_events) is the layer that
-    decides which setups fire, how they score/rank, and where phase boundaries
-    land — every score/structure-affecting constant it touches changes archived
-    output and MUST bump the manifest hash. This static-source scan (over BOTH the
-    ``settings.NAME`` and ``getattr(settings, "NAME")`` read forms) makes a future
-    score-affecting flag/weight unable to silently escape provenance: add a read in
-    any scanned module and this fails until the name is either added to the
-    allow-list or explicitly declared an ops exclusion. (Regression guard for the
-    CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions.)
+    The eval path (scoring + evaluation + screener + ALL of core/structure/) is
+    the layer that decides which setups fire, how they score/rank, and where
+    phase boundaries land — every score/structure-affecting constant it touches
+    changes archived output and MUST bump the manifest hash. This static-source
+    scan (over BOTH the ``settings.NAME`` and ``getattr(settings, "NAME")`` read
+    forms) makes a future score-affecting flag/weight unable to silently escape
+    provenance: add a read in any scanned module and this fails until the name is
+    either added to the allow-list or explicitly declared an ops exclusion.
+    (Regression guard for the CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED /
+    SOS_*_BOX omissions; core/structure/ was previously covered only via the
+    hand-listed box_events.)
     """
-    import importlib
     import re
-    from pathlib import Path
 
     from core.freeze.manifest import ENGINE_SETTINGS_KEYS
 
     # Union settings reads across the whole eval path, matching both the direct
     # attribute form (``settings.NAME``) and the string-literal getattr form
-    # (``getattr(settings, "NAME")`` / single-quoted).
+    # (``getattr(settings, "NAME")`` / single-quoted). The scan is over raw
+    # source text (comments included, deliberately): a comment naming
+    # ``settings.X`` either documents a real nearby read or should be reworded.
     pat_attr = re.compile(r"settings\.([A-Z][A-Z0-9_]+)")
     pat_getattr = re.compile(r"getattr\(\s*settings\s*,\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
     referenced: set[str] = set()
-    for mod_name in _ENGINE_EVAL_PATH_MODULES:
-        mod = importlib.import_module(mod_name)
-        src = Path(mod.__file__).read_text(encoding="utf-8")
+    for src_path in _engine_eval_path_sources():
+        src = src_path.read_text(encoding="utf-8")
         referenced |= set(pat_attr.findall(src))
         referenced |= set(pat_getattr.findall(src))
     assert referenced, "scanner found no settings.<NAME> reads on the eval path"
@@ -326,7 +343,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     unaccounted = sorted(referenced - set(ENGINE_SETTINGS_KEYS) - ALLOWED_OPS_EXCLUSIONS)
     assert not unaccounted, (
         "score/structure-affecting settings read by the engine eval path "
-        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)}) are absent from "
+        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + core/structure/*) are absent from "
         "core.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
         "engine output WITHOUT bumping engine_config_version, corrupting archive "
         f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "

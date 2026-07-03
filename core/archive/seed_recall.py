@@ -31,7 +31,7 @@ import os
 import sqlite3
 import sys
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Mapping, Optional
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -288,6 +288,8 @@ def _recall_now(db_path: str = _DB_PATH) -> tuple[dict, list[dict], list[dict], 
 def _baseline_payload(s: dict, misses: list[dict], ignored: list[dict], basis: str) -> dict:
     return {
         "basis": basis,
+        # Provenance only - diff_against_baseline reads just recall/misses.
+        "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "recall": s["recall"],
         "fired": s["fired"],
         "missed": s["missed"],

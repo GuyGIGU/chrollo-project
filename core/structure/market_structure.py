@@ -116,12 +116,11 @@ def label_market_structure(zigzag) -> dict:
 def read_market_structure(df, *, lookback: Optional[int] = None,
                           order: Optional[int] = None) -> dict:
     """Build the swing skeleton off ``df`` and label it. Bar indices in the
-    result are df-positional. Mirrors ``segment_swings``' pivot order selection
-    and the flat PIP-substrate flag, so the labels line up with the swings the
-    rest of the engine reads. The MACRO Phase-A read
-    (``PIP_MACRO_PHASE_A_ENABLED``) deliberately does NOT apply here: event
-    labels want the fine skeleton, the Phase-A bridge wants the coarse one —
-    same substrate, different zoom."""
+    result are df-positional. Mirrors ``segment_swings``' pivot order selection,
+    so the labels line up with the swings the rest of the engine reads. The
+    MACRO Phase-A read (``PIP_MACRO_PHASE_A_ENABLED``) deliberately does NOT
+    apply here: event labels want the fine skeleton, the Phase-A bridge wants
+    the coarse one — same substrate, different zoom."""
     n_all = len(df)
     if n_all < 5:
         return _empty()
@@ -138,17 +137,13 @@ def read_market_structure(df, *, lookback: Optional[int] = None,
         return _empty()
     n = len(highs)
 
-    if settings.PIP_PIVOTS_ENABLED:
-        from core.structure.pip import pip_pivots
-        zigzag = pip_pivots(highs, lows, dist_min=settings.PIP_PIVOTS_DIST_MIN)
-    else:
-        if order is None:
-            order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
-                     else settings.PIVOT_ORDER_SHORT)
-        peaks, valleys = _find_pivots(highs, lows, order)
-        if not peaks or not valleys:
-            return _empty()
-        zigzag = _build_zigzag(peaks, valleys, highs, lows)
+    if order is None:
+        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
+                 else settings.PIVOT_ORDER_SHORT)
+    peaks, valleys = _find_pivots(highs, lows, order)
+    if not peaks or not valleys:
+        return _empty()
+    zigzag = _build_zigzag(peaks, valleys, highs, lows)
 
     # Re-base to df-positional bars before labelling.
     zigzag = [(int(base_off + b), k, p) for (b, k, p) in zigzag]

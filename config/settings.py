@@ -27,27 +27,18 @@ PIVOT_ORDER_SHORT = 1            # Used when equity window < 40 bars
 PIVOT_ORDER_LONG = 2             # Used when equity window >= 40 bars
 PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
 
-# PIP (Perceptually Important Points) swing skeleton — Phase-2 measure-first wire
-# (see core/structure/pip.py, docs/segmentation_research.md). When enabled,
-# segment_swings sources its zigzag from the multi-resolution PIP substrate
-# instead of fixed-order pivots. segment_swings feeds ONLY the Phase-A OVERLAY
-# (resolve_phase_a) in the live path — never R/S/score/tier — so this is
-# shadow-canonical-safe (flag-ON shadow stays byte-identical). Default OFF until
-# the eyeball + seed-recall gate clears. dist_min = fraction of the window price
-# range that counts as a salient turn (scale-free, adapts across lookbacks).
-PIP_PIVOTS_ENABLED = False
-PIP_PIVOTS_DIST_MIN = 0.03
-
-# Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag). The flat wire above
-# was eyeball-gated OFF as a wash (fixes some inverted climax->AR overlays,
-# creates others — GBTG/PLSE/CGNX, commit d43e7fd); this is the multi-resolution
-# retry: source segment_swings' zigzag from the SMALLEST top-K importance prefix
-# holding a confirmed climax->AR bridge (interior AR), so late range retests /
-# noise dips are not in the skeleton to steal the climax or AR. Independent of
-# PIP_PIVOTS_ENABLED (checked FIRST when both are on) and deliberately NOT
-# applied to read_market_structure — event labels want the fine skeleton, the
-# Phase-A bridge wants the coarse one. Same safe surface as the flat wire:
-# feeds ONLY the Phase-A overlay via resolve_phase_a, never R/S/score/tier.
+# Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag; see
+# core/structure/pip.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
+# (PIP_PIVOTS_ENABLED — segment_swings sourcing its whole zigzag from one
+# fixed-dist_min PIP skeleton) was eyeball-gated OFF as a wash (fixes some
+# inverted climax->AR overlays, creates others — GBTG/PLSE/CGNX, commit
+# d43e7fd) and DELETED 2026-07-03 (docs/flag_ledger.md); this is the
+# multi-resolution retry: source segment_swings' zigzag from the SMALLEST
+# top-K importance prefix holding a confirmed climax->AR bridge (interior AR),
+# so late range retests / noise dips are not in the skeleton to steal the
+# climax or AR. Deliberately NOT applied to read_market_structure — event
+# labels want the fine skeleton, the Phase-A bridge wants the coarse one.
+# Feeds ONLY the Phase-A overlay via resolve_phase_a, never R/S/score/tier.
 # Default OFF until the eyeball gate clears (tools/phase_a_pip_diff.py).
 PIP_MACRO_PHASE_A_ENABLED = False
 PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried

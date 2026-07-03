@@ -71,9 +71,13 @@ the true climax→AR and the thief never enters the skeleton; mirrored for SC
   NOT get the macro read — **event labels want the fine skeleton, the Phase-A
   bridge wants the coarse one. Same substrate, different zoom.** That sentence
   is the whole thesis.
-- The flat wire stays reachable (`PIP_PIVOTS_ENABLED`) purely for A/B
-  reference; macro wins precedence if both flags are on.
-- Both new settings are in the freeze manifest.
+- ~~The flat wire stays reachable (`PIP_PIVOTS_ENABLED`) purely for A/B
+  reference; macro wins precedence if both flags are on.~~ **Update 2026-07-03:
+  the flat wire was DELETED** (eyeball-rejected as a wash, d43e7fd; see
+  `docs/flag_ledger.md`). `pip_pivots` itself stays — it is the substrate the
+  macro read refines. `tools/phase_a_pip_diff.py` is now the 2-way off-vs-macro
+  eyeball.
+- The macro settings are in the freeze manifest.
 
 ## Guards (all green at build time)
 

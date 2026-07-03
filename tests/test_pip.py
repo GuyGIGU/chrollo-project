@@ -193,8 +193,3 @@ def test_segment_swings_macro_wire_and_flag_default(monkeypatch):
     root = seg["root_swing"]
     assert root is not None
     assert root["bc_bar"] == 39 and root["ar_bar"] == 45
-
-    # Precedence: macro wins when both PIP flags are on.
-    monkeypatch.setattr(settings, "PIP_PIVOTS_ENABLED", True)
-    seg_both = segment_swings(df, atr_val=2.0)
-    assert seg_both["root_swing"] == root

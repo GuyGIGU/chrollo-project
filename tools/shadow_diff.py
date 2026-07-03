@@ -28,6 +28,7 @@ import json
 import os
 import sqlite3
 import sys
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -261,6 +262,7 @@ def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
     cols = [c for c in data.columns if c[0] in set(firing)]
     data.loc[:, cols].to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
     scalars = {
+        "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "spy_6m_return": spy_6m,
         "breadth_pct": breadth_pct,
         "tickers": sorted(firing),
@@ -279,6 +281,9 @@ def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
 # ------------------------------------------------------------------
 def capture_baseline() -> dict:
     snapshot = run_fixture()
+    # Provenance only - diff_against_baseline reads just fields/ranking, so the
+    # stamp can never register as drift.
+    snapshot["captured_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     os.makedirs(_BASELINE_DIR, exist_ok=True)
     with open(_BASELINE_PATH, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, indent=2)

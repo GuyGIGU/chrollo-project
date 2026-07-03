@@ -38,7 +38,7 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | `box_primitives.py` | Shared box toolkit: root anchors, zigzag R/S candidates, boundary respect, R/S touch density, and worked-equilibrium dwell/coverage. |
 | `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
 | `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
-| `pip.py` | Alternative multi-resolution swing skeleton (Perceptually Important Points): ranks turning points by importance so the same chart can be read coarse (macro trend) to fine (inner structure). Flag-gated; feeds only the Phase-A overlay. |
+| `pip.py` | Alternative multi-resolution swing skeleton (Perceptually Important Points): ranks turning points by importance so the same chart can be read coarse (macro trend) to fine (inner structure). Flag-gated (`PIP_MACRO_PHASE_A_ENABLED`, dark); feeds only the Phase-A overlay. |
 | `segmentation.py` | The trend/range middle layer: labels swings with ATR displacement, measures swing efficiency, and locates the **root swing** (climax → first big counter-burst) that bridges trend into range. |
 | `narrative.py` | The chronological "pair of eyes": reads A → B → (C?) → D left-to-right as one story, each phase validated by a calibrated detector brick. Its `Structure` is the single source of truth consumers read. |
 | `bricks.py` | The narrative's building blocks: each phase detector wrapped as a pure `fits_here?` function (root swing, box, spring, LPS, Phase-A overlay resolution). |

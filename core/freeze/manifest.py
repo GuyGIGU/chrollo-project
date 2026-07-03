@@ -55,8 +55,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIVOT_ORDER_SHORT",
     "PIVOT_ORDER_LONG",
     "PIVOT_ORDER_THRESHOLD",
-    "PIP_PIVOTS_ENABLED",
-    "PIP_PIVOTS_DIST_MIN",
     "PIP_MACRO_PHASE_A_ENABLED",
     "PIP_MACRO_K_MAX",
     "PIP_MACRO_MAX_POST_EXCESS",
@@ -178,6 +176,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "CANDLE_SPREAD_ATR_MESSY",
     "CANDLE_TIGHTBAR_CLEAN",
     "CANDLE_TIGHTBAR_MESSY",
+    # Technical Analysis Score v2 master flag (specs/ta-score-rework.md).
+    # Listed BEFORE the scorer reads it: it is a committed engine flag whose
+    # flip must bump engine_config_version from day one — the completeness scan
+    # only forces names once a read lands, which would have left a window where
+    # flipping it changed output without rotating the hash.
+    "TA_SCORE_V2",
     # E3 puzzle-quality graded sub-score (additive bonus term, flag-gated)
     "PUZZLE_SCORE_ENABLED",
     "SCORE_PUZZLE_QUALITY",

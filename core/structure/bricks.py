@@ -28,8 +28,8 @@ from core.structure.segmentation import segment_swings
 
 _SEG_LEAD_IN = 60
 _SEG_AR_TOL = 10
-# Inner sub-box tunables are read lazily at the use sites (settings.INNER_*),
-# never cached at import time — see the note in core/structure/consolidation.py.
+# Inner sub-box tunables (the INNER_* settings) are read lazily at the use
+# sites, never cached at import time — see core/structure/consolidation.py.
 
 
 @dataclass

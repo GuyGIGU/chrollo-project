@@ -57,23 +57,6 @@ def test_segment_swings_finds_root_bridge(_ramp_frame):
     assert max(s["abs_disp_atr"] for s in res["swings"]) == 7.0
 
 
-def test_segment_swings_pip_flag_sources_skeleton(monkeypatch, _ramp_frame):
-    # Phase-2 wire: with PIP_PIVOTS_ENABLED, segment_swings sources its zigzag
-    # from the multi-resolution PIP skeleton instead of fixed-order pivots. On a
-    # clean trend->climax->AR it must still find the root bridge (the wire is
-    # sound). Exact bars may differ from the order-N zigzag — which is the whole
-    # reason this ships measure-first behind a default-off flag.
-    monkeypatch.setattr(settings, "PIP_PIVOTS_ENABLED", True)
-    df = _ramp_frame([50, 53, 51.5, 56, 54, 60, 53, 56, 53.5, 56, 53.5])
-
-    res = segment_swings(df, atr_val=1.0)
-
-    assert res["dominant_direction"] == 1          # still reads the uptrend
-    assert res["root_swing"] is not None           # still finds the climax->AR bridge
-    assert res["n_swings"] >= 2
-    assert 0.0 <= res["efficiency"] <= 1.0
-
-
 def test_phase_b_select_best_takes_global_best(_cand):
     # A later, tighter (higher-combined) pair vs an earlier, looser one.
     early_loose = _cand(combined=0.50, cand_start=10)
