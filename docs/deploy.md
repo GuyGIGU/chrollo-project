@@ -94,38 +94,69 @@ From now on, opening Chrollo should mean double-clicking that shortcut.
 
 ## 4. Schedule Backups
 
-The valuable local data is:
+The nightly backup snapshots the **irreplaceable** local data:
 
-- `webapp\backend\trading_journal.db`
-- `webapp\backend\trading_journal.db-wal`
-- `webapp\backend\trading_journal.db-shm`
-- `market_data_cache_5y.parquet`
-- `cache_meta.json`
-- `market_context.json`
+- `webapp\backend\trading_journal.db` — journal, executions, watchlist, and the matured
+  setup archive. Snapshotted with SQLite `VACUUM INTO` + `PRAGMA integrity_check`, which
+  gives a consistent point-in-time copy even while the service holds the database open.
+  Never rely on a plain file copy of a live `.db`/`-wal`/`-shm` set — it is not
+  guaranteed restorable.
+- `webapp\backend\uploads\` — journal chart attachments (the directory appears with the
+  first attachment).
+- `cache_meta*.json` and `market_context*.json` — small state files, all universes.
 
-Create a small backup script:
+Deliberately **not** backed up: the `market_data_cache_5y*.parquet` price caches. They
+are re-downloadable — deleting one triggers a clean cold rebuild — and at ~120 MB they
+would bloat every snapshot.
 
-```powershell
-@'
-$repo = "C:\Users\User\Documents\Projects\Chrollo Project"
-$root = Join-Path $env:USERPROFILE "ChrolloBackups"
-$stamp = Get-Date -Format "yyyy-MM-dd_HHmm"
-$dest = Join-Path $root $stamp
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-Copy-Item "$repo\webapp\backend\trading_journal.db*" $dest -ErrorAction SilentlyContinue
-Copy-Item "$repo\market_data_cache_5y.parquet" $dest -ErrorAction SilentlyContinue
-Copy-Item "$repo\cache_meta.json" $dest -ErrorAction SilentlyContinue
-Copy-Item "$repo\market_context.json" $dest -ErrorAction SilentlyContinue
-# Retention: keep the 14 most recent snapshots (the 108 MB parquet adds up fast).
-Get-ChildItem -Path $root -Directory | Sort-Object Name -Descending | Select-Object -Skip 14 | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-'@ | Set-Content "$env:USERPROFILE\ChrolloBackup.ps1" -Encoding UTF8
-```
-
-Schedule it daily:
+The script is versioned in the repo at `tools\ChrolloBackup.ps1` and **deployed** as a
+copy at `%USERPROFILE%\ChrolloBackup.ps1` — the scheduled task runs the deployed copy.
+To change it (including setting the mirror destination), edit the repo copy, then
+redeploy:
 
 ```powershell
-schtasks /Create /TN "Chrollo Daily Backup" /SC DAILY /ST 20:30 /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%USERPROFILE%\ChrolloBackup.ps1`"" /F
+Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ChrolloBackup.ps1" `
+  "$env:USERPROFILE\ChrolloBackup.ps1" -Force
 ```
+
+Behavior:
+
+- Snapshots go to `%USERPROFILE%\ChrolloBackups\<yyyy-MM-dd_HHmm>\`; the 14 most recent
+  are kept (locally and on the mirror).
+- Every run appends to `%USERPROFILE%\ChrolloBackups\backup.log`. Any failure removes the
+  partial snapshot, logs `FAILED`, and exits 1 — visible as the task's Last Run Result.
+  Glance at the log weekly; there is no `-ErrorAction SilentlyContinue` on any data path.
+- **Off-disk mirror:** set `$Mirror` at the top of the script to a second physical disk
+  or a locally-synced cloud folder (e.g. `"$env:OneDrive\ChrolloBackups"`). Until it is
+  set, every run logs a `WARN`, because snapshots on the same disk as the originals do
+  not survive a disk failure. Mirrored database copies are hash-verified.
+
+Register (or re-register) the task from an **Administrator** PowerShell. `-LogonType S4U`
+makes it run whether or not you are logged on, with no stored password;
+`-StartWhenAvailable` catches up a missed 20:30 run at the next boot instead of losing
+the night:
+
+```powershell
+$action    = New-ScheduledTaskAction -Execute "powershell.exe" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$env:USERPROFILE\ChrolloBackup.ps1`""
+$trigger   = New-ScheduledTaskTrigger -Daily -At 8:30PM
+$settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 15)
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
+Register-ScheduledTask -TaskName "Chrollo Daily Backup" -Action $action -Trigger $trigger `
+  -Settings $settings -Principal $principal `
+  -Description "Nightly snapshot of Chrollo's irreplaceable data (VACUUM INTO + integrity check)." -Force
+```
+
+If **Chrollo Forward Returns** (section 4b) still runs with an `Interactive` principal —
+meaning it silently skips whenever you are not logged on — upgrade it the same way:
+
+```powershell
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
+Set-ScheduledTask -TaskName "Chrollo Forward Returns" -Principal $principal
+```
+
+One S4U caveat: such tasks cannot reach network drives, so keep the backup mirror on a
+local folder (a cloud-synced one like OneDrive is fine — the sync client uploads it).
 
 ## 4b. Schedule Forward-Return Maturation (backend-independent tick)
 
@@ -165,6 +196,37 @@ python -c "import sqlite3; c=sqlite3.connect(r'C:\Users\User\Documents\Projects\
 
 If maturation ever fails or stalls, the morning watchdog (Tue–Sat 08:00 ET, while the service
 is up) now alerts on it through the same webhook as scan failures.
+
+## 4c. Restore (and the monthly restore drill)
+
+A backup that has never been restored is a hope, not a backup. The drill proves the
+newest snapshot actually restores — run it monthly, and after any change to the backup
+script:
+
+```powershell
+python "C:\Users\User\Documents\Projects\Chrollo Project\tools\restore_drill.py"
+```
+
+It copies the latest snapshot's database to a temp dir, opens it **read-only**, runs
+`PRAGMA integrity_check`, and compares `setup_archive` / `trade_logs` / `executions` row
+counts against the live database, printing `PASS` or `FAIL` (exit 0/1). It also fails if
+the newest snapshot is older than 48 h — i.e. the nightly task has silently stopped. It
+never writes to the live database or to the snapshots.
+
+Real restore, after data loss:
+
+1. Stop the service: `nssm stop ChrolloDashboard`.
+2. In `webapp\backend`, move the damaged set aside (don't delete it yet): rename
+   `trading_journal.db`, `trading_journal.db-wal`, and `trading_journal.db-shm` with a
+   `.broken` suffix.
+3. Copy `trading_journal.db` from the chosen snapshot into `webapp\backend\`. Snapshots
+   are `VACUUM`ed, self-contained databases — there is no `-wal`/`-shm` to restore.
+4. If the snapshot contains `uploads\`, copy it to `webapp\backend\uploads\`.
+5. Optionally copy the snapshot's `cache_meta*.json` / `market_context*.json` to the repo
+   root — they regenerate on the next scan either way. The price caches were never backed
+   up, so the first scan after a full-machine restore does a cold re-download.
+6. Start the service (`nssm start ChrolloDashboard`) and verify with the drill or the
+   `scan_runs` query in section 4b.
 
 ## 5. Verify It Is Live
 
