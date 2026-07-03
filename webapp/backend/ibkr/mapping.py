@@ -2,8 +2,20 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+
+
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Normalize to naive UTC — the executions table's canonical timezone.
+
+    ib_async hands out tz-aware UTC execution times; SQLite storage strips the
+    tzinfo, so making the conversion explicit here keeps every stored time
+    unambiguously UTC (CSV-imported statement times are normalized the same way).
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def _as_float(v: Any) -> Optional[float]:
@@ -83,6 +95,7 @@ def execution_to_dict(exec_obj: Any, contract: Any, commission_report: Any = Non
             time_dt = datetime.fromisoformat(str(time_val)) if time_val else datetime.utcnow()
         except Exception:
             time_dt = datetime.utcnow()
+    time_dt = _to_naive_utc(time_dt)
 
     commission = None
     realized = None
