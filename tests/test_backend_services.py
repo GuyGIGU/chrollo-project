@@ -1071,6 +1071,115 @@ def test_manual_job_streams_use_args_kind_and_release_lock(monkeypatch, stream_n
     assert not scan_runner.SCAN_LOCK.locked()
 
 
+def test_stream_abort_on_client_disconnect_terminates_child_and_records_aborted(monkeypatch):
+    """P1 regression: a browser disconnect closes the SSE generator, raising
+    GeneratorExit at the yield — a BaseException the `except Exception` path
+    never saw. The stream must terminate the run_screener child BEFORE
+    SCAN_LOCK is released (the lock's guarantee is one child at a time) and
+    must finish the scan_runs row as 'aborted' instead of leaving it 'running'
+    forever."""
+    import services.scan_status as scan_status_mod
+
+    calls = {}
+
+    class FakeStdout:
+        def __init__(self):
+            self._lines = iter(["line one\n", "line two\n", "line three\n"])
+
+        def __iter__(self):
+            return self._lines
+
+        def close(self):
+            calls["stdout_closed"] = True
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = FakeStdout()
+            self.returncode = None
+            self._alive = True
+
+        def poll(self):
+            return None if self._alive else -15
+
+        def terminate(self):
+            calls["terminated"] = True
+            self._alive = False
+            self.returncode = -15
+
+        def kill(self):
+            calls["killed"] = True
+            self._alive = False
+
+        def wait(self, timeout=None):
+            return self.returncode
+
+    proc = FakeProcess()
+    finishes = []
+    alerts = []
+    monkeypatch.setattr(scan_runner, "_create_process", lambda args=None: proc)
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger, kind="scan": 42)
+    monkeypatch.setattr(
+        scan_status_mod, "finish_run",
+        lambda run_id, status, n_setups=None, error=None: finishes.append((run_id, status)),
+    )
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
+
+    stream = scan_runner._stream_process("manual")
+    assert next(stream).startswith("data: ")  # child spawned, first line streamed
+    stream.close()  # browser disconnect -> GeneratorExit at the yield
+
+    assert calls.get("terminated") is True
+    assert calls.get("stdout_closed") is True
+    assert finishes == [(42, "aborted")]
+    assert alerts == []  # a user-initiated abort is not an alertable failure
+    assert not scan_runner.SCAN_LOCK.locked()
+
+
+def test_stream_disconnect_at_final_yield_keeps_recorded_status(monkeypatch):
+    """A disconnect while suspended at the trailing [DONE] yield arrives AFTER
+    finish_run already recorded the outcome — the abort handler must not
+    relabel a completed run 'aborted'."""
+    import services.scan_status as scan_status_mod
+
+    class FakeStdout:
+        def __iter__(self):
+            return iter(['SCAN_RESULT_JSON:{"n_setups": 3}\n'])
+
+        def close(self):
+            pass
+
+    class FakeProcess:
+        stdout = FakeStdout()
+        returncode = 0
+
+        def poll(self):
+            return 0  # already exited by the time the abort lands
+
+        def terminate(self):
+            raise AssertionError("must not terminate an exited child")
+
+        def wait(self, timeout=None):
+            return 0
+
+    finishes = []
+    monkeypatch.setattr(scan_runner, "_create_process", lambda args=None: FakeProcess())
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger, kind="scan": 42)
+    monkeypatch.setattr(
+        scan_status_mod, "finish_run",
+        lambda run_id, status, n_setups=None, error=None: finishes.append((run_id, status)),
+    )
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+
+    stream = scan_runner._stream_process("manual")
+    for event in stream:
+        if "[DONE]" in event:
+            break  # generator now suspended at the final yield
+    stream.close()  # disconnect lands after the outcome was recorded
+
+    assert finishes == [(42, "ok")]  # not overwritten by 'aborted'
+    assert not scan_runner.SCAN_LOCK.locked()
+
+
 def test_manual_job_stream_releases_lock_when_status_start_fails(monkeypatch):
     import services.scan_status as scan_status_mod
 

@@ -13,6 +13,18 @@ cd "C:\Users\User\Documents\Projects\Chrollo Project"
 
 This installs Python packages, installs frontend packages, and builds the browser UI into `webapp\frontend\dist`.
 
+To reproduce the exact known-good dependency set (e.g. on a fresh machine or after a bad
+upgrade), install with the committed constraints file — `requirements.txt` stays loose on
+purpose so upgrades are deliberate; `constraints.txt` pins what the service was verified
+against:
+
+```powershell
+pip install -r requirements.txt -c constraints.txt
+```
+
+After a deliberate upgrade, regenerate it: `pip freeze` → replace the pin lines in
+`constraints.txt` (keep the header comment).
+
 ## 2. Register The Windows Service
 
 Install NSSM first, then run these commands from an Administrator PowerShell. Adjust `python.exe` if your Python lives somewhere else.
@@ -33,6 +45,39 @@ nssm start ChrolloDashboard
 ```
 
 Do **not** set `IBKR_LIVE_CONFIRMED` on this service — it must stay broker-free at boot so a reboot or crash-restart never auto-grabs your single IBKR session (which would fight TradingView).
+
+### 2a. Log rotation (do this once)
+
+Without rotation the two service logs grow without bound (and the request log is chatty).
+From an Administrator PowerShell:
+
+```powershell
+nssm set ChrolloDashboard AppRotateFiles 1
+nssm set ChrolloDashboard AppRotateOnline 1
+nssm set ChrolloDashboard AppRotateBytes 10485760   # rotate when a log reaches 10 MB
+nssm restart ChrolloDashboard
+```
+
+NSSM renames the rotated file with a timestamp next to the live one; prune old rotations
+occasionally (or add `Get-ChildItem output\chrollo-service*.log* | Sort-Object LastWriteTime
+-Descending | Select-Object -Skip 10 | Remove-Item` to the backup script).
+
+### 2b. Alert webhook (make the watchdog audible)
+
+Every scan-failure / watchdog / degraded-fetch alert posts JSON (`{"text": ...}`) to the URL
+in `ALERT_WEBHOOK_URL` — a Slack/Discord/ntfy-style webhook. **If it is unset, the entire
+alert net terminates in a log file nobody watches.** Set it on the service:
+
+```powershell
+# ⚠ AppEnvironmentExtra REPLACES the whole extra-environment block. Always restate
+# IBKR_AUTO_CONNECT=false in the same command, or the broker-free-boot guarantee is lost.
+nssm set ChrolloDashboard AppEnvironmentExtra IBKR_AUTO_CONNECT=false ALERT_WEBHOOK_URL=https://your-webhook-url
+nssm restart ChrolloDashboard
+```
+
+Then test-fire one alert end-to-end (temporarily set the webhook to a test channel and stop
+the service before a scheduled scan slot, or POST to the webhook manually) so the first real
+failure is not also the first delivery test.
 
 You still get live snapshots on demand: open the dashboard and click **Connect IBKR**. In live mode this pops a confirmation ("connect to your real-money account?") and, only on your OK, hands the IBKR API session to Chrollo for the duration. Click **Disconnect** to release the session before you trade in TWS / TradingView. This is a per-click human action — it is *not* persisted, so the next boot is broker-free again. (The connection is read-only; keeping IB Gateway's **Read-Only API** enabled is recommended as a broker-level guarantee.)
 
@@ -138,9 +183,18 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
 `update_dashboard.ps1`). It:
 
 1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
-2. Rebuilds the frontend into `webapp\frontend\dist`.
-3. Restarts the `ChrolloDashboard` service.
-4. Polls `http://127.0.0.1:8000/health` and prints the result.
+2. Preflights the backend: `compileall` plus an import-`main` smoke from the service's own
+   working directory (import does **not** run the lifespan — nothing starts, nothing touches
+   the broker). A backend that would die on boot is caught **before** the running service is killed.
+3. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
+4. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
+
+If a deploy looks wrong in the browser, roll the frontend back in one command (backend code
+comes from git, so rollback only swaps the frontend bundle):
+
+```powershell
+powershell -File update_dashboard.ps1 -Rollback
+```
 
 It never sets `IBKR_LIVE_CONFIRMED` and never changes the service's broker-free configuration — the
 dashboard stays broker-free at boot exactly as before.

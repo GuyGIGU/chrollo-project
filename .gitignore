@@ -65,6 +65,7 @@ trading_journal.db
 # webapp frontend build artifacts
 webapp/frontend/node_modules/
 webapp/frontend/dist/
+webapp/frontend/dist_previous/
 webapp/frontend/.next/
 webapp/frontend/build/
 

@@ -7,6 +7,12 @@ import uuid
 
 _req_log = logging.getLogger("chrollo.request")
 
+# The frontend polls these endpoints forever (Home price zones, the 60s
+# scan-status/health tick, long-lived SSE streams). At INFO they dominate the
+# service log and — with no rotation cap — grow it unboundedly, burying the
+# lines that matter. Successful polls log at DEBUG; errors stay at INFO.
+_NOISY_PATH_PREFIXES = ("/live-prices", "/scan-status", "/health", "/stream/")
+
 
 class RequestIDMiddleware:
     """Pure-ASGI middleware that tags each HTTP request with a short ID."""
@@ -51,11 +57,14 @@ class RequestIDMiddleware:
             raise
 
         elapsed_ms = (time.perf_counter() - start) * 1000
-        _req_log.info(
+        path = scope.get("path") or ""
+        quiet = path.startswith(_NOISY_PATH_PREFIXES) and status_code["value"] < 400
+        _req_log.log(
+            logging.DEBUG if quiet else logging.INFO,
             "rid=%s %s %s -> %d (%.1f ms)",
             request_id,
             scope.get("method"),
-            scope.get("path"),
+            path,
             status_code["value"],
             elapsed_ms,
         )

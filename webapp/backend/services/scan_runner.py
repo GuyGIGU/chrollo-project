@@ -222,6 +222,30 @@ def alert_if_needed(trigger: str, status: str, n_setups: int | None,
         log.exception("scan alert webhook failed")
 
 
+def _terminate_child(process: subprocess.Popen | None) -> None:
+    """Best-effort terminate→kill of the scan child. Never raises: this runs on
+    abort/error paths right before SCAN_LOCK is released, and the lock's whole
+    guarantee is "at most one child at a time" — the child must be dead (not
+    still evaluating and writing the archive) by the time the lock frees."""
+    if process is None:
+        return
+    try:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+    except Exception:
+        log.exception("failed to terminate scan child process")
+    if process.stdout is not None:
+        try:
+            process.stdout.close()
+        except Exception:
+            pass
+
+
 def _stream_process(trigger: str, args: list[str] | None = None,
                     kind: str = "scan") -> Iterator[str]:
     """Run a manual subprocess job and stream its stdout as server-sent events."""
@@ -233,6 +257,8 @@ def _stream_process(trigger: str, args: list[str] | None = None,
         return
 
     run_id = None
+    run_recorded = False
+    process = None
     lines: list[str] = []
     try:
         run_id = scan_status.start_run(trigger, kind=kind)
@@ -255,12 +281,28 @@ def _stream_process(trigger: str, args: list[str] | None = None,
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
         scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
+        run_recorded = True
         alert_if_needed(trigger, status, result.n_setups, error, result.n_errored)
         if process.returncode != 0:
             yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
         yield "data: [DONE]\n\n"
+    except GeneratorExit:
+        # The browser disconnected mid-stream: Starlette closes this generator,
+        # which raises GeneratorExit at the current yield. It is a BaseException,
+        # so the `except Exception` below never sees it — without this handler
+        # the child kept running unsupervised past the lock release and the
+        # scan_runs row stayed 'running' forever. No yields allowed here.
+        # run_recorded guards a disconnect at the trailing yields: a run whose
+        # outcome is already written must not be relabeled 'aborted'.
+        log.warning("scan stream aborted by client disconnect (%s); terminating child", trigger)
+        _terminate_child(process)
+        if run_id is not None and not run_recorded:
+            scan_status.finish_run(run_id, status="aborted",
+                                   error="client disconnected mid-stream; child terminated")
+        raise
     except Exception as exc:
-        if run_id is not None:
+        _terminate_child(process)
+        if run_id is not None and not run_recorded:
             scan_status.finish_run(run_id, status="failed", error=str(exc))
         alert_if_needed(trigger, "failed", None, str(exc))
         yield f"data: ERROR: {exc}\n\n"
