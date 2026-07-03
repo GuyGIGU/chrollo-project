@@ -75,6 +75,9 @@ _HEARTBEAT_INTERVAL = 30
 # How long a heartbeat ping may take before we declare the socket dead
 _HEARTBEAT_TIMEOUT = 10
 
+# How long each post-connect prime request (positions/account/orders/execs) may take
+_PRIME_TIMEOUT = 15
+
 # IB Gateway daily restart window (UTC) — 03:45–04:00 UTC = 23:45–00:00 ET
 _DAILY_RESTART_HOUR_UTC = 3
 _DAILY_RESTART_MINUTE_START = 45
@@ -406,6 +409,14 @@ class IBKRService:
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
 
+    async def _prime(self, what: str, request: Any) -> Any:
+        """Await one startup data request; log (don't tear down) on failure."""
+        try:
+            return await asyncio.wait_for(request, timeout=_PRIME_TIMEOUT)
+        except Exception:
+            log.warning("IBKR startup %s request failed", what, exc_info=True)
+            return None
+
     async def _heartbeat_ok(self) -> bool:
         """Ping IB with the async time request; False means the socket is dead.
 
@@ -452,26 +463,21 @@ class IBKRService:
             settings.ibkr_mode,
         )
 
-        # Subscribe to streaming updates
+        # Prime the snapshot + subscribe to streaming updates. The sync ib_async
+        # request variants are forbidden here — they re-enter the running IB loop
+        # and raise, which silently left these panes empty behind except-pass.
         self._ib.reqMarketDataType(3)  # delayed if no real-time entitlement (safe default)
-        try:
-            self._ib.reqPositions()
-        except Exception:
-            pass
-        try:
-            # account_ values are needed for summary; empty string = all accounts
-            self._ib.reqAccountUpdates(True, "")
-        except Exception:
-            pass
-        try:
-            self._ib.reqAllOpenOrders()
-        except Exception:
-            pass
-        try:
-            # Back-fill today's executions so a reconnect doesn't lose anything
-            await self._ib.reqExecutionsAsync()
-        except Exception:
-            pass
+        await self._prime("positions", self._ib.reqPositionsAsync())
+        # account_ values are needed for summary; empty string = all accounts
+        await self._prime("account updates", self._ib.reqAccountUpdatesAsync(""))
+        # connectAsync(readonly=True) skips the automatic startup order fetch —
+        # without this explicit request the Open Orders pane stays empty even
+        # while stop orders are working in TWS.
+        open_trades = await self._prime("open orders", self._ib.reqAllOpenOrdersAsync())
+        for trade in open_trades or []:
+            self._on_open_order(trade)
+        # Back-fill today's executions so a reconnect doesn't lose anything
+        await self._prime("executions", self._ib.reqExecutionsAsync())
 
         with self._snap_lock:
             self._snapshot.connected = True
