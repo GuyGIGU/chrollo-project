@@ -52,9 +52,15 @@ def _ohlcv_panel(ticker, start, periods):
 
 
 def _wire_scanjob(tmp_path, monkeypatch, expected="2026-06-25"):
+    from core.pipeline.downloads import _price_regime
+
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text(
-        json.dumps({"last_full_refresh": datetime.now(timezone.utc).isoformat()}),
+        json.dumps({
+            "last_full_refresh": datetime.now(timezone.utc).isoformat(),
+            # current-regime tag: an untagged meta now classifies regime_mismatch
+            "price_series": _price_regime(),
+        }),
         encoding="utf-8",
     )
     monkeypatch.setattr(scan_job_module, "_cache_paths",

@@ -663,11 +663,11 @@ YAHOO_RATE_LIMIT_BURST = 40        # token-bucket capacity (max short burst)
 YAHOO_DOWNLOAD_WORKERS = 24        # bounded download-pool size (caps simultaneous connections)
 YAHOO_RATE_LIMIT_BACKOFF_SECONDS = 45.0  # shared cooldown after explicit Yahoo 429/rate-limit errors
 
-# Split-detection probe (defends against yfinance's auto_adjust=True silently rescaling history)
-SPLIT_PROBE_SAMPLE_SIZE = 30                 # Number of cached tickers (+ SPY) to probe for split-induced drift
+# Split-detection probe — EVERY cached ticker is checked on the incremental
+# overlap window (under the as-traded regime a split is the only corporate
+# action that shifts the series, so this probe is the entire defense).
 SPLIT_PROBE_DRIFT_THRESHOLD = 0.005          # Ticker-level: ratio (fresh/cached) deviating by > 0.5% on overlap = split
 SPLIT_PROBE_UNIVERSE_DRIFT_PCT = 0.02        # If > 2% of probed tickers drift → cold refetch
-SPLIT_PROBE_REFERENCE_SYMBOL = "SPY"         # Always included in the probe sample if present in cache
 
 # Dead-ticker quarantine — the universe (~6.9k NASDAQ-traded symbols) has a long
 # tail of delisted / halted / invalid tickers that return nothing from Yahoo every

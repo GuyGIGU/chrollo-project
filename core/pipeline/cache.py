@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -36,6 +37,21 @@ def _read_meta(meta_path: str) -> dict:
         return {}
 
 
+def _replace_with_retry(tmp: str, path: str, attempts: int = 5, wait_s: float = 0.2) -> None:
+    """``os.replace`` with a short bounded retry. On Windows, replacing a file a
+    concurrent reader has open (an unlocked cache-status ``read_parquet``) raises
+    PermissionError — a multi-minute download must not die at its final step over
+    a transient read, so wait the reader out briefly before giving up."""
+    for attempt in range(1, attempts + 1):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == attempts:
+                raise
+            time.sleep(wait_s)
+
+
 def _write_meta(meta_path: str, meta: dict) -> None:
     # PID-suffixed temp so two processes writing the same meta can't share one
     # .tmp and tear each other's write (the cross-process cache_lock serializes
@@ -43,7 +59,7 @@ def _write_meta(meta_path: str, meta: dict) -> None:
     tmp = f'{meta_path}.{os.getpid()}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(to_json_safe(meta), f, indent=2, allow_nan=False)
-    os.replace(tmp, meta_path)
+    _replace_with_retry(tmp, meta_path)
 
 
 def _now_iso() -> str:
@@ -78,4 +94,4 @@ def _atomic_write_parquet(data: pd.DataFrame, path: str) -> None:
         engine=settings.PARQUET_ENGINE,
         compression=settings.PARQUET_COMPRESSION,
     )
-    os.replace(tmp, path)
+    _replace_with_retry(tmp, path)

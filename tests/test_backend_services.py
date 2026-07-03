@@ -29,6 +29,7 @@ from webapp.backend.services.journal_stats import calculate_journal_stats
 from webapp.backend.services import portfolio_snapshot, screener_data, startup
 from webapp.backend.services import scan_runner
 from core.pipeline import cache_status as cache_status_module
+from core.pipeline import downloads as downloads_module
 from core.pipeline import scan_job as scan_job_module
 
 
@@ -678,10 +679,16 @@ def _status_panel(symbols, day):
 
 def _wire_cache_status(tmp_path, monkeypatch, panel=None, tickers=None,
                        expected="2026-06-25", meta=None, admission=None):
+    from core.pipeline.downloads import _price_regime
+
     cache_file = tmp_path / "market_cache.parquet"
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text(
-        json.dumps(meta or {"last_full_refresh": datetime.now(timezone.utc).isoformat()}),
+        json.dumps(meta or {
+            "last_full_refresh": datetime.now(timezone.utc).isoformat(),
+            # current-regime tag: an untagged meta now classifies regime_mismatch
+            "price_series": _price_regime(),
+        }),
         encoding="utf-8",
     )
     if admission is not None:
@@ -797,6 +804,7 @@ def test_market_data_status_cools_down_repair_and_blocks_low_eligible_eval(tmp_p
         tickers=["AAA", "BBB"],
         meta={
             "last_full_refresh": datetime.now(timezone.utc).isoformat(),
+            "price_series": downloads_module._price_regime(),
             "repair_state": {
                 "next_retry_at": cooldown_until.isoformat(),
                 "retry_reason": "1 symbol(s) still missing the latest close",
@@ -820,6 +828,11 @@ def test_download_only_refresh_does_not_evaluate_or_archive(tmp_path, monkeypatc
     expected = "2026-06-25"
     panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
     meta_file = tmp_path / "cache_meta.json"
+    # The fake provider below never writes the meta the real fetch_data would,
+    # so pin the current-regime tag (untagged now classifies regime_mismatch).
+    meta_file.write_text(
+        json.dumps({"price_series": downloads_module._price_regime()}), encoding="utf-8"
+    )
     monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
     monkeypatch.setattr(scan_job_module, "get_tickers", lambda: ["AAA"])
     monkeypatch.setattr(
@@ -843,6 +856,9 @@ def test_download_only_partial_coverage_sets_cooldown_without_failing(tmp_path, 
     expected = "2026-06-25"
     panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
     meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text(
+        json.dumps({"price_series": downloads_module._price_regime()}), encoding="utf-8"
+    )
     monkeypatch.setattr(scan_job_module, "_cache_paths", lambda: (str(tmp_path / "cache.parquet"), str(meta_file)))
     monkeypatch.setattr(scan_job_module.settings, "MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES", 12)
     monkeypatch.setattr(scan_job_module, "get_tickers", lambda: ["AAA", "BBB"])
@@ -874,7 +890,10 @@ def test_cached_raw_partial_evaluation_archives_when_eligible_cache_is_healthy(t
     results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}])
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text(
-        json.dumps({"last_full_refresh": datetime.now(timezone.utc).isoformat()}),
+        json.dumps({
+            "last_full_refresh": datetime.now(timezone.utc).isoformat(),
+            "price_series": downloads_module._price_regime(),
+        }),
         encoding="utf-8",
     )
     (tmp_path / "ticker_admission.json").write_text(
@@ -969,7 +988,9 @@ def test_empty_results_on_stale_data_does_not_clobber_dashboard(tmp_path, monkey
     expected = "2026-06-25"
     stale_panel = _status_panel(["AAA", "SPY", "QQQ"], "2026-06-20")  # behind expected
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    meta_file.write_text(  # regime-tagged so the STALE path (not the regime guard) is what raises
+        json.dumps({"price_series": downloads_module._price_regime()}), encoding="utf-8"
+    )
     dashboard_calls = []
     monkeypatch.setattr(scan_job_module, "_cache_paths", lambda *a, **k: (str(tmp_path / "c.parquet"), str(meta_file)))
     monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (pd.DataFrame(), stale_panel, ["AAA"], {}))
@@ -988,7 +1009,9 @@ def test_empty_results_on_healthy_data_writes_empty_artifact(tmp_path, monkeypat
     expected = "2026-06-25"
     panel = _status_panel(["AAA", "SPY", "QQQ"], expected)
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    meta_file.write_text(
+        json.dumps({"price_series": downloads_module._price_regime()}), encoding="utf-8"
+    )
     dashboard_calls = []
     monkeypatch.setattr(scan_job_module, "_cache_paths", lambda *a, **k: (str(tmp_path / "c.parquet"), str(meta_file)))
     monkeypatch.setattr(scan_job_module, "run_screener", lambda *a, **k: (pd.DataFrame(), panel, ["AAA"], {}))

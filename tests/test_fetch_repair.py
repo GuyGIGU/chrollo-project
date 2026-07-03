@@ -486,7 +486,7 @@ def test_latest_session_repair_patches_missing_closes_without_dropping_history(m
     monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_BATCH_SIZE", 10)
     monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
-    monkeypatch.setattr(downloads_module, "_download_batch_with_retry_kwargs", lambda *_args, **_kwargs: patch)
+    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", lambda *_args, **_kwargs: patch)
 
     out = downloads_module._repair_latest_session(
         base,
@@ -532,7 +532,7 @@ def test_patch_market_data_tolerates_duplicate_base_columns():
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
 
 
-def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
+def test_archive_freshness_rejects_low_latest_coverage(tmp_path, monkeypatch):
     day = pd.Timestamp("2026-06-18")
     panel = pd.concat(
         {
@@ -544,6 +544,16 @@ def test_archive_freshness_rejects_low_latest_coverage(monkeypatch):
         axis=1,
     )
 
+    # Pin a current-regime meta so the health read exercises the COVERAGE gate,
+    # not the price-regime guard (an untagged meta now classifies regime_mismatch).
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text(
+        json.dumps({"price_series": downloads_module._price_regime()}), encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        scan_job_module, "_cache_paths",
+        lambda *a, **k: (str(tmp_path / "cache.parquet"), str(meta_file)),
+    )
     monkeypatch.setattr(scan_job_module, "_expected_session_date", lambda: "2026-06-18")
     monkeypatch.setattr(scan_job_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
 

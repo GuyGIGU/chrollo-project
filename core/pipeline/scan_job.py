@@ -451,7 +451,7 @@ def _refresh_market_data_cache_locked(
             meta=_read_meta(meta_file), index_symbols=index_symbols,
         )
 
-    if after_health["health_state"] in ("stale_session", "shallow_history"):
+    if after_health["health_state"] in ("stale_session", "shallow_history", "regime_mismatch"):
         msg = f"stale market data: {after_health['diagnosis']}"
         log.warning("Download-only cache refresh did not reach current data: %s", msg)
         raise StaleMarketDataError(msg, n_setups=None)
