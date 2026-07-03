@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import useIBKRStatus from '../hooks/useIBKRStatus';
 import usePortfolioSnapshot, { emptyPortfolioSnapshot } from '../hooks/usePortfolioSnapshot';
-import { API_BASE } from '../api';
 import AccountSummaryCard from './PortfolioSummary';
 import PortfolioDailyPnl from './PortfolioDailyPnl';
 import PortfolioPositionChart from './PortfolioPositionChart';
@@ -19,35 +18,10 @@ const unavailableStyle = {
   color: 'var(--text-muted)',
 };
 
-const reconnect = async (status) => {
-  let confirm = false;
-  if (status?.mode === 'live') {
-    const isGateway = status?.client === 'gateway';
-    const livePort = isGateway ? 4001 : 7496;
-    const livePeer = isGateway ? 'IB Gateway' : 'TWS';
-    const ok = window.confirm(
-      `Connect Chrollo to your LIVE real-money IBKR account on port ${livePort}?\n\n` +
-      `This hands your single IBKR API session to Chrollo until you disconnect. ` +
-      `Make sure ${livePeer} is logged into the live account and TradingView is not using it.`,
-    );
-    if (!ok) return;
-    confirm = true;
-  }
-
-  const response = await fetch(`${API_BASE}/ibkr/reconnect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirm }),
-  });
-  if (!response.ok) throw new Error(await response.text());
-};
-
-const disconnect = async () => {
-  const response = await fetch(`${API_BASE}/ibkr/disconnect`, { method: 'POST' });
-  if (!response.ok) throw new Error(await response.text());
-};
-
-const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary }) => {
+// Reconnect/disconnect (incl. the LIVE-account confirm gate and the in-flight
+// guard) live in hooks/useIbkrActions.js — AppShell owns the hook and threads
+// it here through outlet context so there is exactly one copy of that logic.
+const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary, ibkrActions }) => {
   const status = useIBKRStatus(10000);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
@@ -95,22 +69,6 @@ const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary })
     return sseStatus === 'error' || sseStatus === 'closed';
   }, [status, sseStatus, snapshot.stale]);
 
-  const handleReconnect = async () => {
-    try {
-      await reconnect(status);
-    } catch (error) {
-      alert(`Reconnect failed: ${error.message || error}`);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      await disconnect();
-    } catch (error) {
-      alert(`Disconnect failed: ${error.message || error}`);
-    }
-  };
-
   const openPositionChart = (symbol) => {
     setSelectedSymbol(symbol);
     setChartOpen(true);
@@ -135,8 +93,8 @@ const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary })
         hasData={hasData}
         dailyRestart={dailyRestart}
         sessionCompetition={sessionCompetition}
-        onReconnect={handleReconnect}
-        onDisconnect={handleDisconnect}
+        onReconnect={ibkrActions?.reconnectIbkr}
+        onDisconnect={ibkrActions?.disconnectIbkr}
         riskSummary={riskSummary}
       />
       <PortfolioDailyPnl summary={summary} />

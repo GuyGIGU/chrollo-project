@@ -128,6 +128,7 @@ function AppShell() {
 
   const outletContext = {
     stats,
+    ibkrActions,
     trades,
     stockTrades,
     optionTrades,
