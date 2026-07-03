@@ -1,46 +1,23 @@
 import { useEffect, useRef } from 'react';
-import { LineSeries, createSeriesMarkers } from 'lightweight-charts';
+import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
 import { attachPhaseOverlay, buildPhaseRegions } from '../components/chartPhaseOverlay';
-import { buildLevelData, finiteNumber } from '../components/chartGeometry';
+import { finiteNumber } from '../components/chartGeometry';
+import { addBoxRails } from '../components/chartRails';
+import { baseChartOptions, CHART_COLORS } from '../components/chartTheme';
 
-const chartOptions = (width, height) => ({
-  width,
-  height,
-  layout: {
-    background: { type: 'solid', color: '#171922' },
-    textColor: '#8b949e',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 12,
-  },
-  grid: {
-    vertLines: { color: 'rgba(70, 77, 98, 0.18)' },
-    horzLines: { color: 'rgba(70, 77, 98, 0.18)' },
-  },
-  crosshair: { mode: 1 },
-  rightPriceScale: {
-    borderColor: '#2f3447',
+const chartOptions = (width, height) => {
+  const base = baseChartOptions('modal', width, height);
+  return {
+    ...base,
+    crosshair: { mode: 1 },
     // Tight vertical fit so amplitude isn't flattened; bottom band sized to the
     // (now smaller) volume footprint so price/volume don't overlap.
-    scaleMargins: { top: 0.06, bottom: 0.16 },
-    autoScale: true,
-  },
-  timeScale: {
-    borderColor: '#2f3447',
-    timeVisible: true,
-    fixLeftEdge: false,
-    fixRightEdge: false,
-  },
-  handleScroll: true,
-  handleScale: true,
-});
-
-const levelOptions = {
-  color: '#2457b8',
-  lineWidth: 2,
-  crosshairMarkerVisible: false,
-  lastValueVisible: false,
-  priceLineVisible: false,
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
+    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
+    handleScroll: true,
+    handleScale: true,
+  };
 };
 
 // --- structure candle coloring (modal variant: r/s anchors grey, LPS regions
@@ -59,7 +36,7 @@ const colorStructureCandles = (data, baseEnd) => {
 const colorBase = (candles, data, baseStart, baseEnd) => {
   if (data.r_anchor == null || data.s_anchor == null) {
     for (let index = baseStart; index <= baseEnd; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = '#5d6474';
+      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
     }
     return;
   }
@@ -70,7 +47,7 @@ const colorBase = (candles, data, baseStart, baseEnd) => {
   // rawBaseStart in the min: the shared-rail back-extension can open the box
   // before the anchor pair; the base coloring must still cover its left edge.
   for (let index = Math.min(rBar, sBar, rawBaseStart); index <= Math.max(rBar, sBar); index += 1) {
-    if (index >= 0 && index < candles.length) candles[index].color = '#5d6474';
+    if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
   }
 };
 
@@ -80,7 +57,7 @@ const colorLps = (candles, data, baseEnd) => {
   for (const region of lpsRegions) {
     for (let index = region.startIndex; index <= region.endIndex; index += 1) {
       if (index >= 0 && index < candles.length) {
-        candles[index].color = region.color || '#e3b341';
+        candles[index].color = region.color || CHART_COLORS.gold;
         colored = true;
       }
     }
@@ -91,35 +68,7 @@ const colorLps = (candles, data, baseEnd) => {
   const lpsEnd = baseEnd - data.lps_offset;
   const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
   for (let index = lpsStart; index <= lpsEnd; index += 1) {
-    if (index >= 0 && index < candles.length) candles[index].color = '#e3b341';
-  }
-};
-
-const addStructureLevels = (chart, data, baseEnd) => {
-  const startIndex = Math.max(0, baseEnd - data.base_len + 1);
-  const midValue = (Number(data.R) + Number(data.S)) / 2;
-
-  chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(data.candles || [], startIndex, data.R));
-  chart.addSeries(LineSeries, levelOptions).setData(buildLevelData(data.candles || [], startIndex, data.S));
-  chart.addSeries(LineSeries, {
-    ...levelOptions,
-    color: 'rgba(139, 148, 158, 0.45)',
-    lineWidth: 1,
-    lineStyle: 2,
-  }).setData(buildLevelData(data.candles || [], startIndex, midValue));
-
-  const innerR = finiteNumber(data.inner_R);
-  const innerS = finiteNumber(data.inner_S);
-  const innerStartBar = finiteNumber(data.inner_start_bar);
-  if (innerR != null && innerS != null && innerStartBar != null) {
-    const innerStart = Math.max(0, Math.min((data.candles || []).length - 1, Math.trunc(innerStartBar)));
-    const innerOptions = {
-      ...levelOptions,
-      color: '#5f8fe6',
-      lineWidth: 2,
-    };
-    chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerR));
-    chart.addSeries(LineSeries, innerOptions).setData(buildLevelData(data.candles || [], innerStart, innerS));
+    if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.gold;
   }
 };
 
@@ -127,7 +76,7 @@ const addAnnotations = (candleSeries, annotations) => {
   if (annotations.trigger_price) {
     candleSeries.createPriceLine({
       price: annotations.trigger_price,
-      color: '#e3b341',
+      color: CHART_COLORS.gold,
       lineWidth: 1,
       lineStyle: 2,
       axisLabelVisible: true,
@@ -145,12 +94,12 @@ const addAnnotations = (candleSeries, annotations) => {
 const buildMarkers = (annotations) => {
   const markers = [];
   if (annotations.trigger_date) {
-    markers.push({ time: annotations.trigger_date, position: 'belowBar', color: '#3fb950', shape: 'arrowUp', text: 'TRIG' });
+    markers.push({ time: annotations.trigger_date, position: 'belowBar', color: CHART_COLORS.success, shape: 'arrowUp', text: 'TRIG' });
   }
   const mfe20d = finiteNumber(annotations.mfe_20d);
   const mae20d = finiteNumber(annotations.mae_20d);
   if (annotations.mfe_20d_date && mfe20d != null) {
-    markers.push({ time: annotations.mfe_20d_date, position: 'aboveBar', color: '#3fb950', shape: 'circle', text: `MFE ${(mfe20d * 100).toFixed(1)}%` });
+    markers.push({ time: annotations.mfe_20d_date, position: 'aboveBar', color: CHART_COLORS.success, shape: 'circle', text: `MFE ${(mfe20d * 100).toFixed(1)}%` });
   }
   if (annotations.mae_20d_date && mae20d != null) {
     markers.push({ time: annotations.mae_20d_date, position: 'belowBar', color: '#c76b73', shape: 'circle', text: `MAE ${(mae20d * 100).toFixed(1)}%` });
@@ -190,7 +139,7 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
   useLightweightChart(containerRef, {
     chartOptions: (container) => chartOptions(container.clientWidth, container.clientHeight),
     candles: coloredCandles,
-    barOptions: { upColor: '#d8dbe5', downColor: '#d8dbe5', thinBars: false },
+    barOptions: { upColor: CHART_COLORS.candle, downColor: CHART_COLORS.candle, thinBars: false },
     volumes: data?.volumes,
     showVolume: true,
     volumeScaleTop: 0.84,
@@ -204,7 +153,8 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
         data,
       });
       phaseOverlayRef.current = phaseOverlay;
-      addStructureLevels(chart, data, baseEnd);
+      // The SAME rail drawer the mini card uses — card and modal cannot diverge.
+      addBoxRails(chart, data);
       addAnnotations(candleSeries, data.annotations || {});
       setFocusedRange(chart, data, baseEnd);
 

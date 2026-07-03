@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { API_BASE } from '../api';
+import { confirmDialog, toast } from '../components/ui/feedback';
 
 function useIbkrActions(ibkrStatus) {
   const isLive = ibkrStatus?.mode === 'live';
@@ -14,11 +15,15 @@ function useIbkrActions(ibkrStatus) {
     let confirmed = false;
     if (isLive) {
       const { port: livePort, peer: livePeer } = liveTarget(isGateway);
-      const ok = window.confirm(
-        `Connect Chrollo to your LIVE real-money IBKR account on port ${livePort}?\n\n` +
-        `This hands your single IBKR API session to Chrollo until you disconnect - ` +
-        `make sure ${livePeer} is logged into the live account and TradingView isn't using it.`,
-      );
+      const ok = await confirmDialog({
+        title: 'Connect to LIVE IBKR?',
+        message:
+          `Connect Chrollo to your LIVE real-money IBKR account on port ${livePort}?\n\n` +
+          `This hands your single IBKR API session to Chrollo until you disconnect - ` +
+          `make sure ${livePeer} is logged into the live account and TradingView isn't using it.`,
+        confirmLabel: 'Connect live',
+        danger: true,
+      });
       if (!ok) return;
       confirmed = true;
     }
@@ -31,10 +36,10 @@ function useIbkrActions(ibkrStatus) {
         body: JSON.stringify({ confirm: confirmed }),
       });
       if (!res.ok) {
-        alert(`Reconnect failed: ${await res.text()}`);
+        toast(`Reconnect failed: ${await res.text()}`, { tone: 'danger' });
       }
     } catch (error) {
-      alert(`Reconnect error: ${error.message || error}`);
+      toast(`Reconnect error: ${error.message || error}`, { tone: 'danger' });
     } finally {
       setReconnecting(false);
     }
@@ -46,10 +51,10 @@ function useIbkrActions(ibkrStatus) {
     try {
       const res = await fetch(`${API_BASE}/ibkr/disconnect`, { method: 'POST' });
       if (!res.ok) {
-        alert(`Disconnect failed: ${await res.text()}`);
+        toast(`Disconnect failed: ${await res.text()}`, { tone: 'danger' });
       }
     } catch (error) {
-      alert(`Disconnect error: ${error.message || error}`);
+      toast(`Disconnect error: ${error.message || error}`, { tone: 'danger' });
     } finally {
       setReconnecting(false);
     }
@@ -58,7 +63,7 @@ function useIbkrActions(ibkrStatus) {
   const toggleIbkrMode = async () => {
     if (switchingMode) return;
     const next = isLive ? 'paper' : 'live';
-    if (next === 'live' && !confirmLiveMode(isGateway)) {
+    if (next === 'live' && !(await confirmLiveMode(isGateway))) {
       return;
     }
 
@@ -70,10 +75,10 @@ function useIbkrActions(ibkrStatus) {
         body: JSON.stringify({ mode: next, confirm: true }),
       });
       if (!res.ok) {
-        alert(`Mode switch failed: ${await res.text()}`);
+        toast(`Mode switch failed: ${await res.text()}`, { tone: 'danger' });
       }
     } catch (error) {
-      alert(`Mode switch error: ${error.message || error}`);
+      toast(`Mode switch error: ${error.message || error}`, { tone: 'danger' });
     } finally {
       setSwitchingMode(false);
     }
@@ -85,7 +90,7 @@ function useIbkrActions(ibkrStatus) {
     let confirmed = false;
     if (isLive) {
       const nextIsGateway = next === 'gateway';
-      if (!confirmLiveClientSwitch(nextIsGateway)) {
+      if (!(await confirmLiveClientSwitch(nextIsGateway))) {
         return;
       }
       confirmed = true;
@@ -99,10 +104,10 @@ function useIbkrActions(ibkrStatus) {
         body: JSON.stringify({ client: next, confirm: confirmed }),
       });
       if (!res.ok) {
-        alert(`Client switch failed: ${await res.text()}`);
+        toast(`Client switch failed: ${await res.text()}`, { tone: 'danger' });
       }
     } catch (error) {
-      alert(`Client switch error: ${error.message || error}`);
+      toast(`Client switch error: ${error.message || error}`, { tone: 'danger' });
     } finally {
       setSwitchingClient(false);
     }
@@ -132,19 +137,26 @@ function liveTarget(isGateway) {
 
 function confirmLiveMode(isGateway) {
   const { port: livePort, peer: livePeer } = liveTarget(isGateway);
-  return window.confirm(
-    'Switch to LIVE trading mode?\n\n' +
-    `This connects to your real-money IBKR account on port ${livePort}. ` +
-    `Make sure ${livePeer} is logged into the live account.`,
-  );
+  return confirmDialog({
+    title: 'Switch to LIVE trading mode?',
+    message:
+      `This connects to your real-money IBKR account on port ${livePort}. ` +
+      `Make sure ${livePeer} is logged into the live account.`,
+    confirmLabel: 'Switch to live',
+    danger: true,
+  });
 }
 
 function confirmLiveClientSwitch(isGateway) {
   const { port: livePort, peer: livePeer } = liveTarget(isGateway);
-  return window.confirm(
-    `Switch Chrollo's LIVE IBKR connection to ${livePeer} on port ${livePort}?\n\n` +
-    `This hands your single IBKR API session to Chrollo until you disconnect.`,
-  );
+  return confirmDialog({
+    title: `Switch LIVE connection to ${livePeer}?`,
+    message:
+      `Switch Chrollo's LIVE IBKR connection to ${livePeer} on port ${livePort}?\n\n` +
+      `This hands your single IBKR API session to Chrollo until you disconnect.`,
+    confirmLabel: 'Switch client',
+    danger: true,
+  });
 }
 
 export default useIbkrActions;

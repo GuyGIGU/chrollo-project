@@ -1,13 +1,8 @@
+import { dateTimeShort } from './format.js';
+
 export const fmtScanTime = (value) => {
   if (!value) return 'none';
-  const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return 'unknown';
-  return dt.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return dateTimeShort(value) ?? 'unknown';
 };
 
 export const scanStatusColor = (status) => {

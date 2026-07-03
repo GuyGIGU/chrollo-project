@@ -1,3 +1,4 @@
+import { fmtNum } from './format.js';
 import { inferDirection, isOptionSymbol } from './tradeUtils.js';
 
 export const EDITABLE_FIELDS = ['opening_date', 'ticker', 'entry_price', 'stop_loss', 'quantity'];
@@ -24,26 +25,10 @@ export const parseActions = (json) => {
   }
 };
 
-export const fmtMoney = (value, digits = 2) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
-  return Number(value).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-};
+// Money here is a plain grouped number (no $ sign) — the trade-table dialect.
+export const fmtMoney = (value, digits = 2) => fmtNum(value, digits);
 
-export const fmtInt = (value) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
-  return Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
-};
-
-export const fmtDateShort = (value) => {
-  if (!value) return '-';
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return value;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[Number(match[2]) - 1]} ${Number(match[3])}`;
-};
+export { fmtInt, fmtDateShort } from './format.js';
 
 export const deriveTradeAlerts = (trades = [], riskFor) => (
   trades

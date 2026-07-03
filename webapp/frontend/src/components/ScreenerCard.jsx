@@ -81,10 +81,10 @@ function PassButton({ active, onToggle }) {
       }}
       title={active ? 'Considered — you saw & weighed this setup (click to unmark)' : 'Mark as considered (you saw & weighed this setup)'}
       style={{
-        background: active ? 'rgba(63,185,80,0.16)' : 'transparent',
+        background: active ? 'var(--success-bg)' : 'transparent',
         border: '1px solid var(--border-color)',
         borderRadius: 6,
-        color: active ? '#3fb950' : '#6b6b7a',
+        color: active ? 'var(--success)' : '#6b6b7a',
         cursor: 'pointer',
         fontFamily: 'inherit',
         fontSize: 12,
@@ -182,17 +182,17 @@ function CardHeader({ data, earnings, onTogglePassed, onToggleWatchlist, passed,
 // daily base sits inside this timeframe's box. Re-accumulation is the premium
 // case, so it takes the S-tier amber.
 function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
-  const trend = trendState === 'up' ? { sym: '▲', col: '#3fb950' }
-    : trendState === 'down' ? { sym: '▼', col: '#f85149' }
+  const trend = trendState === 'up' ? { sym: '▲', col: 'var(--success)' }
+    : trendState === 'down' ? { sym: '▼', col: 'var(--danger)' }
       : trendState === 'neutral' ? { sym: '▬', col: '#8b949e' }
         : { sym: '·', col: 'var(--text-faint)' };
   let state = '—';
   let stateCol = 'var(--text-faint)';
   if (reaccum) { state = `Re-accum${phase ? ` ${phase}` : ''}`; stateCol = '#ff9f43'; }
   else if (inConsol) { state = `Consol${phase ? ` ${phase}` : ''}`; stateCol = '#58a6ff'; }
-  else if (stage2) { state = 'Uptrend'; stateCol = '#3fb950'; }
+  else if (stage2) { state = 'Uptrend'; stateCol = 'var(--success)'; }
   else if (trendState == null || trendState === 'unknown') { state = 'no data'; }
-  else if (trendState === 'down') { state = 'downtrend'; stateCol = '#f85149'; }
+  else if (trendState === 'down') { state = 'downtrend'; stateCol = 'var(--danger)'; }
   const tfName = tf === 'W' ? 'Weekly' : 'Monthly';
   const status = [
     `trend ${trendState || 'unknown'}`,

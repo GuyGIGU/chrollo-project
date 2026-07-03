@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ScreenerCard from './ScreenerCard';
 import ScreenerModal from './ScreenerModal';
@@ -16,9 +16,12 @@ import useWatchlist from '../hooks/useWatchlist';
 import useDrilldown from '../hooks/useDrilldown';
 
 const ScreenerGrid = () => {
-  const [activeModalTicker, setActiveModalTicker] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  // The operator's place lives in the URL: ?u= universe, ?dd= drill-down ETF,
+  // ?t= open modal ticker — F5 / back-button never lose it.
   const universe = searchParams.get('u') || DEFAULT_UNIVERSE;
+  const activeModalTicker = searchParams.get('t');
+  const drilldownEtf = searchParams.get('dd');
   const etfUniverse = isEtfUniverse(universe);
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { passed, togglePassed } = useReviews();
@@ -27,22 +30,44 @@ const ScreenerGrid = () => {
   const scan = useScanRunner(fetchScreener, universe);
   const { drilldown, openDrilldown, closeDrilldown } = useDrilldown();
 
-  const backToGrid = useCallback(() => { closeDrilldown(); setActiveModalTicker(null); }, [closeDrilldown]);
+  // Patch individual params without clobbering the others. Opens PUSH (so the
+  // browser Back closes the modal/drill-down); closes and in-modal cycling
+  // REPLACE (Back shouldn't walk through every viewed ticker).
+  const patchParams = useCallback((patch, { replace = false } = {}) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value == null || value === '') next.delete(key);
+        else next.set(key, value);
+      }
+      return next;
+    }, { replace });
+  }, [setSearchParams]);
+
+  const openModal = useCallback((ticker) => patchParams({ t: ticker }), [patchParams]);
+  const cycleModal = useCallback((ticker) => patchParams({ t: ticker }, { replace: true }), [patchParams]);
+  const closeModal = useCallback(() => patchParams({ t: null }, { replace: true }), [patchParams]);
+  const backToGrid = useCallback(() => patchParams({ dd: null, t: null }, { replace: true }), [patchParams]);
+
+  // The ?dd= param drives the drill-down fetch state, so a reload restores it.
+  useEffect(() => {
+    if (drilldownEtf) openDrilldown(drilldownEtf);
+    else closeDrilldown();
+  }, [drilldownEtf, openDrilldown, closeDrilldown]);
 
   // The selected universe lives in the URL (?u=) so it survives reload. Switching
   // resets the page AND the filters (a tag/setup/tier valid in one universe need
   // not exist in another — a stale filter would fake a "no matches" empty state)
-  // and closes any open drill-down, so the switch is never silently masked.
+  // and drops ?dd=/?t= wholesale, so the switch is never silently masked.
   const handleUniverseChange = (key) => {
     if (key === universe) return;
-    backToGrid();
     filters.resetFilters();
     filters.setCurrentPage(1);
     setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };
 
   // Opening a drill-down clears any open modal first.
-  const handleDrilldown = useCallback((etf) => { setActiveModalTicker(null); openDrilldown(etf); }, [openDrilldown]);
+  const handleDrilldown = useCallback((etf) => patchParams({ dd: etf, t: null }), [patchParams]);
 
   // The modal + arrow-key cycling read the drill-down members when one is open,
   // otherwise the active universe's filtered list.
@@ -60,15 +85,15 @@ const ScreenerGrid = () => {
     if (!activeModalTicker || modalTickers.length === 0) return;
     const currentIndex = modalTickers.indexOf(activeModalTicker);
     const nextIndex = (currentIndex + 1) % modalTickers.length;
-    setActiveModalTicker(modalTickers[nextIndex]);
-  }, [activeModalTicker, modalTickers]);
+    cycleModal(modalTickers[nextIndex]);
+  }, [activeModalTicker, modalTickers, cycleModal]);
 
   const handlePrevModal = useCallback(() => {
     if (!activeModalTicker || modalTickers.length === 0) return;
     const currentIndex = modalTickers.indexOf(activeModalTicker);
     const prevIndex = (currentIndex - 1 + modalTickers.length) % modalTickers.length;
-    setActiveModalTicker(modalTickers[prevIndex]);
-  }, [activeModalTicker, modalTickers]);
+    cycleModal(modalTickers[prevIndex]);
+  }, [activeModalTicker, modalTickers, cycleModal]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -83,12 +108,12 @@ const ScreenerGrid = () => {
       }
       if (event.key === 'Escape') {
         event.preventDefault();
-        setActiveModalTicker(null);
+        closeModal();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeModalTicker, handleNextModal, handlePrevModal]);
+  }, [activeModalTicker, handleNextModal, handlePrevModal, closeModal]);
 
   return (
     // Screener-only full-bleed: negative margins cancel the content area's 2rem
@@ -140,7 +165,7 @@ const ScreenerGrid = () => {
         <DrilldownView
           dd={drilldown}
           onBack={backToGrid}
-          onCardClick={setActiveModalTicker}
+          onCardClick={openModal}
           watchlist={watchlist}
           toggleWatchlist={toggleWatchlist}
           passed={passed}
@@ -181,7 +206,7 @@ const ScreenerGrid = () => {
                     onToggleWatchlist={toggleWatchlist}
                     passed={passed.has(ticker)}
                     onTogglePassed={togglePassed}
-                    onClick={setActiveModalTicker}
+                    onClick={openModal}
                     onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />
                 ))}
@@ -200,7 +225,7 @@ const ScreenerGrid = () => {
         <ScreenerModal
           ticker={activeModalTicker}
           data={modalChart[activeModalTicker]}
-          onClose={() => setActiveModalTicker(null)}
+          onClose={closeModal}
           onNext={handleNextModal}
           onPrev={handlePrevModal}
         />

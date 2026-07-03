@@ -105,7 +105,7 @@ export default function ActionCenter({ screenerData, trades, riskFor }) {
             <div className="ac-group">
               <span className="ac-glabel" style={{ color: 'var(--success)' }}>▲ Triggered</span>
               {triggered.map(({ t, live }) => (
-                <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: 'rgba(63,185,80,0.4)', color: 'var(--success)' }}>
+                <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: 'rgba(61,211,122,0.4)', color: 'var(--success)' }}>
                   {t}<span className="ac-chip-sub">{live.toFixed(2)}</span>
                 </button>
               ))}

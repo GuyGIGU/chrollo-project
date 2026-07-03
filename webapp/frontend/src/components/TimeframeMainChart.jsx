@@ -1,6 +1,7 @@
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
 import { buildFullLevelData, colorTimeframeCandles, finiteNumber } from './chartGeometry';
+import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 
 // The big, interactive weekly/monthly chart behind the modal's D/W/M interval
 // tabs. It's the SAME Trend+Box read the daily engine does, one and two
@@ -10,32 +11,16 @@ import { buildFullLevelData, colorTimeframeCandles, finiteNumber } from './chart
 // plain-language structural read. Styled to match the daily chart
 // (useScreenerModalChart) so switching timeframes feels like one TradingView pane.
 
-const chartOptions = (width, height) => ({
-  width,
-  height,
-  layout: {
-    background: { type: 'solid', color: '#171922' },
-    textColor: '#8b949e',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 12,
-  },
-  grid: {
-    vertLines: { color: 'rgba(70, 77, 98, 0.18)' },
-    horzLines: { color: 'rgba(70, 77, 98, 0.18)' },
-  },
-  crosshair: { mode: 1 },
-  rightPriceScale: { borderColor: '#2f3447', scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
-  timeScale: { borderColor: '#2f3447', timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
-  handleScroll: true,
-  handleScale: true,
-});
-
-const levelOptions = {
-  color: '#2457b8',
-  lineWidth: 2,
-  crosshairMarkerVisible: false,
-  lastValueVisible: false,
-  priceLineVisible: false,
+const chartOptions = (width, height) => {
+  const base = baseChartOptions('modal', width, height);
+  return {
+    ...base,
+    crosshair: { mode: 1 },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
+    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
+    handleScroll: true,
+    handleScale: true,
+  };
 };
 
 export default function TimeframeMainChart({ candles, volumes, box, label }) {
@@ -65,14 +50,9 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
         from = found < 0 ? 0 : found;
       }
       const railBars = cand.slice(from);
-      chart.addSeries(LineSeries, levelOptions).setData(buildFullLevelData(railBars, r));
-      chart.addSeries(LineSeries, levelOptions).setData(buildFullLevelData(railBars, s));
-      chart.addSeries(LineSeries, {
-        ...levelOptions,
-        color: 'rgba(139, 148, 158, 0.45)',
-        lineWidth: 1,
-        lineStyle: 2,
-      }).setData(buildFullLevelData(railBars, (r + s) / 2));
+      chart.addSeries(LineSeries, RAIL_STYLE.rail).setData(buildFullLevelData(railBars, r));
+      chart.addSeries(LineSeries, RAIL_STYLE.rail).setData(buildFullLevelData(railBars, s));
+      chart.addSeries(LineSeries, RAIL_STYLE.mid).setData(buildFullLevelData(railBars, (r + s) / 2));
     }
 
     // Bounded recent window keeps weekly/monthly bars at a faithful per-bar

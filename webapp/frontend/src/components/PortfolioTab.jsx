@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import useIBKRStatus from '../hooks/useIBKRStatus';
 import usePortfolioSnapshot, { emptyPortfolioSnapshot } from '../hooks/usePortfolioSnapshot';
 import AccountSummaryCard from './PortfolioSummary';
 import PortfolioDailyPnl from './PortfolioDailyPnl';
@@ -18,11 +17,10 @@ const unavailableStyle = {
   color: 'var(--text-muted)',
 };
 
-// Reconnect/disconnect (incl. the LIVE-account confirm gate and the in-flight
-// guard) live in hooks/useIbkrActions.js — AppShell owns the hook and threads
-// it here through outlet context so there is exactly one copy of that logic.
-const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary, ibkrActions }) => {
-  const status = useIBKRStatus(10000);
+// Status + actions come from the shell's single owners (useIBKRStatus /
+// useIbkrActions mounted once in AppShell, threaded via outlet context) — this
+// tab must not poll /ibkr/status or hand-roll its own reconnect flow.
+const PortfolioTab = ({ onTradeDetailClick, trades = [], riskFor, riskSummary, ibkrStatus: status, ibkrActions }) => {
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [chartOpen, setChartOpen] = useState(false);
   const enabled = !!status?.available;

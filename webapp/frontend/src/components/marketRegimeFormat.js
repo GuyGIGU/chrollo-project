@@ -1,4 +1,5 @@
 import { explainTip } from './tooltipText';
+import { dateTimeShort, finiteOrNull, fmtPctFrac, fmtRound, fmtSignedPctFrac, fx } from '../utils/format';
 
 // Each state carries structured guidance (what/why/use) so the detail modal can
 // render it as readable labeled rows, while `detail` stays a single string for
@@ -40,48 +41,25 @@ export const STATE_META = {
   ),
 };
 
-export const fxPct = (value, digits = 0) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return 'n/a';
-  return `${(n * 100).toFixed(digits)}%`;
-};
+// Regime dialect: 'n/a' is deliberate copy (these render inside prose rows).
+export const fxPct = (value, digits = 0) => fmtPctFrac(value, digits, 'n/a');
 
-export const fxSignedPct = (value, digits = 1) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return 'n/a';
-  const sign = n > 0 ? '+' : '';
-  return `${sign}${(n * 100).toFixed(digits)}%`;
-};
+export const fxSignedPct = (value, digits = 1) => fmtSignedPctFrac(value, digits, 'n/a');
 
-export const fxPrice = (value) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return 'n/a';
-  return n.toFixed(2);
-};
+export const fxPrice = (value) => fx(value, 2, 'n/a');
 
-export const fxNum = (value) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return 'n/a';
-  return String(Math.round(n));
-};
+export const fxNum = (value) => fmtRound(value, 'n/a');
 
 export const fxDays = (value) => {
-  const n = Number(value);
-  if (value == null || !Number.isFinite(n)) return 'n/a';
+  const n = finiteOrNull(value);
+  if (n == null) return 'n/a';
   const rounded = Math.round(n);
   return `${rounded} day${rounded === 1 ? '' : 's'}`;
 };
 
 export const fxDate = (value) => {
   if (!value) return 'n/a';
-  const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return value;
-  return dt.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return dateTimeShort(value) ?? value;
 };
 
 export function buildRegimeReasons(regime = {}, spy = {}, qqq = {}) {

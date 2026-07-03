@@ -1,5 +1,6 @@
 import React from 'react';
 import EquityCurve from './EquityCurve';
+import { fx } from '../utils/format';
 
 const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) => {
   const data = stats || {
@@ -22,9 +23,9 @@ const DashboardStats = ({ stats, trades = [], activeFilter, onFilterChange }) =>
 
   // Null-safe formatters: a partial /stats payload can leave individual fields
   // undefined even when `stats` itself is non-null, so the defaults above don't
-  // cover them. Bare .toFixed on undefined/NaN would crash the dashboard.
-  const fmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '0.00');
-  const pctFmt = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '0.0');
+  // cover them. The dashboard deliberately shows zeros (not the em dash) there.
+  const fmt = (v) => fx(v, 2, '0.00');
+  const pctFmt = (v) => fx(v, 1, '0.0');
 
   const toggle = (key) => {
     if (typeof onFilterChange !== 'function') return;

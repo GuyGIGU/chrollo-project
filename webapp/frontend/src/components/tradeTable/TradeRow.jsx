@@ -39,11 +39,11 @@ export default function TradeRow({
         <EditableCell {...editing} rowId={trade.id} field="entry_price" displayValue={derived.entryVwap != null ? `$${fmtMoney(derived.entryVwap)}` : ''} rawForEdit={trade.entry_price} num inputType="number" step="0.01" />
         <EditableCell {...editing} rowId={trade.id} field="stop_loss" displayValue={derived.stopVal != null ? <StopValue derived={derived} /> : ''} rawForEdit={trade.stop_loss} num inputType="number" step="0.01" />
         <EditableCell {...editing} rowId={trade.id} field="quantity" displayValue={derived.openQty != null ? fmtInt(derived.openQty) : ''} rawForEdit={trade.quantity} num inputType="number" />
-        <ComputedCell num>{derived.totalWorth != null ? `$${fmtMoney(derived.totalWorth, 0)}` : '-'}</ComputedCell>
-        <ComputedCell num divider>{derived.position != null ? fmtInt(derived.position) : '-'}</ComputedCell>
+        <ComputedCell num>{derived.totalWorth != null ? `$${fmtMoney(derived.totalWorth, 0)}` : '—'}</ComputedCell>
+        <ComputedCell num divider>{derived.position != null ? fmtInt(derived.position) : '—'}</ComputedCell>
         <ComputedCell num><ExitValue derived={derived} /></ComputedCell>
         <ComputedCell num><PnlValue derived={derived} /></ComputedCell>
-        <ComputedCell num>{derived.totalExit != null ? `$${fmtMoney(derived.totalExit, 0)}` : '-'}</ComputedCell>
+        <ComputedCell num>{derived.totalExit != null ? `$${fmtMoney(derived.totalExit, 0)}` : '—'}</ComputedCell>
         <ComputedCell>{fmtDateShort(derived.exitDate)}</ComputedCell>
         <td className="text" style={{ cursor: 'pointer' }} onClick={() => onDetailClick?.(trade)} title="Open detail drawer">
           <div className="cell-shell readonly center" style={{ color: 'var(--text-muted)', letterSpacing: '2px' }}>...</div>
@@ -62,7 +62,7 @@ export default function TradeRow({
 }
 
 function ExitValue({ derived }) {
-  if (derived.currentExit == null) return '-';
+  if (derived.currentExit == null) return '—';
   return (
     <span>
       ${fmtMoney(derived.currentExit)}
@@ -94,7 +94,7 @@ function StopValue({ derived }) {
 }
 
 function PnlValue({ derived }) {
-  if (derived.pnl == null) return '-';
+  if (derived.pnl == null) return '—';
   const rValue = formatSignedR(derived.rValue);
   const color = derived.pnl > 0
     ? 'var(--success)'

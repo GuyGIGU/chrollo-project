@@ -1,4 +1,5 @@
 import { fixed, pct, signColor, tierColor } from '../../utils/archiveTabUtils';
+import { EMPTY, finiteOrNull } from '../../utils/format';
 
 export default function ArchiveTierCards({ performance }) {
   if (!performance || Object.keys(performance).length === 0) return null;
@@ -46,8 +47,6 @@ function Metric({ color, label, sub, value }) {
   );
 }
 
-// signColor imported from archiveTabUtils.
-const rValue = (value) => {
-  const formatted = fixed(value, 2);
-  return formatted === '-' ? '-' : `${formatted}R`;
-};
+// signColor imported from archiveTabUtils. Guard on the VALUE, never on the
+// formatter's empty glyph.
+const rValue = (value) => (finiteOrNull(value) == null ? EMPTY : `${fixed(value, 2)}R`);

@@ -1,31 +1,13 @@
-export const emptyValue = '-';
+import { EMPTY, fmtMoneyUsd, fmtNum as sharedFmtNum, fmtPct as sharedFmtPct } from '../utils/format';
 
-export const fmtMoney = (value, currency = 'USD') => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return emptyValue;
-  const numberValue = Number(value);
-  const sign = numberValue < 0 ? '-' : '';
-  const abs = Math.abs(numberValue).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `${sign}$${abs}${currency && currency !== 'USD' ? ` ${currency}` : ''}`;
-};
+export const emptyValue = EMPTY;
 
-export const fmtNum = (value, digits = 2) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return emptyValue;
-  return Number(value).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-};
+// Portfolio dialect: money carries the $ sign and a non-USD currency suffix.
+export const fmtMoney = (value, currency = 'USD') => fmtMoneyUsd(value, currency);
 
-export const fmtPct = (value, digits = 1) => {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return emptyValue;
-  return `${Number(value).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })}%`;
-};
+export const fmtNum = (value, digits = 2) => sharedFmtNum(value, digits);
+
+export const fmtPct = (value, digits = 1) => sharedFmtPct(value, digits);
 
 export const fmtTime = (value) => {
   if (!value) return emptyValue;

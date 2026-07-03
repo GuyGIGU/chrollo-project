@@ -77,9 +77,9 @@ export const ArchiveAnalysisModal = ({ open, text, loading, error, onRefresh, on
 const formatRunTime = (run) => (run.finished_at || run.started_at || '—').replace('T', ' ').slice(0, 19);
 
 const statusColor = (status) => {
-  if (status === 'ok') return '#3fb950';
+  if (status === 'ok') return 'var(--success)';
   if (status === 'running') return 'var(--accent-blue)';
-  return '#f85149';
+  return 'var(--danger)';
 };
 
 const backdropStyle = {
@@ -95,7 +95,7 @@ const closeButtonStyle = { background: 'transparent', border: 'none', color: 'va
 const tableStyle = { width: '100%', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace" };
 const leftCellStyle = { textAlign: 'left', padding: '4px 6px' };
 const rightCellStyle = { textAlign: 'right', padding: '4px 6px' };
-const errorTextStyle = { color: '#f85149', fontSize: '12px', whiteSpace: 'pre-wrap' };
+const errorTextStyle = { color: 'var(--danger)', fontSize: '12px', whiteSpace: 'pre-wrap' };
 const preStyle = {
   fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'pre',
   overflowX: 'auto', color: 'var(--text-main)', lineHeight: 1.5, margin: 0,

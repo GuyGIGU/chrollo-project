@@ -3,34 +3,19 @@ import CandleChart from './CandleChart';
 import Modal from './ui/Modal';
 import usePositionChartData from '../hooks/usePositionChartData';
 import { buildPositiveLevel } from './chartGeometry';
+import { baseChartOptions, CHART_COLORS } from './chartTheme';
 import { fmtMoney, fmtNum, pnlColor } from './portfolioFormat';
 import PortfolioPositionInsights from './PortfolioPositionInsights';
 import { explainTip } from './tooltipText';
 
-const chartOptions = (width, height) => ({
-  width,
-  height,
-  layout: {
-    background: { type: 'solid', color: '#1c1f2a' },
-    textColor: '#7f879a',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 11,
-  },
-  grid: {
-    vertLines: { color: 'rgba(47, 52, 71, 0.28)' },
-    horzLines: { color: 'rgba(47, 52, 71, 0.28)' },
-  },
-  rightPriceScale: {
-    borderColor: '#2f3447',
-    scaleMargins: { top: 0.08, bottom: 0.24 },
-  },
-  timeScale: {
-    borderColor: '#2f3447',
-    timeVisible: false,
-    fixLeftEdge: true,
-    fixRightEdge: true,
-  },
-});
+const chartOptions = (width, height) => {
+  const base = baseChartOptions('position', width, height);
+  return {
+    ...base,
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.24 } },
+    timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+  };
+};
 const overlayStyle = {
   position: 'fixed',
   inset: 0,
@@ -56,7 +41,7 @@ const PositionChartCanvas = ({ symbol, data, position }) => {
 
   const onReady = (chart) => {
     const avgLine = chart.addSeries(LineSeries, {
-      color: '#d4b85a',
+      color: CHART_COLORS.goldMuted,
       lineWidth: 1,
       lineStyle: 2,
       lastValueVisible: false,
@@ -97,12 +82,12 @@ const PositionChartHeader = ({ symbol, position, onClose }) => {
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '13px 15px', borderBottom: '1px solid var(--border-color)' }}>
       <div>
         <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>Position Chart</div>
-        <div style={{ color: 'var(--accent-blue)', fontSize: 22, fontWeight: 850 }}>{symbol || '-'}</div>
+        <div style={{ color: 'var(--accent-blue)', fontSize: 22, fontWeight: 850 }}>{symbol || '—'}</div>
       </div>
       <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Qty {fmtNum(qty, 0)}</div>
-      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Market {Number.isFinite(price) ? fmtMoney(price) : '-'}</div>
-      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Value {Number.isFinite(value) ? fmtMoney(value) : '-'}</div>
-      <div style={{ color: pnlColor(unrealized), fontSize: 11, fontWeight: 800 }}>Open P&L {Number.isFinite(unrealized) ? fmtMoney(unrealized) : '-'}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Market {Number.isFinite(price) ? fmtMoney(price) : '—'}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Value {Number.isFinite(value) ? fmtMoney(value) : '—'}</div>
+      <div style={{ color: pnlColor(unrealized), fontSize: 11, fontWeight: 800 }}>Open P&L {Number.isFinite(unrealized) ? fmtMoney(unrealized) : '—'}</div>
       <button
         type="button"
         onClick={onClose}

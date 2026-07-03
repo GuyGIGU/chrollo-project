@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 import { API_BASE } from '../api';
-
-const fx = (value, digits = 2) => (
-  value == null || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(digits)
-);
+import { fx } from '../utils/format';
 
 export default function RMultipleHistogram() {
   const [data, setData] = useState(null);
