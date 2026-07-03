@@ -87,13 +87,6 @@ def previous_trading_session(day) -> pd.Timestamp:
     return normalize_session_date(day) - NYSE_BUSINESS_DAY
 
 
-def next_trading_session(day) -> pd.Timestamp:
-    day = normalize_session_date(day)
-    if is_trading_session(day):
-        return day
-    return day + NYSE_BUSINESS_DAY
-
-
 def next_trading_session_after(day) -> pd.Timestamp:
     return normalize_session_date(day) + NYSE_BUSINESS_DAY
 

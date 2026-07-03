@@ -1,5 +1,5 @@
 import { explainTip } from './tooltipText';
-import { dateTimeShort, finiteOrNull, fmtPctFrac, fmtRound, fmtSignedPctFrac, fx } from '../utils/format';
+import { finiteOrNull, fmtPctFrac, fmtRound, fmtSignedPctFrac, fx } from '../utils/format';
 
 // Each state carries structured guidance (what/why/use) so the detail modal can
 // render it as readable labeled rows, while `detail` stays a single string for
@@ -57,11 +57,6 @@ export const fxDays = (value) => {
   return `${rounded} day${rounded === 1 ? '' : 's'}`;
 };
 
-export const fxDate = (value) => {
-  if (!value) return 'n/a';
-  return dateTimeShort(value) ?? value;
-};
-
 export function buildRegimeReasons(regime = {}, spy = {}, qqq = {}) {
   const reasons = [];
   if (spy?.above_sma_50 === true) reasons.push('SPY above 50D');
@@ -108,13 +103,6 @@ export function distributionTone(value) {
   if (n >= 7) return 'var(--danger)';
   if (n >= 5) return 'var(--warning)';
   return 'var(--text-main)';
-}
-
-export function indexTone(above50, above200) {
-  if (above50 === true && above200 === true) return 'var(--success)';
-  if (above50 === false && above200 === false) return 'var(--danger)';
-  if (above50 === false || above200 === false) return 'var(--warning)';
-  return 'var(--text-muted)';
 }
 
 export function clamp01(value) {

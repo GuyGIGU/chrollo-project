@@ -20,8 +20,7 @@ def calculate_journal_stats(trades: list[models.TradeLog]) -> dict:
     if not trades:
         return EMPTY_STATS.copy()
 
-    # A break-even trade (pnl == 0) is neither a win nor a loss — matches
-    # routers/analytics._summarize so the journal and per-tag/symbol panels agree.
+    # A break-even trade (pnl == 0) is neither a win nor a loss.
     winners = [trade for trade in trades if trade.pnl is not None and trade.pnl > 0]
     losers = [trade for trade in trades if trade.pnl is not None and trade.pnl < 0]
 

@@ -1,7 +1,6 @@
-"""Aggregation endpoints for the Dashboard AnalyticsPanel + equity curve charts."""
+"""Equity-curve and R-multiple-histogram analytics endpoints for the Dashboard charts."""
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -39,90 +38,6 @@ def _parse_date(s: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def _summarize(pnls: List[float]) -> Dict[str, Any]:
-    if not pnls:
-        return {
-            "count": 0, "wins": 0, "losses": 0, "win_rate": 0.0,
-            "total_pnl": 0.0, "avg_pnl": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
-            "profit_factor": 0.0,
-        }
-    wins = [p for p in pnls if p > 0]
-    losses = [p for p in pnls if p < 0]
-    total_wins = sum(wins)
-    total_losses = abs(sum(losses))
-    return {
-        "count": len(pnls),
-        "wins": len(wins),
-        "losses": len(losses),
-        "win_rate": round(len(wins) / len(pnls) * 100, 2),
-        "total_pnl": round(sum(pnls), 2),
-        "avg_pnl": round(sum(pnls) / len(pnls), 2),
-        "avg_win": round(total_wins / len(wins), 2) if wins else 0.0,
-        "avg_loss": round(-total_losses / len(losses), 2) if losses else 0.0,
-        "profit_factor": round(total_wins / total_losses, 2) if total_losses > 0 else (round(total_wins, 2) if total_wins > 0 else 0.0),
-    }
-
-
-@router.get("/by-tag")
-def by_tag(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    rows: Dict[int, Dict[str, Any]] = {}
-    for trade in _closed_trades(db):
-        for tag in trade.tags:
-            bucket = rows.setdefault(tag.id, {"tag_id": tag.id, "name": tag.name, "category": tag.category, "color": tag.color, "pnls": []})
-            bucket["pnls"].append(float(trade.pnl))
-    out = []
-    for bucket in rows.values():
-        pnls = bucket.pop("pnls")
-        out.append({**bucket, **_summarize(pnls)})
-    out.sort(key=lambda r: r["total_pnl"], reverse=True)
-    return out
-
-
-@router.get("/by-symbol")
-def by_symbol(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    rows: Dict[str, List[float]] = defaultdict(list)
-    for trade in _closed_trades(db):
-        if not trade.ticker:
-            continue
-        rows[trade.ticker.upper()].append(float(trade.pnl))
-    out = [{"symbol": sym, **_summarize(pnls)} for sym, pnls in rows.items()]
-    out.sort(key=lambda r: r["total_pnl"], reverse=True)
-    return out
-
-
-@router.get("/by-hour")
-def by_hour(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    """Bucket closed trades by the hour their opening_date falls in.
-
-    Manual entries that only store a date will fall under hour 0. Hours with no trades are omitted.
-    """
-    rows: Dict[int, List[float]] = defaultdict(list)
-    for trade in _closed_trades(db):
-        dt = _parse_date(trade.opening_date)
-        if dt is None:
-            continue
-        rows[dt.hour].append(float(trade.pnl))
-    out = [{"hour": h, **_summarize(rows[h])} for h in sorted(rows)]
-    return out
-
-
-_DOW_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-
-@router.get("/by-day-of-week")
-def by_day_of_week(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    rows: Dict[int, List[float]] = defaultdict(list)
-    for trade in _closed_trades(db):
-        dt = _parse_date(trade.opening_date)
-        if dt is None:
-            continue
-        rows[dt.weekday()].append(float(trade.pnl))
-    out = []
-    for dow in range(7):
-        out.append({"day_of_week": dow, "day_name": _DOW_NAMES[dow], **_summarize(rows.get(dow, []))})
-    return out
-
-
 @router.get("/equity-curve")
 def equity_curve(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Cumulative realized P&L ordered by closing_date (fallback opening_date).
@@ -149,28 +64,6 @@ def equity_curve(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
             "ticker": ticker,
         })
     return out
-
-
-@router.get("/drawdown")
-def drawdown(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    curve = equity_curve(db)
-    if not curve:
-        return {"series": [], "max_drawdown": 0.0, "max_drawdown_pct": 0.0}
-    peak = 0.0
-    series = []
-    max_dd = 0.0
-    max_dd_pct = 0.0
-    for pt in curve:
-        cum = pt["cumulative_pnl"]
-        if cum > peak:
-            peak = cum
-        dd = cum - peak
-        dd_pct = (dd / peak * 100) if peak > 0 else 0.0
-        if dd < max_dd:
-            max_dd = dd
-            max_dd_pct = dd_pct
-        series.append({"date": pt["date"], "drawdown": round(dd, 2), "drawdown_pct": round(dd_pct, 2)})
-    return {"series": series, "max_drawdown": round(max_dd, 2), "max_drawdown_pct": round(max_dd_pct, 2)}
 
 
 @router.get("/r-multiple-histogram")
