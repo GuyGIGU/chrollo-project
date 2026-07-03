@@ -113,7 +113,8 @@ function AppShell() {
         alert(`Import failed: ${body.detail || res.statusText}`);
       } else {
         alert(
-          `Imported ${body.imported} new fills (${body.skipped} duplicates skipped).\n` +
+          `Imported ${body.imported} new fills (${body.skipped} duplicates skipped` +
+          `${body.matched_live ? `, ${body.matched_live} matched live fills` : ''}).\n` +
           `Trade logs rebuilt for ${body.trade_logs_rebuilt} symbols.`,
         );
         fetchDashboardData();
@@ -127,6 +128,7 @@ function AppShell() {
 
   const outletContext = {
     stats,
+    ibkrActions,
     trades,
     stockTrades,
     optionTrades,

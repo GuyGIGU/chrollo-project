@@ -12,8 +12,9 @@ If ``ib_async`` is not installed or TWS is unavailable, the service reports
 the app functional for users who don't have IBKR configured.
 
 Resilience:
-- A 30-second heartbeat ping (``reqCurrentTime``) keeps the IB Gateway socket alive and
-  detects dead connections faster than passive ``isConnected()`` polling.
+- A 30-second heartbeat ping (``reqCurrentTimeAsync`` under a timeout) keeps the IB
+  Gateway socket alive and detects dead connections faster than passive
+  ``isConnected()`` polling.
 - On disconnect, the last-known snapshot is preserved with a ``stale`` flag so the
   webapp keeps showing data instead of empty tables.
 - Old IB instances are properly torn down before reconnecting to prevent ghost event
@@ -26,6 +27,7 @@ Resilience:
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import threading
 import time
@@ -71,9 +73,28 @@ _CLIENT_ID_IN_USE = {326}
 # Heartbeat interval in seconds
 _HEARTBEAT_INTERVAL = 30
 
+# How long a heartbeat ping may take before we declare the socket dead
+_HEARTBEAT_TIMEOUT = 10
+
+# How long each post-connect prime request (positions/account/orders/execs) may take
+_PRIME_TIMEOUT = 15
+
 # IB Gateway daily restart window (UTC) — 03:45–04:00 UTC = 23:45–00:00 ET
 _DAILY_RESTART_HOUR_UTC = 3
 _DAILY_RESTART_MINUTE_START = 45
+
+# Order-entry API surface stripped from every IB instance we construct. Chrollo is
+# read-only by house law; this makes that structural instead of a convention.
+_FORBIDDEN_ORDER_METHODS = ("placeOrder", "cancelOrder", "reqGlobalCancel")
+
+
+def _forbid_order_api(ib: Any) -> None:
+    """Replace the order-entry methods on this IB instance with hard failures."""
+    def _blocked(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError("Chrollo is read-only: IBKR order APIs are disabled")
+
+    for name in _FORBIDDEN_ORDER_METHODS:
+        setattr(ib, name, _blocked)
 
 
 def _is_daily_restart_window() -> bool:
@@ -99,6 +120,10 @@ class IBKRSnapshot:
     stale: bool = False
     daily_restart: bool = False
     session_competition: bool = False
+    # Telemetry: how often the supervisor has (re)connected this process, and
+    # when. A rapidly climbing count is the visible symptom of reconnect churn.
+    reconnect_count: int = 0
+    last_connect_at: Optional[float] = None
 
     account_summary: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     positions: List[Dict[str, Any]] = field(default_factory=list)
@@ -107,6 +132,9 @@ class IBKRSnapshot:
     recent_executions: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        # account_summary's per-account buckets are mutated in place by the IB
+        # thread; deep-copy so consumers iterating the returned dict outside the
+        # snapshot lock never see "dict changed size during iteration".
         return {
             "connected": self.connected,
             "mode": self.mode,
@@ -119,7 +147,9 @@ class IBKRSnapshot:
             "stale": self.stale,
             "daily_restart": self.daily_restart,
             "session_competition": self.session_competition,
-            "account_summary": self.account_summary,
+            "reconnect_count": self.reconnect_count,
+            "last_connect_at": self.last_connect_at,
+            "account_summary": copy.deepcopy(self.account_summary),
             "positions": list(self.positions),
             "portfolio": list(self.portfolio),
             "open_orders": list(self.open_orders),
@@ -202,7 +232,9 @@ class IBKRService:
 
     def get_account_summary(self) -> Dict[str, Dict[str, Any]]:
         with self._snap_lock:
-            return dict(self._snapshot.account_summary)
+            # Deep copy: a shallow dict() still shares the per-account buckets
+            # the IB thread mutates in place.
+            return copy.deepcopy(self._snapshot.account_summary)
 
     def get_positions(self) -> List[Dict[str, Any]]:
         with self._snap_lock:
@@ -370,10 +402,7 @@ class IBKRService:
                     heartbeat_counter += 1
                     if heartbeat_counter >= _HEARTBEAT_INTERVAL:
                         heartbeat_counter = 0
-                        try:
-                            self._ib.reqCurrentTime()
-                        except Exception:
-                            log.warning("Heartbeat ping failed — connection likely dead")
+                        if not await self._heartbeat_ok():
                             break
 
                 if self._ib and not self._ib.isConnected() and not stop_event.is_set():
@@ -405,6 +434,29 @@ class IBKRService:
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
 
+    async def _prime(self, what: str, request: Any) -> Any:
+        """Await one startup data request; log (don't tear down) on failure."""
+        try:
+            return await asyncio.wait_for(request, timeout=_PRIME_TIMEOUT)
+        except Exception:
+            log.warning("IBKR startup %s request failed", what, exc_info=True)
+            return None
+
+    async def _heartbeat_ok(self) -> bool:
+        """Ping IB with the async time request; False means the socket is dead.
+
+        The sync ``reqCurrentTime`` variant must not be used here: it re-enters
+        the already-running IB event loop and raises immediately, which read as
+        a dead connection every 30s and churned teardown/reconnect all session.
+        The wait_for gives a real dead-socket timeout.
+        """
+        try:
+            await asyncio.wait_for(self._ib.reqCurrentTimeAsync(), timeout=_HEARTBEAT_TIMEOUT)
+            return True
+        except Exception:
+            log.warning("Heartbeat ping failed — connection likely dead")
+            return False
+
     async def _connect_and_prime(self) -> None:
         assert IB is not None
 
@@ -419,6 +471,7 @@ class IBKRService:
                 pass
 
         self._ib = IB()
+        _forbid_order_api(self._ib)
         self._wire_events(self._ib)
         await self._ib.connectAsync(
             settings.ibkr_host,
@@ -436,26 +489,21 @@ class IBKRService:
             settings.ibkr_mode,
         )
 
-        # Subscribe to streaming updates
+        # Prime the snapshot + subscribe to streaming updates. The sync ib_async
+        # request variants are forbidden here — they re-enter the running IB loop
+        # and raise, which silently left these panes empty behind except-pass.
         self._ib.reqMarketDataType(3)  # delayed if no real-time entitlement (safe default)
-        try:
-            self._ib.reqPositions()
-        except Exception:
-            pass
-        try:
-            # account_ values are needed for summary; empty string = all accounts
-            self._ib.reqAccountUpdates(True, "")
-        except Exception:
-            pass
-        try:
-            self._ib.reqAllOpenOrders()
-        except Exception:
-            pass
-        try:
-            # Back-fill today's executions so a reconnect doesn't lose anything
-            await self._ib.reqExecutionsAsync()
-        except Exception:
-            pass
+        await self._prime("positions", self._ib.reqPositionsAsync())
+        # account_ values are needed for summary; empty string = all accounts
+        await self._prime("account updates", self._ib.reqAccountUpdatesAsync(""))
+        # connectAsync(readonly=True) skips the automatic startup order fetch —
+        # without this explicit request the Open Orders pane stays empty even
+        # while stop orders are working in TWS.
+        open_trades = await self._prime("open orders", self._ib.reqAllOpenOrdersAsync())
+        for trade in open_trades or []:
+            self._on_open_order(trade)
+        # Back-fill today's executions so a reconnect doesn't lose anything
+        await self._prime("executions", self._ib.reqExecutionsAsync())
 
         with self._snap_lock:
             self._snapshot.connected = True
@@ -464,6 +512,8 @@ class IBKRService:
             self._snapshot.last_error = None
             self._snapshot.last_update = time.time()
             self._snapshot.client_id = self._effective_client_id
+            self._snapshot.reconnect_count += 1
+            self._snapshot.last_connect_at = time.time()
         broadcaster.publish_threadsafe("ibkr_status", self.snapshot())
 
     def _wire_events(self, ib: Any) -> None:

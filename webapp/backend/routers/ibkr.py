@@ -45,6 +45,10 @@ def ibkr_status():
         "daily_restart": snap.get("daily_restart", False),
         "session_competition": snap.get("session_competition", False),
         "paused": svc.is_paused(),
+        # Churn telemetry: a count climbing every ~30s means the heartbeat or
+        # supervisor is tearing down healthy connections — that must be visible.
+        "reconnect_count": snap.get("reconnect_count", 0),
+        "last_connect_at": snap.get("last_connect_at"),
     }
 
 
