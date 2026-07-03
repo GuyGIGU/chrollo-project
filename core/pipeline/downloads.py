@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -176,15 +175,20 @@ def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
     return _drop_adj_close(yf.download(batch, **params))
 
 
-def _download_batch_with_retry(batch: list[str], period: str, max_retries: int = 3) -> pd.DataFrame:
+def _download_batch_with_retry(batch: list[str], period_or_dates: dict | str,
+                               max_retries: int = 3) -> pd.DataFrame:
     """
     Download a batch of tickers with automatic retry on failure.
+    ``period_or_dates`` is either a period string ('5y') or a dict of yfinance
+    window kwargs ({'period': ...} / {'start': ..., 'end': ...}).
     Returns the downloaded DataFrame (possibly empty on total failure).
     """
+    if isinstance(period_or_dates, str):
+        period_or_dates = {"period": period_or_dates}
     for attempt in range(1, max_retries + 1):
         try:
             rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
-            batch_data = _download_once(batch, {"period": period})
+            batch_data = _download_once(batch, period_or_dates)
             if not batch_data.empty:
                 if len(batch) > 1:
                     error_text = _last_yahoo_batch_error_text(batch)
@@ -338,7 +342,7 @@ def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> 
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {
-            ex.submit(_download_batch_with_retry_kwargs, [ticker], period_or_dates): ticker
+            ex.submit(_download_batch_with_retry, [ticker], period_or_dates): ticker
             for ticker in tickers
         }
         for fut in as_completed(futures):
@@ -362,48 +366,15 @@ def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> 
     return data
 
 
-def _download_batch_with_retry_kwargs(batch: list[str], period_or_dates: dict,
-                                      max_retries: int = 3) -> pd.DataFrame:
-    """Variant of _download_batch_with_retry that accepts either period= or start/end=."""
-    for attempt in range(1, max_retries + 1):
-        try:
-            rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
-            batch_data = _download_once(batch, period_or_dates)
-            if not batch_data.empty:
-                if len(batch) > 1:
-                    error_text = _last_yahoo_batch_error_text(batch)
-                    if _is_yahoo_rate_limit_text(error_text):
-                        rate_limit.note_rate_limit(
-                            float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0))
-                        )
-                if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
-                    batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
-                return batch_data
-            error_text = _last_yahoo_batch_error_text(batch) if len(batch) > 1 else ""
-            if attempt < max_retries and _is_yahoo_rate_limit_text(error_text):
-                wait = _retry_wait_seconds(attempt, error_text=error_text)
-                print(f"    Attempt {attempt}/{max_retries} rate-limited. Retrying in {wait:g}s...")
-                time.sleep(wait)
-                continue
-            return pd.DataFrame()
-        except Exception as e:
-            if _is_yahoo_no_history_error(e):
-                return pd.DataFrame()
-            if attempt < max_retries:
-                wait = _retry_wait_seconds(attempt, e)
-                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait:g}s...")
-                time.sleep(wait)
-            else:
-                print(f"    Batch failed after {max_retries} retries: {e}")
-
-    return pd.DataFrame()
-
-
 def _detect_splits(cached: pd.DataFrame, fresh: pd.DataFrame,
                    cached_tickers: list[str]) -> tuple[bool, list[str]]:
     """
-    Probe a random sample of cached tickers for split-induced price drift on
-    the overlap window.
+    Probe EVERY cached ticker for split-induced price drift on the overlap
+    window. The incremental fetch already holds the multi-bday overlap for the
+    whole universe in memory, so the check is exhaustive and vectorized — under
+    the as-traded regime a split is the ONLY series-shifting corporate action,
+    and this probe is the entire defense against a ticker carrying a fake price
+    gap until the next weekly cold refetch.
 
     Returns ``(force_full_refetch, drifted_tickers)``:
     - ``force_full_refetch=True`` if a high enough fraction of probed tickers
@@ -411,52 +382,32 @@ def _detect_splits(cached: pd.DataFrame, fresh: pd.DataFrame,
     - ``drifted_tickers`` is the per-ticker list that drifted; if force is
       False these can be re-fetched individually.
     """
-    sample_size = min(settings.SPLIT_PROBE_SAMPLE_SIZE, len(cached_tickers))
-    # Seed by today's date so the sample rotates daily but is reproducible
-    # within a single day — gives broad coverage across the universe over time
-    # while keeping a single day's run debuggable.
-    seed = int(datetime.now(timezone.utc).strftime('%Y%m%d'))
-    rng = random.Random(seed)
-    sample = rng.sample(cached_tickers, sample_size) if sample_size else []
+    try:
+        cached_close = cached.xs('Close', axis=1, level=1)
+        fresh_close = fresh.xs('Close', axis=1, level=1)
+    except KeyError:
+        return (False, [])
 
-    ref = settings.SPLIT_PROBE_REFERENCE_SYMBOL
-    if ref in cached_tickers and ref not in sample:
-        sample.append(ref)
+    common = cached_close.columns.intersection(fresh_close.columns)
+    common = common.intersection(pd.Index(cached_tickers))
+    overlap_idx = cached_close.index.intersection(fresh_close.index)
+    if common.empty or overlap_idx.empty:
+        return (False, [])
 
-    drifted: list[str] = []
-    probed = 0
-
-    for ticker in sample:
-        if ticker not in cached or ticker not in fresh:
-            continue
-        try:
-            cached_close = cached[ticker]['Close'].dropna()
-            fresh_close = fresh[ticker]['Close'].dropna()
-        except KeyError:
-            continue
-
-        overlap_idx = cached_close.index.intersection(fresh_close.index)
-        if len(overlap_idx) < 2:
-            continue
-
-        c = cached_close.loc[overlap_idx]
-        f = fresh_close.loc[overlap_idx]
-        # Compare ratio across the overlap window. A split shows up as a
-        # consistent constant ratio (e.g., 0.5 for a 2:1) across every bar.
-        # Random noise won't be consistent. We flag if mean relative diff
-        # exceeds the threshold AND the ratio is roughly constant.
-        ratios = (f / c).dropna()
-        if ratios.empty:
-            continue
-        ratio_mean = float(ratios.mean())
-        ratio_std = float(ratios.std()) if len(ratios) > 1 else 0.0
-        rel_drift = abs(ratio_mean - 1.0)
-        # Constant-ratio fingerprint: low std relative to drift magnitude
-        is_constant = ratio_std < max(0.001, 0.2 * rel_drift)
-
-        probed += 1
-        if rel_drift > settings.SPLIT_PROBE_DRIFT_THRESHOLD and is_constant:
-            drifted.append(ticker)
+    # Compare ratio across the overlap window. A split shows up as a consistent
+    # constant ratio (e.g., 0.5 for a 2:1) across every bar; random noise won't
+    # be consistent. Flag if mean relative diff exceeds the threshold AND the
+    # ratio is roughly constant (low std relative to drift magnitude).
+    ratios = (fresh_close.loc[overlap_idx, common]
+              / cached_close.loc[overlap_idx, common])  # NaN where either side lacks the bar
+    probed_mask = ratios.count() >= 2  # need >= 2 shared bars to judge constancy
+    rel_drift = (ratios.mean() - 1.0).abs()
+    is_constant = ratios.std().fillna(0.0) < (0.2 * rel_drift).clip(lower=0.001)
+    drift_mask = (probed_mask
+                  & (rel_drift > settings.SPLIT_PROBE_DRIFT_THRESHOLD)
+                  & is_constant)
+    drifted = sorted(drift_mask.index[drift_mask])
+    probed = int(probed_mask.sum())
 
     if probed == 0:
         return (False, [])
@@ -498,6 +449,20 @@ def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
     else:
         return data
     return data.loc[data.index >= cutoff]
+
+
+def _drop_forming_rows(data: pd.DataFrame, expected_session: pd.Timestamp) -> pd.DataFrame:
+    """Drop bars newer than the latest COMPLETED session.
+
+    A period-based fetch during market hours (an afternoon 'Refresh Data' click)
+    includes the current day's PARTIAL bar; once persisted it is
+    indistinguishable from a real close, so the evening scan would evaluate and
+    permanently archive a mid-session snapshot. The windowed incremental/repair
+    fetches already cap via their end date; this is the same cap for the
+    period-based cold and per-ticker recovery fetches."""
+    if data.empty:
+        return data
+    return data.loc[data.index <= expected_session]
 
 
 def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
@@ -559,7 +524,7 @@ def _repair_latest_session(
         batch_num = i // batch_size + 1
         print(f"  {label} repair batch {batch_num}/{total_batches} ({len(batch)} tickers)...",
               flush=True)
-        repaired = _download_batch_with_retry_kwargs(
+        repaired = _download_batch_with_retry(
             batch,
             {'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d')},
             max_retries=2,
@@ -721,7 +686,9 @@ def _try_fresh_cache(
     if cache_age_hours >= ttl:
         return None
 
-    cached_data = pd.read_parquet(cache_file, engine=settings.PARQUET_ENGINE)
+    cached_data = _read_cached_panel(cache_file)
+    if cached_data is None:  # corrupt parquet routes to the cold rebuild
+        return None
     if _history_too_shallow(cached_data, scope.tickers_with_indexes):
         print("Local cache is fresh by mtime but its deep history is truncated "
               "(most symbols missing their multi-year bars); forcing a full refetch.",
@@ -830,7 +797,14 @@ def _try_current_cache(
             and latest_coverage.ratio >= min_latest_coverage):
         print(f"Cache last market-regime bar is current ({last_cached_date.date()}); "
               f"touching mtime and returning.", flush=True)
-        _atomic_write_parquet(cached, cache_file)
+        # mtime bump only (feeds the TTL fresh-path check) — rewriting the whole
+        # multi-hundred-MB parquet just for this wasted minutes per no-op run.
+        # Best-effort: a concurrent Windows reader can deny the attribute write,
+        # and a failed bump only means the next run re-checks freshness.
+        try:
+            os.utime(cache_file)
+        except OSError:
+            pass
         meta['last_modified'] = _now_iso()
         _record_admission_history(
             scope.admission, scope.admission_path, scope.requested_non_index, cached,
@@ -1003,6 +977,10 @@ def _cold_fetch(
 
     if isinstance(data.columns, pd.MultiIndex):
         data = data.loc[:, ~data.columns.duplicated(keep='last')]
+
+    # Cap BEFORE the coverage checks: both the persisted panel and the
+    # unhealthy-path return value must be free of the current day's partial bar.
+    data = _drop_forming_rows(data, expected_session)
 
     data = _repair_latest_session(
         data,
@@ -1222,6 +1200,11 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         merged = _recover_missing_data(
             merged, drifted, skip_current_short=False, dropout_guard=False
         )
+
+    # The recovery fetches above are period-based, so during market hours they
+    # can carry today's partial bar into the merge — apply the same forming-bar
+    # cap the windowed fetch already gets from its end date.
+    merged = _drop_forming_rows(merged, expected_session)
 
     merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session

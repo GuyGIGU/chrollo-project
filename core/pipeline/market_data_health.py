@@ -118,6 +118,19 @@ def compute_market_data_health(
     scope = build_symbol_scope(tickers, meta_file, index_symbols)
     min_coverage = float(getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95))
 
+    # Price-regime guard — the SAME test fetch_data / _read_cached_market_data
+    # apply. A cache fetched under a different DATA_DIVIDEND_ADJUSTED regime is
+    # refused by evaluation and only a full cold refetch may replace it, so
+    # health must tell that story too — not report healthy while eval raises
+    # and the download-only repair early-returns "already healthy".
+    from core.pipeline.downloads import _meta_regime_mismatch, _price_regime  # noqa: PLC0415 — lazy, yfinance-heavy module
+    regime_mismatch = _meta_regime_mismatch(meta)
+    regime_note = (
+        f"Cache price-series regime ({meta.get('price_series', 'div_adjusted')}) "
+        f"differs from settings ({_price_regime()}); evaluation refuses this "
+        "cache — a full cold refetch must rebuild it."
+    ) if regime_mismatch else None
+
     raw_coverage = close_coverage_on(panel, scope.raw_symbols, expected_session)
     eligible_coverage = close_coverage_on(panel, scope.eligible_symbols, expected_session)
     raw_missing = symbols_missing_closes_on(panel, scope.raw_symbols, expected_session)
@@ -163,6 +176,7 @@ def compute_market_data_health(
         closed_reason,
         weekly_refresh_due,
         history_ok,
+        regime_mismatch,
     )
 
     diagnosis = _diagnosis(
@@ -174,6 +188,7 @@ def compute_market_data_health(
         cache_last_session,
         expected_session,
         repair_state,
+        regime_note,
     )
     download_label = _download_label(
         health_state,
@@ -340,7 +355,12 @@ def missing_signature(symbols: list[str]) -> str:
 
 def _classify(cache_last_session, last_reference, expected_session, index_missing,
               eligible_coverage, min_coverage, repair_state, closed_reason,
-              weekly_refresh_due, history_ok=True):
+              weekly_refresh_due, history_ok=True, regime_mismatch=False):
+    if regime_mismatch:
+        # Wrong price-series regime outranks every other read: freshness and
+        # coverage are meaningless across regimes, evaluation refuses the panel,
+        # and only a full cold refetch (can_download) can fix it.
+        return "regime_mismatch", "repair", False, False, True, True
     if last_reference is None or index_missing or cache_last_session is None:
         return "stale_session", "blocked", False, False, True, True
     if pd.Timestamp(last_reference).normalize() < expected_session:
@@ -369,7 +389,12 @@ def _classify(cache_last_session, last_reference, expected_session, index_missin
 
 
 def _diagnosis(health_state, raw_coverage, eligible_coverage, min_coverage,
-               missing_summary, cache_last_session, expected_session, repair_state):
+               missing_summary, cache_last_session, expected_session, repair_state,
+               regime_note=None):
+    if health_state == "regime_mismatch":
+        # Coverage numbers are meaningless across price regimes; the note is
+        # the whole story.
+        return regime_note
     raw_text = raw_coverage.format()
     eligible_text = eligible_coverage.format()
     skipped = missing_summary["skipped_missing_count"]
@@ -413,7 +438,7 @@ def _download_label(health_state, can_download, weekly_refresh_due, eligible_mis
         return "Provider limited"
     if health_state == "stale_session":
         return "Download New Data"
-    if health_state == "shallow_history":
+    if health_state in {"shallow_history", "regime_mismatch"}:
         return "Rebuild Data"
     if health_state == "needs_repair":
         return f"Repair {eligible_missing}" if eligible_missing else "Repair Data"

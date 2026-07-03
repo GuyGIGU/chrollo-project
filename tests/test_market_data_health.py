@@ -14,6 +14,17 @@ from core.pipeline.market_data_health import (
 )
 
 
+def _write_tagged_meta(meta_file):
+    """Current-regime meta. An untagged meta ({}) is a LEGACY div-adjusted cache
+    and now (correctly) classifies regime_mismatch, so the classifier tests pin
+    the tag to exercise the state they actually target."""
+    from core.pipeline.downloads import _price_regime
+
+    meta_file.write_text(
+        json.dumps({"price_series": _price_regime()}), encoding="utf-8"
+    )
+
+
 def _panel(symbols, day):
     return pd.concat(
         {
@@ -42,7 +53,7 @@ def _health(missing):
 
 def test_raw_partial_but_eligible_healthy_is_green(tmp_path, monkeypatch):
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     (tmp_path / "ticker_admission.json").write_text(
         json.dumps({
             "YNG": {
@@ -76,7 +87,7 @@ def test_index_less_universe_is_healthy_on_its_own_coverage(tmp_path, monkeypatc
     through SPY/QQQ. Before the fix, last_reference was always None for such a
     universe so it read as stale_session on every run (un-archivable forever)."""
     meta_file = tmp_path / "cache_meta_commodities_etf.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
     panel = _panel(["GLD", "USO", "UNG"], "2026-06-29")  # ETFs only, no SPY/QQQ
@@ -98,7 +109,7 @@ def test_index_less_universe_still_flags_stale_when_behind(tmp_path):
     """The index-less path is no free pass: gated on the panel's own latest
     session, a panel lagging the expected session is still correctly stale."""
     meta_file = tmp_path / "cache_meta_commodities_etf.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     panel = _panel(["GLD", "USO", "UNG"], "2026-06-20")  # behind expected
     health = compute_market_data_health(
         panel,
@@ -115,7 +126,7 @@ def test_default_index_symbols_still_require_spy_qqq(tmp_path):
     """Byte-identity guard: with index_symbols defaulted (None), the US-Stocks
     behavior is unchanged — a panel missing SPY/QQQ on the session is stale."""
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     panel = _panel(["AAA", "BBB"], "2026-06-29")  # no SPY/QQQ present
     health = compute_market_data_health(
         panel,
@@ -125,6 +136,32 @@ def test_default_index_symbols_still_require_spy_qqq(tmp_path):
     )
     assert health["health_state"] == "stale_session"
     assert health["can_archive"] is False
+
+
+def test_regime_mismatched_meta_reports_rebuild_not_healthy(tmp_path, monkeypatch):
+    """P2 #3: after a DATA_DIVIDEND_ADJUSTED flip (or on an untagged legacy meta)
+    the panel can look perfectly fresh, but evaluation refuses a wrong-regime
+    cache — health must tell the SAME story (rebuild via download), not report
+    healthy while eval raises and the download-only repair early-returns."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "DATA_DIVIDEND_ADJUSTED", False, raising=False)
+    meta_file = tmp_path / "cache_meta.json"
+    meta_file.write_text("{}", encoding="utf-8")  # legacy/untagged = div_adjusted
+
+    health = compute_market_data_health(
+        _panel(["AAA", "SPY", "QQQ"], "2026-06-25"),  # fresh, full coverage
+        ["AAA"],
+        expected_session=pd.Timestamp("2026-06-25"),
+        meta_file=str(meta_file),
+    )
+
+    assert health["health_state"] == "regime_mismatch"
+    assert health["can_evaluate"] is False
+    assert health["can_archive"] is False
+    assert health["can_download"] is True
+    assert health["download_label"] == "Rebuild Data"
+    assert "price-series regime" in health["diagnosis"]
 
 
 def _multi_row_panel(symbols, n_rows, deep_symbols, end_day):
@@ -147,7 +184,7 @@ def test_shallow_deep_history_is_not_trusted(tmp_path, monkeypatch):
     NaN-wiped (the exact incident shape) must NOT report can_archive — it is
     shallow_history, which drives a full cold refetch, not a no-op repair."""
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5)
@@ -166,7 +203,7 @@ def test_shallow_deep_history_is_not_trusted(tmp_path, monkeypatch):
 def test_full_history_panel_stays_healthy(tmp_path, monkeypatch):
     """The depth gate must NOT reject a genuinely healthy full-history cache."""
     meta_file = tmp_path / "cache_meta.json"
-    meta_file.write_text("{}", encoding="utf-8")
+    _write_tagged_meta(meta_file)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
     monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
 

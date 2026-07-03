@@ -34,6 +34,7 @@ from typing import Optional, Protocol
 import pandas as pd
 
 from config import settings
+from core.pipeline import rate_limit
 
 
 # yfinance's ``.info``/``.calendar`` and single-symbol ``.download`` make untimed
@@ -152,6 +153,11 @@ class YahooProvider:
     # These wrap the hang-prone single-symbol yfinance surfaces the web layer
     # used to call raw. They are deliberately separate from ``fetch``: the
     # incumbent engine panel above stays byte-identical.
+    # Every Yahoo hit below passes through ``rate_limit.throttle`` — the SAME
+    # token bucket the download pool shares — so UI/enrichment calls can't
+    # bypass the outbound ceiling and compound a 429 storm mid-scan. The
+    # throttle runs inside the ``_run_bounded`` wall: if the bucket is drained,
+    # the call degrades to its miss default instead of stalling a worker.
 
     def daily_candles(
         self,
@@ -174,6 +180,7 @@ class YahooProvider:
         import yfinance as yf
 
         def _download() -> pd.DataFrame:
+            rate_limit.throttle()
             if start is not None or end is not None:
                 return yf.download(
                     symbol, start=start, end=end,
@@ -210,6 +217,7 @@ class YahooProvider:
     def _last_price_impl(symbol: str) -> Optional[float]:
         import yfinance as yf
 
+        rate_limit.throttle()
         ticker_obj = yf.Ticker(symbol)
         value = ticker_obj.fast_info.get("lastPrice") or ticker_obj.info.get("currentPrice")
         return round(float(value), 2) if value else None
@@ -222,6 +230,7 @@ class YahooProvider:
     def _sector_impl(ticker: str) -> Optional[str]:
         import yfinance as yf
 
+        rate_limit.throttle()
         info = yf.Ticker(ticker).info
         sector = info.get("sector", "")
         return sector or None
@@ -234,6 +243,7 @@ class YahooProvider:
     def _earnings_date_impl(ticker: str) -> Optional[str]:
         import yfinance as yf
 
+        rate_limit.throttle()
         cal = yf.Ticker(ticker).calendar
         if cal is None:
             return None
@@ -271,6 +281,7 @@ class YahooProvider:
     def _info_impl(ticker: str) -> dict:
         import yfinance as yf
 
+        rate_limit.throttle()
         info = yf.Ticker(ticker).info
         return dict(info) if info else {}
 
@@ -288,6 +299,7 @@ class YahooProvider:
     def _income_stmt_impl(ticker: str, quarterly: bool) -> pd.DataFrame:
         import yfinance as yf
 
+        rate_limit.throttle()
         obj = yf.Ticker(ticker)
         stmt = obj.quarterly_income_stmt if quarterly else obj.income_stmt
         if stmt is None or getattr(stmt, "empty", True):
@@ -307,6 +319,7 @@ class YahooProvider:
     def _earnings_dates_impl(ticker: str, limit: int) -> pd.DataFrame:
         import yfinance as yf
 
+        rate_limit.throttle()
         frame = yf.Ticker(ticker).get_earnings_dates(limit=limit)
         if frame is None or getattr(frame, "empty", True):
             return pd.DataFrame()
@@ -329,6 +342,7 @@ class YahooProvider:
         result = {"spy_trend": None, "vix_level": None}
         end = pd.Timestamp(as_of) + pd.Timedelta(days=5)
         start = pd.Timestamp(as_of) - pd.Timedelta(days=400)
+        rate_limit.throttle()
         spy = yf.download("SPY", start=start.strftime("%Y-%m-%d"),
                           end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
         if not spy.empty:
@@ -348,6 +362,7 @@ class YahooProvider:
                         result["spy_trend"] = "BEARISH"
                     else:
                         result["spy_trend"] = "NEUTRAL"
+        rate_limit.throttle()
         vix = yf.download("^VIX",
                           start=(pd.Timestamp(as_of) - pd.Timedelta(days=5)).strftime("%Y-%m-%d"),
                           end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
@@ -370,6 +385,7 @@ class YahooProvider:
 
         end = pd.Timestamp(as_of) + pd.Timedelta(days=5)
         start = pd.Timestamp(as_of) - pd.Timedelta(days=120)
+        rate_limit.throttle()
         data = yf.download(etf, start=start.strftime("%Y-%m-%d"),
                            end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
         if data.empty:

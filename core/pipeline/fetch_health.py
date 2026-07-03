@@ -61,7 +61,10 @@ def load_quarantine(path: str) -> dict:
 
 
 def save_quarantine(path: str, store: dict) -> None:
-    tmp = path + ".tmp"
+    # PID-suffixed temp (matches cache._write_meta): the ledger is shared by all
+    # three universes, and two writers sharing one fixed '.tmp' can tear the
+    # JSON — load then fails open to {}, silently resetting quarantine state.
+    tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(store, f, indent=2, sort_keys=True)
     os.replace(tmp, path)

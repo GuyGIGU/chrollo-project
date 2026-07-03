@@ -374,7 +374,7 @@ def test_rate_limit_error_triggers_shared_backoff(monkeypatch):
     monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
     monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
 
-    out = downloads_module._download_batch_with_retry_kwargs(
+    out = downloads_module._download_batch_with_retry(
         ["AAA"], {"period": "1mo"}, max_retries=2
     )
 
@@ -398,7 +398,7 @@ def test_no_history_error_does_not_retry(monkeypatch):
     monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
     monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
 
-    out = downloads_module._download_batch_with_retry_kwargs(
+    out = downloads_module._download_batch_with_retry(
         ["DEAD"], {"period": "1mo"}, max_retries=3
     )
 
@@ -425,7 +425,7 @@ def test_transient_price_error_can_retry(monkeypatch):
     monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
     monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
 
-    out = downloads_module._download_batch_with_retry_kwargs(
+    out = downloads_module._download_batch_with_retry(
         ["AAA"], {"period": "1mo"}, max_retries=2
     )
 

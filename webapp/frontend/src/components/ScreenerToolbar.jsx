@@ -109,7 +109,7 @@ function statusLabel(status) {
   if (state === 'needs_repair') return `Repair ${status.missing_summary?.eligible_missing_count ?? ''}`.trim();
   if (state === 'provider_cooldown') return `Provider limited: ${cooldownText(status.retry_seconds)}`;
   if (state === 'symbol_lagging') return 'Needs help';
-  if (state === 'shallow_history') return 'Rebuild data';
+  if (state === 'shallow_history' || state === 'regime_mismatch') return 'Rebuild data';
   if (state === 'stale_session') return `Stale: ${status.cache_last_session || '-'}`;
   if (state === 'cache_missing') return 'No cache';
   if (state === 'cache_unreadable') return 'Cache unreadable';
