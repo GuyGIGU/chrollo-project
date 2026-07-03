@@ -7,6 +7,7 @@ output shaping each web bypass call site depends on and (b) that a simulated han
 falls back promptly to the empty/None default instead of stalling.
 """
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -65,13 +66,57 @@ def fake_yf(monkeypatch):
     return _install
 
 
+def _single_level_ohlcv(symbol="AAA", n=3, close=10.5, tz=None):
+    """A yfinance ``Ticker.history`` frame: single-level OHLCV columns — the exact
+    shape ``daily_candles`` hands the chart / regime readers."""
+    idx = pd.date_range("2026-06-01", periods=n, freq="D", tz=tz)
+    return pd.DataFrame(
+        {"Open": [10.0] * n, "High": [11.0] * n, "Low": [9.0] * n,
+         "Close": [close] * n, "Volume": [1000] * n},
+        index=idx,
+    )
+
+
+def _history_ticker(history_fn):
+    """Wrap a ``history(symbol, **kwargs)`` callable as a fake ``yf.Ticker``
+    factory, so each symbol gets its OWN instance (mirroring the real
+    per-instance result store that makes ``Ticker.history`` thread-safe)."""
+    def _factory(symbol):
+        return SimpleNamespace(history=lambda **kwargs: history_fn(symbol, **kwargs))
+    return _factory
+
+
 # ── daily_candles ─────────────────────────────────────────────────────────
-def test_daily_candles_flattens_multiindex(fake_yf):
-    fake_yf(download=lambda *a, **k: _multiindex_ohlcv("AAA"))
+# daily_candles fetches via ``yf.Ticker(symbol).history`` (NOT ``yf.download``):
+# download stashes each call's result in module-level globals that collide under
+# FastAPI's threadpool, returning one symbol's candles under another's label.
+def test_daily_candles_returns_single_level_ohlcv(fake_yf):
+    fake_yf(ticker=_history_ticker(lambda s, **k: _single_level_ohlcv(s)))
     out = YahooProvider().daily_candles("AAA", 180)
 
     assert not out.empty
-    # MultiIndex flattened to single-level fields the chart routes read directly.
+    # Single-level fields the chart / regime readers index directly.
+    assert list(out.columns) == ["Open", "High", "Low", "Close", "Volume"]
+    assert float(out.iloc[0]["Close"]) == 10.5
+
+
+def test_daily_candles_flattens_history_multiindex(fake_yf):
+    # Defensive: if a yfinance version returns a (ticker, field) MultiIndex from
+    # history, daily_candles flattens to the inner field level.
+    def _hist(symbol, **kwargs):
+        idx = pd.date_range("2026-06-01", periods=3, freq="D")
+        cols = pd.MultiIndex.from_product(
+            [[symbol], ["Open", "High", "Low", "Close", "Volume"]]
+        )
+        data = {
+            (symbol, "Open"): [10.0] * 3, (symbol, "High"): [11.0] * 3,
+            (symbol, "Low"): [9.0] * 3, (symbol, "Close"): [10.5] * 3,
+            (symbol, "Volume"): [1000] * 3,
+        }
+        return pd.DataFrame(data, index=idx)[cols]
+
+    fake_yf(ticker=_history_ticker(_hist))
+    out = YahooProvider().daily_candles("AAA", 180)
     assert list(out.columns) == ["Open", "High", "Low", "Close", "Volume"]
     assert float(out.iloc[0]["Close"]) == 10.5
 
@@ -79,18 +124,20 @@ def test_daily_candles_flattens_multiindex(fake_yf):
 def test_daily_candles_period_vs_window_args(fake_yf):
     captured = {}
 
-    def _dl(symbol, **kwargs):
+    def _hist(symbol, **kwargs):
+        captured.clear()
         captured.update(kwargs)
-        return _multiindex_ohlcv(symbol)
+        return _single_level_ohlcv(symbol)
 
-    fake_yf(download=_dl)
-    # Period mode (UI chart panel): period=f"{days}d", auto_adjust=False.
+    fake_yf(ticker=_history_ticker(_hist))
+    # Period mode (UI chart panel): period=f"{days}d", interval/auto_adjust/actions.
     YahooProvider().daily_candles("AAA", 200)
     assert captured["period"] == "200d"
+    assert captured["interval"] == "1d"
     assert captured["auto_adjust"] is False
+    assert captured["actions"] is False
     assert "start" not in captured
 
-    captured.clear()
     # Window mode (archive overlay): start/end + auto_adjust=True.
     YahooProvider().daily_candles(
         "AAA", 0, start="2026-01-01", end="2026-06-01", auto_adjust=True
@@ -98,30 +145,94 @@ def test_daily_candles_period_vs_window_args(fake_yf):
     assert captured["start"] == "2026-01-01"
     assert captured["end"] == "2026-06-01"
     assert captured["auto_adjust"] is True
+    assert captured["actions"] is False
     assert "period" not in captured
 
 
-def test_daily_candles_empty_download_returns_empty_frame(fake_yf):
-    fake_yf(download=lambda *a, **k: pd.DataFrame())
+def test_daily_candles_empty_returns_empty_frame(fake_yf):
+    fake_yf(ticker=_history_ticker(lambda s, **k: pd.DataFrame()))
     out = YahooProvider().daily_candles("ZZZ", 180)
     assert isinstance(out, pd.DataFrame)
     assert out.empty
 
 
+def test_daily_candles_index_is_tz_naive(fake_yf):
+    # history() localizes the daily index to the exchange tz; daily_candles must
+    # return a tz-naive index so the archive overlay's tz-naive date comparisons
+    # (_adjustment_ratio / forward_bars) don't raise TypeError.
+    fake_yf(ticker=_history_ticker(
+        lambda s, **k: _single_level_ohlcv(s, tz="America/New_York")
+    ))
+    out = YahooProvider().daily_candles("AAA", 180)
+    assert out.index.tz is None
+    assert out.index[0].strftime("%Y-%m-%d") == "2026-06-01"
+
+
 def test_daily_candles_hang_returns_empty_promptly(fake_yf, monkeypatch):
     monkeypatch.setattr(providers_module, "_DOWNLOAD_TIMEOUT_S", 0.05)
 
-    def _hang(*a, **k):
+    def _hang(symbol, **kwargs):
         time.sleep(5)
-        return _multiindex_ohlcv()
+        return _single_level_ohlcv(symbol)
 
-    fake_yf(download=_hang)
+    fake_yf(ticker=_history_ticker(_hang))
     started = time.monotonic()
     out = YahooProvider().daily_candles("AAA", 180)
     elapsed = time.monotonic() - started
 
     assert out.empty
     assert elapsed < 2.0  # bounded — did not wait for the 5s hang
+
+
+def test_daily_candles_concurrent_distinct_symbols(fake_yf):
+    """Regression for the candle cross-contamination bug: several daily_candles
+    calls fired CONCURRENTLY for distinct symbols must EACH return their own last
+    close, never a shared one.
+
+    A barrier forces every call to be in-flight at once — the exact condition
+    under which ``yf.download``'s module-level result store collided and every
+    caller got whichever symbol finished last. Routing through per-symbol
+    ``Ticker.history`` keeps each call isolated. ``download`` is wired to raise so
+    a regression back to it fails this test loudly rather than silently passing.
+    """
+    closes = {"SPY": 600.12, "QQQ": 706.52, "IWM": 220.34, "DIA": 430.01}
+    symbols = list(closes)
+    barrier = threading.Barrier(len(symbols))
+
+    def _hist(symbol, **kwargs):
+        frame = _single_level_ohlcv(symbol, close=closes[symbol])
+        # Hold every concurrent call here until all have built their OWN frame; a
+        # shared-state impl would clobber across this window, instance-local data
+        # cannot.
+        try:
+            barrier.wait(timeout=5)
+        except threading.BrokenBarrierError:
+            pass
+        return frame
+
+    def _fail_download(*a, **k):
+        raise AssertionError("daily_candles must not use yf.download (shared-global race)")
+
+    fake_yf(ticker=_history_ticker(_hist), download=_fail_download)
+
+    results: dict = {}
+    errors: list = []
+
+    def _call(sym):
+        try:
+            out = YahooProvider().daily_candles(sym, 180)
+            results[sym] = float(out.iloc[-1]["Close"])
+        except Exception as exc:  # noqa: BLE001 — surface any failure to the assert
+            errors.append((sym, repr(exc)))
+
+    threads = [threading.Thread(target=_call, args=(s,)) for s in symbols]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=10)
+
+    assert not errors, errors
+    assert results == closes  # each symbol returned ITS OWN last close
 
 
 # ── latest_price ──────────────────────────────────────────────────────────

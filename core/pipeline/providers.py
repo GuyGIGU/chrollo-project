@@ -173,29 +173,55 @@ class YahooProvider:
         Window: ``start``/``end`` (ISO strings) when given, else the trailing
         ``period=f"{days}d"``. ``auto_adjust`` follows the caller (UI chart
         panels want unadjusted; the archive overlay wants adjusted then rescales
-        stored R/S itself). A flattened single-level column index is returned so
-        callers read ``Open``/``High``/``Low``/``Close``/``Volume`` directly.
-        The single-symbol download is hard-bounded against a yfinance hang.
+        stored R/S itself). A single-level column frame is returned so callers
+        read ``Open``/``High``/``Low``/``Close``/``Volume`` directly. The
+        single-symbol fetch is hard-bounded against a yfinance hang.
+
+        Thread-safety: this uses ``yf.Ticker(symbol).history(...)``, NOT
+        ``yf.download(symbol, ...)``. ``download`` stashes each call's result in
+        module-level globals (``yfinance.shared._DFS`` / ``_ERRORS``) that are not
+        thread-safe; FastAPI runs this ``def`` route handler in a threadpool, so
+        concurrent candle requests raced on those globals and cross-contaminated
+        — every caller got whichever symbol's download finished last (the right
+        ``symbol`` label over the wrong candles). ``Ticker.history`` keeps results
+        on the per-symbol instance, so distinct symbols never collide, with no
+        serialization. This mirrors the engine's own single-ticker path
+        (``core/pipeline/downloads._single_ticker_history``), which switched away
+        from ``download`` for the same reason.
         """
         import yfinance as yf
 
-        def _download() -> pd.DataFrame:
+        def _history() -> pd.DataFrame:
             rate_limit.throttle()
+            ticker = yf.Ticker(symbol)
+            # ``actions=False`` drops Dividends/Splits columns; no caller reads
+            # them and it keeps the single-level OHLCV shape ``chart_candles``
+            # and the regime/RS readers expect.
             if start is not None or end is not None:
-                return yf.download(
-                    symbol, start=start, end=end,
-                    progress=False, auto_adjust=auto_adjust,
+                return ticker.history(
+                    start=start, end=end, interval="1d",
+                    auto_adjust=auto_adjust, actions=False,
                 )
-            return yf.download(
-                symbol, period=f"{days}d", interval="1d",
-                progress=False, auto_adjust=auto_adjust,
+            return ticker.history(
+                period=f"{days}d", interval="1d",
+                auto_adjust=auto_adjust, actions=False,
             )
 
-        raw = _run_bounded(_download, _DOWNLOAD_TIMEOUT_S)
+        raw = _run_bounded(_history, _DOWNLOAD_TIMEOUT_S)
         if raw is None or raw.empty:
             return pd.DataFrame()
+        # ``history`` returns single-level columns; flatten defensively if a
+        # yfinance version ships a ``(ticker, field)`` MultiIndex (field is the
+        # inner level — unlike ``download``'s ``(field, ticker)``).
         if hasattr(raw.columns, "nlevels") and raw.columns.nlevels > 1:
-            raw.columns = raw.columns.get_level_values(0)
+            raw.columns = raw.columns.get_level_values(-1)
+        # ``download`` returned a tz-naive index; ``history`` localizes the daily
+        # index to the exchange tz. Downstream callers (the archive overlay's
+        # ``_adjustment_ratio`` / ``forward_bars``) compare this index against
+        # tz-naive Timestamps and would raise on a tz-aware one — strip the tz to
+        # preserve the incumbent contract.
+        if getattr(raw.index, "tz", None) is not None:
+            raw.index = raw.index.tz_localize(None)
         return raw
 
     def latest_price(self, symbols: list[str]) -> dict[str, float]:
