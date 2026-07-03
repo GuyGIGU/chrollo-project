@@ -27,6 +27,7 @@ Resilience:
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import threading
 import time
@@ -114,6 +115,9 @@ class IBKRSnapshot:
     recent_executions: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        # account_summary's per-account buckets are mutated in place by the IB
+        # thread; deep-copy so consumers iterating the returned dict outside the
+        # snapshot lock never see "dict changed size during iteration".
         return {
             "connected": self.connected,
             "mode": self.mode,
@@ -126,7 +130,7 @@ class IBKRSnapshot:
             "stale": self.stale,
             "daily_restart": self.daily_restart,
             "session_competition": self.session_competition,
-            "account_summary": self.account_summary,
+            "account_summary": copy.deepcopy(self.account_summary),
             "positions": list(self.positions),
             "portfolio": list(self.portfolio),
             "open_orders": list(self.open_orders),
@@ -209,7 +213,9 @@ class IBKRService:
 
     def get_account_summary(self) -> Dict[str, Dict[str, Any]]:
         with self._snap_lock:
-            return dict(self._snapshot.account_summary)
+            # Deep copy: a shallow dict() still shares the per-account buckets
+            # the IB thread mutates in place.
+            return copy.deepcopy(self._snapshot.account_summary)
 
     def get_positions(self) -> List[Dict[str, Any]]:
         with self._snap_lock:
