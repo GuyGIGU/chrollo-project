@@ -9,6 +9,7 @@ import JournalPulseZone from './JournalPulseZone';
 import EdgePulse from './EdgePulse';
 import usePollingInterval from '../../hooks/usePollingInterval';
 import useScreenerData from '../../hooks/useScreenerData';
+import { revalidateScreenerUniverse } from '../../hooks/screenerStore';
 
 // The orient surface as one aligned dashboard: a single grid carries every
 // panel so their column edges line up (chart+regime over the tile row over the
@@ -17,8 +18,10 @@ import useScreenerData from '../../hooks/useScreenerData';
 // Regime + Fresh Setups read ONE scan source so they can't desync; each panel
 // owns its own status + ErrorBoundary so one dead source degrades only itself.
 export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatus }) {
-  const { screenerData, fetchScreener } = useScreenerData();
-  usePollingInterval(fetchScreener, 300000, { immediate: false });
+  const { screenerData } = useScreenerData();
+  // Cheap 5-minute freshness tick: polls the slim /screener-summary and only
+  // re-downloads the full 13MB artifact when a new scan actually landed.
+  usePollingInterval(revalidateScreenerUniverse, 300000, { immediate: false });
   const marketContext = screenerData?.market_context;
 
   return (

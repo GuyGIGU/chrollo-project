@@ -35,6 +35,33 @@ def configure_screener_routes(screener_json_path: str) -> None:
     _screener_json_path = screener_json_path
 
 
+def _artifact_state(universe: str):
+    """Resolve a universe to its artifact path + freshness facts.
+
+    Validates against the closed registry BEFORE any path is built — an unknown
+    universe is a 422, never a filesystem lookup (no path traversal).
+    'never_scanned' (valid universe, no artifact yet) is distinct from a real
+    scan that matched nothing — so the UI can say "run a scan" vs "0 matched".
+    The artifact mtime lets the UI distinguish a fresh "ready" from a stale one
+    (the ETF universes refresh only on the scheduled scan).
+    """
+    try:
+        uni = resolve_universe(universe)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"unknown universe '{universe}'")
+
+    path = uni.artifact_path()
+    exists = os.path.exists(path)
+    status = "ready" if exists else "never_scanned"
+    scanned_at = None
+    if exists:
+        try:
+            scanned_at = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc).isoformat()
+        except OSError:
+            pass
+    return uni, path, status, scanned_at
+
+
 @router.get("/screener-data/")
 def get_screener_data(
     universe: str = Query(
@@ -42,28 +69,39 @@ def get_screener_data(
         description=f"Which universe's latest scan to serve. One of: {', '.join(universe_keys())}.",
     )
 ):
-    # Validate against the closed registry BEFORE any path is built — an unknown
-    # universe is a 422, never a filesystem lookup (no path traversal).
-    try:
-        uni = resolve_universe(universe)
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"unknown universe '{universe}'")
-
-    path = uni.artifact_path()
-    # 'never_scanned' (valid universe, no artifact yet) is distinct from a real
-    # scan that matched nothing — so the UI can say "run a scan" vs "0 matched".
-    exists = os.path.exists(path)
-    status = "ready" if exists else "never_scanned"
-    # Artifact mtime so the UI can distinguish a fresh "ready" from a stale one
-    # (the ETF universes refresh only on the scheduled scan).
-    scanned_at = None
-    if exists:
-        try:
-            scanned_at = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc).isoformat()
-        except OSError:
-            pass
+    uni, path, status, scanned_at = _artifact_state(universe)
     payload = read_screener_data(path)
     return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
+
+
+@router.get("/screener-summary/")
+def get_screener_summary(
+    universe: str = Query(
+        DEFAULT_UNIVERSE_KEY,
+        description=f"Which universe's latest scan to summarize. One of: {', '.join(universe_keys())}.",
+    )
+):
+    """Slim scan read for light surfaces (Home tiles, freshness polls, the
+    sector health board): full setup metadata + market context WITHOUT the
+    per-ticker candle/volume arrays — the bulk of the ~13MB artifact."""
+    uni, path, status, scanned_at = _artifact_state(universe)
+    payload = read_screener_data(path)
+    chart_data = payload.get("chart_data") or {}
+    # Every per-ticker bar array (daily + the resampled weekly/monthly pairs) —
+    # together ~95% of the artifact's weight.
+    heavy = {"candles", "volumes", "weekly_candles", "weekly_volumes", "monthly_candles", "monthly_volumes"}
+    setups = {
+        ticker: {k: v for k, v in (data or {}).items() if k not in heavy}
+        for ticker, data in chart_data.items()
+    }
+    return {
+        "universe": uni.key,
+        "status": status,
+        "scanned_at": scanned_at,
+        "ordered_tickers": payload.get("ordered_tickers", []),
+        "market_context": payload.get("market_context"),
+        "setups": setups,
+    }
 
 
 @router.get("/screener-data/drilldown/")

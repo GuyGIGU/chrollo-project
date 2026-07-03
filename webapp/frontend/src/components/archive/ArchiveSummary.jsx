@@ -1,4 +1,5 @@
 import { fixed, labelColor, pct, rMultipleColor, signColor } from '../../utils/archiveTabUtils';
+import { EMPTY, fmtPctFrac } from '../../utils/format';
 
 export default function ArchiveSummary({ linkedTrades = [], setup }) {
   if (!setup) return null;
@@ -190,23 +191,12 @@ const ratioColor = (value) => {
   if (!hasNumber(value)) return undefined;
   return Number(value) > 1.5 ? 'var(--success)' : Number(value) < 1 ? 'var(--danger)' : undefined;
 };
-const triggeredLabel = (setup) => (setup.triggered === 1 ? `Yes ${setup.trigger_date || ''}` : setup.triggered === 0 ? 'No' : '-');
-const money = (value) => {
-  const formatted = fixed(value, 2);
-  return formatted === '-' ? '-' : `$${formatted}`;
-};
-const percent1 = (value) => {
-  const n = Number(value);
-  return value == null || !Number.isFinite(n) ? '-' : `${(n * 100).toFixed(1)}%`;
-};
-const rValue = (value) => {
-  const formatted = fixed(value, 2);
-  return formatted === '-' ? '-' : `${formatted}R`;
-};
-const xValue = (value) => {
-  const formatted = fixed(value, 2);
-  return formatted === '-' ? '-' : `${formatted}x`;
-};
+const triggeredLabel = (setup) => (setup.triggered === 1 ? `Yes ${setup.trigger_date || ''}` : setup.triggered === 0 ? 'No' : EMPTY);
+// Guard on the VALUE, never on the formatter's empty glyph.
+const money = (value) => (hasNumber(value) ? `$${fixed(value, 2)}` : EMPTY);
+const percent1 = (value) => fmtPctFrac(value, 1);
+const rValue = (value) => (hasNumber(value) ? `${fixed(value, 2)}R` : EMPTY);
+const xValue = (value) => (hasNumber(value) ? `${fixed(value, 2)}x` : EMPTY);
 const swingTypeLabel = (value) => (
   value ? String(value).replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) : null
 );
@@ -221,8 +211,6 @@ const lastSupperLabel = (setup) => {
 };
 const lastSupperColor = (setup) => (isLastSupper(setup) ? 'var(--danger)' : undefined);
 const stretchValue = (setup) => {
-  const box = fixed(setup.lps_stretch_box, 2);
-  const atr = fixed(setup.lps_stretch_atr, 2);
-  if (box === '-' && atr === '-') return null;
-  return `${box} box / ${atr} ATR`;
+  if (!hasNumber(setup.lps_stretch_box) && !hasNumber(setup.lps_stretch_atr)) return null;
+  return `${fixed(setup.lps_stretch_box, 2)} box / ${fixed(setup.lps_stretch_atr, 2)} ATR`;
 };

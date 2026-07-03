@@ -3,6 +3,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import AppTopbar from './AppTopbar';
 import ErrorBoundary from './ErrorBoundary';
+import FeedbackHost from './ui/FeedbackHost';
+import { toast } from './ui/feedback';
 import TradeRiskAlerts from './tradeTable/TradeRiskAlerts';
 import useDashboardData from '../hooks/useDashboardData';
 import useIBKRStatus from '../hooks/useIBKRStatus';
@@ -75,7 +77,7 @@ function AppShell() {
   const healthPill = useMemo(() => buildHealthPill(health), [health]);
   const scanStatusText = useMemo(() => buildScanStatusText(scanStatus), [scanStatus]);
 
-  const { riskFor, summary: riskSummary, status: riskStatus } = useLiveRisk(trades);
+  const { riskFor, summary: riskSummary, status: riskStatus } = useLiveRisk(trades, Boolean(ibkrStatus?.connected));
   const riskAlerts = useMemo(
     () => deriveTradeAlerts(trades, riskFor),
     [riskFor, trades],
@@ -110,16 +112,17 @@ function AppShell() {
       const res = await fetch(`${API_BASE}/ibkr/import-csv`, { method: 'POST', body: form });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(`Import failed: ${body.detail || res.statusText}`);
+        toast(`Import failed: ${body.detail || res.statusText}`, { tone: 'danger' });
       } else {
-        alert(
+        toast(
           `Imported ${body.imported} new fills (${body.skipped} duplicates skipped).\n` +
           `Trade logs rebuilt for ${body.trade_logs_rebuilt} symbols.`,
+          { tone: 'success' },
         );
         fetchDashboardData();
       }
     } catch (error) {
-      alert(`Import error: ${error.message || error}`);
+      toast(`Import error: ${error.message || error}`, { tone: 'danger' });
     } finally {
       setImportingCsv(false);
     }
@@ -140,6 +143,10 @@ function AppShell() {
     riskSummary,
     riskStatus,
     scanStatus,
+    // Single-owner IBKR status/actions: the shell polls /ibkr/status once for
+    // the whole app; routes read these instead of mounting their own poller.
+    ibkrStatus,
+    ibkrActions,
   };
 
   return (
@@ -171,6 +178,8 @@ function AppShell() {
           </div>
         </ErrorBoundary>
       </main>
+
+      <FeedbackHost />
 
       <ErrorBoundary>
         <Suspense fallback={<ModalFallback />}>

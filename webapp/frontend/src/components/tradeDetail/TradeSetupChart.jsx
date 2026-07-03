@@ -3,31 +3,16 @@ import usePositionChartData from '../../hooks/usePositionChartData';
 import { isOptionSymbol, optionUnderlyingSymbol } from '../../utils/tradeUtils';
 import { fmtMoney } from '../../utils/tradeTableUtils';
 import { tradeVisibleLogicalRange } from '../chartGeometry';
+import { baseChartOptions, CHART_COLORS } from '../chartTheme';
 
-const chartOptions = (width, height) => ({
-  width,
-  height,
-  layout: {
-    background: { type: 'solid', color: '#171a24' },
-    textColor: '#8c94a8',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 11,
-  },
-  grid: {
-    vertLines: { color: 'rgba(65, 72, 96, 0.26)' },
-    horzLines: { color: 'rgba(65, 72, 96, 0.26)' },
-  },
-  rightPriceScale: {
-    borderColor: '#2f3447',
-    scaleMargins: { top: 0.08, bottom: 0.25 },
-  },
-  timeScale: {
-    borderColor: '#2f3447',
-    fixLeftEdge: true,
-    fixRightEdge: true,
-    timeVisible: false,
-  },
-});
+const chartOptions = (width, height) => {
+  const base = baseChartOptions('trade', width, height);
+  return {
+    ...base,
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.25 } },
+    timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+  };
+};
 
 export default function TradeSetupChart({ derived, trade }) {
   const rawSymbol = String(trade?.ticker || '').trim();
@@ -39,11 +24,11 @@ export default function TradeSetupChart({ derived, trade }) {
 
   const onReady = (chart, candleSeries) => {
     if (!optionSymbol) {
-      addPriceLine(candleSeries, trade?.entry_price, '#d5b85b', 'Entry');
-      addPriceLine(candleSeries, derived?.stopVal ?? trade?.stop_loss, '#f26770', 'Stop');
-      addPriceLine(candleSeries, derived?.currentExit, '#d8dbe5', 'Live');
+      addPriceLine(candleSeries, trade?.entry_price, CHART_COLORS.goldMuted, 'Entry');
+      addPriceLine(candleSeries, derived?.stopVal ?? trade?.stop_loss, CHART_COLORS.danger, 'Stop');
+      addPriceLine(candleSeries, derived?.currentExit, CHART_COLORS.candle, 'Live');
       (derived?.targetLadder || []).forEach((target) => {
-        addPriceLine(candleSeries, target.price, target.hit ? '#3dd37a' : '#5b8aff', target.label);
+        addPriceLine(candleSeries, target.price, target.hit ? CHART_COLORS.success : CHART_COLORS.accent, target.label);
       });
     }
 

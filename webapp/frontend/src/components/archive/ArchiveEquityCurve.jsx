@@ -1,4 +1,5 @@
 import { fixed } from '../../utils/archiveTabUtils';
+import { CHART_COLORS } from '../chartTheme';
 
 export default function ArchiveEquityCurve({ data }) {
   if (!data?.points?.length) {
@@ -14,7 +15,9 @@ export default function ArchiveEquityCurve({ data }) {
 
   const chart = buildCurve(data.points);
   const summary = data.summary || {};
-  const lineColor = chart.finalCum >= 0 ? '#3fb950' : '#c76b73';
+  // Literal (not var()) — this colors an SVG stroke attribute, where CSS
+  // variables don't resolve.
+  const lineColor = chart.finalCum >= 0 ? CHART_COLORS.success : '#c76b73';
   return (
     <div className="glass-panel">
       <div style={{ alignItems: 'baseline', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

@@ -73,8 +73,8 @@ export default function ExecutionsTab({ tradeId }) {
             const sideColor = execution.side === 'BUY' ? 'var(--success)' : 'var(--danger)';
             return (
               <tr key={execution.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <td style={{ ...td, color: 'var(--text-muted)' }}>{execution.time ? new Date(execution.time).toLocaleString() : '-'}</td>
-                <td style={{ ...td, color: sideColor, fontWeight: 600 }}>{execution.side || '-'}</td>
+                <td style={{ ...td, color: 'var(--text-muted)' }}>{execution.time ? new Date(execution.time).toLocaleString() : '—'}</td>
+                <td style={{ ...td, color: sideColor, fontWeight: 600 }}>{execution.side || '—'}</td>
                 <td style={td}>{fmtInt(execution.quantity)}</td>
                 <td style={td}>{money(execution.price)}</td>
                 <td style={{ ...td, color: 'var(--text-muted)' }}>{money(execution.commission)}</td>
@@ -89,7 +89,7 @@ export default function ExecutionsTab({ tradeId }) {
 }
 
 const money = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `$${fmtMoney(value)}`
+  value == null || !Number.isFinite(Number(value)) ? '—' : `$${fmtMoney(value)}`
 );
 
 const finiteNumber = (value) => {

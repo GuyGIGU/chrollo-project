@@ -32,7 +32,7 @@ const pillStyle = (color, background) => ({
 });
 const orderPrice = (value) => {
   const numberValue = Number(value);
-  return Number.isFinite(numberValue) && numberValue > 0 ? fmtMoney(numberValue) : '-';
+  return Number.isFinite(numberValue) && numberValue > 0 ? fmtMoney(numberValue) : '—';
 };
 
 const planToneColor = (tone) => {
@@ -141,13 +141,13 @@ export const LivePositionsTable = ({
               <td style={tdStyle}><span style={pillStyle(sideColor, stats.qty < 0 ? 'var(--danger-bg)' : 'var(--success-bg)')}>{stats.side}</span></td>
               <td style={{ ...tdStyle, color: sideColor, fontWeight: 700 }}>{fmtNum(stats.qty, 0)}</td>
               <td style={tdStyle}>{fmtPct(stats.weight)}</td>
-              <td style={tdStyle}>{stats.avg == null ? '-' : fmtMoney(stats.avg)}</td>
-              <td style={tdStyle}>{stats.price == null ? '-' : fmtMoney(stats.price)}</td>
-              <td style={tdStyle}>{stats.marketValue == null ? '-' : fmtMoney(stats.marketValue)}</td>
-              <td style={{ ...tdStyle, color: pnlColor(stats.unrealized), fontWeight: 700 }}>{stats.unrealized == null ? '-' : fmtMoney(stats.unrealized)}</td>
+              <td style={tdStyle}>{stats.avg == null ? '—' : fmtMoney(stats.avg)}</td>
+              <td style={tdStyle}>{stats.price == null ? '—' : fmtMoney(stats.price)}</td>
+              <td style={tdStyle}>{stats.marketValue == null ? '—' : fmtMoney(stats.marketValue)}</td>
+              <td style={{ ...tdStyle, color: pnlColor(stats.unrealized), fontWeight: 700 }}>{stats.unrealized == null ? '—' : fmtMoney(stats.unrealized)}</td>
               <td style={{ ...tdStyle, color: pnlColor(stats.pnlPct), fontWeight: 700 }}>{fmtPct(stats.pnlPct)}</td>
               <td style={tdStyle}><PlanStatusCell plan={plan} onOpenTradePlan={onOpenTradePlan} /></td>
-              <td style={tdStyle}>{plan?.derived?.stopVal == null ? '-' : fmtMoney(plan.derived.stopVal)}</td>
+              <td style={tdStyle}>{plan?.derived?.stopVal == null ? '—' : fmtMoney(plan.derived.stopVal)}</td>
               <td style={{ ...tdStyle, color: planToneColor(plan?.derived?.stopRiskTone), fontWeight: plan?.derived?.stopRiskTone ? 800 : 600 }}>
                 <PlanStopDistance plan={plan} />
               </td>
@@ -200,16 +200,16 @@ const PlanStatusCell = ({ onOpenTradePlan, plan }) => {
 
 const PlanStopDistance = ({ plan }) => {
   const derived = plan?.derived;
-  if (!derived) return '-';
+  if (!derived) return '—';
   const pct = formatPctValue(derived.distToStopPct);
   const r = formatR(derived.rToStop);
-  if (pct === '-' && r === '-') return '-';
+  if (pct === '—' && r === '—') return '—';
   return `${pct} / ${r}`;
 };
 
 const PlanNextTarget = ({ plan }) => {
   const target = plan?.derived?.nextTarget;
-  if (!target) return <span style={{ color: 'var(--text-muted)' }}>{plan?.derived?.targetLadder?.length ? 'Complete' : '-'}</span>;
+  if (!target) return <span style={{ color: 'var(--text-muted)' }}>{plan?.derived?.targetLadder?.length ? 'Complete' : '—'}</span>;
   const distance = target.distToTargetPct == null || !Number.isFinite(Number(target.distToTargetPct))
     ? 'No quote'
     : `${formatPctValue(target.distToTargetPct)} / ${formatR(target.rToTarget)} away`;
@@ -231,12 +231,12 @@ const alertBadgeStyle = (alert) => {
 };
 
 const formatPctValue = (value) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
+  if (value == null || !Number.isFinite(Number(value))) return '—';
   return `${Number(value).toFixed(1)}%`;
 };
 
 const formatR = (value, signed = false) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
+  if (value == null || !Number.isFinite(Number(value))) return '—';
   return `${signed && Number(value) >= 0 ? '+' : ''}${Number(value).toFixed(2)}R`;
 };
 
@@ -260,14 +260,14 @@ export const OpenOrdersTable = ({ orders }) => {
           return (
             <tr key={key} style={{ background: index % 2 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>
               <td style={{ ...tdStyle, color: 'var(--accent-blue)', fontWeight: 800 }}>{order.symbol}</td>
-              <td style={{ ...tdStyle, color: isBuy ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>{action || '-'}</td>
-              <td style={tdStyle}>{order.order_type || '-'}</td>
+              <td style={{ ...tdStyle, color: isBuy ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>{action || '—'}</td>
+              <td style={tdStyle}>{order.order_type || '—'}</td>
               <td style={tdStyle}>{fmtNum(order.total_quantity, 0)}</td>
               <td style={tdStyle}>{fmtNum(order.filled ?? 0, 0)}</td>
               <td style={tdStyle}>{fmtNum(order.remaining ?? 0, 0)}</td>
               <td style={tdStyle}>{orderPrice(limit)}</td>
               <td style={tdStyle}>{orderPrice(stop)}</td>
-              <td style={tdStyle}><span style={pillStyle('var(--accent-blue)', 'var(--accent-blue-soft)')}>{order.status || '-'}</span></td>
+              <td style={tdStyle}><span style={pillStyle('var(--accent-blue)', 'var(--accent-blue-soft)')}>{order.status || '—'}</span></td>
             </tr>
           );
         })}
@@ -297,11 +297,11 @@ export const RecentExecutionsTable = ({ executions }) => {
             <tr key={key} style={{ background: index % 2 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>
               <td style={{ ...tdStyle, color: 'var(--text-muted)', fontSize: 11 }}>{fmtTime(execution.time)}</td>
               <td style={{ ...tdStyle, color: 'var(--accent-blue)', fontWeight: 800 }}>{execution.symbol}</td>
-              <td style={{ ...tdStyle, color, fontWeight: 800 }}>{side || '-'}</td>
+              <td style={{ ...tdStyle, color, fontWeight: 800 }}>{side || '—'}</td>
               <td style={tdStyle}>{fmtNum(execution.quantity, 0)}</td>
-              <td style={tdStyle}>{execution.price != null ? fmtMoney(execution.price) : '-'}</td>
-              <td style={{ ...tdStyle, color: 'var(--text-muted)' }}>{execution.commission != null ? fmtMoney(execution.commission) : '-'}</td>
-              <td style={{ ...tdStyle, color: pnlColor(execution.realized_pnl), fontWeight: 700 }}>{execution.realized_pnl != null ? fmtMoney(execution.realized_pnl) : '-'}</td>
+              <td style={tdStyle}>{execution.price != null ? fmtMoney(execution.price) : '—'}</td>
+              <td style={{ ...tdStyle, color: 'var(--text-muted)' }}>{execution.commission != null ? fmtMoney(execution.commission) : '—'}</td>
+              <td style={{ ...tdStyle, color: pnlColor(execution.realized_pnl), fontWeight: 700 }}>{execution.realized_pnl != null ? fmtMoney(execution.realized_pnl) : '—'}</td>
             </tr>
           );
         })}

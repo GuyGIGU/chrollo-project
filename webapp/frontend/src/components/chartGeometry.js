@@ -11,7 +11,9 @@
 // because it is modal-specific coloring that consumes buildPhaseRegions output
 // plus modal-only anchor/lps_offset fallbacks — not because of DOM coupling
 // (buildPhaseRegions itself is pure). Keeping it out keeps this module a pure,
-// Node-testable unit.
+// Node-testable unit. Colors come from the chartTheme palette (also pure).
+
+import { CHART_COLORS } from './chartTheme.js';
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
 // price 0 on any timeframe with no box. This is the canonical copy used by the
@@ -100,6 +102,34 @@ export const miniFocusLogicalRange = (data, maxVisibleBars, minVisibleBars = 0) 
   return { from, to: rightEdge };
 };
 
+// --- box rail geometry (shared by the mini card AND the modal) ---
+
+// The full set of structure rails for a setup, as pure {kind, startIndex, value}
+// specs. This is THE box-rail read: chartRails.addBoxRails maps these specs to
+// line series for both the screener card and the modal, so the two surfaces are
+// structurally incapable of drawing different rails for the same setup.
+// R/S/mid are emitted unconditionally (matching both prior sites); the inner
+// box only when all three inner fields are finite.
+export const boxRailSpecs = (data) => {
+  const candles = data.candles || [];
+  const { baseStart } = setupIndexes(data);
+  const specs = [
+    { kind: 'rail', startIndex: baseStart, value: data.R },
+    { kind: 'rail', startIndex: baseStart, value: data.S },
+    { kind: 'mid', startIndex: baseStart, value: (Number(data.R) + Number(data.S)) / 2 },
+  ];
+
+  const innerR = finiteNumber(data.inner_R);
+  const innerS = finiteNumber(data.inner_S);
+  const innerStartBar = finiteNumber(data.inner_start_bar);
+  if (innerR != null && innerS != null && innerStartBar != null) {
+    const innerStart = Math.max(0, Math.min(candles.length - 1, Math.trunc(innerStartBar)));
+    specs.push({ kind: 'inner', startIndex: innerStart, value: innerR });
+    specs.push({ kind: 'inner', startIndex: innerStart, value: innerS });
+  }
+  return specs;
+};
+
 // --- candle coloring ---
 
 // ScreenerMiniChart coloring: base-limb swing grey, LPS test spans + the active
@@ -116,7 +146,7 @@ export const colorMiniCandles = (data) => {
   const limbStart = Math.min(baseStart + data.r_anchor, baseStart + data.s_anchor, baseStart);
   const limbEnd = Math.max(baseStart + data.r_anchor, baseStart + data.s_anchor);
   for (let index = limbStart; index <= limbEnd; index += 1) {
-    if (index >= 0 && index < candles.length) candles[index].color = '#596070';
+    if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
   }
 
   for (const test of data.lps_tests || []) {
@@ -124,7 +154,7 @@ export const colorMiniCandles = (data) => {
     const end = indexOnOrAfter(candles, test.end_date);
     if (start == null || end == null) continue;
     for (let index = start; index <= end; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = '#d4b85a';
+      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.goldMuted;
     }
   }
 
@@ -132,7 +162,7 @@ export const colorMiniCandles = (data) => {
     const lpsEnd = baseEnd - data.lps_offset;
     const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
     for (let index = lpsStart; index <= lpsEnd; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = '#d4b85a';
+      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.goldMuted;
     }
   }
 
@@ -149,8 +179,8 @@ export const colorTimeframeCandles = (candles, { limbStart, limbEnd, lpsStart, l
       if (out[i].time >= from && out[i].time <= to) out[i].color = color;
     }
   };
-  paint(limbStart, limbEnd, '#5d6474');
-  paint(lpsStart, lpsEnd, '#e3b341');
+  paint(limbStart, limbEnd, CHART_COLORS.baseLimb);
+  paint(lpsStart, lpsEnd, CHART_COLORS.gold);
   return out;
 };
 

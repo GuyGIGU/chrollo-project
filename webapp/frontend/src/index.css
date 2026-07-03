@@ -593,9 +593,9 @@ td {
 }
 
 .score-pill-market {
-  border-color: rgba(63, 185, 80, 0.48);
-  background: rgba(63, 185, 80, 0.09);
-  color: #3fb950;
+  border-color: rgba(61, 211, 122, 0.48);
+  background: rgba(61, 211, 122, 0.09);
+  color: var(--success);
 }
 
 /* On the screener card the sub-score pills are secondary to the hero score,

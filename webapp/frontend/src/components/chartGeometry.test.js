@@ -11,8 +11,10 @@ import {
   miniFocusLogicalRange,
   colorMiniCandles,
   colorTimeframeCandles,
+  boxRailSpecs,
   tradeVisibleLogicalRange,
 } from './chartGeometry.js';
+import { CHART_COLORS } from './chartTheme.js';
 
 // Build N daily candles starting 2024-01-01, no color set.
 const makeCandles = (n) =>
@@ -149,9 +151,9 @@ test('colorMiniCandles: clones input, paints limb grey and lps gold', () => {
   assert.equal(candles[15].color, undefined);
   // baseEnd = 19, baseStart = 14; limbStart = min(15, 18, baseStart) = 14
   // (left edge pinned to the box start - the back-extension seam), limbEnd=18
-  assert.equal(out[14].color, '#596070');
-  assert.equal(out[15].color, '#596070');
-  assert.equal(out[18].color, '#596070');
+  assert.equal(out[14].color, CHART_COLORS.baseLimb);
+  assert.equal(out[15].color, CHART_COLORS.baseLimb);
+  assert.equal(out[18].color, CHART_COLORS.baseLimb);
   assert.equal(out[13].color, undefined);
 });
 
@@ -168,8 +170,8 @@ test('colorMiniCandles: lps_offset path paints gold', () => {
     lps_offset: 0,
   });
   // lpsEnd = 19-0 = 19, lpsStart = 17 -> gold
-  assert.equal(out[19].color, '#d4b85a');
-  assert.equal(out[17].color, '#d4b85a');
+  assert.equal(out[19].color, CHART_COLORS.goldMuted);
+  assert.equal(out[17].color, CHART_COLORS.goldMuted);
 });
 
 test('colorMiniCandles: date-keyed lps_tests span paints gold; out-of-range skipped', () => {
@@ -186,9 +188,9 @@ test('colorMiniCandles: date-keyed lps_tests span paints gold; out-of-range skip
       { start_date: '2099-01-01', end_date: '2099-02-01' }, // out of range -> skipped, no crash
     ],
   });
-  assert.equal(out[5].color, '#d4b85a');
-  assert.equal(out[6].color, '#d4b85a');
-  assert.equal(out[7].color, '#d4b85a');
+  assert.equal(out[5].color, CHART_COLORS.goldMuted);
+  assert.equal(out[6].color, CHART_COLORS.goldMuted);
+  assert.equal(out[7].color, CHART_COLORS.goldMuted);
   assert.equal(out[4].color, undefined); // before the span
   assert.equal(out[8].color, undefined); // after the span
 });
@@ -210,10 +212,10 @@ test('colorTimeframeCandles: paints by date span, shallow-clones', () => {
     lpsEnd: '2024-01-08',
   });
   assert.equal(candles[1].color, undefined); // source untouched
-  assert.equal(out[1].color, '#5d6474'); // 2024-01-02 limb grey (span start, inclusive)
-  assert.equal(out[3].color, '#5d6474'); // 2024-01-04 limb grey (span end, inclusive)
-  assert.equal(out[6].color, '#e3b341'); // 2024-01-07 lps gold (span start)
-  assert.equal(out[7].color, '#e3b341'); // 2024-01-08 lps gold (span end, inclusive upper bound)
+  assert.equal(out[1].color, CHART_COLORS.baseLimb); // 2024-01-02 limb grey (span start, inclusive)
+  assert.equal(out[3].color, CHART_COLORS.baseLimb); // 2024-01-04 limb grey (span end, inclusive)
+  assert.equal(out[6].color, CHART_COLORS.gold); // 2024-01-07 lps gold (span start)
+  assert.equal(out[7].color, CHART_COLORS.gold); // 2024-01-08 lps gold (span end, inclusive upper bound)
   assert.equal(out[0].color, undefined); // before the limb span
   assert.equal(out[4].color, undefined); // gap between the two spans stays unpainted
   assert.equal(out[5].color, undefined); // gap between the two spans stays unpainted
@@ -235,4 +237,44 @@ test('tradeVisibleLogicalRange: +/-45 around opening date, clamped', () => {
   assert.equal(range.to, Math.min(119, entryIndex + 45));
   assert.equal(tradeVisibleLogicalRange(candles, null), null);
   assert.equal(tradeVisibleLogicalRange(candles, '2099-01-01'), null); // no match
+});
+
+// --- boxRailSpecs: the ONE rail read shared by the mini card and the modal ---
+
+test('boxRailSpecs: R/S/mid anchored at the box start', () => {
+  const candles = makeCandles(20);
+  const specs = boxRailSpecs({ candles, base_len: 6, forward_bars: 0, R: 20, S: 10 });
+  // baseEnd = 19, baseStart = 14 (setupIndexes math)
+  assert.equal(specs.length, 3); // no inner box -> exactly R/S/mid
+  assert.deepEqual(specs[0], { kind: 'rail', startIndex: 14, value: 20 });
+  assert.deepEqual(specs[1], { kind: 'rail', startIndex: 14, value: 10 });
+  assert.deepEqual(specs[2], { kind: 'mid', startIndex: 14, value: 15 }); // (R+S)/2
+});
+
+test('boxRailSpecs: forward bars shift the anchor left, clamped at 0', () => {
+  const candles = makeCandles(20);
+  const specs = boxRailSpecs({ candles, base_len: 6, forward_bars: 5, R: 20, S: 10 });
+  // baseEnd = 19-5 = 14, baseStart = 9
+  assert.equal(specs[0].startIndex, 9);
+  // base longer than history -> clamped to 0, never negative
+  const clamped = boxRailSpecs({ candles: makeCandles(4), base_len: 30, forward_bars: 0, R: 2, S: 1 });
+  assert.equal(clamped[0].startIndex, 0);
+});
+
+test('boxRailSpecs: inner box only when all three inner fields are finite', () => {
+  const base = { candles: makeCandles(20), base_len: 6, forward_bars: 0, R: 20, S: 10 };
+  const withInner = boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 16 });
+  assert.equal(withInner.length, 5);
+  assert.deepEqual(withInner[3], { kind: 'inner', startIndex: 16, value: 18 });
+  assert.deepEqual(withInner[4], { kind: 'inner', startIndex: 16, value: 12 });
+  // a null (or missing) inner field suppresses BOTH inner rails
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: null, inner_start_bar: 16 }).length, 3);
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12 }).length, 3);
+});
+
+test('boxRailSpecs: inner start bar is truncated and clamped into the candle range', () => {
+  const base = { candles: makeCandles(10), base_len: 4, forward_bars: 0, R: 20, S: 10 };
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 3.9 })[3].startIndex, 3);
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 99 })[3].startIndex, 9); // clamp right
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: -4 })[3].startIndex, 0); // clamp left
 });

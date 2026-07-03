@@ -1,37 +1,39 @@
 // Display formatters for the trade-detail drawer metrics (Live / P&L / To Stop /
 // Next Target). These are all no-multiply: the derived values they receive are
 // already in their final unit (P&L in dollars, distances in percent, R in Rs),
-// so they REUSE the no-multiply `fmtMoney` from tradeTableUtils. Do NOT swap in
-// the portfolioFormat.fmtMoney (currency-aware) or any percent formatter that
-// multiplies by 100 — the audit flagged a multiply/no-multiply collision, and
-// the drawer's inputs are the no-multiply family. Extracted verbatim from
-// TradeDetailDrawer.jsx to preserve byte-identical output.
+// so they compose the no-multiply primitives from utils/format. Do NOT swap in
+// fmtMoneyUsd (currency-aware) or any percent formatter that multiplies by 100
+// — the audit flagged a multiply/no-multiply collision, and the drawer's
+// inputs are the no-multiply family.
 
-import { fmtMoney } from './tradeTableUtils';
+import { EMPTY, finiteOrNull, fmtNum } from './format.js';
+import { fmtMoney } from './tradeTableUtils.js';
 
-export const moneyValue = (value) => (value == null ? '-' : `$${fmtMoney(value)}`);
+export const moneyValue = (value) => (value == null ? EMPTY : `$${fmtMoney(value)}`);
 
 export const signedMoney = (value) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
-  return `${Number(value) >= 0 ? '+' : '-'}$${fmtMoney(Math.abs(Number(value)))}`;
+  const n = finiteOrNull(value);
+  if (n == null) return EMPTY;
+  return `${n >= 0 ? '+' : '-'}$${fmtNum(Math.abs(n))}`;
 };
 
 export const formatPct = (value) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
-  return `${Number(value).toFixed(1)}%`;
+  const n = finiteOrNull(value);
+  return n == null ? EMPTY : `${n.toFixed(1)}%`;
 };
 
 export const formatR = (value, signed = false) => {
-  if (value == null || !Number.isFinite(Number(value))) return '-';
-  return `${signed && Number(value) >= 0 ? '+' : ''}${Number(value).toFixed(2)}R`;
+  const n = finiteOrNull(value);
+  if (n == null) return EMPTY;
+  return `${signed && n >= 0 ? '+' : ''}${n.toFixed(2)}R`;
 };
 
 export const targetValue = (target) => (
-  target ? `${target.label} $${fmtMoney(target.price)}` : '-'
+  target ? `${target.label} $${fmtMoney(target.price)}` : EMPTY
 );
 
 export const targetDistance = (target) => {
-  if (!target || target.distToTargetPct == null || !Number.isFinite(Number(target.distToTargetPct))) return '-';
+  if (!target || finiteOrNull(target.distToTargetPct) == null) return EMPTY;
   return `${formatPct(target.distToTargetPct)} / ${formatR(target.rToTarget)}`;
 };
 

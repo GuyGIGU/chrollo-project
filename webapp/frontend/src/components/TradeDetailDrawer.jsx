@@ -161,9 +161,9 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
       <aside style={drawerStyle}>
         <header style={headerStyle}>
           <div style={{ minWidth: 0 }}>
-            <div style={eyebrowStyle}>Trade #{workingTrade.id} / {workingTrade.opening_date || '-'}</div>
+            <div style={eyebrowStyle}>Trade #{workingTrade.id} / {workingTrade.opening_date || '—'}</div>
             <div style={titleStyle}>
-              {workingTrade.ticker || '-'}
+              {workingTrade.ticker || '—'}
               <span style={titleMetaStyle}>{derived.direction} / {derived.status}</span>
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
           <section style={cockpitGridStyle}>
             <Metric label="Live" value={moneyValue(derived.currentExit)} sub={sourceLabel(derived.currentExitSource)} />
             <Metric label="P&L" value={signedMoney(derived.pnl)} sub={formatR(derived.rValue, true)} tone={signedTone(derived.pnl)} />
-            <Metric label="Risk" value={riskDollars == null ? '-' : fmtPortfolioMoney(riskDollars)} sub={riskPct == null ? 'Portfolio -' : `${formatPct(riskPct)} portfolio`} />
+            <Metric label="Risk" value={riskDollars == null ? '—' : fmtPortfolioMoney(riskDollars)} sub={riskPct == null ? 'Portfolio —' : `${formatPct(riskPct)} portfolio`} />
             <Metric label="To Stop" value={formatPct(derived.distToStopPct)} sub={formatR(derived.rToStop)} tone={derived.stopRiskTone} />
             <Metric label="Next Target" value={targetValue(derived.nextTarget)} sub={targetSub(derived.nextTarget, derived.targetLadder)} tone={derived.nextTarget ? 'target' : null} />
             <BrokerMetric match={brokerMatch} />
@@ -310,7 +310,7 @@ function Metric({ label, sub, tone, value }) {
     <div style={metricStyle}>
       <span style={metricLabelStyle}>{label}</span>
       <strong style={{ ...metricValueStyle, color: toneColor(tone) }}>{value}</strong>
-      <small style={metricSubStyle}>{sub || '-'}</small>
+      <small style={metricSubStyle}>{sub || '—'}</small>
     </div>
   );
 }
@@ -321,16 +321,16 @@ function BrokerMetric({ match }) {
   const qty = finiteNumber(position?.quantity ?? position?.position);
   const price = finiteNumber(position?.market_price);
   if (plan.state === 'multiple') {
-    return <Metric label="Broker" value="Multiple plans" sub={qty == null ? '-' : `${fmtInt(qty)} shares`} tone="warning" />;
+    return <Metric label="Broker" value="Multiple plans" sub={qty == null ? '—' : `${fmtInt(qty)} shares`} tone="warning" />;
   }
   if (plan.directionMismatch) {
-    return <Metric label="Broker" value="Mismatch" sub={qty == null ? '-' : `${fmtInt(qty)} shares`} tone="danger" />;
+    return <Metric label="Broker" value="Mismatch" sub={qty == null ? '—' : `${fmtInt(qty)} shares`} tone="danger" />;
   }
   return (
     <Metric
       label="Broker"
       value="Linked"
-      sub={`${qty == null ? '-' : fmtInt(qty)} @ ${price == null ? '-' : fmtMoney(price)}`}
+      sub={`${qty == null ? '—' : fmtInt(qty)} @ ${price == null ? '—' : fmtMoney(price)}`}
       tone="success"
     />
   );

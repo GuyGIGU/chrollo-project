@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
 import { buildCloseSma } from './chartIndicators';
+import { baseChartOptions } from './chartTheme';
 import { API_BASE } from '../api';
 import { STATE_META } from './marketRegimeFormat';
 
@@ -23,23 +24,18 @@ const SMA200 = { color: '#7c8cf8', lineWidth: 1, lastValueVisible: false, priceL
 const signed = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}%`);
 const chgColor = (v) => (v == null ? 'var(--text-faint)' : v >= 0 ? 'var(--success)' : 'var(--danger)');
 
-const chartOptions = (container) => ({
-  width: container.clientWidth || 600,
-  height: container.clientHeight || 300,
-  autoSize: true,
-  layout: {
-    background: { type: 'solid', color: '#141721' },
-    textColor: '#747c8f',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 10,
-  },
-  grid: { vertLines: { color: 'rgba(47, 52, 71, 0.13)' }, horzLines: { color: 'rgba(47, 52, 71, 0.13)' } },
-  crosshair: { mode: 1 },
-  rightPriceScale: { borderColor: 'rgba(47, 52, 71, 0.56)', scaleMargins: { top: 0.08, bottom: 0.26 } },
-  timeScale: { borderColor: 'rgba(47, 52, 71, 0.56)', timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
-  handleScroll: false,
-  handleScale: false,
-});
+const chartOptions = (container) => {
+  const base = baseChartOptions('mini', container.clientWidth || 600, container.clientHeight || 300);
+  return {
+    ...base,
+    autoSize: true,
+    crosshair: { mode: 1 },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.26 } },
+    timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+    handleScroll: false,
+    handleScale: false,
+  };
+};
 
 // Bars colored green/red by direction (Finviz convention), matching the
 // backend's green/red volume tint already returned by /market-data/chart.

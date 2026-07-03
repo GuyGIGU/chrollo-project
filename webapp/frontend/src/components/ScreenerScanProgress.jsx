@@ -47,7 +47,7 @@ const panelStyle = {
 const phaseStyle = (progress) => ({
   fontSize: '13px',
   fontWeight: '600',
-  color: progress >= 100 ? '#3fb950' : 'var(--text-main)',
+  color: progress >= 100 ? 'var(--success)' : 'var(--text-main)',
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
@@ -64,7 +64,7 @@ const percentStyle = (progress) => ({
   fontSize: '13px',
   fontWeight: '700',
   fontFamily: "'JetBrains Mono', monospace",
-  color: progress >= 100 ? '#3fb950' : 'var(--accent-blue)',
+  color: progress >= 100 ? 'var(--success)' : 'var(--accent-blue)',
 });
 const trackStyle = {
   width: '100%',
@@ -79,7 +79,7 @@ const fillStyle = (progress) => ({
   width: `${Math.min(100, progress)}%`,
   borderRadius: '4px',
   background: progress >= 100
-    ? '#3fb950'
+    ? 'var(--success)'
     : 'linear-gradient(90deg, var(--accent-blue), var(--accent-pink, #bb86fc))',
   transition: 'width 0.4s ease-out',
   position: 'relative',

@@ -29,9 +29,10 @@ export const rMultipleColor = (value) => (
   value == null ? undefined : value > 1 ? 'var(--success)' : value < 0 ? 'var(--danger)' : undefined
 );
 
-// Review-quality label coloring (archive).
+// Review-quality label coloring (archive). 'perfect' uses the DESIGN.md
+// success token (not the tier-C green — different ladder).
 export const labelColor = (label) => ({
-  perfect: '#3fb950',
+  perfect: 'var(--success)',
   good: '#58a6ff',
   noise: '#8b949e',
   miss: '#c76b73',

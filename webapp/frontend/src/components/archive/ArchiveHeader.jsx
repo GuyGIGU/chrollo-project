@@ -181,10 +181,10 @@ function HeaderButton({ children, onClick, title }) {
 function UpdateMessage({ message }) {
   return (
     <div style={{
-      background: message.ok ? 'rgba(63,185,80,0.10)' : 'rgba(248,81,73,0.10)',
-      border: `1px solid ${message.ok ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)'}`,
+      background: message.ok ? 'rgba(61,211,122,0.10)' : 'rgba(242,103,112,0.10)',
+      border: `1px solid ${message.ok ? 'rgba(61,211,122,0.35)' : 'rgba(242,103,112,0.35)'}`,
       borderRadius: '6px',
-      color: message.ok ? '#3fb950' : '#f85149',
+      color: message.ok ? 'var(--success)' : 'var(--danger)',
       fontFamily: 'inherit',
       fontSize: '12px',
       margin: '8px 0 12px',

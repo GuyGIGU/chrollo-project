@@ -1,3 +1,5 @@
+import { fmtPctFrac, fx } from './format.js';
+
 // Sort keys mirror the archive table columns (see ArchiveTable COLUMNS) so the
 // header-click sort and the filter dropdown stay in sync. 'scan_date' is the
 // episode's first-seen (entry) date.
@@ -36,14 +38,10 @@ export const SOURCE_FILTERS = [
   ['screener', 'Screener', 'screener'],
 ];
 
-export const pct = (value) => {
-  const n = Number(value);
-  return value == null || !Number.isFinite(n) ? '-' : `${(n * 100).toFixed(2)}%`;
-};
+// Archive dialect: forward returns arrive as fractions; `fixed` is the house fx.
+export const pct = (value) => fmtPctFrac(value, 2);
 
-export const fixed = (value, digits = 2) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : Number(value).toFixed(digits)
-);
+export const fixed = (value, digits = 2) => fx(value, digits);
 
 // Color helpers now live in the shared theme module (one tier ladder for the
 // whole app). Re-exported here so existing archive imports keep working. NOTE:

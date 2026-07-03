@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '../api';
-import useIBKRStatus from './useIBKRStatus';
 import usePollingInterval from './usePollingInterval';
 import { deriveTradeRow } from '../utils/tradeTableUtils';
 
@@ -27,12 +26,13 @@ const EMPTY_SUMMARY = {
   nAtRisk: 0,
 };
 
-export default function useLiveRisk(trades) {
+// `ibkrConnected` comes from the shell's single useIBKRStatus owner (this hook
+// must NOT poll /ibkr/status itself — that's how the app ended up with three
+// concurrent status pollers).
+export default function useLiveRisk(trades, ibkrConnected = false) {
   const [rows, setRows] = useState({});
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [status, setStatus] = useState('idle');
-  const ibkrStatus = useIBKRStatus(10000);
-  const ibkrConnected = Boolean(ibkrStatus?.connected);
 
   // Stable key over the OPEN-candidate trade ids so the poll interval is not
   // reset on every parent render (the open set, not the array identity, is what
