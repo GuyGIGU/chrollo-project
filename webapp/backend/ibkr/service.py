@@ -107,6 +107,10 @@ class IBKRSnapshot:
     stale: bool = False
     daily_restart: bool = False
     session_competition: bool = False
+    # Telemetry: how often the supervisor has (re)connected this process, and
+    # when. A rapidly climbing count is the visible symptom of reconnect churn.
+    reconnect_count: int = 0
+    last_connect_at: Optional[float] = None
 
     account_summary: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     positions: List[Dict[str, Any]] = field(default_factory=list)
@@ -130,6 +134,8 @@ class IBKRSnapshot:
             "stale": self.stale,
             "daily_restart": self.daily_restart,
             "session_competition": self.session_competition,
+            "reconnect_count": self.reconnect_count,
+            "last_connect_at": self.last_connect_at,
             "account_summary": copy.deepcopy(self.account_summary),
             "positions": list(self.positions),
             "portfolio": list(self.portfolio),
@@ -492,6 +498,8 @@ class IBKRService:
             self._snapshot.last_error = None
             self._snapshot.last_update = time.time()
             self._snapshot.client_id = self._effective_client_id
+            self._snapshot.reconnect_count += 1
+            self._snapshot.last_connect_at = time.time()
         broadcaster.publish_threadsafe("ibkr_status", self.snapshot())
 
     def _wire_events(self, ib: Any) -> None:
