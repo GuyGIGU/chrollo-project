@@ -27,6 +27,7 @@ import broker_config
 from webapp.backend.ibkr import service as ibkr_service
 from webapp.backend.services.journal_stats import calculate_journal_stats
 from webapp.backend.services import portfolio_snapshot, screener_data, startup
+from webapp.backend.services import health as health_service
 from webapp.backend.services import scan_runner
 from core.pipeline import cache_status as cache_status_module
 from core.pipeline import downloads as downloads_module
@@ -1214,6 +1215,19 @@ def test_manual_job_stream_releases_lock_when_status_start_fails(monkeypatch):
     assert any("ERROR:" in event and "db down" in event for event in events)
     assert any("[DONE]" in event for event in events)
     assert not scan_runner.SCAN_LOCK.locked()
+
+
+# ---- health: scan freshness must degrade on every non-productive terminal status ----
+def test_scan_freshness_degrades_on_aborted():
+    # An SSE-disconnect abort produces no artifact; a fresh 'aborted' run must
+    # not read as a healthy scan (regression: integration review of WP-D).
+    fresh = datetime.now(timezone.utc).isoformat()
+    for status in ("failed", "stale_data", "aborted"):
+        ok, _age, detail = health_service._scan_freshness(
+            {"status": status, "finished_at": fresh}
+        )
+        assert ok is False
+        assert status in detail
 
 
 # ---- scan-runner alert decision (fetch-health degradation early warning) ----

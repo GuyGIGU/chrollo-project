@@ -86,7 +86,7 @@ def _scan_freshness(latest: dict | None) -> tuple[bool, float | None, str]:
 
     status = latest.get("status")
     age_hours = _scan_age_hours(latest)
-    if status in ("failed", "stale_data"):
+    if status in ("failed", "stale_data", "aborted"):
         return False, age_hours, f"last scan {status}"
     if status == "running":
         if age_hours is not None and age_hours > 2:
