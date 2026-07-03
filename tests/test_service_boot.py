@@ -21,10 +21,27 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 def test_backend_boots_from_service_cwd_and_registers_routes():
     """Import main exactly the way the service does (cwd=webapp/backend) in a
     clean subprocess and assert the app actually registered its route tree —
-    an import-time crash or a router that failed to include drops the count."""
+    an import-time crash or a router that failed to include drops the count.
+
+    The leaf count is walked recursively: FastAPI >=0.139 / Starlette >=1.3 no
+    longer flattens included routers into ``app.routes`` — each ``include_router``
+    leaves one ``_IncludedRouter`` wrapper (``.original_router`` holds the real
+    routes), and a mount holds its own ``.routes``. Counting only top-level
+    entries would read ~22 there and spuriously fail even though every endpoint
+    is registered, so the guard tests reachable endpoints, not a version-fragile
+    internal representation."""
     code = (
-        "import main; n = len(main.app.routes); "
-        "assert n > 70, f'only {n} routes registered'"
+        "import main\n"
+        "from starlette.routing import Mount\n"
+        "def leaves(routes):\n"
+        "    total = 0\n"
+        "    for r in routes:\n"
+        "        orig = getattr(r, 'original_router', None)\n"
+        "        sub = orig.routes if orig is not None else (r.routes if isinstance(r, Mount) else None)\n"
+        "        total += leaves(sub) if sub else 1\n"
+        "    return total\n"
+        "n = leaves(main.app.routes)\n"
+        "assert n > 70, f'only {n} routes registered'\n"
     )
     proc = subprocess.run(
         [sys.executable, "-c", code],
