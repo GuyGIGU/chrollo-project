@@ -83,6 +83,19 @@ _PRIME_TIMEOUT = 15
 _DAILY_RESTART_HOUR_UTC = 3
 _DAILY_RESTART_MINUTE_START = 45
 
+# Order-entry API surface stripped from every IB instance we construct. Chrollo is
+# read-only by house law; this makes that structural instead of a convention.
+_FORBIDDEN_ORDER_METHODS = ("placeOrder", "cancelOrder", "reqGlobalCancel")
+
+
+def _forbid_order_api(ib: Any) -> None:
+    """Replace the order-entry methods on this IB instance with hard failures."""
+    def _blocked(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError("Chrollo is read-only: IBKR order APIs are disabled")
+
+    for name in _FORBIDDEN_ORDER_METHODS:
+        setattr(ib, name, _blocked)
+
 
 def _is_daily_restart_window() -> bool:
     """Return True if we're in the IB Gateway daily restart window."""
@@ -458,6 +471,7 @@ class IBKRService:
                 pass
 
         self._ib = IB()
+        _forbid_order_api(self._ib)
         self._wire_events(self._ib)
         await self._ib.connectAsync(
             settings.ibkr_host,
