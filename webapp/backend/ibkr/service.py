@@ -12,8 +12,9 @@ If ``ib_async`` is not installed or TWS is unavailable, the service reports
 the app functional for users who don't have IBKR configured.
 
 Resilience:
-- A 30-second heartbeat ping (``reqCurrentTime``) keeps the IB Gateway socket alive and
-  detects dead connections faster than passive ``isConnected()`` polling.
+- A 30-second heartbeat ping (``reqCurrentTimeAsync`` under a timeout) keeps the IB
+  Gateway socket alive and detects dead connections faster than passive
+  ``isConnected()`` polling.
 - On disconnect, the last-known snapshot is preserved with a ``stale`` flag so the
   webapp keeps showing data instead of empty tables.
 - Old IB instances are properly torn down before reconnecting to prevent ghost event
@@ -70,6 +71,9 @@ _CLIENT_ID_IN_USE = {326}
 
 # Heartbeat interval in seconds
 _HEARTBEAT_INTERVAL = 30
+
+# How long a heartbeat ping may take before we declare the socket dead
+_HEARTBEAT_TIMEOUT = 10
 
 # IB Gateway daily restart window (UTC) — 03:45–04:00 UTC = 23:45–00:00 ET
 _DAILY_RESTART_HOUR_UTC = 3
@@ -370,10 +374,7 @@ class IBKRService:
                     heartbeat_counter += 1
                     if heartbeat_counter >= _HEARTBEAT_INTERVAL:
                         heartbeat_counter = 0
-                        try:
-                            self._ib.reqCurrentTime()
-                        except Exception:
-                            log.warning("Heartbeat ping failed — connection likely dead")
+                        if not await self._heartbeat_ok():
                             break
 
                 if self._ib and not self._ib.isConnected() and not stop_event.is_set():
@@ -404,6 +405,21 @@ class IBKRService:
                 self._mark_disconnected(err_str)
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
+
+    async def _heartbeat_ok(self) -> bool:
+        """Ping IB with the async time request; False means the socket is dead.
+
+        The sync ``reqCurrentTime`` variant must not be used here: it re-enters
+        the already-running IB event loop and raises immediately, which read as
+        a dead connection every 30s and churned teardown/reconnect all session.
+        The wait_for gives a real dead-socket timeout.
+        """
+        try:
+            await asyncio.wait_for(self._ib.reqCurrentTimeAsync(), timeout=_HEARTBEAT_TIMEOUT)
+            return True
+        except Exception:
+            log.warning("Heartbeat ping failed — connection likely dead")
+            return False
 
     async def _connect_and_prime(self) -> None:
         assert IB is not None
