@@ -184,7 +184,7 @@ def test_segment_swings_macro_wire_and_flag_default(monkeypatch):
     import pandas as pd
     from core.structure.segmentation import segment_swings
 
-    assert settings.PIP_MACRO_PHASE_A_ENABLED is False   # ships dark
+    assert settings.PIP_MACRO_PHASE_A_ENABLED is True    # ships LIVE (flipped 2026-07-04)
 
     highs, lows = _markup_range_frame()
     df = pd.DataFrame({"High": highs, "Low": lows})

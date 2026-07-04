@@ -730,7 +730,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `717675af2392e33dc89a7ea5dafad4c3b72677714720b037ecfaa514bc6df734`_
+_engine_config_version: `3be99eef17a13fa048b21a47024f12bd128add813f75e3a083b9e1ead6d8d895`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -744,7 +744,7 @@ EXTENSION_FILTER_MULT = 1.15
 PIVOT_ORDER_SHORT = 1
 PIVOT_ORDER_LONG = 2
 PIVOT_ORDER_THRESHOLD = 40
-PIP_MACRO_PHASE_A_ENABLED = False
+PIP_MACRO_PHASE_A_ENABLED = True
 PIP_MACRO_K_MAX = 24
 PIP_MACRO_MAX_POST_EXCESS = 0.25
 PIP_MACRO_MIN_BASE_BARS = 20
