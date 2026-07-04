@@ -220,3 +220,72 @@ def test_classify_universe_members_isolates_failures(monkeypatch):
     assert members["AAA"].state is HealthState.CONSOLIDATING
     reasons = {row["ticker"]: row["reason"] for row in unreadable}
     assert reasons == {"BBB": "short_history", "CCC": "not_available"}
+
+
+# --------------------------------------------------------------------------
+# Payload builder + artifact contract (Task 5) — no buy language, atomic ride
+# --------------------------------------------------------------------------
+
+def _fake_universe_at(path):
+    class _U:
+        key = "us_sectors"
+        universe_type = "us_sectors"
+        def artifact_path(self):
+            return str(path)
+    return _U()
+
+
+def test_build_health_payload_shape_carries_no_buy_language():
+    from output.dashboard import build_health_payload
+
+    box = _worked_box(tail=124.3)  # near_resistance, has a box
+    panel = pd.concat({"XLE": box}, axis=1)
+    members = {"XLE": classify_member(box)}
+    payload = build_health_payload(members, [{"ticker": "ZZZ", "reason": "short_history"}], panel, _FakeUniverse())
+
+    assert payload["member_count"] == 2  # 1 classified + 1 unreadable
+    assert [m["ticker"] for m in payload["members"]] == ["XLE"]
+    row = payload["members"][0]
+    assert row["state"] == "near_resistance"
+    assert row["R"] is not None and row["S"] is not None and row["base_len"] > 0
+    assert row["candles"] and row["volumes"]  # daily bars for the reused card
+    # The "no buy language" contract, enforced at the emit site: a health member
+    # carries NO score / tier / trigger / setup / sub_scores field.
+    for banned in ("score", "tier", "trigger", "setup", "sub_scores", "Score", "Tier"):
+        assert banned not in row
+    assert payload["unreadable"] == [{"ticker": "ZZZ", "reason": "short_history"}]
+
+
+def test_generate_dashboard_flag_off_omits_health_key(tmp_path, monkeypatch):
+    import output.dashboard as dash
+
+    out = tmp_path / "screener_data_us_sectors.json"
+    monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
+
+    # Empty results (the ETF-universe common case); no health board passed.
+    dash.generate_dashboard(pd.DataFrame(), data=None, tickers=None,
+                            market_context={}, universe=_FakeUniverse(), health_board=None)
+    import json
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert "health_board" not in doc  # byte-identical to today's empty artifact
+
+
+def test_generate_dashboard_rides_health_board_into_same_artifact(tmp_path, monkeypatch):
+    import json
+    import output.dashboard as dash
+    from output.dashboard import build_health_payload
+
+    out = tmp_path / "screener_data_us_sectors.json"
+    monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
+
+    box = _worked_box(tail=119.0)
+    panel = pd.concat({"XLE": box}, axis=1)
+    payload = build_health_payload({"XLE": classify_member(box)}, [], panel, _FakeUniverse())
+
+    # Empty firing results, but a health board present → one atomic write carries both.
+    dash.generate_dashboard(pd.DataFrame(), data=None, tickers=None,
+                            market_context={}, universe=_FakeUniverse(), health_board=payload)
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert "health_board" in doc
+    assert doc["chart_data"] == {} and doc["ordered_tickers"] == []  # firing side untouched
+    assert doc["health_board"]["members"][0]["state"] == "consolidating"

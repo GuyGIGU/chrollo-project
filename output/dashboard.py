@@ -386,9 +386,89 @@ def _extract_chart_data(data, results_df, tickers):
     return chart_data
 
 
+def _member_candles(df):
+    """Daily (candles, volumes) for a health-board member, capped to the last
+    DASHBOARD_CHART_DAYS bars. A DELIBERATELY-SEPARATE builder from
+    _extract_chart_data (which reads firing-only results_df fields) — the health
+    read shares no fields with a firing setup, so twinning that function would
+    couple two paths that must diverge."""
+    show_days = min(settings.DASHBOARD_CHART_DAYS, len(df))
+    plot_df = df.tail(show_days).copy().reset_index()
+    if 'Date' in plot_df.columns:
+        dates = plot_df['Date'].dt.strftime('%Y-%m-%d').values
+    else:
+        dates = [str(idx)[:10] for idx in plot_df.index]
+    opens = plot_df['Open'].round(2).values
+    highs = plot_df['High'].round(2).values
+    lows = plot_df['Low'].round(2).values
+    closes = plot_df['Close'].round(2).values
+    vols = plot_df['Volume'].round(0).values
+    candles = [
+        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
+        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
+    ]
+    volumes = [
+        {'time': d, 'value': float(v),
+         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
+        for d, o, c, v in zip(dates, opens, closes, vols)
+    ]
+    return candles, volumes
+
+
+def build_health_payload(members, unreadable, data, universe=None):
+    """Assemble the ``health_board`` artifact section from classified members.
+
+    ``members`` maps ticker -> ``core.pipeline.health_board.MemberHealth`` and
+    ``unreadable`` is a list of ``{ticker, reason}`` (short_history / not_available
+    / error). Emits ONE dict per member — the closed-set ``state``, the small
+    scale-invariant sort fields, the box geometry (``R``/``S``/``base_len``, all
+    ``None``/``0`` when there is no box so the reused card draws bare candles), and
+    the daily candles/volumes — carrying NO score / tier / trigger / setup field
+    (the "no buy language" contract, enforced at the emit site).
+
+    A member whose candle extraction fails degrades into ``unreadable`` rather than
+    tearing the section. The returned dict is added to the SAME per-universe
+    artifact and rides the single atomic write in ``generate_dashboard`` (it is not
+    written here); every value passes through that write's ``_json_safe`` chokepoint.
+    """
+    is_multi = getattr(data.columns, "nlevels", 1) > 1
+    degraded = list(unreadable)
+    member_rows = []
+    for ticker, health in members.items():
+        try:
+            frame = data[ticker].dropna() if is_multi else data.dropna()
+            candles, volumes = _member_candles(frame)
+        except Exception as exc:  # a member that can't render degrades honestly
+            print(f"  Health chart error on {ticker}: {exc}")
+            degraded.append({"ticker": ticker, "reason": "error"})
+            continue
+        etf = str(ticker).upper()
+        member_rows.append({
+            "ticker": etf,
+            "name": SECTOR_ETF_NAMES.get(etf),  # friendly sector name when known, else None
+            "state": health.state.value,        # exactly one closed-set state string
+            "box_pos": health.box_pos,
+            "breakout_extension": health.breakout_extension,
+            "distance_to_high_pct": health.distance_to_high_pct,
+            "R": health.R,
+            "S": health.S,
+            "base_len": int(health.base_len),
+            "candles": candles,
+            "volumes": volumes,
+        })
+    return {
+        "members": member_rows,
+        "unreadable": degraded,
+        # Total members the board attempted this scan (classified + unreadable) so
+        # the UI can say "29 members · 5 unavailable" without recomputing.
+        "member_count": len(member_rows) + len(degraded),
+    }
+
+
 # ⚠️ LIVE — invoked on every scan by core/pipeline/scan_job.py; writes the React
 #    frontend's screener_data.json artifact. DO NOT delete as retired HTML residue.
-def generate_dashboard(results_df, data=None, tickers=None, market_context=None, universe=None):
+def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
+                       universe=None, health_board=None):
     """Extract chart data and export it as JSON for the React frontend.
 
     ``universe`` selects which artifact to write (``None`` = US-Stocks ->
@@ -412,12 +492,18 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
 
     json_path = resolve_universe(universe).artifact_path()
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
-        
-    payload = _json_safe({
+
+    payload_body = {
         "chart_data": chart_data,
         "ordered_tickers": ordered_tickers,
         "market_context": market_context or {},
-    })
+    }
+    # The health-board section rides this SAME atomic write. Added ONLY when the
+    # caller passed one (flag on, non-equities universe) — absent otherwise, so the
+    # flag-off / us_equities artifact is byte-identical to before.
+    if health_board is not None:
+        payload_body["health_board"] = health_board
+    payload = _json_safe(payload_body)
     tmp_path = json_path + ".tmp"
     try:
         with open(tmp_path, 'w', encoding='utf-8') as f:

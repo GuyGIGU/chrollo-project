@@ -211,6 +211,46 @@ def _passes_archive_freshness(
     return True
 
 
+def _maybe_build_health_board(data, universe):
+    """Build the flag-gated health-board section for a NON-equities universe.
+
+    A VISIBLE per-universe branch (never a hidden hook in run_screener): it
+    classifies every member of the Sectors+Market / Commodities+ETFs universe into
+    a position-in-cycle state off the already-fetched ``data`` panel, then assembles
+    the artifact section. Returns ``None`` — so the dashboard write is byte-identical
+    to before — when EITHER:
+
+      * the read is off (``HEALTH_BOARD_ENABLED`` default False, read lazily to
+        respect the config-vs-cwd trap), OR
+      * this is the equities universe (``universe_type == DEFAULT_UNIVERSE_TYPE``):
+        the firing grid is its own read, so the health board is only for the ETF
+        universes and us_equities stays untouched even when the flag is ON.
+
+    Any failure logs and yields ``None`` — the passive health read can never abort a
+    real scan.
+    """
+    from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+
+    if not getattr(settings, "HEALTH_BOARD_ENABLED", False):
+        return None
+    if universe.universe_type == DEFAULT_UNIVERSE_TYPE:
+        return None
+    try:
+        from core.pipeline.health_board import classify_universe_members
+        from output.dashboard import build_health_payload
+
+        members, unreadable = classify_universe_members(data, universe)
+        payload = build_health_payload(members, unreadable, data, universe)
+        log.info(
+            "health board [%s]: %d classified, %d unreadable",
+            universe.key, len(payload["members"]), len(payload["unreadable"]),
+        )
+        return payload
+    except Exception:  # noqa: BLE001 — a passive read must never fail a scan
+        log.exception("health-board read failed [%s]", universe.key)
+        return None
+
+
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
     """Run the screener and write every non-broker output artifact.
 
@@ -235,6 +275,12 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         )
     )
 
+    # Flag-gated position-in-cycle read for the non-equities universes (None
+    # otherwise → the dashboard write is byte-identical). Computed once here and
+    # threaded into BOTH generate_dashboard call sites (empty + non-empty), because
+    # the ETF universes usually fire zero setups and take the empty branch.
+    health_board = _maybe_build_health_board(data, uni)
+
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
         # An empty result is only a legitimate "scanned, matched nothing" day when
@@ -251,8 +297,10 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
             _passes_archive_freshness(data, tickers, uni, mode, n_setups=0)
         # Write an empty artifact so this universe reads as "scanned, matched
         # nothing" rather than "never scanned" — and so an empty day clears any
-        # stale setups instead of leaving the previous scan's names on screen.
-        generate_dashboard(results_df, data, tickers, market_context, universe=uni)
+        # stale setups instead of leaving the previous scan's names on screen. The
+        # health board rides this same write (the ETF universes usually land here).
+        generate_dashboard(results_df, data, tickers, market_context, universe=uni,
+                           health_board=health_board)
         return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored)
 
     print_results(results_df)
@@ -262,7 +310,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     save_csv(results_df, output_dir)
     print_finviz_url(results_df)
 
-    generate_dashboard(results_df, data, tickers, market_context, universe=uni)
+    generate_dashboard(results_df, data, tickers, market_context, universe=uni,
+                       health_board=health_board)
 
     # Persist every setup to setup_archive (idempotent upsert by
     # ticker+scan_date+universe_type). Forward returns are filled in later by
