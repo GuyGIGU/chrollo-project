@@ -89,6 +89,23 @@ test('final tiebreak is the ticker, so equal members are stable', () => {
   assert.ok(compareHealthMembers(members[1], members[0]) < 0);
 });
 
+test('distinct unknown states collapse into ONE fallback band (stable key, no fragmentation)', () => {
+  // Defense-in-depth: even if two unrecognized states reach the FE, they must not
+  // fragment into multiple "Unrecognized" bands with colliding React keys.
+  const members = [
+    m('A', 'future_x'),
+    m('B', 'future_y'),
+    m('C', 'future_x'),
+    m('R', 'near_resistance', { box_pos: 0.9 }),
+  ];
+  const bands = groupHealthMembers(members);
+  const unknownBands = bands.filter((b) => b.key === 'unknown');
+  assert.equal(unknownBands.length, 1);                 // one band, not three
+  assert.equal(unknownBands[0].members.length, 3);      // all unknowns together
+  const keys = bands.map((b) => b.key);
+  assert.equal(new Set(keys).size, keys.length);        // no duplicate React keys
+});
+
 test('groupHealthMembers yields ordered bands with counts', () => {
   const members = [
     m('A', 'near_resistance', { box_pos: 0.9 }),

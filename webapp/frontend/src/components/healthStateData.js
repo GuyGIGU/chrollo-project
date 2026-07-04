@@ -73,5 +73,8 @@ export const UNKNOWN_HEALTH_STATE = {
 };
 
 export function healthStateMeta(key) {
-  return BY_KEY[key] || { ...UNKNOWN_HEALTH_STATE, key: key || 'unknown' };
+  // Every unrecognized / missing state collapses to the ONE shared fallback (a
+  // single stable `key: 'unknown'` + order), so distinct unknowns can't fragment
+  // into multiple 'Unrecognized' bands with colliding React keys.
+  return BY_KEY[key] || UNKNOWN_HEALTH_STATE;
 }

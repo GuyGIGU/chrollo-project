@@ -131,6 +131,41 @@ def _tf_candles(df, tf, cap):
     return candles, volumes
 
 
+def _daily_candles(df):
+    """Daily (candles, volumes, show_days) for a ticker frame, capped to the last
+    DASHBOARD_CHART_DAYS bars — the shared OHLCV->wire-dict extraction (EC-3: fold
+    shared logic, never copy). Used by the firing chart writer (_extract_chart_data)
+    and the health board (build_health_payload); it folds only the PURE candle
+    shape (which the two paths genuinely share), NOT _extract_chart_data's
+    firing-only results_df fields, so the diverging payloads stay decoupled.
+    ``show_days`` is returned because the caller needs it for window-bar math."""
+    show_days = min(settings.DASHBOARD_CHART_DAYS, len(df))
+    plot_df = df.tail(show_days).copy().reset_index()
+
+    # Vectorized extraction — avoid per-row iloc overhead
+    if 'Date' in plot_df.columns:
+        dates = plot_df['Date'].dt.strftime('%Y-%m-%d').values
+    else:
+        dates = [str(idx)[:10] for idx in plot_df.index]
+
+    opens = plot_df['Open'].round(2).values
+    highs = plot_df['High'].round(2).values
+    lows = plot_df['Low'].round(2).values
+    closes = plot_df['Close'].round(2).values
+    vols = plot_df['Volume'].round(0).values
+
+    candles = [
+        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
+        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
+    ]
+    volumes = [
+        {'time': d, 'value': float(v),
+         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
+        for d, o, c, v in zip(dates, opens, closes, vols)
+    ]
+    return candles, volumes, show_days
+
+
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
     # Lazy: keeps output/ off core.pipeline.downloads at module load. Used to
@@ -149,30 +184,7 @@ def _extract_chart_data(data, results_df, tickers):
             else:
                 df = data.dropna()
             
-            show_days = min(settings.DASHBOARD_CHART_DAYS, len(df))
-            plot_df = df.tail(show_days).copy().reset_index()
-            
-            # Vectorized extraction — avoid per-row iloc overhead
-            if 'Date' in plot_df.columns:
-                dates = plot_df['Date'].dt.strftime('%Y-%m-%d').values
-            else:
-                dates = [str(idx)[:10] for idx in plot_df.index]
-            
-            opens = plot_df['Open'].round(2).values
-            highs = plot_df['High'].round(2).values
-            lows = plot_df['Low'].round(2).values
-            closes = plot_df['Close'].round(2).values
-            vols = plot_df['Volume'].round(0).values
-            
-            candles = [
-                {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
-                for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
-            ]
-            volumes = [
-                {'time': d, 'value': float(v),
-                 'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
-                for d, o, c, v in zip(dates, opens, closes, vols)
-            ]
+            candles, volumes, show_days = _daily_candles(df)
             # Weekly + monthly candles for the higher-timeframe charts, resampled
             # from the FULL daily history (not the 300-bar daily window).
             weekly_candles, weekly_volumes = _tf_candles(df, "weekly", 110)
@@ -386,35 +398,6 @@ def _extract_chart_data(data, results_df, tickers):
     return chart_data
 
 
-def _member_candles(df):
-    """Daily (candles, volumes) for a health-board member, capped to the last
-    DASHBOARD_CHART_DAYS bars. A DELIBERATELY-SEPARATE builder from
-    _extract_chart_data (which reads firing-only results_df fields) — the health
-    read shares no fields with a firing setup, so twinning that function would
-    couple two paths that must diverge."""
-    show_days = min(settings.DASHBOARD_CHART_DAYS, len(df))
-    plot_df = df.tail(show_days).copy().reset_index()
-    if 'Date' in plot_df.columns:
-        dates = plot_df['Date'].dt.strftime('%Y-%m-%d').values
-    else:
-        dates = [str(idx)[:10] for idx in plot_df.index]
-    opens = plot_df['Open'].round(2).values
-    highs = plot_df['High'].round(2).values
-    lows = plot_df['Low'].round(2).values
-    closes = plot_df['Close'].round(2).values
-    vols = plot_df['Volume'].round(0).values
-    candles = [
-        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
-        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
-    ]
-    volumes = [
-        {'time': d, 'value': float(v),
-         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
-        for d, o, c, v in zip(dates, opens, closes, vols)
-    ]
-    return candles, volumes
-
-
 def build_health_payload(members, unreadable, data, universe=None):
     """Assemble the ``health_board`` artifact section from classified members.
 
@@ -437,7 +420,7 @@ def build_health_payload(members, unreadable, data, universe=None):
     for ticker, health in members.items():
         try:
             frame = data[ticker].dropna() if is_multi else data.dropna()
-            candles, volumes = _member_candles(frame)
+            candles, volumes, _ = _daily_candles(frame)
         except Exception as exc:  # a member that can't render degrades honestly
             print(f"  Health chart error on {ticker}: {exc}")
             degraded.append({"ticker": ticker, "reason": "error"})

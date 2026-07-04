@@ -129,7 +129,7 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
         trend_template,
     )
 
-    min_bars = int(getattr(settings, "HEALTH_MIN_BARS", 200))
+    min_bars = int(settings.HEALTH_MIN_BARS)
     if df is None or len(df) < min_bars:
         raise InsufficientHistoryError(
             f"need >= {min_bars} bars, have {0 if df is None else len(df)}"
@@ -160,7 +160,7 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     drawdown = distance_to_52w_high_pct(eval_df["High"], as_of_close)
 
     # 1. Deep correction — a large drawdown dominates every other read.
-    deep_floor = float(getattr(settings, "HEALTH_DEEP_CORRECTION_DRAWDOWN", -0.30))
+    deep_floor = float(settings.HEALTH_DEEP_CORRECTION_DRAWDOWN)
     if drawdown is not None and drawdown <= deep_floor:
         return _boxless(HealthState.DEEP_CORRECTION, drawdown)
 
