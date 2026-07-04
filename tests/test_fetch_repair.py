@@ -369,13 +369,23 @@ def test_market_calendar_reports_weekend_and_holiday_closures():
 
 
 def test_market_calendar_uses_early_close_for_black_friday():
+    # Black Friday closes early at 13:00; a session is not FINAL until close + the
+    # finalization margin (the provider keeps settling the last bar after the bell).
     before_close = datetime(2026, 11, 27, 12, 59, tzinfo=ZoneInfo("America/New_York"))
-    after_close = datetime(2026, 11, 27, 13, 1, tzinfo=ZoneInfo("America/New_York"))
+    after_bell = datetime(2026, 11, 27, 13, 1, tzinfo=ZoneInfo("America/New_York"))
+    after_final = datetime(2026, 11, 27, 14, 0, tzinfo=ZoneInfo("America/New_York"))
 
     assert market_calendar_module.is_early_close_session("2026-11-27")
-    assert market_calendar_module.latest_completed_session(before_close) == pd.Timestamp("2026-11-25")
-    assert market_calendar_module.latest_completed_session(after_close) == pd.Timestamp("2026-11-27")
     assert market_calendar_module.session_close_at("2026-11-27").hour == 13
+    # Before the close AND in the just-after-bell settling window, the latest COMPLETED
+    # session is still the prior trading day (11-25; 11-26 is Thanksgiving): the forming
+    # bar is not trusted until it finalizes.
+    assert market_calendar_module.latest_completed_session(before_close) == pd.Timestamp("2026-11-25")
+    assert market_calendar_module.latest_completed_session(after_bell) == pd.Timestamp("2026-11-25")
+    assert not market_calendar_module.session_is_final("2026-11-27", after_bell)
+    # Once the finalization margin has elapsed, today's (early) session is complete.
+    assert market_calendar_module.latest_completed_session(after_final) == pd.Timestamp("2026-11-27")
+    assert market_calendar_module.session_is_final("2026-11-27", after_final)
 
 
 def test_incremental_fetch_replaces_sparse_latest_reference_row(monkeypatch):

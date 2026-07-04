@@ -629,6 +629,12 @@ FULL_REFRESH_INTERVAL_DAYS = 7    # Force a cold 5y refetch at least weekly
 INCREMENTAL_OVERLAP_BDAYS = 5     # Re-download this many business days before last_cached_date for split-probe overlap
 INCREMENTAL_MAX_GAP_BDAYS = 10    # Above this gap, fall back to full refetch instead of incremental
 MARKET_DATA_MIN_LATEST_COVERAGE = 0.95  # Required latest-session close coverage before cache/archive is trusted
+# A daily bar is NOT final at the closing bell: Yahoo keeps settling the last-hour prints
+# for a few minutes after the close. Until close + this margin, the current session is
+# treated as NOT YET COMPLETE (latest_completed_session), so a partial/forming bar is never
+# cached-as-complete nor archived (see _drop_forming_rows). The scheduled scan runs well
+# after (18:00 ET) and is unaffected; this only guards near-close MANUAL refreshes/scans.
+SESSION_FINALIZATION_MARGIN_MINUTES = 30
 # Deep-history corruption floor (the "second half" of the multi-universe cache bug).
 # A trusted cache spans years; the NaN-wipe failure leaves recent bars but ~6 bars of
 # deep history. Only judged when the PANEL itself spans >= MIN_HISTORY_BARS rows (so a

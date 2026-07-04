@@ -83,6 +83,43 @@ def session_close_at(day) -> datetime:
     return datetime.combine(day.date(), session_close_time(day), tzinfo=MARKET_TZ)
 
 
+def _finalization_margin() -> timedelta:
+    """Minutes to wait after the close before a session's daily bar is treated as
+    final. Read LAZILY: ``config`` is import-shadowed under the backend cwd, so a
+    module-level settings read here would crash service boot — and a missing/broken
+    setting falls back to a safe default."""
+    try:
+        from config import settings
+        minutes = int(getattr(settings, "SESSION_FINALIZATION_MARGIN_MINUTES", 30))
+    except Exception:
+        minutes = 30
+    return timedelta(minutes=max(0, minutes))
+
+
+def session_is_final(day, now_et: datetime | None = None) -> bool:
+    """True when ``day``'s regular session is COMPLETE and its daily bar has settled.
+
+    A past trading session is always final. TODAY's session is final only once ``now``
+    has passed the close by the finalization margin — the provider keeps revising the
+    last bar for a few minutes after the bell, so a bar fetched in that window is a
+    PARTIAL close, not a real one. A non-trading ``day`` is trivially final (it has no
+    forming bar to protect)."""
+    now_et = now_et or datetime.now(MARKET_TZ)
+    if now_et.tzinfo is None:
+        now_et = now_et.replace(tzinfo=MARKET_TZ)
+    else:
+        now_et = now_et.astimezone(MARKET_TZ)
+    day = normalize_session_date(day)
+    today = normalize_session_date(now_et.date())
+    if day < today:
+        return True
+    if day > today:
+        return False
+    if not is_trading_session(today):
+        return True
+    return now_et >= session_close_at(today) + _finalization_margin()
+
+
 def previous_trading_session(day) -> pd.Timestamp:
     return normalize_session_date(day) - NYSE_BUSINESS_DAY
 
@@ -107,9 +144,11 @@ def latest_completed_session(now_et: datetime | None = None) -> pd.Timestamp:
         now_et = now_et.astimezone(MARKET_TZ)
 
     today = normalize_session_date(now_et.date())
-    close_time = session_close_time(today)
-    after_close = (now_et.hour, now_et.minute) >= (close_time.hour, close_time.minute)
-    if is_trading_session(today) and after_close:
+    # "Completed" means the session's bar is FINAL (close + finalization margin), not
+    # merely past the bell: the provider keeps settling the last bar for minutes after
+    # the close, so treating today as complete at 16:00 would let a PARTIAL bar into the
+    # cache / coverage checks / archive. session_is_final applies the margin.
+    if is_trading_session(today) and session_is_final(today, now_et):
         return today
     return previous_trading_session(today)
 
