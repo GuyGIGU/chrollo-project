@@ -610,6 +610,66 @@ def test_screener_data_endpoint_status_ready(monkeypatch):
     assert out["scanned_at"] is not None
 
 
+def _valid_health_member(**overrides):
+    member = {
+        "ticker": "XLE", "name": "Energy", "state": "near_resistance",
+        "box_pos": 0.92, "breakout_extension": None, "distance_to_high_pct": -0.03,
+        "R": 100.0, "S": 90.0, "base_len": 60, "candles": [], "volumes": [],
+    }
+    member.update(overrides)
+    return member
+
+
+def test_screener_data_endpoint_passes_valid_health_board_through(monkeypatch):
+    from routers import screener as screener_router
+
+    hb = {"members": [_valid_health_member()], "unreadable": [], "member_count": 1}
+    monkeypatch.setattr(screener_router, "read_screener_data",
+                        lambda path: {"ordered_tickers": [], "chart_data": {}, "health_board": hb})
+    monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
+    monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
+    out = screener_router.get_screener_data(universe="us_sectors")
+    assert out["health_board"] == hb  # passes straight through, unmodified
+    assert out["status"] == "ready"
+
+
+def test_screener_data_endpoint_surfaces_buy_language_in_health(monkeypatch):
+    # A stray score/tier/trigger on a member violates the "no buy language" contract;
+    # extra='forbid' makes the boundary SURFACE it (raise) rather than serve it.
+    from pydantic import ValidationError
+    from routers import screener as screener_router
+
+    hb = {"members": [_valid_health_member(score=88, tier="S")], "unreadable": [], "member_count": 1}
+    monkeypatch.setattr(screener_router, "read_screener_data",
+                        lambda path: {"ordered_tickers": [], "chart_data": {}, "health_board": hb})
+    monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
+    monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
+    with pytest.raises(ValidationError):
+        screener_router.get_screener_data(universe="us_sectors")
+
+
+def test_screener_data_endpoint_surfaces_unknown_health_state(monkeypatch):
+    from pydantic import ValidationError
+    from routers import screener as screener_router
+
+    hb = {"members": [_valid_health_member(state="buy_now")], "unreadable": [], "member_count": 1}
+    monkeypatch.setattr(screener_router, "read_screener_data",
+                        lambda path: {"ordered_tickers": [], "chart_data": {}, "health_board": hb})
+    monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
+    monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
+    with pytest.raises(ValidationError):
+        screener_router.get_screener_data(universe="us_sectors")
+
+
+def test_health_state_literal_matches_engine_taxonomy():
+    # The serve-boundary Literal must stay equal to the engine's closed set.
+    from typing import get_args
+    from routers import screener as screener_router
+    from core.pipeline.health_board import HEALTH_STATE_ORDER
+
+    assert get_args(screener_router.HealthStateName) == HEALTH_STATE_ORDER
+
+
 def test_drilldown_resolves_sector_commodity_and_none(monkeypatch):
     from routers import screener as screener_router
 
