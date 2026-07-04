@@ -1173,16 +1173,19 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         fresh_drop = [c for c in fresh.columns if isinstance(c, tuple) and c[0] in drifted]
         fresh = fresh.drop(columns=fresh_drop, errors='ignore')
 
-    # Merge: keep only fresh rows strictly after last_cached_date, then concat.
-    new_rows = fresh.loc[fresh.index > last_cached_date]
-    if new_rows.empty:
-        print("  No new bars beyond cached last date (market closed today?).")
-        merged = cached
+    # OVERWRITE-merge the trailing overlap window (not append-only). ``fresh`` spans
+    # [last_cached - overlap, expected]; letting it WIN over the cached rows in that
+    # window (column-wise combine_first via _patch_market_data) CORRECTS a previously
+    # partial/stale bar -- e.g. a mid-session snapshot that missed the last-hour move --
+    # instead of freezing it in the cache until the weekly cold refetch. A NaN cell in
+    # ``fresh`` (a sparse ticker, or a ticker only in the cache) keeps the cached value,
+    # so overwriting never deletes data; the split probe above already guarded drift.
+    new_beyond = fresh.loc[fresh.index > last_cached_date]
+    if new_beyond.empty:
+        print("  No new bars beyond cached last date; refreshing the overlap window in place.")
     else:
-        # Align columns: take union, fill NaN where needed.
-        merged = pd.concat([cached, new_rows], axis=0)
-        merged = merged[~merged.index.duplicated(keep='last')]
-        merged = merged.sort_index()
+        print(f"  +{len(new_beyond)} new bar(s); refreshing the {overlap}-bday overlap window in place.")
+    merged = _patch_market_data(cached, fresh)
 
     # New listings: tickers in universe but absent from the cached columns
     # → fetch their full history via the existing recovery path.

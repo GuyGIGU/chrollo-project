@@ -419,6 +419,49 @@ def test_incremental_fetch_replaces_sparse_latest_reference_row(monkeypatch):
     assert out.loc[dates[-1], ("QQQ", "Close")] == 121.0
 
 
+def test_incremental_overwrites_stale_complete_overlap_bar(monkeypatch):
+    """Self-heal: a COMPLETE-but-stale trailing bar already in the cache -- a mid-session
+    snapshot that missed the last-hour move -- is CORRECTED by the overlap-overwrite merge,
+    not frozen. The bad bar sits exactly AT last_cached_date (not beyond it), so the old
+    append-only merge would never touch it; the incremental overlap window re-fetches it and
+    the fresh (settled) values win."""
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    # dates[-1] is present and COMPLETE for the index symbols, but its Close is a stale
+    # mid-session value (SPY 95 / QQQ 118 -- the settled closes are lower after a selloff).
+    cached_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [10.0, 12.0], "Volume": [1000, 1000]}, index=dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 95.0], "Volume": [1000, 1000]}, index=dates),
+            "QQQ": pd.DataFrame({"Close": [120.0, 118.0], "Volume": [1000, 1000]}, index=dates),
+        },
+        axis=1,
+    )
+    # The overlap fetch returns the SETTLED closes for that same date.
+    fresh_panel = pd.concat(
+        {
+            "AAA": pd.DataFrame({"Close": [11.0], "Volume": [1200]}, index=[dates[-1]]),
+            "SPY": pd.DataFrame({"Close": [90.0], "Volume": [1200]}, index=[dates[-1]]),
+            "QQQ": pd.DataFrame({"Close": [115.0], "Volume": [1200]}, index=[dates[-1]]),
+        },
+        axis=1,
+    )
+
+    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_a, **_k: fresh_panel)
+    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_a, **_k: (False, []))
+
+    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+
+    assert out is not None
+    # The stale trailing bar was OVERWRITTEN with the settled values (not frozen at 95/118).
+    assert out.loc[dates[-1], ("SPY", "Close")] == 90.0
+    assert out.loc[dates[-1], ("QQQ", "Close")] == 115.0
+    assert out.loc[dates[-1], ("AAA", "Close")] == 11.0
+    # Older cached bars are untouched.
+    assert out.loc[dates[0], ("SPY", "Close")] == 100.0
+
+
 def test_incremental_fetch_rejects_missing_latest_reference_bar(monkeypatch):
     dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
     cached_panel = pd.concat(
