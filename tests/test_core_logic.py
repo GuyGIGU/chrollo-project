@@ -33,7 +33,13 @@ from core.structure.box_primitives import (
 from core.structure.segmentation import segment_swings
 
 
-def test_segment_swings_finds_root_bridge(_ramp_frame):
+def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
+    # This is a unit test of the ORDER-N root-bridge detection, so pin the macro
+    # Phase-A read OFF: with PIP_MACRO_PHASE_A_ENABLED on, segment_swings returns
+    # the coarse macro STORY (a different, valid skeleton) instead of the order-N
+    # zigzag asserted below — that path is exercised in test_pip. Pinning keeps
+    # this test deterministic across the eventual flag flip.
+    monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", False)
     # Up-trend (with small pullbacks) into a climax at 60, then a big counter-
     # burst down to 53 (the AR), then a tight range. The root swing is the
     # 60 -> 53 leg: it terminates the trend and births the range.
