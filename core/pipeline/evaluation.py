@@ -14,6 +14,7 @@ from core.structure import (
     calculate_atr,
     descent_tail_rejects,
     detect_lps,
+    distance_to_52w_high_pct,
     assemble_box_narrative,
     detect_lps_tests,
     lps_range_threshold,
@@ -325,11 +326,7 @@ def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict) -> Optio
 
 
 def _relative_strength_context(df: pd.DataFrame, current_price, spy_6m_return: float) -> dict:
-    last_252 = df['High'].iloc[-min(252, len(df)):]
-    max_252 = float(last_252.max()) if len(last_252) else 0.0
-    dist_52w_high_pct = (
-        (float(current_price) - max_252) / max_252 if max_252 > 0 else None
-    )
+    dist_52w_high_pct = distance_to_52w_high_pct(df['High'], current_price)
 
     rs_lookback = settings.RS_LOOKBACK_BARS
     if len(df) > rs_lookback:

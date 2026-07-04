@@ -79,6 +79,20 @@ def adr_pct(df, window: int = 20) -> float:
         return 0.0
 
 
+def distance_to_52w_high_pct(high, current_price, lookback: int = 252):
+    """Fraction the current price sits below its trailing ``lookback``-bar high
+    (e.g. -0.07 = 7% below the 52-week high); ``None`` when there is no valid high.
+
+    Pure measurement shared by the firing path (``_relative_strength_context``) and the
+    health-board classifier, so the drawdown basis can never drift between them. Mirrors
+    the long-standing inline computation exactly (byte-identical fold)."""
+    window = high.iloc[-min(lookback, len(high)):]
+    max_high = float(window.max()) if len(window) else 0.0
+    if max_high <= 0:
+        return None
+    return (float(current_price) - max_high) / max_high
+
+
 def trend_template(df, *, dist_52w_high_pct=None) -> dict:
     """Minervini Stage-2 trend-template criteria (measure-only, no opinion).
 
