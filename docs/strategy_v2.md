@@ -729,7 +729,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `b9d7587fbd05e2181413542e43748845d4f904dc7809ef82202605ca54c1a037`_
+_engine_config_version: `717675af2392e33dc89a7ea5dafad4c3b72677714720b037ecfaa514bc6df734`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -840,7 +840,7 @@ SCORE_BOX_TIGHTNESS = 22
 SCORE_ATR_SQUEEZE = 8
 TIGHTNESS_ADR_AWARE = True
 MAX_BOX_WIDTH_ADR = 4.5
-CANDLE_SPREAD_AWARE = False
+CANDLE_SPREAD_AWARE = True
 CANDLE_GRADE_FLOOR = 0.55
 CANDLE_SPREAD_BOX_CLEAN = 0.35
 CANDLE_SPREAD_BOX_MESSY = 0.6
@@ -849,7 +849,7 @@ CANDLE_SPREAD_ATR_MESSY = 1.4
 CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
 TA_SCORE_V2 = False
-PUZZLE_SCORE_ENABLED = False
+PUZZLE_SCORE_ENABLED = True
 SCORE_PUZZLE_QUALITY = 8.0
 PUZZLE_W_COMPLETENESS = 0.7
 PUZZLE_W_CHRONOLOGY = 0.3

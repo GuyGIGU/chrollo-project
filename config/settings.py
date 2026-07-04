@@ -39,7 +39,10 @@ PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
 # climax or AR. Deliberately NOT applied to read_market_structure — event
 # labels want the fine skeleton, the Phase-A bridge wants the coarse one.
 # Feeds ONLY the Phase-A overlay via resolve_phase_a, never R/S/score/tier.
-# Default OFF until the eyeball gate clears (tools/phase_a_pip_diff.py).
+# Operator approved the flip 2026-07-04 on the overlay A/B (24/140 overlays move, 0
+# score/fire/tier), but the flip is HELD: making macro the default breaks the
+# phase-ordering invariant (LUV: macro AR lands AFTER the box start) — investigate
+# whether that's a real overlay defect or an over-strict invariant before flipping.
 PIP_MACRO_PHASE_A_ENABLED = False
 PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried
 # "True Phase-A root swing" rule (operator, 2026-07-02): a candidate trend-end
@@ -389,10 +392,11 @@ MAX_BOX_WIDTH_ADR = 4.5         # (R-S)/S expressed in ADRs; >= this earns zero 
 # spread/box 0.34, spread/ATR 0.68, tight-bar 0.77) is read against its own volatility, not
 # penalized for raw bar width, while a messy wide-bar base (DHX: spread/box ~0.55) is docked.
 # Multiplicative grade in [CANDLE_GRADE_FLOOR, 1.0]: a silent box keeps full tightness, a noisy
-# box is discounted toward the floor (a GRADE, never a veto). Measure-first / DEFAULT OFF until
-# an operator chart-eyeball clears it (sibling of the ADR flip); flag-off is byte-identical (the
-# term lives ONLY inside `if CANDLE_SPREAD_AWARE` in score_setup). Missing texture -> neutral 1.0.
-CANDLE_SPREAD_AWARE = False
+# box is discounted toward the floor (a GRADE, never a veto). LIVE since 2026-07-04 (operator
+# eyeball A/B, tools/candle_ab.py: 61/128 choppy bases docked, mean -0.39, 0 tier flips; clean
+# bases preserved at grade 1.0); flag-off is byte-identical (the term lives ONLY inside
+# `if CANDLE_SPREAD_AWARE` in score_setup). Missing texture -> neutral 1.0.
+CANDLE_SPREAD_AWARE = True
 CANDLE_GRADE_FLOOR = 0.55       # worst-case multiplier — a choppy base keeps >= 55% of its tightness
 # Ramp anchors (universe medians, 2026-06-30 scan: spread/box ~0.31, spread/ATR ~0.85, tight-bar
 # ~0.68). Each sub-grade ramps full(1)->zero(0) across clean->messy; these are CALIBRATION
@@ -421,7 +425,7 @@ SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box frac
 # reject / touch firing. completeness and chronology are CORRELATED (intact => full spine), so they
 # combine into ONE composite (not two terms). The live flip + the forward-return validation are
 # operator-gated (matured ~07-15+ data).
-PUZZLE_SCORE_ENABLED = False    # default-off; the flip is an operator chart-eyeball + matured-data decision
+PUZZLE_SCORE_ENABLED = True     # LIVE 2026-07-04 (operator A/B eyeball, tools/puzzle_ab.py: 128/128 fires lifted, mean +4.5, 22 tier flips); fwd-return revisit ~07-15+
 SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
 PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
 PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])

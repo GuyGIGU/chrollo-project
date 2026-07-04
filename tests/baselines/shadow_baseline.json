@@ -1,10 +1,9 @@
 {
-  "captured_at": "2026-07-03T00:39:49+03:00",
   "fields": {
     "ABEV": {
       "Setup": "LPS",
-      "Score": 89.8,
-      "Tier": "B",
+      "Score": 95.2,
+      "Tier": "A",
       "Base Len": 88,
       "Box Width": 0.17029,
       "LPS Length": 4,
@@ -14,8 +13,8 @@
     },
     "BC": {
       "Setup": "LPS",
-      "Score": 109.3,
-      "Tier": "A",
+      "Score": 114.6,
+      "Tier": "S",
       "Base Len": 24,
       "Box Width": 0.121715,
       "LPS Length": 2,
@@ -25,7 +24,7 @@
     },
     "CHRW": {
       "Setup": "LPS",
-      "Score": 109.5,
+      "Score": 117.5,
       "Tier": "A",
       "Base Len": 48,
       "Box Width": 0.169605,
@@ -36,7 +35,7 @@
     },
     "COLM": {
       "Setup": "LPS",
-      "Score": 98.9,
+      "Score": 104.3,
       "Tier": "A",
       "Base Len": 39,
       "Box Width": 0.159103,
@@ -47,8 +46,8 @@
     },
     "CVI": {
       "Setup": "LPS",
-      "Score": 94.9,
-      "Tier": "B",
+      "Score": 98.9,
+      "Tier": "A",
       "Base Len": 53,
       "Box Width": 0.14085,
       "LPS Length": 2,
@@ -58,8 +57,8 @@
     },
     "CWEN": {
       "Setup": "LPS",
-      "Score": 105.7,
-      "Tier": "A",
+      "Score": 111.1,
+      "Tier": "S",
       "Base Len": 77,
       "Box Width": 0.124221,
       "LPS Length": 2,
@@ -69,7 +68,7 @@
     },
     "EC": {
       "Setup": "LPS",
-      "Score": 122.2,
+      "Score": 126.2,
       "Tier": "A",
       "Base Len": 55,
       "Box Width": 0.170037,
@@ -80,7 +79,7 @@
     },
     "ET": {
       "Setup": "LPS",
-      "Score": 103.4,
+      "Score": 107.0,
       "Tier": "A",
       "Base Len": 23,
       "Box Width": 0.061613,
@@ -91,7 +90,7 @@
     },
     "FOF": {
       "Setup": "LPS",
-      "Score": 87.9,
+      "Score": 93.3,
       "Tier": "B",
       "Base Len": 61,
       "Box Width": 0.084053,
@@ -102,8 +101,8 @@
     },
     "GF": {
       "Setup": "LPS",
-      "Score": 90.3,
-      "Tier": "B",
+      "Score": 95.7,
+      "Tier": "A",
       "Base Len": 91,
       "Box Width": 0.171103,
       "LPS Length": 7,
@@ -113,7 +112,7 @@
     },
     "HOG": {
       "Setup": "LPS",
-      "Score": 100.4,
+      "Score": 105.4,
       "Tier": "A",
       "Base Len": 23,
       "Box Width": 0.120382,
@@ -124,7 +123,7 @@
     },
     "HVT": {
       "Setup": "LPS",
-      "Score": 87.9,
+      "Score": 93.3,
       "Tier": "B",
       "Base Len": 55,
       "Box Width": 0.169709,
@@ -135,7 +134,7 @@
     },
     "IRS": {
       "Setup": "LPS",
-      "Score": 95.4,
+      "Score": 99.3,
       "Tier": "A",
       "Base Len": 25,
       "Box Width": 0.132244,
@@ -146,8 +145,8 @@
     },
     "JAKK": {
       "Setup": "LPS",
-      "Score": 109.8,
-      "Tier": "A",
+      "Score": 113.6,
+      "Tier": "S",
       "Base Len": 39,
       "Box Width": 0.082353,
       "LPS Length": 4,
@@ -157,7 +156,7 @@
     },
     "LUV": {
       "Setup": "LPS",
-      "Score": 104.1,
+      "Score": 109.5,
       "Tier": "A",
       "Base Len": 42,
       "Box Width": 0.136911,
@@ -168,8 +167,8 @@
     },
     "MEGI": {
       "Setup": "LPS",
-      "Score": 92.1,
-      "Tier": "B",
+      "Score": 97.5,
+      "Tier": "A",
       "Base Len": 68,
       "Box Width": 0.092847,
       "LPS Length": 2,
@@ -179,8 +178,8 @@
     },
     "NDSN": {
       "Setup": "LPS",
-      "Score": 93.1,
-      "Tier": "B",
+      "Score": 97.1,
+      "Tier": "A",
       "Base Len": 37,
       "Box Width": 0.067795,
       "LPS Length": 3,
@@ -190,7 +189,7 @@
     },
     "NMM": {
       "Setup": "LPS",
-      "Score": 127.6,
+      "Score": 130.8,
       "Tier": "S",
       "Base Len": 41,
       "Box Width": 0.06472,
@@ -201,8 +200,8 @@
     },
     "OPRA": {
       "Setup": "LPS",
-      "Score": 108.7,
-      "Tier": "A",
+      "Score": 111.9,
+      "Tier": "S",
       "Base Len": 28,
       "Box Width": 0.104706,
       "LPS Length": 2,
@@ -212,7 +211,7 @@
     },
     "PBF": {
       "Setup": "LPS",
-      "Score": 122.8,
+      "Score": 127.4,
       "Tier": "S",
       "Base Len": 21,
       "Box Width": 0.124097,
@@ -223,7 +222,7 @@
     },
     "PII": {
       "Setup": "LPS",
-      "Score": 120.1,
+      "Score": 124.1,
       "Tier": "S",
       "Base Len": 24,
       "Box Width": 0.1157,
@@ -234,7 +233,7 @@
     },
     "PLPC": {
       "Setup": "LPS",
-      "Score": 134.5,
+      "Score": 136.0,
       "Tier": "S",
       "Base Len": 22,
       "Box Width": 0.110779,
@@ -245,7 +244,7 @@
     },
     "SCL": {
       "Setup": "LPS",
-      "Score": 99.4,
+      "Score": 103.4,
       "Tier": "A",
       "Base Len": 43,
       "Box Width": 0.087217,
@@ -256,8 +255,8 @@
     },
     "SN": {
       "Setup": "LPS",
-      "Score": 93.5,
-      "Tier": "B",
+      "Score": 96.1,
+      "Tier": "A",
       "Base Len": 23,
       "Box Width": 0.179422,
       "LPS Length": 2,
@@ -267,7 +266,7 @@
     },
     "SWK": {
       "Setup": "LPS",
-      "Score": 112.9,
+      "Score": 118.1,
       "Tier": "S",
       "Base Len": 31,
       "Box Width": 0.08605,
@@ -278,7 +277,7 @@
     },
     "TKO": {
       "Setup": "LPS",
-      "Score": 77.7,
+      "Score": 83.1,
       "Tier": "B",
       "Base Len": 196,
       "Box Width": 0.154983,
@@ -289,8 +288,8 @@
     },
     "TNC": {
       "Setup": "LPS",
-      "Score": 109.8,
-      "Tier": "A",
+      "Score": 113.8,
+      "Tier": "S",
       "Base Len": 23,
       "Box Width": 0.110334,
       "LPS Length": 2,
@@ -300,7 +299,7 @@
     },
     "TRS": {
       "Setup": "LPS",
-      "Score": 84.8,
+      "Score": 88.8,
       "Tier": "B",
       "Base Len": 79,
       "Box Width": 0.179444,
@@ -311,7 +310,7 @@
     },
     "URBN": {
       "Setup": "LPS",
-      "Score": 83.8,
+      "Score": 87.8,
       "Tier": "B",
       "Base Len": 33,
       "Box Width": 0.140572,
@@ -322,7 +321,7 @@
     },
     "VIK": {
       "Setup": "LPS",
-      "Score": 127.8,
+      "Score": 133.2,
       "Tier": "A",
       "Base Len": 24,
       "Box Width": 0.155822,
@@ -333,7 +332,7 @@
     },
     "VLO": {
       "Setup": "LPS",
-      "Score": 113.3,
+      "Score": 116.8,
       "Tier": "S",
       "Base Len": 58,
       "Box Width": 0.117777,
@@ -344,7 +343,7 @@
     },
     "WCC": {
       "Setup": "LPS",
-      "Score": 136.4,
+      "Score": 137.3,
       "Tier": "S",
       "Base Len": 21,
       "Box Width": 0.060759,
@@ -362,24 +361,24 @@
     "PBF",
     "EC",
     "PII",
-    "VLO",
     "SWK",
-    "JAKK",
-    "TNC",
     "CHRW",
+    "VLO",
     "BC",
+    "TNC",
+    "JAKK",
     "OPRA",
     "CWEN",
     "LUV",
     "ET",
     "HOG",
-    "SCL",
     "COLM",
+    "SCL",
     "IRS",
     "CVI",
-    "SN",
-    "NDSN",
     "MEGI",
+    "NDSN",
+    "SN",
     "GF",
     "ABEV",
     "FOF",
@@ -387,5 +386,6 @@
     "TRS",
     "URBN",
     "TKO"
-  ]
+  ],
+  "captured_at": "2026-07-04T13:38:10+00:00"
 }
