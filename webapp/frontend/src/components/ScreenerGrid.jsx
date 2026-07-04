@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import HealthBoard from './HealthBoard';
 import ScreenerCard from './ScreenerCard';
@@ -73,8 +73,24 @@ const ScreenerGrid = () => {
     setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };
 
-  // Opening a drill-down clears any open modal first.
-  const handleDrilldown = useCallback((etf) => patchParams({ dd: etf, t: null }), [patchParams]);
+  // The board can be long; a drill-down and back must not cost the operator their
+  // place (the top-down → bottom-up → back loop). Save the scroll offset when
+  // leaving for a drill-down and restore it when we return — no new drill state,
+  // just a ref alongside the existing ?dd= wiring.
+  const savedScrollRef = useRef(null);
+  const handleDrilldown = useCallback((etf) => {
+    const el = document.querySelector('.content-scroll');
+    savedScrollRef.current = el ? el.scrollTop : null;
+    patchParams({ dd: etf, t: null });
+  }, [patchParams]);
+
+  useEffect(() => {
+    if (!drilldown && savedScrollRef.current != null) {
+      const el = document.querySelector('.content-scroll');
+      if (el) el.scrollTop = savedScrollRef.current;
+      savedScrollRef.current = null;
+    }
+  }, [drilldown]);
 
   // The modal + arrow-key cycling read the drill-down members when one is open,
   // otherwise the active universe's filtered list.
