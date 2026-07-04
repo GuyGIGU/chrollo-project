@@ -2,6 +2,7 @@ import React from 'react';
 import { TagRow } from './SetupTags';
 import ScreenerMiniChart from './ScreenerMiniChart';
 import { explainTip } from './tooltipText';
+import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from '../utils/screenerCardData';
@@ -193,7 +194,7 @@ const drillButtonStyle = {
   width: '100%',
 };
 
-const ScreenerCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick, onDrilldown }) => (
+const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick, onDrilldown }) => (
   <div
     className="screener-card"
     role="button"
@@ -305,5 +306,115 @@ const ScreenerCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist,
     )}
   </div>
 ));
+
+// The neutral state chip — the health card's single new protagonist. Loud by
+// SIZE / WEIGHT / PLACEMENT (it fills the slot the score used to own), never by
+// color: zero hue on state, so the whole board can't read as a red/green signal.
+// Decision-point states get a touch more presence; dormant ones recede.
+function StateChip({ state }) {
+  const meta = healthStateMeta(state);
+  return (
+    <span
+      title={explainTip({
+        what: `Position in cycle: ${meta.label.toLowerCase()} — ${meta.blurb}`,
+        why: 'This board reads where each member sits in its cycle, not whether to trade it — a market index resting on support is a hint about which stocks to look at next.',
+        use: 'Use it as top-down context; drill into the related US stocks for anything actionable.',
+      })}
+      style={{
+        alignSelf: 'center',
+        background: meta.decision ? 'var(--bg-elevated)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${meta.decision ? 'var(--border-strong)' : 'var(--border-color)'}`,
+        borderRadius: 'var(--radius-pill)',
+        color: meta.decision ? 'var(--text-main)' : 'var(--text-muted)',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: '0.01em',
+        padding: '4px 11px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+// The HEALTH variant: a real render branch away from the setup card. It reuses the
+// SAME ScreenerMiniChart (so the chart + box overlay can't diverge) but shows NO
+// score / tier / setup / trigger / sub-scores / tag row — the ticker is neutral
+// (no tier hue: the absence of a ranked color is itself the "context, not a setup"
+// tell) and the vacated verdict slot holds one neutral state chip.
+const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
+  <div
+    className="screener-card"
+    aria-label={`${ticker} — ${healthStateMeta(data.state).label}. ${healthStateMeta(data.state).blurb}`}
+    style={{
+      background: 'var(--bg-panel)',
+      border: '1px solid var(--border-color)',
+      borderRadius: 'var(--radius-sm)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      transition: 'border-color 0.16s ease, background 0.16s ease',
+    }}
+    onMouseEnter={(event) => {
+      event.currentTarget.style.borderColor = 'rgba(91,138,255,0.4)';
+      event.currentTarget.style.background = '#242837';
+    }}
+    onMouseLeave={(event) => {
+      event.currentTarget.style.borderColor = 'var(--border-color)';
+      event.currentTarget.style.background = 'var(--bg-panel)';
+    }}
+  >
+    {/* Header re-balanced to mirror the firing card's height so nothing jumps
+        between tabs: identity on the left, the state chip in the verdict slot. */}
+    <div
+      style={{
+        alignItems: 'center',
+        background: 'rgba(20, 23, 33, 0.98)',
+        borderBottom: '1px solid rgba(255,255,255,0.055)',
+        display: 'flex',
+        gap: 8,
+        justifyContent: 'space-between',
+        minHeight: 34,
+        overflow: 'hidden',
+        padding: '6px 10px',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <span style={{ color: 'var(--text-main)', fontSize: 18, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {ticker}
+        </span>
+        {data.name ? (
+          <span style={{ color: 'var(--text-faint)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {data.name}
+          </span>
+        ) : null}
+      </div>
+      <StateChip state={data.state} />
+    </div>
+
+    <div style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
+      <ScreenerMiniChart ticker={ticker} data={data} />
+    </div>
+
+    {onDrilldown && (
+      <button
+        type="button"
+        title={`Show the US stocks related to ${ticker}`}
+        onClick={(event) => { event.stopPropagation(); onDrilldown(ticker); }}
+        style={drillButtonStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-blue)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+      >
+        Members →
+      </button>
+    )}
+  </div>
+));
+
+// One entry point, two render branches: the `health` prop routes a member to the
+// context-read variant; everything else is the unchanged firing card.
+const ScreenerCard = (props) => (props.health ? <HealthCard {...props} /> : <FiringCard {...props} />);
 
 export default ScreenerCard;
