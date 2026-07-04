@@ -542,8 +542,13 @@ def _resolve_phase_a_raw(
     bridge = None
     if dom != 0:
         for swing in seg.get("swings", []):
+            # The AR must not overrun the box open: an asymmetric window (up to
+            # _SEG_AR_TOL bars BEFORE box start, never after) keeps the read
+            # inside the chronological invariant ar_bar <= phase_b_start_bar.
+            # (Was a symmetric abs() tolerance that could return an AR up to
+            # _SEG_AR_TOL bars INSIDE the box — Phase A painted inside Phase B.)
             if (swing["direction"] == -dom
-                    and abs(swing["end_bar"] - phase_b_start_bar) <= _SEG_AR_TOL
+                    and phase_b_start_bar - _SEG_AR_TOL <= swing["end_bar"] <= phase_b_start_bar
                     and phase_b_start_bar - _SEG_LEAD_IN <= swing["start_bar"] < phase_b_start_bar):
                 if bridge is None or swing["abs_disp_atr"] > bridge["abs_disp_atr"]:
                     bridge = swing
