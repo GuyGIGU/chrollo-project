@@ -18,6 +18,7 @@ export default function UniverseSwitcher({ universe = DEFAULT_UNIVERSE, onChange
           <button
             key={key}
             type="button"
+            className="focus-ring"
             onClick={() => !active && onChange?.(key)}
             aria-pressed={active}
             style={segStyle(active)}

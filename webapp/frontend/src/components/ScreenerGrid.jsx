@@ -252,7 +252,7 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, pa
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={lineageHeaderStyle}>
-        <button type="button" onClick={onBack} style={backButtonStyle}>← Back</button>
+        <button type="button" className="focus-ring" onClick={onBack} style={backButtonStyle}>← Back</button>
         <span style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14 }}>{dd.etf}</span>
         <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
           related US stocks{status === 'loading' ? ' …' : ` · ${members.length}`}

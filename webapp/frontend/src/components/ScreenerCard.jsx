@@ -348,6 +348,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
     {onDrilldown && (
       <button
         type="button"
+        className="focus-ring"
         title={`Show the US-stocks related to ${ticker}`}
         onClick={(event) => { event.stopPropagation(); onDrilldown(ticker); }}
         style={drillButtonStyle}
