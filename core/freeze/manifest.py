@@ -61,6 +61,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIP_MACRO_MIN_BASE_BARS",
     "PIP_MACRO_EQ_FLOOR_FRAC",
     "PIP_MACRO_EQ_OSC_FRAC",
+    # First-reaction AR anchor (Phase-A overlay; default-off flip must bump the
+    # version from day one — a flip re-anchors the drawn AR on 6/140 fires)
+    "AR_FIRST_REACTION_ENABLED",
+    "AR_RETRACE_FRAC",
+    "AR_UP_LEG_LOOKBACK",
+    "AR_STALL_BARS",
     # Dynamic recursive S/R scanning (Phase B)
     "BOUNDARY_ATR_BUFFER",
     "MAX_CONSECUTIVE_OUTSIDE_DAYS",

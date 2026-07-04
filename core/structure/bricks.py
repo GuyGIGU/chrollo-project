@@ -497,6 +497,98 @@ def _enforce_bc_downswing(df, root, box, climax_bar, ar_bar):
     return lo + int(np.argmax(window)), pbs
 
 
+def _first_impulse_ar_end(df, climax_bar, ar_bar, atr):
+    """Tighten the overlay AR to the FIRST impulsive reaction inside climax->AR.
+
+    Operator model (2026-07-04): the automatic reaction is the first continuous
+    counter-move off the climax -- the one that retraces at least
+    ``AR_RETRACE_FRAC`` of the up-leg that made the climax peak, ending where it
+    first bounces off its low OR stalls into sideways (whichever comes first) --
+    not the eventual base-edge low the raw resolver can drag to. It is
+    mirror-symmetric: a selling-climax paints the up-reaction off its trough.
+
+    Overlay-only and TIGHTEN-ONLY: the search is bounded to the drawn span
+    ``[climax_bar, ar_bar]`` and can only move the AR EARLIER, so the
+    chronological invariant ``climax_bar <= ar_bar <= phase_b_start_bar`` is
+    preserved by construction. Returns a bar in ``(climax_bar, ar_bar]``, or
+    ``ar_bar`` unchanged when no clean first reaction resolves inside the span
+    (e.g. a genuinely one-way descent that only stops at the base edge). No-op
+    with the flag off, so both states are byte-identical downstream.
+    """
+    if not settings.AR_FIRST_REACTION_ENABLED:
+        return ar_bar
+    if not _finite(atr) or float(atr) <= 0:
+        return ar_bar
+    n = len(df)
+    if not (0 <= climax_bar < ar_bar < n):
+        return ar_bar
+
+    highs = df["High"].values
+    lows = df["Low"].values
+    atr = float(atr)
+    lookback = int(settings.AR_UP_LEG_LOOKBACK)
+    retrace = float(settings.AR_RETRACE_FRAC)
+    stall = int(settings.AR_STALL_BARS)
+    lo = max(0, climax_bar - lookback)
+
+    # Direction from the drawn swing (post BC-down enforcement): a buying-climax
+    # tops into a lower reaction; a selling-climax troughs into a higher one.
+    down_reaction = float(highs[climax_bar]) >= float(highs[ar_bar])
+
+    if down_reaction:
+        peak = float(highs[climax_bar])
+        up_base = float(np.min(lows[lo:climax_bar + 1]))
+        up_leg = peak - up_base
+        if up_leg <= 0:
+            return ar_bar
+        half = peak - retrace * up_leg
+        run_low = peak
+        run_low_bar = climax_bar
+        reached = False
+        for b in range(climax_bar + 1, ar_bar + 1):
+            if float(lows[b]) < run_low:
+                run_low = float(lows[b])
+                run_low_bar = b
+            if run_low <= half:
+                reached = True
+            if not reached:
+                continue
+            bounce = max(atr, 0.30 * (peak - run_low))
+            if float(highs[b]) >= run_low + bounce:      # first bounce off the low
+                break
+            if b - run_low_bar >= stall:                 # descent stalled into sideways
+                break
+        if reached and climax_bar < run_low_bar <= ar_bar:
+            return run_low_bar
+        return ar_bar
+
+    trough = float(lows[climax_bar])
+    dn_base = float(np.max(highs[lo:climax_bar + 1]))
+    dn_leg = dn_base - trough
+    if dn_leg <= 0:
+        return ar_bar
+    half = trough + retrace * dn_leg
+    run_hi = trough
+    run_hi_bar = climax_bar
+    reached = False
+    for b in range(climax_bar + 1, ar_bar + 1):
+        if float(highs[b]) > run_hi:
+            run_hi = float(highs[b])
+            run_hi_bar = b
+        if run_hi >= half:
+            reached = True
+        if not reached:
+            continue
+        give_back = max(atr, 0.30 * (run_hi - trough))
+        if float(lows[b]) <= run_hi - give_back:         # first give-back off the high
+            break
+        if b - run_hi_bar >= stall:                      # rally stalled into sideways
+            break
+    if reached and climax_bar < run_hi_bar <= ar_bar:
+        return run_hi_bar
+    return ar_bar
+
+
 def resolve_phase_a(
     df: "pd.DataFrame",
     root: RootSwing,
@@ -505,10 +597,14 @@ def resolve_phase_a(
 ) -> tuple[int, int]:
     """Return the local Phase-A root swing for an already-validated box.
 
-    Resolves the raw anchor, then enforces the BC-down invariant so a buying
-    climax never paints as an up-swing (see _enforce_bc_downswing)."""
+    Resolves the raw anchor, enforces the BC-down invariant so a buying climax
+    never paints as an up-swing (see _enforce_bc_downswing), then tightens the
+    AR to the first impulsive reaction so the overlay stops dragging to the base
+    edge (see _first_impulse_ar_end; flag-gated, no-op when off)."""
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
-    return _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
+    climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
+    ar_bar = _first_impulse_ar_end(df, climax_bar, ar_bar, atr)
+    return climax_bar, ar_bar
 
 
 def _resolve_phase_a_raw(

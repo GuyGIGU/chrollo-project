@@ -268,6 +268,17 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
+### Phase A — First-reaction AR anchor (flag-gated, default off)
+
+The locality resolution above answers *which* climax→reaction pair the box belongs to, but its fallbacks can pin the reaction low all the way at the box open (`phase_b_start_bar`). When the descent from the climax to the base is not a single continuous plunge — a quick reaction, a bounce/pause, then a *later* leg down to the base — that pins the drawn AR on the final leg, so the climax→AR stripe smears across half the chart even though the true automatic reaction ended much earlier.
+
+`_first_impulse_ar_end()` ([core/structure/bricks.py](../core/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the first continuous counter-move off the climax.** Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
+
+1. **Retrace basis** — the move that set the peak is the up-leg into the climax; its base is the lowest low in the prior `AR_UP_LEG_LOOKBACK` (40) bars. The reaction only "counts" once it retraces `AR_RETRACE_FRAC` (0.5) of that up-leg — small wobbles while price is still falling are ignored, as the operator asked.
+2. **Termination — whichever comes first:** once the retrace threshold is met, the AR is the reaction low, closed at the first of either a **bounce** off that low (a rally of ≥ `max(1·ATR, 0.30·drop)`) or a **stall** (`AR_STALL_BARS` = 4 bars with no new low). A genuinely one-way descent that only stops at the base makes no new bounce/stall, so it is left anchored at the base edge (no tighten).
+
+The rule is **mirror-symmetric** — a selling-climax paints the first up-reaction off its trough (retrace of the down-leg; terminate on the first give-back or stall) — so the overlay is non-biasing across BC and SC roots. It is **tighten-only and overlay-only**: the search is bounded to the existing span and can only move the AR *earlier*, so the chronological invariant `climax_bar <= ar_bar <= phase_b_start_bar` holds by construction, and — like the locality resolution above — it feeds **no R/S, LPS, scoring, tiering, or filtering**. Both flag states are byte-identical on the canonical shadow set. Scan tool: `python -m tools.ar_first_reaction_diff` shows which fires re-anchor and by how much.
+
 ### Phase A — Macro bridge read (flag-gated, default off)
 
 `macro_bridge_zigzag()` ([core/structure/pip.py](../core/structure/pip.py)), wired through
@@ -730,7 +741,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `3be99eef17a13fa048b21a47024f12bd128add813f75e3a083b9e1ead6d8d895`_
+_engine_config_version: `1bf5c8ad6b138d5bd2003169ba6a4039331ccb0c195f3065dea8fec647cd884b`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -750,6 +761,10 @@ PIP_MACRO_MAX_POST_EXCESS = 0.25
 PIP_MACRO_MIN_BASE_BARS = 20
 PIP_MACRO_EQ_FLOOR_FRAC = 0.5
 PIP_MACRO_EQ_OSC_FRAC = 0.3
+AR_FIRST_REACTION_ENABLED = False
+AR_RETRACE_FRAC = 0.5
+AR_UP_LEG_LOOKBACK = 40
+AR_STALL_BARS = 4
 BOUNDARY_ATR_BUFFER = 0.5
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10
 MIN_BOUNDARY_RESPECT_PCT = 0.8

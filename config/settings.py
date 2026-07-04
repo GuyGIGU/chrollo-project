@@ -179,6 +179,21 @@ PHASE_B_ATR_WINDOW = 30
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
 AR_MAX_BARS = 15                 # ...within this many bars of the climax
 
+# First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
+# The raw Phase-A resolver can drag the drawn automatic reaction all the way to
+# the base edge, so the climax->AR stripe smears across half the chart. When on,
+# resolve_phase_a() TIGHTENS the AR to the first continuous counter-move off the
+# climax -- the one that retraces >= AR_RETRACE_FRAC of the up-leg into the peak
+# and then bounces or stalls, whichever comes first (operator model, 2026-07-04;
+# mirror-symmetric for a selling-climax up-reaction). Tighten-only + overlay-only:
+# it can move the AR earlier but never past the box open, and it feeds NO R/S,
+# LPS, score, or tier (see docs/strategy_v2.md "Phase A -- First-reaction AR
+# anchor"). Both flag states are byte-identical on the canonical shadow set.
+AR_FIRST_REACTION_ENABLED = False
+AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the up-leg
+AR_UP_LEG_LOOKBACK = 40          # bars before the climax that frame the up-leg base
+AR_STALL_BARS = 4                # no new extreme for this many bars = reaction stalled
+
 # ============================================================
 # PHASE 3 — LPS & BREAKOUT DETECTION
 # ============================================================
