@@ -856,7 +856,7 @@ SECTOR_RANKING_ETFS = (
 # flag-off is byte-identical to today (the read path is never entered). It runs
 # only on the non-equities universes (universe_type != DEFAULT_UNIVERSE_TYPE), so
 # us_equities is unchanged even when the flag is ON.
-HEALTH_BOARD_ENABLED = False
+HEALTH_BOARD_ENABLED = True
 
 # A member sitting this far (or more) below its trailing 52-week high reads as a
 # DEEP CORRECTION — "fallen well below its base" — and is classified FIRST, before
