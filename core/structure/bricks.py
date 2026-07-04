@@ -523,14 +523,17 @@ def _resolve_phase_a_raw(
     bc_anchor_bar = root.climax_bar
     phase_b_start = len(df) - base_len
     # bridge_* constraints: the macro Phase-A read (flag-gated) must tell THIS
-    # box's story — its AR may not land beyond the box birth (+ tolerance),
+    # box's story — its AR may not land beyond the box birth (Phase A ends where
+    # Phase B opens: the chronological invariant ar_bar <= phase_b_start_bar),
     # its climax type must match the canonical root kind, and its AR must
     # reach the box's level (a story floating above R / below S is a breakout
     # or other-leg tale) — else it abstains and the calibrated order-N read
-    # speaks. No-op with the flag off.
+    # speaks. No-op with the flag off (bridge_end_max is read only by the macro
+    # branch). A macro bridge whose AR overruns the box start paints Phase A
+    # INSIDE the box (the LUV class) — the merge contract abstains on it.
     _lvl_tol = settings.TOUCH_TOLERANCE_ATR * atr
     seg = segment_swings(df, atr, lookback=base_len + _SEG_LEAD_IN,
-                         bridge_end_max=phase_b_start_bar + _SEG_AR_TOL,
+                         bridge_end_max=phase_b_start_bar,
                          bridge_kind=getattr(root, "kind", None),
                          bridge_ar_price_max=float(box.R) + _lvl_tol,
                          bridge_ar_price_min=float(box.S) - _lvl_tol)

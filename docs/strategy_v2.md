@@ -294,10 +294,11 @@ higher-high can't block a genuine older climax. Any failure → the macro read *
 validation the story is **truncated at the AR** (binding: downstream can never draw an
 unvalidated sibling swing), the root direction comes from the bridge type (never
 re-derived from window net sign), and `resolve_phase_a()` passes box-relation constraints
-(bridge kind must match the canonical BC/SC root; the AR must not overrun the box birth by
-more than `_SEG_AR_TOL` (10) bars — a one-sided upper bound, an earlier AR is allowed
-within the `_SEG_LEAD_IN` (60) lookback; AR price must reach the box level ± touch
-tolerance) so a macro story can never float away from the elected box. Affects the **Phase-A overlay only** — R/S selection,
+(bridge kind must match the canonical BC/SC root; the AR must not overrun the box birth at
+all — Phase A ends where Phase B opens, the chronological invariant `ar_bar <=
+phase_b_start_bar`; an earlier AR is allowed within the `_SEG_LEAD_IN` (60) lookback; AR
+price must reach the box level ± touch tolerance) so a macro story can never float away from
+the elected box or paint Phase A inside it. Affects the **Phase-A overlay only** — R/S selection,
 LPS, scoring, tiering are untouched; both flag states are byte-identical on the canonical
 shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
 `python -m tools.phase_a_pip_diff --jobs N`.
