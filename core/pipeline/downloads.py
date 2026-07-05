@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -85,13 +86,24 @@ def _is_yahoo_no_history_error(exc: Exception) -> bool:
     )
 
 
+def _apply_backoff_jitter(wait: float) -> float:
+    """Randomize the lower part of a backoff so many workers that got rate-limited
+    at once don't retry in a synchronized burst (which just re-trips Yahoo). Keeps
+    ``(1 - jitter)`` of the wait fixed and randomizes the rest, so the result is in
+    ``[wait*(1-jitter), wait]`` — the backoff still grows, it just spreads."""
+    jitter = min(max(float(getattr(settings, "YAHOO_BACKOFF_JITTER", 0.5)), 0.0), 1.0)
+    if jitter <= 0.0:
+        return wait
+    return wait * (1.0 - jitter) + random.uniform(0.0, wait * jitter)
+
+
 def _retry_wait_seconds(attempt: int, exc: Exception | None = None, error_text: str = "") -> float:
     wait = float(2 ** attempt)
     if ((exc is not None and _is_yahoo_rate_limit_error(exc))
             or (error_text and _is_yahoo_rate_limit_text(error_text))):
         wait = max(wait, float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0)))
-        rate_limit.note_rate_limit(wait)
-    return wait
+        rate_limit.note_rate_limit(wait)   # shared cooldown uses the UN-jittered wait
+    return _apply_backoff_jitter(wait)
 
 
 def _last_yahoo_batch_error_text(batch: list[str]) -> str:

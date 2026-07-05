@@ -20,6 +20,7 @@ package, so a module-level settings read would crash the service at boot).
 """
 from __future__ import annotations
 
+import random
 import threading
 import time
 
@@ -92,13 +93,22 @@ def throttle(n: int = 1) -> None:
 
 
 def _respect_cooldown() -> None:
-    """Sleep while a shared Yahoo backoff window is active."""
+    """Sleep while a shared Yahoo backoff window is active, then a small random
+    stagger so the paused download workers don't all resume in the same instant
+    and re-burst Yahoo into a fresh 429 (thundering herd on cooldown exit)."""
+    waited = False
     while True:
         with _cooldown_lock:
             remaining = _cooldown_until - time.monotonic()
         if remaining <= 0:
-            return
+            break
+        waited = True
         time.sleep(min(remaining, 1.0))
+    if waited:
+        from config import settings  # lazy — avoid the cwd-shadow boot crash
+        jitter = float(getattr(settings, "YAHOO_COOLDOWN_JITTER_SECONDS", 2.0))
+        if jitter > 0:
+            time.sleep(random.uniform(0.0, jitter))
 
 
 def note_rate_limit(seconds: float) -> None:

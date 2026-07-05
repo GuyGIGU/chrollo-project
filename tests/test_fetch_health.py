@@ -383,6 +383,34 @@ def test_rate_limit_error_triggers_shared_backoff(monkeypatch):
     assert "AAA" in out
 
 
+def test_backoff_jitter_stays_within_bounds(monkeypatch):
+    """Equal-jitter randomizes the retry wait into [wait*(1-j), wait] so
+    concurrently rate-limited workers don't retry in lockstep — but the backoff
+    still grows (never collapses below wait*(1-j)), and jitter=0 is exact."""
+    # attempt=2 => base wait 2**2 = 4.0 (no rate-limit boost without exc/text).
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
+    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: b)   # max draw
+    assert downloads_module._retry_wait_seconds(2) == 4.0
+    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: a)   # min draw
+    assert downloads_module._retry_wait_seconds(2) == 2.0
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.0)
+    assert downloads_module._retry_wait_seconds(2) == 4.0                     # off = exact
+
+
+def test_backoff_jitter_preserves_shared_cooldown_value(monkeypatch):
+    """The shared cooldown (note_rate_limit) gets the UN-jittered wait, so the
+    global 429 backoff window is the full duration even though each worker's own
+    retry sleep is jittered shorter."""
+    noted = []
+    monkeypatch.setattr(downloads_module.rate_limit, "note_rate_limit", lambda s: noted.append(s))
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
+    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
+    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: a)   # min jitter
+    wait = downloads_module._retry_wait_seconds(1, error_text="Too Many Requests. Rate limited.")
+    assert noted == [45.0]        # cooldown = full 45s
+    assert wait < 45.0            # this worker's own retry sleep is jittered shorter
+
+
 def test_no_history_error_does_not_retry(monkeypatch):
     calls = []
 

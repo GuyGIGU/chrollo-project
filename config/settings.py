@@ -673,6 +673,8 @@ YAHOO_RATE_LIMIT_PER_SEC = 20.0    # sustained outbound requests/sec to Yahoo (g
 YAHOO_RATE_LIMIT_BURST = 40        # token-bucket capacity (max short burst)
 YAHOO_DOWNLOAD_WORKERS = 24        # bounded download-pool size (caps simultaneous connections)
 YAHOO_RATE_LIMIT_BACKOFF_SECONDS = 45.0  # shared cooldown after explicit Yahoo 429/rate-limit errors
+YAHOO_BACKOFF_JITTER = 0.5         # fraction of each retry backoff that is randomized (0=off, 0.5=lower half random) so concurrently rate-limited workers don't retry in lockstep
+YAHOO_COOLDOWN_JITTER_SECONDS = 2.0  # after a shared 429 cooldown clears, each worker waits up to this many extra random seconds so they don't all resume at once (thundering-herd guard)
 
 # Split-detection probe — EVERY cached ticker is checked on the incremental
 # overlap window (under the as-traded regime a split is the only corporate
