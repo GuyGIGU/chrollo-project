@@ -37,6 +37,40 @@ BC/AR/SC are trend-end terms, full stop. Swings are fractal — small peaks and 
 miniature climax→reaction pairs — but the *names* BC/AR belong to the main trend so the
 story stays readable.
 
+### The trend model — HH/HL runs with a start, a climax, and a CHoCH
+
+Before the reader can find *where the trend ends* (cascade step 1 below), it has to know
+what a trend *is*. A trend is read off market structure — the sequence of swing highs and
+lows:
+
+- an **uptrend** prints **higher-highs and higher-lows** (HH/HL);
+- a **downtrend** prints **lower-highs and lower-lows** (LH/LL).
+
+`label_market_structure()` ([core/structure/market_structure.py](../core/structure/market_structure.py)) tags every pivot on the shared swing skeleton HH / HL / LH / LL and tracks a running mechanical trend state. `segment_trends()` walks those labels into explicit directional **trend segments**, each with the four things that define a trend:
+
+1. **Start** — a trend is *born* at its **change-of-character**: the first HH that breaks a prior down/range (an uptrend's CHoCH-up), or the first LL that breaks a prior up/range (a downtrend's CHoCH-down). It launched off the pivot just before that break.
+2. **Climax (terminal swing)** — the trend's extreme pivot: the highest HH of an uptrend (the **buying climax**), the lowest LL of a downtrend (the **selling climax**).
+3. **End (CHoCH)** — a trend *ends* at the opposite structural break: an uptrend ends when a **lower-low takes out the last higher-low** (the first LL = the CHoCH that opens the next, opposite trend); mirror for a downtrend. A segment still making trend-consistent structure at the right edge has no end yet (it is still running).
+4. **Full leg** — the whole advance the climax ended: from the segment's **start** pivot up to the terminal higher-high (mirror for a selling climax). This is the retrace basis the automatic reaction is measured against. (The **terminal impulse leg** — the last higher-low into the climax — is exposed too as `impulse_start_bar`, but it is *not* the AR basis: measuring against only the final sub-leg let the reaction anchor short of the true support.)
+
+**The automatic reaction derives from this model.** Once the trend has topped at its climax, the **AR is the low of the first *continuous* reaction after the terminal swing** — the running counter-move that retraces a meaningful fraction of the *full leg* and is closed at the first **big confirmed bounce** off that low (`first_reaction_after()`). That is exactly what the drawn Phase-A overlay tightens to under `AR_FIRST_REACTION_ENABLED` (see [Phase A — First-reaction AR anchor](#phase-a--first-reaction-ar-anchor-flag-gated-default-off)).
+
+This is **measure-only**: the trend model reads the labels the skeleton already assigns and assigns no points, moves no rails, and gates nothing. It is the geometric substrate the roadmap's richer market-structure reads (CHoCH = Phase A start, BOS = Phase D continuation, liquidity sweeps) grow from — always as graded confidence, never a veto.
+
+### The L2 event reader — Wyckoff puzzle: from rail events to a scored narrative
+
+Above the geometry sits a second reading layer that does not move a single rail. Once the cascade has **elected** an equilibrium box, the L2 event reader ([core/structure/box_events.py](../core/structure/box_events.py), re-exported through [core/structure/metrics.py](../core/structure/metrics.py)) reads the in-box structure as *facts about a Wyckoff story* — a labeled staircase, independent rail-event zones, and their chronological assembly into the classic spring → SOS → LPS puzzle. Like the trend model, it is **measure-only**: every function here reports what it sees and assigns no points, gates nothing, and moves no rail. It reads the box the engine **already elected** — never a re-detection — so its story is told over the same rails, start, and span everything else measures against.
+
+The read is a pipeline of four stages. First, `read_box_staircase()` labels the in-box swing sequence: it composes the *same* calibrated significant-swing skeleton the traversal read uses (`_collapse_swings` on the order-1 zigzag, amplitude-filtered by `TRAVERSAL_NOISE_FRAC`) with the L0 labeller (`label_market_structure`), so the staircase swings *are* the worked-equilibrium swings. Each swing is annotated with its box-position (`box_pos`, 0 = S rail, 1 = R rail), a low/mid/high `zone`, and a `rail_event` (`touch_R`/`breach_R`, `touch_S`/`breach_S`, or `interior`) — one chronological HH/HL/LH/LL sequence the later events are read off.
+
+Second, the two rails are measured **independently**. `measure_resistance_events()` walks the R-rail: every peak that turns in the high zone is a rail interaction, and consecutive higher-highs with no drop back to support between them are grouped into one *wave* that is typed by its **terminal outcome** — a creek-jump that held near R with a genuine mini-consolidation is an `SOS`, an advance that held far above R is `markup`, a run-up that failed back to support is a single `upthrust` (one false-break wave, not a string of SOS), and the in-between cases stay descriptive (`range` / `rejection` / `in_progress`). The Phase-D split is anchored on the structural **V** (the deepest staircase valley). `measure_support_tests()` is the S-rail sibling — deliberately *not* a mirror of the wave machinery — reporting each low-zone valley that touches S without a deep breach and then holds as a `test` (a deep breach-and-reclaim is left to the spring brick, so the two never double-emit).
+
+Third, `read_box_events()` (over the shared chokepoint `_box_events_with_meta`) unifies these into one flat, deterministically-ordered list of independent zones, adding the calibrated **spring** brick (Phase C) and **LPS** brick (Phase D, gated purely on bar position — right of the V — never on an SOS existing). Each piece is detected on its own geometry and is never gated on another; the bricks come either from a measure-only re-detection or, when the scorer calls in, from the pieces the engine *actually elected* (including a tighter inner-box LPS), so the read describes what fired rather than a fresh parent-box guess.
+
+Fourth, `assemble_box_narrative()` stitches the zones into the puzzle in one linear pass. It picks the spine (`spring` → first `SOS` → `LPS`), tallies a raw `completeness` (0..4 distinct canonical pieces present — spring, SOS, LPS, held-test), reads a three-valued `chronology` (`intact` only when all three spine pieces are present *and* strictly bar-ordered spring < SOS < LPS, else `partial`/`absent`), derives the B/C/D phase spans off the shared V, and emits an explainable `trace`. Every one of these reads is descriptive — none is shaped as a pass/fail another layer could consume as a filter. A missing piece is reported, never fabricated.
+
+The **only live consumer** is a bonus-only score term. Behind `PUZZLE_SCORE_ENABLED` (live), `_puzzle_quality()` in [core/scoring/scoring.py](../core/scoring/scoring.py) folds `completeness` and `chronology` into a single `[0, 1]` composite (they are correlated — an intact chronology is impossible without the full spine — so they never split into two double-counting terms), and `s_puzzle` scales it by `SCORE_PUZZLE_QUALITY` (8.0) and clamps it into `[0, cap]`. It is strictly additive and `>= 0`: it can only ever *raise* a score. A missing, `None`, or malformed narrative reads a neutral `0.0`, so an absent puzzle never demotes a setup below what its geometry already merits. Consistent with the whole reading model, **geometry is the only veto** — the Wyckoff puzzle is graded confidence layered on top of it, never a gate.
+
 ### The Root-Swing cascade (the linear narrative)
 
 The reader walks the chart left to right and anchors by descent:
@@ -79,7 +113,7 @@ The reader walks the chart left to right and anchors by descent:
    > the box start re-measures over the extended span: the base-window suite (base-age,
    > traversal quality, contractions, support slope, dwell, touch-volume, bar
    > compression), the spring / inner-box / LPS windows, bin evidence, and the
-   > flag-gated event-puzzle read. Applied post-election in BOTH the live reader
+   > (live, bonus-only) event-puzzle read. Applied post-election in BOTH the live reader
    > (`bricks.validate_equilibrium`) and the diagnostic mirror (`phase_b_zigzag` →
    > `detect_boxes`), so every path frames the same box. The operator eyeballed the
    > A/B renders (`tools/fidelity/box_backext/`, `tools/box_backext_ab.py`) and the
@@ -103,7 +137,7 @@ The reader walks the chart left to right and anchors by descent:
 
 | Reading step | Implementation |
 |---|---|
-| Trend end (Phase A) | `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgradeable by the flag-gated macro-PIP read (`macro_bridge_zigzag`, `PIP_MACRO_PHASE_A_ENABLED`, abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read") |
+| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "The trend model") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgradeable by the flag-gated macro-PIP read (`macro_bridge_zigzag`, `PIP_MACRO_PHASE_A_ENABLED`, abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
 | The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the flag-gated `backext_shared_rail` start refinement, `BOX_BACKEXT_ENABLED`). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
@@ -272,12 +306,12 @@ This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, c
 
 The locality resolution above answers *which* climax→reaction pair the box belongs to, but its fallbacks can pin the reaction low all the way at the box open (`phase_b_start_bar`). When the descent from the climax to the base is not a single continuous plunge — a quick reaction, a bounce/pause, then a *later* leg down to the base — that pins the drawn AR on the final leg, so the climax→AR stripe smears across half the chart even though the true automatic reaction ended much earlier.
 
-`_first_impulse_ar_end()` ([core/structure/bricks.py](../core/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the first continuous counter-move off the climax.** Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
+`_first_impulse_ar_end()` ([core/structure/bricks.py](../core/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the low of the first continuous reaction after the trend's terminal swing.** It is a thin overlay adapter over `first_reaction_after()` ([core/structure/market_structure.py](../core/structure/market_structure.py)) — the AR is read from [the trend model](#the-trend-model--hhhl-runs-with-a-start-a-climax-and-a-choch) rather than a raw fixed-bar retrace. Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
 
-1. **Retrace basis** — the move that set the peak is the up-leg into the climax; its base is the lowest low in the prior `AR_UP_LEG_LOOKBACK` (40) bars. The reaction only "counts" once it retraces `AR_RETRACE_FRAC` (0.5) of that up-leg — small wobbles while price is still falling are ignored, as the operator asked.
-2. **Termination — whichever comes first:** once the retrace threshold is met, the AR is the reaction low, closed at the first of either a **bounce** off that low (a rally of ≥ `max(1·ATR, 0.30·drop)`) or a **stall** (`AR_STALL_BARS` = 4 bars with no new low). A genuinely one-way descent that only stops at the base makes no new bounce/stall, so it is left anchored at the base edge (no tighten).
+1. **Retrace basis = the trend's FULL leg.** The reaction is measured against the whole advance the climax ended — from the elected trend segment's **start** pivot up to the terminal higher-high (`elected_trend_leg_base`; mirror: the segment start down to a selling climax), falling back to the blind `AR_UP_LEG_LOOKBACK` (40) extreme only when no confirmed segment tops at/near the climax (within `tol` bars). The reaction only "counts" once it retraces `AR_RETRACE_FRAC` (0.5) of that full leg — small wobbles while price is still rising into the top are ignored. (An earlier build measured against only the *terminal impulse sub-leg*, whose short span let the threshold trip almost immediately and anchored the AR mid-decline; the full leg is what makes "reached" mean *near the true support*.)
+2. **Termination = the first big confirmed bounce.** Once the retrace threshold is met, the AR is the running reaction low, closed at the first **bounce** off it of ≥ `max(AR_BOUNCE_ATR_MULT·ATR, AR_BOUNCE_DROP_FRAC·drop)` (1.5·ATR or half the drop, whichever is larger). This is what distinguishes the *automatic reaction* from a later second leg: a real bounce off the reaction low locks the AR there (so a subsequent, deeper markdown is not mistaken for it — the AAP case), while a mid-decline pause is too small to close it (so a continuous plunge runs to the support that anchors the base — the TOL/PH case). A genuinely one-way descent with no big bounce inside the span is left anchored at the base edge (no tighten). The twitchy 4-bar *stall* terminator of the earlier build is gone — a stall is a pause, not a reaction end.
 
-The rule is **mirror-symmetric** — a selling-climax paints the first up-reaction off its trough (retrace of the down-leg; terminate on the first give-back or stall) — so the overlay is non-biasing across BC and SC roots. It is **tighten-only and overlay-only**: the search is bounded to the existing span and can only move the AR *earlier*, so the chronological invariant `climax_bar <= ar_bar <= phase_b_start_bar` holds by construction, and — like the locality resolution above — it feeds **no R/S, LPS, scoring, tiering, or filtering**. Both flag states are byte-identical on the canonical shadow set. Scan tool: `python -m tools.ar_first_reaction_diff` shows which fires re-anchor and by how much.
+The rule is **mirror-symmetric** — a selling-climax paints the first up-reaction off its trough (retrace of the full down-leg; close on the first big give-back) — so the overlay is non-biasing across BC and SC roots. It is **tighten-only and overlay-only**: the search is bounded to the existing span and can only move the AR *earlier*, so the chronological invariant `climax_bar <= ar_bar <= phase_b_start_bar` holds by construction, and — like the locality resolution above — it feeds **no R/S, LPS, scoring, tiering, or filtering**. (It is byte-identical on the scoring/tier/canonical-shadow surface, but a flip is *not* byte-identical on the ARCHIVED `bin_a_*` Phase-A measurement columns — `ar_bar` → `measure_bins` → the winner-fingerprint archive — which no freeze gate covers; a live flip needs an archive-seam guard first. See the flag ledger.) The retarget was driven by the operator's dated BC/AR marks on PH/TOL/AVNT/AAP/AGCO/TFX (2026-07-05): raw is exact on the clean reactions (TOL/AVNT), and the flag now surgically corrects only the second-leg overshoots (AAP-class). Scan tool: `python -m tools.ar_first_reaction_diff` shows which fires re-anchor and by how much.
 
 ### Phase A — Macro bridge read (flag-gated, default off)
 
@@ -446,8 +480,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
 | 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
-| 12 | **Hold tolerance** | `latest['Close'] >= elected_low × 0.97` | `LPS_HOLD_TOLERANCE = 0.97` |
-| 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= elected_low × 0.97` and stay profile-tight | catches support-test failures that widen after the LPS |
+| 12 | **Hold tolerance** | `latest['Close'] >= elected_low × 0.95` | `LPS_HOLD_TOLERANCE = 0.95` |
+| 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= elected_low × 0.95` and stay profile-tight | catches support-test failures that widen after the LPS |
 | 14 | **Trigger room** | candidate is actionable only when `current_price < trigger_price`; `_evaluate_ticker` keeps the same final room check | trigger = last LPS bar High |
 
 **Setup label:** `REBOUND` if zone is `UNDERCUT_S`; otherwise `LPS`.
@@ -460,11 +494,11 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **14 components**, each clamped into `[0, cap]`. Maximum possible total ≈ **207**.
+`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive). Maximum possible total ≈ **209**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
-| **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22` | `SCORE_BOX_TIGHTNESS = 22` |
+| **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22`, then scaled by the candle-spread readability grade `∈ [floor, 1]` when `CANDLE_SPREAD_AWARE` (live) | `SCORE_BOX_TIGHTNESS = 22`, `CANDLE_SPREAD_*` |
 | **Touch density** | `min(touches × 2, 15)` plus `+10` if `r_touches ≥ 3 AND s_touches ≥ 3` OR `total ≥ 6` | `SCORE_TOUCH_DENSITY = 25` (15 base + 10 bonus); `TOUCH_BONUS_INDIVIDUAL = 3`, `TOUCH_BONUS_TOTAL = 6`, `TOUCH_BONUS_POINTS = 10` |
 | **Traversal quality** | `clamp((density / 0.33) × 10, 10) − clamp((dwell_asymmetry + max(0, max_swing_frac − 1)) × 8, 8)`, floored at 0, where `density = n_full_traversals / n_swings`. Rewards a box whose swing limbs genuinely run rail-to-rail; docks dead-space framings that hang off one rail (`dwell_asymmetry`) or anchor a rail on a one-off spike (`max_swing_frac > 1`). Replaced the rail-blind **oscillation** term (which a one-sided top-hug maxed just like a true two-sided box). | `SCORE_TRAVERSAL_QUALITY = 10`, `TRAVERSAL_QUALITY_DENSITY_FULL = 0.33`, `TRAVERSAL_QUALITY_DWELL_PENALTY = 8` |
 | **ATR squeeze** | `(1 - ATR_10/ATR_50 at bar -6) × 8` | `SCORE_ATR_SQUEEZE = 8` |
@@ -478,6 +512,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
 | **Ascending support** | `support_quality × 8`, where quality ∈ [0,1] from `measure_support_slope()` (see below) = `0.6·slope_score + 0.4·higher_low_frac`. Rewards a base whose swing lows stair-step *up* (rising support / tennis-ball action). Bonus-only — a flat or sagging floor earns 0, never penalized. | `SCORE_ASCENDING_SUPPORT = 8`, `ASCENDING_SUPPORT_FULL_SLOPE = 0.10` |
 | **ADR% absolute volatility** | `adr_quality × 8`, where `adr_quality = min(ADR% / 5.0, 1.0)`. Rewards Qullamaggie-style volatile movers: stocks that travel enough each day to be worth trading. Bonus-only — low-ADR names earn 0, never a penalty. | `SCORE_ADR = 8`, `ADR_WINDOW = 20`, `ADR_FULL_PCT = 5.0` |
+| **Puzzle quality** (E3, live) | `puzzle_quality × 8` — the L2 assembled-Wyckoff-puzzle completeness/chronology grade from `assemble_box_narrative()` (see [The L2 event reader](#the-l2-event-reader--wyckoff-puzzle-from-rail-events-to-a-scored-narrative)). Additive, bonus-only, clamped `[0, cap]`; grades-not-vetoes (≥ 0, can only raise a score). | `SCORE_PUZZLE_QUALITY = 8`, `PUZZLE_SCORE_ENABLED` (live) |
 
 **Tier mapping** — `_calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
@@ -582,7 +617,7 @@ These are bookkeeping (not score gates) intentionally: the volume signature at t
 Two measure-only layers. Both are **descriptive, never scored and never gated** —
 every value is an underscore-prefixed result field persisted to the archive
 (nullable, backward-compatible) so a later calibration pass can test whether any
-of it predicts forward returns. Scoring (14 components, max ~202) and the tier
+of it predicts forward returns. Scoring (15 components, max ~209) and the tier
 thresholds are **unchanged**.
 
 ### Bin features — "where am I in the base?"
@@ -741,7 +776,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `1bf5c8ad6b138d5bd2003169ba6a4039331ccb0c195f3065dea8fec647cd884b`_
+_engine_config_version: `7c36b0064ffdbd51caddd67413fb3ada46f420c3542f6e4aa62cc9e48f374f9a`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -764,7 +799,8 @@ PIP_MACRO_EQ_OSC_FRAC = 0.3
 AR_FIRST_REACTION_ENABLED = False
 AR_RETRACE_FRAC = 0.5
 AR_UP_LEG_LOOKBACK = 40
-AR_STALL_BARS = 4
+AR_BOUNCE_ATR_MULT = 1.5
+AR_BOUNCE_DROP_FRAC = 0.5
 BOUNDARY_ATR_BUFFER = 0.5
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10
 MIN_BOUNDARY_RESPECT_PCT = 0.8
@@ -802,8 +838,6 @@ AR_MIN_DROP_PCT = 0.05
 AR_MAX_BARS = 15
 LPS_MIN_DESCENT_FRAC = 0.0
 LPS_MIN_HIGH_DESCENT_FRAC = 0.0
-LPS_REQUIRE_PEAK_DOWN = False
-LPS_PEAK_DOWN_TOL_BOX = 0.1
 LPS_MAX_WINDOW_BOX_RANGE = 0.85
 LPS_RESCUE_MAX_ADVANCE_BOX = 0.21
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35
@@ -865,6 +899,10 @@ CANDLE_SPREAD_ATR_MESSY = 1.4
 CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
 TA_SCORE_V2 = False
+FUNDAMENTALS_ENABLED = False
+RS_LINE_ENABLED = False
+SECTOR_RANKING_ENABLED = False
+RS_RATING_LOOKBACK = 252
 PUZZLE_SCORE_ENABLED = True
 SCORE_PUZZLE_QUALITY = 8.0
 PUZZLE_W_COMPLETENESS = 0.7

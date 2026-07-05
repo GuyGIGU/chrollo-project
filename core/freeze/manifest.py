@@ -66,7 +66,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "AR_FIRST_REACTION_ENABLED",
     "AR_RETRACE_FRAC",
     "AR_UP_LEG_LOOKBACK",
-    "AR_STALL_BARS",
+    "AR_BOUNCE_ATR_MULT",
+    "AR_BOUNCE_DROP_FRAC",
     # Dynamic recursive S/R scanning (Phase B)
     "BOUNDARY_ATR_BUFFER",
     "MAX_CONSECUTIVE_OUTSIDE_DAYS",
@@ -113,8 +114,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Phase 3 — LPS & breakout detection
     "LPS_MIN_DESCENT_FRAC",
     "LPS_MIN_HIGH_DESCENT_FRAC",
-    "LPS_REQUIRE_PEAK_DOWN",
-    "LPS_PEAK_DOWN_TOL_BOX",
     "LPS_MAX_WINDOW_BOX_RANGE",
     "LPS_RESCUE_MAX_ADVANCE_BOX",
     "LPS_INSIDE_HIGH_EXTENSION_BOX_MAX",
@@ -188,6 +187,14 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # only forces names once a read lands, which would have left a window where
     # flipping it changed output without rotating the hash.
     "TA_SCORE_V2",
+    # Lane-C advisory/enrichment flags (deferred to engine-β; default-off +
+    # byte-identical off, read via _flag() on the advisory path). Pre-registered
+    # like TA_SCORE_V2 so the β consumption wave that wires them into score/archive
+    # rotates engine_config_version from day one.
+    "FUNDAMENTALS_ENABLED",
+    "RS_LINE_ENABLED",
+    "SECTOR_RANKING_ENABLED",
+    "RS_RATING_LOOKBACK",
     # E3 puzzle-quality graded sub-score (additive bonus term, flag-gated)
     "PUZZLE_SCORE_ENABLED",
     "SCORE_PUZZLE_QUALITY",

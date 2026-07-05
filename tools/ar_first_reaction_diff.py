@@ -191,7 +191,10 @@ def scan(d, level0, jobs: int = 1):
 
 def _draw_overlay(ax, ov, df, base_off, n_win, mode):
     """Draw a climax->AR segment: dashed guide at the climax bar, star at the
-    climax High, dot at the AR Low, connected. Returns a one-line summary."""
+    climax, dot at the AR, connected. Orientation-aware — a buying climax tops at
+    a High into a lower reaction, a selling climax troughs at a Low into a higher
+    one — so both roots paint on the correct side of the candle. Returns a
+    one-line summary."""
     label = _LABELS[mode]
     if ov is None:
         return f"{label}: no structure"
@@ -200,18 +203,21 @@ def _draw_overlay(ax, ov, df, base_off, n_win, mode):
     cx, ax_x = climax_b - base_off, ar_b - base_off
     highs = df["High"].values.astype(float)
     lows = df["Low"].values.astype(float)
+    bc = float(highs[climax_b]) >= float(highs[ar_b])
+    climax_y = float(highs[climax_b]) if bc else float(lows[climax_b])
+    ar_y = float(lows[ar_b]) if bc else float(highs[ar_b])
     if 0 <= cx < n_win:
         ax.axvline(cx, color=color, lw=1.0, ls="--", alpha=0.5, zorder=3)
     seg_x, seg_y = [], []
     if 0 <= cx < n_win:
-        cy = highs[climax_b] * (1 + _CLIMAX_DY[mode])
+        cy = climax_y * (1 + (_CLIMAX_DY[mode] if bc else -_CLIMAX_DY[mode]))
         ax.scatter([cx], [cy], marker="*", s=240, color=color, zorder=6,
                    edgecolor="white", linewidth=0.7)
-        seg_x.append(cx); seg_y.append(highs[climax_b])
+        seg_x.append(cx); seg_y.append(climax_y)
     if 0 <= ax_x < n_win:
-        ax.scatter([ax_x], [lows[ar_b]], marker="o", s=70, color=color, zorder=6,
+        ax.scatter([ax_x], [ar_y], marker="o", s=70, color=color, zorder=6,
                    edgecolor="white", linewidth=0.7)
-        seg_x.append(ax_x); seg_y.append(lows[ar_b])
+        seg_x.append(ax_x); seg_y.append(ar_y)
     if len(seg_x) == 2:
         ax.plot(seg_x, seg_y, color=color, lw=2.0, alpha=0.9, zorder=5)
     return f"{label}: {climax_b}->{ar_b}"

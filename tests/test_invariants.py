@@ -284,8 +284,11 @@ ALLOWED_OPS_EXCLUSIONS = frozenset({"SPY_SYMBOL", "PARQUET_ENGINE"})
 # forgotten here. The scoring/pipeline conductors stay explicit.
 _ENGINE_EVAL_PATH_MODULES = (
     "core.scoring.scoring",
+    "core.scoring.taxonomy",
     "core.pipeline.evaluation",
     "core.pipeline.screener",
+    "core.regime.scan_context",
+    "core.fundamentals.advisory",
 )
 
 
@@ -312,13 +315,15 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     the layer that decides which setups fire, how they score/rank, and where
     phase boundaries land — every score/structure-affecting constant it touches
     changes archived output and MUST bump the manifest hash. This static-source
-    scan (over BOTH the ``settings.NAME`` and ``getattr(settings, "NAME")`` read
-    forms) makes a future score-affecting flag/weight unable to silently escape
-    provenance: add a read in any scanned module and this fails until the name is
-    either added to the allow-list or explicitly declared an ops exclusion.
-    (Regression guard for the CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED /
-    SOS_*_BOX omissions; core/structure/ was previously covered only via the
-    hand-listed box_events.)
+    scan (over the ``settings.NAME``, ``getattr(settings, "NAME")``,
+    ``_flag("NAME")`` advisory-helper, and ScoreComponent
+    ``cap_setting=/present_when="NAME"`` read forms) makes a future
+    score-affecting flag/weight unable to silently escape provenance: add a read
+    in any scanned module and this fails until the name is either added to the
+    allow-list or explicitly declared an ops exclusion. (Regression guard for the
+    CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions and the
+    Lane-C ``_flag()`` indirection seam; the scoring / regime / fundamentals eval
+    modules and all of core/structure/ are scanned.)
     """
     import re
 
@@ -331,11 +336,18 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     # ``settings.X`` either documents a real nearby read or should be reworded.
     pat_attr = re.compile(r"settings\.([A-Z][A-Z0-9_]+)")
     pat_getattr = re.compile(r"getattr\(\s*settings\s*,\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
+    # Indirection seams: the ``_flag("NAME")`` advisory-path helper (Lane-C reads
+    # in core/regime + core/fundamentals) and the ScoreComponent
+    # ``cap_setting=/present_when="NAME"`` taxonomy literals.
+    pat_flag = re.compile(r"_flag\(\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
+    pat_cap = re.compile(r"(?:cap_setting|present_when)\s*=\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
     referenced: set[str] = set()
     for src_path in _engine_eval_path_sources():
         src = src_path.read_text(encoding="utf-8")
         referenced |= set(pat_attr.findall(src))
         referenced |= set(pat_getattr.findall(src))
+        referenced |= set(pat_flag.findall(src))
+        referenced |= set(pat_cap.findall(src))
     assert referenced, "scanner found no settings.<NAME> reads on the eval path"
 
     # Every read must be either provenance-hashed OR an explicit ops exclusion —
@@ -371,3 +383,75 @@ def test_every_scoring_settings_symbol_is_in_manifest():
             f"the eval path reads settings.{name} which does not exist on "
             "config.settings"
         )
+
+
+# Boolean settings that are default-OFF but ADOPTED engine identity, not pending
+# dark flags — exempt from the flag-ledger requirement (they belong to the frozen
+# config, tracked in the manifest, with no "decision pending").
+_LEDGER_EXEMPT_OFF_BOOLS = frozenset({
+    "DATA_DIVIDEND_ADJUSTED",   # as-traded price regime (adopted 2026-07-02)
+})
+
+
+def _ledger_dark_flags() -> dict:
+    """Parse docs/flag_ledger.md's Dark-flags table -> {flag_name: kill_by}.
+
+    Reads the first backticked NAME token of each row between the "## Dark flags"
+    heading and "## Retired", plus the row's last cell (the kill-by date)."""
+    import re
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / "docs" / "flag_ledger.md"
+            ).read_text(encoding="utf-8")
+    start = text.index("## Dark flags")
+    end = text.index("## Retired", start)
+    out: dict = {}
+    for line in text[start:end].splitlines():
+        line = line.strip()
+        if not line.startswith("| `"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        m = re.search(r"`([A-Z][A-Z0-9_]+)`", cells[0])
+        if m:
+            out[m.group(1)] = cells[-1]
+    return out
+
+
+def test_flag_ledger_matches_the_default_off_engine_flags():
+    """Machine-enforce the flag-ledger's "never silently carried" promise.
+
+    (a) Every flag in the Dark table names a REAL setting that is STILL off (a
+    flipped or deleted flag belongs in Retired, not Dark) and carries a dated
+    kill-by. (b) Every default-off boolean setting is EITHER a Dark-table row or
+    an explicitly adopted exemption — so a flag cannot be added / removed /
+    flipped in settings.py with the ledger never noticing. Closes the seam the
+    engine-alpha council audit flagged (2026-07-06)."""
+    from datetime import date
+
+    from config import settings
+
+    dark = _ledger_dark_flags()
+    assert dark, "parsed no flags from the flag-ledger Dark table"
+
+    for name, kill_by in dark.items():
+        assert hasattr(settings, name), (
+            f"flag-ledger Dark table lists `{name}`, not a config.settings symbol")
+        val = getattr(settings, name)
+        assert val is False, (
+            f"`{name}` is in the Dark (decision-pending) table but is not off "
+            f"({val!r}); a flipped or deleted flag belongs in the Retired section")
+        try:
+            date.fromisoformat(kill_by)
+        except ValueError:
+            raise AssertionError(
+                f"`{name}` has no dated kill-by (got {kill_by!r}); every dark flag "
+                "carries a YYYY-MM-DD kill-by so it is never silently carried")
+
+    off_bools = {n for n in dir(settings)
+                 if not n.startswith("_") and getattr(settings, n) is False}
+    unlisted = sorted(off_bools - set(dark) - _LEDGER_EXEMPT_OFF_BOOLS)
+    assert not unlisted, (
+        f"default-off boolean settings with no flag-ledger Dark row: {unlisted}. "
+        "Add a Dark-table row (name + blocking decision + kill-by), or — if it is "
+        "adopted engine identity, not a pending flag — add it to "
+        "_LEDGER_EXEMPT_OFF_BOOLS with a reason.")

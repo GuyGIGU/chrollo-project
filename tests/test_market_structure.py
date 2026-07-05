@@ -5,8 +5,11 @@ import pandas as pd
 
 from core.structure.market_structure import (
     classify_window_descent,
+    elected_trend_leg_base,
+    first_reaction_after,
     label_market_structure,
     read_market_structure,
+    segment_trends,
 )
 from core.structure.metrics import (
     _box_events_with_meta,
@@ -179,6 +182,106 @@ def test_l1_big_dip_only_when_deep_and_not_tight():
 def test_l1_insufficient_window():
     out = classify_window_descent([10.0], [9.0])
     assert out["classification"] == "insufficient"
+
+
+# --- The trend model: segment_trends + first_reaction_after --------------------
+
+def test_trend_model_clean_uptrend_is_one_running_segment():
+    # HL valleys + HH peaks: one confirmed uptrend, still running at the edge.
+    zz = [
+        (0, "valley", 10.0), (1, "peak", 12.0), (2, "valley", 11.0),
+        (3, "peak", 14.0), (4, "valley", 13.0), (5, "peak", 16.0),
+    ]
+    segs = segment_trends(label_market_structure(zz)["points"])
+    assert len(segs) == 1
+    s = segs[0]
+    assert s["direction"] == 1
+    assert s["confirm_bar"] == 3            # the first HH = change-of-character up
+    assert s["start_bar"] == 2             # launched off the prior valley
+    assert (s["terminal_bar"], s["terminal_price"]) == (5, 16.0)   # highest HH = climax
+    assert s["impulse_start_bar"] == 4     # last HL before the climax = impulse base
+    assert s["end_bar"] is None            # no opposite break yet -> still running
+
+
+def test_trend_model_uptrend_ends_at_the_choch_down():
+    # An uptrend that tops at 18, then a LL breaks the last HL -> the trend ENDS
+    # at that CHoCH bar and a fresh downtrend segment opens.
+    zz = [
+        (0, "valley", 10.0), (1, "peak", 16.0), (2, "valley", 13.0),
+        (3, "peak", 18.0), (4, "valley", 11.0), (5, "peak", 14.0),
+    ]
+    segs = segment_trends(label_market_structure(zz)["points"])
+    assert [s["direction"] for s in segs] == [1, -1]
+    up, down = segs
+    assert (up["terminal_bar"], up["terminal_price"]) == (3, 18.0)
+    assert up["end_bar"] == 4 and up["end_price"] == 11.0   # CHoCH-down bar/price
+    assert (down["terminal_bar"], down["terminal_price"]) == (4, 11.0)
+    assert down["end_bar"] is None
+
+
+def test_trend_model_empty_without_a_confirmed_trend():
+    # A double top holds the level -> no structural break -> no confirmed trend.
+    zz = [(0, "valley", 10.0), (1, "peak", 15.0), (2, "valley", 12.0), (3, "peak", 15.0)]
+    assert segment_trends(label_market_structure(zz)["points"]) == []
+    assert segment_trends([]) == []
+
+
+_AR_KW = dict(atr=1.0, retrace_frac=0.5, up_leg_lookback=40,
+              bounce_atr_mult=1.5, bounce_drop_frac=0.5)
+
+
+def test_elected_trend_leg_base_is_the_full_leg_start():
+    # A rising staircase (HL valleys + HH peaks) confirms one uptrend segment; the
+    # full-leg base is that segment's START pivot (the launch valley), located by
+    # matching the climax bar. Wrong direction / a bar with no segment -> None.
+    stair = pd.DataFrame({
+        "High": [12, 11, 15, 13, 18, 16, 21, 19, 24, 22],
+        "Low":  [10,  9, 13, 11, 16, 14, 19, 17, 22, 20]})
+    up = [s for s in segment_trends(read_market_structure(stair)["points"])
+          if s["direction"] == 1][0]
+    assert elected_trend_leg_base(stair, up["terminal_bar"], 1) == \
+        (up["start_bar"], up["start_price"])
+    assert elected_trend_leg_base(stair, up["terminal_bar"], -1) is None
+    assert elected_trend_leg_base(stair, 0, 1) is None
+
+
+def test_first_reaction_locks_at_the_first_reaction_low_before_a_big_bounce():
+    # The AAP case: climax at bar 4 (high 30), a first reaction to bar 5 (low 19,
+    # past the 0.5 retrace of the 30->10 full leg), then a BIG bounce at bar 6
+    # (high 28) -> the AR locks at bar 5. The LATER, deeper second leg (bars 7-8,
+    # lows 17/16) is NOT the automatic reaction and is correctly ignored.
+    df = pd.DataFrame({
+        "High": [12, 16, 20, 24, 30, 21, 28, 22, 18, 26],
+        "Low":  [10, 14, 18, 22, 28, 19, 26, 17, 16, 24]})
+    assert first_reaction_after(df, 4, direction=1, end_bar=9, **_AR_KW) == 5
+
+
+def test_first_reaction_runs_to_the_base_on_a_one_way_reaction():
+    # A single continuous plunge with no early big bounce runs to the base-edge low
+    # (bar 7 @ 16) -- it does NOT over-tighten to a shallow mid-decline bar.
+    df = pd.DataFrame({
+        "High": [12, 16, 20, 24, 30, 26, 22, 18],
+        "Low":  [10, 14, 18, 22, 28, 24, 20, 16]})
+    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) == 7
+
+
+def test_first_reaction_none_when_counter_move_is_insignificant():
+    # The reaction only dips to 26 (< 0.5 retrace of the 30->10 full leg, whose
+    # threshold is 20) -> no automatic reaction resolves -> None (no tighten).
+    df = pd.DataFrame({
+        "High": [12, 16, 20, 24, 30, 28, 29, 28],
+        "Low":  [10, 14, 18, 22, 28, 26, 27, 26]})
+    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) is None
+
+
+def test_first_reaction_is_mirror_symmetric_for_a_selling_climax():
+    # The AAP frame flipped: a selling climax at bar 4 (low 10), a first up-reaction
+    # to bar 5 (high 23, past the 0.5 retrace), a BIG give-back at bar 6 -> the AR
+    # locks at bar 5; the later higher highs (bars 7-8) are ignored.
+    df = pd.DataFrame({
+        "High": [30, 26, 22, 18, 12, 23, 14, 26, 28, 16],
+        "Low":  [28, 24, 20, 16, 10, 21, 12, 24, 26, 14]})
+    assert first_reaction_after(df, 4, direction=-1, end_bar=9, **_AR_KW) == 5
 
 
 # --- Layer 2: the labeled in-box staircase (read_box_staircase) ----------------

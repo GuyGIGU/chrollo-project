@@ -182,17 +182,24 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
 # The raw Phase-A resolver can drag the drawn automatic reaction all the way to
 # the base edge, so the climax->AR stripe smears across half the chart. When on,
-# resolve_phase_a() TIGHTENS the AR to the first continuous counter-move off the
-# climax -- the one that retraces >= AR_RETRACE_FRAC of the up-leg into the peak
-# and then bounces or stalls, whichever comes first (operator model, 2026-07-04;
-# mirror-symmetric for a selling-climax up-reaction). Tighten-only + overlay-only:
-# it can move the AR earlier but never past the box open, and it feeds NO R/S,
-# LPS, score, or tier (see docs/strategy_v2.md "Phase A -- First-reaction AR
-# anchor"). Both flag states are byte-identical on the canonical shadow set.
+# resolve_phase_a() TIGHTENS the AR to the trend model's first reaction after the
+# terminal swing (market_structure.first_reaction_after) -- the reaction low of the
+# first continuous counter-move that retraces >= AR_RETRACE_FRAC of the trend's
+# FULL leg (the whole advance the climax ended, from the elected trend segment's
+# start), closed at the first BIG confirmed bounce off that low (a rally of
+# >= max(AR_BOUNCE_ATR_MULT*ATR, AR_BOUNCE_DROP_FRAC*drop)). The full-leg basis and
+# the big-bounce close are what keep it from over-tightening at a mid-decline pause
+# (the earlier terminal-sub-leg + twitchy-stall read stopped short of the true
+# reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
+# retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
+# Tighten-only + overlay-only: it can move the AR earlier but never past the box
+# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_v2.md "The
+# trend model" + "Phase A -- First-reaction AR anchor").
 AR_FIRST_REACTION_ENABLED = False
-AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the up-leg
-AR_UP_LEG_LOOKBACK = 40          # bars before the climax that frame the up-leg base
-AR_STALL_BARS = 4                # no new extreme for this many bars = reaction stalled
+AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg
+AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend segment tops at the climax
+AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
+AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
 
 # ============================================================
 # PHASE 3 — LPS & BREAKOUT DETECTION
@@ -212,21 +219,6 @@ AR_STALL_BARS = 4                # no new extreme for this many bars = reaction 
 # / spread / zone / window-box-range gates + the graded quality still filter.
 LPS_MIN_DESCENT_FRAC = 0.0
 LPS_MIN_HIGH_DESCENT_FRAC = 0.0
-# Operator definition of the LPS swing: measured from the HIGH of the first bar
-# to the LOW of the last bar — a "peak that goes down". When enabled, the window
-# must START at its peak (first-bar High == window High, within tolerance) AND
-# END at its trough (last-bar Low == window Low, within tolerance). This rejects
-# the "up-swing LPS": a window that climbs into a LATER peak (peak_not_first) or
-# dips to an interior low then RISES into the last bars (trough_not_last — the
-# rising_support_shelf shape). Tolerance is a fraction of box height so bar noise
-# and RMAX/PLXS-class (last Low ~0.02 box above the min) stay valid. Rejection at
-# the candidate level lets the selector re-anchor to a clean peak->trough window
-# if one exists, else the setup drops ("re-anchor, else drop").
-# NOTE: this intersects the deliberate "ascending support = good VCP pivot"
-# decision below (descent floor 0) that recovered KEYS/MSGS/EWTX/NBR/PKE — so it
-# ships default-OFF and is gated on a seed-recall measurement before any flip.
-LPS_REQUIRE_PEAK_DOWN = False
-LPS_PEAK_DOWN_TOL_BOX = 0.10
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
 # "Reaction not markup" gate for the rising_support_shelf rescue (default OFF =
 # None). The rescue (core/structure/lps.py) re-admits a non-terminal-low window
@@ -240,9 +232,10 @@ LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/
 # the selector re-anchors to a shorter terminal test if one exists, else drops.
 # None = disabled. Set to 0.21 (validated 2026-06-26: seed-recall 0 curated
 # winners dropped; live it drops OHI/AEF/NVT/SPCB run-ups + keeps NMAI's gradual
-# shelf) — HELD uncommitted for the operator's chart eyeball, revert to None to
-# disable (see project_lps_peak_down). Midpoint of winner-max +0.096 and the
-# run-up cluster +0.324; SPCB (+0.234) is the lone borderline to eyeball.
+# shelf). ENABLED + committed in 232afd0 ("Enable LPS calibration: rescue-markup
+# gate 0.21 + hold tolerance 0.95") and blessed for engine-alpha (see
+# flag_ledger.md); revert to None to disable. Midpoint of winner-max +0.096 and
+# the run-up cluster +0.324; SPCB (+0.234) was the lone borderline.
 LPS_RESCUE_MAX_ADVANCE_BOX = 0.21
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35  # INSIDE LPS cannot launch far above R before testing support
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75

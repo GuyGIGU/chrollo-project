@@ -475,57 +475,6 @@ def test_find_lps_diagnose_reports_rejects_when_none(monkeypatch):
     assert sum(rejects.values()) >= 1   # the trace can report WHY it failed
 
 
-def test_find_lps_peak_down_gate_on_rejects_trough_not_last(monkeypatch):
-    """Flag ON rejects a window that ends on an up-move (operator definition:
-    LPS = first-bar High -> last-bar Low must be a peak that goes down)."""
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
-    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
-    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
-    df = _lps_frame_with_window([
-        (108.0, 106.5, 107.0),
-        (107.0, 104.5, 105.5),
-        (106.0, 103.5, 104.0),
-        (105.5, 105.0, 105.2),  # last_low far above window_low
-    ])
-    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
-    assert find_lps(df, box, 2.0) is None
-
-
-def test_find_lps_peak_down_gate_on_rejects_peak_not_first(monkeypatch):
-    """Flag ON rejects a window whose peak is NOT the first bar (price climbs
-    into a later high before pulling back — the GSL/MTX/TRIN/PRA shape)."""
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
-    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
-    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
-    df = _lps_frame_with_window([
-        (107.0, 106.0, 106.5),
-        (109.0, 105.0, 106.0),  # window_high in the MIDDLE, not the first bar
-        (106.0, 103.5, 104.0),
-        (105.0, 102.5, 104.0),
-    ])
-    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
-    assert find_lps(df, box, 2.0) is None
-
-
-def test_find_lps_peak_down_gate_on_still_accepts_clean_peak_to_trough(monkeypatch):
-    """Flag ON does NOT touch a clean peak-to-trough LPS (the user-good cases
-    GTX/RMAX/SMG/RRR/PLXS/MTRX shape)."""
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MIN", 4)
-    monkeypatch.setattr("config.settings.LPS_LENGTH_MAX", 4)
-    monkeypatch.setattr("config.settings.LPS_REQUIRE_PEAK_DOWN", True)
-    monkeypatch.setattr("config.settings.LPS_PEAK_DOWN_TOL_BOX", 0.10)
-    df = _lps_frame_with_window([
-        (108.0, 106.5, 107.0),  # first bar IS the peak
-        (107.0, 105.0, 105.5),
-        (106.0, 103.5, 104.0),
-        (105.0, 102.5, 104.0),  # last bar IS the trough
-    ])
-    box = _box(start_bar=26, base_len=4, r_anchor_bar=26, s_anchor_bar=26)
-    assert find_lps(df, box, 2.0) is not None
-
-
 def test_find_lps_rescue_markup_gate_on_rejects_steep_runup(monkeypatch):
     """Gate ON rejects a rising_support_shelf that is really a steep markup leg
     (OHI-class: the low merely launched from support, then price ran up to a new
@@ -650,6 +599,38 @@ def test_enforce_bc_downswing_leaves_sc_upswing():
     box = _box(start_bar=100, base_len=30)
 
     assert _enforce_bc_downswing(df, root, box, 95, 100) == (95, 100)
+
+
+def test_first_impulse_ar_end_is_a_noop_when_flag_off(monkeypatch):
+    # Flag off -> the AR is returned unchanged, byte-identical. (Forced off
+    # explicitly so this still guards the off-path after the live default flip.)
+    from config import settings
+    from core.structure.bricks import _first_impulse_ar_end
+    monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", False)
+    closes = [100.0] * 140
+    for i, b in enumerate(range(80, 91)):
+        closes[b] = 100.0 + 2 * i          # rally into a climax of 120 at bar 90
+    for i, b in enumerate(range(91, 101)):
+        closes[b] = 118.0 - 2 * i          # reaction back to 100 by bar 100
+    df = _ohlc_from_closes(closes)
+    assert _first_impulse_ar_end(df, 90, 130, 2.0) == 130      # dragged AR untouched
+
+
+def test_first_impulse_ar_end_tightens_to_the_trend_reaction_when_on(monkeypatch):
+    # Flag on -> the dragged AR (bar 130, the box open) pulls back to the trend
+    # model's first reaction low (bar 100). Tighten-only: climax fixed, AR earlier.
+    from config import settings
+    from core.structure.bricks import _first_impulse_ar_end
+    monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", True)
+    closes = [100.0] * 140
+    for i, b in enumerate(range(80, 91)):
+        closes[b] = 100.0 + 2 * i
+    for i, b in enumerate(range(91, 101)):
+        closes[b] = 118.0 - 2 * i
+    df = _ohlc_from_closes(closes)
+    ar = _first_impulse_ar_end(df, 90, 130, 2.0)
+    assert 90 < ar <= 130                  # stayed inside the drawn span (tighten-only)
+    assert ar == 100                       # anchored at the reaction low
 
 
 def test_resolve_phase_a_last_resort_uses_raw_anchor():

@@ -231,24 +231,6 @@ def detect_lps_candidates(
                     rejects["high_up_march"] += 1
                 continue
 
-            # Peak-going-down gate: the LPS swing is measured first-bar High ->
-            # last-bar Low, so a valid window must START at its peak and END at
-            # its trough. Reject a window that climbs into a later peak or rises
-            # off an interior low into the last bars (the "up-swing LPS"). Gated;
-            # tolerance is a box-height fraction so bar noise stays valid. Placed
-            # before the rising_support_shelf rescue so that shape can't slip
-            # through when the gate is on.
-            if settings.LPS_REQUIRE_PEAK_DOWN:
-                peak_tol = settings.LPS_PEAK_DOWN_TOL_BOX * box_height
-                if first_high < window_high - peak_tol:
-                    if diagnose:
-                        rejects["peak_not_first"] += 1
-                    continue
-                if last_low > window_low + peak_tol:
-                    if diagnose:
-                        rejects["trough_not_last"] += 1
-                    continue
-
             terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
             window_range_pct_box = (window_high - window_low) / box_height
             rising_support_shelf = False
