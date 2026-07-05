@@ -262,7 +262,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
 
     # Puzzle-quality bonus (E3) — the L2 assembled Wyckoff puzzle as an additive,
-    # bonus-only term, behind the default-off flag. BOTH the +total arithmetic AND the
+    # bonus-only term, behind its PUZZLE_SCORE_ENABLED flag (live). BOTH the +total arithmetic AND the
     # breakdown key live ONLY inside the flag: flag-off _puzzle_quality is never called,
     # no key is added, and `+ s_puzzle` is a 0.0 no-op -> Score/Tier/breakdown
     # byte-identical (mirrors the CANDLE_SPREAD_AWARE containment). Grades-not-vetoes:

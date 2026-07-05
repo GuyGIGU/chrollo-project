@@ -274,21 +274,31 @@ def test_manifest_json_is_canonical_sorted():
 # manifest.py's DELIBERATELY EXCLUDED block for the eval-path subset:
 #   SPY_SYMBOL   — market-context fetch symbol (screener.py)
 #   PARQUET_ENGINE — cache (de)serialization engine (screener.py)
-ALLOWED_OPS_EXCLUSIONS = frozenset({"SPY_SYMBOL", "PARQUET_ENGINE"})
+#   SECTOR_RANKING_ETFS — the SPDR sector-ETF universe the (dark, advisory)
+#       sector-ranking read ranks; a symbol SET like INDEX_SYMBOLS, not a
+#       computed-value tuning knob (core/regime/sector_ranking.py)
+ALLOWED_OPS_EXCLUSIONS = frozenset(
+    {"SPY_SYMBOL", "PARQUET_ENGINE", "SECTOR_RANKING_ETFS"})
 
 # The engine's decision-making eval path. Every ``settings.NAME`` read here can
 # move which setups fire / how they score / where phase boundaries land — the
 # hashable engine identity — EXCEPT the ops knobs enumerated above.
 # core/structure/ is GLOBBED (every module, see _engine_eval_path_sources), not
 # hand-listed: a new detector file is covered the day it lands and cannot be
-# forgotten here. The scoring/pipeline conductors stay explicit.
+# forgotten here. The scoring/pipeline conductors stay explicit. The Lane-C
+# entry modules (scan_context / advisory) DELEGATE their tuning reads to helper
+# modules, so those helpers are listed too — else a lookback/lag knob read one
+# import-hop away escapes the scan (the engine-α second-pass audit gap, 2026-07-06).
 _ENGINE_EVAL_PATH_MODULES = (
     "core.scoring.scoring",
     "core.scoring.taxonomy",
     "core.pipeline.evaluation",
     "core.pipeline.screener",
     "core.regime.scan_context",
+    "core.regime.rs_line",
+    "core.regime.sector_ranking",
     "core.fundamentals.advisory",
+    "core.fundamentals.metrics",
 )
 
 
@@ -315,15 +325,18 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     the layer that decides which setups fire, how they score/rank, and where
     phase boundaries land — every score/structure-affecting constant it touches
     changes archived output and MUST bump the manifest hash. This static-source
-    scan (over the ``settings.NAME``, ``getattr(settings, "NAME")``,
-    ``_flag("NAME")`` advisory-helper, and ScoreComponent
-    ``cap_setting=/present_when="NAME"`` read forms) makes a future
-    score-affecting flag/weight unable to silently escape provenance: add a read
-    in any scanned module and this fails until the name is either added to the
-    allow-list or explicitly declared an ops exclusion. (Regression guard for the
-    CANDLE_SPREAD_AWARE / PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions and the
-    Lane-C ``_flag()`` indirection seam; the scoring / regime / fundamentals eval
-    modules and all of core/structure/ are scanned.)
+    scan (over the ``settings.NAME``, ``getattr(settings, "NAME")``, and
+    ``_flag("NAME")`` advisory-helper read forms) PLUS a runtime introspection of
+    the scoring taxonomy ``REGISTRY`` (each ``TermSpec``'s ``cap_setting`` /
+    ``present_when``, resolved by getattr at call time and invisible to any
+    source regex) makes a future score-affecting flag/weight unable to silently
+    escape provenance: add a read in any scanned module — or a registry term whose
+    cap/gate is read only via ``TermSpec.cap()`` / ``.is_emitted()`` — and this
+    fails until the name is either added to the allow-list or declared an ops
+    exclusion. (Regression guard for the CANDLE_SPREAD_AWARE /
+    PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions, the Lane-C ``_flag()`` indirection
+    seam, and the positional-``TermSpec`` registry seam; the scoring / regime /
+    fundamentals eval modules and all of core/structure/ are scanned.)
     """
     import re
 
@@ -336,18 +349,26 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     # ``settings.X`` either documents a real nearby read or should be reworded.
     pat_attr = re.compile(r"settings\.([A-Z][A-Z0-9_]+)")
     pat_getattr = re.compile(r"getattr\(\s*settings\s*,\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
-    # Indirection seams: the ``_flag("NAME")`` advisory-path helper (Lane-C reads
-    # in core/regime + core/fundamentals) and the ScoreComponent
-    # ``cap_setting=/present_when="NAME"`` taxonomy literals.
+    # Indirection seam: the ``_flag("NAME")`` advisory-path helper (Lane-C reads
+    # in core/regime + core/fundamentals).
     pat_flag = re.compile(r"_flag\(\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
-    pat_cap = re.compile(r"(?:cap_setting|present_when)\s*=\s*['\"]([A-Z][A-Z0-9_]+)['\"]")
     referenced: set[str] = set()
     for src_path in _engine_eval_path_sources():
         src = src_path.read_text(encoding="utf-8")
         referenced |= set(pat_attr.findall(src))
         referenced |= set(pat_getattr.findall(src))
         referenced |= set(pat_flag.findall(src))
-        referenced |= set(pat_cap.findall(src))
+    # The scoring taxonomy resolves each term's point cap + gate flag by settings
+    # ATTRIBUTE NAME through getattr at call time (``TermSpec.cap`` / ``.is_emitted``).
+    # ``TermSpec`` is built positionally, so a source regex over the registry cannot
+    # see those names; introspect the registry object itself so a term whose cap /
+    # flag is read ONLY via the registry (e.g. a future 0-100 normalization divisor)
+    # still cannot escape the manifest.
+    from core.scoring.taxonomy import REGISTRY as _score_registry
+    for _term in _score_registry:
+        referenced.add(_term.cap_setting)
+        if _term.present_when is not None:
+            referenced.add(_term.present_when)
     assert referenced, "scanner found no settings.<NAME> reads on the eval path"
 
     # Every read must be either provenance-hashed OR an explicit ops exclusion —

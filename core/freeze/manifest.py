@@ -62,7 +62,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIP_MACRO_EQ_FLOOR_FRAC",
     "PIP_MACRO_EQ_OSC_FRAC",
     # First-reaction AR anchor (Phase-A overlay; default-off flip must bump the
-    # version from day one — a flip re-anchors the drawn AR on 6/140 fires)
+    # version from day one — a flip re-anchors the drawn AR on 19/140 fires)
     "AR_FIRST_REACTION_ENABLED",
     "AR_RETRACE_FRAC",
     "AR_UP_LEG_LOOKBACK",
@@ -187,13 +187,21 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # only forces names once a read lands, which would have left a window where
     # flipping it changed output without rotating the hash.
     "TA_SCORE_V2",
-    # Lane-C advisory/enrichment flags (deferred to engine-β; default-off +
-    # byte-identical off, read via _flag() on the advisory path). Pre-registered
-    # like TA_SCORE_V2 so the β consumption wave that wires them into score/archive
-    # rotates engine_config_version from day one.
+    # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
+    # default-off + byte-identical off, read via _flag()/getattr on the advisory
+    # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires
+    # them into score/archive rotates engine_config_version from day one — and so a
+    # lookback/lag tweak that changes an archived advisory value cannot slip the
+    # hash. The tuning knobs are read one import-hop out (rs_line / sector_ranking /
+    # metrics), now covered by the manifest-completeness scan. (SECTOR_RANKING_ETFS
+    # is the ranked symbol SET, ops-excluded like INDEX_SYMBOLS — see below.)
     "FUNDAMENTALS_ENABLED",
+    "FUNDAMENTALS_EARNINGS_HISTORY_LIMIT",
+    "FUNDAMENTALS_FILING_LAG_DAYS",
     "RS_LINE_ENABLED",
+    "RS_LINE_NEW_HIGH_LOOKBACK",
     "SECTOR_RANKING_ENABLED",
+    "SECTOR_RANKING_LOOKBACKS",
     "RS_RATING_LOOKBACK",
     # E3 puzzle-quality graded sub-score (additive bonus term, flag-gated)
     "PUZZLE_SCORE_ENABLED",
@@ -251,7 +259,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
 #                         MARKET_DATA_MIN_LATEST_COVERAGE, SPLIT_PROBE_*
 #   rate limit / quarantine:  YAHOO_RATE_LIMIT_*, YAHOO_DOWNLOAD_WORKERS,
 #                         QUARANTINE_*
-#   market-context fetch: SPY_SYMBOL, INDEX_SYMBOLS, MARKET_CONTEXT_TTL_*
+#   market-context fetch: SPY_SYMBOL, INDEX_SYMBOLS, SECTOR_RANKING_ETFS,
+#                         MARKET_CONTEXT_TTL_*
 #   regime observability: REGIME_* (state is observability-only, not a gate)
 #   dashboard:            DASHBOARD_*
 #   scheduler / alerts:   SCAN_SCHEDULE_*, FORWARD_RETURNS_MIN_AGE_DAYS,

@@ -143,6 +143,11 @@ convention; geometry invariants; calibration evidence written into settings comm
   the live engine moved under them (backext re-measures every base window), so pre-backext A/B
   evidence no longer describes what a flip does. Fix: a committed flag ledger (flag, built date,
   blocking decision, evidence path, kill-by date) + re-run A/Bs before any flip.
+  - > **Resolved by engine-α (2026-07-06).** The committed flag ledger ([flag_ledger.md](flag_ledger.md))
+    > now tracks every dark flag with a dated kill-by; `LPS_REQUIRE_PEAK_DOWN` and `PIP_PIVOTS_ENABLED`
+    > were deleted, `PIP_MACRO_PHASE_A` / `CANDLE_SPREAD_AWARE` / `PUZZLE_SCORE_ENABLED` flipped live, and
+    > the manifest-completeness scan (the P1 above) now globs `core/structure/` plus the regime /
+    > fundamentals eval modules. The inventory in these two bullets is the 2026-07-03 snapshot.
 - P2 — strategy_v2.md drift is discipline-only; its hand-maintained Settings Quick-Reference
   (~130 lines) is guaranteed rot. Generate that block from `config/settings.py` (or assert
   values match by test) + grep-test that every manifest key appears in the doc.

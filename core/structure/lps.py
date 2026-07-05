@@ -246,11 +246,11 @@ def detect_lps_candidates(
                     and window_range_pct_box <= settings.LPS_MAX_WINDOW_BOX_RANGE
                     and shelf_low_pos <= settings.TRAVERSAL_LOW_ZONE
                 )
-                # Reaction-not-markup gate (default OFF). A genuine ascending-
-                # support coil is GRADUAL; reject a rescued shelf that is really a
-                # steep markup leg whose low merely launched from support (OHI-
-                # class). Re-anchors to a shorter terminal test if one exists,
-                # else drops. None = disabled (no behaviour change).
+                # Reaction-not-markup gate (live at LPS_RESCUE_MAX_ADVANCE_BOX =
+                # 0.21). A genuine ascending-support coil is GRADUAL; reject a
+                # rescued shelf that is really a steep markup leg whose low merely
+                # launched from support (OHI-class). Re-anchors to a shorter
+                # terminal test if one exists, else drops. None = disabled.
                 if rising_support_shelf and settings.LPS_RESCUE_MAX_ADVANCE_BOX is not None:
                     net_advance_box = (
                         float(end_lps["Close"]) - float(first_lps["Close"])

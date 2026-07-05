@@ -476,7 +476,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
 | 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow BUEC shelf above R may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50` | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
-| 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10` |
+| 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
 | 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
@@ -498,13 +498,13 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
-| **Box tightness** | `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22`, then scaled by the candle-spread readability grade `∈ [floor, 1]` when `CANDLE_SPREAD_AWARE` (live) | `SCORE_BOX_TIGHTNESS = 22`, `CANDLE_SPREAD_*` |
+| **Box tightness** | When `TIGHTNESS_ADR_AWARE` (live): `((MAX_BOX_WIDTH_ADR - box_width_adr) / MAX_BOX_WIDTH_ADR) × 22`, where `box_width_adr = box_width·100 / ADR%` measures the range in the stock's OWN daily ranges (a flat low-ADR drift no longer reads as a coil; `corr(box_tightness, ADR) = −0.73` before the rebase). Flag-off / zero-ADR fallback: the absolute `((MAX_BOX_WIDTH - box_width) / MAX_BOX_WIDTH) × 22`. Then scaled by the candle-spread readability grade `∈ [floor, 1]` when `CANDLE_SPREAD_AWARE` (live). The absolute `MAX_BOX_WIDTH` validity gate upstream is unchanged — this only re-bases the score. | `SCORE_BOX_TIGHTNESS = 22`, `TIGHTNESS_ADR_AWARE`, `MAX_BOX_WIDTH_ADR = 4.5`, `CANDLE_SPREAD_*` |
 | **Touch density** | `min(touches × 2, 15)` plus `+10` if `r_touches ≥ 3 AND s_touches ≥ 3` OR `total ≥ 6` | `SCORE_TOUCH_DENSITY = 25` (15 base + 10 bonus); `TOUCH_BONUS_INDIVIDUAL = 3`, `TOUCH_BONUS_TOTAL = 6`, `TOUCH_BONUS_POINTS = 10` |
-| **Traversal quality** | `clamp((density / 0.33) × 10, 10) − clamp((dwell_asymmetry + max(0, max_swing_frac − 1)) × 8, 8)`, floored at 0, where `density = n_full_traversals / n_swings`. Rewards a box whose swing limbs genuinely run rail-to-rail; docks dead-space framings that hang off one rail (`dwell_asymmetry`) or anchor a rail on a one-off spike (`max_swing_frac > 1`). Replaced the rail-blind **oscillation** term (which a one-sided top-hug maxed just like a true two-sided box). | `SCORE_TRAVERSAL_QUALITY = 10`, `TRAVERSAL_QUALITY_DENSITY_FULL = 0.33`, `TRAVERSAL_QUALITY_DWELL_PENALTY = 8` |
+| **Traversal quality** | `clamp((density / 0.33) × 10, 10) − clamp((dwell_asymmetry + max(0, max_swing_frac − 1)) × 8, 8)`, floored at 0, where `density = n_full_traversals / n_swings`. Rewards a box whose swing limbs genuinely run rail-to-rail; docks dead-space framings that hang off one rail (`dwell_asymmetry`) or anchor a rail on a one-off spike (`max_swing_frac > 1`). The overshoot term is zeroed for a tight box (`box_width ≤ BASE_AGE_DEADSPACE_WIDTH`) or a confirmed spring (`has_spring`) — there an oversized limb is inevitable (any real swing dwarfs a tiny range, e.g. PRA) or a bullish undercut, not dead space; the `dwell_asymmetry` dock still applies. Replaced the rail-blind **oscillation** term (which a one-sided top-hug maxed just like a true two-sided box). | `SCORE_TRAVERSAL_QUALITY = 10`, `TRAVERSAL_QUALITY_DENSITY_FULL = 0.33`, `TRAVERSAL_QUALITY_DWELL_PENALTY = 8` |
 | **ATR squeeze** | `(1 - ATR_10/ATR_50 at bar -6) × 8` | `SCORE_ATR_SQUEEZE = 8` |
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |
-| **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 22`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d | `SCORE_BASE_AGE = 22`, `BASE_AGE_CAP_DAYS = 120` |
+| **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 22`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d. **Dead-space dock:** a WIDE base (`box_width > BASE_AGE_DEADSPACE_WIDTH`) that did not work rail-to-rail (`traversal_density < TRAVERSAL_QUALITY_DENSITY_FULL`) scales its age credit by the density shortfall — long "cause" only counts if the base actually traversed; tight boxes are exempt. | `SCORE_BASE_AGE = 22`, `BASE_AGE_CAP_DAYS = 120`, `BASE_AGE_DEADSPACE_WIDTH = 0.06` |
 | **Strong-uptrend bonus** | **Linear ramp**: `0` below 30% YoY return, full points at 60%+, linear between. Re-accumulation inside an established uptrend breaks out more reliably than the same structure on a flat YoY chart. The other three "uptrend conditions" (above SMA50, above SMA200, ≥ 50K volume) are already hard baseline gates in Phase 1, so YoY return is the only differentiating axis. | `SCORE_UPTREND_BONUS = 15`, `MIN_STRONG_YEARLY_RETURN = 0.30`, `MAX_STRONG_YEARLY_RETURN = 0.60` |
 | **Soft RS bonus** | `min(1, excess_return_6m / 0.30) × 15` where `excess_return_6m = stock_6m_return − spy_6m_return`. Leadership reward, no filter — laggards just earn 0. | `SCORE_RS_BONUS = 15`, `RS_LOOKBACK_BARS = 126`, `RS_MAX_EXCESS_RETURN = 0.30` |
 | **52w-high proximity** | Linear ramp from `0` at −20% below 52w high to full at −5% (or higher). Bases that consolidate near recent highs hold their breakouts more reliably than ones rebuilding from deep drawdowns. | `SCORE_52W_HIGH_PROXIMITY = 8`, `HIGH_PROXIMITY_FULL_PCT = -0.05`, `HIGH_PROXIMITY_ZERO_PCT = -0.20` |
@@ -514,7 +514,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **ADR% absolute volatility** | `adr_quality × 8`, where `adr_quality = min(ADR% / 5.0, 1.0)`. Rewards Qullamaggie-style volatile movers: stocks that travel enough each day to be worth trading. Bonus-only — low-ADR names earn 0, never a penalty. | `SCORE_ADR = 8`, `ADR_WINDOW = 20`, `ADR_FULL_PCT = 5.0` |
 | **Puzzle quality** (E3, live) | `puzzle_quality × 8` — the L2 assembled-Wyckoff-puzzle completeness/chronology grade from `assemble_box_narrative()` (see [The L2 event reader](#the-l2-event-reader--wyckoff-puzzle-from-rail-events-to-a-scored-narrative)). Additive, bonus-only, clamped `[0, cap]`; grades-not-vetoes (≥ 0, can only raise a score). | `SCORE_PUZZLE_QUALITY = 8`, `PUZZLE_SCORE_ENABLED` (live) |
 
-**Tier mapping** — `_calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
+**Tier mapping** — `calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
 | Tier | Threshold | Setting |
 |------|-----------|---------|
@@ -523,6 +523,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **B** | `score ≥ 75` | `TIER_B = 75` |
 | **C** | `score ≥ 55` | `TIER_C = 55` |
 | **D** | else | — |
+
+> **S-tier width cap.** A base wider than `S_MAX_BOX_WIDTH = 0.15` cannot be S no matter how high it scores — a wide range, however long or well-touched, is not an elite setup; `calculate_tier(score, box_width)` demotes it to A on merit.
 
 ---
 
@@ -776,7 +778,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `7c36b0064ffdbd51caddd67413fb3ada46f420c3542f6e4aa62cc9e48f374f9a`_
+_engine_config_version: `efa9e0ff7b693461dd568ede639793dde5629503f0e7bd9a04e841bf7872154f`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -900,8 +902,12 @@ CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
 TA_SCORE_V2 = False
 FUNDAMENTALS_ENABLED = False
+FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
+FUNDAMENTALS_FILING_LAG_DAYS = 75
 RS_LINE_ENABLED = False
+RS_LINE_NEW_HIGH_LOOKBACK = 252
 SECTOR_RANKING_ENABLED = False
+SECTOR_RANKING_LOOKBACKS = (21, 63, 126)
 RS_RATING_LOOKBACK = 252
 PUZZLE_SCORE_ENABLED = True
 SCORE_PUZZLE_QUALITY = 8.0

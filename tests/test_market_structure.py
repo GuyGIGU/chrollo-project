@@ -284,6 +284,22 @@ def test_first_reaction_is_mirror_symmetric_for_a_selling_climax():
     assert first_reaction_after(df, 4, direction=-1, end_bar=9, **_AR_KW) == 5
 
 
+def test_first_reaction_end_bar_clamps_the_scan_to_the_drawn_span():
+    # Tighten-only contract: the AR scan must not run PAST end_bar (the drawn
+    # ar_bar / box open) to a later, deeper second-leg low. A one-way plunge with
+    # no confirming bounce keeps making new lows through bar 9, so end_bar is the
+    # only thing bounding how far the running reaction low may travel.
+    df = pd.DataFrame({
+        "High": [12, 16, 20, 24, 30, 26, 22, 18, 15, 14],
+        "Low":  [10, 14, 18, 22, 28, 24, 20, 16, 13, 11]})
+    # Clamped at bar 7: the running reaction low is bar 7 (low 16), NOT the deeper
+    # later lows at bars 8-9.
+    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) == 7
+    # Unclamped (whole frame): the same one-way plunge runs on to the deepest low
+    # at bar 9 -- so it is end_bar, not the frame end, that stopped the clamped scan.
+    assert first_reaction_after(df, 4, direction=1, end_bar=None, **_AR_KW) == 9
+
+
 # --- Layer 2: the labeled in-box staircase (read_box_staircase) ----------------
 
 def test_l2_staircase_reads_a_two_sided_zigzag():
