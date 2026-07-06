@@ -249,6 +249,23 @@ const TAG_DEFS = [
     95,
     (_scores, flags) => typeof flags.rTouchVolZ === 'number' && flags.rTouchVolZ > TOUCH_VOL_Z_HEAVY_R,
   ),
+  // Display-only context residue of a junk-box false-positive review: a down
+  // monthly was the one signal present in the weak fires and absent from the
+  // clean ones. It is NOT scored or gated (see docs/htf_edge_verdict_2026-07-04.md,
+  // the standing "don't score HTF" verdict) — it just surfaces the higher-
+  // timeframe backdrop the operator's eye already weighs.
+  tag(
+    'weak_monthly',
+    '⬇ Weak monthly',
+    'warning',
+    explainTip({
+      what: 'The monthly (higher-timeframe) trend is pointing down.',
+      why: 'A daily base forming inside a falling monthly trend has a weaker backdrop than one inside a rising or neutral monthly.',
+      use: 'Treat it as caution context only — it does not reject, score, or filter the setup. Weigh the monthly backdrop by eye alongside the daily structure.',
+    }),
+    92,
+    (_scores, flags) => flags.htfMonthlyTrendState === 'down',
+  ),
 ];
 
 export function deriveTags(subScores, flags = {}) {

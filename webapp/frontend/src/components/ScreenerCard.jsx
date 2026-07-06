@@ -325,6 +325,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         htfWeeklyPhase: data.htf_w_phase,
         htfDailyNested: data.htf_w_daily_nested,
         htfMonthlyReaccum: data.htf_m_reaccum,
+        htfMonthlyTrendState: data.htf_m_trend_state,
         lpsStretchAtr: data.lps_stretch_atr,
         lpsStretchBox: data.lps_stretch_box,
         lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
