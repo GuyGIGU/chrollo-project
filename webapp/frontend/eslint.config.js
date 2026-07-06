@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'dist_previous'] },  // dist_previous = the deploy script's build backup
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {

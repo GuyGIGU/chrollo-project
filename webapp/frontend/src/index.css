@@ -66,6 +66,12 @@
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
   --glow-accent: 0 0 0 1px var(--accent-blue), 0 0 12px var(--accent-blue-glow);
+
+  /* Operator UI scale — a single app-level zoom on top of the OS/browser scale
+     so text (hardcoded px) and spacing (rem) grow/shrink together. 1 = today,
+     byte-identical. Driven by the sidebar Scale control (see AppearanceControl)
+     and pre-seeded by index.html's pre-paint script so there's no reload flash. */
+  --ui-scale: 1;
 }
 
 * {
@@ -87,10 +93,18 @@ body {
    less "over-designed" tell. */
 .app-layout {
   display: flex;
-  height: 100vh;
+  /* `zoom` scales this box, so a plain 100vh would render at 100vh × scale —
+     leaving dead space below at <1 and overflowing (a scrollbar) at >1. Divide
+     by the scale so it renders back to exactly one viewport. At scale 1 this is
+     just 100vh. */
+  height: calc(100vh / var(--ui-scale));
   overflow: hidden;
   position: relative;
   background: var(--bg-main);
+  /* One knob scales the whole instrument panel — px text, rem spacing, fixed
+     chrome, and the position:fixed modals inside this subtree all together.
+     `zoom` (not transform:scale) so layout reflows and fixed overlays stay put. */
+  zoom: var(--ui-scale);
 }
 
 /* SIDEBAR — compact icon rail */
@@ -198,6 +212,95 @@ body {
   color: #FFFFFF;
   background-color: var(--accent-blue-soft);
   border-color: rgba(74, 122, 255, 0.45);
+}
+
+/* Appearance / UI-scale control — the Scale rail action opens this popover. It
+   is position:fixed just right of the rail; because it lives inside .app-layout
+   it scales with --ui-scale like everything else. */
+.appearance-anchor { position: relative; }
+
+.appearance-popover {
+  position: fixed;
+  left: 94px;
+  bottom: 14px;
+  z-index: 60;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+}
+
+.appearance-popover-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.appearance-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.appearance-stepper button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-main);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.appearance-stepper button:hover:not(:disabled) { background: var(--bg-hover); }
+.appearance-stepper button:disabled { opacity: 0.4; cursor: default; }
+
+.appearance-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.appearance-cols {
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.appearance-actions { display: flex; gap: 8px; }
+.appearance-actions button {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.appearance-actions button:hover { background: var(--bg-hover); color: var(--text-main); }
+.appearance-actions .appearance-primary {
+  color: var(--accent-blue);
+  border-color: var(--accent-blue-glow);
+}
+
+.appearance-hint {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-faint);
 }
 
 .brand {
@@ -887,10 +990,10 @@ td {
 /* MODAL STYLES */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  /* inset:0 anchors to all four edges of the (zoomed) containing block, so the
+     backdrop always covers exactly — unlike 100vw/100vh, which render short
+     under zoom < 1 and let the dead space show through. */
+  inset: 0;
   background-color: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;

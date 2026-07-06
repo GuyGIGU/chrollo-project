@@ -101,6 +101,19 @@ export function CalcIcon(props) {
   );
 }
 
+export function SlidersIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h9M17 6h3" />
+      <circle cx="15" cy="6" r="2" />
+      <path d="M4 12h3M11 12h9" />
+      <circle cx="9" cy="12" r="2" />
+      <path d="M4 18h9M17 18h3" />
+      <circle cx="15" cy="18" r="2" />
+    </svg>
+  );
+}
+
 export function EyeIcon(props) {
   return (
     <svg {...base} {...props}>

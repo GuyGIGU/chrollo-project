@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import AppearanceControl from './AppearanceControl';
 import {
   HomeIcon, PortfolioIcon, JournalIcon, OptionsIcon,
   ScreenerIcon, ArchiveIcon, PlusIcon, UploadIcon, CalcIcon,
@@ -93,6 +94,7 @@ function AppSidebar({
           <CalcIcon className="rail-icon" />
           <span className="rail-label">Calc</span>
         </button>
+        <AppearanceControl />
       </div>
     </aside>
   );
