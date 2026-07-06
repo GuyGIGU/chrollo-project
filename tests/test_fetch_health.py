@@ -387,7 +387,9 @@ def test_backoff_jitter_stays_within_bounds(monkeypatch):
     """Equal-jitter randomizes the retry wait into [wait*(1-j), wait] so
     concurrently rate-limited workers don't retry in lockstep — but the backoff
     still grows (never collapses below wait*(1-j)), and jitter=0 is exact."""
-    # attempt=2 => base wait 2**2 = 4.0 (no rate-limit boost without exc/text).
+    # attempt=2 => base wait 2**2 = 4.0 (no rate-limit boost without exc/text). Exact `==` is valid
+    # ONLY because 4.0, 0.5 and 2.0 are exactly representable in binary float; if this is ever
+    # re-parametrized with realistic constants (e.g. wait 30, jitter 0.3), switch to pytest.approx.
     monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
     monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: b)   # max draw
     assert downloads_module._retry_wait_seconds(2) == 4.0
@@ -409,6 +411,74 @@ def test_backoff_jitter_preserves_shared_cooldown_value(monkeypatch):
     wait = downloads_module._retry_wait_seconds(1, error_text="Too Many Requests. Rate limited.")
     assert noted == [45.0]        # cooldown = full 45s
     assert wait < 45.0            # this worker's own retry sleep is jittered shorter
+
+
+class _FakeClock:
+    """Deterministic monotonic clock for the cooldown tests: sleep advances time
+    instead of blocking, so the drain loop terminates without any real waiting."""
+
+    def __init__(self, start=1000.0):
+        self.t = float(start)
+
+    def monotonic(self):
+        return self.t
+
+    def sleep(self, seconds):
+        self.t += max(float(seconds), 0.0)
+
+
+def test_cooldown_exit_stagger_only_fires_after_an_actual_wait(monkeypatch):
+    """_respect_cooldown draws its random resume-stagger ONLY when it actually
+    blocked on an active cooldown. The common no-cooldown fast path draws no jitter
+    and pays no extra sleep — the invariant a future refactor of the `waited` gate
+    must not break. (rate_limit reads settings lazily per AP-3, so patch config.settings.)"""
+    from config import settings as cfg
+    rl = downloads_module.rate_limit
+    clock = _FakeClock()
+    draws = []
+    monkeypatch.setattr(rl.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(rl.time, "sleep", clock.sleep)
+    monkeypatch.setattr(rl.random, "uniform", lambda a, b: draws.append((a, b)) or 0.0)
+    monkeypatch.setattr(cfg, "YAHOO_COOLDOWN_JITTER_SECONDS", 2.0)
+    rl.reset_for_test()
+
+    rl._respect_cooldown()          # no cooldown armed -> fast path
+    assert draws == []              # fast path pays no jitter
+
+    rl.note_rate_limit(5.0)         # arm a 5s window
+    rl._respect_cooldown()          # drains it (fake clock), then staggers exactly once
+    assert draws == [(0.0, 2.0)]    # one stagger, within [0, JITTER]
+    rl.reset_for_test()
+
+
+def test_cooldown_exit_rechecks_a_window_rearmed_during_the_stagger(monkeypatch):
+    """If a racing worker re-arms the cooldown (fresh 429) while this worker sleeps
+    its resume-stagger, _respect_cooldown honours the new window too rather than
+    slipping onto Yahoo mid-cooldown — and it staggers at most once (no livelock)."""
+    from config import settings as cfg
+    rl = downloads_module.rate_limit
+    clock = _FakeClock()
+    monkeypatch.setattr(rl.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(rl.time, "sleep", clock.sleep)
+    monkeypatch.setattr(cfg, "YAHOO_COOLDOWN_JITTER_SECONDS", 1.0)
+    rl.reset_for_test()
+
+    calls = {"n": 0}
+
+    def rearming_uniform(a, b):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            rl.note_rate_limit(3.0)   # a fresh 429 lands during the stagger
+        return 0.0
+
+    monkeypatch.setattr(rl.random, "uniform", rearming_uniform)
+
+    rl.note_rate_limit(2.0)
+    start = clock.t
+    rl._respect_cooldown()
+    assert clock.t - start >= 5.0     # waited out the original 2s AND the re-armed 3s
+    assert calls["n"] == 1            # staggered exactly once
+    rl.reset_for_test()
 
 
 def test_no_history_error_does_not_retry(monkeypatch):

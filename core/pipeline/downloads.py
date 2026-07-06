@@ -90,7 +90,10 @@ def _apply_backoff_jitter(wait: float) -> float:
     """Randomize the lower part of a backoff so many workers that got rate-limited
     at once don't retry in a synchronized burst (which just re-trips Yahoo). Keeps
     ``(1 - jitter)`` of the wait fixed and randomizes the rest, so the result is in
-    ``[wait*(1-jitter), wait]`` — the backoff still grows, it just spreads."""
+    ``[wait*(1-jitter), wait]``. The *base* backoff (``2**attempt``) still grows across
+    retries; the jitter only spreads each attempt's wait within its own band, so a lucky
+    low draw on a later attempt can dip below an earlier one — intended (it de-syncs the
+    workers; the shared cooldown still enforces the real floor)."""
     jitter = min(max(float(getattr(settings, "YAHOO_BACKOFF_JITTER", 0.5)), 0.0), 1.0)
     if jitter <= 0.0:
         return wait
@@ -102,7 +105,12 @@ def _retry_wait_seconds(attempt: int, exc: Exception | None = None, error_text: 
     if ((exc is not None and _is_yahoo_rate_limit_error(exc))
             or (error_text and _is_yahoo_rate_limit_text(error_text))):
         wait = max(wait, float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0)))
-        rate_limit.note_rate_limit(wait)   # shared cooldown uses the UN-jittered wait
+        # Invariant: the shared cooldown gets the FULL un-jittered wait; the per-worker retry
+        # sleep (the jittered return below) is shorter and may end BEFORE the shared window does.
+        # That is fine — rate_limit._respect_cooldown() is the authoritative gate that re-parks a
+        # worker whose local sleep ended early. Do NOT drop that second cooldown check thinking the
+        # local sleep already covered it, or lockstep bursts come back.
+        rate_limit.note_rate_limit(wait)
     return _apply_backoff_jitter(wait)
 
 

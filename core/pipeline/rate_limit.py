@@ -95,20 +95,33 @@ def throttle(n: int = 1) -> None:
 def _respect_cooldown() -> None:
     """Sleep while a shared Yahoo backoff window is active, then a small random
     stagger so the paused download workers don't all resume in the same instant
-    and re-burst Yahoo into a fresh 429 (thundering herd on cooldown exit)."""
+    and re-burst Yahoo into a fresh 429 (thundering herd on cooldown exit).
+
+    The stagger runs INSIDE the guarded loop: if a racing worker re-arms the
+    cooldown (a fresh 429) while this worker sleeps its stagger, the next pass
+    observes the new window and waits it out too — a worker never slips onto Yahoo
+    during a live cooldown. The stagger fires at most once per drained window
+    (so it can't livelock), and only when the worker actually blocked — the common
+    no-cooldown fast path pays no jitter."""
     waited = False
+    staggered = False
     while True:
         with _cooldown_lock:
             remaining = _cooldown_until - time.monotonic()
-        if remaining <= 0:
-            break
-        waited = True
-        time.sleep(min(remaining, 1.0))
-    if waited:
-        from config import settings  # lazy — avoid the cwd-shadow boot crash
-        jitter = float(getattr(settings, "YAHOO_COOLDOWN_JITTER_SECONDS", 2.0))
-        if jitter > 0:
-            time.sleep(random.uniform(0.0, jitter))
+        if remaining > 0:
+            waited = True
+            time.sleep(min(remaining, 1.0))
+            continue
+        # Window is clear. Stagger once iff we actually blocked, then loop back to
+        # honour any cooldown re-armed during that stagger before returning.
+        if waited and not staggered:
+            staggered = True
+            from config import settings  # lazy — avoid the cwd-shadow boot crash
+            jitter = float(getattr(settings, "YAHOO_COOLDOWN_JITTER_SECONDS", 2.0))
+            if jitter > 0:
+                time.sleep(random.uniform(0.0, jitter))
+                continue
+        return
 
 
 def note_rate_limit(seconds: float) -> None:
