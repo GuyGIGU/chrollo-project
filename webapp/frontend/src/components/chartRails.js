@@ -10,8 +10,10 @@ import { RAIL_STYLE } from './chartTheme';
 export const addBoxRails = (chart, data) => {
   const candles = data.candles || [];
   for (const spec of boxRailSpecs(data)) {
+    // spec.endIndex is set only for the inner box (bounded to the coil); the
+    // parent R/S/mid leave it undefined and buildLevelData runs them to the edge.
     chart
       .addSeries(LineSeries, RAIL_STYLE[spec.kind])
-      .setData(buildLevelData(candles, spec.startIndex, spec.value));
+      .setData(buildLevelData(candles, spec.startIndex, spec.value, spec.endIndex));
   }
 };

@@ -46,6 +46,16 @@ test('buildLevelData: repeats value from startIndex to end', () => {
   assert.deepEqual(buildLevelData([], 0, 5), []); // empty candles -> empty
 });
 
+test('buildLevelData: endIndex bounds the tail (inner-box rails stop early)', () => {
+  const candles = makeCandles(6);
+  const out = buildLevelData(candles, 1, 5, 3); // indices 1,2,3 inclusive
+  assert.equal(out.length, 3);
+  assert.deepEqual(out[0], { time: candles[1].time, value: 5 });
+  assert.deepEqual(out.at(-1), { time: candles[3].time, value: 5 }); // stops at endIndex
+  // explicit undefined endIndex behaves like the default (runs to the end)
+  assert.equal(buildLevelData(candles, 1, 5, undefined).length, 5);
+});
+
 test('buildFullLevelData: one point per candle, correct time mapping', () => {
   const candles = makeCandles(4);
   const out = buildFullLevelData(candles, 7);
@@ -174,8 +184,8 @@ test('colorMiniCandles: lps_offset path paints gold', () => {
   assert.equal(out[17].color, CHART_COLORS.goldMuted);
 });
 
-test('colorMiniCandles: date-keyed lps_tests span paints gold; out-of-range skipped', () => {
-  const candles = makeCandles(20); // 2024-01-01 .. (28-day wrap)
+test('colorMiniCandles: lps zones paint the shared chronological gradient (oldest != latest); out-of-range skipped', () => {
+  const candles = makeCandles(20); // 2024-01-01 .. 2024-01-20
   const out = colorMiniCandles({
     candles,
     base_len: 4,
@@ -183,16 +193,22 @@ test('colorMiniCandles: date-keyed lps_tests span paints gold; out-of-range skip
     r_anchor: 0,
     s_anchor: 1,
     lps_len: 0,
+    // The shared colorer sources LPS from buildPhaseRegions, so each test needs a
+    // price box (low/high). Two in-range zones must render distinct gradient tones.
     lps_tests: [
-      { start_date: '2024-01-06', end_date: '2024-01-08' }, // indices 5..7
-      { start_date: '2099-01-01', end_date: '2099-02-01' }, // out of range -> skipped, no crash
+      { start_date: '2024-01-03', end_date: '2024-01-04', low: 10, high: 20 }, // indices 2..3 (older)
+      { start_date: '2024-01-07', end_date: '2024-01-08', low: 10, high: 20 }, // indices 6..7 (latest)
+      { start_date: '2099-01-01', end_date: '2099-02-01', low: 1, high: 2 },   // out of range -> skipped
     ],
   });
-  assert.equal(out[5].color, CHART_COLORS.goldMuted);
-  assert.equal(out[6].color, CHART_COLORS.goldMuted);
-  assert.equal(out[7].color, CHART_COLORS.goldMuted);
-  assert.equal(out[4].color, undefined); // before the span
-  assert.equal(out[8].color, undefined); // after the span
+  const older = out[2].color;
+  const latest = out[7].color;
+  assert.equal(out[3].color, older);   // the whole older span shares one tone
+  assert.equal(out[6].color, latest);  // the whole latest span shares one tone
+  assert.notEqual(older, latest);      // chronological gradient: distinct tones
+  assert.equal(latest, '#f6d86b');     // the most-recent zone is the gradient's LATEST color
+  assert.equal(out[4].color, undefined); // gap between zones stays unpainted
+  assert.equal(out[5].color, undefined);
 });
 
 test('colorMiniCandles: base_len <= 0 returns an uncolored clone', () => {
@@ -265,8 +281,9 @@ test('boxRailSpecs: inner box only when all three inner fields are finite', () =
   const base = { candles: makeCandles(20), base_len: 6, forward_bars: 0, R: 20, S: 10 };
   const withInner = boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 16 });
   assert.equal(withInner.length, 5);
-  assert.deepEqual(withInner[3], { kind: 'inner', startIndex: 16, value: 18 });
-  assert.deepEqual(withInner[4], { kind: 'inner', startIndex: 16, value: 12 });
+  // No inner_end_bar -> inner rails run to the last candle (index 19).
+  assert.deepEqual(withInner[3], { kind: 'inner', startIndex: 16, endIndex: 19, value: 18 });
+  assert.deepEqual(withInner[4], { kind: 'inner', startIndex: 16, endIndex: 19, value: 12 });
   // a null (or missing) inner field suppresses BOTH inner rails
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: null, inner_start_bar: 16 }).length, 3);
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12 }).length, 3);
@@ -277,4 +294,17 @@ test('boxRailSpecs: inner start bar is truncated and clamped into the candle ran
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 3.9 })[3].startIndex, 3);
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 99 })[3].startIndex, 9); // clamp right
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: -4 })[3].startIndex, 0); // clamp left
+});
+
+test('boxRailSpecs: inner_end_bar bounds the inner rails before the reserved edge', () => {
+  const base = { candles: makeCandles(20), base_len: 6, forward_bars: 0, R: 20, S: 10 };
+  // The coil stops at inner_end_bar (the last anchored bar), NOT the chart edge.
+  const bounded = boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 10, inner_end_bar: 14 });
+  assert.equal(bounded[3].endIndex, 14);
+  assert.equal(bounded[4].endIndex, 14);
+  // clamp: end past the last candle -> last index; end before start -> start
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 10, inner_end_bar: 99 })[3].endIndex, 19);
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 10, inner_end_bar: 6 })[3].endIndex, 10);
+  // no inner_end_bar -> backward-compatible draw-to-edge
+  assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 10 })[3].endIndex, 19);
 });

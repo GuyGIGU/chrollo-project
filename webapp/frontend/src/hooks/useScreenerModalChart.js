@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
-import { attachPhaseOverlay, buildPhaseRegions } from '../components/chartPhaseOverlay';
+import { attachPhaseOverlay, colorLpsCandles } from '../components/chartPhaseOverlay';
 import { finiteNumber } from '../components/chartGeometry';
 import { addBoxRails } from '../components/chartRails';
 import { baseChartOptions, CHART_COLORS } from '../components/chartTheme';
@@ -20,16 +20,19 @@ const chartOptions = (width, height) => {
   };
 };
 
-// --- structure candle coloring (modal variant: r/s anchors grey, LPS regions
-// from buildPhaseRegions gold). Lives here because it depends on the DOM-coupled
-// chartPhaseOverlay module; chartGeometry stays pure/Node-testable. ---
+// --- structure candle coloring (modal): r/s anchors grey, LPS zones painted by
+// the shared chronological gradient. Base-limb coloring is modal-specific (its
+// anchor span differs from the mini's); LPS coloring delegates to the shared
+// colorLpsCandles so the card and modal cannot diverge. ---
 const colorStructureCandles = (data, baseEnd) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
 
   const baseStart = Math.max(0, baseEnd - data.base_len + 1);
   colorBase(candles, data, baseStart, baseEnd);
-  colorLps(candles, data, baseEnd);
+  // The SAME LPS colorer the mini card uses — the chronological gold gradient
+  // cannot diverge between card and modal.
+  colorLpsCandles(candles, data, CHART_COLORS.gold);
   return candles;
 };
 
@@ -48,27 +51,6 @@ const colorBase = (candles, data, baseStart, baseEnd) => {
   // before the anchor pair; the base coloring must still cover its left edge.
   for (let index = Math.min(rBar, sBar, rawBaseStart); index <= Math.max(rBar, sBar); index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
-  }
-};
-
-const colorLps = (candles, data, baseEnd) => {
-  let colored = false;
-  const lpsRegions = buildPhaseRegions(data).filter(region => region.key === 'lps');
-  for (const region of lpsRegions) {
-    for (let index = region.startIndex; index <= region.endIndex; index += 1) {
-      if (index >= 0 && index < candles.length) {
-        candles[index].color = region.color || CHART_COLORS.gold;
-        colored = true;
-      }
-    }
-  }
-
-  if (colored) return;
-  if (data.lps_len <= 0 || data.lps_offset === undefined) return;
-  const lpsEnd = baseEnd - data.lps_offset;
-  const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
-  for (let index = lpsStart; index <= lpsEnd; index += 1) {
-    if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.gold;
   }
 };
 

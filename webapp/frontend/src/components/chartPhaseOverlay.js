@@ -314,6 +314,38 @@ export const buildPhaseRegions = (data) => {
   return regions;
 };
 
+// Paint LPS candles from the SAME phase-region read the overlay uses, so every
+// surface (screener mini card + modal) colors LPS zones with the identical
+// chronological gradient (oldest brown -> latest gold) instead of one flat tone.
+// `fallbackColor` is the flat tint used ONLY when no LPS *region* resolves (dense
+// mini cards pass a muted gold, the modal passes full gold): it then falls back to
+// the lps_offset window, preserving the pre-unification behavior. Mutates the
+// passed candle array in place (callers pass a clone).
+export const colorLpsCandles = (candles, data, fallbackColor) => {
+  let colored = false;
+  const lpsRegions = buildPhaseRegions(data).filter((region) => region.key === 'lps');
+  for (const region of lpsRegions) {
+    for (let index = region.startIndex; index <= region.endIndex; index += 1) {
+      if (index >= 0 && index < candles.length) {
+        candles[index].color = region.color || fallbackColor;
+        colored = true;
+      }
+    }
+  }
+  if (colored) return candles;
+
+  // No resolved LPS region (e.g. tests missing price bounds) — flat-paint the
+  // active lps_offset window, the same last-resort both sites used before.
+  if (!(data?.lps_len > 0) || data?.lps_offset === undefined) return candles;
+  const baseEnd = setupEndIndex(data, candles);
+  const lpsEnd = baseEnd - data.lps_offset;
+  const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
+  for (let index = lpsStart; index <= lpsEnd; index += 1) {
+    if (index >= 0 && index < candles.length) candles[index].color = fallbackColor;
+  }
+  return candles;
+};
+
 const tokenColor = (container, token) => {
   const computed = container ? getComputedStyle(container).getPropertyValue(token).trim() : '';
   return computed || TOKEN_FALLBACKS[token] || TOKEN_FALLBACKS['--border-strong'];

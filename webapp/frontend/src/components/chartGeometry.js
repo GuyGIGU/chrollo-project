@@ -7,13 +7,16 @@
 // the EXACT behavior of the site it was lifted from — sites that diverge keep
 // distinct functions rather than a merged one.
 //
-// NOTE: the modal's structure-candle colorer stays in useScreenerModalChart
-// because it is modal-specific coloring that consumes buildPhaseRegions output
-// plus modal-only anchor/lps_offset fallbacks — not because of DOM coupling
-// (buildPhaseRegions itself is pure). Keeping it out keeps this module a pure,
-// Node-testable unit. Colors come from the chartTheme palette (also pure).
+// NOTE: base-limb coloring stays per-site (the mini and modal derive the limb
+// span slightly differently), but LPS coloring is SHARED: both delegate to
+// chartPhaseOverlay's `colorLpsCandles`, so the chronological gold gradient is
+// identical on the card and the modal by construction. chartPhaseOverlay is
+// import-free (no lightweight-charts, no DOM at load), so importing its pure
+// region helpers keeps this module Node-testable. Colors come from the chartTheme
+// palette (also pure).
 
 import { CHART_COLORS } from './chartTheme.js';
+import { colorLpsCandles } from './chartPhaseOverlay.js';
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
 // price 0 on any timeframe with no box. This is the canonical copy used by the
@@ -25,10 +28,12 @@ export const finiteNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
-// A horizontal level line: same value repeated from startIndex to the end. Used
-// by the modal + mini charts (bounded rails anchored at the box start).
-export const buildLevelData = (candles, startIndex, value) =>
-  candles.slice(startIndex).map((candle) => ({ time: candle.time, value }));
+// A horizontal level line: same value repeated from startIndex to endIndex
+// (inclusive). endIndex defaults to the last candle — the parent box rails run to
+// the chart's right edge — but the inner mini-consolidation passes an explicit
+// endIndex so its rails stop at the coil's last structurally-anchored bar.
+export const buildLevelData = (candles, startIndex, value, endIndex = candles.length - 1) =>
+  candles.slice(startIndex, endIndex + 1).map((candle) => ({ time: candle.time, value }));
 
 // Full-width level line (every candle). Used by TimeframeMainChart, which slices
 // the candle array itself before calling this.
@@ -123,17 +128,27 @@ export const boxRailSpecs = (data) => {
   const innerS = finiteNumber(data.inner_S);
   const innerStartBar = finiteNumber(data.inner_start_bar);
   if (innerR != null && innerS != null && innerStartBar != null) {
-    const innerStart = Math.max(0, Math.min(candles.length - 1, Math.trunc(innerStartBar)));
-    specs.push({ kind: 'inner', startIndex: innerStart, value: innerR });
-    specs.push({ kind: 'inner', startIndex: innerStart, value: innerS });
+    const lastIndex = candles.length - 1;
+    const innerStart = Math.max(0, Math.min(lastIndex, Math.trunc(innerStartBar)));
+    // Bound the inner box to its last structurally-anchored bar (inner_end_bar) so
+    // the mini-consolidation rails hug the coil and stop before the reserved
+    // trigger/breakout bars — unlike the parent box, which runs to the edge. Older
+    // payloads / the archive omit inner_end_bar → fall back to the right edge.
+    const innerEndBar = finiteNumber(data.inner_end_bar);
+    const innerEnd = innerEndBar != null
+      ? Math.max(innerStart, Math.min(lastIndex, Math.trunc(innerEndBar)))
+      : lastIndex;
+    specs.push({ kind: 'inner', startIndex: innerStart, endIndex: innerEnd, value: innerR });
+    specs.push({ kind: 'inner', startIndex: innerStart, endIndex: innerEnd, value: innerS });
   }
   return specs;
 };
 
 // --- candle coloring ---
 
-// ScreenerMiniChart coloring: base-limb swing grey, LPS test spans + the active
-// LPS offset gold. Operates on a deep clone so the source payload is untouched.
+// ScreenerMiniChart coloring: base-limb swing grey, LPS zones painted by the
+// shared chronological gold gradient (via colorLpsCandles). Operates on a deep
+// clone so the source payload is untouched.
 export const colorMiniCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
@@ -149,22 +164,11 @@ export const colorMiniCandles = (data) => {
     if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
   }
 
-  for (const test of data.lps_tests || []) {
-    const start = indexOnOrAfter(candles, test.start_date);
-    const end = indexOnOrAfter(candles, test.end_date);
-    if (start == null || end == null) continue;
-    for (let index = start; index <= end; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.goldMuted;
-    }
-  }
-
-  if (data.lps_len > 0 && data.lps_offset !== undefined) {
-    const lpsEnd = baseEnd - data.lps_offset;
-    const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
-    for (let index = lpsStart; index <= lpsEnd; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.goldMuted;
-    }
-  }
+  // LPS coloring is delegated to the SHARED phase-region colorer so the mini card
+  // and the modal paint the IDENTICAL chronological gold gradient (oldest brown ->
+  // latest gold). goldMuted is the dense-card flat fallback, applied only when no
+  // LPS region resolves (matching the pre-unification lps_offset last resort).
+  colorLpsCandles(candles, data, CHART_COLORS.goldMuted);
 
   return candles;
 };

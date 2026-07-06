@@ -133,6 +133,10 @@ def _tf_candles(df, tf, cap):
 
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
+    # Lazy: keeps output/ off core.pipeline.downloads at module load. Used to
+    # reproduce the DAILY_STRUCTURE_PERIOD eval-frame length so inner-box bar
+    # indices (which are positional in THAT frame) map onto the candle window.
+    from core.pipeline.downloads import _trim_to_period
     chart_data = {}
     chart_candidates = results_df[results_df['Tier'].isin(settings.DASHBOARD_CHART_TIERS)]
     sector_etf_cache = _load_sector_etf_cache()
@@ -177,7 +181,17 @@ def _extract_chart_data(data, results_df, tickers):
             # rails to the bars the box is born from, like the daily chart.
             weekly_box = chart_box(df, "weekly")
             monthly_box = chart_box(df, "monthly")
-            window_start_bar = len(df) - show_days
+            # Inner-box bar indices (_inner_start_bar, _inner_climax_bar, ...) are
+            # positional in the 2y DAILY_STRUCTURE_PERIOD eval frame the daily
+            # structure read runs on (evaluation._prepare_eval_frame trims full_df
+            # to that period), NOT this up-to-5y df. The visible candles are the
+            # trailing show_days bars of BOTH frames, so map an eval-frame bar to a
+            # candle index by subtracting the EVAL frame's own left offset. Using
+            # len(df) here shifted the inner box ~(5y-2y) bars too far left (it
+            # clamped to the chart's left edge — the "inner box past its boundaries"
+            # bug); base_len-relative reads like the parent box were immune.
+            eval_len = len(_trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD))
+            window_start_bar = eval_len - show_days
             def _local_bar(value):
                 try:
                     return (
@@ -189,6 +203,15 @@ def _extract_chart_data(data, results_df, tickers):
                     return None
 
             inner_start_local = _local_bar(row.get('_inner_start_bar'))
+            # Draw the inner mini-consolidation's RIGHT edge at its last
+            # structurally-anchored bar (eval end minus the reserved trigger/edge
+            # bars) so the rails hug the coil; the parent box still runs to the last
+            # bar. Display-only — no measurement / score / tier change. None when
+            # there is no inner box (the frontend then draws to the chart edge).
+            inner_end_local = (
+                _local_bar(eval_len - 1 - settings.STRUCTURE_EDGE_SKIP_BARS)
+                if inner_start_local is not None else None
+            )
             
             # Sub-scores power the "why ranked" tag chips on the frontend
             # card. Emit the raw point values; the JS helper compares each
@@ -229,6 +252,7 @@ def _extract_chart_data(data, results_df, tickers):
                 'inner_S': row.get('_inner_S'),
                 'inner_box_width': row.get('_inner_box_width'),
                 'inner_start_bar': inner_start_local,
+                'inner_end_bar': inner_end_local,
                 'inner_source': row.get('_inner_source'),
                 'inner_search_start_bar': _local_bar(row.get('_inner_search_start_bar')),
                 'inner_climax_bar': _local_bar(row.get('_inner_climax_bar')),
