@@ -45,9 +45,32 @@ function Fail([string]$message) {
     exit 1
 }
 
+# Resolve external tools to absolute paths ONCE, up front, then invoke via those paths. Under UAC
+# elevation a bare command name is resolved against the (operator-influenced) PATH, so a planted
+# nssm/python/npm earlier on PATH would run as Administrator. Pin the absolute path and refuse one
+# that resolves inside the operator-writable repo. (PowerShell already excludes the CWD from command
+# lookup, so this closes the remaining PATH-order vector under elevation.)
+function Resolve-Tool([string]$name) {
+    $cmd = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $cmd) { Fail "Required tool '$name' not found on PATH. Nothing was changed." }
+    if ($cmd.Source.ToLowerInvariant().StartsWith($repo.ToLowerInvariant())) {
+        Fail "Refusing to run '$name' resolved to '$($cmd.Source)' - inside the repo is untrusted under elevation."
+    }
+    return $cmd.Source
+}
+$nssm   = Resolve-Tool 'nssm'
+$python = Resolve-Tool 'python'
+$npm    = Resolve-Tool 'npm'
+
 function Restart-ServiceAndVerify {
     Write-Host "`nRestarting ChrolloDashboard service..." -ForegroundColor Cyan
-    nssm restart ChrolloDashboard
+    # Out-Host so nssm's own stdout is displayed, not folded into this function's
+    # return value (callers capture the $true/$false below).
+    & $nssm restart ChrolloDashboard | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "nssm restart FAILED (exit $LASTEXITCODE) - the service may still be running OLD code." -ForegroundColor Red
+        return $false
+    }
 
     Write-Host "Waiting for the service to answer /health..." -ForegroundColor Cyan
     for ($i = 0; $i -lt 20; $i++) {
@@ -66,6 +89,21 @@ function Restart-ServiceAndVerify {
     return $false
 }
 
+# On a clean run, don't force a keypress — a finished deploy that sits waiting at
+# "Press Enter to close" in the elevated window looks like a hang. Auto-close on
+# success; keep the window open only when /health did NOT answer, so a real
+# problem stays visible. (Hard failures still stop at Fail's own prompt.)
+function Close-OnResult([bool]$healthOk) {
+    if ($healthOk) {
+        Write-Host "`nDeploy succeeded. This window closes automatically in 5s..." -ForegroundColor Green
+        Start-Sleep -Seconds 5
+        exit 0
+    }
+    Write-Host "`nDeploy finished, but the service never answered /health. Window kept open so you can read the output above and check output\chrollo-service-error.log." -ForegroundColor Yellow
+    Read-Host "Press Enter to close"
+    exit 1
+}
+
 # --- rollback: swap the previous frontend bundle back in ------------------------
 if ($Rollback) {
     if (-not (Test-Path $distPrevious)) {
@@ -75,22 +113,21 @@ if ($Rollback) {
     if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
     # Copy (not move) so the backup survives repeated rollbacks.
     Copy-Item -Recurse $distPrevious $dist
-    [void](Restart-ServiceAndVerify)
+    $healthOk = Restart-ServiceAndVerify
     Write-Host "`nRollback done." -ForegroundColor Green
-    Read-Host "Press Enter to close"
-    exit
+    Close-OnResult $healthOk
 }
 
 # --- 1. backend preflight -------------------------------------------------------
 Write-Host "`n[1/4] Backend preflight (compile + boot-import smoke)..." -ForegroundColor Cyan
-& python -m compileall -q core webapp\backend
+& $python -m compileall -q core webapp\backend
 if ($LASTEXITCODE -ne 0) {
     Fail "Backend compile FAILED (exit $LASTEXITCODE). Service NOT restarted."
 }
 # Import main exactly the way the service boots (cwd=webapp\backend). Importing
 # does NOT run the lifespan, so nothing starts and nothing touches the broker.
 Push-Location (Join-Path $repo 'webapp\backend')
-& python -c "import main; n = len(main.app.routes); assert n > 70, 'only %d routes registered' % n"
+& $python -c "import main; n = len(main.app.routes); assert n > 70, 'only %d routes registered' % n"
 $smokeExit = $LASTEXITCODE
 Pop-Location
 if ($smokeExit -ne 0) {
@@ -109,7 +146,7 @@ if (Test-Path $dist) {
 
 # --- 3. build the frontend ------------------------------------------------------
 Write-Host "`n[3/4] Building frontend (npm run build)..." -ForegroundColor Cyan
-& npm --prefix "$repo\webapp\frontend" run build
+& $npm --prefix "$repo\webapp\frontend" run build
 if ($LASTEXITCODE -ne 0) {
     # vite empties dist\ before it fails - put the last good bundle back.
     if (Test-Path $distPrevious) {
@@ -122,7 +159,5 @@ if ($LASTEXITCODE -ne 0) {
 
 # --- 4. restart the service and verify ------------------------------------------
 Write-Host "`n[4/4] Restart + health check..." -ForegroundColor Cyan
-[void](Restart-ServiceAndVerify)
-
-Write-Host "`nDone." -ForegroundColor Green
-Read-Host "Press Enter to close"
+$healthOk = Restart-ServiceAndVerify
+Close-OnResult $healthOk
