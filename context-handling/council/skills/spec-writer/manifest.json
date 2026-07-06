@@ -1,0 +1,13 @@
+{
+  "name": "spec-writer",
+  "version": "0.1.0",
+  "description": "Generate structured, adaptive-complexity software specs (Job Stories, Gherkin ACs, three-tier boundaries). Stack-agnostic.",
+  "references": [
+    "anti-patterns.md",
+    "acceptance-criteria-guide.md",
+    "feature-spec.md",
+    "product-spec.md",
+    "small-change.md",
+    "boundary-examples.md"
+  ]
+}

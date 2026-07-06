@@ -1,0 +1,8 @@
+{
+  "name": "test-architect",
+  "version": "0.1.0",
+  "description": "Map testable surfaces, audit tests for quality (Carmack x Beck), and write shortcut-proof test specs. Audit / specify / fix modes.",
+  "references": [
+    "quality-testing.md"
+  ]
+}

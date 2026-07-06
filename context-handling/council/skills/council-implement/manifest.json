@@ -1,0 +1,13 @@
+{
+  "name": "council-implement",
+  "version": "0.1.0",
+  "description": "Execute an Ultra Council plan task by task, loading the relevant expert's reference doc per task and verifying against the project's gates between tasks.",
+  "references": [
+    "security.md",
+    "refactoring.md",
+    "quality-backend.md",
+    "quality-frontend.md",
+    "quality-postgres.md",
+    "quality-llm.md"
+  ]
+}

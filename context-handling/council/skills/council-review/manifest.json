@@ -1,0 +1,19 @@
+{
+  "name": "council-review",
+  "version": "0.1.0",
+  "description": "Multi-expert Carmack Council code review, running on the context-core pipeline.",
+  "requires": ["context-core"],
+  "references": [
+    "context-engineering.md",
+    "security.md",
+    "refactoring.md",
+    "quality-frontend.md",
+    "quality-backend.md",
+    "quality-postgres.md",
+    "quality-performance.md",
+    "quality-llm.md",
+    "quality-ui.md",
+    "quality-ux.md",
+    "quality-testing.md"
+  ]
+}

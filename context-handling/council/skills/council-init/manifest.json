@@ -1,0 +1,9 @@
+{
+  "name": "council-init",
+  "version": "0.1.0",
+  "description": "Tailor the Council to a project: detect stack, select/recast the expert roster, detect gates, write .council/council.config.md.",
+  "references": [
+    "context-engineering.md",
+    "roster/expert-catalog.md"
+  ]
+}
