@@ -1,14 +1,3 @@
 # Build artifacts
 dist/
 .build/
-
-# Fetched domain reference docs (bring your own / fetch on demand)
-references/security.md
-references/refactoring.md
-references/quality-frontend.md
-references/quality-backend.md
-references/quality-postgres.md
-references/quality-testing.md
-references/quality-llm.md
-references/quality-ui.md
-references/quality-ux.md
