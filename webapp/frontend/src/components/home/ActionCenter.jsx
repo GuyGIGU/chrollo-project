@@ -116,7 +116,7 @@ export default function ActionCenter({ screenerData, trades, riskFor }) {
             <div className="ac-group">
               <span className="ac-glabel" style={{ color: 'var(--warning)' }}>◷ Near trigger</span>
               {near.map(({ t, pct }) => (
-                <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: 'rgba(240,190,60,0.4)', color: 'var(--warning)' }}>
+                <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: 'rgba(var(--warning-rgb),0.4)', color: 'var(--warning)' }}>
                   {t}<span className="ac-chip-sub">{(pct * 100).toFixed(1)}% to trigger</span>
                 </button>
               ))}

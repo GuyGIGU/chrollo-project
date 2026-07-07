@@ -182,7 +182,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
             <BrokerMetric match={brokerMatch} />
           </section>
 
-          <section style={panelStyle}>
+          <section className="instrument-tile" style={panelStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Plan</div>
@@ -251,7 +251,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
             </div>
           </section>
 
-          <section style={panelStyle}>
+          <section className="instrument-tile" style={panelStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Targets</div>
@@ -344,7 +344,7 @@ function Field({ label, onChange, tone, value }) {
         value={value}
         onChange={onChange}
         inputMode="decimal"
-        style={{ ...inputStyle, borderColor: tone === 'danger' ? 'rgba(242, 103, 112, 0.38)' : 'var(--border-color)' }}
+        style={{ ...inputStyle, borderColor: tone === 'danger' ? 'rgba(var(--danger-rgb), 0.38)' : 'var(--border-color)' }}
       />
     </div>
   );

@@ -11,7 +11,7 @@ export default function HomeSetupTile({ ticker, data, onClick }) {
   if (!data) return null;
   return (
     <div
-      className="home-tile"
+      className="home-tile instrument-lockon"
       role="button"
       tabIndex={0}
       aria-label={`Open ${ticker} — ${data.setup}, tier ${data.tier}, score ${scoreLabel(data.score)}`}

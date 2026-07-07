@@ -195,7 +195,7 @@ const ScreenerGrid = () => {
           )}
           {status === 'ready' && filters.paginatedTickers.length > 0 && (
             <>
-              <div style={gridStyle}>
+              <div className="screener-grid" style={gridStyle}>
                 {filters.paginatedTickers.map(ticker => (
                   <ScreenerCard
                     key={ticker}
@@ -266,7 +266,7 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, pa
         <EmptyState message={`No ${dd.etf} member stocks set up in today's US-Stocks scan.`} />
       )}
       {status === 'ready' && (
-        <div style={gridStyle}>
+        <div className="screener-grid" style={gridStyle}>
           {members.map(t => (
             <ScreenerCard
               key={t}
@@ -319,7 +319,7 @@ function ScanErrorBanner({ message, onRetry }) {
       style={{
         alignItems: 'center',
         background: 'var(--danger-bg)',
-        border: '1px solid rgba(242,103,112,0.35)',
+        border: '1px solid rgba(var(--danger-rgb),0.35)',
         borderRadius: 'var(--radius-sm)',
         color: 'var(--text-main)',
         display: 'flex',
@@ -337,10 +337,10 @@ function ScanErrorBanner({ message, onRetry }) {
 }
 
 const retryButtonStyle = {
-  background: 'var(--accent-blue)',
+  background: 'var(--accent-active)',
   border: 'none',
   borderRadius: 'var(--radius-sm)',
-  color: '#fff',
+  color: 'var(--myth-ink)',
   cursor: 'pointer',
   fontFamily: 'inherit',
   fontSize: '12px',

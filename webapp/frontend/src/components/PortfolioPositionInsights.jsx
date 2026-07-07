@@ -1,14 +1,7 @@
 import React from 'react';
 import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } from './portfolioFormat';
 import { explainTip } from './tooltipText';
-
-const cardStyle = {
-  background: 'rgba(255,255,255,0.025)',
-  border: '1px solid var(--border-color)',
-  borderRadius: 8,
-  padding: '10px 12px',
-  minHeight: 76,
-};
+import MetricTile from './ui/MetricTile';
 
 const numberValue = (value) => {
   const numeric = Number(value);
@@ -138,20 +131,6 @@ const buildInsights = (position, positions, summary) => {
   ];
 };
 
-const InsightCard = ({ insight }) => (
-  <div style={cardStyle} title={insight.title || insight.detail}>
-    <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 7 }}>
-      {insight.label}
-    </div>
-    <div style={{ color: insight.tone || 'var(--text-main)', fontSize: 15, fontWeight: 850 }}>
-      {insight.value}
-    </div>
-    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>
-      {insight.detail}
-    </div>
-  </div>
-);
-
 const PortfolioPositionInsights = ({ position, positions, summary }) => {
   if (!position?.symbol) return null;
   const insights = buildInsights(position, positions, summary);
@@ -162,7 +141,17 @@ const PortfolioPositionInsights = ({ position, positions, summary }) => {
         Position Detail
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 10 }}>
-        {insights.map((insight) => <InsightCard key={insight.label} insight={insight} />)}
+        {insights.map((insight) => (
+          <MetricTile
+            key={insight.label}
+            size="sm"
+            label={insight.label}
+            value={insight.value}
+            sub={insight.detail}
+            color={insight.tone}
+            title={insight.title || insight.detail}
+          />
+        ))}
       </div>
     </section>
   );

@@ -29,7 +29,7 @@ export function ZoneMessage({ tone = 'muted', children }) {
 export default function HomeZone({ title, icon, meta, link, status = 'ready', error, empty, skeletonRows, children }) {
   return (
     <ErrorBoundary>
-      <section className="home-zone">
+      <section className="home-zone instrument-tile">
         <div className="home-zone-head">
           <div className="home-zone-headl">
             {icon ? <span className="home-zone-icon">{icon}</span> : null}

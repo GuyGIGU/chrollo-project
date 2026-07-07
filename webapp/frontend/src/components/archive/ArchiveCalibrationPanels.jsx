@@ -18,7 +18,7 @@ function CorrelationPanel({ calibration }) {
   });
 
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-tile">
       <div style={panelTitleStyle}>Sub-Score vs Forward Returns (Correlation)</div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '10px' }}>
         n = {calibration.total_with_returns} (20d) - {calibration.total_with_60d_returns} (60d) -
@@ -42,7 +42,7 @@ function CorrelationPanel({ calibration }) {
 
 function BreakdownPanel({ calibration }) {
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-tile">
       <div style={{ ...panelTitleStyle, marginBottom: '12px' }}>Setup Type Performance</div>
       {calibration.setup_type_breakdown && Object.entries(calibration.setup_type_breakdown).map(([type, data]) => (
         <BreakdownRow
@@ -91,9 +91,7 @@ function CorrelationBar({ value }) {
     <div style={{ alignItems: 'center', display: 'flex', flex: 1, gap: '6px' }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '3px', flex: 1, height: '12px', overflow: 'hidden' }}>
         <div style={{
-          background: positive
-            ? 'linear-gradient(90deg, var(--accent-blue), var(--success))'
-            : 'linear-gradient(90deg, var(--danger), var(--accent-pink))',
+          background: positive ? 'var(--success)' : 'var(--danger)',
           borderRadius: '3px',
           height: '100%',
           transition: 'width 0.5s ease',

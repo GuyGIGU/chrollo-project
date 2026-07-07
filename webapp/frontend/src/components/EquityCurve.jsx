@@ -31,11 +31,11 @@ export default function EquityCurve() {
   }));
 
   const lastCum = chartData[chartData.length - 1]?.cum ?? 0;
-  const lineColor = lastCum >= 0 ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
-  const fillColor = lastCum >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,79,88,0.12)';
+  const lineColor = lastCum >= 0 ? 'var(--success, #3DD37A)' : 'var(--danger, #DE6E78)';
+  const fillColor = lastCum >= 0 ? 'rgba(61,211,122,0.12)' : 'rgba(222,110,120,0.12)';
 
   return (
-    <div style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 120 }}>
+    <div className="instrument-well" style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 120 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={120}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
           <defs>

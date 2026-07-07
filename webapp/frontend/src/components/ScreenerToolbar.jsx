@@ -244,26 +244,31 @@ const tierLabel = (tier, watchlistSize) => {
 };
 
 const scanButtonStyle = (isScanning) => ({
-  background: isScanning ? 'var(--bg-hover)' : 'var(--accent-blue)',
-  color: isScanning ? 'var(--text-muted)' : '#fff',
+  background: isScanning ? 'var(--bg-hover)' : 'var(--accent-active)',
+  color: isScanning ? 'var(--text-muted)' : 'var(--myth-ink)',
   border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-sm)',
   cursor: isScanning ? 'not-allowed' : 'pointer',
-  fontWeight: '600', transition: 'all 0.2s', fontFamily: 'inherit',
+  fontWeight: '700', transition: 'all 0.2s', fontFamily: 'inherit',
 });
 
-const downloadButtonStyle = (disabled, status, severity) => ({
-  background: disabled ? 'var(--bg-hover)' : downloadColor(status, severity),
-  color: disabled ? 'var(--text-muted)' : '#fff',
-  border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
-  cursor: disabled ? 'not-allowed' : 'pointer',
-  fontWeight: '600', transition: 'all 0.2s', fontFamily: 'inherit',
-  whiteSpace: 'nowrap',
-});
+const downloadButtonStyle = (disabled, status, severity) => {
+  const bg = downloadColor(status, severity);
+  return {
+    background: disabled ? 'var(--bg-hover)' : bg,
+    // Dark ink on the mythril (healthy) fill; white stays on the pink/red
+    // repair + blocked states where it reads correctly.
+    color: disabled ? 'var(--text-muted)' : bg === 'var(--accent-active)' ? 'var(--myth-ink)' : '#fff',
+    border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontWeight: bg === 'var(--accent-active)' ? '700' : '600', transition: 'all 0.2s', fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  };
+};
 
 const downloadColor = (status, severity) => {
   if (severity === 'repair' || status === 'needs_repair') return 'var(--accent-pink, #bb86fc)';
   if (severity === 'blocked' || status === 'stale_session') return 'var(--danger)';
-  return 'var(--accent-blue)';
+  return 'var(--accent-active)';
 };
 
 const actionClusterStyle = {
@@ -320,10 +325,10 @@ const panelStyle = {
 const filterLabelStyle = { fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px' };
 const tierButtonStyle = (active) => ({
   padding: '5px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid',
-  borderColor: active ? 'var(--accent-blue)' : 'var(--border-color)',
-  background: active ? 'var(--accent-blue)' : 'transparent',
-  color: active ? '#fff' : 'var(--text-main)',
-  cursor: 'pointer', fontWeight: active ? '600' : '500',
+  borderColor: active ? 'var(--accent-active)' : 'var(--border-color)',
+  background: active ? 'var(--accent-active)' : 'transparent',
+  color: active ? 'var(--myth-ink)' : 'var(--text-main)',
+  cursor: 'pointer', fontWeight: active ? '700' : '500',
   fontSize: '12px', fontFamily: 'inherit',
 });
 const searchStyle = {
@@ -349,19 +354,19 @@ const resetStyle = {
 // selection) only when hidden filters are applied, so a collapsed panel still
 // announces "filters active".
 const moreButtonStyle = (active) => ({
-  fontSize: '11px', fontWeight: 600,
-  color: active ? '#fff' : 'var(--text-muted)',
-  background: active ? 'var(--accent-blue)' : 'transparent',
-  border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+  fontSize: '11px', fontWeight: active ? 700 : 600,
+  color: active ? 'var(--myth-ink)' : 'var(--text-muted)',
+  background: active ? 'var(--accent-active)' : 'transparent',
+  border: `1px solid ${active ? 'var(--accent-active)' : 'var(--border-color)'}`,
   borderRadius: 'var(--radius-lg)', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
 });
 const tagButtonStyle = (active) => ({
   fontSize: '10px', fontWeight: 700,
   fontFamily: "'JetBrains Mono', monospace",
   padding: '3px 9px', borderRadius: 'var(--radius-lg)', cursor: 'pointer',
-  border: `1px solid ${active ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-  background: active ? 'var(--accent-blue)' : 'transparent',
-  color: active ? '#fff' : 'var(--text-main)',
+  border: `1px solid ${active ? 'var(--accent-active)' : 'var(--border-color)'}`,
+  background: active ? 'var(--accent-active)' : 'transparent',
+  color: active ? 'var(--myth-ink)' : 'var(--text-main)',
 });
 
 export default ScreenerToolbar;

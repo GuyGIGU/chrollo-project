@@ -1,33 +1,7 @@
 import React from 'react';
 import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } from './portfolioFormat';
 import { explainTip } from './tooltipText';
-
-const tileBase = {
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)), var(--bg-panel)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '8px',
-  padding: '14px 16px',
-  minHeight: 82,
-};
-
-const MetricTile = ({ label, value, subValue, color, tone = 'default', title }) => {
-  const accent = tone === 'risk' ? 'var(--warning)' : tone === 'good' ? 'var(--success)' : 'var(--accent-blue)';
-  return (
-    <div style={{ ...tileBase, borderTop: `2px solid ${accent}`, cursor: title ? 'help' : 'default' }} title={title}>
-      <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
-        {label}
-      </div>
-      <div style={{ color: color || 'var(--text-main)', fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}>
-        {value}
-      </div>
-      {subValue && (
-        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>
-          {subValue}
-        </div>
-      )}
-    </div>
-  );
-};
+import MetricTile from './ui/MetricTile';
 
 const exposureMetrics = (summary, positions) => {
   const netLiq = Number(summaryValue(summary, 'NetLiquidation')) || 0;
@@ -63,9 +37,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
   return (
     <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 18 }}>
       <MetricTile
+        size="lg"
         label="Net Liquidation"
         value={fmtMoney(summaryValue(summary, 'NetLiquidation'), netCurrency)}
-        subValue={`Cash ${fmtMoney(summaryValue(summary, 'TotalCashValue'), summaryCurrency(summary, 'TotalCashValue'))}`}
+        sub={`Cash ${fmtMoney(summaryValue(summary, 'TotalCashValue'), summaryCurrency(summary, 'TotalCashValue'))}`}
         tone="good"
         title={explainTip({
           what: 'Broker-reported account value with assets marked to current market prices.',
@@ -74,9 +49,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
         })}
       />
       <MetricTile
+        size="lg"
         label="Buying Power"
         value={fmtMoney(summaryValue(summary, 'BuyingPower'), summaryCurrency(summary, 'BuyingPower'))}
-        subValue={`Available ${fmtMoney(summaryValue(summary, 'AvailableFunds'), summaryCurrency(summary, 'AvailableFunds'))}`}
+        sub={`Available ${fmtMoney(summaryValue(summary, 'AvailableFunds'), summaryCurrency(summary, 'AvailableFunds'))}`}
         title={explainTip({
           what: 'Broker-reported capacity available for new trades, including account equity and applicable margin.',
           why: 'It shows what the broker may allow, not what the trading plan should use.',
@@ -84,9 +60,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
         })}
       />
       <MetricTile
+        size="lg"
         label="Unrealized P&L"
         value={fmtMoney(summaryValue(summary, 'UnrealizedPnL'), summaryCurrency(summary, 'UnrealizedPnL'))}
-        subValue={`Realized ${fmtMoney(summaryValue(summary, 'RealizedPnL'), summaryCurrency(summary, 'RealizedPnL'))}`}
+        sub={`Realized ${fmtMoney(summaryValue(summary, 'RealizedPnL'), summaryCurrency(summary, 'RealizedPnL'))}`}
         color={pnlColor(summaryValue(summary, 'UnrealizedPnL'))}
         title={explainTip({
           what: 'Profit or loss on open positions, with realized P&L shown underneath.',
@@ -95,9 +72,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
         })}
       />
       <MetricTile
+        size="lg"
         label="Margin Cushion"
         value={fmtPct(metrics.cushionPct)}
-        subValue={`Excess ${fmtMoney(summaryValue(summary, 'ExcessLiquidity'), summaryCurrency(summary, 'ExcessLiquidity'))}`}
+        sub={`Excess ${fmtMoney(summaryValue(summary, 'ExcessLiquidity'), summaryCurrency(summary, 'ExcessLiquidity'))}`}
         tone={metrics.cushionPct != null && metrics.cushionPct < 25 ? 'risk' : 'good'}
         title={explainTip({
           what: 'IBKR excess liquidity shown as a percent cushion against net liquidation value.',
@@ -106,9 +84,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
         })}
       />
       <MetricTile
+        size="lg"
         label="Exposure"
         value={fmtPct(metrics.grossPct)}
-        subValue={`Long ${fmtMoney(metrics.longValue, netCurrency)} / Short ${fmtMoney(metrics.shortValue, netCurrency)}`}
+        sub={`Long ${fmtMoney(metrics.longValue, netCurrency)} / Short ${fmtMoney(metrics.shortValue, netCurrency)}`}
         title={explainTip({
           what: 'Gross position value as a percent of net liquidation, split into long and short exposure.',
           why: 'It shows how much market exposure the portfolio carries relative to account size.',
@@ -116,9 +95,10 @@ const AccountSummaryCard = ({ summary, positions }) => {
         })}
       />
       <MetricTile
+        size="lg"
         label="Margin Use"
         value={fmtPct(metrics.marginUsePct)}
-        subValue={`Leverage ${metrics.leverage == null ? '-' : fmtNum(metrics.leverage, 2)}`}
+        sub={`Leverage ${metrics.leverage == null ? '-' : fmtNum(metrics.leverage, 2)}`}
         tone={metrics.marginUsePct != null && metrics.marginUsePct > 70 ? 'risk' : 'default'}
         title={explainTip({
           what: 'Maintenance margin divided by maintenance margin plus excess liquidity.',

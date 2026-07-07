@@ -80,10 +80,10 @@ function FillHeader({ onSave, trade, updateStopLoss }) {
       <button
         onClick={onSave}
         style={{
-          background: 'var(--accent-blue)',
+          background: 'var(--accent-active)',
           border: 'none',
           borderRadius: 4,
-          color: '#fff',
+          color: 'var(--myth-ink)',
           cursor: 'pointer',
           fontSize: 10,
           fontWeight: 600,

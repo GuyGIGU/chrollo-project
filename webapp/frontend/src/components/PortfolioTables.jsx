@@ -15,6 +15,7 @@ const tdStyle = {
   color: 'var(--text-main)',
   borderBottom: '1px solid rgba(255,255,255,0.045)',
   whiteSpace: 'nowrap',
+  fontVariantNumeric: 'tabular-nums',
 };
 
 const pillStyle = (color, background) => ({
@@ -43,8 +44,8 @@ const planToneColor = (tone) => {
 
 const planToneBackground = (plan) => {
   const tone = plan?.derived?.stopRiskTone;
-  if (tone === 'breached' || tone === 'danger') return 'rgba(242, 103, 112, 0.065)';
-  if (tone === 'warning') return 'rgba(240, 190, 60, 0.055)';
+  if (tone === 'breached' || tone === 'danger') return 'rgba(var(--danger-rgb), 0.065)';
+  if (tone === 'warning') return 'rgba(var(--warning-rgb), 0.055)';
   return null;
 };
 
@@ -53,7 +54,7 @@ const Section = ({ title, count, children }) => (
     <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', margin: '0 0 9px' }}>
       {title} ({count})
     </h3>
-    <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--bg-panel)' }}>
+    <div className="instrument-well" style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--bg-panel)' }}>
       {children}
     </div>
   </section>

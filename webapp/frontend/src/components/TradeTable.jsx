@@ -51,7 +51,7 @@ export default function TradeTable({
 
   return (
     <div className="trade-table-wrap">
-      <div className="trade-table-scroll">
+      <div className="trade-table-scroll instrument-well">
         <table className="trade-table">
           <colgroup>
             {COLUMNS.map((width, index) => <col key={index} style={{ width }} />)}

@@ -19,7 +19,7 @@ export default function ArchiveEquityCurve({ data }) {
   // variables don't resolve.
   const lineColor = chart.finalCum >= 0 ? CHART_COLORS.success : '#c76b73';
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-well">
       <div style={{ alignItems: 'baseline', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600 }}>Equity Curve (R)</div>
         <div style={{ color: lineColor, fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700 }}>

@@ -6,7 +6,7 @@ export default function ArchiveReweightingStrip({ basis, data }) {
   const totalSuggested = data.reduce((sum, row) => sum + (Number(row.suggested) || 0), 0);
 
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-tile">
       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Suggested Re-weighting</div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '12px' }}>
         Basis: {basisLabel(basis)}, renormalized to preserve total cap ({fixed(totalCurrent, 0)} pts).

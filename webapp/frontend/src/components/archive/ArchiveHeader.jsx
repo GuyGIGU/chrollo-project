@@ -22,10 +22,10 @@ export default function ArchiveHeader({
             disabled={updating}
             onClick={onUpdateReturns}
             style={{
-              background: updating ? 'var(--bg-hover)' : 'var(--accent-blue)',
+              background: updating ? 'var(--bg-hover)' : 'var(--accent-active)',
               border: 'none',
               borderRadius: '6px',
-              color: updating ? 'var(--text-muted)' : '#fff',
+              color: updating ? 'var(--text-muted)' : 'var(--myth-ink)',
               cursor: updating ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
               fontSize: '12px',
@@ -51,7 +51,7 @@ function ArchiveHealthStrip({ health }) {
   const checks = health.checks || [];
 
   return (
-    <div style={{
+    <div className="instrument-tile" style={{
       background: 'var(--bg-panel)',
       border: `1px solid ${tone.border}`,
       borderRadius: '6px',
@@ -150,9 +150,9 @@ const healthStatusLabel = (status) => ({
 }[status] || 'Unknown');
 
 const statusTone = (status) => ({
-  ok: { border: 'rgba(61, 211, 122, 0.35)', color: 'var(--success)' },
-  watch: { border: 'rgba(240, 190, 60, 0.35)', color: 'var(--warning)' },
-  critical: { border: 'rgba(242, 103, 112, 0.40)', color: 'var(--danger)' },
+  ok: { border: 'rgba(var(--success-rgb), 0.35)', color: 'var(--success)' },
+  watch: { border: 'rgba(var(--warning-rgb), 0.35)', color: 'var(--warning)' },
+  critical: { border: 'rgba(var(--danger-rgb), 0.40)', color: 'var(--danger)' },
 }[status] || { border: 'var(--border-color)', color: 'var(--text-muted)' });
 
 function HeaderButton({ children, onClick, title }) {
@@ -181,8 +181,8 @@ function HeaderButton({ children, onClick, title }) {
 function UpdateMessage({ message }) {
   return (
     <div style={{
-      background: message.ok ? 'rgba(61,211,122,0.10)' : 'rgba(242,103,112,0.10)',
-      border: `1px solid ${message.ok ? 'rgba(61,211,122,0.35)' : 'rgba(242,103,112,0.35)'}`,
+      background: message.ok ? 'rgba(var(--success-rgb),0.10)' : 'rgba(var(--danger-rgb),0.10)',
+      border: `1px solid ${message.ok ? 'rgba(var(--success-rgb),0.35)' : 'rgba(var(--danger-rgb),0.35)'}`,
       borderRadius: '6px',
       color: message.ok ? 'var(--success)' : 'var(--danger)',
       fontFamily: 'inherit',

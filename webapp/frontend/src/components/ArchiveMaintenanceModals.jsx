@@ -1,15 +1,11 @@
-import React from 'react';
+import Modal from './ui/Modal';
 
 export const ScanHistoryModal = ({ open, runs, loading, onClose }) => {
   if (!open) return null;
 
   return (
-    <div
-      onClick={onClose}
-      style={backdropStyle}
-    >
-      <div onClick={e => e.stopPropagation()} className="glass-panel" style={historyPanelStyle}>
-        <div style={headerStyle}>
+    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={historyPanelStyle} contentProps={{ 'aria-label': 'Scan History' }}>
+      <div style={headerStyle}>
           <div style={{ fontWeight: 700 }}>🕒 Scan History</div>
           <button onClick={onClose} style={closeButtonStyle}>✕</button>
         </div>
@@ -41,8 +37,7 @@ export const ScanHistoryModal = ({ open, runs, loading, onClose }) => {
         ) : (
           <div style={mutedTextStyle}>No scan runs recorded yet.</div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -50,12 +45,8 @@ export const ArchiveAnalysisModal = ({ open, text, loading, error, onRefresh, on
   if (!open) return null;
 
   return (
-    <div
-      onClick={onClose}
-      style={backdropStyle}
-    >
-      <div onClick={e => e.stopPropagation()} className="glass-panel" style={analysisPanelStyle}>
-        <div style={headerStyle}>
+    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={analysisPanelStyle} contentProps={{ 'aria-label': 'Archive Analysis' }}>
+      <div style={headerStyle}>
           <div style={{ fontWeight: 700 }}>📊 Archive Analysis</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button onClick={onRefresh} disabled={loading} style={refreshButtonStyle(loading)}>↻ Refresh</button>
@@ -69,8 +60,7 @@ export const ArchiveAnalysisModal = ({ open, text, loading, error, onRefresh, on
         ) : (
           <pre style={preStyle}>{text}</pre>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 };
 

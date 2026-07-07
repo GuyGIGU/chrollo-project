@@ -1,30 +1,6 @@
-import React from 'react';
 import { fmtMoney, fmtPct, pnlColor, summaryCurrency, summaryValue } from './portfolioFormat';
 import { explainTip } from './tooltipText';
-
-const tileStyle = {
-  background: 'var(--bg-panel)',
-  border: '1px solid var(--border-color)',
-  borderRadius: 8,
-  padding: '13px 15px',
-  cursor: 'help',
-};
-
-const metricStyle = {
-  fontSize: 22,
-  fontWeight: 850,
-  lineHeight: 1.05,
-};
-
-const DailyPnlTile = ({ label, value, subValue, color, title }) => (
-  <div style={tileStyle} title={title}>
-    <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 }}>
-      {label}
-    </div>
-    <div style={{ ...metricStyle, color: color || 'var(--text-main)' }}>{value}</div>
-    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>{subValue}</div>
-  </div>
-);
+import MetricTile from './ui/MetricTile';
 
 const PortfolioDailyPnl = ({ summary }) => {
   const netLiquidation = Number(summaryValue(summary, 'NetLiquidation')) || 0;
@@ -36,10 +12,11 @@ const PortfolioDailyPnl = ({ summary }) => {
 
   return (
     <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 18 }}>
-      <DailyPnlTile
+      <MetricTile
+        size="pnl"
         label="Daily P&L"
         value={fmtMoney(total, currency)}
-        subValue={`${fmtPct(totalPct)} of net liquidation`}
+        sub={`${fmtPct(totalPct)} of net liquidation`}
         color={pnlColor(total)}
         title={explainTip({
           what: 'Broker-reported session P&L: realized P&L plus current unrealized P&L.',
@@ -47,10 +24,11 @@ const PortfolioDailyPnl = ({ summary }) => {
           use: 'Use it as a daily risk temperature check, not as an automatic reason to add or exit exposure.',
         })}
       />
-      <DailyPnlTile
+      <MetricTile
+        size="pnl"
         label="Realized Today"
         value={fmtMoney(realized, currency)}
-        subValue="Closed or partially closed P&L"
+        sub="Closed or partially closed P&L"
         color={pnlColor(realized)}
         title={explainTip({
           what: 'P&L from positions closed or partially closed in the current account snapshot.',
@@ -58,10 +36,11 @@ const PortfolioDailyPnl = ({ summary }) => {
           use: 'Use it to review completed decisions separately from open position noise.',
         })}
       />
-      <DailyPnlTile
+      <MetricTile
+        size="pnl"
         label="Open P&L"
         value={fmtMoney(unrealized, currency)}
-        subValue="Live unrealized movement"
+        sub="Live unrealized movement"
         color={pnlColor(unrealized)}
         title={explainTip({
           what: 'Unrealized P&L on positions that are still open.',

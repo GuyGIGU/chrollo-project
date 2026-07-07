@@ -128,12 +128,12 @@ export default function AttachmentUploader({ tradeId }) {
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
         style={{
-          border: `2px dashed ${dragOver ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+          border: `2px dashed ${dragOver ? 'var(--accent-active)' : 'var(--border-color)'}`,
           borderRadius: 'var(--radius-md, 8px)',
           padding: '20px',
           textAlign: 'center',
           cursor: 'pointer',
-          background: dragOver ? 'rgba(100,150,255,0.05)' : 'transparent',
+          background: dragOver ? 'var(--myth-wash)' : 'transparent',
           transition: 'all 0.2s',
           color: 'var(--text-muted)',
           fontSize: 12,
