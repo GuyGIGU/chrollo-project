@@ -1,4 +1,5 @@
 import { QUALITY_LABELS } from '../../utils/archiveTabUtils';
+import Modal from '../ui/Modal';
 
 const fieldStyle = {
   background: 'var(--bg-panel)',
@@ -16,10 +17,11 @@ const fieldStyle = {
 
 export default function AddSetupModal({ form }) {
   if (!form.open) return null;
+  const close = () => !form.adding && form.setOpen(false);
   return (
-    <div
-      onClick={() => !form.adding && form.setOpen(false)}
-      style={{
+    <Modal
+      onClose={close}
+      overlayStyle={{
         alignItems: 'center',
         backdropFilter: 'blur(4px)',
         background: 'rgba(10,10,15,0.85)',
@@ -29,19 +31,16 @@ export default function AddSetupModal({ form }) {
         position: 'fixed',
         zIndex: 6000,
       }}
+      contentStyle={{
+        background: 'var(--bg-main)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+        maxWidth: '420px',
+        padding: '24px',
+        width: '100%',
+      }}
     >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          background: 'var(--bg-main)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-          maxWidth: '420px',
-          padding: '24px',
-          width: '100%',
-        }}
-      >
         <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '4px' }}>Add Setup to Archive</div>
         <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '16px' }}>
           Runs the screener at this date. Rejected if no LPS fires there.
@@ -70,8 +69,7 @@ export default function AddSetupModal({ form }) {
             {form.adding ? 'Adding...' : 'Add Setup'}
           </ModalButton>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
