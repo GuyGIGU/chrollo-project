@@ -8,10 +8,10 @@ import { UNIVERSES } from './universeSwitcherData';
 // per-universe hue, which would break the blue=interactive contract).
 // UNIVERSES + the universe helpers live in ./universeSwitcherData so this file
 // only exports the component (keeps React Fast Refresh working).
-export default function UniverseSwitcher({ universe = DEFAULT_UNIVERSE, onChange }) {
+export default function UniverseSwitcher({ universe = DEFAULT_UNIVERSE, onChange, showLabel = true }) {
   return (
     <div style={wrapStyle} role="group" aria-label="Screener universe">
-      <span style={labelStyle}>Universe:</span>
+      {showLabel && <span style={labelStyle}>Universe:</span>}
       {UNIVERSES.map(({ key, label }) => {
         const active = key === universe;
         return (
