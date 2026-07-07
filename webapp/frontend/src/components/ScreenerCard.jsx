@@ -283,7 +283,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       transition: 'border-color 0.16s ease, background 0.16s ease',
     }}
     onMouseEnter={(event) => {
-      event.currentTarget.style.borderColor = 'rgba(91,138,255,0.58)';
+      event.currentTarget.style.borderColor = 'rgba(79,207,196,0.65)';
       event.currentTarget.style.background = '#242837';
     }}
     onMouseLeave={(event) => {
@@ -300,7 +300,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       ticker={ticker}
       watchlisted={watchlisted}
     />
-    <div style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
+    <div className="screener-card-well" style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
     <TimeframeBand data={data} />
@@ -353,7 +353,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
         title={`Show the US-stocks related to ${ticker}`}
         onClick={(event) => { event.stopPropagation(); onDrilldown(ticker); }}
         style={drillButtonStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-blue)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--myth)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
       >
         Members →

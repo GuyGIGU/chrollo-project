@@ -52,10 +52,10 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
             onClick={() => ok && onIntervalChange(tab.key)}
             title={ok ? `${tab.name} chart` : `${tab.name} — needs more history`}
             style={{
-              background: active ? 'rgba(88,166,255,0.16)' : 'transparent',
+              background: active ? 'var(--myth-soft)' : 'transparent',
               border: 'none',
               borderLeft: index === 0 ? 'none' : '1px solid var(--border-color)',
-              color: !ok ? 'var(--text-faint)' : active ? '#58a6ff' : 'var(--text-muted)',
+              color: !ok ? 'var(--text-faint)' : active ? 'var(--myth)' : 'var(--text-muted)',
               cursor: ok ? 'pointer' : 'default',
               fontFamily: 'inherit',
               fontSize: 12,

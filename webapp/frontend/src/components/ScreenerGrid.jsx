@@ -195,7 +195,7 @@ const ScreenerGrid = () => {
           )}
           {status === 'ready' && filters.paginatedTickers.length > 0 && (
             <>
-              <div style={gridStyle}>
+              <div className="screener-grid" style={gridStyle}>
                 {filters.paginatedTickers.map(ticker => (
                   <ScreenerCard
                     key={ticker}
@@ -266,7 +266,7 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, pa
         <EmptyState message={`No ${dd.etf} member stocks set up in today's US-Stocks scan.`} />
       )}
       {status === 'ready' && (
-        <div style={gridStyle}>
+        <div className="screener-grid" style={gridStyle}>
           {members.map(t => (
             <ScreenerCard
               key={t}
