@@ -11,7 +11,7 @@ const PortfolioDailyPnl = ({ summary }) => {
   const totalPct = netLiquidation > 0 ? (total / netLiquidation) * 100 : null;
 
   return (
-    <section className="instrument-tile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 18 }}>
+    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 18 }}>
       <MetricTile
         size="pnl"
         label="Daily P&L"

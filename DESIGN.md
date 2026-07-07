@@ -9,9 +9,9 @@ colors:
   bg-elevated: "#303547"
   text-main: "#E8EAF0"
   text-muted: "#9AA1B2"
-  text-faint: "#6C7488"
-  border-color: "#2F3447"
-  border-strong: "#3B4159"
+  text-faint: "#8A93A8"
+  border-color: "#384357"
+  border-strong: "#4A5470"
   myth: "#4FCFC4"
   myth-ink: "#07211E"
   myth-bright: "#8CEAE0"
@@ -181,8 +181,8 @@ tier identity (badges, the ticker color on a card):
 ### Neutral
 - **Surface ramp** (dark → light): App #1A1D26 → Sidebar #1E2230 → Panel #232735
   → Hover #2A2F3E → Elevated #303547. This ramp *is* the depth system.
-- **Ink ramp**: Primary text #E8EAF0, Muted #9AA1B2, Faint #6C7488.
-- **Borders**: Hairline #2F3447, Strong #3B4159.
+- **Ink ramp**: Primary text #E8EAF0, Muted #9AA1B2, Faint #8A93A8.
+- **Borders**: Hairline #384357, Strong #4A5470.
 
 ### Status
 - **Win/Long Green** (#3DD37A), **Loss/Short Red** (#DE6E78), **Warning Amber** (#E2B255),
@@ -279,7 +279,7 @@ is the failure mode, not the goal.
 
 ### Named Rules
 **The Tonal-Depth Rule (softened).** Tone still carries resting depth: reach for the
-next surface step or a hairline border (#2F3447) before a free-floating shadow. The
+next surface step or a hairline border (#384357) before a free-floating shadow. The
 **only** sanctioned resting shadows are the instrument bezel and well — a deliberate,
 uniform framing layer, not per-element decoration.
 

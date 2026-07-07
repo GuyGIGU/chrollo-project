@@ -28,9 +28,9 @@ const Dot = ({ color, glow }) => (
 
 const Notice = ({ tone, title, body, action, onAction }) => {
   const colors = {
-    danger: ['rgba(222,110,120,0.12)', 'rgba(222,110,120,0.32)', 'var(--danger)'],
+    danger: ['rgba(var(--danger-rgb),0.12)', 'rgba(var(--danger-rgb),0.32)', 'var(--danger)'],
     info: ['rgba(91,138,255,0.10)', 'rgba(91,138,255,0.28)', 'var(--accent-blue)'],
-    warning: ['rgba(226,178,85,0.10)', 'rgba(226,178,85,0.28)', 'var(--warning)'],
+    warning: ['rgba(var(--warning-rgb),0.10)', 'rgba(var(--warning-rgb),0.28)', 'var(--warning)'],
   }[tone];
 
   return (
@@ -100,10 +100,10 @@ const OpenRiskStrip = ({ riskSummary, degraded }) => {
 
 const connectionLabel = ({ available, connected, dailyRestart, sessionCompetition }) => {
   if (!available) return ['Not installed', 'rgba(136,136,150,0.15)', 'var(--text-muted)'];
-  if (sessionCompetition) return ['Session conflict', 'rgba(222,110,120,0.14)', 'var(--danger)'];
+  if (sessionCompetition) return ['Session conflict', 'rgba(var(--danger-rgb),0.14)', 'var(--danger)'];
   if (dailyRestart) return ['Daily restart', 'rgba(91,138,255,0.12)', 'var(--accent-blue)'];
   if (connected) return ['Connected', 'var(--success-bg)', 'var(--success)'];
-  return ['Reconnecting', 'rgba(226,178,85,0.14)', 'var(--warning)'];
+  return ['Reconnecting', 'rgba(var(--warning-rgb),0.14)', 'var(--warning)'];
 };
 
 const PortfolioStatusBar = ({
@@ -165,7 +165,7 @@ const PortfolioStatusBar = ({
         borderRadius: 8,
         marginBottom: 16,
       }}>
-        <span style={pillStyle(isLive ? 'rgba(222,110,120,0.12)' : 'rgba(91,138,255,0.12)', isLive ? 'var(--danger)' : 'var(--accent-blue)')}>
+        <span style={pillStyle(isLive ? 'rgba(var(--danger-rgb),0.12)' : 'rgba(91,138,255,0.12)', isLive ? 'var(--danger)' : 'var(--accent-blue)')}>
           <Dot color={isLive ? 'var(--danger)' : 'var(--accent-blue)'} glow={isLive} />
           {isLive ? 'Live' : 'Paper'}
         </span>

@@ -56,7 +56,13 @@ function Modal({
       if (items.length === 0) return;
       const first = items[0];
       const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      // Focus escaped the dialog (e.g. it landed on <body> after a click on a
+      // non-focusable region inside) — pull it back in rather than let Tab walk
+      // the inert background the scrim/aria-modal promise is unreachable.
+      if (!contentRef.current.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {

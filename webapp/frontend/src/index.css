@@ -23,7 +23,6 @@
   /* Brand & accents — slightly warmer blue to sit on the new bg */
   --accent-blue: #5B8AFF;
   --accent-blue-soft: rgba(91, 138, 255, 0.16);
-  --accent-blue-glow: rgba(91, 138, 255, 0.35);
   --accent-purple: #9B70F7;
   --accent-pink: #E07AA0;
   --accent-yellow: #D4B85A;
@@ -91,7 +90,6 @@
   /* Shadows */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --glow-accent: 0 0 0 1px var(--accent-blue), 0 0 12px var(--accent-blue-glow);
 
   /* Operator UI scale — a single app-level zoom on top of the OS/browser scale
      so text (hardcoded px) and spacing (rem) grow/shrink together. 1 = today,
@@ -691,8 +689,8 @@ td {
 }
 
 .score-pill-market {
-  border-color: rgba(61, 211, 122, 0.48);
-  background: rgba(61, 211, 122, 0.09);
+  border-color: rgba(var(--success-rgb), 0.48);
+  background: rgba(var(--success-rgb), 0.09);
   color: var(--success);
 }
 
@@ -1259,7 +1257,7 @@ td {
 }
 .glass-panel:hover {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-card), 0 8px 24px -16px rgba(74, 122, 255, 0.40);
+  box-shadow: var(--shadow-card), 0 8px 24px -16px var(--myth-glow);
 }
 
 ::selection {
@@ -1334,13 +1332,13 @@ td {
 
 .trade-alert-item.critical,
 .trade-alert-item.danger {
-  background: rgba(222, 110, 120, 0.10);
-  border-color: rgba(222, 110, 120, 0.32);
+  background: rgba(var(--danger-rgb), 0.10);
+  border-color: rgba(var(--danger-rgb), 0.32);
 }
 
 .trade-alert-item.warning {
-  background: rgba(226, 178, 85, 0.10);
-  border-color: rgba(226, 178, 85, 0.30);
+  background: rgba(var(--warning-rgb), 0.10);
+  border-color: rgba(var(--warning-rgb), 0.30);
 }
 
 .trade-alert-item.target {
@@ -1478,18 +1476,18 @@ td {
   border-bottom-color: rgba(74, 122, 255, 0.15);
 }
 .trade-row.risk-warning td {
-  background: rgba(226, 178, 85, 0.045);
+  background: rgba(var(--warning-rgb), 0.045);
 }
 .trade-row.risk-warning:hover td {
-  background: rgba(226, 178, 85, 0.075);
+  background: rgba(var(--warning-rgb), 0.075);
 }
 .trade-row.risk-danger td,
 .trade-row.risk-breached td {
-  background: rgba(222, 110, 120, 0.06);
+  background: rgba(var(--danger-rgb), 0.06);
 }
 .trade-row.risk-danger:hover td,
 .trade-row.risk-breached:hover td {
-  background: rgba(222, 110, 120, 0.095);
+  background: rgba(var(--danger-rgb), 0.095);
 }
 
 /* Cell interaction surface */
@@ -1656,7 +1654,7 @@ td.cell-editable { overflow: hidden; }
   cursor: pointer;
   font-size: 14px;
 }
-.fills-panel .fill-del:hover { color: var(--danger); background: rgba(222,110,120,0.10); }
+.fills-panel .fill-del:hover { color: var(--danger); background: rgba(var(--danger-rgb),0.10); }
 .fills-panel .fill-add {
   align-self: flex-start;
   margin-top: 4px;
@@ -1687,7 +1685,7 @@ td.cell-editable { overflow: hidden; }
 .status-cell.open    { background: rgba(74, 122, 255, 0.14); color: #7FA3FF; border-color: rgba(74, 122, 255, 0.28); }
 .status-cell.partial { background: rgba(212, 184, 90, 0.14); color: #E0CB7A; border-color: rgba(212, 184, 90, 0.28); }
 .status-cell.win     { background: rgba(var(--success-rgb), 0.14);  color: #4FE08A; border-color: rgba(var(--success-rgb), 0.28); }
-.status-cell.loss    { background: rgba(222, 110, 120, 0.14);  color: #EC7C86; border-color: rgba(222, 110, 120, 0.28); }
+.status-cell.loss    { background: rgba(var(--danger-rgb), 0.14);  color: #EC7C86; border-color: rgba(var(--danger-rgb), 0.28); }
 .status-cell.wash    { background: rgba(126, 138, 163, 0.14); color: var(--text-muted); border-color: rgba(126, 138, 163, 0.20); }
 .status-cell.draft   { background: rgba(126, 138, 163, 0.10); color: var(--text-faint); border-color: rgba(126, 138, 163, 0.18); }
 
@@ -1775,7 +1773,7 @@ td.cell-editable { overflow: hidden; }
 .status-pill.open  .dot { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
 .status-pill.win   { background: var(--success-bg);       color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
 .status-pill.win   .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
-.status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
+.status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(var(--danger-rgb), 0.30); }
 .status-pill.loss  .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
 .status-pill.wash  { background: var(--pill-medium-bg);   color: var(--pill-medium-fg); border-color: rgba(212, 184, 90, 0.25); }
 .status-pill.wash  .dot { background: var(--pill-medium-fg); }
@@ -1793,7 +1791,7 @@ td.cell-editable { overflow: hidden; }
   white-space: nowrap;
 }
 .type-pill.long  { background: var(--success-bg); color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
-.type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
+.type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(var(--danger-rgb), 0.30); }
 
 /* Two-line cell — top number bold, "→ value" muted below */
 .cell-stack { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }

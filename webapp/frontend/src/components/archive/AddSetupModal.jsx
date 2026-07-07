@@ -21,6 +21,7 @@ export default function AddSetupModal({ form }) {
   return (
     <Modal
       onClose={close}
+      contentProps={{ 'aria-label': 'Add Setup to Archive' }}
       overlayStyle={{
         alignItems: 'center',
         backdropFilter: 'blur(4px)',

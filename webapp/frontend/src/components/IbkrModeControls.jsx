@@ -128,9 +128,9 @@ const getConnectionPill = ({ ibkrStatus, isConnected, reconnecting }) => {
   return {
     label: 'CONNECT IBKR',
     title: 'Connect Chrollo to IBKR for read-only portfolio snapshots.',
-    background: 'rgba(91,138,255,0.12)',
-    border: 'rgba(91,138,255,0.42)',
-    color: '#dce6ff',
+    background: 'var(--myth-soft)',
+    border: 'rgba(79, 207, 196, 0.45)',
+    color: 'var(--myth-bright)',
   };
 };
 

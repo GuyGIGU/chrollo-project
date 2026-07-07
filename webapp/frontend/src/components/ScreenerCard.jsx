@@ -280,7 +280,7 @@ const ScreenerCard = React.memo(({ ticker, data, earnings, watchlisted, onToggle
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      transition: 'border-color 0.16s ease, background 0.16s ease',
+      transition: 'border-color 0.16s ease, background 0.16s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1)',
     }}
     onMouseEnter={(event) => {
       event.currentTarget.style.borderColor = 'rgba(79,207,196,0.65)';

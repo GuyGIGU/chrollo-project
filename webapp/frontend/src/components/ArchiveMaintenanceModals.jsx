@@ -4,7 +4,7 @@ export const ScanHistoryModal = ({ open, runs, loading, onClose }) => {
   if (!open) return null;
 
   return (
-    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={historyPanelStyle}>
+    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={historyPanelStyle} contentProps={{ 'aria-label': 'Scan History' }}>
       <div style={headerStyle}>
           <div style={{ fontWeight: 700 }}>🕒 Scan History</div>
           <button onClick={onClose} style={closeButtonStyle}>✕</button>
@@ -45,7 +45,7 @@ export const ArchiveAnalysisModal = ({ open, text, loading, error, onRefresh, on
   if (!open) return null;
 
   return (
-    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={analysisPanelStyle}>
+    <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={analysisPanelStyle} contentProps={{ 'aria-label': 'Archive Analysis' }}>
       <div style={headerStyle}>
           <div style={{ fontWeight: 700 }}>📊 Archive Analysis</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
