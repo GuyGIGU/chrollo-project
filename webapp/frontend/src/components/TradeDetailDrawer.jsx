@@ -182,7 +182,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
             <BrokerMetric match={brokerMatch} />
           </section>
 
-          <section style={panelStyle}>
+          <section className="instrument-tile" style={panelStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Plan</div>
@@ -251,7 +251,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
             </div>
           </section>
 
-          <section style={panelStyle}>
+          <section className="instrument-tile" style={panelStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Targets</div>

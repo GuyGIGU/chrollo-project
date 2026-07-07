@@ -18,7 +18,7 @@ function CorrelationPanel({ calibration }) {
   });
 
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-tile">
       <div style={panelTitleStyle}>Sub-Score vs Forward Returns (Correlation)</div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '10px' }}>
         n = {calibration.total_with_returns} (20d) - {calibration.total_with_60d_returns} (60d) -
@@ -42,7 +42,7 @@ function CorrelationPanel({ calibration }) {
 
 function BreakdownPanel({ calibration }) {
   return (
-    <div className="glass-panel">
+    <div className="glass-panel instrument-tile">
       <div style={{ ...panelTitleStyle, marginBottom: '12px' }}>Setup Type Performance</div>
       {calibration.setup_type_breakdown && Object.entries(calibration.setup_type_breakdown).map(([type, data]) => (
         <BreakdownRow

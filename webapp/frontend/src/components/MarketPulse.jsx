@@ -102,7 +102,7 @@ export default function MarketPulse({ marketContext }) {
   };
 
   return (
-    <section className="mp-card">
+    <section className="mp-card instrument-tile">
       <div className="mp-head">
         <div className="mp-title">
           <span className="mp-eyebrow">Markets · {meta.label}</span>
@@ -128,7 +128,7 @@ export default function MarketPulse({ marketContext }) {
         </div>
       </div>
 
-      <div className="mp-chart">
+      <div className="mp-chart instrument-well">
         {status === 'loading' && <div className="mp-chart-msg">Loading…</div>}
         {status === 'error' && <div className="mp-chart-msg">Index data unavailable.</div>}
         {status === 'ready' && candles.length > 0 && (

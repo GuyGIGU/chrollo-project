@@ -55,7 +55,7 @@ function ArchiveTable({
       <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
         {rangeLabel(currentPage, filteredSetups.length)}
       </div>
-      <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div className="instrument-well" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
         <table style={{ borderCollapse: 'collapse', fontSize: '12px', width: '100%' }}>
           <thead>
             <tr>

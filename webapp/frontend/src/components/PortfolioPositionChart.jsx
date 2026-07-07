@@ -67,6 +67,7 @@ const PositionChartCanvas = ({ symbol, data, position }) => {
         deps: [symbol, data, position],
       }}
       candles={candles}
+      className="instrument-well"
       style={{ height: 310, minHeight: 260, position: 'relative' }}
     />
   );

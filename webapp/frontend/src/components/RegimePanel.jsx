@@ -46,7 +46,7 @@ export default function RegimePanel({ marketContext }) {
 
   if (!marketContext) {
     return (
-      <section className="rp-card">
+      <section className="rp-card instrument-tile">
         <span className="rp-eyebrow">Market Regime</span>
         <div className="home-skeleton">{[0, 1, 2].map((i) => <div key={i} className="home-skeleton-row" />)}</div>
       </section>
@@ -64,7 +64,7 @@ export default function RegimePanel({ marketContext }) {
 
   return (
     <>
-      <section className="rp-card">
+      <section className="rp-card instrument-tile">
         <div className="rp-head">
           <span className="rp-eyebrow">Market Regime</span>
           <div className="rp-state">

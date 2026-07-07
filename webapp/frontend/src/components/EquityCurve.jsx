@@ -35,7 +35,7 @@ export default function EquityCurve() {
   const fillColor = lastCum >= 0 ? 'rgba(61,211,122,0.12)' : 'rgba(222,110,120,0.12)';
 
   return (
-    <div style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 120 }}>
+    <div className="instrument-well" style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 120 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={220} minHeight={120}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
           <defs>

@@ -154,7 +154,7 @@ const PortfolioStatusBar = ({
         />
       )}
 
-      <section style={{
+      <section className="instrument-tile" style={{
         display: 'flex',
         alignItems: 'center',
         gap: 12,

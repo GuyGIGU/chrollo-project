@@ -51,7 +51,7 @@ function ArchiveHealthStrip({ health }) {
   const checks = health.checks || [];
 
   return (
-    <div style={{
+    <div className="instrument-tile" style={{
       background: 'var(--bg-panel)',
       border: `1px solid ${tone.border}`,
       borderRadius: '6px',

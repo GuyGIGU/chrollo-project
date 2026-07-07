@@ -38,7 +38,7 @@ export default function TradeSetupChart({ derived, trade }) {
   };
 
   return (
-    <section style={sectionStyle}>
+    <section className="instrument-tile" style={sectionStyle}>
       <div style={sectionHeaderStyle}>
         <div>
           <div style={eyebrowStyle}>Setup Chart</div>
@@ -46,7 +46,7 @@ export default function TradeSetupChart({ derived, trade }) {
         </div>
         <span style={sourceStyle}>{optionSymbol ? 'Underlying daily' : 'Daily'}</span>
       </div>
-      <div style={chartShellStyle}>
+      <div className="instrument-well" style={chartShellStyle}>
         {loading && <div style={messageStyle}>Loading chart...</div>}
         {error && !loading && <div style={messageStyle}>{error}</div>}
         {!symbol && !loading && !error && <div style={messageStyle}>Chart unavailable.</div>}

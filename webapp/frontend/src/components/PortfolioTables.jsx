@@ -54,7 +54,7 @@ const Section = ({ title, count, children }) => (
     <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-muted)', margin: '0 0 9px' }}>
       {title} ({count})
     </h3>
-    <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--bg-panel)' }}>
+    <div className="instrument-well" style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--bg-panel)' }}>
       {children}
     </div>
   </section>
