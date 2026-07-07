@@ -1,4 +1,3 @@
-import React from 'react';
 import Modal from './ui/Modal';
 
 export const ScanHistoryModal = ({ open, runs, loading, onClose }) => {

@@ -13,7 +13,7 @@ export default function ArchiveTierCards({ performance }) {
 
 function TierCard({ data, tier }) {
   return (
-    <div style={{
+    <div className="instrument-lockon" style={{
       background: 'var(--bg-panel)',
       border: '1px solid var(--border-color)',
       borderRadius: '10px',

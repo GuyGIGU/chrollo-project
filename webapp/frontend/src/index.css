@@ -413,37 +413,6 @@ body {
   gap: 0.8rem;
 }
 
-.btn-action {
-  width: 100%;
-  padding: 0.55rem 1rem;
-  border-radius: var(--radius-pill);
-  border: none;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: #fff;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-.btn-action:hover { transform: translateY(-1px); }
-
-.btn-trade {
-  background: linear-gradient(135deg, rgba(74, 122, 255, 0.28), rgba(139, 92, 246, 0.22));
-  border: 1px solid rgba(74, 122, 255, 0.55);
-  color: #DCE6FF;
-  box-shadow: 0 0 0 1px rgba(74, 122, 255, 0.10), 0 6px 18px -8px rgba(74, 122, 255, 0.55);
-}
-.btn-trade:hover {
-  background: linear-gradient(135deg, rgba(74, 122, 255, 0.38), rgba(139, 92, 246, 0.30));
-  box-shadow: 0 0 0 1px rgba(74, 122, 255, 0.20), 0 10px 26px -8px rgba(74, 122, 255, 0.70);
-}
-
-.btn-setup { background: rgba(224, 122, 160, 0.18); border: 1px solid var(--accent-pink); color: var(--accent-pink); }
-.btn-note { background: rgba(212, 184, 90, 0.18); border: 1px solid var(--accent-yellow); color: var(--accent-yellow); }
-
 /* MAIN CONTENT */
 .main-content {
   flex: 1;
@@ -1275,28 +1244,6 @@ td {
   box-shadow: 0 0 0 3px var(--myth-soft);
 }
 
-/* BUTTONS */
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: var(--radius-sm);
-  border: none;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: opacity 0.2s;
-}
-.btn:focus-visible {
-  outline: 2px solid var(--accent-active);
-  outline-offset: 2px;
-}
-.btn:hover { opacity: 0.85; }
-
-.btn-primary {
-  background: var(--accent-active);
-  color: var(--myth-ink);
-}
-
 /* UTILITIES */
 .text-muted { color: var(--text-muted); }
 
@@ -2077,7 +2024,7 @@ td.cell-editable { overflow: hidden; }
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .home-tile:hover { border-color: rgba(79, 207, 196, 0.5); }
 .home-tile:focus-visible { outline: none; box-shadow: var(--glow-active); }
