@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Inter carries the UI (now incl. 800 — the ticker/score hierarchy actually uses
+   it); JetBrains Mono carries every numeric pill/cell (it was referenced in ~30
+   files but never loaded, silently falling back to Consolas). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
 
 :root {
   /* Surfaces — warm slate, lighter dark mode (Linear / GitHub-dimmed direction) */
@@ -11,11 +14,11 @@
   /* Text */
   --text-main: #E8EAF0;
   --text-muted: #9AA1B2;
-  --text-faint: #6C7488;
+  --text-faint: #8A93A8;   /* raised from #6C7488 to clear ~4.5:1 for long dark-room sessions */
 
   /* Borders */
-  --border-color: #2F3447;
-  --border-strong: #3B4159;
+  --border-color: #384357;   /* brighter silver-cool so every card/row/chart frames itself */
+  --border-strong: #4A5470;
 
   /* Brand & accents — slightly warmer blue to sit on the new bg */
   --accent-blue: #5B8AFF;
@@ -25,6 +28,22 @@
   --accent-pink: #E07AA0;
   --accent-yellow: #D4B85A;
   --accent-orange: #E0A05A;
+
+  /* Mythril — the ACTIVE / interactive color (teal-cyan silver). Blue is demoted
+     to a structural/context + state role (open/draft/target/phase, severity). The
+     One-Accent Rule now reads: mythril = "act on this / live", blue = context.
+     Steered teal-cyan (not leaf-green) to stay distinct from --success / tier-c.
+     See docs/frontend_audit_2026-07-07.md. */
+  --myth: #4FCFC4;
+  --myth-bright: #8CEAE0;
+  --myth-dim: #39A79E;
+  --myth-deep: #2B7A73;
+  --myth-ink: #07211E;                     /* dark text that sits on a mythril fill */
+  --myth-soft: rgba(79, 207, 196, 0.16);
+  --myth-glow: rgba(79, 207, 196, 0.34);
+  --myth-wash: rgba(79, 207, 196, 0.08);
+  --accent-active: var(--myth);            /* semantic alias for interactive / live */
+  --glow-active: 0 0 0 1px var(--myth), 0 0 12px var(--myth-glow);
 
   /* Setup tier identity (DESIGN.md tier ladder). Reserved hues — one source of
      truth so the card and the modal can never render a tier a different shade.
@@ -39,11 +58,11 @@
   --success: #3DD37A;
   --success-bg: rgba(61, 211, 122, 0.14);
 
-  --danger: #F26770;
-  --danger-bg: rgba(242, 103, 112, 0.14);
+  --danger: #DE6E78;   /* softened rose-red: calmer on the cool base, still clearly loss */
+  --danger-bg: rgba(222, 110, 120, 0.14);
 
-  --warning: #F0BE3C;
-  --warning-bg: rgba(240, 190, 60, 0.14);
+  --warning: #E2B255;   /* muted amber, less acid-yellow, sits in the instrument register */
+  --warning-bg: rgba(226, 178, 85, 0.14);
 
   /* Severity pills (Lucien-style: tinted bg + matching fg) */
   --pill-critical-bg: rgba(224, 122, 160, 0.12);
@@ -191,9 +210,9 @@ body {
 }
 .rail-link.active {
   color: #FFFFFF;
-  background-color: var(--accent-blue-soft);
-  border-color: rgba(74, 122, 255, 0.40);
-  box-shadow: 0 0 0 1px rgba(74, 122, 255, 0.10), 0 4px 16px -4px var(--accent-blue-glow);
+  background-color: var(--myth-soft);
+  border-color: rgba(79, 207, 196, 0.42);
+  box-shadow: 0 0 0 1px rgba(79, 207, 196, 0.14), 0 4px 16px -4px var(--myth-glow);
 }
 
 .rail-actions {
@@ -205,13 +224,13 @@ body {
   border-top: 1px solid var(--border-color);
 }
 .rail-action-primary {
-  color: var(--accent-blue);
-  border-color: rgba(74, 122, 255, 0.30);
+  color: var(--myth-bright);
+  border-color: rgba(79, 207, 196, 0.34);
 }
 .rail-action-primary:hover {
   color: #FFFFFF;
-  background-color: var(--accent-blue-soft);
-  border-color: rgba(74, 122, 255, 0.45);
+  background-color: var(--myth-soft);
+  border-color: rgba(79, 207, 196, 0.48);
 }
 
 /* Appearance / UI-scale control — the Scale rail action opens this popover. It
@@ -293,8 +312,8 @@ body {
 }
 .appearance-actions button:hover { background: var(--bg-hover); color: var(--text-main); }
 .appearance-actions .appearance-primary {
-  color: var(--accent-blue);
-  border-color: var(--accent-blue-glow);
+  color: var(--myth-bright);
+  border-color: var(--myth-glow);
 }
 
 .appearance-hint {
@@ -374,9 +393,9 @@ body {
 
 .nav-link.active {
   color: #FFFFFF;
-  background-color: var(--accent-blue-soft);
-  border-color: rgba(74, 122, 255, 0.40);
-  box-shadow: 0 0 0 1px rgba(74, 122, 255, 0.10), 0 4px 16px -4px var(--accent-blue-glow);
+  background-color: var(--myth-soft);
+  border-color: rgba(79, 207, 196, 0.42);
+  box-shadow: 0 0 0 1px rgba(79, 207, 196, 0.14), 0 4px 16px -4px var(--myth-glow);
 }
 
 .action-buttons {
@@ -948,7 +967,7 @@ td {
    open). :focus-visible keeps the ring off mouse clicks but shows it for
    keyboard navigation, so a power user can sweep the grid. */
 .screener-card:focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--accent-active);
   outline-offset: 2px;
 }
 
@@ -1084,8 +1103,8 @@ td {
 .modal-content input:focus,
 .modal-content select:focus {
   outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px var(--accent-blue-soft);
+  border-color: var(--myth);
+  box-shadow: 0 0 0 3px var(--myth-soft);
 }
 
 /* BUTTONS */
@@ -1102,8 +1121,8 @@ td {
 .btn:hover { opacity: 0.85; }
 
 .btn-primary {
-  background: var(--accent-blue);
-  color: #fff;
+  background: var(--accent-active);
+  color: var(--myth-ink);
 }
 
 /* UTILITIES */
@@ -1125,7 +1144,7 @@ td {
 }
 
 ::selection {
-  background: var(--accent-blue-soft);
+  background: var(--myth-soft);
   color: #FFFFFF;
 }
 
@@ -1196,13 +1215,13 @@ td {
 
 .trade-alert-item.critical,
 .trade-alert-item.danger {
-  background: rgba(242, 103, 112, 0.10);
-  border-color: rgba(242, 103, 112, 0.32);
+  background: rgba(222, 110, 120, 0.10);
+  border-color: rgba(222, 110, 120, 0.32);
 }
 
 .trade-alert-item.warning {
-  background: rgba(240, 190, 60, 0.10);
-  border-color: rgba(240, 190, 60, 0.30);
+  background: rgba(226, 178, 85, 0.10);
+  border-color: rgba(226, 178, 85, 0.30);
 }
 
 .trade-alert-item.target {
@@ -1340,18 +1359,18 @@ td {
   border-bottom-color: rgba(74, 122, 255, 0.15);
 }
 .trade-row.risk-warning td {
-  background: rgba(240, 190, 60, 0.045);
+  background: rgba(226, 178, 85, 0.045);
 }
 .trade-row.risk-warning:hover td {
-  background: rgba(240, 190, 60, 0.075);
+  background: rgba(226, 178, 85, 0.075);
 }
 .trade-row.risk-danger td,
 .trade-row.risk-breached td {
-  background: rgba(242, 103, 112, 0.06);
+  background: rgba(222, 110, 120, 0.06);
 }
 .trade-row.risk-danger:hover td,
 .trade-row.risk-breached:hover td {
-  background: rgba(242, 103, 112, 0.095);
+  background: rgba(222, 110, 120, 0.095);
 }
 
 /* Cell interaction surface */
@@ -1394,14 +1413,14 @@ td.cell-computed { background: transparent; }
   margin: 4px 6px;
   padding: 0 8px;
   background: var(--bg-elevated);
-  border: 1px solid var(--accent-blue);
+  border: 1px solid var(--myth);
   border-radius: 4px;
   color: var(--text-main);
   font-family: inherit;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(91, 138, 255, 0.18);
+  box-shadow: 0 0 0 2px rgba(79, 207, 196, 0.20);
   box-sizing: border-box;
   display: block;
 }
@@ -1449,7 +1468,7 @@ td.cell-editable { overflow: hidden; }
   transition: transform 0.15s ease, color 0.15s ease;
 }
 .expand-chev:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
-.expand-chev.open { transform: rotate(90deg); color: var(--accent-blue); }
+.expand-chev.open { transform: rotate(90deg); color: var(--myth); }
 
 /* Fills sub-row (expanded) */
 .fills-row td {
@@ -1495,7 +1514,7 @@ td.cell-editable { overflow: hidden; }
   box-sizing: border-box;
   outline: none;
 }
-.fills-panel .fill-input:focus { border-color: var(--accent-blue); }
+.fills-panel .fill-input:focus { border-color: var(--myth); }
 .fills-panel .fill-side-btn {
   height: 26px;
   border: none;
@@ -1518,7 +1537,7 @@ td.cell-editable { overflow: hidden; }
   cursor: pointer;
   font-size: 14px;
 }
-.fills-panel .fill-del:hover { color: var(--danger); background: rgba(239,79,88,0.10); }
+.fills-panel .fill-del:hover { color: var(--danger); background: rgba(222,110,120,0.10); }
 .fills-panel .fill-add {
   align-self: flex-start;
   margin-top: 4px;
@@ -1530,7 +1549,7 @@ td.cell-editable { overflow: hidden; }
   font-size: 10px;
   cursor: pointer;
 }
-.fills-panel .fill-add:hover { color: var(--accent-blue); border-color: var(--accent-blue); }
+.fills-panel .fill-add:hover { color: var(--myth); border-color: var(--myth); }
 
 /* Status badge — Stonk-Journal-style solid filled pill */
 .status-cell {
@@ -1549,7 +1568,7 @@ td.cell-editable { overflow: hidden; }
 .status-cell.open    { background: rgba(74, 122, 255, 0.14); color: #7FA3FF; border-color: rgba(74, 122, 255, 0.28); }
 .status-cell.partial { background: rgba(212, 184, 90, 0.14); color: #E0CB7A; border-color: rgba(212, 184, 90, 0.28); }
 .status-cell.win     { background: rgba(34, 197, 94, 0.14);  color: #4FE08A; border-color: rgba(34, 197, 94, 0.28); }
-.status-cell.loss    { background: rgba(239, 79, 88, 0.14);  color: #FF7882; border-color: rgba(239, 79, 88, 0.28); }
+.status-cell.loss    { background: rgba(222, 110, 120, 0.14);  color: #EC7C86; border-color: rgba(222, 110, 120, 0.28); }
 .status-cell.wash    { background: rgba(126, 138, 163, 0.14); color: var(--text-muted); border-color: rgba(126, 138, 163, 0.20); }
 .status-cell.draft   { background: rgba(126, 138, 163, 0.10); color: var(--text-faint); border-color: rgba(126, 138, 163, 0.18); }
 
@@ -1637,7 +1656,7 @@ td.cell-editable { overflow: hidden; }
 .status-pill.open  .dot { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
 .status-pill.win   { background: var(--success-bg);       color: var(--success); border-color: rgba(34, 197, 94, 0.30); }
 .status-pill.win   .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
-.status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(239, 79, 88, 0.30); }
+.status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
 .status-pill.loss  .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
 .status-pill.wash  { background: var(--pill-medium-bg);   color: var(--pill-medium-fg); border-color: rgba(212, 184, 90, 0.25); }
 .status-pill.wash  .dot { background: var(--pill-medium-fg); }
@@ -1655,7 +1674,7 @@ td.cell-editable { overflow: hidden; }
   white-space: nowrap;
 }
 .type-pill.long  { background: var(--success-bg); color: var(--success); border-color: rgba(34, 197, 94, 0.30); }
-.type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(239, 79, 88, 0.30); }
+.type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
 
 /* Two-line cell — top number bold, "→ value" muted below */
 .cell-stack { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
@@ -1682,18 +1701,18 @@ td.cell-editable { overflow: hidden; }
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  background: var(--accent-blue-soft);
-  color: #BFD0FF;
-  border: 1px solid rgba(74, 122, 255, 0.30);
+  background: var(--myth-soft);
+  color: var(--myth-bright);
+  border: 1px solid rgba(79, 207, 196, 0.32);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.r-chip:hover { background: rgba(74, 122, 255, 0.22); border-color: rgba(74, 122, 255, 0.50); }
+.r-chip:hover { background: rgba(79, 207, 196, 0.22); border-color: rgba(79, 207, 196, 0.50); }
 .r-chip-input {
   width: 42px;
   padding: 1px 6px;
   background: var(--bg-elevated);
-  border: 1px solid var(--accent-blue);
+  border: 1px solid var(--myth);
   border-radius: var(--radius-pill);
   color: #FFFFFF;
   font-family: inherit;
@@ -1701,7 +1720,7 @@ td.cell-editable { overflow: hidden; }
   font-weight: 700;
   text-align: center;
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-blue-soft);
+  box-shadow: 0 0 0 3px var(--myth-soft);
 }
 
 /* Asset-class pill (STK / OPT) shown beside ticker */
@@ -1842,7 +1861,7 @@ td.cell-editable { overflow: hidden; }
 .home-zone-link {
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent-blue);
+  color: var(--myth);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -1891,8 +1910,8 @@ td.cell-editable { overflow: hidden; }
   flex-direction: column;
   transition: border-color 0.15s ease;
 }
-.home-tile:hover { border-color: rgba(91, 138, 255, 0.5); }
-.home-tile:focus-visible { outline: none; box-shadow: var(--glow-accent); }
+.home-tile:hover { border-color: rgba(79, 207, 196, 0.5); }
+.home-tile:focus-visible { outline: none; box-shadow: var(--glow-active); }
 .home-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 7px; }
 .home-tile-ident { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .home-tile-ticker { font-size: 14px; font-weight: 850; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1926,7 +1945,7 @@ td.cell-editable { overflow: hidden; }
 .home-wl-flag.near { color: var(--warning); }
 .home-wl-flag.triggered { color: var(--success); }
 .home-wl-stale { color: var(--text-faint); font-size: 10px; }
-.home-bridge { color: var(--accent-blue); text-decoration: none; font-size: 12px; font-weight: 700; padding: 0 2px; }
+.home-bridge { color: var(--myth); text-decoration: none; font-size: 12px; font-weight: 700; padding: 0 2px; }
 .home-bridge:hover { text-decoration: underline; }
 
 /* Open Book — numeric ledger rhythm */
@@ -2030,7 +2049,7 @@ td.cell-editable { overflow: hidden; }
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 .mp-tab:hover { border-color: rgba(255, 255, 255, 0.18); }
-.mp-tab.active { background: var(--accent-blue-soft); border-color: rgba(74, 122, 255, 0.40); }
+.mp-tab.active { background: var(--myth-soft); border-color: rgba(79, 207, 196, 0.42); }
 .mp-tab-sym { font-size: 11px; font-weight: 800; color: var(--text-main); letter-spacing: 0.02em; }
 .mp-tab-chg { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
 
@@ -2124,7 +2143,7 @@ td.cell-editable { overflow: hidden; }
 }
 .ac-chip:hover { background: rgba(255, 255, 255, 0.07); }
 .ac-chip-sub { font-size: 10px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.ac-more { font-size: 11px; font-weight: 600; color: var(--accent-blue); text-decoration: none; white-space: nowrap; }
+.ac-more { font-size: 11px; font-weight: 600; color: var(--myth); text-decoration: none; white-space: nowrap; }
 .ac-more:hover { text-decoration: underline; }
 
 /* Keyboard focus ring for the cockpit's custom interactive chips/buttons — the
@@ -2134,6 +2153,6 @@ td.cell-editable { overflow: hidden; }
 .ac-chip:focus-visible,
 .ac-more:focus-visible,
 .focus-ring:focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--accent-active);
   outline-offset: 2px;
 }

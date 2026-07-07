@@ -64,7 +64,7 @@ export default function RegimePanel({ marketContext }) {
 
   return (
     <>
-      <section className="rp-card" style={{ borderLeft: `3px solid ${meta.tone}` }}>
+      <section className="rp-card">
         <div className="rp-head">
           <span className="rp-eyebrow">Market Regime</span>
           <div className="rp-state">

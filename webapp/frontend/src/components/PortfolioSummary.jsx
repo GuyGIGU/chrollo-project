@@ -3,7 +3,7 @@ import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } fro
 import { explainTip } from './tooltipText';
 
 const tileBase = {
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)), var(--bg-panel)',
+  background: 'var(--bg-panel)',
   border: '1px solid var(--border-color)',
   borderRadius: '8px',
   padding: '14px 16px',
@@ -11,13 +11,15 @@ const tileBase = {
 };
 
 const MetricTile = ({ label, value, subValue, color, tone = 'default', title }) => {
-  const accent = tone === 'risk' ? 'var(--warning)' : tone === 'good' ? 'var(--success)' : 'var(--accent-blue)';
+  // A risk tone (low margin cushion / high margin use) still signals — but through
+  // the VALUE color, not a decorative top-border stripe. Signal in the data, quiet chrome.
+  const valueColor = color || (tone === 'risk' ? 'var(--warning)' : 'var(--text-main)');
   return (
-    <div style={{ ...tileBase, borderTop: `2px solid ${accent}`, cursor: title ? 'help' : 'default' }} title={title}>
+    <div style={{ ...tileBase, cursor: title ? 'help' : 'default' }} title={title}>
       <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
         {label}
       </div>
-      <div style={{ color: color || 'var(--text-main)', fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}>
+      <div style={{ color: valueColor, fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}>
         {value}
       </div>
       {subValue && (

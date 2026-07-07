@@ -28,9 +28,7 @@ function ScreenerScanProgress({ isScanning, scanProgress, scanPhase, scanLogs })
 function ProgressBar({ scanProgress }) {
   return (
     <div style={trackStyle}>
-      <div style={fillStyle(scanProgress)}>
-        {scanProgress < 100 && <div style={shimmerStyle} />}
-      </div>
+      <div style={fillStyle(scanProgress)} />
     </div>
   );
 }
@@ -57,14 +55,14 @@ const pulseDotStyle = {
   width: '8px',
   height: '8px',
   borderRadius: '50%',
-  background: 'var(--accent-blue)',
+  background: 'var(--myth)',
   animation: 'pulse-subtle 1.5s ease-in-out infinite',
 };
 const percentStyle = (progress) => ({
   fontSize: '13px',
   fontWeight: '700',
   fontFamily: "'JetBrains Mono', monospace",
-  color: progress >= 100 ? 'var(--success)' : 'var(--accent-blue)',
+  color: progress >= 100 ? 'var(--success)' : 'var(--myth)',
 });
 const trackStyle = {
   width: '100%',
@@ -78,22 +76,9 @@ const fillStyle = (progress) => ({
   height: '100%',
   width: `${Math.min(100, progress)}%`,
   borderRadius: '4px',
-  background: progress >= 100
-    ? 'var(--success)'
-    : 'linear-gradient(90deg, var(--accent-blue), var(--accent-pink, #bb86fc))',
+  background: progress >= 100 ? 'var(--success)' : 'var(--myth)',
   transition: 'width 0.4s ease-out',
-  position: 'relative',
-  overflow: 'hidden',
 });
-const shimmerStyle = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
-  animation: 'shimmer 1.8s ease-in-out infinite',
-};
 const logPanelStyle = {
   fontFamily: "'JetBrains Mono', monospace",
   fontSize: '10px',

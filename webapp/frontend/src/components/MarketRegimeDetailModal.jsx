@@ -57,7 +57,7 @@ function MarketRegimeDetailModal({ symbol, trend, meta, reasons, onClose }) {
 
         <div style={modalBodyStyle}>
           {/* What this means — the read, before the raw numbers */}
-          <div style={{ ...cardStyle, borderLeft: `3px solid ${meta.tone}` }}>
+          <div style={cardStyle}>
             <span style={sectionTitleStyle}>What this means</span>
             <div style={guidanceListStyle}>
               <GuidanceRow label="What it is" text={meta.what} />

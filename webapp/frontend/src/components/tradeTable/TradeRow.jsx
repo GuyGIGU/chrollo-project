@@ -96,22 +96,20 @@ function StopValue({ derived }) {
 function PnlValue({ derived }) {
   if (derived.pnl == null) return '—';
   const rValue = formatSignedR(derived.rValue);
-  const color = derived.pnl > 0
-    ? 'var(--success)'
-    : derived.pnl < 0 ? 'var(--danger)' : 'var(--text-muted)';
+  // The Status column already color-codes a CLOSED trade's outcome, so here the
+  // P&L just carries the number (its +/- sign shows direction) — coloring it red
+  // too would double-signal. An OPEN trade has no outcome in Status, so its live
+  // P&L keeps the sign color. Symmetric on purpose: muting only losses would
+  // flatter the book, which the honest-instrument rule forbids.
+  const outcomeInStatus = derived.status === 'win' || derived.status === 'loss' || derived.status === 'wash';
+  const signColor = (v) => (v > 0 ? 'var(--success)' : v < 0 ? 'var(--danger)' : 'var(--text-muted)');
+  const color = outcomeInStatus ? 'var(--text-main)' : signColor(derived.pnl);
+  const rColor = outcomeInStatus ? 'var(--text-faint)' : signColor(derived.rValue);
   return (
     <span style={{ color, fontWeight: 600 }}>
       {derived.pnl >= 0 ? '+' : '-'}${fmtMoney(Math.abs(derived.pnl))}
       {rValue && (
-        <span
-          className="sub"
-          style={{
-            color: derived.rValue > 0
-              ? 'var(--success)'
-              : derived.rValue < 0 ? 'var(--danger)' : 'var(--text-faint)',
-            opacity: 0.85,
-          }}
-        >
+        <span className="sub" style={{ color: rColor, opacity: 0.85 }}>
           {rValue}
         </span>
       )}

@@ -26,11 +26,13 @@ function Toast({ item }) {
       style={{
         background: 'var(--bg-panel)',
         border: '1px solid var(--border-color)',
-        borderLeft: `3px solid ${TONE_COLOR[item.tone] || TONE_COLOR.info}`,
         borderRadius: 'var(--radius-sm)',
         boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
         color: 'var(--text-main)',
         cursor: 'pointer',
+        display: 'flex',
+        gap: 9,
+        alignItems: 'flex-start',
         fontSize: 12.5,
         lineHeight: 1.5,
         maxWidth: 380,
@@ -39,7 +41,8 @@ function Toast({ item }) {
         wordBreak: 'break-word',
       }}
     >
-      {item.message}
+      <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, marginTop: 5, background: TONE_COLOR[item.tone] || TONE_COLOR.info }} />
+      <span>{item.message}</span>
     </div>
   );
 }

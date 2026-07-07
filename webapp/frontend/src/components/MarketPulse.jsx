@@ -102,7 +102,7 @@ export default function MarketPulse({ marketContext }) {
   };
 
   return (
-    <section className="mp-card" style={{ borderLeft: `3px solid ${meta.tone}` }}>
+    <section className="mp-card">
       <div className="mp-head">
         <div className="mp-title">
           <span className="mp-eyebrow">Markets · {meta.label}</span>
