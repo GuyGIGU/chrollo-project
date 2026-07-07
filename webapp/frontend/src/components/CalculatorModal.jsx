@@ -5,7 +5,6 @@ function CalculatorModal({ onClose }) {
   return (
     <Modal
       onClose={onClose}
-      closeOnEscape={false}
       overlayClassName="modal-overlay"
       overlayStyle={null}
       contentClassName="modal-content"

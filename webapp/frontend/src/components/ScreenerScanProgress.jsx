@@ -5,7 +5,7 @@ function ScreenerScanProgress({ isScanning, scanProgress, scanPhase, scanLogs })
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={phaseStyle(scanProgress)}>
-          {scanProgress < 100 && <span style={pulseDotStyle} />}
+          {scanProgress < 100 && <span className="scan-pulse-dot" style={pulseDotStyle} />}
           {scanProgress >= 100 && 'Done '}
           {scanPhase || 'Initializing pipeline...'}
         </span>
@@ -56,7 +56,6 @@ const pulseDotStyle = {
   height: '8px',
   borderRadius: '50%',
   background: 'var(--myth)',
-  animation: 'pulse-subtle 1.5s ease-in-out infinite',
 };
 const percentStyle = (progress) => ({
   fontSize: '13px',

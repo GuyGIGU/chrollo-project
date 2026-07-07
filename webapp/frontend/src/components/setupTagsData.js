@@ -9,7 +9,7 @@ export const GROUP_TONES = {
   lps: { bg: 'rgba(231,179,65,0.12)', fg: '#e3b341' },
   volume: { bg: 'rgba(166,226,46,0.12)', fg: '#a6e22e' },
   trend: { bg: 'rgba(61,211,122,0.12)', fg: 'var(--success)' },
-  warning: { bg: 'rgba(242,103,112,0.16)', fg: 'var(--danger)' },
+  warning: { bg: 'rgba(var(--danger-rgb),0.16)', fg: 'var(--danger)' },
 };
 
 export const GROUP_ORDER = {

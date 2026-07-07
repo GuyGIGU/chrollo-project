@@ -91,9 +91,7 @@ function CorrelationBar({ value }) {
     <div style={{ alignItems: 'center', display: 'flex', flex: 1, gap: '6px' }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '3px', flex: 1, height: '12px', overflow: 'hidden' }}>
         <div style={{
-          background: positive
-            ? 'linear-gradient(90deg, var(--accent-blue), var(--success))'
-            : 'linear-gradient(90deg, var(--danger), var(--accent-pink))',
+          background: positive ? 'var(--success)' : 'var(--danger)',
           borderRadius: '3px',
           height: '100%',
           transition: 'width 0.5s ease',

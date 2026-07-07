@@ -344,7 +344,7 @@ function Field({ label, onChange, tone, value }) {
         value={value}
         onChange={onChange}
         inputMode="decimal"
-        style={{ ...inputStyle, borderColor: tone === 'danger' ? 'rgba(242, 103, 112, 0.38)' : 'var(--border-color)' }}
+        style={{ ...inputStyle, borderColor: tone === 'danger' ? 'rgba(var(--danger-rgb), 0.38)' : 'var(--border-color)' }}
       />
     </div>
   );

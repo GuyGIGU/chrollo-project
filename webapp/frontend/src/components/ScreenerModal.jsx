@@ -141,6 +141,13 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
     if (interval !== 'D') setActiveRegion(null);
   }, [interval]);
 
+  // Escape closes the lens from every mount (not all parents wire it).
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   useScreenerModalChart(chartContainerRef, ticker, data, activeRegion, interval);
 
   return (
@@ -160,6 +167,9 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
     >
       <section
         className="screener-modal-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${ticker} chart lens`}
         style={{
           background: 'var(--bg-main)',
           border: '1px solid var(--border-color)',

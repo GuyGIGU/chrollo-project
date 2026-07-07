@@ -101,8 +101,8 @@ const getConnectionPill = ({ ibkrStatus, isConnected, reconnecting }) => {
       action: 'disconnect',
       label: 'IBKR CONNECTED',
       title: 'Release the IBKR API session so you can use it in TWS / TradingView.',
-      background: 'rgba(34,197,94,0.14)',
-      border: 'rgba(34,197,94,0.42)',
+      background: 'rgba(var(--success-rgb),0.14)',
+      border: 'rgba(var(--success-rgb),0.42)',
       color: 'var(--success)',
     };
   }
@@ -110,8 +110,8 @@ const getConnectionPill = ({ ibkrStatus, isConnected, reconnecting }) => {
     return {
       label: 'IBKR CONFLICT',
       title: 'Force a fresh connection. Will bump whatever else is logged into IBKR with this username.',
-      background: 'rgba(229,72,77,0.14)',
-      border: 'rgba(229,72,77,0.5)',
+      background: 'rgba(var(--danger-rgb),0.14)',
+      border: 'rgba(var(--danger-rgb),0.5)',
       color: 'var(--danger)',
     };
   }

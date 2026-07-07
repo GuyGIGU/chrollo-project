@@ -54,15 +54,22 @@
   --tier-c: #3FB950;
   --tier-d: #8B949E;
 
-  /* Status — slightly brighter to read clearly on the lighter bg */
+  /* Status — slightly brighter to read clearly on the lighter bg.
+     Each semantic color also exposes its raw R,G,B channels so any surface can
+     mix its own tint at any alpha — rgba(var(--danger-rgb), 0.35) — instead of
+     hardcoding the literal. This is the single source: soften a color here and
+     every tinted border/background/fill across the app follows. */
   --success: #3DD37A;
-  --success-bg: rgba(61, 211, 122, 0.14);
+  --success-rgb: 61, 211, 122;
+  --success-bg: rgba(var(--success-rgb), 0.14);
 
   --danger: #DE6E78;   /* softened rose-red: calmer on the cool base, still clearly loss */
-  --danger-bg: rgba(222, 110, 120, 0.14);
+  --danger-rgb: 222, 110, 120;
+  --danger-bg: rgba(var(--danger-rgb), 0.14);
 
   --warning: #E2B255;   /* muted amber, less acid-yellow, sits in the instrument register */
-  --warning-bg: rgba(226, 178, 85, 0.14);
+  --warning-rgb: 226, 178, 85;
+  --warning-bg: rgba(var(--warning-rgb), 0.14);
 
   /* Severity pills (Lucien-style: tinted bg + matching fg) */
   --pill-critical-bg: rgba(224, 122, 160, 0.12);
@@ -169,7 +176,7 @@ body {
 .rail-section-label {
   text-align: center;
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1050,6 +1057,11 @@ td {
   cursor: pointer;
 }
 .modal-close:hover { color: #fff; }
+.modal-close:focus-visible {
+  outline: 2px solid var(--accent-active);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
 
 /* MODAL FORMS */
 .modal-content input, .modal-content select {
@@ -1117,6 +1129,10 @@ td {
   cursor: pointer;
   font-family: inherit;
   transition: opacity 0.2s;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent-active);
+  outline-offset: 2px;
 }
 .btn:hover { opacity: 0.85; }
 
@@ -1567,7 +1583,7 @@ td.cell-editable { overflow: hidden; }
 }
 .status-cell.open    { background: rgba(74, 122, 255, 0.14); color: #7FA3FF; border-color: rgba(74, 122, 255, 0.28); }
 .status-cell.partial { background: rgba(212, 184, 90, 0.14); color: #E0CB7A; border-color: rgba(212, 184, 90, 0.28); }
-.status-cell.win     { background: rgba(34, 197, 94, 0.14);  color: #4FE08A; border-color: rgba(34, 197, 94, 0.28); }
+.status-cell.win     { background: rgba(var(--success-rgb), 0.14);  color: #4FE08A; border-color: rgba(var(--success-rgb), 0.28); }
 .status-cell.loss    { background: rgba(222, 110, 120, 0.14);  color: #EC7C86; border-color: rgba(222, 110, 120, 0.28); }
 .status-cell.wash    { background: rgba(126, 138, 163, 0.14); color: var(--text-muted); border-color: rgba(126, 138, 163, 0.20); }
 .status-cell.draft   { background: rgba(126, 138, 163, 0.10); color: var(--text-faint); border-color: rgba(126, 138, 163, 0.18); }
@@ -1654,7 +1670,7 @@ td.cell-editable { overflow: hidden; }
 }
 .status-pill.open  { background: var(--accent-blue-soft); color: #DCE6FF;        border-color: rgba(74, 122, 255, 0.30); }
 .status-pill.open  .dot { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
-.status-pill.win   { background: var(--success-bg);       color: var(--success); border-color: rgba(34, 197, 94, 0.30); }
+.status-pill.win   { background: var(--success-bg);       color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
 .status-pill.win   .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
 .status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
 .status-pill.loss  .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
@@ -1673,7 +1689,7 @@ td.cell-editable { overflow: hidden; }
   border: 1px solid transparent;
   white-space: nowrap;
 }
-.type-pill.long  { background: var(--success-bg); color: var(--success); border-color: rgba(34, 197, 94, 0.30); }
+.type-pill.long  { background: var(--success-bg); color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
 .type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(222, 110, 120, 0.30); }
 
 /* Two-line cell — top number bold, "→ value" muted below */
@@ -1754,11 +1770,7 @@ td.cell-editable { overflow: hidden; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
+.scan-pulse-dot { animation: pulse-subtle 1.5s ease-in-out infinite; }
 
 /* ===================================================================
    HOME COMMAND-CENTER
@@ -1883,7 +1895,8 @@ td.cell-editable { overflow: hidden; }
   100% { background-position: -200% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-skeleton-row { animation: none; }
+  .home-skeleton-row,
+  .scan-pulse-dot { animation: none; }
 }
 
 /* Fresh Setups — card rhythm */

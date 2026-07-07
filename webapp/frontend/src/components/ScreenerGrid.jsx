@@ -319,7 +319,7 @@ function ScanErrorBanner({ message, onRetry }) {
       style={{
         alignItems: 'center',
         background: 'var(--danger-bg)',
-        border: '1px solid rgba(242,103,112,0.35)',
+        border: '1px solid rgba(var(--danger-rgb),0.35)',
         borderRadius: 'var(--radius-sm)',
         color: 'var(--text-main)',
         display: 'flex',

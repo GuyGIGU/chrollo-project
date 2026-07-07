@@ -143,7 +143,7 @@ const InsightCard = ({ insight }) => (
     <div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', marginBottom: 7 }}>
       {insight.label}
     </div>
-    <div style={{ color: insight.tone || 'var(--text-main)', fontSize: 15, fontWeight: 850 }}>
+    <div style={{ color: insight.tone || 'var(--text-main)', fontSize: 15, fontWeight: 800 }}>
       {insight.value}
     </div>
     <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>

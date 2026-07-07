@@ -328,10 +328,10 @@ export const alertStyle = {
 
 export const alertToneStyle = (level) => {
   if (level === 'critical' || level === 'danger') {
-    return { background: 'rgba(242, 103, 112, 0.11)', borderColor: 'rgba(242, 103, 112, 0.34)' };
+    return { background: 'rgba(var(--danger-rgb), 0.11)', borderColor: 'rgba(var(--danger-rgb), 0.34)' };
   }
   if (level === 'warning') {
-    return { background: 'rgba(240, 190, 60, 0.10)', borderColor: 'rgba(240, 190, 60, 0.30)' };
+    return { background: 'rgba(var(--warning-rgb), 0.10)', borderColor: 'rgba(var(--warning-rgb), 0.30)' };
   }
   return { background: 'rgba(91, 138, 255, 0.10)', borderColor: 'rgba(91, 138, 255, 0.30)' };
 };

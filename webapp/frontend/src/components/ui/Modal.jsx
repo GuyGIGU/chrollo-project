@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 // Modal — the shared overlay behavior the app's dialogs repeated by hand:
 // a fixed backdrop, click-outside-to-close, Escape-to-close, and
@@ -17,6 +17,10 @@ const defaultOverlayStyle = {
   padding: 18,
 };
 
+// Elements the Tab key may land on; used to keep focus inside the open dialog.
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea, input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 function Modal({
   onClose,
   children,
@@ -28,6 +32,8 @@ function Modal({
   contentClassName,
   contentProps,
 }) {
+  const contentRef = useRef(null);
+
   useEffect(() => {
     if (!closeOnEscape) return undefined;
     const handleKeyDown = (event) => {
@@ -36,6 +42,34 @@ function Modal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeOnEscape, onClose]);
+
+  // Move focus into the dialog on open, keep Tab cycling inside it (the scrim
+  // implies the background is inert — honor that for the keyboard too), and
+  // restore focus to the invoking control on close.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const node = contentRef.current;
+    if (node) (node.querySelector(FOCUSABLE) || node).focus?.();
+    const handleTab = (event) => {
+      if (event.key !== 'Tab' || !contentRef.current) return;
+      const items = contentRef.current.querySelectorAll(FOCUSABLE);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleTab);
+    return () => {
+      window.removeEventListener('keydown', handleTab);
+      previouslyFocused?.focus?.();
+    };
+  }, []);
 
   // A caller that supplies its own overlay class/style opts out of the default
   // inline scrim (e.g. the class-based .modal-overlay dialog); only fall back to
@@ -54,6 +88,10 @@ function Modal({
       onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
+        ref={contentRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
         className={contentClassName}
         style={contentStyle}
         onClick={(event) => event.stopPropagation()}

@@ -198,7 +198,7 @@ const guidanceTextStyle = { color: 'var(--text-main)', fontSize: 13, lineHeight:
 const captionStyle = { color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.45, margin: '8px 0 0' };
 
 const priceScaleStyle = {
-  background: 'linear-gradient(90deg, rgba(242,103,112,0.20), rgba(240,190,60,0.16), rgba(61,211,122,0.18))',
+  background: 'linear-gradient(90deg, rgba(var(--danger-rgb),0.20), rgba(var(--warning-rgb),0.16), rgba(var(--success-rgb),0.18))',
   border: '1px solid rgba(255,255,255,0.06)', borderRadius: 999, height: 8, marginTop: 46, marginBottom: 6, position: 'relative',
 };
 

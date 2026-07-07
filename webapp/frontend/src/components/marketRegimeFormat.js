@@ -22,13 +22,13 @@ export const STATE_META = {
     'Be choosy: prioritize the cleanest leaders and avoid forcing marginal setups.',
   ),
   UNDER_PRESSURE: withGuidance(
-    { label: 'Under Pressure', tone: 'var(--warning)', border: 'rgba(240, 190, 60, 0.34)', summary: 'Constructive, but selective.' },
+    { label: 'Under Pressure', tone: 'var(--warning)', border: 'rgba(var(--warning-rgb), 0.34)', summary: 'Constructive, but selective.' },
     'The index trend may still be intact, but breadth or distribution is flashing caution.',
     'A market can look fine at the index level while fewer stocks participate underneath.',
     'Reduce tolerance for sloppy setups and demand stronger confirmation before acting.',
   ),
   CORRECTION: withGuidance(
-    { label: 'Correction', tone: 'var(--danger)', border: 'rgba(242, 103, 112, 0.34)', summary: 'Defensive backdrop.' },
+    { label: 'Correction', tone: 'var(--danger)', border: 'rgba(var(--danger-rgb), 0.34)', summary: 'Defensive backdrop.' },
     'SPY is below major trend support, or long-term breadth is weak enough to confirm market stress.',
     'Correction conditions raise the chance that breakouts fail or reverse quickly.',
     'Stay defensive and treat new long ideas as watchlist candidates until the backdrop improves.',
