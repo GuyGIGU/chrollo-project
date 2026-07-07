@@ -53,9 +53,9 @@ const Notice = ({ tone, title, body, action, onAction }) => {
 const buttonStyle = (primary = false) => ({
   padding: '6px 12px',
   borderRadius: 6,
-  border: primary ? '1px solid var(--accent-blue)' : '1px solid var(--border-color)',
-  background: primary ? 'rgba(91,138,255,0.15)' : 'transparent',
-  color: primary ? 'var(--accent-blue)' : 'var(--text-muted)',
+  border: primary ? '1px solid var(--accent-active)' : '1px solid var(--border-color)',
+  background: primary ? 'var(--myth-soft)' : 'transparent',
+  color: primary ? 'var(--myth)' : 'var(--text-muted)',
   fontWeight: 700,
   fontSize: 11,
   cursor: 'pointer',

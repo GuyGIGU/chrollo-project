@@ -148,11 +148,11 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
           onClick={event => { event.stopPropagation(); onTogglePassed(setup.ticker, setup.first_seen); }}
           title={setup.passed ? 'Reviewed & skipped — click to unmark' : 'Mark as reviewed & skipped'}
           style={{
-            background: setup.passed ? 'var(--accent-blue)' : 'transparent',
+            background: setup.passed ? 'var(--accent-active)' : 'transparent',
             border: '1px solid',
-            borderColor: setup.passed ? 'var(--accent-blue)' : 'var(--border-color)',
+            borderColor: setup.passed ? 'var(--accent-active)' : 'var(--border-color)',
             borderRadius: '4px',
-            color: setup.passed ? '#fff' : 'var(--text-muted)',
+            color: setup.passed ? 'var(--myth-ink)' : 'var(--text-muted)',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '10px',
@@ -242,11 +242,11 @@ function PagerButton({ active, children, disabled, onClick }) {
       disabled={disabled}
       onClick={onClick}
       style={{
-        background: active ? 'var(--accent-blue)' : 'var(--bg-main)',
+        background: active ? 'var(--accent-active)' : 'var(--bg-main)',
         border: '1px solid',
-        borderColor: active ? 'var(--accent-blue)' : 'var(--border-color)',
+        borderColor: active ? 'var(--accent-active)' : 'var(--border-color)',
         borderRadius: '6px',
-        color: active ? '#fff' : 'var(--text-main)',
+        color: active ? 'var(--myth-ink)' : 'var(--text-main)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit',
         fontWeight: active ? '600' : '400',

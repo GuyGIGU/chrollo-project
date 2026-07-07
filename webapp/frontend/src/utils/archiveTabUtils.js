@@ -50,11 +50,11 @@ export const fixed = (value, digits = 2) => fx(value, digits);
 export { tierColor, labelColor, signColor, rMultipleColor } from '../theme';
 
 export const archiveButtonStyle = (active) => ({
-  background: active ? 'var(--accent-blue)' : 'transparent',
+  background: active ? 'var(--accent-active)' : 'transparent',
   border: '1px solid',
-  borderColor: active ? 'var(--accent-blue)' : 'var(--border-color)',
+  borderColor: active ? 'var(--accent-active)' : 'var(--border-color)',
   borderRadius: '16px',
-  color: active ? '#fff' : 'var(--text-main)',
+  color: active ? 'var(--myth-ink)' : 'var(--text-main)',
   cursor: 'pointer',
   fontFamily: 'inherit',
   fontSize: '12px',

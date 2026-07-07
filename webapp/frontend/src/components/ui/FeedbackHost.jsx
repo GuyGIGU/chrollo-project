@@ -64,7 +64,8 @@ function ConfirmDialog({ confirm }) {
           type="button"
           style={{
             ...confirmButtonStyle,
-            background: confirm.danger ? 'var(--danger)' : 'var(--accent-blue)',
+            background: confirm.danger ? 'var(--danger)' : 'var(--accent-active)',
+            color: confirm.danger ? '#fff' : 'var(--myth-ink)',
           }}
           onClick={() => settleConfirm(true)}
         >

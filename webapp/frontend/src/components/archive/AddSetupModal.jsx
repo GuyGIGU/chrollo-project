@@ -101,10 +101,10 @@ function ModalButton({ children, disabled, onClick, primary }) {
       disabled={disabled}
       onClick={onClick}
       style={{
-        background: primary && !disabled ? 'var(--accent-blue)' : primary ? 'var(--bg-hover)' : 'transparent',
+        background: primary && !disabled ? 'var(--accent-active)' : primary ? 'var(--bg-hover)' : 'transparent',
         border: primary ? 'none' : '1px solid var(--border-color)',
         borderRadius: '6px',
-        color: primary && !disabled ? '#fff' : primary ? 'var(--text-muted)' : 'var(--text-main)',
+        color: primary && !disabled ? 'var(--myth-ink)' : primary ? 'var(--text-muted)' : 'var(--text-main)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit',
         fontSize: '12px',

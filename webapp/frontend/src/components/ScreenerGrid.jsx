@@ -337,10 +337,10 @@ function ScanErrorBanner({ message, onRetry }) {
 }
 
 const retryButtonStyle = {
-  background: 'var(--accent-blue)',
+  background: 'var(--accent-active)',
   border: 'none',
   borderRadius: 'var(--radius-sm)',
-  color: '#fff',
+  color: 'var(--myth-ink)',
   cursor: 'pointer',
   fontFamily: 'inherit',
   fontSize: '12px',

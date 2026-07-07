@@ -22,10 +22,10 @@ export default function ArchiveHeader({
             disabled={updating}
             onClick={onUpdateReturns}
             style={{
-              background: updating ? 'var(--bg-hover)' : 'var(--accent-blue)',
+              background: updating ? 'var(--bg-hover)' : 'var(--accent-active)',
               border: 'none',
               borderRadius: '6px',
-              color: updating ? 'var(--text-muted)' : '#fff',
+              color: updating ? 'var(--text-muted)' : 'var(--myth-ink)',
               cursor: updating ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
               fontSize: '12px',
