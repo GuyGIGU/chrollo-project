@@ -1101,6 +1101,77 @@ td {
   .instrument-lockon:focus-within { transform: none; }
 }
 
+/* ===================================================================
+   INSTRUMENT TABLE — the shared dense-list chrome (ui/InstrumentTable)
+   Mirrors the archive/ArchiveTable look so a ledger reads as one
+   instrument: muted-to-main sort header with arrows, hairline rows,
+   and a ~1% white zebra wash. Hover is a distinct surface step that
+   wins over the zebra (declared after it, same specificity). Numeric
+   alignment / tabular-nums is applied inline per column by the JSX.
+   =================================================================== */
+.instrument-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+.instrument-table thead th {
+  background: var(--bg-main);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 8px 12px;
+  text-align: left;
+  user-select: none;
+  white-space: nowrap;
+}
+.instrument-table thead th.sortable { cursor: pointer; }
+.instrument-table thead th.active { color: var(--text-main); font-weight: 700; }
+/* Sortable header trigger — a bare button so it's keyboard-operable, inheriting
+   the th's color/weight; the faint hint marks unsorted-but-sortable columns. */
+.instrument-table thead th .it-sort {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 3px;
+  padding: 0;
+}
+.instrument-table thead th .it-sort:focus-visible { outline: 2px solid var(--accent-active); outline-offset: 2px; }
+.instrument-table .it-sort-arrow { font-size: 9px; }
+.instrument-table .it-sort-hint { font-size: 9px; opacity: 0.32; }
+.instrument-table tbody td {
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+.instrument-table tbody tr:last-child td { border-bottom: none; }
+.instrument-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.012); }
+.instrument-table tbody tr:hover { background: var(--bg-main); }
+.instrument-table tbody tr.clickable { cursor: pointer; }
+.instrument-table tbody tr.muted td { color: var(--text-muted); }
+
+/* Scarce-accent remove control: a quiet ghost at rest, brighter on the row
+   hover, danger only on its own hover — never a colored column of buttons. */
+.instrument-table .row-remove {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.5;
+  padding: 2px 6px;
+}
+.instrument-table tbody tr:hover .row-remove { color: var(--text-muted); opacity: 1; }
+.instrument-table .row-remove:hover { color: var(--danger); }
+.instrument-table .row-remove:focus-visible { outline: 2px solid var(--accent-active); outline-offset: 1px; }
+
 @media (max-width: 760px) {
   .screener-modal-shell {
     min-width: 0;
