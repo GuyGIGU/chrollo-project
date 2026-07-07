@@ -6,7 +6,6 @@ import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from './ScreenerWatchlistPanel';
-import UniverseSwitcher from './UniverseSwitcher';
 import { universeLabel, isEtfUniverse } from './universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../hooks/useReviews';
@@ -120,13 +119,6 @@ const ScreenerGrid = () => {
     // side padding so the chart wall runs edge-to-edge; a small inner padding
     // keeps cards off the very edge. Other tabs keep their padding.
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
-      <UniverseSwitcher universe={universe} onChange={handleUniverseChange} />
-      {isEtfUniverse(universe) && (
-        <div style={etfNoteStyle}>
-          Breadth is anchored to the broad market — not the ETFs on screen — and breadth-based score components are neutralized for this universe.
-        </div>
-      )}
-
       <ScreenerToolbar
         screenerData={screenerData}
         isScanning={scan.isScanning}
@@ -139,7 +131,14 @@ const ScreenerGrid = () => {
         onEvaluateCached={scan.handleEvaluateCached}
         onDownloadData={scan.handleDownloadData}
         etfUniverse={etfUniverse}
+        universe={universe}
+        onUniverseChange={handleUniverseChange}
       />
+      {isEtfUniverse(universe) && (
+        <div style={etfNoteStyle}>
+          Breadth is anchored to the broad market — not the ETFs on screen — and breadth-based score components are neutralized for this universe.
+        </div>
+      )}
 
       {filters.tierFilter === 'WATCHLIST' && (
         <ScreenerWatchlistPanel

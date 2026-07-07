@@ -1021,6 +1021,41 @@ td {
 }
 
 /* ===================================================================
+   SCREENER — COMMAND BAND
+   The three stacked control rows (universe / count + data-ops / filter
+   panel) folded into ONE horizontal instrument-framed band, so the card
+   wall starts ~2 rows higher on a height-poor monitor. Rendered in the
+   panel material (a mounted bezel), never a flat toolbar. Frequent
+   triage controls stay inline; the rare plumbing (Download + verbose
+   health) folds into the Data popover; Evaluate stays out on the bar.
+   Wraps to a second line on narrow widths — never horizontal-scrolls.
+   =================================================================== */
+/* Bezel comes from the composed .instrument-tile class (DESIGN.md: "compose it,
+   don't paint with it"); this rule owns only the band's own layout + surface. */
+.screener-command-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.screener-command-seam {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  min-height: 22px;
+  background: var(--border-color);
+  margin: 0 2px;
+}
+.screener-command-spacer {
+  flex: 1 1 16px;
+  min-width: 12px;
+}
+
+/* ===================================================================
    INSTRUMENT FRAMING — reusable vocabulary (Stage 2)
    The screener above piloted this language; these generic classes roll
    the same depth to Home / Archive / Journal / Portfolio without a loud
