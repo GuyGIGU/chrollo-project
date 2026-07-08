@@ -12,15 +12,6 @@ export const scanStatusColor = (status) => {
   return 'var(--text-muted)';
 };
 
-export const tabTitle = (activeTab) => {
-  if (activeTab === 'home') return 'Command Center';
-  if (activeTab === 'dashboard') return 'Trading Journal Analytics';
-  if (activeTab === 'options') return 'Options Trades';
-  if (activeTab === 'portfolio') return 'Live IBKR Portfolio';
-  if (activeTab === 'archive') return 'Setup Archive & Calibration';
-  return 'Wyckoff Screener Scans';
-};
-
 export const buildHealthPill = (health) => {
   if (!health) return null;
   const checks = health.checks || {};

@@ -13,9 +13,9 @@ import {
   computeAutoFitScale,
 } from './uiScale.js';
 
-test('screenerColumnsAt: the operator 1536px viewport shows 2 cards at 100%, 3 when shrunk', () => {
-  assert.equal(screenerColumnsAt(1, 1536), 2); // matches "I can only see 2 cards at a time"
-  assert.equal(screenerColumnsAt(0.9, 1536), 3); // the 90% browser-zoom workaround
+test('screenerColumnsAt: the operator 1536px viewport now shows 3 cards at 100% (rail removed)', () => {
+  assert.equal(screenerColumnsAt(1, 1536), 3); // full width reclaimed from the old 86px rail
+  assert.equal(screenerColumnsAt(0.9, 1536), 3);
 });
 
 test('screenerColumnsAt: never returns fewer than one column', () => {
@@ -29,8 +29,8 @@ test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
   }
 });
 
-test('computeAutoFitScale: picks 0.9 for the 1536px monitor — the least shrink that adds a 3rd card', () => {
-  assert.equal(computeAutoFitScale(1536), 0.9);
+test('computeAutoFitScale: stays at 100% for the 1536px monitor — 3 cards already fit', () => {
+  assert.equal(computeAutoFitScale(1536), 1);
 });
 
 test('computeAutoFitScale: stays at 100% when shrinking would not add a column', () => {
@@ -42,8 +42,8 @@ test('computeAutoFitScale: stays at 100% when shrinking would not add a column',
 });
 
 test('computeAutoFitScale: on a wide monitor shrinks only as far as the next column needs', () => {
-  // 2560px fits a 5th card with just a 5% shrink — take it, but no further.
-  assert.equal(computeAutoFitScale(2560), 0.95);
+  // 2560px reaches a 6th card at 85% shrink — take it, but no further.
+  assert.equal(computeAutoFitScale(2560), 0.85);
 });
 
 test('computeAutoFitScale: never enlarges past 1', () => {

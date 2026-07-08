@@ -76,9 +76,12 @@ const ScreenerGrid = () => {
     [drilldown, filters.filteredTickers],
   );
 
+  // Fetch the next-earnings date only for the ticker whose detail lens is open
+  // (not the whole page — the card face no longer shows it). The store dedups,
+  // so re-opening or cycling back to a ticker is free.
   useEffect(() => {
-    fetchEarnings(filters.paginatedTickers);
-  }, [fetchEarnings, filters.paginatedTickers]);
+    if (activeModalTicker) fetchEarnings([activeModalTicker]);
+  }, [activeModalTicker, fetchEarnings]);
 
   const handleNextModal = useCallback(() => {
     if (!activeModalTicker || modalTickers.length === 0) return;
@@ -169,7 +172,6 @@ const ScreenerGrid = () => {
           toggleWatchlist={toggleWatchlist}
           passed={passed}
           togglePassed={togglePassed}
-          earningsByTicker={earningsByTicker}
         />
       ) : (!scan.isEvaluating && !scan.scanError && (
         <>
@@ -200,7 +202,6 @@ const ScreenerGrid = () => {
                     key={ticker}
                     ticker={ticker}
                     data={screenerData.chart_data[ticker]}
-                    earnings={earningsByTicker[ticker]}
                     watchlisted={watchlist.has(ticker)}
                     onToggleWatchlist={toggleWatchlist}
                     passed={passed.has(ticker)}
@@ -224,6 +225,7 @@ const ScreenerGrid = () => {
         <ScreenerModal
           ticker={activeModalTicker}
           data={modalChart[activeModalTicker]}
+          earnings={earningsByTicker[activeModalTicker]}
           onClose={closeModal}
           onNext={handleNextModal}
           onPrev={handlePrevModal}
@@ -245,7 +247,7 @@ function EmptyState({ message }) {
 // grid, with one quiet lineage header naming the parent ETF and a way back. The
 // hand-off is explicit (these are US-Stocks setups), and the empty states tell
 // "no curated mapping" apart from "mapped, but none fired today".
-function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, passed, togglePassed, earningsByTicker }) {
+function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, passed, togglePassed }) {
   const members = dd.ordered_tickers || [];
   const { status, basis } = dd;
   return (
@@ -271,7 +273,6 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, pa
               key={t}
               ticker={t}
               data={dd.chart_data[t]}
-              earnings={earningsByTicker[t]}
               watchlisted={watchlist.has(t)}
               onToggleWatchlist={toggleWatchlist}
               passed={passed.has(t)}

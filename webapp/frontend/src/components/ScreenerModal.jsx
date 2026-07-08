@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import TimeframeMainChart from './TimeframeMainChart';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
-import { tierColor } from '../theme';
+import { tierColor, signColor } from '../theme';
+import { fx, fmtSignedPctFrac } from '../utils/format';
+import { dailyChangeFrac } from '../utils/screenerCardData';
 
 const buttonStyle = {
   background: 'rgba(255,255,255,0.03)',
@@ -73,6 +75,7 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
 }
 
 function ModalToolbar({ data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly }) {
+  const changePct = dailyChangeFrac(data?.candles);
   return (
     <header style={{
       alignItems: 'center',
@@ -104,6 +107,14 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker, interval, onInter
           interval={interval}
           onIntervalChange={onIntervalChange}
         />
+        <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700 }}>
+          ${fx(data.price, 2)}
+        </span>
+        {changePct != null && (
+          <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700 }}>
+            {fmtSignedPctFrac(changePct, 1)}
+          </span>
+        )}
         <span style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {data.setup}
         </span>
@@ -123,7 +134,7 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker, interval, onInter
   );
 }
 
-const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null }) => {
+const ScreenerModal = ({ ticker, data, earnings, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
   const [activeRegion, setActiveRegion] = useState(null);
   const [interval, selectInterval] = useState('D');
@@ -213,6 +224,7 @@ const ScreenerModal = ({ ticker, data, onClose, onPrev, onNext, footer = null })
           <ScreenerStockLens
             activeRegion={activeRegion}
             data={data}
+            earnings={earnings}
             interval={interval}
             onRegionChange={setActiveRegion}
           />

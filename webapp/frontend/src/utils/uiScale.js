@@ -4,12 +4,11 @@
 // 1536x864 effective viewport) instead of leaning on native browser zoom.
 //
 // The auto-fit heuristic mirrors the real layout. Keep these constants in sync
-// with index.css (`.sidebar` width + border, `.content-scroll` horizontal
-// padding) and ScreenerGrid.jsx (card min-width + gap). A small drift only
-// nudges the heuristic by ~one step, which the stepper corrects — but keep them
-// honest. The same math is duplicated in index.html's pre-paint script (so the
-// saved/first-run scale applies before React mounts, with no flash); update
-// both together.
+// with ScreenerGrid.jsx (the full-bleed grid wrapper's side padding + the card
+// min-width + gap) and the app's scrollbar width. A small drift only nudges the
+// heuristic by ~one step, which the stepper corrects — but keep them honest. The
+// same math is duplicated in index.html's pre-paint script (so the saved/first-
+// run scale applies before React mounts, with no flash); update both together.
 
 export const STORAGE_KEY = 'chrollo:ui-scale';
 
@@ -18,9 +17,13 @@ export const STORAGE_KEY = 'chrollo:ui-scale';
 export const SCALE_STEPS = [0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3];
 export const DEFAULT_SCALE = 1;
 
-// Horizontal chrome flanking the screener grid, in internal CSS px:
-// 86px sidebar + 1px right border + `.content-scroll` padding (2rem * 2 = 64px).
-export const GRID_CHROME_PX = 86 + 1 + 64;
+// Horizontal chrome flanking the screener grid, in internal CSS px. The screener
+// is full-bleed: ScreenerGrid's wrapper cancels the content-scroll side padding
+// (margin: 0 -2rem) and re-adds 1rem each side, so the only horizontal chrome is
+// that 2rem of wrapper padding (32px) plus the 6px overlay scrollbar. The old
+// 86px app rail is gone — it became a horizontal top nav that costs height, not
+// width — so it no longer belongs in this budget.
+export const GRID_CHROME_PX = 32 + 6;
 export const CARD_MIN_PX = 480; // ScreenerGrid minmax(480px, 1fr)
 export const CARD_GAP_PX = 14;  // ScreenerGrid gap
 
