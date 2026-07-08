@@ -2,7 +2,9 @@ import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import { explainTip } from './tooltipText';
-import { tierColor } from '../theme';
+import { tierColor, signColor } from '../theme';
+import { fx, fmtSignedPctFrac, fmtDateShort } from '../utils/format';
+import { dailyChangeFrac, htfStateLabel } from '../utils/screenerCardData';
 
 const scoreLabel = (value) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
@@ -94,12 +96,79 @@ const phaseRegionTip = (region) => {
   });
 };
 
-function SnapshotMetric({ label, title, tone, value }) {
+// Next-earnings cell for the detail grid. Shows the actual DATE (never the
+// cryptic "ER"), tinted by proximity — caution amber inside ~10 days, danger
+// inside 3 — with a plain-language tooltip. '-' when no upcoming date is known.
+const earningsDisplay = (earnings) => {
+  const date = earnings?.date;
+  if (!date) return { value: '-', tone: undefined, title: 'No upcoming earnings date available' };
+  const days = earnings?.days_until;
+  let tone;
+  if (days != null && days >= 0) {
+    if (days <= 3) tone = 'var(--danger)';
+    else if (days <= 10) tone = 'var(--warning)';
+  }
+  const title = days == null
+    ? `Next earnings: ${date}`
+    : days >= 0
+      ? `Next earnings in ${days} day${days === 1 ? '' : 's'} (${date})`
+      : `Last earnings ${-days} day${days === -1 ? '' : 's'} ago (${date})`;
+  return { value: fmtDateShort(date), tone, title };
+};
+
+// The Finviz-style dense read: one tight grid of the engine's technical facts.
+// Finviz fills this with fundamentals (P/E, EPS); Chrollo has none, so every cell
+// is a measured structural / trend fact from the scan payload — no invented data.
+function TechnicalReadGrid({ data, earnings }) {
+  const price = finiteNumber(data?.price ?? latestCandle(data)?.close);
+  const distance = distanceToTriggerPct(data);
+  const changePct = dailyChangeFrac(data?.candles);
+  const weekly = htfStateLabel({
+    stage2: data.htf_w_stage2, trendState: data.htf_w_trend_state,
+    inConsol: data.htf_w_in_consol, phase: data.htf_w_phase, reaccum: data.htf_w_reaccum,
+  });
+  const monthly = htfStateLabel({
+    stage2: data.htf_m_stage2, trendState: data.htf_m_trend_state,
+    inConsol: data.htf_m_in_consol, phase: data.htf_m_phase, reaccum: data.htf_m_reaccum,
+  });
+  const contractions = finiteNumber(data.contraction_count);
+  const earn = earningsDisplay(earnings);
+
+  const cells = [
+    { k: 'Price', v: money(price) },
+    { k: 'Change', v: changePct == null ? '-' : fmtSignedPctFrac(changePct, 1), tone: signColor(changePct) },
+    { k: 'Trigger', v: money(data.trigger), tone: '#e3b341' },
+    { k: 'To trigger', v: pct(distance), tone: triggerTone(distance) },
+    { k: 'Resistance', v: money(data.R) },
+    { k: 'Support', v: money(data.S) },
+    { k: 'Box width', v: pct(boxWidthPct(data)) },
+    { k: 'ADR', v: pct(data.adr_pct) },
+    { k: 'Base length', v: bars(data.base_len) },
+    { k: 'LPS pullback', v: bars(data.lps_len) },
+    { k: 'Contractions', v: contractions == null ? '-' : String(contractions) },
+    { k: 'Traversal', v: fx(data.traversal_density, 2, '-') },
+    { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)' },
+    { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title },
+    { k: 'Weekly', v: weekly.label, tone: weekly.tone },
+    { k: 'Monthly', v: monthly.label, tone: monthly.tone },
+    { k: 'Score', v: scoreLabel(data.score), tone: tierColor(data.tier) },
+  ];
+
   return (
-    <div className="stock-lens-metric" title={title}>
-      <span>{label}</span>
-      <strong style={{ color: tone || 'var(--text-main)' }}>{value}</strong>
-    </div>
+    <section className="stock-lens-section">
+      <div className="stock-lens-section-header">
+        <span>Technical read</span>
+        <small>{data.setup || ''}</small>
+      </div>
+      <div className="lens-grid">
+        {cells.map((cell) => (
+          <div className="lens-cell" key={cell.k} title={cell.title}>
+            <span className="lens-k">{cell.k}</span>
+            <span className="lens-v" style={{ color: cell.tone || 'var(--text-main)' }}>{cell.v}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -145,147 +214,13 @@ function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
   );
 }
 
-function DecisionRead({ data }) {
-  const distance = distanceToTriggerPct(data);
-  const currentPrice = finiteNumber(data?.price ?? latestCandle(data)?.close);
-
-  return (
-    <section className="stock-lens-section stock-lens-read">
-      <div className="stock-lens-identity">
-        <div>
-          <span className="stock-lens-kicker">Selected setup</span>
-          <strong>{data.setup || '-'}</strong>
-        </div>
-        <span
-          className="stock-lens-tier"
-          style={{ borderColor: `${tierColor(data.tier)}66`, color: tierColor(data.tier) }}
-          title={explainTip({
-            what: 'The engine rank for this setup after scoring structure and confirmation context.',
-            why: 'It helps us triage the scan quickly without treating every setup as equal.',
-            use: 'Review higher tiers first, then still confirm the chart, trigger, and risk manually.',
-          })}
-        >
-          {data.tier || '-'} Tier
-        </span>
-      </div>
-
-      <div className="stock-lens-metrics-grid">
-        <SnapshotMetric
-          label="Price"
-          title={explainTip({
-            what: 'The latest closing price included in the scan result.',
-            why: 'It anchors the setup read to the data the screener actually scored.',
-            use: 'Compare it with the trigger and box levels before deciding whether the setup is close enough to watch.',
-          })}
-          value={money(currentPrice)}
-        />
-        <SnapshotMetric
-          label="Trigger"
-          title={explainTip({
-            what: 'The breakout level calculated from the detected resistance area.',
-            why: 'It gives us the price area where demand must prove it can clear the base.',
-            use: 'Treat it as a review level, not an automatic order; look for clean price action and volume confirmation.',
-          })}
-          tone="#e3b341"
-          value={money(data.trigger)}
-        />
-        <SnapshotMetric
-          label="To Trigger"
-          title={explainTip({
-            what: 'The percent distance from the latest close to the trigger.',
-            why: 'It tells us whether the setup is actionable, extended, or still needs time.',
-            use: 'Lower is closer; a negative value means price is already above the trigger and needs extra caution.',
-          })}
-          tone={triggerTone(distance)}
-          value={pct(distance)}
-        />
-        <SnapshotMetric
-          label="Read"
-          title={explainTip({
-            what: 'A plain-language summary of the trigger distance.',
-            why: 'It turns the distance number into a faster triage read.',
-            use: 'Use it to sort attention, then make the actual decision from the chart and risk plan.',
-          })}
-          tone={triggerTone(distance)}
-          value={triggerRead(distance)}
-        />
-      </div>
-    </section>
-  );
-}
-
-function ContextPanel({ data }) {
-  return (
-    <section className="stock-lens-section">
-      <div className="stock-lens-section-header">
-        <span>Stock Context</span>
-      </div>
-      <div className="stock-lens-context-grid">
-        <SnapshotMetric
-          label="Sector"
-          title={explainTip({
-            what: 'The stock sector or sector ETF available from the cached map.',
-            why: 'Sector context helps us see whether the idea is part of a stronger theme or standing alone.',
-            use: 'Prefer setups that agree with strong sector behavior; treat missing sector detail as neutral.',
-          })}
-          value={sectorLabel(data)}
-        />
-        <SnapshotMetric
-          label="Score"
-          title={explainTip({
-            what: 'The total setup score from the screener.',
-            why: 'It combines the measured structure and confirmation signals into one triage number.',
-            use: 'Use it to prioritize candidates, then inspect the chart because the score is not a trade signal by itself.',
-          })}
-          tone={tierColor(data.tier)}
-          value={scoreLabel(data.score)}
-        />
-        <SnapshotMetric
-          label="ADR"
-          title={explainTip({
-            what: 'Average Daily Range percent: the stock average daily movement relative to price.',
-            why: 'Higher ADR means more movement potential, but also wider normal volatility.',
-            use: 'Use it like the Qullamaggie-style volatility filter: size stops and position risk around the stock actual movement.',
-          })}
-          value={pct(data.adr_pct)}
-        />
-        <SnapshotMetric
-          label="Base"
-          title={explainTip({
-            what: 'The number of bars inside the detected consolidation base.',
-            why: 'Base length tells us how much time the stock has spent building the current structure.',
-            use: 'Longer bases can be meaningful, but act only when the final structure is tight and near a clear trigger.',
-          })}
-          value={bars(data.base_len)}
-        />
-        <SnapshotMetric
-          label="Box Width"
-          title={explainTip({
-            what: 'The distance from support to resistance, shown as a percent of support.',
-            why: 'It measures how tight or wide the actionable box is.',
-            use: 'Prefer tighter boxes when the rails are clean, because risk can usually be defined more precisely.',
-          })}
-          value={pct(boxWidthPct(data))}
-        />
-        <SnapshotMetric
-          label="LPS"
-          title={explainTip({
-            what: 'The length of the latest last-point-of-support pullback.',
-            why: 'A shorter, controlled LPS can show that sellers are not pushing price far from the trigger.',
-            use: 'Use it to judge whether the final pause is tight; a failed support test weakens the setup.',
-          })}
-          value={bars(data.lps_len)}
-        />
-      </div>
-    </section>
-  );
-}
-
 function TagsPanel({ data }) {
+  const read = triggerRead(distanceToTriggerPct(data));
   return (
     <section className="stock-lens-section">
       <div className="stock-lens-section-header">
         <span>Why It Stands Out</span>
+        <small>{read}</small>
       </div>
       <TagRow
         subScores={data.sub_scores}
@@ -323,14 +258,11 @@ function TagsPanel({ data }) {
   );
 }
 
-export default function ScreenerStockLens({ activeRegion, data, interval = 'D', onRegionChange }) {
+export default function ScreenerStockLens({ activeRegion, data, earnings, interval = 'D', onRegionChange }) {
   const showDailyStructure = interval === 'D';
   return (
     <div className="stock-lens">
-      <div className="stock-lens-top">
-        <DecisionRead data={data} />
-        <ContextPanel data={data} />
-      </div>
+      <TechnicalReadGrid data={data} earnings={earnings} />
       <div className="stock-lens-bottom">
         {showDailyStructure ? (
           <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />

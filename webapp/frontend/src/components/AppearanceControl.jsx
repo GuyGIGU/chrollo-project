@@ -13,7 +13,7 @@ import {
 const readViewport = () =>
   (typeof document !== 'undefined' && document.documentElement.clientWidth) || 1536;
 
-// A rail action that opens a small popover to size the whole app via CSS `zoom`
+// A top-nav action that opens a small popover to size the whole app via CSS `zoom`
 // (--ui-scale on .app-layout). Self-contained: it owns the scale state, applies
 // it to the document root, and persists it — index.html's pre-paint script sets
 // the initial value so there is no flash on reload. Auto-fit picks the least
@@ -66,14 +66,14 @@ function AppearanceControl() {
     <div className="appearance-anchor" ref={anchorRef}>
       <button
         type="button"
-        className={`rail-action${open ? ' rail-action-primary' : ''}`}
+        className={`topnav-action${open ? ' topnav-action-primary' : ''}`}
         onClick={() => setOpen((prev) => !prev)}
         title="Scale — size the app to your screen"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label="Scale"
       >
-        <SlidersIcon className="rail-icon" />
-        <span className="rail-label">Scale</span>
+        <SlidersIcon className="topnav-icon" />
       </button>
 
       {open && (

@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import AppSidebar from './AppSidebar';
 import AppTopbar from './AppTopbar';
 import ErrorBoundary from './ErrorBoundary';
 import FeedbackHost from './ui/FeedbackHost';
@@ -33,13 +32,12 @@ const tabFromPath = (pathname) => {
   return 'home';
 };
 
-// AppShell owns the persistent frame (sidebar + topbar + risk-alert strip) and
-// all cross-cutting state that outlives any single route: the trade-detail
-// drawer, the calculator modal, the draft trade row, the trade filter, CSV
-// import, and the dashboard/IBKR/live-price hooks. Routes render in the Outlet
-// and read what they need through outlet context. The active nav highlight is
-// derived from the URL (NavLink in AppSidebar), so there is one source of truth
-// for "where am I".
+// AppShell owns the persistent frame (top nav bar + risk-alert strip) and all
+// cross-cutting state that outlives any single route: the trade-detail drawer,
+// the calculator modal, the draft trade row, the trade filter, CSV import, and
+// the dashboard/IBKR/live-price hooks. Routes render in the Outlet and read what
+// they need through outlet context. The active nav highlight is derived from the
+// URL (NavLink in AppTopbar), so there is one source of truth for "where am I".
 function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,7 +150,12 @@ function AppShell() {
 
   return (
     <div className="app-layout">
-      <AppSidebar
+      <AppTopbar
+        healthPill={healthPill}
+        scanStatus={scanStatus}
+        scanStatusText={scanStatusText}
+        ibkrStatus={ibkrStatus}
+        ibkrActions={ibkrActions}
         logoUrl={logoUrl}
         onOpenCalculator={() => setCalcModalOpen(true)}
         onNewTrade={startNewTrade}
@@ -162,16 +165,6 @@ function AppShell() {
       />
 
       <main className="main-content">
-        <AppTopbar
-          activeTab={activeTab}
-          healthPill={healthPill}
-          scanStatus={scanStatus}
-          scanStatusText={scanStatusText}
-          stockTradeCount={stockTrades.length}
-          optionTradeCount={optionTrades.length}
-          ibkrStatus={ibkrStatus}
-          ibkrActions={ibkrActions}
-        />
         <ErrorBoundary>
           <div className="content-scroll">
             <TradeRiskAlerts alerts={riskAlerts} trades={trades} onDetailClick={setDetailTrade} />
