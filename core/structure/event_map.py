@@ -49,6 +49,7 @@ Task 6 (PLAN-event-tape.md).
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 
 from config import settings
 from core.structure.box_events import (
@@ -361,3 +362,44 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
         })
 
     return {"labels": labels, "n_labels": len(labels)}
+
+
+# ── Archive column family: the tape summary ──────────────────────────────────
+# Owning declaration for the Event Map archive columns (the HTF precedent —
+# core.structure.htf): names, SQL types, and row-value extraction live HERE;
+# the live writer and seed both splat ``event_map_archive_values``. The ORM
+# model (webapp/backend/archive_models.SetupArchive) declares matching nullable
+# columns as MODEL-ONLY adds (the engine_config_version precedent): deliberately
+# NOT hand-listed in the writer's _NEW_COLUMNS or startup._MIGRATIONS — the
+# boot-time model-diff auto-migration and the writer's model-derived pass ADD
+# them. Later families (shelf-LPS form, Last-Supper wave typing) extend this
+# dict in their own tasks. NULL means "not measured" (flag off, pre-Event-Map
+# rows), never zero.
+EVENT_MAP_COLUMN_SQL: dict[str, str] = {
+    "event_map_n_swings": "INTEGER",       # committed + in-progress swings, whole frame
+    "event_map_pre_box_trend": "TEXT",     # pre-box view trend_state
+    "event_map_n_labels": "INTEGER",       # role labels over the elected bricks
+    "event_map_n_committed": "INTEGER",    # labels whose verdict was knowable at scan close
+}
+
+
+def event_map_archive_values(get, *, prefixed: bool) -> dict:
+    """Map a result row to the {column: value} archive dict. ``get`` is the
+    row's ``.get``; the LIVE result carries ``_``-prefixed keys
+    (``prefixed=True``), the SEED result does not. Cells are NaN-scrubbed at
+    the pandas boundary (EC-2) and INTEGER cells coerced to plain int — which
+    also lands future boolean fields on the 0/1-or-NULL convention. A missing
+    or scrubbed cell stays None (NULL = "not measured")."""
+    out = {}
+    for col, sql_type in EVENT_MAP_COLUMN_SQL.items():
+        value = get(("_" + col) if prefixed else col)
+        if value is not None:
+            try:
+                if pd.isna(value):
+                    value = None
+            except (TypeError, ValueError):
+                pass
+        if value is not None and sql_type == "INTEGER":
+            value = int(value)
+        out[col] = value
+    return out

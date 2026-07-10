@@ -266,6 +266,18 @@ class SetupArchive(Base):
     htf_m_reaccum = Column(Integer, nullable=True)
     htf_m_daily_nested = Column(Integer, nullable=True)
 
+    # ── Event Map tape summary — measure-only, flag-gated (EVENT_MAP_ENABLED) ──
+    # Owning declaration (names / SQL types / row extraction) lives in
+    # core/structure/event_map.py (EVENT_MAP_COLUMN_SQL); a test keeps this model
+    # in sync. MODEL-ONLY adds (the engine_config_version precedent): deliberately
+    # NOT in the writer's _NEW_COLUMNS or startup._MIGRATIONS — the Track B
+    # model-diff auto-migration and the writer's model-derived pass ADD them.
+    # NULL means "not measured" (flag off / pre-Event-Map rows), never zero.
+    event_map_n_swings = Column(Integer, nullable=True)       # committed + in-progress swings, whole frame
+    event_map_pre_box_trend = Column(String, nullable=True)   # pre-box view trend_state
+    event_map_n_labels = Column(Integer, nullable=True)       # role labels over the elected bricks
+    event_map_n_committed = Column(Integer, nullable=True)    # labels knowable at scan close
+
     # ── Advisory metadata (Lane E) — GRADED context, NOT a veto, NOT scored ──
     # Flag-gated (FUNDAMENTALS_ENABLED / RS_LINE_ENABLED / SECTOR_RANKING_ENABLED),
     # all default OFF -> these stay NULL and the engine output is byte-identical.

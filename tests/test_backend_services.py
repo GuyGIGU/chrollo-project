@@ -224,6 +224,35 @@ def test_engine_config_version_is_modeled_and_auto_migrated():
     assert any("engine_config_version" in s for s in stmts)
 
 
+def test_event_map_columns_are_modeled_and_auto_migrated():
+    """The Event Map tape-summary family (Task 7) is declared ONCE in
+    core.structure.event_map (EVENT_MAP_COLUMN_SQL) and enters the schema as
+    MODEL-ONLY adds (the engine_config_version precedent): every declared column
+    is a real SetupArchive column, none is hand-listed in the writer's
+    _NEW_COLUMNS or startup._MIGRATIONS, and Track B's model-derived
+    auto-migration emits their ADDs on an existing table that lacks them."""
+    import sqlalchemy as sa
+    from sqlalchemy import text
+
+    from core.structure.event_map import EVENT_MAP_COLUMN_SQL
+
+    model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
+    assert set(EVENT_MAP_COLUMN_SQL) <= model_columns
+    assert not set(EVENT_MAP_COLUMN_SQL) & set(archive_writer._NEW_COLUMNS)
+    migration_sql = "\n".join(startup._MIGRATIONS)
+    assert not any(f"ADD COLUMN {c} " in migration_sql for c in EVENT_MAP_COLUMN_SQL)
+
+    eng = sa.create_engine("sqlite:///:memory:")
+    cols = [c for c in archive_models.SetupArchive.__table__.columns
+            if c.name not in EVENT_MAP_COLUMN_SQL]
+    coldefs = ", ".join(f"{c.name} {c.type}" for c in cols)
+    with eng.begin() as conn:
+        conn.execute(text(f"CREATE TABLE setup_archive ({coldefs})"))
+    stmts = startup.model_add_column_migrations(eng)
+    for col in EVENT_MAP_COLUMN_SQL:
+        assert any(f"ADD COLUMN {col} " in s for s in stmts), f"missing ADD for {col}"
+
+
 def test_ensure_new_columns_adds_model_only_columns(tmp_path):
     """The writer/seed self-sufficiency helper (_ensure_new_columns) brings an
     existing table up to the MODEL even for columns absent from _NEW_COLUMNS, so

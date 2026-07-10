@@ -59,6 +59,7 @@ import pytest  # noqa: E402
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
+from core.structure.event_map import event_map_archive_values  # noqa: E402
 from core.structure.htf import htf_archive_values  # noqa: E402
 
 
@@ -127,6 +128,12 @@ def _htf_splat_keys(*, prefixed: bool) -> frozenset[str]:
     return frozenset(htf_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _event_map_splat_keys(*, prefixed: bool) -> frozenset[str]:
+    """Columns the Event Map ``**`` splat contributes (driven hermetically)."""
+    return frozenset(
+        event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _sector_rank_splat_keys() -> frozenset[str]:
     """Columns the sector-rank ``**`` splat contributes.
 
@@ -172,11 +179,14 @@ def test_writer_values_dict_is_subset_of_model_columns():
 
     # 2. The **splats are the ones we resolve hermetically below (fail loudly if
     #    a new/renamed splat appears so the guard is extended, not silently blind).
-    assert set(splats) == {"htf_archive_values", "sector_rank_columns"}, (
+    assert set(splats) == {"htf_archive_values", "event_map_archive_values",
+                           "sector_rank_columns"}, (
         f"unexpected **splat(s) in archive_scan_results: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
     )
-    splat_cols = _htf_splat_keys(prefixed=True) | _sector_rank_splat_keys()
+    splat_cols = (_htf_splat_keys(prefixed=True)
+                  | _event_map_splat_keys(prefixed=True)
+                  | _sector_rank_splat_keys())
     stray_splat = splat_cols - model
     assert not stray_splat, (
         f"writer **splat contributes non-column key(s) {sorted(stray_splat)}."
@@ -227,11 +237,14 @@ def test_seed_values_dict_is_subset_of_model_columns():
 
     # 3. The **splats inside overrides are the ones we resolve hermetically (fail
     #    loudly on a new/renamed splat so the guard is extended, not blind).
-    assert set(splats) == {"htf_archive_values", "fwd_returns"}, (
+    assert set(splats) == {"htf_archive_values", "event_map_archive_values",
+                           "fwd_returns"}, (
         f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
     )
-    splat_cols = _htf_splat_keys(prefixed=False) | _fwd_return_splat_keys()
+    splat_cols = (_htf_splat_keys(prefixed=False)
+                  | _event_map_splat_keys(prefixed=False)
+                  | _fwd_return_splat_keys())
     stray_splat = splat_cols - model
     assert not stray_splat, (
         f"seed **splat contributes non-column key(s) {sorted(stray_splat)}."

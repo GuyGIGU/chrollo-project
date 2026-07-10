@@ -366,3 +366,24 @@ def test_degenerate_inputs_return_empty_shape():
     ):
         tape = read_swing_map(bad_df, bad_box, bad_atr)
         assert set(tape) == empty_keys and tape["swings"] == []
+
+
+def test_event_map_archive_values_live_and_seed_mapping():
+    """The tape-summary archive family (Task 7): the owning extraction maps a
+    live (prefixed) or seed (unprefixed) row to exactly EVENT_MAP_COLUMN_SQL,
+    NaN-scrubbed (EC-2), INTEGER cells as plain int, absent -> None (NULL)."""
+    from core.structure.event_map import EVENT_MAP_COLUMN_SQL, event_map_archive_values
+
+    live_row = {"_event_map_n_swings": np.int64(7),
+                "_event_map_pre_box_trend": "up",
+                "_event_map_n_labels": float("nan")}
+    out = event_map_archive_values(live_row.get, prefixed=True)
+    assert set(out) == set(EVENT_MAP_COLUMN_SQL)
+    assert out["event_map_n_swings"] == 7
+    assert type(out["event_map_n_swings"]) is int      # np.int64 -> plain int
+    assert out["event_map_pre_box_trend"] == "up"
+    assert out["event_map_n_labels"] is None           # NaN scrubbed -> NULL
+    assert out["event_map_n_committed"] is None        # absent -> "not measured"
+
+    seed_out = event_map_archive_values({"event_map_n_swings": 3}.get, prefixed=False)
+    assert seed_out["event_map_n_swings"] == 3

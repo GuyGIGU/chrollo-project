@@ -34,6 +34,7 @@ from core.pipeline.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.structure.event_map import event_map_archive_values
 from core.structure.htf import htf_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -434,6 +435,8 @@ def seed_archive(
             quality_label="perfect",
             # HTF (higher-timeframe) context — same engine on weekly/monthly bars
             **htf_archive_values(best_result.get, prefixed=False),
+            # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
+            **event_map_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,
         )

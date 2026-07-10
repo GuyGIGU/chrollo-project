@@ -59,6 +59,7 @@ import pytest  # noqa: E402
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
+from core.structure.event_map import event_map_archive_values  # noqa: E402
 from core.structure.htf import htf_archive_values  # noqa: E402
 
 
@@ -163,6 +164,11 @@ def _htf_cols(*, prefixed: bool) -> frozenset[str]:
     return frozenset(htf_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _event_map_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _sector_rank_cols() -> frozenset[str]:
     ranking = {"composite": {"XLK": 92.0}, "ranked": ["XLK", "XLF"]}
     fields = sector_rank_fields("XLK", ranking)
@@ -195,10 +201,12 @@ def _scan_effective_cols() -> frozenset[str]:
     its ``htf_archive_values`` (prefixed) + ``sector_rank_columns`` splats."""
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
-    assert splats == {"htf_archive_values", "sector_rank_columns"}, (
+    assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
-    return literal | _htf_cols(prefixed=True) | _sector_rank_cols()
+    return (literal | _htf_cols(prefixed=True)
+            | _event_map_cols(prefixed=True) | _sector_rank_cols())
 
 
 def _seed_effective_cols() -> frozenset[str]:
@@ -207,11 +215,12 @@ def _seed_effective_cols() -> frozenset[str]:
     ``htf_archive_values`` (unprefixed) + ``fwd_returns`` splats."""
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
-    assert splats == {"htf_archive_values", "fwd_returns"}, (
+    assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
-    return (_mapper_auto_cols() | literal
-            | _htf_cols(prefixed=False) | _fwd_return_cols())
+    return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
+            | _event_map_cols(prefixed=False) | _fwd_return_cols())
 
 
 def test_scan_and_seed_only_diverge_on_allowlist():

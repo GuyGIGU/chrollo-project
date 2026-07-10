@@ -206,6 +206,12 @@ _NEW_COLUMNS: dict[str, str] = {
 # core.structure.htf so the writer / model / migrations / seed stay in sync.
 _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
+# Event Map tape-summary columns — single source in core.structure.event_map.
+# MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
+# merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
+# the backend's Track B auto-migration ADD them.
+from core.structure.event_map import event_map_archive_values
+
 
 def _ensure_new_columns(engine) -> None:
     """Add post-schema columns to setup_archive if they don't exist yet.
@@ -599,6 +605,8 @@ def archive_scan_results(
                                if row.get("_stage2_trend_pass") is not None else None),
             # HTF (higher-timeframe) context — same engine on weekly/monthly bars
             **htf_archive_values(row.get, prefixed=True),
+            # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
+            **event_map_archive_values(row.get, prefixed=True),
             # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
             # Per-ticker fundamentals / RS-line / days-to-earnings come from the
             # eval result (set by core.fundamentals.advisory when the flags are on;
