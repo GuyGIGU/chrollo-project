@@ -601,6 +601,16 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     rescued.append(tup)
 
     pool = strict if strict else rescued
+
+    # LAST-RESORT worked-band pool (BAND_RAILS_ENABLED, dark; outer Phase B
+    # only): consulted ONLY when both extreme-anchored pools are empty, so an
+    # ordinary election can never move. Rails at the max-dwell close band;
+    # qualified excursions (reclaim/fail-back + hold) are excised from the
+    # judged window; every gate below runs UNCHANGED on the judged bars.
+    if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
+        pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, atr_val,
+                                     trace=trace)
+
     if trace is not None and strict and rescued:
         for rec in trace:
             if rec["verdict"] == "valid" and rec["rescued"]:
@@ -608,6 +618,52 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                 rec["stage"] = "rescue_unused"
                 rec["detail"] = "strict framings exist; the rescued pool is discarded"
     return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal, trace=trace)
+
+
+def _band_rail_candidates(eq_df, eq_highs, eq_lows, atr_val, trace=None):
+    """Build the worked-band candidate pool for a window (possibly empty).
+
+    Rails come from ``band_rails.derive_band_candidates`` (dwell-qualified
+    close bands + per-band excursion qualification); anchors are the first REAL
+    rail touches within the respect buffer so ``swing_complete_idx`` keeps its
+    meaning. Every band is judged by the unchanged ``_build_candidate`` gates
+    over its judged (excursion-excised) window — the same narrowed-measurement
+    convention the rescued SOS trim already uses — and the standard selection
+    picks among the survivors.
+    """
+    from core.structure.band_rails import derive_band_candidates
+
+    buf = settings.BOUNDARY_ATR_BUFFER * atr_val
+    pool = []
+    for read in derive_band_candidates(eq_df, atr_val):
+        R_val, S_val = float(read["R"]), float(read["S"])
+        box_width = (R_val - S_val) / S_val
+        judged = read["judged"]
+
+        r_touch = np.flatnonzero(judged & (eq_highs >= R_val - buf))
+        s_touch = np.flatnonzero(judged & (eq_lows <= S_val + buf))
+        if not len(r_touch) or not len(s_touch):
+            continue
+        r_anchor_bar, s_anchor_bar = int(r_touch[0]), int(s_touch[0])
+        cand_start = min(r_anchor_bar, s_anchor_bar)
+
+        mask = judged[cand_start:]
+        tup = _build_candidate(
+            eq_highs[cand_start:][mask], eq_lows[cand_start:][mask],
+            eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
+            r_anchor_bar, s_anchor_bar, cand_start, atr_val,
+            trace=trace, rescued=True,
+        )
+        if tup is None:
+            continue
+        if trace is not None:
+            rec = _trace_find(trace, tup)
+            if rec is not None:
+                rec["detail"] = (f"worked-band rails; {len(read['excursions'])} "
+                                 "qualified excursion event(s) excised from the "
+                                 "judged window")
+        pool.append(tup)
+    return pool
 
 
 def select_phase_b_candidate(valid_candidates, select):

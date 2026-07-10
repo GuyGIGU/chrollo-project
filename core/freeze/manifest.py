@@ -133,6 +133,10 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_HOLDING_SHELF_ENABLED",
     "LPS_SHELF_LENGTH_MIN",
     "LPS_SHELF_MIN_LOW_POS_BOX",
+    # Worked-band rail pool + deep-excursion events (Event Map Task 11, dark)
+    "BAND_RAILS_ENABLED",
+    "BAND_MIN_DWELL",
+    "BAND_TURN_TOL_FRAC",
     "LPS_DRAW_MIN_DESCENT_FRAC",
     "LPS_ZONE_ATR_MULT",
     # Phase-C bin measurement

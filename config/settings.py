@@ -63,6 +63,20 @@ PIP_MACRO_EQ_OSC_FRAC = 0.3      # min two-sided traversal (x bridge height)
 
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
+
+# ── Worked-band rail candidates + deep-excursion events (Event Map Task 11) ──
+# DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
+# consulted ONLY when the strict and rescued pools are both empty — an ordinary
+# box's election can never move): rails at the WORKED BAND (the bounded-width
+# close band with the largest dwell share), with band-leaving excursions typed
+# as events that must reclaim/fail-back and HOLD (the spring invariants at
+# terminal-shakeout scale) or the candidate dies. Judged bars run the UNCHANGED
+# respect/occupancy/traversal gates; nothing is excused. Operator ruling
+# 2026-07-10 (BODI marked chart): the Feb collapse is PHASE C — a terminal-
+# shakeout spring inside ONE box measured at the worked band (~17.5%).
+BAND_RAILS_ENABLED = False
+BAND_MIN_DWELL = 0.5             # the band must hold at least this share of window closes
+BAND_TURN_TOL_FRAC = 0.05        # turn-cluster tolerance as a fraction of the window's close range
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)

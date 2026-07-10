@@ -36,6 +36,7 @@ draw the consolidation accurately and measure its tightness faithfully.**
 |------|-------------------------------|
 | `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner Phase D range. |
 | `box_primitives.py` | Shared box toolkit: root anchors, zigzag R/S candidates, boundary respect, R/S touch density, and worked-equilibrium dwell/coverage. |
+| `band_rails.py` | Worked-band rail candidates + deep-excursion (terminal-shakeout) event qualification — the dark last-resort pair-election pool (`BAND_RAILS_ENABLED`); band derivation awaits operator calibration. |
 | `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
 | `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
 | `pip.py` | Alternative multi-resolution swing skeleton (Perceptually Important Points): ranks turning points by importance so the same chart can be read coarse (macro trend) to fine (inner structure). Flag-gated (`PIP_MACRO_PHASE_A_ENABLED`, dark); feeds only the Phase-A overlay. |
