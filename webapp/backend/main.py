@@ -20,6 +20,7 @@ from ibkr import get_ibkr_service
 from middleware.request_id import RequestIDMiddleware
 from routers import analytics as analytics_router
 from routers import archive as archive_router
+from routers import calibration as calibration_router
 from routers import engine_edge as engine_edge_router
 from routers import ibkr as ibkr_router
 from routers import journal as journal_router
@@ -104,6 +105,7 @@ app.include_router(engine_edge_router.router)
 app.include_router(journal_router.router)
 app.include_router(archive_router.router)
 app.include_router(watchlist_router.router)
+app.include_router(calibration_router.router)
 app.include_router(ibkr_router.router)
 app.include_router(position_calculator_router.router)
 app.include_router(trades_router.router)
