@@ -114,6 +114,99 @@ def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
     return "terminal_valley"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# The pullback-and-rest completion form.
+#
+# ``detect_lps_candidates`` is form-agnostic machinery (window enumeration,
+# zone typing, tightness/volume gates, trigger derivation, reject counting);
+# these two pure judgments are what makes a window a *pullback-and-rest* LPS:
+# it must rest on its terminal low (or earn the rising-support-shelf rescue)
+# and its pullback must be deep enough for its zone. A second completion form
+# (the holding shelf, PLAN-event-tape.md Task 8) joins the scan as a sibling
+# judgment consulted at this same seam — never a second detector.
+# ─────────────────────────────────────────────────────────────────────────────
+def _pullback_rest_low_verdict(
+    last_low: float,
+    window_low: float,
+    terminal_low_tolerance: float,
+    length: int,
+    window_range_pct_box: float,
+    sup_avg: float,
+    box_height: float,
+    first_close: float,
+    end_close: float,
+) -> tuple[str, bool]:
+    """Terminal-rest judgment: does the window rest on its low?
+
+    Returns ``(verdict, rescued)`` — verdict is ``"pass"`` / ``"terminal_low"``
+    / ``"rescue_markup"``; ``rescued`` is True when the rising-support-shelf
+    exception accepts an early low (the caller re-anchors to the window low).
+    """
+    if last_low <= window_low + terminal_low_tolerance:
+        return "pass", False
+    shelf_low_pos = _box_position(window_low, sup_avg, box_height)
+    # A compact rising shelf can print its real support test early,
+    # then tighten upward. Keep the terminal-low rule for ordinary
+    # reactions; this exception is only for a multi-bar inside-box
+    # shelf whose low is still in the support side of the box.
+    rising_support_shelf = (
+        length >= 4
+        and window_low >= sup_avg
+        and window_range_pct_box <= settings.LPS_MAX_WINDOW_BOX_RANGE
+        and shelf_low_pos <= settings.TRAVERSAL_LOW_ZONE
+    )
+    # Reaction-not-markup gate (live at LPS_RESCUE_MAX_ADVANCE_BOX =
+    # 0.21). A genuine ascending-support coil is GRADUAL; reject a
+    # rescued shelf that is really a steep markup leg whose low merely
+    # launched from support (OHI-class). Re-anchors to a shorter
+    # terminal test if one exists, else drops. None = disabled.
+    if rising_support_shelf and settings.LPS_RESCUE_MAX_ADVANCE_BOX is not None:
+        net_advance_box = (end_close - first_close) / box_height
+        if net_advance_box > settings.LPS_RESCUE_MAX_ADVANCE_BOX:
+            return "rescue_markup", False
+    if not rising_support_shelf:
+        return "terminal_low", False
+    return "pass", True
+
+
+def _pullback_rest_depth_ok(
+    pullback_profile: float,
+    zone_type: str,
+    end_close: float,
+    res_avg: float,
+    box_height: float,
+    length: int,
+    support_low: float,
+) -> tuple[bool, bool]:
+    """Pullback-depth judgment: is the reaction deep enough for its zone?
+
+    Returns ``(ok, buec_shelf)``. An OVERSHOOT_R window normally owes the
+    stricter overshoot floor; the BUEC / resistance-shelf exception accepts a
+    longer shallow shelf holding just above R.
+    """
+    min_pullback = settings.LPS_PULLBACK_PROFILE_MIN
+    buec_shelf = False
+    if zone_type == "OVERSHOOT_R":
+        close_extension_box = _box_position(end_close, res_avg, box_height)
+        # BUEC / resistance-shelf behavior: a longer shelf holding just
+        # above R can be a valid shallow LPS. Keep the stricter overshoot
+        # floor when price has already lifted away from R or when the
+        # pullback is nearly a normal overshoot reaction.
+        buec_shelf = (
+            length >= 5
+            and support_low >= res_avg
+            and close_extension_box <= settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
+            and pullback_profile <= (
+                settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+                - 2 * settings.LPS_TERMINAL_LOW_TOL_PROFILE
+            )
+        )
+        if not buec_shelf:
+            min_pullback = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+    ok = min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
+    return ok, buec_shelf
+
+
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
     out = {k: v for k, v in candidate.items() if k != "_quality"}
     start = int(out["start_index"])
@@ -233,36 +326,22 @@ def detect_lps_candidates(
 
             terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
             window_range_pct_box = (window_high - window_low) / box_height
-            rising_support_shelf = False
-            if last_low > window_low + terminal_low_tolerance:
-                shelf_low_pos = _box_position(window_low, sup_avg, box_height)
-                # A compact rising shelf can print its real support test early,
-                # then tighten upward. Keep the terminal-low rule for ordinary
-                # reactions; this exception is only for a multi-bar inside-box
-                # shelf whose low is still in the support side of the box.
-                rising_support_shelf = (
-                    length >= 4
-                    and window_low >= sup_avg
-                    and window_range_pct_box <= settings.LPS_MAX_WINDOW_BOX_RANGE
-                    and shelf_low_pos <= settings.TRAVERSAL_LOW_ZONE
-                )
-                # Reaction-not-markup gate (live at LPS_RESCUE_MAX_ADVANCE_BOX =
-                # 0.21). A genuine ascending-support coil is GRADUAL; reject a
-                # rescued shelf that is really a steep markup leg whose low merely
-                # launched from support (OHI-class). Re-anchors to a shorter
-                # terminal test if one exists, else drops. None = disabled.
-                if rising_support_shelf and settings.LPS_RESCUE_MAX_ADVANCE_BOX is not None:
-                    net_advance_box = (
-                        float(end_lps["Close"]) - float(first_lps["Close"])
-                    ) / box_height
-                    if net_advance_box > settings.LPS_RESCUE_MAX_ADVANCE_BOX:
-                        if diagnose:
-                            rejects["rescue_markup"] += 1
-                        continue
-                if not rising_support_shelf:
-                    if diagnose:
-                        rejects["terminal_low"] += 1
-                    continue
+            low_verdict, rising_support_shelf = _pullback_rest_low_verdict(
+                last_low,
+                window_low,
+                terminal_low_tolerance,
+                length,
+                window_range_pct_box,
+                sup_avg,
+                box_height,
+                float(first_lps["Close"]),
+                float(end_lps["Close"]),
+            )
+            if low_verdict != "pass":
+                if diagnose:
+                    rejects[low_verdict] += 1
+                continue
+            if rising_support_shelf:
                 support_low = window_low
                 low_index = start + window_low_rel
 
@@ -317,26 +396,16 @@ def detect_lps_candidates(
                 continue
 
             pullback_profile = (first_high - support_low) / profile_unit
-            min_pullback = settings.LPS_PULLBACK_PROFILE_MIN
-            buec_shelf = False
-            if zone_type == "OVERSHOOT_R":
-                close_extension_box = _box_position(float(end_lps["Close"]), res_avg, box_height)
-                # BUEC / resistance-shelf behavior: a longer shelf holding just
-                # above R can be a valid shallow LPS. Keep the stricter overshoot
-                # floor when price has already lifted away from R or when the
-                # pullback is nearly a normal overshoot reaction.
-                buec_shelf = (
-                    length >= 5
-                    and support_low >= res_avg
-                    and close_extension_box <= settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
-                    and pullback_profile <= (
-                        settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
-                        - 2 * settings.LPS_TERMINAL_LOW_TOL_PROFILE
-                    )
-                )
-                if not buec_shelf:
-                    min_pullback = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
-            if not (min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX):
+            depth_ok, buec_shelf = _pullback_rest_depth_ok(
+                pullback_profile,
+                zone_type,
+                float(end_lps["Close"]),
+                res_avg,
+                box_height,
+                length,
+                support_low,
+            )
+            if not depth_ok:
                 if diagnose:
                     rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
                 continue
