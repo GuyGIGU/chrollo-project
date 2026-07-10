@@ -110,6 +110,19 @@ SEED_SETUPS: list[tuple[str, str]] = [
     ("LECO", "2026-01-29"),
     ("BWA",  "2026-01-26"),
     ("NGL",  "2026-01-20"),
+
+    # ─── Batch 3: Part-2 marked setups (docs/marks/part2_2026-07.json) ───
+    # NGL setup A (trigger 2026-01-16) is already covered by the NGL 2026-01-20 seed.
+    ("VLO",  "2026-07-08"),
+    ("ROIV", "2026-06-17"),
+    ("VIK",  "2026-06-11"),
+    ("WTS",  "2026-06-09"),
+    ("PBT",  "2026-05-04"),
+    ("NGL",  "2026-04-20"),  # setup B: trigger unstated; first session after the 04-17 LPS end
+    ("BODI", "2026-04-16"),
+    ("DRTS", "2026-04-08"),
+    ("AVT",  "2026-04-08"),
+    ("EGBN", "2026-01-15"),
 ]
 
 # Scan window: look 10 days BACK and 3 days forward from the trigger date.
