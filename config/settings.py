@@ -261,6 +261,28 @@ LPS_TERMINAL_LOW_TOL_PROFILE = 0.10    # Last Low may sit this many profile unit
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25     # Any LPS bar spread must stay within this profile multiple
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by this many profile units
 
+# ── Holding-shelf LPS completion form (Event Map Task 8) — DARK, default OFF ──
+# The SECOND completion form of the two-form LPS doctrine (Wyckoff: the back-up
+# is "a simple pullback or a new TR at a higher level"; see
+# docs/lps_final_structure_canon_2026-07-10.md): a short flat-or-descending rest
+# HOLDING HIGH in the structure, judged on GEOMETRY ONLY. Consulted inside the
+# one detect_lps window scan wherever the pullback-and-rest form rejects at its
+# depth or volume-dry-up judgments; every machinery gate (shape march, zone
+# bounds, window range, high-extension, spread, hold, post-window hold) still
+# binds both forms. A shelf-saved window carries swing_type "holding_shelf" and
+# a volume-free quality; cross-form election ties break on an integer form rank
+# (pullback wins), never on float quality. Flag-off consults nothing —
+# byte-identity is structural. Calibration: the operator's marked WTS + PBT
+# shelves (frozen marks corpus; probe 2026-07-10 — WTS dies on the OVERSHOOT_R
+# depth floor + a 0.87-vs-0.85 volume margin, PBT on volume alone at 1.40x).
+# The live flip is operator-gated (EC-8).
+LPS_HOLDING_SHELF_ENABLED = False
+LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves run 3-5 sessions
+LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the canon position test
+                                  # (SMI: the back-up completes between the range's halfway point
+                                  # and the creek; IBD: handle midpoint above the base midpoint).
+                                  # Flat-and-LOW is the named failure geometry, never sanctioned.
+
 # Drawn LPS/Test staircase filter (DISPLAY-ONLY, recall-safe). The screener's
 # `_lps_tests` staircase is measure-only — it does NOT elect the active LPS or
 # gate firing — but it is what paints the gold support-test bands on the chart.

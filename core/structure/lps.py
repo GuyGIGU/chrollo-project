@@ -102,9 +102,11 @@ def _clean_downswing(length: int, low_descent_frac: float, high_descent_frac: fl
 
 
 def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
-                clean_downswing: bool) -> str:
+                clean_downswing: bool, holding_shelf: bool = False) -> str:
     if zone_type == "UNDERCUT_S":
         return "undercut_rebound"
+    if holding_shelf:
+        return "holding_shelf"
     if rising_support_shelf:
         return "rising_support_shelf"
     if buec_shelf:
@@ -115,15 +117,17 @@ def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The pullback-and-rest completion form.
+# The two completion forms (docs/lps_final_structure_canon_2026-07-10.md).
 #
 # ``detect_lps_candidates`` is form-agnostic machinery (window enumeration,
 # zone typing, tightness/volume gates, trigger derivation, reject counting);
-# these two pure judgments are what makes a window a *pullback-and-rest* LPS:
-# it must rest on its terminal low (or earn the rising-support-shelf rescue)
-# and its pullback must be deep enough for its zone. A second completion form
-# (the holding shelf, PLAN-event-tape.md Task 8) joins the scan as a sibling
-# judgment consulted at this same seam — never a second detector.
+# the pure judgments below are what makes a window an LPS:
+#   * pullback-and-rest — rests on its terminal low (or earns the
+#     rising-support-shelf rescue) with a zone-deep pullback and a volume
+#     dry-up (``_pullback_rest_low_verdict`` + ``_pullback_rest_depth_ok``);
+#   * holding shelf (``_holding_shelf_verdict``, flag-gated dark) — a
+#     geometry-only sibling judgment consulted at the same seams, never a
+#     second detector.
 # ─────────────────────────────────────────────────────────────────────────────
 def _pullback_rest_low_verdict(
     last_low: float,
@@ -205,6 +209,41 @@ def _pullback_rest_depth_ok(
             min_pullback = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
     ok = min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
     return ok, buec_shelf
+
+
+def _holding_shelf_verdict(
+    length: int,
+    low_descent_frac: float,
+    support_low: float,
+    sup_avg: float,
+    box_height: float,
+    pullback_profile: float,
+) -> bool:
+    """The holding-shelf completion form — the SECOND of the two sanctioned LPS
+    shapes (Wyckoff: the back-up is "a simple pullback or a new TR at a higher
+    level"; docs/lps_final_structure_canon_2026-07-10.md), judged on GEOMETRY
+    ONLY. Consulted where the pullback-and-rest form rejects at its depth or
+    volume-dry-up judgments; every machinery gate still binds.
+
+    A shelf is a short flat-or-descending rest holding HIGH in the structure:
+    monotone non-rising lows (the operator's "LPS = peak that goes down"; any
+    rising low is the canon's wedging failure — the strictest reading, loosened
+    only against future marked evidence), at least ``LPS_SHELF_LENGTH_MIN``
+    bars, its low at/above the box midpoint (the canon position test: flat
+    finals are sanctioned only high in the structure; flat-and-LOW is the named
+    failure geometry), and a dig inside the BASE depth envelope — the overshoot
+    escalation and the volume dry-up are the pullback form's judgments, not the
+    shelf's. Monotone lows imply the terminal-rest verdict already passed, so
+    this form never needs the rest seam.
+    """
+    if length < settings.LPS_SHELF_LENGTH_MIN:
+        return False
+    if low_descent_frac < 1.0:
+        return False
+    if _box_position(support_low, sup_avg, box_height) < settings.LPS_SHELF_MIN_LOW_POS_BOX:
+        return False
+    return (settings.LPS_PULLBACK_PROFILE_MIN
+            <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX)
 
 
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
@@ -405,10 +444,23 @@ def detect_lps_candidates(
                 length,
                 support_low,
             )
+            # Second completion form (flag-gated dark): judged once per window;
+            # sanctions a window ONLY where the pullback form rejects below, so
+            # a fully-passing pullback window keeps its pullback attribution.
+            holding_shelf = (
+                settings.LPS_HOLDING_SHELF_ENABLED
+                and _holding_shelf_verdict(
+                    length, low_descent_frac, support_low, sup_avg,
+                    box_height, pullback_profile,
+                )
+            )
+            shelf_saved = False
             if not depth_ok:
-                if diagnose:
-                    rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
-                continue
+                if not holding_shelf:
+                    if diagnose:
+                        rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
+                    continue
+                shelf_saved = True
 
             spread_max_allowed = profile_unit * settings.LPS_SPREAD_MAX_PROFILE_MULT
             max_spread = float(spreads.max())
@@ -442,9 +494,13 @@ def detect_lps_candidates(
                 continue
             avg_pullback_vol = pullback_period["Volume"].mean()
             if avg_pullback_vol >= vol_50_at_lps * settings.LPS_VOL_CONTRACTION_MAX:
-                if diagnose:
-                    rejects["vol_contraction"] += 1
-                continue
+                # The dry-up is the pullback form's judgment; the shelf form is
+                # geometry-only (grades-not-vetoes: volume never gates it).
+                if not holding_shelf:
+                    if diagnose:
+                        rejects["vol_contraction"] += 1
+                    continue
+                shelf_saved = True
 
             if latest["Close"] < (support_low * settings.LPS_HOLD_TOLERANCE):
                 if diagnose:
@@ -466,17 +522,30 @@ def detect_lps_candidates(
 
             vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
             if vol_contraction <= 0:
-                if diagnose:
-                    rejects["vol_contraction_post"] += 1
-                continue
+                if not holding_shelf:
+                    if diagnose:
+                        rejects["vol_contraction_post"] += 1
+                    continue
+                shelf_saved = True
             tightness_ratio = tight_spread / profile_unit
-            quality = (
-                vol_contraction
-                * max(0.0, 1 - tightness_ratio)
-                * low_descent_frac
-                * high_descent_frac
-                * spread_decline_quality
-            )
+            if shelf_saved:
+                # Volume-free quality: the shelf form never rewards or punishes
+                # volume; only within-form qualities are ever compared (the
+                # election ties break on the integer form rank first).
+                quality = (
+                    max(0.0, 1 - tightness_ratio)
+                    * low_descent_frac
+                    * high_descent_frac
+                    * spread_decline_quality
+                )
+            else:
+                quality = (
+                    vol_contraction
+                    * max(0.0, 1 - tightness_ratio)
+                    * low_descent_frac
+                    * high_descent_frac
+                    * spread_decline_quality
+                )
 
             setup_type = "REBOUND" if zone_type == "UNDERCUT_S" else "LPS"
             swing_depth = first_high - support_low
@@ -506,6 +575,7 @@ def detect_lps_candidates(
                     rising_support_shelf,
                     buec_shelf,
                     clean_downswing,
+                    shelf_saved,
                 ),
                 "lps_swing_depth_pct": float(swing_depth / first_high),
                 "lps_swing_depth_atr": (
@@ -529,6 +599,15 @@ def detect_lps_candidates(
     return candidates, rejects
 
 
+def _form_rank(candidate: dict) -> int:
+    """Cross-form election precedence: the established pullback-and-rest form
+    outranks the holding shelf whenever the integer keys tie, so float quality
+    is only ever compared WITHIN a form (deterministic cross-form election —
+    causality contract §4). Flag-off every candidate ranks 1: the key ordering
+    is byte-identical to the pre-shelf election."""
+    return 0 if candidate.get("swing_type") == "holding_shelf" else 1
+
+
 def select_active_lps_candidate(candidates: list[dict], latest: pd.Series) -> Optional[dict]:
     """Pick the latest actionable setup LPS from already-valid candidates."""
     try:
@@ -548,6 +627,7 @@ def select_active_lps_candidate(candidates: list[dict], latest: pd.Series) -> Op
         key=lambda c: (
             int(c["end_index"]),
             int(c["low_index"]),
+            _form_rank(c),
             int(c["length"]),
             float(c["_quality"]),
         ),
@@ -555,10 +635,12 @@ def select_active_lps_candidate(candidates: list[dict], latest: pd.Series) -> Op
 
     # If the elected slice is part of a single clean reaction into the same
     # terminal low, report the whole pullback instead of a shorter sub-slice.
+    # Same-form only: widening must never flip the elected completion form.
     same_terminal_low = [
         c for c in actionable
         if c["low_index"] == best["low_index"]
         and c["end_index"] == best["end_index"]
+        and _form_rank(c) == _form_rank(best)
     ]
     clean_reactions = [
         c for c in same_terminal_low

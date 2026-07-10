@@ -129,6 +129,10 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_TERMINAL_LOW_TOL_PROFILE",
     "LPS_SPREAD_MAX_PROFILE_MULT",
     "LPS_SPREAD_EXPANSION_MAX_PROFILE",
+    # Holding-shelf completion form (Event Map Task 8, flag-gated dark)
+    "LPS_HOLDING_SHELF_ENABLED",
+    "LPS_SHELF_LENGTH_MIN",
+    "LPS_SHELF_MIN_LOW_POS_BOX",
     "LPS_DRAW_MIN_DESCENT_FRAC",
     "LPS_ZONE_ATR_MULT",
     # Phase-C bin measurement

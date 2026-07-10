@@ -443,7 +443,8 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 
 - the pullback-shape gate is **graded, not binary** — `descent_frac` *multiplies* LPS quality rather than rejecting non-higher-lows (Phase 3, gate 5);
 - the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
-- the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint").
+- the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint");
+- behind the dark `LPS_HOLDING_SHELF_ENABLED` flag, a **second sanctioned completion form** — the flat holding shelf resting **high** in the structure — joins the pullback-and-rest form. This is the canon's two-form doctrine (Wyckoff: the back-up is "a simple pullback **or a new TR at a higher level**"; [lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)), judged on geometry only (Phase 3).
 
 **The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" through the `find_inner_box()` brick, which mirrors the shared inner search (`inner_box_at` + `detect_inner_root_swing`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
 
@@ -472,6 +473,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 `detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
+**The holding-shelf completion form (dark, `LPS_HOLDING_SHELF_ENABLED`).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -485,18 +488,18 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
-| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow BUEC shelf above R may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50` | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
+| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow BUEC shelf above R may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50`. Flag-on, a window failing this gate may still complete as a **holding shelf** (see above) | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
 | 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
-| 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85` | `LPS_VOL_CONTRACTION_MAX = 0.85` |
+| 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85`. The dry-up is the **pullback form's** judgment: flag-on, a holding shelf may complete without it (volume never gates the shelf form) | `LPS_VOL_CONTRACTION_MAX = 0.85` |
 | 12 | **Hold tolerance** | `latest['Close'] >= elected_low × 0.95` | `LPS_HOLD_TOLERANCE = 0.95` |
 | 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= elected_low × 0.95` and stay profile-tight | catches support-test failures that widen after the LPS |
 | 14 | **Trigger room** | candidate is actionable only when `current_price < trigger_price`; `_evaluate_ticker` keeps the same final room check | trigger = last LPS bar High |
 
 **Setup label:** `REBOUND` if zone is `UNDERCUT_S`; otherwise `LPS`.
 
-**Quality ranking:** candidates still carry `vol_contraction × (1 - tightness_ratio) × descent_frac × high_descent_frac × spread_decline_quality`, but setup election is actionability-first and recency-first: latest valid `end_index`, then latest `low_index`, then longer length, then quality. If several clean slices share the same final low, the detector reports the longest clean pullback.
+**Quality ranking:** pullback candidates carry `vol_contraction × (1 - tightness_ratio) × descent_frac × high_descent_frac × spread_decline_quality`; a shelf-saved candidate carries the same product **without the volume term**. Setup election is actionability-first and recency-first: latest valid `end_index`, then latest `low_index`, then (flag-on) the pullback form before the shelf form on an integer rank, then longer length, then quality — so float quality is only ever compared *within* a form. If several clean slices of the same form share the same final low, the detector reports the longest clean pullback.
 
 > **Note on breakouts.** Despite the historical name "VCP/breakout screener," the live `detect_lps()` path is the only signal generator. A genuine breakout setup type isn't emitted from the engine right now, so the old `BREAKOUT_*` settings were removed rather than kept as false knobs.
 
@@ -788,7 +791,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `36fe65aa93df84cfd54351827fba35f331865a36bde414c82d2fd4e1944aea0e`_
+_engine_config_version: `2e29724181f45c039ee9d3d623d2263edcc065538895c2a590b8100bf05d4e95`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -865,6 +868,9 @@ LPS_PULLBACK_PROFILE_MAX = 4.5
 LPS_TERMINAL_LOW_TOL_PROFILE = 0.1
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
+LPS_HOLDING_SHELF_ENABLED = False
+LPS_SHELF_LENGTH_MIN = 3
+LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4
 LPS_ZONE_ATR_MULT = 0.5
 BIN_C_UNDERCUT_ATR_MIN = 0.3

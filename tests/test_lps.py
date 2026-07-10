@@ -36,6 +36,7 @@ from core.structure.lps import (
     detect_lps_tests,
     select_active_lps_candidate,
 )
+import core.structure.lps as lps_module
 
 
 _VCP_LEVELS = [
@@ -564,6 +565,158 @@ def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch, _lps_behav
     assert result["zone_type"] == "OVERSHOOT_R"
     assert result["swing_type"] == "buec_shelf"
     assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+
+
+# ── The holding-shelf completion form (Event Map Task 8, flag-gated dark) ────
+
+_SHELF_KW = dict(sup_avg=100, res_avg=110, atr_val=2, base_range_threshold=4,
+                 base_len=20, swing_complete_idx=-1)
+
+
+def _hot_high_shelf(_lps_behavior_frame):
+    """PBT-analog: a monotone, upper-half INSIDE shelf whose only pullback-form
+    failure is the volume dry-up (avg 1400 vs Vol_50 1000)."""
+    df = _lps_behavior_frame(
+        highs=[108.5, 107.8, 107.5],
+        lows=[106.5, 106.2, 106.0],
+        closes=[107.5, 107.0, 106.8],
+    )
+    df["Volume"] = 1400
+    return df
+
+
+def test_holding_shelf_flag_off_is_inert_and_never_consulted(monkeypatch, _lps_behavior_frame):
+    # EC-8 unit inert test: flag-off must never even CALL the shelf judgment.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
+    monkeypatch.setattr(lps_module, "_holding_shelf_verdict",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError(
+                            "flag-off consulted the shelf form")))
+    df = _hot_high_shelf(_lps_behavior_frame)
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["vol_contraction"] >= 1  # the pullback form's own reject stands
+
+
+def test_holding_shelf_accepts_hot_volume_high_shelf_flag_on(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    df = _hot_high_shelf(_lps_behavior_frame)
+
+    result = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
+
+    assert result is not None
+    assert result["swing_type"] == "holding_shelf"
+    assert result["zone_type"] == "INSIDE"
+    assert result["descent_frac"] == 1.0            # monotone non-rising lows
+    assert result["vol_contraction"] < 0            # measured truthfully, not gated
+    assert result["trigger_price"] == 107.5
+
+
+def test_holding_shelf_rejects_low_in_box_flag_on(monkeypatch, _lps_behavior_frame):
+    # The canon failure geometry: flat + LOW + hot volume. The position gate
+    # (shelf low at/above the box midpoint) keeps it dead.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    df = _lps_behavior_frame(
+        highs=[103.5, 102.8, 102.5],
+        lows=[101.5, 101.2, 101.0],
+        closes=[102.5, 102.0, 101.8],
+    )
+    df["Volume"] = 1400
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["vol_contraction"] >= 1
+
+
+def test_holding_shelf_rejects_rising_lows_wedge_flag_on(monkeypatch, _lps_behavior_frame):
+    # A wedge whose last low still rests inside the terminal tolerance but whose
+    # middle low rose: monotone-non-rising lows (the wedging guard) reject it.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    df = _lps_behavior_frame(
+        highs=[108.5, 107.8, 107.5],
+        lows=[106.0, 106.45, 106.3],
+        closes=[107.5, 107.0, 106.8],
+    )
+    df["Volume"] = 1400
+
+    result = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
+
+    assert result is None
+
+
+def test_holding_shelf_converts_short_overshoot_shelf_above_creek(monkeypatch, _lps_behavior_frame):
+    # WTS-analog: a 3-bar back-up shelf perched just above broken R (inside the
+    # zone ceiling). Too short for the buec exception (length >= 5) and too
+    # shallow for the OVERSHOOT_R depth floor — the shelf form owns it.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[113.4, 112.5, 112.2],
+        lows=[110.9, 110.7, 110.5],
+        closes=[112.5, 112.0, 111.8],
+    )
+
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
+    off, off_rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+    assert off is None
+    assert any(str(k).startswith("pullback_profile") for k in off_rejects)
+
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    on = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
+    assert on is not None
+    assert on["swing_type"] == "holding_shelf"
+    assert on["zone_type"] == "OVERSHOOT_R"
+    assert on["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
+
+
+def test_holding_shelf_never_steals_a_passing_pullback_window(monkeypatch, _lps_behavior_frame):
+    # A window the pullback form fully accepts also satisfies the shelf shape;
+    # flag-on it must stay pullback-attributed and byte-identical to flag-off.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(
+        highs=[108.5, 107.8, 107.5],
+        lows=[106.5, 106.2, 106.0],
+        closes=[107.5, 107.0, 106.8],
+    )  # dry fixture volume: 500 vs Vol_50 1000
+
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
+    off = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    on = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
+
+    assert off is not None
+    assert on == off
+    assert on["swing_type"] != "holding_shelf"
+
+
+def test_holding_shelf_election_pullback_outranks_shelf_on_integer_tie():
+    latest = pd.Series({"Close": 100.0})
+    base = dict(low_index=9, end_index=10, trigger_price=105.0,
+                descent_frac=0.9, high_descent_frac=0.9)
+    pullback = dict(base, length=3, swing_type="terminal_valley", _quality=0.05)
+    shelf = dict(base, length=5, swing_type="holding_shelf", _quality=0.90)
+
+    # Full integer tie on (end, low): the pullback form wins regardless of
+    # length or float quality — quality never compares across forms.
+    best = select_active_lps_candidate([pullback, shelf], latest)
+    assert best["swing_type"] == "terminal_valley"
+
+    # But a LATER shelf still beats an earlier pullback: latest-actionable
+    # election is preserved across forms.
+    later_shelf = dict(shelf, end_index=11, low_index=10)
+    best = select_active_lps_candidate([pullback, later_shelf], latest)
+    assert best["swing_type"] == "holding_shelf"
 
 
 def test_lps_swing_type_labels_undercut_rebound(monkeypatch, _lps_behavior_frame):
