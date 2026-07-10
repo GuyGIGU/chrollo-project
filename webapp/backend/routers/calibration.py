@@ -10,18 +10,41 @@ saved mark must echo (data regime, engine config version, the as-of bar's
 close): marks are born on the exact frame the operator looked at, never
 re-stamped after the fact.
 
-Marks CRUD joins this router in Task 4 (PLAN-calibration-at-scale.md).
+Marks CRUD is a GROUND-TRUTH WRITE surface (EC-9): saves validate through the
+one shared judgment (`marks_validity.validate_mark`), writes fail loud and
+echo back the row as persisted, saving never triggers a vendor fetch, and
+every mutating request must carry the same-app header — any web page open in
+the operator's browser can fire blind cross-origin writes at localhost, and
+custom headers force a CORS preflight such pages cannot pass.
 """
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query
+from typing import List, Optional
 
-from marks_validity import TICKER_RE, parse_iso_date
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from database import get_db
+from marks_validity import TICKER_RE, parse_iso_date, validate_mark
+from models import CalibrationMark, CalibrationMarkEvent
 
 router = APIRouter(prefix="/calibration", tags=["calibration"])
 logger = logging.getLogger("chrollo.calibration")
+
+_CLIENT_HEADER_VALUE = "chrollo-dashboard"
+
+
+def require_same_app(x_chrollo_client: str = Header(default="")):
+    """Mutating calibration requests only from our own frontend."""
+    if x_chrollo_client != _CLIENT_HEADER_VALUE:
+        raise HTTPException(status_code=403, detail={
+            "class": "cross_app_write",
+            "message": "calibration writes require the X-Chrollo-Client header",
+        })
 
 _LOOKBACK_DAYS = 900   # calendar lead-in behind the as-of bar (~2y of sessions + margin)
 _FORWARD_DAYS = 45     # hindsight context after it (archive-chart precedent)
@@ -113,3 +136,157 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
         "candles": candles,
         "volumes": volumes,
     }
+
+
+# ── Marks CRUD (Task 4) ──────────────────────────────────────────────
+
+
+class EventIn(BaseModel):
+    event_type: str
+    start_date: str
+    end_date: str
+    tip_date: Optional[str] = None
+    tip_price: Optional[float] = None
+    source: str = "operator"
+
+
+class MarkIn(BaseModel):
+    """Full mark payload. Cross-field sanity lives in the ONE shared judgment
+    (marks_validity) — this model only shapes/types the boundary."""
+    ticker: str
+    as_of_date: str
+    label: str = ""
+    verdict: str
+    resistance: Optional[float] = None
+    support: Optional[float] = None
+    box_start_date: Optional[str] = None
+    box_end_date: Optional[str] = None
+    rails_source: str = "operator"
+    knowable_from_date: Optional[str] = None
+    note: Optional[str] = None
+    data_regime: str
+    engine_config_version: str
+    anchor_close: float
+    frame_digest: Optional[str] = None
+    events: List[EventIn] = []
+
+
+class EventOut(EventIn):
+    id: int
+    model_config = {"from_attributes": True}
+
+
+class MarkOut(BaseModel):
+    id: int
+    ticker: str
+    as_of_date: str
+    label: str
+    verdict: str
+    resistance: Optional[float] = None
+    support: Optional[float] = None
+    box_start_date: Optional[str] = None
+    box_end_date: Optional[str] = None
+    rails_source: str
+    knowable_from_date: Optional[str] = None
+    note: Optional[str] = None
+    data_regime: str
+    engine_config_version: str
+    anchor_close: float
+    frame_digest: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    revision: int
+    events: List[EventOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+def _reject_invalid(payload: MarkIn):
+    # Normalize-then-judge, same order as the chart lookup: the shared
+    # judgment sees exactly the identity the row will be saved under.
+    data = {**payload.model_dump(exclude={"events"}),
+            "events": [e.model_dump() for e in payload.events]}
+    data["ticker"] = (data.get("ticker") or "").strip().upper()
+    problems = validate_mark(data)
+    if problems:
+        raise HTTPException(status_code=422, detail={
+            "class": "invalid_mark", "problems": problems,
+        })
+
+
+def _apply_payload(mark: CalibrationMark, payload: MarkIn):
+    for field in ("ticker", "as_of_date", "label", "verdict", "resistance",
+                  "support", "box_start_date", "box_end_date", "rails_source",
+                  "knowable_from_date", "note", "data_regime",
+                  "engine_config_version", "anchor_close", "frame_digest"):
+        setattr(mark, field, getattr(payload, field))
+    mark.ticker = mark.ticker.strip().upper()
+    mark.events = [CalibrationMarkEvent(**e.model_dump()) for e in payload.events]
+
+
+@router.get("/marks", response_model=List[MarkOut])
+def list_marks(ticker: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    q = db.query(CalibrationMark)
+    if ticker:
+        q = q.filter(CalibrationMark.ticker == ticker.strip().upper())
+    return q.order_by(CalibrationMark.ticker, CalibrationMark.as_of_date).all()
+
+
+@router.post("/marks", response_model=MarkOut,
+             dependencies=[Depends(require_same_app)])
+def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
+    _reject_invalid(payload)
+    now = datetime.now(timezone.utc)
+    mark = CalibrationMark(created_at=now, updated_at=now, revision=1)
+    _apply_payload(mark, payload)
+    db.add(mark)
+    try:
+        db.commit()
+    except IntegrityError:
+        # No swallow: name the duplicate explicitly (edits go through PUT).
+        db.rollback()
+        raise HTTPException(status_code=409, detail={
+            "class": "duplicate_mark",
+            "message": f"a mark for ({mark.ticker}, {mark.as_of_date}, "
+                       f"{mark.label!r}) already exists — edit it instead",
+        })
+    db.refresh(mark)
+    logger.info("mark saved id=%s %s@%s verdict=%s", mark.id, mark.ticker,
+                mark.as_of_date, mark.verdict)
+    return mark
+
+
+@router.put("/marks/{mark_id}", response_model=MarkOut,
+            dependencies=[Depends(require_same_app)])
+def update_mark(mark_id: int, payload: MarkIn, db: Session = Depends(get_db)):
+    mark = db.query(CalibrationMark).filter(CalibrationMark.id == mark_id).first()
+    if not mark:
+        raise HTTPException(status_code=404, detail={
+            "class": "unknown_mark", "message": f"no mark {mark_id}"})
+    _reject_invalid(payload)
+    _apply_payload(mark, payload)
+    mark.revision = mark.revision + 1  # every correction is visible
+    mark.updated_at = datetime.now(timezone.utc)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail={
+            "class": "duplicate_mark",
+            "message": "edit collides with another mark's identity",
+        })
+    db.refresh(mark)
+    logger.info("mark updated id=%s rev=%s", mark.id, mark.revision)
+    return mark
+
+
+@router.delete("/marks/{mark_id}", dependencies=[Depends(require_same_app)])
+def delete_mark(mark_id: int, db: Session = Depends(get_db)):
+    mark = db.query(CalibrationMark).filter(CalibrationMark.id == mark_id).first()
+    if not mark:
+        raise HTTPException(status_code=404, detail={
+            "class": "unknown_mark", "message": f"no mark {mark_id}"})
+    db.delete(mark)  # hard delete — no soft-delete predicate tax
+    db.commit()
+    logger.info("mark deleted id=%s %s@%s", mark_id, mark.ticker, mark.as_of_date)
+    return {"status": "deleted", "id": mark_id}
