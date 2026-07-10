@@ -54,14 +54,26 @@ from config import settings
 from core.pipeline.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
 
+try:  # the shared replay layer owns fixture paths + loading (Task 6 fold)
+    from tools.replay import (
+        BASELINE_DIR as _BASELINE_DIR,
+        SEALED_BASELINE_JSON as _BASELINE_JSON,
+        SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
+        load_sealed_fixture,
+    )
+except ModuleNotFoundError:
+    from replay import (
+        BASELINE_DIR as _BASELINE_DIR,
+        SEALED_BASELINE_JSON as _BASELINE_JSON,
+        SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
+        load_sealed_fixture,
+    )
+
 # The operator-marks corpus files (EC-7: append-only ground truth under docs/marks/).
 CORPUS_FILES: tuple[str, ...] = (
     os.path.join(_PROJECT_ROOT, "docs", "marks", "part2_2026-07.json"),
 )
 
-_BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
-_FIXTURE_PARQUET = os.path.join(_BASELINE_DIR, "marks_corpus.parquet")
-_BASELINE_JSON = os.path.join(_BASELINE_DIR, "marks_corpus_baseline.json")
 _CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 
 # Frozen market scalar for the breadth bonus - scoring-only, never a firing
@@ -220,17 +232,9 @@ def _window_sessions(df: pd.DataFrame, windows) -> list[pd.Timestamp]:
 # Check (hermetic; reads only the committed fixture + baseline)
 # ------------------------------------------------------------------
 def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
-    if not os.path.exists(_FIXTURE_PARQUET) or not os.path.exists(_BASELINE_JSON):
-        raise FileNotFoundError(
-            "No marks-corpus fixture - run `python -m tools.marks_corpus "
-            "--build-fixture` first (requires a populated data cache)."
-        )
-    data = pd.read_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
-    with open(_BASELINE_JSON, "r", encoding="utf-8") as f:
-        baseline = json.load(f)
-    level0 = set(data.columns.get_level_values(0))
-    frames = {t: data[t].dropna() for t in level0}
-    return frames, baseline
+    # Preserved name: the implementation moved DOWN into the shared replay
+    # layer (Task 6) so the gate and the instruments load the same fixture.
+    return load_sealed_fixture()
 
 
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:

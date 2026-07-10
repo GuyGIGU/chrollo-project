@@ -42,10 +42,8 @@ import os
 
 import pandas as pd
 
-from config import settings
-from core.pipeline.evaluation import _prepare_eval_frame
 from core.structure.band_rails import qualify_pair_events
-from core.structure.narrative import read_structure
+from tools.replay import load_sealed_fixture, resolve_frame, snapped_election
 
 _THIS = os.path.dirname(os.path.abspath(__file__))
 _MARKS = os.path.join(_THIS, "..", "docs", "phase_c_marks_2026-07.json")
@@ -61,13 +59,9 @@ def _bar(df: pd.DataFrame, date_str: str) -> int:
     return min(int(df.index.searchsorted(pd.Timestamp(date_str))), len(df) - 1)
 
 
-def _capture(df, atr, flag_on: bool):
-    prior = settings.BAND_RAILS_ENABLED
-    settings.BAND_RAILS_ENABLED = flag_on
-    try:
-        return read_structure(df, atr)
-    finally:
-        settings.BAND_RAILS_ENABLED = prior
+# The two rule variants this A/B compares, captured via the shared
+# self-restoring toggle (tools.replay.flag_capture).
+_VARIANTS = [{"BAND_RAILS_ENABLED": False}, {"BAND_RAILS_ENABLED": True}]
 
 
 def _draw_bars(ax, o, h, low, c):
@@ -198,48 +192,19 @@ def _render_mark(fig, ax, mark, df, atr, s_off, s_on, note):
     return lines
 
 
-def _raw_for(ticker: str, corpus_frames):
-    raw = corpus_frames.get(ticker)
-    if raw is not None:
-        return raw, "corpus fixture"
-    d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
-    if ticker not in set(d.columns.get_level_values(0)):
-        return None, "not in corpus fixture nor cache"
-    return d[ticker].dropna(), "5y cache"
-
-
-def _reads_at(raw, as_of):
-    """(df, atr, s_off, s_on) at one eval date, or None if prep refuses."""
-    prep = _prepare_eval_frame(raw.loc[:as_of])
-    if prep is None:
-        return None
-    df = prep["df"]
-    atr = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
-    return df, atr, _capture(df, atr, flag_on=False), _capture(df, atr, flag_on=True)
-
-
-_SNAP_BACK = 5   # sessions to walk back from the drawn span's end
-
-
 def _snapped_reads(raw, span_end):
     """The read at the drawn span's last day — or, when both flag modes read
     NONE there, the most recent prior session (within a few days) where either
-    mode elects. Elections are day-sensitive (BODI's flag-ON pair exists at
-    04-15 and dies at 04-16); the A/B must show the read where it EXISTS,
-    with the snap named honestly in the render."""
-    idx = raw.index[raw.index <= pd.Timestamp(span_end)]
-    first = None
-    for k, ts in enumerate(reversed(idx[-(_SNAP_BACK + 1):])):
-        got = _reads_at(raw, ts)
-        if got is None:
-            continue
-        if first is None:
-            first = (got, ts, "")
-        if got[2] is not None or got[3] is not None:
-            note = "" if k == 0 else (f"snapped {k} session(s) back: no election "
-                                      f"either flag at {idx[-1].date()}")
-            return got, ts, note
-    return first
+    mode elects — via the shared day-snapped capture (tools.replay). The note
+    wording stays render-owned."""
+    snapped = snapped_election(raw, span_end, _VARIANTS)
+    if snapped is None:
+        return None
+    (df, atr, (s_off, s_on)), ts, k = snapped
+    last = raw.index[raw.index <= pd.Timestamp(span_end)][-1]
+    note = "" if k == 0 else (f"snapped {k} session(s) back: no election "
+                              f"either flag at {last.date()}")
+    return (df, atr, s_off, s_on), ts, note
 
 
 def render(tickers, *, marks_path, out_dir):
@@ -250,8 +215,7 @@ def render(tickers, *, marks_path, out_dir):
     with open(marks_path, "r", encoding="utf-8") as f:
         marks = json.load(f)["marks"]
     try:
-        from tools.marks_corpus import _load_fixture
-        corpus_frames, _ = _load_fixture()
+        corpus_frames, _ = load_sealed_fixture()
     except FileNotFoundError:
         corpus_frames = {}
     os.makedirs(out_dir, exist_ok=True)
@@ -261,7 +225,7 @@ def render(tickers, *, marks_path, out_dir):
         t = mark["ticker"].upper()
         if tickers and t not in tickers:
             continue
-        raw, src = _raw_for(t, corpus_frames)
+        raw, src = resolve_frame(t, sealed=corpus_frames)
         if raw is None:
             print(f"  [skip {t}] {src}")
             continue
