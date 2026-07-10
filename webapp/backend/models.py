@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -196,6 +197,107 @@ class SetupReview(Base):
 
     __table_args__ = (
         UniqueConstraint("ticker", "scan_date", name="uq_setup_review"),
+    )
+
+
+class CalibrationMark(Base):
+    """One operator verdict about one chart — editable calibration ground truth.
+
+    Grain: one verdict per (ticker, as-of date, label); ``label`` discriminates
+    the rare multiple-structures-on-one-chart case and defaults to "" rather
+    than NULL so the compound unique key always bites (SQLite treats NULLs as
+    distinct). Deliberately UNLIKE the sealed docs/marks corpus (EC-7): the
+    operator may edit or hard-delete his own marks; every edit bumps
+    ``revision``. Geometry is ISO dates + absolute prices — never bar indices.
+    Provenance columns are required so replay can refuse loudly when the data
+    under a mark no longer matches what the operator saw.
+    """
+
+    __tablename__ = "calibration_marks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    as_of_date = Column(String, nullable=False, index=True)  # ISO; the frame's last bar
+    label = Column(String, nullable=False, default="")
+    verdict = Column(String, nullable=False)  # "box" | "no_structure" | "engine_wrong"
+
+    # Geometry (required for verdict="box" — enforced below and in the shared
+    # validity check; negatives carry no geometry, never null-rail "box" rows).
+    resistance = Column(Float, nullable=True)
+    support = Column(Float, nullable=True)
+    box_start_date = Column(String, nullable=True)  # ISO
+    box_end_date = Column(String, nullable=True)    # ISO
+    rails_source = Column(String, nullable=False, default="operator")  # "operator" | "extraction"
+    knowable_from_date = Column(String, nullable=True)  # earliest session the verdict is fairly knowable
+    note = Column(Text, nullable=True)  # the operator's reason (negatives especially)
+
+    # Point-in-time provenance — required, never backfilled.
+    data_regime = Column(String, nullable=False)
+    engine_config_version = Column(String, nullable=False)
+    anchor_close = Column(Float, nullable=False)  # the as-of bar's close as rendered
+    frame_digest = Column(String, nullable=True)  # bound at save / first harness freeze
+    created_at = Column(DateTime, nullable=False)  # UTC
+    updated_at = Column(DateTime, nullable=False)  # UTC
+    revision = Column(Integer, nullable=False, default=1)
+
+    events = relationship(
+        "CalibrationMarkEvent",
+        back_populates="mark",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "as_of_date", "label", name="uq_calibration_mark"),
+        CheckConstraint(
+            "verdict IN ('box', 'no_structure', 'engine_wrong')",
+            name="ck_calibration_mark_verdict",
+        ),
+        CheckConstraint(
+            "verdict != 'box' OR (resistance IS NOT NULL AND support IS NOT NULL "
+            "AND box_start_date IS NOT NULL AND box_end_date IS NOT NULL)",
+            name="ck_calibration_mark_box_geometry",
+        ),
+        CheckConstraint(
+            "resistance IS NULL OR support IS NULL OR resistance > support",
+            name="ck_calibration_mark_rails_order",
+        ),
+        CheckConstraint(
+            "box_start_date IS NULL OR box_end_date IS NULL "
+            "OR box_start_date <= box_end_date",
+            name="ck_calibration_mark_span_order",
+        ),
+        CheckConstraint("revision >= 1", name="ck_calibration_mark_revision"),
+    )
+
+
+class CalibrationMarkEvent(Base):
+    """One event mark inside a calibration mark (Phase C span/tip, LPS, spring test)."""
+
+    __tablename__ = "calibration_mark_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mark_id = Column(
+        Integer,
+        ForeignKey("calibration_marks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type = Column(String, nullable=False)  # "phase_c" | "lps" | "spring_test"
+    start_date = Column(String, nullable=False)  # ISO
+    end_date = Column(String, nullable=False)    # ISO
+    tip_date = Column(String, nullable=True)     # the extreme's session (e.g. Phase C tip)
+    tip_price = Column(Float, nullable=True)
+    source = Column(String, nullable=False, default="operator")  # "operator" | "extraction"
+
+    mark = relationship("CalibrationMark", back_populates="events")
+
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('phase_c', 'lps', 'spring_test')",
+            name="ck_calibration_event_type",
+        ),
+        CheckConstraint("start_date <= end_date", name="ck_calibration_event_span"),
     )
 
 
