@@ -106,4 +106,22 @@ Programmer errors may still surface (do not blanket-swallow); operational failur
 **Origin:** Leach / Ramírez / Hunt — Council Review 2026-06-30-1338
 **Principle:** `references/quality-backend.md` → P1 (operational vs programmer errors)
 
+### EC-7: Operator-marks corpus files are immutable test specs
+**Convention:** Files under `docs/marks/` are operator ground truth and acceptance specs: grow them
+append-only; corrections land only as explicit operator source-upgrades (extraction→operator), never
+silent in-place edits; a failing corpus case is fixed in the ENGINE — never by editing a mark, widening
+a matcher's date window, or reinterpreting trigger rules. Harnesses consuming a corpus must validate it
+loudly (malformed/unrecognized marks fail the run, never skip) and detect unsanctioned edits.
+**Origin:** Beck / Leach — Council Plan 2026-07-09-2200 (whole-chart event read); operator-confirmed 2026-07-10
+**Principle:** `references/quality-testing.md` → P10 (the test spec is the constraint); `references/quality-postgres.md` → P1
+
+### EC-8: Every new engine flag ships with the full flag protocol in one change
+**Convention:** A new engine behavior flag must land in the SAME change as: registration in the frozen
+settings manifest (`core/freeze`) AND the dark-flag ledger (`tests/test_invariants.py`); a unit-level
+inert test in its home module; one flag-off frozen-fixture pipeline replay asserting equality with the
+shadow baseline; and an agreed scan-metrics evaluation-phase cost bound measured before the operator
+flips it live. Flag-off must be byte-identical and compute-free.
+**Origin:** Beck / Leach / Performance — Council Plan 2026-07-09-2200 (whole-chart event read); operator-confirmed 2026-07-10
+**Principle:** `references/quality-testing.md` → P5; `references/quality-postgres.md` → P1; `references/quality-performance.md` → P1
+
 ---

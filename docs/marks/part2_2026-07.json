@@ -1,0 +1,129 @@
+{
+  "_about": "Operator-marked ground truth for the Part-2 chart-reading exercise (screenshots: Desktop/Stock Images/Part 2). Dates ISO. source: 'operator' = the operator's own dissection (authoritative), 'extraction' = pixel-read from the screenshot (operator has not corrected it). This corpus is the acceptance set for chart-reading upgrades: any reading change is graded by whether the engine surfaces each setup during its LPS window / by its trigger. Last Supper (operator-defined 2026-07-09): the final run-up that traps late buyers before the real pullback; variants can appear BEFORE or AFTER the LPS, and some setups launch directly off it.",
+  "setups": [
+    {
+      "ticker": "ROIV",
+      "source": "operator",
+      "bc": "2026-03-11",
+      "ar": "2026-03-13",
+      "lps": ["2026-06-12", "2026-06-16"],
+      "trigger": "2026-06-17",
+      "rails_drawn": {"R": 30.3, "S": 28.0}
+    },
+    {
+      "ticker": "WTS",
+      "source": "operator",
+      "bc": "2026-04-14",
+      "ar": "2026-04-16",
+      "last_supper": ["2026-05-28", "2026-06-01"],
+      "lps": ["2026-06-04", "2026-06-08"],
+      "trigger": "2026-06-09",
+      "trigger_alt": "2026-06-08",
+      "rails_drawn": {"R": 311.0, "S": 299.5},
+      "notes": "Last Supper came after a few days of rising, before the LPS. Trigger-alt 06-08 because that bar breached the prior day's high."
+    },
+    {
+      "ticker": "VIK",
+      "source": "operator",
+      "bc": "2026-04-21",
+      "ar": "2026-04-22",
+      "sos": ["2026-05-20", "2026-05-28"],
+      "lps": ["2026-06-05", "2026-06-08"],
+      "trigger": "2026-06-11",
+      "trigger_source": "extraction",
+      "rails_drawn": {"R": 87.0, "S": 79.0},
+      "notes": "Operator: huge SOS 20/05-28/05 then LPS 05/06+08/06. May-14 earnings spike to ~92 is an upthrust OUTSIDE the box (operator's R stays 87)."
+    },
+    {
+      "ticker": "AVT",
+      "source": "extraction",
+      "bc": "2026-02-24",
+      "ar": "2026-03-09",
+      "springs": ["2026-03-20", "2026-03-30"],
+      "lps": ["2026-04-01", "2026-04-07"],
+      "trigger": "2026-04-08",
+      "rails_drawn": {"R": 62.2, "S": 58.7}
+    },
+    {
+      "ticker": "BODI",
+      "source": "operator",
+      "bc": "2025-12-12",
+      "ar": "2025-12-15",
+      "lps": ["2026-04-09", "2026-04-15"],
+      "lps_source": "extraction",
+      "trigger": "2026-04-16",
+      "trigger_source": "extraction",
+      "rails_drawn": {"R": 12.4, "S": 10.15},
+      "notes": "Operator rules this IN SCOPE: measured at the worked band it is a ~17.5% base (implies S band ~10.55, wick rail drawn 10.15). The Feb collapse to ~6.95 reads as a deep failed-breakdown/shakeout EVENT, not a box break."
+    },
+    {
+      "ticker": "VLO",
+      "source": "extraction",
+      "bc": "2026-03-31",
+      "ar": "2026-04-02",
+      "springs": ["2026-04-17", "2026-05-07", "2026-06-22"],
+      "sos": ["2026-06-29", "2026-06-29"],
+      "lps": ["2026-06-30", "2026-07-07"],
+      "trigger": "2026-07-08",
+      "rails_drawn": {"R": 258.3, "S": 235.7},
+      "notes": "Two-stage: Jun-29 gap SOS entirely above R, then 6-bar back-up shelf just above the broken rail, trigger Jul-8. Earlier stepping-stone box ~178.4/192 broke out Feb-5."
+    },
+    {
+      "ticker": "DRTS",
+      "source": "operator",
+      "bc": "2026-01-14",
+      "bc_source": "extraction",
+      "ar": "2026-01-20",
+      "ar_source": "extraction",
+      "lps": ["2026-04-01", "2026-04-07"],
+      "trigger": "2026-04-08",
+      "last_support": ["2026-05-04", "2026-05-05"],
+      "trigger_alt": "2026-05-07",
+      "rails_drawn": {"R": 7.75, "S": 6.75},
+      "notes": "Operator: trigger on 08/04, OR on 07/05 after the last support on 04-05/05."
+    },
+    {
+      "ticker": "PBT",
+      "source": "operator",
+      "bc": "2026-03-24",
+      "ar": "2026-03-26",
+      "lps": ["2026-04-28", "2026-05-01"],
+      "trigger": "2026-05-04",
+      "lps2": ["2026-05-05", "2026-05-07"],
+      "rails_drawn": {"R": 22.6, "S": 21.55},
+      "notes": "After the 04/05 trigger there is another pullback that counts as a second LPS until 07/05."
+    },
+    {
+      "ticker": "EGBN",
+      "source": "extraction",
+      "bc": "2025-12-04",
+      "ar": "2025-12-09",
+      "lps": ["2026-01-09", "2026-01-13"],
+      "trigger": "2026-01-15",
+      "rails_drawn": {"R": 21.65, "S": 20.47}
+    },
+    {
+      "ticker": "NGL",
+      "setup": "A",
+      "source": "operator",
+      "consolidation_start": ["2025-11-14", "2025-11-17"],
+      "lps": ["2026-01-14", "2026-01-15"],
+      "trigger": "2026-01-16",
+      "rails_drawn": {"R": 10.0, "S": 9.45},
+      "rails_source": "extraction"
+    },
+    {
+      "ticker": "NGL",
+      "setup": "B",
+      "source": "operator",
+      "bc": "2026-02-03",
+      "ar": "2026-02-04",
+      "root_swing": ["2026-02-09", "2026-02-11"],
+      "last_supper": ["2026-03-25", "2026-03-30"],
+      "lps": ["2026-04-13", "2026-04-17"],
+      "trigger": null,
+      "rails_drawn": {"R": 12.55, "S": 11.4},
+      "notes": "Operator distinguishes BC/AR (03-04/02) from the ROOT SWING (09-11/02) — the pair responsible for the worked box. Last Supper 25-30/03 (the ~13.9 thrust that failed back in) came BEFORE the LPS. Trigger not stated; first session after 17/04 LPS end."
+    }
+  ]
+}
