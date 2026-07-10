@@ -1,0 +1,147 @@
+"""The ONE mark-validity judgment (Calibration at Scale, Task 2).
+
+Pure, import-anywhere: the marks CRUD router calls it at save time and the
+agreement harness calls it at load time (EC-3 — write-side and read-side
+validation must never drift). Returns a list of plain-English problems; empty
+means valid. Callers decide the consequence (API → reject the request; harness
+→ abort the batch naming the offender — a silently skipped mark shrinks every
+agreement denominator).
+
+The closed sets here are the AUTHORITATIVE, evolvable layer. The CHECK
+constraints in ``models.py`` repeat them as frozen defence-in-depth DDL (an
+existing SQLite table's CHECK does not change when this module does);
+``tests/test_marks_validity.py`` pins the two layers against drift.
+"""
+from __future__ import annotations
+
+import math
+import re
+from datetime import datetime
+
+# Strict ticker grammar (security P1): bounded, uppercase alphabet, rejected —
+# never sanitized. Shared by the candle endpoint, the CRUD boundary, and the
+# harness; a ticker that failed this rule must never become an identity key or
+# any part of a file path.
+TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
+
+MARK_VERDICTS = ("box", "no_structure", "engine_wrong")
+EVENT_TYPES = ("phase_c", "lps", "spring_test")
+SOURCES = ("operator", "extraction")
+
+_GEOMETRY_FIELDS = ("resistance", "support", "box_start_date", "box_end_date")
+
+
+_ISO_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def parse_iso_date(value) -> datetime | None:
+    """Strict single-format date: exactly YYYY-MM-DD, else None. The shape
+    pre-check matters — strptime itself accepts unpadded months/days."""
+    if not (isinstance(value, str) and _ISO_SHAPE.match(value)):
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _positive_number(value) -> bool:
+    return isinstance(value, (int, float)) and math.isfinite(value) and value > 0
+
+
+def validate_mark(mark: dict) -> list[str]:
+    """Judge one mark payload (model-shaped dict; events under ``events``)."""
+    problems: list[str] = []
+    get = mark.get
+
+    ticker = get("ticker")
+    if not (isinstance(ticker, str) and TICKER_RE.match(ticker)):
+        problems.append(f"ticker {ticker!r} fails the strict grammar")
+
+    as_of = parse_iso_date(get("as_of_date"))
+    if as_of is None:
+        problems.append(f"as_of_date {get('as_of_date')!r} is not YYYY-MM-DD")
+
+    verdict = get("verdict")
+    if verdict not in MARK_VERDICTS:
+        problems.append(f"verdict {verdict!r} not in {MARK_VERDICTS}")
+
+    if get("rails_source", "operator") not in SOURCES:
+        problems.append(f"rails_source {get('rails_source')!r} not in {SOURCES}")
+
+    # Point-in-time provenance is required, never backfilled.
+    for field in ("data_regime", "engine_config_version"):
+        if not (isinstance(get(field), str) and get(field).strip()):
+            problems.append(f"{field} is missing")
+    if not _positive_number(get("anchor_close")):
+        problems.append(f"anchor_close {get('anchor_close')!r} is not a positive number")
+
+    knowable = get("knowable_from_date")
+    if knowable is not None:
+        kd = parse_iso_date(knowable)
+        if kd is None:
+            problems.append(f"knowable_from_date {knowable!r} is not YYYY-MM-DD")
+        elif as_of is not None and kd > as_of:
+            problems.append("knowable_from_date is after as_of_date")
+
+    events = get("events") or []
+    if verdict == "box":
+        problems += _validate_box_geometry(mark, as_of)
+        for i, event in enumerate(events):
+            problems += _validate_event(event, i, as_of)
+    elif verdict in MARK_VERDICTS:
+        # A negative verdict is a typed row with NO geometry — a rail on a
+        # "no_structure" row is an ambiguous mark, not extra information.
+        for field in _GEOMETRY_FIELDS:
+            if get(field) is not None:
+                problems.append(f"negative verdict carries geometry ({field})")
+        if events:
+            problems.append("negative verdict carries event marks")
+    return problems
+
+
+def _validate_box_geometry(mark: dict, as_of) -> list[str]:
+    problems = []
+    resistance, support = mark.get("resistance"), mark.get("support")
+    if not _positive_number(resistance) or not _positive_number(support):
+        problems.append("box verdict requires positive resistance and support rails")
+    elif resistance <= support:
+        problems.append(f"resistance {resistance} not above support {support}")
+    start = parse_iso_date(mark.get("box_start_date"))
+    end = parse_iso_date(mark.get("box_end_date"))
+    if start is None or end is None:
+        problems.append("box verdict requires an ISO box_start_date and box_end_date")
+    else:
+        if start > end:
+            problems.append("box span is inverted")
+        if as_of is not None and end > as_of:
+            problems.append("box_end_date is after as_of_date")
+    return problems
+
+
+def _validate_event(event: dict, index: int, as_of) -> list[str]:
+    problems = []
+    tag = f"event[{index}]"
+    if event.get("event_type") not in EVENT_TYPES:
+        problems.append(f"{tag} type {event.get('event_type')!r} not in {EVENT_TYPES}")
+    if event.get("source", "operator") not in SOURCES:
+        problems.append(f"{tag} source {event.get('source')!r} not in {SOURCES}")
+    start = parse_iso_date(event.get("start_date"))
+    end = parse_iso_date(event.get("end_date"))
+    if start is None or end is None:
+        problems.append(f"{tag} needs ISO start_date and end_date")
+        return problems
+    if start > end:
+        problems.append(f"{tag} span is inverted")
+    if as_of is not None and end > as_of:
+        problems.append(f"{tag} ends after as_of_date")
+    tip = event.get("tip_date")
+    if tip is not None:
+        td = parse_iso_date(tip)
+        if td is None:
+            problems.append(f"{tag} tip_date {tip!r} is not YYYY-MM-DD")
+        elif not (start <= td <= end):
+            problems.append(f"{tag} tip_date outside its span")
+    if event.get("tip_price") is not None and not _positive_number(event.get("tip_price")):
+        problems.append(f"{tag} tip_price {event.get('tip_price')!r} is not a positive number")
+    return problems
