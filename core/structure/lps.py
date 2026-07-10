@@ -447,18 +447,20 @@ def detect_lps_candidates(
             # Second completion form (flag-gated dark): judged once per window;
             # sanctions a window ONLY where the pullback form rejects below, so
             # a fully-passing pullback window keeps its pullback attribution.
-            holding_shelf = (
-                settings.LPS_HOLDING_SHELF_ENABLED
-                and _holding_shelf_verdict(
-                    length, low_descent_frac, support_low, sup_avg,
-                    box_height, pullback_profile,
-                )
+            # When consulted-and-refused, the diagnose counters tag BOTH forms:
+            # the pullback's keyed reason plus one holding_shelf_refused tick.
+            shelf_consulted = settings.LPS_HOLDING_SHELF_ENABLED
+            holding_shelf = shelf_consulted and _holding_shelf_verdict(
+                length, low_descent_frac, support_low, sup_avg,
+                box_height, pullback_profile,
             )
             shelf_saved = False
             if not depth_ok:
                 if not holding_shelf:
                     if diagnose:
                         rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
+                        if shelf_consulted:
+                            rejects["holding_shelf_refused"] += 1
                     continue
                 shelf_saved = True
 
@@ -499,6 +501,8 @@ def detect_lps_candidates(
                 if not holding_shelf:
                     if diagnose:
                         rejects["vol_contraction"] += 1
+                        if shelf_consulted:
+                            rejects["holding_shelf_refused"] += 1
                     continue
                 shelf_saved = True
 
@@ -525,6 +529,8 @@ def detect_lps_candidates(
                 if not holding_shelf:
                     if diagnose:
                         rejects["vol_contraction_post"] += 1
+                        if shelf_consulted:
+                            rejects["holding_shelf_refused"] += 1
                     continue
                 shelf_saved = True
             tightness_ratio = tight_spread / profile_unit

@@ -263,6 +263,32 @@ def _lps_brief(lps, in_inner: bool) -> Optional[dict]:
     }
 
 
+def _tape_brief(df, box, atr) -> Optional[dict]:
+    """Compact Event Map swing-map summary for a trace record. Trace-only —
+    the import and the pivot walk are paid only when the caller is tracing."""
+    if df is None or box is None:
+        return None
+    from core.structure.event_map import read_swing_map
+    tape = read_swing_map(df, box, atr)
+    return {
+        "n_swings": int(tape["n_swings"]),
+        "pre_box_trend": tape["pre_box"]["trend_state"],
+        "box_trend": tape["box"]["trend_state"],
+    }
+
+
+def _roles_brief(df, box, atr, spring, lps) -> Optional[dict]:
+    """Compact Event Map role-label summary over the ELECTED bricks. Trace-only."""
+    if df is None or box is None:
+        return None
+    from core.structure.event_map import read_role_labels
+    roles = read_role_labels(df, box, atr, spring=spring, lps=lps)
+    return {
+        "n_labels": int(roles["n_labels"]),
+        "n_committed": sum(1 for lbl in roles["labels"] if not lbl["in_progress"]),
+    }
+
+
 def _lps_reject_brief(bricks, df, box, inner, atr) -> dict:
     """Why did Phase D fail? Re-run the LPS detector in diagnose mode on each
     candidate box and report the reject counters. Trace-only (never on the live
@@ -294,9 +320,12 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     it (width / window / respect / occupancy / traversal / rescue_unused), or
     "elected" (stage "selection") for the winner. This
     is the Root-Swing cascade of the Reading Model (strategy_v2.md) made
-    explicit. Default ``None`` = no trace, zero behaviour change (the live path
-    never pays for it). This is the engine explaining its own walk, so consumers
-    stop re-deriving it externally.
+    explicit. Each record with an elected box also carries a compact Event Map
+    ``tape`` summary (swing count + pre-box/box trend), and a complete story a
+    ``roles`` summary over the elected bricks — audit context riding the same
+    per-root records, computed only when tracing. Default ``None`` = no trace,
+    zero behaviour change (the live path never pays for it). This is the engine
+    explaining its own walk, so consumers stop re-deriving it externally.
     """
     if bricks is None:
         from core.structure import bricks  # noqa: PLC0415 — lazy: real validators
@@ -320,6 +349,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
                 "reaction_pct": round(float(getattr(root, "reaction_pct", 0.0)), 3),
                 "box": None, "box_cascade": None, "spring": None, "inner": None,
                 "lps": None, "lps_rejects": None, "outcome": None,
+                "tape": None, "roles": None,
             }
             trace.append(rec)
 
@@ -338,6 +368,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
             continue                                      # not a worked range -> backtrack
         if rec is not None:
             rec["box"] = _box_brief(box)
+            rec["tape"] = _tape_brief(df, box, atr)
 
         # Phase C (optional) and the nested Phase-D mini-range (tighter trigger).
         spring = bricks.find_spring(df, box, atr)          # don't force it; may be None
@@ -364,6 +395,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
         if rec is not None:
             rec["lps"] = _lps_brief(lps, lps_in_inner)
             rec["outcome"] = "complete"
+            rec["roles"] = _roles_brief(df, box, atr, spring, lps)
 
         # Phase A is the LOCAL root swing of THIS box — the climax -> AR bridge
         # whose reaction low lands at the box start, not the distant trend anchor

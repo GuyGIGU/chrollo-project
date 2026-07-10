@@ -599,6 +599,7 @@ def test_holding_shelf_flag_off_is_inert_and_never_consulted(monkeypatch, _lps_b
 
     assert result is None
     assert rejects["vol_contraction"] >= 1  # the pullback form's own reject stands
+    assert "holding_shelf_refused" not in rejects  # flag-off counters unchanged
 
 
 def test_holding_shelf_accepts_hot_volume_high_shelf_flag_on(monkeypatch, _lps_behavior_frame):
@@ -634,6 +635,9 @@ def test_holding_shelf_rejects_low_in_box_flag_on(monkeypatch, _lps_behavior_fra
 
     assert result is None
     assert rejects["vol_contraction"] >= 1
+    # Form-tagged counters (Task 10): flag-on, the shelf was consulted and
+    # ALSO refused this window — both forms' refusals are visible.
+    assert rejects["holding_shelf_refused"] >= 1
 
 
 def test_holding_shelf_rejects_rising_lows_wedge_flag_on(monkeypatch, _lps_behavior_frame):

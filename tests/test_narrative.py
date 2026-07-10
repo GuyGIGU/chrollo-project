@@ -206,6 +206,44 @@ def test_read_structure_trace_is_opt_in_noop_by_default():
     assert read_structure(None, 1.0, bricks=bricks) is not None
 
 
+def test_read_structure_trace_carries_tape_and_role_summaries():
+    """Task 10: the per-root trace records carry compact Event Map summaries —
+    a ``tape`` brief once a box is elected, a ``roles`` brief on a complete
+    story. With df=None (scripted bricks) both stay None; with a real frame
+    and a real-shaped box they are computed."""
+    import pandas as pd
+
+    # df=None path: keys present, briefs None (nothing readable).
+    bricks = _Bricks([_root(10, 20)], {10: _box(20)}, {20: None}, {20: _lps(85)})
+    trace: list = []
+    assert read_structure(None, 1.0, bricks=bricks, trace=trace) is not None
+    assert trace[0]["tape"] is None and trace[0]["roles"] is None
+
+    # Real-frame path: a V-shaped 24-bar frame and a box stand-in shaped like
+    # the real brick (start_bar/R/S/base_len). The briefs must materialize.
+    closes = [108, 107, 106, 105, 104, 103, 102, 101, 102, 103, 104, 105,
+              104, 103, 102, 103, 104, 105, 106, 105, 104, 105, 106, 107]
+    df = pd.DataFrame({
+        "High": [c + 0.6 for c in closes],
+        "Low": [c - 0.6 for c in closes],
+        "Close": [float(c) for c in closes],
+    })
+    real_box = SimpleNamespace(S=100.0, R=110.0, start_bar=0, box_width=0.10,
+                               base_len=len(df))
+    lps = SimpleNamespace(start_bar=20, end_bar=23, low_bar=21,
+                          swing_type="holding_shelf")
+    bricks = _Bricks([_root(0, 0)], {0: real_box}, {0: None}, {0: lps})
+    trace = []
+    s = read_structure(df, 1.0, bricks=bricks, trace=trace)
+    assert s is not None
+    rec = trace[0]
+    assert isinstance(rec["tape"]["n_swings"], int)
+    assert rec["tape"]["pre_box_trend"] is not None
+    assert rec["tape"]["box_trend"] is not None
+    assert isinstance(rec["roles"]["n_labels"], int)
+    assert 0 <= rec["roles"]["n_committed"] <= rec["roles"]["n_labels"]
+
+
 def test_structure_views_compose_brick_fields():
     """horizontal/vertical are derived views over existing brick fields — no recompute."""
     inner = SimpleNamespace(base_len=15, box_width=4.0)

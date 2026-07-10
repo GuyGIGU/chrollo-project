@@ -550,6 +550,22 @@ def test_e2_clean_bullish_chronology_is_intact(monkeypatch):
     assert nar["trace"][-1] == "-> chronology intact, completeness 4/4"
 
 
+def test_e2_lps_step_is_form_tagged(monkeypatch):
+    # Task 10: the narrative's one chronological trace names the elected LPS
+    # completion form — a shelf-completed brick renders "(holding_shelf)" in
+    # the same step line, never a parallel narrative.
+    import core.structure.bricks as bricks
+    from types import SimpleNamespace
+    df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
+    box = _box(0, len(_CLEAN_BULL_H))
+    monkeypatch.setattr(bricks, "find_spring", lambda *a, **k: None)
+    monkeypatch.setattr(bricks, "find_lps", lambda *a, **k: SimpleNamespace(
+        start_bar=8, end_bar=10, low_bar=9, swing_type="holding_shelf"))
+    nar = assemble_box_narrative(df, box, atr_val=0.5)
+    assert nar["spine"]["lps"]["swing_type"] == "holding_shelf"
+    assert any("LPS" in ln and "(holding_shelf)" in ln for ln in nar["trace"])
+
+
 def test_e2_titn_upthrust_terminal_zero_sos(monkeypatch):
     # The headline anchor: a run-up that tops in one upthrust reads zero SOS +
     # upthrust_terminal, WITHOUT suppressing the independent spring/test/lps.
