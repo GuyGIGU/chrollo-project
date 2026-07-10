@@ -700,6 +700,40 @@ def test_holding_shelf_never_steals_a_passing_pullback_window(monkeypatch, _lps_
     assert on["swing_type"] != "holding_shelf"
 
 
+def test_holding_shelf_both_forms_qualify_frame_pins_precedence(monkeypatch, _lps_behavior_frame):
+    # Detection-level precedence pin (Task 9): ONE frame where the scan yields
+    # BOTH forms with the same terminal low and end — a len-3 pullback window
+    # (dry tail volume) and a len-4 shelf-saved window (the extra bar drags in
+    # a volume spike). The pullback must win the election, and the flag-on
+    # result must equal the flag-off result exactly.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    df = _lps_behavior_frame(
+        highs=[111.0, 108.5, 107.8, 107.5],
+        lows=[107.0, 106.5, 106.2, 106.0],
+        closes=[108.0, 107.5, 107.0, 106.8],
+    )
+    df.loc[0, "Volume"] = 5000  # len-4 window mean vol 1625 >= 850 -> shelf-saved
+    kw = dict(latest=df.iloc[-1], sup_avg=100, res_avg=110, atr_val=2,
+              base_range_threshold=4, base_len=20, swing_complete_idx=-1)
+
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    candidates, _ = detect_lps_candidates(df=df, **kw)
+    # The electable group: windows ending at the last bar (offset 0).
+    at_end = {c["length"]: c["swing_type"] for c in candidates
+              if c["end_index"] == len(df)}
+    assert at_end.get(4) == "holding_shelf"         # both forms really present
+    assert at_end.get(3) is not None and at_end[3] != "holding_shelf"
+
+    on = detect_lps(df=df, **kw)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
+    off = detect_lps(df=df, **kw)
+
+    assert on == off                                 # election unchanged flag-on
+    assert on["length"] == 3
+    assert on["swing_type"] != "holding_shelf"
+
+
 def test_holding_shelf_election_pullback_outranks_shelf_on_integer_tie():
     latest = pd.Series({"Close": 100.0})
     base = dict(low_index=9, end_index=10, trigger_price=105.0,

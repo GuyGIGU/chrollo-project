@@ -54,6 +54,22 @@ def test_negative_corpus_still_rejects_every_case():
     )
 
 
+def test_negative_corpus_still_rejects_every_case_flag_on(monkeypatch):
+    """Two-form guard (Event Map Task 9): the holding-shelf completion form
+    widens LPS acceptance, so replay the SAME committed junk corpus with
+    LPS_HOLDING_SHELF_ENABLED forced ON — a second completion form must not
+    make labeled junk fire."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    assert negative_corpus.check_corpus() is True, (
+        "Negative-corpus guard failed with the holding-shelf form ON: the "
+        "second completion form makes a labeled must-NOT-fire chart fire. "
+        "Tighten the shelf predicate (position/monotone/length gates) before "
+        "any flip."
+    )
+
+
 def test_meta_cases_all_have_frames():
     """Fixture integrity: every labeled case has a frame in the parquet.
 
