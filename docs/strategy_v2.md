@@ -81,6 +81,8 @@ Above the mechanical swings sits the **narrative-role layer** (`read_role_labels
 
 Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they are staged behind **`EVENT_MAP_ENABLED`** (default OFF, dark-flag ledger + frozen manifest): flag-on, both are computed **for firing setups only** (the puzzle-read placement) and emit four underscore diagnostics (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`) — nothing canonical moves (proven additive-only over the full shadow fixture; evaluation-phase cost ≈ +1ms per firing ticker). Flag-on, the diagnostics are archived as the **`event_map_*` column family** — declared once in `event_map.py` (`EVENT_MAP_COLUMN_SQL`: names, types, row extraction; the live writer and seed both splat the one extraction function) and entering the schema as model-only nullable adds, where NULL means "not measured", never zero. The chart-overlay payload arrives in a later Event Map stage behind its own review; the flip is operator-gated on the scan-metrics cost A/B.
 
+A sibling measure-only diagnostic, **election stability** (`ELECTION_STABILITY_ENABLED`, default OFF, dark-flag ledger + frozen manifest): for firing setups only, the eval-twin prep and the structure election alone are re-run at D−1..D−k (backward shifts only — nothing archived can carry lookahead) and each shifted reading is compared to the live one through the single cross-frame identity predicate (`core/pipeline/election_identity.same_election`: box-start date + rails within a scale-free tolerance). Real structures persist while junk elections flicker day-to-day; the probe emits raw `_stability_*` diagnostics (fraction-same, consecutive-day streak, probes) — never a gate, never a score. At a fire's first session the fraction is 0 by definition (the reading just completed), so the signal is a calibration-time read over aged fires, not a same-day judgment. Flag-off is byte-identical and compute-free; the flip is gated on the measured cost bound (≈2.75s per firing ticker at k=3 — see the ledger).
+
 ### The Root-Swing cascade (the linear narrative)
 
 The reader walks the chart left to right and anchors by descent:
@@ -811,7 +813,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `d2b8b72b1b4e9e2246e07ed4d7700d3cfc94f9896c1afa20fff2e7687913edd7`_
+_engine_config_version: `6099c4a66e20bdf465d19ababe453b1acdc308b7ae6b02ed66794a8713d9b21c`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -954,6 +956,8 @@ PUZZLE_W_COMPLETENESS = 0.7
 PUZZLE_W_CHRONOLOGY = 0.3
 PUZZLE_CHRONO_PARTIAL = 0.5
 EVENT_MAP_ENABLED = False
+ELECTION_STABILITY_ENABLED = False
+ELECTION_STABILITY_LOOKBACK = 3
 SCORE_TRAVERSAL_QUALITY = 10
 TRAVERSAL_QUALITY_DENSITY_FULL = 0.33
 TRAVERSAL_QUALITY_DWELL_PENALTY = 8

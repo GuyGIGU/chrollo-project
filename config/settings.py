@@ -493,6 +493,18 @@ PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, a
 # cost A/B (EC-8).
 EVENT_MAP_ENABLED = False
 
+# ── Election stability — persistence under backward eval-day shifts ─────────────
+# Measure-only probe on FIRING setups (core/pipeline/stability.py): re-run the
+# eval-twin prep + the structure election alone at D-1..D-k on the same raw frame
+# and ask, via the one cross-frame identity predicate, whether the SAME reading
+# elects. Real structures persist; junk flickers (BODI's band pair exists 04-15,
+# dies 04-16; VLO's read 07-07, not 07-08). Never a gate, never a score: emits
+# only underscore diagnostics (_stability_same_frac / _streak / _probes).
+# Flag-off is byte-identical with ZERO new compute (import + computation live
+# inside the flag). Flip is operator-gated on the measured cost bound (EC-8).
+ELECTION_STABILITY_ENABLED = False
+ELECTION_STABILITY_LOOKBACK = 3   # backward shifts probed (D-1..D-k); election stage only
+
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
 # folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived

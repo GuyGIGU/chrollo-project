@@ -219,6 +219,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PUZZLE_CHRONO_PARTIAL",
     # Event Map fire-path staging (measure-only diagnostics, flag-gated dark)
     "EVENT_MAP_ENABLED",
+    # Election stability probe (measure-only diagnostics, flag-gated dark)
+    "ELECTION_STABILITY_ENABLED",
+    "ELECTION_STABILITY_LOOKBACK",
     "SCORE_TRAVERSAL_QUALITY",
     "TRAVERSAL_QUALITY_DENSITY_FULL",
     "TRAVERSAL_QUALITY_DWELL_PENALTY",

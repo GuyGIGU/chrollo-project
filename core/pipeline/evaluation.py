@@ -225,6 +225,10 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
         "df": daily_df,
         "latest": latest,
         "yearly_return": yearly_return,
+        # The UNPREPARED input, kept by reference for the election-stability
+        # probe (flag-dark): its backward shifts must re-run THIS twin on the
+        # same raw frame, never a lightweight re-prep of the filtered one.
+        "raw_df": df,
     }
 
 
@@ -556,6 +560,22 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
                 1 for lbl in _roles["labels"] if not lbl["in_progress"]),
         }
 
+    # Election stability (measure-only, flag-dark): does the elected reading
+    # survive backward eval-day shifts? Real structures persist, junk flickers
+    # (BODI 04-15 vs 04-16). Fires only; election stage only; raw diagnostics,
+    # never a gate or a score. Import + compute strictly inside the flag —
+    # flag-off pays zero cost and spreads {} -> byte-identical.
+    stability_fields = {}
+    if settings.ELECTION_STABILITY_ENABLED:
+        from core.pipeline.stability import election_stability
+        _probe = election_stability(prepared["raw_df"],
+                                    structure_ctx["structure"], df)
+        stability_fields = {
+            "_stability_same_frac": _probe["same_frac"],
+            "_stability_streak": int(_probe["streak"]),
+            "_stability_probes": int(_probe["probes"]),
+        }
+
     return {
         "trend": trend,
         "adr_value": adr_value,
@@ -566,6 +586,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "htf_ctx": htf_ctx,
         "puzzle_fields": puzzle_fields,
         "event_map_fields": event_map_fields,
+        "stability_fields": stability_fields,
     }
 
 
@@ -770,6 +791,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("puzzle_fields", {}),   # E3: empty flag-off -> byte-identical
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
+        **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
     }
 
 
