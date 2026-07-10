@@ -24,6 +24,76 @@ from core.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
 # L2 staircase — the labeled, chronological HH/HL/LH/LL sequence INSIDE the box
 # ---------------------------------------------------------------------------
 
+def _staircase_empty():
+    return {"swings": [], "n_swings": 0,
+            "counts": {"HH": 0, "HL": 0, "LH": 0, "LL": 0},
+            "trend_state": "range", "rail_to_rail": False, "is_zigzag": False}
+
+
+def _staircase_from_pivots(peaks, valleys, highs, lows, R, S, atr_val, min_amp):
+    """Zigzag → amplitude collapse → L0 labels → box annotation over a GIVEN
+    order-1 pivot subset: the single staircase machinery behind
+    ``read_box_staircase`` (which detects pivots on its own window) and the
+    Event Map's windowed views (``core.structure.event_map``, which filter ONE
+    whole-frame pivot walk down to a window). Bars in the result index into
+    ``highs``/``lows``; the pivot indices must index those same arrays."""
+    box = float(R) - float(S)
+    if not peaks or not valleys:
+        return _staircase_empty()
+    zz = _build_zigzag(peaks, valleys, highs, lows)
+    if len(zz) < 3:
+        return _staircase_empty()
+    swings = _collapse_swings(zz, min_amp)
+    if len(swings) < 2:
+        return _staircase_empty()
+
+    # Lazy import keeps the L0 labeller a leaf dependency (no module-load cycle).
+    from core.structure.market_structure import label_market_structure
+    labelled = label_market_structure(swings)
+
+    low_zone = settings.TRAVERSAL_LOW_ZONE
+    high_zone = settings.TRAVERSAL_HIGH_ZONE
+    breach_tol = (settings.BOUNDARY_ATR_BUFFER * float(atr_val)) / box
+    out_swings = []
+    for pt in labelled["points"]:
+        price = float(pt["price"])
+        box_pos = (price - float(S)) / box
+        if box_pos <= low_zone:
+            zone = "low"
+        elif box_pos >= high_zone:
+            zone = "high"
+        else:
+            zone = "mid"
+        if pt["kind"] == "peak":
+            rail_event = ("breach_R" if box_pos > 1.0 + breach_tol
+                          else "touch_R" if box_pos >= high_zone else "interior")
+        else:
+            rail_event = ("breach_S" if box_pos < -breach_tol
+                          else "touch_S" if box_pos <= low_zone else "interior")
+        out_swings.append({
+            "bar": int(pt["bar"]), "kind": pt["kind"], "price": round(price, 4),
+            "label": pt["label"], "box_pos": round(box_pos, 4),
+            "zone": zone, "rail_event": rail_event,
+        })
+
+    counts = {"HH": 0, "HL": 0, "LH": 0, "LL": 0}
+    for s in out_swings:
+        if s["label"] in counts:
+            counts[s["label"]] += 1
+    rail_to_rail = (
+        any(s["kind"] == "peak" and s["zone"] == "high" for s in out_swings)
+        and any(s["kind"] == "valley" and s["zone"] == "low" for s in out_swings)
+    )
+    return {
+        "swings": out_swings,
+        "n_swings": len(out_swings),
+        "counts": counts,
+        "trend_state": labelled["trend_state"],
+        "rail_to_rail": bool(rail_to_rail),
+        "is_zigzag": bool(rail_to_rail and len(out_swings) >= 3),
+    }
+
+
 def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
     """The labeled, chronological HH/HL/LH/LL staircase INSIDE an equilibrium box.
 

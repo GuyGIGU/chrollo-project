@@ -44,6 +44,7 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | `bricks.py` | The narrative's building blocks: each phase detector wrapped as a pure `fits_here?` function (root swing, box, spring, LPS, Phase-A overlay resolution). |
 | `market_structure.py` | The chart in Highs & Lows: labels the swing skeleton HH/HL/LH/LL and marks mechanical breaks (BOS / reversal). Layer 0 of the event reader. |
 | `box_events.py` | The Wyckoff event reader (L2): calibrated SOS / spring / test / LPS / markup pieces + `assemble_box_narrative`, which orders them into a scored, traceable story. |
+| `event_map.py` | The Event Map's mechanical swing layer: ONE whole-frame pivot walk sliced into a pre-box trend view + the (byte-identical) in-box staircase, every swing stamped with when it *became knowable* (the causality contract). Measure-only; not yet on the live scan path. |
 | `bin_features.py` | Splits the base into left/right halves (bins) and measures how the right side improves on the left — range, support quality, tight-bar share. |
 | `phase_d.py` | Phase-D boundary resolution: where the right side of the base actually starts. |
 | `htf.py` | The same trend+box engine on resampled weekly/monthly bars — the higher-timeframe context read. |
