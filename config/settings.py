@@ -64,19 +64,23 @@ PIP_MACRO_EQ_OSC_FRAC = 0.3      # min two-sided traversal (x bridge height)
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 
-# ── Worked-band rail candidates + deep-excursion events (Event Map Task 11) ──
+# ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
 # DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
 # consulted ONLY when the strict and rescued pools are both empty — an ordinary
-# box's election can never move): rails at the WORKED BAND (the bounded-width
-# close band with the largest dwell share), with band-leaving excursions typed
-# as events that must reclaim/fail-back and HOLD (the spring invariants at
-# terminal-shakeout scale) or the candidate dies. Judged bars run the UNCHANGED
-# respect/occupancy/traversal gates; nothing is excused. Operator ruling
-# 2026-07-10 (BODI marked chart): the Feb collapse is PHASE C — a terminal-
-# shakeout spring inside ONE box measured at the worked band (~17.5%).
+# box's election can never move): the CHRONOLOGICAL zigzag pairs re-judged with
+# band-leaving excursions typed as events that must reclaim/fail-back and HOLD
+# (the spring invariants at terminal-shakeout scale) or the pair dies. Event
+# bars are excised; the UNCHANGED respect/occupancy/traversal gates run
+# full-strength on the judged window. Operator rulings 2026-07-10 (BODI marked
+# chart + chat): the Feb collapse is PHASE C inside ONE box; rails anchor from
+# the chronological swings, measured wick to wick. A pair carrying a qualified
+# DEEP below-rail event may measure up to BAND_MAX_BOX_WIDTH (BODI's
+# chronological pair reads 0.20-0.23) — the allowance exists ONLY with the
+# event, so it can never act as a general width loosening. Calibration set:
+# docs/phase_c_marks_2026-07.json.
 BAND_RAILS_ENABLED = False
-BAND_MIN_DWELL = 0.5             # the band must hold at least this share of window closes
-BAND_TURN_TOL_FRAC = 0.05        # turn-cluster tolerance as a fraction of the window's close range
+BAND_MAX_BOX_WIDTH = 0.23        # wick-to-wick cap for a pair WITH a qualified deep event
+BAND_EVENT_MIN_BARS = 2          # a deep event is multi-bar; one-bar pokes stay respect-buffer business
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)

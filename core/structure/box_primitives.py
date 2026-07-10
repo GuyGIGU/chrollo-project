@@ -266,7 +266,7 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val):
     }
 
 
-def _validate_base_quality(eq_df, R_val, S_val, atr_val):
+def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
     REAL trading range only if price respects, touches, and zigzags through BOTH
@@ -293,7 +293,11 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val):
         dict (None when rejected on width/crash before measuring).
     """
     box_width = (R_val - S_val) / S_val
-    if box_width > settings.MAX_BOX_WIDTH or box_width <= 0:
+    # ``max_width`` widens the cap ONLY for the deep-event pool (a pair
+    # carrying a qualified terminal-shakeout event, BAND_MAX_BOX_WIDTH);
+    # every ordinary caller leaves it None = the unchanged MAX_BOX_WIDTH.
+    if box_width > (settings.MAX_BOX_WIDTH if max_width is None else max_width) \
+            or box_width <= 0:
         return 0, 0, None, False
 
     if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
@@ -462,7 +466,7 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
 
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                     trace=None, rescued=False):
+                     trace=None, rescued=False, max_width=None):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -491,7 +495,7 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                         box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
         return None
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
-        sub_df, R_val, S_val, atr_val,
+        sub_df, R_val, S_val, atr_val, max_width=max_width,
     )
     if not is_valid:
         if trace is not None:
@@ -608,7 +612,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # qualified excursions (reclaim/fail-back + hold) are excised from the
     # judged window; every gate below runs UNCHANGED on the judged bars.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
-        pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, atr_val,
+        pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace)
 
     if trace is not None and strict and rescued:
@@ -620,46 +624,56 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal, trace=trace)
 
 
-def _band_rail_candidates(eq_df, eq_highs, eq_lows, atr_val, trace=None):
-    """Build the worked-band candidate pool for a window (possibly empty).
+def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None):
+    """Build the deep-event candidate pool for a window (possibly empty).
 
-    Rails come from ``band_rails.derive_band_candidates`` (dwell-qualified
-    close bands + per-band excursion qualification); anchors are the first REAL
-    rail touches within the respect buffer so ``swing_complete_idx`` keeps its
-    meaning. Every band is judged by the unchanged ``_build_candidate`` gates
-    over its judged (excursion-excised) window — the same narrowed-measurement
-    convention the rescued SOS trim already uses — and the standard selection
-    picks among the survivors.
+    Re-judges the SAME chronological zigzag pairs the strict pool enumerated —
+    the operator's rail rule ("anchor R/S from the swings in chronological
+    order, wick to wick") — with each pair's qualified excursion events excised
+    from the judged window (``band_rails.qualify_pair_events``: every
+    band-leaving span must reclaim/fail-back and HOLD, and at least one deep
+    below-rail event must exist, or the pair is refused). Judged windows run
+    the unchanged ``_build_candidate`` gates — the SOS-trim narrowed-
+    measurement convention — except that a pair carrying a qualified deep
+    event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
+    allowance; it exists only when the event does).
     """
-    from core.structure.band_rails import derive_band_candidates
+    from core.structure.band_rails import qualify_pair_events
 
-    buf = settings.BOUNDARY_ATR_BUFFER * atr_val
     pool = []
-    for read in derive_band_candidates(eq_df, atr_val):
-        R_val, S_val = float(read["R"]), float(read["S"])
-        box_width = (R_val - S_val) / S_val
-        judged = read["judged"]
-
-        r_touch = np.flatnonzero(judged & (eq_highs >= R_val - buf))
-        s_touch = np.flatnonzero(judged & (eq_lows <= S_val + buf))
-        if not len(r_touch) or not len(s_touch):
+    for i in range(len(zigzag) - 1):
+        zi, zj = zigzag[i], zigzag[i + 1]
+        if zi[1] == 'peak' and zj[1] == 'valley':
+            R_val, S_val = zi[2], zj[2]
+            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
+        elif zi[1] == 'valley' and zj[1] == 'peak':
+            R_val, S_val = zj[2], zi[2]
+            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
+        else:
             continue
-        r_anchor_bar, s_anchor_bar = int(r_touch[0]), int(s_touch[0])
-        cand_start = min(r_anchor_bar, s_anchor_bar)
+        if R_val <= S_val:
+            continue
+        box_width = (R_val - S_val) / S_val
+        if box_width > settings.BAND_MAX_BOX_WIDTH:
+            continue
 
-        mask = judged[cand_start:]
+        cand_start = min(r_anchor_bar, s_anchor_bar)
+        read = qualify_pair_events(eq_df.iloc[cand_start:], S_val, R_val, atr_val)
+        if read is None:
+            continue
+        mask = read["judged"]
         tup = _build_candidate(
             eq_highs[cand_start:][mask], eq_lows[cand_start:][mask],
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-            trace=trace, rescued=True,
+            trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
         )
         if tup is None:
             continue
         if trace is not None:
             rec = _trace_find(trace, tup)
             if rec is not None:
-                rec["detail"] = (f"worked-band rails; {len(read['excursions'])} "
+                rec["detail"] = (f"chronological pair with {len(read['excursions'])} "
                                  "qualified excursion event(s) excised from the "
                                  "judged window")
         pool.append(tup)

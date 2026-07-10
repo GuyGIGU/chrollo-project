@@ -399,19 +399,26 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      and held above R can be validated over the worked cause before that
      breakout tail. This rescues SOS -> BUEC structures (e.g. a valid range that
      backs up to an LPS) without moving ordinary in-range setups.
-   - **Worked-band pool (dark, `BAND_RAILS_ENABLED` — Event Map Task 11, band
-     derivation NOT yet operator-calibrated)** — a LAST-RESORT pool consulted
-     only when the strict AND rescued pools are both empty, so an ordinary
-     election can never move. Rails come from where CLOSES turn (pivot-cluster
-     bands, `core/structure/band_rails.py`); a band-leaving excursion is typed
-     as an EVENT that must reclaim/fail-back and HOLD — the spring invariants
-     at terminal-shakeout scale (the operator's BODI ruling: the deep collapse
-     is PHASE C inside one band-measured box, "not a box break") — or the
-     candidate dies as a breakdown, exactly as before. Qualified event bars are
-     excised from the judged window; every gate in this list runs UNCHANGED and
-     full-strength on the remaining bars. Nothing is excused and the respect
-     gate is untouched. The flip is gated on the operator's A/B rail eyeball
-     (see the flag ledger for the open calibration question).
+   - **Deep-excursion pair pool (dark, `BAND_RAILS_ENABLED` — Event Map Task
+     11, calibration open)** — a LAST-RESORT pool consulted only when the
+     strict AND rescued pools are both empty, so an ordinary election can
+     never move. It re-judges the SAME chronological zigzag pairs (the
+     operator's rail rule: anchor R/S from the swings in chronological order,
+     wick to wick) with band-leaving excursions typed as EVENTS
+     (`core/structure/band_rails.py`): a below-rail episode — same-side spans
+     merged across short inside-runs, spring-then-test is ONE event — must
+     penetrate, RECLAIM, and HOLD (its extreme never violated afterwards);
+     an above-rail poke must fail back and never be exceeded; otherwise the
+     pair dies as a breakdown/breakout, exactly as before (the operator's
+     BODI ruling: the deep collapse is PHASE C inside one box, "not a box
+     break"). Qualified event bars are excised from the judged window; every
+     gate in this list runs UNCHANGED and full-strength on the remaining
+     bars, except that a pair carrying a qualified DEEP below-rail event
+     (multi-bar, beyond S − 2×buffer) may measure up to
+     `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance exists only
+     with the event, so it can never act as a general width loosening. The
+     respect gate is untouched. The flip is gated on the operator's A/B rail
+     eyeball over `docs/phase_c_marks_2026-07.json` (see the flag ledger).
 6. **Structural-quality score:** every *valid* candidate gets
    `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
 7. **Candidate selection (`select="earliest"` live default):** choose the
@@ -804,7 +811,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `62ca1a55a57ebc6f1495bf693b0b5a418b2d88f6b3a703b290f9351b4e8782a3`_
+_engine_config_version: `d2b8b72b1b4e9e2246e07ed4d7700d3cfc94f9896c1afa20fff2e7687913edd7`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -885,8 +892,8 @@ LPS_HOLDING_SHELF_ENABLED = False
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 BAND_RAILS_ENABLED = False
-BAND_MIN_DWELL = 0.5
-BAND_TURN_TOL_FRAC = 0.05
+BAND_MAX_BOX_WIDTH = 0.23
+BAND_EVENT_MIN_BARS = 2
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4
 LPS_ZONE_ATR_MULT = 0.5
 BIN_C_UNDERCUT_ATR_MIN = 0.3

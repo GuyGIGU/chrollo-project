@@ -24,7 +24,12 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 import core.structure.box_primitives as bp
-from core.structure.band_rails import _qualify_band, _spans, derive_band_candidates
+from core.structure.band_rails import (
+    _merge_spans,
+    _qualify_band,
+    _spans,
+    qualify_pair_events,
+)
 
 
 def _frame(closes, lo_off=0.4, hi_off=0.4):
@@ -113,7 +118,9 @@ def test_qualify_band_above_excursion_must_fail_back_and_hold():
     assert [e["kind"] for e in read["excursions"]] == ["above"]
 
     worse = list(poke)
-    worse[20] = 114.0                       # exceeds the poke high later
+    # Exceeds the poke high BEYOND the episode-merge gap: a separate, higher
+    # break — the first poke's fail-back is violated and the read dies.
+    worse[25] = 114.0
     closes = np.array(worse, dtype=float)
     lows, highs = closes - 0.5, closes + 0.5
     assert _qualify_band(closes, lows, highs, 100.0, 106.0, buf=1.0) is None
@@ -124,6 +131,37 @@ def test_spans_finds_contiguous_runs():
     assert _spans(mask) == [(1, 3), (4, 5)]
 
 
-def test_derive_band_candidates_empty_on_short_window():
-    df = _frame(_boxy_closes(5))
-    assert derive_band_candidates(df, 1.0) == []
+def test_merge_spans_joins_spring_then_test_episodes():
+    # A deep episode is ONE event from first penetration to final reclaim:
+    # spans separated by at most the merge gap join; farther ones stay apart.
+    assert _merge_spans([(4, 7), (9, 12)], gap=3) == [(4, 12)]
+    assert _merge_spans([(4, 7), (20, 22)], gap=3) == [(4, 7), (20, 22)]
+    # The multi-dip case that motivated the merge: without it, the first dip's
+    # HOLD is violated by the deeper second dip and the whole pair is refused.
+    closes = np.array([105.0] * 8 + [96.0, 95.0] + [101.5, 101.0]
+                      + [93.0, 92.0] + [104.0, 105.0] * 12)
+    lows, highs = closes - 0.5, closes + 0.5
+    read = _qualify_band(closes, lows, highs, 102.0, 107.0, buf=1.0)
+    assert read is not None
+    assert [(e["kind"], e["start"], e["end"]) for e in read["excursions"]] == [("below", 8, 14)]
+
+
+def test_qualify_pair_events_requires_a_deep_multibar_event():
+    # Ordinary springy pokes are the respect buffer's business: a pair with no
+    # DEEP below-rail event is refused, so the class width allowance can never
+    # leak to a merely-wide box.
+    df = _frame(_boxy_closes(40))          # clean range, no excursion at all
+    assert qualify_pair_events(df, 100.0, 110.0, 1.0) is None
+
+    # One-bar poke below: too short for an event, refused.
+    closes = _boxy_closes(40)
+    closes[12] = 96.0
+    assert qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0) is None
+
+    # A multi-bar DEEP episode (beyond S - 2*buf) that reclaims and holds: read.
+    closes = _boxy_closes(40)
+    closes[12], closes[13], closes[14] = 96.0, 94.0, 95.0
+    read = qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0)
+    assert read is not None
+    assert [e["kind"] for e in read["excursions"]] == ["below"]
+    assert int(read["judged"].sum()) == 40 - 3
