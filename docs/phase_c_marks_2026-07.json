@@ -1,0 +1,44 @@
+{
+  "_readme": [
+    "Deep Phase-C (terminal-shakeout) CALIBRATION marks — Event Map Task 11.",
+    "Operator-provided 2026-07-10 (chat, marked charts). Deliberately OUTSIDE",
+    "docs/marks/ (the sealed must-fire corpus): these calibrate the worked-band",
+    "pool's rail/event read (BAND_RAILS_ENABLED, dark), they are not must-fire",
+    "specs. Same immutability discipline: append-only, operator corrections only.",
+    "Event dates were extracted from the 5y cache against the operator's drawn",
+    "rails and are tagged source=extraction; rails/rulings are operator ground",
+    "truth."
+  ],
+  "marks": [
+    {
+      "ticker": "BODI",
+      "source": "operator",
+      "rails_drawn": {"R": 12.4, "S": 10.15},
+      "box_span_drawn": ["2025-12-12", "2026-04-16"],
+      "phase_c": {"start": "2026-02-10", "tip": "2026-03-02", "tip_low": 6.77,
+                  "end": "2026-03-20", "source": "extraction"},
+      "ruling": "The February collapse is PHASE C — a terminal-shakeout spring inside ONE box, not a box break. Width judged ~17.5% at the worked band (implies S band ~10.55; wick rail drawn 10.15). Test after the C, LPS 04-09..04-15.",
+      "open_question": "The drawn wick rails measure 0.222 wide (> MAX_BOX_WIDTH 0.18); only a band-basis width (S~10.55) passes. Width basis for this class = operator call."
+    },
+    {
+      "ticker": "VLO",
+      "source": "operator",
+      "rails_drawn": {"R": 258.5, "S": 235.5},
+      "box_span_drawn": ["2026-03-12", "2026-07-08"],
+      "phase_c": {"start": "2026-04-17", "tip": "2026-04-17", "tip_low": 214.71,
+                  "end": "2026-04-24", "source": "extraction"},
+      "ruling": "Deep Phase C inside the drawn box (the April plunge, ~0.90 of the box height below S, reclaimed within days).",
+      "engine_today": "Fires (pinned corpus hit 07-07) but reads a young 2026-06-03 box R 264.16 / S 232.72 — the C-typed read would anchor the fuller drawn cause. Drawn width 0.098 (no width issue)."
+    },
+    {
+      "ticker": "KLAC",
+      "source": "operator",
+      "rails_drawn": {"R": 95.0, "S": 87.74},
+      "box_span_drawn": ["2025-07-18", "2025-09-11"],
+      "phase_c": {"start": "2025-09-02", "tip": "2025-09-03", "tip_low": 83.22,
+                  "end": "2025-09-04", "source": "extraction"},
+      "ruling": "Consolidation 2025-07-18..2025-09-11 with a deep shakeout that recovers, then the stock blows off.",
+      "engine_today": "No structure at 2025-09-10 either flag (drawn width 0.083 — no width issue; failure is upstream of the band pool; dissection open). The shakeout sits within current BIN_C spring caps (0.62 box / ~2.1 ATR / ~2-bar recovery)."
+    }
+  ]
+}
