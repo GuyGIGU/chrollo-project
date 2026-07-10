@@ -28,6 +28,7 @@ const tabFromPath = (pathname) => {
   if (pathname.startsWith('/options')) return 'options';
   if (pathname.startsWith('/portfolio')) return 'portfolio';
   if (pathname.startsWith('/archive')) return 'archive';
+  if (pathname.startsWith('/calibration')) return 'calibration';
   if (pathname.startsWith('/screener')) return 'screener';
   return 'home';
 };

@@ -62,6 +62,17 @@ export function ScreenerIcon(props) {
   );
 }
 
+export function CalibrationIcon(props) {
+  // Crosshair-over-rails: the marking surface (draw R/S on any chart).
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" />
+      <path d="M9 10h6M9 14h6" />
+    </svg>
+  );
+}
+
 export function ArchiveIcon(props) {
   return (
     <svg {...base} {...props}>
