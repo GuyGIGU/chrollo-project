@@ -290,6 +290,67 @@ def test_labels_are_chronologically_ordered():
         assert lbl["describes"][0] <= lbl["anchor_bar"] <= lbl["describes"][1]
 
 
+# ---------------------------------------------------------------------------
+# Fire-path staging (Task 6) — EC-8 flag protocol
+# ---------------------------------------------------------------------------
+
+def _first_firing_fixture_ticker():
+    """One real firing (ticker, frame, result, spy, breadth) off the committed
+    shadow fixture — loud if the fixture stopped firing entirely."""
+    from core.pipeline.evaluation import EVAL_ERROR
+    from core.pipeline.screener import _evaluate_ticker
+    from tools.shadow_diff import _load_fixture
+
+    frames, scalars = _load_fixture()
+    spy = float(scalars.get("spy_6m_return", 0.0))
+    breadth = scalars.get("breadth_pct")
+    breadth = float(breadth) if breadth is not None else None
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        result = _evaluate_ticker(ticker, df, spy, breadth)
+        if result is not None and result is not EVAL_ERROR:
+            return ticker, df, result, spy, breadth
+    raise AssertionError("no shadow-fixture ticker fires — rebuild the fixture")
+
+
+def test_event_map_flag_off_never_computes(monkeypatch):
+    """EC-8 inert proof: with EVENT_MAP_ENABLED off (the default), a full
+    per-ticker evaluation never touches the Event Map readers."""
+    import core.structure.event_map as em
+    from config import settings
+
+    assert settings.EVENT_MAP_ENABLED is False, "flag must ship dark"
+
+    def _boom(*_a, **_k):
+        raise AssertionError("Event Map computed while the flag is off")
+
+    monkeypatch.setattr(em, "read_swing_map", _boom)
+    monkeypatch.setattr(em, "read_role_labels", _boom)
+    _ticker, _df, result, _spy, _breadth = _first_firing_fixture_ticker()
+    assert result["Score"] > 0
+
+
+def test_event_map_flag_on_is_additive_only(monkeypatch):
+    """EC-8: flag-on changes NOTHING pre-existing — it only ADDS the
+    underscore Event Map diagnostics to a firing result."""
+    from config import settings
+    from core.pipeline.screener import _evaluate_ticker
+
+    ticker, df, off, spy, breadth = _first_firing_fixture_ticker()
+    monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", True)
+    on = _evaluate_ticker(ticker, df, spy, breadth)
+
+    assert {k: on[k] for k in off} == off, "a pre-existing field moved flag-on"
+    assert set(on) - set(off) == {
+        "_event_map_n_swings", "_event_map_pre_box_trend",
+        "_event_map_n_labels", "_event_map_n_committed",
+    }
+    assert on["_event_map_n_swings"] > 0
+    assert on["_event_map_n_labels"] >= on["_event_map_n_committed"] >= 0
+
+
 def test_degenerate_inputs_return_empty_shape():
     df, box = _demo_frame()
     empty_keys = {"swings", "n_swings", "pre_box", "box", "start_bar",

@@ -24,6 +24,7 @@ Maintenance rules:
 | `FUNDAMENTALS_ENABLED` (Lane C) | 2026-06-29 (`b8753a1`) | The scoring/enrichment wire-up wave (fundamentals feeding score/archive) — substrate is built and unit-tested, consumption wave not yet scheduled | `core/fundamentals/` docstrings | 2026-09-30 |
 | `RS_LINE_ENABLED` (Lane C) | 2026-06-29 (`b8753a1`) | Same wire-up wave (RS-line new-high chip / score input) | `core/regime/rs_line.py` docstring | 2026-09-30 |
 | `SECTOR_RANKING_ENABLED` (Lane C) | 2026-06-29 (`b8753a1`) | Same wire-up wave (sector-RS context for the health board / regime label) | `core/regime/sector_ranking.py` docstring | 2026-09-30 |
+| `EVENT_MAP_ENABLED` | 2026-07-10 (Event Map Task 6) | Fire-path staging of the Event Map (stamped swing map + role labels for fires, measure-only, underscore diagnostics only). Flip is operator-gated on the scan-metrics cost A/B (EC-8); the downstream consumers (archive column family Task 7, overlay payload Task 13) land behind their own reviews | `core/structure/event_map.py` docstring; [../PLAN-event-tape.md](../PLAN-event-tape.md) Task 6; [../specs/event-map-causality-contract.md](../specs/event-map-causality-contract.md) | 2026-08-31 |
 
 ## Retired
 

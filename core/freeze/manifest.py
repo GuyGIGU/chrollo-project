@@ -209,6 +209,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PUZZLE_W_COMPLETENESS",
     "PUZZLE_W_CHRONOLOGY",
     "PUZZLE_CHRONO_PARTIAL",
+    # Event Map fire-path staging (measure-only diagnostics, flag-gated dark)
+    "EVENT_MAP_ENABLED",
     "SCORE_TRAVERSAL_QUALITY",
     "TRAVERSAL_QUALITY_DENSITY_FULL",
     "TRAVERSAL_QUALITY_DWELL_PENALTY",

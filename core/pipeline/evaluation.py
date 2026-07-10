@@ -533,6 +533,29 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         if narrative is not None else {}
     )
 
+    # Event Map stage-1 (measure-only): the stamped whole-frame swing map + role
+    # labels for FIRES, reusing the elected bricks — the puzzle-read placement.
+    # No scan-time consumer yet (archive columns / overlay payload are later
+    # Event Map stages); this stages the compute so its cost is measurable and
+    # emits only underscore diagnostics. Import + computation live strictly
+    # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
+    event_map_fields = {}
+    if settings.EVENT_MAP_ENABLED:
+        from core.structure.event_map import read_role_labels, read_swing_map
+        _struct = structure_ctx["structure"]
+        _tape = read_swing_map(df, _struct.box, structure_ctx["atr_for_zone"])
+        _roles = read_role_labels(
+            df, _struct.box, structure_ctx["atr_for_zone"],
+            spring=_struct.spring, lps=_struct.lps,
+        )
+        event_map_fields = {
+            "_event_map_n_swings": int(_tape["n_swings"]),
+            "_event_map_pre_box_trend": _tape["pre_box"]["trend_state"],
+            "_event_map_n_labels": int(_roles["n_labels"]),
+            "_event_map_n_committed": sum(
+                1 for lbl in _roles["labels"] if not lbl["in_progress"]),
+        }
+
     return {
         "trend": trend,
         "adr_value": adr_value,
@@ -542,6 +565,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "tier": calculate_tier(score, structure_ctx["box_width"]),
         "htf_ctx": htf_ctx,
         "puzzle_fields": puzzle_fields,
+        "event_map_fields": event_map_fields,
     }
 
 
@@ -745,6 +769,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_base_date_end': str(base_df.index[-1])[:10],
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("puzzle_fields", {}),   # E3: empty flag-off -> byte-identical
+        **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
     }
 
 

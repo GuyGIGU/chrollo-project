@@ -441,6 +441,18 @@ PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 disti
 PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
 PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
 
+# ── Event Map — whole-chart event read (PLAN-event-tape.md, stage 1) ────────────
+# Fire-path staging of the Event Map (core/structure/event_map.py): compute the
+# stamped mechanical swing map + the narrative-role labels for FIRING setups only,
+# reusing the elected bricks (spring/lps) — the puzzle-read placement, dozens of
+# tickers a night. MEASURE-ONLY and additive: gates nothing, scores nothing, moves
+# no rail; emits only underscore-prefixed diagnostic fields (never canonical).
+# Flag-off is byte-identical with ZERO new compute (import + computation live only
+# inside the flag). Consumers (archive column family, chart-overlay payload) arrive
+# in later Event Map stages. The live flip is operator-gated on the scan-metrics
+# cost A/B (EC-8).
+EVENT_MAP_ENABLED = False
+
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
 # folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived

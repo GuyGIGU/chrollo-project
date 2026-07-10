@@ -79,7 +79,7 @@ Every swing carries the **causality stamps** the Event Map contract requires ([s
 
 Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the puzzle read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
 
-Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing — and nothing on the live scan path computes them yet: fire-path staging, behind its own flag with the full flag protocol, is a later Event Map stage (PLAN-event-tape.md Task 6).
+Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they are staged behind **`EVENT_MAP_ENABLED`** (default OFF, dark-flag ledger + frozen manifest): flag-on, both are computed **for firing setups only** (the puzzle-read placement) and emit four underscore diagnostics (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`) — nothing canonical moves (proven additive-only over the full shadow fixture; evaluation-phase cost ≈ +1ms per firing ticker). Real consumers — the archive column family, the chart-overlay payload — arrive in later Event Map stages behind their own reviews; the flip is operator-gated on the scan-metrics cost A/B.
 
 ### The Root-Swing cascade (the linear narrative)
 
@@ -788,7 +788,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `efa9e0ff7b693461dd568ede639793dde5629503f0e7bd9a04e841bf7872154f`_
+_engine_config_version: `36fe65aa93df84cfd54351827fba35f331865a36bde414c82d2fd4e1944aea0e`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -924,6 +924,7 @@ SCORE_PUZZLE_QUALITY = 8.0
 PUZZLE_W_COMPLETENESS = 0.7
 PUZZLE_W_CHRONOLOGY = 0.3
 PUZZLE_CHRONO_PARTIAL = 0.5
+EVENT_MAP_ENABLED = False
 SCORE_TRAVERSAL_QUALITY = 10
 TRAVERSAL_QUALITY_DENSITY_FULL = 0.33
 TRAVERSAL_QUALITY_DWELL_PENALTY = 8
