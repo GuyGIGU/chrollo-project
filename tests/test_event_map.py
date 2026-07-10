@@ -24,8 +24,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.structure.box_events import read_box_staircase
-from core.structure.event_map import read_swing_map
+from core.structure.box_events import _EVENT_HOLD_MIN_BARS, read_box_staircase
+from core.structure.event_map import read_role_labels, read_swing_map
 from core.structure.pivots import _find_pivots
 
 pytestmark = pytest.mark.regression
@@ -39,6 +39,7 @@ class _Box:
     start_bar: int
     R: float
     S: float
+    base_len: int = 40      # only the > 0 guard reads it here
 
 
 def _frame_from_path(path):
@@ -67,14 +68,16 @@ def _project_box_swings(tape, start):
 
 
 def _demo_frame():
-    """Downtrend into a 4-traversal box, breakout tail past the rail."""
+    """Downtrend into a worked box, with all three wave outcomes on the R rail:
+    failed reaches (25/35/58), a held reach (46 — the pullback after it stays
+    mid-box for >6 bars), and a right-edge reach (67) still unresolved."""
     n = 72
     path = _zigzag_path(
         [(0, 30.0), (4, 24.0), (7, 27.0), (11, 20.0),           # pre-box downtrend
          (14, 23.0), (18, 11.5),
          (20, 11.0), (25, 14.0), (30, 10.5), (35, 13.8),        # box S~10.5 R~14
-         (40, 10.6), (46, 13.9), (52, 10.4), (58, 13.7),
-         (63, 11.0), (68, 15.5), (71, 16.5)],                   # right of the rail
+         (40, 10.6), (46, 13.9), (52, 12.6), (58, 13.7),
+         (63, 11.0), (67, 15.5), (69, 13.9), (71, 17.0)],       # right of the rail
         n)
     return _frame_from_path(path), _Box(start_bar=18, R=14.0, S=10.0)
 
@@ -165,6 +168,126 @@ def test_nan_bars_are_counted_and_fail_closed():
     tape = read_swing_map(df, box, 1.0)
     assert tape["nan_bars"] == 3
     assert all(s["bar"] not in (40, 41, 42) for s in tape["swings"])
+
+
+# ---------------------------------------------------------------------------
+# Narrative-role layer (Task 5)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class _FakeLps:
+    start_bar: int
+    end_bar: int
+    low_bar: int
+    swing_type: str = "clean_downswing"
+
+
+def _roles(df, box, atr=1.0, spring=None, lps=None):
+    return read_role_labels(df, box, atr, spring=spring, lps=lps)["labels"]
+
+
+def test_role_layer_requires_injected_bricks_and_honors_none():
+    df, box = _demo_frame()
+    with pytest.raises(TypeError):
+        read_role_labels(df, box, 1.0)          # bricks are NOT optional
+    labels = _roles(df, box)
+    assert all(lbl["role"] not in ("spring", "lps") for lbl in labels), (
+        "injected None must mean 'the engine elected none' — never a re-detect")
+
+
+def test_wave_labels_are_tri_stated_and_stamped():
+    df, box = _demo_frame()
+    labels = _roles(df, box)
+    waves = [lbl for lbl in labels if lbl["rail"] == "R"]
+    assert waves, "demo frame must produce R-rail wave labels"
+    for lbl in waves:
+        assert lbl["resolution"] in ("held", "failed", "in_progress")
+        if lbl["in_progress"]:
+            assert lbl["knowable_bar"] is None
+        else:
+            # verdict + closure both printed, and never before the wave top.
+            assert lbl["knowable_bar"] > lbl["anchor_bar"]
+        assert not lbl["election_dependent"]
+    # The demo tail climbs into the right edge: its final advance is unresolved.
+    assert waves[-1]["resolution"] == "in_progress"
+
+
+def test_held_wave_knowable_covers_hold_window_and_closure():
+    """A held wave is knowable no earlier than the END of its printed hold
+    window AND no earlier than the bar that stopped it being extendable."""
+    df, box = _demo_frame()
+    labels = _roles(df, box)
+    held = [lbl for lbl in labels
+            if lbl["rail"] == "R" and lbl["resolution"] == "held"
+            and not lbl["in_progress"]]
+    assert held, "demo frame must confirm at least one held wave"
+    for lbl in held:
+        top = lbl["anchor_bar"]
+        assert lbl["knowable_bar"] >= top + _EVENT_HOLD_MIN_BARS
+
+
+def test_test_labels_stamped_off_valley_commitment():
+    df, box = _demo_frame()
+    labels = _roles(df, box)
+    tape = read_swing_map(df, box, 1.0)
+    commits = {s["bar"]: s["knowable_bar"] for s in tape["swings"]
+               if s["region"] == "box" and s["kind"] == "valley"}
+    tests = [lbl for lbl in labels if lbl["rail"] == "S"
+             and lbl["role"] in ("test", "failed", "in_progress")]
+    assert tests, "demo frame must produce S-rail test labels"
+    for lbl in tests:
+        if lbl["in_progress"]:
+            continue
+        commit = commits.get(lbl["anchor_bar"])
+        assert commit is not None and lbl["knowable_bar"] >= commit
+        if lbl["resolution"] == "held":
+            assert lbl["knowable_bar"] >= lbl["anchor_bar"] + _EVENT_HOLD_MIN_BARS
+
+
+def test_injected_lps_is_frame_scoped():
+    """The elected LPS label is knowable at the FRAME END — each frame's
+    election re-issues it — and is flagged election-dependent."""
+    df, box = _demo_frame()
+    lps = _FakeLps(start_bar=58, end_bar=63, low_bar=63)
+    labels = _roles(df, box, lps=lps)
+    lps_labels = [lbl for lbl in labels if lbl["role"] == "lps"]
+    assert len(lps_labels) == 1
+    lbl = lps_labels[0]
+    assert lbl["election_dependent"] is True
+    assert lbl["resolution"] == "held"
+    assert lbl["knowable_bar"] == len(df) - 1
+
+    shorter = df.iloc[:68]
+    lbl2 = [x for x in _roles(shorter, box, lps=lps) if x["role"] == "lps"][0]
+    assert lbl2["knowable_bar"] == len(shorter) - 1
+
+
+def test_role_truncate_relabel_invariance():
+    """Beck's battery at unit scale: relabel a truncated frame — every
+    election-independent label knowable inside the cut is identical."""
+    df, box = _demo_frame()
+    full = _roles(df, box)
+
+    def _sig(labels, upto):
+        return [(l["role"], l["rail"], tuple(l["describes"]), l["anchor_bar"],
+                 l["resolution"], l["knowable_bar"])
+                for l in labels
+                if not l["election_dependent"] and not l["in_progress"]
+                and l["knowable_bar"] <= upto]
+
+    for cut in range(34, len(df) + 1):
+        trunc = _roles(df.iloc[:cut], box)
+        assert _sig(trunc, cut - 1) == _sig(full, cut - 1), f"cut={cut}"
+
+
+def test_labels_are_chronologically_ordered():
+    df, box = _demo_frame()
+    labels = _roles(df, box, lps=_FakeLps(start_bar=58, end_bar=63, low_bar=63))
+    starts = [lbl["describes"][0] for lbl in labels]
+    assert starts == sorted(starts)
+    for lbl in labels:
+        assert lbl["describes"][0] <= lbl["describes"][1]
+        assert lbl["describes"][0] <= lbl["anchor_bar"] <= lbl["describes"][1]
 
 
 def test_degenerate_inputs_return_empty_shape():

@@ -207,6 +207,12 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
 # L2 Brick 2 — R-rail event ZONES: SOS (strength that holds) vs upthrust (fail)
 # ---------------------------------------------------------------------------
 
+# The printed-bars horizon that confirms a hold (R-rail waves and S-rail tests
+# share it). Named so the Event Map's role stamps derive knowability from the
+# SAME horizon the measurers actually used — never a re-declared literal.
+_EVENT_HOLD_MIN_BARS = 6
+
+
 def _deepest_valley_bar(swings) -> int:
     """The structural V: the deepest staircase valley, box_pos ties broken by bar
     (earliest) for determinism. ``box_pos`` is the rounded value ``read_box_staircase``
@@ -218,7 +224,7 @@ def _deepest_valley_bar(swings) -> int:
 
 
 def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
-                              hold_min_bars=6, swings=None):
+                              hold_min_bars=_EVENT_HOLD_MIN_BARS, swings=None):
     """Independent R-rail event ZONES anchored on the BOX-RELATIVE staircase.
 
     Anchoring on an ATR band (``R - k*ATR``) over-fires in tight boxes — 0.5 ATR
@@ -405,8 +411,8 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
 # L2 Brick 3 — S-rail TEST zones: a touch of S that HOLDS (stage-agnostic)
 # ---------------------------------------------------------------------------
 
-def measure_support_tests(base_df, R, S, atr_val, *, hold_min_bars=6,
-                          swings=None):
+def measure_support_tests(base_df, R, S, atr_val, *,
+                          hold_min_bars=_EVENT_HOLD_MIN_BARS, swings=None):
     """Independent S-rail TEST zones: a touch of S that HOLDS. Stage-agnostic.
 
     The S-rail sibling of ``measure_resistance_events`` — but deliberately NOT a

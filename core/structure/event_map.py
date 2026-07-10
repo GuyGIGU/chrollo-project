@@ -51,7 +51,12 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from core.structure.box_events import _staircase_empty, _staircase_from_pivots
+from core.structure.box_events import (
+    _EVENT_HOLD_MIN_BARS,
+    _box_events_with_meta,
+    _staircase_empty,
+    _staircase_from_pivots,
+)
 from core.structure.pivots import _find_pivots
 
 
@@ -191,3 +196,168 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
         "n_bars": n,
         "nan_bars": nan_bars,
     }
+
+
+# ---------------------------------------------------------------------------
+# The narrative-role layer — stamped role labels over the ELECTED bricks
+# ---------------------------------------------------------------------------
+
+def _first_bar_at_or_below(lows, after_bar, level):
+    """First bar strictly after ``after_bar`` whose low reaches ``level``.
+    NaN lows fail the comparison and are skipped (contract §5)."""
+    for t in range(int(after_bar) + 1, len(lows)):
+        if lows[t] <= level:
+            return t
+    return None
+
+
+def _wave_closure_bar(top_abs, peak_price, lows, low_zone_price, high_zone_peaks):
+    """The bar at which a resistance wave's IDENTITY became fixed.
+
+    The wave grouper keeps extending a wave while later high-zone reaches are
+    higher-highs with no drop to the support low-zone in between — so an emitted
+    wave (this frame's read) is only irrevocable once one of its two closers
+    printed: a low-zone drop after the top, or the COMMITMENT of the first
+    non-higher high-zone peak after it (compared on the staircase's emitted
+    rounded prices, per contract §4). A higher subsequent peak needs no case of
+    its own: it can only coexist with this wave when a drop came first. Returns
+    None while the wave is still extendable (identity provisional).
+    """
+    drop = _first_bar_at_or_below(lows, top_abs, low_zone_price)
+    reach = None
+    for s in high_zone_peaks:
+        if int(s["bar"]) > int(top_abs) and float(s["price"]) <= float(peak_price):
+            reach = s["knowable_bar"]      # None while that peak is uncommitted
+            break
+    candidates = [c for c in (drop, reach) if c is not None]
+    return min(candidates) if candidates else None
+
+
+def read_role_labels(df, box, atr_val, *, spring, lps):
+    """Narrative-role labels over the elected bricks + the mechanical map.
+
+    ``spring`` and ``lps`` are the engine's ELECTED bricks (``structure.spring``
+    / ``structure.lps``) and are REQUIRED: an injected ``None`` means "the
+    engine elected no such piece" and is honored — this layer never re-detects
+    (the EC-3 cycle-escape trap). The event zones come from the same
+    ``_box_events_with_meta`` chokepoint the puzzle read uses, so the roles can
+    never desync from the L2 story.
+
+    Every label carries the contract stamps (§1–§2):
+
+      * ``resolution`` — the measurer's own tri-state (held / failed /
+        in_progress; the spring's hold window and the elected LPS are given
+        theirs here from the same mechanics that confirmed them).
+      * ``knowable_bar`` — the first bar at whose close BOTH the verdict and the
+        label's identity were irreversible: a failed wave at its low-zone drop
+        bar; a held wave/test at the last bar of its printed hold window
+        (`_EVENT_HOLD_MIN_BARS` — the measurers' own horizon), and never before
+        the wave stops being extendable (``_wave_closure_bar``) or the
+        anchoring swing commits (the mechanical layer's stamp); a spring at the
+        end of its fully-printed ``BIN_C_HOLD_BARS`` reclaim-hold window; the
+        elected LPS at the frame end (its "still holding" verdict consumed
+        every printed bar).
+      * ``in_progress`` — True when ``knowable_bar`` is None. Stricter than
+        ``resolution`` alone: a hold can be confirmed while the wave is still
+        extendable, and such a label is honest only once both are settled.
+      * ``election_dependent`` — True for spring/LPS: their PRESENCE tracks
+        this frame's election, so truncation batteries treat them as
+        frame-scoped rather than truncation-stable.
+
+    Bars are df-absolute; ``describes`` spans use the assembler's emitted zone
+    bounds. Measure-only — gates nothing, scores nothing, no live-path caller
+    (fire-path staging is plan Task 6).
+    """
+    empty = {"labels": [], "n_labels": 0}
+    events, _v_bar, _base_n, _has_valley = _box_events_with_meta(
+        df, box, atr_val, spring=spring, lps=lps)
+    if not events:
+        return empty
+
+    tape = read_swing_map(df, box, atr_val)
+    start = int(box.start_bar)
+    lows = df["Low"].values.astype(float)
+    n = len(lows)
+    height = float(box.R) - float(box.S)
+    low_zone_price = float(box.S) + settings.TRAVERSAL_LOW_ZONE * height
+    hold_bars = _EVENT_HOLD_MIN_BARS
+    box_swings = [s for s in tape["swings"] if s["region"] == "box"]
+    high_zone_peaks = [s for s in box_swings
+                       if s["kind"] == "peak" and s["zone"] == "high"]
+
+    labels = []
+    for e in events:
+        role = e["type"]
+        resolution = e.get("resolution")
+        election_dependent = False
+        know = None
+
+        if e.get("rail") == "R" and "peak_bar" in e:
+            # Resistance wave: verdict from its terminal outcome, identity from
+            # the wave closer — knowable only when both printed.
+            top_abs = start + int(e["peak_bar"])
+            if resolution == "failed":
+                verdict = _first_bar_at_or_below(lows, top_abs, low_zone_price)
+            elif resolution == "held":
+                verdict = top_abs + hold_bars
+            else:
+                verdict = None
+            closure = _wave_closure_bar(top_abs, e["peak_price"], lows,
+                                        low_zone_price, high_zone_peaks)
+            if verdict is not None and closure is not None:
+                know = max(verdict, closure)
+
+        elif "valley_bar" in e:
+            # Support test: verdict from its printed hold window, identity from
+            # the anchoring valley's mechanical commitment.
+            valley_abs = start + int(e["valley_bar"])
+            if resolution == "failed":
+                # Mirror the measurer's STRICT breakdown comparison exactly.
+                breach_buf = settings.BOUNDARY_ATR_BUFFER * float(atr_val)
+                level = float(e["valley_price"]) - breach_buf
+                verdict = next(
+                    (t for t in range(valley_abs + 1,
+                                      min(n, valley_abs + 1 + hold_bars))
+                     if lows[t] < level),
+                    None)
+            elif resolution == "held":
+                verdict = valley_abs + hold_bars
+            else:
+                verdict = None
+            anchor = next((s for s in box_swings
+                           if s["kind"] == "valley" and int(s["bar"]) == valley_abs),
+                          None)
+            commit = anchor["knowable_bar"] if anchor is not None else None
+            if verdict is not None and commit is not None:
+                know = max(verdict, commit)
+
+        elif role == "spring":
+            # Elected Phase-C brick: confirmed by its reclaim-hold window; a
+            # window running past the last printed bar is in_progress (§2).
+            election_dependent = True
+            hold_end = int(spring.recovery_bar) + int(settings.BIN_C_HOLD_BARS)
+            if hold_end <= n - 1:
+                resolution, know = "held", hold_end
+            else:
+                resolution = "in_progress"
+
+        elif role == "lps":
+            # Elected Phase-D brick: "still holding" is a right-edge verdict
+            # that consumed every printed bar — knowable at the frame end, and
+            # re-issued by each frame's own election.
+            election_dependent = True
+            resolution, know = "held", n - 1
+
+        labels.append({
+            "role": role,
+            "rail": e.get("rail"),
+            "phase": e.get("phase"),
+            "describes": [start + int(e["zone_start"]), start + int(e["zone_end"])],
+            "anchor_bar": start + int(e["anchor_bar"]),
+            "resolution": resolution,
+            "knowable_bar": know,
+            "in_progress": know is None,
+            "election_dependent": election_dependent,
+        })
+
+    return {"labels": labels, "n_labels": len(labels)}
