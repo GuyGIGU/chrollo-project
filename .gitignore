@@ -88,3 +88,6 @@ Thumbs.db
 
 # Claude Code working files
 .claude/
+
+# Calibration frame store (local frozen replay frames, digest-bound to marks)
+calibration_frames/

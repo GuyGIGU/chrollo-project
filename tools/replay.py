@@ -77,13 +77,20 @@ def _live_panel() -> pd.DataFrame:
     return _LIVE_PANEL
 
 
-def resolve_frame(ticker: str, *, sealed: dict | None = None):
+def resolve_frame(ticker: str, *, sealed: dict | None = None,
+                  as_of: str | None = None):
     """(raw_frame, source_label) for ``ticker``, or (None, reason).
 
-    Source order and labels are decided HERE, once: the sealed corpus fixture
-    (pass a preloaded dict to avoid re-reading it per call), then the live 5y
-    cache. Task 7 inserts the calibration fixture between them.
+    Source order and labels are decided HERE, once: the frozen calibration
+    frame for (ticker, as_of) when an as-of is given (the frame the operator
+    actually marked on — Task 7), then the sealed corpus fixture (pass a
+    preloaded dict to avoid re-reading it per call), then the live 5y cache.
     """
+    if as_of is not None:
+        from webapp.backend.frame_store import load_frame  # noqa: PLC0415 — pure, root-safe module
+        frozen = load_frame(ticker, as_of)
+        if frozen is not None:
+            return frozen, "calibration frame"
     if sealed is None:
         try:
             sealed, _ = load_sealed_fixture()

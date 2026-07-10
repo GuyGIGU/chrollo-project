@@ -114,6 +114,16 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
         warnings.append(f"short history ({len(frame)} bars): the engine's 2y frame "
                         "is truncated here — marks may grade edge-uncertain")
 
+    # Freeze the replay-relevant (<= as-of) frame and bind the mark to what
+    # the operator is LOOKING at (Task 7). A digest divergence means the
+    # vendor restated since the first freeze — say so, don't hide it.
+    from frame_store import freeze_frame  # noqa: PLC0415 — file I/O module, lazy like the fetch chain
+    current_digest, stored_digest = freeze_frame(symbol, as_of_session, frame)
+    if current_digest != stored_digest:
+        warnings.append("today's data differs from the frame frozen for this chart "
+                        "earlier (vendor restatement) — new marks bind to today's "
+                        "data; older marks here will grade basis_mismatch")
+
     candles, volumes = chart_candles(
         raw,
         up_color="rgba(38, 166, 154, 0.5)",
@@ -132,6 +142,7 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
         "frame_end": raw.index[-1].strftime("%Y-%m-%d"),
         "data_regime": _price_regime(),
         "engine_config_version": manifest_hash(),
+        "frame_digest": current_digest,
         "warnings": warnings,
         "candles": candles,
         "volumes": volumes,

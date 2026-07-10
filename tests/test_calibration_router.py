@@ -183,10 +183,12 @@ def _frame(dates, close=100.0):
                          "Volume": [1_000_000] * n}, index=idx)
 
 
-def _chart(monkeypatch, frame, ticker="KLAC", as_of="2025-09-11"):
+def _chart(monkeypatch, frame, tmp_path, ticker="KLAC", as_of="2025-09-11"):
+    import frame_store
     import services.market_data as market_data
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: frame)
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))  # never the live store
     return calibration_chart(ticker=ticker, as_of=as_of)
 
 
@@ -202,28 +204,29 @@ def test_chart_validation_refusals():
         assert (err.value.status_code, err.value.detail["class"]) == (400, expected)
 
 
-def test_chart_empty_frame_is_no_data(monkeypatch):
+def test_chart_empty_frame_is_no_data(monkeypatch, tmp_path):
     with pytest.raises(HTTPException) as err:
-        _chart(monkeypatch, _frame([]))
+        _chart(monkeypatch, _frame([]), tmp_path)
     assert (err.value.status_code, err.value.detail["class"]) == (404, "no_data")
 
 
-def test_chart_history_starting_after_as_of(monkeypatch):
+def test_chart_history_starting_after_as_of(monkeypatch, tmp_path):
     with pytest.raises(HTTPException) as err:
-        _chart(monkeypatch, _frame(["2025-10-01", "2025-10-02"]))
+        _chart(monkeypatch, _frame(["2025-10-01", "2025-10-02"]), tmp_path)
     assert err.value.detail["class"] == "no_bars_at_date"
     assert "starts 2025-10-01" in err.value.detail["message"]
 
 
-def test_chart_happy_path_provenance_and_resolution(monkeypatch):
+def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):
     frame = _frame(["2025-09-09", "2025-09-10", "2025-09-12", "2025-09-15"])
-    out = _chart(monkeypatch, frame, as_of="2025-09-11")  # not a session
+    out = _chart(monkeypatch, frame, tmp_path, as_of="2025-09-11")  # not a session
     assert out["as_of_session"] == "2025-09-10"
     assert out["anchor_close"] == 100.0
     assert (out["bar_count"], out["forward_bars"]) == (2, 2)
     assert (out["frame_start"], out["frame_end"]) == ("2025-09-09", "2025-09-15")
     assert out["data_regime"] in ("as_traded", "div_adjusted")
     assert len(out["engine_config_version"]) == 64  # sha256 hex
+    assert len(out["frame_digest"]) == 64  # the mark's basis, frozen at fetch
     assert any("resolved to 2025-09-10" in w for w in out["warnings"])
     assert any("short history" in w for w in out["warnings"])
     assert len(out["candles"]) == 4 and len(out["volumes"]) == 4
