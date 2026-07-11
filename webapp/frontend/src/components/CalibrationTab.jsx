@@ -1,7 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import CandleChart from './CandleChart';
+import CalibrationMarkingBar from './CalibrationMarkingBar';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import { baseChartOptions } from './chartTheme';
+import { attachCalibrationDraw } from './calibrationDraw';
+import {
+  chartTimeToIso,
+  frameKeyOf,
+  initialMarkingState,
+  markingReducer,
+} from '../utils/calibrationMarking';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -30,6 +38,40 @@ function CalibrationTab() {
   const { chartData, loading, failure, load } = useCalibrationChart();
   const [ticker, setTicker] = useState('');
   const [asOf, setAsOf] = useState('');
+
+  // Marking layer (Task 11): ONE state value (tool / span anchor / draft)
+  // in a pure reducer; the chart is a retained surface — the controller
+  // attaches once per chart build (onReady) and draft edits update price
+  // lines and markers WITHOUT rebuilding, so zoom survives every click.
+  const [marking, dispatchMarking] = useReducer(markingReducer, undefined,
+    () => initialMarkingState());
+  const markingRef = useRef(marking);
+  markingRef.current = marking;
+  const chartApiRef = useRef(null);   // { series, draw } while a chart is up
+  const draftsRef = useRef(new Map()); // frameKey -> draft (per-frame, per-sitting)
+
+  // Drafts are structurally keyed to the frame they were drawn on: scrubbing
+  // to another session swaps to THAT frame's draft (or a fresh one), never
+  // bleeding rails across frames.
+  useEffect(() => {
+    const key = frameKeyOf(chartData);
+    if (key !== markingRef.current.frameKey) {
+      dispatchMarking({ type: 'load', frameKey: key,
+                        draft: draftsRef.current.get(key) ?? null });
+    }
+  }, [chartData]);
+
+  // Stash the draft under ITS OWN frame key (they travel together in state,
+  // so a chart swap can never stash a draft under the wrong frame).
+  useEffect(() => {
+    if (marking.frameKey) draftsRef.current.set(marking.frameKey, marking.draft);
+  }, [marking.frameKey, marking.draft]);
+
+  // Retained redraw: runs after the child chart effect on every commit, so a
+  // rebuilt chart (new lookup) is repainted with the loaded draft too.
+  useEffect(() => {
+    chartApiRef.current?.draw.update(marking.draft, marking.spanAnchor);
+  }, [marking, chartData]);
 
   // On success the date input snaps to the RESOLVED session, so input,
   // provenance strip and chart always name the same session; on failure the
@@ -63,6 +105,28 @@ function CalibrationTab() {
     candles: chartData?.candles,
     volumes: chartData?.volumes,
     showVolume: true,
+    onReady: (chart, series) => {
+      // The marking controller: click placement + retained draft drawing.
+      // The handler reads the CURRENT marking state through a ref (onReady
+      // runs once per chart build; the tool changes many times per build).
+      const draw = attachCalibrationDraw(series);
+      chartApiRef.current = { series, draw };
+      const onClick = (param) => {
+        if (markingRef.current.tool === 'idle') return;
+        if (!param?.point || param.time == null) return;
+        const price = series.coordinateToPrice(param.point.y);
+        const date = chartTimeToIso(param.time);
+        if (price == null || !Number.isFinite(price) || !date) return;
+        dispatchMarking({ type: 'chart-click', date,
+                          price: Number(price.toFixed(4)) });
+      };
+      chart.subscribeClick(onClick);
+      return () => {
+        chart.unsubscribeClick(onClick);
+        draw.detach();
+        chartApiRef.current = null;
+      };
+    },
     onResize: (chart, container) => chart.applyOptions({
       width: container.clientWidth, height: container.clientHeight,
     }),
@@ -109,6 +173,12 @@ function CalibrationTab() {
           </>
         )}
       </form>
+
+      <CalibrationMarkingBar
+        state={marking}
+        dispatch={dispatchMarking}
+        disabled={!chartData}
+      />
 
       {chartData?.warnings?.length > 0 && (
         <div style={{ fontSize: 12, opacity: 0.85 }}>
