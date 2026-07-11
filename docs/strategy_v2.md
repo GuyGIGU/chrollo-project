@@ -419,8 +419,13 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      (multi-bar, beyond S − 2×buffer) may measure up to
      `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance exists only
      with the event, so it can never act as a general width loosening. The
-     respect gate is untouched. The flip is gated on the operator's A/B rail
-     eyeball over `docs/phase_c_marks_2026-07.json` (see the flag ledger).
+     respect gate is untouched. The qualified deep event also feeds Phase C
+     as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated spring detector
+     finds nothing (see the Phase C bin note). The operator's A/B rail
+     eyeball over `docs/phase_c_marks_2026-07.json` landed 2026-07-11
+     FAVORABLE (all Phase C rulings correct; the BODI flag-ON election
+     acceptable as a structure read) — the flip now waits only on the
+     operator's explicit go (protocol in the flag ledger).
 6. **Structural-quality score:** every *valid* candidate gets
    `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
 7. **Candidate selection (`select="earliest"` live default):** choose the
@@ -484,7 +489,7 @@ The scoping layer emits best-effort chart anchors:
 - **Phase A:** local root climax / automatic-reaction lead-in, from the resolved consolidation-specific climax to the reaction bar.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
 - **Phase D:** the right-most launch region. A true Phase-C spring recovery floors the Phase-D search; it is not itself the boundary source. Phase D starts at the earliest credible right-side evidence at/after that floor: support-test cluster, SOS reclaim, rising support, inner mini-consolidation, or recovered V-tip. If none is present, the LPS window is the mandatory fallback.
-- **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal.
+- **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal. **Dark (`BAND_RAILS_ENABLED`): `TERMINAL_SHAKEOUT`** — when the calibrated detector finds nothing (its depth/linger caps are breakdown defenses and stay untouched), the box's own qualified DEEP excursion (band_rails: penetration → reclaim → hold, multi-bar, beyond S − 2×buffer) is typed as the Phase C at terminal-shakeout scale — the operator's BODI ruling ("the collapse is Phase C inside one box, not a box break"). Fed at the ONE detector seam (`_phase_c_candidate`), so `find_spring`, `measure_bins`, the chart's C label and the archive can never drift; a calibrated `SPRING` is never re-typed.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
 All boundaries are nullable. If the engine cannot place a region confidently, it emits `None` and the frontend skips that label/box. Young bases may yield only a base body and a right edge; the model must never force four tidy quadrants.

@@ -165,3 +165,73 @@ def test_qualify_pair_events_requires_a_deep_multibar_event():
     assert read is not None
     assert [e["kind"] for e in read["excursions"]] == ["below"]
     assert int(read["judged"].sum()) == 40 - 3
+
+
+# ── Phase-C feed: TERMINAL_SHAKEOUT (flag-dark, Task 11 tail) ────────────
+
+
+def _shakeout_frame():
+    """A worked 90/100 range whose one excursion is a violent, later-reclaimed
+    collapse: depth 7.4 (3.7 ATR at ATR=2) — beyond BOTH breakdown caps of the
+    calibrated spring detector (3.0 ATR / 0.65 box), yet a clean qualified
+    deep event (4 bars below the band, reclaim, hold)."""
+    closes = []
+    for i in range(30):                    # bars 0-29: closes oscillate 91..99
+        cyc = i % 6
+        closes.append(91 + 8 * (cyc / 3 if cyc <= 3 else (6 - cyc) / 3))
+    closes += [87.0, 83.0, 84.5, 87.5]     # bars 30-33: the collapse (< S-buf=89)
+    closes += [91.0, 92.0, 93.5, 94.0, 95.0, 95.5]  # bars 34-39: reclaim + hold
+    df = _frame(closes)                    # lows = closes - 0.4 → trough 82.6 @31
+    df["Volume"] = 1_000_000 + np.arange(len(closes)) * 1_000.0
+    return df
+
+
+def test_phase_c_feed_flag_off_never_consults_the_band_read(monkeypatch):
+    import core.structure.bin_features as bf
+    monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", False)
+    monkeypatch.setattr(bf, "_terminal_shakeout",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError(
+                            "terminal-shakeout feed consulted while the flag is off")))
+    df = _shakeout_frame()
+    r = bf._phase_c_candidate(df, df, box_start=0, base_len=len(df),
+                              R=100.0, S=90.0, atr_val=2.0)
+    assert r["bin_c_present"] is False and r["bin_c_type"] is None
+
+
+def test_phase_c_feed_types_the_terminal_shakeout(monkeypatch):
+    # Hand-reasoned coordinates (EC-8 value pinning, no ranges): the collapse
+    # troughs at bar 31 (low 82.6 → undercut 7.4 = 3.7 ATR), first close back
+    # inside the band at bar 34.
+    import core.structure.bin_features as bf
+    monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", True)
+    df = _shakeout_frame()
+    r = bf._phase_c_candidate(df, df, box_start=0, base_len=len(df),
+                              R=100.0, S=90.0, atr_val=2.0)
+    assert r["bin_c_present"] is True
+    assert r["bin_c_type"] == "TERMINAL_SHAKEOUT"
+    assert (r["bin_c_event_bar"], r["bin_c_recovery_bar"],
+            r["bin_c_recovery_bars"]) == (31, 34, 3)
+    assert r["bin_c_undercut_atr"] == 3.7
+    assert r["bin_c_time_loc"] == round(31 / 39, 4)
+
+
+def test_phase_c_feed_never_retypes_a_calibrated_spring(monkeypatch):
+    # An in-caps spring is the ordinary detector's find; the fallback must be
+    # unreachable — a calibrated SPRING can never come back re-typed.
+    import core.structure.bin_features as bf
+    monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", True)
+    monkeypatch.setattr(bf, "_terminal_shakeout",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError(
+                            "fallback consulted although a calibrated spring exists")))
+    closes = []
+    for i in range(30):
+        cyc = i % 6
+        closes.append(91 + 8 * (cyc / 3 if cyc <= 3 else (6 - cyc) / 3))
+    closes += [88.5, 88.8]                 # bars 30-31: in-caps undercut (low 88.1)
+    closes += [92.0, 93.0, 94.0, 95.0, 95.5, 96.0]  # reclaim + hold
+    df = _frame(closes)
+    df["Volume"] = 1_000_000 + np.arange(len(closes)) * 1_000.0
+    r = bf._phase_c_candidate(df, df, box_start=0, base_len=len(df),
+                              R=100.0, S=90.0, atr_val=2.0)
+    assert r["bin_c_present"] is True and r["bin_c_type"] == "SPRING"
+    assert r["bin_c_event_bar"] == 30

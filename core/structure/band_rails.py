@@ -141,4 +141,7 @@ def qualify_pair_events(eq_df, S_val: float, R_val: float,
             and e["extreme"] < S_val - 2.0 * buf]
     if not deep:
         return None
+    # The qualifying deep events ride along: the Phase-C feed types the LAST
+    # one as the box's terminal shakeout (bin_features._terminal_shakeout).
+    read["deep"] = deep
     return read

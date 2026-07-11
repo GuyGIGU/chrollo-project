@@ -436,6 +436,20 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
             best = cand
 
     if best is None:
+        # Flag-dark terminal-shakeout fallback (Event Map Task 11 tail): a
+        # violent, later-reclaimed excursion the calibrated spring caps
+        # rightly refuse (depth/linger are breakdown defenses) can still BE
+        # the box's Phase C at terminal-shakeout scale — the operator's BODI
+        # ruling ("not a box break"). Consulted only when the ordinary
+        # detector finds nothing, so no calibrated SPRING can ever be
+        # re-typed; feeding it HERE (the one Phase-C seam) keeps find_spring,
+        # measure_bins, chart labels and the archive in lockstep.
+        if settings.BAND_RAILS_ENABLED:
+            shakeout = _terminal_shakeout(df, base_seg, box_start=box_start,
+                                          base_len=base_len, R=float(R), S=Sf,
+                                          atr=atr)
+            if shakeout is not None:
+                return shakeout
         return empty
 
     idx = int(best["idx"])
@@ -448,6 +462,46 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
         "bin_c_event_date": _date_at(df, idx),
         "bin_c_event_bar": idx,
         "bin_c_undercut_atr": _round(best["undercut_atr"]),
+        "bin_c_recovery_bars": int(recovery_idx - idx),
+        "bin_c_recovery_bar": recovery_idx,
+        "bin_c_time_loc": _round(np.clip((idx - box_start) / denom, 0.0, 1.0)),
+        "bin_c_spring_vol_z": _volume_z(event_seg, base_seg),
+    }
+
+
+def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
+                       box_start: int, base_len: int, R: float, S: float,
+                       atr: float) -> Optional[dict]:
+    """Type the box's qualified DEEP excursion as its Phase C
+    (``bin_c_type = "TERMINAL_SHAKEOUT"``) — flag-dark, Event Map Task 11.
+
+    Qualification is band_rails' own (the SAME read the pair election used):
+    every band-leaving span must reclaim/fail-back and HOLD, and a deep
+    below-rail event must exist — otherwise there is no event to type. Of
+    the qualifying deep events the LAST one is the shakeout (the ordinary
+    detector's latest-first preference). Coordinates land in the ordinary
+    bin_c shape: the event bar is the excursion's trough, the recovery bar
+    is the first close back inside the buffered band (the event's own
+    reclaim definition — a hair looser than the ordinary close-above-S)."""
+    from core.structure.band_rails import qualify_pair_events
+
+    window = df.iloc[box_start:]
+    read = qualify_pair_events(window, S, R, atr)
+    if read is None:
+        return None
+    event = read["deep"][-1]
+    lows = window["Low"].values.astype(float)
+    tip_off = event["start"] + int(np.argmin(lows[event["start"]:event["end"]]))
+    idx = box_start + tip_off
+    recovery_idx = box_start + int(event["reclaim_bar"])
+    denom = max(1, base_len - 1)
+    event_seg = df.iloc[idx:recovery_idx + 1]
+    return {
+        "bin_c_present": True,
+        "bin_c_type": "TERMINAL_SHAKEOUT",
+        "bin_c_event_date": _date_at(df, idx),
+        "bin_c_event_bar": idx,
+        "bin_c_undercut_atr": _round((float(S) - float(event["extreme"])) / atr),
         "bin_c_recovery_bars": int(recovery_idx - idx),
         "bin_c_recovery_bar": recovery_idx,
         "bin_c_time_loc": _round(np.clip((idx - box_start) / denom, 0.0, 1.0)),
