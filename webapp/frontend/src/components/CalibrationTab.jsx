@@ -5,7 +5,7 @@ import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
-import { baseChartOptions } from './chartTheme';
+import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import {
   chartTimeToIso,
@@ -79,7 +79,10 @@ function CalibrationTab() {
   // Retained redraw: runs after the child chart effect on every commit, so a
   // rebuilt chart (new lookup) is repainted with the loaded draft too.
   useEffect(() => {
-    chartApiRef.current?.draw.update(marking.draft, marking.spanAnchor);
+    // Mythril while drawing; the reserved operator hue once the draft IS a
+    // saved mark being corrected (Task 13 color doctrine).
+    chartApiRef.current?.draw.update(marking.draft, marking.spanAnchor,
+                                     marking.editingId != null);
   }, [marking, chartData]);
 
   // Bars by date, for snap-to-extreme rail placement.
@@ -229,9 +232,11 @@ function CalibrationTab() {
 
   return (
     <div className="calibration-page" style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
-      <form className="screener-command-band" onSubmit={submit}
-            style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <strong style={{ letterSpacing: '0.04em' }}>CALIBRATION</strong>
+      <form className="instrument-tile screener-command-band" onSubmit={submit}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+                       textTransform: 'uppercase', color: 'var(--text-faint)' }}>
+          Calibration
+        </span>
         <input
           value={ticker}
           onChange={(e) => setTicker(e.target.value.toUpperCase())}
@@ -260,7 +265,11 @@ function CalibrationTab() {
                     title={chartData.next_session ? 'Next session' : 'No later session in the fetched window'}>
               day ▶
             </button>
-            <span style={{ opacity: 0.8 }}>
+            {/* Provenance figures change on every scrub — mono + tabular so
+                the eye can hold position across adjacent sessions. */}
+            <span style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
+                           fontVariantNumeric: 'tabular-nums', fontSize: 11,
+                           whiteSpace: 'nowrap' }}>
               {chartData.ticker} @ {chartData.as_of_session} · close {fx(chartData.anchor_close, 2)}
               {' '}· {chartData.bar_count} bars · {chartData.data_regime}
             </span>
@@ -294,13 +303,9 @@ function CalibrationTab() {
         onWorklistStep={worklistStep}
       />
 
-      {chartData?.warnings?.length > 0 && (
-        <div style={{ fontSize: 12, opacity: 0.85 }}>
-          {chartData.warnings.map((w) => <div key={w}>⚠ {w}</div>)}
-        </div>
-      )}
-
-      <div style={{ flex: 1, minHeight: 420, position: 'relative' }}>
+      <div className="instrument-well"
+           style={{ flex: 1, minHeight: 420, position: 'relative',
+                    borderRadius: 8, overflow: 'hidden' }}>
         {chartData ? (
           <>
             <CandleChart
@@ -312,13 +317,28 @@ function CalibrationTab() {
             />
             {failure && (
               // A failed step never wipes the working chart — the last good
-              // frame stays up and the failure rides above it.
+              // frame stays up and the failure rides above it, in danger ink
+              // so it registers peripherally mid-sitting.
               <div style={{
                 position: 'absolute', top: 8, left: 8, right: 8, zIndex: 5,
                 padding: '6px 10px', borderRadius: 6, fontSize: 12,
-                border: '1px solid #2f3447', background: 'rgba(23, 25, 34, 0.92)',
+                border: `1px solid ${surfaceOf('modal').border}`,
+                borderLeft: '2px solid var(--danger)',
+                background: 'rgba(23, 25, 34, 0.92)',
               }}>
                 Lookup failed — {failure.class}. {paneBody(false, failure)}
+              </div>
+            )}
+            {chartData.warnings?.length > 0 && (
+              // Warnings live INSIDE the pane (bottom edge) — the chart's
+              // geometry never shifts when a scrub step gains or loses one.
+              <div style={{
+                position: 'absolute', bottom: 8, left: 8, zIndex: 5,
+                fontSize: 11, color: 'var(--accent-yellow)',
+                background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
+                borderRadius: 6,
+              }}>
+                {chartData.warnings.map((w) => <div key={w}>{w}</div>)}
               </div>
             )}
           </>
@@ -326,6 +346,7 @@ function CalibrationTab() {
           <PaneMessage
             title={paneTitle(loading, failure)}
             body={paneBody(loading, failure)}
+            danger={!loading && !!failure}
           />
         )}
       </div>
@@ -356,15 +377,26 @@ function paneBody(loading, failure) {
     + 'data — marks drawn here are born on the exact frame the engine replays.';
 }
 
-function PaneMessage({ title, body }) {
+function PaneMessage({ title, body, danger = false }) {
+  // The pane states wear the modal chart's OWN skin (imported, never
+  // hand-copied hexes) so blank/loading/failure and the drawn chart read as
+  // one surface; a failure gets one restrained semantic cue.
+  const skin = surfaceOf('modal');
   return (
     <div style={{
       position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 6,
-      border: '1px solid #2f3447', borderRadius: 8, background: '#171922',
+      border: `1px solid ${skin.border}`, borderRadius: 8,
+      background: skin.background,
     }}>
-      <div style={{ fontWeight: 600 }}>{title}</div>
-      <div style={{ fontSize: 12, opacity: 0.75, maxWidth: 520, textAlign: 'center' }}>{body}</div>
+      <div style={{ fontWeight: 600,
+                    color: danger ? 'var(--danger)' : 'var(--text-main)' }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-faint)', maxWidth: 520,
+                    textAlign: 'center' }}>
+        {body}
+      </div>
     </div>
   );
 }

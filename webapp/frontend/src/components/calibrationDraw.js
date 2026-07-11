@@ -1,4 +1,5 @@
 import { createSeriesMarkers } from 'lightweight-charts';
+import { CHART_COLORS } from './chartTheme';
 
 // Draft renderer for the calibration marking layer (Task 11) — deliberately
 // SEPARATE from chartRails.addBoxRails: that module draws the ENGINE's
@@ -7,18 +8,18 @@ import { createSeriesMarkers } from 'lightweight-charts';
 // per draft edit without rebuilding the chart (zoom and pan survive every
 // placement click).
 //
-// While drawing, everything renders in mythril — the ACTIVE color ("act on
-// this / live"). The committed-mark hue and its chartTheme palette
-// registration land in Task 13.
-const DRAWING = '#4FCFC4'; // --myth (index.css)
-
+// Color doctrine (Task 13): a FRESH draft renders in mythril (the ACTIVE
+// color — "you are acting on this"); a COMMITTED mark loaded for correction
+// renders in the reserved operator hue, so the eye always knows whether it
+// is looking at saved ground truth or work in flight.
 const EVENT_TAG = { phase_c: 'C', lps: 'L', spring_test: 'T' };
 
 export function attachCalibrationDraw(series) {
   let priceLines = [];
   const markers = createSeriesMarkers(series, []);
 
-  const update = (draft, spanAnchor) => {
+  const update = (draft, spanAnchor, committed = false) => {
+    const DRAWING = committed ? CHART_COLORS.operator : CHART_COLORS.marking;
     for (const line of priceLines) series.removePriceLine(line);
     priceLines = [];
     const railStyle = {

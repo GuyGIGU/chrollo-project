@@ -3,6 +3,7 @@ import {
   MARK_VERDICTS,
   statusText,
 } from '../utils/calibrationMarking';
+import { CHART_FONT } from './chartTheme';
 
 // The marking drawer for the calibration page (Task 11): verdict, placement
 // tools, the live draft readout, and the one status line that says what the
@@ -31,7 +32,6 @@ function CalibrationMarkingBar({ state, dispatch, disabled }) {
       disabled={disabled || !isBox}
       aria-pressed={tool === value}
       onClick={() => dispatch({ type: 'tool', tool: value })}
-      style={tool === value ? { outline: '1px solid #4FCFC4' } : undefined}
     >
       {label}
     </button>
@@ -58,13 +58,17 @@ function CalibrationMarkingBar({ state, dispatch, disabled }) {
       </button>
 
       {isBox && (
-        <span style={{ opacity: 0.85 }}>
+        <span style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
+                       fontVariantNumeric: 'tabular-nums', fontSize: 11,
+                       whiteSpace: 'nowrap' }}>
           R {fx(draft.resistance, 2)} · S {fx(draft.support, 2)}
           {' '}· {draft.boxStartDate ?? '—'} → {draft.boxEndDate ?? '—'}
         </span>
       )}
       {draft.events.map((ev, i) => (
-        <span key={`${ev.event_type}-${ev.start_date}-${i}`} style={{ opacity: 0.85 }}>
+        <span key={`${ev.event_type}-${ev.start_date}-${i}`}
+              style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
+                       fontSize: 11, whiteSpace: 'nowrap' }}>
           {ev.event_type} {ev.start_date}→{ev.end_date}
           <button type="button" aria-label={`remove ${ev.event_type}`}
                   onClick={() => dispatch({ type: 'remove-event', index: i })}
@@ -74,7 +78,7 @@ function CalibrationMarkingBar({ state, dispatch, disabled }) {
         </span>
       ))}
 
-      <span style={{ marginLeft: 'auto', opacity: 0.75, whiteSpace: 'nowrap' }}>
+      <span style={{ marginLeft: 'auto', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
         {disabled ? 'load a chart to mark' : statusText(state)}
       </span>
     </div>

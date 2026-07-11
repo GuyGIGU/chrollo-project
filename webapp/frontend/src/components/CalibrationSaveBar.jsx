@@ -49,12 +49,12 @@ function CalibrationSaveBar({
       </button>
 
       {saveError && (
-        <span style={{ opacity: 0.9 }}>
+        <span style={{ color: 'var(--danger)', fontSize: 11 }}>
           ✗ {saveError.class}: {saveError.message}
         </span>
       )}
       {tally > 0 && !saveError && (
-        <span style={{ opacity: 0.75 }}>{tally} saved this sitting</span>
+        <span style={{ color: 'var(--text-faint)' }}>{tally} saved this sitting</span>
       )}
 
       <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -70,7 +70,7 @@ function CalibrationSaveBar({
         {worklist.length > 0 && (
           <>
             <button type="button" onClick={() => onWorklistStep(-1)} title="Previous worklist entry">◀</button>
-            <span style={{ opacity: 0.8, whiteSpace: 'nowrap' }}>{worklistLabelText}</span>
+            <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{worklistLabelText}</span>
             <button type="button" onClick={() => onWorklistStep(1)} title="Next worklist entry">▶</button>
           </>
         )}

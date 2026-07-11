@@ -2338,3 +2338,50 @@ td.cell-editable { overflow: hidden; }
   outline: 2px solid var(--accent-active);
   outline-offset: 2px;
 }
+
+/* ===================================================================
+   CALIBRATION PAGE — control spec by containment (Council finding 15).
+   The marking loop carries ~20 small controls across three strips; the
+   DESIGN.md input/button spec (screener-band parity) lives ONCE here,
+   token-only, instead of twenty inline style objects drifting apart.
+   =================================================================== */
+.calibration-page input,
+.calibration-page textarea,
+.calibration-page select {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  color-scheme: dark; /* native date-picker / select chrome renders dark */
+}
+.calibration-page input:focus-visible,
+.calibration-page textarea:focus-visible,
+.calibration-page select:focus-visible {
+  border-color: var(--accent-active);
+}
+.calibration-page button {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.calibration-page button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.calibration-page button[aria-pressed="true"] {
+  border-color: var(--accent-active);
+  color: var(--accent-active);
+}
+.calibration-page button:focus-visible {
+  border-color: var(--accent-active);
+}

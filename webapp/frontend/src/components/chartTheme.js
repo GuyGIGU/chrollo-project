@@ -22,6 +22,8 @@ export const CHART_COLORS = {
   baseLimb: '#5d6474', // base-limb swing grey
   gold: '#e3b341', // LPS span + trigger line (modal-weight gold)
   goldMuted: '#d4b85a', // LPS bars on dense mini cards; avg-cost / entry lines
+  marking: '#4FCFC4', // calibration draft IN PROGRESS (--myth — the ACTIVE color)
+  operator: '#9B70F7', // COMMITTED operator marks (calibration ground truth; --accent-purple — reserved, never an engine-read color)
 };
 
 // Per-surface skins: background/text/grid/border/fontSize. Four deliberate
@@ -32,6 +34,11 @@ const VARIANTS = {
   position: { background: '#1c1f2a', text: '#7f879a', grid: 'rgba(47, 52, 71, 0.28)', border: '#2f3447', fontSize: 11 },
   trade: { background: '#171a24', text: '#8c94a8', grid: 'rgba(65, 72, 96, 0.26)', border: '#2f3447', fontSize: 11 },
 };
+
+// A variant's raw surface tints, for shells that must MATCH a chart's skin
+// (the calibration pane states render on the modal surface by construction —
+// never by hand-copied hex literals).
+export const surfaceOf = (variant) => VARIANTS[variant];
 
 // The common createChart skeleton for a variant. Sites spread this and override
 // their structural specifics (margins, crosshair mode, interactivity) — but the
