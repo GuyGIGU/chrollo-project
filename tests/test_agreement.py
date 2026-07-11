@@ -108,6 +108,20 @@ def test_tally_states_every_denominator():
     assert set(t["counts"]) == set(OUTCOMES)  # zero-count cells still present
 
 
+def test_tally_headline_is_concordance_not_replication():
+    # Operator doctrine (2026-07-11): a read whose rails differ beyond
+    # tolerance still SURFACED the setup at his pick — it counts in the
+    # headline; the geometric match stays a separate diagnostic tier.
+    off_read = {**READ, "R": 18.0}               # same read, R far off (3.0 box-heights)
+    graded = [grade_mark(MARK, READ),            # match
+              grade_mark(MARK, off_read),        # disagree — but surfaced
+              grade_mark(MARK, None)]            # engine_no_read
+    t = tally(graded)
+    assert t["counts"]["disagree"] == 1
+    assert t["surfaced_over_scored"] == pytest.approx(2 / 3)
+    assert t["match_over_scored"] == pytest.approx(1 / 3)
+
+
 def test_same_election_identity():
     a = dict(R=93.70, S=85.53, box_start_date="2025-07-10")
     assert same_election(a, dict(a))

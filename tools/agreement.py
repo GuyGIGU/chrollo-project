@@ -147,11 +147,19 @@ def tally(graded: list[dict]) -> dict:
         counts[g["outcome"]] += 1  # KeyError on an unknown outcome = loud
     scored = counts["match"] + counts["disagree"] + counts["engine_no_read"]
     negatives = counts["negative_upheld"] + counts["negative_violated"]
+    # The HEADLINE is concordance, not replication (operator doctrine,
+    # 2026-07-11): "the engine reads a setup at my pick" — match OR disagree —
+    # is what he calibrates toward; rail/span closeness is the diagnostic
+    # tier that explains a divergence, never the pass bar. (Surfacing at
+    # election is necessary, not sufficient, for popping up live — the
+    # fired-in-window grade is the planned sharper criterion.)
+    surfaced = counts["match"] + counts["disagree"]
     return {
         "counts": counts,
         "n_marks": len(graded),
         "n_scored_boxes": scored,
         "n_negatives": negatives,
+        "surfaced_over_scored": (surfaced / scored) if scored else None,
         "match_over_scored": (counts["match"] / scored) if scored else None,
         "upheld_over_negatives": (counts["negative_upheld"] / negatives) if negatives else None,
         "n_excluded": counts["basis_mismatch"] + counts["edge_uncertain"],

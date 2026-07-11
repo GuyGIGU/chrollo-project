@@ -208,8 +208,14 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> N
         print(f"\n--- variant: {label}")
         counts = " ".join(f"{k}:{v}" for k, v in t["counts"].items() if v)
         print(f"  {counts or 'no outcomes'}")
+        if t["surfaced_over_scored"] is not None:
+            # The operator's satisfaction bar: his picks SURFACE (the engine
+            # reads a setup there), not that rails replicate 1:1.
+            surfaced = t["counts"]["match"] + t["counts"]["disagree"]
+            print(f"  setups surfaced at his picks: {surfaced}/{t['n_scored_boxes']}")
         if t["match_over_scored"] is not None:
-            print(f"  boxes matched: {t['counts']['match']}/{t['n_scored_boxes']}")
+            print(f"  geometry-tier matches (diagnostic): "
+                  f"{t['counts']['match']}/{t['n_scored_boxes']}")
         if t["upheld_over_negatives"] is not None:
             print(f"  negatives upheld: {t['counts']['negative_upheld']}/{t['n_negatives']}")
         if t["n_excluded"]:
