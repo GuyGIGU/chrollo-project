@@ -1,9 +1,11 @@
-"""Calibration frame store guards (Calibration at Scale, Task 7).
+"""Calibration frame store guards (Task 7; lifecycle per Council Review
+2026-07-11 findings 1/4/5).
 
 The digest is the mark's basis assertion: it must be deterministic for
-identical data, move for ANY changed cell, and survive the parquet round trip
-byte-for-byte — otherwise save-time and verify-time digests of the same frame
-disagree and every mark grades basis_mismatch vacuously.
+identical data, move for ANY changed cell (prices AND dates), survive the
+parquet round trip byte-for-byte, and cover ONLY the bars a chart renders.
+The store must never lose a basis: restatements version, crashes quarantine,
+and loads resolve by the mark's own digest.
 """
 import sys
 from pathlib import Path
@@ -19,8 +21,9 @@ sys.path.insert(1, str(BACKEND_DIR))
 import frame_store  # noqa: E402
 
 
-def _frame(closes=(10.0, 10.5, 10.25)):
-    idx = pd.to_datetime(["2026-04-13", "2026-04-14", "2026-04-15"][:len(closes)])
+def _frame(closes=(10.0, 10.5, 10.25),
+           dates=("2026-04-13", "2026-04-14", "2026-04-15")):
+    idx = pd.to_datetime(list(dates)[:len(closes)])
     closes = list(closes)
     return pd.DataFrame({
         "Open": closes, "High": [c + 0.5 for c in closes],
@@ -48,6 +51,38 @@ def test_digest_is_deterministic_and_data_sensitive():
     assert frame_store.ohlcv_digest(changed) != a
 
 
+def test_digest_moves_when_only_a_date_moves():
+    # A restatement that shifts a bar's DATE with identical prices (split /
+    # holiday-repair artifact) must still move the basis.
+    a = frame_store.ohlcv_digest(_frame())
+    shifted = frame_store.ohlcv_digest(
+        _frame(dates=("2026-04-13", "2026-04-14", "2026-04-16")))
+    assert shifted != a
+
+
+def test_digest_missing_column_uses_placeholder():
+    frame = _frame().drop(columns=["Volume"])
+    d = frame_store.ohlcv_digest(frame)
+    assert len(d) == 64
+    assert d != frame_store.ohlcv_digest(_frame())  # '-' cell ≠ real volume
+
+
+def test_digest_and_freeze_cover_only_visible_bars(frames_dir):
+    # The chart renders finite rows only; a vendor NaN-row flicker must not
+    # read as a restatement (Council finding 5).
+    clean = _frame()
+    nan_row = pd.DataFrame({"Open": [float("nan")], "High": [10.5],
+                            "Low": [9.5], "Close": [10.0],
+                            "Volume": [1_000_000.0]},
+                           index=pd.to_datetime(["2026-04-10"]))
+    with_nan_row = pd.concat([nan_row, clean])
+    assert frame_store.ohlcv_digest(frame_store.finite_frame(with_nan_row)) == \
+        frame_store.ohlcv_digest(clean)
+    current, stored = frame_store.freeze_frame("BODI", "2026-04-15", with_nan_row)
+    assert current == stored == frame_store.ohlcv_digest(clean)
+    assert len(frame_store.load_frame("BODI", "2026-04-15")) == len(clean)
+
+
 def test_freeze_round_trips_through_parquet(frames_dir):
     current, stored = frame_store.freeze_frame("BODI", "2026-04-15", _frame())
     assert current == stored  # in-memory digest == parquet round-trip digest
@@ -55,22 +90,40 @@ def test_freeze_round_trips_through_parquet(frames_dir):
     assert frame_store.ohlcv_digest(loaded) == stored
 
 
-def test_freeze_never_overwrites_and_surfaces_divergence(frames_dir):
-    frame_store.freeze_frame("BODI", "2026-04-15", _frame())
+def test_restatement_versions_and_both_bases_resolve_by_digest(frames_dir):
+    first, _ = frame_store.freeze_frame("BODI", "2026-04-15", _frame())
     restated = _frame(closes=(10.0, 10.5, 10.30))  # vendor restated the last bar
     current, stored = frame_store.freeze_frame("BODI", "2026-04-15", restated)
-    assert current != stored  # divergence surfaced, first freeze preserved
-    kept = frame_store.load_frame("BODI", "2026-04-15")
-    assert float(kept["Close"].iloc[-1]) == 10.25
+    assert current != stored and stored == first  # divergence surfaced, base kept
+    # A pre-restatement mark (digest = first) and a post-restatement mark
+    # (digest = current) BOTH keep a replayable basis (Council finding 1).
+    old_basis = frame_store.load_frame("BODI", "2026-04-15", digest=first)
+    new_basis = frame_store.load_frame("BODI", "2026-04-15", digest=current)
+    assert float(old_basis["Close"].iloc[-1]) == 10.25
+    assert float(new_basis["Close"].iloc[-1]) == 10.30
+    assert frame_store.load_frame("BODI", "2026-04-15", digest="0" * 64) is None
+    # Refreezing the same restatement is idempotent — one sibling, not many.
+    frame_store.freeze_frame("BODI", "2026-04-15", restated)
+    assert len(list(frames_dir.glob("BODI_2026-04-15*.parquet"))) == 2
+
+
+def test_torn_base_file_is_quarantined_and_refrozen(frames_dir):
+    # A crash mid-write leaves a torn parquet; the exists-check must not
+    # protect it forever (Council finding 4).
+    torn = frames_dir / "BODI_2026-04-15.parquet"
+    torn.write_bytes(b"not a parquet file")
+    assert frame_store.load_frame("BODI", "2026-04-15") is None  # pure read
+    current, stored = frame_store.freeze_frame("BODI", "2026-04-15", _frame())
+    assert current == stored
+    assert frame_store.load_frame("BODI", "2026-04-15") is not None
+    assert (frames_dir / "BODI_2026-04-15.parquet.corrupt").exists()
+
+
+def test_freeze_leaves_no_temp_files(frames_dir):
+    frame_store.freeze_frame("BODI", "2026-04-15", _frame())
+    assert not list(frames_dir.glob("*.tmp-*"))
 
 
 def test_load_missing_frame_is_none(frames_dir):
     assert frame_store.load_frame("ZZZZ", "2026-01-01") is None
-
-
-def test_replay_layer_prefers_the_calibration_frame(frames_dir):
-    from tools import replay
-    frame_store.freeze_frame("BODI", "2026-04-15", _frame())
-    raw, src = replay.resolve_frame("BODI", sealed={}, as_of="2026-04-15")
-    assert src == "calibration frame"
-    assert frame_store.ohlcv_digest(raw) == frame_store.ohlcv_digest(_frame())
+    assert frame_store.load_frame("ZZZZ", "2026-01-01", digest="a" * 64) is None

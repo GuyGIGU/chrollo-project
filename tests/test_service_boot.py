@@ -34,14 +34,19 @@ def test_backend_boots_from_service_cwd_and_registers_routes():
         "import main\n"
         "from starlette.routing import Mount\n"
         "def leaves(routes):\n"
-        "    total = 0\n"
+        "    out = []\n"
         "    for r in routes:\n"
         "        orig = getattr(r, 'original_router', None)\n"
         "        sub = orig.routes if orig is not None else (r.routes if isinstance(r, Mount) else None)\n"
-        "        total += leaves(sub) if sub else 1\n"
-        "    return total\n"
-        "n = leaves(main.app.routes)\n"
-        "assert n > 70, f'only {n} routes registered'\n"
+        "        out += leaves(sub) if sub else [getattr(r, 'path', '')]\n"
+        "    return out\n"
+        "paths = leaves(main.app.routes)\n"
+        "assert len(paths) > 70, f'only {len(paths)} routes registered'\n"
+        # Named-path pins: the coarse count has enough slack to absorb a
+        # whole dropped include_router (the SPA catch-all then answers the
+        # paths with index.html — the proven service_stale incident).
+        "for must in ('/calibration/chart', '/calibration/marks'):\n"
+        "    assert must in paths, f'{must} not registered'\n"
     )
     proc = subprocess.run(
         [sys.executable, "-c", code],

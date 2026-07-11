@@ -29,6 +29,7 @@ def _payload(**overrides):
         data_regime="as_traded",
         engine_config_version="test-config",
         anchor_close=11.02,
+        frame_digest="a" * 64,
         events=[],
     )
     fields.update(overrides)
@@ -94,10 +95,38 @@ def test_provenance_is_required():
     assert any("anchor_close" in p for p in validate_mark(_payload(anchor_close=float("nan"))))
 
 
+def test_frame_digest_is_required_provenance():
+    # A mark without its frame's digest can never be replayed — refused at
+    # birth, never silently excluded from every future denominator.
+    for bad in (None, "", "not-a-digest", "A" * 64, "a" * 63):
+        assert any("frame_digest" in p
+                   for p in validate_mark(_payload(frame_digest=bad))), bad
+
+
+def test_label_is_bounded_and_whitespace_free():
+    assert any("label" in p for p in validate_mark(_payload(label="x" * 41)))
+    assert any("label" in p for p in validate_mark(_payload(label=" lps")))
+    assert validate_mark(_payload(label="second box")) == []
+
+
+def test_rails_source_closed_set():
+    assert any("rails_source" in p
+               for p in validate_mark(_payload(rails_source="scraper")))
+
+
+def test_knowable_from_date_rules():
+    assert any("knowable_from_date" in p
+               for p in validate_mark(_payload(knowable_from_date="4/1/2026")))
+    assert any("after as_of_date" in p
+               for p in validate_mark(_payload(knowable_from_date="2026-05-01")))
+    assert validate_mark(_payload(knowable_from_date="2026-04-01")) == []
+
+
 def test_event_rules():
     base = {"event_type": "lps", "start_date": "2026-04-09", "end_date": "2026-04-15"}
     assert validate_mark(_payload(events=[base])) == []
     assert validate_mark(_payload(events=[{**base, "event_type": "breakout"}]))
+    assert validate_mark(_payload(events=[{**base, "source": "scraper"}]))
     assert validate_mark(_payload(events=[{**base, "end_date": "2026-04-01"}]))
     assert validate_mark(_payload(events=[{**base, "tip_date": "2026-05-01"}]))
     assert validate_mark(_payload(events=[{**base, "end_date": "2026-05-01"}]))
@@ -105,15 +134,23 @@ def test_event_rules():
 
 def test_ddl_checks_pin_the_same_closed_sets():
     """The frozen CHECK constraints in models.py must name exactly the sets
-    this module owns — the evolvable layer and the DDL layer never drift."""
+    this module owns — set EQUALITY in both directions: a module set the DDL
+    doesn't know is drift, and a DDL enum wider than the module is a weaker
+    backstop than this test claims exists."""
+    import re
+
     import models
     ddl = " ".join(
         str(c.sqltext)
         for table in (models.CalibrationMark, models.CalibrationMarkEvent)
         for c in table.__table_args__
         if hasattr(c, "sqltext")
-    )
-    for verdict in MARK_VERDICTS:
-        assert f"'{verdict}'" in ddl
-    for event_type in EVENT_TYPES:
-        assert f"'{event_type}'" in ddl
+    ).lower()
+
+    def enum_of(column: str) -> set:
+        m = re.search(rf"{column}\s+in\s+\(([^)]*)\)", ddl)
+        assert m, f"no closed-set CHECK found for {column}"
+        return set(re.findall(r"'([^']*)'", m.group(1)))
+
+    assert enum_of("verdict") == set(MARK_VERDICTS)
+    assert enum_of("event_type") == set(EVENT_TYPES)

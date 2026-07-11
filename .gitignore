@@ -89,5 +89,9 @@ Thumbs.db
 # Claude Code working files
 .claude/
 
-# Calibration frame store (local frozen replay frames, digest-bound to marks)
+# Calibration frame store — NOT a regenerable cache (unlike the parquet caches
+# above): marks bind to these frames' digests, and a post-restatement refetch
+# yields DIFFERENT bytes, so deleting this directory permanently destroys the
+# replay basis of the calibration corpus. Never "clean" it; back it up with
+# the same habit that covers trading_journal.db.
 calibration_frames/

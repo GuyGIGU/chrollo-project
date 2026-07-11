@@ -30,6 +30,12 @@ SOURCES = ("operator", "extraction")
 
 _GEOMETRY_FIELDS = ("resistance", "support", "box_start_date", "box_end_date")
 
+# A mark's frame_digest is sha256-hex of the frozen frame it was drawn on —
+# required provenance (the harness can replay nothing without it).
+_DIGEST_SHAPE = re.compile(r"^[0-9a-f]{64}$")
+
+_LABEL_MAX = 40
+
 
 _ISO_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -69,12 +75,25 @@ def validate_mark(mark: dict) -> list[str]:
     if get("rails_source", "operator") not in SOURCES:
         problems.append(f"rails_source {get('rails_source')!r} not in {SOURCES}")
 
-    # Point-in-time provenance is required, never backfilled.
+    # Point-in-time provenance is required, never backfilled. frame_digest
+    # included: a mark without its frame's digest can never be replayed, so
+    # it must be refused at birth, not silently excluded from every report.
     for field in ("data_regime", "engine_config_version"):
         if not (isinstance(get(field), str) and get(field).strip()):
             problems.append(f"{field} is missing")
+    if not (isinstance(get("frame_digest"), str)
+            and _DIGEST_SHAPE.match(get("frame_digest"))):
+        problems.append(f"frame_digest {get('frame_digest')!r} is not a sha256 hex digest")
     if not _positive_number(get("anchor_close")):
         problems.append(f"anchor_close {get('anchor_close')!r} is not a positive number")
+
+    # Label is an identity component (part of the unique key): bounded, and
+    # already normalized (stripped, lowercased) by the write boundary.
+    label = get("label", "")
+    if not isinstance(label, str) or len(label) > _LABEL_MAX:
+        problems.append(f"label must be a string of at most {_LABEL_MAX} chars")
+    elif label != label.strip():
+        problems.append("label carries leading/trailing whitespace")
 
     knowable = get("knowable_from_date")
     if knowable is not None:

@@ -59,9 +59,14 @@ def _refuse(status: int, reason_class: str, message: str, ticker: str, as_of: st
                         detail={"class": reason_class, "message": message})
 
 
-@router.get("/chart")
+@router.get("/chart", dependencies=[Depends(require_same_app)])
 def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
-    """Daily candles for any ticker anchored at any historical as-of date."""
+    """Daily candles for any ticker anchored at any historical as-of date.
+
+    Guarded like the writes: this GET has side effects (it spends the shared
+    vendor rate bucket and freezes a replay frame), so a drive-by cross-origin
+    request must not reach it — only our own frontend ever calls it.
+    """
     symbol = ticker.strip().upper()
     if not TICKER_RE.match(symbol):
         _refuse(400, "bad_ticker",
@@ -116,13 +121,23 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
 
     # Freeze the replay-relevant (<= as-of) frame and bind the mark to what
     # the operator is LOOKING at (Task 7). A digest divergence means the
-    # vendor restated since the first freeze — say so, don't hide it.
+    # vendor restated since the first freeze — the store versions the new
+    # rendering by digest, so marks on either rendering keep their basis.
+    # Freeze I/O failures get a named class: a chart whose frame could not
+    # be frozen would produce unreplayable marks, so it is withheld loudly.
     from frame_store import freeze_frame  # noqa: PLC0415 — file I/O module, lazy like the fetch chain
-    current_digest, stored_digest = freeze_frame(symbol, as_of_session, frame)
+    try:
+        current_digest, stored_digest = freeze_frame(symbol, as_of_session, frame)
+    except Exception as exc:
+        _refuse(503, "freeze_failed",
+                f"could not freeze the replay frame ({exc.__class__.__name__}) — "
+                "marks made on this chart would not be replayable; check disk "
+                "space / calibration_frames permissions and retry", symbol, as_of)
     if current_digest != stored_digest:
-        warnings.append("today's data differs from the frame frozen for this chart "
-                        "earlier (vendor restatement) — new marks bind to today's "
-                        "data; older marks here will grade basis_mismatch")
+        warnings.append("the vendor restated this data since the chart was first "
+                        "frozen — today's rendering is frozen alongside the "
+                        "original, and marks replay against the frame matching "
+                        "their own digest (nothing is lost)")
 
     candles, volumes = chart_candles(
         raw,
@@ -131,10 +146,19 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
         require_finite=True,
         volume_as_int=True,
     )
+    # Adjacent SESSIONS, named by the server (it holds the whole frame): the
+    # day-scrub steps real sessions instead of guessing calendar days into
+    # weekends/holidays. None = the edge of the fetched window.
+    forward_idx = raw.index[raw.index > frame.index[-1]]
+    prev_session = frame.index[-2].strftime("%Y-%m-%d") if len(frame) > 1 else None
+    next_session = forward_idx[0].strftime("%Y-%m-%d") if len(forward_idx) else None
+
     return {
         "ticker": symbol,
         "as_of": as_of,
         "as_of_session": as_of_session,
+        "prev_session": prev_session,
+        "next_session": next_session,
         "anchor_close": anchor_close,
         "bar_count": int(len(frame)),
         "forward_bars": int((raw.index > as_of_ts).sum()),
@@ -215,13 +239,33 @@ class MarkOut(BaseModel):
 def _reject_invalid(payload: MarkIn):
     # Normalize-then-judge, same order as the chart lookup: the shared
     # judgment sees exactly the identity the row will be saved under.
+    # Label is an identity component too — "lps", "lps " and "LPS" must be
+    # ONE identity, or near-duplicates slip past the unique key.
     data = {**payload.model_dump(exclude={"events"}),
             "events": [e.model_dump() for e in payload.events]}
     data["ticker"] = (data.get("ticker") or "").strip().upper()
+    data["label"] = (data.get("label") or "").strip().lower()
     problems = validate_mark(data)
     if problems:
         raise HTTPException(status_code=422, detail={
             "class": "invalid_mark", "problems": problems,
+        })
+
+
+def _reject_unbound(payload: MarkIn):
+    """The mark→frame binding contract: as_of_date must be the exact session
+    key a chart freeze created, and frame_digest must match one frozen
+    rendering (base, or the digest-qualified sibling a restatement created).
+    A pure local-file check — saving never triggers a vendor fetch."""
+    from frame_store import load_frame  # noqa: PLC0415 — file I/O module, lazy
+    ticker = (payload.ticker or "").strip().upper()
+    if load_frame(ticker, payload.as_of_date, digest=payload.frame_digest) is None:
+        raise HTTPException(status_code=422, detail={
+            "class": "unbound_mark",
+            "message": f"no frozen frame for ({ticker}, {payload.as_of_date}) "
+                       "matches this frame_digest — load the chart for that "
+                       "session first; marks bind to the exact frame the "
+                       "operator looked at",
         })
 
 
@@ -232,6 +276,7 @@ def _apply_payload(mark: CalibrationMark, payload: MarkIn):
                   "engine_config_version", "anchor_close", "frame_digest"):
         setattr(mark, field, getattr(payload, field))
     mark.ticker = mark.ticker.strip().upper()
+    mark.label = (mark.label or "").strip().lower()
     mark.events = [CalibrationMarkEvent(**e.model_dump()) for e in payload.events]
 
 
@@ -247,6 +292,7 @@ def list_marks(ticker: Optional[str] = Query(None), db: Session = Depends(get_db
              dependencies=[Depends(require_same_app)])
 def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
     _reject_invalid(payload)
+    _reject_unbound(payload)
     now = datetime.now(timezone.utc)
     mark = CalibrationMark(created_at=now, updated_at=now, revision=1)
     _apply_payload(mark, payload)
@@ -275,6 +321,7 @@ def update_mark(mark_id: int, payload: MarkIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail={
             "class": "unknown_mark", "message": f"no mark {mark_id}"})
     _reject_invalid(payload)
+    _reject_unbound(payload)
     _apply_payload(mark, payload)
     mark.revision = mark.revision + 1  # every correction is visible
     mark.updated_at = datetime.now(timezone.utc)
