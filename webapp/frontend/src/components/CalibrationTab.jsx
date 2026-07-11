@@ -22,34 +22,36 @@ const FAILURE_HINTS = {
   no_bars_at_date: 'This ticker has no history at that date; try a later one.',
   network: 'Start the dashboard service, then retry.',
   service_stale: 'Run update_dashboard.bat to load the new backend, then retry.',
+  freeze_failed: 'Check disk space / calibration_frames permissions, then retry.',
+  unknown: 'Retry once; if it persists, check the service log.',
 };
-
-function shiftDate(iso, days) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 function CalibrationTab() {
   const { chartData, loading, failure, load } = useCalibrationChart();
   const [ticker, setTicker] = useState('');
   const [asOf, setAsOf] = useState('');
 
-  const submit = (event) => {
-    event?.preventDefault();
-    if (ticker.trim() && asOf) load(ticker, asOf);
+  // On success the date input snaps to the RESOLVED session, so input,
+  // provenance strip and chart always name the same session; on failure the
+  // input keeps whatever the operator typed (nothing is poisoned).
+  const lookup = async (t, date) => {
+    const result = await load(t, date);
+    if (result) setAsOf(result.as_of_session);
   };
 
-  // Day-scrub: step the eval session and re-anchor. Cached revisits are
-  // instant; each NEW session costs one bounded fetch (it also freezes that
-  // session's frame server-side, which a mark needs anyway).
-  const scrub = (days) => {
-    const anchor = chartData?.as_of_session || asOf;
-    if (!anchor) return;
-    const next = shiftDate(anchor, days);
-    setAsOf(next);
-    load(chartData?.ticker || ticker, next);
+  const submit = (event) => {
+    event?.preventDefault();
+    if (ticker.trim() && asOf) lookup(ticker, asOf);
+  };
+
+  // Day-scrub: step the SERVER-NAMED adjacent sessions (never guessed
+  // calendar days — a Friday's "next day" is Monday, not a Saturday that
+  // resolves straight back to Friday). Cached revisits are instant; each
+  // NEW session costs one bounded fetch (it also freezes that session's
+  // frame server-side, which a mark needs anyway).
+  const scrub = (direction) => {
+    const target = direction < 0 ? chartData?.prev_session : chartData?.next_session;
+    if (target) lookup(chartData.ticker, target);
   };
 
   const spec = useMemo(() => ({
@@ -90,8 +92,16 @@ function CalibrationTab() {
         </button>
         {chartData && (
           <>
-            <button type="button" onClick={() => scrub(-1)} title="Previous session">◀ day</button>
-            <button type="button" onClick={() => scrub(1)} title="Next session">day ▶</button>
+            <button type="button" onClick={() => scrub(-1)}
+                    disabled={loading || !chartData.prev_session}
+                    title={chartData.prev_session ? 'Previous session' : 'At the left edge of the fetched window'}>
+              ◀ day
+            </button>
+            <button type="button" onClick={() => scrub(1)}
+                    disabled={loading || !chartData.next_session}
+                    title={chartData.next_session ? 'Next session' : 'No later session in the fetched window'}>
+              day ▶
+            </button>
             <span style={{ opacity: 0.8 }}>
               {chartData.ticker} @ {chartData.as_of_session} · close {fx(chartData.anchor_close, 2)}
               {' '}· {chartData.bar_count} bars · {chartData.data_regime}
@@ -108,13 +118,26 @@ function CalibrationTab() {
 
       <div style={{ flex: 1, minHeight: 420, position: 'relative' }}>
         {chartData ? (
-          <CandleChart
-            spec={spec}
-            className="calibration-chart"
-            style={{ position: 'absolute', inset: 0 }}
-            errorFallback={<PaneMessage title="Chart failed to draw" body="Reload the lookup." />}
-            emptyFallback={<PaneMessage title="No drawable bars" body="Every bar in this window was non-finite." />}
-          />
+          <>
+            <CandleChart
+              spec={spec}
+              className="calibration-chart"
+              style={{ position: 'absolute', inset: 0 }}
+              errorFallback={<PaneMessage title="Chart failed to draw" body="Reload the lookup." />}
+              emptyFallback={<PaneMessage title="No drawable bars" body="Every bar in this window was non-finite." />}
+            />
+            {failure && (
+              // A failed step never wipes the working chart — the last good
+              // frame stays up and the failure rides above it.
+              <div style={{
+                position: 'absolute', top: 8, left: 8, right: 8, zIndex: 5,
+                padding: '6px 10px', borderRadius: 6, fontSize: 12,
+                border: '1px solid #2f3447', background: 'rgba(23, 25, 34, 0.92)',
+              }}>
+                Lookup failed — {failure.class}. {paneBody(false, failure)}
+              </div>
+            )}
+          </>
         ) : (
           <PaneMessage
             title={paneTitle(loading, failure)}
