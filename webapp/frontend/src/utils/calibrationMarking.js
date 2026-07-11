@@ -24,8 +24,17 @@ export function emptyDraft() {
   };
 }
 
-export function initialMarkingState(draft = null, frameKey = null) {
-  return { frameKey, tool: 'idle', spanAnchor: null, draft: draft ?? emptyDraft() };
+export function initialMarkingState(draft = null, frameKey = null, editingId = null) {
+  return { frameKey, tool: 'idle', spanAnchor: null,
+           draft: draft ?? emptyDraft(), editingId };
+}
+
+// Rails snap to the clicked BAR's extreme — the operator measures wick to
+// wick, and a rail a few pixels off the wick is noise, not information. The
+// nearer of high/low to the click wins; without bar data the raw price stands.
+export function snapRailPrice(price, bar) {
+  if (!bar || !Number.isFinite(bar.high) || !Number.isFinite(bar.low)) return price;
+  return Math.abs(bar.high - price) <= Math.abs(bar.low - price) ? bar.high : bar.low;
 }
 
 // The identity a draft binds to — mirrors the mark→frame binding contract.
@@ -62,15 +71,16 @@ function withRail(draft, which, price) {
   return next;
 }
 
-function applyClick(state, { date, price }) {
+function applyClick(state, { date, price, bar }) {
   const { tool, spanAnchor, draft } = state;
   if (tool === 'idle' || draft.verdict !== 'box') return state;
+  const railPrice = snapRailPrice(price, bar);
 
   if (tool === 'rail-r') {
-    return { ...state, tool: 'idle', draft: withRail(draft, 'resistance', price) };
+    return { ...state, tool: 'idle', draft: withRail(draft, 'resistance', railPrice) };
   }
   if (tool === 'rail-s') {
-    return { ...state, tool: 'idle', draft: withRail(draft, 'support', price) };
+    return { ...state, tool: 'idle', draft: withRail(draft, 'support', railPrice) };
   }
   if (tool === 'span') {
     if (spanAnchor == null) return { ...state, spanAnchor: date };
@@ -80,8 +90,8 @@ function applyClick(state, { date, price }) {
   }
   if (tool === 'box') {
     const need = nextBoxNeed(draft);
-    if (need === 'resistance') return { ...state, draft: withRail(draft, 'resistance', price) };
-    if (need === 'support') return { ...state, draft: withRail(draft, 'support', price) };
+    if (need === 'resistance') return { ...state, draft: withRail(draft, 'resistance', railPrice) };
+    if (need === 'support') return { ...state, draft: withRail(draft, 'support', railPrice) };
     if (need === 'span') {
       if (spanAnchor == null) return { ...state, spanAnchor: date };
       const [start, end] = orderedDates(spanAnchor, date);
@@ -105,7 +115,12 @@ function applyClick(state, { date, price }) {
 export function markingReducer(state, action) {
   switch (action.type) {
     case 'load':
-      return initialMarkingState(action.draft, action.frameKey);
+      return initialMarkingState(action.draft, action.frameKey, action.editingId ?? null);
+    case 'edit-mark':
+      // A saved mark loaded for correction (EC-9: editable ground truth) —
+      // the draft becomes the mark's geometry and Save turns into a PUT.
+      return initialMarkingState(draftFromMark(action.mark), state.frameKey,
+                                 action.mark.id);
     case 'tool': {
       // Re-selecting the active tool disarms it (toggle); switching always
       // drops a half-placed span anchor.
@@ -154,6 +169,50 @@ export function statusText(state) {
     return spanAnchor == null ? `click the ${name} START bar` : `click the ${name} END bar`;
   }
   return '';
+}
+
+// Draft <-> saved-mark converters (pure; the save payload is built here so
+// the provenance-echo rule has ONE home the tests can pin).
+
+export function draftFromMark(mark) {
+  return {
+    verdict: mark.verdict,
+    resistance: mark.resistance ?? null,
+    support: mark.support ?? null,
+    boxStartDate: mark.box_start_date ?? null,
+    boxEndDate: mark.box_end_date ?? null,
+    events: (mark.events ?? []).map((e) => ({
+      event_type: e.event_type, start_date: e.start_date, end_date: e.end_date,
+      tip_date: e.tip_date ?? null, tip_price: e.tip_price ?? null,
+      source: e.source ?? 'operator',
+    })),
+  };
+}
+
+// The save payload: geometry from the draft, IDENTITY AND PROVENANCE from the
+// chart payload the operator is looking at — as_of_date is the RESOLVED
+// session (the frozen-frame key) and frame_digest/data_regime/config/anchor
+// are echoed verbatim (the mark→frame binding contract, server-verified).
+export function markPayloadFromDraft(draft, chartData, { label = '', note = '' } = {}) {
+  const isBox = draft.verdict === 'box';
+  return {
+    ticker: chartData.ticker,
+    as_of_date: chartData.as_of_session,
+    label: (label || '').trim().toLowerCase(),
+    verdict: draft.verdict,
+    resistance: isBox ? draft.resistance : null,
+    support: isBox ? draft.support : null,
+    box_start_date: isBox ? draft.boxStartDate : null,
+    box_end_date: isBox ? draft.boxEndDate : null,
+    rails_source: 'operator',
+    knowable_from_date: null,
+    note: (note || '').trim() || null,
+    data_regime: chartData.data_regime,
+    engine_config_version: chartData.engine_config_version,
+    anchor_close: chartData.anchor_close,
+    frame_digest: chartData.frame_digest,
+    events: isBox ? draft.events : [],
+  };
 }
 
 // lightweight-charts hands click times back in whatever form the series data

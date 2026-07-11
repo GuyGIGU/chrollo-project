@@ -6,8 +6,10 @@ import {
   emptyDraft,
   frameKeyOf,
   initialMarkingState,
+  markPayloadFromDraft,
   markingReducer,
   nextBoxNeed,
+  snapRailPrice,
   statusText,
 } from './calibrationMarking.js';
 
@@ -122,4 +124,56 @@ test('chartTimeToIso accepts string, business day and unix forms', () => {
   assert.equal(chartTimeToIso({ year: 2026, month: 4, day: 5 }), '2026-04-05');
   assert.equal(chartTimeToIso(1765497600), '2025-12-12');
   assert.equal(chartTimeToIso(undefined), null);
+});
+
+test('rails snap to the clicked bar extreme (wick to wick)', () => {
+  const bar = { high: 96.2, low: 92.8 };
+  assert.equal(snapRailPrice(95.7, bar), 96.2);  // nearer the high
+  assert.equal(snapRailPrice(93.9, bar), 92.8);  // nearer the low
+  assert.equal(snapRailPrice(95.7, null), 95.7); // no bar data: raw stands
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
+  s = markingReducer(s, { type: 'chart-click', date: '2026-02-10',
+                          price: 95.7, bar });
+  assert.equal(s.draft.resistance, 96.2);
+});
+
+test('edit-mark loads a saved mark and remembers its id; clear forgets it', () => {
+  const mark = {
+    id: 7, verdict: 'box', resistance: 12.4, support: 10.15,
+    box_start_date: '2025-12-12', box_end_date: '2026-04-15',
+    events: [{ event_type: 'lps', start_date: '2026-04-09',
+               end_date: '2026-04-15', tip_date: null, tip_price: null,
+               source: 'operator' }],
+  };
+  let s = initialMarkingState(null, 'BODI|2026-04-15|d1');
+  s = markingReducer(s, { type: 'edit-mark', mark });
+  assert.equal(s.editingId, 7);
+  assert.equal(s.draft.resistance, 12.4);
+  assert.equal(s.draft.events[0].event_type, 'lps');
+  assert.equal(s.frameKey, 'BODI|2026-04-15|d1'); // still bound to the frame
+  s = markingReducer(s, { type: 'clear' });
+  assert.equal(s.editingId, null);
+});
+
+test('markPayloadFromDraft echoes identity and provenance from the chart payload', () => {
+  const chartData = {
+    ticker: 'KLAC', as_of_session: '2025-09-05', data_regime: 'as_traded',
+    engine_config_version: 'cfg', anchor_close: 90.51, frame_digest: 'd'.repeat(64),
+  };
+  const draft = {
+    verdict: 'box', resistance: 96.2, support: 87.7,
+    boxStartDate: '2025-07-18', boxEndDate: '2025-09-05',
+    events: [],
+  };
+  const p = markPayloadFromDraft(draft, chartData, { label: ' LPS ', note: ' x ' });
+  assert.equal(p.as_of_date, '2025-09-05'); // the RESOLVED session — never raw input
+  assert.equal(p.frame_digest, 'd'.repeat(64));
+  assert.equal(p.label, 'lps');
+  assert.equal(p.note, 'x');
+  assert.equal(p.rails_source, 'operator');
+  // A negative payload carries NO geometry, whatever the draft held.
+  const n = markPayloadFromDraft({ ...draft, verdict: 'no_structure' }, chartData, {});
+  assert.deepEqual(
+    [n.resistance, n.support, n.box_start_date, n.box_end_date, n.events],
+    [null, null, null, null, []]);
 });

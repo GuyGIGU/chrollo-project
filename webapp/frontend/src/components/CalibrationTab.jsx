@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import CandleChart from './CandleChart';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
+import CalibrationMarksList from './CalibrationMarksList';
+import CalibrationSaveBar from './CalibrationSaveBar';
 import useCalibrationChart from '../hooks/useCalibrationChart';
+import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import { baseChartOptions } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import {
   chartTimeToIso,
+  draftComplete,
+  emptyDraft,
   frameKeyOf,
   initialMarkingState,
+  markPayloadFromDraft,
   markingReducer,
 } from '../utils/calibrationMarking';
+import { parseWorklist, worklistLabel } from '../utils/calibrationWorklist';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -58,6 +65,8 @@ function CalibrationTab() {
     if (key !== markingRef.current.frameKey) {
       dispatchMarking({ type: 'load', frameKey: key,
                         draft: draftsRef.current.get(key) ?? null });
+      setLabel('');
+      setNote('');
     }
   }, [chartData]);
 
@@ -72,6 +81,89 @@ function CalibrationTab() {
   useEffect(() => {
     chartApiRef.current?.draw.update(marking.draft, marking.spanAnchor);
   }, [marking, chartData]);
+
+  // Bars by date, for snap-to-extreme rail placement.
+  const barsByDate = useMemo(() => {
+    const map = new Map();
+    for (const c of chartData?.candles ?? []) map.set(c.time, c);
+    return map;
+  }, [chartData]);
+  const barsRef = useRef(barsByDate);
+  barsRef.current = barsByDate;
+
+  // Save workflow (Task 12): marks CRUD + label/note + worklist queue.
+  const { marks, saving, saveError, tally, refresh, saveMark, removeMark } =
+    useCalibrationMarks();
+  const [label, setLabel] = useState('');
+  const [note, setNote] = useState('');
+  const [wlItems, setWlItems] = useState([]);
+  const [wlIndex, setWlIndex] = useState(0);
+
+  useEffect(() => { refresh(chartData?.ticker); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chartData?.ticker]);
+
+  const canSave = !!chartData && draftComplete(marking.draft);
+
+  const worklistStep = (delta) => {
+    if (!wlItems.length) return;
+    const next = Math.min(Math.max(wlIndex + delta, 0), wlItems.length - 1);
+    setWlIndex(next);
+    const entry = wlItems[next];
+    setTicker(entry.ticker);
+    lookup(entry.ticker, entry.asOf);
+  };
+
+  const save = async () => {
+    if (!canSave || saving) return;
+    const payload = markPayloadFromDraft(marking.draft, chartData, { label, note });
+    const saved = await saveMark(payload, marking.editingId);
+    if (!saved) return; // draft stays intact — a failed save never loses work
+    dispatchMarking({ type: 'edit-mark', mark: saved });
+    if (wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
+  };
+
+  // One-keystroke negatives, gated on nothing: the frame itself IS the
+  // assertion ("no structure here" / "the engine's read here is wrong").
+  const saveNegative = async (verdict) => {
+    if (!chartData || saving) return;
+    const payload = markPayloadFromDraft(
+      { ...emptyDraft(), verdict }, chartData, { label, note });
+    const saved = await saveMark(payload, null);
+    if (saved && wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
+  };
+
+  const editMark = (mark) => {
+    setLabel(mark.label ?? '');
+    setNote(mark.note ?? '');
+    dispatchMarking({ type: 'edit-mark', mark });
+  };
+
+  // Keyboard loop (skipped while typing in any field): tools b/r/s/x,
+  // events c/l/t, negatives n/w, scrub ,/. , Enter saves, Escape disarms.
+  const keyDeps = useRef({});
+  keyDeps.current = { save, saveNegative };
+  const scrubRef = useRef(() => {});
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const tool = { b: 'box', r: 'rail-r', s: 'rail-s', x: 'span',
+                     c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test' }[k];
+      if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
+      if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
+      const d = keyDeps.current;
+      if (k === 'n') { d.saveNegative('no_structure'); e.preventDefault(); return; }
+      if (k === 'w') { d.saveNegative('engine_wrong'); e.preventDefault(); return; }
+      if (e.key === 'Enter') { d.save(); return; }
+      if (e.key === ',') { scrubRef.current(-1); return; }
+      if (e.key === '.') { scrubRef.current(1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // On success the date input snaps to the RESOLVED session, so input,
   // provenance strip and chart always name the same session; on failure the
@@ -95,6 +187,7 @@ function CalibrationTab() {
     const target = direction < 0 ? chartData?.prev_session : chartData?.next_session;
     if (target) lookup(chartData.ticker, target);
   };
+  scrubRef.current = scrub;
 
   const spec = useMemo(() => ({
     chartOptions: (container) => ({
@@ -118,7 +211,8 @@ function CalibrationTab() {
         const date = chartTimeToIso(param.time);
         if (price == null || !Number.isFinite(price) || !date) return;
         dispatchMarking({ type: 'chart-click', date,
-                          price: Number(price.toFixed(4)) });
+                          price: Number(price.toFixed(4)),
+                          bar: barsRef.current.get(date) });
       };
       chart.subscribeClick(onClick);
       return () => {
@@ -180,6 +274,26 @@ function CalibrationTab() {
         disabled={!chartData}
       />
 
+      <CalibrationSaveBar
+        disabled={!chartData}
+        canSave={canSave}
+        saving={saving}
+        editingId={marking.editingId}
+        label={label}
+        onLabel={setLabel}
+        note={note}
+        onNote={setNote}
+        onSave={save}
+        onNewMark={() => dispatchMarking({ type: 'clear' })}
+        onNegative={saveNegative}
+        saveError={saveError}
+        tally={tally}
+        worklist={wlItems}
+        worklistLabelText={worklistLabel(wlItems, wlIndex)}
+        onWorklistText={(text) => { setWlItems(parseWorklist(text)); setWlIndex(0); }}
+        onWorklistStep={worklistStep}
+      />
+
       {chartData?.warnings?.length > 0 && (
         <div style={{ fontSize: 12, opacity: 0.85 }}>
           {chartData.warnings.map((w) => <div key={w}>⚠ {w}</div>)}
@@ -215,6 +329,13 @@ function CalibrationTab() {
           />
         )}
       </div>
+
+      <CalibrationMarksList
+        marks={marks}
+        editingId={marking.editingId}
+        onEdit={editMark}
+        onDelete={(id) => removeMark(id, chartData?.ticker)}
+      />
     </div>
   );
 }
