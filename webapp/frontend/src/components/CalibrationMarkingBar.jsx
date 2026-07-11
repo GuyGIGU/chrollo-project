@@ -1,6 +1,7 @@
 import {
   MARK_EVENT_TYPES,
   MARK_VERDICTS,
+  effectiveSpan,
   statusText,
 } from '../utils/calibrationMarking';
 import { CHART_FONT } from './chartTheme';
@@ -12,21 +13,23 @@ import { CHART_FONT } from './chartTheme';
 // parent's markingReducer — this is a dumb strip.
 const fx = (v, d) => ((v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d));
 
-// ONE box tool (place R → S → span, then click-near-a-rail adjusts it) —
-// the separate R/S/Span buttons duplicated the same grammar and read as
-// different features (operator feedback 2026-07-11). Keys r/s/x still arm
-// the surgical single-placement tools; the legend below teaches them.
+// Individual R and S tools (operator ask 2026-07-11): each click records the
+// rail price AND the swing bar it was placed on (the anchor), and the box
+// span derives from the anchors — Span stays as the explicit override.
 const TOOL_LABELS = [
-  ['box', 'Mark box'],
+  ['rail-r', 'R'],
+  ['rail-s', 'S'],
+  ['span', 'Span'],
 ];
 
 const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test' };
 
-const KEY_LEGEND = 'b box · r/s rail · x span · c/l/t event · ⏎ save · n/w negative · ,/. day · e engine';
+const KEY_LEGEND = 'r/s rail · x span · c/l/t event · ⏎ save · n/w negative · ,/. day · e engine';
 
-function CalibrationMarkingBar({ state, dispatch, disabled }) {
+function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
   const { tool, draft } = state;
   const isBox = draft.verdict === 'box';
+  const span = effectiveSpan(draft, asOfSession);
 
   const toolButton = (value, label) => (
     <button
@@ -61,11 +64,15 @@ function CalibrationMarkingBar({ state, dispatch, disabled }) {
       </button>
 
       {isBox && (
+        // Rails with their anchor bars; the span line shows what WILL save
+        // (anchor-derived unless x-drawn explicitly).
         <span style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
                        fontVariantNumeric: 'tabular-nums', fontSize: 11,
                        whiteSpace: 'nowrap' }}>
-          R {fx(draft.resistance, 2)} · S {fx(draft.support, 2)}
-          {' '}· {draft.boxStartDate ?? '—'} → {draft.boxEndDate ?? '—'}
+          R {fx(draft.resistance, 2)}{draft.rAnchorDate ? `@${draft.rAnchorDate}` : ''}
+          {' '}· S {fx(draft.support, 2)}{draft.sAnchorDate ? `@${draft.sAnchorDate}` : ''}
+          {' '}· {span.start ?? '—'} → {span.end ?? '—'}
+          {span.start && draft.boxStartDate == null ? ' (from anchors)' : ''}
         </span>
       )}
       {draft.events.map((ev, i) => (

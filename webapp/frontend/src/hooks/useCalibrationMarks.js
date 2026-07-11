@@ -24,6 +24,29 @@ export default function useCalibrationMarks() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null); // {class, message} | null
   const [tally, setTally] = useState(0);
+  // Every ticker calibrated so far: [{ticker, count, latestAsOf}] — the
+  // operator's "what have I covered" list, refreshed after every write.
+  const [summary, setSummary] = useState([]);
+
+  const refreshSummary = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/calibration/marks`);
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !Array.isArray(body)) return;
+      const byTicker = new Map();
+      for (const m of body) {
+        const row = byTicker.get(m.ticker)
+          ?? { ticker: m.ticker, count: 0, latestAsOf: m.as_of_date };
+        row.count += 1;
+        if (m.as_of_date > row.latestAsOf) row.latestAsOf = m.as_of_date;
+        byTicker.set(m.ticker, row);
+      }
+      setSummary([...byTicker.values()]
+        .sort((a, b) => a.ticker.localeCompare(b.ticker)));
+    } catch (error) {
+      console.error('calibration summary failed:', error);
+    }
+  };
 
   const refresh = async (ticker) => {
     if (!ticker) {
@@ -60,6 +83,7 @@ export default function useCalibrationMarks() {
       }
       setTally((t) => t + 1);
       await refresh(payload.ticker);
+      await refreshSummary();
       return body; // the row AS PERSISTED (echo contract)
     } catch (error) {
       console.error('calibration mark save failed:', error);
@@ -76,7 +100,10 @@ export default function useCalibrationMarks() {
         method: 'DELETE',
         headers: WRITE_HEADERS,
       });
-      if (response.ok) await refresh(ticker);
+      if (response.ok) {
+        await refresh(ticker);
+        await refreshSummary();
+      }
       return response.ok;
     } catch (error) {
       console.error('calibration mark delete failed:', error);
@@ -84,5 +111,6 @@ export default function useCalibrationMarks() {
     }
   };
 
-  return { marks, saving, saveError, tally, refresh, saveMark, removeMark };
+  return { marks, saving, saveError, tally, summary,
+           refresh, refreshSummary, saveMark, removeMark };
 }

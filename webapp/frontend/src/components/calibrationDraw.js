@@ -76,6 +76,16 @@ export function attachCalibrationDraw(series) {
     const railStyle = { color: DRAWING };
     if (draft.resistance != null) rail(draft.resistance, 'R', railStyle);
     if (draft.support != null) rail(draft.support, 'S', railStyle);
+    // The swing bars each rail was anchored on — the root-swing intent the
+    // mark carries (span derives from these unless x-drawn).
+    if (draft.rAnchorDate) {
+      marks.push({ time: draft.rAnchorDate, position: 'aboveBar',
+                   shape: 'arrowDown', color: DRAWING, text: 'R' });
+    }
+    if (draft.sAnchorDate) {
+      marks.push({ time: draft.sAnchorDate, position: 'belowBar',
+                   shape: 'arrowUp', color: DRAWING, text: 'S' });
+    }
     if (draft.boxStartDate) {
       marks.push({ time: draft.boxStartDate, position: 'belowBar',
                    shape: 'arrowUp', color: DRAWING, text: '[' });

@@ -28,7 +28,10 @@ MARK_VERDICTS = ("box", "no_structure", "engine_wrong")
 EVENT_TYPES = ("phase_c", "lps", "spring_test")
 SOURCES = ("operator", "extraction")
 
-_GEOMETRY_FIELDS = ("resistance", "support", "box_start_date", "box_end_date")
+_GEOMETRY_FIELDS = ("resistance", "support", "box_start_date", "box_end_date",
+                    "r_anchor_date", "s_anchor_date", "first_rail")
+
+FIRST_RAILS = ("resistance", "support")
 
 # A mark's frame_digest is sha256-hex of the frozen frame it was drawn on —
 # required provenance (the harness can replay nothing without it).
@@ -135,6 +138,20 @@ def _validate_box_geometry(mark: dict, as_of) -> list[str]:
             problems.append("box span is inverted")
         if as_of is not None and end > as_of:
             problems.append("box_end_date is after as_of_date")
+    # Rail anchors (optional — pre-anchor marks have none): the swing bar
+    # each rail was placed on, each an ISO session at/before the as-of.
+    for field in ("r_anchor_date", "s_anchor_date"):
+        anchor = mark.get(field)
+        if anchor is None:
+            continue
+        ad = parse_iso_date(anchor)
+        if ad is None:
+            problems.append(f"{field} {anchor!r} is not YYYY-MM-DD")
+        elif as_of is not None and ad > as_of:
+            problems.append(f"{field} is after as_of_date")
+    first = mark.get("first_rail")
+    if first is not None and first not in FIRST_RAILS:
+        problems.append(f"first_rail {first!r} not in {FIRST_RAILS}")
     return problems
 
 

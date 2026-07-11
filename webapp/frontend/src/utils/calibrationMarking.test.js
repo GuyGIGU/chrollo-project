@@ -3,40 +3,48 @@ import assert from 'node:assert/strict';
 import {
   chartTimeToIso,
   draftComplete,
+  effectiveSpan,
   emptyDraft,
   frameKeyOf,
   initialMarkingState,
   markPayloadFromDraft,
   markingReducer,
-  nextBoxNeed,
   snapRailPrice,
   statusText,
 } from './calibrationMarking.js';
 
 const click = (date, price) => ({ type: 'chart-click', date, price });
 
-test('progressive box tool: R, S, span start, span end — then idle', () => {
-  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'box' });
+test('rail clicks record price AND anchor bar; the span derives from anchors', () => {
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
   s = markingReducer(s, click('2026-02-10', 12.4));
-  assert.equal(s.draft.resistance, 12.4);
-  assert.equal(nextBoxNeed(s.draft), 'support');
-  s = markingReducer(s, click('2026-02-11', 10.15));
-  assert.equal(s.draft.support, 10.15);
-  s = markingReducer(s, click('2025-12-12', 11));
-  assert.equal(s.spanAnchor, '2025-12-12');
-  s = markingReducer(s, click('2026-04-15', 11));
-  assert.deepEqual(
-    [s.draft.boxStartDate, s.draft.boxEndDate, s.tool, s.spanAnchor],
-    ['2025-12-12', '2026-04-15', 'idle', null]);
-  assert.ok(draftComplete(s.draft));
+  assert.deepEqual([s.draft.resistance, s.draft.rAnchorDate, s.draft.firstRail, s.tool],
+                   [12.4, '2026-02-10', 'resistance', 'idle']);
+  assert.ok(!draftComplete(s.draft));
+  s = markingReducer(s, { type: 'tool', tool: 'rail-s' });
+  s = markingReducer(s, click('2026-03-05', 10.15));
+  assert.deepEqual([s.draft.support, s.draft.sAnchorDate], [10.15, '2026-03-05']);
+  assert.ok(draftComplete(s.draft)); // rails + anchors = derivable span
+  // Derived span: earlier anchor -> as-of session; explicit x-span wins.
+  assert.deepEqual(effectiveSpan(s.draft, '2026-04-15'),
+                   { start: '2026-02-10', end: '2026-04-15' });
+  const explicit = { ...s.draft, boxStartDate: '2025-12-12', boxEndDate: '2026-04-01' };
+  assert.deepEqual(effectiveSpan(explicit, '2026-04-15'),
+                   { start: '2025-12-12', end: '2026-04-01' });
 });
 
-test('rails clicked in either order: R is always the upper one', () => {
-  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'box' });
-  s = markingReducer(s, click('2026-02-10', 10.15)); // lower first
+test('rails clicked in either order: R is always the upper one, anchors travel with prices', () => {
+  // The operator clicks "R" on the LOW swing first (10.15@02-10), then "S"
+  // lands on the higher swing — prices normalize, and the anchors plus the
+  // first-marked label follow their prices so root-swing intent survives.
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
+  s = markingReducer(s, click('2026-02-10', 10.15));
+  s = markingReducer(s, { type: 'tool', tool: 'rail-s' });
   s = markingReducer(s, click('2026-02-11', 12.4));
-  assert.equal(s.draft.resistance, 12.4);
-  assert.equal(s.draft.support, 10.15);
+  assert.deepEqual(
+    [s.draft.resistance, s.draft.rAnchorDate, s.draft.support, s.draft.sAnchorDate],
+    [12.4, '2026-02-11', 10.15, '2026-02-10']);
+  assert.equal(s.draft.firstRail, 'support'); // the first-marked extreme is now S
 });
 
 test('span clicked backwards is ordered', () => {
@@ -54,24 +62,14 @@ test('single-rail tools re-place one rail and disarm', () => {
   assert.deepEqual([s.draft.support, s.tool], [10.3, 'idle']);
 });
 
-test('box tool on a complete draft adjusts the nearest rail and stays armed', () => {
-  const complete = {
-    ...emptyDraft(), resistance: 12.4, support: 10.15,
-    boxStartDate: '2025-12-12', boxEndDate: '2026-04-15',
-  };
-  let s = markingReducer(initialMarkingState(complete), { type: 'tool', tool: 'box' });
-  // Click near R → R moves; the wick snap still decides the value.
-  s = markingReducer(s, { type: 'chart-click', date: '2026-03-01', price: 12.1,
-                          bar: { high: 12.55, low: 10.4 } });
-  assert.deepEqual([s.draft.resistance, s.draft.support], [12.55, 10.15]);
-  assert.equal(s.tool, 'box'); // armed for iterative nudging
-  // Click near S → S moves; nothing else does.
-  s = markingReducer(s, { type: 'chart-click', date: '2026-03-02', price: 10.4,
-                          bar: { high: 12.0, low: 10.05 } });
-  assert.deepEqual([s.draft.resistance, s.draft.support], [12.55, 10.05]);
-  assert.deepEqual([s.draft.boxStartDate, s.draft.boxEndDate],
-                   ['2025-12-12', '2026-04-15']);
-  assert.equal(statusText(s), 'click near a rail to move it (Esc done)');
+test('re-placing a rail moves its anchor too', () => {
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
+  s = markingReducer(s, click('2026-02-10', 12.4));
+  s = markingReducer(s, { type: 'tool', tool: 'rail-r' });
+  s = markingReducer(s, click('2026-03-01', 12.55));
+  assert.deepEqual([s.draft.resistance, s.draft.rAnchorDate],
+                   [12.55, '2026-03-01']);
+  assert.equal(s.draft.firstRail, 'resistance'); // first-marked label is sticky
 });
 
 test('event tool: two ordered clicks append a typed event', () => {
@@ -104,13 +102,14 @@ test('switching tools drops a half-placed span anchor', () => {
 });
 
 test('negative verdict drops all geometry and ignores chart clicks', () => {
-  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'box' });
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
   s = markingReducer(s, click('2026-02-10', 12.4));
   s = markingReducer(s, { type: 'verdict', verdict: 'no_structure' });
   assert.equal(s.draft.resistance, null);
+  assert.equal(s.draft.rAnchorDate, null);
   assert.equal(s.draft.verdict, 'no_structure');
   assert.ok(draftComplete(s.draft)); // negatives are complete by definition
-  const after = markingReducer(markingReducer(s, { type: 'tool', tool: 'box' }),
+  const after = markingReducer(markingReducer(s, { type: 'tool', tool: 'rail-r' }),
                                click('2026-02-10', 12.4));
   assert.equal(after.draft.resistance, null); // clicks stay inert
 });
@@ -129,11 +128,11 @@ test('frameKeyOf binds ticker, session and digest', () => {
 });
 
 test('statusText names the next placement', () => {
-  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'box' });
+  let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });
   assert.match(statusText(s), /resistance/);
-  s = markingReducer(s, click('2026-02-10', 12.4));
+  s = markingReducer(s, { type: 'tool', tool: 'rail-s' });
   assert.match(statusText(s), /support/);
-  s = markingReducer(s, click('2026-02-11', 10.15));
+  s = markingReducer(s, { type: 'tool', tool: 'span' });
   assert.match(statusText(s), /START bar/);
   s = markingReducer(s, click('2025-12-12', 11));
   assert.match(statusText(s), /END bar/);
@@ -194,6 +193,24 @@ test('markPayloadFromDraft echoes identity and provenance from the chart payload
   // A negative payload carries NO geometry, whatever the draft held.
   const n = markPayloadFromDraft({ ...draft, verdict: 'no_structure' }, chartData, {});
   assert.deepEqual(
-    [n.resistance, n.support, n.box_start_date, n.box_end_date, n.events],
-    [null, null, null, null, []]);
+    [n.resistance, n.support, n.box_start_date, n.box_end_date,
+     n.r_anchor_date, n.s_anchor_date, n.first_rail, n.events],
+    [null, null, null, null, null, null, null, []]);
+});
+
+test('markPayloadFromDraft derives the span from anchors and echoes them', () => {
+  const chartData = {
+    ticker: 'YPF', as_of_session: '2026-05-18', data_regime: 'as_traded',
+    engine_config_version: 'cfg', anchor_close: 47.48, frame_digest: 'e'.repeat(64),
+  };
+  const draft = {
+    ...emptyDraft(), resistance: 44.0, support: 41.35,
+    rAnchorDate: '2026-04-08', sAnchorDate: '2026-04-15', firstRail: 'resistance',
+  };
+  const p = markPayloadFromDraft(draft, chartData, {});
+  // start = the earlier anchor, end = the as-of session (never a hand-drawn
+  // sliver again); anchors + first-marked rail ride along as provenance.
+  assert.deepEqual([p.box_start_date, p.box_end_date], ['2026-04-08', '2026-05-18']);
+  assert.deepEqual([p.r_anchor_date, p.s_anchor_date, p.first_rail],
+                   ['2026-04-08', '2026-04-15', 'resistance']);
 });

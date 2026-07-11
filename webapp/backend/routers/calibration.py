@@ -264,6 +264,9 @@ class MarkIn(BaseModel):
     support: Optional[float] = None
     box_start_date: Optional[str] = None
     box_end_date: Optional[str] = None
+    r_anchor_date: Optional[str] = None
+    s_anchor_date: Optional[str] = None
+    first_rail: Optional[str] = None
     rails_source: str = "operator"
     knowable_from_date: Optional[str] = None
     note: Optional[str] = None
@@ -289,6 +292,9 @@ class MarkOut(BaseModel):
     support: Optional[float] = None
     box_start_date: Optional[str] = None
     box_end_date: Optional[str] = None
+    r_anchor_date: Optional[str] = None
+    s_anchor_date: Optional[str] = None
+    first_rail: Optional[str] = None
     rails_source: str
     knowable_from_date: Optional[str] = None
     note: Optional[str] = None
@@ -339,8 +345,9 @@ def _reject_unbound(payload: MarkIn):
 
 def _apply_payload(mark: CalibrationMark, payload: MarkIn):
     for field in ("ticker", "as_of_date", "label", "verdict", "resistance",
-                  "support", "box_start_date", "box_end_date", "rails_source",
-                  "knowable_from_date", "note", "data_regime",
+                  "support", "box_start_date", "box_end_date",
+                  "r_anchor_date", "s_anchor_date", "first_rail",
+                  "rails_source", "knowable_from_date", "note", "data_regime",
                   "engine_config_version", "anchor_close", "frame_digest"):
         setattr(mark, field, getattr(payload, field))
     mark.ticker = mark.ticker.strip().upper()

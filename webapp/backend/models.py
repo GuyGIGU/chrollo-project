@@ -227,6 +227,13 @@ class CalibrationMark(Base):
     support = Column(Float, nullable=True)
     box_start_date = Column(String, nullable=True)  # ISO
     box_end_date = Column(String, nullable=True)    # ISO
+    # Rail anchors (2026-07-11): the swing BAR each rail was placed on, plus
+    # which rail the operator marked first — together they carry the root
+    # swing he was aiming at (comparable to the engine's chronological pair
+    # anchors). Nullable: negatives and pre-anchor marks have none.
+    r_anchor_date = Column(String, nullable=True)   # ISO
+    s_anchor_date = Column(String, nullable=True)   # ISO
+    first_rail = Column(String, nullable=True)      # "resistance" | "support"
     rails_source = Column(String, nullable=False, default="operator")  # "operator" | "extraction"
     knowable_from_date = Column(String, nullable=True)  # earliest session the verdict is fairly knowable
     note = Column(Text, nullable=True)  # the operator's reason (negatives especially)

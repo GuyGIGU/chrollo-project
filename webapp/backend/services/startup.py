@@ -197,6 +197,12 @@ _MIGRATIONS = [
     # never had the column raises "no such column", which the runner treats as
     # already-applied.
     "ALTER TABLE setup_archive DROP COLUMN score_oscillation",
+    # Calibration marks: rail anchors + first-marked rail (2026-07-11) — the
+    # swing bar each rail was placed on carries the operator's root-swing
+    # intent; nullable, so pre-anchor marks stay valid.
+    "ALTER TABLE calibration_marks ADD COLUMN r_anchor_date VARCHAR",
+    "ALTER TABLE calibration_marks ADD COLUMN s_anchor_date VARCHAR",
+    "ALTER TABLE calibration_marks ADD COLUMN first_rail VARCHAR",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

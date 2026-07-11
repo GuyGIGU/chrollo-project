@@ -97,11 +97,16 @@ def _payload(digest, **overrides):
 
 
 def test_create_round_trips_every_field(db, digest):
-    saved = MarkOut.model_validate(create_mark(_payload(digest, ticker="bodi"), db))
+    saved = MarkOut.model_validate(create_mark(_payload(
+        digest, ticker="bodi", r_anchor_date="2025-12-12",
+        s_anchor_date="2026-01-20", first_rail="resistance"), db))
     assert saved.ticker == "BODI"  # normalized at the boundary
     assert (saved.verdict, saved.revision, saved.label) == ("box", 1, "")
     assert (saved.resistance, saved.support) == (12.40, 10.15)
     assert (saved.box_start_date, saved.box_end_date) == ("2025-12-12", "2026-04-15")
+    # Rail anchors + the first-marked rail persist and echo (root-swing intent).
+    assert (saved.r_anchor_date, saved.s_anchor_date, saved.first_rail) == (
+        "2025-12-12", "2026-01-20", "resistance")
     assert (saved.data_regime, saved.engine_config_version) == ("as_traded", "test-config")
     assert saved.anchor_close == 11.02
     assert saved.frame_digest == digest

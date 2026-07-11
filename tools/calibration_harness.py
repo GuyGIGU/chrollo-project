@@ -56,7 +56,8 @@ def _mark_dict(mark) -> dict:
     """ORM row -> the model-shaped dict the shared judgment expects."""
     d = {c: getattr(mark, c) for c in (
         "ticker", "as_of_date", "label", "verdict", "resistance", "support",
-        "box_start_date", "box_end_date", "rails_source", "knowable_from_date",
+        "box_start_date", "box_end_date", "r_anchor_date", "s_anchor_date",
+        "first_rail", "rails_source", "knowable_from_date",
         "note", "data_regime", "engine_config_version", "anchor_close",
         "frame_digest")}
     d["events"] = [{

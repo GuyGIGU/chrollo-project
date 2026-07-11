@@ -75,6 +75,29 @@ def test_box_end_after_as_of_rejected():
         _payload(box_end_date="2026-05-01")))
 
 
+def test_rail_anchors_optional_but_judged_when_present():
+    # Anchors are optional (pre-anchor marks have none) …
+    assert validate_mark(_payload()) == []
+    # … valid when well-formed …
+    assert validate_mark(_payload(r_anchor_date="2026-01-10",
+                                  s_anchor_date="2026-02-03",
+                                  first_rail="resistance")) == []
+    # … and judged when present: shape, at/before as-of, closed first_rail set.
+    assert any("not YYYY-MM-DD" in p for p in validate_mark(
+        _payload(r_anchor_date="Jan 10 2026")))
+    assert any("after as_of_date" in p for p in validate_mark(
+        _payload(s_anchor_date="2026-05-01")))
+    assert any("first_rail" in p for p in validate_mark(
+        _payload(first_rail="upper")))
+
+
+def test_negative_mark_with_anchors_is_ambiguous():
+    problems = validate_mark(_payload(
+        verdict="no_structure", resistance=None, support=None,
+        box_start_date=None, box_end_date=None, first_rail="support"))
+    assert any("carries geometry (first_rail)" in p for p in problems)
+
+
 def test_strict_ticker_grammar_rejects():
     for bad in ("bodi", "", "A" * 11, "../BODI", "BODI;--", "CON:"):
         assert any("grammar" in p for p in validate_mark(_payload(ticker=bad))), bad

@@ -4,6 +4,7 @@ import CandleChart from './CandleChart';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
+import CalibrationTickerStrip from './CalibrationTickerStrip';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
@@ -89,8 +90,11 @@ function CalibrationTab() {
   barsRef.current = barsByDate;
 
   // Save workflow (Task 12): marks CRUD + label/note + worklist queue.
-  const { marks, saving, saveError, tally, refresh, saveMark, removeMark } =
-    useCalibrationMarks();
+  const { marks, saving, saveError, tally, summary,
+          refresh, refreshSummary, saveMark, removeMark } = useCalibrationMarks();
+  useEffect(() => { refreshSummary(); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []);
   const [label, setLabel] = useState('');
   const [note, setNote] = useState('');
   const [wlItems, setWlItems] = useState([]);
@@ -182,7 +186,7 @@ function CalibrationTab() {
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      const tool = { b: 'box', r: 'rail-r', s: 'rail-s', x: 'span',
+      const tool = { r: 'rail-r', s: 'rail-s', x: 'span',
                      c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test' }[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
@@ -323,6 +327,7 @@ function CalibrationTab() {
         state={marking}
         dispatch={dispatchMarking}
         disabled={!chartData}
+        asOfSession={chartData?.as_of_session}
       />
 
       <CalibrationSaveBar
@@ -411,6 +416,12 @@ function CalibrationTab() {
         editingId={marking.editingId}
         onEdit={editMark}
         onDelete={(id) => removeMark(id, chartData?.ticker)}
+      />
+
+      <CalibrationTickerStrip
+        summary={summary}
+        activeTicker={chartData?.ticker}
+        onPick={(t, latestAsOf) => { setTicker(t); lookup(t, latestAsOf); }}
       />
     </div>
   );
