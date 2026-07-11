@@ -118,3 +118,11 @@ def test_same_election_identity():
     assert not same_election(a, {**a, "S": 60.0})
     with pytest.raises(ValueError):
         rails_match(float("inf"), 85.0, 93.0, 85.0)
+
+
+def test_ungraded_rows_stay_inside_the_closed_set():
+    from tools.agreement import ungraded
+    row = ungraded("basis_mismatch", "no frozen frame matches")
+    assert row["outcome"] in OUTCOMES and "detail" in row
+    with pytest.raises(ValueError):
+        ungraded("basis_mismtach", "typo'd literal must fail HERE, not in tally")

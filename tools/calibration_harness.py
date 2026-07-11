@@ -47,9 +47,9 @@ from core.freeze.manifest import manifest_hash
 from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC
 from tools import agreement, replay
 
-# Frozen with the report format: how far the engine read may snap back from a
-# mark's as-of when nothing elects there (elections are day-sensitive).
-SNAP_BACK_SESSIONS = 5
+# The day-snap policy is OWNED by the replay seam (one value, every
+# instrument): re-exported here only for report stamping.
+SNAP_BACK_SESSIONS = replay.SNAP_BACK_SESSIONS
 
 
 def _mark_dict(mark) -> dict:
@@ -112,25 +112,34 @@ def _projection(structure, df) -> dict | None:
 def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
               election=replay.snapped_election) -> list[dict]:
     """One mark graded under every variant (ONE snapped walk). Returns one
-    row per variant: {outcome, ..., snapped, eval_session, frame_source}."""
+    row per variant: {outcome, ..., snapped, eval_session}."""
     from webapp.backend import frame_store
 
+    # Digest-resolved load: the store returns whichever frozen rendering
+    # matches THIS mark's digest (the base freeze, or the restatement sibling
+    # it was actually drawn on) — a mark is never silently replayed on bars
+    # its rails weren't drawn against.
     loader = frame_loader or frame_store.load_frame
-    frozen = loader(mark["ticker"], mark["as_of_date"])
+    frozen = loader(mark["ticker"], mark["as_of_date"],
+                    digest=mark.get("frame_digest"))
     if frozen is None:
-        return [{"outcome": "basis_mismatch",
-                 "detail": "no frozen frame for this mark — refetch its chart once"}
+        return [agreement.ungraded("basis_mismatch",
+                                   "no frozen frame matches this mark's digest — "
+                                   "the frame store lost its basis")
                 for _ in variants]
-    basis_ok = (mark.get("frame_digest") is not None
-                and frame_store.ohlcv_digest(frozen) == mark["frame_digest"])
-    if not basis_ok:
-        return [agreement.grade_mark(mark, None, basis_ok=False) for _ in variants]
 
-    snapped = election(frozen, mark["as_of_date"], variants,
-                       snap_back=SNAP_BACK_SESSIONS)
+    # Negative verdicts assert "the engine reads nothing at THIS session" and
+    # are graded there only (snap 0). The snap-back walk exists for box
+    # verdicts — day-sensitive elections must be shown where they EXIST;
+    # hunting prior sessions to convict a negative would bias
+    # upheld_over_negatives on days the operator asserted nothing about.
+    # Changing either policy is a deliberate re-freeze event.
+    snap = SNAP_BACK_SESSIONS if mark["verdict"] == "box" else 0
+    snapped = election(frozen, mark["as_of_date"], variants, snap_back=snap)
     if snapped is None:
-        return [{"outcome": "edge_uncertain",
-                 "detail": "prep refuses every candidate session (frame too thin)"}
+        return [agreement.ungraded("edge_uncertain",
+                                   "prep refuses every candidate session "
+                                   "(frame too thin)")
                 for _ in variants]
     (df, _atr, reads), eval_ts, snapped_k = snapped
     frame_start = df.index[0].strftime("%Y-%m-%d")
@@ -157,8 +166,13 @@ def parse_variant(spec: str) -> dict:
     return {name.strip(): value}
 
 
-def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> bool:
+def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> None:
+    """Score and print the report. An INSTRUMENT, not a gate — there is no
+    pass/fail; agreement regressions are read by humans, not exit codes."""
     import database  # noqa: PLC0415 — binds the live SQLite (read-only usage)
+
+    if json_out:
+        _refuse_sealed_output(json_out)
 
     variants: list[dict] = [{}] + [parse_variant(s) for s in variant_specs]
     labels = ["baseline"] + variant_specs
@@ -170,7 +184,7 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> b
         session.close()   # released before any engine work; never committed
     if not marks:
         print("no calibration marks saved yet — mark charts on /calibration first")
-        return True
+        return
 
     fingerprint = marks_fingerprint(marks)
     t0 = time.perf_counter()
@@ -222,7 +236,16 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> b
         with open(json_out, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, default=str)
         print(f"\nreport -> {json_out}")
-    return True
+
+
+def _refuse_sealed_output(json_out: str) -> None:
+    """The one write this tool performs must never reach the sealed corpus
+    (EC-7/EC-9): a mistyped --json path could clobber a docs/marks spec."""
+    sealed = os.path.abspath(os.path.join(_PROJECT_ROOT, "docs", "marks"))
+    target = os.path.abspath(json_out)
+    if target == sealed or target.startswith(sealed + os.sep):
+        raise ValueError(f"--json refuses paths under the sealed corpus "
+                         f"({sealed}) — write the report elsewhere")
 
 
 def main() -> None:
@@ -236,11 +259,10 @@ def main() -> None:
     ap.add_argument("--json", default=None, help="also write the report JSON here")
     a = ap.parse_args()
     try:
-        ok = run(a.ticker, a.variant, a.json)
+        run(a.ticker, a.variant, a.json)
     except ValueError as e:
         print(str(e))
         sys.exit(2)
-    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

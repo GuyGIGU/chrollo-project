@@ -574,6 +574,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             "_stability_same_frac": _probe["same_frac"],
             "_stability_streak": int(_probe["streak"]),
             "_stability_probes": int(_probe["probes"]),
+            "_stability_refused": int(_probe["refused"]),
         }
 
     return {

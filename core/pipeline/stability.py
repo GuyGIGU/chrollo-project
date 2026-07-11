@@ -45,8 +45,12 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
       * ``same_frac``  — fraction of probes electing the SAME reading
       * ``streak``     — consecutive same-reading days walking back from D-1
       * ``probes``     — shifts attempted (the k actually available)
-    A shift where the prep refuses or a different/no structure elects counts
-    as not-same: "the engine read nothing yesterday" is not persistence.
+      * ``refused``    — probes where the eval-twin PREP refused the shifted
+        frame (universe-gate flicker — SMA/volume/price membership, not chart
+        structure). Refusals count as not-same in ``same_frac`` ("the engine
+        read nothing yesterday" is not persistence) but are reported apart so
+        calibration can tell gate-flicker from election-flicker afterward.
+    A shift where a different/no structure elects also counts as not-same.
     """
     from core.pipeline.evaluation import _prepare_eval_frame  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
     from core.structure.narrative import read_structure
@@ -54,12 +58,14 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
     reference = _projection(reference_structure, reference_df)
     lookback = int(settings.ELECTION_STABILITY_LOOKBACK)
     same_flags = []
+    refused = 0
     for shift in range(1, lookback + 1):
         if len(raw_df) <= shift:
             break
         prep = _prepare_eval_frame(raw_df.iloc[:-shift])
         if prep is None:
             same_flags.append(False)
+            refused += 1
             continue
         df_j = prep["df"]
         atr_j = float(df_j.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
@@ -80,4 +86,5 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
         "same_frac": (sum(same_flags) / probes) if probes else None,
         "streak": streak,
         "probes": probes,
+        "refused": refused,
     }

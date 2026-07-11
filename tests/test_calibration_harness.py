@@ -21,13 +21,19 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
-from tools import agreement  # noqa: E402
+from tools import agreement, replay  # noqa: E402
 from tools.calibration_harness import (  # noqa: E402
+    _refuse_sealed_output,
     grade_one,
     load_marks,
     marks_fingerprint,
     parse_variant,
 )
+
+
+def _loader(frame):
+    """A fake frame_store.load_frame honoring its digest-resolved signature."""
+    return lambda ticker, as_of, digest=None: frame
 
 
 @pytest.fixture()
@@ -65,10 +71,13 @@ def _add_mark(session, **overrides):
     session.commit()
 
 
-def _election_returning(structure):
+def _election_returning(structure, seen_snaps=None):
     """A fake snapped election: every variant sees ``structure`` on the
-    as-of session, never snapped."""
+    as-of session, never snapped. ``seen_snaps`` records the snap_back the
+    harness asked for (the per-verdict policy pin)."""
     def _run(frozen, as_of, variants, snap_back=5):
+        if seen_snaps is not None:
+            seen_snaps.append(snap_back)
         df = frozen.loc[:pd.Timestamp(as_of)]
         return (df, 1.0, [structure for _ in variants]), df.index[-1], 0
     return _run
@@ -87,7 +96,7 @@ def test_bite_forced_never_match(session):
               resistance=None, support=None,
               box_start_date=None, box_end_date=None)
     marks = load_marks(session)
-    rows = [grade_one(m, [{}], frame_loader=lambda t, d: _FROZEN,
+    rows = [grade_one(m, [{}], frame_loader=_loader(_FROZEN),
                       election=_election_returning(None))[0] for m in marks]
     t = agreement.tally(rows)
     assert t["counts"]["match"] == 0
@@ -99,20 +108,43 @@ def test_bite_forced_always_match(session):
     _add_mark(session)
     marks = load_marks(session)
     exact = _Read(R=12.0, S=10.0, start_bar=0)  # bar 0 = 2026-01-05 = drawn start
-    rows = [grade_one(m, [{}], frame_loader=lambda t, d: _FROZEN,
+    rows = [grade_one(m, [{}], frame_loader=_loader(_FROZEN),
                       election=_election_returning(exact))[0] for m in marks]
     assert agreement.tally(rows)["match_over_scored"] == 1.0
 
 
-def test_digest_mismatch_grades_basis_and_missing_frame_named(session):
+def test_negatives_grade_at_the_asserted_session_only(session):
+    # The snap-back walk is a BOX policy; hunting prior sessions to convict a
+    # negative would bias upheld_over_negatives (Council finding 6).
+    _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
+              resistance=None, support=None,
+              box_start_date=None, box_end_date=None)
+    _add_mark(session)  # the box mark, as-of 04-15
+    seen = []
+    for m in load_marks(session):  # ordered by as_of: negative first
+        grade_one(m, [{}], frame_loader=_loader(_FROZEN),
+                  election=_election_returning(None, seen_snaps=seen))
+    assert seen == [0, replay.SNAP_BACK_SESSIONS]
+
+
+def test_unresolved_digest_grades_basis_mismatch(session, tmp_path, monkeypatch):
+    # Through the REAL digest-resolved loader: a mark whose digest matches no
+    # frozen rendering is named, never replayed on other bars.
+    import frame_store as bare_frame_store
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
+    monkeypatch.setattr(bare_frame_store, "FRAMES_DIR", str(tmp_path))
+    frame_store.freeze_frame("BODI", "2026-04-15", _FROZEN)
     _add_mark(session, frame_digest="0" * 64)
-    marks = load_marks(session)
-    row = grade_one(marks[0], [{}], frame_loader=lambda t, d: _FROZEN,
+    row = grade_one(load_marks(session)[0], [{}],
                     election=_election_returning(None))[0]
     assert row["outcome"] == "basis_mismatch"
-    row = grade_one(marks[0], [{}], frame_loader=lambda t, d: None,
+    assert "no frozen frame matches" in row["detail"]
+    # And the matching digest resolves fine through the same real loader.
+    session.query(CalibrationMark).first().frame_digest = _DIGEST
+    session.commit()
+    row = grade_one(load_marks(session)[0], [{}],
                     election=_election_returning(None))[0]
-    assert row["outcome"] == "basis_mismatch" and "no frozen frame" in row["detail"]
+    assert row["outcome"] == "engine_no_read"
 
 
 def test_malformed_row_aborts_naming_the_offender(session):
@@ -125,20 +157,29 @@ def test_malformed_row_aborts_naming_the_offender(session):
 
 
 def test_full_grading_pass_is_read_only(session):
+    # The pin covers EVERY mark column and the events rows (the fingerprint
+    # canonicalizes the whole mark dict, order-free): the path of least
+    # resistance to better numbers must never be to "correct" ground truth.
     _add_mark(session)
-    before = [tuple(vars(m)[k] for k in ("ticker", "as_of_date", "revision",
-                                         "updated_at", "resistance"))
-              for m in session.query(CalibrationMark).all()]
-    marks = load_marks(session)
-    for m in marks:
+    _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
+              resistance=None, support=None,
+              box_start_date=None, box_end_date=None)
+    before = marks_fingerprint(load_marks(session))
+    for m in load_marks(session):
         grade_one(m, [{}, {"BAND_RAILS_ENABLED": True}],
-                  frame_loader=lambda t, d: _FROZEN,
+                  frame_loader=_loader(_FROZEN),
                   election=_election_returning(None))
     session.expire_all()
-    after = [tuple(vars(m)[k] for k in ("ticker", "as_of_date", "revision",
-                                        "updated_at", "resistance"))
-             for m in session.query(CalibrationMark).all()]
-    assert before == after
+    assert marks_fingerprint(load_marks(session)) == before
+
+
+def test_json_output_refuses_the_sealed_corpus(tmp_path):
+    import os
+    sealed = os.path.join(str(ROOT), "docs", "marks", "report.json")
+    with pytest.raises(ValueError) as err:
+        _refuse_sealed_output(sealed)
+    assert "sealed corpus" in str(err.value)
+    _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
 
 
 def test_fingerprint_is_order_free_and_content_bound(session):

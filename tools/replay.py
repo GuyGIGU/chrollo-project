@@ -77,20 +77,16 @@ def _live_panel() -> pd.DataFrame:
     return _LIVE_PANEL
 
 
-def resolve_frame(ticker: str, *, sealed: dict | None = None,
-                  as_of: str | None = None):
+def resolve_frame(ticker: str, *, sealed: dict | None = None):
     """(raw_frame, source_label) for ``ticker``, or (None, reason).
 
-    Source order and labels are decided HERE, once: the frozen calibration
-    frame for (ticker, as_of) when an as-of is given (the frame the operator
-    actually marked on — Task 7), then the sealed corpus fixture (pass a
-    preloaded dict to avoid re-reading it per call), then the live 5y cache.
+    Source order and labels are decided HERE, once: the sealed corpus fixture
+    (pass a preloaded dict to avoid re-reading it per call), then the live 5y
+    cache. FROZEN calibration frames are deliberately NOT resolved here —
+    their policy is frozen-or-refuse (a mark must never silently replay on
+    fallback data), and ``webapp.backend.frame_store.load_frame`` (digest-
+    resolved) is their one door; the agreement harness goes through it.
     """
-    if as_of is not None:
-        from webapp.backend.frame_store import load_frame  # noqa: PLC0415 — pure, root-safe module
-        frozen = load_frame(ticker, as_of)
-        if frozen is not None:
-            return frozen, "calibration frame"
     if sealed is None:
         try:
             sealed, _ = load_sealed_fixture()
@@ -121,14 +117,18 @@ def prepared_frame(raw: pd.DataFrame, as_of) -> tuple[pd.DataFrame, float] | Non
 def flag_capture(**overrides):
     """Toggle engine flags for one capture, guaranteed restored — even on a
     crash mid-capture. Refuses unknown flag names loudly: a typo'd override
-    that silently does nothing measures the wrong engine."""
-    prior = {}
-    for name, value in overrides.items():
+    that silently does nothing measures the wrong engine.
+
+    ALL names are validated before ANY flag is set — a typo in the second
+    name of a multi-flag override must not leave the first one flipped with
+    the restoring finally never entered."""
+    for name in overrides:
         if not hasattr(settings, name):
             raise AttributeError(f"flag_capture: settings.{name} does not exist")
-        prior[name] = getattr(settings, name)
-        setattr(settings, name, value)
+    prior = {name: getattr(settings, name) for name in overrides}
     try:
+        for name, value in overrides.items():
+            setattr(settings, name, value)
         yield
     finally:
         for name, value in prior.items():
@@ -141,11 +141,14 @@ def read_structure_under(df: pd.DataFrame, atr: float, overrides: dict):
         return read_structure(df, atr)
 
 
-_SNAP_BACK = 5   # sessions to walk back from a requested eval day
+# The ONE day-snap policy: how far a replay may walk back from a requested
+# eval day when nothing elects there. Every instrument (A/B render, agreement
+# harness) imports THIS value; changing it is a deliberate re-freeze event.
+SNAP_BACK_SESSIONS = 5
 
 
 def snapped_election(raw: pd.DataFrame, span_end, variants: list[dict],
-                     *, snap_back: int = _SNAP_BACK):
+                     *, snap_back: int = SNAP_BACK_SESSIONS):
     """The reads at the last session <= ``span_end`` where ANY variant elects
     a structure — or, when none elects there, the most recent prior session
     (within ``snap_back``) where one does. Elections are day-sensitive; the

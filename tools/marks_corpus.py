@@ -54,20 +54,16 @@ from config import settings
 from core.pipeline.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
 
-try:  # the shared replay layer owns fixture paths + loading (Task 6 fold)
-    from tools.replay import (
-        BASELINE_DIR as _BASELINE_DIR,
-        SEALED_BASELINE_JSON as _BASELINE_JSON,
-        SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
-        load_sealed_fixture,
-    )
-except ModuleNotFoundError:
-    from replay import (
-        BASELINE_DIR as _BASELINE_DIR,
-        SEALED_BASELINE_JSON as _BASELINE_JSON,
-        SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
-        load_sealed_fixture,
-    )
+# The shared replay layer owns fixture paths + loading (Task 6 fold).
+# No dual-form fallback needed: configure_path() above already put the repo
+# root on sys.path, so `tools.replay` resolves under both documented
+# invocations (band_rails_ab imports it the same way).
+from tools.replay import (
+    BASELINE_DIR as _BASELINE_DIR,
+    SEALED_BASELINE_JSON as _BASELINE_JSON,
+    SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
+    load_sealed_fixture,
+)
 
 # The operator-marks corpus files (EC-7: append-only ground truth under docs/marks/).
 CORPUS_FILES: tuple[str, ...] = (

@@ -9,8 +9,9 @@ never leak into a mean or silently shrink a denominator.
 
 Outcome precedence (documented and pinned): basis_mismatch (the data under
 the mark moved — nothing else is meaningful) > edge_uncertain (the engine
-literally cannot see the structure's left edge on its 2y frame) > the
-verdict-specific outcomes.
+cannot form a complete view at the asserted session: the drawn span's left
+edge is off its 2y frame, or the eval prep refuses every candidate session)
+> the verdict-specific outcomes.
 
 Tolerances are INSTRUMENT parameters (scale-free: fractions of the drawn box
 height, calendar-overlap fractions), passed in and stamped into every report
@@ -40,6 +41,15 @@ OUTCOMES = ("match", "disagree", "engine_no_read", "edge_uncertain",
             "basis_mismatch", "negative_upheld", "negative_violated")
 
 DEFAULT_SPAN_OVERLAP_MIN = 0.5   # calendar-Jaccard floor for "the same box span"
+
+
+def ungraded(outcome: str, detail: str) -> dict:
+    """A row for a mark that could not be scored (missing basis, refused
+    prep). Routing these through the taxonomy keeps the closed set closed by
+    construction — a typo'd literal fails HERE, not as a KeyError in tally."""
+    if outcome not in OUTCOMES:
+        raise ValueError(f"agreement: {outcome!r} is not in the closed outcome set")
+    return {"outcome": outcome, "detail": detail}
 
 
 def _d(value, field: str) -> date:
