@@ -23,6 +23,7 @@ export const CHART_COLORS = {
   gold: '#e3b341', // LPS span + trigger line (modal-weight gold)
   goldMuted: '#d4b85a', // LPS bars on dense mini cards; avg-cost / entry lines
   marking: '#4FCFC4', // calibration draft IN PROGRESS (--myth — the ACTIVE color)
+  markingWash: 'rgba(79, 207, 196, 0.12)', // marking at 12% — the hovered-bar band while a tool is armed
   operator: '#9B70F7', // COMMITTED operator marks (calibration ground truth; --accent-purple — reserved, never an engine-read color)
 };
 

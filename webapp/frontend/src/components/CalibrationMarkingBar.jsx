@@ -12,14 +12,17 @@ import { CHART_FONT } from './chartTheme';
 // parent's markingReducer — this is a dumb strip.
 const fx = (v, d) => ((v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d));
 
+// ONE box tool (place R → S → span, then click-near-a-rail adjusts it) —
+// the separate R/S/Span buttons duplicated the same grammar and read as
+// different features (operator feedback 2026-07-11). Keys r/s/x still arm
+// the surgical single-placement tools; the legend below teaches them.
 const TOOL_LABELS = [
-  ['box', 'Draw box'],
-  ['rail-r', 'R'],
-  ['rail-s', 'S'],
-  ['span', 'Span'],
+  ['box', 'Mark box'],
 ];
 
 const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test' };
+
+const KEY_LEGEND = 'b box · r/s rail · x span · c/l/t event · ⏎ save · n/w negative · ,/. day · e engine';
 
 function CalibrationMarkingBar({ state, dispatch, disabled }) {
   const { tool, draft } = state;
@@ -79,7 +82,9 @@ function CalibrationMarkingBar({ state, dispatch, disabled }) {
       ))}
 
       <span style={{ marginLeft: 'auto', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-        {disabled ? 'load a chart to mark' : statusText(state)}
+        {/* Idle shows the key legend — the shortcuts ARE the fast path and
+            were invisible before (operator never found them). */}
+        {disabled ? 'load a chart to mark' : (statusText(state) || KEY_LEGEND)}
       </span>
     </div>
   );

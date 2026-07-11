@@ -44,7 +44,7 @@ import os
 sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
 
 from core.freeze.manifest import manifest_hash
-from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC
+from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, projection
 from tools import agreement, replay
 
 # The day-snap policy is OWNED by the replay seam (one value, every
@@ -97,18 +97,6 @@ def load_marks(session, ticker: str | None = None) -> list[dict]:
     return out
 
 
-def _projection(structure, df) -> dict | None:
-    """Engine read -> the date-keyed shape the pure metrics expect."""
-    if structure is None:
-        return None
-    return {
-        "R": float(structure.R),
-        "S": float(structure.S),
-        "box_start_date": df.index[int(structure.box.start_bar)].strftime("%Y-%m-%d"),
-        "box_end_date": df.index[-1].strftime("%Y-%m-%d"),
-    }
-
-
 def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
               election=replay.snapped_election) -> list[dict]:
     """One mark graded under every variant (ONE snapped walk). Returns one
@@ -145,7 +133,7 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
     frame_start = df.index[0].strftime("%Y-%m-%d")
     rows = []
     for read in reads:
-        g = agreement.grade_mark(mark, _projection(read, df),
+        g = agreement.grade_mark(mark, projection(read, df),
                                  frame_start=frame_start)
         g.update({"eval_session": eval_ts.strftime("%Y-%m-%d"),
                   "snapped": snapped_k})

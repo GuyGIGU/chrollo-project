@@ -173,6 +173,74 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     }
 
 
+# ── Engine-read overlay ──────────────────────────────────────────────
+
+# One structure read per frame identity per process — a sitting revisits the
+# same frames constantly and the read is pure compute over a frozen file.
+_ENGINE_READS: dict = {}
+
+
+@router.get("/engine-read", dependencies=[Depends(require_same_app)])
+def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
+                            frame_digest: Optional[str] = Query(None)):
+    """The engine's read of a FROZEN calibration frame, through the agreement
+    harness's own lens (``tools.replay.snapped_election`` + the shared
+    ``election_identity.projection``) — what this returns is exactly what the
+    harness would score, never a richer parallel read (one-lens rule, Task 6).
+
+    Frozen-or-refuse: never triggers a vendor fetch — the chart lookup must
+    have frozen this session first. Guarded like the chart GET (it runs a
+    full structure read; drive-by pages don't get to spend that). The UI
+    keeps the overlay default-OFF: the operator marks first, peeks after —
+    anchoring marks on the engine's read corrupts the ground truth.
+    """
+    symbol = ticker.strip().upper()
+    if not TICKER_RE.match(symbol):
+        _refuse(400, "bad_ticker",
+                "ticker must be 1-10 chars of A-Z, 0-9, '.' or '-'", symbol, as_of)
+    if parse_iso_date(as_of) is None:
+        _refuse(400, "bad_date", "as_of must be exactly YYYY-MM-DD", symbol, as_of)
+
+    from frame_store import load_frame  # noqa: PLC0415 — file I/O module, lazy
+    frozen = load_frame(symbol, as_of, digest=frame_digest)
+    if frozen is None:
+        _refuse(404, "unbound_frame",
+                "no frozen frame for this session — load the chart first; the "
+                "engine overlay replays frozen frames only", symbol, as_of)
+
+    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    key = (symbol, as_of, frame_digest or "", manifest_hash())
+    if key in _ENGINE_READS:
+        return _ENGINE_READS[key]
+
+    from core.pipeline.election_identity import projection  # noqa: PLC0415
+    from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+
+    result = {
+        "ticker": symbol,
+        "as_of_session": as_of,
+        "snap_back": replay.SNAP_BACK_SESSIONS,
+        "engine_config_version": manifest_hash(),
+        "elected": False,
+    }
+    snapped = replay.snapped_election(frozen, as_of, [{}])
+    if snapped is None:
+        result["reason"] = "prep refuses every candidate session (frame too thin)"
+    else:
+        (df, _atr, reads), eval_ts, snapped_k = snapped
+        result["eval_session"] = eval_ts.strftime("%Y-%m-%d")
+        result["snapped"] = snapped_k
+        read = projection(reads[0], df)
+        if read is None:
+            result["reason"] = "no structure elects within the snap window"
+        else:
+            result["elected"] = True
+            result.update(read)
+    _ENGINE_READS[key] = result
+    logger.info("engine-read %s@%s elected=%s", symbol, as_of, result["elected"])
+    return result
+
+
 # ── Marks CRUD (Task 4) ──────────────────────────────────────────────
 
 

@@ -24,14 +24,7 @@ Discipline:
 from __future__ import annotations
 
 from config import settings
-
-
-def _projection(structure, df) -> dict:
-    return {
-        "R": float(structure.R),
-        "S": float(structure.S),
-        "box_start_date": df.index[int(structure.box.start_bar)].strftime("%Y-%m-%d"),
-    }
+from core.pipeline.election_identity import projection, same_election
 
 
 def election_stability(raw_df, reference_structure, reference_df) -> dict:
@@ -55,7 +48,7 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
     from core.pipeline.evaluation import _prepare_eval_frame  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
     from core.structure.narrative import read_structure
 
-    reference = _projection(reference_structure, reference_df)
+    reference = projection(reference_structure, reference_df)
     lookback = int(settings.ELECTION_STABILITY_LOOKBACK)
     same_flags = []
     refused = 0
@@ -73,8 +66,7 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
         if structure_j is None:
             same_flags.append(False)
             continue
-        from core.pipeline.election_identity import same_election  # noqa: PLC0415
-        same_flags.append(same_election(reference, _projection(structure_j, df_j)))
+        same_flags.append(same_election(reference, projection(structure_j, df_j)))
 
     probes = len(same_flags)
     streak = 0

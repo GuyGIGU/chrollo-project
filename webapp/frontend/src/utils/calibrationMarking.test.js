@@ -54,6 +54,26 @@ test('single-rail tools re-place one rail and disarm', () => {
   assert.deepEqual([s.draft.support, s.tool], [10.3, 'idle']);
 });
 
+test('box tool on a complete draft adjusts the nearest rail and stays armed', () => {
+  const complete = {
+    ...emptyDraft(), resistance: 12.4, support: 10.15,
+    boxStartDate: '2025-12-12', boxEndDate: '2026-04-15',
+  };
+  let s = markingReducer(initialMarkingState(complete), { type: 'tool', tool: 'box' });
+  // Click near R → R moves; the wick snap still decides the value.
+  s = markingReducer(s, { type: 'chart-click', date: '2026-03-01', price: 12.1,
+                          bar: { high: 12.55, low: 10.4 } });
+  assert.deepEqual([s.draft.resistance, s.draft.support], [12.55, 10.15]);
+  assert.equal(s.tool, 'box'); // armed for iterative nudging
+  // Click near S → S moves; nothing else does.
+  s = markingReducer(s, { type: 'chart-click', date: '2026-03-02', price: 10.4,
+                          bar: { high: 12.0, low: 10.05 } });
+  assert.deepEqual([s.draft.resistance, s.draft.support], [12.55, 10.05]);
+  assert.deepEqual([s.draft.boxStartDate, s.draft.boxEndDate],
+                   ['2025-12-12', '2026-04-15']);
+  assert.equal(statusText(s), 'click near a rail to move it (Esc done)');
+});
+
 test('event tool: two ordered clicks append a typed event', () => {
   let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'event:phase_c' });
   s = markingReducer(s, click('2026-03-20', 7));

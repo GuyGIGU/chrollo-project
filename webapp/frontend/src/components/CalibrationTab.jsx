@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { CrosshairMode } from 'lightweight-charts';
 import CandleChart from './CandleChart';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
+import useEngineRead from '../hooks/useEngineRead';
 import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
+import { attachHoverHighlight } from './calibrationHover';
 import {
   chartTimeToIso,
   draftComplete,
@@ -76,15 +79,6 @@ function CalibrationTab() {
     if (marking.frameKey) draftsRef.current.set(marking.frameKey, marking.draft);
   }, [marking.frameKey, marking.draft]);
 
-  // Retained redraw: runs after the child chart effect on every commit, so a
-  // rebuilt chart (new lookup) is repainted with the loaded draft too.
-  useEffect(() => {
-    // Mythril while drawing; the reserved operator hue once the draft IS a
-    // saved mark being corrected (Task 13 color doctrine).
-    chartApiRef.current?.draw.update(marking.draft, marking.spanAnchor,
-                                     marking.editingId != null);
-  }, [marking, chartData]);
-
   // Bars by date, for snap-to-extreme rail placement.
   const barsByDate = useMemo(() => {
     const map = new Map();
@@ -105,6 +99,41 @@ function CalibrationTab() {
   useEffect(() => { refresh(chartData?.ticker); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chartData?.ticker]);
+
+  // The engine overlay (default OFF, explicit toggle): the operator marks
+  // FIRST and peeks after — anchoring on the engine read corrupts the ground
+  // truth (council watchpoint). What it shows is the agreement harness's own
+  // projection, so "what the engine thinks" here = what agreement scores.
+  const [engineOn, setEngineOn] = useState(false);
+  const { engineRead, engineStatus } = useEngineRead(chartData, engineOn);
+
+  // Saved marks drawn on THIS frame's chart, always (operator bug report
+  // 2026-07-11: with only the draft rendered, saving and starting the next
+  // mark visually erased everything). The mark being edited is excluded —
+  // it IS the draft, already drawn in the operator hue.
+  const savedForFrame = useMemo(() => {
+    if (!chartData) return [];
+    return marks.filter((m) => m.as_of_date === chartData.as_of_session
+      && m.verdict === 'box' && m.id !== marking.editingId);
+  }, [marks, chartData, marking.editingId]);
+
+  // Retained redraw, deliberately dependency-free: it runs after every
+  // commit (including the child chart effect's rebuilds), the draw is
+  // idempotent and cheap, and no state combination can leave the chart
+  // stale. Mythril while drawing; the reserved operator hue once the draft
+  // IS a saved mark being corrected (Task 13 color doctrine).
+  useEffect(() => {
+    const api = chartApiRef.current;
+    if (!api) return;
+    api.draw.update({
+      draft: marking.draft,
+      spanAnchor: marking.spanAnchor,
+      committed: marking.editingId != null,
+      saved: savedForFrame,
+      engine: engineOn ? engineRead : null,
+    });
+    api.hover.setArmed(marking.tool !== 'idle');
+  });
 
   const canSave = !!chartData && draftComplete(marking.draft);
 
@@ -160,6 +189,7 @@ function CalibrationTab() {
       const d = keyDeps.current;
       if (k === 'n') { d.saveNegative('no_structure'); e.preventDefault(); return; }
       if (k === 'w') { d.saveNegative('engine_wrong'); e.preventDefault(); return; }
+      if (k === 'e') { setEngineOn((v) => !v); e.preventDefault(); return; }
       if (e.key === 'Enter') { d.save(); return; }
       if (e.key === ',') { scrubRef.current(-1); return; }
       if (e.key === '.') { scrubRef.current(1); }
@@ -197,6 +227,11 @@ function CalibrationTab() {
       ...baseChartOptions('modal', container.clientWidth, container.clientHeight),
       handleScroll: true,
       handleScale: true,
+      // Normal, not the library-default Magnet: Magnet snaps the crosshair
+      // to each bar's CLOSE, so the line the operator sees jumps away from
+      // the mouse while clicks land at the true pointer position — the
+      // "cursor follows at some margin" placement bug (operator, 2026-07-11).
+      crosshair: { mode: CrosshairMode.Normal },
     }),
     candles: chartData?.candles,
     volumes: chartData?.volumes,
@@ -206,7 +241,8 @@ function CalibrationTab() {
       // The handler reads the CURRENT marking state through a ref (onReady
       // runs once per chart build; the tool changes many times per build).
       const draw = attachCalibrationDraw(series);
-      chartApiRef.current = { series, draw };
+      const hover = attachHoverHighlight(chart, series);
+      chartApiRef.current = { series, draw, hover };
       const onClick = (param) => {
         if (markingRef.current.tool === 'idle') return;
         if (!param?.point || param.time == null) return;
@@ -220,6 +256,7 @@ function CalibrationTab() {
       chart.subscribeClick(onClick);
       return () => {
         chart.unsubscribeClick(onClick);
+        hover.detach();
         draw.detach();
         chartApiRef.current = null;
       };
@@ -264,6 +301,11 @@ function CalibrationTab() {
                     disabled={loading || !chartData.next_session}
                     title={chartData.next_session ? 'Next session' : 'No later session in the fetched window'}>
               day ▶
+            </button>
+            <button type="button" aria-pressed={engineOn}
+                    onClick={() => setEngineOn((v) => !v)}
+                    title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
+              Engine
             </button>
             {/* Provenance figures change on every scrub — mono + tabular so
                 the eye can hold position across adjacent sessions. */}
@@ -329,6 +371,19 @@ function CalibrationTab() {
                 Lookup failed — {failure.class}. {paneBody(false, failure)}
               </div>
             )}
+            {engineOn && (
+              // What the engine thinks, in words — rails land on the chart in
+              // engine ink; this chip carries the session/no-read verdict.
+              <div style={{
+                position: 'absolute', top: 8, right: 8, zIndex: 4,
+                fontSize: 11, fontFamily: CHART_FONT, color: 'var(--text-muted)',
+                fontVariantNumeric: 'tabular-nums',
+                background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
+                borderRadius: 6,
+              }}>
+                {engineLine(engineRead, engineStatus)}
+              </div>
+            )}
             {chartData.warnings?.length > 0 && (
               // Warnings live INSIDE the pane (bottom edge) — the chart's
               // geometry never shifts when a scrub step gains or loses one.
@@ -359,6 +414,19 @@ function CalibrationTab() {
       />
     </div>
   );
+}
+
+function engineLine(engineRead, engineStatus) {
+  if (engineStatus === 'loading') return 'engine: reading…';
+  if (engineStatus) return `engine: ${engineStatus}`;
+  if (!engineRead) return 'engine: —';
+  if (!engineRead.elected) {
+    return `engine: no read${engineRead.reason ? ` — ${engineRead.reason}` : ''}`;
+  }
+  const snap = engineRead.snapped
+    ? ` (snapped −${engineRead.snapped})` : '';
+  return `engine R ${fx(engineRead.R, 2)} / S ${fx(engineRead.S, 2)}`
+    + ` · from ${engineRead.box_start_date} @ ${engineRead.eval_session}${snap}`;
 }
 
 function paneTitle(loading, failure) {

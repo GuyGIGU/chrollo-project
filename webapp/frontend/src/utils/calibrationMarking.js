@@ -98,7 +98,13 @@ function applyClick(state, { date, price, bar }) {
       return { ...state, tool: 'idle', spanAnchor: null,
                draft: { ...draft, boxStartDate: start, boxEndDate: end } };
     }
-    return { ...state, tool: 'idle' };
+    // Complete draft: the one box tool doubles as the adjuster — a click
+    // re-places whichever rail is nearer the RAW click price (the wick snap
+    // still decides the value) and stays armed for iterative nudging. This
+    // replaces the separate R/S buttons, which duplicated the same grammar.
+    const which = Math.abs(price - draft.resistance) <= Math.abs(price - draft.support)
+      ? 'resistance' : 'support';
+    return { ...state, draft: withRail(draft, which, railPrice) };
   }
   if (tool.startsWith('event:')) {
     if (spanAnchor == null) return { ...state, spanAnchor: date };
@@ -163,7 +169,9 @@ export function statusText(state) {
   if (tool === 'span' || (tool === 'box' && nextBoxNeed(draft) === 'span')) {
     return spanAnchor == null ? 'click the box START bar' : 'click the box END bar';
   }
-  if (tool === 'box') return NEED_TEXT[nextBoxNeed(draft)] ?? 'draft complete';
+  if (tool === 'box') {
+    return NEED_TEXT[nextBoxNeed(draft)] ?? 'click near a rail to move it (Esc done)';
+  }
   if (tool.startsWith('event:')) {
     const name = tool.slice('event:'.length).replace('_', ' ');
     return spanAnchor == null ? `click the ${name} START bar` : `click the ${name} END bar`;

@@ -38,6 +38,24 @@ def rails_match(r_a: float, s_a: float, r_b: float, s_b: float,
     return abs(r_a - r_b) <= tol and abs(s_a - s_b) <= tol
 
 
+def projection(structure, df) -> dict | None:
+    """Elected structure -> the date-keyed reading this module's predicate
+    consumes: rails plus the box-start date (box-end is the frame's live
+    right edge by construction). The ONE home — the stability probe, the
+    agreement harness and the calibration engine-read endpoint all project
+    through here, so "the engine's read" is a single shape everywhere.
+    ``None`` passes through so callers can grade no-reads. Bar positions
+    never leave this function (they do not survive a frame shift)."""
+    if structure is None:
+        return None
+    return {
+        "R": float(structure.R),
+        "S": float(structure.S),
+        "box_start_date": df.index[int(structure.box.start_bar)].strftime("%Y-%m-%d"),
+        "box_end_date": df.index[-1].strftime("%Y-%m-%d"),
+    }
+
+
 def same_election(read_a: dict, read_b: dict,
                   *, tol_box_frac: float = DEFAULT_RAIL_TOL_BOX_FRAC) -> bool:
     """One reading, seen from two frames? ``read_*`` are date-keyed

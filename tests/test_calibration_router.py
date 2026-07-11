@@ -30,6 +30,7 @@ from routers.calibration import (  # noqa: E402
     MarkIn,
     MarkOut,
     calibration_chart,
+    calibration_engine_read,
     create_mark,
     delete_mark,
     list_marks,
@@ -219,16 +220,96 @@ def test_same_app_guard_rejects_foreign_and_missing_header():
 
 
 def test_every_side_effectful_route_declares_the_guard():
-    # Every mutating route AND the chart GET (it spends the vendor bucket and
-    # freezes frames — Council finding 11): guarded, drive-by pages excluded.
+    # Every mutating route AND the expensive GETs: /chart spends the vendor
+    # bucket and freezes frames (Council finding 11); /engine-read runs a
+    # full structure read. Guarded, drive-by pages excluded.
+    guarded_gets = {"/calibration/chart", "/calibration/engine-read"}
+    seen = {route.path for route in calibration.router.routes}
+    assert guarded_gets <= seen  # the pin covers routes that actually exist
     for route in calibration.router.routes:
         methods = getattr(route, "methods", set()) or set()
         side_effectful = bool(methods & {"POST", "PUT", "DELETE", "PATCH"})
-        if route.path.endswith("/chart"):
+        if route.path in guarded_gets:
             side_effectful = True
         if side_effectful:
             deps = [d.call for d in route.dependant.dependencies]
             assert require_same_app in deps, route.path
+
+
+# ── Engine-read overlay ──────────────────────────────────────────────
+
+
+def _fake_structure(r=93.7, s=85.53, start_bar=0):
+    from types import SimpleNamespace
+    return SimpleNamespace(R=r, S=s, box=SimpleNamespace(start_bar=start_bar))
+
+
+@pytest.fixture()
+def engine_reads_isolated(monkeypatch):
+    """Fresh per-test overlay cache (module scope by design in the router)."""
+    monkeypatch.setattr(calibration, "_ENGINE_READS", {})
+
+
+def test_engine_read_refuses_unfrozen_frame(digest, engine_reads_isolated):
+    # Frozen-or-refuse: an overlay for a frame nobody froze must 404, never
+    # fetch — the vendor path does not exist on this endpoint.
+    with pytest.raises(HTTPException) as err:
+        # frame_digest passed explicitly: called directly (no FastAPI layer),
+        # the parameter default would otherwise be the Query sentinel object.
+        calibration_engine_read(ticker="ZZZQ", as_of="2026-04-15",
+                                frame_digest=None)
+    assert err.value.status_code == 404
+    assert err.value.detail["class"] == "unbound_frame"
+
+
+def test_engine_read_projects_through_the_harness_lens(
+        digest, engine_reads_isolated, monkeypatch):
+    import tools.replay as replay
+    df = _bound_frame()
+    calls = []
+
+    def fake_snapped(frozen, span_end, variants, **kw):
+        calls.append((span_end, tuple(variants)))
+        return (df, 1.0, [_fake_structure()]), pd.Timestamp("2026-04-14"), 1
+
+    monkeypatch.setattr(replay, "snapped_election", fake_snapped)
+    body = calibration_engine_read(ticker="bodi", as_of="2026-04-15",
+                                   frame_digest=digest)
+    assert body["elected"] is True
+    assert (body["R"], body["S"]) == (93.7, 85.53)
+    assert body["box_start_date"] == "2026-04-13"  # date-keyed, never a bar index
+    assert body["box_end_date"] == "2026-04-15"    # the frame's right edge
+    assert (body["eval_session"], body["snapped"]) == ("2026-04-14", 1)
+    assert body["snap_back"] == replay.SNAP_BACK_SESSIONS
+    # The harness's own walk: baseline variant only, at the mark's session.
+    assert calls == [("2026-04-15", ({},))]
+
+    # Second hit serves the per-frame cache — never a second structure read.
+    monkeypatch.setattr(replay, "snapped_election",
+                        lambda *a, **k: pytest.fail("recomputed a cached read"))
+    again = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
+                                    frame_digest=digest)
+    assert again is body
+
+
+def test_engine_read_reports_no_read_honestly(
+        digest, engine_reads_isolated, monkeypatch):
+    import tools.replay as replay
+    df = _bound_frame()
+    monkeypatch.setattr(
+        replay, "snapped_election",
+        lambda *a, **k: ((df, 1.0, [None]), pd.Timestamp("2026-04-15"), 0))
+    body = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
+                                   frame_digest=digest)
+    assert body["elected"] is False
+    assert "no structure elects" in body["reason"]
+
+    calibration._ENGINE_READS.clear()
+    monkeypatch.setattr(replay, "snapped_election", lambda *a, **k: None)
+    body = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
+                                   frame_digest=digest)
+    assert body["elected"] is False
+    assert "prep refuses" in body["reason"]
 
 
 # ── Chart endpoint: offline degraded-outcome list ────────────────────
