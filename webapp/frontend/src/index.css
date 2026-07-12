@@ -1103,11 +1103,14 @@ td {
 
 /* ===================================================================
    INSTRUMENT TABLE — the shared dense-list chrome (ui/InstrumentTable)
-   Mirrors the archive/ArchiveTable look so a ledger reads as one
-   instrument: muted-to-main sort header with arrows, hairline rows,
-   and a ~1% white zebra wash. Hover is a distinct surface step that
-   wins over the zebra (declared after it, same specificity). Numeric
-   alignment / tabular-nums is applied inline per column by the JSX.
+   The "mounted instrument" ledger from the direction board: a
+   gauge-label header underlined in dim mythril (the reticle hue),
+   hairline zebra rows, and a mythril LOCK-ON on interactive rows —
+   a clickable row tints mythril and lights a left rail on hover (the
+   reticle translated to a row: mythril = "act here"). Non-clickable
+   rows keep a neutral hover so the accent never implies a missing
+   action. Numeric alignment / tabular-nums is applied inline per
+   column by the JSX.
    =================================================================== */
 .instrument-table {
   border-collapse: collapse;
@@ -1116,16 +1119,26 @@ td {
 }
 .instrument-table thead th {
   background: var(--bg-main);
-  border-bottom: 1px solid var(--border-color);
+  /* One scarce dim-mythril line reads the header as a gauge-label strip
+     (myth-dim is the resting reticle/frame hue, not the bright active one). */
+  border-bottom: 2px solid var(--myth-dim);
   color: var(--text-muted);
+  font-size: 10px;
   font-weight: 600;
-  padding: 8px 12px;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
   text-align: left;
+  text-transform: uppercase;
   user-select: none;
   white-space: nowrap;
 }
 .instrument-table thead th.sortable { cursor: pointer; }
 .instrument-table thead th.active { color: var(--text-main); font-weight: 700; }
+/* Sticky header ONLY when the well scrolls (the calibration ledgers set a
+   maxHeight → .it-scroll); the column labels then stay visible as the operator
+   scrolls dozens of rows. A non-scrolling table (watchlist) keeps its header
+   inert, so this never changes that surface. */
+.instrument-well.it-scroll .instrument-table thead th { position: sticky; top: 0; z-index: 1; }
 /* Sortable header trigger — a bare button so it's keyboard-operable, inheriting
    the th's color/weight; the faint hint marks unsorted-but-sortable columns. */
 .instrument-table thead th .it-sort {
@@ -1150,8 +1163,17 @@ td {
 }
 .instrument-table tbody tr:last-child td { border-bottom: none; }
 .instrument-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.012); }
+/* Neutral hover for any row (declared after the zebra, so it wins). */
 .instrument-table tbody tr:hover { background: var(--bg-main); }
 .instrument-table tbody tr.clickable { cursor: pointer; }
+/* Lock-on: a clickable row tints mythril + lights a left rail on hover — a
+   state response (Glow-On-State), so mythril stays scarce and load-bearing. */
+.instrument-table tbody tr.clickable:hover { background: var(--myth-wash); }
+.instrument-table tbody tr.clickable:hover td:first-child { box-shadow: inset 3px 0 0 var(--myth); }
+/* The selected row (edited mark / active ticker) holds the lock-on at rest —
+   cell-level background so it wins over both zebra and neutral hover. */
+.instrument-table tbody tr.active-row td { background: var(--myth-soft); }
+.instrument-table tbody tr.active-row td:first-child { box-shadow: inset 3px 0 0 var(--myth); }
 .instrument-table tbody tr.muted td { color: var(--text-muted); }
 
 /* Scarce-accent remove control: a quiet ghost at rest, brighter on the row

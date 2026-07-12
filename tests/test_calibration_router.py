@@ -207,15 +207,34 @@ def test_update_bumps_revision_and_replaces_events(db, digest):
 
 
 def test_update_collision_and_unknown_are_named(db, digest):
-    create_mark(_payload(digest), db)
-    other = create_mark(_payload(digest, as_of_date="2026-04-14",
-                                 box_end_date="2026-04-14"), db)
+    # A collision on update is a SAME-FRAME label clash (never a cross-frame
+    # re-stamp — that path is refused outright, see below): two marks on the
+    # one frame, then re-label one onto the other's identity.
+    a = create_mark(_payload(digest, label=""), db)      # (BODI, 04-15, '')
+    b = create_mark(_payload(digest, label="lps"), db)   # (BODI, 04-15, 'lps')
     with pytest.raises(HTTPException) as err:
-        update_mark(other.id, _payload(digest), db)  # would collide with the first
+        update_mark(b.id, _payload(digest, label=""), db)  # re-label onto a
+    assert err.value.status_code == 409
     assert err.value.detail["class"] == "duplicate_mark"
+    assert err.value.detail["existing_id"] == a.id
     with pytest.raises(HTTPException) as err:
         update_mark(9999, _payload(digest), db)
     assert err.value.status_code == 404
+
+
+def test_cross_frame_update_is_rejected(db, digest):
+    # A mark's frame binding is IMMUTABLE (Council Review 2026-07-12, P1): the
+    # ledger spans every session, so editing a mark while a DIFFERENT frame is
+    # loaded must never silently move its replay basis. The backend refuses it
+    # loudly and leaves the mark's original binding untouched.
+    mark = create_mark(_payload(digest, as_of_date="2026-04-14",
+                                box_end_date="2026-04-14"), db)
+    with pytest.raises(HTTPException) as err:
+        update_mark(mark.id, _payload(digest), db)  # payload names the 04-15 frame
+    assert err.value.status_code == 409
+    assert err.value.detail["class"] == "frame_rebind_rejected"
+    kept = db.query(CalibrationMark).filter(CalibrationMark.id == mark.id).first()
+    assert (kept.as_of_date, kept.revision) == ("2026-04-14", 1)  # unmoved, unrevised
 
 
 def test_delete_is_hard_and_cascades(db, digest):
@@ -394,6 +413,32 @@ def test_chart_history_starting_after_as_of(monkeypatch, tmp_path):
         _chart(monkeypatch, _frame(["2025-10-01", "2025-10-02"]), tmp_path)
     assert err.value.detail["class"] == "no_bars_at_date"
     assert "starts 2025-10-01" in err.value.detail["message"]
+
+
+def test_chart_nonfinite_anchor_close_is_no_data(monkeypatch, tmp_path):
+    # A NaN close on the anchor bar must degrade to 404 no_data, never leak a
+    # NaN anchor_close into a saved mark's provenance (Beck, Review 2026-07-12).
+    frame = _frame(["2025-09-09", "2025-09-10"])
+    frame.iloc[-1, frame.columns.get_loc("Close")] = float("nan")
+    with pytest.raises(HTTPException) as err:
+        _chart(monkeypatch, frame, tmp_path, as_of="2025-09-10")
+    assert (err.value.status_code, err.value.detail["class"]) == (404, "no_data")
+
+
+def test_chart_freeze_failure_degrades_to_named_503(monkeypatch, tmp_path):
+    # A freeze I/O failure surfaces as the named 503 'freeze_failed' refusal
+    # (EC-6 degrade-never-500), never a bare 500 that hides it (Beck, Review
+    # 2026-07-12) — every sibling refusal class is pinned; this one wasn't.
+    import frame_store
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(frame_store, "freeze_frame", boom)
+    with pytest.raises(HTTPException) as err:
+        _chart(monkeypatch, _frame(["2025-09-09", "2025-09-10"]), tmp_path,
+               as_of="2025-09-10")
+    assert (err.value.status_code, err.value.detail["class"]) == (503, "freeze_failed")
 
 
 def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):

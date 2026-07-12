@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { API_BASE } from '../api';
 import { duplicateConflictId } from '../utils/calibrationMarking';
+import { buildCoverageRows } from '../utils/calibrationTables';
 
 // Marks CRUD for the calibration page (Task 12). Writes carry the same-app
 // header (the backend's cross-app write guard) and echo the server's named
@@ -28,31 +29,31 @@ export default function useCalibrationMarks() {
   // A create that collided with an existing identity, parked for the operator
   // to resolve EXPLICITLY (never auto-overwritten): {payload, existingId}.
   const [conflict, setConflict] = useState(null);
-  // Every ticker calibrated so far: [{ticker, count, latestAsOf}] — the
-  // operator's "what have I covered" list, refreshed after every write.
+  // Every ticker calibrated so far: [{ticker, count, boxes, negatives,
+  // latestAsOf}] — the operator's "what have I covered" list, aggregated from
+  // ALL marks by the tested pure helper. Unsorted here; the coverage table
+  // owns its (controlled) sort, same as the watchlist.
   const [summary, setSummary] = useState([]);
+  // Monotonic marks-fetch generation: fast ticker switches (coverage clicks,
+  // worklist steps, post-save refresh) race, and only the LAST requested
+  // ticker's response may win setMarks — a stale one would paint the previous
+  // ticker's marks over the current frame, and an edit/delete in that window
+  // would act on the wrong ticker. Mirrors useCalibrationChart's guard.
+  const marksReqGen = useRef(0);
 
   const refreshSummary = async () => {
     try {
       const response = await fetch(`${API_BASE}/calibration/marks`);
       const body = await response.json().catch(() => null);
       if (!response.ok || !Array.isArray(body)) return;
-      const byTicker = new Map();
-      for (const m of body) {
-        const row = byTicker.get(m.ticker)
-          ?? { ticker: m.ticker, count: 0, latestAsOf: m.as_of_date };
-        row.count += 1;
-        if (m.as_of_date > row.latestAsOf) row.latestAsOf = m.as_of_date;
-        byTicker.set(m.ticker, row);
-      }
-      setSummary([...byTicker.values()]
-        .sort((a, b) => a.ticker.localeCompare(b.ticker)));
+      setSummary(buildCoverageRows(body));
     } catch (error) {
       console.error('calibration summary failed:', error);
     }
   };
 
   const refresh = async (ticker) => {
+    const gen = (marksReqGen.current += 1);  // supersede any in-flight marks fetch
     if (!ticker) {
       setMarks([]);
       return;
@@ -61,8 +62,10 @@ export default function useCalibrationMarks() {
       const response = await fetch(
         `${API_BASE}/calibration/marks?ticker=${encodeURIComponent(ticker)}`);
       const body = await response.json().catch(() => null);
+      if (gen !== marksReqGen.current) return;  // a newer refresh won — drop this stale response
       setMarks(response.ok && Array.isArray(body) ? body : []);
     } catch (error) {
+      if (gen !== marksReqGen.current) return;
       console.error('calibration marks list failed:', error);
       setMarks([]);
     }

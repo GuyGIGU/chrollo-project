@@ -80,11 +80,17 @@ def _mark_dict(mark) -> dict:
         "first_rail", "rails_source", "knowable_from_date",
         "note", "data_regime", "engine_config_version", "anchor_close",
         "frame_digest")}
+    # Events canonicalized by (type, start, end): the ORM returns children in
+    # rowid order, and an edit delete-reinserts them in redraw order, so an
+    # unsorted list would let a semantically-null redraw move the marks
+    # fingerprint (the EC-9 seal) without the ground truth changing. Grading
+    # never reads event order, so this only stabilizes the seal.
     d["events"] = [{
         "event_type": e.event_type, "start_date": e.start_date,
         "end_date": e.end_date, "tip_date": e.tip_date,
         "tip_price": e.tip_price, "source": e.source,
-    } for e in mark.events]
+    } for e in sorted(mark.events, key=lambda e: (
+        e.event_type or "", e.start_date or "", e.end_date or ""))]
     return d
 
 

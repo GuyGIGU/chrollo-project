@@ -474,6 +474,11 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     harness.run(None, ["BAND_RAILS_ENABLED=true"], str(out), fired=True)
     report = json.loads(out.read_text(encoding="utf-8"))
     assert report["fired_policy"]["window_sessions"] == FIRED_WINDOW_SESSIONS
+    # EC-9 self-identification: the report NAMES the population it scored and
+    # stamps a fingerprint of the exact marks set, or two reports are silently
+    # incomparable / the editable marks could be mislabelled the sealed corpus.
+    assert report["population"] == "calibration_marks"
+    assert isinstance(report["marks_fingerprint"], str) and len(report["marks_fingerprint"]) == 64
     base = report["variants"]["baseline"]["rows"][0]
     variant = report["variants"]["BAND_RAILS_ENABLED=true"]["rows"][0]
     assert base["fired"] is True and base["fire_date"] == "2026-04-02"

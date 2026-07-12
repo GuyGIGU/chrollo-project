@@ -185,8 +185,11 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
                             frame_digest: Optional[str] = Query(None)):
     """The engine's read of a FROZEN calibration frame, through the agreement
     harness's own lens (``tools.replay.snapped_election`` + the shared
-    ``election_identity.projection``) — what this returns is exactly what the
-    harness would score, never a richer parallel read (one-lens rule, Task 6).
+    ``election_identity.projection``) — the same lens the harness scores, never
+    a richer parallel read (one-lens rule, Task 6). Parity is exact for a BOX
+    verdict; the overlay always walks back the snap window, whereas the harness
+    grades a NEGATIVE mark at snap 0 — so for a negative session the overlay's
+    snapped-back election can differ from the harness's no-read grade.
 
     Frozen-or-refuse: never triggers a vendor fetch — the chart lookup must
     have frozen this session first. Guarded like the chart GET (it runs a
@@ -394,9 +397,17 @@ def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
         # dead-end. A genuinely distinct mark needs a distinct label.
         db.rollback()
         existing = _mark_by_identity(db, *ident)
+        if existing is None:
+            # No identity row — a frozen CHECK constraint (defence-in-depth over
+            # validate_mark) fired, not the uniqueness collision. Name it
+            # distinctly so a real constraint bug isn't disguised as a duplicate.
+            raise HTTPException(status_code=422, detail={
+                "class": "constraint_violation",
+                "message": "the mark violates a database constraint",
+            })
         raise HTTPException(status_code=409, detail={
             "class": "duplicate_mark",
-            "existing_id": existing.id if existing else None,
+            "existing_id": existing.id,
             "message": f"a mark for ({ident[0]}, {ident[1]}, {ident[2]!r}) "
                        "already exists — saving updates it (revision bumps)",
         })
@@ -415,15 +426,38 @@ def update_mark(mark_id: int, payload: MarkIn, db: Session = Depends(get_db)):
             "class": "unknown_mark", "message": f"no mark {mark_id}"})
     _reject_invalid(payload)
     _reject_unbound(payload)
+    # A mark's frame binding is IMMUTABLE (the module contract: provenance is
+    # "never re-stamped after the fact"). The ledger lists every session's marks
+    # for a ticker, so a cross-frame edit could otherwise silently move a mark's
+    # replay basis to whatever frame is on screen. Refuse it loudly — an edit may
+    # change geometry/verdict/label/note, never the frame the mark binds to.
+    if ((payload.ticker or "").strip().upper() != mark.ticker
+            or payload.as_of_date != mark.as_of_date
+            or payload.frame_digest != mark.frame_digest):
+        raise HTTPException(status_code=409, detail={
+            "class": "frame_rebind_rejected",
+            "message": "a mark's frame binding is immutable — edit it on the "
+                       "frame it was drawn on; provenance is never re-stamped "
+                       "onto a different session",
+        })
     _apply_payload(mark, payload)
     mark.revision = mark.revision + 1  # every correction is visible
     mark.updated_at = datetime.now(timezone.utc)
+    ident = (mark.ticker, mark.as_of_date, mark.label)  # capture pre-rollback
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
+        other = _mark_by_identity(db, *ident)
+        if other is None or other.id == mark_id:
+            # Not the identity collision — a frozen CHECK constraint fired.
+            raise HTTPException(status_code=422, detail={
+                "class": "constraint_violation",
+                "message": "the edit violates a database constraint",
+            })
         raise HTTPException(status_code=409, detail={
             "class": "duplicate_mark",
+            "existing_id": other.id,
             "message": "edit collides with another mark's identity",
         })
     db.refresh(mark)

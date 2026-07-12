@@ -4,7 +4,7 @@ import CandleChart from './CandleChart';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
-import CalibrationTickerStrip from './CalibrationTickerStrip';
+import CalibrationCoverageTable from './CalibrationCoverageTable';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
@@ -129,7 +129,11 @@ function CalibrationTab() {
   // it IS the draft, already drawn in the operator hue.
   const savedForFrame = useMemo(() => {
     if (!chartData) return [];
+    // Bind on the FULL frame identity (digest too): after a vendor restatement
+    // a session's digest changes, and a mark bound to the OLD digest must not
+    // draw on the new frame as if it were this frame's ground truth.
     return marks.filter((m) => m.as_of_date === chartData.as_of_session
+      && m.frame_digest === chartData.frame_digest
       && m.verdict === 'box' && m.id !== marking.editingId);
   }, [marks, chartData, marking.editingId]);
 
@@ -153,13 +157,26 @@ function CalibrationTab() {
 
   const canSave = !!chartData && draftComplete(marking.draft);
 
-  const worklistStep = (delta) => {
+  // In-progress geometry lives only in memory (draftsRef); guard a reload/close
+  // that would silently drop a complete, unsaved box. Armed only when there is
+  // real drawn work to lose, so it never nags on an empty page.
+  useEffect(() => {
+    if (!canSave) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [canSave]);
+
+  const worklistStep = async (delta) => {
     if (!wlItems.length) return;
     const next = Math.min(Math.max(wlIndex + delta, 0), wlItems.length - 1);
-    setWlIndex(next);
     const entry = wlItems[next];
     setTicker(entry.ticker);
-    lookup(entry.ticker, entry.asOf);
+    // Advance the pointer ONLY if the frame actually loaded — a vendor hiccup
+    // must not silently skip the entry (the chart keeps its last good frame,
+    // the failure shows, and the next step retries this same entry).
+    const result = await lookup(entry.ticker, entry.asOf);
+    if (result) setWlIndex(next);
   };
 
   const save = async () => {
@@ -171,7 +188,10 @@ function CalibrationTab() {
     // truth (adversarial review 2026-07-12).
     const saved = await saveMark(payload, marking.editingId);
     if (!saved) return; // draft stays intact — a failed/parked save never loses work
-    dispatchMarking({ type: 'edit-mark', mark: saved });
+    // Return to a fresh CREATE draft: the just-saved mark stays on the chart
+    // via savedForFrame, so nothing is visually lost, and the next box on this
+    // frame is a NEW mark — never a silent PUT over the one just banked.
+    dispatchMarking({ type: 'clear' });
     if (wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
   };
 
@@ -193,10 +213,22 @@ function CalibrationTab() {
   // on a deliberate click.
   const resolveSaveConflict = async () => {
     const saved = await resolveConflict();
-    if (saved) dispatchMarking({ type: 'edit-mark', mark: saved });
+    if (saved) dispatchMarking({ type: 'clear' });
   };
 
   const editMark = (mark) => {
+    // A mark is edited on the frame it was drawn on. The ledger lists every
+    // session for the ticker, so a clicked row may belong to a DIFFERENT frame
+    // than the one on screen; entering edit mode here would let Save re-stamp
+    // the mark's provenance onto the loaded frame (the backend now refuses that
+    // outright, but the operator should never have to hit it). Navigate to the
+    // mark's own frame instead — a click once it is up enters edit cleanly.
+    if (mark.ticker !== chartData?.ticker
+        || mark.as_of_date !== chartData?.as_of_session) {
+      setTicker(mark.ticker);
+      lookup(mark.ticker, mark.as_of_date);
+      return;
+    }
     setLabel(mark.label ?? '');
     setNote(mark.note ?? '');
     clearConflict();   // don't leave a stale "Update existing" from a prior collision
@@ -236,6 +268,7 @@ function CalibrationTab() {
   const lookup = async (t, date) => {
     const result = await load(t, date);
     if (result) setAsOf(result.as_of_session);
+    return result;
   };
 
   const submit = (event) => {
@@ -376,7 +409,16 @@ function CalibrationTab() {
         tally={tally}
         worklist={wlItems}
         worklistLabelText={worklistLabel(wlItems, wlIndex)}
-        onWorklistText={(text) => { setWlItems(parseWorklist(text)); setWlIndex(0); }}
+        onWorklistText={(text) => {
+          const items = parseWorklist(text);
+          setWlItems(items);
+          // Preserve the operator's place when they grow the queue mid-sitting:
+          // re-anchor the pointer to the entry they were on if it survives.
+          const cur = wlItems[wlIndex];
+          const at = cur ? items.findIndex(
+            (e) => e.ticker === cur.ticker && e.asOf === cur.asOf) : -1;
+          setWlIndex(at >= 0 ? at : 0);
+        }}
         onWorklistStep={worklistStep}
       />
 
@@ -448,7 +490,7 @@ function CalibrationTab() {
         onDelete={(id) => removeMark(id, chartData?.ticker)}
       />
 
-      <CalibrationTickerStrip
+      <CalibrationCoverageTable
         summary={summary}
         activeTicker={chartData?.ticker}
         onPick={(t, latestAsOf) => { setTicker(t); lookup(t, latestAsOf); }}

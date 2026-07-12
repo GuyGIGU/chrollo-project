@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import uuid
 
 import pandas as pd
 
@@ -88,7 +89,11 @@ def _versioned_path(ticker: str, as_of: str, digest: str) -> str:
 
 
 def _atomic_write(frame: pd.DataFrame, path: str) -> None:
-    tmp = f"{path}.tmp-{os.getpid()}"
+    # Per-write unique temp: the /chart freeze runs in FastAPI's sync-def
+    # threadpool (many threads, one PID), so a PID-only temp name would let two
+    # concurrent same-target freezes stage to and rename the SAME file. A uuid
+    # suffix gives every writer its own temp before the atomic rename.
+    tmp = f"{path}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
     frame.to_parquet(tmp)
     os.replace(tmp, path)
 

@@ -32,12 +32,19 @@ export default function InstrumentTable({
   onRowClick,
   rowClassName,
   ariaLabel,
+  maxHeight,
 }) {
   const clickable = Boolean(onRowClick);
+  // A maxHeight makes the WELL itself the scroll container (overflowY:auto), so
+  // a sticky thead has something to stick to; .it-scroll scopes the sticky rule.
+  const scroll = maxHeight != null;
   return (
     <div
-      className="instrument-well"
-      style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}
+      className={`instrument-well${scroll ? ' it-scroll' : ''}`}
+      style={{
+        border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)',
+        overflow: 'hidden', ...(scroll ? { maxHeight, overflowY: 'auto' } : null),
+      }}
     >
       <table className="instrument-table" aria-label={ariaLabel}>
         <thead>
@@ -84,6 +91,11 @@ export default function InstrumentTable({
                     style={{
                       textAlign: col.align || 'left',
                       fontVariantNumeric: col.align === 'right' ? 'tabular-nums' : undefined,
+                      // Numeric columns read as instrument data, not prose (matches
+                      // the chart/provenance mono numerics on the same page).
+                      fontFamily: col.align === 'right'
+                        ? "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+                        : undefined,
                     }}
                   >
                     {col.render(row)}
