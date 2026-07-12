@@ -15,11 +15,23 @@ re-freeze event, not a knob), and grade through the pure taxonomy
 (``tools.agreement``). All rule variants run in ONE walk per mark — the
 baseline is never re-derived inside the variant loop.
 
+``--fired`` (v2, opt-in) additionally replays each BOX mark through the FULL
+nightly pipeline (``_evaluate_ticker`` — the marks-corpus gate's exact
+decision) over the mark's fair window, answering the operator's actual
+satisfaction bar: would this pick have popped up on the screener in real
+trading time? Surfacing at election is necessary, not sufficient — this is
+the sharper criterion the concordance headline points at. Deep
+``knowable_from`` walks are clamped to the frame's faithful-basis zone
+(every walked session must carry the full live daily-structure lead-in
+inside the frozen frame; the clamp is named in the fragment) so a
+thin-basis no-fire can never pose as an assessed miss.
+
 Read-only by construction: marks load through the ORM (never hand-built
-SQL), the session never commits, and the test spine pins a full run
-byte-identical on the marks table.
+SQL), the session never commits, flag overrides self-restore, and the test
+spine pins a full run byte-identical on the marks table.
 
     python -m tools.calibration_harness                       # live engine
+    python -m tools.calibration_harness --fired               # + pops-up-live walk
     python -m tools.calibration_harness --variant BAND_RAILS_ENABLED=true
     python -m tools.calibration_harness --ticker BODI --json out.json
 """
@@ -43,8 +55,16 @@ import os
 
 sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
 
+import pandas as pd
+
+from config import settings
 from core.freeze.manifest import manifest_hash
-from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, projection
+from core.pipeline.downloads import _trim_to_period
+from core.pipeline.election_identity import (
+    DEFAULT_RAIL_TOL_BOX_FRAC,
+    projection,
+    rails_match,
+)
 from tools import agreement, replay
 
 # The day-snap policy is OWNED by the replay seam (one value, every
@@ -142,6 +162,158 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
     return rows
 
 
+# ---------------------------------------------------------------- fired (v2)
+# The pops-up-live criterion (operator doctrine 2026-07-11): his bar is the
+# ticker appearing in the nightly screener output, so the walk runs the FULL
+# eval chain — structure, LPS, gates, scoring — not just the election. Opt-in
+# (--fired) because a full eval costs ~1s/session; the walk is bounded and
+# the report stamps the bound.
+FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
+
+# Frozen market scalars (marks-corpus twin): scoring-only inputs — they shape
+# Score/Tier, never the fire/no-fire decision — pinned so the replay is
+# deterministic and needs no SPY/breadth history alongside the frozen frame.
+_FROZEN_BREADTH = 0.5
+_FROZEN_SPY_6M = 0.0
+
+
+def _full_live_basis(frozen: pd.DataFrame, ts) -> bool:
+    """Does ``frozen.loc[:ts]`` contain the FULL trailing daily-structure
+    window the nightly scan evaluated at ``ts``? The live eval trims the 5y
+    cache to ``DAILY_STRUCTURE_PERIOD`` behind each session and the root walk
+    is left-edge-sensitive, so a slice the trim cannot cut is thinner than
+    live — unless the frame the trim cannot cut even at its END is simply the
+    ticker's full (young-listing) history, in which case live saw the very
+    same bars and every session is faithful."""
+    sliced = frozen.loc[:ts]
+    trimmed = _trim_to_period(sliced, settings.DAILY_STRUCTURE_PERIOD)
+    if trimmed.index[0] > sliced.index[0]:
+        return True   # the trim cut lead-in -> the live window is fully present
+    full = _trim_to_period(frozen, settings.DAILY_STRUCTURE_PERIOD)
+    return len(full) == len(frozen)
+
+
+def _fired_sessions(frozen: pd.DataFrame, mark: dict) -> tuple[list, str | None]:
+    """The mark's fair window as frame sessions ending at its as-of: from
+    ``knowable_from_date`` when the mark declares one, else the last
+    ``FIRED_WINDOW_SESSIONS`` sessions. Walked oldest-first so the reported
+    fire is the FIRST night the pick would have appeared.
+
+    A knowable_from walk is CLAMPED to the frame's faithful-basis zone
+    (``_full_live_basis``): the marks-corpus gate freezes full history for
+    exactly this reason, and a thin-basis no-fire silently counted as
+    assessed would deflate the pops-up-live headline on precisely the marks
+    with the widest fair windows. Returns ``(sessions, clamp_note|None)`` —
+    the clamp is always NAMED, never silent."""
+    idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
+    knowable = mark.get("knowable_from_date")
+    if not knowable:
+        return list(idx[-FIRED_WINDOW_SESSIONS:]), None
+    sessions = list(idx[idx >= pd.Timestamp(knowable)])
+    faithful = [ts for ts in sessions if _full_live_basis(frozen, ts)]
+    if len(faithful) == len(sessions):
+        return sessions, None
+    note = (f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
+            f"frame's lead-in cannot reproduce the live "
+            f"{settings.DAILY_STRUCTURE_PERIOD} basis before "
+            + (faithful[0].strftime("%Y-%m-%d") if faithful else "any session"))
+    return faithful, note
+
+
+def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
+              evaluate=None) -> list:
+    """One BOX mark through the FULL pipeline, per variant (harness v2).
+
+    Non-box marks return None fragments: a negative asserts a no-read at ONE
+    session and keeps its election-level grade — window-hunting sessions to
+    convict a negative would bias it (the grade_one policy, held here too).
+
+    Returns one fragment per variant: ``fired`` True/False/None(unassessable)
+    plus diagnostics. Sessions whose frozen lead-in cannot reproduce the live
+    daily-structure basis are clamped OUT of the walk and the clamp named in
+    the fragment; inside that faithful zone the pipeline's own floors decide
+    — the walk never second-guesses the eval.
+    """
+    if mark["verdict"] != "box":
+        return [None for _ in variants]
+
+    from webapp.backend import frame_store
+    from core.pipeline.evaluation import EVAL_ERROR
+
+    if evaluate is None:
+        from core.pipeline.evaluation import _evaluate_ticker
+
+        def evaluate(ticker, sliced):
+            return _evaluate_ticker(ticker, sliced, _FROZEN_SPY_6M, _FROZEN_BREADTH)
+
+    loader = frame_loader or frame_store.load_frame
+    frozen = loader(mark["ticker"], mark["as_of_date"],
+                    digest=mark.get("frame_digest"))
+    if frozen is None:
+        return [{"fired": None, "fired_detail": "basis_mismatch — no frozen "
+                                                "frame matches this mark's digest"}
+                for _ in variants]
+    sessions, clamp_note = _fired_sessions(frozen, mark)
+    if not sessions:
+        return [{"fired": None,
+                 "fired_detail": "no frame sessions inside the fair window"}
+                for _ in variants]
+    window = [sessions[0].strftime("%Y-%m-%d"), sessions[-1].strftime("%Y-%m-%d")]
+
+    fragments = []
+    for variant in variants:
+        frag: dict = {"fired": False, "fired_window": window,
+                      "fired_sessions_walked": len(sessions)}
+        with replay.flag_capture(**variant):
+            for ts in sessions:
+                result = evaluate(mark["ticker"], frozen.loc[:ts])
+                if result is EVAL_ERROR:
+                    frag = {"fired": None, "fired_window": window,
+                            "fired_detail": f"EVAL_ERROR at {ts.date()} — a crash "
+                                            "is neither a hit nor a miss"}
+                    break
+                if result is None:
+                    continue
+                fire_date = ts.strftime("%Y-%m-%d")
+                # Diagnostic tier, never the pass bar: did it fire at HIS
+                # geometry? A fire whose LPS re-anchored to the tighter inner
+                # box IS a fire at that shelf — his rails may be the inner
+                # pair, so both framings are consulted. The fired rails ride
+                # along so a near-miss (a rail 0.18 box-heights off) stays
+                # distinguishable from a different base without a re-run.
+                on_parent = rails_match(
+                    mark["resistance"], mark["support"],
+                    result["_R"], result["_S"],
+                    tol_box_frac=DEFAULT_RAIL_TOL_BOX_FRAC)
+                inner_r, inner_s = result.get("_inner_R"), result.get("_inner_S")
+                on_inner = (bool(result.get("_lps_in_inner"))
+                            and inner_r is not None and inner_s is not None
+                            and rails_match(mark["resistance"], mark["support"],
+                                            inner_r, inner_s,
+                                            tol_box_frac=DEFAULT_RAIL_TOL_BOX_FRAC))
+                frag = {
+                    "fired": agreement.fired_inside_window(
+                        fire_date, mark.get("knowable_from_date"),
+                        mark["as_of_date"]),
+                    "fired_window": window,
+                    "fire_date": fire_date,
+                    "fire_tier": result.get("Tier"),
+                    "fire_score": result.get("Score"),
+                    "fire_R": float(result["_R"]),
+                    "fire_S": float(result["_S"]),
+                    "fire_lps_in_inner": bool(result.get("_lps_in_inner")),
+                    "fire_rails_within_tol": bool(on_parent or on_inner),
+                }
+                if inner_r is not None and inner_s is not None:
+                    frag["fire_inner_R"] = float(inner_r)
+                    frag["fire_inner_S"] = float(inner_s)
+                break
+        if clamp_note:
+            frag["fired_window_clamped"] = clamp_note
+        fragments.append(frag)
+    return fragments
+
+
 def parse_variant(spec: str) -> dict:
     """'FLAG=true' -> {'FLAG': True}; values are bool/int/float literals."""
     name, _, raw = spec.partition("=")
@@ -155,7 +327,8 @@ def parse_variant(spec: str) -> dict:
     return {name.strip(): value}
 
 
-def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> None:
+def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
+        *, fired: bool = False) -> None:
     """Score and print the report. An INSTRUMENT, not a gate — there is no
     pass/fail; agreement regressions are read by humans, not exit codes."""
     import database  # noqa: PLC0415 — binds the live SQLite (read-only usage)
@@ -179,10 +352,13 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> N
     t0 = time.perf_counter()
     per_variant: list[list[dict]] = [[] for _ in variants]
     for mark in marks:
+        fired_frags = fired_one(mark, variants) if fired else None
         for i, row in enumerate(grade_one(mark, variants)):
             row["mark"] = f"{mark['ticker']}@{mark['as_of_date']}" + (
                 f":{mark['label']}" if mark["label"] else "")
             row["verdict"] = mark["verdict"]
+            if fired_frags and fired_frags[i] is not None:
+                row.update(fired_frags[i])
             per_variant[i].append(row)
     wall = time.perf_counter() - t0
 
@@ -194,6 +370,10 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> N
           f"rail_tol: {DEFAULT_RAIL_TOL_BOX_FRAC} box-height   "
           f"span_overlap_min: {agreement.DEFAULT_SPAN_OVERLAP_MIN}   "
           f"snap_back: {SNAP_BACK_SESSIONS}")
+    if fired:
+        print(f"fired policy: window {FIRED_WINDOW_SESSIONS} sessions "
+              f"(knowable_from overrides)   frozen breadth {_FROZEN_BREADTH} / "
+              f"spy_6m {_FROZEN_SPY_6M} (scoring-only)")
     print(f"wall: {wall:.1f}s total, {wall / max(len(marks), 1):.2f}s/mark "
           f"x {len(variants)} variant(s)")
     report = {"population": "calibration_marks", "generated_at":
@@ -204,6 +384,10 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> N
                              "span_overlap_min": agreement.DEFAULT_SPAN_OVERLAP_MIN,
                              "snap_back_sessions": SNAP_BACK_SESSIONS},
               "wall_seconds": round(wall, 2), "variants": {}}
+    if fired:
+        report["fired_policy"] = {"window_sessions": FIRED_WINDOW_SESSIONS,
+                                  "frozen_breadth": _FROZEN_BREADTH,
+                                  "frozen_spy_6m": _FROZEN_SPY_6M}
     for label, rows in zip(labels, per_variant):
         t = agreement.tally(rows)
         print(f"\n--- variant: {label}")
@@ -221,11 +405,34 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None) -> N
             print(f"  negatives upheld: {t['counts']['negative_upheld']}/{t['n_negatives']}")
         if t["n_excluded"]:
             print(f"  excluded (basis/edge): {t['n_excluded']} — see rows")
+        if fired:
+            box_frags = [r for r in rows if "fired" in r]
+            assessed = [r for r in box_frags if r["fired"] is not None]
+            n_yes = sum(1 for r in assessed if r["fired"])
+            line = f"  fired in window (pops-up-live): {n_yes}/{len(assessed)} box marks"
+            if len(box_frags) > len(assessed):
+                line += f"   unassessable: {len(box_frags) - len(assessed)}"
+            print(line)
         for row in rows:
             extra = f" snapped={row['snapped']}" if row.get("snapped") else ""
             detail = f" [{row['detail']}]" if row.get("detail") else ""
+            fired_s = ""
+            if "fired" in row:
+                if row["fired"] is None:
+                    fired_s = f" | fired:? ({row['fired_detail']})"
+                elif row["fired"]:
+                    at = ("his rails" if row.get("fire_rails_within_tol")
+                          else f"off-tol rails R {row['fire_R']:.2f} "
+                               f"S {row['fire_S']:.2f}")
+                    fired_s = (f" | FIRED {row['fire_date']} "
+                               f"tier {row['fire_tier']} ({at})")
+                else:
+                    fired_s = (f" | no fire in "
+                               f"{row['fired_sessions_walked']}-session window")
+                if row.get("fired_window_clamped"):
+                    fired_s += " [window clamped: thin lead-in]"
             print(f"    {row['mark']:<24} {row['verdict']:<13} -> "
-                  f"{row['outcome']}{extra}{detail}")
+                  f"{row['outcome']}{extra}{detail}{fired_s}")
         report["variants"][label] = {"tally": t, "rows": rows}
     if json_out:
         with open(json_out, "w", encoding="utf-8") as f:
@@ -252,9 +459,12 @@ def main() -> None:
                     help="FLAG=VALUE engine override, repeatable; baseline "
                          "always runs first")
     ap.add_argument("--json", default=None, help="also write the report JSON here")
+    ap.add_argument("--fired", action="store_true",
+                    help="also replay each box mark through the FULL pipeline "
+                         "over its fair window (pops-up-live criterion; slower)")
     a = ap.parse_args()
     try:
-        run(a.ticker, a.variant, a.json)
+        run(a.ticker, a.variant, a.json, fired=a.fired)
     except ValueError as e:
         print(str(e))
         sys.exit(2)
