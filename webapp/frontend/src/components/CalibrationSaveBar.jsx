@@ -5,9 +5,14 @@ function CalibrationSaveBar({
   disabled, canSave, saving, editingId,
   label, onLabel, note, onNote,
   onSave, onNewMark, onNegative,
+  conflict, onResolveConflict,
   saveError, tally,
   worklist, worklistLabelText, onWorklistText, onWorklistStep,
 }) {
+  // A blind save creates; only an explicitly-loaded edit (editingId) updates
+  // in place. A duplicate collision is resolved by the operator's deliberate
+  // click on "Update existing", never inferred (adversarial review 2026-07-12).
+  const updating = editingId != null;
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap',
                   minHeight: 30, fontSize: 12, overflow: 'hidden' }}>
@@ -28,13 +33,24 @@ function CalibrationSaveBar({
         style={{ width: 170, fontFamily: 'inherit' }}
       />
       <button type="button" disabled={disabled || !canSave || saving} onClick={onSave}
-              title={editingId ? `Update mark #${editingId} (bumps revision)` : 'Save mark [Enter]'}>
-        {saving ? 'Saving…' : editingId ? `Update #${editingId}` : 'Save'}
+              title={updating
+                ? `Update mark #${editingId} (bumps revision) [Enter]`
+                : 'Save a new mark [Enter]'}>
+        {saving ? 'Saving…' : updating ? `Update #${editingId}` : 'Save'}
       </button>
       {editingId && (
         <button type="button" disabled={disabled} onClick={onNewMark}
-                title="Stop editing — next save creates a new mark">
+                title="Stop editing — the next save creates a new mark">
           New
+        </button>
+      )}
+      {conflict && (
+        // A create collided with an existing mark for this frame + label. The
+        // overwrite is the operator's explicit one click, never automatic.
+        <button type="button" disabled={saving} onClick={onResolveConflict}
+                title={`Overwrite the existing mark #${conflict.existingId} with what's drawn (bumps revision)`}
+                style={{ borderColor: 'var(--accent-yellow)' }}>
+          Update existing #{conflict.existingId}
         </button>
       )}
       <button type="button" disabled={disabled || saving}

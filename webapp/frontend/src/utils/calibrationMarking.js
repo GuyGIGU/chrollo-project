@@ -51,6 +51,22 @@ export function frameKeyOf(chartData) {
   return `${chartData.ticker}|${chartData.as_of_session}|${chartData.frame_digest}`;
 }
 
+// A create that lands on an existing identity (ticker, as-of, label) is a
+// CORRECTION, but resolving it silently to an in-place PUT would let a stray
+// negative keystroke or an empty-label second box clobber prior ground truth
+// with no confirmation. So a duplicate is surfaced, never auto-applied: the
+// backend names the existing row's id in the 409, and this reads it out so the
+// UI can offer a one-click, EXPLICIT "update the existing mark" — the operator
+// confirms the overwrite, it is never inferred. Returns the existing id, or
+// null when the response is not a recoverable duplicate. Pure (node-testable);
+// the hook owns the fetch, this owns the decision.
+export function duplicateConflictId(body, editingId) {
+  if (editingId) return null;   // an explicit edit is already a deliberate PUT
+  const detail = body?.detail;
+  if (detail?.class !== 'duplicate_mark') return null;
+  return Number.isInteger(detail.existing_id) ? detail.existing_id : null;
+}
+
 export function draftComplete(draft) {
   if (draft.verdict !== 'box') return true; // negatives carry NO geometry
   if (draft.resistance == null || draft.support == null) return false;

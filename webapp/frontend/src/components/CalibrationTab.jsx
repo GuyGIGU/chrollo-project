@@ -71,7 +71,9 @@ function CalibrationTab() {
                         draft: draftsRef.current.get(key) ?? null });
       setLabel('');
       setNote('');
+      clearConflict();   // a parked overwrite must not follow the eye to a new frame
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData]);
 
   // Stash the draft under ITS OWN frame key (they travel together in state,
@@ -79,6 +81,15 @@ function CalibrationTab() {
   useEffect(() => {
     if (marking.frameKey) draftsRef.current.set(marking.frameKey, marking.draft);
   }, [marking.frameKey, marking.draft]);
+
+  // A parked "Update existing" holds the geometry AS IT WAS when it collided;
+  // the moment the operator redraws, that snapshot is stale — drop the
+  // conflict so a later click can't write yesterday's rails. Re-Save re-parks
+  // with the current draft.
+  useEffect(() => {
+    if (conflict) clearConflict();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marking.draft]);
 
   // Bars by date, for snap-to-extreme rail placement.
   const barsByDate = useMemo(() => {
@@ -90,8 +101,9 @@ function CalibrationTab() {
   barsRef.current = barsByDate;
 
   // Save workflow (Task 12): marks CRUD + label/note + worklist queue.
-  const { marks, saving, saveError, tally, summary,
-          refresh, refreshSummary, saveMark, removeMark } = useCalibrationMarks();
+  const { marks, saving, saveError, tally, summary, conflict,
+          refresh, refreshSummary, saveMark, resolveConflict,
+          clearConflict, removeMark } = useCalibrationMarks();
   useEffect(() => { refreshSummary(); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
@@ -153,14 +165,21 @@ function CalibrationTab() {
   const save = async () => {
     if (!canSave || saving) return;
     const payload = markPayloadFromDraft(marking.draft, chartData, { label, note });
+    // A blind Save is a CREATE unless the operator explicitly loaded a mark to
+    // edit (editingId). A create that collides parks a conflict the operator
+    // resolves with one click — Save never silently overwrites prior ground
+    // truth (adversarial review 2026-07-12).
     const saved = await saveMark(payload, marking.editingId);
-    if (!saved) return; // draft stays intact — a failed save never loses work
+    if (!saved) return; // draft stays intact — a failed/parked save never loses work
     dispatchMarking({ type: 'edit-mark', mark: saved });
     if (wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
   };
 
   // One-keystroke negatives, gated on nothing: the frame itself IS the
   // assertion ("no structure here" / "the engine's read here is wrong").
+  // Always a CREATE — a negative never silently converts an existing box; a
+  // collision surfaces the same one-click resolve, so a stray 'n'/'w' can't
+  // destroy drawn geometry.
   const saveNegative = async (verdict) => {
     if (!chartData || saving) return;
     const payload = markPayloadFromDraft(
@@ -169,9 +188,18 @@ function CalibrationTab() {
     if (saved && wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
   };
 
+  // The operator's explicit "yes, overwrite that existing mark" after a
+  // duplicate collision — the one place a create becomes an update, and only
+  // on a deliberate click.
+  const resolveSaveConflict = async () => {
+    const saved = await resolveConflict();
+    if (saved) dispatchMarking({ type: 'edit-mark', mark: saved });
+  };
+
   const editMark = (mark) => {
     setLabel(mark.label ?? '');
     setNote(mark.note ?? '');
+    clearConflict();   // don't leave a stale "Update existing" from a prior collision
     dispatchMarking({ type: 'edit-mark', mark });
   };
 
@@ -336,12 +364,14 @@ function CalibrationTab() {
         saving={saving}
         editingId={marking.editingId}
         label={label}
-        onLabel={setLabel}
+        onLabel={(v) => { setLabel(v); if (conflict) clearConflict(); }}
         note={note}
         onNote={setNote}
         onSave={save}
         onNewMark={() => dispatchMarking({ type: 'clear' })}
         onNegative={saveNegative}
+        conflict={conflict}
+        onResolveConflict={resolveSaveConflict}
         saveError={saveError}
         tally={tally}
         worklist={wlItems}

@@ -162,13 +162,37 @@ def test_missing_digest_is_invalid(db, digest):
     assert any("frame_digest" in p for p in err.value.detail["problems"])
 
 
-def test_duplicate_identity_is_a_named_conflict(db, digest):
-    create_mark(_payload(digest), db)
+def test_duplicate_identity_names_THE_RIGHT_existing_row(db, digest):
+    # A create that collides on identity is a correction, not a dead-end: the
+    # 409 carries the existing row's id so the client offers a one-click,
+    # EXPLICIT overwrite. A decoy row under the SAME frame but a different
+    # label must not be the one named — the id must resolve on the full
+    # (ticker, as_of, label) grain, not just "some row on this frame".
+    decoy = create_mark(_payload(digest, label=""), db)          # (BODI, 04-15, '')
+    target = create_mark(_payload(digest, label="lps"), db)      # (BODI, 04-15, 'lps')
     with pytest.raises(HTTPException) as err:
-        create_mark(_payload(digest), db)
+        create_mark(_payload(digest, label="lps"), db)           # collide on 'lps'
     assert err.value.status_code == 409
     assert err.value.detail["class"] == "duplicate_mark"
-    assert db.query(CalibrationMark).count() == 1
+    assert err.value.detail["existing_id"] == target.id != decoy.id
+    assert db.query(CalibrationMark).count() == 2
+    # Recovery: PUT the named id lands the correction on the RIGHT row only.
+    updated = update_mark(err.value.detail["existing_id"],
+                          _payload(digest, label="lps", support=10.30), db)
+    assert updated.support == 10.30
+    assert db.query(CalibrationMark).count() == 2
+
+
+def test_label_normalization_shares_one_identity(db, digest):
+    # 'lps', 'LPS ' and ' lps ' are ONE identity — a near-duplicate label
+    # must collide (and name the same row), never slip past the unique key.
+    first = create_mark(_payload(digest, label="lps"), db)
+    # A same-frame empty-label decoy must not be the row named for the 'lps'
+    # collision (guards the label filter in _mark_by_identity).
+    create_mark(_payload(digest, label=""), db)
+    with pytest.raises(HTTPException) as err:
+        create_mark(_payload(digest, label="  LPS "), db)
+    assert err.value.detail["existing_id"] == first.id
 
 
 def test_update_bumps_revision_and_replaces_events(db, digest):

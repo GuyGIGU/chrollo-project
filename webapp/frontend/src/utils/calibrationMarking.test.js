@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   chartTimeToIso,
   draftComplete,
+  duplicateConflictId,
   effectiveSpan,
   emptyDraft,
   frameKeyOf,
@@ -118,6 +119,21 @@ test('clear resets the draft but keeps the frame binding', () => {
   let s = initialMarkingState({ ...emptyDraft(), resistance: 12.4 }, 'BODI|2026-04-15|abc');
   s = markingReducer(s, { type: 'clear' });
   assert.deepEqual([s.draft.resistance, s.frameKey], [null, 'BODI|2026-04-15|abc']);
+});
+
+test('duplicateConflictId surfaces a create collision for EXPLICIT resolution', () => {
+  const dup = { detail: { class: 'duplicate_mark', existing_id: 42,
+                          message: 'a mark for (BODI, 2026-04-15, \'\') already exists' } };
+  // A blind create (no editingId) that collides yields the existing id — the
+  // UI offers a one-click overwrite; it is NEVER applied automatically.
+  assert.equal(duplicateConflictId(dup, null), 42);
+  // An explicit edit is already a deliberate PUT — never treated as a conflict.
+  assert.equal(duplicateConflictId(dup, 7), null);
+  // Non-duplicate failures are not conflicts.
+  assert.equal(duplicateConflictId({ detail: { class: 'invalid_mark' } }, null), null);
+  // A duplicate the backend could not attach an id to is not auto-resolvable.
+  assert.equal(duplicateConflictId({ detail: { class: 'duplicate_mark', existing_id: null } }, null), null);
+  assert.equal(duplicateConflictId(null, null), null);
 });
 
 test('frameKeyOf binds ticker, session and digest', () => {

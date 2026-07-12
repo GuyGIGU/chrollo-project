@@ -363,6 +363,17 @@ def list_marks(ticker: Optional[str] = Query(None), db: Session = Depends(get_db
     return q.order_by(CalibrationMark.ticker, CalibrationMark.as_of_date).all()
 
 
+def _mark_by_identity(db: Session, ticker: str, as_of_date: str, label: str):
+    """The one mark under an identity grain (ticker, as_of_date, label), or
+    None. Identity is normalized exactly as the write path normalizes it, so
+    'lps', 'LPS ' and 'lps' resolve to the SAME row the unique key protects."""
+    return (db.query(CalibrationMark)
+            .filter(CalibrationMark.ticker == (ticker or "").strip().upper(),
+                    CalibrationMark.as_of_date == as_of_date,
+                    CalibrationMark.label == (label or "").strip().lower())
+            .first())
+
+
 @router.post("/marks", response_model=MarkOut,
              dependencies=[Depends(require_same_app)])
 def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
@@ -371,16 +382,23 @@ def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
     mark = CalibrationMark(created_at=now, updated_at=now, revision=1)
     _apply_payload(mark, payload)
+    ident = (mark.ticker, mark.as_of_date, mark.label)  # capture pre-rollback
     db.add(mark)
     try:
         db.commit()
     except IntegrityError:
-        # No swallow: name the duplicate explicitly (edits go through PUT).
+        # A save under an identity that already exists is a correction, not a
+        # collision (marks are editable ground truth, EC-9). The frontend
+        # resolves this to a PUT before it ever gets here; this backstop names
+        # the existing row's id so a racy/stale client can recover without a
+        # dead-end. A genuinely distinct mark needs a distinct label.
         db.rollback()
+        existing = _mark_by_identity(db, *ident)
         raise HTTPException(status_code=409, detail={
             "class": "duplicate_mark",
-            "message": f"a mark for ({mark.ticker}, {mark.as_of_date}, "
-                       f"{mark.label!r}) already exists — edit it instead",
+            "existing_id": existing.id if existing else None,
+            "message": f"a mark for ({ident[0]}, {ident[1]}, {ident[2]!r}) "
+                       "already exists — saving updates it (revision bumps)",
         })
     db.refresh(mark)
     logger.info("mark saved id=%s %s@%s verdict=%s", mark.id, mark.ticker,
