@@ -125,3 +125,15 @@ flips it live. Flag-off must be byte-identical and compute-free.
 **Principle:** `references/quality-testing.md` → P5; `references/quality-postgres.md` → P1; `references/quality-performance.md` → P1
 
 ---
+
+### EC-9: Two mark populations, one-way human-gated graduation
+**Convention:** The calibration-marks DB (`calibration_marks`, operator-owned) is EDITABLE ground truth —
+the operator corrects/hard-deletes his own marks and every edit bumps `revision`; the `docs/marks/`
+corpus stays sealed under EC-7. Movement between them is ONLY an explicit, per-mark, operator-confirmed
+export (calibration → corpus, carrying provenance) — never a sync, batch export, or startup step; no
+tool gets a write path to either population that circumvents this. Every harness report names which
+population it scored and stamps a fingerprint of the exact marks set.
+**Origin:** Hunt / Leach / Beck / Fowler — Council Plan 2026-07-10-2329 (Calibration at Scale);
+operator-confirmed 2026-07-10
+**Principle:** `references/security.md` → P9 (assume breach); `references/quality-postgres.md` → P5;
+`references/quality-testing.md` → P10
