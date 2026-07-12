@@ -1,0 +1,7 @@
+# The EC-7 marks-corpus seal hashes the RAW BYTES of docs/marks/*.json and
+# pins the digest in tests/baselines/. A Windows CI checkout with
+# core.autocrlf=true rewrites committed LF into CRLF, which changes those
+# bytes and breaks the seal in CI while it still passes locally. Pin every
+# byte-hashed test fixture to LF so the digest is checkout-independent.
+docs/marks/*.json        text eol=lf
+tests/baselines/*.json   text eol=lf
