@@ -89,6 +89,16 @@ Thumbs.db
 # Claude Code working files
 .claude/
 
+# Ultra Council run scaffolding — per-run briefs, worker files, review docs and
+# resume pointers. Pure session artifacts: the durable reasoning is distilled
+# into the memory namespace (conventions.md + the memory/ index), never here.
+.council/
+
+# Council-plan deliverables — the PLAN-<slug>.md a council-plan run writes at the
+# root for council-implement to consume. Working scaffolding once implemented;
+# the surviving reasoning lives in memory, so keep these out of git history.
+/PLAN-*.md
+
 # Calibration frame store — NOT a regenerable cache (unlike the parquet caches
 # above): marks bind to these frames' digests, and a post-restatement refetch
 # yields DIFFERENT bytes, so deleting this directory permanently destroys the
