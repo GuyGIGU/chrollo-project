@@ -14,8 +14,8 @@ It captures the EXACT overlay the pipeline archives: ``read_structure`` ->
 ``structure.climax_bar`` / ``.ar_bar`` (the same call + fields as
 ``evaluation.py``; those become ``_phase_a_start/end_date``), on the *faithful*
 live frame — baseline filter + ``_trim_to_period`` to ``DAILY_STRUCTURE_PERIOD``
-(2y) — exactly like ``_evaluate_ticker``. (``structure_case_audit._prep`` does
-NOT trim; this tool deliberately does not reuse it.)
+(2y) — exactly like ``_evaluate_ticker``. (``structure_case_audit._prep`` now
+applies the same trim — fixed 2026-07-09 after the AVT/VLO/PBT parity divergence.)
 
 Alongside the shift table it reports a programmatic sanity proxy per mode:
 **stolen climaxes** — overlays whose climax bar lands ON/AFTER the box start

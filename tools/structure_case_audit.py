@@ -22,8 +22,16 @@ that winner and then answers the calibration questions directly:
 Everything is read-only: it reads the live parquet cache and calls the real,
 calibrated bricks. It changes nothing and gates nothing.
 
+Every audit ends with a PIPELINE PARITY line: the same slice is run through the
+real ``_evaluate_at_date`` and reconciled with the audit's structural read, so
+the tool can never again tell a different story than the engine (the 2026-07-09
+AVT/VLO/PBT divergence — the audit walked the full 5y frame while the pipeline
+trims to DAILY_STRUCTURE_PERIOD first). ``--parity`` makes any divergence fatal
+(exit 1).
+
     python -m tools.structure_case_audit                       # default cases
     python -m tools.structure_case_audit ROIV ADM BWMX
+    python -m tools.structure_case_audit VLO --as-of 2026-07-07 --parity
 """
 from __future__ import annotations
 
@@ -35,13 +43,20 @@ except ModuleNotFoundError:
 configure_path()
 
 import argparse
+import sys
 
 import pandas as pd
 
 from config import settings
 from core.archive.seed import _evaluate_at_date
-from core.pipeline.evaluation import apply_baseline_filters
-from core.structure import bricks
+from core.pipeline.downloads import _trim_to_period
+from core.pipeline.evaluation import (
+    _structure_to_boxes,
+    apply_baseline_filters,
+    descent_tail_drops,
+    select_active_lps,
+)
+from core.structure import bricks, lps_range_threshold
 from core.structure.box_primitives import (
     _is_boundary_respected,
     _pivot_order,
@@ -75,19 +90,22 @@ def _date(df: pd.DataFrame, bar) -> str:
 
 
 def _prep(raw: pd.DataFrame):
-    """Run the exact live prep (baseline filters + ATR cols) the screener uses.
+    """Run the exact live prep the screener uses — a mirror of
+    ``evaluation._prepare_eval_frame``: baseline filters on the FULL frame, then
+    trim the structure read to DAILY_STRUCTURE_PERIOD (the pipeline never walks
+    the deeper 5y cache), then ATR cols and the pipeline's ATR snapshot offset.
 
     Returns (df, atr) or (None, reason)."""
     base = apply_baseline_filters(raw.copy())
     if base is None:
         return None, "rejected at baseline filters (price / vol / trend / return)"
-    df, _ = base
-    df = df.copy()
+    full_df, _ = base
+    df = _trim_to_period(full_df, settings.DAILY_STRUCTURE_PERIOD).copy()
     df["ATR_10"] = calculate_atr(df, 10)
     df["ATR_50"] = calculate_atr(df, 50)
-    if len(df) < 6:
+    if len(df) < settings.STRUCTURE_ATR_SAMPLE_OFFSET:
         return None, "too few bars for an ATR snapshot"
-    atr = float(df.iloc[-6]["ATR_10"])
+    atr = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
     if not (atr > 0):
         return None, "non-positive ATR snapshot"
     return df, atr
@@ -357,23 +375,131 @@ def _diagnose_candidates(df, root, atr) -> None:
                   f"-> {tag}")
 
 
-def audit(ticker: str, raw: pd.DataFrame) -> None:
+# The exception tuple the pipeline's skip-guard swallows (see _evaluate_ticker /
+# _evaluate_at_date) — the gate mirror below must treat a raise the same way.
+_EVAL_GUARD = (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
+               AttributeError)
+
+
+def _pipeline_drop_reason(df, structure):
+    """Mirror the post-structure pipeline gates in pipeline order
+    (``_resolve_structure_context`` crash/extension -> ``_resolve_lps_context``
+    LPS re-election + distance-to-trigger -> descent-tail) and name the FIRST
+    one that drops a spine-complete read. Returns None when nothing drops it —
+    which the parity check treats as a divergence."""
+    latest = df.iloc[-1]
+    boxes = _structure_to_boxes(structure, len(df))
+    (base_len, res_avg, sup_avg, box_width, _rt, _st, _bd,
+     r_anchor_bar, s_anchor_bar, _bc, _pbs, _flag) = boxes["parent"]
+    inner = boxes["inner"]
+    if base_len == 0:
+        return "degenerate base (base_len=0)"
+    close = float(latest["Close"])
+    if close < sup_avg * settings.CRASH_FILTER_MULT:
+        return f"crash filter (close {close:.2f} < S x {settings.CRASH_FILTER_MULT})"
+    if close >= res_avg * settings.EXTENSION_FILTER_MULT:
+        return f"extension filter (close {close:.2f} >= R x {settings.EXTENSION_FILTER_MULT})"
+    atr_for_zone = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
+    base_df = df.iloc[-base_len:]
+    parent_ctx = (sup_avg, res_avg, lps_range_threshold(base_df, atr_for_zone),
+                  base_len, (len(df) - base_len) + max(r_anchor_bar, s_anchor_bar))
+    lps_result, lps_in_inner, _ = select_active_lps(
+        df, latest, parent_ctx, inner, atr_for_zone)
+    if not lps_result:
+        return "LPS re-election found none at eval time"
+    trigger = float(lps_result["trigger_price"])
+    if (trigger - close) / close <= 0:
+        return f"price at/above trigger (close {close:.2f} vs trigger {trigger:.2f})"
+    traversal = measure_traversal(base_df, res_avg, sup_avg, atr_for_zone)
+    if descent_tail_drops(df, traversal, box_width, inner, lps_in_inner, atr_for_zone):
+        return "descent-tail gate"
+    return None
+
+
+def _print_parity(raw, spy_6m, df, live) -> bool:
+    """The audit's verdict vs the REAL pipeline on the same slice: run
+    ``_evaluate_at_date(raw)`` and reconcile it with the ``read_structure``
+    result the audit just reported. Returns True when the stories agree."""
+    res = _evaluate_at_date(raw.copy(), spy_6m_return=spy_6m)
+    print()
+    if res is None:
+        if live is None:
+            why = ("rejected before the structure read" if df is None
+                   else "no A->B->(C?)->D narrative")
+            print(f"  PIPELINE PARITY: OK — pipeline does not fire; audit agrees ({why}).")
+            return True
+        try:
+            reason = _pipeline_drop_reason(df, live)
+        except _EVAL_GUARD as e:
+            reason = f"eval chain raises {type(e).__name__} (pipeline skip-guard swallows it)"
+        if reason is not None:
+            print(f"  PIPELINE PARITY: OK — structure completes but the pipeline "
+                  f"drops it: {reason}.")
+            return True
+        print("  PIPELINE PARITY: FAIL — audit completes a structure, the pipeline "
+              "does not fire, and no post-structure gate explains the drop.")
+        return False
+    if live is None:
+        print(f"  PIPELINE PARITY: FAIL — pipeline FIRES ({res.get('tier')}-tier, "
+              f"trigger {float(res['trigger_price']):.2f}) but the audit read no structure.")
+        return False
+    mismatches = [
+        f"{name}: audit={a!r} pipeline={p!r}"
+        for name, a, p in (
+            ("R", float(live.R), float(res["r_level"])),
+            ("S", float(live.S), float(res["s_level"])),
+            ("trigger", float(live.lps.trigger), float(res["trigger_price"])),
+        )
+        if a != p
+    ]
+    if mismatches:
+        print(f"  PIPELINE PARITY: FAIL — both fire but disagree: {'; '.join(mismatches)}")
+        return False
+    print(f"  PIPELINE PARITY: OK — pipeline fires {res.get('tier')}-tier score "
+          f"{res.get('score'):.0f} {res.get('setup_type')} trigger "
+          f"{float(res['trigger_price']):.2f}; audit structure matches "
+          f"(R/S/trigger identical).")
+    return True
+
+
+def _recent_roots(df, atr, rows, want: int = 4):
+    """The most-recent ``want`` roots — the window a recent setup lives in.
+
+    ``rows`` holds the spine-parity walk (capped at ``_MAX_ANCHORS``). On a
+    choppy history that cap is consumed by the OLDEST roots, so — for
+    diagnostics only — keep enumerating to the right edge; the live walk stays
+    capped. Returns (first_index, roots[first_index:])."""
+    roots = [r["root"] for r in rows]
+    if len(rows) == _MAX_ANCHORS:              # cap hit — enumeration incomplete
+        search_from = int(roots[-1].climax_bar) + 1
+        while True:
+            root = bricks.find_root_swing(df, search_from_bar=search_from, atr=atr)
+            if root is None:
+                break
+            roots.append(root)
+            search_from = int(root.climax_bar) + 1
+    lo = max(0, len(roots) - want)
+    return lo, roots[lo:]
+
+
+def audit(ticker: str, raw: pd.DataFrame, spy_6m: float = 0.0) -> bool:
+    """Audit one slice; returns True when the verdict matches the pipeline."""
     print("=" * 92)
     print(ticker)
     df, atr = _prep(raw)
     if df is None:
         print(f"  {atr}")   # atr carries the rejection reason here
-        return
+        return _print_parity(raw, spy_6m, None, None)
 
+    live = read_structure(df, atr)
     rows = _walk_roots(df, atr)
     if not rows:
         print("  no qualifying root swings (no climax->reaction anchor in the window).")
-        return
+        return _print_parity(raw, spy_6m, df, live)
 
     live_idx = _live_winner_idx(rows)
     gap_idx = _gap_rule_winner_idx(rows)
 
-    live = read_structure(df, atr)
     if live_idx is not None:
         _print_winner_detail(df, rows, live_idx, atr, live)
         # Faithfulness cross-check: our manual walk must match the real spine.
@@ -387,35 +513,42 @@ def audit(ticker: str, raw: pd.DataFrame) -> None:
                       f"R={live.R:.2f}) — audit logic needs a look.")
     else:
         print("  LIVE STRUCTURE: none — no root completes A->B->(C?)->D.")
+        if live is not None:
+            print(f"    [warn] manual walk found no winner but read_structure DID "
+                  f"(box start {_date(df, live.phase_b_start_bar)} R={live.R:.2f}) "
+                  f"— audit logic needs a look.")
     print()
     _print_roots_table(df, rows, live_idx, gap_idx)
     print()
     _print_diagnosis(rows, live_idx, gap_idx)
 
     if live_idx is None:
+        lo, recent = _recent_roots(df, atr, rows)
         print()
-        print("  WHY NO BOX — strict candidate rejects (most-recent 4 roots, where "
-              "a recent setup lives):")
-        lo = max(0, len(rows) - 4)
-        for i in range(lo, len(rows)):
-            rt = rows[i]["root"]
-            print(f"    root #{i}  climax {_date(df, rt.climax_bar)} -> AR {_date(df, rt.ar_bar)}:")
+        print(f"  WHY NO BOX — strict candidate rejects (most-recent {len(recent)} "
+              f"roots — the window a recent setup lives in):")
+        for j, rt in enumerate(recent):
+            i = lo + j
+            beyond = ("   [beyond the spine's 64-root walk — never tried live]"
+                      if i >= _MAX_ANCHORS else "")
+            print(f"    root #{i}  climax {_date(df, rt.climax_bar)} -> "
+                  f"AR {_date(df, rt.ar_bar)}:{beyond}")
             _diagnose_candidates(df, rt, atr)
+    return _print_parity(raw, spy_6m, df, live)
 
 
-def _spy_6m(d, level0) -> float:
-    """SPY 6-month return as of the latest cached bar. Feeds only the RS score
-    bonus (never gates), so one snapshot is fine across as-of offsets."""
-    spy = settings.SPY_SYMBOL
-    if spy not in level0:
+def _spy_6m_at(spy_close, end_ts) -> float:
+    """SPY 6-month return as of ``end_ts`` — per-slice, mirroring the seed
+    scan-back's ``_spy6``. Feeds only the RS score bonus (never gates)."""
+    if spy_close is None:
         return 0.0
-    sc = d[spy]["Close"].dropna()
-    if len(sc) <= settings.RS_LOOKBACK_BARS:
+    s = spy_close[spy_close.index <= end_ts]
+    if len(s) <= settings.RS_LOOKBACK_BARS:
         return 0.0
-    return float(sc.iloc[-1] / sc.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
+    return float(s.iloc[-1] / s.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
 
 
-def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
+def find_last_valid(raw: pd.DataFrame, spy_close, scan_back: int):
     """Walk backward from the latest bar; return (offset, result_dict, truncated_df)
     for the MOST RECENT as-of date the full pipeline fires, or (None, None, None).
 
@@ -427,7 +560,7 @@ def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
         sl = raw.iloc[: n - off] if off else raw
         if len(sl) < 200:
             break
-        res = _evaluate_at_date(sl.copy(), spy_6m_return=spy_6m)
+        res = _evaluate_at_date(sl.copy(), spy_6m_return=_spy_6m_at(spy_close, sl.index[-1]))
         if res is not None:
             return off, res, sl
     return None, None, None
@@ -563,13 +696,18 @@ def main() -> None:
     ap.add_argument("--trace", action="store_true",
                     help="print the engine's own narrative trace (read_structure's "
                          "per-root story + LPS reject reasons) instead of the audit walk.")
+    ap.add_argument("--parity", action="store_true",
+                    help="assertion mode: exit 1 if any ticker's audit verdict diverges "
+                         "from the real pipeline (_evaluate_at_date) on the same slice.")
     a = ap.parse_args()
 
     d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
     level0 = set(d.columns.get_level_values(0))
-    spy_6m = _spy_6m(d, level0)
+    spy_close = (d[settings.SPY_SYMBOL]["Close"].dropna()
+                 if settings.SPY_SYMBOL in level0 else None)
     tickers = [t.upper() for t in a.tickers] or DEFAULT
 
+    parity_ok = True
     for t in tickers:
         if t not in level0:
             print("=" * 92)
@@ -578,15 +716,19 @@ def main() -> None:
         raw = d[t].dropna()
         if a.as_of:
             raw = raw[raw.index <= pd.Timestamp(a.as_of)]
+        if raw.empty:
+            print("=" * 92)
+            print(f"{t}: no bars at/before {a.as_of}")
+            continue
         if a.trace:
             print_engine_trace(t, raw)
             continue
         if a.scan_back:
-            off, res, sl = find_last_valid(raw, spy_6m, a.scan_back)
+            off, res, sl = find_last_valid(raw, spy_close, a.scan_back)
             if res is None:
                 print(f"\n>>> {t}: did NOT fire in the last {a.scan_back} bars "
                       f"(latest {raw.index[-1].date()}) — auditing today for context.")
-                audit(t, raw)
+                parity_ok &= audit(t, raw, _spy_6m_at(spy_close, raw.index[-1]))
             else:
                 trig, bw, sc = res.get("trigger_price"), res.get("box_width"), res.get("score")
                 trig_s = f"{trig:.2f}" if isinstance(trig, (int, float)) else str(trig)
@@ -595,10 +737,12 @@ def main() -> None:
                 print(f"\n>>> {t}: LAST VALID {sl.index[-1].date()} (off -{off})  "
                       f"Tier {res.get('tier')}  score {sc_s}  {res.get('setup_type')}  "
                       f"trigger {trig_s}  box {bw_s}  LPS_len {res.get('lps_length')}")
-                audit(t, sl)
+                parity_ok &= audit(t, sl, _spy_6m_at(spy_close, sl.index[-1]))
         else:
-            audit(t, raw)
+            parity_ok &= audit(t, raw, _spy_6m_at(spy_close, raw.index[-1]))
     print("=" * 92)
+    if a.parity and not parity_ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
