@@ -8,6 +8,7 @@ import CalibrationCoverageTable from './CalibrationCoverageTable';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
+import useMarkAgreement from '../hooks/useMarkAgreement';
 import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import { attachHoverHighlight } from './calibrationHover';
@@ -122,6 +123,13 @@ function CalibrationTab() {
   // projection, so "what the engine thinks" here = what agreement scores.
   const [engineOn, setEngineOn] = useState(false);
   const { engineRead, engineStatus } = useEngineRead(chartData, engineOn);
+
+  // Per-mark engine agreement for the ledger chip — the HEADLINE concordance
+  // ("does the engine surface a setup at my pick"), one fetch for the loaded
+  // ticker's whole ledger, keyed so a correction re-grades but a re-render
+  // never re-fetches. Peeking here does NOT corrupt ground truth: it reads the
+  // SAVED marks, not the live draft.
+  const agreement = useMarkAgreement(chartData?.ticker, marks);
 
   // Saved marks drawn on THIS frame's chart, always (operator bug report
   // 2026-07-11: with only the draft rendered, saving and starting the next
@@ -486,6 +494,7 @@ function CalibrationTab() {
       <CalibrationMarksList
         marks={marks}
         editingId={marking.editingId}
+        agreement={agreement}
         onEdit={editMark}
         onDelete={(id) => removeMark(id, chartData?.ticker)}
       />

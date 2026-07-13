@@ -106,6 +106,19 @@ test('marks sort by R numerically with nulls sunk, symmetric under direction', (
   assert.deepEqual(sortMarkRows(rows, 'resistance', 'asc').map((r) => r.id), [2, 4, 3, 1]);
 });
 
+test('marks sort by events (the Ev column) orders by count, not id', () => {
+  // Regression: the Ev column is sortable but markCompare had no 'events' case,
+  // so it silently fell through to the id tiebreak while the header claimed
+  // sorted-by-events. Now it orders by the flat event count.
+  const rows = buildMarkRows([
+    { id: 1, ticker: 'X', as_of_date: '2026-01-01', verdict: 'box', events: [{}, {}, {}] },
+    { id: 2, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box', events: [] },
+    { id: 3, ticker: 'X', as_of_date: '2026-01-03', verdict: 'box', events: [{}] },
+  ]);
+  assert.deepEqual(sortMarkRows(rows, 'events', 'desc').map((r) => r.id), [1, 3, 2]); // 3,1,0
+  assert.deepEqual(sortMarkRows(rows, 'events', 'asc').map((r) => r.id), [2, 3, 1]);  // 0,1,3
+});
+
 test('marks sort by verdict groups alphabetically and stays total', () => {
   const rows = buildMarkRows(marks);
   // box, box, engine_wrong, no_structure -> ids [1,3] then 4 then 2 (id tiebreak)
@@ -119,4 +132,57 @@ test('marks sort is idempotent and non-mutating', () => {
   const twice = sortMarkRows(sortMarkRows(rows)).map((r) => r.id);
   assert.deepEqual(rows.map((r) => r.id), before);
   assert.deepEqual(once, twice);
+});
+
+// ---- v2 ledger fields: frame identity + coverage completeness ---------------
+
+test('buildMarkRows lifts frame_digest flat (thumbnail/agreement key), null-safe', () => {
+  const rows = buildMarkRows([
+    { id: 7, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box', frame_digest: 'abc123' },
+    { id: 8, ticker: 'X', as_of_date: '2026-01-03', verdict: 'no_structure' }, // no digest
+  ]);
+  assert.equal(rows[0].frameDigest, 'abc123');
+  assert.equal(rows[1].frameDigest, null); // missing -> null, never undefined
+});
+
+test('buildCoverageRows projects the NEWEST mark\'s frame + geometry, drops the raw', () => {
+  const rows = buildCoverageRows([
+    // older box, then a newer, fully-specified box on a different frame
+    { id: 1, ticker: 'AGCO', as_of_date: '2026-07-07', verdict: 'box', resistance: 119, support: 111,
+      box_start_date: '2026-06-01', box_end_date: '2026-07-07', frame_digest: 'old', events: [] },
+    { id: 2, ticker: 'AGCO', as_of_date: '2026-07-10', verdict: 'box', resistance: 120, support: 112,
+      box_start_date: '2026-06-05', box_end_date: '2026-07-10', frame_digest: 'new',
+      events: [{ event_type: 'phase_c' }], knowable_from_date: '2026-07-08' },
+  ]);
+  const agco = rows.find((r) => r.ticker === 'AGCO');
+  assert.equal(agco.latestDigest, 'new');       // newest session's frame, not the first-seen
+  assert.equal(agco.latestIsBox, true);
+  assert.equal(agco.latestResistance, 120);
+  assert.equal(agco.latestSupport, 112);
+  assert.equal(agco.latestBoxStart, '2026-06-05');
+  assert.equal(agco.latestBoxEnd, '2026-07-10');
+  assert.equal(agco.latestComplete, true);       // events + knowable-from
+  assert.equal('latest' in agco, false);         // the raw mark never rides along
+});
+
+test('buildCoverageRows latestComplete is false without events OR without knowable-from', () => {
+  const [noEvents] = buildCoverageRows([
+    { id: 1, ticker: 'A', as_of_date: '2026-01-01', verdict: 'box', events: [], knowable_from_date: '2026-01-01' },
+  ]);
+  assert.equal(noEvents.latestComplete, false);  // has knowable-from but no event
+  const [noKnowable] = buildCoverageRows([
+    { id: 2, ticker: 'B', as_of_date: '2026-01-01', verdict: 'box', events: [{ event_type: 'lps' }] },
+  ]);
+  assert.equal(noKnowable.latestComplete, false); // has an event but no knowable-from
+});
+
+test('buildCoverageRows tolerates a negative latest with null geometry', () => {
+  const [row] = buildCoverageRows([
+    { id: 1, ticker: 'K', as_of_date: '2026-09-11', verdict: 'no_structure', events: [] },
+  ]);
+  assert.equal(row.latestIsBox, false);
+  assert.equal(row.latestResistance, null);
+  assert.equal(row.latestSupport, null);
+  assert.equal(row.latestDigest, null);
+  assert.equal(row.latestComplete, false);
 });

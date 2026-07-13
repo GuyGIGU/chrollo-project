@@ -244,6 +244,75 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
     return result
 
 
+# ── Engine agreement (v2 ledger "Engine" chip) ───────────────────────
+
+
+@router.get("/agreement", dependencies=[Depends(require_same_app)])
+def calibration_agreement(ticker: str = Query(...), db: Session = Depends(get_db)):
+    """Per-mark engine agreement for a ticker's marks — the ledger 'Engine'
+    chip. Answers the operator's HEADLINE question (did the engine SURFACE a
+    setup at my pick?) via the harness's own election grade, so the chip never
+    drifts from ``python -m tools.calibration_harness``. Guarded like
+    /engine-read: box marks run a real structure read (drive-by pages don't get
+    to spend that), and the result is memoized per (mark id, revision, engine
+    manifest). Frozen-or-refuse + read-only: never a vendor fetch, never a
+    write. Not the sharper fired-in-window criterion — that is a later layer.
+    """
+    symbol = ticker.strip().upper()
+    if not TICKER_RE.match(symbol):
+        _refuse(400, "bad_ticker",
+                "ticker must be 1-10 chars of A-Z, 0-9, '.' or '-'", symbol, "")
+    marks = (db.query(CalibrationMark)
+             .filter(CalibrationMark.ticker == symbol)
+             .order_by(CalibrationMark.as_of_date).all())
+    from services.calibration_agreement import agreement_for_marks  # noqa: PLC0415 — harness/pandas chain, lazy
+    return {"ticker": symbol, "marks": agreement_for_marks(marks)}
+
+
+# ── Frame thumbnail (v2 ledger mini-chart) ───────────────────────────
+
+# A frame's downsampled preview is pure price geometry — invariant to the
+# engine, uniquely addressed by the content digest. A restatement is a new
+# digest = a new key, so the cache invalidates by construction (never key by
+# (ticker, as_of), which collides across restatements). Regenerable from the
+# parquet, unlike the load-bearing frames themselves.
+_FRAME_PREVIEWS: dict = {}
+
+
+@router.get("/frame-thumb", dependencies=[Depends(require_same_app)])
+def calibration_frame_thumb(ticker: str = Query(...), as_of: str = Query(...),
+                            frame_digest: str = Query(...)):
+    """A downsampled close-line + price envelope for the ledger frame
+    thumbnail. Frozen-or-refuse + read-only (never a vendor fetch), computed
+    once per digest and cached — the render path never re-reads the parquet.
+    The operator's box overlay is drawn client-side from the mark's own rails,
+    NOT carried here, so this feed stays pure price geometry.
+    """
+    symbol = ticker.strip().upper()
+    if not TICKER_RE.match(symbol):
+        _refuse(400, "bad_ticker",
+                "ticker must be 1-10 chars of A-Z, 0-9, '.' or '-'", symbol, as_of)
+    if parse_iso_date(as_of) is None:
+        _refuse(400, "bad_date", "as_of must be exactly YYYY-MM-DD", symbol, as_of)
+    if not frame_digest:
+        _refuse(400, "bad_digest", "frame_digest is required", symbol, as_of)
+
+    cached = _FRAME_PREVIEWS.get(frame_digest)
+    if cached is not None:
+        return cached
+
+    from frame_store import load_frame, preview_series  # noqa: PLC0415 — file I/O module, lazy
+    frozen = load_frame(symbol, as_of, digest=frame_digest)
+    if frozen is None:
+        _refuse(404, "unbound_frame",
+                "no frozen frame matches this digest — the thumbnail replays "
+                "frozen frames only", symbol, as_of)
+    result = {"ticker": symbol, "as_of_session": as_of,
+              "frame_digest": frame_digest, **preview_series(frozen)}
+    _FRAME_PREVIEWS[frame_digest] = result
+    return result
+
+
 # ── Marks CRUD (Task 4) ──────────────────────────────────────────────
 
 

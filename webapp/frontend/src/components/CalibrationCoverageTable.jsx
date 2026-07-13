@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import InstrumentTable from './ui/InstrumentTable';
+import FrameThumb from './FrameThumb';
 import { sortCoverageRows } from '../utils/calibrationTables';
 import { fmtDateShort, fmtInt } from '../utils/format';
 
@@ -36,23 +37,67 @@ function CalibrationCoverageTable({ summary, activeTicker, onPick }) {
       label: 'Ticker',
       align: 'left',
       render: (row) => (
-        <span style={{
-          fontWeight: 700,
-          color: row.ticker === activeTicker ? 'var(--myth-bright)' : 'var(--text-main)',
-        }}>
-          {row.ticker}
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{
+            fontWeight: 700,
+            color: row.ticker === activeTicker ? 'var(--myth-bright)' : 'var(--text-main)',
+          }}>
+            {row.ticker}
+          </span>
+          {/* Completeness: the latest mark here is fully specified (events +
+              a knowable-from). Operator-domain state -> operator hue, not
+              mythril (interactivity stays scarce) and not green (agreement). */}
+          <span
+            className={`inst-dot${row.latestComplete ? '' : ' off'}`}
+            aria-hidden="true"
+            title={row.latestComplete
+              ? 'Latest mark fully specified (events + knowable-from)'
+              : 'Latest mark not fully specified'}
+          />
         </span>
       ),
     },
+    {
+      // The box share of a ticker's marks — how much committed ground truth it
+      // carries — as an operator-hue meter over a neutral track. Keyed on
+      // `boxes` so the header sorts by the meter's numerator (the calibration
+      // analog of tier weight). The bold count keeps the raw box number visible.
+      key: 'boxes',
+      label: 'Coverage',
+      align: 'left',
+      render: (row) => {
+        const pct = row.count > 0 ? Math.round((row.boxes / row.count) * 100) : 0;
+        return (
+          <span className="inst-cov">
+            <span className="inst-bar" aria-hidden="true">
+              {row.boxes > 0 && <i className="b" style={{ width: `${pct}%` }} />}
+              {row.boxes < row.count && <i className="g" style={{ width: `${100 - pct}%` }} />}
+            </span>
+            <span className="lbl">
+              {row.boxes > 0 ? <b>{row.boxes}</b> : row.boxes}/{row.count}
+            </span>
+          </span>
+        );
+      },
+    },
     { key: 'count', label: 'Marks', align: 'right', render: (row) => fmtInt(row.count) },
     {
-      key: 'boxes',
-      label: 'Box',
-      align: 'right',
+      // The ticker's latest marked frame, box drawn — a preview of its ground truth.
+      key: 'frame',
+      label: 'Frame',
+      align: 'left',
+      sortable: false,
       render: (row) => (
-        <span style={{ color: row.boxes > 0 ? 'var(--accent-purple)' : 'var(--text-faint)' }}>
-          {fmtInt(row.boxes)}
-        </span>
+        <FrameThumb
+          ticker={row.ticker}
+          asOf={row.latestAsOf}
+          digest={row.latestDigest}
+          isBox={row.latestIsBox}
+          r={row.latestResistance}
+          s={row.latestSupport}
+          boxStart={row.latestBoxStart}
+          boxEnd={row.latestBoxEnd}
+        />
       ),
     },
     {

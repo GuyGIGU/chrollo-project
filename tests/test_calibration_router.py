@@ -29,8 +29,10 @@ from routers import calibration  # noqa: E402
 from routers.calibration import (  # noqa: E402
     MarkIn,
     MarkOut,
+    calibration_agreement,
     calibration_chart,
     calibration_engine_read,
+    calibration_frame_thumb,
     create_mark,
     delete_mark,
     list_marks,
@@ -269,9 +271,11 @@ def test_same_app_guard_rejects_foreign_and_missing_header():
 
 def test_every_side_effectful_route_declares_the_guard():
     # Every mutating route AND the expensive GETs: /chart spends the vendor
-    # bucket and freezes frames (Council finding 11); /engine-read runs a
-    # full structure read. Guarded, drive-by pages excluded.
-    guarded_gets = {"/calibration/chart", "/calibration/engine-read"}
+    # bucket and freezes frames (Council finding 11); /engine-read and
+    # /agreement each run a full structure read per frame. Guarded, drive-by
+    # pages excluded.
+    guarded_gets = {"/calibration/chart", "/calibration/engine-read",
+                    "/calibration/agreement", "/calibration/frame-thumb"}
     seen = {route.path for route in calibration.router.routes}
     assert guarded_gets <= seen  # the pin covers routes that actually exist
     for route in calibration.router.routes:
@@ -457,3 +461,192 @@ def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):
     assert any("resolved to 2025-09-10" in w for w in out["warnings"])
     assert any("short history" in w for w in out["warnings"])
     assert len(out["candles"]) == 4 and len(out["volumes"]) == 4
+
+
+# ── Engine agreement (v2 ledger "Engine" chip) ───────────────────────
+# The chip reuses the harness's grade_one, so its ELECTION grade is pinned in
+# test_calibration_harness.py; here we pin the SERVICE mapping + the endpoint
+# plumbing with an injected/patched grader (no real engine, no frozen frame).
+import services.calibration_agreement as agreement_service  # noqa: E402
+from services.calibration_agreement import (  # noqa: E402
+    _chip_from_fragment,
+    agreement_for_marks,
+    reset_agreement_cache,
+)
+
+
+def _add_mark(db, **overrides):
+    from datetime import datetime, timezone
+    fields = dict(
+        ticker="BODI", as_of_date="2026-04-15", label="", verdict="box",
+        resistance=12.40, support=10.15, box_start_date="2025-12-12",
+        box_end_date="2026-04-15", data_regime="as_traded",
+        engine_config_version="cfg", anchor_close=11.02, frame_digest="d0",
+        revision=1,
+    )
+    fields.update(overrides)
+    now = datetime.now(timezone.utc)
+    mark = CalibrationMark(created_at=now, updated_at=now, **fields)
+    db.add(mark)
+    db.commit()
+    db.refresh(mark)
+    return mark
+
+
+def test_chip_mapping_covers_the_outcome_taxonomy():
+    # match/disagree are BOTH "surfaced" (the operator's headline) -> green ok;
+    # the kind + rail_delta carry whether the geometry also agrees.
+    ok = _chip_from_fragment({"outcome": "match",
+        "rail_distances": {"r_frac": 0.03, "s_frac": 0.08}, "span_overlap": 0.7})
+    assert ok["state"] == "ok" and ok["kind"] == "match"
+    assert ok["rail_delta"] == 0.08  # max of the two rail fractions
+    differs = _chip_from_fragment({"outcome": "disagree",
+        "rail_distances": {"r_frac": 0.4, "s_frac": 0.1}, "span_overlap": 0.2})
+    assert differs["state"] == "ok" and differs["kind"] == "differs"
+    assert differs["rail_delta"] == 0.4
+    # engine elects nothing at the pick = the real miss -> red
+    miss = _chip_from_fragment({"outcome": "engine_no_read"})
+    assert miss["state"] == "miss" and miss["kind"] == "no_read"
+    # what the engine can't fairly see stays neutral, never a red miss
+    for outcome, kind in (("edge_uncertain", "edge"), ("basis_mismatch", "no_frame")):
+        chip = _chip_from_fragment({"outcome": outcome, "detail": "x"})
+        assert chip["state"] == "untested" and chip["kind"] == kind
+
+
+def test_agreement_non_box_is_untested_without_engine_compute(db):
+    neg = _add_mark(db, verdict="no_structure", resistance=None, support=None,
+                    box_start_date=None, box_end_date=None)
+
+    def forbidden(_mark):
+        raise AssertionError("a negative mark must not run the engine")
+
+    out = agreement_for_marks([neg], grade=forbidden)
+    assert out[neg.id]["state"] == "untested"
+    assert out[neg.id]["kind"] == "negative"
+
+
+def test_agreement_box_maps_the_grader_and_carries_revision(db):
+    box = _add_mark(db, revision=3)
+    out = agreement_for_marks([box], grade=lambda _m: {"outcome": "match",
+        "rail_distances": {"r_frac": 0.0, "s_frac": 0.02}, "span_overlap": 0.9})
+    chip = out[box.id]
+    assert chip["state"] == "ok" and chip["kind"] == "match"
+    assert chip["revision"] == 3
+
+
+def test_agreement_flags_stale_when_the_engine_has_moved(db, monkeypatch):
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+    reset_agreement_cache()
+    fresh = _add_mark(db, engine_config_version="LIVE")
+    old = _add_mark(db, as_of_date="2026-04-14", engine_config_version="OLD",
+                    frame_digest="d1")
+    grade = lambda _m: {"outcome": "match",  # noqa: E731 — one-line test stub
+        "rail_distances": {"r_frac": 0.0, "s_frac": 0.0}, "span_overlap": 1.0}
+    out = agreement_for_marks([fresh, old], grade=grade)
+    assert out[fresh.id]["stale"] is False   # born under the live engine
+    assert out[old.id]["stale"] is True      # predates it — a caveat, not a miss
+
+
+def test_agreement_cache_keys_on_birth_stamp_so_a_reused_rowid_cannot_alias(monkeypatch):
+    # SQLite recycles a deleted rowid and every create starts at revision 1, so
+    # a new mark can land on a deleted mark's (id, revision). created_at is in
+    # the cache key precisely so the new mark is NOT served the deleted chip.
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    agreement_service.reset_agreement_cache()
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+    calls = []
+
+    def counting(mark):
+        calls.append(mark.id)
+        return {"outcome": "match", "rail_distances": {"r_frac": 0.0, "s_frac": 0.0},
+                "span_overlap": 1.0}
+
+    monkeypatch.setattr(agreement_service, "_live_grade", counting)
+    common = dict(id=5, revision=1, verdict="box", engine_config_version="LIVE")
+    deleted = SimpleNamespace(created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), **common)
+    reborn = SimpleNamespace(created_at=datetime(2026, 2, 2, tzinfo=timezone.utc), **common)
+    agreement_for_marks([deleted])  # caches under the old birth stamp
+    agreement_for_marks([reborn])   # fresh birth stamp -> distinct key
+    assert calls == [5, 5]          # the reborn mark was re-graded, not served the stale chip
+
+
+def test_agreement_degrades_a_throwing_grade_to_a_named_chip(db):
+    # EC-6: one mark that blows up must not 500 the whole ledger.
+    box = _add_mark(db)
+
+    def boom(_mark):
+        raise RuntimeError("structure read exploded")
+
+    out = agreement_for_marks([box], grade=boom)
+    assert out[box.id]["state"] == "untested"
+    assert out[box.id]["kind"] == "error"
+    assert out[box.id]["outcome"] == "engine_error"
+
+
+def test_agreement_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
+    _add_mark(db, ticker="BODI")
+    _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
+    seen = {}
+
+    def fake(marks):
+        seen["tickers"] = {m.ticker for m in marks}
+        return {m.id: {"state": "ok"} for m in marks}
+
+    monkeypatch.setattr(agreement_service, "agreement_for_marks", fake)
+    body = calibration_agreement(ticker="bodi", db=db)  # normalized upstream
+    assert body["ticker"] == "BODI"
+    assert seen["tickers"] == {"BODI"}  # never grades another ticker's marks
+    assert len(body["marks"]) == 1
+
+
+def test_agreement_endpoint_rejects_a_bad_ticker(db):
+    with pytest.raises(HTTPException) as err:
+        calibration_agreement(ticker="!!", db=db)
+    assert err.value.status_code == 400
+    assert err.value.detail["class"] == "bad_ticker"
+
+
+# ── Frame thumbnail (v2 ledger mini-chart) ───────────────────────────
+
+
+def test_frame_thumb_serves_a_downsampled_series(digest, monkeypatch):
+    monkeypatch.setattr(calibration, "_FRAME_PREVIEWS", {})
+    body = calibration_frame_thumb(ticker="BODI", as_of="2026-04-15",
+                                   frame_digest=digest)
+    assert body["ticker"] == "BODI"
+    assert body["frame_digest"] == digest
+    assert body["n"] == 3 and len(body["series"]) == 3
+    assert body["lo"] < body["hi"]
+    assert all("t" in p and "c" in p for p in body["series"])
+
+
+def test_frame_thumb_refuses_an_unfrozen_digest(digest, monkeypatch):
+    monkeypatch.setattr(calibration, "_FRAME_PREVIEWS", {})
+    with pytest.raises(HTTPException) as err:
+        calibration_frame_thumb(ticker="BODI", as_of="2026-04-15",
+                                frame_digest="f" * 64)  # never frozen
+    assert err.value.status_code == 404
+    assert err.value.detail["class"] == "unbound_frame"
+
+
+def test_frame_thumb_rejects_a_missing_digest():
+    with pytest.raises(HTTPException) as err:
+        calibration_frame_thumb(ticker="BODI", as_of="2026-04-15", frame_digest="")
+    assert err.value.status_code == 400
+    assert err.value.detail["class"] == "bad_digest"
+
+
+def test_frame_thumb_caches_by_digest_never_re_reads(digest, monkeypatch):
+    store = {}
+    monkeypatch.setattr(calibration, "_FRAME_PREVIEWS", store)
+    calibration_frame_thumb(ticker="BODI", as_of="2026-04-15", frame_digest=digest)
+    assert digest in store  # computed once, cached under the content digest
+
+    import frame_store
+    def boom(*_a, **_k):
+        raise AssertionError("a cache HIT must not re-read the parquet")
+    monkeypatch.setattr(frame_store, "load_frame", boom)
+    body = calibration_frame_thumb(ticker="BODI", as_of="2026-04-15",
+                                   frame_digest=digest)
+    assert body["n"] == 3  # served from cache

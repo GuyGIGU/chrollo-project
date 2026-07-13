@@ -1176,6 +1176,127 @@ td {
 .instrument-table tbody tr.active-row td:first-child { box-shadow: inset 3px 0 0 var(--myth); }
 .instrument-table tbody tr.muted td { color: var(--text-muted); }
 
+/* ===================================================================
+   Instrument data-atoms — the small state glyphs the calibration ledgers
+   render inside InstrumentTable cells: a verdict pill, an engine-agreement
+   chip, a coverage meter, a completeness dot, a frame thumbnail. Color
+   doctrine (DESIGN.md One-Accent + Status): mythril is NOT used here (it
+   stays interactivity-only); operator ground truth is --accent-purple;
+   --success/--danger are reserved for engine agreement ONLY; negatives read
+   neutral (information, not an alarm). Low-chrome at rest — no resting glow
+   (Glow-On-State). color-mix tints the purple by token (matches line ~790),
+   never a raw hex copy.
+   =================================================================== */
+/* Verdict pill — box wears the operator hue, negatives stay neutral. */
+.inst-pill {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.inst-pill.box {
+  background: color-mix(in srgb, var(--accent-purple) 13%, transparent);
+  border-color: color-mix(in srgb, var(--accent-purple) 45%, transparent);
+  color: var(--accent-purple);
+}
+.inst-pill.neg {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+/* Engine-agreement chip — green/red live ONLY here (agreement is the one
+   place the doctrine allows them); untested is neutral with a hollow dot. */
+.inst-chip {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.inst-chip::before {
+  background: currentColor;
+  border-radius: 50%;
+  content: '';
+  flex: 0 0 auto;
+  height: 6px;
+  width: 6px;
+}
+.inst-chip.ok {
+  background: rgba(var(--success-rgb), 0.12);
+  border-color: rgba(var(--success-rgb), 0.30);
+  color: var(--success);
+}
+.inst-chip.miss {
+  background: rgba(var(--danger-rgb), 0.12);
+  border-color: rgba(var(--danger-rgb), 0.30);
+  color: var(--danger);
+}
+.inst-chip.untested {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-faint);
+}
+.inst-chip.untested::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+
+/* Coverage meter — how much real ground truth a ticker carries: the box
+   share in the operator hue over a neutral track. */
+.inst-cov { align-items: center; display: flex; gap: 8px; }
+.inst-bar {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  display: flex;
+  height: 7px;
+  overflow: hidden;
+  width: 56px;
+}
+.inst-bar i { display: block; height: 100%; }
+.inst-bar .b { background: var(--accent-purple); }
+.inst-bar .g { background: rgba(255, 255, 255, 0.10); }
+.inst-cov .lbl { color: var(--text-muted); font-size: 10.5px; }
+.inst-cov .lbl b { color: var(--accent-purple); font-weight: 700; }
+
+/* Completeness dot — the operator's latest mark here is fully specified
+   (events + a knowable-from). Operator-domain state, so operator hue (NOT
+   mythril: interactivity stays scarce; NOT green: that's engine agreement). */
+.inst-dot {
+  background: var(--accent-purple);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  width: 6px;
+}
+.inst-dot.off { background: transparent; box-shadow: inset 0 0 0 1px var(--border-color); }
+
+/* Frame thumbnail — a fixed static-SVG mini of the frozen frame (Add-2);
+   never a per-row lightweight-charts canvas (the fidelity trap). */
+.inst-thumb {
+  background: var(--bg-main);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  display: block;
+  height: 34px;
+  overflow: hidden;
+  width: 74px;
+}
+.inst-thumb svg { display: block; height: 100%; width: 100%; }
+/* Price line stays muted so the operator's box (op hue) is what reads. */
+.inst-thumb .thumb-price { stroke: var(--text-muted); stroke-width: 0.8; }
+.inst-thumb .thumb-box { fill: color-mix(in srgb, var(--accent-purple) 14%, transparent); }
+.inst-thumb .thumb-rail { stroke: var(--accent-purple); stroke-width: 0.8; }
+
 /* Scarce-accent remove control: a quiet ghost at rest, brighter on the row
    hover, danger only on its own hover — never a colored column of buttons. */
 .instrument-table .row-remove {

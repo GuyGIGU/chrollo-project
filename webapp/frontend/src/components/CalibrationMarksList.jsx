@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import InstrumentTable from './ui/InstrumentTable';
+import FrameThumb from './FrameThumb';
 import { buildMarkRows, sortMarkRows } from '../utils/calibrationTables';
 import { fx, fmtDateShort, fmtInt } from '../utils/format';
 import { confirmDialog } from './ui/feedback';
@@ -11,7 +12,50 @@ import { confirmDialog } from './ui/feedback';
 // population). Color doctrine: committed box marks wear the reserved operator
 // hue; NEGATIVES ARE NEUTRAL, never danger-red — a no-structure verdict is
 // information, not an alarm. The row being edited carries the active-row cue.
-function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
+// Engine-agreement chip — the operator's HEADLINE calibration read: did the
+// engine SURFACE a setup at this pick (concordance), not whether the rails
+// replicate. Green = surfaced (the label + Δ say whether the geometry also
+// agrees), red = the engine elects nothing here (the real miss), neutral =
+// nothing to grade / the engine can't fairly see it. Green/red live ONLY here.
+const KIND_TITLE = {
+  match: 'Engine elects a box matching your rails',
+  differs: 'Engine elects a box here, but the geometry differs (see Δ)',
+  no_read: 'Engine elects no box at this pick — the calibration miss',
+  negative: 'A negative mark — no box for the engine to surface',
+  edge: 'The drawn span starts before the frozen frame — the engine cannot fairly see it',
+  no_frame: 'The frozen frame for this mark is unavailable',
+  error: 'The engine read failed for this mark',
+  other: 'Untested',
+};
+
+function chipTitle(chip) {
+  let title = KIND_TITLE[chip.kind] || 'Untested';
+  if (Number.isFinite(chip.span_overlap)) {
+    title += ` · span overlap ${Math.round(chip.span_overlap * 100)}%`;
+  }
+  if (chip.stale) title += ' · engine changed since this mark was made';
+  return title;
+}
+
+function AgreementChip({ chip }) {
+  // Absent = not fetched yet / backend unreachable — a neutral dash, never a
+  // false red. The ledger never blocks on the engine read.
+  if (!chip) return <span style={{ color: 'var(--text-faint)' }}>—</span>;
+  const delta = Number.isFinite(chip.rail_delta) ? ` · Δ${chip.rail_delta.toFixed(2)}` : '';
+  if (chip.state === 'ok') {
+    return (
+      <span className="inst-chip ok" title={chipTitle(chip)}>
+        {chip.kind === 'differs' ? 'reads · differs' : 'reads'}{delta}
+      </span>
+    );
+  }
+  if (chip.state === 'miss') {
+    return <span className="inst-chip miss" title={chipTitle(chip)}>no read</span>;
+  }
+  return <span className="inst-chip untested" title={chipTitle(chip)}>untested</span>;
+}
+
+function CalibrationMarksList({ marks, editingId, agreement, onEdit, onDelete }) {
   const [sort, setSort] = useState({ by: 'asOf', dir: 'desc' });
 
   const rows = useMemo(
@@ -27,10 +71,6 @@ function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
         ? { by: key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
         // labels/verdicts read A→Z; ids, dates and numbers read newest/most first.
         : { by: key, dir: key === 'label' || key === 'verdict' ? 'asc' : 'desc' });
-
-  // Committed boxes wear the reserved operator hue via the CSS token (one source
-  // of truth with every other operator-purple surface); negatives stay neutral.
-  const verdictColor = (row) => (row.isBox ? 'var(--accent-purple)' : 'var(--text-muted)');
 
   const columns = [
     {
@@ -49,6 +89,25 @@ function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
       ),
     },
     { key: 'id', label: '#', align: 'right', render: (row) => <span style={{ color: 'var(--text-faint)' }}>{row.id}</span> },
+    {
+      // The exact frozen frame with this mark's box drawn — scan without loading.
+      key: 'frame',
+      label: 'Frame',
+      align: 'left',
+      sortable: false,
+      render: (row) => (
+        <FrameThumb
+          ticker={row.raw?.ticker}
+          asOf={row.asOf}
+          digest={row.frameDigest}
+          isBox={row.isBox}
+          r={row.resistance}
+          s={row.support}
+          boxStart={row.boxStart}
+          boxEnd={row.boxEnd}
+        />
+      ),
+    },
     { key: 'asOf', label: 'As-of', align: 'left', render: (row) => fmtDateShort(row.asOf) },
     {
       key: 'label',
@@ -57,10 +116,14 @@ function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
       render: (row) => (row.label ? row.label : <span style={{ color: 'var(--text-faint)' }}>—</span>),
     },
     {
+      // Committed boxes wear the reserved operator hue; NEGATIVES ARE NEUTRAL,
+      // never danger-red — a no-structure verdict is information, not an alarm.
       key: 'verdict',
       label: 'Verdict',
       align: 'left',
-      render: (row) => <span style={{ color: verdictColor(row) }}>{row.verdict}</span>,
+      render: (row) => (
+        <span className={`inst-pill ${row.isBox ? 'box' : 'neg'}`}>{row.verdict}</span>
+      ),
     },
     { key: 'resistance', label: 'R', align: 'right', render: (row) => (row.isBox ? fx(row.resistance, 2) : '—') },
     { key: 'support', label: 'S', align: 'right', render: (row) => (row.isBox ? fx(row.support, 2) : '—') },
@@ -80,6 +143,15 @@ function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
       render: (row) => (row.events > 0 ? fmtInt(row.events) : <span style={{ color: 'var(--text-faint)' }}>—</span>),
     },
     { key: 'revision', label: 'Rev', align: 'right', render: (row) => <span style={{ color: 'var(--text-faint)' }}>{fmtInt(row.revision)}</span> },
+    {
+      // Did the engine already read a setup at this pick? Not sortable — the
+      // agreement map fills in asynchronously and independently of the row order.
+      key: 'engine',
+      label: 'Engine',
+      align: 'left',
+      sortable: false,
+      render: (row) => <AgreementChip chip={agreement?.[row.id]} />,
+    },
     {
       key: 'delete',
       label: '',
@@ -133,6 +205,22 @@ function CalibrationMarksList({ marks, editingId, onEdit, onDelete }) {
         ariaLabel="Saved marks for the loaded ticker"
         maxHeight={168}
       />
+      {/* Legend for the Engine column — concordance vocabulary, not the (later,
+          sharper) fired-in-window grade. */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center',
+        color: 'var(--text-faint)', fontSize: 11,
+      }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="inst-chip ok">reads</span> engine surfaces a box at your pick (Δ = rail gap)
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="inst-chip miss">no read</span> engine elects nothing here
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="inst-chip untested">untested</span> negative, or not replayable
+        </span>
+      </div>
     </div>
   );
 }

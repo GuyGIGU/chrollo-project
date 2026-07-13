@@ -21,15 +21,30 @@ export function buildCoverageRows(marks) {
   const byTicker = new Map();
   for (const m of marks || []) {
     const row = byTicker.get(m.ticker)
-      ?? { ticker: m.ticker, count: 0, boxes: 0, negatives: 0, latestAsOf: m.as_of_date };
+      ?? { ticker: m.ticker, count: 0, boxes: 0, negatives: 0, latestAsOf: m.as_of_date, latest: m };
     row.count += 1;
     if (m.verdict === 'box') row.boxes += 1;
     else row.negatives += 1;
-    // ISO 'YYYY-MM-DD' string compare === chronological; keep the newest session.
-    if (m.as_of_date > row.latestAsOf) row.latestAsOf = m.as_of_date;
+    // ISO 'YYYY-MM-DD' string compare === chronological; keep the newest session
+    // AND the mark itself (its frame + geometry feed the thumbnail/dot below).
+    if (m.as_of_date > row.latestAsOf) { row.latestAsOf = m.as_of_date; row.latest = m; }
     byTicker.set(m.ticker, row);
   }
-  return [...byTicker.values()];
+  // Project each ticker's newest mark into the flat, render-safe fields the
+  // coverage table's meter/dot/thumbnail read. `latest` (a raw mark) is dropped
+  // so a cell never dereferences a MarkOut. "Complete" = the operator fully
+  // specified it: at least one event AND a knowable-from session.
+  return [...byTicker.values()].map(({ latest, ...row }) => ({
+    ...row,
+    latestComplete: (Array.isArray(latest.events) ? latest.events.length : 0) > 0
+      && Boolean(latest.knowable_from_date),
+    latestDigest: latest.frame_digest ?? null,
+    latestIsBox: latest.verdict === 'box',
+    latestResistance: finiteOrNull(latest.resistance),
+    latestSupport: finiteOrNull(latest.support),
+    latestBoxStart: latest.box_start_date ?? null,
+    latestBoxEnd: latest.box_end_date ?? null,
+  }));
 }
 
 // Default: newest activity first (latestAsOf desc) — the ticker just worked
@@ -72,6 +87,9 @@ export function buildMarkRows(marks) {
     boxEnd: m.box_end_date ?? null,
     events: Array.isArray(m.events) ? m.events.length : 0,
     revision: finiteOrNull(m.revision) ?? 0,
+    // Frame identity, flat — the thumbnail keys its feed on it and the
+    // agreement chip keys its cache on (id, revision). Only on row.raw before.
+    frameDigest: m.frame_digest ?? null,
     raw: m,
   }));
 }
@@ -95,6 +113,7 @@ function markCompare(a, b, key) {
     case 'verdict': return strAsc(a.verdict, b.verdict);
     case 'resistance': return numAsc(a.resistance, b.resistance);
     case 'support': return numAsc(a.support, b.support);
+    case 'events': return numAsc(a.events, b.events);
     case 'revision': return numAsc(a.revision, b.revision);
     default: return 0;
   }
