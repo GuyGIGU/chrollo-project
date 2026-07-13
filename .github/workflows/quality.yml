@@ -18,7 +18,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A normal run is ~25-35 min (the hermetic seed-recall replay dominates); this only
+    # force-cancels a genuinely hung job, well below GitHub's 6h default.
+    timeout-minutes: 60
 
     steps:
       - name: Check out repository
