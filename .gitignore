@@ -89,6 +89,13 @@ Thumbs.db
 # Claude Code working files
 .claude/
 
+# Ultra Council run scaffolding (per-run briefs, worker files, review docs, resume
+# pointers) and the vendored council toolkit + personal handoff docs. Internal
+# dev-time artifacts, not product code — the durable reasoning lives in the memory
+# namespace, so these do not belong in the tree.
+.council/
+context-handling/
+
 # Calibration frame store — NOT a regenerable cache (unlike the parquet caches
 # above): marks bind to these frames' digests, and a post-restatement refetch
 # yields DIFFERENT bytes, so deleting this directory permanently destroys the
