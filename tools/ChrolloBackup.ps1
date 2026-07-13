@@ -22,6 +22,26 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# The DB snapshot runs a tiny stdlib-only Python (sqlite3). Resolve the SERVICE's
+# own interpreter from nssm instead of a bare `python`: a bare name resolves against
+# the scheduled task's machine PATH, which now front-loads a second, dependency-less
+# Python 3.14 (added for the CI runner). sqlite3 (stdlib) happens to work under any
+# CPython, but pinning to the service interpreter keeps this robust if the PATH order
+# ever shifts or an install is removed. Falls back to a bare `python` only if nssm
+# cannot answer (the snapshot needs nothing beyond the standard library).
+function Resolve-ServicePython {
+    try {
+        $app = & nssm get ChrolloDashboard Application |
+            Where-Object { $_ -and $_.Trim() } | Select-Object -First 1
+        if ($app) {
+            $app = ($app -replace "`0", '').Trim()
+            if (Test-Path -LiteralPath $app) { return $app }
+        }
+    } catch { }
+    return 'python'
+}
+$SnapshotPython = Resolve-ServicePython
+
 $stamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 $dest  = Join-Path $Root $stamp
 $log   = Join-Path $Root "backup.log"
@@ -91,7 +111,7 @@ try {
     $pyFile = Join-Path $env:TEMP "chrollo_db_snapshot.py"
     Set-Content -Path $pyFile -Value $dbSnapshotPy -Encoding ASCII
     $liveDb = Join-Path $Repo "webapp\backend\trading_journal.db"
-    $pyOut = & python $pyFile $liveDb (Join-Path $dest "trading_journal.db")
+    $pyOut = & $SnapshotPython $pyFile $liveDb (Join-Path $dest "trading_journal.db")
     foreach ($line in @($pyOut)) { Write-Log "  db_snapshot: $line" }
     if ($LASTEXITCODE -ne 0) { throw "SQLite snapshot failed (see db_snapshot lines above)" }
     $dbSnapshotDone = $true
