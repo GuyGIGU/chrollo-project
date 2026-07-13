@@ -238,6 +238,84 @@ Real restore, after data loss:
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.
 
+## 6. Self-Hosted CI Runner (GitHub Actions)
+
+The `verify-windows` job in `.github/workflows/quality.yml` runs on a **self-hosted runner
+on this box** instead of GitHub's paid `windows-latest`. GitHub bills hosted Windows minutes
+at **2×**, and that one job was roughly half the CI bill; a self-hosted runner makes it
+**free and unlimited**, and — because this machine *is* the prod platform — gives true
+prod-parity (same Windows, same Python 3.14). The Linux `verify` job stays on GitHub's hosted
+runner (1× minutes, cheap).
+
+> **Security — private repo only.** A self-hosted runner is safe while the repo is **private**.
+> Do **not** leave it attached if the repo is ever made public: a pull request from a fork
+> could execute arbitrary code on this machine. Detach it first (see *Managing the runner*).
+
+> **Sequence matters.** Register the runner **before** pushing the workflow change — otherwise
+> the `verify-windows` job has no `chrollo-win` runner to land on and sits queued (then fails
+> after GitHub's ~24 h wait).
+
+### Install (one-time)
+
+1. On GitHub: **repo → Settings → Actions → Runners → New self-hosted runner → Windows / x64**.
+   That page shows the current download URL and a short-lived **registration token** — copy
+   both from there (they change between visits).
+2. Download and extract (use the exact URL from step 1):
+
+```powershell
+mkdir C:\actions-runner; cd C:\actions-runner
+Invoke-WebRequest -Uri <DOWNLOAD_URL_FROM_GITHUB> -OutFile actions-runner.zip
+Expand-Archive .\actions-runner.zip -DestinationPath .
+```
+
+3. Configure with the label the workflow targets (`chrollo-win`):
+
+```powershell
+.\config.cmd --url https://github.com/GuyGIGU/chrollo-project --token <REGISTRATION_TOKEN> --labels chrollo-win --unattended
+```
+
+4. Install it as a service so it runs on boot with no logged-in session (**Administrator**
+   PowerShell):
+
+```powershell
+.\svc.cmd install
+.\svc.cmd start
+.\svc.cmd status
+```
+
+In **Settings → Actions → Runners** the runner should now show **Idle** with the `chrollo-win`
+label. Push a commit and confirm the `verify-windows` job picks it up.
+
+### Managing the runner
+
+```powershell
+cd C:\actions-runner
+.\svc.cmd status      # is it running?
+.\svc.cmd stop        # pause (queued jobs wait; the workflow's concurrency cancels superseded ones)
+.\svc.cmd start
+```
+
+To **detach** it (before making the repo public, or to retire it): stop and uninstall the
+service, then remove the registration with a fresh removal token from
+**Settings → Actions → Runners → … → Remove**:
+
+```powershell
+.\svc.cmd stop
+.\svc.cmd uninstall
+.\config.cmd remove --token <REMOVAL_TOKEN>
+```
+
+### Notes for this machine
+
+- CI jobs here are **pure compute and broker-free** — the tests never open an IBKR session,
+  so the runner never contends with TWS / TradingView for the single login. It does use CPU
+  while a job runs; the workflow's `concurrency: cancel-in-progress` stops rapid pushes from
+  queuing a backlog on the box.
+- The runner **self-updates**; no routine maintenance.
+- If a job can't find `git` or other tools, the service is running as `NETWORK SERVICE` by
+  default — re-install it under your own account so it inherits your PATH:
+  `.\svc.cmd uninstall` then `.\svc.cmd install "$env:USERDOMAIN\$env:USERNAME"`.
+
 ## Applying Code Changes (one click)
 
 After any code change (frontend or backend), you do **not** need to run `npm run build` and an

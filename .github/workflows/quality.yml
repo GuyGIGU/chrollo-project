@@ -1,9 +1,19 @@
 name: Quality
 
 on:
+  # Heavy CI runs on PRs (pre-merge gate) and pushes to main (post-merge gate) only.
+  # Feature/scratch branches no longer burn minutes on every push — open a PR to get CI.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+# Cancel superseded runs on the same ref. Important now that verify-windows runs
+# on a SINGLE self-hosted runner: without this, rapid pushes queue a backlog of
+# obsolete commits that tie up the operator's machine (shared with the always-on
+# ChrolloDashboard service). Only the latest commit on a ref needs to be gated.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -17,6 +27,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          # Cache the pip wheel downloads (pandas/numpy/scipy/pyarrow/...) so the hosted
+          # ubuntu job stops reinstalling the whole scientific stack from scratch each run.
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            constraints.txt
 
       - name: Install Python dependencies
         run: |
@@ -117,7 +134,13 @@ jobs:
   # service). This job repeats the compile + pytest gate on the prod platform
   # and version, including the service-cwd boot smoke in tests/test_service_boot.py.
   verify-windows:
-    runs-on: windows-latest
+    # Runs on a SELF-HOSTED runner on the operator's own Windows box (the prod
+    # platform) — free unlimited minutes + true prod-parity vs the paid, 2x-billed
+    # windows-latest hosted runner it replaces. SAFETY: this is safe only while the
+    # repo is PRIVATE; if it is ever made public, REMOVE this runner first — a fork
+    # PR could otherwise execute arbitrary code on the machine. The runner must be
+    # registered with the custom label `chrollo-win` (see docs/deploy.md setup).
+    runs-on: [self-hosted, chrollo-win]
 
     steps:
       - name: Check out repository
