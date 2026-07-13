@@ -27,12 +27,17 @@ After a deliberate upgrade, regenerate it: `pip freeze` → replace the pin line
 
 ## 2. Register The Windows Service
 
-Install NSSM first, then run these commands from an Administrator PowerShell. Adjust `python.exe` if your Python lives somewhere else.
+Install NSSM first, then run these commands from an Administrator PowerShell. **Use the absolute
+path to the dependency-installed interpreter** — do *not* use a bare `python.exe`. This box carries a
+machine-wide, dependency-less Python 3.14 on the *system* PATH (installed for the self-hosted CI
+runner, §6), and the service account (LocalSystem) resolves a bare name to *that* interpreter, which
+has no `fastapi` and boot-loops the service. Adjust the path below if your deps-installed Python lives
+elsewhere, then confirm what got stored with `nssm get ChrolloDashboard Application`.
 
 ```powershell
 cd "C:\Users\User\Documents\Projects\Chrollo Project"
 
-nssm install ChrolloDashboard "python.exe" "-m uvicorn main:app --host 127.0.0.1 --port 8000"
+nssm install ChrolloDashboard "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\python.exe" "-m uvicorn main:app --host 127.0.0.1 --port 8000"
 nssm set ChrolloDashboard AppDirectory "C:\Users\User\Documents\Projects\Chrollo Project\webapp\backend"
 nssm set ChrolloDashboard DisplayName "Chrollo Dashboard"
 nssm set ChrolloDashboard Description "Local Chrollo dashboard and scheduled stock scans"
@@ -327,11 +332,15 @@ cd C:\actions-runner
   `actions/setup-python` can't self-install under that account either — so CI uses a
   system-wide interpreter (via a throwaway venv). Re-do this if the runner box is rebuilt.
 - The runner **self-updates**; no routine maintenance.
-- If a job can't find `git` or other tools, the service runs as `NETWORK SERVICE` by default —
-  re-register it under your own account (which inherits your PATH) by un-configuring (see
-  *Reconfiguring later*) and adding
-  `--windowslogonaccount "$env:USERDOMAIN\$env:USERNAME" --windowslogonpassword "<password>"`
-  to the `--runasservice` command.
+- If a job can't find `git` or other tools, the runner runs as `NETWORK SERVICE`, which sees only
+  the **system** PATH. Fix it by putting the missing tool on the **system** PATH (or calling it by
+  full path) and restarting the runner — the same remedy this doc already uses for Python above.
+  **Do not move the runner onto your own account.** Re-registering it with
+  `--windowslogonaccount` / `--windowslogonpassword` is discouraged: it persists your Windows
+  password on a service that executes arbitrary checked-out PR/CI code, and it gives that code
+  read/write to your user profile — the live `trading_journal.db`, the backups, the OneDrive mirror.
+  On this prod box (always-on dashboard + the single IBKR login), the `NETWORK SERVICE` account is
+  the boundary that keeps CI code away from live trading data. Keep it.
 
 ## Applying Code Changes (one click)
 

@@ -58,9 +58,33 @@ function Resolve-Tool([string]$name) {
     }
     return $cmd.Source
 }
+
+# The backend preflight must smoke-import under the service's OWN Python, not a
+# PATH-resolved 'python'. Under UAC elevation the effective PATH can resolve
+# 'python' to a different install than the service uses (e.g. a machine-wide
+# Python on the System PATH, added for the CI runner), so a generic 'python'
+# would import a deps-less interpreter the service never boots with - a false
+# "No module named 'fastapi'" failure that blocks a perfectly good deploy. Read
+# the service's configured interpreter straight from nssm and reuse Resolve-Tool's
+# untrusted-under-elevation guard.
+function Get-ServicePython {
+    $app = & $nssm get ChrolloDashboard Application |
+        Where-Object { $_ -and $_.Trim() } | Select-Object -First 1
+    if (-not $app) {
+        Fail "Could not read the ChrolloDashboard service Python from nssm. Nothing was changed."
+    }
+    $app = ($app -replace "`0", '').Trim()
+    if (-not (Test-Path -LiteralPath $app)) {
+        Fail "Service Python '$app' (from nssm) does not exist. Nothing was changed."
+    }
+    if ($app.ToLowerInvariant().StartsWith($repo.ToLowerInvariant())) {
+        Fail "Refusing to run service Python '$app' - inside the repo is untrusted under elevation."
+    }
+    return $app
+}
 $nssm   = Resolve-Tool 'nssm'
-$python = Resolve-Tool 'python'
 $npm    = Resolve-Tool 'npm'
+$python = Get-ServicePython
 
 function Restart-ServiceAndVerify {
     Write-Host "`nRestarting ChrolloDashboard service..." -ForegroundColor Cyan

@@ -18,6 +18,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -81,6 +82,17 @@ jobs:
       - name: Hermetic seed-recall regression guard
         run: python -m core.archive.seed_recall --hermetic-check
 
+      # Operator-marks acceptance ratchet. Offline + deterministic, HARD gate.
+      # Replays the committed EC-7 must-fire marks corpus (docs/marks + the frozen
+      # tests/baselines/marks_corpus.parquet fixture) through the engine and fails if a
+      # pinned operator mark stops firing. Sibling of the guards above but over a DIFFERENT
+      # corpus (operator ground truth, not seed winners); ~35s, hermetic (committed
+      # fixture + baseline only, no network). pytest's test_marks_corpus.py checks the
+      # plumbing cheaply under a monkeypatched evaluator; THIS step runs the real replay,
+      # which is why it is a dedicated CI step and not a pytest test.
+      - name: Operator-marks acceptance guard
+        run: python -m tools.marks_corpus --check
+
       # Seed-recall guard, FRESH-DATA basis. ADVISORY-ONLY on CI, by design.
       #
       # The committed baseline (tests/baselines/seed_recall_baseline.json) is
@@ -141,6 +153,10 @@ jobs:
     # PR could otherwise execute arbitrary code on the machine. The runner must be
     # registered with the custom label `chrollo-win` (see docs/deploy.md setup).
     runs-on: [self-hosted, chrollo-win]
+    # Cap a hung step: a single shared self-hosted runner (also carrying the always-on
+    # ChrolloDashboard service) must not be pinned for GitHub's 6h default. `concurrency`
+    # only cancels superseded runs, never a lone stuck one.
+    timeout-minutes: 30
     # Uses a machine-wide Python 3.14 installed on the runner box (on the system PATH), NOT
     # actions/setup-python — setup-python's per-run installer fails under the runner's NETWORK
     # SERVICE account, and the operator's own 3.14 is a per-user install under %LOCALAPPDATA%
