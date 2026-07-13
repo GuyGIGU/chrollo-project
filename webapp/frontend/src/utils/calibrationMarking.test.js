@@ -190,6 +190,18 @@ test('edit-mark loads a saved mark and remembers its id; clear forgets it', () =
   assert.equal(s.editingId, null);
 });
 
+test('a load (frame change) resets editingId to null — a stale id cannot survive a scrub', () => {
+  // The second footgun's backstop (Council Review 2026-07-12): after the UI
+  // auto-clears on save, scrubbing to a new frame must NOT leave editingId set,
+  // or the next save would silently PUT over the just-edited mark on a new frame.
+  let s = initialMarkingState(null, 'BODI|2026-04-15|d1');
+  s = markingReducer(s, { type: 'edit-mark', mark: { id: 9, verdict: 'box' } });
+  assert.equal(s.editingId, 9);
+  s = markingReducer(s, { type: 'load', frameKey: 'BODI|2026-04-14|d2', draft: null });
+  assert.equal(s.editingId, null);       // the scrub forgot the edit target
+  assert.equal(s.frameKey, 'BODI|2026-04-14|d2');
+});
+
 test('markPayloadFromDraft echoes identity and provenance from the chart payload', () => {
   const chartData = {
     ticker: 'KLAC', as_of_session: '2025-09-05', data_regime: 'as_traded',

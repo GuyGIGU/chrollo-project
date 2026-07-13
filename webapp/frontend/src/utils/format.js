@@ -16,6 +16,18 @@ export const EMPTY = '—'; // —
 export const finiteOrNull = (value) =>
   value == null || !Number.isFinite(Number(value)) ? null : Number(value);
 
+// Total-order comparators that never return NaN — a NaN comparator leaves
+// Array.sort order unspecified (the flicker the dense ledgers avoid). A missing
+// number coalesces to -Infinity so it stays ORDERED (sinks under asc); strings
+// compare via localeCompare on '' (ISO dates sort chronologically under it).
+// One home shared by watchlistTable + calibrationTables (EC-3 — no forked twin).
+export const numAsc = (a, b) => {
+  const na = a == null ? -Infinity : a;
+  const nb = b == null ? -Infinity : b;
+  return na < nb ? -1 : na > nb ? 1 : 0;
+};
+export const strAsc = (a, b) => String(a ?? '').localeCompare(String(b ?? ''));
+
 // Fixed-decimal (the house `fx` guard).
 export const fx = (value, digits = 2, empty = EMPTY) => {
   const n = finiteOrNull(value);

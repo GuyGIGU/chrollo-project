@@ -5,7 +5,7 @@
 // Off-scan tickers (starred names not in today's scan) are the COMMON case, so
 // they get explicit null fields + in_scan:false rather than a bare undefined.
 
-import { finiteOrNull } from './format.js';
+import { finiteOrNull, numAsc } from './format.js';
 
 // Tier rank for sorting: S is best (0). Unknown / off-scan tiers sink past D.
 export const TIER_RANK = { S: 0, A: 1, B: 2, C: 3, D: 4 };
@@ -51,21 +51,12 @@ export function sortWatchlistRows(rows, sortBy = 'tier', sortDir = 'asc') {
 function keyCompare(a, b, key) {
   switch (key) {
     case 'tier': return tierRank(a.tier) - tierRank(b.tier);
-    case 'score': return compareAsc(a.score, b.score);
+    case 'score': return numAsc(a.score, b.score);
     case 'setup': return String(a.setup ?? '').localeCompare(String(b.setup ?? ''));
     case 'ticker': return a.ticker.localeCompare(b.ticker);
     default: return 0;
   }
 }
 
-// Numeric compares that never return NaN — a NaN comparator leaves Array.sort
-// order unspecified, which is exactly the flicker we are avoiding. Null coalesces
-// to -Infinity so a missing value is ordered, not poisoned.
-function compareAsc(a, b) {
-  const na = a == null ? -Infinity : a;
-  const nb = b == null ? -Infinity : b;
-  return na < nb ? -1 : na > nb ? 1 : 0;
-}
-function compareDesc(a, b) {
-  return -compareAsc(a, b);
-}
+// Descending numeric compare over the shared NaN-free numAsc (format.js).
+const compareDesc = (a, b) => -numAsc(a, b);

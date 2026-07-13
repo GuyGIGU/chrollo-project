@@ -242,7 +242,7 @@ class CalibrationMark(Base):
     data_regime = Column(String, nullable=False)
     engine_config_version = Column(String, nullable=False)
     anchor_close = Column(Float, nullable=False)  # the as-of bar's close as rendered
-    frame_digest = Column(String, nullable=True)  # bound at save / first harness freeze
+    frame_digest = Column(String, nullable=True)  # always bound at save (validate_mark requires a sha256); nullable is legacy-DDL only — see review 2026-07-12 (NOT NULL rebuild deferred)
     created_at = Column(DateTime, nullable=False)  # UTC
     updated_at = Column(DateTime, nullable=False)  # UTC
     revision = Column(Integer, nullable=False, default=1)

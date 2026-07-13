@@ -38,6 +38,7 @@ FIRST_RAILS = ("resistance", "support")
 _DIGEST_SHAPE = re.compile(r"^[0-9a-f]{64}$")
 
 _LABEL_MAX = 40
+_NOTE_MAX = 500   # the operator's reason line — bounded so a stray paste can't bloat the ground-truth DB
 
 
 _ISO_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -97,6 +98,12 @@ def validate_mark(mark: dict) -> list[str]:
         problems.append(f"label must be a string of at most {_LABEL_MAX} chars")
     elif label != label.strip():
         problems.append("label carries leading/trailing whitespace")
+
+    # Note is free operator text — bound it (same-app input still gets a ceiling)
+    # so a stray large paste can't silently bloat the ground-truth DB + backups.
+    note = get("note")
+    if note is not None and (not isinstance(note, str) or len(note) > _NOTE_MAX):
+        problems.append(f"note must be a string of at most {_NOTE_MAX} chars")
 
     knowable = get("knowable_from_date")
     if knowable is not None:

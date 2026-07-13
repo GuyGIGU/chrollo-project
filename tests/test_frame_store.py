@@ -127,3 +127,44 @@ def test_freeze_leaves_no_temp_files(frames_dir):
 def test_load_missing_frame_is_none(frames_dir):
     assert frame_store.load_frame("ZZZZ", "2026-01-01") is None
     assert frame_store.load_frame("ZZZZ", "2026-01-01", digest="a" * 64) is None
+
+
+# ── preview_series (v2 ledger thumbnail feed) ────────────────────────
+
+
+def test_preview_series_small_frame_keeps_every_bar():
+    frame = _frame(closes=(10.0, 10.5, 10.25))
+    out = frame_store.preview_series(frame)
+    assert out["n"] == 3
+    assert [p["c"] for p in out["series"]] == [10.0, 10.5, 10.25]
+    assert [p["t"] for p in out["series"]] == ["2026-04-13", "2026-04-14", "2026-04-15"]
+    # envelope spans the frame's low..high (High = c+0.5, Low = c-0.5)
+    assert out["lo"] == 9.5 and out["hi"] == 11.0
+
+
+def test_preview_series_downsamples_but_keeps_first_and_last():
+    import pandas as pd
+    closes = [10.0 + i * 0.1 for i in range(300)]
+    dates = pd.bdate_range("2025-01-01", periods=300)
+    frame = pd.DataFrame({
+        "Open": closes, "High": [c + 1 for c in closes],
+        "Low": [c - 1 for c in closes], "Close": closes,
+        "Volume": [1.0] * 300,
+    }, index=dates)
+    out = frame_store.preview_series(frame, points=48)
+    assert out["n"] == 300
+    assert len(out["series"]) <= 49  # ~points, never the full 300
+    assert out["series"][0]["c"] == closes[0]     # first bar kept -> full-width line
+    assert out["series"][-1]["c"] == closes[-1]   # last bar kept -> ends on as-of close
+    assert out["lo"] == closes[0] - 1 and out["hi"] == closes[-1] + 1
+
+
+def test_preview_series_drops_non_finite_and_tolerates_empty():
+    import numpy as np
+    import pandas as pd
+    frame = _frame(closes=(10.0, 10.5, 10.25))
+    frame.loc[frame.index[1], "Close"] = np.nan  # a vendor NaN flicker
+    out = frame_store.preview_series(frame)
+    assert out["n"] == 2  # the NaN row is dropped, like the chart render
+    empty = frame_store.preview_series(pd.DataFrame())
+    assert empty == {"series": [], "lo": None, "hi": None, "n": 0}

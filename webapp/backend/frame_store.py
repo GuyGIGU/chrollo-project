@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import uuid
 
 import pandas as pd
 
@@ -77,6 +78,40 @@ def ohlcv_digest(frame: pd.DataFrame) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+_PREVIEW_POINTS = 48  # downsample target for the ledger frame thumbnail
+
+
+def preview_series(frame: pd.DataFrame, points: int = _PREVIEW_POINTS) -> dict:
+    """Downsample a frozen frame to a small close line + price envelope for the
+    ledger thumbnail — the review's "precompute a downsampled series, never a
+    per-row read on render" feed (v2 Add-2). Pure: no I/O, no engine, over the
+    VISIBLE (finite) bars only, so it moves only when the drawn data moves.
+
+    Returns ``{series: [{t, c}], lo, hi, n}``: a close path (each point dated so
+    the operator's box maps to x by session, not by calendar guesswork) plus the
+    frame's low/high envelope (the y-range the client expands to include the
+    drawn rails). Bucketed by position — the first and last bars are always
+    kept, so the line spans the full width and ends on the as-of close.
+    """
+    visible = finite_frame(frame)
+    n = int(len(visible))
+    if n == 0 or "Close" not in visible.columns:
+        return {"series": [], "lo": None, "hi": None, "n": 0}
+    closes = visible["Close"].astype(float)
+    highs = visible["High"].astype(float) if "High" in visible.columns else closes
+    lows = visible["Low"].astype(float) if "Low" in visible.columns else closes
+    if n <= points:
+        idxs = range(n)
+    else:
+        # last row of each positional bucket, plus the first bar (full-width line)
+        idxs = sorted({0} | {min(int((i + 1) * n / points) - 1, n - 1)
+                             for i in range(points)})
+    series = [{"t": visible.index[i].strftime("%Y-%m-%d"),
+               "c": float(closes.iloc[i])} for i in idxs]
+    return {"series": series, "lo": float(lows.min()), "hi": float(highs.max()),
+            "n": n}
+
+
 def frame_path(ticker: str, as_of: str) -> str:
     # Callers validate ticker against the strict grammar BEFORE it reaches a
     # path (security rule); as_of is strict YYYY-MM-DD.
@@ -88,7 +123,11 @@ def _versioned_path(ticker: str, as_of: str, digest: str) -> str:
 
 
 def _atomic_write(frame: pd.DataFrame, path: str) -> None:
-    tmp = f"{path}.tmp-{os.getpid()}"
+    # Per-write unique temp: the /chart freeze runs in FastAPI's sync-def
+    # threadpool (many threads, one PID), so a PID-only temp name would let two
+    # concurrent same-target freezes stage to and rename the SAME file. A uuid
+    # suffix gives every writer its own temp before the atomic rename.
+    tmp = f"{path}.tmp-{os.getpid()}-{uuid.uuid4().hex}"
     frame.to_parquet(tmp)
     os.replace(tmp, path)
 
