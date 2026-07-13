@@ -313,6 +313,30 @@ def calibration_frame_thumb(ticker: str = Query(...), as_of: str = Query(...),
     return result
 
 
+# ── Fired-in-window grade (the sharper ledger chip) ──────────────────
+
+
+@router.get("/fired", dependencies=[Depends(require_same_app)])
+def calibration_fired(ticker: str = Query(...), db: Session = Depends(get_db)):
+    """Per-mark FIRED-in-window grade — the operator's "pops-up-live" bar: would
+    this pick have appeared on the nightly screener? Runs the FULL scoring
+    pipeline per box mark (~1s/session), so it NEVER blocks the request: a cache
+    miss is enqueued to a single background worker and returned as 'pending', and
+    the client polls `computing` until it settles. Guarded + read-only +
+    frozen-or-refuse; degrade-never-500. This is the sharper criterion the
+    concordance chip (/agreement) points at.
+    """
+    symbol = ticker.strip().upper()
+    if not TICKER_RE.match(symbol):
+        _refuse(400, "bad_ticker",
+                "ticker must be 1-10 chars of A-Z, 0-9, '.' or '-'", symbol, "")
+    marks = (db.query(CalibrationMark)
+             .filter(CalibrationMark.ticker == symbol)
+             .order_by(CalibrationMark.as_of_date).all())
+    from services.calibration_fired import fired_for_marks  # noqa: PLC0415 — harness/pandas chain, lazy
+    return {"ticker": symbol, **fired_for_marks(marks)}
+
+
 # ── Marks CRUD (Task 4) ──────────────────────────────────────────────
 
 

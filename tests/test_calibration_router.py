@@ -32,6 +32,7 @@ from routers.calibration import (  # noqa: E402
     calibration_agreement,
     calibration_chart,
     calibration_engine_read,
+    calibration_fired,
     calibration_frame_thumb,
     create_mark,
     delete_mark,
@@ -275,7 +276,8 @@ def test_every_side_effectful_route_declares_the_guard():
     # /agreement each run a full structure read per frame. Guarded, drive-by
     # pages excluded.
     guarded_gets = {"/calibration/chart", "/calibration/engine-read",
-                    "/calibration/agreement", "/calibration/frame-thumb"}
+                    "/calibration/agreement", "/calibration/frame-thumb",
+                    "/calibration/fired"}
     seen = {route.path for route in calibration.router.routes}
     assert guarded_gets <= seen  # the pin covers routes that actually exist
     for route in calibration.router.routes:
@@ -650,3 +652,182 @@ def test_frame_thumb_caches_by_digest_never_re_reads(digest, monkeypatch):
     body = calibration_frame_thumb(ticker="BODI", as_of="2026-04-15",
                                    frame_digest=digest)
     assert body["n"] == 3  # served from cache
+
+
+# ── Fired-in-window grade (the sharper "Engine" chip) ────────────────
+import threading  # noqa: E402
+
+import services.calibration_fired as fired_service  # noqa: E402
+from services.calibration_fired import (  # noqa: E402
+    _chip_from_fired,
+    _nearest_reject,
+    fired_for_marks,
+    reset_fired_cache,
+)
+
+
+def _ns_mark(**overrides):
+    # A complete stand-in: fired_for_marks builds _mark_dict(mark) on a miss,
+    # which reads the full model shape (incl. events), so the fake carries it all.
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    base = dict(
+        id=1, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), revision=1,
+        ticker="BODI", as_of_date="2026-04-15", label="", verdict="box",
+        resistance=12.4, support=10.15, box_start_date="2025-12-12",
+        box_end_date="2026-04-15", r_anchor_date=None, s_anchor_date=None,
+        first_rail=None, rails_source="operator", knowable_from_date=None,
+        note=None, data_regime="as_traded", engine_config_version="cfg",
+        anchor_close=11.02, frame_digest="d0", events=[],
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+def test_fired_chip_maps_fired_missed_and_unassessable(monkeypatch):
+    # isolate the mapping from the real traced read
+    monkeypatch.setattr(fired_service, "_miss_reason",
+                        lambda md, **k: {"stage": "respect", "detail": "respect 0.71 < 0.80"})
+    md = {"resistance": 12.4, "support": 10.15}
+    ok = _chip_from_fired(md, {"fired": True, "fire_tier": "S",
+                               "fire_R": 12.4, "fire_S": 10.15,
+                               "fire_rails_within_tol": True})
+    assert ok["state"] == "ok" and ok["kind"] == "fired" and ok["tier"] == "S"
+    assert ok["rail_delta"] == 0.0  # fired at his exact rails
+    miss = _chip_from_fired(md, {"fired": False, "fired_window": ["2026-04-01", "2026-04-15"]})
+    assert miss["state"] == "miss" and miss["kind"] == "missed"
+    assert miss["stage"] == "respect" and "0.71" in miss["detail"]  # the gate that killed it
+    none = _chip_from_fired(md, {"fired": None, "fired_detail": "EVAL_ERROR"})
+    assert none["state"] == "untested" and none["kind"] == "unassessable"
+    assert _chip_from_fired(md, None)["kind"] == "negative"
+
+
+def test_miss_reason_degrades_to_none_when_the_frame_is_gone():
+    from services.calibration_fired import _miss_reason
+    reason = _miss_reason(
+        {"ticker": "ZZZZ", "as_of_date": "2020-01-01", "resistance": 1.0, "support": 0.0},
+        frame_loader=lambda *_a, **_k: None)
+    assert reason is None  # no frozen frame -> reasonless 'missed', never a crash
+
+
+def test_nearest_reject_picks_the_candidate_nearest_the_drawn_rails():
+    trace = [{"box_cascade": [
+        {"verdict": "rejected", "stage": "width", "detail": "too wide", "R": 50.0, "S": 5.0},
+        {"verdict": "rejected", "stage": "respect", "detail": "respect 0.71 < 0.80", "R": 12.5, "S": 10.2},
+        {"verdict": "elected", "stage": "selection", "detail": "winner", "R": 20.0, "S": 18.0},
+    ]}]
+    reason = _nearest_reject(trace, 12.4, 10.15)  # his rails ~ the respect candidate
+    assert reason["stage"] == "respect"
+    assert "0.71" in reason["detail"]
+    # no geometry -> the terminal reject stage
+    assert _nearest_reject(trace, None, None)["stage"] == "respect"
+    # no rejects at all -> None (a box elected, or nothing examined)
+    assert _nearest_reject([{"box_cascade": [{"verdict": "elected", "stage": "selection"}]}], 12.4, 10.15) is None
+
+
+def test_fired_non_box_is_untested_without_compute():
+    reset_fired_cache()
+
+    def forbidden(_md):
+        raise AssertionError("a negative must not run the fired pipeline")
+
+    out = fired_for_marks([_ns_mark(verdict="no_structure", resistance=None, support=None)],
+                          compute=forbidden, background=False)
+    assert out["computing"] is False
+    assert out["marks"][1]["state"] == "untested" and out["marks"][1]["kind"] == "negative"
+
+
+def test_fired_sync_grades_and_caches(monkeypatch):
+    reset_fired_cache()
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+    calls = []
+
+    def grader(md):
+        calls.append(1)
+        return {"state": "ok", "kind": "fired", "tier": "A", "rail_delta": 0.1}
+
+    mark = _ns_mark(engine_config_version="LIVE")
+    first = fired_for_marks([mark], compute=grader, background=False)
+    assert first["computing"] is False
+    assert first["marks"][1]["state"] == "ok" and first["marks"][1]["stale"] is False
+    fired_for_marks([mark], compute=grader, background=False)  # second call
+    assert calls == [1]  # served from cache, grader not re-run
+
+
+def test_fired_degrades_a_throwing_grade(monkeypatch):
+    reset_fired_cache()
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+
+    def boom(_md):
+        raise RuntimeError("pipeline exploded")
+
+    out = fired_for_marks([_ns_mark()], compute=boom, background=False)
+    assert out["marks"][1]["state"] == "untested" and out["marks"][1]["kind"] == "error"
+
+
+def test_fired_cache_keys_on_birth_stamp(monkeypatch):
+    from datetime import datetime, timezone
+    reset_fired_cache()
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+    calls = []
+
+    def grader(_md):
+        calls.append(1)
+        return {"state": "ok", "kind": "fired"}
+
+    common = dict(id=5, revision=1, engine_config_version="LIVE")
+    old = _ns_mark(created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), **common)
+    reborn = _ns_mark(created_at=datetime(2026, 2, 2, tzinfo=timezone.utc), **common)
+    fired_for_marks([old], compute=grader, background=False)
+    fired_for_marks([reborn], compute=grader, background=False)
+    assert calls == [1, 1]  # a reused rowid with a fresh birth stamp re-grades
+
+
+def test_fired_pool_returns_pending_then_settles(monkeypatch):
+    import time
+    reset_fired_cache()
+    monkeypatch.setattr("core.freeze.manifest.manifest_hash", lambda: "LIVE")
+    gate = threading.Event()
+
+    def slow(_md):
+        gate.wait(3)
+        return {"state": "ok", "kind": "fired", "tier": "S", "rail_delta": 0.1}
+
+    mark = _ns_mark(engine_config_version="LIVE")
+    first = fired_for_marks([mark], compute=slow, background=True)
+    assert first["computing"] is True                 # non-blocking
+    assert first["marks"][1]["state"] == "pending"
+    gate.set()
+    settled = None
+    for _ in range(60):                               # bounded poll
+        settled = fired_for_marks([mark], compute=slow, background=True)
+        if not settled["computing"]:
+            break
+        time.sleep(0.05)
+    assert settled["computing"] is False
+    assert settled["marks"][1]["state"] == "ok"       # worker filled the cache
+
+
+def test_fired_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
+    _add_mark(db, ticker="BODI")
+    _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
+    seen = {}
+
+    def fake(marks):
+        seen["tickers"] = {m.ticker for m in marks}
+        return {"marks": {m.id: {"state": "pending"} for m in marks}, "computing": True}
+
+    monkeypatch.setattr(fired_service, "fired_for_marks", fake)
+    body = calibration_fired(ticker="bodi", db=db)
+    assert body["ticker"] == "BODI" and body["computing"] is True
+    assert seen["tickers"] == {"BODI"}
+
+
+def test_fired_endpoint_rejects_a_bad_ticker(db):
+    with pytest.raises(HTTPException) as err:
+        calibration_fired(ticker="!!", db=db)
+    assert err.value.status_code == 400
+    assert err.value.detail["class"] == "bad_ticker"
+
+
+import threading  # noqa: E402 — used by the pool test above

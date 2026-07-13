@@ -9,6 +9,7 @@ import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
 import useMarkAgreement from '../hooks/useMarkAgreement';
+import useMarkFired from '../hooks/useMarkFired';
 import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import { attachHoverHighlight } from './calibrationHover';
@@ -130,6 +131,11 @@ function CalibrationTab() {
   // never re-fetches. Peeking here does NOT corrupt ground truth: it reads the
   // SAVED marks, not the live draft.
   const agreement = useMarkAgreement(chartData?.ticker, marks);
+
+  // The sharper "pops-up-live" grade: would each pick have fired on the nightly
+  // screener? Runs the full pipeline per box mark in a background worker, so
+  // this polls and the Engine chip upgrades from concordance -> fired in place.
+  const fired = useMarkFired(chartData?.ticker, marks);
 
   // Saved marks drawn on THIS frame's chart, always (operator bug report
   // 2026-07-11: with only the draft rendered, saving and starting the next
@@ -495,6 +501,7 @@ function CalibrationTab() {
         marks={marks}
         editingId={marking.editingId}
         agreement={agreement}
+        fired={fired}
         onEdit={editMark}
         onDelete={(id) => removeMark(id, chartData?.ticker)}
       />
