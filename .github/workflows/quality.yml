@@ -141,23 +141,31 @@ jobs:
     # PR could otherwise execute arbitrary code on the machine. The runner must be
     # registered with the custom label `chrollo-win` (see docs/deploy.md setup).
     runs-on: [self-hosted, chrollo-win]
-
+    # This runner IS the prod box, so use ITS installed Python (the real prod interpreter)
+    # rather than actions/setup-python — setup-python fails here because its per-run installer
+    # cannot run under the runner's NETWORK SERVICE account, and testing on the box's own 3.14
+    # is better prod-parity anyway. A throwaway venv keeps CI from mutating the live service's
+    # site-packages. Python must be on the machine (system) PATH so the service account sees it.
+    defaults:
+      run:
+        shell: powershell
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
+      - name: Show Python version
+        run: python --version
+
+      - name: Create isolated virtualenv
+        run: python -m venv .venv
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-dev.txt -c constraints.txt
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt -c constraints.txt
 
       - name: Compile Python
-        run: python -m compileall core webapp/backend
+        run: .\.venv\Scripts\python.exe -m compileall core webapp/backend
 
       - name: Run Python tests
-        run: python -m pytest
+        run: .\.venv\Scripts\python.exe -m pytest
