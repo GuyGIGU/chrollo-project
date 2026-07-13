@@ -268,40 +268,49 @@ Invoke-WebRequest -Uri <DOWNLOAD_URL_FROM_GITHUB> -OutFile actions-runner.zip
 Expand-Archive .\actions-runner.zip -DestinationPath .
 ```
 
-3. Configure with the label the workflow targets (`chrollo-win`):
-
-```powershell
-.\config.cmd --url https://github.com/GuyGIGU/chrollo-project --token <REGISTRATION_TOKEN> --labels chrollo-win --unattended
-```
-
-4. Install it as a service so it runs on boot with no logged-in session (**Administrator**
-   PowerShell):
-
-```powershell
-.\svc.cmd install
-.\svc.cmd start
-.\svc.cmd status
-```
-
-In **Settings → Actions → Runners** the runner should now show **Idle** with the `chrollo-win`
-label. Push a commit and confirm the `verify-windows` job picks it up.
-
-### Managing the runner
+3. Register it **as a service** (installs *and* starts it; runs on boot). On Windows the
+   service is installed by `config.cmd` itself via `--runasservice` — there is **no
+   `svc.cmd`** (that is the Linux runner's helper). Installing a service needs elevation, so
+   run this from an **Administrator** PowerShell:
 
 ```powershell
 cd C:\actions-runner
-.\svc.cmd status      # is it running?
-.\svc.cmd stop        # pause (queued jobs wait; the workflow's concurrency cancels superseded ones)
-.\svc.cmd start
+.\config.cmd --url https://github.com/GuyGIGU/chrollo-project --token <REGISTRATION_TOKEN> --labels chrollo-win --runasservice --unattended
 ```
 
-To **detach** it (before making the repo public, or to retire it): stop and uninstall the
-service, then remove the registration with a fresh removal token from
-**Settings → Actions → Runners → … → Remove**:
+`--runasservice` installs and starts the Windows service (named
+`actions.runner.GuyGIGU-chrollo-project.<MACHINE>`, running as `NT AUTHORITY\NETWORK SERVICE`,
+delayed-auto-start); `--labels chrollo-win` is what the workflow targets. Confirm:
 
 ```powershell
-.\svc.cmd stop
-.\svc.cmd uninstall
+Get-Service actions.runner.*        # -> Running
+```
+
+In **Settings → Actions → Runners** the runner should now show **Idle** with the `chrollo-win`
+label. Open a PR and confirm the `verify-windows` job picks it up.
+
+> **Reconfiguring later.** `config.cmd` refuses to run if the runner is already configured.
+> Un-configure first — either `.\config.cmd remove --token <REMOVAL_TOKEN>` (removal token
+> from the runner's **Remove** dialog), or clear local state with
+> `Remove-Item .runner,.credentials,.credentials_rsaparams -Force` — then re-run `config.cmd`
+> with `--replace` added.
+
+### Managing the runner
+
+The runner is an ordinary Windows service, so use the standard service cmdlets:
+
+```powershell
+Get-Service  actions.runner.*        # status
+Stop-Service actions.runner.*        # pause (queued jobs wait; the workflow's concurrency cancels superseded ones)
+Start-Service actions.runner.*       # resume
+```
+
+To **detach** it (before making the repo public, or to retire it): from an **Administrator**
+PowerShell, `config.cmd remove` stops + deletes the service *and* unregisters from GitHub in
+one step. Get a removal token from **Settings → Actions → Runners → (the runner) → Remove**:
+
+```powershell
+cd C:\actions-runner
 .\config.cmd remove --token <REMOVAL_TOKEN>
 ```
 
@@ -312,9 +321,11 @@ service, then remove the registration with a fresh removal token from
   while a job runs; the workflow's `concurrency: cancel-in-progress` stops rapid pushes from
   queuing a backlog on the box.
 - The runner **self-updates**; no routine maintenance.
-- If a job can't find `git` or other tools, the service is running as `NETWORK SERVICE` by
-  default — re-install it under your own account so it inherits your PATH:
-  `.\svc.cmd uninstall` then `.\svc.cmd install "$env:USERDOMAIN\$env:USERNAME"`.
+- If a job can't find `git` or other tools, the service runs as `NETWORK SERVICE` by default —
+  re-register it under your own account (which inherits your PATH) by un-configuring (see
+  *Reconfiguring later*) and adding
+  `--windowslogonaccount "$env:USERDOMAIN\$env:USERNAME" --windowslogonpassword "<password>"`
+  to the `--runasservice` command.
 
 ## Applying Code Changes (one click)
 
