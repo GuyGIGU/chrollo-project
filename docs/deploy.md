@@ -320,6 +320,12 @@ cd C:\actions-runner
   so the runner never contends with TWS / TradingView for the single login. It does use CPU
   while a job runs; the workflow's `concurrency: cancel-in-progress` stops rapid pushes from
   queuing a backlog on the box.
+- The `verify-windows` job needs a **machine-wide** Python 3.14 on the runner's system PATH:
+  `winget install --id Python.Python.3.14 --override "/quiet InstallAllUsers=1 PrependPath=1 Include_launcher=1"`
+  then `Restart-Service actions.runner.*`. The operator's day-to-day 3.14 is a *per-user*
+  install under `%LOCALAPPDATA%` that the runner's `NETWORK SERVICE` account cannot read, and
+  `actions/setup-python` can't self-install under that account either — so CI uses a
+  system-wide interpreter (via a throwaway venv). Re-do this if the runner box is rebuilt.
 - The runner **self-updates**; no routine maintenance.
 - If a job can't find `git` or other tools, the service runs as `NETWORK SERVICE` by default —
   re-register it under your own account (which inherits your PATH) by un-configuring (see

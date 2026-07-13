@@ -141,11 +141,12 @@ jobs:
     # PR could otherwise execute arbitrary code on the machine. The runner must be
     # registered with the custom label `chrollo-win` (see docs/deploy.md setup).
     runs-on: [self-hosted, chrollo-win]
-    # This runner IS the prod box, so use ITS installed Python (the real prod interpreter)
-    # rather than actions/setup-python — setup-python fails here because its per-run installer
-    # cannot run under the runner's NETWORK SERVICE account, and testing on the box's own 3.14
-    # is better prod-parity anyway. A throwaway venv keeps CI from mutating the live service's
-    # site-packages. Python must be on the machine (system) PATH so the service account sees it.
+    # Uses a machine-wide Python 3.14 installed on the runner box (on the system PATH), NOT
+    # actions/setup-python — setup-python's per-run installer fails under the runner's NETWORK
+    # SERVICE account, and the operator's own 3.14 is a per-user install under %LOCALAPPDATA%
+    # that the service account cannot read. Same version as prod, so it still catches
+    # Windows/3.14-specific breakage. A throwaway venv keeps CI from mutating any environment's
+    # site-packages. See docs/deploy.md §6 for the machine-wide-Python prerequisite.
     defaults:
       run:
         shell: powershell
