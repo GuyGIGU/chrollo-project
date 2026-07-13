@@ -11,13 +11,14 @@
 param(
     [string]$Repo   = "C:\Users\User\Documents\Projects\Chrollo Project",
     [string]$Root   = (Join-Path $env:USERPROFILE "ChrolloBackups"),
-    # >>> OPERATOR: SET ME. Off-disk mirror for each snapshot - another physical
-    # disk or a locally-synced cloud folder, e.g.:
-    #   "D:\ChrolloBackups"   or   "$env:OneDrive\ChrolloBackups"
-    # While empty, every run logs a WARN because all copies sit on the same disk
-    # as the originals. Scheduled tasks running whether-logged-on (S4U) cannot
-    # reach network drives - use a local folder that syncs, not a UNC path.
-    [string]$Mirror = ""
+    # Off-disk mirror for each snapshot. Set to OneDrive: this box has a single
+    # physical disk, so a locally-synced cloud folder is what gives off-machine
+    # durability (the sync client uploads each snapshot). S4U scheduled tasks
+    # cannot reach network drives, so a synced LOCAL folder like this - not a UNC
+    # path - is the right choice. To disable, set to "". To use a second physical
+    # disk instead, point it there (e.g. "D:\ChrolloBackups"). Mirrored database
+    # copies are hash-verified.
+    [string]$Mirror = $(if ($env:OneDrive) { Join-Path $env:OneDrive "ChrolloBackups" } else { "" })
 )
 
 $ErrorActionPreference = "Stop"

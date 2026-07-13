@@ -27,17 +27,26 @@ After a deliberate upgrade, regenerate it: `pip freeze` → replace the pin line
 
 ## 2. Register The Windows Service
 
-Install NSSM first, then run these commands from an Administrator PowerShell. **Use the absolute
-path to the dependency-installed interpreter** — do *not* use a bare `python.exe`. This box carries a
-machine-wide, dependency-less Python 3.14 on the *system* PATH (installed for the self-hosted CI
-runner, §6), and the service account (LocalSystem) resolves a bare name to *that* interpreter, which
-has no `fastapi` and boot-loops the service. Adjust the path below if your deps-installed Python lives
-elsewhere, then confirm what got stored with `nssm get ChrolloDashboard Application`.
+Install NSSM first, then run these commands from an Administrator PowerShell. **The service runs a
+dedicated virtual environment** — not a bare `python.exe`, and not either machine-wide Python 3.14
+directly. This box carries two Python 3.14 installs that share the same `PythonCore\3.14` registry
+tag — a per-user PyManager "pythoncore" and an all-users Program Files install (added for the CI
+runner, §6) — and that collision has broken the service twice: a bare `python.exe` resolves to the
+dependency-less Program Files interpreter under the service account (no `fastapi` → boot-loop), and a
+PyManager runtime reset once wiped the pythoncore interpreter out from under the running service. A
+venv built from the Program Files interpreter is self-contained and depends on neither registry tag,
+so it survives both. Build it once, install the pinned deps into it, then register the service
+against it — and confirm what got stored with `nssm get ChrolloDashboard Application`.
 
 ```powershell
 cd "C:\Users\User\Documents\Projects\Chrollo Project"
 
-nssm install ChrolloDashboard "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\python.exe" "-m uvicorn main:app --host 127.0.0.1 --port 8000"
+# One-time: build the service's dedicated venv from the all-users Program Files
+# interpreter (a full, healthy CPython), then install this repo's pinned deps into it.
+& "C:\Program Files\Python314\python.exe" -m venv "C:\Users\User\AppData\Local\ChrolloDashboard\venv"
+& "C:\Users\User\AppData\Local\ChrolloDashboard\venv\Scripts\python.exe" -m pip install -r requirements.txt -c constraints.txt
+
+nssm install ChrolloDashboard "C:\Users\User\AppData\Local\ChrolloDashboard\venv\Scripts\python.exe" "-m uvicorn main:app --host 127.0.0.1 --port 8000"
 nssm set ChrolloDashboard AppDirectory "C:\Users\User\Documents\Projects\Chrollo Project\webapp\backend"
 nssm set ChrolloDashboard DisplayName "Chrollo Dashboard"
 nssm set ChrolloDashboard Description "Local Chrollo dashboard and scheduled stock scans"
@@ -50,6 +59,14 @@ nssm start ChrolloDashboard
 ```
 
 Do **not** set `IBKR_LIVE_CONFIRMED` on this service — it must stay broker-free at boot so a reboot or crash-restart never auto-grabs your single IBKR session (which would fight TradingView).
+
+> **Recovering an existing service** (pointed at the wrong/broken interpreter, or after a PyManager
+> reset): don't reinstall — run `tools\recover_service_python.bat` (double-click, or right-click → Run
+> as administrator). It self-elevates, repoints the existing service at the venv, restarts it, polls
+> `/health`, and then offers to remove the `HKLM\...\PythonCore\3.14\PythonPath` registry value that
+> lets a half-broken interpreter borrow another's stdlib instead of failing loudly (backed up first,
+> with automatic rollback if anything stops importing). It leaves `AppParameters`, `AppDirectory`, and
+> the broker-free `AppEnvironmentExtra` untouched.
 
 ### 2a. Log rotation (do this once)
 
@@ -131,10 +148,12 @@ Behavior:
 - Every run appends to `%USERPROFILE%\ChrolloBackups\backup.log`. Any failure removes the
   partial snapshot, logs `FAILED`, and exits 1 — visible as the task's Last Run Result.
   Glance at the log weekly; there is no `-ErrorAction SilentlyContinue` on any data path.
-- **Off-disk mirror:** set `$Mirror` at the top of the script to a second physical disk
-  or a locally-synced cloud folder (e.g. `"$env:OneDrive\ChrolloBackups"`). Until it is
-  set, every run logs a `WARN`, because snapshots on the same disk as the originals do
-  not survive a disk failure. Mirrored database copies are hash-verified.
+- **Off-disk mirror:** `$Mirror` now defaults to `%OneDrive%\ChrolloBackups` (this box has a
+  single physical disk, so a cloud-synced local folder is what gives off-machine durability —
+  the sync client uploads each snapshot). Every mirrored database copy is hash-verified. To
+  point it at a second physical disk instead, edit `$Mirror` (e.g. `"D:\ChrolloBackups"`); set
+  it to `""` to disable (every run then logs a `WARN` that all copies sit on the same disk as
+  the originals).
 
 Register (or re-register) the task from an **Administrator** PowerShell. `-LogonType S4U`
 makes it run whether or not you are logged on, with no stored password;
