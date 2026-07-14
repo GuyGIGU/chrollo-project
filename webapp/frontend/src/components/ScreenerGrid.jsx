@@ -62,6 +62,12 @@ const ScreenerGrid = () => {
     else closeDrilldown();
   }, [drilldownEtf, openDrilldown, closeDrilldown]);
 
+  // The board can be long; a drill-down and back must not cost the operator their
+  // place (the top-down → bottom-up → back loop). Scroll offset saved when leaving
+  // for a drill-down, restored on return. Declared here because BOTH the universe
+  // switch (which must clear it) and the drill-down (which saves it) touch it.
+  const savedScrollRef = useRef(null);
+
   // The selected universe lives in the URL (?u=) so it survives reload. Switching
   // resets the page AND the filters (a tag/setup/tier valid in one universe need
   // not exist in another — a stale filter would fake a "no matches" empty state)
@@ -70,14 +76,13 @@ const ScreenerGrid = () => {
     if (key === universe) return;
     filters.resetFilters();
     filters.setCurrentPage(1);
+    // Dropping ?dd= here closes any open drill-down; without clearing the saved
+    // offset, the restore effect would apply a scroll position captured on the
+    // PREVIOUS universe to the freshly-loaded one. Only a real back-to-grid restores.
+    savedScrollRef.current = null;
     setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };
 
-  // The board can be long; a drill-down and back must not cost the operator their
-  // place (the top-down → bottom-up → back loop). Save the scroll offset when
-  // leaving for a drill-down and restore it when we return — no new drill state,
-  // just a ref alongside the existing ?dd= wiring.
-  const savedScrollRef = useRef(null);
   const handleDrilldown = useCallback((etf) => {
     const el = document.querySelector('.content-scroll');
     savedScrollRef.current = el ? el.scrollTop : null;

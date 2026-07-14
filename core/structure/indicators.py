@@ -85,10 +85,13 @@ def distance_to_52w_high_pct(high, current_price, lookback: int = 252):
 
     Pure measurement shared by the firing path (``_relative_strength_context``) and the
     health-board classifier, so the drawdown basis can never drift between them. Mirrors
-    the long-standing inline computation exactly (byte-identical fold)."""
+    the long-standing inline computation exactly (byte-identical fold) — including a
+    degenerate window (empty, non-positive, or all-NaN max) yielding ``None`` rather than
+    ``NaN``: the guard is ``not (max_high > 0)`` so a NaN max takes the ``None`` branch,
+    matching the original ``... if max_252 > 0 else None``."""
     window = high.iloc[-min(lookback, len(high)):]
     max_high = float(window.max()) if len(window) else 0.0
-    if max_high <= 0:
+    if not (max_high > 0):
         return None
     return (float(current_price) - max_high) / max_high
 

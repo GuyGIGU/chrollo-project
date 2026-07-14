@@ -289,3 +289,50 @@ def test_generate_dashboard_rides_health_board_into_same_artifact(tmp_path, monk
     assert "health_board" in doc
     assert doc["chart_data"] == {} and doc["ordered_tickers"] == []  # firing side untouched
     assert doc["health_board"]["members"][0]["state"] == "consolidating"
+
+
+# --------------------------------------------------------------------------
+# Orchestration gate (Task 4) — the two guards that keep the health board OFF the
+# byte-parity-locked us_equities artifact. shadow_diff / seed_recall watch the
+# classifier OUTPUT, not this gate; with HEALTH_BOARD_ENABLED now live the
+# universe_type check is the SOLE thing sparing us_equities, so pin it directly.
+# --------------------------------------------------------------------------
+
+def _boom_if_classified(monkeypatch):
+    """Make the classifier explode if reached, so a passing test proves the gate
+    short-circuited BEFORE any read touched the panel (not merely that it returned
+    an empty payload)."""
+    def _explode(*_a, **_k):  # pragma: no cover - must never run behind the gate
+        raise AssertionError("classify_universe_members ran behind the gate")
+    monkeypatch.setattr("core.pipeline.health_board.classify_universe_members", _explode)
+
+
+def test_maybe_build_health_board_skips_equities_even_when_flag_on(monkeypatch):
+    from core.pipeline import scan_job
+    from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+
+    class _Equities:
+        key = "us_equities"
+        universe_type = DEFAULT_UNIVERSE_TYPE
+
+    monkeypatch.setattr(settings, "HEALTH_BOARD_ENABLED", True)
+    _boom_if_classified(monkeypatch)
+
+    # Flag ON, but the equities universe → None (never a health_board key on the
+    # byte-parity-locked us_equities artifact) AND the classifier is never reached.
+    assert scan_job._maybe_build_health_board(pd.DataFrame(), _Equities()) is None
+
+
+def test_maybe_build_health_board_returns_none_when_flag_off(monkeypatch):
+    from core.pipeline import scan_job
+
+    class _Sectors:
+        key = "us_sectors"
+        universe_type = "us_sectors"
+
+    monkeypatch.setattr(settings, "HEALTH_BOARD_ENABLED", False)
+    _boom_if_classified(monkeypatch)
+
+    # Flag OFF → None even for a non-equities universe (artifact byte-identical to
+    # today) AND the classifier is never reached.
+    assert scan_job._maybe_build_health_board(pd.DataFrame(), _Sectors()) is None

@@ -358,7 +358,7 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
       transition: 'border-color 0.16s ease, background 0.16s ease',
     }}
     onMouseEnter={(event) => {
-      event.currentTarget.style.borderColor = 'rgba(91,138,255,0.4)';
+      event.currentTarget.style.borderColor = 'rgba(79,207,196,0.65)';
       event.currentTarget.style.background = '#242837';
     }}
     onMouseLeave={(event) => {
@@ -401,10 +401,11 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
     {onDrilldown && (
       <button
         type="button"
+        className="focus-ring"
         title={`Show the US stocks related to ${ticker}`}
         onClick={(event) => { event.stopPropagation(); onDrilldown(ticker); }}
         style={drillButtonStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-blue)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--myth)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
       >
         Members →

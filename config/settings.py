@@ -852,10 +852,12 @@ SECTOR_RANKING_ETFS = (
 # the backend config-vs-cwd shadowing trap. See core/pipeline/health_board.py,
 # specs/market-sector-health-board.md, docs/health_board_state_audit.md.
 #
-# Default OFF until the operator has eyeballed the boards against the charts;
-# flag-off is byte-identical to today (the read path is never entered). It runs
-# only on the non-equities universes (universe_type != DEFAULT_UNIVERSE_TYPE), so
-# us_equities is unchanged even when the flag is ON.
+# Flipped live per operator request (commit "flip HEALTH_BOARD_ENABLED live"); the
+# board still only materializes once an ETF-universe scan regenerates its artifact with
+# the health_board section. Flag-off is byte-identical to today (the read path is never
+# entered); even flag-ON the read runs ONLY on the non-equities universes
+# (universe_type != DEFAULT_UNIVERSE_TYPE), so the byte-parity-locked us_equities chain
+# is untouched in both states.
 HEALTH_BOARD_ENABLED = True
 
 # A member sitting this far (or more) below its trailing 52-week high reads as a
