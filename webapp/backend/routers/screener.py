@@ -1,7 +1,6 @@
 """Screener data, scan status, and manual scan stream endpoints."""
 from __future__ import annotations
 
-import logging
 import os
 from datetime import datetime, timezone
 from typing import Literal
@@ -22,8 +21,6 @@ from services.earnings import days_until, get_next_earnings_batch
 from services.screener_data import invalidate_screener_cache, read_screener_data
 
 router = APIRouter(prefix="", tags=["screener"])
-
-log = logging.getLogger("chrollo.screener")
 
 _screener_json_path = ""
 
@@ -114,21 +111,12 @@ def get_screener_data(
     payload = read_screener_data(path)
     # The health-board section (non-equities universes, flag on) rides the same
     # artifact and passes straight through. When present, validate it against the
-    # closed HealthMember contract at the boundary. A malformed / buy-language block
-    # must NOT 500 the whole ETF response: swallow the ValidationError, log it, and
-    # serve without the board (same defensive posture as the write-side builders in
-    # scan_job._maybe_build_health_board / output.dashboard.build_health_payload).
-    # Absent (flag off / us_equities / an older file) → nothing to validate.
+    # closed HealthMember contract at the boundary — a malformed / buy-language block
+    # SURFACES here (raises) rather than silently blanking the board. Absent (flag
+    # off / us_equities / an older file) → nothing to validate, unchanged behavior.
     health = payload.get("health_board")
     if health is not None:
-        try:
-            HealthBoard.model_validate(health)
-        except Exception:  # noqa: BLE001 — a bad board must not tear the ETF response
-            log.warning(
-                "health-board failed serve-boundary validation [%s]; serving without it",
-                uni.key,
-            )
-            payload = {**payload, "health_board": None}
+        HealthBoard.model_validate(health)
     return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
 
 
