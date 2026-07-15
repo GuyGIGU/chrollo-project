@@ -171,7 +171,7 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
         if base_len == 0:
             return None, "no consolidation base found"
 
-        atr_eval = df.iloc[-6]
+        atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
         atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
 
         if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):
