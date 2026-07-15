@@ -824,8 +824,9 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
 
 
 # ------------------------------------------------------------------
-# Suggested re-weighting (advisory) — the ONE adequacy-gated home,
-# shared with the webapp /calibration router
+# Suggested re-weighting (advisory) — router-only: the /calibration
+# panel is the sole caller; the CLI analysis flags candidates but
+# does not re-weight.
 # ------------------------------------------------------------------
 def suggested_weights(df: pd.DataFrame, corr_20d: dict, corr_60d: dict,
                       current_weights: dict) -> dict:
@@ -840,8 +841,8 @@ def suggested_weights(df: pd.DataFrame, corr_20d: dict, corr_60d: dict,
     analysis uses (``signal_edge(...)["verdicts_trustworthy"]``): on a winners-
     only gallery, or too few matured/labelled rows, it returns NO suggestion
     (``weights=[]``) instead of a table fit to noise. This replaces the weaker
-    ``n >= 30`` gate the router used to inline, and keeps the computation in one
-    place so CLI + router can't drift.
+    ``n >= 30`` gate the router used to inline. It is router-only: the CLI
+    analysis flags candidate sub-scores but does not itself re-weight.
 
     Args:
         df: episode-level frame the suggestion is built from (the matured rows

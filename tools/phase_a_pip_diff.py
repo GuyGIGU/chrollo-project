@@ -73,7 +73,7 @@ def _prep_live(raw: pd.DataFrame):
         return None, "rejected at baseline filters"
     df, _ = base
     df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
-    if len(df) < 6:
+    if len(df) < settings.STRUCTURE_ATR_SAMPLE_OFFSET:
         return None, "too few bars after trim"
     df["ATR_10"] = calculate_atr(df, 10)
     df["ATR_50"] = calculate_atr(df, 50)

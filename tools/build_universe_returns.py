@@ -26,6 +26,7 @@ bound — the edge sign / ranking is trustworthy, the absolute null level is not
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import logging
 import os
@@ -53,10 +54,18 @@ METRIC_COL = "mfe_20d"
 
 
 def _validate_out(out_path: str) -> str:
-    """Refuse to write the live DB or anything under webapp/backend; require .parquet."""
+    """Refuse to clobber the live DB, the price cache, or anything under
+    webapp/backend; require .parquet."""
     ap = os.path.abspath(out_path)
-    if os.path.basename(ap).lower() == "trading_journal.db":
+    base = os.path.basename(ap).lower()
+    if base == "trading_journal.db":
         raise SystemExit("refusing: output must not be named trading_journal.db")
+    # Never overwrite the as-traded price cache (or its sector/commodity siblings)
+    # or the cache metadata sidecar — those are read-only inputs to this tool.
+    if (base == "cache_meta.json"
+            or fnmatch.fnmatch(base, "market_data_cache_5y*.parquet")):
+        raise SystemExit("refusing: output must not overwrite the price cache "
+                         "(market_data_cache_5y*.parquet / cache_meta.json)")
     backend = os.path.abspath(os.path.join(_PROJECT_ROOT, "webapp", "backend"))
     if ap.lower() == backend.lower() or ap.lower().startswith(backend.lower() + os.sep):
         raise SystemExit("refusing: output path is under webapp/backend (read-only zone)")
@@ -100,12 +109,14 @@ def _matured_scan_dates(source: str) -> list[str]:
     return dates
 
 
-def _universe_mfe_for_date(panel: pd.DataFrame, tickers: list[str], scan_date: str) -> list[tuple]:
-    """Per eligible ticker on ``scan_date``, its 20d forward MFE (archive math)."""
+def _universe_mfe_for_date(frames: dict[str, pd.DataFrame], scan_date: str) -> list[tuple]:
+    """Per eligible ticker on ``scan_date``, its 20d forward MFE (archive math).
+
+    ``frames`` is the pre-extracted {ticker -> full frame} cache from ``build``
+    (each frame extracted once total, not once per scan_date)."""
     scan_ts = pd.Timestamp(scan_date)
     rows: list[tuple] = []
-    for ticker in tickers:
-        df = _ticker_frame(panel, ticker)
+    for ticker, df in frames.items():
         if df.empty:
             continue
         df_slice = df[df.index <= scan_ts]
@@ -136,9 +147,14 @@ def build(out_path: str, source: str = "screener") -> pd.DataFrame:
     tickers = sorted(set(panel.columns.get_level_values(0)) - {"SPY"})
     log.info("cache universe: %d tickers over %d scan_dates", len(tickers), len(scan_dates))
 
+    # Extract each ticker's frame ONCE (was re-extracted per scan_date x ticker).
+    # Insertion order follows the sorted ``tickers``; the final sort_values keeps
+    # output order independent of this anyway.
+    frames = {t: _ticker_frame(panel, t) for t in tickers}
+
     all_rows: list[tuple] = []
     for i, d in enumerate(scan_dates, 1):
-        rows = _universe_mfe_for_date(panel, tickers, d)
+        rows = _universe_mfe_for_date(frames, d)
         all_rows.extend(rows)
         log.info("[%d/%d] %s: %d eligible names with mfe_20d", i, len(scan_dates), d, len(rows))
 

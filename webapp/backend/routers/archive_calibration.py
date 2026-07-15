@@ -337,12 +337,13 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "vol_contraction": _cfg.SCORE_VOL_CONTRACTION,
         "base_age":        _cfg.SCORE_BASE_AGE,
     }
-    # The suggested-weights math + its adequacy gate live in ONE place
-    # (core.archive.analyze.suggested_weights), shared with the CLI report, so
-    # the two can't drift. It applies the signal-edge adequacy + minority-class
-    # guard (verdicts_trustworthy) — stronger than the old inline `n >= 30`
-    # check — and returns an EMPTY table on a winners-only / too-thin sample
-    # rather than fitting noise. Advisory display only: it never applies a weight.
+    # The suggested-weights math + its adequacy gate live in
+    # core.archive.analyze.suggested_weights. This router is its ONLY caller: the
+    # CLI analysis flags candidate sub-scores but does not re-weight. It applies
+    # the signal-edge adequacy + minority-class guard (verdicts_trustworthy) —
+    # stronger than the old inline `n >= 30` check — and returns an EMPTY table on
+    # a winners-only / too-thin sample rather than fitting noise. Advisory display
+    # only: it never applies a weight.
     #
     # Imported lazily (like the settings load above) to keep the config-shadow
     # concern local to this handler and off the backend's import path.
