@@ -165,8 +165,16 @@ TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "trav_n_full_traversals", "trav_top_dead_space"]
 
 
-def load_archive(source: Optional[str] = None) -> pd.DataFrame:
-    """Read the setup_archive table into a DataFrame (read-only)."""
+def load_archive(source: Optional[str] = None,
+                 universe_type: Optional[str] = "us_equities") -> pd.DataFrame:
+    """Read the setup_archive table into a DataFrame (read-only).
+
+    universe_type: scope to one universe ('us_equities' / 'us_sectors' /
+        'commodities_etf'). Defaults to 'us_equities' so the ETF/sector rows that
+        also archive under source='screener' can't contaminate the headline stats
+        (matches the backend + core/backtest/loader.py scoping). Ignored on a
+        pre-migration DB that lacks the column.
+    """
     if not os.path.exists(_DB_PATH):
         raise FileNotFoundError(f"Archive DB not found at {_DB_PATH}")
     con = sqlite3.connect(_DB_PATH)
@@ -176,6 +184,8 @@ def load_archive(source: Optional[str] = None) -> pd.DataFrame:
         con.close()
     if source:
         df = df[df["source"] == source].copy()
+    if universe_type is not None and "universe_type" in df.columns:
+        df = df[df["universe_type"] == universe_type].copy()
     return df
 
 
@@ -811,6 +821,76 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
     subhdr("Subtraction shortlist")
     emit(f"  HARMFUL (down-weight / zero): {', '.join(harmful) if harmful else '(none)'}")
     emit(f"  INERT   (candidate to trim):  {', '.join(inert) if inert else '(none)'}")
+
+
+# ------------------------------------------------------------------
+# Suggested re-weighting (advisory) — the ONE adequacy-gated home,
+# shared with the webapp /calibration router
+# ------------------------------------------------------------------
+def suggested_weights(df: pd.DataFrame, corr_20d: dict, corr_60d: dict,
+                      current_weights: dict) -> dict:
+    """Pure: an ADVISORY re-weighting table for the /calibration panel.
+
+    Blends |corr| across the 20d + 60d horizons, floors weak signals at 0.02 so
+    one noisy archive can't zero a sub-score, and re-normalizes to preserve the
+    current total point cap. It NEVER applies a weight — it is a suggestion the
+    operator reads and hand-edits ``config/settings.py`` to act on.
+
+    Gated by the SAME adequacy + minority-class guard the Stage-1 signal-edge
+    analysis uses (``signal_edge(...)["verdicts_trustworthy"]``): on a winners-
+    only gallery, or too few matured/labelled rows, it returns NO suggestion
+    (``weights=[]``) instead of a table fit to noise. This replaces the weaker
+    ``n >= 30`` gate the router used to inline, and keeps the computation in one
+    place so CLI + router can't drift.
+
+    Args:
+        df: episode-level frame the suggestion is built from (the matured rows
+            feeding ``corr_20d``/``corr_60d``); the adequacy gate runs on it.
+        corr_20d / corr_60d: {sub-score short-name -> Pearson corr vs fwd return}
+            already computed by the caller (passed in so the values stay identical).
+        current_weights: {sub-score short-name -> current point cap}.
+
+    Returns:
+        ``{"weights": [ {name, current, suggested, delta, avg_abs_corr}, ... ],
+        "basis": str}``. ``weights`` is empty and ``basis`` is
+        ``"insufficient_data"`` when the sample can't support a suggestion.
+    """
+    edge = signal_edge(derive_outcomes(df))
+    if not edge["verdicts_trustworthy"]:
+        return {"weights": [], "basis": "insufficient_data"}
+
+    total_cap = sum(current_weights.values())
+    # If the 60d sample is too small for stable correlations, fall back to 20d
+    # only — otherwise the 60d zeros dilute every sub-score symmetrically and
+    # produce a deceptively even suggestion.
+    n_with_60d = (int(pd.to_numeric(df["fwd_return_60d"], errors="coerce").notna().sum())
+                  if "fwd_return_60d" in df.columns else 0)
+    use_60d = n_with_60d >= 15
+    basis = "20d+60d_avg" if use_60d else "20d_only"
+
+    avg_abs_corr = {}
+    for k in current_weights:
+        c20 = abs(corr_20d.get(k, 0.0) or 0.0)
+        if use_60d:
+            c60 = abs(corr_60d.get(k, 0.0) or 0.0)
+            blended = (c20 + c60) / 2
+        else:
+            blended = c20
+        # Floor so a single sub-score at ~0 corr isn't zeroed by one noisy archive.
+        avg_abs_corr[k] = max(blended, 0.02)
+    norm = sum(avg_abs_corr.values()) or 1.0
+
+    weights = []
+    for k, current in current_weights.items():
+        suggested = round(total_cap * (avg_abs_corr[k] / norm), 1)
+        weights.append({
+            "name": k,
+            "current": current,
+            "suggested": suggested,
+            "delta": round(suggested - current, 1),
+            "avg_abs_corr": round(avg_abs_corr[k], 4),
+        })
+    return {"weights": weights, "basis": basis}
 
 
 # ------------------------------------------------------------------
