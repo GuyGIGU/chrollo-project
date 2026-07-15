@@ -515,10 +515,18 @@ def main() -> None:
     ap.add_argument("--spy-col", default=None,
                     help="per-row same-window SPY return column for abnormal return "
                          "(absent in the stock archive; supply once joined)")
+    ap.add_argument("--universe", default=None,
+                    help="parquet of (scan_date, ticker, mfe_20d) eligible-universe MFE — "
+                         "activates the null / base-rate model (see tools.build_universe_returns)")
     ap.add_argument("--json", default=None, help="also write a structured JSON report here")
     args = ap.parse_args()
+    universe_returns = None
+    if args.universe:
+        path = args.universe if os.path.isabs(args.universe) else os.path.join(_PROJECT_ROOT, args.universe)
+        universe_returns = pd.read_parquet(path)
     run(db_path=args.db, source=args.source, metric_col=args.metric,
-        seed=args.seed, spy_col=args.spy_col, json_path=args.json)
+        seed=args.seed, spy_col=args.spy_col, json_path=args.json,
+        universe_returns=universe_returns)
 
 
 if __name__ == "__main__":
