@@ -25,6 +25,7 @@ function ScreenerToolbar({
   etfUniverse = false,
   universe,
   onUniverseChange,
+  hideFilters = false,
 }) {
   // The Download/Evaluate actions operate ONLY on the US-Stocks cache; the ETF
   // universes are refreshed by the scheduled daily scan, so these controls are
@@ -34,8 +35,10 @@ function ScreenerToolbar({
     : null;
   // The tier/search/Filters cluster only makes sense once a scan exists; the
   // universe switch and the data ops stay live so an empty universe can be
-  // evaluated into existence.
-  const showFilters = Boolean(screenerData) && !isEvaluating;
+  // evaluated into existence. Over the health board the filter cluster is
+  // suppressed (hideFilters) — its "N matched" count and tier/tag filters are
+  // firing-grid concepts that would mislead across a full context board.
+  const showFilters = Boolean(screenerData) && !isEvaluating && !hideFilters;
   const advancedCount =
     (filters.setupFilter !== 'ALL' ? 1 : 0) +
     (filters.sortBy !== 'score' ? 1 : 0) +

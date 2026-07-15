@@ -837,3 +837,44 @@ SECTOR_RANKING_ETFS = (
     "XLK", "XLV", "XLF", "XLY", "XLP", "XLC",
     "XLI", "XLE", "XLU", "XLRE", "XLB",
 )
+
+# ============================================================
+# MARKET & SECTOR HEALTH BOARD (position-in-cycle read)
+# ============================================================
+# An always-on, PASSIVE structural read of every member of the two non-equity
+# universes (Sectors + Market, Commodities + ETFs) — including SPY/QQQ — that
+# classifies each into one position-in-cycle STATE, so the ETF tabs (which fire
+# ZERO tradeable setups by design) become a useful "where is this in its cycle"
+# board. It is a SEPARATE, additive read path over the PUBLIC core.structure box
+# detector + trend/drawdown measures; it never touches the byte-parity-locked
+# us_equities firing chain, assigns no score/tier/trigger, and writes nothing to
+# the archive. Read LAZILY inside functions (never at module import) to respect
+# the backend config-vs-cwd shadowing trap. See core/pipeline/health_board.py,
+# specs/market-sector-health-board.md, docs/health_board_state_audit.md.
+#
+# Flipped live per operator request (commit "flip HEALTH_BOARD_ENABLED live"); the
+# board still only materializes once an ETF-universe scan regenerates its artifact with
+# the health_board section. Flag-off is byte-identical to today (the read path is never
+# entered); even flag-ON the read runs ONLY on the non-equities universes
+# (universe_type != DEFAULT_UNIVERSE_TYPE), so the byte-parity-locked us_equities chain
+# is untouched in both states.
+HEALTH_BOARD_ENABLED = True
+
+# A member sitting this far (or more) below its trailing 52-week high reads as a
+# DEEP CORRECTION — "fallen well below its base" — and is classified FIRST, before
+# any box read (this also absorbs the below-SMA200 cohort the box substrate
+# refuses). Negative fraction: -0.30 = 30% below the 52-week high. Deep enough not
+# to steal a normal near-highs base (Minervini bases sit within ~25% of highs).
+# Starting value for the operator's eyeball flip; tune against the live boards.
+HEALTH_DEEP_CORRECTION_DRAWDOWN = -0.30
+
+# The health classifier needs a full trend-template read (>= 200 bars) evaluated
+# on the SAME as-of bar the box detector uses (df[:-STRUCTURE_EDGE_SKIP_BARS]), so
+# a member is only classifiable when its as-of frame clears this floor. Members
+# below it read as "can't read yet" (short history) rather than being mislabeled.
+HEALTH_MIN_BARS = 200
+
+# The near-rail zones reuse the calibrated traversal zones (TRAVERSAL_LOW_ZONE /
+# TRAVERSAL_HIGH_ZONE) and the touch band (TOUCH_TOLERANCE_ATR) — no new
+# geometry knobs — so "near a rail" is expressed in the same scale-invariant
+# fraction-of-box / ATR units the firing engine already uses.
