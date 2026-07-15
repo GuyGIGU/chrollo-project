@@ -39,7 +39,13 @@ Public API — grouped by layer (see ``__all__`` below).
 from core.structure.narrative import Structure, read_structure
 
 # ── Layer: Trend — a qualifying Stage-2 advance + range / strength context ───
-from core.structure.indicators import adr_pct, calculate_adx, calculate_atr, trend_template
+from core.structure.indicators import (
+    adr_pct,
+    calculate_adx,
+    calculate_atr,
+    distance_to_52w_high_pct,
+    trend_template,
+)
 
 # ── Layer: Consolidation — locate the equilibrium box, measure how worked it is ─
 from core.structure.consolidation import detect_boxes, find_outer_box
@@ -85,6 +91,7 @@ __all__ = [
     "Structure",
     # Trend
     "trend_template",
+    "distance_to_52w_high_pct",
     "adr_pct",
     "calculate_atr",
     "calculate_adx",

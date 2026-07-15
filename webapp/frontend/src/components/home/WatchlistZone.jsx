@@ -1,11 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import HomeZone from './HomeZone';
 import ScreenerModal from '../ScreenerModal';
 import BridgeOut from './BridgeOut';
 import { EyeIcon } from '../NavIcons';
-import usePollingInterval from '../../hooks/usePollingInterval';
 import useWatchlist from '../../hooks/useWatchlist';
-import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 import { signedPct } from './homeFormat';
 
@@ -20,25 +18,16 @@ function lastClose(data) {
   return Number.isFinite(Number(v)) ? Number(v) : null;
 }
 
-export default function WatchlistZone({ screenerData }) {
+export default function WatchlistZone({ screenerData, prices = {}, priceErr = false }) {
   const { watchlist } = useWatchlist();
-  const [prices, setPrices] = useState({});
-  const [priceErr, setPriceErr] = useState(false);
   const [peek, setPeek] = useState(null);
 
   const tickers = useMemo(() => [...watchlist].sort(), [watchlist]);
-  const tickersKey = tickers.join(',');
   const chartData = screenerData?.chart_data || {};
 
-  const fetchPrices = useCallback(() => {
-    if (!tickersKey) return;
-    fetch(`${API_BASE}/live-prices/?tickers=${encodeURIComponent(tickersKey)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('prices'))))
-      .then((d) => { setPrices(d || {}); setPriceErr(false); })
-      .catch(() => setPriceErr(true));
-  }, [tickersKey]);
-
-  usePollingInterval(fetchPrices, 60000);
+  // Live prices + the stale flag come from HomeView's single shared poller
+  // (useLivePrices), so the Home surface issues one /live-prices/ request per
+  // cycle rather than one per zone.
 
   if (tickers.length === 0) {
     return <HomeZone title="Watchlist" icon={ICON} status="empty" empty="No names yet. Star a setup to track it here." />;

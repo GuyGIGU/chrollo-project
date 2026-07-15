@@ -58,7 +58,7 @@ def _daily_box(raw: pd.DataFrame):
         return None
     df = df.copy()
     df["ATR_10"] = calculate_atr(df, 10)
-    s = read_structure(df, float(df["ATR_10"].iloc[-6]))
+    s = read_structure(df, float(df["ATR_10"].iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]))
     return (float(s.R), float(s.S)) if s is not None else None
 
 

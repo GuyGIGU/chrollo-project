@@ -85,9 +85,9 @@ def _prep(raw: pd.DataFrame):
     df = df.copy()
     df["ATR_10"] = calculate_atr(df, 10)
     df["ATR_50"] = calculate_atr(df, 50)
-    if len(df) < 6:
+    if len(df) < settings.STRUCTURE_ATR_SAMPLE_OFFSET:
         return None, "too few bars for an ATR snapshot"
-    atr = float(df.iloc[-6]["ATR_10"])
+    atr = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
     if not (atr > 0):
         return None, "non-positive ATR snapshot"
     return df, atr

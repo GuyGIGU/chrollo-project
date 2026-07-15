@@ -9,6 +9,7 @@ import JournalPulseZone from './JournalPulseZone';
 import EdgePulse from './EdgePulse';
 import usePollingInterval from '../../hooks/usePollingInterval';
 import useScreenerData from '../../hooks/useScreenerData';
+import useLivePrices from '../../hooks/useLivePrices';
 import { revalidateScreenerUniverse } from '../../hooks/screenerStore';
 
 // The orient surface as one aligned dashboard: a single grid carries every
@@ -22,19 +23,22 @@ export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatu
   // Cheap 5-minute freshness tick: polls the slim /screener-summary and only
   // re-downloads the full 13MB artifact when a new scan actually landed.
   usePollingInterval(revalidateScreenerUniverse, 300000, { immediate: false });
+  // ONE watchlist live-price poll for the whole Home surface; both the Action
+  // Center and the Watchlist zone read this same map (was a duplicate poller each).
+  const { prices, priceErr } = useLivePrices();
   const marketContext = screenerData?.market_context;
 
   return (
     <div className="home-view">
       <ErrorBoundary>
-        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} />
+        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} prices={prices} />
       </ErrorBoundary>
 
       <div className="home-grid">
         <div className="ga-pulse"><ErrorBoundary><MarketPulse marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-fresh"><FreshSetupsZone screenerData={screenerData} scanStatus={scanStatus} /></div>
-        <div className="ga-watch"><WatchlistZone screenerData={screenerData} /></div>
+        <div className="ga-watch"><WatchlistZone screenerData={screenerData} prices={prices} priceErr={priceErr} /></div>
         <div className="ga-book"><OpenBookZone trades={trades} riskFor={riskFor} status={riskStatus} /></div>
         <div className="ga-journal"><JournalPulseZone stats={stats} trades={trades} /></div>
         <div className="ga-edge"><EdgePulse /></div>

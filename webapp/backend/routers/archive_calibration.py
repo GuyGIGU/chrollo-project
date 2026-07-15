@@ -337,37 +337,27 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "vol_contraction": _cfg.SCORE_VOL_CONTRACTION,
         "base_age":        _cfg.SCORE_BASE_AGE,
     }
-    total_cap = sum(current_weights.values())
-    # Combine the two horizons. If 60d sample size is too small for stable
-    # correlations (the _safe_corr gate is n>=5), fall back to 20d only —
-    # otherwise the 60d zeros dilute every sub-score's signal symmetrically
-    # and produce a deceptively even suggestion.
-    weights_table: List[Dict[str, Any]] = []
-    weights_basis = "insufficient_data"
-    if len(with_returns) >= 30:
-        use_60d = len(with_60d) >= 15
-        weights_basis = "20d+60d_avg" if use_60d else "20d_only"
-        avg_abs_corr = {}
-        for k in current_weights:
-            c20 = abs(sub_score_corr_20d.get(k, 0.0) or 0.0)
-            if use_60d:
-                c60 = abs(sub_score_corr_60d.get(k, 0.0) or 0.0)
-                blended = (c20 + c60) / 2
-            else:
-                blended = c20
-            # Floor at 0.02 so a single sub-score with 0 corr doesn't get
-            # zeroed out — keeps the suggestion conservative around weak signal.
-            avg_abs_corr[k] = max(blended, 0.02)
-        norm = sum(avg_abs_corr.values()) or 1.0
-        for k, current in current_weights.items():
-            suggested = round(total_cap * (avg_abs_corr[k] / norm), 1)
-            weights_table.append({
-                "name": k,
-                "current": current,
-                "suggested": suggested,
-                "delta": round(suggested - current, 1),
-                "avg_abs_corr": round(avg_abs_corr[k], 4),
-            })
+    # The suggested-weights math + its adequacy gate live in
+    # core.archive.analyze.suggested_weights. This router is its ONLY caller: the
+    # CLI analysis flags candidate sub-scores but does not re-weight. It applies
+    # the signal-edge adequacy + minority-class guard (verdicts_trustworthy) —
+    # stronger than the old inline `n >= 30` check — and returns an EMPTY table on
+    # a winners-only / too-thin sample rather than fitting noise. Advisory display
+    # only: it never applies a weight.
+    #
+    # Imported lazily (like the settings load above) to keep the config-shadow
+    # concern local to this handler and off the backend's import path.
+    import pandas as pd
+
+    from core.archive.analyze import suggested_weights
+    _gate_df = pd.DataFrame(
+        [{c.name: getattr(s, c.name) for c in SetupArchive.__table__.columns}
+         for s in with_returns]
+    )
+    _suggestion = suggested_weights(
+        _gate_df, sub_score_corr_20d, sub_score_corr_60d, current_weights)
+    weights_table: List[Dict[str, Any]] = _suggestion["weights"]
+    weights_basis = _suggestion["basis"]
 
     # Also correlate structural metrics (20d only — diagnostic, not re-weight input).
     structural_corr = {}

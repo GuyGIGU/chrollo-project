@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from core.pipeline.universe import (
     DEFAULT_UNIVERSE_KEY,
@@ -26,6 +27,43 @@ _screener_json_path = ""
 
 class EarningsBatchIn(BaseModel):
     tickers: list[str]
+
+
+# The closed-set health-board contract, enforced at the serve boundary. Its states
+# are the SAME seven names as core.pipeline.health_board.HealthState /
+# HEALTH_STATE_ORDER (a drift test pins them equal). ``extra='forbid'`` is the "no
+# buy language" AC AT THE TYPE LAYER: a member carrying a score / tier / trigger /
+# setup field would be rejected here, not silently served. R/S are nullable (a
+# member with no readable box). candles/volumes stay opaque lists (no per-bar
+# recursion — the validation is a cheap contract tripwire, not a re-serializer).
+HealthStateName = Literal[
+    "near_resistance", "post_breakout_markup", "near_support",
+    "consolidating", "trending", "deep_correction", "no_structure",
+]
+
+
+class HealthMember(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ticker: str
+    name: str | None = None
+    state: HealthStateName
+    box_pos: float | None = None
+    breakout_extension: float | None = None
+    distance_to_high_pct: float | None = None
+    R: float | None = None
+    S: float | None = None
+    base_len: int
+    candles: list
+    volumes: list
+
+
+class HealthBoard(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    members: list[HealthMember]
+    unreadable: list[dict]
+    member_count: int
 
 
 def configure_screener_routes(screener_json_path: str) -> None:
@@ -71,6 +109,14 @@ def get_screener_data(
 ):
     uni, path, status, scanned_at = _artifact_state(universe)
     payload = read_screener_data(path)
+    # The health-board section (non-equities universes, flag on) rides the same
+    # artifact and passes straight through. When present, validate it against the
+    # closed HealthMember contract at the boundary — a malformed / buy-language block
+    # SURFACES here (raises) rather than silently blanking the board. Absent (flag
+    # off / us_equities / an older file) → nothing to validate, unchanged behavior.
+    health = payload.get("health_board")
+    if health is not None:
+        HealthBoard.model_validate(health)
     return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
 
 

@@ -1,10 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ScreenerModal from '../ScreenerModal';
 import BridgeOut from './BridgeOut';
-import usePollingInterval from '../../hooks/usePollingInterval';
 import useWatchlist from '../../hooks/useWatchlist';
-import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
@@ -22,24 +20,16 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-export default function ActionCenter({ screenerData, trades, riskFor }) {
+export default function ActionCenter({ screenerData, trades, riskFor, prices = {} }) {
   const { watchlist } = useWatchlist();
-  const [prices, setPrices] = useState({});
   const [peek, setPeek] = useState(null);
 
   const chartData = useMemo(() => screenerData?.chart_data || {}, [screenerData]);
   const ordered = useMemo(() => screenerData?.ordered_tickers || [], [screenerData]);
   const wlTickers = useMemo(() => [...watchlist].sort(), [watchlist]);
-  const wlKey = wlTickers.join(',');
 
-  const fetchPrices = useCallback(() => {
-    if (!wlKey) return;
-    fetch(`${API_BASE}/live-prices/?tickers=${encodeURIComponent(wlKey)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('prices'))))
-      .then((d) => setPrices(d || {}))
-      .catch(() => {});
-  }, [wlKey]);
-  usePollingInterval(fetchPrices, 60000);
+  // Live prices come from HomeView's single shared poller (useLivePrices) so the
+  // Home surface issues one /live-prices/ request per cycle, not one per zone.
 
   // Open positions through/near their stop — the only category that can't wait.
   const atRisk = useMemo(() => {

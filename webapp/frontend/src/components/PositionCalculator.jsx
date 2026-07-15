@@ -9,7 +9,10 @@ const PositionCalculator = () => {
   // Derive results directly — no useEffect + setState loop needed
   const results = useMemo(() => {
     if (entryPrice > 0 && stopPrice > 0 && riskAmount > 0) {
-      const stopDistance = Math.abs(entryPrice - stopPrice);
+      // Stop sits below entry for a long, above entry for a short.
+      const stopDistance = direction === 'SHORT'
+        ? stopPrice - entryPrice
+        : entryPrice - stopPrice;
       if (stopDistance > 0) {
         const shares = riskAmount / stopDistance;
         return {
@@ -20,7 +23,7 @@ const PositionCalculator = () => {
       }
     }
     return { shares: 0, stopSize: 0, positionSize: 0 };
-  }, [riskAmount, entryPrice, stopPrice]);
+  }, [riskAmount, entryPrice, stopPrice, direction]);
   const sharesText = fixed(results.shares);
   const stopSizeText = fixed(results.stopSize);
   const positionSizeText = money(results.positionSize);

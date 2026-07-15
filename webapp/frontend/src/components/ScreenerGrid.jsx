@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import HealthBoard from './HealthBoard';
 import ScreenerCard from './ScreenerCard';
 import ScreenerModal from './ScreenerModal';
 import ScreenerPager from './ScreenerPager';
@@ -29,6 +30,13 @@ const ScreenerGrid = () => {
   const scan = useScanRunner(fetchScreener, universe);
   const { drilldown, openDrilldown, closeDrilldown } = useDrilldown();
 
+  // The third render mode. The backend emits `health_board` ONLY for the
+  // non-equity universes when HEALTH_BOARD_ENABLED is on; its presence IS the
+  // signal to render the board instead of the (empty) firing grid. Flag off ->
+  // absent -> the firing grid/empty-state path is byte-identical to today.
+  const healthBoard = screenerData?.health_board;
+  const showHealthBoard = etfUniverse && Array.isArray(healthBoard?.members);
+
   // Patch individual params without clobbering the others. Opens PUSH (so the
   // browser Back closes the modal/drill-down); closes and in-modal cycling
   // REPLACE (Back shouldn't walk through every viewed ticker).
@@ -54,6 +62,12 @@ const ScreenerGrid = () => {
     else closeDrilldown();
   }, [drilldownEtf, openDrilldown, closeDrilldown]);
 
+  // The board can be long; a drill-down and back must not cost the operator their
+  // place (the top-down → bottom-up → back loop). Scroll offset saved when leaving
+  // for a drill-down, restored on return. Declared here because BOTH the universe
+  // switch (which must clear it) and the drill-down (which saves it) touch it.
+  const savedScrollRef = useRef(null);
+
   // The selected universe lives in the URL (?u=) so it survives reload. Switching
   // resets the page AND the filters (a tag/setup/tier valid in one universe need
   // not exist in another — a stale filter would fake a "no matches" empty state)
@@ -62,11 +76,26 @@ const ScreenerGrid = () => {
     if (key === universe) return;
     filters.resetFilters();
     filters.setCurrentPage(1);
+    // Dropping ?dd= here closes any open drill-down; without clearing the saved
+    // offset, the restore effect would apply a scroll position captured on the
+    // PREVIOUS universe to the freshly-loaded one. Only a real back-to-grid restores.
+    savedScrollRef.current = null;
     setSearchParams(key === DEFAULT_UNIVERSE ? {} : { u: key });
   };
 
-  // Opening a drill-down clears any open modal first.
-  const handleDrilldown = useCallback((etf) => patchParams({ dd: etf, t: null }), [patchParams]);
+  const handleDrilldown = useCallback((etf) => {
+    const el = document.querySelector('.content-scroll');
+    savedScrollRef.current = el ? el.scrollTop : null;
+    patchParams({ dd: etf, t: null });
+  }, [patchParams]);
+
+  useEffect(() => {
+    if (!drilldown && savedScrollRef.current != null) {
+      const el = document.querySelector('.content-scroll');
+      if (el) el.scrollTop = savedScrollRef.current;
+      savedScrollRef.current = null;
+    }
+  }, [drilldown]);
 
   // The modal + arrow-key cycling read the drill-down members when one is open,
   // otherwise the active universe's filtered list.
@@ -122,6 +151,11 @@ const ScreenerGrid = () => {
     // side padding so the chart wall runs edge-to-edge; a small inner padding
     // keeps cards off the very edge. Other tabs keep their padding.
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
+      {/* Main folded the universe switcher INTO the toolbar; the switcher + data
+          ops stay live so an ETF universe can always be navigated away from, while
+          the filter cluster + "N matched" count are firing-grid concepts that hide
+          over the health board (hideFilters) rather than showing a misleading
+          0-matched filter row over a full board. */}
       <ScreenerToolbar
         screenerData={screenerData}
         isScanning={scan.isScanning}
@@ -136,6 +170,7 @@ const ScreenerGrid = () => {
         etfUniverse={etfUniverse}
         universe={universe}
         onUniverseChange={handleUniverseChange}
+        hideFilters={showHealthBoard}
       />
       {isEtfUniverse(universe) && (
         <div style={etfNoteStyle}>
@@ -143,7 +178,7 @@ const ScreenerGrid = () => {
         </div>
       )}
 
-      {filters.tierFilter === 'WATCHLIST' && (
+      {!showHealthBoard && filters.tierFilter === 'WATCHLIST' && (
         <ScreenerWatchlistPanel
           watchlist={watchlist}
           screenerData={screenerData}
@@ -172,6 +207,13 @@ const ScreenerGrid = () => {
           toggleWatchlist={toggleWatchlist}
           passed={passed}
           togglePassed={togglePassed}
+        />
+      ) : showHealthBoard ? (
+        <HealthBoard
+          board={healthBoard}
+          universeLabel={universeLabel(universe)}
+          scannedAt={screenerData?.scanned_at}
+          onDrilldown={handleDrilldown}
         />
       ) : (!scan.isEvaluating && !scan.scanError && (
         <>
