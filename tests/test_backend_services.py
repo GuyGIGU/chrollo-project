@@ -633,32 +633,38 @@ def test_screener_data_endpoint_passes_valid_health_board_through(monkeypatch):
     assert out["status"] == "ready"
 
 
-def test_screener_data_endpoint_surfaces_buy_language_in_health(monkeypatch):
+def test_screener_data_endpoint_strips_buy_language_in_health(monkeypatch):
     # A stray score/tier/trigger on a member violates the "no buy language" contract;
-    # extra='forbid' makes the boundary SURFACE it (raise) rather than serve it.
-    from pydantic import ValidationError
+    # extra='forbid' makes the boundary DETECT it. Rather than 500 the whole ETF
+    # response, the boundary swallows the ValidationError, logs a warning, and serves
+    # the response WITHOUT the board — ordered_tickers/market_context still ride.
     from routers import screener as screener_router
 
     hb = {"members": [_valid_health_member(score=88, tier="S")], "unreadable": [], "member_count": 1}
     monkeypatch.setattr(screener_router, "read_screener_data",
-                        lambda path: {"ordered_tickers": [], "chart_data": {}, "health_board": hb})
+                        lambda path: {"ordered_tickers": ["AAA"], "chart_data": {}, "health_board": hb})
     monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
     monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
-    with pytest.raises(ValidationError):
-        screener_router.get_screener_data(universe="us_sectors")
+    out = screener_router.get_screener_data(universe="us_sectors")
+    assert out["health_board"] is None          # malformed board stripped, not served
+    assert out["status"] == "ready"             # the rest of the response still rides
+    assert out["ordered_tickers"] == ["AAA"]
 
 
-def test_screener_data_endpoint_surfaces_unknown_health_state(monkeypatch):
-    from pydantic import ValidationError
+def test_screener_data_endpoint_strips_unknown_health_state(monkeypatch):
+    # An out-of-set state ("buy_now") fails the closed-set Literal at the boundary;
+    # the response degrades to a stripped board rather than a 500.
     from routers import screener as screener_router
 
     hb = {"members": [_valid_health_member(state="buy_now")], "unreadable": [], "member_count": 1}
     monkeypatch.setattr(screener_router, "read_screener_data",
-                        lambda path: {"ordered_tickers": [], "chart_data": {}, "health_board": hb})
+                        lambda path: {"ordered_tickers": ["AAA"], "chart_data": {}, "health_board": hb})
     monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
     monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
-    with pytest.raises(ValidationError):
-        screener_router.get_screener_data(universe="us_sectors")
+    out = screener_router.get_screener_data(universe="us_sectors")
+    assert out["health_board"] is None          # unknown state stripped, not served
+    assert out["status"] == "ready"
+    assert out["ordered_tickers"] == ["AAA"]
 
 
 def test_health_state_literal_matches_engine_taxonomy():

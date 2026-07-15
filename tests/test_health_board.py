@@ -174,12 +174,19 @@ def test_as_of_frame_below_floor_raises_even_when_raw_len_ok(monkeypatch):
 
 
 def test_non_finite_prices_never_crash_and_stay_in_the_closed_set():
-    closes = list(np.linspace(50, 150, 300))
-    df = _frame(closes)
-    df.iloc[-1, df.columns.get_loc("Close")] = np.inf  # a poison value at the edge
-    df.iloc[-2, df.columns.get_loc("High")] = np.nan
-    mh = classify_member(df)  # must not raise
-    assert isinstance(mh.state, HealthState)
+    # The classifier reads the AS-OF bar at df[-STRUCTURE_ATR_SAMPLE_OFFSET] (i.e.
+    # daily_df[-6]); the last STRUCTURE_EDGE_SKIP_BARS edge bars are RESERVED and
+    # never read, so a poison there is inert (the isfinite guard never fires). Inject
+    # inf onto the as-of Close itself, on a frame that DOES form a worked box, so the
+    # ``math.isfinite(as_of_close)`` guard genuinely fires instead of letting a
+    # non-finite value poison the box_pos math downstream.
+    box = _worked_box(tail=119.0)  # forms a box; as-of close would otherwise be mid-box
+    as_of = -settings.STRUCTURE_ATR_SAMPLE_OFFSET  # -6: the bar the classifier reads
+    box.iloc[as_of, box.columns.get_loc("Close")] = np.inf
+    mh = classify_member(box)  # must not raise
+    assert isinstance(mh.state, HealthState)  # a valid closed-set state, not a crash
+    assert mh.state is HealthState.NO_STRUCTURE  # degraded gracefully off the guard
+    assert mh.box_pos is None
 
 
 def test_classify_member_does_not_mutate_the_caller_frame():

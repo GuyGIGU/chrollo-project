@@ -220,8 +220,8 @@ def _maybe_build_health_board(data, universe):
     the artifact section. Returns ``None`` — so the dashboard write is byte-identical
     to before — when EITHER:
 
-      * the read is off (``HEALTH_BOARD_ENABLED`` default False, read lazily to
-        respect the config-vs-cwd trap), OR
+      * the read is off (``HEALTH_BOARD_ENABLED`` is design-default False but ships
+        True per an operator flip; read lazily to respect the config-vs-cwd trap), OR
       * this is the equities universe (``universe_type == DEFAULT_UNIVERSE_TYPE``):
         the firing grid is its own read, so the health board is only for the ETF
         universes and us_equities stays untouched even when the flag is ON.
