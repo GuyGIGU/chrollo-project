@@ -503,7 +503,7 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
           f"snap_back: {SNAP_BACK_SESSIONS}")
     if fired:
         print(f"fired policy: v{HARNESS_POLICY_VERSION} — marked-LPS event "
-              f"windows +{FIRED_EVENT_TAIL_SESSIONS} tail ∪ last "
+              f"windows +{FIRED_EVENT_TAIL_SESSIONS} tail, union last "
               f"{FIRED_WINDOW_SESSIONS} sessions (knowable_from overrides; "
               f"cap {FIRED_WALK_MAX_SESSIONS})   frozen breadth "
               f"{_FROZEN_BREADTH} / spy_6m {_FROZEN_SPY_6M} (scoring-only)")
