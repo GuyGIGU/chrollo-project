@@ -89,7 +89,7 @@ def _probe_env(monkeypatch, raw_len, reads_by_len, refuse_lens=()):
     sampled (the real prep never returns frames under 200 bars)."""
     import pandas as pd
 
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
     import engine_alpha.structure.narrative as narrative
 
     monkeypatch.setattr(settings, "STRUCTURE_ATR_SAMPLE_OFFSET", 1)

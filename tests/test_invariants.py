@@ -21,7 +21,7 @@ import math
 import pytest
 
 import config.settings as settings
-from core.pipeline.evaluation import _prepare_eval_frame
+from engine_alpha.evaluation import _prepare_eval_frame
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 from engine_alpha.structure.segmentation import segment_swings
@@ -292,7 +292,7 @@ ALLOWED_OPS_EXCLUSIONS = frozenset(
 _ENGINE_EVAL_PATH_MODULES = (
     "engine_alpha.scoring.scoring",
     "engine_alpha.scoring.taxonomy",
-    "core.pipeline.evaluation",
+    "engine_alpha.evaluation",
     "core.pipeline.screener",
     "core.regime.scan_context",
     "core.regime.rs_line",

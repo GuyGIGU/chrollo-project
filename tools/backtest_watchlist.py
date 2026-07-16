@@ -9,7 +9,7 @@ DIAGNOSTIC TOOL — standalone recall harness, NOT the live engine. Its `Score`/
 columns are computed with the LEGACY short score_setup signature (no excess-return /
 breadth / contraction / traversal / ADR terms) and serve only to rank LPS offsets
 WITHIN this tool. They are NOT the live screener's score — the single source of truth
-for evaluation is core.pipeline.evaluation._run_eval_chain (shared by the live screener
+for evaluation is engine_alpha.evaluation._run_eval_chain (shared by the live screener
 and seed replay). Do not compare these numbers to archive scores.
 
 Status — banked at 28/44 hits (63.6%) against the seed watchlist (post-shape-gate).

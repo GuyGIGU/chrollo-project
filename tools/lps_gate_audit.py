@@ -39,7 +39,7 @@ configure_path()
 ROOT = Path(__file__).resolve().parents[1]
 
 from config import settings
-from core.pipeline.evaluation import apply_baseline_filters
+from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure import calculate_atr
 from engine_alpha.structure import bricks
 from engine_alpha.structure.lps import detect_lps_candidates, select_active_lps_candidate

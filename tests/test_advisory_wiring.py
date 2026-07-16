@@ -242,7 +242,7 @@ def test_sector_rank_fields_unknown_etf_is_empty():
 def test_evaluate_ticker_attaches_advisory_in_place(monkeypatch):
     """The live wrapper attaches advisory metadata onto a firing result; with
     flags off it adds nothing (the byte-identical path)."""
-    from core.pipeline import evaluation
+    from engine_alpha import evaluation
 
     sentinel = {"Ticker": "AAA", "Score": 100.0, "Tier": "S"}
     monkeypatch.setattr(evaluation, "_run_eval_chain", lambda *a, **k: dict(sentinel))
@@ -258,7 +258,7 @@ def test_evaluate_ticker_attaches_advisory_in_place(monkeypatch):
 def test_evaluate_ticker_advisory_failure_does_not_drop_setup(monkeypatch):
     """If the advisory layer raises, the firing setup is STILL returned intact —
     advisory can never veto geometry."""
-    from core.pipeline import evaluation
+    from engine_alpha import evaluation
 
     fired = {"Ticker": "AAA", "Score": 100.0, "Tier": "S"}
     monkeypatch.setattr(evaluation, "_run_eval_chain", lambda *a, **k: dict(fired))

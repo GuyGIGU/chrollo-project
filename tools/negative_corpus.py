@@ -46,7 +46,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.evaluation import EVAL_ERROR, apply_baseline_filters
+from engine_alpha.evaluation import EVAL_ERROR, apply_baseline_filters
 from core.pipeline.screener import _evaluate_ticker
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")

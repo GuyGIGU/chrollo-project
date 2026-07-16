@@ -299,10 +299,10 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
         return [None for _ in variants]
 
     from webapp.backend import frame_store
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
 
     if evaluate is None:
-        from core.pipeline.evaluation import _evaluate_ticker
+        from engine_alpha.evaluation import _evaluate_ticker
 
         def evaluate(ticker, sliced):
             return _evaluate_ticker(ticker, sliced, _FROZEN_SPY_6M, _FROZEN_BREADTH)

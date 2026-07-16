@@ -8,7 +8,7 @@ This is the piece that knows the order of operations for a scan:
     3. broadcast market context to worker processes
     4. evaluate tickers in parallel and rank the passing setups
 
-Per-ticker structure/scoring lives in ``core.pipeline.evaluation``. Display and
+Per-ticker structure/scoring lives in ``engine_alpha.evaluation``. Display and
 persistence live further out (``output/`` and ``core.archive``); this module
 just returns the ranked DataFrame plus the raw market data.
 """
@@ -23,7 +23,7 @@ import pandas as pd
 from config import settings
 from core.pipeline.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
-from core.pipeline.evaluation import EVAL_ERROR, _evaluate_ticker, apply_baseline_filters
+from engine_alpha.evaluation import EVAL_ERROR, _evaluate_ticker, apply_baseline_filters
 from core.pipeline.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,

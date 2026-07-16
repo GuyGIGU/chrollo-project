@@ -38,7 +38,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.evaluation import _prepare_eval_frame
+from engine_alpha.evaluation import _prepare_eval_frame
 from engine_alpha.structure.narrative import read_structure
 
 # Sealed-corpus fixture paths (written by `tools.marks_corpus --build-fixture`,

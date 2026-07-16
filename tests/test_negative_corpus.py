@@ -125,7 +125,7 @@ def test_negative_gate_bites_on_eval_error(monkeypatch):
     neither a rejection nor a fire - treating it as a pass would let a change
     that crashes on (and thereby hides) junk charts keep the gate green.
     """
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
 
     _frames, meta = negative_corpus._load_fixture()
     poisoned = meta["cases"][0]["ticker"]

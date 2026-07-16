@@ -36,7 +36,7 @@ from engine_alpha.structure.phase_d import (
     final_v_tip_bar,
     support_test_evidence_starts,
 )
-from core.pipeline.downloads import _trim_to_period
+from engine_alpha.frames import _trim_to_period
 
 
 # Distinct return sentinel for the skip-guard's caught-exception branch. A plain

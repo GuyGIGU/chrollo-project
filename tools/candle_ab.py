@@ -30,7 +30,7 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.pipeline.evaluation import _evaluate_ticker
+from engine_alpha.evaluation import _evaluate_ticker
 from tools.lps_swing_census import _latest_scan_fires
 
 

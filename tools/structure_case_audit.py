@@ -40,7 +40,7 @@ import pandas as pd
 
 from config import settings
 from core.archive.seed import _evaluate_at_date
-from core.pipeline.evaluation import apply_baseline_filters
+from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure import bricks
 from engine_alpha.structure.box_primitives import (
     _is_boundary_respected,

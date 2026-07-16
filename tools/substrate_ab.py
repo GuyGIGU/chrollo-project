@@ -122,7 +122,7 @@ def _eval_both(args):
     Patch -> eval -> restore inside the worker; patch state is per-process and
     always restored, so A runs are never contaminated."""
     ticker, df, spy_6m, breadth, dist_min = args
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
     from core.pipeline.screener import _evaluate_ticker
 
     def run():

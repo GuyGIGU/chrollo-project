@@ -297,7 +297,7 @@ def test_labels_are_chronologically_ordered():
 def _first_firing_fixture_ticker():
     """One real firing (ticker, frame, result, spy, breadth) off the committed
     shadow fixture — loud if the fixture stopped firing entirely."""
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
     from core.pipeline.screener import _evaluate_ticker
     from tools.shadow_diff import _load_fixture
 

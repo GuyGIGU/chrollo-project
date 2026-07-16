@@ -21,7 +21,7 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
-from core.pipeline.evaluation import EVAL_ERROR  # noqa: E402
+from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
 from tools import agreement, replay  # noqa: E402
 from tools.calibration_harness import (  # noqa: E402
     FIRED_EVENT_TAIL_SESSIONS,
@@ -316,7 +316,7 @@ def test_fired_default_evaluate_wires_the_frozen_scalars_in_order(session, monke
     # Every other test injects a fake evaluate; this pins the PRODUCTION
     # closure — argument order matters because a swapped pair would stamp
     # Tier/Score under a fictitious +50% SPY regime with no error anywhere.
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
     _add_mark(session)
     calls = []
 
@@ -568,7 +568,7 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     # only answerable if that alignment holds and the policy is stamped.
     import json
 
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
     import database
     import frame_store as bare_frame_store
     from config import settings

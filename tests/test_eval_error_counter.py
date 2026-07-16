@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import core.pipeline.evaluation as evaluation
+import engine_alpha.evaluation as evaluation
 import core.pipeline.screener as screener
 import core.pipeline.scan_metrics as scan_metrics
 

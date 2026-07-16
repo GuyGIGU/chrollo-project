@@ -45,7 +45,7 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
         calibration can tell gate-flicker from election-flicker afterward.
     A shift where a different/no structure elects also counts as not-same.
     """
-    from core.pipeline.evaluation import _prepare_eval_frame  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
+    from engine_alpha.evaluation import _prepare_eval_frame  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
     from engine_alpha.structure.narrative import read_structure
 
     reference = projection(reference_structure, reference_df)

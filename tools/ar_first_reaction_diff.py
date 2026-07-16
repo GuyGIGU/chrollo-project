@@ -44,7 +44,7 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.downloads import _trim_to_period
-from core.pipeline.evaluation import apply_baseline_filters
+from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.narrative import read_structure
 

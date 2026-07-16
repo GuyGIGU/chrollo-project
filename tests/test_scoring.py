@@ -239,8 +239,8 @@ def test_eval_twins_share_the_folded_core():
     import textwrap
 
     from core.archive.seed import _evaluate_at_date
-    from core.pipeline import evaluation as evaluation_module
-    from core.pipeline.evaluation import _evaluate_ticker, _run_eval_chain
+    from engine_alpha import evaluation as evaluation_module
+    from engine_alpha.evaluation import _evaluate_ticker, _run_eval_chain
 
     def called_names(fn):
         tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
@@ -273,7 +273,7 @@ def test_eval_twins_share_the_folded_core():
 
 
 def test_score_traversal_args_maps_measure_facts():
-    from core.pipeline.evaluation import score_traversal_args
+    from engine_alpha.evaluation import score_traversal_args
 
     args = score_traversal_args(
         {"n_full_traversals": 3, "n_swings": 6, "max_swing_frac": 1.4},
@@ -300,7 +300,7 @@ def test_score_traversal_args_maps_measure_facts():
 def test_select_active_lps_prefers_inner_then_parent(monkeypatch, _lps_behavior_frame):
     """The folded inner-first-then-parent rule: take the inner box's LPS when it
     yields one (closer trigger/stop), else the parent's; lps_context follows."""
-    from core.pipeline import evaluation
+    from engine_alpha import evaluation
 
     df = _lps_behavior_frame(
         highs=[110.0] * 30, lows=[100.0] * 30, closes=[105.0] * 30,
@@ -684,7 +684,7 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     # describe the LPS that actually fired (the inner election), never a fresh
     # parent-box re-detection, and it must never SILENTLY drop the elected LPS.
     from tools.shadow_diff import _load_fixture
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
 
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     frames, scalars = _load_fixture()
@@ -750,7 +750,7 @@ def test_e3_flag_off_result_has_no_puzzle_and_runs_no_narrative(monkeypatch):
     # guarantee), which the score_setup-level test cannot see: flag-off, a real fire
     # carries NO puzzle key anywhere AND assemble_box_narrative is never called.
     from tools.shadow_diff import _load_fixture
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
 
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
 
@@ -778,7 +778,7 @@ def test_e3_eval_twins_agree_on_puzzle(monkeypatch):
     # Both eval-twins (live + seed) route through the single score_setup call, so
     # flag-on they compute the identical puzzle bonus (EC-3 fold).
     from tools.shadow_diff import _load_fixture
-    from core.pipeline.evaluation import _evaluate_ticker
+    from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
     from core.archive.result_adapter import seed_row_from_result
 
