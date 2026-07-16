@@ -546,7 +546,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 `detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
-**The holding-shelf completion form (dark, `LPS_HOLDING_SHELF_ENABLED`).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean).
+**The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
@@ -565,7 +565,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
-| 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.85`. The dry-up is the **pullback form's** judgment: flag-on, a holding shelf may complete without it (volume never gates the shelf form) | `LPS_VOL_CONTRACTION_MAX = 0.85` |
+| 11 | **Volume floor** | `mean(Volume[LPS]) < Vol_50[eval_idx] × 0.87`. The dry-up is the **pullback form's** judgment: a holding shelf may complete without it (volume never gates the shelf form). Moved 0.85→0.87 on 2026-07-17 against the archive (1,679 matured episodes: outcome quality flat up to the old edge, no cliff; converts AGCO); 0.88+ stays pinned rejected. A non-finite `Vol_50` refuses BOTH forms (data-integrity guard, same change) | `LPS_VOL_CONTRACTION_MAX = 0.87` |
 | 12 | **Hold tolerance** | `latest['Close'] >= elected_low × 0.95` | `LPS_HOLD_TOLERANCE = 0.95` |
 | 13 | **Post-LPS continuation** (only when `offset > 0`) | every bar between LPS end and current bar must hold `Low >= elected_low × 0.95` and stay profile-tight | catches support-test failures that widen after the LPS |
 | 14 | **Trigger room** | candidate is actionable only when `current_price < trigger_price`; `_evaluate_ticker` keeps the same final room check | trigger = last LPS bar High |
@@ -864,7 +864,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `28df23fc6e3631a0dcaad1943fc83572815efed20d54680d4e96247ede92931e`_
+_engine_config_version: `91c70bdbd6a6686099ca2173250e602fd89120cc6df9e8631e62390a125640c6`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -969,7 +969,7 @@ PHASE_D_VTIP_LATE_FRACTION = 0.35
 PHASE_D_VTIP_RECOVERY_BARS = 6
 LPS_RANGE_PERCENTILE = 0.5
 LPS_SPREAD_MUST_DECLINE = True
-LPS_VOL_CONTRACTION_MAX = 0.85
+LPS_VOL_CONTRACTION_MAX = 0.87
 STRUCTURE_EDGE_SKIP_BARS = 5
 STRUCTURE_ATR_SAMPLE_OFFSET = 6
 INNER_SEARCH_FRACTION = 0.5

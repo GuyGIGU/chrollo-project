@@ -1047,3 +1047,81 @@ def test_measure_bar_compression_reports_base_spread_texture():
     assert result["p80_spread_atr"] == 1.1
     assert result["median_spread_pct_box"] == 0.2
     assert result["tight_bar_pct"] == 0.8
+
+
+# ── Threshold-move companions (solve-the-engine flip checklist #5/#6,
+#    operator grant 2026-07-16/17) ────────────────────────────────────────────
+
+
+def test_vol50_non_finite_refuses_both_forms(monkeypatch, _lps_behavior_frame):
+    # A NaN Vol_50 makes both ratio comparisons silently False — the dry-up
+    # gate would "pass" on missing data. The refusal guard must dominate even
+    # a geometry the shelf form would otherwise save.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    df = _lps_behavior_frame(
+        highs=[108.5, 107.8, 107.5],
+        lows=[106.5, 106.2, 106.0],
+        closes=[107.5, 107.0, 106.8],
+    )
+    df["Vol_50"] = float("nan")
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["vol50_nonpos"] >= 1
+
+
+def test_vol_ratio_088_still_rejected_at_the_new_floor(monkeypatch, _lps_behavior_frame):
+    # Companion pin for the 0.85 -> 0.87 move: a window whose ONLY pullback
+    # failure is volume at ratio 0.88 stays rejected (the shelf also refuses —
+    # low in the box — so the volume verdict is decisive for the pullback form).
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_VOL_CONTRACTION_MAX", 0.87)
+    df = _lps_behavior_frame(
+        highs=[103.5, 102.8, 102.5],
+        lows=[101.5, 101.2, 101.0],
+        closes=[102.5, 102.0, 101.8],
+    )
+    df["Volume"] = 880  # ratio 0.88 vs Vol_50 1000
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["vol_contraction"] >= 1
+
+
+def test_two_bar_shelf_floor_admits_shelves_not_noise(monkeypatch, _lps_behavior_frame):
+    # Companion pins for the shelf-length 3 -> 2 move. At n=2 the monotone
+    # axis is one comparison (near-vacuous) — the position and profile gates
+    # must carry the discrimination.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_SHELF_LENGTH_MIN", 2)
+
+    # A 2-bar hot-volume HIGH shelf (the VCTR class): shelf-saved.
+    high_shelf = _lps_behavior_frame(
+        highs=[108.5, 107.5], lows=[106.5, 106.0], closes=[107.5, 106.8])
+    high_shelf["Volume"] = 1400
+    accepted = detect_lps(df=high_shelf, latest=high_shelf.iloc[-1], **_SHELF_KW)
+    assert accepted is not None
+    assert accepted["swing_type"] == "holding_shelf"
+
+    # The canon failure geometry at 2 bars — flat + LOW + hot volume: dead.
+    low_flat = _lps_behavior_frame(
+        highs=[103.5, 102.5], lows=[101.5, 101.0], closes=[102.5, 101.8])
+    low_flat["Volume"] = 1400
+    result, rejects = detect_lps(df=low_flat, latest=low_flat.iloc[-1],
+                                 diagnose=True, **_SHELF_KW)
+    assert result is None
+    assert rejects["holding_shelf_refused"] >= 1
+
+    # A 2-bar rising-low wedge + hot volume: the monotone axis still bites.
+    wedge = _lps_behavior_frame(
+        highs=[108.5, 107.5], lows=[106.0, 106.45], closes=[107.5, 107.0])
+    wedge["Volume"] = 1400
+    assert detect_lps(df=wedge, latest=wedge.iloc[-1], **_SHELF_KW) is None

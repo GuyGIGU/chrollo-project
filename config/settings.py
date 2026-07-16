@@ -327,7 +327,14 @@ LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by th
 # depth floor + a 0.87-vs-0.85 volume margin, PBT on volume alone at 1.40x).
 # Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #1).
 LPS_HOLDING_SHELF_ENABLED = True
-LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves run 3-5 sessions
+LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves run 3-5 sessions.
+                                  # The 3->2 move was ATTEMPTED 2026-07-17 (flip checklist #5,
+                                  # would convert VCTR) and REVERTED at the flip battery: KWR
+                                  # (tier B) + FLG (tier S) — labeled dead-space must-NOT-fires —
+                                  # both fired via 2-bar shelves; at n=2 the monotone axis is one
+                                  # comparison and carries no real discrimination. Do not
+                                  # re-attempt without a shelf predicate that discriminates at
+                                  # n=2 (the negative corpus is the arbiter).
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the canon position test
                                   # (SMI: the back-up completes between the range's halfway point
                                   # and the creek; IBD: handle midpoint above the base midpoint).
@@ -392,7 +399,14 @@ PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it re
 LPS_RANGE_PERCENTILE = 0.5
 LPS_SPREAD_MUST_DECLINE = True    # Declining final spread earns full quality; widening is discounted, not gated
 
-LPS_VOL_CONTRACTION_MAX = 0.85   # LPS avg volume must be <= 85% of 50d avg
+LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Moved 0.85->0.87
+                                 # 2026-07-17 (operator grant, flip checklist #6; converts AGCO
+                                 # at its 0.87-vs-0.85 margin). Archive evidence (1,679 matured
+                                 # episodes): outcome quality is FLAT up to the old edge
+                                 # (0.80-0.85 band n=174, +6.7% mean 20d, 80% win) — no cliff;
+                                 # deeper dry-up is not better in this archive. 0.88+ stays
+                                 # rejected (companion pin in tests/test_lps.py); Vol_50 gained
+                                 # a non-finite refusal guard in the same change.
 
 # Shared structural-frame constants.
 # --- FROZEN-CONFIG MANIFEST (Lane A) ---

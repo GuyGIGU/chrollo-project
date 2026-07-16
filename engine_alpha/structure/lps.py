@@ -508,7 +508,12 @@ def detect_lps_candidates(
                     )
 
             vol_50_at_lps = float(df.iloc[eval_idx]["Vol_50"])
-            if vol_50_at_lps <= 0:
+            # Non-finite refusal guard (threshold-move companion, 2026-07-17):
+            # a NaN Vol_50 makes BOTH ratio comparisons below silently False —
+            # the dry-up gate would "pass" on missing data and a NaN
+            # vol_contraction would flow into quality/archive. Data-integrity
+            # refusal: neither completion form may ride a broken denominator.
+            if not np.isfinite(vol_50_at_lps) or vol_50_at_lps <= 0:
                 if diagnose:
                     rejects["vol50_nonpos"] += 1
                 continue
