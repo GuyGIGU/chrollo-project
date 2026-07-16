@@ -94,6 +94,15 @@ BAND_EVENT_MAX_DEPTH_ATR = 5.0
 # MAX_CONSECUTIVE_OUTSIDE_DAYS.
 BAND_EVENT_MAX_BARS = 20
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
+# DARK (solve-the-engine task 13) — stale-frame dethronement: a
+# rescue-propped framing whose buffered R the tape has left FULLY behind for
+# the trailing N sessions loses the election in favor of a later valid
+# framing (MATX: stale spring boxes blind the fresh shelf). The sibling
+# rescued-pool arbitration lever was built and REJECTED (it killed VIK's
+# pinned corpus hit; see box_primitives — the shelf-R lesson at election
+# scope).
+ELECTION_DETHRONE_ENABLED = False
+ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run cap
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
 

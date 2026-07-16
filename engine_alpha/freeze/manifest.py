@@ -141,6 +141,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_EVENT_MIN_BARS",
     "BAND_EVENT_MAX_DEPTH_ATR",
     "BAND_EVENT_MAX_BARS",
+    # Election surgery (solve-the-engine task 13, dark)
+    "ELECTION_DETHRONE_ENABLED",
+    "ELECTION_DETHRONE_SESSIONS",
     "LPS_DRAW_MIN_DESCENT_FRAC",
     "LPS_ZONE_ATR_MULT",
     # Phase-C bin measurement

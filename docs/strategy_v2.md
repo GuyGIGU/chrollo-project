@@ -454,6 +454,22 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
    until the band is genuinely worked. **If no candidate is valid → no box → the
    stock is rejected.**
 
+   > **Stale-frame dethronement (dark, `ELECTION_DETHRONE_ENABLED` —
+   > solve-the-engine task 13).** A rescue-propped (SOS-trim) framing whose
+   > buffered R the tape has left FULLY behind for the trailing
+   > `ELECTION_DETHRONE_SESSIONS = 10` sessions has stopped being the
+   > operative structure: flag-on it loses the election **in favor of a
+   > later valid framing** (never into an emptier read; dethroned pairs
+   > narrate as `dethroned` in the cascade trace). One trailing pass over
+   > the already-loaded window; pure function of the frame. Proof at the
+   > marks: with the holding-shelf flag, MATX fires 06-29 tier S at rails
+   > within tolerance the evening before its breakout; hermetic corpus
+   > sweep shows zero non-target elections moving. The sibling
+   > rescued-pool arbitration lever was built and REJECTED (it killed
+   > VIK's pinned hit; no clean currency rule separates the good early
+   > framing from the bad — the shelf-R lesson at election scope; the
+   > counterexample is recorded at the pool seam).
+
 `select="best"` remains a diagnostic mode (highest combined regardless of start);
 `select="debug"` returns the valid-candidate landscape. The inner Phase-D
 mini-consolidation runs the same worked-equilibrium validity one scale down
@@ -836,7 +852,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `1185ea678052a516b42dec57b4f4db7d9a20da32b71ba79002989cb2fd08472d`_
+_engine_config_version: `e262f7285cfb6b84e2c7745f5f0cde43a59e793c7052f091d621d68087ac27fc`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -923,6 +939,8 @@ BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
+ELECTION_DETHRONE_ENABLED = False
+ELECTION_DETHRONE_SESSIONS = 10
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4
 LPS_ZONE_ATR_MULT = 0.5
 BIN_C_UNDERCUT_ATR_MIN = 0.3

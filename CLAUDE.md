@@ -4,7 +4,7 @@
 
 ## Non-negotiable reading rule
 
-Before modifying ANY chart-reading engine code — `core/structure/`, `core/scoring/`, or
+Before modifying ANY chart-reading engine code — `engine_alpha/structure/`, `engine_alpha/scoring/`, or
 their detection/scoring knobs in `config/settings.py` — **read `docs/strategy_v2.md`
 first** (the Reading Model section at minimum). It is the source of truth for how we
 understand chart analysis; the code implements it, not the other way around. When your

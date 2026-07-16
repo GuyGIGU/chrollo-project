@@ -25,11 +25,11 @@ books — it never places trades.**
 
 ## 🧮 Engine rules (the screener's prime directive)
 - **Read [`docs/strategy_v2.md`](docs/strategy_v2.md) BEFORE touching any chart-reading algorithm code**
-  (`core/structure/`, `core/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
+  (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
   Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
   of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.
-- **structure measures, scoring judges, pipeline coordinates.** `core/structure/` reports facts and never
-  assigns points. `core/scoring/` turns facts into points and never reads a chart.
+- **structure measures, scoring judges, pipeline coordinates.** `engine_alpha/structure/` reports facts and never
+  assigns points. `engine_alpha/scoring/` turns facts into points and never reads a chart.
 - **To change a factor's *weight*, edit `config/settings.py`** (`SCORE_*` / `TIER_*`) — never the
   measurement code.
 - **Do not change scoring weights or tier thresholds without being asked.** New signals are added
@@ -60,8 +60,8 @@ npm --prefix webapp\frontend run lint    # eslint
   service yourself.
 
 ## Repository layout
-- `core/structure/` — geometry: box/LPS detection, contractions, ADR (no opinion).
-- `core/scoring/` — `score_setup`, `calculate_tier` (opinion; weights live in `config/settings.py`).
+- `engine_alpha/structure/` — geometry: box/LPS detection, contractions, ADR (no opinion).
+- `engine_alpha/scoring/` — `score_setup`, `calculate_tier` (opinion; weights live in `config/settings.py`).
 - `core/pipeline/` — conductor: `data.py`, `screener.py`, `scan_job.py`.
 - `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py`, `seed.py`, `purge.py`.
 - `webapp/backend/` — `main.py`, `routers/`, `services/` (`scan_runner`, `scheduler`, `scan_status`,

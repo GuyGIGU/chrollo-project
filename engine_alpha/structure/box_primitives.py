@@ -605,6 +605,48 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     rescued.append(tup)
 
     pool = strict if strict else rescued
+    # NOTE (solve-the-engine task 13b, 2026-07-16): a rescued-pool
+    # ARBITRATION lever (let a fully-valid rescued framing that predates
+    # every strict candidate compete) was built and REJECTED here — on the
+    # sealed corpus it kills VIK's pinned hit (the admitted early framing
+    # wins earliest-of-valid, then fails to complete an LPS, and an
+    # elect-then-fail kills the whole root), and no clean currency rule
+    # separates that case from the MOV framing it was meant to save — the
+    # reverted shelf-R lesson at election scope. Do not re-attempt without
+    # new corpus evidence; MOV's fire is already covered by the
+    # holding-shelf form.
+
+    # DARK (ELECTION_DETHRONE_ENABLED — solve-the-engine task 13a): a
+    # rescue-propped framing whose buffered R the tape has left FULLY behind
+    # for the trailing ELECTION_DETHRONE_SESSIONS sessions has stopped being
+    # the operative structure (MATX: stale spring boxes blind the fresh
+    # shelf). Dethroned only IN FAVOR OF a later valid framing — never into
+    # an emptier read. One trailing pass over the already-loaded window;
+    # pure function of the frame, no cross-session state.
+    if settings.ELECTION_DETHRONE_ENABLED and len(pool) > 1:
+        buf = settings.BOUNDARY_ATR_BUFFER * atr_val
+        k = settings.ELECTION_DETHRONE_SESSIONS
+        rescued_ids = {id(c) for c in rescued}
+        stale = [c for c in pool
+                 if id(c) in rescued_ids and len(eq_lows) >= k
+                 and bool((eq_lows[-k:] > c[1] + buf).all())]
+        if stale:
+            survivor_starts = [c[9] for c in pool if id(c) not in {id(s) for s in stale}]
+            dropped = [c for c in stale
+                       if any(s > c[9] for s in survivor_starts)]
+            if dropped:
+                dropped_ids = {id(c) for c in dropped}
+                pool = [c for c in pool if id(c) not in dropped_ids]
+                if trace is not None:
+                    for cand in dropped:
+                        rec = _trace_find(trace, cand)
+                        if rec is not None:
+                            rec["verdict"] = "rejected"
+                            rec["stage"] = "dethroned"
+                            rec["detail"] = (
+                                f"rescue-propped pair fully above R+buffer for "
+                                f"the last {k} sessions; a later valid framing "
+                                f"is the operative structure")
 
     # LAST-RESORT worked-band pool (BAND_RAILS_ENABLED, dark; outer Phase B
     # only): consulted ONLY when both extreme-anchored pools are empty, so an
