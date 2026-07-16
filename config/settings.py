@@ -322,8 +322,8 @@ LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by th
 # byte-identity is structural. Calibration: the operator's marked WTS + PBT
 # shelves (frozen marks corpus; probe 2026-07-10 — WTS dies on the OVERSHOOT_R
 # depth floor + a 0.87-vs-0.85 volume margin, PBT on volume alone at 1.40x).
-# The live flip is operator-gated (EC-8).
-LPS_HOLDING_SHELF_ENABLED = False
+# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #1).
+LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves run 3-5 sessions
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the canon position test
                                   # (SMI: the back-up completes between the range's halfway point

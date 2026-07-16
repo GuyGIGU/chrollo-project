@@ -852,7 +852,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `e262f7285cfb6b84e2c7745f5f0cde43a59e793c7052f091d621d68087ac27fc`_
+_engine_config_version: `fe9efb749e43dba90a19b0c90ee95cbbe1e23f93d9f9ebbab50d0561ca4502d5`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -931,7 +931,7 @@ LPS_PULLBACK_PROFILE_MAX = 4.5
 LPS_TERMINAL_LOW_TOL_PROFILE = 0.1
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
-LPS_HOLDING_SHELF_ENABLED = False
+LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 BAND_RAILS_ENABLED = False

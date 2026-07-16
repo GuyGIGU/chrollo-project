@@ -84,9 +84,9 @@ NULL_TRIGGER_GRACE_SESSIONS = 2
 # ratchet). Verified at freeze time: the replayed miss-set must equal this key
 # set exactly, so the baseline can never freeze an unexplained miss.
 STAGE_TAGS: dict[str, str] = {
-    "WTS": "holding-shelf-lps",
+    # WTS + PBT converted 2026-07-16 (LPS_HOLDING_SHELF_ENABLED flipped live,
+    # stage-matched: WTS fires 06-08 tier B, PBT 04-30 tier S) — now pinned hits.
     "DRTS": "holding-shelf-lps",
-    "PBT": "holding-shelf-lps",
     "BODI": "band-vs-excursion",
     "EGBN": "under-investigation",
 }
