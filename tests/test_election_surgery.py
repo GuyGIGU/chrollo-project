@@ -27,8 +27,11 @@ from engine_alpha.structure.narrative import read_structure
 from tools.replay import flag_capture, load_sealed_fixture, prepared_frame
 
 
-def test_flags_ship_dark():
-    assert settings.ELECTION_DETHRONE_ENABLED is False
+def test_flag_state_and_rejected_lever():
+    # Dethronement flipped LIVE 2026-07-16 (operator grant, flip checklist #4);
+    # the sweep below is the blast-radius contract either way. The REJECTED
+    # arbitration lever must never quietly return (it killed VIK's pinned hit).
+    assert settings.ELECTION_DETHRONE_ENABLED is True
     assert not hasattr(settings, "ELECTION_RESCUED_COMPETE_ENABLED"), \
         "the rejected arbitration lever must not quietly return"
 

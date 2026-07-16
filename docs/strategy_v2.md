@@ -466,8 +466,8 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
    until the band is genuinely worked. **If no candidate is valid → no box → the
    stock is rejected.**
 
-   > **Stale-frame dethronement (dark, `ELECTION_DETHRONE_ENABLED` —
-   > solve-the-engine task 13).** A rescue-propped (SOS-trim) framing whose
+   > **Stale-frame dethronement (`ELECTION_DETHRONE_ENABLED`, LIVE since
+   > 2026-07-16 — solve-the-engine task 13).** A rescue-propped (SOS-trim) framing whose
    > buffered R the tape has left FULLY behind for the trailing
    > `ELECTION_DETHRONE_SESSIONS = 10` sessions has stopped being the
    > operative structure: flag-on it loses the election **in favor of a
@@ -864,7 +864,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `28da781d15968694852afd66a85a91955603c54fdafb77ecd353c63f0f459d18`_
+_engine_config_version: `28df23fc6e3631a0dcaad1943fc83572815efed20d54680d4e96247ede92931e`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -951,7 +951,7 @@ BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
-ELECTION_DETHRONE_ENABLED = False
+ELECTION_DETHRONE_ENABLED = True
 ELECTION_DETHRONE_SESSIONS = 10
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4
 LPS_ZONE_ATR_MULT = 0.5

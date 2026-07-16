@@ -102,7 +102,8 @@ MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierce
 # rescued-pool arbitration lever was built and REJECTED (it killed VIK's
 # pinned corpus hit; see box_primitives — the shelf-R lesson at election
 # scope).
-ELECTION_DETHRONE_ENABLED = False
+# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #4).
+ELECTION_DETHRONE_ENABLED = True
 ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run cap
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
