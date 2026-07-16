@@ -126,6 +126,29 @@ def test_qualify_band_above_excursion_must_fail_back_and_hold():
     assert _qualify_band(closes, lows, highs, 100.0, 106.0, buf=1.0) is None
 
 
+def test_qualify_band_above_departure_is_not_a_poke():
+    # DBD negative-corpus regression (2026-07-16 flip): a multi-week stay above
+    # R is a DEPARTURE — the range is not in force — never an event. Above the
+    # rail the band pool grants no more patience than the respect gate's own
+    # forgiveness horizon (MAX_CONSECUTIVE_OUTSIDE_DAYS); at the horizon it
+    # still qualifies, one bar past it the pair dies.
+    horizon = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
+
+    def _with_above_run(run):
+        vals = list(_boxy_closes(40, 100, 106))
+        for i in range(10, 10 + run):
+            vals[i] = 112.0
+        closes = np.array(vals, dtype=float)
+        return closes, closes - 0.5, closes + 0.5
+
+    closes, lows, highs = _with_above_run(horizon)
+    read = _qualify_band(closes, lows, highs, 100.0, 106.0, buf=1.0)
+    assert read is not None and [e["kind"] for e in read["excursions"]] == ["above"]
+
+    closes, lows, highs = _with_above_run(horizon + 1)
+    assert _qualify_band(closes, lows, highs, 100.0, 106.0, buf=1.0) is None
+
+
 # ── sequence-aware HOLD chain + depth cap (plan task 9; expected values
 # transcribed from the operator's marks, not from the code) ────────────────
 
@@ -245,12 +268,13 @@ def test_merge_spans_joins_spring_then_test_episodes():
 def test_qualify_pair_events_requires_a_deep_multibar_event():
     # Ordinary springy pokes are the respect buffer's business: a pair with no
     # DEEP below-rail event is refused, so the class width allowance can never
-    # leak to a merely-wide box.
-    df = _frame(_boxy_closes(40))          # clean range, no excursion at all
+    # leak to a merely-wide box. (Windows sized 60 to clear the matured-cause
+    # floor — the refusals here must be about the EVENT, not maturity.)
+    df = _frame(_boxy_closes(60))          # clean range, no excursion at all
     assert qualify_pair_events(df, 100.0, 110.0, 1.0) is None
 
     # One-bar poke below: too short for an event, refused.
-    closes = _boxy_closes(40)
+    closes = _boxy_closes(60)
     closes[12] = 96.0
     assert qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0) is None
 
@@ -258,12 +282,28 @@ def test_qualify_pair_events_requires_a_deep_multibar_event():
     # depth cap) that reclaims and holds: read. (The original 6.5-ATR-deep
     # fixture now correctly refuses under BAND_EVENT_MAX_DEPTH_ATR — that
     # magnitude is the EGBN breakdown class, pinned in its own test.)
-    closes = _boxy_closes(40)
+    closes = _boxy_closes(60)
     closes[12], closes[13], closes[14] = 96.5, 96.0, 96.5
     read = qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0)
     assert read is not None
     assert [e["kind"] for e in read["excursions"]] == ["below"]
-    assert int(read["judged"].sum()) == 40 - 3
+    assert int(read["judged"].sum()) == 60 - 3
+
+
+def test_qualify_pair_events_demands_a_matured_cause():
+    # SPCB negative-corpus regression (2026-07-16 flip): a young high-flag's
+    # churn scraped every gate on 30 judged bars. A terminal shakeout ends a
+    # MATURED cause: judged bars must reach 2 x MIN_BASE_DAYS; one bar short
+    # refuses the pair.
+    floor = 2 * settings.MIN_BASE_DAYS
+
+    def _with_event(n):
+        closes = _boxy_closes(n)
+        closes[12], closes[13], closes[14] = 96.5, 96.0, 96.5
+        return _frame(closes)
+
+    assert qualify_pair_events(_with_event(floor + 3), 100.0, 110.0, 1.0) is not None
+    assert qualify_pair_events(_with_event(floor + 2), 100.0, 110.0, 1.0) is None
 
 
 # ── Phase-C feed: TERMINAL_SHAKEOUT (flag-dark, Task 11 tail) ────────────
@@ -273,13 +313,18 @@ def _shakeout_frame():
     """A worked 90/100 range whose one excursion is a violent, later-reclaimed
     collapse: depth 7.4 (3.7 ATR at ATR=2) — beyond BOTH breakdown caps of the
     calibrated spring detector (3.0 ATR / 0.65 box), yet a clean qualified
-    deep event (4 bars below the band, reclaim, hold)."""
+    deep event (4 bars below the band, reclaim, hold). 60 bars (56 judged) so
+    the matured-cause floor (2 x MIN_BASE_DAYS) is cleared; the collapse
+    coordinates (bars 30-33, trough @31) are unchanged."""
     closes = []
     for i in range(30):                    # bars 0-29: closes oscillate 91..99
         cyc = i % 6
         closes.append(91 + 8 * (cyc / 3 if cyc <= 3 else (6 - cyc) / 3))
     closes += [87.0, 83.0, 84.5, 87.5]     # bars 30-33: the collapse (< S-buf=89)
     closes += [91.0, 92.0, 93.5, 94.0, 95.0, 95.5]  # bars 34-39: reclaim + hold
+    for i in range(20):                    # bars 40-59: hold — oscillate 91..99
+        cyc = i % 6
+        closes.append(91 + 8 * (cyc / 3 if cyc <= 3 else (6 - cyc) / 3))
     df = _frame(closes)                    # lows = closes - 0.4 → trough 82.6 @31
     df["Volume"] = 1_000_000 + np.arange(len(closes)) * 1_000.0
     return df
@@ -311,7 +356,7 @@ def test_phase_c_feed_types_the_terminal_shakeout(monkeypatch):
     assert (r["bin_c_event_bar"], r["bin_c_recovery_bar"],
             r["bin_c_recovery_bars"]) == (31, 34, 3)
     assert r["bin_c_undercut_atr"] == 3.7
-    assert r["bin_c_time_loc"] == round(31 / 39, 4)
+    assert r["bin_c_time_loc"] == round(31 / 59, 4)
 
 
 def test_phase_c_feed_never_retypes_a_calibrated_spring(monkeypatch):

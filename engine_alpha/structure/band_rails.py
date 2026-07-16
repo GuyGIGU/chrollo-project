@@ -135,6 +135,14 @@ def _qualify_band(closes, lows, highs, S_val, R_val, buf,
                                    settings.MAX_CONSECUTIVE_OUTSIDE_DAYS):
         if end >= n:
             return None            # still outside at the window edge: unresolved
+        # A poke is SHORT: above the rail the band pool grants no more patience
+        # than the respect gate's own forgiveness horizon — a multi-week stay
+        # above R is a departure (the range is not in force), not an event.
+        # (DBD negative-corpus regression at the 2026-07-16 flip: a 15-bar,
+        # 4.1-ATR rally above R rode the uncapped above loop into a tier-S
+        # dead-space election.)
+        if (end - start) > settings.MAX_CONSECUTIVE_OUTSIDE_DAYS:
+            return None
         extreme = float(highs[start:end].max())
         # FAIL-BACK: the poke high is never exceeded after the return.
         if float(highs[end:].max()) > extreme:
@@ -176,6 +184,14 @@ def qualify_pair_events(eq_df, S_val: float, R_val: float,
     read = _qualify_band(closes, lows, highs, S_val, R_val, buf,
                          max_depth=settings.BAND_EVENT_MAX_DEPTH_ATR * float(atr_val))
     if read is None:
+        return None
+    # A terminal shakeout ends a MATURED cause: the judged (post-excision)
+    # window must be a full worked base at TWICE the bare minimum — the pool's
+    # extra grants (class width, event excision) are earned by extra cause.
+    # (SPCB negative-corpus regression at the 2026-07-16 flip: a 34-bar
+    # high-flag — the box's left half was the +35% rally leg itself — scraped
+    # every gate on 30 judged churn bars and elected tier A.)
+    if int(read["judged"].sum()) < 2 * settings.MIN_BASE_DAYS:
         return None
     deep = [e for e in read["excursions"]
             if e["kind"] == "below"

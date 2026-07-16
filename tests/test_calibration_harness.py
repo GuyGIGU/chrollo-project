@@ -583,12 +583,15 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     _add_mark(session)
     monkeypatch.setattr(database, "SessionLocal", lambda: session)
 
+    # The stub fires only under the LIVE default (band-rails ON since the
+    # 2026-07-16 flip); the variant turns the flag OFF, so baseline fires and
+    # the variant doesn't — the same A/B polarity the alignment check needs.
     def _fires_baseline_only(ticker, sliced, spy_6m_return, breadth_pct):
-        return None if settings.BAND_RAILS_ENABLED else _fire_result()
+        return _fire_result() if settings.BAND_RAILS_ENABLED else None
 
     monkeypatch.setattr(evaluation, "_evaluate_ticker", _fires_baseline_only)
     out = tmp_path / "report.json"
-    harness.run(None, ["BAND_RAILS_ENABLED=true"], str(out), fired=True)
+    harness.run(None, ["BAND_RAILS_ENABLED=false"], str(out), fired=True)
     report = json.loads(out.read_text(encoding="utf-8"))
     assert report["fired_policy"]["window_sessions"] == FIRED_WINDOW_SESSIONS
     # EC-9 self-identification: the report NAMES the population it scored and
@@ -597,6 +600,6 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     assert report["population"] == "calibration_marks"
     assert isinstance(report["marks_fingerprint"], str) and len(report["marks_fingerprint"]) == 64
     base = report["variants"]["baseline"]["rows"][0]
-    variant = report["variants"]["BAND_RAILS_ENABLED=true"]["rows"][0]
+    variant = report["variants"]["BAND_RAILS_ENABLED=false"]["rows"][0]
     assert base["fired"] is True and base["fire_date"] == "2026-04-02"
     assert variant["fired"] is False

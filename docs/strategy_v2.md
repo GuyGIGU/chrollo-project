@@ -401,8 +401,8 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      and held above R can be validated over the worked cause before that
      breakout tail. This rescues SOS -> BUEC structures (e.g. a valid range that
      backs up to an LPS) without moving ordinary in-range setups.
-   - **Deep-excursion pair pool (dark, `BAND_RAILS_ENABLED` — Event Map Task
-     11)** — a LAST-RESORT pool consulted only when the
+   - **Deep-excursion pair pool (`BAND_RAILS_ENABLED`, LIVE since 2026-07-16 —
+     Event Map Task 11)** — a LAST-RESORT pool consulted only when the
      strict AND rescued pools are both empty, so an ordinary election can
      never move. It re-judges the SAME chronological zigzag pairs (the
      operator's rail rule: anchor R/S from the swings in chronological order,
@@ -429,7 +429,18 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      markdown leg, not an episode (EGBN's stale April framing rode a 40-bar
      "event"; BODI's real episodes run 12–18 bars). A non-finite or
      non-positive ATR refuses event-typing outright (quarantine — NaN masks
-     must not silently report "no excursions"). Qualified event bars are
+     must not silently report "no excursions"). **Flip-battery bounds
+     (2026-07-16, negative-corpus regressions caught at the live flip):**
+     *above* the rail the pool grants no more patience than the respect
+     gate's own forgiveness horizon — an above-rail span longer than
+     `MAX_CONSECUTIVE_OUTSIDE_DAYS` is a DEPARTURE (the range is not in
+     force), never a poke (DBD: a 15-bar, 4.1-ATR rally above R rode the
+     uncapped above loop into a tier-S dead-space election); and the judged
+     window must be a MATURED cause — at least 2 × `MIN_BASE_DAYS` judged
+     bars after excision — because a terminal shakeout ends a long Phase B,
+     it does not interrupt a five-week flag (SPCB: a 34-bar high-flag whose
+     left half was the +35% rally leg itself scraped every gate on 30 judged
+     churn bars). Qualified event bars are
      excised from the judged window; every gate in this list runs UNCHANGED
      and full-strength on the remaining bars, except that a pair carrying a
      qualified DEEP below-rail event (multi-bar, beyond S − 2×buffer) may
@@ -441,9 +452,10 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      at the marks (2026-07-16, flag-on variant): BODI fires tier A at the
      operator's exact rails (12.33/10.18) on 04-10; both EGBN over-reach
      fires are dead. The operator's A/B rail eyeball over
-     `docs/phase_c_marks_2026-07.json` landed 2026-07-11 FAVORABLE — the
-     flip waits on the operator's explicit go (protocol in the flag ledger;
-     the flip converts BODI's pinned corpus miss, a stage-matched re-freeze).
+     `docs/phase_c_marks_2026-07.json` landed 2026-07-11 FAVORABLE; the
+     operator granted the flip 2026-07-16 and the flip battery (full pytest,
+     shadow re-capture, stage-matched BODI ratchet reseal, negative corpus,
+     hermetic recall) ran green with the two bounds above.
 6. **Structural-quality score:** every *valid* candidate gets
    `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
 7. **Candidate selection (`select="earliest"` live default):** choose the
@@ -523,7 +535,7 @@ The scoping layer emits best-effort chart anchors:
 - **Phase A:** local root climax / automatic-reaction lead-in, from the resolved consolidation-specific climax to the reaction bar.
 - **Phase B:** the whole working base / cause-building region from `phase_b_start_bar` through the setup end. In the chart validation view, Phase D is an overlapping right-side read, not a cutoff that truncates Phase B.
 - **Phase D:** the right-most launch region. A true Phase-C spring recovery floors the Phase-D search; it is not itself the boundary source. Phase D starts at the earliest credible right-side evidence at/after that floor: support-test cluster, SOS reclaim, rising support, inner mini-consolidation, or recovered V-tip. If none is present, the LPS window is the mandatory fallback.
-- **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal. **Dark (`BAND_RAILS_ENABLED`): `TERMINAL_SHAKEOUT`** — when the calibrated detector finds nothing (its depth/linger caps are breakdown defenses and stay untouched), the box's own qualified DEEP excursion (band_rails: penetration → reclaim → hold, multi-bar, beyond S − 2×buffer) is typed as the Phase C at terminal-shakeout scale — the operator's BODI ruling ("the collapse is Phase C inside one box, not a box break"). Fed at the ONE detector seam (`_phase_c_candidate`), so `find_spring`, `measure_bins`, the chart's C label and the archive can never drift; a calibrated `SPRING` is never re-typed.
+- **Phase C:** optional measured spring event in Bin B. A `SPRING` is a late Low undercut below S that stays near the box, then recovers by Close back above S within the configured recovery window. Ordinary held support tests remain part of the LPS/support-test layer, not a forced Phase C. Most bases have no Phase C and that is normal. **`TERMINAL_SHAKEOUT` (`BAND_RAILS_ENABLED`, live since 2026-07-16)** — when the calibrated detector finds nothing (its depth/linger caps are breakdown defenses and stay untouched), the box's own qualified DEEP excursion (band_rails: penetration → reclaim → hold, multi-bar, beyond S − 2×buffer) is typed as the Phase C at terminal-shakeout scale — the operator's BODI ruling ("the collapse is Phase C inside one box, not a box break"). Fed at the ONE detector seam (`_phase_c_candidate`), so `find_spring`, `measure_bins`, the chart's C label and the archive can never drift; a calibrated `SPRING` is never re-typed.
 - **LPS zone:** a tight price-and-time box around the exact LPS candidate bars (`lps_zone_low/high` plus `lps_zone_start/end_date`), not a level stretched across all of Phase D.
 
 All boundaries are nullable. If the engine cannot place a region confidently, it emits `None` and the frontend skips that label/box. Young bases may yield only a base body and a right edge; the model must never force four tidy quadrants.
@@ -852,7 +864,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `fe9efb749e43dba90a19b0c90ee95cbbe1e23f93d9f9ebbab50d0561ca4502d5`_
+_engine_config_version: `ec6d91c78de85cba5d8773ff4f64af9b1414582d8af283c32d8c95d659e14774`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -934,7 +946,7 @@ LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
 LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
-BAND_RAILS_ENABLED = False
+BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0

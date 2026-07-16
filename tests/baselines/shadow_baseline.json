@@ -46,7 +46,7 @@
     },
     "CVI": {
       "Setup": "LPS",
-      "Score": 98.9,
+      "Score": 102.9,
       "Tier": "A",
       "Base Len": 53,
       "Box Width": 0.14085,
@@ -101,7 +101,7 @@
     },
     "GF": {
       "Setup": "LPS",
-      "Score": 95.7,
+      "Score": 98.3,
       "Tier": "A",
       "Base Len": 91,
       "Box Width": 0.171103,
@@ -167,7 +167,7 @@
     },
     "MEGI": {
       "Setup": "LPS",
-      "Score": 97.5,
+      "Score": 100.1,
       "Tier": "A",
       "Base Len": 68,
       "Box Width": 0.092847,
@@ -299,7 +299,7 @@
     },
     "TRS": {
       "Setup": "LPS",
-      "Score": 88.8,
+      "Score": 91.1,
       "Tier": "B",
       "Base Len": 79,
       "Box Width": 0.179444,
@@ -332,7 +332,7 @@
     },
     "VLO": {
       "Setup": "LPS",
-      "Score": 116.8,
+      "Score": 119.8,
       "Tier": "S",
       "Base Len": 58,
       "Box Width": 0.117777,
@@ -361,9 +361,9 @@
     "PBF",
     "EC",
     "PII",
+    "VLO",
     "SWK",
     "CHRW",
-    "VLO",
     "BC",
     "TNC",
     "JAKK",
@@ -374,12 +374,12 @@
     "HOG",
     "COLM",
     "SCL",
-    "IRS",
     "CVI",
     "MEGI",
+    "IRS",
+    "GF",
     "NDSN",
     "SN",
-    "GF",
     "ABEV",
     "FOF",
     "HVT",
@@ -387,5 +387,5 @@
     "URBN",
     "TKO"
   ],
-  "captured_at": "2026-07-04T13:38:10+00:00"
+  "captured_at": "2026-07-16T21:31:34+00:00"
 }

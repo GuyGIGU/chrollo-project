@@ -86,8 +86,9 @@ NULL_TRIGGER_GRACE_SESSIONS = 2
 STAGE_TAGS: dict[str, str] = {
     # WTS + PBT converted 2026-07-16 (LPS_HOLDING_SHELF_ENABLED flipped live,
     # stage-matched: WTS fires 06-08 tier B, PBT 04-30 tier S) — now pinned hits.
+    # BODI converted 2026-07-16 (BAND_RAILS_ENABLED flipped live, stage-matched:
+    # fires 04-10 tier A at the operator's exact rails) — now a pinned hit.
     "DRTS": "holding-shelf-lps",
-    "BODI": "band-vs-excursion",
     "EGBN": "under-investigation",
 }
 

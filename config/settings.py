@@ -78,7 +78,8 @@ BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 # chronological pair reads 0.20-0.23) — the allowance exists ONLY with the
 # event, so it can never act as a general width loosening. Calibration set:
 # docs/phase_c_marks_2026-07.json.
-BAND_RAILS_ENABLED = False
+# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #2).
+BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23        # wick-to-wick cap for a pair WITH a qualified deep event
 BAND_EVENT_MIN_BARS = 2          # a deep event is multi-bar; one-bar pokes stay respect-buffer business
 # Depth cap on a qualified below-rail event, in ATRs below the S rail: deeper

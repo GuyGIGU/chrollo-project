@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-07-16T20:50:39+00:00",
+  "captured_at": "2026-07-16T21:25:25+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "f54bbc2e5629c3d088c413161497b13df199860f43a919fbdd55047242198ea7",
   "null_trigger_grace_sessions": 2,
@@ -67,7 +67,7 @@
     {
       "key": "BODI",
       "ticker": "BODI",
-      "status": "miss",
+      "status": "hit",
       "windows": [
         [
           "2026-04-09",
@@ -76,7 +76,8 @@
       ],
       "spy_6m_return": 0.07277786731719971,
       "bars": 1199,
-      "stage": "band-vs-excursion"
+      "first_fire": "2026-04-10",
+      "tier": "A"
     },
     {
       "key": "VLO",
