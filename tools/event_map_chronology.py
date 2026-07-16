@@ -42,7 +42,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from core.pipeline.evaluation import _prepare_eval_frame, _resolve_structure_context
-from core.structure.event_map import read_role_labels
+from engine_alpha.structure.event_map import read_role_labels
 from tools.marks_corpus import _load_fixture, eval_windows, load_corpus, setup_key
 
 # Sessions added on each side of the marked windows so the battery watches the

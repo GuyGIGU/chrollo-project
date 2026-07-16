@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
 from config import settings
-from core.scoring import taxonomy
+from engine_alpha.scoring import taxonomy
 from core.archive.analyze import SUB_SCORES
 
 

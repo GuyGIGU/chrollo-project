@@ -22,9 +22,9 @@ import pytest
 
 import config.settings as settings
 from core.pipeline.evaluation import _prepare_eval_frame
-from core.structure.narrative import read_structure
-from core.structure.pivots import _build_zigzag, _find_pivots
-from core.structure.segmentation import segment_swings
+from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.segmentation import segment_swings
 
 
 # ── Shared fixture: real Structures over the committed shadow fixture ─────────
@@ -290,8 +290,8 @@ ALLOWED_OPS_EXCLUSIONS = frozenset(
 # modules, so those helpers are listed too — else a lookback/lag knob read one
 # import-hop away escapes the scan (the engine-α second-pass audit gap, 2026-07-06).
 _ENGINE_EVAL_PATH_MODULES = (
-    "core.scoring.scoring",
-    "core.scoring.taxonomy",
+    "engine_alpha.scoring.scoring",
+    "engine_alpha.scoring.taxonomy",
     "core.pipeline.evaluation",
     "core.pipeline.screener",
     "core.regime.scan_context",
@@ -308,11 +308,11 @@ def _engine_eval_path_sources():
     import importlib
     from pathlib import Path
 
-    import core.structure
+    import engine_alpha.structure
 
     paths = [Path(importlib.import_module(m).__file__)
              for m in _ENGINE_EVAL_PATH_MODULES]
-    paths += sorted(Path(core.structure.__file__).parent.glob("*.py"))
+    paths += sorted(Path(engine_alpha.structure.__file__).parent.glob("*.py"))
     return paths
 
 
@@ -364,7 +364,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     # see those names; introspect the registry object itself so a term whose cap /
     # flag is read ONLY via the registry (e.g. a future 0-100 normalization divisor)
     # still cannot escape the manifest.
-    from core.scoring.taxonomy import REGISTRY as _score_registry
+    from engine_alpha.scoring.taxonomy import REGISTRY as _score_registry
     for _term in _score_registry:
         referenced.add(_term.cap_setting)
         if _term.present_when is not None:

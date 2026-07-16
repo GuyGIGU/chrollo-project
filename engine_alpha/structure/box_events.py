@@ -1,6 +1,6 @@
 """L2 Wyckoff event reader — the labeled staircase + independent rail-event zones.
 
-Relocated verbatim out of ``core.structure.metrics`` (a pure module peel; no
+Relocated verbatim out of ``engine_alpha.structure.metrics`` (a pure module peel; no
 behavior change). Reads an already-detected equilibrium box and reports the
 in-box structure as FACTS — the labeled HH/HL/LH/LL staircase, the independent
 R-rail / S-rail event zones (SOS / markup / upthrust / range / rejection / test /
@@ -9,7 +9,7 @@ function here is MEASURE-ONLY: it moves no rail, gates nothing, scores nothing;
 the Scoring Engine decides what the reads are worth.
 
 For import-compatibility the public symbols are re-exported from
-``core.structure.metrics``, so every existing ``from core.structure.metrics
+``engine_alpha.structure.metrics``, so every existing ``from engine_alpha.structure.metrics
 import ...`` site keeps working unchanged.
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from core.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ def _staircase_from_pivots(peaks, valleys, highs, lows, R, S, atr_val, min_amp):
     """Zigzag → amplitude collapse → L0 labels → box annotation over a GIVEN
     order-1 pivot subset: the single staircase machinery behind
     ``read_box_staircase`` (which detects pivots on its own window) and the
-    Event Map's windowed views (``core.structure.event_map``, which filter ONE
+    Event Map's windowed views (``engine_alpha.structure.event_map``, which filter ONE
     whole-frame pivot walk down to a window). Bars in the result index into
     ``highs``/``lows``; the pivot indices must index those same arrays."""
     box = float(R) - float(S)
@@ -48,7 +48,7 @@ def _staircase_from_pivots(peaks, valleys, highs, lows, R, S, atr_val, min_amp):
         return _staircase_empty()
 
     # Lazy import keeps the L0 labeller a leaf dependency (no module-load cycle).
-    from core.structure.market_structure import label_market_structure
+    from engine_alpha.structure.market_structure import label_market_structure
     labelled = label_market_structure(swings)
 
     low_zone = settings.TRAVERSAL_LOW_ZONE
@@ -157,7 +157,7 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
         return empty
 
     # Lazy import keeps the L0 labeller a leaf dependency (no module-load cycle).
-    from core.structure.market_structure import label_market_structure
+    from engine_alpha.structure.market_structure import label_market_structure
     labelled = label_market_structure(swings)
 
     low_zone = settings.TRAVERSAL_LOW_ZONE
@@ -531,7 +531,7 @@ def _box_events_with_meta(df, box, atr_val, *, v_bar=None,
     real structural low. Measure-only — gates/scores nothing.
     """
     # Leaf import keeps bricks a downstream dependency (no module-load cycle).
-    from core.structure.bricks import find_lps, find_spring
+    from engine_alpha.structure.bricks import find_lps, find_spring
 
     if (df is None or box is None or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):

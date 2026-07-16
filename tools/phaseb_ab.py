@@ -28,8 +28,8 @@ configure_path()
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker
-from core.structure.consolidation import detect_boxes, find_outer_box
-from core.structure.indicators import calculate_atr
+from engine_alpha.structure.consolidation import detect_boxes, find_outer_box
+from engine_alpha.structure.indicators import calculate_atr
 from tools.shadow_diff import _load_fixture
 
 # Fields we report movement on (superset of the shadow-diff canonical set, plus

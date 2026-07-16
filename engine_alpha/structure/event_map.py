@@ -52,13 +52,13 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.box_events import (
+from engine_alpha.structure.box_events import (
     _EVENT_HOLD_MIN_BARS,
     _box_events_with_meta,
     _staircase_empty,
     _staircase_from_pivots,
 )
-from core.structure.pivots import _find_pivots
+from engine_alpha.structure.pivots import _find_pivots
 
 
 def _empty_map() -> dict:
@@ -366,7 +366,7 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
 
 # ── Archive column family: the tape summary ──────────────────────────────────
 # Owning declaration for the Event Map archive columns (the HTF precedent —
-# core.structure.htf): names, SQL types, and row-value extraction live HERE;
+# engine_alpha.structure.htf): names, SQL types, and row-value extraction live HERE;
 # the live writer and seed both splat ``event_map_archive_values``. The ORM
 # model (webapp/backend/archive_models.SetupArchive) declares matching nullable
 # columns as MODEL-ONLY adds (the engine_config_version precedent): deliberately

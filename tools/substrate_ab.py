@@ -49,7 +49,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.pip import pip_indices
+from engine_alpha.structure.pip import pip_indices
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "substrate_ab")
 _JSON_PATH = os.path.join(_OUT_DIR, "substrate_ab_results.json")
@@ -96,8 +96,8 @@ def _pip_find_pivots_factory(dist_min: float):
 
 
 def _patched_modules():
-    import core.structure.box_primitives as bp
-    import core.structure.metrics as mx
+    import engine_alpha.structure.box_primitives as bp
+    import engine_alpha.structure.metrics as mx
     return (bp, mx)
 
 
@@ -290,7 +290,7 @@ def render(tickers: list[str], window: int):
     from matplotlib.lines import Line2D
 
     from tools.phase_a_pip_diff import _prep_live
-    from core.structure.narrative import read_structure
+    from engine_alpha.structure.narrative import read_structure
     from tools.pip_preview import _draw_ohlc
 
     d, _ = _load_cache()

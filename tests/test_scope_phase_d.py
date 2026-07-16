@@ -17,14 +17,14 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.scope import _resolve_phase_d_start, scope_consolidation
+from engine_alpha.structure.scope import _resolve_phase_d_start, scope_consolidation
 
 
 def test_drawn_support_tests_keeps_right_side_down_or_sideways_only():
     # Display-only staircase filter: keep right-side down/sideways footprints,
     # drop pre-floor and up-swing (rising_support_shelf) ones. Recall-safe — it
     # never touches the active election (this is exactly the NCV Jun 9-15 case).
-    from core.structure.phase_d import drawn_support_tests
+    from engine_alpha.structure.phase_d import drawn_support_tests
 
     tests = [
         {"start_index": 5, "descent_frac": 1.00, "swing_type": "terminal_valley"},        # pre-floor -> drop
@@ -52,7 +52,7 @@ def test_drawn_support_tests_keeps_right_side_down_or_sideways_only():
 
 
 def test_drawn_support_tests_does_not_hide_raw_phase_d_evidence():
-    from core.structure.phase_d import drawn_support_tests, support_test_evidence_starts
+    from engine_alpha.structure.phase_d import drawn_support_tests, support_test_evidence_starts
 
     raw_tests = [
         {"start_index": 20, "end_index": 21, "low": 100.0, "descent_frac": 0.20, "zone_type": "INSIDE"},
@@ -110,7 +110,7 @@ def test_resolve_phase_d_start_matches_scope_rule():
 
 
 def test_resolve_phase_d_boundary_lps_fallback_respects_search_start_floor():
-    from core.structure.phase_d import resolve_phase_d_boundary
+    from engine_alpha.structure.phase_d import resolve_phase_d_boundary
     # The LPS fallback must not open Phase D before the declared search-start
     # floor (the floor includes search_start_bar, not only the spring reclaim).
     pb = resolve_phase_d_boundary(last=119, has_lps_window=True, lps_start=90,
@@ -123,7 +123,7 @@ def test_resolve_phase_d_boundary_lps_fallback_respects_search_start_floor():
 
 
 def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
-    from core.structure.phase_d import resolve_phase_d_boundary
+    from engine_alpha.structure.phase_d import resolve_phase_d_boundary
 
     pb = resolve_phase_d_boundary(
         last=119,
@@ -145,7 +145,7 @@ def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
 
 
 def test_phase_d_boundary_evidence_carries_full_vocabulary():
-    from core.structure.phase_d import PHASE_D_EVIDENCE_SOURCES, resolve_phase_d_boundary
+    from engine_alpha.structure.phase_d import PHASE_D_EVIDENCE_SOURCES, resolve_phase_d_boundary
 
     pb = resolve_phase_d_boundary(
         last=119,
@@ -165,7 +165,7 @@ def test_phase_d_boundary_evidence_carries_full_vocabulary():
 
 
 def test_support_test_evidence_starts_classifies_cluster_sos_and_rising_support():
-    from core.structure.phase_d import support_test_evidence_starts
+    from engine_alpha.structure.phase_d import support_test_evidence_starts
 
     starts = support_test_evidence_starts([
         {"start_index": 20, "end_index": 22, "low": 101.0, "zone_type": "INSIDE"},

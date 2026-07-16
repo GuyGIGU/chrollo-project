@@ -3,8 +3,8 @@ Wyckoff consolidation detection — identifies structural equilibrium bases
 following macro trend exhaustion using zigzag-based S/R anchoring.
 
 Diagnostic standalone detectors, composed from
-``core.structure.box_primitives``. The live screener does not call this module;
-it reads structure chronologically via ``core.structure.read_structure`` ->
+``engine_alpha.structure.box_primitives``. The live screener does not call this module;
+it reads structure chronologically via ``engine_alpha.structure.read_structure`` ->
 ``bricks``. What remains here serves diagnostic tools and public compatibility.
 
   ``detect_boxes(df)`` — parent+inner detector. Finds the outer BC→AR box as the
@@ -41,7 +41,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.box_primitives import (
+from engine_alpha.structure.box_primitives import (
     collect_root_anchors,
     phase_b_zigzag,
     select_inner_box,

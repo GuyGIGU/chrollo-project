@@ -7,14 +7,14 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
 
-# L2 Wyckoff event reader — relocated to core.structure.box_events. Re-exported
-# here so every existing ``from core.structure.metrics import ...`` site keeps
+# L2 Wyckoff event reader — relocated to engine_alpha.structure.box_events. Re-exported
+# here so every existing ``from engine_alpha.structure.metrics import ...`` site keeps
 # working unchanged (pure module peel, byte-identical behavior). box_events imports
 # ``_collapse_swings`` from pivots (its conceptual home, shared with measure_traversal
 # below), so there is no metrics <-> box_events cycle.
-from core.structure.box_events import (  # noqa: F401  (re-export for import compatibility)
+from engine_alpha.structure.box_events import (  # noqa: F401  (re-export for import compatibility)
     _DETECT,
     _box_events_with_meta,
     _deepest_valley_bar,
@@ -364,7 +364,7 @@ def measure_gate_margins(base_df, R, S, atr_val):
             or R <= S or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):
         return empty
-    from core.structure.box_primitives import (  # noqa: PLC0415 — sibling, lazy vs cycles
+    from engine_alpha.structure.box_primitives import (  # noqa: PLC0415 — sibling, lazy vs cycles
         _is_boundary_respected,
         _measure_close_residence,
     )

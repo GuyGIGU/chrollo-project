@@ -107,7 +107,7 @@ EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this 
 # (S<->R), or hang off one rail and leave dead space (the tell that R/S were
 # marked too wide). Swing size is judged as a FRACTION OF BOX HEIGHT, not a bar
 # count, so the read adapts to box width (tight boxes have short limbs, wide ones
-# long). Measured by core.structure.metrics.measure_traversal. v1 is
+# long). Measured by engine_alpha.structure.metrics.measure_traversal. v1 is
 # measure-first / archive-only — TRAVERSAL_GATE_ENABLED stays False until the
 # live archive proves TRAVERSAL_MIN against forward outcomes / seed-recall.
 TRAVERSAL_NOISE_FRAC = 0.15      # a swing < this fraction of box height is chop, merged away
@@ -554,7 +554,7 @@ BREADTH_ZERO_PCT = 0.35           # below 35% → zero points
 
 # VCP progressive-contraction footprint (the defining Minervini pattern):
 # 2-6 pullbacks each tighter than the last (18%→12%→6%), tight final
-# contraction. Measured by core.structure.metrics.measure_contractions over the
+# contraction. Measured by engine_alpha.structure.metrics.measure_contractions over the
 # base window; scored as a sub-component. Measure-first — scored, not gated.
 SCORE_CONTRACTION = 12            # cap for the contraction-quality sub-score
 CONTRACTION_IDEAL_MIN = 2         # Minervini: 2-6 contractions, 3-4 typical
@@ -564,7 +564,7 @@ CONTRACTION_FINAL_LOOSE_PCT = 0.12  # final contraction ≥ 12% → zero
 
 # Ascending support / higher lows (Minervini "tennis-ball action", Qullamaggie
 # "higher lows surfing the rising EMA"): are the swing-low valleys stair-stepping
-# UP across the base? Measured by core.structure.metrics.measure_support_slope
+# UP across the base? Measured by engine_alpha.structure.metrics.measure_support_slope
 # (ATR-normalized least-squares slope through the zigzag valley lows). Bonus-only,
 # measure-first — a flat or sagging floor simply earns zero, never penalized.
 SCORE_ASCENDING_SUPPORT = 8          # cap for the ascending-support sub-score
@@ -616,7 +616,7 @@ PARQUET_COMPRESSION = "zstd"
 DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) and monthly (~60 bars)
                                  # resampling for HTF context has enough depth. The DAILY structure
                                  # read is trimmed back to DAILY_STRUCTURE_PERIOD so this deeper cache
-                                 # does NOT change daily behavior (see HTF section below + core.structure.htf).
+                                 # does NOT change daily behavior (see HTF section below + engine_alpha.structure.htf).
                                  # Renaming the cache file forces a clean cold 5y backfill on next run.
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
 TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"  # One symbol per line; skipped before any Yahoo request
@@ -633,7 +633,7 @@ ADMISSION_EMPTY_RECHECK_DAYS = 7   # No Yahoo history: short cooldown before re-
 # weekly/monthly bars as on daily — "it's all relative and derivative". Its RATIO
 # thresholds (MAX_BOX_WIDTH, MIN_BOUNDARY_RESPECT_PCT, ATR/box ratios, traversal
 # fractions, LPS profiles) are scale-invariant and transfer untouched; only the
-# BAR-COUNT WINDOWS are daily-calibrated. core.structure.htf temporarily rescales
+# BAR-COUNT WINDOWS are daily-calibrated. engine_alpha.structure.htf temporarily rescales
 # ONLY those windows (timeframe_windows CM) around the same Trend+Box brick walk
 # on the resampled frame. These presets are FIRST-PASS (~daily/5 weekly, /~4 again
 # monthly) and a calibration target — eyeball + tune via tools/htf_audit.py.
@@ -845,7 +845,7 @@ SECTOR_RANKING_ETFS = (
 # universes (Sectors + Market, Commodities + ETFs) — including SPY/QQQ — that
 # classifies each into one position-in-cycle STATE, so the ETF tabs (which fire
 # ZERO tradeable setups by design) become a useful "where is this in its cycle"
-# board. It is a SEPARATE, additive read path over the PUBLIC core.structure box
+# board. It is a SEPARATE, additive read path over the PUBLIC engine_alpha.structure box
 # detector + trend/drawdown measures; it never touches the byte-parity-locked
 # us_equities firing chain, assigns no score/tier/trigger, and writes nothing to
 # the archive. Read LAZILY inside functions (never at module import) to respect

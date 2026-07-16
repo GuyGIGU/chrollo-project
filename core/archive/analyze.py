@@ -47,7 +47,7 @@ import numpy as np
 import pandas as pd
 
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
-from core.scoring import taxonomy
+from engine_alpha.scoring import taxonomy
 
 # ------------------------------------------------------------------
 # Paths & loading
@@ -101,7 +101,7 @@ STRUCTURAL_FEATURES = [
     "htf_m_stage2", "htf_m_in_consol", "htf_m_reaccum", "htf_m_daily_nested", "htf_m_box_width",
 ]
 
-# The two-axis read — mirrors core.structure.Structure.horizontal / .vertical.
+# The two-axis read — mirrors engine_alpha.structure.Structure.horizontal / .vertical.
 # A daily chart is read along two axes; splitting the fingerprint by axis lets the
 # edge analysis ask WHICH ONE separates winners from losers (the validation
 # question). Every column here is already archived (core/archive/writer.py) — these

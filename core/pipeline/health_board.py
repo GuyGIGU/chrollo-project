@@ -11,7 +11,7 @@ those tabs become a useful "where is this in its cycle" board.
 Boundaries this module lives inside (see specs/market-sector-health-board.md and
 docs/health_board_state_audit.md):
 
-* It reads ONLY the PUBLIC ``core.structure`` API — the same box detector and
+* It reads ONLY the PUBLIC ``engine_alpha.structure`` API — the same box detector and
   gate-free measures the firing engine uses (``find_outer_box`` for R/S,
   ``trend_template`` / ``distance_to_52w_high_pct`` for posture / drawdown). It
   NEVER imports the firing-chain helpers (``_resolve_structure_context`` /
@@ -103,7 +103,7 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     """Classify a single member's daily OHLCV frame into exactly one state.
 
     Pure and self-contained: it prepares its own as-of frame, reads only the public
-    ``core.structure`` measures, and returns one :class:`MemberHealth`. Raises
+    ``engine_alpha.structure`` measures, and returns one :class:`MemberHealth`. Raises
     :class:`InsufficientHistoryError` when the member is too short to read; any
     other degenerate input is routed to ``no_structure`` rather than a poisoned
     value. Never mutates the caller's frame (works on an explicit ``.copy()``).
@@ -122,7 +122,7 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     """
     from config import settings  # lazy: config-vs-cwd shadowing trap
     from core.pipeline.downloads import _trim_to_period
-    from core.structure import (
+    from engine_alpha.structure import (
         calculate_atr,
         distance_to_52w_high_pct,
         find_outer_box,

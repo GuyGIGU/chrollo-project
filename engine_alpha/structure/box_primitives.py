@@ -16,8 +16,8 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from core.structure.metrics import measure_traversal
-from core.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.metrics import measure_traversal
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 
 
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
@@ -638,7 +638,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
     event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
     allowance; it exists only when the event does).
     """
-    from core.structure.band_rails import qualify_pair_events
+    from engine_alpha.structure.band_rails import qualify_pair_events
 
     pool = []
     for i in range(len(zigzag) - 1):

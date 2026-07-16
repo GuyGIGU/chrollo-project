@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.indicators import calculate_atr
+from engine_alpha.structure.indicators import calculate_atr
 
 _AGG = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
 _RULE = {"weekly": "W-FRI", "monthly": "ME"}
@@ -176,7 +176,7 @@ def _read_htf_structure(df: pd.DataFrame, atr: float, max_roots: int = 40) -> Op
     then its optional spring and optional right-side LPS. Phase = D if a right-side
     LPS exists, else C if a spring exists, else B (still ranging). Returns None when
     no worked box is found."""
-    from core.structure import bricks  # lazy: avoids any import-order coupling
+    from engine_alpha.structure import bricks  # lazy: avoids any import-order coupling
 
     search_from = 0
     for _ in range(max_roots):

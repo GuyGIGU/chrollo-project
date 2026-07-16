@@ -39,7 +39,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.pipeline.evaluation import _prepare_eval_frame
-from core.structure.narrative import read_structure
+from engine_alpha.structure.narrative import read_structure
 
 # Sealed-corpus fixture paths (written by `tools.marks_corpus --build-fixture`,
 # read by every replay consumer). The corpus tool aliases these.

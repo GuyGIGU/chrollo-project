@@ -53,7 +53,7 @@ def _save_sector_etf_cache(cache: dict) -> None:
 # creates missing tables, not missing columns, so we ALTER TABLE on demand.
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
-from core.structure.htf import HTF_COLUMN_SQL, htf_archive_values
+from engine_alpha.structure.htf import HTF_COLUMN_SQL, htf_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -209,14 +209,14 @@ _NEW_COLUMNS: dict[str, str] = {
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
 # HTF (higher-timeframe) context columns — single source of truth in
-# core.structure.htf so the writer / model / migrations / seed stay in sync.
+# engine_alpha.structure.htf so the writer / model / migrations / seed stay in sync.
 _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
-# Event Map tape-summary columns — single source in core.structure.event_map.
+# Event Map tape-summary columns — single source in engine_alpha.structure.event_map.
 # MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
-from core.structure.event_map import event_map_archive_values
+from engine_alpha.structure.event_map import event_map_archive_values
 
 
 def _ensure_new_columns(engine) -> None:

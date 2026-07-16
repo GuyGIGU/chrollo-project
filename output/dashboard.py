@@ -37,7 +37,7 @@ import sys
 from config import settings
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
-from core.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
+from engine_alpha.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")

@@ -52,13 +52,13 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.market_structure import (
+from engine_alpha.structure.market_structure import (
     elected_trend_leg_base,
     read_market_structure,
     segment_trends,
 )
-from core.structure.metrics import read_box_events
-from core.structure.narrative import read_structure
+from engine_alpha.structure.metrics import read_box_events
+from engine_alpha.structure.narrative import read_structure
 # Reuse the ONE faithful frame + AR-capture path (single source of truth).
 from tools.ar_first_reaction_diff import _prep_live, capture_overlays
 
@@ -438,7 +438,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
 
     # --- P9: macro bridge (optional) -----------------------------------------
     if show_macro:
-        from core.structure.pip import macro_bridge_zigzag
+        from engine_alpha.structure.pip import macro_bridge_zigzag
         zz = macro_bridge_zigzag(df["High"].values.astype(float),
                                  df["Low"].values.astype(float))
         if len(zz) >= 2:

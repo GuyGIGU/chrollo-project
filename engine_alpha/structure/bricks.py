@@ -13,18 +13,18 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.bin_features import _phase_c_candidate
-from core.structure.box_primitives import (
+from engine_alpha.structure.bin_features import _phase_c_candidate
+from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
     select_inner_box,
     select_phase_b_candidate,
 )
-from core.structure.lps import detect_lps
-from core.structure.market_structure import first_reaction_after
-from core.structure.metrics import measure_traversal
-from core.structure.segmentation import segment_swings
+from engine_alpha.structure.lps import detect_lps
+from engine_alpha.structure.market_structure import first_reaction_after
+from engine_alpha.structure.metrics import measure_traversal
+from engine_alpha.structure.segmentation import segment_swings
 
 
 _SEG_LEAD_IN = 60

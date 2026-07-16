@@ -34,7 +34,7 @@ configure_path()
 import pandas as pd
 
 from config import settings
-from core.structure.market_structure import classify_window_descent
+from engine_alpha.structure.market_structure import classify_window_descent
 from tools.lps_swing_census import CLUSTER, _first_complete, _latest_scan_fires
 from tools.structure_case_audit import _prep
 

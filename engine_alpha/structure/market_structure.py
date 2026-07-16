@@ -31,7 +31,7 @@ from typing import Optional
 import numpy as np
 
 from config import settings
-from core.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 
 
 def _empty() -> dict:

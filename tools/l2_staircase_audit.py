@@ -29,7 +29,7 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import (
+from engine_alpha.structure.metrics import (
     assemble_box_narrative,
     measure_resistance_events,
     read_box_staircase,

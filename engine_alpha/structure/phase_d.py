@@ -15,7 +15,7 @@ import pandas as pd
 from config import settings
 # Canonical monotonicity metric — reused so the DRAWN trim is consistent with
 # the engine's reported ``descent_frac`` (lps is a leaf module; no import cycle).
-from core.structure.lps import _pairwise_descent_fraction
+from engine_alpha.structure.lps import _pairwise_descent_fraction
 
 
 @dataclass(frozen=True)

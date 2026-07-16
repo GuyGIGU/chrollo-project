@@ -12,7 +12,7 @@ story doesn't hold:
 
 The state machine is the only new logic. Every brick is validated by an existing,
 calibrated detector, exposed as a pure ``fits_here?`` function in
-``core.structure.bricks``. Those bricks are *injected* (``read_structure(...,
+``engine_alpha.structure.bricks``. Those bricks are *injected* (``read_structure(...,
 bricks=...)``) so the spine is testable in isolation with fakes.
 
 The single ``Structure`` it returns is the source of truth every consumer (chart
@@ -29,8 +29,8 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from config import settings
-from core.structure.lps import detect_lps_tests
-from core.structure.phase_d import (
+from engine_alpha.structure.lps import detect_lps_tests
+from engine_alpha.structure.phase_d import (
     final_v_tip_bar,
     resolve_phase_d_boundary,
     support_test_evidence_starts,
@@ -268,7 +268,7 @@ def _tape_brief(df, box, atr) -> Optional[dict]:
     the import and the pivot walk are paid only when the caller is tracing."""
     if df is None or box is None:
         return None
-    from core.structure.event_map import read_swing_map
+    from engine_alpha.structure.event_map import read_swing_map
     tape = read_swing_map(df, box, atr)
     return {
         "n_swings": int(tape["n_swings"]),
@@ -281,7 +281,7 @@ def _roles_brief(df, box, atr, spring, lps) -> Optional[dict]:
     """Compact Event Map role-label summary over the ELECTED bricks. Trace-only."""
     if df is None or box is None:
         return None
-    from core.structure.event_map import read_role_labels
+    from engine_alpha.structure.event_map import read_role_labels
     roles = read_role_labels(df, box, atr, spring=spring, lps=lps)
     return {
         "n_labels": int(roles["n_labels"]),
@@ -309,7 +309,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     complete A -> B -> (C?) -> D narrative, or ``None`` if no coherent story holds.
 
     ``bricks`` is the brick-validator provider; it defaults to the real
-    ``core.structure.bricks`` (the calibrated detectors). Inject a fake to
+    ``engine_alpha.structure.bricks`` (the calibrated detectors). Inject a fake to
     unit-test the orchestration in isolation.
 
     ``trace``: pass a list to record the story the spine builds — one entry per
@@ -328,7 +328,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     explaining its own walk, so consumers stop re-deriving it externally.
     """
     if bricks is None:
-        from core.structure import bricks  # noqa: PLC0415 — lazy: real validators
+        from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
     search_from = 0
     for i in range(_MAX_ANCHORS):

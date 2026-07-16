@@ -50,8 +50,8 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure.metrics import measure_support_slope
-from core.structure.phase_d import resolve_phase_d_boundary
+from engine_alpha.structure.metrics import measure_support_slope
+from engine_alpha.structure.phase_d import resolve_phase_d_boundary
 
 
 def _empty() -> dict:
@@ -483,7 +483,7 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
     bin_c shape: the event bar is the excursion's trough, the recovery bar
     is the first close back inside the buffered band (the event's own
     reclaim definition — a hair looser than the ordinary close-above-S)."""
-    from core.structure.band_rails import qualify_pair_events
+    from engine_alpha.structure.band_rails import qualify_pair_events
 
     window = df.iloc[box_start:]
     read = qualify_pair_events(window, S, R, atr)

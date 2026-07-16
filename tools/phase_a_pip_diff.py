@@ -54,8 +54,8 @@ import pandas as pd
 from config import settings
 from core.pipeline.downloads import _trim_to_period
 from core.pipeline.evaluation import apply_baseline_filters
-from core.structure.indicators import calculate_atr
-from core.structure.narrative import read_structure
+from engine_alpha.structure.indicators import calculate_atr
+from engine_alpha.structure.narrative import read_structure
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "pip_phase_a")
 _MODES = ("off", "macro")

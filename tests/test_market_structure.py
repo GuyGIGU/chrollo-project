@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from core.structure.market_structure import (
+from engine_alpha.structure.market_structure import (
     classify_window_descent,
     elected_trend_leg_base,
     first_reaction_after,
@@ -11,7 +11,7 @@ from core.structure.market_structure import (
     read_market_structure,
     segment_trends,
 )
-from core.structure.metrics import (
+from engine_alpha.structure.metrics import (
     _box_events_with_meta,
     _deepest_valley_bar,
     assemble_box_narrative,
@@ -454,7 +454,7 @@ def test_l2_read_box_events_offset_origin_translation_and_tiebreak(monkeypatch):
     # translation is invisible, so use a box that starts at bar 3 and stub the reused
     # detectors at KNOWN df-relative bars to pin the origin shift AND the tie-break.
     from types import SimpleNamespace
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
 
     highs = [20.0, 20.0, 20.0] + [11.0, 10.6, 12.3, 11.5, 11.6, 11.5, 10.4, 11.2]
     lows = [19.0, 19.0, 19.0] + [10.5, 10.2, 11.8, 11.2, 11.3, 11.2, 10.1, 10.6]
@@ -526,7 +526,7 @@ def test_e2_read_box_events_unchanged_and_v_single_sourced():
 
 
 def test_e2_clean_bullish_chronology_is_intact(monkeypatch):
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
     from types import SimpleNamespace
     df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
     box = _box(0, len(_CLEAN_BULL_H))
@@ -554,7 +554,7 @@ def test_e2_lps_step_is_form_tagged(monkeypatch):
     # Task 10: the narrative's one chronological trace names the elected LPS
     # completion form — a shelf-completed brick renders "(holding_shelf)" in
     # the same step line, never a parallel narrative.
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
     from types import SimpleNamespace
     df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
     box = _box(0, len(_CLEAN_BULL_H))
@@ -569,7 +569,7 @@ def test_e2_lps_step_is_form_tagged(monkeypatch):
 def test_e2_titn_upthrust_terminal_zero_sos(monkeypatch):
     # The headline anchor: a run-up that tops in one upthrust reads zero SOS +
     # upthrust_terminal, WITHOUT suppressing the independent spring/test/lps.
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
     from types import SimpleNamespace
     df = _ohlc(_TERMINAL_UT_H, _TERMINAL_UT_L)
     box = _box(0, len(_TERMINAL_UT_H))
@@ -592,8 +592,8 @@ def test_e2_first_sos_is_the_spine_sos(monkeypatch):
     # Two confirmed SOS waves: the spine SOS is the FIRST by bar (the creek-jump);
     # the later held reach stays visible in events[]. Feed synthetic pieces so the
     # selection logic is pinned independent of staircase geometry.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
     early = {"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
              "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}
     late = {"type": "SOS", "rail": "R", "anchor_bar": 11, "zone_start": 9,
@@ -608,8 +608,8 @@ def test_e2_first_sos_is_the_spine_sos(monkeypatch):
 def test_e2_completeness_counts_held_tests_only(monkeypatch):
     # The completeness test-slot + the tests count both use the SAME held filter:
     # failed / in_progress S-touches never inflate the tally.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
     events = [
         {"type": "test", "rail": "S", "anchor_bar": 2, "zone_start": 2},
         {"type": "test", "rail": "S", "anchor_bar": 5, "zone_start": 5},
@@ -626,8 +626,8 @@ def test_e2_completeness_counts_held_tests_only(monkeypatch):
 def test_e2_phases_none_when_no_real_v(monkeypatch):
     # A valid box with zero valley swings has no real V (v_bar defaults to 0) ->
     # phases must be None, not [0,0], even when a Phase-D event exists.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
     events = [{"type": "SOS", "rail": "R", "anchor_bar": 4, "zone_start": 2,
                "peak_price": 12.4, "peak_box_pos": 1.2, "hold_range_box": 0.4}]
     monkeypatch.setattr(box_events, "_box_events_with_meta",
@@ -639,7 +639,7 @@ def test_e2_phases_none_when_no_real_v(monkeypatch):
 def test_e2_no_veto_shaped_field(monkeypatch):
     # Story-2 negative: the narrative encodes NO pass/fail another layer could read
     # as a gate. Only descriptive grades + upthrust_terminal (a read of the outcome).
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
     from types import SimpleNamespace
     df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
     box = _box(0, len(_CLEAN_BULL_H))
@@ -675,7 +675,7 @@ def test_e2_deterministic_and_json_native(monkeypatch):
     # Built twice -> byte-identical when serialized; every leaf a native python
     # type (no numpy scalar leaking through).
     import json
-    import core.structure.bricks as bricks
+    import engine_alpha.structure.bricks as bricks
     from types import SimpleNamespace
     df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
     box = _box(0, len(_CLEAN_BULL_H))
@@ -722,8 +722,8 @@ def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
     # The no-lookahead contract: an R-rail markup OR in_progress at/after the last
     # upthrust un-terminals it (the run-up resolved up / is still developing); an
     # S-rail in_progress does NOT (it says nothing about the R-rail run-up).
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
 
     def _ut():
         return {"type": "upthrust", "rail": "R", "anchor_bar": 4, "zone_start": 2}
@@ -743,8 +743,8 @@ def test_e2_upthrust_terminal_un_terminaled_by_later_r_wave(monkeypatch):
 def test_e2_chronology_strict_order_boundary(monkeypatch):
     # intact requires STRICT spring.anchor < sos.anchor < lps.anchor; a tie or an
     # out-of-order trio reads partial (never intact), though completeness is 3.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
 
     def _spring(b):
         return {"type": "spring", "rail": "S", "anchor_bar": b, "zone_start": b,
@@ -768,8 +768,8 @@ def test_e2_chronology_strict_order_boundary(monkeypatch):
 
 
 def test_e2_partial_from_single_piece_and_phase_d_at_right_edge(monkeypatch):
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
     # Exactly one canonical piece -> chronology partial (some present, not all).
     spring_only = [{"type": "spring", "rail": "S", "anchor_bar": 3, "zone_start": 3,
                     "zone_end": 4, "recovery_bars": 1, "undercut_atr": 0.8}]
@@ -792,8 +792,8 @@ def test_e2_sentinel_three_state_injection(monkeypatch):
     # injected brick is used VERBATIM (describes the LPS that actually fired, not a
     # re-detection); an injected None means "the engine elected no such piece" and
     # is honored (never fabricate one).
-    import core.structure.bricks as bricks
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.bricks as bricks
+    import engine_alpha.structure.metrics as metrics
     from types import SimpleNamespace
     df = _ohlc(_CLEAN_BULL_H, _CLEAN_BULL_L)
     box = _box(0, len(_CLEAN_BULL_H))
@@ -825,8 +825,8 @@ def test_e2_upthrust_terminal_phase_d_range_clears_phase_b_range_does_not(monkey
     # F3: a held Phase-D "range" (anchor > v_bar) after the last upthrust clears the
     # terminal read (price recovered near R); a Phase-B "range" (left of the V, which
     # shares the type label) must NOT clear it. markup/in_progress keep no phase guard.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
 
     def _ut(b=4):
         return {"type": "upthrust", "rail": "R", "anchor_bar": b, "zone_start": b - 1}
@@ -848,8 +848,8 @@ def test_e2_injected_lps_gate_drop_is_observable(monkeypatch):
     # injected but the Phase-D gate emits no lps event (the rare late-V case),
     # lps_pre_v_dropped is True + a trace note fires. The default (detect) path,
     # which has no "elected" brick, never flags it.
-    import core.structure.box_events as box_events
-    import core.structure.metrics as metrics
+    import engine_alpha.structure.box_events as box_events
+    import engine_alpha.structure.metrics as metrics
     from types import SimpleNamespace
     # Events with an SOS but NO lps event -> stands in for the gate having dropped it.
     events = [{"type": "SOS", "rail": "R", "anchor_bar": 6, "zone_start": 5,

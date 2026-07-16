@@ -10,6 +10,6 @@ Public API:
     score_setup    -> total score + per-ingredient sub-scores
     calculate_tier -> map a score to S / A / B / C / D
 """
-from core.scoring.scoring import calculate_tier, score_setup
+from engine_alpha.scoring.scoring import calculate_tier, score_setup
 
 __all__ = ["score_setup", "calculate_tier"]

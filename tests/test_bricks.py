@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from core.structure.bricks import (
+from engine_alpha.structure.bricks import (
     EquilibriumBox,
     RootSwing,
     _enforce_bc_downswing,
@@ -211,7 +211,7 @@ def test_backext_pivot_must_touch_its_own_rail_kind(monkeypatch):
     # distinction the lever exists for. The span from the valley conforms, so
     # only the kind check blocks; a kind-blind mutation would extend to bar 2.
     from config import settings
-    from core.structure.box_primitives import backext_shared_rail
+    from engine_alpha.structure.box_primitives import backext_shared_rail
 
     bars = [
         (112.0, 108.0),   # 0
@@ -235,7 +235,7 @@ def test_backext_span_includes_the_pivot_bar_and_the_last_bar(monkeypatch):
     # (its High can breach R+buf even while its Low touches S) and the bar
     # just before the pinned start.
     from config import settings
-    from core.structure.box_primitives import backext_shared_rail
+    from engine_alpha.structure.box_primitives import backext_shared_rail
 
     monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
 
@@ -261,7 +261,7 @@ def test_backext_applies_to_the_diagnostic_mirror_too(monkeypatch):
     # extended box as the live reader, or diagnostic tools drift from
     # production when the flag is on.
     from config import settings
-    from core.structure.box_primitives import phase_b_zigzag
+    from engine_alpha.structure.box_primitives import phase_b_zigzag
 
     pre = [105, 101, 105, 106, 105, 106]
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
@@ -605,7 +605,7 @@ def test_first_impulse_ar_end_is_a_noop_when_flag_off(monkeypatch):
     # Flag off -> the AR is returned unchanged, byte-identical. (Forced off
     # explicitly so this still guards the off-path after the live default flip.)
     from config import settings
-    from core.structure.bricks import _first_impulse_ar_end
+    from engine_alpha.structure.bricks import _first_impulse_ar_end
     monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", False)
     closes = [100.0] * 140
     for i, b in enumerate(range(80, 91)):
@@ -620,7 +620,7 @@ def test_first_impulse_ar_end_tightens_to_the_trend_reaction_when_on(monkeypatch
     # Flag on -> the dragged AR (bar 130, the box open) pulls back to the trend
     # model's first reaction low (bar 100). Tighten-only: climax fixed, AR earlier.
     from config import settings
-    from core.structure.bricks import _first_impulse_ar_end
+    from engine_alpha.structure.bricks import _first_impulse_ar_end
     monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", True)
     closes = [100.0] * 140
     for i, b in enumerate(range(80, 91)):

@@ -63,8 +63,8 @@ except ModuleNotFoundError:
 PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.scoring import calculate_tier, score_setup
-from core.structure import calculate_adx, calculate_atr, detect_boxes, detect_lps
+from engine_alpha.scoring import calculate_tier, score_setup
+from engine_alpha.structure import calculate_adx, calculate_atr, detect_boxes, detect_lps
 
 WINDOW_DAYS_BACK = 7    # Look further back to catch pre-breakout state
 WINDOW_DAYS_FWD = 3

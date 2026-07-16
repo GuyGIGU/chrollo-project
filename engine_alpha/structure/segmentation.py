@@ -30,7 +30,7 @@ from typing import Optional
 import numpy as np
 
 from config import settings
-from core.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 
 
 def _empty() -> dict:
@@ -174,7 +174,7 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         # Abstention ([] or an AR beyond bridge_end_max — a post-breakout
         # story, not this box's Phase A) falls through to the calibrated
         # order-N read below — the merge contract.
-        from core.structure.pip import macro_bridge_zigzag
+        from engine_alpha.structure.pip import macro_bridge_zigzag
         story = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
         if len(story) >= 2:
             ar_df_pos = base_off + int(story[-1][0])

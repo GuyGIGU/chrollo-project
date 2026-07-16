@@ -41,7 +41,7 @@ from typing import Optional
 
 import pandas as pd
 
-from core.structure.phase_d import drawn_lps_zone_start, resolve_phase_d_boundary
+from engine_alpha.structure.phase_d import drawn_lps_zone_start, resolve_phase_d_boundary
 
 
 def _date_at(df: "pd.DataFrame", idx: Optional[int]) -> Optional[str]:
@@ -74,7 +74,7 @@ def _resolve_phase_d_start(*, box_start: int, base_len: int, last: int,
                            v_tip_bar: Optional[int] = None) -> Optional[int]:
     """Phase-D right-most-region start bar, df-positional. Pure.
 
-    Compatibility wrapper around ``core.structure.phase_d`` so existing tests and
+    Compatibility wrapper around ``engine_alpha.structure.phase_d`` so existing tests and
     callers can ask for the bar only while bins/scope/narrative share one rule.
 
     The result is clamped on-frame and never allowed to invert the body start
@@ -229,7 +229,7 @@ def scope_consolidation(
     box_start = n - base_len
 
     # ── Phase D anchor — the right-most region ─────────────────────────────
-    # Boundary rule lives in core.structure.phase_d: use the best right-side
+    # Boundary rule lives in engine_alpha.structure.phase_d: use the best right-side
     # evidence available, with the LPS window as the mandatory fallback.
     inner_start = box_start if (is_inner_box and phase_d_start_bar is None) else phase_d_start_bar
     phase_d = resolve_phase_d_boundary(

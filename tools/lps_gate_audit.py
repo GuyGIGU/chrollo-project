@@ -40,9 +40,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 from config import settings
 from core.pipeline.evaluation import apply_baseline_filters
-from core.structure import calculate_atr
-from core.structure import bricks
-from core.structure.lps import detect_lps_candidates, select_active_lps_candidate
+from engine_alpha.structure import calculate_atr
+from engine_alpha.structure import bricks
+from engine_alpha.structure.lps import detect_lps_candidates, select_active_lps_candidate
 
 _MAX_ANCHORS = 64
 _DB_PATH = ROOT / "webapp" / "backend" / "trading_journal.db"

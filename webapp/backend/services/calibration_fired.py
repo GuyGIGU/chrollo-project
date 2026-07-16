@@ -93,7 +93,7 @@ def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
     """Read-only traced structure read at the mark's as-of -> why the box at his
     rails was rejected. None when the frame/prep is unavailable (degrade to a
     reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit."""
-    from core.structure.narrative import read_structure  # noqa: PLC0415
+    from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
     from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from webapp.backend import frame_store  # noqa: PLC0415
     loader = frame_loader or frame_store.load_frame

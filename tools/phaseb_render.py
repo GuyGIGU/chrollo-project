@@ -30,8 +30,8 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from config import settings
 from core.pipeline.screener import apply_baseline_filters, _evaluate_ticker
-from core.structure.consolidation import detect_boxes
-from core.structure.indicators import calculate_atr
+from engine_alpha.structure.consolidation import detect_boxes
+from engine_alpha.structure.indicators import calculate_atr
 from tools.shadow_diff import _load_fixture
 
 _OUT_DIR = os.path.join(_THIS_DIR, "fidelity", "ab")

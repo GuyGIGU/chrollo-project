@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from core.structure import bricks
+from engine_alpha.structure import bricks
 from tools.structure_case_audit import _complete_narrative, _prep
 
 # The cluster the latest-scan archive query flagged (short LPS + high-in-box +

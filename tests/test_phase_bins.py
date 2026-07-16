@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.bin_features import measure_bins
+from engine_alpha.structure.bin_features import measure_bins
 
 
 def test_measure_bins_slices_named_regions_at_lps(_flat_ohlc):

@@ -17,20 +17,20 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.metrics import (
+from engine_alpha.structure.metrics import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
     measure_equilibrium,
     measure_traversal,
 )
-from core.structure.box_primitives import (
+from engine_alpha.structure.box_primitives import (
     _detect_inner_phase_b_start,
     _validate_base_quality,
     detect_inner_root_swing,
     select_phase_b_candidate,
 )
-from core.structure.segmentation import segment_swings
+from engine_alpha.structure.segmentation import segment_swings
 
 
 def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
@@ -143,7 +143,7 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
     # respect fraction is 1.0 and the close-residence dwell is all-mid — the
     # GATE's statistic, not the range-occupancy twin (which reads 1.0 in every
     # third for these bars). Hand-specified, not read off the code.
-    from core.structure.metrics import measure_gate_margins
+    from engine_alpha.structure.metrics import measure_gate_margins
     frame = pd.DataFrame([
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
@@ -157,7 +157,7 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
 
 
 def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
-    from core.structure.metrics import measure_gate_margins
+    from engine_alpha.structure.metrics import measure_gate_margins
     # One of four bars wicks above R + 0.5*ATR buffer -> respect 0.75.
     frame = pd.DataFrame([
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
@@ -187,7 +187,7 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
 def test_worked_window_end_trims_only_a_held_late_breakout():
     # The SOS -> BUEC rescue: a worked range whose right side has broken out above
     # R and HELD above support is validated over its cause, not the breakout tail.
-    from core.structure.box_primitives import _worked_window_end
+    from engine_alpha.structure.box_primitives import _worked_window_end
     R, S, atr = 110.0, 100.0, 1.0          # buffer = BOUNDARY_ATR_BUFFER * atr
     base_h, base_l = [105.0] * 20, [104.0] * 20
     # A sustained breakout above R that holds above S -> trim exactly the tail.

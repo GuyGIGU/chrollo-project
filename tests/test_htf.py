@@ -19,8 +19,8 @@ for _p in (str(_ROOT), str(_BACKEND)):
         sys.path.insert(0, _p)
 
 from config import settings
-from core.structure import htf
-from core.structure.bricks import EquilibriumBox
+from engine_alpha.structure import htf
+from engine_alpha.structure.bricks import EquilibriumBox
 
 
 def _daily(n=600, lo=20.0, hi=80.0, start="2022-01-03"):

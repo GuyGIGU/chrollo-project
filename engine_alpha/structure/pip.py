@@ -41,7 +41,7 @@ from typing import Optional
 import numpy as np
 
 from config import settings
-from core.structure.pivots import _build_zigzag
+from engine_alpha.structure.pivots import _build_zigzag
 
 
 def _series(highs: np.ndarray, lows: np.ndarray, mode: str) -> np.ndarray:

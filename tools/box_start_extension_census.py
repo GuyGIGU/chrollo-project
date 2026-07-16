@@ -36,7 +36,7 @@ if _ROOT not in sys.path:
 import numpy as np
 
 from config import settings
-from core.structure.narrative import read_structure
+from engine_alpha.structure.narrative import read_structure
 from tools.phase_a_pip_diff import _load_cache, _prep_live
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "box_start_extension")

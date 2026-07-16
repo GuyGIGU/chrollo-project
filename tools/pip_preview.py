@@ -9,7 +9,7 @@ inner structure) matches your eye before any live consumer touches it.
 
 Read-only: reads the live parquet cache + the calibrated baseline prep and
 renders to tools/fidelity/pip/<TICKER>.png. No network, no backend, no
-behaviour change (nothing in the live path imports core.structure.pip).
+behaviour change (nothing in the live path imports engine_alpha.structure.pip).
 
     python -m tools.pip_preview MYRG AXGN EIX
     python -m tools.pip_preview MYRG --window 300 --levels 5,12,30
@@ -31,9 +31,9 @@ _THIS = os.path.dirname(os.path.abspath(__file__))
 import pandas as pd
 
 from config import settings
-from core.structure.box_primitives import _pivot_order
-from core.structure.pip import pip_pivots
-from core.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.box_primitives import _pivot_order
+from engine_alpha.structure.pip import pip_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 from tools.structure_case_audit import _prep
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "pip")

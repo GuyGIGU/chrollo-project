@@ -34,8 +34,8 @@ from core.pipeline.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
-from core.structure.event_map import event_map_archive_values
-from core.structure.htf import htf_archive_values
+from engine_alpha.structure.event_map import event_map_archive_values
+from engine_alpha.structure.htf import htf_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")

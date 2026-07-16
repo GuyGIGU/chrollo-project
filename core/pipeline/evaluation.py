@@ -8,8 +8,8 @@ from typing import Optional
 import pandas as pd
 
 from config import settings
-from core.scoring import calculate_tier, score_setup
-from core.structure import (
+from engine_alpha.scoring import calculate_tier, score_setup
+from engine_alpha.structure import (
     adr_pct,
     calculate_atr,
     descent_tail_rejects,
@@ -30,8 +30,8 @@ from core.structure import (
     scope_consolidation,
     trend_template,
 )
-from core.structure.narrative import read_structure
-from core.structure.phase_d import (
+from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.phase_d import (
     drawn_support_tests,
     final_v_tip_bar,
     support_test_evidence_starts,
@@ -549,7 +549,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        from core.structure.event_map import read_role_labels, read_swing_map
+        from engine_alpha.structure.event_map import read_role_labels, read_swing_map
         _struct = structure_ctx["structure"]
         _tape = read_swing_map(df, _struct.box, structure_ctx["atr_for_zone"])
         _roles = read_role_labels(

@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.indicators import trend_template
+from engine_alpha.structure.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 from tools.fidelity_harness import summarize_fidelity
 
@@ -109,7 +109,7 @@ def test_safe_rank_corr_is_monotonic_not_linear():
 def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     """The traversal-quality term (which replaced the rail-blind oscillation term)
     must rank a genuinely two-sided box above a dead-space one."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -130,7 +130,7 @@ def test_score_traversal_quality_rewards_two_sided_over_dead_space():
 def test_base_age_dead_space_dock_spares_tight_boxes():
     """base_age 'cause' credit is docked for WIDE low-density (dead-space) bases,
     but NOT for ultra-tight ones (whose low density is a small-box / spring artifact)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -151,7 +151,7 @@ def test_adr_relative_box_tightness_demotes_flat_low_adr_drift(monkeypatch):
     absolute box width is a tight coil on a real mover but a wide drift on a flat
     low-ADR name (the GBTG case). With the flag off, ADR is ignored and both score
     the identical absolute tightness (the shadow-preserving default)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -182,7 +182,7 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
     """The max_swing_frac overshoot penalty must not fire on a tight box (overshoot
     is inevitable when the box is tiny, e.g. PRA) or a confirmed spring (the undercut
     is a bullish leg, not dead space)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -203,7 +203,7 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     """The descent-tail gate drops a WIDE box whose support was abandoned early
     (last_support_frac <= LSF_MAX) into dead space (coil_floor_pos >= CFP_MIN),
     but spares tight boxes (the EQIX exemption) and is None-safe / flag-guarded."""
-    from core.structure import descent_tail_rejects
+    from engine_alpha.structure import descent_tail_rejects
 
     monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", True)
     monkeypatch.setattr(settings, "DESCENT_TAIL_LSF_MAX", 0.40)
@@ -445,7 +445,7 @@ def _score_common(**overrides):
 
 
 def test_calculate_tier_maps_each_band_at_its_threshold():
-    from core.scoring.scoring import calculate_tier
+    from engine_alpha.scoring.scoring import calculate_tier
 
     # Exactly at each threshold lands in that tier; one point below drops a band.
     assert calculate_tier(settings.TIER_S) == "S"
@@ -460,7 +460,7 @@ def test_calculate_tier_maps_each_band_at_its_threshold():
 
 
 def test_calculate_tier_width_cap_demotes_wide_s_to_a():
-    from core.scoring.scoring import calculate_tier
+    from engine_alpha.scoring.scoring import calculate_tier
 
     high = settings.TIER_S + 10
     # A tight enough box keeps S; a box wider than the S cap is demoted to A,
@@ -471,7 +471,7 @@ def test_calculate_tier_width_cap_demotes_wide_s_to_a():
 
 
 def test_breadth_bonus_ramps_between_zero_and_full_thresholds():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     # Below the zero point -> no breadth credit; None (no breadth measured) -> 0.
     assert score_setup(**_score_common(breadth_pct=settings.BREADTH_ZERO_PCT))["breadth_bonus"] == 0.0
@@ -491,7 +491,7 @@ def test_ramp_zero_divisor_guard_returns_neutral():
     # MESSY collapse or cross) returns the polarity-safe neutral 0.0 instead of
     # dividing by zero. A normal band (full_at > zero_at) is unaffected — the guard
     # is dead code for every shipped anchor, so no live bonus moves.
-    from core.scoring.scoring import _ramp
+    from engine_alpha.scoring.scoring import _ramp
     assert _ramp(0.5, 0.4, 0.4, 1.0) == 0.0      # full_at == zero_at (collapsed)
     assert _ramp(0.5, 0.6, 0.4, 1.0) == 0.0      # full_at < zero_at (inverted)
     assert _ramp(1.0, 0.4, 0.4, 1.0) == 0.0      # value >> band, guard first -> neutral, no crash
@@ -503,7 +503,7 @@ def test_ramp_zero_divisor_guard_returns_neutral():
 
 
 def test_touch_density_awards_bonus_only_when_touch_floors_met():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     # Sparse touches: base density only, no bonus.
     sparse = score_setup(**_score_common(r_touches=1, s_touches=1))["touch_density"]
@@ -524,7 +524,7 @@ def test_touch_density_awards_bonus_only_when_touch_floors_met():
 
 
 def test_box_tightness_contribution_is_capped_and_rewards_tighter_boxes():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     tight = score_setup(**_score_common(box_width=0.02))["box_tightness"]
     wide = score_setup(**_score_common(box_width=settings.MAX_BOX_WIDTH))["box_tightness"]
@@ -542,7 +542,7 @@ _EMPTY_TEXTURE = {"median_spread_atr": None, "p80_spread_atr": None,
 
 
 def test_candle_readability_neutral_on_missing_metrics():
-    from core.scoring.scoring import _candle_readability
+    from engine_alpha.scoring.scoring import _candle_readability
 
     # No dict, and the degenerate-base empty dict (spread ratios None), both -> 1.0
     # so absent texture data never silently demotes a setup.
@@ -552,7 +552,7 @@ def test_candle_readability_neutral_on_missing_metrics():
 
 
 def test_candle_readability_preserves_clean_discounts_messy():
-    from core.scoring.scoring import _candle_readability
+    from engine_alpha.scoring.scoring import _candle_readability
 
     clean = _candle_readability(_CLEAN_TEXTURE)
     messy = _candle_readability(_MESSY_TEXTURE)
@@ -562,7 +562,7 @@ def test_candle_readability_preserves_clean_discounts_messy():
 
 
 def test_candle_spread_flag_off_is_byte_identical(monkeypatch):
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     # Flag OFF: bar_compression must NOT move box_tightness (containment).
     # (CANDLE_SPREAD_AWARE ships LIVE since 2026-07-04; force it off to test the off path.)
@@ -574,7 +574,7 @@ def test_candle_spread_flag_off_is_byte_identical(monkeypatch):
 
 
 def test_candle_spread_flag_on_discounts_messy_preserves_clean(monkeypatch):
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", True)
     neutral = score_setup(**_score_common())["box_tightness"]                       # None -> neutral
@@ -593,7 +593,7 @@ def _nar(completeness, chronology, upthrust_terminal=False):
 
 
 def test_puzzle_quality_neutral_on_missing():
-    from core.scoring.scoring import _puzzle_quality
+    from engine_alpha.scoring.scoring import _puzzle_quality
     assert _puzzle_quality(None) == 0.0           # flag-off passes None
     assert _puzzle_quality({}) == 0.0             # malformed dict -> neutral
     assert _puzzle_quality("nope") == 0.0         # non-dict -> neutral
@@ -601,7 +601,7 @@ def test_puzzle_quality_neutral_on_missing():
 
 
 def test_puzzle_quality_monotonic_and_bounded():
-    from core.scoring.scoring import _puzzle_quality
+    from engine_alpha.scoring.scoring import _puzzle_quality
     chronos = ["absent", "partial", "intact"]
     # Bounded [0,1] over the whole completeness x chronology domain.
     for c in range(0, 5):
@@ -621,7 +621,7 @@ def test_puzzle_quality_monotonic_and_bounded():
 
 
 def test_puzzle_flag_off_is_byte_identical(monkeypatch):
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
     # Default flag OFF: a narrative must NOT change the score OR add a key.
     base = score_setup(**_score_common())
@@ -634,7 +634,7 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     """Phase-0 tripwire for the hybrid Technical Analysis Score rework
     (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
     and stays the frozen composite. Guards that flag-off never drifts as v2 lands."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
     for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
@@ -644,14 +644,14 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
 def test_taxonomy_emitted_keys_match_score_setup_output():
     """The registry's emitted keys must exactly equal score_setup's sub-score keys
     (default flags) — the score-dict coupling that keeps the taxonomy authoritative."""
-    from core.scoring.scoring import score_setup
-    from core.scoring import taxonomy
+    from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
     out = score_setup(**_score_common())
     assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
 
 
 def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     none_on = score_setup(**_score_common(narrative=None))   # flag on, no narrative -> 0 bonus
     rich = score_setup(**_score_common(narrative=_nar(4, "intact")))
@@ -665,7 +665,7 @@ def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
 
 
 def test_puzzle_term_is_bonus_only_and_capped(monkeypatch):
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     off = score_setup(**_score_common(narrative=None))["total"]
     for c in range(0, 5):
