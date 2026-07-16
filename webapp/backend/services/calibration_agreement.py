@@ -101,7 +101,7 @@ def agreement_for_marks(marks, *, grade=None) -> dict:
     """
     use_cache = grade is None
     grader = grade or _live_grade
-    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     mh = manifest_hash()
     sig = _tol_sig()
     return {mark.id: _resolve(mark, mh, sig, grader, use_cache) for mark in marks}

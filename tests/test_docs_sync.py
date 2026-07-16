@@ -3,7 +3,7 @@
 docs/strategy_v2.md's quick-reference was hand-maintained and had already
 drifted (stale values, newer constants missing). It is now a GENERATED block
 (``tools.settings_reference``) built from the frozen engine-identity allow-list
-(``core.freeze.manifest.ENGINE_SETTINGS_KEYS``) + live ``config/settings.py``
+(``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS``) + live ``config/settings.py``
 values. This test asserts the committed doc matches the generator, so any
 settings or manifest change that skips regenerating the doc fails the suite -
 "update strategy_v2.md in the same change", enforced.

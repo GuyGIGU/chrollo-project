@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline import stability
+from engine_alpha import stability
 from core.pipeline.screener import _evaluate_ticker
 from tools.replay import flag_capture, load_sealed_fixture
 

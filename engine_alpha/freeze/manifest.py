@@ -337,7 +337,7 @@ def _main(argv: list[str] | None = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="python -m core.freeze.manifest",
+        prog="python -m engine_alpha.freeze.manifest",
         description="Print the frozen engine-config manifest or its hash.",
     )
     parser.add_argument(

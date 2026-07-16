@@ -274,7 +274,7 @@ def test_ensure_new_columns_adds_model_only_columns(tmp_path):
     assert "engine_config_version" in present
 
     # A row carrying the stamp inserts and round-trips.
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     h = manifest_hash()
     with eng.begin() as conn:
         conn.execute(text(

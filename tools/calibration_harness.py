@@ -58,7 +58,7 @@ sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
 import pandas as pd
 
 from config import settings
-from core.freeze.manifest import manifest_hash
+from engine_alpha.freeze.manifest import manifest_hash
 from core.pipeline.downloads import _trim_to_period
 from core.pipeline.election_identity import (
     DEFAULT_RAIL_TOL_BOX_FRAC,

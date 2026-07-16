@@ -571,7 +571,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # flag-off pays zero cost and spreads {} -> byte-identical.
     stability_fields = {}
     if settings.ELECTION_STABILITY_ENABLED:
-        from core.pipeline.stability import election_stability
+        from engine_alpha.stability import election_stability
         _probe = election_stability(prepared["raw_df"],
                                     structure_ctx["structure"], df)
         stability_fields = {

@@ -215,7 +215,7 @@ def test_segment_swings_alternation_on_ramp(_ramp_frame):
 
 # ── Frozen-config manifest contract ──────────────────────────────────────────
 def test_manifest_hash_is_deterministic():
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
 
     h1 = manifest_hash()
     h2 = manifest_hash()
@@ -225,7 +225,7 @@ def test_manifest_hash_is_deterministic():
 
 
 def test_manifest_includes_engine_excludes_ops():
-    from core.freeze.manifest import collect_manifest
+    from engine_alpha.freeze.manifest import collect_manifest
 
     m = collect_manifest()
     # representative engine constants are present
@@ -242,7 +242,7 @@ def test_manifest_includes_engine_excludes_ops():
 def test_manifest_raises_when_listed_key_vanishes(monkeypatch):
     """The contract must not silently rot: a listed key that no longer exists
     on settings raises, rather than dropping silently from the hash."""
-    import core.freeze.manifest as mod
+    import engine_alpha.freeze.manifest as mod
 
     monkeypatch.setattr(
         mod, "ENGINE_SETTINGS_KEYS",
@@ -256,7 +256,7 @@ def test_manifest_json_is_canonical_sorted():
     """manifest_json is stable, sorted, and round-trips to collect_manifest."""
     import json
 
-    from core.freeze.manifest import collect_manifest, manifest_json
+    from engine_alpha.freeze.manifest import collect_manifest, manifest_json
 
     js = manifest_json()
     parsed = json.loads(js)
@@ -340,7 +340,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     """
     import re
 
-    from core.freeze.manifest import ENGINE_SETTINGS_KEYS
+    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 
     # Union settings reads across the whole eval path, matching both the direct
     # attribute form (``settings.NAME``) and the string-literal getattr form
@@ -377,7 +377,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     assert not unaccounted, (
         "score/structure-affecting settings read by the engine eval path "
         f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + core/structure/*) are absent from "
-        "core.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
+        "engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
         "engine output WITHOUT bumping engine_config_version, corrupting archive "
         f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "
         "one is genuinely an ops-only knob, to ALLOWED_OPS_EXCLUSIONS with a reason."

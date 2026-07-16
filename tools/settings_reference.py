@@ -5,7 +5,7 @@ The doc's quick-reference used to be a hand-maintained copy of
 ``config/settings.py`` values - a guaranteed-rot surface (it had already
 drifted: stale values, dozens of newer constants missing). This tool replaces
 it with a GENERATED block: the frozen engine-identity allow-list
-(``core.freeze.manifest.ENGINE_SETTINGS_KEYS`` - every constant that can move
+(``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS`` - every constant that can move
 a detector decision) rendered with its live settings value, in manifest order,
 stamped with the manifest hash. ``tests/test_docs_sync.py`` asserts the
 committed block matches this generator, so any settings/manifest change that
@@ -39,7 +39,7 @@ _END = "<!-- END GENERATED: settings-quick-reference -->"
 def render_block() -> str:
     """The full generated block (markers included), built from live settings."""
     from config import settings
-    from core.freeze.manifest import ENGINE_SETTINGS_KEYS, manifest_hash
+    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS, manifest_hash
 
     lines = [f"{key} = {getattr(settings, key)!r}" for key in ENGINE_SETTINGS_KEYS]
     body = "\n".join(lines)

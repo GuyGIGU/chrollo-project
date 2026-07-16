@@ -218,7 +218,7 @@ def seed_archive(
 
     # Frozen engine-config version stamped on every seeded row (computed once —
     # provenance only, never a computed engine field).
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     engine_config_version = manifest_hash()
 
     # Batch download all tickers

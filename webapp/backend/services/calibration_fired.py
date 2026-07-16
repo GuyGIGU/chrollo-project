@@ -189,7 +189,7 @@ def fired_for_marks(marks, *, compute=None, background=True) -> dict:
     — both for tests. mark dicts are extracted here (session live) so the worker
     never touches a detached ORM row.
     """
-    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     from tools.calibration_harness import _mark_dict  # noqa: PLC0415
     grader = compute or _live_fired
     mh = manifest_hash()

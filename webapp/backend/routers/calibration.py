@@ -82,7 +82,7 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     import pandas as pd
 
     from core.pipeline.downloads import _price_regime, price_auto_adjust  # noqa: PLC0415 — lazy, yfinance-heavy chain
-    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     from services.market_data import chart_candles, daily_candle_frame
 
     as_of_ts = pd.Timestamp(as_of)
@@ -211,7 +211,7 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
                 "no frozen frame for this session — load the chart first; the "
                 "engine overlay replays frozen frames only", symbol, as_of)
 
-    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     key = (symbol, as_of, frame_digest or "", manifest_hash())
     if key in _ENGINE_READS:
         return _ENGINE_READS[key]
