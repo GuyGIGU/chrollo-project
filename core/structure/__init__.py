@@ -52,6 +52,7 @@ from core.structure.consolidation import detect_boxes, find_outer_box
 from core.structure.metrics import (
     descent_tail_rejects,
     measure_equilibrium,
+    measure_gate_margins,
     measure_traversal,
 )
 
@@ -99,6 +100,7 @@ __all__ = [
     "detect_boxes",
     "find_outer_box",
     "measure_equilibrium",
+    "measure_gate_margins",
     "measure_traversal",
     "descent_tail_rejects",
     # Phase B texture

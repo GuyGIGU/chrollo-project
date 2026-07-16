@@ -22,6 +22,7 @@ from core.structure import (
     measure_bins,
     measure_contractions,
     measure_equilibrium,
+    measure_gate_margins,
     measure_support_slope,
     measure_touch_volume,
     measure_traversal,
@@ -356,6 +357,12 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
         "support": measure_support_slope(base_df, atr_for_zone),
         "equilibrium": measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone),
         "traversal": measure_traversal(base_df, res_avg, sup_avg, atr_for_zone),
+        # Gate-margin telemetry (measure-first): the elected box against the
+        # respect gate's band and the dead-space gate's own close residence —
+        # archived raw so threshold debates open with distributions, never
+        # anecdotes. Never gates, never scores.
+        "gate_margins": measure_gate_margins(base_df, res_avg, sup_avg,
+                                             atr_for_zone),
     }
 
 
@@ -601,6 +608,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
     support = measurements["support"]
     equilibrium = measurements["equilibrium"]
     traversal = measurements["traversal"]
+    gate_margins = measurements["gate_margins"]
     bins = phase_ctx["bins"]
     scope = phase_ctx["scope"]
     trend = score_ctx["trend"]
@@ -712,6 +720,10 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_eq_mid_dwell': float(equilibrium['mid_dwell']),
         '_eq_upper_dwell': float(equilibrium['upper_dwell']),
         '_eq_coverage': float(equilibrium['coverage']),
+        '_eq_respect_frac': gate_margins['respect_frac'],
+        '_eq_close_lower_dwell': gate_margins['close_lower_dwell'],
+        '_eq_close_mid_dwell': gate_margins['close_mid_dwell'],
+        '_eq_close_upper_dwell': gate_margins['close_upper_dwell'],
         '_trav_n_full_traversals': int(traversal['n_full_traversals']),
         '_trav_n_swings': int(traversal['n_swings']),
         '_trav_top_dead_space': (float(traversal['top_dead_space'])

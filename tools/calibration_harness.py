@@ -176,6 +176,19 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
 # the report stamps the bound.
 FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
 
+# Harness grading-policy version (Family-7 instrument fix, plan task 1).
+# v2: the fired-walk is anchored to where the setup was LIVE — the union of
+# each marked-LPS event window (+ a small tail) and the trailing as-of window
+# — instead of only the sessions before the mark was typed; rail/span
+# agreement is additionally graded AT the fire session from that session's
+# own read; a post-fire as-of no-read is labeled "consumed", never counted
+# as blindness. Bump this on ANY grading-semantics change: it is folded into
+# the backend chip cache signature, so stale chips can never be served as
+# current after the policy moves (engine hash alone would not rotate).
+HARNESS_POLICY_VERSION = 2
+FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
+FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
+
 # Frozen market scalars (marks-corpus twin): scoring-only inputs — they shape
 # Score/Tier, never the fire/no-fire decision — pinned so the replay is
 # deterministic and needs no SPY/breadth history alongside the frozen frame.
@@ -200,30 +213,72 @@ def _full_live_basis(frozen: pd.DataFrame, ts) -> bool:
 
 
 def _fired_sessions(frozen: pd.DataFrame, mark: dict) -> tuple[list, str | None]:
-    """The mark's fair window as frame sessions ending at its as-of: from
-    ``knowable_from_date`` when the mark declares one, else the last
-    ``FIRED_WINDOW_SESSIONS`` sessions. Walked oldest-first so the reported
-    fire is the FIRST night the pick would have appeared.
+    """The mark's fair window as frame sessions ending at its as-of.
 
-    A knowable_from walk is CLAMPED to the frame's faithful-basis zone
-    (``_full_live_basis``): the marks-corpus gate freezes full history for
-    exactly this reason, and a thin-basis no-fire silently counted as
-    assessed would deflate the pops-up-live headline on precisely the marks
-    with the widest fair windows. Returns ``(sessions, clamp_note|None)`` —
-    the clamp is always NAMED, never silent."""
+    Policy v2 (Family-7): the walk covers where the setup was LIVE, not just
+    when the mark was typed — a mark drawn weeks after its breakout (MS, NGL)
+    must still be graded at the sessions its marked LPS was actionable. The
+    window is: ``knowable_from_date`` onward when the mark declares one
+    (unchanged v1 override); otherwise the union of each marked-LPS event
+    span extended ``FIRED_EVENT_TAIL_SESSIONS`` past its end, plus the last
+    ``FIRED_WINDOW_SESSIONS`` sessions before the as-of. Walked oldest-first
+    so the reported fire is the FIRST night the pick would have appeared.
+
+    Every window is CLAMPED to the frame's faithful-basis zone
+    (``_full_live_basis``) — event windows can now reach deep into the frame,
+    where a thin lead-in would replay a thinner basis than live — and capped
+    at ``FIRED_WALK_MAX_SESSIONS`` keeping the OLDEST sessions (the event
+    windows; the fire is reported at the first night anyway). Returns
+    ``(sessions, clamp_note|None)`` — every clamp is NAMED, never silent."""
     idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
     knowable = mark.get("knowable_from_date")
-    if not knowable:
-        return list(idx[-FIRED_WINDOW_SESSIONS:]), None
-    sessions = list(idx[idx >= pd.Timestamp(knowable)])
+    if knowable:
+        sessions = list(idx[idx >= pd.Timestamp(knowable)])
+    else:
+        picked = set(idx[-FIRED_WINDOW_SESSIONS:])
+        for ev in mark.get("events") or []:
+            if ev.get("event_type") != "lps" or not ev.get("start_date"):
+                continue
+            start = pd.Timestamp(ev["start_date"])
+            end = pd.Timestamp(ev.get("end_date") or ev["start_date"])
+            in_span = idx[(idx >= start) & (idx <= end)]
+            picked.update(in_span)
+            after = idx[idx > end]
+            picked.update(after[:FIRED_EVENT_TAIL_SESSIONS])
+        sessions = sorted(picked)
+    notes = []
     faithful = [ts for ts in sessions if _full_live_basis(frozen, ts)]
-    if len(faithful) == len(sessions):
-        return sessions, None
-    note = (f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
+    if len(faithful) != len(sessions):
+        notes.append(
+            f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
             f"frame's lead-in cannot reproduce the live "
             f"{settings.DAILY_STRUCTURE_PERIOD} basis before "
             + (faithful[0].strftime("%Y-%m-%d") if faithful else "any session"))
-    return faithful, note
+    if len(faithful) > FIRED_WALK_MAX_SESSIONS:
+        notes.append(f"walk capped at the oldest {FIRED_WALK_MAX_SESSIONS} "
+                     f"of {len(faithful)} sessions")
+        faithful = faithful[:FIRED_WALK_MAX_SESSIONS]
+    return faithful, ("; ".join(notes) or None)
+
+
+def _binding_gate_margin(result: dict) -> dict | None:
+    """Signed distance-to-boundary of the TIGHTEST worked-equilibrium gate on
+    a firing result (positive = survived by that much, in the gate's own
+    statistic), from the measure-first telemetry fields. None on older result
+    shapes without them. Diagnostic only — never a verdict."""
+    checks = (
+        ("respect", result.get("_eq_respect_frac"),
+         settings.MIN_BOUNDARY_RESPECT_PCT, 1),
+        ("lower_dwell", result.get("_eq_close_lower_dwell"),
+         settings.EQ_MIN_HALF_DWELL, 1),
+        ("upper_dwell", result.get("_eq_close_upper_dwell"),
+         settings.EQ_MIN_HALF_DWELL, 1),
+        ("mid_dwell", result.get("_eq_close_mid_dwell"),
+         settings.EQ_MAX_MID_DWELL, -1),
+    )
+    margins = [{"gate": gate, "margin": round(sign * (float(value) - threshold), 4)}
+               for gate, value, threshold, sign in checks if value is not None]
+    return min(margins, key=lambda m: m["margin"]) if margins else None
 
 
 def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
@@ -313,6 +368,29 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
                 if inner_r is not None and inner_s is not None:
                     frag["fire_inner_R"] = float(inner_r)
                     frag["fire_inner_S"] = float(inner_s)
+                # Policy v2: rail/span agreement graded AT the fire session,
+                # from the read the engine produced on THAT session's frame —
+                # never the as-of snapshot (no clairvoyant grading). Purely
+                # additive diagnostics; a canned result without box dates
+                # simply omits the span figure.
+                try:
+                    frag["fire_rail_distances"] = agreement.rail_distances(
+                        mark["resistance"], mark["support"],
+                        frag["fire_R"], frag["fire_S"])
+                except (ValueError, TypeError):
+                    pass
+                gate_margin = _binding_gate_margin(result)
+                if gate_margin is not None:
+                    frag["fire_gate_margin"] = gate_margin
+                fire_box_start = result.get("_phase_b_start_date")
+                if fire_box_start:
+                    frag["fire_box_start_date"] = str(fire_box_start)
+                    try:
+                        frag["fire_span_overlap"] = round(agreement.span_overlap(
+                            mark["box_start_date"], mark["box_end_date"],
+                            str(fire_box_start), fire_date), 4)
+                    except (ValueError, TypeError):
+                        pass
                 break
         if clamp_note:
             frag["fired_window_clamped"] = clamp_note
@@ -333,8 +411,47 @@ def parse_variant(spec: str) -> dict:
     return {name.strip(): value}
 
 
+def _print_delta(report: dict, prev: dict) -> None:
+    """Per-mark movement vs a previous report, led by the ONE axis that moved
+    (Friedman: the operator must never credit a grading fix as an engine
+    improvement, or vice versa). Compares baseline-variant rows by mark key."""
+    axes = []
+    if prev.get("marks_fingerprint") != report["marks_fingerprint"]:
+        axes.append("GROUND TRUTH moved (marks fingerprint changed)")
+    if prev.get("harness_policy_version") != report["harness_policy_version"]:
+        axes.append(f"MEASUREMENT moved (harness policy "
+                    f"v{prev.get('harness_policy_version', 1)} -> "
+                    f"v{report['harness_policy_version']})")
+    if prev.get("engine_config_version") != report["engine_config_version"]:
+        axes.append("ENGINE moved (config hash changed)")
+    print("\n--- delta vs previous report "
+          f"({prev.get('generated_at', 'undated')})")
+    print("  attribution: " + ("; ".join(axes) if axes
+                               else "no axis moved (same marks, policy, engine)"))
+    prev_rows = {r["mark"]: r for r in
+                 prev.get("variants", {}).get("baseline", {}).get("rows", [])}
+    cur_rows = report["variants"].get("baseline", {}).get("rows", [])
+    moved = 0
+    for row in cur_rows:
+        old = prev_rows.get(row["mark"])
+        if old is None:
+            print(f"    {row['mark']:<24} NEW MARK -> {row['outcome']}")
+            moved += 1
+            continue
+        changes = []
+        if old.get("outcome") != row.get("outcome"):
+            changes.append(f"{old.get('outcome')} -> {row.get('outcome')}")
+        if old.get("fired") != row.get("fired"):
+            changes.append(f"fired {old.get('fired')} -> {row.get('fired')}")
+        if changes:
+            print(f"    {row['mark']:<24} " + "; ".join(changes))
+            moved += 1
+    if not moved:
+        print("    no per-mark movement")
+
+
 def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
-        *, fired: bool = False) -> None:
+        *, fired: bool = False, prev_path: str | None = None) -> None:
     """Score and print the report. An INSTRUMENT, not a gate — there is no
     pass/fail; agreement regressions are read by humans, not exit codes."""
     import database  # noqa: PLC0415 — binds the live SQLite (read-only usage)
@@ -365,6 +482,13 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
             row["verdict"] = mark["verdict"]
             if fired_frags and fired_frags[i] is not None:
                 row.update(fired_frags[i])
+                # Policy v2: a box that FIRED in-window but reads nothing at
+                # the as-of snapshot is a consumed setup (breakout underway /
+                # box retired), not engine blindness — name it so the report
+                # never counts a correct pre-breakout fire as a miss.
+                if row["outcome"] == "engine_no_read" and row.get("fired") is True:
+                    row["detail"] = ("consumed — breakout underway "
+                                     f"(fired {row.get('fire_date')})")
             per_variant[i].append(row)
     wall = time.perf_counter() - t0
 
@@ -373,25 +497,31 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
     print("=" * 72)
     print(f"marks: {len(marks)}   fingerprint: {fingerprint[:16]}…")
     print(f"engine_config_version: {manifest_hash()[:16]}…   "
+          f"harness_policy: v{HARNESS_POLICY_VERSION}   "
           f"rail_tol: {DEFAULT_RAIL_TOL_BOX_FRAC} box-height   "
           f"span_overlap_min: {agreement.DEFAULT_SPAN_OVERLAP_MIN}   "
           f"snap_back: {SNAP_BACK_SESSIONS}")
     if fired:
-        print(f"fired policy: window {FIRED_WINDOW_SESSIONS} sessions "
-              f"(knowable_from overrides)   frozen breadth {_FROZEN_BREADTH} / "
-              f"spy_6m {_FROZEN_SPY_6M} (scoring-only)")
+        print(f"fired policy: v{HARNESS_POLICY_VERSION} — marked-LPS event "
+              f"windows +{FIRED_EVENT_TAIL_SESSIONS} tail ∪ last "
+              f"{FIRED_WINDOW_SESSIONS} sessions (knowable_from overrides; "
+              f"cap {FIRED_WALK_MAX_SESSIONS})   frozen breadth "
+              f"{_FROZEN_BREADTH} / spy_6m {_FROZEN_SPY_6M} (scoring-only)")
     print(f"wall: {wall:.1f}s total, {wall / max(len(marks), 1):.2f}s/mark "
           f"x {len(variants)} variant(s)")
     report = {"population": "calibration_marks", "generated_at":
               datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "marks_fingerprint": fingerprint, "n_marks": len(marks),
               "engine_config_version": manifest_hash(),
+              "harness_policy_version": HARNESS_POLICY_VERSION,
               "tolerances": {"rail_tol_box_frac": DEFAULT_RAIL_TOL_BOX_FRAC,
                              "span_overlap_min": agreement.DEFAULT_SPAN_OVERLAP_MIN,
                              "snap_back_sessions": SNAP_BACK_SESSIONS},
               "wall_seconds": round(wall, 2), "variants": {}}
     if fired:
         report["fired_policy"] = {"window_sessions": FIRED_WINDOW_SESSIONS,
+                                  "event_tail_sessions": FIRED_EVENT_TAIL_SESSIONS,
+                                  "max_walk_sessions": FIRED_WALK_MAX_SESSIONS,
                                   "frozen_breadth": _FROZEN_BREADTH,
                                   "frozen_spy_6m": _FROZEN_SPY_6M}
     for label, rows in zip(labels, per_variant):
@@ -440,6 +570,9 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
             print(f"    {row['mark']:<24} {row['verdict']:<13} -> "
                   f"{row['outcome']}{extra}{detail}{fired_s}")
         report["variants"][label] = {"tally": t, "rows": rows}
+    if prev_path:
+        with open(prev_path, "r", encoding="utf-8") as f:
+            _print_delta(report, json.load(f))
     if json_out:
         with open(json_out, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, default=str)
@@ -468,9 +601,12 @@ def main() -> None:
     ap.add_argument("--fired", action="store_true",
                     help="also replay each box mark through the FULL pipeline "
                          "over its fair window (pops-up-live criterion; slower)")
+    ap.add_argument("--prev", default=None,
+                    help="previous report JSON — print per-mark deltas with the "
+                         "moved axis named (ground truth / measurement / engine)")
     a = ap.parse_args()
     try:
-        run(a.ticker, a.variant, a.json, fired=a.fired)
+        run(a.ticker, a.variant, a.json, fired=a.fired, prev_path=a.prev)
     except ValueError as e:
         print(str(e))
         sys.exit(2)

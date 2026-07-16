@@ -342,6 +342,44 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
 # Worked-equilibrium occupancy — is this candidate range a REAL trading range?
 # ---------------------------------------------------------------------------
 
+def measure_gate_margins(base_df, R, S, atr_val):
+    """The elected box re-measured through the ACTUAL worked-equilibrium
+    gates' own statistics — boundary respect (buffered band, wicks count) and
+    the close-residence dwell the dead-space gate judges — so the archive can
+    see how close a fired box lived to each calibrated floor/cap. The dwell
+    twins in ``measure_equilibrium`` are range-occupancy (a bar's [Low, High]
+    intersecting a third); the GATE reads close residence, and margin
+    telemetry against a gate must measure the gate's own statistic.
+
+    One implementation, re-reported (EC-3): both numbers come from the same
+    ``box_primitives`` helpers the election gate calls. Measure-only — never
+    gates, never penalizes; degenerate windows return None values.
+
+    Returns dict: respect_frac, close_lower_dwell, close_mid_dwell,
+    close_upper_dwell (all nullable floats).
+    """
+    empty = {"respect_frac": None, "close_lower_dwell": None,
+             "close_mid_dwell": None, "close_upper_dwell": None}
+    if (base_df is None or len(base_df) == 0 or R is None or S is None
+            or R <= S or atr_val is None or atr_val <= 0
+            or not np.isfinite(atr_val)):
+        return empty
+    from core.structure.box_primitives import (  # noqa: PLC0415 — sibling, lazy vs cycles
+        _is_boundary_respected,
+        _measure_close_residence,
+    )
+    _, _, _, total_outside = _is_boundary_respected(
+        base_df["High"].to_numpy(dtype=float),
+        base_df["Low"].to_numpy(dtype=float), R, S, atr_val)
+    eq = _measure_close_residence(base_df, R, S, atr_val)
+    return {
+        "respect_frac": 1.0 - total_outside / len(base_df),
+        "close_lower_dwell": float(eq["lower_dwell"]),
+        "close_mid_dwell": float(eq["mid_dwell"]),
+        "close_upper_dwell": float(eq["upper_dwell"]),
+    }
+
+
 def measure_equilibrium(base_df, R, S, atr_val):
     """How genuinely *worked* is the candidate range ``[S, R]`` over its window?
 

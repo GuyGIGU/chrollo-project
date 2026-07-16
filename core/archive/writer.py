@@ -101,6 +101,12 @@ _NEW_COLUMNS: dict[str, str] = {
     "eq_mid_dwell":                 "FLOAT",
     "eq_upper_dwell":               "FLOAT",
     "eq_coverage":                  "FLOAT",
+    # Gate-margin telemetry (plan task 2): the elected box against the ACTUAL
+    # gates — respect band fraction + the dead-space gate's close residence.
+    "eq_respect_frac":              "FLOAT",
+    "eq_close_lower_dwell":         "FLOAT",
+    "eq_close_mid_dwell":           "FLOAT",
+    "eq_close_upper_dwell":         "FLOAT",
     # Limb-traversal read (raw, measure-first)
     "trav_n_full_traversals":       "INTEGER",
     "trav_n_swings":                "INTEGER",
@@ -495,6 +501,10 @@ def archive_scan_results(
             eq_mid_dwell=row.get("_eq_mid_dwell"),
             eq_upper_dwell=row.get("_eq_upper_dwell"),
             eq_coverage=row.get("_eq_coverage"),
+            eq_respect_frac=row.get("_eq_respect_frac"),
+            eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
+            eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
+            eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
             # Limb-traversal read (raw, measure-first)
             trav_n_full_traversals=row.get("_trav_n_full_traversals"),
             trav_n_swings=row.get("_trav_n_swings"),

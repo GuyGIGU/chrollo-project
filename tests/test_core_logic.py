@@ -138,6 +138,42 @@ def test_measure_equilibrium_range_occupancy_uses_high_low_not_close():
     assert eq["coverage"] == 1.0
 
 
+def test_measure_gate_margins_reports_the_gates_own_statistics():
+    # Three flat bars fully inside [S-buffer, R+buffer], closes mid-box: the
+    # respect fraction is 1.0 and the close-residence dwell is all-mid — the
+    # GATE's statistic, not the range-occupancy twin (which reads 1.0 in every
+    # third for these bars). Hand-specified, not read off the code.
+    from core.structure.metrics import measure_gate_margins
+    frame = pd.DataFrame([
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+    ])
+    gm = measure_gate_margins(frame, 110.0, 100.0, 1.0)
+    assert gm["respect_frac"] == 1.0
+    assert gm["close_lower_dwell"] == 0.0
+    assert gm["close_mid_dwell"] == 1.0
+    assert gm["close_upper_dwell"] == 0.0
+
+
+def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
+    from core.structure.metrics import measure_gate_margins
+    # One of four bars wicks above R + 0.5*ATR buffer -> respect 0.75.
+    frame = pd.DataFrame([
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 111.0, "Low": 104.0, "Close": 105.0},  # wick past 110.5
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+    ])
+    gm = measure_gate_margins(frame, 110.0, 100.0, 1.0)
+    assert gm["respect_frac"] == 0.75
+    # Degenerate inputs return the all-None dict, never a crash.
+    empty = measure_gate_margins(frame.iloc[:0], 110.0, 100.0, 1.0)
+    assert empty == {"respect_frac": None, "close_lower_dwell": None,
+                     "close_mid_dwell": None, "close_upper_dwell": None}
+    assert measure_gate_margins(frame, 100.0, 110.0, 1.0)["respect_frac"] is None
+
+
 def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
     # A genuinely worked range validates; a dead-space range does not.
     _rt, _st, _eq, ok_worked = _validate_base_quality(

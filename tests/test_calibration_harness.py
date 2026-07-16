@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import models  # noqa: E402
-from models import CalibrationMark  # noqa: E402
+from models import CalibrationMark, CalibrationMarkEvent  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
@@ -24,7 +24,11 @@ import webapp.backend.frame_store as frame_store  # noqa: E402
 from core.pipeline.evaluation import EVAL_ERROR  # noqa: E402
 from tools import agreement, replay  # noqa: E402
 from tools.calibration_harness import (  # noqa: E402
+    FIRED_EVENT_TAIL_SESSIONS,
+    FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
+    HARNESS_POLICY_VERSION,
+    _print_delta,
     _refuse_sealed_output,
     fired_one,
     grade_one,
@@ -439,12 +443,122 @@ def test_fired_deep_knowable_window_clamps_to_the_faithful_basis_zone(session):
 
 def test_fired_young_ticker_frame_never_clamps(session):
     # A frame the 2y trim cannot cut IS the ticker's full history: the live
-    # nightly saw the same bars, so every session is a faithful basis.
-    _add_mark(session, knowable_from_date="2026-02-02")
+    # nightly saw the same bars, so every session is a faithful basis. (The
+    # window here stays under FIRED_WALK_MAX_SESSIONS — the size cap is a
+    # separate, named policy pinned in its own test below.)
+    _add_mark(session, knowable_from_date="2026-03-02")
     frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
                      evaluate=lambda t, s: None)[0]
     assert "fired_window_clamped" not in frag
+    assert frag["fired_window"][0] == "2026-03-02"
+
+
+# ------------------------------------------------- policy v2 (Family-7 fix)
+def _add_lps_event(session, start, end):
+    mark = session.query(CalibrationMark).order_by(CalibrationMark.id.desc()).first()
+    session.add(CalibrationMarkEvent(mark_id=mark.id, event_type="lps",
+                                     start_date=start, end_date=end,
+                                     source="operator"))
+    session.commit()
+
+
+def test_fired_walk_covers_the_marked_lps_event_window(session):
+    # A mark typed weeks after its breakout (the MS/NGL class) is graded where
+    # the setup was LIVE: the marked-LPS span + a small tail joins the walk,
+    # so a fire there counts — with the engine byte-identical. Expected values
+    # hand-specified from the diagnosis, not read off the code: the walk must
+    # visit 2026-02-02 (event start) and report the 02-03 fire as FIRST.
+    _add_mark(session)
+    _add_lps_event(session, "2026-02-02", "2026-02-05")
+    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                     evaluate=_evaluate_firing_from("2026-02-03"))[0]
+    assert frag["fired"] is True
+    assert frag["fire_date"] == "2026-02-03"
     assert frag["fired_window"][0] == "2026-02-02"
+    assert frag["fired_window"][1] == "2026-04-15"  # as-of tail still walked
+    # And with no fire anywhere, the walk covers exactly the union:
+    # event span (4 sessions) + tail (5) + trailing window (10) = 19.
+    no_fire = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                        evaluate=lambda t, s: None)[0]
+    assert no_fire["fired_sessions_walked"] == 4 + FIRED_EVENT_TAIL_SESSIONS + FIRED_WINDOW_SESSIONS
+
+
+def test_fired_walk_cap_keeps_oldest_and_names_the_clamp(session):
+    # An event span wider than the cap: the OLDEST sessions are kept (the fire
+    # is reported at the first night anyway) and the clamp is NAMED.
+    _add_mark(session)
+    _add_lps_event(session, "2026-01-05", "2026-04-15")
+    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                     evaluate=lambda t, s: None)[0]
+    assert frag["fired_sessions_walked"] == FIRED_WALK_MAX_SESSIONS
+    assert frag["fired_window"][0] == "2026-01-05"
+    assert "capped at the oldest" in frag["fired_window_clamped"]
+
+
+def test_fired_grades_rails_and_span_at_the_fire_session(session):
+    # Policy v2: the fire session's own read grades rail/span agreement —
+    # a result carrying its box-start date yields a span overlap against the
+    # DRAWN span ending at the fire date, and per-rail distances ride along.
+    _add_mark(session)
+    firing = {**_fire_result(R=12.0, S=10.0),
+              "_phase_b_start_date": "2026-01-05"}
+    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                     evaluate=_evaluate_firing_from("2026-04-09", result=firing))[0]
+    assert frag["fire_box_start_date"] == "2026-01-05"
+    # drawn 01-05..04-15 (101 days) vs fired 01-05..04-09 (95 days): 95/101
+    assert frag["fire_span_overlap"] == pytest.approx(95 / 101, abs=1e-4)
+    assert frag["fire_rail_distances"] == {"r_frac": 0.0, "s_frac": 0.0}
+
+
+def test_fired_canned_result_without_box_dates_stays_gradable(session):
+    # A result lacking _phase_b_start_date (older archive shapes) must not
+    # crash or block the fire verdict — the span figure is simply absent.
+    _add_mark(session)
+    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                     evaluate=_evaluate_firing_from("2026-04-09"))[0]
+    assert frag["fired"] is True
+    assert "fire_span_overlap" not in frag
+    assert frag["fire_rail_distances"] == {"r_frac": 0.0, "s_frac": 0.0}
+
+
+def test_fired_binding_gate_margin_picks_the_tightest_gate(session):
+    # respect sits +0.11 over its 0.80 floor; upper dwell only +0.01 over its
+    # 0.15 floor -> the binding gate is upper_dwell. Hand-specified margins.
+    _add_mark(session)
+    firing = {**_fire_result(), "_eq_respect_frac": 0.91,
+              "_eq_close_lower_dwell": 0.30, "_eq_close_upper_dwell": 0.16,
+              "_eq_close_mid_dwell": 0.40}
+    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
+                     evaluate=_evaluate_firing_from("2026-04-09", result=firing))[0]
+    assert frag["fire_gate_margin"] == {"gate": "upper_dwell", "margin": 0.01}
+
+
+def test_backend_fired_signature_carries_the_policy_version():
+    # The chip cache key must rotate when grading SEMANTICS change even though
+    # no numeric constant moved and the engine hash never rotates.
+    from webapp.backend.services.calibration_fired import _fired_sig
+    assert f"v{HARNESS_POLICY_VERSION}:" in _fired_sig()
+
+
+def test_delta_attribution_names_exactly_the_moved_axis(capsys):
+    base = {"marks_fingerprint": "f" * 64, "engine_config_version": "e" * 64,
+            "harness_policy_version": HARNESS_POLICY_VERSION,
+            "generated_at": "2026-07-16T00:00:00+00:00",
+            "variants": {"baseline": {"rows": [
+                {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
+                 "fired": False}]}}}
+    prev = {**base, "harness_policy_version": 1,
+            "variants": {"baseline": {"rows": [
+                {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
+                 "fired": False}]}}}
+    cur = {**base, "variants": {"baseline": {"rows": [
+        {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
+         "fired": True}]}}}
+    _print_delta(cur, prev)
+    out = capsys.readouterr().out
+    assert "MEASUREMENT moved" in out
+    assert "GROUND TRUTH" not in out and "ENGINE moved" not in out
+    assert "fired False -> True" in out
 
 
 def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
