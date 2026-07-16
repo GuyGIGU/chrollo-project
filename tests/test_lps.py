@@ -598,13 +598,14 @@ def _detect_on_narrow_box(df, sup_avg, res_avg):
 
 
 def test_overshoot_window_rescope_is_inert_flag_off(monkeypatch, _lps_behavior_frame):
-    # Flag-off (the shipped default): the 2.6-point shelf over a 2.0-point box
-    # measures 1.3 box-heights and the window gate rejects it exactly as the
-    # frozen engine always has. This value is independently reasoned and MUST
-    # NOT be changed — if it fails, fix the implementation.
+    # Flag-off (the pre-2026-07-16 default, preserved as the OFF contract): the
+    # 2.6-point shelf over a 2.0-point box measures 1.3 box-heights and the
+    # window gate rejects it exactly as the frozen engine always has. This
+    # value is independently reasoned and MUST NOT be changed — if it fails,
+    # fix the implementation.
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
-    assert settings.LPS_OVERSHOOT_WINDOW_ATR_ENABLED is False  # shipped default
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", False)
     df = _narrow_box_buec_frame(_lps_behavior_frame)
     assert _detect_on_narrow_box(df, sup_avg=108, res_avg=110) is None
 
