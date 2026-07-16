@@ -406,7 +406,25 @@ def detect_lps_candidates(
                 high_descent_frac,
                 box_width,
             )
-            if window_range_pct_box > settings.LPS_MAX_WINDOW_BOX_RANGE:
+            # DARK rescope (LPS_OVERSHOOT_WINDOW_ATR_ENABLED): a breakout
+            # throwback resting ABOVE R is localized against the stock's own
+            # daily ranges when the box is narrow — box height is the wrong
+            # yardstick above the box. Gate-only: the archived
+            # window_range_pct_box measure is unchanged. Non-finite ATR
+            # refuses the rescoped path (falls back to the raw gate).
+            window_gate_ratio = window_range_pct_box
+            if (
+                settings.LPS_OVERSHOOT_WINDOW_ATR_ENABLED
+                and zone_type == "OVERSHOOT_R"
+                and atr_val is not None
+                and np.isfinite(float(atr_val))
+                and float(atr_val) > 0
+            ):
+                window_gate_ratio = (window_high - window_low) / max(
+                    box_height,
+                    settings.LPS_OVERSHOOT_WINDOW_ATR_MULT * float(atr_val),
+                )
+            if window_gate_ratio > settings.LPS_MAX_WINDOW_BOX_RANGE:
                 # A clean pullback swing is allowed to cover more vertical range:
                 # chart-wise it is one anchor high -> final low test, not broad
                 # multi-direction chop occupying the whole box.

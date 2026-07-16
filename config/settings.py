@@ -250,6 +250,14 @@ AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whicheve
 LPS_MIN_DESCENT_FRAC = 0.0
 LPS_MIN_HIGH_DESCENT_FRAC = 0.0
 LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/all of the box
+# DARK (solve-the-engine task 10): for OVERSHOOT_R windows (breakout
+# throwbacks resting ABOVE R) the window-localization denominator becomes
+# max(box_height, LPS_OVERSHOOT_WINDOW_ATR_MULT * ATR) — above the box, box
+# height is the wrong yardstick for a NARROW base (CTOS: his marked shelf is
+# 1.06 box-heights but only 1.42 ATR). Scoped to one zone; max() can only
+# grow the denominator, so wide boxes and other zones are untouched.
+LPS_OVERSHOOT_WINDOW_ATR_ENABLED = False
+LPS_OVERSHOOT_WINDOW_ATR_MULT = 2.0   # k*ATR floor: k >= 1.67 admits CTOS; 2.0 = margin
 # "Reaction not markup" gate for the rising_support_shelf rescue (default OFF =
 # None). The rescue (core/structure/lps.py) re-admits a non-terminal-low window
 # whose LOW sits near support, but checks only the low's LOCATION, never the

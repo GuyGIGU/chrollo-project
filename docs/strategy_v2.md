@@ -836,7 +836,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `ab6154cc635891747835664888d76820bda509095baa644a6270c3c3f415cb30`_
+_engine_config_version: `1185ea678052a516b42dec57b4f4db7d9a20da32b71ba79002989cb2fd08472d`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -899,6 +899,8 @@ AR_MAX_BARS = 15
 LPS_MIN_DESCENT_FRAC = 0.0
 LPS_MIN_HIGH_DESCENT_FRAC = 0.0
 LPS_MAX_WINDOW_BOX_RANGE = 0.85
+LPS_OVERSHOOT_WINDOW_ATR_ENABLED = False
+LPS_OVERSHOOT_WINDOW_ATR_MULT = 2.0
 LPS_RESCUE_MAX_ADVANCE_BOX = 0.21
 LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35
 LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
@@ -1056,6 +1058,20 @@ pullback_profile = (anchor_bar_high - elected_lps_low) / profile_unit
 ```
 
 The ordinary LPS low is the **last bar's Low**, the trigger is the **last bar's High**, and the candidate is actionable only while current price remains below that trigger. The terminal-low guard requires the last Low to sit within `LPS_TERMINAL_LOW_TOL_PROFILE` profile units of the window low. A fully clean down-swing can exceed the broad window-range guard because the useful measurement is the individual price-action swing from anchor high to final valley. Spread decline remains quality evidence; hard rejection is only "spread expanded too much for this setup profile."
+
+**OVERSHOOT_R window rescope (dark, `LPS_OVERSHOOT_WINDOW_ATR_ENABLED` —
+solve-the-engine task 10).** The window-localization guard
+(`window_range ≤ LPS_MAX_WINDOW_BOX_RANGE × box_height`) mis-scales for a
+breakout throwback resting ABOVE a **narrow** box: above the box, box height
+is the wrong yardstick (CTOS's marked shelf measures 1.06 box-heights but
+only 1.42 of the stock's own ATRs). Flag-on, for OVERSHOOT_R-zone windows
+only, the denominator becomes `max(box_height,
+LPS_OVERSHOOT_WINDOW_ATR_MULT × ATR)` (k = 2.0; k ≥ 1.67 admits CTOS).
+Gate-only — the archived `window_range_pct_box` measure is unchanged;
+`max()` can only grow the denominator, so wide boxes and INSIDE/UNDERCUT_S
+zones are provably untouched; a non-finite ATR refuses the rescoped path.
+Proof at the marks: combined with the holding-shelf flag, CTOS fires
+2026-07-15 tier S at rails within tolerance (span overlap 1.0).
 
 The zone tolerance still adapts for tight boxes: if box width is below 10%, `_zone_tolerance()` uses `max(0.5 * ATR, 0.5 * box_height)`. This keeps tight inner boxes from rejecting reasonable breakout retests just above R or failed-seller tests just below S.
 

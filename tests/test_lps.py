@@ -567,6 +567,73 @@ def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch, _lps_behav
     assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
 
 
+# ── OVERSHOOT_R window rescope (dark, LPS_OVERSHOOT_WINDOW_ATR_ENABLED —
+# solve-the-engine task 10). Geometry transcribed from CTOS: his marked shelf
+# spans 1.06 box-heights but only 1.42 ATR — above a NARROW box, box height is
+# the wrong localization yardstick. Same proven shelf as the test above, box
+# shrunk so the window gate becomes the sole discriminator. ─────────────────
+
+def _narrow_box_buec_frame(_lps_behavior_frame):
+    # Final close 110.65 keeps the shelf's box-position extension within the
+    # BUEC exception's 0.35 cap on the 2.0-point box (0.325), mirroring
+    # CTOS's shelf resting ON the rail rather than lifted away from it.
+    return _lps_behavior_frame(
+        highs=[113.0, 112.2, 111.8, 111.6, 111.3],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[111.2, 110.8, 110.9, 111.0, 110.65],
+    )
+
+
+def _detect_on_narrow_box(df, sup_avg, res_avg):
+    return detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=sup_avg,
+        res_avg=res_avg,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=20,
+        swing_complete_idx=-1,
+    )
+
+
+def test_overshoot_window_rescope_is_inert_flag_off(monkeypatch, _lps_behavior_frame):
+    # Flag-off (the shipped default): the 2.6-point shelf over a 2.0-point box
+    # measures 1.3 box-heights and the window gate rejects it exactly as the
+    # frozen engine always has. This value is independently reasoned and MUST
+    # NOT be changed — if it fails, fix the implementation.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    assert settings.LPS_OVERSHOOT_WINDOW_ATR_ENABLED is False  # shipped default
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    assert _detect_on_narrow_box(df, sup_avg=108, res_avg=110) is None
+
+
+def test_overshoot_window_rescope_admits_the_ctos_class_flag_on(monkeypatch, _lps_behavior_frame):
+    # Flag-on: the OVERSHOOT_R denominator becomes max(box_height, 2*ATR) =
+    # 4.0, so the same 2.6-point shelf measures 0.65 <= 0.85 and completes as
+    # the BUEC shelf it visually is.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", True)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    result = _detect_on_narrow_box(df, sup_avg=108, res_avg=110)
+    assert result is not None
+    assert result["zone_type"] == "OVERSHOOT_R"
+    assert result["swing_type"] == "buec_shelf"
+
+
+def test_overshoot_window_rescope_never_touches_inside_windows(monkeypatch, _lps_behavior_frame):
+    # Provably invisible outside its scope: the SAME oversized window sitting
+    # INSIDE the box still rejects with the flag on — the rescope reads the
+    # zone, not the flag alone.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", True)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    assert _detect_on_narrow_box(df, sup_avg=110, res_avg=111.5) is None
+
+
 # ── The holding-shelf completion form (Event Map Task 8, flag-gated dark) ────
 
 _SHELF_KW = dict(sup_avg=100, res_avg=110, atr_val=2, base_range_threshold=4,
