@@ -652,9 +652,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.matrix:
         rows_to_write = _run_matrix(cache, inputs, args.matrix)
         if args.out:
+            from tools._bootstrap import refuse_sealed_output
             out_path = Path(args.out)
             if not out_path.is_absolute():
                 out_path = ROOT / out_path
+            refuse_sealed_output(str(out_path))
             os.makedirs(out_path.parent, exist_ok=True)
             _write_rows(out_path, rows_to_write)
             print(f"\nwrote: {out_path}")
@@ -679,9 +681,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         ]
 
     if args.out:
+        from tools._bootstrap import refuse_sealed_output
         out_path = Path(args.out)
         if not out_path.is_absolute():
             out_path = ROOT / out_path
+        refuse_sealed_output(str(out_path))
         os.makedirs(out_path.parent, exist_ok=True)
         _write_rows(out_path, rows_to_write)
         print(f"\nwrote: {out_path}")

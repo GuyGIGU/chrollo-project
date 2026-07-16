@@ -44,7 +44,7 @@ def reset_agreement_cache() -> None:
 def _tol_sig() -> str:
     """The tolerance/policy signature baked into the grade — part of the cache
     key so a future tolerance change invalidates stale chips (review mandate)."""
-    from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
+    from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
     from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from tools.agreement import DEFAULT_SPAN_OVERLAP_MIN  # noqa: PLC0415
     return (f"rail{DEFAULT_RAIL_TOL_BOX_FRAC}"

@@ -60,7 +60,7 @@ import pandas as pd
 from config import settings
 from engine_alpha.freeze.manifest import manifest_hash
 from core.pipeline.downloads import _trim_to_period
-from core.pipeline.election_identity import (
+from engine_alpha.election_identity import (
     DEFAULT_RAIL_TOL_BOX_FRAC,
     projection,
     rails_match,
@@ -580,13 +580,10 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
 
 
 def _refuse_sealed_output(json_out: str) -> None:
-    """The one write this tool performs must never reach the sealed corpus
-    (EC-7/EC-9): a mistyped --json path could clobber a docs/marks spec."""
-    sealed = os.path.abspath(os.path.join(_PROJECT_ROOT, "docs", "marks"))
-    target = os.path.abspath(json_out)
-    if target == sealed or target.startswith(sealed + os.sep):
-        raise ValueError(f"--json refuses paths under the sealed corpus "
-                         f"({sealed}) — write the report elsewhere")
+    """The one write this tool performs must never reach a sealed directory
+    (EC-7/EC-9). Delegates to the ONE shared guard in tools._bootstrap."""
+    from tools._bootstrap import refuse_sealed_output
+    refuse_sealed_output(json_out)
 
 
 def main() -> None:

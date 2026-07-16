@@ -52,7 +52,7 @@ def _fired_sig() -> str:
     SEMANTICS change (Family-7: event-window anchoring, fire-session rails)
     invalidates chips even when every numeric constant is unchanged and the
     engine hash never rotates."""
-    from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
+    from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
     from tools.calibration_harness import (  # noqa: PLC0415
         FIRED_WINDOW_SESSIONS,
         HARNESS_POLICY_VERSION,

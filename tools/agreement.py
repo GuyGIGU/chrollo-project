@@ -35,7 +35,7 @@ except ModuleNotFoundError:
 
 configure_path()
 
-from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, rails_match
+from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, rails_match
 
 OUTCOMES = ("match", "disagree", "engine_no_read", "edge_uncertain",
             "basis_mismatch", "negative_upheld", "negative_violated")

@@ -182,12 +182,15 @@ def test_full_grading_pass_is_read_only(session):
     assert marks_fingerprint(load_marks(session)) == before
 
 
-def test_json_output_refuses_the_sealed_corpus(tmp_path):
+def test_json_output_refuses_the_sealed_dirs(tmp_path):
+    # ONE shared guard (tools._bootstrap.refuse_sealed_output) covers BOTH
+    # sealed populations: the docs/marks corpus AND the ratchet baselines.
     import os
-    sealed = os.path.join(str(ROOT), "docs", "marks", "report.json")
-    with pytest.raises(ValueError) as err:
-        _refuse_sealed_output(sealed)
-    assert "sealed corpus" in str(err.value)
+    for sealed in (os.path.join(str(ROOT), "docs", "marks", "report.json"),
+                   os.path.join(str(ROOT), "tests", "baselines", "report.json")):
+        with pytest.raises(ValueError) as err:
+            _refuse_sealed_output(sealed)
+        assert "sealed" in str(err.value)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
 
 

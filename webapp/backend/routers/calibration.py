@@ -216,7 +216,7 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
     if key in _ENGINE_READS:
         return _ENGINE_READS[key]
 
-    from core.pipeline.election_identity import projection  # noqa: PLC0415
+    from engine_alpha.election_identity import projection  # noqa: PLC0415
     from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
 
     result = {

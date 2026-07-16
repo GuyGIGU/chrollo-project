@@ -16,7 +16,7 @@ Discipline:
   after the election (LPS resolution, bins, HTF, puzzle, scoring) informs
   "did the same structure elect", so none of it is re-run.
 * Identity via the ONE cross-frame predicate
-  (``core.pipeline.election_identity.same_election``): calendar dates +
+  (``engine_alpha.election_identity.same_election``): calendar dates +
   scale-free rail tolerance — an epsilon wobble never reads as flicker.
 * Fires only, on frame slices the worker already holds — no refetch.
 * Never gates, never scores: raw values surface as underscore diagnostics.
@@ -24,7 +24,7 @@ Discipline:
 from __future__ import annotations
 
 from config import settings
-from core.pipeline.election_identity import projection, same_election
+from engine_alpha.election_identity import projection, same_election
 
 
 def election_stability(raw_df, reference_structure, reference_df) -> dict:
