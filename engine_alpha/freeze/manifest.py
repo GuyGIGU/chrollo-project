@@ -137,6 +137,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_RAILS_ENABLED",
     "BAND_MAX_BOX_WIDTH",
     "BAND_EVENT_MIN_BARS",
+    "BAND_EVENT_MAX_DEPTH_ATR",
+    "BAND_EVENT_MAX_BARS",
     "LPS_DRAW_MIN_DESCENT_FRAC",
     "LPS_ZONE_ATR_MULT",
     # Phase-C bin measurement

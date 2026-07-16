@@ -402,30 +402,48 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      breakout tail. This rescues SOS -> BUEC structures (e.g. a valid range that
      backs up to an LPS) without moving ordinary in-range setups.
    - **Deep-excursion pair pool (dark, `BAND_RAILS_ENABLED` — Event Map Task
-     11, calibration open)** — a LAST-RESORT pool consulted only when the
+     11)** — a LAST-RESORT pool consulted only when the
      strict AND rescued pools are both empty, so an ordinary election can
      never move. It re-judges the SAME chronological zigzag pairs (the
      operator's rail rule: anchor R/S from the swings in chronological order,
      wick to wick) with band-leaving excursions typed as EVENTS
-     (`core/structure/band_rails.py`): a below-rail episode — same-side spans
-     merged across short inside-runs, spring-then-test is ONE event — must
-     penetrate, RECLAIM, and HOLD (its extreme never violated afterwards);
-     an above-rail poke must fail back and never be exceeded; otherwise the
-     pair dies as a breakdown/breakout, exactly as before (the operator's
-     BODI ruling: the deep collapse is PHASE C inside one box, "not a box
-     break"). Qualified event bars are excised from the judged window; every
-     gate in this list runs UNCHANGED and full-strength on the remaining
-     bars, except that a pair carrying a qualified DEEP below-rail event
-     (multi-bar, beyond S − 2×buffer) may measure up to
-     `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance exists only
-     with the event, so it can never act as a general width loosening. The
-     respect gate is untouched. The qualified deep event also feeds Phase C
-     as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated spring detector
-     finds nothing (see the Phase C bin note). The operator's A/B rail
-     eyeball over `docs/phase_c_marks_2026-07.json` landed 2026-07-11
-     FAVORABLE (all Phase C rulings correct; the BODI flag-ON election
-     acceptable as a structure read) — the flip now waits only on the
-     operator's explicit go (protocol in the flag ledger).
+     (`engine_alpha/structure/band_rails.py`): a below-rail episode —
+     same-side spans merged across short inside-runs, spring-then-test is
+     ONE event — must penetrate, RECLAIM, and HOLD; an above-rail poke must
+     fail back and never be exceeded; otherwise the pair dies as a
+     breakdown/breakout, exactly as before (the operator's BODI ruling: the
+     deep collapse is PHASE C inside one box, "not a box break").
+     **Sequence-aware HOLD chain (2026-07-16):** successively deeper
+     below-rail events that each reclaim and hold are ONE progressive
+     Phase-C step-down — an earlier event's extreme may be undercut only by
+     a later qualified event (the working floor steps to the most recent
+     event's extreme; non-event bars must respect that standing floor), and
+     the FINAL event answers the original never-undercut rule against all
+     remaining tape. A pure relaxation: every single-event window judges
+     exactly as before. Two hard caps bound what may be typed an event at
+     all: `BAND_EVENT_MAX_DEPTH_ATR = 5.0` — an excursion digging deeper
+     below the rail is a genuine breakdown, never a terminal shakeout
+     (calibrated between BODI's measured chain, 0.86→3.34 ATR, and the
+     EGBN 7.68–9.98 ATR over-reach class it kills) — and
+     `BAND_EVENT_MAX_BARS = 20` — a run below the rail lasting months is a
+     markdown leg, not an episode (EGBN's stale April framing rode a 40-bar
+     "event"; BODI's real episodes run 12–18 bars). A non-finite or
+     non-positive ATR refuses event-typing outright (quarantine — NaN masks
+     must not silently report "no excursions"). Qualified event bars are
+     excised from the judged window; every gate in this list runs UNCHANGED
+     and full-strength on the remaining bars, except that a pair carrying a
+     qualified DEEP below-rail event (multi-bar, beyond S − 2×buffer) may
+     measure up to `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance
+     exists only with the event, so it can never act as a general width
+     loosening. The respect gate is untouched. The qualified deep event also
+     feeds Phase C as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated
+     spring detector finds nothing (see the Phase C bin note). Harness proof
+     at the marks (2026-07-16, flag-on variant): BODI fires tier A at the
+     operator's exact rails (12.33/10.18) on 04-10; both EGBN over-reach
+     fires are dead. The operator's A/B rail eyeball over
+     `docs/phase_c_marks_2026-07.json` landed 2026-07-11 FAVORABLE — the
+     flip waits on the operator's explicit go (protocol in the flag ledger;
+     the flip converts BODI's pinned corpus miss, a stage-matched re-freeze).
 6. **Structural-quality score:** every *valid* candidate gets
    `combined = 0.4 × box_tightness + 0.4 × touch_density(/10) + 0.2 × coverage`.
 7. **Candidate selection (`select="earliest"` live default):** choose the
@@ -818,7 +836,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `6099c4a66e20bdf465d19ababe453b1acdc308b7ae6b02ed66794a8713d9b21c`_
+_engine_config_version: `ab6154cc635891747835664888d76820bda509095baa644a6270c3c3f415cb30`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -901,6 +919,8 @@ LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 BAND_RAILS_ENABLED = False
 BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
+BAND_EVENT_MAX_DEPTH_ATR = 5.0
+BAND_EVENT_MAX_BARS = 20
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4
 LPS_ZONE_ATR_MULT = 0.5
 BIN_C_UNDERCUT_ATR_MIN = 0.3

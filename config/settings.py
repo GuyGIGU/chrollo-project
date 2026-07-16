@@ -81,6 +81,18 @@ BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 BAND_RAILS_ENABLED = False
 BAND_MAX_BOX_WIDTH = 0.23        # wick-to-wick cap for a pair WITH a qualified deep event
 BAND_EVENT_MIN_BARS = 2          # a deep event is multi-bar; one-bar pokes stay respect-buffer business
+# Depth cap on a qualified below-rail event, in ATRs below the S rail: deeper
+# is a genuine breakdown, never a terminal shakeout (the EGBN flip-pause
+# ruling — a 7.68-9.98 ATR excision electing a stale box is the over-reach
+# this kills). Calibrated between BODI's progressive chain (0.86 -> 3.34 ATR,
+# must pass) and the EGBN class (must refuse).
+BAND_EVENT_MAX_DEPTH_ATR = 5.0
+# Duration cap on one merged below-rail event: an episode is penetration ->
+# reclaim -> hold, bounded in time — a run below the rail lasting months is a
+# markdown leg, not a shakeout (EGBN's stale April framing rode a 40-bar
+# "event"; BODI's real episodes run 12-18 bars). 2x the respect gate's own
+# MAX_CONSECUTIVE_OUTSIDE_DAYS.
+BAND_EVENT_MAX_BARS = 20
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)

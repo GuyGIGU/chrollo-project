@@ -126,6 +126,102 @@ def test_qualify_band_above_excursion_must_fail_back_and_hold():
     assert _qualify_band(closes, lows, highs, 100.0, 106.0, buf=1.0) is None
 
 
+# ── sequence-aware HOLD chain + depth cap (plan task 9; expected values
+# transcribed from the operator's marks, not from the code) ────────────────
+
+def _two_step_closes(second_low=92.0):
+    """BODI's progressive two-step shape at synthetic scale: a first spring
+    (extreme ~95.5), a long reclaim, then a SECOND deeper spring (extreme
+    second_low - 0.5), reclaim, hold. The real chart measured 0.86 ATR then
+    3.34 ATR at the operator's rails (probe 2026-07-16)."""
+    return ([105.0, 106, 104, 105, 103, 104, 105, 106]        # worked range
+            + [100.5, 100.5, 100.0]                           # spring 1 (shallow)
+            + [104.0, 105, 103, 104, 105, 106, 104, 105, 103, 104, 105, 106]
+            + [second_low, second_low]                        # spring 2 (deeper)
+            + [104.0, 105, 103, 104, 105, 106, 104, 105, 103, 104, 105, 106])
+
+
+def test_qualify_band_progressive_two_step_chain_qualifies():
+    # The BODI ruling: successively deeper springs that each reclaim and hold
+    # are ONE progressive Phase-C step-down, not a breakdown. The old
+    # per-event HOLD refused this (spring 2 undercuts spring 1's extreme).
+    closes = np.array(_two_step_closes(), dtype=float)
+    lows, highs = closes - 0.5, closes + 0.5
+    read = _qualify_band(closes, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=12.0)
+    assert read is not None
+    below = [e for e in read["excursions"] if e["kind"] == "below"]
+    assert len(below) == 2
+    assert below[0]["extreme"] == 99.5 and below[1]["extreme"] == 91.5
+    assert not read["judged"][8:11].any() and not read["judged"][23:25].any()
+
+
+def test_qualify_band_chain_final_event_still_answers_unconditionally():
+    # The forgiveness never reaches past the last event: a low under the
+    # final extreme AFTER the chain is a breakdown, exactly as before.
+    closes = _two_step_closes()
+    closes[-3] = 90.0            # undercuts spring 2's 91.5 with no reclaim event
+    arr = np.array(closes, dtype=float)
+    lows, highs = arr - 0.5, arr + 0.5
+    assert _qualify_band(arr, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=12.0) is None
+
+
+def test_qualify_band_interevent_bars_must_respect_the_standing_floor():
+    # A non-event bar between the two springs digs under spring 1's extreme:
+    # not a qualified event, no forgiveness — the pair dies.
+    closes = _two_step_closes()
+    arr = np.array(closes, dtype=float)
+    lows, highs = arr - 0.5, arr + 0.5
+    lows[15] = 99.0              # a non-event LOW wicks under spring 1's 99.5
+    assert _qualify_band(arr, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=12.0) is None
+
+
+def test_qualify_band_depth_cap_refuses_the_egbn_overreach():
+    # The EGBN flip-pause ruling: an excision digging 7.68-9.98 ATR below the
+    # rail is a breakdown electing a stale box, never a terminal shakeout.
+    # At atr=1: S - extreme = 102 - 91.5 = 10.5 ATR > cap -> refused; the
+    # same shape passes at BODI scale (3.34 ATR < 5.0).
+    closes = np.array(_two_step_closes(), dtype=float)
+    lows, highs = closes - 0.5, closes + 0.5
+    assert _qualify_band(closes, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=settings.BAND_EVENT_MAX_DEPTH_ATR * 1.0) is None
+    shallow = np.array(_two_step_closes(second_low=99.0), dtype=float)
+    lows, highs = shallow - 0.5, shallow + 0.5
+    read = _qualify_band(shallow, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=settings.BAND_EVENT_MAX_DEPTH_ATR * 1.0)
+    assert read is not None
+
+
+def test_qualify_band_duration_cap_refuses_a_markdown_leg():
+    # EGBN's stale April framing rode a 40-bar "event" — a two-month run
+    # below the rail is a markdown leg, never a shakeout episode (BODI's
+    # real episodes measured 12 and 18 bars). Pinned at the knob boundary.
+    n_long = settings.BAND_EVENT_MAX_BARS + 1
+    closes = np.array([105.0, 106, 104, 105, 103, 104, 105, 106]
+                      + [96.0] * n_long
+                      + [104.0, 105, 103, 104, 105, 106] * 4, dtype=float)
+    lows, highs = closes - 0.5, closes + 0.5
+    assert _qualify_band(closes, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=12.0) is None
+    ok = np.array([105.0, 106, 104, 105, 103, 104, 105, 106]
+                  + [96.0] * settings.BAND_EVENT_MAX_BARS
+                  + [104.0, 105, 103, 104, 105, 106] * 4, dtype=float)
+    lows, highs = ok - 0.5, ok + 0.5
+    assert _qualify_band(ok, lows, highs, 102.0, 107.0, buf=1.0,
+                         max_depth=12.0) is not None
+
+
+def test_qualify_pair_events_refuses_non_finite_or_zero_atr():
+    # NaN masks silently report "no excursions" — the quarantine refuses
+    # loudly instead, falling back to strict-path behavior.
+    df = _frame(_two_step_closes())
+    assert qualify_pair_events(df, 102.0, 107.0, float("nan")) is None
+    assert qualify_pair_events(df, 102.0, 107.0, 0.0) is None
+    assert qualify_pair_events(df, 102.0, 107.0, None) is None
+
+
 def test_spans_finds_contiguous_runs():
     mask = np.array([False, True, True, False, True, False])
     assert _spans(mask) == [(1, 3), (4, 5)]
@@ -158,9 +254,12 @@ def test_qualify_pair_events_requires_a_deep_multibar_event():
     closes[12] = 96.0
     assert qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0) is None
 
-    # A multi-bar DEEP episode (beyond S - 2*buf) that reclaims and holds: read.
+    # A multi-bar DEEP episode (beyond S - 2*buf, within the terminal-shakeout
+    # depth cap) that reclaims and holds: read. (The original 6.5-ATR-deep
+    # fixture now correctly refuses under BAND_EVENT_MAX_DEPTH_ATR — that
+    # magnitude is the EGBN breakdown class, pinned in its own test.)
     closes = _boxy_closes(40)
-    closes[12], closes[13], closes[14] = 96.0, 94.0, 95.0
+    closes[12], closes[13], closes[14] = 96.5, 96.0, 96.5
     read = qualify_pair_events(_frame(closes), 100.0, 110.0, 1.0)
     assert read is not None
     assert [e["kind"] for e in read["excursions"]] == ["below"]
