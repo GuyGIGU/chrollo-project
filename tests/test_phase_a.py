@@ -6,7 +6,7 @@ read (``macro_bridge_zigzag``) and its ``segment_swings`` wire.
 import numpy as np
 
 from config import settings
-from engine_alpha.structure.pip import macro_bridge_zigzag, pip_indices, pip_pivots, pip_skeleton
+from engine_alpha.structure.phase_a import macro_bridge_zigzag, pip_indices, pip_pivots, pip_skeleton
 
 
 def test_pip_indices_picks_biggest_swing_first():
@@ -119,7 +119,7 @@ def test_confirmed_bridge_guards_tnc_class():
     # TNC class, tested on the pure guard: a shallow old-top bridge whose leg
     # CONTAINS the crash low (AR extremity) — and, separately, whose climax is
     # later exceeded by far more than the bridge height (terminality).
-    from engine_alpha.structure.pip import _validated_bridge
+    from engine_alpha.structure.phase_a import _validated_bridge
 
     P = np.concatenate([
         np.linspace(100.0, 140.0, 11),      # bars 0..10, old top 140 @10

@@ -49,7 +49,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.pip import pip_indices
+from engine_alpha.structure.phase_a import pip_indices
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "substrate_ab")
 _JSON_PATH = os.path.join(_OUT_DIR, "substrate_ab_results.json")

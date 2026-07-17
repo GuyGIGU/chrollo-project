@@ -73,7 +73,7 @@ AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >=
 AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
 
 # Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag; see
-# core/structure/pip.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
+# engine_alpha/structure/phase_a.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
 # (PIP_PIVOTS_ENABLED — segment_swings sourcing its whole zigzag from one
 # fixed-dist_min PIP skeleton) was eyeball-gated OFF as a wash (fixes some
 # inverted climax->AR overlays, creates others — GBTG/PLSE/CGNX, commit

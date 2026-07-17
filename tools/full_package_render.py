@@ -438,7 +438,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
 
     # --- P9: macro bridge (optional) -----------------------------------------
     if show_macro:
-        from engine_alpha.structure.pip import macro_bridge_zigzag
+        from engine_alpha.structure.phase_a import macro_bridge_zigzag
         zz = macro_bridge_zigzag(df["High"].values.astype(float),
                                  df["Low"].values.astype(float))
         if len(zz) >= 2:

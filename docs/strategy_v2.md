@@ -338,7 +338,7 @@ The rule is **mirror-symmetric** — a selling-climax paints the first up-reacti
 
 ### Phase A — Macro bridge read (flag-gated, default off)
 
-`macro_bridge_zigzag()` ([core/structure/pip.py](../core/structure/pip.py)), wired through
+`macro_bridge_zigzag()` ([engine_alpha/structure/phase_a.py](../engine_alpha/structure/phase_a.py), formerly `pip.py`), wired through
 `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) when
 `PIP_MACRO_PHASE_A_ENABLED` is on. A multi-resolution PIP (Perceptually Important Points)
 skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
