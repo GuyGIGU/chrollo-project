@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from engine_alpha.structure.metrics import measure_traversal
+from engine_alpha.structure.metrics import _rail_touch_thirds, measure_traversal
 from engine_alpha.structure.pivots import _build_zigzag, _find_pivots, _pivot_order
 
 
@@ -235,13 +235,8 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val):
     closes = eq_df["Close"].values.astype(float)
     n = len(closes)
 
-    tb = settings.TOUCH_TOLERANCE_ATR * atr_val
-    r_mask = np.abs(highs - R_val) <= tb
-    s_mask = np.abs(lows - S_val) <= tb
-
-    thirds = np.array_split(np.arange(n), 3)
-    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
-    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+    r_mask, s_mask, r_touch_thirds, s_touch_thirds = _rail_touch_thirds(
+        highs, lows, R_val, S_val, atr_val)
 
     pos = np.clip((closes - S_val) / box, 0.0, 1.0)
     lower_dwell = float(np.mean(pos <= 1.0 / 3.0))

@@ -304,6 +304,21 @@ def measure_support_slope(base_df, atr_val, order=None):
 # Measurement: Volume signature at the R/S touch bars
 # ---------------------------------------------------------------------------
 
+def _rail_touch_thirds(highs, lows, R, S, atr_val):
+    """Rail-touch masks (|price − rail| within TOUCH_TOLERANCE_ATR × ATR) plus
+    how many time-thirds each rail's touches span — THE touch predicate, shared
+    by the touch-volume read, the equilibrium read, and the election-side close
+    residence. Deliberately guard-free: callers own ATR/window validity, and the
+    unguarded sites rely on NaN comparisons routing to False."""
+    tb = settings.TOUCH_TOLERANCE_ATR * atr_val
+    r_mask = np.abs(highs - R) <= tb
+    s_mask = np.abs(lows - S) <= tb
+    thirds = np.array_split(np.arange(len(highs)), 3)
+    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
+    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+    return r_mask, s_mask, r_touch_thirds, s_touch_thirds
+
+
 def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float,
                          atr_val: float) -> tuple[Optional[float], Optional[float]]:
     """
@@ -321,9 +336,11 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
     Pure measurement — it reports the numbers and assigns no score. The Scoring
     Engine and the tag chips decide what the numbers are worth.
     """
-    touch_band = settings.TOUCH_TOLERANCE_ATR * atr_val
-    r_touch_mask = (base_df['High'] - res_avg).abs() <= touch_band
-    s_touch_mask = (base_df['Low'] - sup_avg).abs() <= touch_band
+    r_touch_mask, s_touch_mask, _, _ = _rail_touch_thirds(
+        base_df['High'].values.astype(float),
+        base_df['Low'].values.astype(float),
+        res_avg, sup_avg, atr_val,
+    )
     vol_mean_base = float(base_df['Volume'].mean())
     vol_std_base = float(base_df['Volume'].std())
 
@@ -432,13 +449,8 @@ def measure_equilibrium(base_df, R, S, atr_val):
     lows = base_df["Low"].values.astype(float)
     n = len(highs)
 
-    tb = settings.TOUCH_TOLERANCE_ATR * atr_val
-    r_mask = np.abs(highs - R) <= tb
-    s_mask = np.abs(lows - S) <= tb
-
-    thirds = np.array_split(np.arange(n), 3)
-    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
-    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+    r_mask, s_mask, r_touch_thirds, s_touch_thirds = _rail_touch_thirds(
+        highs, lows, R, S, atr_val)
 
     # Range occupancy: a bar works a third/bin if its full [Low, High] range
     # intersects it. Closes are a residence concept; Phase-B rail work is a
