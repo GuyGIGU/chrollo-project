@@ -362,7 +362,8 @@ def _relative_strength_context(df: pd.DataFrame, current_price, spy_6m_return: f
 
 
 def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
-                          sup_avg: float, atr_for_zone: float) -> dict:
+                          sup_avg: float, atr_for_zone: float,
+                          traversal: dict) -> dict:
     r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
         base_df, res_avg, sup_avg, atr_for_zone
     )
@@ -375,7 +376,9 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
         ),
         "support": measure_support_slope(base_df, atr_for_zone),
         "equilibrium": measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone),
-        "traversal": measure_traversal(base_df, res_avg, sup_avg, atr_for_zone),
+        # Measured once at box election (bricks.validate_equilibrium) on the
+        # same window/rails/ATR; carried on the brick, never re-measured here.
+        "traversal": traversal,
         # Gate-margin telemetry (measure-first): the elected box against the
         # respect gate's band and the dead-space gate's own close residence —
         # archived raw so threshold debates open with distributions, never
@@ -856,6 +859,7 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
         structure_ctx["res_avg"],
         structure_ctx["sup_avg"],
         structure_ctx["atr_for_zone"],
+        structure_ctx["structure"].box.traversal,
     )
 
     if descent_tail_drops(

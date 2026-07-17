@@ -59,6 +59,9 @@ class EquilibriumBox:
     s_anchor_bar: int
     n_full_traversals: int
     traversal_density: float
+    # The full measure_traversal dict for THIS box, measured once at election;
+    # evaluation consumes it instead of re-measuring the same window/rails/ATR.
+    traversal: Optional[dict] = None
 
 
 @dataclass
@@ -290,6 +293,7 @@ def validate_equilibrium(
         s_anchor_bar=int(root.ar_bar + s_anchor),
         n_full_traversals=n_full,
         traversal_density=float(density),
+        traversal=traversal,
     )
 
 
