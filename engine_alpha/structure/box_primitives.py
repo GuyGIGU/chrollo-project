@@ -138,13 +138,13 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     "bars not candles" rule.
 
     Returns:
-        (respected, r_broken, s_broken, total_outside_days)
+        (respected, r_broken, s_broken, total_outside_days, respect_share)
     """
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
     n = len(highs)
     if n == 0:
-        return False, False, False, 0
+        return False, False, False, 0, 0.0
 
     r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
 
@@ -173,7 +173,7 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     r_broken = r_consec_max > max_outside
     s_broken = s_consec_max > max_outside
 
-    return respected, r_broken, s_broken, total_outside
+    return respected, r_broken, s_broken, total_outside, respect_pct
 
 
 def _worked_window_end(highs, lows, R_val, S_val, atr_val):
@@ -468,7 +468,7 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     for a rescued one). R/S/anchors/cand_start are always the framing's true
     full-base coordinates — only the measurement window narrows.
     """
-    respected, _r_broken, _s_broken, total_outside = _is_boundary_respected(
+    respected, _r_broken, _s_broken, total_outside, share = _is_boundary_respected(
         highs, lows, R_val, S_val, atr_val,
     )
     if not respected:
@@ -477,7 +477,6 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
             # outside SHARE or on a too-long consecutive RUN. When the share
             # passed, the run cap is — by elimination — the killer.
             n = len(highs)
-            share = 1.0 - (total_outside / n) if n else 0.0
             if share < settings.MIN_BOUNDARY_RESPECT_PCT:
                 detail = (f"{total_outside}/{n} bars outside the buffered rails "
                           f"(respect {share:.2f} < {settings.MIN_BOUNDARY_RESPECT_PCT})")

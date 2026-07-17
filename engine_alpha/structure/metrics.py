@@ -391,12 +391,12 @@ def measure_gate_margins(base_df, R, S, atr_val):
         _is_boundary_respected,
         _measure_close_residence,
     )
-    _, _, _, total_outside = _is_boundary_respected(
+    _, _, _, _, respect_share = _is_boundary_respected(
         base_df["High"].to_numpy(dtype=float),
         base_df["Low"].to_numpy(dtype=float), R, S, atr_val)
     eq = _measure_close_residence(base_df, R, S, atr_val)
     return {
-        "respect_frac": 1.0 - total_outside / len(base_df),
+        "respect_frac": respect_share,
         "close_lower_dwell": float(eq["lower_dwell"]),
         "close_mid_dwell": float(eq["mid_dwell"]),
         "close_upper_dwell": float(eq["upper_dwell"]),
