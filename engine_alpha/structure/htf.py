@@ -142,7 +142,11 @@ def timeframe_windows(tf: str):
 
 
 def htf_stage2(df: pd.DataFrame) -> dict:
-    """Weinstein/Minervini Stage-2 trend filter on the HTF frame: price above a
+    """The HTF form of the one Stage-2 question — its daily twin is
+    ``indicators.trend_template`` (the full Minervini criteria set). Two labeled
+    forms by design (P6); wire keys of both are frozen.
+
+    Weinstein/Minervini Stage-2 trend filter on the HTF frame: price above a
     rising ``HTF_STAGE_MA``-period MA (weekly MA-30 ~ daily MA-150/200). Measured
     on the last COMPLETED bar (the live partial is skipped). Never raises."""
     ma_n = int(settings.HTF_STAGE_MA)

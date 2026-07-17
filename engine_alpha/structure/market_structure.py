@@ -505,6 +505,10 @@ def first_reaction_after(df, terminal_bar, *, direction, atr,
                          end_bar: Optional[int] = None):
     """The AUTOMATIC REACTION extreme after a trend's terminal swing.
 
+    Phase-A election, form 3 of 3 (bar-level AR refinement, CLIMAX-GIVEN —
+    it never elects the climax); forms 1 and 2 are
+    ``segmentation._find_root_swing`` and ``phase_a._validated_bridge``.
+
     Derived from the HH/HL trend model: the terminal swing (a buying-climax peak
     for ``direction=+1``, a selling-climax valley for ``-1``) tops the trend, and
     the automatic reaction is the FIRST continuous counter-move off it. The

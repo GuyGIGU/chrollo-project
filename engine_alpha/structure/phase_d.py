@@ -252,6 +252,17 @@ def resolve_phase_d_boundary(
     Spring recovery and search_start are floors only. Among right-side evidence
     at/after that floor, the earliest credible bar wins. The LPS minimum is the
     mandatory gate and fallback when no richer evidence sits after the floor.
+
+    Floor-policy variants (C24 — three DELIBERATE labeled forms, one resolver;
+    behavior frozen, the evidence dict records the policy used):
+      1. narrative walk — passes ``spring.recovery_bar`` for ANY spring type
+         (incl. TERMINAL_SHAKEOUT) plus ``inner.search_start_bar``.
+      2. measure_phases — passes the recovery bar only when
+         ``bin_c_type == "SPRING"`` (the ordinary calibrated spring).
+      3. scope — its own caller-side floor selection for chart-region labels.
+    Collapsing these is a behavior change (capture-visible via
+    ``_bin_d_boundary_source`` / ``phase_d_evidence_json``) — do not unify
+    without a fold_parity proof and an operator ruling.
     """
     floor_marks = [m for m in (phase_c_recovery_bar, search_start_bar) if m is not None]
     floor = max(int(m) for m in floor_marks) if floor_marks else (

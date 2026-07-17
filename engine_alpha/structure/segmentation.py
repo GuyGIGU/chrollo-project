@@ -48,6 +48,12 @@ def _empty() -> dict:
 def _find_root_swing(zigzag, swings, atr_val, dominant, base_off) -> Optional[dict]:
     """Locate the root swing — the trend->range bridge.
 
+    Phase-A election, form 1 of 3 (the CANONICAL pivot-level joint election);
+    form 2 is ``phase_a._validated_bridge`` (guarded macro candidate walk),
+    form 3 is ``market_structure.first_reaction_after`` (bar-level AR
+    refinement, climax-given). Elections and tie-breaks here are
+    order-sensitive — the max()/min() first-win convention IS behavior.
+
     The climax is the extreme pivot in the dominant direction (highest peak when
     the window trends up, lowest valley when it trends down). The root swing's
     counter-leg is the swing FROM that climax to the next pivot — the AR. Its

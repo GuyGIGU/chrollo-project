@@ -99,6 +99,11 @@ def distance_to_52w_high_pct(high, current_price, lookback: int = 252):
 def trend_template(df, *, dist_52w_high_pct=None) -> dict:
     """Minervini Stage-2 trend-template criteria (measure-only, no opinion).
 
+    The DAILY form of the one Stage-2 question — its HTF twin is
+    ``htf.htf_stage2`` (Weinstein MA-state on the resampled frame). Two labeled
+    forms by design: different frames, different criteria sets, same event
+    ("is this stock in a Stage-2 uptrend?"). Wire keys of both are frozen.
+
     The classic price/structure template, computed self-contained from df:
       1. price > SMA_150 and price > SMA_200
       2. SMA_150 > SMA_200
