@@ -200,6 +200,31 @@ def _read_htf_structure(df: pd.DataFrame, atr: float, max_roots: int = 40) -> Op
     return None
 
 
+def _prep_htf_frame(daily_df: pd.DataFrame, tf: str):
+    """Resample + enrich (ATR_10 / Vol_50 / Spread) + right-edge ATR sample —
+    the shared preamble of ``read_htf_context`` and ``chart_box``. Returns
+    ``(htf_df, atr, atr_ok)``: ``htf_df`` is None when the resample refuses
+    (too short); ``atr_ok`` is False when the sampled ATR refuses. Callers own
+    their bail values — ``read_htf_context`` still writes its Stage-2 fields
+    BEFORE honoring the ATR refusal. The structure walk stays with the callers
+    (the ``_read_htf_structure`` monkeypatch seam)."""
+    htf_df = resample_ohlc(daily_df, tf)
+    if htf_df is None or len(htf_df) < 8:
+        return None, 0.0, False
+    htf_df = htf_df.copy()
+    htf_df["ATR_10"] = calculate_atr(htf_df, 10)
+    if "Volume" in htf_df.columns:
+        htf_df["Vol_50"] = htf_df["Volume"].rolling(50, min_periods=1).mean()
+    else:
+        htf_df["Volume"] = 0.0
+        htf_df["Vol_50"] = 0.0
+    htf_df["Spread"] = htf_df["High"] - htf_df["Low"]
+    atr = float(htf_df["ATR_10"].iloc[-2 if len(htf_df) >= 2 else -1])
+    if not np.isfinite(atr) or atr <= 0:
+        return htf_df, atr, False
+    return htf_df, atr, True
+
+
 def read_htf_context(daily_df: pd.DataFrame, tf: str,
                      daily_box: Optional[tuple] = None) -> dict:
     """The HTF context for one ticker at one timeframe, as a flat prefixed dict
@@ -215,24 +240,15 @@ def read_htf_context(daily_df: pd.DataFrame, tf: str,
     if not getattr(settings, "HTF_CONTEXT_ENABLED", True):
         return out
     try:
-        htf_df = resample_ohlc(daily_df, tf)
-        if htf_df is None or len(htf_df) < 8:
+        htf_df, atr, atr_ok = _prep_htf_frame(daily_df, tf)
+        if htf_df is None:
             return out
-        htf_df = htf_df.copy()
-        htf_df["ATR_10"] = calculate_atr(htf_df, 10)
-        if "Volume" in htf_df.columns:
-            htf_df["Vol_50"] = htf_df["Volume"].rolling(50, min_periods=1).mean()
-        else:
-            htf_df["Volume"] = 0.0
-            htf_df["Vol_50"] = 0.0
-        htf_df["Spread"] = htf_df["High"] - htf_df["Low"]
 
         stage = htf_stage2(htf_df)
         out[prefix + "stage2"] = stage["stage2"]
         out[prefix + "trend_state"] = stage["trend_state"]
 
-        atr = float(htf_df["ATR_10"].iloc[-2 if len(htf_df) >= 2 else -1])
-        if not np.isfinite(atr) or atr <= 0:
+        if not atr_ok:
             return out
 
         with timeframe_windows(tf):
@@ -262,19 +278,8 @@ def chart_box(daily_df: pd.DataFrame, tf: str) -> Optional[dict]:
     ``read_htf_context``. Returns None when there is no worked box. Never raises
     (charting must not break a scan)."""
     try:
-        htf_df = resample_ohlc(daily_df, tf)
-        if htf_df is None or len(htf_df) < 8:
-            return None
-        work = htf_df.copy()
-        work["ATR_10"] = calculate_atr(work, 10)
-        if "Volume" in work.columns:
-            work["Vol_50"] = work["Volume"].rolling(50, min_periods=1).mean()
-        else:
-            work["Volume"] = 0.0
-            work["Vol_50"] = 0.0
-        work["Spread"] = work["High"] - work["Low"]
-        atr = float(work["ATR_10"].iloc[-2 if len(work) >= 2 else -1])
-        if not np.isfinite(atr) or atr <= 0:
+        work, atr, atr_ok = _prep_htf_frame(daily_df, tf)
+        if work is None or not atr_ok:
             return None
         with timeframe_windows(tf):
             s = _read_htf_structure(work, atr)
