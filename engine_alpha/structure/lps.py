@@ -173,6 +173,15 @@ def _pullback_rest_low_verdict(
     return "pass", True
 
 
+def _depth_in_base_envelope(pullback_profile: float, min_pullback: float) -> bool:
+    """Is the dig inside the BASE depth envelope? One judgment shared by both
+    LPS completion forms (pullback-and-rest passes its zone-escalated floor,
+    the holding shelf passes the plain floor). The chained comparison is the
+    NaN route (NaN -> False) — keep the form; the MAX is read at call time so
+    settings overrides propagate."""
+    return min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
+
+
 def _pullback_rest_depth_ok(
     pullback_profile: float,
     zone_type: str,
@@ -207,7 +216,7 @@ def _pullback_rest_depth_ok(
         )
         if not buec_shelf:
             min_pullback = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
-    ok = min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
+    ok = _depth_in_base_envelope(pullback_profile, min_pullback)
     return ok, buec_shelf
 
 
@@ -242,8 +251,7 @@ def _holding_shelf_verdict(
         return False
     if _box_position(support_low, sup_avg, box_height) < settings.LPS_SHELF_MIN_LOW_POS_BOX:
         return False
-    return (settings.LPS_PULLBACK_PROFILE_MIN
-            <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX)
+    return _depth_in_base_envelope(pullback_profile, settings.LPS_PULLBACK_PROFILE_MIN)
 
 
 def _public_candidate(candidate: dict, df: pd.DataFrame) -> dict:
