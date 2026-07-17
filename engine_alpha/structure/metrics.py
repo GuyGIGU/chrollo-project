@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.pivots import _build_zigzag, _collapse_swings, _find_pivots
+from engine_alpha.structure.pivots import (_build_zigzag, _collapse_swings,
+                                           _find_pivots, _pivot_order)
 
 # L2 Wyckoff event reader — relocated to engine_alpha.structure.box_events. Re-exported
 # here so every existing ``from engine_alpha.structure.metrics import ...`` site keeps
@@ -141,8 +142,7 @@ def measure_contractions(base_df, order=None):
     volumes = base_df["Volume"].values if "Volume" in base_df.columns else None
     n = len(highs)
     if order is None:
-        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
-                 else settings.PIVOT_ORDER_SHORT)
+        order = _pivot_order(n)
     if n < 2 * order + 1:
         return empty
 
@@ -252,8 +252,7 @@ def measure_support_slope(base_df, atr_val, order=None):
     lows = base_df["Low"].values
     n = len(highs)
     if order is None:
-        order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
-                 else settings.PIVOT_ORDER_SHORT)
+        order = _pivot_order(n)
     if n < 2 * order + 1:
         return empty
 

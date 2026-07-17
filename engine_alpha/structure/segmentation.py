@@ -30,7 +30,7 @@ from typing import Optional
 import numpy as np
 
 from config import settings
-from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots, _pivot_order
 
 
 def _empty() -> dict:
@@ -204,8 +204,7 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
                 macro_story = True
     if zigzag is None:
         if order is None:
-            order = (settings.PIVOT_ORDER_LONG if n >= settings.PIVOT_ORDER_THRESHOLD
-                     else settings.PIVOT_ORDER_SHORT)
+            order = _pivot_order(n)
         peaks, valleys = _find_pivots(highs, lows, order)
         if not peaks or not valleys:
             return _empty()

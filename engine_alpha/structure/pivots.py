@@ -3,6 +3,17 @@ from __future__ import annotations
 
 import numpy as np
 
+from config import settings
+
+
+def _pivot_order(n_bars):
+    """The calibrated pivot half-window for a window of ``n_bars`` — ONE rule
+    for every detector (LONG at/above the threshold, SHORT below). Settings are
+    read at call time so the HTF preset overrides keep propagating."""
+    if n_bars >= settings.PIVOT_ORDER_THRESHOLD:
+        return settings.PIVOT_ORDER_LONG
+    return settings.PIVOT_ORDER_SHORT
+
 
 def _find_pivots(highs, lows, order):
     """Detect pivot peaks and valleys using a rolling window of given order.

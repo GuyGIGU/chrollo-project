@@ -17,7 +17,7 @@ import numpy as np
 
 from config import settings
 from engine_alpha.structure.metrics import measure_traversal
-from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots, _pivot_order
 
 
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
@@ -335,12 +335,6 @@ def _candidate_atr(eq_df, eq_highs, eq_lows, atr_override=None):
     if atr_val <= 0 or np.isnan(atr_val):
         atr_val = float(np.median(eq_highs - eq_lows))
     return atr_val
-
-
-def _pivot_order(n_bars):
-    if n_bars >= settings.PIVOT_ORDER_THRESHOLD:
-        return settings.PIVOT_ORDER_LONG
-    return settings.PIVOT_ORDER_SHORT
 
 
 def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
