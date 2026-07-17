@@ -664,7 +664,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
     Re-judges the SAME chronological zigzag pairs the strict pool enumerated —
     the operator's rail rule ("anchor R/S from the swings in chronological
     order, wick to wick") — with each pair's qualified excursion events excised
-    from the judged window (``band_rails.qualify_pair_events``: every
+    from the judged window (``rail_qualification.qualify_pair_events``: every
     band-leaving span must reclaim/fail-back and HOLD, and at least one deep
     below-rail event must exist, or the pair is refused). Judged windows run
     the unchanged ``_build_candidate`` gates — the SOS-trim narrowed-
@@ -672,7 +672,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
     event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
     allowance; it exists only when the event does).
     """
-    from engine_alpha.structure.band_rails import qualify_pair_events
+    from engine_alpha.structure.rail_qualification import qualify_pair_events
 
     pool = []
     for i in range(len(zigzag) - 1):

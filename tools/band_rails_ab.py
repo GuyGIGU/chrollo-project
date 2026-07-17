@@ -42,7 +42,7 @@ import os
 
 import pandas as pd
 
-from engine_alpha.structure.band_rails import qualify_pair_events
+from engine_alpha.structure.rail_qualification import qualify_pair_events
 from tools.replay import load_sealed_fixture, resolve_frame, snapped_election
 
 _THIS = os.path.dirname(os.path.abspath(__file__))

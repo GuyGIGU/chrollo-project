@@ -629,7 +629,7 @@ def test_overshoot_rescope_refuses_immature_cause(monkeypatch, _lps_behavior_fra
     # The BBVA pin (operator-ruled "just incomplete" 2026-07-17): a throwback
     # above R claims the cause below is complete, so the rescoped ATR
     # denominator only engages on a matured cause (>= 2x MIN_BASE_DAYS, the
-    # same floor a terminal shakeout needs in band_rails). The IDENTICAL
+    # same floor a terminal shakeout needs in rail_qualification). The IDENTICAL
     # shelf geometry on a bare-minimum 20-bar base falls back to the raw
     # window gate — the pre-flip path — and refuses.
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)

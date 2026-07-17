@@ -433,7 +433,7 @@ def detect_lps_candidates(
             # refuses the rescoped path (falls back to the raw gate).
             # A throwback above R claims the cause below is COMPLETE, so the
             # rescope only engages on a MATURED cause (>= 2x MIN_BASE_DAYS —
-            # the same floor a terminal shakeout needs in band_rails):
+            # the same floor a terminal shakeout needs in rail_qualification):
             # operator-ruled 2026-07-17 on BBVA ("just incomplete", 20-bar
             # minimum base, 2 traversals) vs CTOS (50-bar cause, 10
             # traversals, his own mark). Immature causes fall back to the raw

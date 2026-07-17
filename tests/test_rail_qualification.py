@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 import engine_alpha.structure.box_primitives as bp
-from engine_alpha.structure.band_rails import (
+from engine_alpha.structure.rail_qualification import (
     _merge_spans,
     _qualify_band,
     _spans,

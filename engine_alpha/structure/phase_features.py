@@ -475,7 +475,7 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
     """Type the box's qualified DEEP excursion as its Phase C
     (``bin_c_type = "TERMINAL_SHAKEOUT"``) — flag-dark, Event Map Task 11.
 
-    Qualification is band_rails' own (the SAME read the pair election used):
+    Qualification is rail_qualification's own (the SAME read the pair election used):
     every band-leaving span must reclaim/fail-back and HOLD, and a deep
     below-rail event must exist — otherwise there is no event to type. Of
     the qualifying deep events the LAST one is the shakeout (the ordinary
@@ -483,7 +483,7 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
     bin_c shape: the event bar is the excursion's trough, the recovery bar
     is the first close back inside the buffered band (the event's own
     reclaim definition — a hair looser than the ordinary close-above-S)."""
-    from engine_alpha.structure.band_rails import qualify_pair_events
+    from engine_alpha.structure.rail_qualification import qualify_pair_events
 
     window = df.iloc[box_start:]
     read = qualify_pair_events(window, S, R, atr)
