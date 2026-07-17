@@ -150,6 +150,25 @@ def read_market_structure(df, *, lookback: Optional[int] = None,
     return label_market_structure(zigzag)
 
 
+def _pairwise_descent_fraction(values) -> float:
+    """Fraction of pairwise comparisons where later values do not rise.
+
+    The order-AGNOSTIC descent classifier — co-located with its order-AWARE
+    twin ``classify_window_descent`` below: both answer "does this window
+    descend?", as two labeled forms of one question (moved here from lps.py;
+    body verbatim). This one stays the live LPS-window gate input."""
+    n = len(values)
+    if n < 2:
+        return 1.0
+    total_pairs = n * (n - 1) // 2
+    concordant = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if values[j] <= values[i]:
+                concordant += 1
+    return concordant / total_pairs if total_pairs > 0 else 1.0
+
+
 def _median(values) -> float:
     ordered = sorted(float(v) for v in values)
     m = len(ordered)
@@ -174,7 +193,7 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
     is a forgivable NOISE poke, or is a CONFIRMED up-turn that ends the test; then
     classifies the window as a whole. It GATES NOTHING — it returns magnitudes and
     a read; the caller (later, flag-gated) decides what to reject. This is the
-    order-AWARE companion to ``lps._pairwise_descent_fraction`` (which is order-
+    order-AWARE companion to ``_pairwise_descent_fraction`` above (which is order-
     agnostic and so cannot tell a lone poke from a genuine up-turn).
 
     Per-bar ``kind``:

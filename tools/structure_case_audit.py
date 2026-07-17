@@ -349,11 +349,11 @@ def _diagnose_candidates(df, root, atr) -> None:
     R_ext, S_ext = float(eq_highs.max()), float(eq_lows.min())
     if R_ext > S_ext:
         trav = measure_equilibrium(eq_df, R_ext, S_ext, atr)
-        lsf, cfp = trav.get("last_support_frac"), trav.get("coil_floor_pos")
+        lsf, cfp = trav.get("last_support_time_pos"), trav.get("low_position_in_box")
         if lsf is not None and cfp is not None:
             tag = ("recovered-support candidate (old floor abandoned early)"
                    if (lsf <= 0.40 and cfp >= 0.20) else "no early-abandonment signal")
-            print(f"      window: last_support_frac={lsf:.3f} coil_floor_pos={cfp:.3f} "
+            print(f"      window: last_support_time_pos={lsf:.3f} low_position_in_box={cfp:.3f} "
                   f"-> {tag}")
 
 

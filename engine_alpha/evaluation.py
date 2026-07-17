@@ -220,8 +220,8 @@ def descent_tail_drops(frame, parent_equilibrium, box_width, inner, lps_in_inner
     else:
         gate_eq = parent_equilibrium
         gate_width = box_width
-    return descent_tail_rejects(gate_eq.get("last_support_frac"),
-                                gate_eq.get("coil_floor_pos"), gate_width)
+    return descent_tail_rejects(gate_eq.get("last_support_time_pos"),
+                                gate_eq.get("low_position_in_box"), gate_width)
 
 
 def score_equilibrium_args(equilibrium, dwell_balance, bins) -> dict:
@@ -775,10 +775,10 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_trav_rail_reaches_low': int(equilibrium['rail_reaches_low']),
         '_trav_max_swing_frac': (float(equilibrium['max_swing_frac'])
                                  if equilibrium['max_swing_frac'] is not None else None),
-        '_trav_last_support_frac': (float(equilibrium['last_support_frac'])
-                                    if equilibrium['last_support_frac'] is not None else None),
-        '_trav_coil_floor_pos': (float(equilibrium['coil_floor_pos'])
-                                 if equilibrium['coil_floor_pos'] is not None else None),
+        '_trav_last_support_frac': (float(equilibrium['last_support_time_pos'])
+                                    if equilibrium['last_support_time_pos'] is not None else None),
+        '_trav_coil_floor_pos': (float(equilibrium['low_position_in_box'])
+                                 if equilibrium['low_position_in_box'] is not None else None),
         '_adr_pct': float(score_ctx["adr_value"]),
         '_adr_quality': float(score_ctx["adr_quality"]),
         '_phase_a_start_date': scope['phase_a_start_date'],

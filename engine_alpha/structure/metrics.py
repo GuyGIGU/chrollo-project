@@ -525,7 +525,7 @@ def measure_equilibrium(base_df, R, S, atr_val):
         "top_dead_space": None, "bottom_dead_space": None,
         "rail_reaches_high": 0, "rail_reaches_low": 0,
         "max_swing_frac": None,
-        "last_support_frac": None, "coil_floor_pos": None,
+        "last_support_time_pos": None, "low_position_in_box": None,
     }
     if base_df is None or len(base_df) == 0:
         return empty
@@ -604,17 +604,17 @@ def measure_equilibrium(base_df, R, S, atr_val):
     # Late-support work (descent-tail tell; shadow-only v1, no gate/points). A box
     # that touches S only early then floats up (a one-sided rising coil) reads as a
     # descent tail, not a worked range — unlike a range that re-tests S throughout.
-    # last_support_frac = time-position (0..1) of the last support touch; low = S
-    # abandoned early. coil_floor_pos = box-position of the lowest Low AFTER that
+    # last_support_time_pos = time-position (0..1) of the last support touch; low = S
+    # abandoned early. low_position_in_box = box-position of the lowest Low AFTER that
     # touch (0=S, 1=R); high = a real dead band beneath the late coil.
     s_band = settings.TOUCH_TOLERANCE_ATR * atr_val
     touch_bars = np.where(lows <= S + s_band)[0]
     if len(touch_bars):
-        last_support_frac = round(float(touch_bars[-1]) / max(1, n - 1), 4)
+        last_support_time_pos = round(float(touch_bars[-1]) / max(1, n - 1), 4)
         after = lows[touch_bars[-1] + 1:]
-        coil_floor_pos = round(float((np.min(after) - S) / box), 4) if len(after) else None
+        low_position_in_box = round(float((np.min(after) - S) / box), 4) if len(after) else None
     else:
-        last_support_frac, coil_floor_pos = None, None
+        last_support_time_pos, low_position_in_box = None, None
 
     return {
         "n_full_traversals": int(full),
@@ -624,17 +624,17 @@ def measure_equilibrium(base_df, R, S, atr_val):
         "rail_reaches_high": int(rail_reaches_high),
         "rail_reaches_low": int(rail_reaches_low),
         "max_swing_frac": round(float(max_span), 4),
-        "last_support_frac": last_support_frac,
-        "coil_floor_pos": coil_floor_pos,
+        "last_support_time_pos": last_support_time_pos,
+        "low_position_in_box": low_position_in_box,
     }
 
 
-def descent_tail_rejects(last_support_frac, coil_floor_pos, box_width) -> bool:
+def descent_tail_rejects(last_support_time_pos, low_position_in_box, box_width) -> bool:
     """True = the box ABANDONED its support rail EARLY into dead space — a
     mis-anchored / dead-space framing the descent-tail gate drops (CHCT, DGII).
 
-    ``last_support_frac`` (time-position 0..1 of the last support touch) is
-    ``<= DESCENT_TAIL_LSF_MAX`` AND ``coil_floor_pos`` (box-position of the lowest
+    ``last_support_time_pos`` (time-position 0..1 of the last support touch) is
+    ``<= DESCENT_TAIL_LSF_MAX`` AND ``low_position_in_box`` (box-position of the lowest
     Low after that touch) is ``>= DESCENT_TAIL_CFP_MIN`` — i.e. price left the low
     rail early and then coiled in dead space above it. Both inputs come from
     ``measure_equilibrium``; pass the ACTIVE box's fields (inner if the LPS
@@ -648,7 +648,7 @@ def descent_tail_rejects(last_support_frac, coil_floor_pos, box_width) -> bool:
         return False
     if box_width is None or box_width <= settings.BASE_AGE_DEADSPACE_WIDTH:
         return False
-    if last_support_frac is None or coil_floor_pos is None:
+    if last_support_time_pos is None or low_position_in_box is None:
         return False
-    return (last_support_frac <= settings.DESCENT_TAIL_LSF_MAX
-            and coil_floor_pos >= settings.DESCENT_TAIL_CFP_MIN)
+    return (last_support_time_pos <= settings.DESCENT_TAIL_LSF_MAX
+            and low_position_in_box >= settings.DESCENT_TAIL_CFP_MIN)

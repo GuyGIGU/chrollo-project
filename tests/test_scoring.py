@@ -201,7 +201,7 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
 
 def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     """The descent-tail gate drops a WIDE box whose support was abandoned early
-    (last_support_frac <= LSF_MAX) into dead space (coil_floor_pos >= CFP_MIN),
+    (last_support_time_pos <= LSF_MAX) into dead space (low_position_in_box >= CFP_MIN),
     but spares tight boxes (the EQIX exemption) and is None-safe / flag-guarded."""
     from engine_alpha.structure import descent_tail_rejects
 
@@ -214,9 +214,9 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     assert descent_tail_rejects(0.35, 0.30, 0.10) is True
     # Tight box (<= BASE_AGE_DEADSPACE_WIDTH) is EXEMPT (saves EQIX, w 0.038).
     assert descent_tail_rejects(0.35, 0.30, 0.04) is False
-    # Support held late (high last_support_frac) -> not a dead tail.
+    # Support held late (high last_support_time_pos) -> not a dead tail.
     assert descent_tail_rejects(0.80, 0.30, 0.10) is False
-    # No dead band under the late coil (low coil_floor_pos) -> not a dead tail.
+    # No dead band under the late coil (low low_position_in_box) -> not a dead tail.
     assert descent_tail_rejects(0.35, 0.10, 0.10) is False
     # None-safe (degenerate measure_equilibrium).
     assert descent_tail_rejects(None, 0.30, 0.10) is False

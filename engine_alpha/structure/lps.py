@@ -13,23 +13,10 @@ import numpy as np
 import pandas as pd
 
 from config import settings
+from engine_alpha.structure.market_structure import _pairwise_descent_fraction
 
 
 _TIGHT_BOX_WIDTH = 0.10
-
-
-def _pairwise_descent_fraction(values) -> float:
-    """Fraction of pairwise comparisons where later values do not rise."""
-    n = len(values)
-    if n < 2:
-        return 1.0
-    total_pairs = n * (n - 1) // 2
-    concordant = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            if values[j] <= values[i]:
-                concordant += 1
-    return concordant / total_pairs if total_pairs > 0 else 1.0
 
 
 def _finite(value) -> bool:
