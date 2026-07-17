@@ -11,17 +11,6 @@
       "_S": 2.76,
       "_trigger_price": 3.15
     },
-    "BBVA": {
-      "Setup": "LPS",
-      "Score": 98.1,
-      "Tier": "A",
-      "Base Len": 20,
-      "Box Width": 0.046955,
-      "LPS Length": 2,
-      "_R": 22.52,
-      "_S": 21.51,
-      "_trigger_price": 23.280001
-    },
     "BC": {
       "Setup": "LPS",
       "Score": 114.6,
@@ -389,7 +378,6 @@
     "MEGI",
     "IRS",
     "GF",
-    "BBVA",
     "NDSN",
     "SN",
     "ABEV",
@@ -399,5 +387,5 @@
     "TRS",
     "TKO"
   ],
-  "captured_at": "2026-07-16T23:32:18+00:00"
+  "captured_at": "2026-07-17T11:35:44+00:00"
 }

@@ -154,6 +154,16 @@
       "baseline_pass_at_freeze": true,
       "label": "dividend-adjustment artifact",
       "evidence": "as-traded price cutover 3b4c808 (passed baseline only on adjusted data)"
+    },
+    {
+      "ticker": "BBVA",
+      "key": "BBVA@2026-06-05",
+      "as_of": "2026-06-05",
+      "bars": 501,
+      "spy_6m_return": 0.08460361632701052,
+      "baseline_pass_at_freeze": true,
+      "label": "incomplete throwback (immature 20-bar cause)",
+      "evidence": "operator eyeball 2026-07-17; solve-the-engine flip #3 shadow admission; matured-cause floor in lps.py rescope"
     }
   ]
 }

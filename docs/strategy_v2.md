@@ -32,10 +32,21 @@ detector is the bug (or the model gets amended here, explicitly — never silent
 | **SC → AR** | Selling Climax → Automatic Rally | the end of the **main downtrend** only |
 | **Root Swing** | the climax→reaction pair *responsible for* the consolidation | whichever pair the cascade below settles on |
 | **mini climax / mini reaction** | smaller fractal analogues of BC/AR — every swing peak→valley pair is one | limbs inside/after the base; **never** labeled BC/AR |
+| **dead space** | the empty gap between a rail (R or S) and the consolidation's bars | a **rail-placement diagnostic only** — never a junk-chart label |
 
 BC/AR/SC are trend-end terms, full stop. Swings are fractal — small peaks and valleys are
 miniature climax→reaction pairs — but the *names* BC/AR belong to the main trend so the
 story stays readable.
+
+**Dead space (operator ruling, 2026-07-17):** too much — or plainly visible — dead space
+means either the consolidation was marked wrong (a tighter, better structure exists) or no
+valid setup exists there at all (no pair of limbs produces a valid structure for that
+chop). Some dead space is unavoidable and acceptable depending on the structure — an SOS
+shifting the base upward, a deep correction consolidating lower, a big upthrust followed
+by a huge spring can all leave holes — but even then the whole structure must stay tight
+and well respected. The term describes the rail-to-bars gap and nothing else; a chart the
+engine must refuse gets its own honest reason (mis-framed range, trend-continuation dip,
+run-up flag…), never "dead space" as a catch-all.
 
 ### The trend model — HH/HL runs with a start, a climax, and a CHoCH
 
@@ -435,7 +446,9 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      gate's own forgiveness horizon — an above-rail span longer than
      `MAX_CONSECUTIVE_OUTSIDE_DAYS` is a DEPARTURE (the range is not in
      force), never a poke (DBD: a 15-bar, 4.1-ATR rally above R rode the
-     uncapped above loop into a tier-S dead-space election); and the judged
+     uncapped above loop into a tier-S election on rails that were no longer
+     in force — the operator confirms DBD's consolidation itself is tight;
+     the junk was the mis-framed range, 2026-07-17); and the judged
      window must be a MATURED cause — at least 2 × `MIN_BASE_DAYS` judged
      bars after excision — because a terminal shakeout ends a long Phase B,
      it does not interrupt a five-week flag (SPCB: a 34-bar high-flag whose
@@ -1103,9 +1116,20 @@ zones are provably untouched; a non-finite ATR refuses the rescoped path.
 Proof at the marks: combined with the holding-shelf flag, CTOS fires
 2026-07-15 tier S at rails within tolerance (span overlap 1.0). At the live
 flip the shadow fixture admitted ONE new fire — BBVA (tier A, the rescope's
-narrow-box OVERSHOOT_R class; its labeled negative-corpus frame still
-rejects) — documented for the operator's eyeball; if his eye rules it junk,
-its frame becomes a new negative case and the rescope gets a hardening pass.
+narrow-box OVERSHOOT_R class) — and the operator's eyeball (2026-07-17)
+ruled it **"just incomplete"**: nothing really going on. The dissection
+agreed on the numbers, via cause maturity rather than the Phase-D label
+(both BBVA and CTOS select a `v_tip` boundary): BBVA sat on a bare-minimum
+20-bar base with 2 full traversals and 5R/4S touches; CTOS earned its
+throwback with a 50-bar cause, 10 traversals, 16R/16S. **Hardening bound
+(2026-07-17):** a throwback above R claims the cause below is COMPLETE, so
+the rescoped ATR denominator only engages on a **matured cause** —
+`base_len ≥ 2 × MIN_BASE_DAYS`, the same floor a terminal shakeout needs in
+the boundary-event pool. Immature causes fall back to the raw window gate
+(the pre-flip path, which already rejected them); knob-free, no new reject
+key. BBVA's fixture frame is frozen as negative-corpus case
+`BBVA@2026-06-05` ("incomplete throwback — immature 20-bar cause"); the
+fixture drop was exactly BBVA, zero collateral (CTOS byte-identical).
 
 The zone tolerance still adapts for tight boxes: if box width is below 10%, `_zone_tolerance()` uses `max(0.5 * ATR, 0.5 * box_height)`. This keeps tight inner boxes from rejecting reasonable breakout retests just above R or failed-seller tests just below S.
 

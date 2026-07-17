@@ -406,16 +406,24 @@ def detect_lps_candidates(
                 high_descent_frac,
                 box_width,
             )
-            # DARK rescope (LPS_OVERSHOOT_WINDOW_ATR_ENABLED): a breakout
-            # throwback resting ABOVE R is localized against the stock's own
-            # daily ranges when the box is narrow — box height is the wrong
-            # yardstick above the box. Gate-only: the archived
+            # Rescope (LPS_OVERSHOOT_WINDOW_ATR_ENABLED, live 2026-07-16): a
+            # breakout throwback resting ABOVE R is localized against the
+            # stock's own daily ranges when the box is narrow — box height is
+            # the wrong yardstick above the box. Gate-only: the archived
             # window_range_pct_box measure is unchanged. Non-finite ATR
             # refuses the rescoped path (falls back to the raw gate).
+            # A throwback above R claims the cause below is COMPLETE, so the
+            # rescope only engages on a MATURED cause (>= 2x MIN_BASE_DAYS —
+            # the same floor a terminal shakeout needs in band_rails):
+            # operator-ruled 2026-07-17 on BBVA ("just incomplete", 20-bar
+            # minimum base, 2 traversals) vs CTOS (50-bar cause, 10
+            # traversals, his own mark). Immature causes fall back to the raw
+            # gate, which is the pre-flip path that already rejected them.
             window_gate_ratio = window_range_pct_box
             if (
                 settings.LPS_OVERSHOOT_WINDOW_ATR_ENABLED
                 and zone_type == "OVERSHOOT_R"
+                and base_len >= 2 * settings.MIN_BASE_DAYS
                 and atr_val is not None
                 and np.isfinite(float(atr_val))
                 and float(atr_val) > 0

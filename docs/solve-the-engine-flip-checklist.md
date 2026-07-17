@@ -75,7 +75,13 @@ agreement harness with `--prev` delta attribution.
   fires, no tier/rail moves. AGCO converts in the harness.
 
 ## Standing items
-- **BBVA eyeball** (from flip 3) — see above. The one open judgment call.
+- **BBVA eyeball — RESOLVED 2026-07-17.** The operator ruled the flip-3
+  admission "just incomplete" (Phase D never developed). Dissection agreed via
+  cause maturity (20-bar minimum base / 2 traversals vs CTOS's 50-bar / 10):
+  the rescope now engages only on a matured cause (≥ 2 × `MIN_BASE_DAYS`,
+  mirroring the terminal-shakeout floor), BBVA's frame is negative-corpus case
+  `BBVA@2026-06-05`, and the shadow re-capture dropped exactly BBVA with CTOS
+  byte-identical.
 - Stretch levers (EGBN dwell proximity, YPF untrimmed-tape dwell, AGCO SMA50
   pincer) stay evidence-gated on the `eq_respect_frac` / `eq_close_*_dwell`
   margin telemetry now archiving on every fired box.
