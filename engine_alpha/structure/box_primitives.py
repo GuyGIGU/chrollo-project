@@ -120,6 +120,15 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
     return anchors
 
 
+def _buffered_rails(R_val, S_val, atr_val):
+    """The ATR-buffered rail levels (R + buffer, S − buffer) every outside /
+    containment judgment measures against. Levels ONLY — each caller keeps its
+    own comparison form verbatim (strict vs inclusive is NaN routing, never
+    restyle; fold-safety dossier)."""
+    buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
+    return R_val + buffer, S_val - buffer
+
+
 def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     """
     Check if price action respects R/S boundaries using ATR-buffered zones.
@@ -137,9 +146,7 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     if n == 0:
         return False, False, False, 0
 
-    buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
-    r_ceiling = R_val + buffer
-    s_floor = S_val - buffer
+    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
 
     above_r = highs > r_ceiling
     below_s = lows < s_floor
@@ -190,9 +197,7 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
         return n
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
-    buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
-    r_ceiling = R_val + buffer
-    s_floor = S_val - buffer
+    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
     above = highs > r_ceiling
     min_prefix = settings.SOS_TRIM_MIN_PREFIX_FRAC * n
     i = 0
@@ -757,7 +762,7 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(len(eq_df)))
     zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
     tol = settings.TOUCH_TOLERANCE_ATR * atr_val
-    buf = settings.BOUNDARY_ATR_BUFFER * atr_val
+    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
     for bar, kind, price in zigzag:                     # oldest pivot first
         if bar >= cand_start:
             break
@@ -765,8 +770,8 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
                         else abs(price - S_val) <= tol)
         if not touches_rail:
             continue
-        if float(eq_highs[bar:cand_start].max()) <= R_val + buf \
-                and float(eq_lows[bar:cand_start].min()) >= S_val - buf:
+        if float(eq_highs[bar:cand_start].max()) <= r_ceiling \
+                and float(eq_lows[bar:cand_start].min()) >= s_floor:
             return int(bar)
     return cand_start
 
