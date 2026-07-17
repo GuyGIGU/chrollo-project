@@ -14,7 +14,6 @@ from engine_alpha.structure import (
     adr_pct,
     calculate_atr,
     descent_tail_rejects,
-    detect_lps,
     distance_to_52w_high_pct,
     assemble_box_narrative,
     detect_lps_tests,
@@ -163,39 +162,49 @@ def _structure_to_boxes(s, n: int) -> dict:
     return {"parent": parent, "inner": inner}
 
 
-def select_active_lps(df, latest, parent, inner, atr):
-    """Detect the active LPS, preferring the tighter inner box's LPS when it
-    yields one (closer trigger / stop), else the parent's. Returns
-    ``(lps_result, lps_in_inner, lps_context)``.
-
-    Folded out of the live + seed eval paths so the inner-first-then-parent rule
-    can never silently diverge. ``parent`` is
-    ``(S, R, base_range_threshold, base_len, swing_complete_idx)``.
-    """
-    sup_avg, res_avg, base_range_threshold, base_len, swing_complete_idx = parent
-    lps_result = None
-    lps_in_inner = False
-    lps_context = parent
-    if inner is not None:
-        inner_base_df = df.iloc[-inner["base_len"]:]
-        inner_swing_complete = inner["start_bar"] + max(
-            inner["r_anchor_bar"], inner["s_anchor_bar"])
-        inner_rt = lps_range_threshold(inner_base_df, atr)
-        inner_lps = detect_lps(
-            df, latest, inner["S"], inner["R"], atr,
-            inner_rt, inner["base_len"], inner_swing_complete,
-        )
-        if inner_lps:
-            lps_result = inner_lps
-            lps_in_inner = True
-            lps_context = (inner["S"], inner["R"], inner_rt,
-                           inner["base_len"], inner_swing_complete)
-    if lps_result is None:
-        lps_result = detect_lps(
-            df, latest, sup_avg, res_avg, atr,
-            base_range_threshold, base_len, swing_complete_idx,
-        )
-    return lps_result, lps_in_inner, lps_context
+def _lps_result_from_brick(lps) -> dict:
+    """The ``detect_lps`` result dict, sourced 1:1 from the walk's elected
+    ``Lps`` brick. The inner-first-then-parent Phase-D election runs ONCE, in
+    ``read_structure``; evaluation consumes the winner and never re-detects.
+    The single renamed pair is ``trigger_price`` <- ``Lps.trigger``; the three
+    keys the brick deliberately drops (spread_decline_quality / start_date /
+    end_date) have zero consumers here and are NOT synthesized."""
+    return {
+        "low_index": lps.low_bar,
+        "start_index": lps.start_bar,
+        "end_index": lps.end_bar,
+        "zone_type": lps.zone_type,
+        "trigger_price": lps.trigger,
+        "length": lps.length,
+        "offset": lps.offset,
+        "setup_type": lps.setup_type,
+        "low": lps.low,
+        "high": lps.high,
+        "vol_contraction": lps.vol_contraction,
+        "tightness_ratio": lps.tightness_ratio,
+        "descent_frac": lps.descent_frac,
+        "high_descent_frac": lps.high_descent_frac,
+        "window_range_pct_box": lps.window_range_pct_box,
+        "high_extension_box": lps.high_extension_box,
+        "high_extension_atr": lps.high_extension_atr,
+        "profile_unit": lps.profile_unit,
+        "profile_unit_pct": lps.profile_unit_pct,
+        "pullback_profile": lps.pullback_profile,
+        "terminal_low_tolerance": lps.terminal_low_tolerance,
+        "spread_expansion_profile": lps.spread_expansion_profile,
+        "first_high": lps.first_high,
+        "last_low": lps.last_low,
+        "window_high": lps.window_high,
+        "window_low": lps.window_low,
+        "swing_type": lps.swing_type,
+        "lps_anchor_bar": lps.lps_anchor_bar,
+        "lps_anchor_date": lps.lps_anchor_date,
+        "lps_low_bar": lps.lps_low_bar,
+        "lps_low_date": lps.lps_low_date,
+        "lps_swing_depth_pct": lps.lps_swing_depth_pct,
+        "lps_swing_depth_atr": lps.lps_swing_depth_atr,
+        "lps_swing_depth_box": lps.lps_swing_depth_box,
+    }
 
 
 def descent_tail_drops(frame, parent_traversal, box_width, inner, lps_in_inner, atr):
@@ -309,15 +318,25 @@ def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
 
 
 def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict) -> Optional[dict]:
-    lps_result, lps_in_inner, lps_context = select_active_lps(
-        df,
-        latest,
-        structure_ctx["parent_ctx"],
-        structure_ctx["inner"],
-        structure_ctx["atr_for_zone"],
-    )
-    if not lps_result:
-        return None
+    # A returned Structure is a COMPLETE story, so structure.lps always exists;
+    # the walk already ran the inner-first-then-parent election.
+    structure = structure_ctx["structure"]
+    lps_result = _lps_result_from_brick(structure.lps)
+    lps_in_inner = structure.lps_in_inner
+
+    # The ACTIVE box's LPS frame (detect_lps_tests reads it below): the inner
+    # rails when the walk elected the inner-box LPS, else the parent context.
+    inner = structure_ctx["inner"]
+    if lps_in_inner:
+        inner_base_df = df.iloc[-inner["base_len"]:]
+        inner_swing_complete = inner["start_bar"] + max(
+            inner["r_anchor_bar"], inner["s_anchor_bar"])
+        inner_rt = lps_range_threshold(inner_base_df,
+                                       structure_ctx["atr_for_zone"])
+        lps_context = (inner["S"], inner["R"], inner_rt,
+                       inner["base_len"], inner_swing_complete)
+    else:
+        lps_context = structure_ctx["parent_ctx"]
 
     trigger_price = lps_result['trigger_price']
     current_price = latest['Close']

@@ -267,8 +267,10 @@ def test_eval_twins_share_the_folded_core():
     assert "descent_tail_drops" in chain_calls
     assert "_score_eval_context" in chain_calls
 
-    # Deeper folds preserved.
-    assert "select_active_lps" in called_names(evaluation_module._resolve_lps_context)
+    # Deeper folds preserved: the LPS election happens ONCE (in the walk);
+    # _resolve_lps_context consumes the elected brick, never re-detects.
+    assert "_lps_result_from_brick" in called_names(evaluation_module._resolve_lps_context)
+    assert "detect_lps" not in called_names(evaluation_module._resolve_lps_context)
     assert "score_traversal_args" in called_names(evaluation_module._score_eval_context)
 
 
@@ -295,42 +297,6 @@ def test_score_traversal_args_maps_measure_facts():
     assert args2["max_swing_frac"] == 1.0
     assert args2["dwell_asymmetry"] == 0.0
     assert args2["has_spring"] is False
-
-
-def test_select_active_lps_prefers_inner_then_parent(monkeypatch, _lps_behavior_frame):
-    """The folded inner-first-then-parent rule: take the inner box's LPS when it
-    yields one (closer trigger/stop), else the parent's; lps_context follows."""
-    from engine_alpha import evaluation
-
-    df = _lps_behavior_frame(
-        highs=[110.0] * 30, lows=[100.0] * 30, closes=[105.0] * 30,
-    )
-    latest = df.iloc[-1]
-    inner = {"base_len": 15, "start_bar": 10, "r_anchor_bar": 12,
-             "s_anchor_bar": 11, "S": 101.0, "R": 109.0}
-    parent = (90.0, 120.0, 5.0, 30, 5)  # (S, R, range_threshold, base_len, swing)
-
-    def fake(which_for_inner):
-        def _f(d, l, S, R, atr, rt, bl, sw):
-            hit = S == inner["S"] if which_for_inner else S == parent[0]
-            return {"setup_type": "LPS", "_who": "inner" if S == inner["S"] else "parent"} if hit else None
-        return _f
-
-    # Inner fires -> inner wins; context switches to the inner rails.
-    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=True))
-    res, in_inner, ctx = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
-    assert in_inner is True and res["_who"] == "inner"
-    assert ctx[0] == inner["S"] and ctx[1] == inner["R"]
-
-    # Inner returns None -> fall back to the parent; context stays parent.
-    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=False))
-    res2, in_inner2, ctx2 = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
-    assert in_inner2 is False and res2["_who"] == "parent"
-    assert ctx2 == parent
-
-    # No inner box at all -> parent path.
-    res3, in_inner3, ctx3 = evaluation.select_active_lps(df, latest, parent, None, atr=2.0)
-    assert in_inner3 is False and res3["_who"] == "parent"
 
 
 def test_signal_edge_classifies_harmful_inert_beneficial():

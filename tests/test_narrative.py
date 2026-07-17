@@ -130,6 +130,51 @@ def test_narrative_none_when_story_never_completes():
     assert read_structure(None, 1.0, bricks=bricks) is None
 
 
+class _InnerBricks(_Bricks):
+    """Scripted provider with an inner box: the walk must run the
+    inner-first-then-parent Phase-D election on it."""
+
+    def __init__(self, *args, inner, inner_lps):
+        super().__init__(*args)
+        self._inner = inner
+        self._inner_lps = inner_lps
+
+    def find_inner_box(self, df, box, atr):
+        return self._inner
+
+    def find_lps(self, df, box, atr, *, diagnose=False):
+        if self._inner is not None and box is self._inner:
+            return self._inner_lps
+        return super().find_lps(df, box, atr, diagnose=diagnose)
+
+
+def test_narrative_prefers_inner_lps_then_parent():
+    """The walk's Phase-D election (the ONE home of the rule): take the inner
+    box's LPS when it yields one (closer trigger/stop), else the parent's;
+    lps_in_inner follows the winner. Migrated from the retired evaluation-side
+    duplicate (select_active_lps)."""
+    inner = SimpleNamespace(start_bar=60, search_start_bar=55)
+
+    # Inner yields an LPS -> it wins; the elected brick is the inner's.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=inner, inner_lps=_lps(88))
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is True and s.lps.start_bar == 88
+    assert s.inner is inner
+
+    # Inner yields none -> the parent's LPS completes; lps_in_inner False.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=inner, inner_lps=None)
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is False and s.lps.start_bar == 85
+
+    # No inner box at all -> parent path.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=None, inner_lps=None)
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is False and s.lps.start_bar == 85
+
+
 def _full_structure(*, inner, spring):
     """A directly-built Structure with rich brick stand-ins for the view tests."""
     box = SimpleNamespace(
