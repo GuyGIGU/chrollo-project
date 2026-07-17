@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
-from engine_alpha.structure.metrics import _rail_touch_thirds, measure_traversal
+from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibrium
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
@@ -218,7 +218,7 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
 def _measure_close_residence(eq_df, R_val, S_val, atr_val):
     """Legacy close-residence occupancy for box-of-record selection.
 
-    Public ``measure_equilibrium`` now reports High/Low range occupancy for
+    Public ``measure_dwell_balance`` now reports High/Low range occupancy for
     analysis, but selecting the parent box still uses closes as the residence
     concept. This preserves calibrated Phase-B rails while rail touches and
     boundary respect continue to use High/Low geometry.
@@ -437,7 +437,7 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
     # (its trimmed worked cause when SOS-rescued; the full window when strict, where
     # c[10] spans to the edge so this is byte-identical to the legacy full slice).
     def _passes(c):
-        trav = measure_traversal(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
+        trav = measure_equilibrium(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
         nf, ns = trav["n_full_traversals"], trav["n_swings"]
         ok = (nf >= settings.TRAVERSAL_MIN
               and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)

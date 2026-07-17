@@ -141,7 +141,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     breadth_pct: % of universe with Close > SMA_50 on scan_date. Same value
     across every setup in a run; rewards setups forming in a broad tape.
     traversal_density / max_swing_frac / dwell_asymmetry: box-relative swing facts
-    (measure_traversal + measure_equilibrium) grading genuine two-sided rail-working
+    (measure_equilibrium + measure_dwell_balance) grading genuine two-sided rail-working
     vs dead space; drives the traversal-quality term that replaced oscillation.
     """
     touches = r_touches + s_touches

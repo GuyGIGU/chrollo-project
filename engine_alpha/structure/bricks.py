@@ -23,7 +23,7 @@ from engine_alpha.structure.box_primitives import (
 )
 from engine_alpha.structure.lps import detect_lps, lps_range_threshold
 from engine_alpha.structure.market_structure import first_reaction_after
-from engine_alpha.structure.metrics import measure_traversal
+from engine_alpha.structure.metrics import measure_equilibrium
 from engine_alpha.structure.segmentation import segment_swings
 
 
@@ -59,9 +59,9 @@ class EquilibriumBox:
     s_anchor_bar: int
     n_full_traversals: int
     traversal_density: float
-    # The full measure_traversal dict for THIS box, measured once at election;
+    # The full measure_equilibrium dict for THIS box, measured once at election;
     # evaluation consumes it instead of re-measuring the same window/rails/ATR.
-    traversal: Optional[dict] = None
+    equilibrium: Optional[dict] = None
 
 
 @dataclass
@@ -274,9 +274,9 @@ def validate_equilibrium(
     start_bar = int(root.ar_bar + ext_start)
     base_len = int(len(df) - start_bar)
     box_df = df.iloc[start_bar:]
-    traversal = measure_traversal(box_df, float(R), float(S), float(atr))
-    n_swings = int(traversal["n_swings"])
-    n_full = int(traversal["n_full_traversals"])
+    equilibrium = measure_equilibrium(box_df, float(R), float(S), float(atr))
+    n_swings = int(equilibrium["n_swings"])
+    n_full = int(equilibrium["n_full_traversals"])
     density = n_full / n_swings if n_swings > 0 else 0.0
 
     return EquilibriumBox(
@@ -293,7 +293,7 @@ def validate_equilibrium(
         s_anchor_bar=int(root.ar_bar + s_anchor),
         n_full_traversals=n_full,
         traversal_density=float(density),
-        traversal=traversal,
+        equilibrium=equilibrium,
     )
 
 

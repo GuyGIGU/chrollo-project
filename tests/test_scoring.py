@@ -218,7 +218,7 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     assert descent_tail_rejects(0.80, 0.30, 0.10) is False
     # No dead band under the late coil (low coil_floor_pos) -> not a dead tail.
     assert descent_tail_rejects(0.35, 0.10, 0.10) is False
-    # None-safe (degenerate measure_traversal).
+    # None-safe (degenerate measure_equilibrium).
     assert descent_tail_rejects(None, 0.30, 0.10) is False
     assert descent_tail_rejects(0.35, None, 0.10) is False
     # Flag-guarded.
@@ -271,13 +271,13 @@ def test_eval_twins_share_the_folded_core():
     # _resolve_lps_context consumes the elected brick, never re-detects.
     assert "_lps_result_from_brick" in called_names(evaluation_module._resolve_lps_context)
     assert "detect_lps" not in called_names(evaluation_module._resolve_lps_context)
-    assert "score_traversal_args" in called_names(evaluation_module._score_eval_context)
+    assert "score_equilibrium_args" in called_names(evaluation_module._score_eval_context)
 
 
-def test_score_traversal_args_maps_measure_facts():
-    from engine_alpha.evaluation import score_traversal_args
+def test_score_equilibrium_args_maps_measure_facts():
+    from engine_alpha.evaluation import score_equilibrium_args
 
-    args = score_traversal_args(
+    args = score_equilibrium_args(
         {"n_full_traversals": 3, "n_swings": 6, "max_swing_frac": 1.4},
         {"upper_dwell": 0.3, "lower_dwell": 0.5},
         {"bin_c_present": 1},
@@ -288,7 +288,7 @@ def test_score_traversal_args_maps_measure_facts():
     assert args["has_spring"] is True
 
     # Degenerate guards: zero swings -> density 0; None max_swing_frac -> 1.0; no spring.
-    args2 = score_traversal_args(
+    args2 = score_equilibrium_args(
         {"n_full_traversals": 0, "n_swings": 0, "max_swing_frac": None},
         {"upper_dwell": 0.4, "lower_dwell": 0.4},
         {},

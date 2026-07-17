@@ -99,8 +99,8 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
 
     The sibling measures read the in-box swing sequence as STATISTICS
     (``measure_contractions`` depths, ``measure_support_slope`` slope,
-    ``measure_traversal`` density). This composes the SAME calibrated
-    significant-swing skeleton (``_collapse_swings`` — the one ``measure_traversal``
+    ``measure_equilibrium`` density). This composes the SAME calibrated
+    significant-swing skeleton (``_collapse_swings`` — the one ``measure_equilibrium``
     uses, so the staircase swings ARE the worked-equilibrium swings) with the L0
     swing labelling (``label_market_structure``) and annotates each swing with its
     box-position and rail event: ONE chronological sequence the Wyckoff events
@@ -138,7 +138,7 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
     if len(highs) < 3:
         return _staircase_empty()
 
-    # The SAME sensitive (order-1) zigzag + amplitude collapse measure_traversal
+    # The SAME sensitive (order-1) zigzag + amplitude collapse measure_equilibrium
     # uses, so the labeled staircase rides on the worked-equilibrium swings rather
     # than a fresh skeleton.
     peaks, valleys = _find_pivots(highs, lows, 1)

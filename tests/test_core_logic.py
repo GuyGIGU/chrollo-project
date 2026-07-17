@@ -21,8 +21,8 @@ from engine_alpha.structure.metrics import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
+    measure_dwell_balance,
     measure_equilibrium,
-    measure_traversal,
 )
 from engine_alpha.structure.box_primitives import (
     _detect_inner_phase_b_start,
@@ -104,8 +104,8 @@ _WORKED = [101, 103, 105, 107, 109, 107, 105, 103] * 3
 _DEAD_SPACE = [100, 102] + [106, 109, 107, 108, 106, 109, 107, 108] * 2 + [106, 109, 107, 108, 106, 109]
 
 
-def test_measure_equilibrium_worked_range_is_filled_and_two_sided(_osc_frame):
-    eq = measure_equilibrium(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+def test_measure_dwell_balance_worked_range_is_filled_and_two_sided(_osc_frame):
+    eq = measure_dwell_balance(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
     assert eq["r_touches"] >= 3 and eq["s_touches"] >= 3
     assert eq["r_touch_thirds"] >= 2 and eq["s_touch_thirds"] >= 2
     assert eq["lower_dwell"] >= 0.15 and eq["upper_dwell"] >= 0.15
@@ -113,22 +113,22 @@ def test_measure_equilibrium_worked_range_is_filled_and_two_sided(_osc_frame):
     assert eq["coverage"] >= 0.80
 
 
-def test_measure_equilibrium_dead_space_starves_the_lower_half(_osc_frame):
-    eq = measure_equilibrium(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+def test_measure_dwell_balance_dead_space_starves_the_lower_half(_osc_frame):
+    eq = measure_dwell_balance(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
     # Price lives up top after a one-time dip: the lower half is dead (dwell
     # collapses there) while the upper half hogs the action.
     assert eq["lower_dwell"] < 0.15
     assert eq["upper_dwell"] > 0.45
 
 
-def test_measure_equilibrium_range_occupancy_uses_high_low_not_close():
+def test_measure_dwell_balance_range_occupancy_uses_high_low_not_close():
     frame = pd.DataFrame([
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
     ])
 
-    eq = measure_equilibrium(frame, R=110.0, S=100.0, atr_val=1.0)
+    eq = measure_dwell_balance(frame, R=110.0, S=100.0, atr_val=1.0)
 
     assert eq["r_touches"] == 3
     assert eq["s_touches"] == 3
@@ -203,42 +203,42 @@ def test_worked_window_end_trims_only_a_held_late_breakout():
                               base_l + [115.0] * 4 + [90.0] * 2, R, S, atr) == 26
 
 
-def test_measure_traversal_counts_rail_to_rail_swings(_osc_frame):
+def test_measure_equilibrium_counts_rail_to_rail_swings(_osc_frame):
     # The worked triangle wave runs the full box repeatedly: many genuine
     # rail-to-rail traversals and no dead space at either rail.
-    t = measure_traversal(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
     assert t["n_full_traversals"] >= 2
     assert t["top_dead_space"] is not None and t["top_dead_space"] < 0.15
     assert t["bottom_dead_space"] is not None and t["bottom_dead_space"] < 0.15
 
 
-def test_measure_traversal_flags_dead_space_hanging_from_a_rail(_osc_frame):
+def test_measure_equilibrium_flags_dead_space_hanging_from_a_rail(_osc_frame):
     # Price hangs in the top after one initial dip: only that single trip reaches
     # S, so rail-to-rail traversals collapse and the lower half reads as dead.
-    t = measure_traversal(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
     assert t["n_full_traversals"] < 2
     assert t["bottom_dead_space"] > 0.30
 
 
-def test_measure_traversal_absorbs_subthreshold_reversal(_flat_frame):
+def test_measure_equilibrium_absorbs_subthreshold_reversal(_flat_frame):
     # A 1.2-wide pullback inside an up-leg of an 11-wide box (min_amp = 0.15*11 =
     # 1.65) must be absorbed: the swing list stays V->P->V (3, via soft endpoints),
     # not split into 5 by the noise pivot, and the leg reads as 2 traversals.
     frame = _flat_frame([100, 110, 108.8, 111, 100])
-    t = measure_traversal(frame, R=111.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(frame, R=111.0, S=100.0, atr_val=1.0)
     assert t["n_swings"] == 3
     assert t["n_full_traversals"] == 2
 
 
-def test_measure_traversal_guards_bad_inputs(_flat_frame, _osc_frame):
+def test_measure_equilibrium_guards_bad_inputs(_flat_frame, _osc_frame):
     frame = _osc_frame(_WORKED)
     # Non-positive / NaN ATR and a non-positive box collapse to the empty read.
-    assert (measure_traversal(frame, 110.0, 100.0, 0.0)
-            == measure_traversal(frame, 110.0, 100.0, -1.0))
-    assert measure_traversal(frame, 100.0, 100.0, 1.0)["n_full_traversals"] == 0
-    assert measure_traversal(frame, 110.0, 100.0, float("nan"))["n_swings"] == 0
+    assert (measure_equilibrium(frame, 110.0, 100.0, 0.0)
+            == measure_equilibrium(frame, 110.0, 100.0, -1.0))
+    assert measure_equilibrium(frame, 100.0, 100.0, 1.0)["n_full_traversals"] == 0
+    assert measure_equilibrium(frame, 110.0, 100.0, float("nan"))["n_swings"] == 0
     # Too few bars to form a pivot structure.
-    assert measure_traversal(_flat_frame([1, 2]), 2.0, 1.0, 1.0)["n_swings"] == 0
+    assert measure_equilibrium(_flat_frame([1, 2]), 2.0, 1.0, 1.0)["n_swings"] == 0
 
 
 def test_segment_swings_guards_bad_inputs(_ramp_frame):

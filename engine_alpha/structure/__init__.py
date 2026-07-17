@@ -51,9 +51,9 @@ from engine_alpha.structure.indicators import (
 from engine_alpha.structure.consolidation import detect_boxes, find_outer_box
 from engine_alpha.structure.metrics import (
     descent_tail_rejects,
+    measure_dwell_balance,
     measure_equilibrium,
     measure_gate_margins,
-    measure_traversal,
 )
 
 # ── Layer: Phase B texture — the VCP progressive-tightening / quiet-bar / touch footprint ─
@@ -99,9 +99,9 @@ __all__ = [
     # Consolidation
     "detect_boxes",
     "find_outer_box",
+    "measure_dwell_balance",
     "measure_equilibrium",
     "measure_gate_margins",
-    "measure_traversal",
     "descent_tail_rejects",
     # Phase B texture
     "assemble_box_narrative",

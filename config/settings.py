@@ -147,7 +147,7 @@ TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-leve
 # THROUGH both rails CONSTANTLY, with no dead space. These gates replace the old
 # "2 touches per side + N midline crosses" rule, which let the widest BC->AR box
 # win (dead space below a one-time AR low, or mid-box churn). Candidate selection
-# uses close-residence dwell/coverage; public measure_equilibrium also reports
+# uses close-residence dwell/coverage; public measure_dwell_balance also reports
 # High/Low range occupancy for analysis. Starting points are calibrated against
 # seed-recall, not hard-coded blind.
 EQ_MIN_TOUCHES_PER_RAIL = 3      # >= this many touches within TOUCH_TOLERANCE_ATR of EACH rail
@@ -164,7 +164,7 @@ EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this 
 # (S<->R), or hang off one rail and leave dead space (the tell that R/S were
 # marked too wide). Swing size is judged as a FRACTION OF BOX HEIGHT, not a bar
 # count, so the read adapts to box width (tight boxes have short limbs, wide ones
-# long). Measured by engine_alpha.structure.metrics.measure_traversal. v1 is
+# long). Measured by engine_alpha.structure.metrics.measure_equilibrium. v1 is
 # measure-first / archive-only — TRAVERSAL_GATE_ENABLED stays False until the
 # live archive proves TRAVERSAL_MIN against forward outcomes / seed-recall.
 TRAVERSAL_NOISE_FRAC = 0.15      # a swing < this fraction of box height is chop, merged away
@@ -189,7 +189,7 @@ TRAVERSAL_GATE_ENABLED = True    # v2 LIVE: pool-aware re-anchor gate (winner fl
 # their dead band is small in absolute terms so the tell is a false positive
 # (saves the EQIX winner, box_width 0.038). Validated 2026-06-19 (pre + post the
 # LPS recall work): drops ZERO firing seed winners; drops ~6/97 universe dead-space
-# fires incl. the user's CHCT + DGII. Measured by measure_traversal (metrics.py).
+# fires incl. the user's CHCT + DGII. Measured by measure_equilibrium (metrics.py).
 DESCENT_TAIL_GATE_ENABLED = True
 DESCENT_TAIL_LSF_MAX = 0.40
 DESCENT_TAIL_CFP_MIN = 0.20

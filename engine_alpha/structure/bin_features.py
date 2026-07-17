@@ -139,7 +139,7 @@ def _cog_interior(seg: "pd.DataFrame", R: float, S: float) -> dict:
     time, not just where the rails are.
 
     RESIDENCE measure -> Close-based by design (it answers "where did price
-    settle", exactly like measure_equilibrium's dwell). It is deliberately NOT a
+    settle", exactly like measure_dwell_balance's dwell). It is deliberately NOT a
     High/Low reach measure — those (touches, boundary respect, spread) stay on
     High/Low elsewhere. Pure: no opinion, no gate.
 

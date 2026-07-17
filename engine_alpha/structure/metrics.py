@@ -13,7 +13,7 @@ from engine_alpha.structure.pivots import (_collapse_swings, _find_pivots,
 # L2 Wyckoff event reader — relocated to engine_alpha.structure.box_events. Re-exported
 # here so every existing ``from engine_alpha.structure.metrics import ...`` site keeps
 # working unchanged (pure module peel, byte-identical behavior). box_events imports
-# ``_collapse_swings`` from pivots (its conceptual home, shared with measure_traversal
+# ``_collapse_swings`` from pivots (its conceptual home, shared with measure_equilibrium
 # below), so there is no metrics <-> box_events cycle.
 from engine_alpha.structure.box_events import (  # noqa: F401  (re-export for import compatibility)
     _DETECT,
@@ -368,7 +368,7 @@ def measure_gate_margins(base_df, R, S, atr_val):
     gates' own statistics — boundary respect (buffered band, wicks count) and
     the close-residence dwell the dead-space gate judges — so the archive can
     see how close a fired box lived to each calibrated floor/cap. The dwell
-    twins in ``measure_equilibrium`` are range-occupancy (a bar's [Low, High]
+    twins in ``measure_dwell_balance`` are range-occupancy (a bar's [Low, High]
     intersecting a third); the GATE reads close residence, and margin
     telemetry against a gate must measure the gate's own statistic.
 
@@ -401,7 +401,7 @@ def measure_gate_margins(base_df, R, S, atr_val):
     }
 
 
-def measure_equilibrium(base_df, R, S, atr_val):
+def measure_dwell_balance(base_df, R, S, atr_val):
     """How genuinely *worked* is the candidate range ``[S, R]`` over its window?
 
     The Phase-B question, in the user's terms: does price RESPECT, TOUCH, and
@@ -486,10 +486,10 @@ def measure_equilibrium(base_df, R, S, atr_val):
 # Limb traversal — do the swing LIMBS travel rail-to-rail, or is there dead space?
 # ---------------------------------------------------------------------------
 
-def measure_traversal(base_df, R, S, atr_val):
+def measure_equilibrium(base_df, R, S, atr_val):
     """Do the swing LIMBS travel rail-to-rail, or does price hang off one rail?
 
-    ``measure_equilibrium`` asks which vertical bands the bars occupy. This asks
+    ``measure_dwell_balance`` asks which vertical bands the bars occupy. This asks
     the complementary, swing-structural question a chart reader actually uses: do
     the up/down limbs of the chop genuinely run from Support to Resistance and
     back, or does price hang off one rail, nick the middle, and tap the far rail
@@ -637,7 +637,7 @@ def descent_tail_rejects(last_support_frac, coil_floor_pos, box_width) -> bool:
     ``<= DESCENT_TAIL_LSF_MAX`` AND ``coil_floor_pos`` (box-position of the lowest
     Low after that touch) is ``>= DESCENT_TAIL_CFP_MIN`` — i.e. price left the low
     rail early and then coiled in dead space above it. Both inputs come from
-    ``measure_traversal``; pass the ACTIVE box's fields (inner if the LPS
+    ``measure_equilibrium``; pass the ACTIVE box's fields (inner if the LPS
     re-anchored there, else parent).
 
     Width-aware: TIGHT boxes (``box_width <= BASE_AGE_DEADSPACE_WIDTH``) are EXEMPT

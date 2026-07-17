@@ -285,8 +285,9 @@ absence, raw measure archived, tiers untouched).
    are the **Resistance anchor / Support anchor** (mini-anchors for inner bases),
    which may coincide with BC/AR but usually sit later/tighter. A candidate pair
    is valid only if price *respects, touches, and zigzags through both rails
-   constantly with no dead space* (`measure_equilibrium`: constant two-sided
-   touch + both-halves dwell + coverage, not mid-churn). Selection keeps the
+   constantly with no dead space* (`measure_dwell_balance`, formerly
+   `measure_equilibrium`: constant two-sided touch + both-halves dwell +
+   coverage, not mid-churn). Selection keeps the
    **earliest** pair that passes every constraint — "the earliest *of the ones
    that qualify*." Because a sparse/dead-space framing can no longer be valid,
    the support anchor climbs off a one-time AR low until the band is genuinely

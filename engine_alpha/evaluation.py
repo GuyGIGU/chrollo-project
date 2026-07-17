@@ -21,11 +21,11 @@ from engine_alpha.structure import (
     measure_bar_compression,
     measure_bins,
     measure_contractions,
+    measure_dwell_balance,
     measure_equilibrium,
     measure_gate_margins,
     measure_support_slope,
     measure_touch_volume,
-    measure_traversal,
     read_htf_context,
     scope_consolidation,
     trend_template,
@@ -207,31 +207,31 @@ def _lps_result_from_brick(lps) -> dict:
     }
 
 
-def descent_tail_drops(frame, parent_traversal, box_width, inner, lps_in_inner, atr):
+def descent_tail_drops(frame, parent_equilibrium, box_width, inner, lps_in_inner, atr):
     """Width-aware descent-tail gate on the ACTIVE box — the inner box's own
-    traversal when the LPS re-anchored there (so a clean promotable inner
-    survives, e.g. QUAD), else the parent's (drops CHCT/DGII). Folded so the
-    live + seed paths gate identically. ``parent_traversal`` is the already
-    computed parent ``measure_traversal`` result."""
+    equilibrium read when the LPS re-anchored there (so a clean promotable
+    inner survives, e.g. QUAD), else the parent's (drops CHCT/DGII). Folded so
+    the live + seed paths gate identically. ``parent_equilibrium`` is the
+    already computed parent ``measure_equilibrium`` result."""
     if lps_in_inner and inner is not None:
-        gate_trav = measure_traversal(
+        gate_eq = measure_equilibrium(
             frame.iloc[-inner["base_len"]:], inner["R"], inner["S"], atr)
         gate_width = float(inner["box_width"])
     else:
-        gate_trav = parent_traversal
+        gate_eq = parent_equilibrium
         gate_width = box_width
-    return descent_tail_rejects(gate_trav.get("last_support_frac"),
-                                gate_trav.get("coil_floor_pos"), gate_width)
+    return descent_tail_rejects(gate_eq.get("last_support_frac"),
+                                gate_eq.get("coil_floor_pos"), gate_width)
 
 
-def score_traversal_args(traversal, equilibrium, bins) -> dict:
+def score_equilibrium_args(equilibrium, dwell_balance, bins) -> dict:
     """The four box-relative swing facts ``score_setup`` needs from the measure
     layer. Folded so the live + seed paths feed the scorer identically."""
     return {
-        "traversal_density": (traversal["n_full_traversals"] / traversal["n_swings"]
-                              if traversal["n_swings"] else 0.0),
-        "max_swing_frac": traversal["max_swing_frac"] or 1.0,
-        "dwell_asymmetry": abs(equilibrium["upper_dwell"] - equilibrium["lower_dwell"]),
+        "traversal_density": (equilibrium["n_full_traversals"] / equilibrium["n_swings"]
+                              if equilibrium["n_swings"] else 0.0),
+        "max_swing_frac": equilibrium["max_swing_frac"] or 1.0,
+        "dwell_asymmetry": abs(dwell_balance["upper_dwell"] - dwell_balance["lower_dwell"]),
         "has_spring": bool(bins.get("bin_c_present")),
     }
 
@@ -382,7 +382,7 @@ def _relative_strength_context(df: pd.DataFrame, current_price, spy_6m_return: f
 
 def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
                           sup_avg: float, atr_for_zone: float,
-                          traversal: dict) -> dict:
+                          equilibrium: dict) -> dict:
     r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
         base_df, res_avg, sup_avg, atr_for_zone
     )
@@ -394,10 +394,10 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
             base_df, res_avg - sup_avg, atr_for_zone
         ),
         "support": measure_support_slope(base_df, atr_for_zone),
-        "equilibrium": measure_equilibrium(base_df, res_avg, sup_avg, atr_for_zone),
+        "dwell_balance": measure_dwell_balance(base_df, res_avg, sup_avg, atr_for_zone),
         # Measured once at box election (bricks.validate_equilibrium) on the
         # same window/rails/ATR; carried on the brick, never re-measured here.
-        "traversal": traversal,
+        "equilibrium": equilibrium,
         # Gate-margin telemetry (measure-first): the elected box against the
         # respect gate's band and the dead-space gate's own close residence —
         # archived raw so threshold debates open with distributions, never
@@ -558,8 +558,8 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         adr_value=adr_value,
         bar_compression=measurements["bar_compression"],
         narrative=narrative,
-        **score_traversal_args(
-            measurements["traversal"], measurements["equilibrium"], bins
+        **score_equilibrium_args(
+            measurements["equilibrium"], measurements["dwell_balance"], bins
         ),
     )
     score = score_result['total']
@@ -647,8 +647,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
     contraction = measurements["contraction"]
     bar_compression = measurements["bar_compression"]
     support = measurements["support"]
+    dwell_balance = measurements["dwell_balance"]
     equilibrium = measurements["equilibrium"]
-    traversal = measurements["traversal"]
     gate_margins = measurements["gate_margins"]
     bins = phase_ctx["bins"]
     scope = phase_ctx["scope"]
@@ -753,32 +753,32 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
                                if support['slope_atr'] is not None else None),
         '_support_higher_low_frac': float(support['higher_low_frac']),
         '_ascending_support_quality': float(support['quality']),
-        '_eq_r_touches': int(equilibrium['r_touches']),
-        '_eq_s_touches': int(equilibrium['s_touches']),
-        '_eq_r_touch_thirds': int(equilibrium['r_touch_thirds']),
-        '_eq_s_touch_thirds': int(equilibrium['s_touch_thirds']),
-        '_eq_lower_dwell': float(equilibrium['lower_dwell']),
-        '_eq_mid_dwell': float(equilibrium['mid_dwell']),
-        '_eq_upper_dwell': float(equilibrium['upper_dwell']),
-        '_eq_coverage': float(equilibrium['coverage']),
+        '_eq_r_touches': int(dwell_balance['r_touches']),
+        '_eq_s_touches': int(dwell_balance['s_touches']),
+        '_eq_r_touch_thirds': int(dwell_balance['r_touch_thirds']),
+        '_eq_s_touch_thirds': int(dwell_balance['s_touch_thirds']),
+        '_eq_lower_dwell': float(dwell_balance['lower_dwell']),
+        '_eq_mid_dwell': float(dwell_balance['mid_dwell']),
+        '_eq_upper_dwell': float(dwell_balance['upper_dwell']),
+        '_eq_coverage': float(dwell_balance['coverage']),
         '_eq_respect_frac': gate_margins['respect_frac'],
         '_eq_close_lower_dwell': gate_margins['close_lower_dwell'],
         '_eq_close_mid_dwell': gate_margins['close_mid_dwell'],
         '_eq_close_upper_dwell': gate_margins['close_upper_dwell'],
-        '_trav_n_full_traversals': int(traversal['n_full_traversals']),
-        '_trav_n_swings': int(traversal['n_swings']),
-        '_trav_top_dead_space': (float(traversal['top_dead_space'])
-                                 if traversal['top_dead_space'] is not None else None),
-        '_trav_bottom_dead_space': (float(traversal['bottom_dead_space'])
-                                    if traversal['bottom_dead_space'] is not None else None),
-        '_trav_rail_reaches_high': int(traversal['rail_reaches_high']),
-        '_trav_rail_reaches_low': int(traversal['rail_reaches_low']),
-        '_trav_max_swing_frac': (float(traversal['max_swing_frac'])
-                                 if traversal['max_swing_frac'] is not None else None),
-        '_trav_last_support_frac': (float(traversal['last_support_frac'])
-                                    if traversal['last_support_frac'] is not None else None),
-        '_trav_coil_floor_pos': (float(traversal['coil_floor_pos'])
-                                 if traversal['coil_floor_pos'] is not None else None),
+        '_trav_n_full_traversals': int(equilibrium['n_full_traversals']),
+        '_trav_n_swings': int(equilibrium['n_swings']),
+        '_trav_top_dead_space': (float(equilibrium['top_dead_space'])
+                                 if equilibrium['top_dead_space'] is not None else None),
+        '_trav_bottom_dead_space': (float(equilibrium['bottom_dead_space'])
+                                    if equilibrium['bottom_dead_space'] is not None else None),
+        '_trav_rail_reaches_high': int(equilibrium['rail_reaches_high']),
+        '_trav_rail_reaches_low': int(equilibrium['rail_reaches_low']),
+        '_trav_max_swing_frac': (float(equilibrium['max_swing_frac'])
+                                 if equilibrium['max_swing_frac'] is not None else None),
+        '_trav_last_support_frac': (float(equilibrium['last_support_frac'])
+                                    if equilibrium['last_support_frac'] is not None else None),
+        '_trav_coil_floor_pos': (float(equilibrium['coil_floor_pos'])
+                                 if equilibrium['coil_floor_pos'] is not None else None),
         '_adr_pct': float(score_ctx["adr_value"]),
         '_adr_quality': float(score_ctx["adr_quality"]),
         '_phase_a_start_date': scope['phase_a_start_date'],
@@ -879,12 +879,12 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
         structure_ctx["res_avg"],
         structure_ctx["sup_avg"],
         structure_ctx["atr_for_zone"],
-        structure_ctx["structure"].box.traversal,
+        structure_ctx["structure"].box.equilibrium,
     )
 
     if descent_tail_drops(
         eval_df,
-        measurements["traversal"],
+        measurements["equilibrium"],
         structure_ctx["box_width"],
         structure_ctx["inner"],
         lps_ctx["lps_in_inner"],

@@ -21,8 +21,8 @@ from engine_alpha.structure.metrics import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
+    measure_dwell_balance,
     measure_equilibrium,
-    measure_traversal,
 )
 from engine_alpha.structure.box_primitives import (
     _detect_inner_phase_b_start,

@@ -48,7 +48,7 @@ from engine_alpha.structure.box_primitives import (
     _validate_base_quality,
 )
 from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.metrics import measure_traversal
+from engine_alpha.structure.metrics import measure_equilibrium
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 
@@ -329,7 +329,7 @@ def _diagnose_candidates(df, root, atr) -> None:
             elif not valid:
                 reject = _validity_reject(eq, rt, st)
             else:
-                trav = measure_traversal(sub, R_val, S_val, atr)
+                trav = measure_equilibrium(sub, R_val, S_val, atr)
                 nf, ns = trav["n_full_traversals"], trav["n_swings"]
                 dens = nf / ns if ns else 0.0
                 if settings.TRAVERSAL_GATE_ENABLED and (
@@ -348,7 +348,7 @@ def _diagnose_candidates(df, root, atr) -> None:
     # Recovered-support / high-shelf hint from the post-AR window extremes.
     R_ext, S_ext = float(eq_highs.max()), float(eq_lows.min())
     if R_ext > S_ext:
-        trav = measure_traversal(eq_df, R_ext, S_ext, atr)
+        trav = measure_equilibrium(eq_df, R_ext, S_ext, atr)
         lsf, cfp = trav.get("last_support_frac"), trav.get("coil_floor_pos")
         if lsf is not None and cfp is not None:
             tag = ("recovered-support candidate (old floor abandoned early)"

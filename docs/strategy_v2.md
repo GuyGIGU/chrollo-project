@@ -397,9 +397,11 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      - **No dead space:** ≥ `EQ_MIN_HALF_DWELL` (0.15) of closes in BOTH the lower
        and upper box third, and box-height `coverage` ≥ `EQ_MIN_COVERAGE` (0.80).
      - **Not mid-churn:** middle-third dwell ≤ `EQ_MAX_MID_DWELL` (0.45).
-     - Public `metrics.measure_equilibrium()` additionally reports High/Low
-       range occupancy for analysis, but the box-of-record selector keeps close
-       residence as the calibrated dead-space gate so Phase-B rails do not drift.
+     - Public `metrics.measure_dwell_balance()` (formerly `measure_equilibrium`;
+       the Equilibrium name now belongs to the rail-to-rail swing read, formerly
+       `measure_traversal`) additionally reports High/Low range occupancy for
+       analysis, but the box-of-record selector keeps close residence as the
+       calibrated dead-space gate so Phase-B rails do not drift.
    - The old "≥2 touches + N midline crosses" gate is retired — a wide box
      mechanically racked up crosses while a one-time AR low left dead space
      beneath the real range, so the widest framing always won.
