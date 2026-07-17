@@ -9,6 +9,7 @@ import pandas as pd
 
 from config import settings
 from engine_alpha.scoring import calculate_tier, score_setup
+from engine_alpha.scoring.scoring import _ramp
 from engine_alpha.structure import (
     adr_pct,
     calculate_atr,
@@ -490,10 +491,9 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
 
     trend = trend_template(df, dist_52w_high_pct=rel_ctx["dist_52w_high_pct"])
     adr_value = adr_pct(df, settings.ADR_WINDOW)
-    adr_quality = (
-        min(adr_value / settings.ADR_FULL_PCT, 1.0)
-        if settings.ADR_FULL_PCT else 0.0
-    )
+    # The ADR judgment is the scorer's one linear-ramp shape — ONE implementation
+    # (_ramp); the unrounded [0,1] quality flows to eval-context and the wire.
+    adr_quality = _ramp(adr_value, 0.0, settings.ADR_FULL_PCT, 1.0)
 
     # E3 puzzle-quality: read the L2 Wyckoff puzzle by REUSING the bricks the engine
     # already elected onto the Structure. read_structure ran find_spring / find_lps
