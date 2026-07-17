@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from config import settings
-from engine_alpha.structure.lps import detect_lps_tests
+from engine_alpha.structure.lps import detect_lps_tests, lps_range_threshold
 from engine_alpha.structure.phase_d import (
     final_v_tip_bar,
     resolve_phase_d_boundary,
@@ -143,18 +143,14 @@ def _box_base_len(df, box) -> int:
 
 
 def _range_threshold(df, active_box, atr: float) -> Optional[float]:
+    """Guard wrapper: None-routing stays here; the yardstick itself is the one
+    ``lps_range_threshold`` (its spread read falls back to High-Low itself)."""
     if df is None or "High" not in df.columns or "Low" not in df.columns:
         return None
-    work_df = df
-    if "Spread" not in work_df.columns:
-        work_df = work_df.assign(Spread=work_df["High"] - work_df["Low"])
-    base_df = work_df.iloc[int(active_box.start_bar):]
+    base_df = df.iloc[int(active_box.start_bar):]
     if base_df.empty:
         return None
-    return max(
-        float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
-        1.2 * float(atr),
-    )
+    return lps_range_threshold(base_df, atr)
 
 
 def _support_evidence_starts(df, atr, box, active_box, *, inner_present: bool):

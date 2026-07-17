@@ -42,7 +42,8 @@ from config import settings
 from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure import calculate_atr
 from engine_alpha.structure import bricks
-from engine_alpha.structure.lps import detect_lps_candidates, select_active_lps_candidate
+from engine_alpha.structure.lps import (detect_lps_candidates, lps_range_threshold,
+                                        select_active_lps_candidate)
 
 _MAX_ANCHORS = 64
 _DB_PATH = ROOT / "webapp" / "backend" / "trading_journal.db"
@@ -242,10 +243,7 @@ def _lps_context(df: pd.DataFrame, box, atr: float) -> tuple[Optional[dict], Cou
     if base_df.empty:
         return None, Counter({"empty_base": 1})
 
-    threshold = max(
-        float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
-        1.2 * float(atr),
-    )
+    threshold = lps_range_threshold(base_df, atr)
     swing_complete_idx = max(int(box.r_anchor_bar), int(box.s_anchor_bar))
     candidates, rejects = detect_lps_candidates(
         work_df,

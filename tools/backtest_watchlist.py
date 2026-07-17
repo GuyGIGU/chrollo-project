@@ -64,7 +64,8 @@ PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.scoring import calculate_tier, score_setup
-from engine_alpha.structure import calculate_adx, calculate_atr, detect_boxes, detect_lps
+from engine_alpha.structure import (calculate_adx, calculate_atr, detect_boxes,
+                                    detect_lps, lps_range_threshold)
 
 WINDOW_DAYS_BACK = 7    # Look further back to catch pre-breakout state
 WINDOW_DAYS_FWD = 3
@@ -181,14 +182,8 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
 
         atr_for_zone = float(atr_eval['ATR_10'])
 
-        def _range_threshold(bdf):
-            return max(
-                float(bdf['Spread'].quantile(settings.LPS_RANGE_PERCENTILE)),
-                1.2 * atr_for_zone,
-            )
-
         base_df = df.iloc[-base_len:]
-        base_range_threshold = _range_threshold(base_df)
+        base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
         phase_b_start = len(df) - base_len
         swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
         lps_rejects = Counter()
@@ -200,7 +195,7 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
                 inner["r_anchor_bar"], inner["s_anchor_bar"])
             inner_lps, inner_rejects = detect_lps(
                 df, latest, inner["S"], inner["R"], atr_for_zone,
-                _range_threshold(inner_base_df), inner["base_len"], inner_swing_complete,
+                lps_range_threshold(inner_base_df, atr_for_zone), inner["base_len"], inner_swing_complete,
                 diagnose=True,
             )
             if inner_lps:

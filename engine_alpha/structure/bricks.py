@@ -21,7 +21,7 @@ from engine_alpha.structure.box_primitives import (
     select_inner_box,
     select_phase_b_candidate,
 )
-from engine_alpha.structure.lps import detect_lps
+from engine_alpha.structure.lps import detect_lps, lps_range_threshold
 from engine_alpha.structure.market_structure import first_reaction_after
 from engine_alpha.structure.metrics import measure_traversal
 from engine_alpha.structure.segmentation import segment_swings
@@ -404,10 +404,7 @@ def find_lps(
     if base_df.empty:
         return _out(None)
 
-    base_range_threshold = max(
-        float(base_df["Spread"].quantile(settings.LPS_RANGE_PERCENTILE)),
-        1.2 * float(atr),
-    )
+    base_range_threshold = lps_range_threshold(base_df, atr)
     swing_complete_idx = max(int(box.r_anchor_bar), int(box.s_anchor_bar))
     detected = detect_lps(
         work_df,
