@@ -4,15 +4,21 @@ All tunable parameters in one place for easy adjustment.
 """
 
 # ============================================================
-# PHASE 1 — UNIVERSE BASELINE FILTERS
+# 1. UNIVERSE & BASELINE FILTERS
 # ============================================================
+# Price-series regime (operator rule, 2026-07-02): structural analysis runs on
+# REAL traded prices. False = as-traded OHLC (split-adjusted only — exactly what
+# TradingView shows); True = legacy dividend+split-adjusted series, which
+# repaints history every ex-div and shows prices that were never traded
+# (confirmed distorting income names: GOOD/ENIC passed baseline only on
+# adjusted data, DKL's box start moved). The cache meta is stamped with the
+# regime; a mismatch forces a full cold refetch — regimes are never mixed.
+DATA_DIVIDEND_ADJUSTED = False
+
 MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50_000          # 50-day average daily volume floor
 MIN_YEARLY_RETURN = -0.20        # Allows modest drawdowns (v1 used +0.30)
 
-# ============================================================
-# PHASE 2 — CONSOLIDATION BASE PARAMETERS
-# ============================================================
 MIN_BASE_DAYS = 20               # Minimum consolidation length (reject < 20 day chop)
 MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this is
                                  # not a tradeable tight equilibrium — it's the
@@ -22,10 +28,49 @@ MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this 
 CRASH_FILTER_MULT = 0.70         # Floor cap for the box-width-scaled crash filter
 EXTENSION_FILTER_MULT = 1.15     # Price above R * this = too extended
 
+# ============================================================
+# 2. PHASE A — TREND END & ANCHOR
+# ============================================================
 # Pivot detection
 PIVOT_ORDER_SHORT = 1            # Used when equity window < 40 bars
 PIVOT_ORDER_LONG = 2             # Used when equity window >= 40 bars
 PIVOT_ORDER_THRESHOLD = 40       # Bar count threshold for switching ORDER
+
+# Markup-leg qualification (Phase A in find_outer_box)
+TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
+TREND_MIN_MOVE_BARS = 20         # Markup leg must span at least this many bars
+TREND_PRIOR_LOOKBACK = 100       # Search this far back for prior trough/peak
+LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this window
+ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a root requires
+                                 # latest close > this SMA (the Stage-2 / uptrend filter). Daily=200;
+                                 # HTF presets scale it (weekly ~30 = Weinstein MA-30, monthly ~10) so
+                                 # the rolling mean isn't all-NaN on the shorter resampled frame.
+
+# Automatic Reaction validation (required)
+AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
+AR_MAX_BARS = 15                 # ...within this many bars of the climax
+
+# First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
+# The raw Phase-A resolver can drag the drawn automatic reaction all the way to
+# the base edge, so the climax->AR stripe smears across half the chart. When on,
+# resolve_phase_a() TIGHTENS the AR to the trend model's first reaction after the
+# terminal swing (market_structure.first_reaction_after) -- the reaction low of the
+# first continuous counter-move that retraces >= AR_RETRACE_FRAC of the trend's
+# FULL leg (the whole advance the climax ended, from the elected trend segment's
+# start), closed at the first BIG confirmed bounce off that low (a rally of
+# >= max(AR_BOUNCE_ATR_MULT*ATR, AR_BOUNCE_DROP_FRAC*drop)). The full-leg basis and
+# the big-bounce close are what keep it from over-tightening at a mid-decline pause
+# (the earlier terminal-sub-leg + twitchy-stall read stopped short of the true
+# reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
+# retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
+# Tighten-only + overlay-only: it can move the AR earlier but never past the box
+# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_v2.md "The
+# trend model" + "Phase A -- First-reaction AR anchor").
+AR_FIRST_REACTION_ENABLED = False
+AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg
+AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend segment tops at the climax
+AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
+AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
 
 # Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag; see
 # core/structure/pip.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
@@ -61,50 +106,39 @@ PIP_MACRO_MIN_BASE_BARS = MIN_BASE_DAYS  # an "actual equilibrium" needs at leas
 PIP_MACRO_EQ_FLOOR_FRAC = 0.5    # max breakdown below the AR (spring-tolerant)
 PIP_MACRO_EQ_OSC_FRAC = 0.3      # min two-sided traversal (x bridge height)
 
+# ============================================================
+# 3. PHASE B — RAILS & EQUILIBRIUM
+# ============================================================
+# Phase-B ATR window (median over recent N base bars; used when no override is given)
+# FROZEN-CONFIG MANIFEST (Lane A): part of the frozen ATR/volatility frame —
+# changing it is a new engine_config_version (re-baseline). See the marked region
+# at STRUCTURE_EDGE_SKIP_BARS / STRUCTURE_ATR_SAMPLE_OFFSET below.
+PHASE_B_ATR_WINDOW = 30
+
+# Shared structural-frame constants.
+# --- FROZEN-CONFIG MANIFEST (Lane A) ---
+# The four constants below define the engine's daily VOLATILITY/EDGE FRAME and
+# are part of the frozen-config contract (core/freeze/manifest.py). DECISION:
+# the ATR window is FROZEN as-is (no EWMA switch). Changing any value here is a
+# new engine_config_version => the shadow baseline must be re-captured and the
+# archive re-baselined. Do NOT tweak these casually. (PHASE_B_ATR_WINDOW and
+# DAILY_STRUCTURE_PERIOD, also frozen, are likewise tagged at their definitions.)
+STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action when anchoring boxes
+# Daily ATR is sampled one bar before the reserved edge-skip window so the volatility
+# frame matches the bars the box/LPS were anchored on (df.iloc[-(skip+1)]). Bound ONCE
+# at import to the DAILY value (5+1=6); do NOT recompute settings.STRUCTURE_EDGE_SKIP_BARS+1
+# at a call site — that knob is overridden to 1 inside HTF weekly/monthly window contexts,
+# whereas this daily eval bar must stay fixed.
+STRUCTURE_ATR_SAMPLE_OFFSET = STRUCTURE_EDGE_SKIP_BARS + 1   # = 6 (daily)
+# --- end FROZEN-CONFIG MANIFEST (Lane A) region ---
+INNER_SEARCH_FRACTION = 0.5       # Search recent half for nested Phase-D mini-consolidation
+INNER_TIGHTNESS_RATIO = 0.75      # Inner box must be at least 25% tighter than parent
+INNER_MIN_DAYS = 15               # Min length of an inner CANDIDATE box (room pre-filter only; inner_zigzag separately requires the search WINDOW >= MIN_BASE_DAYS — the binding floor)
+
 # Dynamic Recursive S/R Scanning (Phase B)
 BOUNDARY_ATR_BUFFER = 0.50       # ATR multiplier for boundary respect zone
 
-# ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
-# DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
-# consulted ONLY when the strict and rescued pools are both empty — an ordinary
-# box's election can never move): the CHRONOLOGICAL zigzag pairs re-judged with
-# band-leaving excursions typed as events that must reclaim/fail-back and HOLD
-# (the spring invariants at terminal-shakeout scale) or the pair dies. Event
-# bars are excised; the UNCHANGED respect/occupancy/traversal gates run
-# full-strength on the judged window. Operator rulings 2026-07-10 (BODI marked
-# chart + chat): the Feb collapse is PHASE C inside ONE box; rails anchor from
-# the chronological swings, measured wick to wick. A pair carrying a qualified
-# DEEP below-rail event may measure up to BAND_MAX_BOX_WIDTH (BODI's
-# chronological pair reads 0.20-0.23) — the allowance exists ONLY with the
-# event, so it can never act as a general width loosening. Calibration set:
-# docs/phase_c_marks_2026-07.json.
-# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #2).
-BAND_RAILS_ENABLED = True
-BAND_MAX_BOX_WIDTH = 0.23        # wick-to-wick cap for a pair WITH a qualified deep event
-BAND_EVENT_MIN_BARS = 2          # a deep event is multi-bar; one-bar pokes stay respect-buffer business
-# Depth cap on a qualified below-rail event, in ATRs below the S rail: deeper
-# is a genuine breakdown, never a terminal shakeout (the EGBN flip-pause
-# ruling — a 7.68-9.98 ATR excision electing a stale box is the over-reach
-# this kills). Calibrated between BODI's progressive chain (0.86 -> 3.34 ATR,
-# must pass) and the EGBN class (must refuse).
-BAND_EVENT_MAX_DEPTH_ATR = 5.0
-# Duration cap on one merged below-rail event: an episode is penetration ->
-# reclaim -> hold, bounded in time — a run below the rail lasting months is a
-# markdown leg, not a shakeout (EGBN's stale April framing rode a 40-bar
-# "event"; BODI's real episodes run 12-18 bars). 2x the respect gate's own
-# MAX_CONSECUTIVE_OUTSIDE_DAYS.
-BAND_EVENT_MAX_BARS = 20
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierces the buffered boundary (high>R+buf or low<S-buf). (was 30 — absurdly lenient; tightened with the worked-equilibrium rewrite.)
-# DARK (solve-the-engine task 13) — stale-frame dethronement: a
-# rescue-propped framing whose buffered R the tape has left FULLY behind for
-# the trailing N sessions loses the election in favor of a later valid
-# framing (MATX: stale spring boxes blind the fresh shelf). The sibling
-# rescued-pool arbitration lever was built and REJECTED (it killed VIK's
-# pinned corpus hit; see box_primitives — the shelf-R lesson at election
-# scope).
-# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #4).
-ELECTION_DETHRONE_ENABLED = True
-ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run cap
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
 
@@ -200,51 +234,100 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # (tools/fidelity/box_backext/); shadow baseline re-captured at the flip.
 BOX_BACKEXT_ENABLED = True
 
-# Markup-leg qualification (Phase A in find_outer_box)
-TREND_MIN_GAIN_PCT = 0.15        # Markup leg must gain >= 15% start->end
-TREND_MIN_MOVE_BARS = 20         # Markup leg must span at least this many bars
-TREND_PRIOR_LOOKBACK = 100       # Search this far back for prior trough/peak
-LOCAL_PEAK_BARS = 30             # Anchor must be the local extremum over this window
-ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a root requires
-                                 # latest close > this SMA (the Stage-2 / uptrend filter). Daily=200;
-                                 # HTF presets scale it (weekly ~30 = Weinstein MA-30, monthly ~10) so
-                                 # the rolling mean isn't all-NaN on the shorter resampled frame.
+# ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
+# DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
+# consulted ONLY when the strict and rescued pools are both empty — an ordinary
+# box's election can never move): the CHRONOLOGICAL zigzag pairs re-judged with
+# band-leaving excursions typed as events that must reclaim/fail-back and HOLD
+# (the spring invariants at terminal-shakeout scale) or the pair dies. Event
+# bars are excised; the UNCHANGED respect/occupancy/traversal gates run
+# full-strength on the judged window. Operator rulings 2026-07-10 (BODI marked
+# chart + chat): the Feb collapse is PHASE C inside ONE box; rails anchor from
+# the chronological swings, measured wick to wick. A pair carrying a qualified
+# DEEP below-rail event may measure up to BAND_MAX_BOX_WIDTH (BODI's
+# chronological pair reads 0.20-0.23) — the allowance exists ONLY with the
+# event, so it can never act as a general width loosening. Calibration set:
+# docs/phase_c_marks_2026-07.json.
+# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #2).
+BAND_RAILS_ENABLED = True
+BAND_MAX_BOX_WIDTH = 0.23        # wick-to-wick cap for a pair WITH a qualified deep event
+BAND_EVENT_MIN_BARS = 2          # a deep event is multi-bar; one-bar pokes stay respect-buffer business
+# Depth cap on a qualified below-rail event, in ATRs below the S rail: deeper
+# is a genuine breakdown, never a terminal shakeout (the EGBN flip-pause
+# ruling — a 7.68-9.98 ATR excision electing a stale box is the over-reach
+# this kills). Calibrated between BODI's progressive chain (0.86 -> 3.34 ATR,
+# must pass) and the EGBN class (must refuse).
+BAND_EVENT_MAX_DEPTH_ATR = 5.0
+# Duration cap on one merged below-rail event: an episode is penetration ->
+# reclaim -> hold, bounded in time — a run below the rail lasting months is a
+# markdown leg, not a shakeout (EGBN's stale April framing rode a 40-bar
+# "event"; BODI's real episodes run 12-18 bars). 2x the respect gate's own
+# MAX_CONSECUTIVE_OUTSIDE_DAYS.
+BAND_EVENT_MAX_BARS = 20
 
-# Phase-B ATR window (median over recent N base bars; used when no override is given)
-# FROZEN-CONFIG MANIFEST (Lane A): part of the frozen ATR/volatility frame —
-# changing it is a new engine_config_version (re-baseline). See the marked region
-# at STRUCTURE_EDGE_SKIP_BARS / STRUCTURE_ATR_SAMPLE_OFFSET below.
-PHASE_B_ATR_WINDOW = 30
+# DARK (solve-the-engine task 13) — stale-frame dethronement: a
+# rescue-propped framing whose buffered R the tape has left FULLY behind for
+# the trailing N sessions loses the election in favor of a later valid
+# framing (MATX: stale spring boxes blind the fresh shelf). The sibling
+# rescued-pool arbitration lever was built and REJECTED (it killed VIK's
+# pinned corpus hit; see box_primitives — the shelf-R lesson at election
+# scope).
+# Live flip operator-granted 2026-07-16 (solve-the-engine flip checklist #4).
+ELECTION_DETHRONE_ENABLED = True
+ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run cap
 
-# Automatic Reaction validation (required)
-AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
-AR_MAX_BARS = 15                 # ...within this many bars of the climax
-
-# First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
-# The raw Phase-A resolver can drag the drawn automatic reaction all the way to
-# the base edge, so the climax->AR stripe smears across half the chart. When on,
-# resolve_phase_a() TIGHTENS the AR to the trend model's first reaction after the
-# terminal swing (market_structure.first_reaction_after) -- the reaction low of the
-# first continuous counter-move that retraces >= AR_RETRACE_FRAC of the trend's
-# FULL leg (the whole advance the climax ended, from the elected trend segment's
-# start), closed at the first BIG confirmed bounce off that low (a rally of
-# >= max(AR_BOUNCE_ATR_MULT*ATR, AR_BOUNCE_DROP_FRAC*drop)). The full-leg basis and
-# the big-bounce close are what keep it from over-tightening at a mid-decline pause
-# (the earlier terminal-sub-leg + twitchy-stall read stopped short of the true
-# reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
-# retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
-# Tighten-only + overlay-only: it can move the AR earlier but never past the box
-# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_v2.md "The
-# trend model" + "Phase A -- First-reaction AR anchor").
-AR_FIRST_REACTION_ENABLED = False
-AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg
-AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend segment tops at the climax
-AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
-AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
+# ── Election stability — persistence under backward eval-day shifts ─────────────
+# Measure-only probe on FIRING setups (core/pipeline/stability.py): re-run the
+# eval-twin prep + the structure election alone at D-1..D-k on the same raw frame
+# and ask, via the one cross-frame identity predicate, whether the SAME reading
+# elects. Real structures persist; junk flickers (BODI's band pair exists 04-15,
+# dies 04-16; VLO's read 07-07, not 07-08). Never a gate, never a score: emits
+# only underscore diagnostics (_stability_same_frac / _streak / _probes).
+# Flag-off is byte-identical with ZERO new compute (import + computation live
+# inside the flag). Flip is operator-gated on the measured cost bound (EC-8).
+ELECTION_STABILITY_ENABLED = False
+ELECTION_STABILITY_LOOKBACK = 3   # backward shifts probed (D-1..D-k); election stage only
 
 # ============================================================
-# PHASE 3 — LPS & BREAKOUT DETECTION
+# 4. PHASE C — SPRING
 # ============================================================
+# Phase-C bin measurement (archive/UI only, never a gate). A spring is a PHASE,
+# not a one-bar V: a bounded EXCURSION below support that is reclaimed and HELD.
+# It can be a clean fast V OR a choppy linger below S before recovering — both
+# are valid. We key on the three invariants — genuine penetration, reclaim, and
+# HOLD (the reclaim sticks = supply absorbed) — NOT on the shape of the dip.
+# Grounded in Wyckoff (Phase C ~1-2 weeks; Spring #2 mild vs Spring #1 / terminal
+# shakeout deep; price returns to the range within ~5 sessions; the tell is that
+# the reclaim holds) and in real misses (KIDS: 2.1 ATR / 0.55-of-box, 6-bar
+# linger — a terminal shakeout the old clean-fast-V template rejected).
+BIN_C_UNDERCUT_ATR_MIN = 0.30      # tip Low must dip >= this far below S (a real test, not a touch)
+BIN_C_UNDERCUT_ATR_MAX = 3.00      # depth cap, terminal-shakeout tolerant (was 1.5 — too tight, missed deep springs); beyond this it's a breakdown not a spring
+BIN_C_UNDERCUT_BOX_MAX = 0.65      # also cap depth as a fraction of box (was 0.35; ~0.55 is a valid deep spring, ~0.8+ breaks the range)
+BIN_C_RECOVERY_BARS_MAX = 8        # Close must reclaim S within this many bars of the trough (was 3 — clean fast V only; widened for the linger)
+BIN_C_LINGER_BARS_MAX = 12         # the whole below-support episode (first penetration -> reclaim) must be bounded; a spring lingers, a breakdown never ends
+BIN_C_HOLD_BARS = 3                # after reclaim, Close must HOLD above S (within tol) for this many bars — the absorption confirmation that rejects poke-and-fail
+BIN_C_HOLD_TOL_ATR = 0.50          # one dip up to this far below S during the hold window is tolerated (a secondary test); a sustained close-below is not
+# Significance — the user's "it's not a simple bar breach and recovery". A spring
+# is EITHER a visible clean-V dip (deep enough on its own) OR a genuine multi-bar
+# struggle below support (a shallower undercut that lingers). A trivial one-bar
+# wick a fraction of an ATR below S that snaps back is neither — it's noise, not
+# Phase C. (Calibrated to the live split: shallow-fast pokes ran <=0.7 ATR, real
+# springs >=0.8 ATR or multi-bar.)
+BIN_C_SIGNIF_UNDERCUT_ATR = 0.75   # a clean-V spring must dip >= this far below S to count on depth alone
+BIN_C_MIN_LINGER_BARS = 2          # else the below-S episode (first penetration -> reclaim) must span >= this many bars
+BIN_C_LATE_BOX_FRACTION = 0.50     # only look for Phase C in the late half of the base
+
+# ============================================================
+# 5. PHASE D & LPS
+# ============================================================
+# Phase B->D divider from the V-tip (display only). Separate from the Phase-C
+# spring gate above: ANY recovered late-base low (even a shallow one that is NOT
+# a true spring) is still the tip of the final 'V' and marks where the right-side
+# markup begins ("Phase B ends here, Phase D starts here"). We're good at finding
+# the tip even when small, so we repurpose it for the boundary, not a spring tag.
+PHASE_D_VTIP_LATE_FRACTION = 0.35  # only look for the tip in the late part of the base
+PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it recovered
+
 # descent_frac is the fraction of pair-wise (i<j) low comparisons where the later
 # bar's low is <= the earlier bar's low (perfect descent = 1.0, perfect rally =
 # 0.0, ~0.5 for random/sideways). It is now a PURELY GRADED quality input — it
@@ -359,40 +442,6 @@ LPS_DRAW_MIN_DESCENT_FRAC = 0.40
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
 
-# Phase-C bin measurement (archive/UI only, never a gate). A spring is a PHASE,
-# not a one-bar V: a bounded EXCURSION below support that is reclaimed and HELD.
-# It can be a clean fast V OR a choppy linger below S before recovering — both
-# are valid. We key on the three invariants — genuine penetration, reclaim, and
-# HOLD (the reclaim sticks = supply absorbed) — NOT on the shape of the dip.
-# Grounded in Wyckoff (Phase C ~1-2 weeks; Spring #2 mild vs Spring #1 / terminal
-# shakeout deep; price returns to the range within ~5 sessions; the tell is that
-# the reclaim holds) and in real misses (KIDS: 2.1 ATR / 0.55-of-box, 6-bar
-# linger — a terminal shakeout the old clean-fast-V template rejected).
-BIN_C_UNDERCUT_ATR_MIN = 0.30      # tip Low must dip >= this far below S (a real test, not a touch)
-BIN_C_UNDERCUT_ATR_MAX = 3.00      # depth cap, terminal-shakeout tolerant (was 1.5 — too tight, missed deep springs); beyond this it's a breakdown not a spring
-BIN_C_UNDERCUT_BOX_MAX = 0.65      # also cap depth as a fraction of box (was 0.35; ~0.55 is a valid deep spring, ~0.8+ breaks the range)
-BIN_C_RECOVERY_BARS_MAX = 8        # Close must reclaim S within this many bars of the trough (was 3 — clean fast V only; widened for the linger)
-BIN_C_LINGER_BARS_MAX = 12         # the whole below-support episode (first penetration -> reclaim) must be bounded; a spring lingers, a breakdown never ends
-BIN_C_HOLD_BARS = 3                # after reclaim, Close must HOLD above S (within tol) for this many bars — the absorption confirmation that rejects poke-and-fail
-BIN_C_HOLD_TOL_ATR = 0.50          # one dip up to this far below S during the hold window is tolerated (a secondary test); a sustained close-below is not
-# Significance — the user's "it's not a simple bar breach and recovery". A spring
-# is EITHER a visible clean-V dip (deep enough on its own) OR a genuine multi-bar
-# struggle below support (a shallower undercut that lingers). A trivial one-bar
-# wick a fraction of an ATR below S that snaps back is neither — it's noise, not
-# Phase C. (Calibrated to the live split: shallow-fast pokes ran <=0.7 ATR, real
-# springs >=0.8 ATR or multi-bar.)
-BIN_C_SIGNIF_UNDERCUT_ATR = 0.75   # a clean-V spring must dip >= this far below S to count on depth alone
-BIN_C_MIN_LINGER_BARS = 2          # else the below-S episode (first penetration -> reclaim) must span >= this many bars
-BIN_C_LATE_BOX_FRACTION = 0.50     # only look for Phase C in the late half of the base
-
-# Phase B->D divider from the V-tip (display only). Separate from the Phase-C
-# spring gate above: ANY recovered late-base low (even a shallow one that is NOT
-# a true spring) is still the tip of the final 'V' and marks where the right-side
-# markup begins ("Phase B ends here, Phase D starts here"). We're good at finding
-# the tip even when small, so we repurpose it for the boundary, not a spring tag.
-PHASE_D_VTIP_LATE_FRACTION = 0.35  # only look for the tip in the late part of the base
-PHASE_D_VTIP_RECOVERY_BARS = 6     # a higher High within this many bars = it recovered
-
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
@@ -408,28 +457,8 @@ LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Mov
                                  # rejected (companion pin in tests/test_lps.py); Vol_50 gained
                                  # a non-finite refusal guard in the same change.
 
-# Shared structural-frame constants.
-# --- FROZEN-CONFIG MANIFEST (Lane A) ---
-# The four constants below define the engine's daily VOLATILITY/EDGE FRAME and
-# are part of the frozen-config contract (core/freeze/manifest.py). DECISION:
-# the ATR window is FROZEN as-is (no EWMA switch). Changing any value here is a
-# new engine_config_version => the shadow baseline must be re-captured and the
-# archive re-baselined. Do NOT tweak these casually. (PHASE_B_ATR_WINDOW and
-# DAILY_STRUCTURE_PERIOD, also frozen, are likewise tagged at their definitions.)
-STRUCTURE_EDGE_SKIP_BARS = 5      # Reserve latest bars for trigger/edge action when anchoring boxes
-# Daily ATR is sampled one bar before the reserved edge-skip window so the volatility
-# frame matches the bars the box/LPS were anchored on (df.iloc[-(skip+1)]). Bound ONCE
-# at import to the DAILY value (5+1=6); do NOT recompute settings.STRUCTURE_EDGE_SKIP_BARS+1
-# at a call site — that knob is overridden to 1 inside HTF weekly/monthly window contexts,
-# whereas this daily eval bar must stay fixed.
-STRUCTURE_ATR_SAMPLE_OFFSET = STRUCTURE_EDGE_SKIP_BARS + 1   # = 6 (daily)
-# --- end FROZEN-CONFIG MANIFEST (Lane A) region ---
-INNER_SEARCH_FRACTION = 0.5       # Search recent half for nested Phase-D mini-consolidation
-INNER_TIGHTNESS_RATIO = 0.75      # Inner box must be at least 25% tighter than parent
-INNER_MIN_DAYS = 15               # Min length of an inner CANDIDATE box (room pre-filter only; inner_zigzag separately requires the search WINDOW >= MIN_BASE_DAYS — the binding floor)
-
 # ============================================================
-# PHASE 4 — SCORING & RANKING
+# 6. SCORING & TIERS
 # ============================================================
 # Tier thresholds — calibrated against the live archive distribution
 # (avg ~95, max ~126 under prior weights). With the 52w-high proximity
@@ -539,18 +568,6 @@ PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, a
 # cost A/B (EC-8).
 EVENT_MAP_ENABLED = False
 
-# ── Election stability — persistence under backward eval-day shifts ─────────────
-# Measure-only probe on FIRING setups (core/pipeline/stability.py): re-run the
-# eval-twin prep + the structure election alone at D-1..D-k on the same raw frame
-# and ask, via the one cross-frame identity predicate, whether the SAME reading
-# elects. Real structures persist; junk flickers (BODI's band pair exists 04-15,
-# dies 04-16; VLO's read 07-07, not 07-08). Never a gate, never a score: emits
-# only underscore diagnostics (_stability_same_frac / _streak / _probes).
-# Flag-off is byte-identical with ZERO new compute (import + computation live
-# inside the flag). Flip is operator-gated on the measured cost bound (EC-8).
-ELECTION_STABILITY_ENABLED = False
-ELECTION_STABILITY_LOOKBACK = 3   # backward shifts probed (D-1..D-k); election stage only
-
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
 # folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived
@@ -627,51 +644,6 @@ TOUCH_BONUS_INDIVIDUAL = 3       # Need >= 3 touches on EACH side
 TOUCH_BONUS_TOTAL = 6            # OR >= 6 total touches
 TOUCH_BONUS_POINTS = 10          # Bonus awarded (part of the 25 pts max)
 
-
-# ============================================================
-# DATA & CACHING
-# ============================================================
-# Live archiving — when True, every daily screener run upserts its full output
-# (winners AND the setups that later fizzle) into setup_archive with
-# source="screener". This is the fuel the calibration/analysis tools need:
-# without live non-winners, every outcome metric is biased by the seed gallery.
-# Idempotent per (ticker, scan_date); re-running the same day updates in place.
-ARCHIVE_LIVE_SCANS = True
-
-# Market-data source. The screener fetches its canonical panel through
-# core.pipeline.providers.get_provider(), not directly from a vendor, so a
-# bulk-EOD source can be added behind the same contract and validated against
-# the incumbent (tools/provider_parity.py) before it feeds an archiveable scan.
-# "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
-MARKET_DATA_PROVIDER = "yahoo"
-
-# Price-series regime (operator rule, 2026-07-02): structural analysis runs on
-# REAL traded prices. False = as-traded OHLC (split-adjusted only — exactly what
-# TradingView shows); True = legacy dividend+split-adjusted series, which
-# repaints history every ex-div and shows prices that were never traded
-# (confirmed distorting income names: GOOD/ENIC passed baseline only on
-# adjusted data, DKL's box start moved). The cache meta is stamped with the
-# regime; a mismatch forces a full cold refetch — regimes are never mixed.
-DATA_DIVIDEND_ADJUSTED = False
-
-CACHE_FILENAME = "market_data_cache_5y.parquet"
-CACHE_META_FILENAME = "cache_meta.json"
-MARKET_CONTEXT_FILENAME = "market_context.json"
-PARQUET_ENGINE = "pyarrow"
-PARQUET_COMPRESSION = "zstd"
-DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) and monthly (~60 bars)
-                                 # resampling for HTF context has enough depth. The DAILY structure
-                                 # read is trimmed back to DAILY_STRUCTURE_PERIOD so this deeper cache
-                                 # does NOT change daily behavior (see HTF section below + engine_alpha.structure.htf).
-                                 # Renaming the cache file forces a clean cold 5y backfill on next run.
-TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
-TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"  # One symbol per line; skipped before any Yahoo request
-TICKER_ADMISSION_ENABLED = True
-TICKER_ADMISSION_FILENAME = "ticker_admission.json"
-ADMISSION_MIN_HISTORY_BARS = 200   # Same minimum used by the baseline history gate
-ADMISSION_YOUNG_RECHECK_DAYS = 21  # Alive but too young: re-test after it may have gained bars
-ADMISSION_EMPTY_RECHECK_DAYS = 7   # No Yahoo history: short cooldown before re-probing
-
 # ============================================================
 # HIGHER-TIMEFRAME (HTF) STRUCTURE CONTEXT
 # ============================================================
@@ -741,6 +713,97 @@ HTF_MONTHLY_WINDOWS = {
     "BIN_C_MIN_LINGER_BARS": 1,
     "PHASE_D_VTIP_RECOVERY_BARS": 1,
 }
+
+# ============================================================
+# --- DATA PRIMITIVES (Lane C) ---
+# ============================================================
+# Additive, NOT-YET-WIRED data layers (core/fundamentals, core/regime) that a
+# later scoring/enrichment wave will consume. They read market data ONLY through
+# core.pipeline.providers.get_provider() and compute pure functions over already-
+# fetched frames, so nothing here changes the engine's computed output today.
+# Every flag defaults OFF; the modules read these lazily via getattr(settings, ...)
+# to respect the backend's config-vs-cwd shadowing constraint. Wire-up (feeding
+# scoring / archive_models) is a separate, later wave — see each module docstring.
+
+# Fundamentals: the 5 per-ticker metrics (core/fundamentals/metrics.py) — qtr EPS
+# growth YoY, qtr sales growth YoY, EPS-growth acceleration, earnings surprise %,
+# in-house RS rating. Null-safe (missing -> None). Read via the provider's
+# get_income_stmt / get_earnings_dates / info accessors.
+FUNDAMENTALS_ENABLED = False
+FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to request
+FUNDAMENTALS_MIN_QUARTERS_YOY = 5          # need >= this many quarters for a YoY-acceleration read (4-back + prior 4-back)
+# Point-in-time filing lag: yfinance carries no per-quarter SEC filing date, so a
+# quarter keyed by its PERIOD-END date would be read before it was actually filed
+# (lookahead leak). A quarter is only treated as usable when
+# period_end + this many days <= as_of. 75 days is the conservative ceiling — the
+# SEC 10-Q deadline for a non-accelerated filer (45 days) plus margin — so the
+# gate can be a few weeks LATE but never admits a not-yet-filed quarter. Earnings
+# history is gated on its own report-date index (no lag needed there).
+FUNDAMENTALS_FILING_LAG_DAYS = 75
+
+# RS line (core/regime/rs_line.py) — stock/SPY ratio series + rs_line_new_high.
+RS_LINE_ENABLED = False
+RS_LINE_NEW_HIGH_LOOKBACK = 252            # ratio is a "new high" vs its rolling max over this many sessions (~52w)
+
+# In-house RS rating (core/regime/percentile.py drives it via trailing return).
+RS_RATING_LOOKBACK = 252                   # trailing-return window the RS rating percentile-ranks across the universe
+
+# SPDR sector ranking (core/regime/sector_ranking.py) — rank the 11 SPDR sector
+# ETFs by sector/SPY rs_ratio momentum over multiple lookbacks.
+SECTOR_RANKING_ENABLED = False
+SECTOR_RANKING_LOOKBACKS = (21, 63, 126)   # trading-day windows for the multi-horizon sector RS rank
+SECTOR_RANKING_ETFS = (
+    "XLK", "XLV", "XLF", "XLY", "XLP", "XLC",
+    "XLI", "XLE", "XLU", "XLRE", "XLB",
+)
+
+# ============================================================
+# 7. ARCHIVE & TELEMETRY
+# ============================================================
+# Live archiving — when True, every daily screener run upserts its full output
+# (winners AND the setups that later fizzle) into setup_archive with
+# source="screener". This is the fuel the calibration/analysis tools need:
+# without live non-winners, every outcome metric is biased by the seed gallery.
+# Idempotent per (ticker, scan_date); re-running the same day updates in place.
+ARCHIVE_LIVE_SCANS = True
+
+# ============================================================
+# =================== ENGINE / APP FENCE =====================
+# Keys ABOVE this line are engine territory — the reading-model
+# knobs, (mostly) frozen into the engine manifest
+# (engine_alpha/freeze/manifest.py); changing one rotates
+# engine_config_version. Keys BELOW this line are app /
+# pipeline / scheduler / alerts knobs. Do not prune across
+# this line.
+# ============================================================
+
+# ============================================================
+# 8. APP / PIPELINE / SCHEDULER / ALERTS
+# ============================================================
+# Market-data source. The screener fetches its canonical panel through
+# core.pipeline.providers.get_provider(), not directly from a vendor, so a
+# bulk-EOD source can be added behind the same contract and validated against
+# the incumbent (tools/provider_parity.py) before it feeds an archiveable scan.
+# "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
+MARKET_DATA_PROVIDER = "yahoo"
+
+CACHE_FILENAME = "market_data_cache_5y.parquet"
+CACHE_META_FILENAME = "cache_meta.json"
+MARKET_CONTEXT_FILENAME = "market_context.json"
+PARQUET_ENGINE = "pyarrow"
+PARQUET_COMPRESSION = "zstd"
+DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) and monthly (~60 bars)
+                                 # resampling for HTF context has enough depth. The DAILY structure
+                                 # read is trimmed back to DAILY_STRUCTURE_PERIOD so this deeper cache
+                                 # does NOT change daily behavior (see HTF section below + engine_alpha.structure.htf).
+                                 # Renaming the cache file forces a clean cold 5y backfill on next run.
+TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
+TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"  # One symbol per line; skipped before any Yahoo request
+TICKER_ADMISSION_ENABLED = True
+TICKER_ADMISSION_FILENAME = "ticker_admission.json"
+ADMISSION_MIN_HISTORY_BARS = 200   # Same minimum used by the baseline history gate
+ADMISSION_YOUNG_RECHECK_DAYS = 21  # Alive but too young: re-test after it may have gained bars
+ADMISSION_EMPTY_RECHECK_DAYS = 7   # No Yahoo history: short cooldown before re-probing
 
 # Incremental fetch tuning
 TTL_FRESH_HOURS_MARKET = 1        # Re-fetch latest bars if cache is older than this during market hours
@@ -840,49 +903,6 @@ FORWARD_RETURNS_MIN_AGE_DAYS = 5
 ALERT_WEBHOOK_URL_ENV = "ALERT_WEBHOOK_URL"
 ALERT_ON_ZERO_RESULTS = True
 ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetch-health came back unhealthy (low return ratio) — an early warning before a stale_data failure
-
-# ============================================================
-# --- DATA PRIMITIVES (Lane C) ---
-# ============================================================
-# Additive, NOT-YET-WIRED data layers (core/fundamentals, core/regime) that a
-# later scoring/enrichment wave will consume. They read market data ONLY through
-# core.pipeline.providers.get_provider() and compute pure functions over already-
-# fetched frames, so nothing here changes the engine's computed output today.
-# Every flag defaults OFF; the modules read these lazily via getattr(settings, ...)
-# to respect the backend's config-vs-cwd shadowing constraint. Wire-up (feeding
-# scoring / archive_models) is a separate, later wave — see each module docstring.
-
-# Fundamentals: the 5 per-ticker metrics (core/fundamentals/metrics.py) — qtr EPS
-# growth YoY, qtr sales growth YoY, EPS-growth acceleration, earnings surprise %,
-# in-house RS rating. Null-safe (missing -> None). Read via the provider's
-# get_income_stmt / get_earnings_dates / info accessors.
-FUNDAMENTALS_ENABLED = False
-FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to request
-FUNDAMENTALS_MIN_QUARTERS_YOY = 5          # need >= this many quarters for a YoY-acceleration read (4-back + prior 4-back)
-# Point-in-time filing lag: yfinance carries no per-quarter SEC filing date, so a
-# quarter keyed by its PERIOD-END date would be read before it was actually filed
-# (lookahead leak). A quarter is only treated as usable when
-# period_end + this many days <= as_of. 75 days is the conservative ceiling — the
-# SEC 10-Q deadline for a non-accelerated filer (45 days) plus margin — so the
-# gate can be a few weeks LATE but never admits a not-yet-filed quarter. Earnings
-# history is gated on its own report-date index (no lag needed there).
-FUNDAMENTALS_FILING_LAG_DAYS = 75
-
-# RS line (core/regime/rs_line.py) — stock/SPY ratio series + rs_line_new_high.
-RS_LINE_ENABLED = False
-RS_LINE_NEW_HIGH_LOOKBACK = 252            # ratio is a "new high" vs its rolling max over this many sessions (~52w)
-
-# In-house RS rating (core/regime/percentile.py drives it via trailing return).
-RS_RATING_LOOKBACK = 252                   # trailing-return window the RS rating percentile-ranks across the universe
-
-# SPDR sector ranking (core/regime/sector_ranking.py) — rank the 11 SPDR sector
-# ETFs by sector/SPY rs_ratio momentum over multiple lookbacks.
-SECTOR_RANKING_ENABLED = False
-SECTOR_RANKING_LOOKBACKS = (21, 63, 126)   # trading-day windows for the multi-horizon sector RS rank
-SECTOR_RANKING_ETFS = (
-    "XLK", "XLV", "XLF", "XLY", "XLP", "XLC",
-    "XLI", "XLE", "XLU", "XLRE", "XLB",
-)
 
 # ============================================================
 # MARKET & SECTOR HEALTH BOARD (position-in-cycle read)
