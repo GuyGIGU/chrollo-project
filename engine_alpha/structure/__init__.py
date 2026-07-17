@@ -64,7 +64,7 @@ from engine_alpha.structure.metrics import (
     measure_support_slope,
     measure_touch_volume,
 )
-from engine_alpha.structure.bin_features import measure_bins
+from engine_alpha.structure.phase_features import measure_phases
 
 # ── Layer: Phase D / LPS — the right-side trigger shelf + support-test staircase ─
 from engine_alpha.structure.lps import (
@@ -109,7 +109,7 @@ __all__ = [
     "measure_contractions",
     "measure_support_slope",
     "measure_touch_volume",
-    "measure_bins",
+    "measure_phases",
     # Phase D / LPS
     "detect_lps",
     "detect_lps_candidates",

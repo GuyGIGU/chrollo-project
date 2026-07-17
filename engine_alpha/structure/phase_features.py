@@ -443,7 +443,7 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
         # ruling ("not a box break"). Consulted only when the ordinary
         # detector finds nothing, so no calibrated SPRING can ever be
         # re-typed; feeding it HERE (the one Phase-C seam) keeps find_spring,
-        # measure_bins, chart labels and the archive in lockstep.
+        # measure_phases, chart labels and the archive in lockstep.
         if settings.BAND_RAILS_ENABLED:
             shakeout = _terminal_shakeout(df, base_seg, box_start=box_start,
                                           base_len=base_len, R=float(R), S=Sf,
@@ -514,7 +514,7 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
 _DETECT = object()
 
 
-def measure_bins(
+def measure_phases(
     df: "pd.DataFrame",
     *,
     bc_anchor_bar: Optional[int],

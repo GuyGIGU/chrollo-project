@@ -17,15 +17,15 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.bin_features import measure_bins
+from engine_alpha.structure.phase_features import measure_phases
 
 
-def test_measure_bins_slices_named_regions_at_lps(_flat_ohlc):
+def test_measure_phases_slices_named_regions_at_lps(_flat_ohlc):
     df = _flat_ohlc(120)
     # LPS = last 5 bars, low pinned at 100 (inside the 99..101 box).
     for i in range(115, 120):
         df.loc[i, "Low"] = 100.0
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -45,9 +45,9 @@ def test_measure_bins_slices_named_regions_at_lps(_flat_ohlc):
     assert bins["lps_stretch_atr"] == -1.0                 # (100-101)/1
 
 
-def test_measure_bins_phase_a_can_end_at_root_reaction(_flat_ohlc):
+def test_measure_phases_phase_a_can_end_at_root_reaction(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, phase_a_end_bar=16,
         base_len=60, is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -56,9 +56,9 @@ def test_measure_bins_phase_a_can_end_at_root_reaction(_flat_ohlc):
     assert bins["bin_a_bars"] == 6
 
 
-def test_measure_bins_inner_box_sets_boundary_source_and_region(_flat_ohlc):
+def test_measure_phases_inner_box_sets_boundary_source_and_region(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=True, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -67,9 +67,9 @@ def test_measure_bins_inner_box_sets_boundary_source_and_region(_flat_ohlc):
     assert bins["bin_d_bars"] == 60          # Phase D = the inner box (box_start..end)
 
 
-def test_measure_bins_parent_with_inner_phase_d_keeps_parent_base(_flat_ohlc):
+def test_measure_phases_parent_with_inner_phase_d_keeps_parent_base(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=90,
@@ -79,9 +79,9 @@ def test_measure_bins_parent_with_inner_phase_d_keeps_parent_base(_flat_ohlc):
     assert bins["bin_d_bars"] == 30          # Phase D spans the nested range
 
 
-def test_measure_bins_evidence_json_records_selected_source(_flat_ohlc):
+def test_measure_phases_evidence_json_records_selected_source(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -97,9 +97,9 @@ def test_measure_bins_evidence_json_records_selected_source(_flat_ohlc):
     assert {s["source"] for s in evidence["signals"]} >= {"support_tests", "sos_reclaim", "rising_support", "v_tip", "lps"}
 
 
-def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster(_flat_ohlc):
+def test_measure_phases_v_tip_anchors_phase_d_before_support_cluster(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -109,7 +109,7 @@ def test_measure_bins_v_tip_anchors_phase_d_before_support_cluster(_flat_ohlc):
     assert bins["bin_d_bars"] == 32
 
 
-def test_measure_bins_last_supper_positive_when_lps_above_ceiling(_flat_ohlc):
+def test_measure_phases_last_supper_positive_when_lps_above_ceiling(_flat_ohlc):
     df = _flat_ohlc(120)
     df.loc[113, "Low"] = 102.0
     df.loc[113, "Close"] = 102.5
@@ -118,7 +118,7 @@ def test_measure_bins_last_supper_positive_when_lps_above_ceiling(_flat_ohlc):
         df.loc[i, "Low"] = 103.0
         df.loc[i, "Close"] = 103.5
         df.loc[i, "High"] = 104.0
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -132,13 +132,13 @@ def test_measure_bins_last_supper_positive_when_lps_above_ceiling(_flat_ohlc):
     assert bins["last_supper_reclaim_quality"] == 0.75
 
 
-def test_measure_bins_lps_stretch_can_use_active_inner_box(_flat_ohlc):
+def test_measure_phases_lps_stretch_can_use_active_inner_box(_flat_ohlc):
     df = _flat_ohlc(120, high=110.0, low=100.0, close=105.0)
     for i in range(115, 120):
         df.loc[i, "Low"] = 103.0
         df.loc[i, "Close"] = 103.5
         df.loc[i, "High"] = 104.0
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=110.0, S=100.0, atr_val=1.0, lps_R=104.0, lps_S=102.0,
@@ -149,9 +149,9 @@ def test_measure_bins_lps_stretch_can_use_active_inner_box(_flat_ohlc):
     assert bins["lps_stretch_atr"] == -1.0
 
 
-def test_measure_bins_no_lps_window_degrades_gracefully(_flat_ohlc):
+def test_measure_phases_no_lps_window_degrades_gracefully(_flat_ohlc):
     df = _flat_ohlc(120)
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=200, lps_length=5,   # window falls off the frame
         R=101.0, S=99.0, atr_val=1.0,
@@ -162,7 +162,7 @@ def test_measure_bins_no_lps_window_degrades_gracefully(_flat_ohlc):
     assert bins["bin_b_bars"] == 60           # the base region is still measured
 
 
-def test_measure_bins_phase_d_support_delta_blank_when_unmeasured(_ramp_frame):
+def test_measure_phases_phase_d_support_delta_blank_when_unmeasured(_ramp_frame):
     # The support-test boundary creates a Phase D slice that is too short to fit
     # swing lows. Its standalone quality is neutral, but the D-vs-B comparison
     # should stay blank instead of pretending "no measurement" is weaker support.
@@ -173,7 +173,7 @@ def test_measure_bins_phase_d_support_delta_blank_when_unmeasured(_ramp_frame):
     df = pd.concat([lead, d], ignore_index=True)
     d_start = len(lead)
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=0, phase_b_start_bar=1, base_len=len(df),
         is_inner_box=False, lps_offset=0, lps_length=2,
         R=108.0, S=100.0, atr_val=1.0, support_test_start_bar=d_start,
@@ -185,7 +185,7 @@ def test_measure_bins_phase_d_support_delta_blank_when_unmeasured(_ramp_frame):
     assert bins["bin_d_vs_b_support_quality_delta"] is None
 
 
-def test_measure_bins_phase_c_spring_requires_recovery(_flat_ohlc):
+def test_measure_phases_phase_c_spring_requires_recovery(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     # A clean-V spring: a visible undercut of S (0.8 ATR) that reclaims S by
     # Close on the next bar and holds.
@@ -194,7 +194,7 @@ def test_measure_bins_phase_c_spring_requires_recovery(_flat_ohlc):
     df.loc[96, "Low"] = 99.1
     df.loc[96, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -213,13 +213,13 @@ def test_measure_bins_phase_c_spring_requires_recovery(_flat_ohlc):
     assert bins["bin_c_time_loc"] == pytest.approx((95 - 60) / 59, abs=0.0001)
 
 
-def test_measure_bins_phase_c_spring_floors_out_earlier_v_tip(_flat_ohlc):
+def test_measure_phases_phase_c_spring_floors_out_earlier_v_tip(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0, v_tip_bar=88,
@@ -232,13 +232,13 @@ def test_measure_bins_phase_c_spring_floors_out_earlier_v_tip(_flat_ohlc):
     assert bins["bin_d_boundary_source"] == "lps"
 
 
-def test_measure_bins_inner_after_spring_recovery_opens_phase_d(_flat_ohlc):
+def test_measure_phases_inner_after_spring_recovery_opens_phase_d(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 98.2
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0, phase_d_start_bar=100,
@@ -251,7 +251,7 @@ def test_measure_bins_inner_after_spring_recovery_opens_phase_d(_flat_ohlc):
     assert bins["bin_d_boundary_source"] == "inner_box"
 
 
-def test_measure_bins_phase_c_rejects_shallow_undercut(_flat_ohlc):
+def test_measure_phases_phase_c_rejects_shallow_undercut(_flat_ohlc):
     # A barely-below-support poke (0.2 ATR) is a "test at support", not a spring
     # — the undercut floor rejects it even though it reclaims by Close.
     df = _flat_ohlc(120, low=100.0, close=100.2)
@@ -259,7 +259,7 @@ def test_measure_bins_phase_c_rejects_shallow_undercut(_flat_ohlc):
     df.loc[95, "Close"] = 98.9
     df.loc[96, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -271,7 +271,7 @@ def test_measure_bins_phase_c_rejects_shallow_undercut(_flat_ohlc):
     assert bins["bin_c_recovery_bar"] is None
 
 
-def test_measure_bins_phase_c_accepts_linger_spring(_flat_ohlc):
+def test_measure_phases_phase_c_accepts_linger_spring(_flat_ohlc):
     # A choppy multi-bar sojourn below S (not a clean V) that reclaims and holds
     # is a valid spring — the "linger below support then recover" variation.
     df = _flat_ohlc(120, low=100.0, close=100.2)
@@ -281,7 +281,7 @@ def test_measure_bins_phase_c_accepts_linger_spring(_flat_ohlc):
     df.loc[98, ["Low", "Close"]] = [98.4, 98.8]
     df.loc[99, ["Low", "Close"]] = [98.9, 99.3]   # reclaim; bars 100+ hold above S
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -295,13 +295,13 @@ def test_measure_bins_phase_c_accepts_linger_spring(_flat_ohlc):
     assert bins["bin_c_undercut_atr"] == 0.8
 
 
-def test_measure_bins_phase_c_rejects_never_reclaimed(_flat_ohlc):
+def test_measure_phases_phase_c_rejects_never_reclaimed(_flat_ohlc):
     # A sojourn below S that never closes back above it is a breakdown, not a spring.
     df = _flat_ohlc(120, low=100.0, close=100.2)
     for idx in range(95, 120):
         df.loc[idx, ["Low", "Close"]] = [98.0, 98.3]
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -311,7 +311,7 @@ def test_measure_bins_phase_c_rejects_never_reclaimed(_flat_ohlc):
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_rejects_poke_and_fail(_flat_ohlc):
+def test_measure_phases_phase_c_rejects_poke_and_fail(_flat_ohlc):
     # Penetrate + reclaim for ONE bar, then break back below S and stay there:
     # the hold check rejects it (a real spring's reclaim sticks = supply absorbed).
     df = _flat_ohlc(120, low=100.0, close=100.2)
@@ -320,7 +320,7 @@ def test_measure_bins_phase_c_rejects_poke_and_fail(_flat_ohlc):
     for idx in range(97, 120):
         df.loc[idx, ["Low", "Close"]] = [98.0, 98.3]  # fails back below S, sustained
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -330,12 +330,12 @@ def test_measure_bins_phase_c_rejects_poke_and_fail(_flat_ohlc):
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_does_not_label_held_test_from_above(_flat_ohlc):
+def test_measure_phases_phase_c_does_not_label_held_test_from_above(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[110, "Low"] = 99.2
     df.loc[110, "Close"] = 99.4
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -345,10 +345,10 @@ def test_measure_bins_phase_c_does_not_label_held_test_from_above(_flat_ohlc):
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_held_test_stays_near_support(_flat_ohlc):
+def test_measure_phases_phase_c_held_test_stays_near_support(_flat_ohlc):
     df = _flat_ohlc(120, high=104.0, low=102.0, close=102.2)
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=104.0, S=100.0, atr_val=1.0,
@@ -358,12 +358,12 @@ def test_measure_bins_phase_c_held_test_stays_near_support(_flat_ohlc):
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_rejects_too_deep_undercut(_flat_ohlc):
+def test_measure_phases_phase_c_rejects_too_deep_undercut(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 97.4
     df.loc[95, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=1.0,
@@ -373,12 +373,12 @@ def test_measure_bins_phase_c_rejects_too_deep_undercut(_flat_ohlc):
     assert bins["bin_c_type"] is None
 
 
-def test_measure_bins_phase_c_requires_atr_frame(_flat_ohlc):
+def test_measure_phases_phase_c_requires_atr_frame(_flat_ohlc):
     df = _flat_ohlc(120, low=100.0, close=100.2)
     df.loc[95, "Low"] = 98.8
     df.loc[95, "Close"] = 99.2
 
-    bins = measure_bins(
+    bins = measure_phases(
         df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
         is_inner_box=False, lps_offset=0, lps_length=5,
         R=101.0, S=99.0, atr_val=None,

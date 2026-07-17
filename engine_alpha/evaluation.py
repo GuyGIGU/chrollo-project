@@ -19,7 +19,7 @@ from engine_alpha.structure import (
     detect_lps_tests,
     lps_range_threshold,
     measure_bar_compression,
-    measure_bins,
+    measure_phases,
     measure_contractions,
     measure_dwell_balance,
     measure_equilibrium,
@@ -138,7 +138,7 @@ def _structure_to_boxes(s, n: int) -> dict:
         int(s.climax_bar), pbs,
         # is_inner_box (slot 11): the PARENT box is never itself the inner box, so this
         # is always False. Both the live chain and the seed path read it via
-        # structure_ctx["is_inner_box"] and feed it to measure_bins, so they pass an
+        # structure_ctx["is_inner_box"] and feed it to measure_phases, so they pass an
         # identical False by construction — the live/seed convergence on this flag is
         # inert. If a future change makes this a real flag, the shared _run_eval_chain
         # moves live + seed together and seed-recall owns the attributable delta.
@@ -432,7 +432,7 @@ def _phase_d_context(df: pd.DataFrame, structure_ctx: dict, lps_ctx: dict) -> di
         )
     )
 
-    bins = measure_bins(
+    bins = measure_phases(
         df,
         bc_anchor_bar=bc_anchor_bar,
         phase_b_start_bar=structure_ctx["phase_b_start_bar"],

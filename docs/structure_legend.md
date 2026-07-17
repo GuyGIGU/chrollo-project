@@ -216,7 +216,7 @@ it ever influences ranking.
 > **Shipped (Stage 2A).** The stretch is now a raw archived measure:
 > `_lps_stretch_atr` and `_lps_stretch_box` — the LPS foot's distance above the
 > box ceiling R, in ATR and in box-heights — from
-> [bin_features.py](../core/structure/bin_features.py). Component **b**
+> [phase_features.py](../engine_alpha/structure/phase_features.py). Component **b**
 > ("distance from the last consolidation") is the box-relative form; the
 > innermost range *is* the operative box the detector returned. Measure-first:
 > archived, never yet scored.
@@ -296,7 +296,7 @@ absence, raw measure archived, tiers untouched).
    "Change B / `PHASE_B_REACH_QUALITY_FLOOR`" earliest-good-enough rule (retired).
    See segmentation_research.md → Build path → Phase 2.
 
-5. **Regions are now measured (Stage 2A).** `measure_bins` records each region's
+5. **Regions are now measured (Stage 2A).** `measure_phases` records each region's
    (A / B / D / LPS) size, range, and volume as raw archived fields — the
    "where am I in the base?" layer — alongside the Minervini Stage-2 trend
    template. Phase D also carries right-side support behavior:

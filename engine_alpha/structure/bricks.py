@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.bin_features import _phase_c_candidate
+from engine_alpha.structure.phase_features import _phase_c_candidate
 from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
@@ -522,7 +522,7 @@ def _first_impulse_ar_end(df, climax_bar, ar_bar, atr):
     resolves inside the span (a genuinely one-way descent that only stops at the
     base edge). No-op with the flag off, so both states are byte-identical on the
     scoring/tier/canonical-shadow surface. NOTE: a flip is NOT byte-identical on
-    the ARCHIVED ``bin_a_*`` columns (``ar_bar`` feeds ``measure_bins`` →
+    the ARCHIVED ``bin_a_*`` columns (``ar_bar`` feeds ``measure_phases`` →
     ``writer``, read by ``analyze``); no freeze gate covers that seam, so a live
     flip needs a ``bin_a_*`` guard / ``engine_config_version`` partition first.
     """
