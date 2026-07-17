@@ -434,6 +434,7 @@ def _phase_d_context(df: pd.DataFrame, structure_ctx: dict, lps_ctx: dict) -> di
         lps_anchor_bar=lps_result.get("lps_anchor_bar"),
         lps_low_bar=lps_result.get("lps_low_bar"),
         v_tip_bar=v_tip_bar,
+        spring=structure.spring,
     )
 
     spring_recovery_bar = bins.get("bin_c_recovery_bar")

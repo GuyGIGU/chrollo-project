@@ -509,6 +509,11 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
     }
 
 
+# Sentinel: "no spring was injected — self-detect" (distinct from None, which
+# means "the walk elected NO Phase C"). Same pattern as box_events._DETECT.
+_DETECT = object()
+
+
 def measure_bins(
     df: "pd.DataFrame",
     *,
@@ -531,6 +536,7 @@ def measure_bins(
     lps_S: Optional[float] = None,
     lps_anchor_bar: Optional[int] = None,
     lps_low_bar: Optional[int] = None,
+    spring=_DETECT,
 ) -> dict:
     """Measure the named regions of an already-detected base. Pure.
 
@@ -568,6 +574,11 @@ def measure_bins(
             ``detect_lps``. When present, Last Supper measurements use the
             anchor High -> elected valley Low rather than re-inferring from the
             LPS window.
+        spring: the engine's elected Phase-C ``Spring`` brick, or None when the
+            walk found no Phase C. The default ``_DETECT`` self-detects via
+            ``_phase_c_candidate`` (the measure-only path, unchanged); the live
+            chain injects ``structure.spring`` so the one elected Phase-C
+            answer is never re-derived.
 
     Returns a JSON-safe dict of un-prefixed keys (see _empty for the shape).
     """
@@ -650,10 +661,27 @@ def measure_bins(
     support_b = measure_support_slope(seg_b, atr_val)
     # Interior trajectory of Bin B (the time x price "inside the base" read).
     out.update(_cog_interior(seg_b, R, S))
-    phase_c = _phase_c_candidate(
-        df, seg_b, box_start=box_start, base_len=base_len,
-        R=R, S=S, atr_val=atr_val,
-    )
+    if spring is _DETECT:
+        phase_c = _phase_c_candidate(
+            df, seg_b, box_start=box_start, base_len=base_len,
+            R=R, S=S, atr_val=atr_val,
+        )
+    elif spring is None:
+        phase_c = {}   # no Phase C: out already holds _empty()'s bin_c keys
+    else:
+        # The bin_c shape from the elected brick, values verbatim — they were
+        # rounded at source (_phase_c_candidate / _terminal_shakeout).
+        phase_c = {
+            "bin_c_present": True,
+            "bin_c_type": spring.spring_type,
+            "bin_c_event_date": spring.event_date,
+            "bin_c_event_bar": int(spring.tip_bar),
+            "bin_c_undercut_atr": float(spring.undercut_atr),
+            "bin_c_recovery_bars": int(spring.recovery_bars),
+            "bin_c_recovery_bar": int(spring.recovery_bar),
+            "bin_c_time_loc": float(spring.time_loc),
+            "bin_c_spring_vol_z": spring.spring_vol_z,
+        }
     out.update(phase_c)
     phase_c_recovery_bar = (
         phase_c.get("bin_c_recovery_bar")
