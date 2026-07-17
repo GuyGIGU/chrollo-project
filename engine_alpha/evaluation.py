@@ -61,22 +61,19 @@ class _EvalSkip(Enum):
 EVAL_ERROR = _EvalSkip.ERROR
 
 
-def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
-    """
-    Enrich the DataFrame with rolling indicators and apply universe-level
-    filters (price, volume, trend, yearly return).
+def apply_baseline_filters_with_reason(
+    df: pd.DataFrame,
+) -> tuple[Optional[tuple[pd.DataFrame, float]], Optional[tuple[str, dict]]]:
+    """The universe baseline gate, reasoned — ONE implementation of the gate.
 
-    Returns ``(df, yearly_return)`` if the ticker passes, or ``None`` if
-    filtered out. yearly_return is returned (not recomputed downstream) so
-    the scorer reuses the exact same value the gate used.
-
-    Vol_50 sample timing: this gate samples Vol_50 at the latest bar, while
-    `detect_lps` re-samples at `eval_idx` (offset 0..3 bars back). The
-    values can diverge for low-liquidity tickers; that's intentional so
-    each gate has its own consistent denominator.
+    Returns ``((df, yearly_return), None)`` on pass, or ``(None, (gate,
+    samples))`` naming the FIRST failing gate with the sampled values. Gate
+    order price -> Vol_50 -> SMA50 -> SMA200 -> YoY is the contract: first-fail
+    names the reason. Comparison forms are verbatim doctrine — a NaN sample
+    passes its ``<`` gate (never add isfinite hardening here).
     """
     if len(df) < 200:
-        return None
+        return None, ("bars", {"bars": len(df)})
 
     df = df.copy()
     df['SMA_50'] = df['Close'].rolling(window=50).mean()
@@ -91,13 +88,34 @@ def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, flo
 
     yearly_return = (latest['Close'] - one_year_ago['Close']) / one_year_ago['Close']
 
-    if latest['Close'] < settings.MIN_PRICE: return None
-    if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None
-    if latest['Close'] < latest['SMA_50']: return None
-    if latest['Close'] < latest['SMA_200']: return None
-    if yearly_return < settings.MIN_YEARLY_RETURN: return None
+    samples = {"close": latest['Close'], "vol_50": latest['Vol_50'],
+               "sma_50": latest['SMA_50'], "sma_200": latest['SMA_200'],
+               "yearly_return": yearly_return}
+    if latest['Close'] < settings.MIN_PRICE: return None, ("price", samples)
+    if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None, ("vol50", samples)
+    if latest['Close'] < latest['SMA_50']: return None, ("sma50", samples)
+    if latest['Close'] < latest['SMA_200']: return None, ("sma200", samples)
+    if yearly_return < settings.MIN_YEARLY_RETURN: return None, ("yoy", samples)
 
-    return df, float(yearly_return)
+    return (df, float(yearly_return)), None
+
+
+def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
+    """
+    Enrich the DataFrame with rolling indicators and apply universe-level
+    filters (price, volume, trend, yearly return).
+
+    Returns ``(df, yearly_return)`` if the ticker passes, or ``None`` if
+    filtered out. yearly_return is returned (not recomputed downstream) so
+    the scorer reuses the exact same value the gate used.
+
+    Vol_50 sample timing: this gate samples Vol_50 at the latest bar, while
+    `detect_lps` re-samples at `eval_idx` (offset 0..3 bars back). The
+    values can diverge for low-liquidity tickers; that's intentional so
+    each gate has its own consistent denominator.
+    """
+    result, _ = apply_baseline_filters_with_reason(df)
+    return result
 
 
 def _structure_to_boxes(s, n: int) -> dict:

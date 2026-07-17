@@ -63,6 +63,7 @@ except ModuleNotFoundError:
 PROJECT_ROOT = configure_path()
 
 from config import settings
+from engine_alpha.evaluation import apply_baseline_filters_with_reason
 from engine_alpha.scoring import calculate_tier, score_setup
 from engine_alpha.structure import (calculate_adx, calculate_atr, detect_boxes,
                                     detect_lps, lps_range_threshold)
@@ -133,31 +134,22 @@ def _evaluate_with_reason(df: pd.DataFrame) -> tuple[Optional[dict], Optional[st
     Returns (result_dict, None) on pass or (None, reason_str) on reject.
     """
     try:
-        if len(df) < 200:
-            return None, f"insufficient data ({len(df)} bars)"
-
-        df = df.copy()
-        df['SMA_50'] = df['Close'].rolling(window=50).mean()
-        df['SMA_200'] = df['Close'].rolling(window=200).mean()
-        df['Vol_50'] = df['Volume'].rolling(window=50).mean()
-        df['Spread'] = df['High'] - df['Low']
-        df['Avg_Spread_20'] = df['Spread'].rolling(window=20).mean()
-
+        base, reject = apply_baseline_filters_with_reason(df)
+        if reject is not None:
+            gate, s = reject
+            if gate == "bars":
+                return None, f"insufficient data ({s['bars']} bars)"
+            if gate == "price":
+                return None, f"price ${s['close']:.2f} < ${settings.MIN_PRICE}"
+            if gate == "vol50":
+                return None, f"Vol50 {s['vol_50']:.0f} < {settings.MIN_VOLUME_50D}"
+            if gate == "sma50":
+                return None, f"below SMA50 ({s['close']:.2f} < {s['sma_50']:.2f})"
+            if gate == "sma200":
+                return None, f"below SMA200 ({s['close']:.2f} < {s['sma_200']:.2f})"
+            return None, f"YoY {s['yearly_return']*100:.1f}% < {settings.MIN_YEARLY_RETURN*100:.0f}%"
+        df, yearly_return = base
         latest = df.iloc[-1]
-        one_year_ago_idx = max(0, len(df) - 252)
-        one_year_ago = df.iloc[one_year_ago_idx]
-        yearly_return = (latest['Close'] - one_year_ago['Close']) / one_year_ago['Close']
-
-        if latest['Close'] < settings.MIN_PRICE:
-            return None, f"price ${latest['Close']:.2f} < ${settings.MIN_PRICE}"
-        if latest['Vol_50'] < settings.MIN_VOLUME_50D:
-            return None, f"Vol50 {latest['Vol_50']:.0f} < {settings.MIN_VOLUME_50D}"
-        if latest['Close'] < latest['SMA_50']:
-            return None, f"below SMA50 ({latest['Close']:.2f} < {latest['SMA_50']:.2f})"
-        if latest['Close'] < latest['SMA_200']:
-            return None, f"below SMA200 ({latest['Close']:.2f} < {latest['SMA_200']:.2f})"
-        if yearly_return < settings.MIN_YEARLY_RETURN:
-            return None, f"YoY {yearly_return*100:.1f}% < {settings.MIN_YEARLY_RETURN*100:.0f}%"
 
         df['ATR_10'] = calculate_atr(df, 10)
         df['ATR_50'] = calculate_atr(df, 50)
