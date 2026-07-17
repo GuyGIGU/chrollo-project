@@ -17,7 +17,7 @@ import numpy as np
 
 from config import settings
 from engine_alpha.structure.metrics import _rail_touch_thirds, measure_traversal
-from engine_alpha.structure.pivots import _build_zigzag, _find_pivots, _pivot_order
+from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
@@ -523,11 +523,10 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
-    peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(len(eq_df)))
+    peaks_idx, valleys_idx, zigzag = _swing_skeleton(
+        eq_highs, eq_lows, _pivot_order(len(eq_df)), _find_pivots)
     if not peaks_idx or not valleys_idx:
         return []
-
-    zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
     if len(zigzag) < 2:
         return []
 
@@ -758,8 +757,8 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
         return cand_start
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
-    peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(len(eq_df)))
-    zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
+    _, _, zigzag = _swing_skeleton(eq_highs, eq_lows, _pivot_order(len(eq_df)),
+                                   _find_pivots)
     tol = settings.TOUCH_TOLERANCE_ATR * atr_val
     r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
     for bar, kind, price in zigzag:                     # oldest pivot first
@@ -904,10 +903,10 @@ def detect_inner_root_swing(eq_df):
 
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
-    peaks_idx, valleys_idx = _find_pivots(eq_highs, eq_lows, _pivot_order(n))
+    peaks_idx, valleys_idx, zigzag = _swing_skeleton(
+        eq_highs, eq_lows, _pivot_order(n), _find_pivots)
     if not peaks_idx or not valleys_idx:
         return None
-    zigzag = _build_zigzag(peaks_idx, valleys_idx, eq_highs, eq_lows)
     if len(zigzag) < 2:
         return None
 

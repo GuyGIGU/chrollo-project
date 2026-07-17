@@ -88,6 +88,26 @@ def _build_zigzag(peaks_idx, valleys_idx, highs, lows):
 
 
 # ---------------------------------------------------------------------------
+# Helper: Build the swing skeleton for a window (find -> build, composed)
+# ---------------------------------------------------------------------------
+
+def _swing_skeleton(highs, lows, order, find_pivots):
+    """Build the swing skeleton for a window: the pivot election chained into
+    the alternation walk (``find_pivots`` -> ``_build_zigzag``) — THE one
+    composition every calibrated detector restates. Returns
+    ``(peaks, valleys, zigzag)`` so call sites keep their own guards (empty
+    pivot pools, zigzag length floors) verbatim; ``_build_zigzag`` is total on
+    empty/one-sided pivot lists, so building before the caller's guard is safe.
+
+    ``find_pivots`` is passed explicitly — each caller hands its OWN
+    module-global ``_find_pivots`` — so ``tools/substrate_ab.py``'s per-module
+    patching (box_primitives + metrics only) keeps its exact granularity.
+    """
+    peaks, valleys = find_pivots(highs, lows, order)
+    return peaks, valleys, _build_zigzag(peaks, valleys, highs, lows)
+
+
+# ---------------------------------------------------------------------------
 # Helper: Amplitude-collapse a zigzag to its significant swings
 # ---------------------------------------------------------------------------
 

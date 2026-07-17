@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.pivots import (_build_zigzag, _collapse_swings,
-                                           _find_pivots, _pivot_order)
+from engine_alpha.structure.pivots import (_collapse_swings, _find_pivots,
+                                           _pivot_order, _swing_skeleton)
 
 # L2 Wyckoff event reader — relocated to engine_alpha.structure.box_events. Re-exported
 # here so every existing ``from engine_alpha.structure.metrics import ...`` site keeps
@@ -146,10 +146,9 @@ def measure_contractions(base_df, order=None):
     if n < 2 * order + 1:
         return empty
 
-    peaks, valleys = _find_pivots(highs, lows, order)
+    peaks, valleys, zigzag = _swing_skeleton(highs, lows, order, _find_pivots)
     if not peaks or not valleys:
         return empty
-    zigzag = _build_zigzag(peaks, valleys, highs, lows)
     if len(zigzag) < 2:
         return empty
 
@@ -256,10 +255,9 @@ def measure_support_slope(base_df, atr_val, order=None):
     if n < 2 * order + 1:
         return empty
 
-    peaks, valleys = _find_pivots(highs, lows, order)
+    peaks, valleys, zigzag = _swing_skeleton(highs, lows, order, _find_pivots)
     if not peaks or not valleys:
         return empty
-    zigzag = _build_zigzag(peaks, valleys, highs, lows)
 
     # Pull the valley points (bar index + low price) in chronological order.
     valley_pts = [(idx, price) for (idx, kind, price) in zigzag if kind == "valley"]
@@ -541,10 +539,9 @@ def measure_traversal(base_df, R, S, atr_val):
 
     # Sensitive (order-1) zigzag so tight-box swings aren't missed; the amplitude
     # filter below removes the resulting noise.
-    peaks, valleys = _find_pivots(highs, lows, 1)
+    peaks, valleys, zz = _swing_skeleton(highs, lows, 1, _find_pivots)
     if not peaks or not valleys:
         return empty
-    zz = _build_zigzag(peaks, valleys, highs, lows)
     if len(zz) < 3:
         return empty
 
