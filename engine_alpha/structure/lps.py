@@ -182,6 +182,17 @@ def _depth_in_base_envelope(pullback_profile: float, min_pullback: float) -> boo
     return min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
 
 
+def _vol_dry_refused(avg_pullback_vol: float, vol_50_at_lps: float,
+                     ceiling: float) -> bool:
+    """Reject-on-True: the pullback's volume did NOT dry up against the Vol_50
+    baseline at the given ceiling — ONE gate asked at two positions (the
+    LPS_VOL_CONTRACTION_MAX ask, then the hard ceiling-1.0 ask after the
+    post-window checks). Keep the reject-on-True direction: a NaN avg routes
+    to False (pass) by design; the vol50_nonpos refusal upstream owns the
+    broken-denominator case."""
+    return avg_pullback_vol >= vol_50_at_lps * ceiling
+
+
 def _pullback_rest_depth_ok(
     pullback_profile: float,
     zone_type: str,
@@ -534,7 +545,8 @@ def detect_lps_candidates(
                     rejects["vol50_nonpos"] += 1
                 continue
             avg_pullback_vol = pullback_period["Volume"].mean()
-            if avg_pullback_vol >= vol_50_at_lps * settings.LPS_VOL_CONTRACTION_MAX:
+            if _vol_dry_refused(avg_pullback_vol, vol_50_at_lps,
+                                settings.LPS_VOL_CONTRACTION_MAX):
                 # The dry-up is the pullback form's judgment; the shelf form is
                 # geometry-only (grades-not-vetoes: volume never gates it).
                 if not holding_shelf:
@@ -564,7 +576,9 @@ def detect_lps_candidates(
                     continue
 
             vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
-            if vol_contraction <= 0:
+            # Same gate at the hard ceiling: vol_contraction <= 0 is exactly
+            # avg >= vol50 * 1.0 (vol50 > 0 is guaranteed by the refusal above).
+            if _vol_dry_refused(avg_pullback_vol, vol_50_at_lps, 1.0):
                 if not holding_shelf:
                     if diagnose:
                         rejects["vol_contraction_post"] += 1
