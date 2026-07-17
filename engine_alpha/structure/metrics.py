@@ -78,6 +78,15 @@ def measure_bar_compression(base_df, box_height, atr_val):
 # VCP progressive-contraction footprint
 # ---------------------------------------------------------------------------
 
+def _non_rising_fraction(seq):
+    """Share of consecutive steps that do not RISE (5% tolerance so a tiny
+    uptick isn't punished). Precondition: ``len(seq) >= 2`` — callers own their
+    short-sequence branches. Shared by the volume drying-up read and the depth
+    progressive-tightening read below (one tolerance, one expression)."""
+    non_rising = sum(1 for i in range(1, len(seq)) if seq[i] <= seq[i - 1] * 1.05)
+    return non_rising / (len(seq) - 1)
+
+
 def _vol_trend_from_contractions(contraction_vols):
     """Score volume drying up ACROSS a contraction sequence (the Minervini VCP
     nuance: each pullback should trade lighter, the final coil the quietest).
@@ -90,9 +99,8 @@ def _vol_trend_from_contractions(contraction_vols):
     if len(vols) < 2:
         return None
     # Progressive decline — share of consecutive steps where volume does not RISE
-    # (5% tolerance, mirroring the depth progressive-tightening tolerance below).
-    non_rising = sum(1 for i in range(1, len(vols)) if vols[i] <= vols[i - 1] * 1.05)
-    progressive = non_rising / (len(vols) - 1)
+    # (tolerance shared with the depth progressive-tightening read below).
+    progressive = _non_rising_fraction(vols)
     # Final-is-lightest — where the final contraction's volume sits between the
     # lightest and heaviest contraction (1.0 = it IS the lightest, 0.0 = heaviest).
     vmax, vmin = max(vols), min(vols)
@@ -187,8 +195,7 @@ def measure_contractions(base_df, order=None):
     #    WIDEN (5% tolerance so a tiny uptick isn't punished). 1.0 = each
     #    pullback <= the previous one, the textbook 18->12->6 footprint.
     if n_c >= 2:
-        non_widening = sum(1 for i in range(1, n_c) if depths[i] <= depths[i - 1] * 1.05)
-        progressive = non_widening / (n_c - 1)
+        progressive = _non_rising_fraction(depths)
     else:
         progressive = 0.5  # single contraction: neutral, can't judge a trend
 
