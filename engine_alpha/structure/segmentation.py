@@ -75,6 +75,17 @@ def _find_root_swing(zigzag, swings, atr_val, dominant, base_off) -> Optional[di
     if climax_i + 1 >= len(zigzag):
         return None
 
+    return _root_swing_record(zigzag, swings, climax_i, dominant, atr_val, base_off)
+
+
+def _root_swing_record(zigzag, swings, climax_i, dominant, atr_val, base_off) -> dict:
+    """Assemble the root-swing record for an already-elected (climax, dominant).
+
+    The election itself stays with the caller — the calibrated read elects the
+    extreme pivot (``_find_root_swing``), the macro story hands in its validated
+    bridge — this only builds the shared record off the elected pair.
+    Requires ``climax_i + 1 < len(zigzag)`` (a counter-leg exists).
+    """
     bc_pivot = zigzag[climax_i]
     ar_pivot = zigzag[climax_i + 1]
     counter_disp = abs(ar_pivot[2] - bc_pivot[2]) / atr_val
@@ -224,23 +235,11 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
         # The validated story IS the root: story[-2] = climax, story[-1] = AR.
         # Direction comes from the bridge type (peak climax = BC after an
         # up-trend, valley climax = SC), never from the window's net sign.
+        # NOTE: `dominant` is deliberately rebound here — it also feeds the
+        # top-level dominant_direction below.
         climax_i = len(zigzag) - 2
-        bc_pivot, ar_pivot = zigzag[climax_i], zigzag[-1]
-        dominant = 1 if bc_pivot[1] == "peak" else -1
-        prior_pullbacks = [s["abs_disp_atr"] for s in swings[:climax_i]
-                           if s["direction"] == -dominant]
-        ref = float(np.median(prior_pullbacks)) if prior_pullbacks else None
-        counter_disp = abs(ar_pivot[2] - bc_pivot[2]) / atr_val
-        root = {
-            "swing_index": int(climax_i),
-            "bc_bar": int(base_off + bc_pivot[0]),
-            "ar_bar": int(base_off + ar_pivot[0]),
-            "trend_direction": int(dominant),
-            "trend_disp_atr": round(abs(float(bc_pivot[2] - zigzag[0][2])) / atr_val, 4),
-            "counter_disp_atr": round(float(counter_disp), 4),
-            "counter_burst_ratio": (round(float(counter_disp / ref), 4)
-                                    if (ref is not None and ref > 0) else None),
-        }
+        dominant = 1 if zigzag[climax_i][1] == "peak" else -1
+        root = _root_swing_record(zigzag, swings, climax_i, dominant, atr_val, base_off)
     else:
         root = _find_root_swing(zigzag, swings, atr_val, dominant, base_off)
 
