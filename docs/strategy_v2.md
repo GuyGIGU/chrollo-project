@@ -1137,6 +1137,23 @@ The zone tolerance still adapts for tight boxes: if box width is below 10%, `_zo
 
 The reader should stay visually strict, but the LPS gates should be audited as
 separate ideas: hard geometry, quality evidence, and active-setup selection.
+
+**Post-LPS refutation (operator ruling 2026-07-17, measure-first — no gate
+yet).** On the BBVA hardening eyeball the operator went deeper than the cause:
+on that freeze the trend, AR, and base election are all CORRECT — the defect is
+the **LPS pick standing refuted by the frame's own remaining bars**: "even in
+the same snapshot, after said LPS we continue down as one prominent
+movement/Down Swing — no way we can measure off an LPS when we know for a fact
+that the price action continues down, and by a large margin." Verified: BBVA's
+LPS window (bars 495–497, low 22.77) was followed in-frame by a break of the
+window low (bar 498), a feeble bounce, and an edge close 1.0 ATR below the LPS
+low and back BELOW R — the throwback claim was dead before the fire. The
+`offset` allowance tolerates a stale LPS by TIME but never checks REFUTATION.
+Next lever, measure-first per doctrine: archive on every fire the post-window
+excursion below `window_low` (ATR units) and, for OVERSHOOT_R, whether R was
+re-lost; calibrate any threshold from the archive + marks (the vol-0.87
+method). The frozen corpus case `BBVA@2026-06-05` guards this exact frame
+meanwhile.
 `tools/lps_gate_audit.py --matrix lps-core` is the current scoreboard for this:
 it can soften descent, volume, spread, terminal-low, and pullback-profile gates
 individually and report which tickers would recover/drop. Volume contraction,
