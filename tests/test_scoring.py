@@ -202,10 +202,10 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
 def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     """The descent-tail gate drops a WIDE box whose support was abandoned early
     (last_support_time_pos <= LSF_MAX) into dead space (low_position_in_box >= CFP_MIN),
-    but spares tight boxes (the EQIX exemption) and is None-safe / flag-guarded."""
+    but spares tight boxes (the EQIX exemption) and is None-safe. Unconditional
+    since the 2026-07-18 fold (formerly behind DESCENT_TAIL_GATE_ENABLED)."""
     from engine_alpha.structure import descent_tail_rejects
 
-    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", True)
     monkeypatch.setattr(settings, "DESCENT_TAIL_LSF_MAX", 0.40)
     monkeypatch.setattr(settings, "DESCENT_TAIL_CFP_MIN", 0.20)
     monkeypatch.setattr(settings, "BASE_AGE_DEADSPACE_WIDTH", 0.06)
@@ -221,9 +221,6 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     # None-safe (degenerate measure_equilibrium).
     assert descent_tail_rejects(None, 0.30, 0.10) is False
     assert descent_tail_rejects(0.35, None, 0.10) is False
-    # Flag-guarded.
-    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", False)
-    assert descent_tail_rejects(0.35, 0.30, 0.10) is False
 
 
 def test_eval_twins_share_the_folded_core():

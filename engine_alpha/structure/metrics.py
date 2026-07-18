@@ -685,10 +685,8 @@ def descent_tail_rejects(last_support_time_pos, low_position_in_box, box_width) 
 
     Width-aware: TIGHT boxes (``box_width <= BASE_AGE_DEADSPACE_WIDTH``) are EXEMPT
     — their dead band is small in absolute terms so the tell is a false positive
-    (saves the EQIX winner). No-op unless ``settings.DESCENT_TAIL_GATE_ENABLED``.
+    (saves the EQIX winner).
     """
-    if not settings.DESCENT_TAIL_GATE_ENABLED:
-        return False
     if box_width is None or box_width <= settings.BASE_AGE_DEADSPACE_WIDTH:
         return False
     if last_support_time_pos is None or low_position_in_box is None:

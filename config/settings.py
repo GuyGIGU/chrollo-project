@@ -192,7 +192,8 @@ TRAVERSAL_GATE_ENABLED = True    # FOLDED 2026-07-18: code is unconditional (liv
 # (saves the EQIX winner, box_width 0.038). Validated 2026-06-19 (pre + post the
 # LPS recall work): drops ZERO firing seed winners; drops ~6/97 universe dead-space
 # fires incl. the user's CHCT + DGII. Measured by measure_equilibrium (metrics.py).
-DESCENT_TAIL_GATE_ENABLED = True
+DESCENT_TAIL_GATE_ENABLED = True # FOLDED 2026-07-18: the gate is unconditional in descent_tail_rejects;
+                                 # key retained only for manifest-hash stability until the Task 11 rotation
 DESCENT_TAIL_LSF_MAX = 0.40
 DESCENT_TAIL_CFP_MIN = 0.20
 
