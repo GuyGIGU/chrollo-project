@@ -76,6 +76,29 @@ def measure_bar_compression(base_df, box_height, atr_val):
 
 
 # ---------------------------------------------------------------------------
+# Shared base-window swing skeleton
+# ---------------------------------------------------------------------------
+
+def base_swing_skeleton(base_df, order=None):
+    """The calibrated swing skeleton for a base window — ``(peaks, valleys,
+    zigzag)``, or ``None`` when the window is too short to pivot.
+
+    ``measure_contractions`` and ``measure_support_slope`` read the SAME
+    (window, order) skeleton; a caller invoking both computes it once here and
+    hands it to each via their ``skeleton`` argument instead of restating the
+    election twice. Lives in THIS module so ``tools/substrate_ab.py``'s
+    per-module ``_find_pivots`` patching keeps its exact granularity."""
+    highs = base_df["High"].values
+    lows = base_df["Low"].values
+    n = len(highs)
+    if order is None:
+        order = _pivot_order(n)
+    if n < 2 * order + 1:
+        return None
+    return _swing_skeleton(highs, lows, order, _find_pivots)
+
+
+# ---------------------------------------------------------------------------
 # VCP progressive-contraction footprint
 # ---------------------------------------------------------------------------
 
@@ -109,7 +132,7 @@ def _vol_trend_from_contractions(contraction_vols):
     return round(0.5 * progressive + 0.5 * final_lightest, 4)
 
 
-def measure_contractions(base_df, order=None):
+def measure_contractions(base_df, order=None, skeleton=None):
     """Measure the VCP progressive-contraction footprint within a base window.
 
     The defining feature of a Minervini VCP is a sequence of 2-6 pullbacks,
@@ -146,7 +169,9 @@ def measure_contractions(base_df, order=None):
     if n < 2 * order + 1:
         return empty
 
-    peaks, valleys, zigzag = _swing_skeleton(highs, lows, order, _find_pivots)
+    if skeleton is None:
+        skeleton = _swing_skeleton(highs, lows, order, _find_pivots)
+    peaks, valleys, zigzag = skeleton
     if not peaks or not valleys:
         return empty
     if len(zigzag) < 2:
@@ -223,7 +248,7 @@ def measure_contractions(base_df, order=None):
 # Ascending support / higher-lows footprint
 # ---------------------------------------------------------------------------
 
-def measure_support_slope(base_df, atr_val, order=None):
+def measure_support_slope(base_df, atr_val, order=None, skeleton=None):
     """Measure whether the base's swing lows are stair-stepping UP (rising support).
 
     A flat box with a *rising floor* is a much stronger coil than a flat box with
@@ -255,7 +280,9 @@ def measure_support_slope(base_df, atr_val, order=None):
     if n < 2 * order + 1:
         return empty
 
-    peaks, valleys, zigzag = _swing_skeleton(highs, lows, order, _find_pivots)
+    if skeleton is None:
+        skeleton = _swing_skeleton(highs, lows, order, _find_pivots)
+    peaks, valleys, zigzag = skeleton
     if not peaks or not valleys:
         return empty
 

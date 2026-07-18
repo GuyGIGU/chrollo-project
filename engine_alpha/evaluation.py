@@ -30,6 +30,7 @@ from engine_alpha.structure import (
     scope_consolidation,
     trend_template,
 )
+from engine_alpha.structure.metrics import base_swing_skeleton
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.phase_d import (
     drawn_support_tests,
@@ -341,14 +342,17 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
     r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
         base_df, res_avg, sup_avg, atr_for_zone
     )
+    # The calibrated base-window swing skeleton, computed ONCE — the
+    # contraction and support-slope reads consume the same election.
+    skeleton = base_swing_skeleton(base_df)
     return {
         "r_touch_vol_z": r_touch_vol_z,
         "s_touch_vol_z": s_touch_vol_z,
-        "contraction": measure_contractions(base_df),
+        "contraction": measure_contractions(base_df, skeleton=skeleton),
         "bar_compression": measure_bar_compression(
             base_df, res_avg - sup_avg, atr_for_zone
         ),
-        "support": measure_support_slope(base_df, atr_for_zone),
+        "support": measure_support_slope(base_df, atr_for_zone, skeleton=skeleton),
         "dwell_balance": measure_dwell_balance(base_df, res_avg, sup_avg, atr_for_zone),
         # Measured once at box election (bricks.validate_equilibrium) on the
         # same window/rails/ATR; carried on the brick, never re-measured here.
