@@ -249,9 +249,9 @@ def validate_equilibrium(
     quality, R, S, box_width, r_touches, s_touches, breach_days, \
         r_anchor, s_anchor, cand_start, *_ = selected
 
-    # Shared-rail back-extension (BOX_BACKEXT_ENABLED, default off): candidate
-    # starts are pinned to their anchor pair, so the earliest-valid election
-    # cannot reach an earlier start its own gates would bless (gap #3, AGCO).
+    # Shared-rail back-extension (unconditional since the 2026-07-18 fold):
+    # candidate starts are pinned to their anchor pair, so the earliest-valid
+    # election cannot reach an earlier start its own gates would bless (gap #3, AGCO).
     # Walk the ELECTED start left to the earliest rail-touching pivot with a
     # band-conforming span; rails and the election itself are untouched.
     ext_start = backext_shared_rail(eq_df, float(R), float(S), int(cand_start),

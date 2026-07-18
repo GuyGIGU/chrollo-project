@@ -742,7 +742,7 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     min(r_anchor, s_anchor)``), so the earliest-valid election can never reach
     an earlier start its own gates would bless (AGCO: the dissection proved
     the elected rails valid from 03-25, but the anchor pair proposes only
-    04-02). When ``BOX_BACKEXT_ENABLED``, walk the elected start LEFT to the
+    04-02). Walk the elected start LEFT to the
     EARLIEST zigzag pivot that re-touches an elected rail within touch
     tolerance (peak ~ R or valley ~ S) with every intervening bar inside the
     buffered band [S - buf, R + buf]. On AGCO that lands on the 03-30
@@ -759,7 +759,7 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     bar compression), the spring / inner-box / LPS windows, bin evidence,
     the event puzzle. Returns the (possibly unchanged) window-relative start.
     """
-    if not settings.BOX_BACKEXT_ENABLED or cand_start <= 0:
+    if cand_start <= 0:
         return cand_start
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values

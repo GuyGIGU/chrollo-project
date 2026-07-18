@@ -122,8 +122,8 @@ The reader walks the chart left to right and anchors by descent:
    > (as-traded re-run: 94% of fires extend under raw band-conformance, median +5 bars)
    > but the pre-cutover adjusted-price run also showed raw conformance is too loose
    > (WDI +80 swallowed its descent leg; BYD +26 was mid-band chop). **The built lever
-   > = shared-rail back-extension** (`box_primitives.backext_shared_rail`, flag
-   > `BOX_BACKEXT_ENABLED`, default OFF): after election the start walks left to the
+   > = shared-rail back-extension** (`box_primitives.backext_shared_rail`, unconditional
+   > since the 2026-07-18 fold; flipped live 2026-07-03): after election the start walks left to the
    > earliest zigzag pivot that re-touches an elected rail within touch tolerance
    > (peak≈R / valley≈S), with every intervening bar inside the buffered band. The
    > rail re-touch requirement is the drift filter: AGCO extends onto the 03-30
@@ -161,7 +161,7 @@ The reader walks the chart left to right and anchors by descent:
 | Reading step | Implementation |
 |---|---|
 | Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "The trend model") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
-| The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the flag-gated `backext_shared_rail` start refinement, `BOX_BACKEXT_ENABLED`). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
+| The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the always-on `backext_shared_rail` start refinement, folded 2026-07-18). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
 | Phase D evidence | `resolve_phase_d_boundary()` (support_tests / sos_reclaim / rising_support / inner_box / v_tip; LPS fallback) |

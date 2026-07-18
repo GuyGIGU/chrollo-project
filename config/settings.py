@@ -235,7 +235,8 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # BOTH bricks.validate_equilibrium (live) and phase_b_zigzag (diagnostics).
 # FLIPPED ON 2026-07-03 after the operator eyeballed the A/B renders
 # (tools/fidelity/box_backext/); shadow baseline re-captured at the flip.
-BOX_BACKEXT_ENABLED = True
+BOX_BACKEXT_ENABLED = True       # FOLDED 2026-07-18: the extension is unconditional in backext_shared_rail;
+                                 # key retained only for manifest-hash stability until the Task 11 rotation
 
 # ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
 # DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
