@@ -227,7 +227,7 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # BYD's mid-band chop (+26) in the PRE-cutover adjusted-price census. On
 # as-traded data 94% of fires band-conform leftward (median +5), but the built
 # lever moves only 42/140 starts (median 6 bars) with 0 fires gained/lost/
-# re-storied (tools/box_backext_ab.py A/B). Rails, gate verdicts and the
+# re-storied (box-backext A/B, tool retired Task 9). Rails, gate verdicts and the
 # election are untouched — but every read anchored to the box start re-measures
 # over the extended span (the base-window suite: base-age, traversal,
 # contractions, support slope, dwell, touch-volume, bar compression; plus the

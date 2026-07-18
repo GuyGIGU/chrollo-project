@@ -86,8 +86,8 @@ def base_swing_skeleton(base_df, order=None):
     ``measure_contractions`` and ``measure_support_slope`` read the SAME
     (window, order) skeleton; a caller invoking both computes it once here and
     hands it to each via their ``skeleton`` argument instead of restating the
-    election twice. Lives in THIS module so ``tools/substrate_ab.py``'s
-    per-module ``_find_pivots`` patching keeps its exact granularity."""
+    election twice. Lives in THIS module so per-module ``_find_pivots``
+    patching keeps its exact granularity."""
     highs = base_df["High"].values
     lows = base_df["Low"].values
     n = len(highs)

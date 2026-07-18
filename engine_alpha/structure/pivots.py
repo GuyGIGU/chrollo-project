@@ -100,8 +100,9 @@ def _swing_skeleton(highs, lows, order, find_pivots):
     empty/one-sided pivot lists, so building before the caller's guard is safe.
 
     ``find_pivots`` is passed explicitly — each caller hands its OWN
-    module-global ``_find_pivots`` — so ``tools/substrate_ab.py``'s per-module
-    patching (box_primitives + metrics only) keeps its exact granularity.
+    module-global ``_find_pivots`` — so per-module patching (tests and A/B
+    probes pin or swap one caller's substrate without touching the others)
+    keeps its exact granularity.
     """
     peaks, valleys = find_pivots(highs, lows, order)
     return peaks, valleys, _build_zigzag(peaks, valleys, highs, lows)

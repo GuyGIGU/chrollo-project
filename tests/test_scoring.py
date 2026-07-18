@@ -19,7 +19,6 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 from engine_alpha.structure.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
-from tools.fidelity_harness import summarize_fidelity
 
 
 def test_trend_template_full_pass_on_clean_uptrend():
@@ -47,46 +46,6 @@ def test_trend_template_insufficient_history_degrades():
     assert t["stage2_trend_pass_count"] == 0
     assert t["stage2_ma200_slope_1m_pct"] is None
     assert t["stage2_ma_stack_pass"] is False
-
-
-def test_fidelity_all_ok_is_full_score():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
-        {"ticker": "BBB", "phase_d_verdict": "OK", "lps_zone_verdict": "ok"},
-    ]
-    s = summarize_fidelity(rows)
-    assert s["n_scored"] == 2
-    assert s["phase_d_ok_pct"] == 100.0
-    assert s["lps_ok_pct"] == 100.0
-    assert s["misreads"] == []
-
-
-def test_fidelity_counts_misreads_and_ignores_unscored():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
-        {"ticker": "BBB", "phase_d_verdict": "early", "lps_zone_verdict": "high"},
-        {"ticker": "CCC", "phase_d_verdict": "late", "lps_zone_verdict": "ok"},
-        {"ticker": "DDD", "phase_d_verdict": "", "lps_zone_verdict": ""},  # unscored → ignored
-    ]
-    s = summarize_fidelity(rows)
-    assert s["n_total"] == 4
-    assert s["n_scored"] == 3
-    assert s["phase_d_ok"] == 1 and s["phase_d_early"] == 1 and s["phase_d_late"] == 1
-    assert round(s["phase_d_ok_pct"], 1) == 33.3
-    assert s["lps_breakdown"]["high"] == 1
-    assert {m["ticker"] for m in s["misreads"]} == {"BBB", "CCC"}
-
-
-def test_fidelity_day_error_median_from_dates():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok",
-         "engine_phase_d_date": "2026-06-01", "your_phase_d_date": "2026-06-04"},
-        {"ticker": "BBB", "phase_d_verdict": "late", "lps_zone_verdict": "ok",
-         "engine_phase_d_date": "2026-06-10", "your_phase_d_date": "2026-06-05"},
-    ]
-    s = summarize_fidelity(rows)
-    # |+3| and |-5| → median 4.0
-    assert s["median_day_error"] == 4.0
 
 
 def test_derive_outcomes_maps_barrier_label_to_win_binary():

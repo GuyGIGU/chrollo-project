@@ -1,7 +1,7 @@
 """Shared point-in-time replay layer (Calibration at Scale, Task 6).
 
 ONE home for the jobs every mark-replay tool repeats, so the sealed-corpus
-GATE (``tools.marks_corpus``), the A/B renderer (``tools.band_rails_ab``) and
+GATE (``tools.marks_corpus``) and
 the agreement harness (Task 9) all measure through the same lens — four
 slightly different definitions of "what the engine saw" would turn every
 agreement number into an argument about tooling:

@@ -223,12 +223,24 @@ def _draw_overlay(ax, ov, df, base_off, n_win, mode):
     return f"{label}: {climax_b}->{ar_b}"
 
 
+def _draw_ohlc(ax, o, h, low, c):
+    # Relocated verbatim from tools/pip_preview.py at its Task-9 retirement
+    # (2026-07-18) — this tool was the one surviving importer.
+    tick = 0.34
+    lw = 1.0 if len(c) > 120 else 1.3
+    for i in range(len(c)):
+        up = c[i] >= o[i]
+        col = "#1f9d8b" if up else "#e04848"
+        ax.plot([i, i], [low[i], h[i]], color=col, lw=lw, zorder=2, solid_capstyle="round")
+        ax.plot([i - tick, i], [o[i], o[i]], color=col, lw=lw, zorder=2)
+        ax.plot([i, i + tick], [c[i], c[i]], color=col, lw=lw, zorder=2)
+
+
 def render(tickers, window, d, level0):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
-    from tools.pip_preview import _draw_ohlc
 
     os.makedirs(_OUT_DIR, exist_ok=True)
     table = []

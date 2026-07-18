@@ -57,7 +57,7 @@ from core.pipeline.screener import _evaluate_ticker
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
 # root on sys.path, so `tools.replay` resolves under both documented
-# invocations (band_rails_ab imports it the same way).
+# invocations.
 from tools.replay import (
     BASELINE_DIR as _BASELINE_DIR,
     SEALED_BASELINE_JSON as _BASELINE_JSON,
