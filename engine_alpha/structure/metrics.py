@@ -344,8 +344,24 @@ def _rail_touch_thirds(highs, lows, R, S, atr_val):
     return r_mask, s_mask, r_touch_thirds, s_touch_thirds
 
 
+def base_rail_touches(base_df, R, S, atr_val):
+    """``_rail_touch_thirds`` over a base window's High/Low arrays — the same
+    ``(r_mask, s_mask, r_touch_thirds, s_touch_thirds)`` that
+    ``measure_touch_volume``, ``measure_dwell_balance`` and
+    ``measure_gate_margins`` each read for one (window, rails, ATR). A caller
+    invoking several of them computes this once and hands it to each via their
+    ``rail_touches`` argument. Guard-free like the predicate itself (NaN
+    comparisons route to False); callers own window/ATR validity."""
+    return _rail_touch_thirds(
+        base_df['High'].values.astype(float),
+        base_df['Low'].values.astype(float),
+        R, S, atr_val,
+    )
+
+
 def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float,
-                         atr_val: float) -> tuple[Optional[float], Optional[float]]:
+                         atr_val: float,
+                         rail_touches=None) -> tuple[Optional[float], Optional[float]]:
     """
     How heavy was volume when price visited the box's ceiling (R) and floor (S)?
 
@@ -361,11 +377,9 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
     Pure measurement — it reports the numbers and assigns no score. The Scoring
     Engine and the tag chips decide what the numbers are worth.
     """
-    r_touch_mask, s_touch_mask, _, _ = _rail_touch_thirds(
-        base_df['High'].values.astype(float),
-        base_df['Low'].values.astype(float),
-        res_avg, sup_avg, atr_val,
-    )
+    if rail_touches is None:
+        rail_touches = base_rail_touches(base_df, res_avg, sup_avg, atr_val)
+    r_touch_mask, s_touch_mask, _, _ = rail_touches
     vol_mean_base = float(base_df['Volume'].mean())
     vol_std_base = float(base_df['Volume'].std())
 
@@ -390,7 +404,7 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
 # Worked-equilibrium occupancy — is this candidate range a REAL trading range?
 # ---------------------------------------------------------------------------
 
-def measure_gate_margins(base_df, R, S, atr_val):
+def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     """The elected box re-measured through the ACTUAL worked-equilibrium
     gates' own statistics — boundary respect (buffered band, wicks count) and
     the close-residence dwell the dead-space gate judges — so the archive can
@@ -419,7 +433,8 @@ def measure_gate_margins(base_df, R, S, atr_val):
     _, _, _, _, respect_share = _is_boundary_respected(
         base_df["High"].to_numpy(dtype=float),
         base_df["Low"].to_numpy(dtype=float), R, S, atr_val)
-    eq = _measure_close_residence(base_df, R, S, atr_val)
+    eq = _measure_close_residence(base_df, R, S, atr_val,
+                                  rail_touches=rail_touches)
     return {
         "respect_frac": respect_share,
         "close_lower_dwell": float(eq["lower_dwell"]),
@@ -428,7 +443,7 @@ def measure_gate_margins(base_df, R, S, atr_val):
     }
 
 
-def measure_dwell_balance(base_df, R, S, atr_val):
+def measure_dwell_balance(base_df, R, S, atr_val, rail_touches=None):
     """How genuinely *worked* is the candidate range ``[S, R]`` over its window?
 
     The Phase-B question, in the user's terms: does price RESPECT, TOUCH, and
@@ -474,8 +489,9 @@ def measure_dwell_balance(base_df, R, S, atr_val):
     lows = base_df["Low"].values.astype(float)
     n = len(highs)
 
-    r_mask, s_mask, r_touch_thirds, s_touch_thirds = _rail_touch_thirds(
-        highs, lows, R, S, atr_val)
+    if rail_touches is None:
+        rail_touches = _rail_touch_thirds(highs, lows, R, S, atr_val)
+    r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
 
     # Range occupancy: a bar works a third/bin if its full [Low, High] range
     # intersects it. Closes are a residence concept; Phase-B rail work is a

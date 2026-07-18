@@ -30,7 +30,7 @@ from engine_alpha.structure import (
     scope_consolidation,
     trend_template,
 )
-from engine_alpha.structure.metrics import base_swing_skeleton
+from engine_alpha.structure.metrics import base_rail_touches, base_swing_skeleton
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.phase_d import (
     drawn_support_tests,
@@ -339,12 +339,15 @@ def _relative_strength_context(df: pd.DataFrame, current_price, spy_6m_return: f
 def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
                           sup_avg: float, atr_for_zone: float,
                           equilibrium: dict) -> dict:
-    r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
-        base_df, res_avg, sup_avg, atr_for_zone
-    )
-    # The calibrated base-window swing skeleton, computed ONCE — the
-    # contraction and support-slope reads consume the same election.
+    # THE touch predicate and the calibrated base-window swing skeleton, each
+    # computed ONCE for this (window, rails, ATR): the touch-volume, dwell and
+    # gate-margin reads share the masks; the contraction and support-slope
+    # reads share the skeleton.
+    rail_touches = base_rail_touches(base_df, res_avg, sup_avg, atr_for_zone)
     skeleton = base_swing_skeleton(base_df)
+    r_touch_vol_z, s_touch_vol_z = measure_touch_volume(
+        base_df, res_avg, sup_avg, atr_for_zone, rail_touches=rail_touches
+    )
     return {
         "r_touch_vol_z": r_touch_vol_z,
         "s_touch_vol_z": s_touch_vol_z,
@@ -353,7 +356,8 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
             base_df, res_avg - sup_avg, atr_for_zone
         ),
         "support": measure_support_slope(base_df, atr_for_zone, skeleton=skeleton),
-        "dwell_balance": measure_dwell_balance(base_df, res_avg, sup_avg, atr_for_zone),
+        "dwell_balance": measure_dwell_balance(base_df, res_avg, sup_avg, atr_for_zone,
+                                               rail_touches=rail_touches),
         # Measured once at box election (bricks.validate_equilibrium) on the
         # same window/rails/ATR; carried on the brick, never re-measured here.
         "equilibrium": equilibrium,
@@ -362,7 +366,8 @@ def _measure_base_context(base_df: pd.DataFrame, res_avg: float,
         # archived raw so threshold debates open with distributions, never
         # anecdotes. Never gates, never scores.
         "gate_margins": measure_gate_margins(base_df, res_avg, sup_avg,
-                                             atr_for_zone),
+                                             atr_for_zone,
+                                             rail_touches=rail_touches),
     }
 
 

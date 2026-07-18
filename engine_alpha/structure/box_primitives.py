@@ -215,13 +215,18 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
     return n
 
 
-def _measure_close_residence(eq_df, R_val, S_val, atr_val):
+def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     """Legacy close-residence occupancy for box-of-record selection.
 
     Public ``measure_dwell_balance`` now reports High/Low range occupancy for
     analysis, but selecting the parent box still uses closes as the residence
     concept. This preserves calibrated Phase-B rails while rail touches and
     boundary respect continue to use High/Low geometry.
+
+    ``rail_touches`` optionally carries an already-computed
+    ``_rail_touch_thirds`` result for this exact (window, rails, ATR) — the
+    measurement-side caller (``measure_gate_margins``) shares it with its
+    sibling reads; every election-side caller leaves it None.
     """
     empty = {
         "r_touches": 0, "s_touches": 0,
@@ -240,8 +245,9 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val):
     closes = eq_df["Close"].values.astype(float)
     n = len(closes)
 
-    r_mask, s_mask, r_touch_thirds, s_touch_thirds = _rail_touch_thirds(
-        highs, lows, R_val, S_val, atr_val)
+    if rail_touches is None:
+        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val)
+    r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
 
     pos = np.clip((closes - S_val) / box, 0.0, 1.0)
     lower_dwell = float(np.mean(pos <= 1.0 / 3.0))
