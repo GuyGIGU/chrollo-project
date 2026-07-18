@@ -71,8 +71,8 @@
       "bars": 1255,
       "spy_6m_return": 0.09087204933166504,
       "baseline_pass_at_freeze": true,
-      "label": "rescue-markup run-up (borderline +0.234)",
-      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (lone borderline to eyeball)"
+      "label": "wide/volatile spread",
+      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (lone borderline to eyeball); operator ruling 2026-07-17 (spread/width/volatility/volume)"
     },
     {
       "ticker": "KWR",
@@ -80,8 +80,8 @@
       "bars": 1255,
       "spy_6m_return": 0.09087204933166504,
       "baseline_pass_at_freeze": true,
-      "label": "worked-equilibrium dead-space",
-      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+      "label": "no valid setup at the frame",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"
     },
     {
       "ticker": "DBD",
@@ -89,8 +89,8 @@
       "bars": 706,
       "spy_6m_return": 0.07846283912658691,
       "baseline_pass_at_freeze": true,
-      "label": "worked-equilibrium dead-space",
-      "evidence": "docs/segmentation_research.md Change C; trimmed to era (fires on a NEWER base at the 2026-07 live edge)"
+      "label": "mis-framed range - rails no longer in force",
+      "evidence": "docs/segmentation_research.md Change C; trimmed to era (fires on a NEWER base at the 2026-07 live edge); operator ruling 2026-07-17"
     },
     {
       "ticker": "RLGT",
@@ -98,8 +98,8 @@
       "bars": 1255,
       "spy_6m_return": 0.09087204933166504,
       "baseline_pass_at_freeze": true,
-      "label": "worked-equilibrium dead-space",
-      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+      "label": "trend-continuation, not a base",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"
     },
     {
       "ticker": "FLG",
@@ -107,8 +107,8 @@
       "bars": 1255,
       "spy_6m_return": 0.09087204933166504,
       "baseline_pass_at_freeze": true,
-      "label": "worked-equilibrium dead-space",
-      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"
+      "label": "trend-continuation dips, not a base",
+      "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"
     },
     {
       "ticker": "BBVA",
