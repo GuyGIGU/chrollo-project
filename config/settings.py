@@ -90,8 +90,6 @@ AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whicheve
 # start) was a REAL overlay defect, not an over-strict invariant: the box-overrunning macro
 # bridge now abstains (resolve_phase_a bridge_end_max = phase_b_start_bar, 142bf50); the
 # sibling always-on order-N hole was closed in 5882226.
-PIP_MACRO_PHASE_A_ENABLED = True # FOLDED 2026-07-18: the macro read is unconditional in segment_swings;
-                                 # key retained only for manifest-hash stability until the Task 11 rotation
 PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried
 # "True Phase-A root swing" rule (operator, 2026-07-02): a candidate trend-end
 # bridge qualifies ONLY if it leads to an actual equilibrium. The read stays
@@ -178,8 +176,6 @@ TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be r
                                  # = 0.045); winners run dense (seed floor ~0.14, median ~0.52). Low density =
                                  # the box is too wide / mis-anchored. 0.08 sits in the empty gap (BMRN/FRPH ~0.04
                                  # vs winner-min 0.14) so it drops the sprawl with margin and clips zero winners.
-TRAVERSAL_GATE_ENABLED = True    # FOLDED 2026-07-18: code is unconditional (live since 2026-06-15); key
-                                 # retained only for manifest-hash stability until the Task 11 rotation
 
 # Descent-tail gate: a WIDE box whose support rail was abandoned EARLY — price
 # left the low rail (last_support_time_pos <= LSF_MAX, the time-position 0..1 of the
@@ -192,8 +188,6 @@ TRAVERSAL_GATE_ENABLED = True    # FOLDED 2026-07-18: code is unconditional (liv
 # (saves the EQIX winner, box_width 0.038). Validated 2026-06-19 (pre + post the
 # LPS recall work): drops ZERO firing seed winners; drops ~6/97 universe dead-space
 # fires incl. the user's CHCT + DGII. Measured by measure_equilibrium (metrics.py).
-DESCENT_TAIL_GATE_ENABLED = True # FOLDED 2026-07-18: the gate is unconditional in descent_tail_rejects;
-                                 # key retained only for manifest-hash stability until the Task 11 rotation
 DESCENT_TAIL_LSF_MAX = 0.40
 DESCENT_TAIL_CFP_MIN = 0.20
 
@@ -208,8 +202,6 @@ DESCENT_TAIL_CFP_MIN = 0.20
 # No-op unless price has already broken out and held, so in-range setups are
 # untouched and the change can only RESCUE SOS-BUEC framings (recall-positive).
 # Outer Phase-B only (like the traversal gate); inner boxes are never trimmed.
-SOS_TRIM_ENABLED = True          # FOLDED 2026-07-18: the trim + SOS-BUEC rescue are unconditional (outer
-                                 # Phase B); key retained only for manifest-hash stability until Task 11
 SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
 SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
 
@@ -236,8 +228,6 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # BOTH bricks.validate_equilibrium (live) and phase_b_zigzag (diagnostics).
 # FLIPPED ON 2026-07-03 after the operator eyeballed the A/B renders
 # (tools/fidelity/box_backext/); shadow baseline re-captured at the flip.
-BOX_BACKEXT_ENABLED = True       # FOLDED 2026-07-18: the extension is unconditional in backext_shared_rail;
-                                 # key retained only for manifest-hash stability until the Task 11 rotation
 
 # ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
 # DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
@@ -525,8 +515,6 @@ MAX_BOX_WIDTH_ADR = 4.5         # (R-S)/S expressed in ADRs; >= this earns zero 
 # box is discounted toward the floor (a GRADE, never a veto). LIVE since 2026-07-04 (operator
 # eyeball A/B: 61/128 choppy bases docked, mean -0.39, 0 tier flips; clean bases preserved at
 # grade 1.0). Missing texture -> neutral 1.0.
-CANDLE_SPREAD_AWARE = True      # FOLDED 2026-07-18: the multiplier is unconditional in score_setup;
-                                # key retained only for manifest-hash stability until the Task 11 rotation
 CANDLE_GRADE_FLOOR = 0.55       # worst-case multiplier — a choppy base keeps >= 55% of its tightness
 # Ramp anchors (universe medians, 2026-06-30 scan: spread/box ~0.31, spread/ATR ~0.85, tight-bar
 # ~0.68). Each sub-grade ramps full(1)->zero(0) across clean->messy; these are CALIBRATION
@@ -554,8 +542,6 @@ SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box frac
 # chronology are CORRELATED (intact => full spine), so they combine into ONE composite
 # (not two terms). LIVE 2026-07-04 (operator A/B eyeball: 128/128 fires lifted, mean +4.5,
 # 22 tier flips); the forward-return validation stays a revisit (~07-15+ data).
-PUZZLE_SCORE_ENABLED = True     # FOLDED 2026-07-18: term + narrative compute are unconditional; key
-                                # retained only for manifest-hash stability until the Task 11 rotation
 SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
 PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
 PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])

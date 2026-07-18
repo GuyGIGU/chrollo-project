@@ -33,6 +33,27 @@ Maintenance rules:
 
 
 
+## THE 2026-07-18 rotation (behavior-identical; a named archive seam)
+
+The Purity Pass Task 11 rotation retired the seven folded flag keys in ONE
+deliberate `engine_config_version` event:
+`TRAVERSAL_GATE_ENABLED`, `CANDLE_SPREAD_AWARE`, `PUZZLE_SCORE_ENABLED`,
+`PIP_MACRO_PHASE_A_ENABLED`, `SOS_TRIM_ENABLED`, `BOX_BACKEXT_ENABLED`,
+`DESCENT_TAIL_GATE_ENABLED` — each already unconditional engine code (task-7
+folds, every one parity-proven). The before/after manifest dump proved a **pure
+7-key deletion bijection**: zero keys added, zero values or JSON types moved.
+
+- Hash equivalence: `91c70bdbd6a6686099ca2173250e602fd89120cc6df9e8631e62390a125640c6`
+  → `5a4d2282474457ec70cde167a78bf6c80f83d15971d7f4df3bdb18f76bc1134d` is a
+  **behavior-identical rotation** — the reading did not move; only the key set did.
+- Archive seam: analyses that partition by `engine_config_version` should treat
+  these two hashes as the same engine (like the 06-26 data seam, this is a
+  bookkeeping cut, not a behavior cut).
+- Hash-consumer stances, ruled deliberately: the calibration harness `--prev`
+  comparison will report "ENGINE moved" across this commit — a false alarm to
+  caveat in the next report; every mark's staleness chip flips (expected —
+  marks keep their birth hash, no re-stamping); future seam analyses cut here.
+
 ## Retired
 
 | Flag | Built | Outcome | Evidence |

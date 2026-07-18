@@ -55,7 +55,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIVOT_ORDER_SHORT",
     "PIVOT_ORDER_LONG",
     "PIVOT_ORDER_THRESHOLD",
-    "PIP_MACRO_PHASE_A_ENABLED",
     "PIP_MACRO_K_MAX",
     "PIP_MACRO_MAX_POST_EXCESS",
     "PIP_MACRO_MIN_BASE_BARS",
@@ -88,17 +87,13 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "TRAVERSAL_HIGH_ZONE",
     "TRAVERSAL_MIN",
     "TRAVERSAL_MIN_DENSITY",
-    "TRAVERSAL_GATE_ENABLED",
     # Descent-tail gate
-    "DESCENT_TAIL_GATE_ENABLED",
     "DESCENT_TAIL_LSF_MAX",
     "DESCENT_TAIL_CFP_MIN",
     # SOS breakout trim
-    "SOS_TRIM_ENABLED",
     "SOS_TRIM_MIN_RUN",
     "SOS_TRIM_MIN_PREFIX_FRAC",
     # Box-start shared-rail back-extension (Phase B)
-    "BOX_BACKEXT_ENABLED",
     # SOS event detection (box_events.read_box_events -> puzzle completeness)
     "SOS_NEAR_R_MAX_BOX",
     "SOS_HOLD_MAX_RANGE_BOX",
@@ -188,7 +183,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "TIGHTNESS_ADR_AWARE",
     "MAX_BOX_WIDTH_ADR",
     # Candle-spread readability grade (box_tightness multiplier, flag-gated)
-    "CANDLE_SPREAD_AWARE",
     "CANDLE_GRADE_FLOOR",
     "CANDLE_SPREAD_BOX_CLEAN",
     "CANDLE_SPREAD_BOX_MESSY",
@@ -219,7 +213,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SECTOR_RANKING_LOOKBACKS",
     "RS_RATING_LOOKBACK",
     # E3 puzzle-quality graded sub-score (additive bonus term, flag-gated)
-    "PUZZLE_SCORE_ENABLED",
     "SCORE_PUZZLE_QUALITY",
     "PUZZLE_W_COMPLETENESS",
     "PUZZLE_W_CHRONOLOGY",
