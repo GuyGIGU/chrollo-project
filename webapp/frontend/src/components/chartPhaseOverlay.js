@@ -169,16 +169,19 @@ const phaseIndexes = (data, candles) => ({
 
 // THE ROOT SWING span in candle-index space — the grey highlight.
 //
-// The Root Swing is the pair of limbs that PRODUCES the box: the swing the
-// consolidation starts from. It is a DISTINCT concept from Phase A (the climax +
-// automatic-reaction that marks where the *trend* ends). They usually coincide, but
-// the operator reads the grey to judge WHERE the engine anchored the box, so the grey
-// shows the swing that produced it — "if the box starts from the climax+AR, highlight
-// that; if it starts a little later, highlight where the box started". The engine
-// already elects that swing: its climax->AR anchor (bc_anchor = structure.climax_bar
-// -> phase_a_end) IS the root swing, whether that's the original climax+AR or a pair
-// it descended forward to. So we draw it straight from _phase_a_start_date ->
-// _phase_a_end_date.
+// DEFINITION (governs, ALWAYS): the grey = the Root Swing that PRODUCES the box — the
+// swing the consolidation starts from. That is the meaning; everything below is only
+// HOW we obtain it. (Generic Phase A = climax + automatic-reaction, "where the *trend*
+// ends", is a different question; the root swing usually sits at Phase A but need not.)
+//
+// MECHANISM: the engine ELECTS the box-producing swing for us (worked-equilibrium
+// candidate election) and emits it as its climax->AR anchor (bc_anchor =
+// structure.climax_bar -> phase_a_end). Because that elected anchor IS, by
+// construction, the swing that produces the box, the equality "root swing == the
+// engine's elected climax->AR" holds — a DERIVED consequence of the election, not the
+// definition. So we draw the grey straight from _phase_a_start_date ->
+// _phase_a_end_date; if the engine ever re-elects a different anchor the grey follows
+// it, and any disagreement with the eye is an ENGINE-read question, not a grey tweak.
 //
 // SINGLE SOURCE OF TRUTH for the grey — the modal region band, the modal candle tint
 // (colorBase), and the mini-card candle tint (colorMiniCandles) all read it, so the
