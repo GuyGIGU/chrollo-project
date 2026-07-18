@@ -10,10 +10,14 @@ silently carried.
 Maintenance rules:
 - A new default-off engine flag lands with a row here **in the same change**.
 - Flips/deletions move the row to *Retired* (keep the evidence trail).
-- Live flags (`TRAVERSAL_GATE_ENABLED`, `DESCENT_TAIL_GATE_ENABLED`,
-  `SOS_TRIM_ENABLED`, `BOX_BACKEXT_ENABLED`, `TIGHTNESS_ADR_AWARE`,
-  `HTF_CONTEXT_ENABLED`, ...) are deliberately NOT here — they are engine
-  identity (frozen in `core/freeze/manifest.py`), not pending decisions.
+- Live flags (`TIGHTNESS_ADR_AWARE`, `HTF_CONTEXT_ENABLED`, ...) are
+  deliberately NOT here — they are engine identity (frozen in
+  `core/freeze/manifest.py`), not pending decisions. A live flag whose
+  validation window has closed gets **FOLDED** (the conditional is removed and
+  the behavior becomes unconditional engine code; the settings key survives
+  untouched until the next manifest rotation retires it) — the weeks-validated
+  2026-06/07 flips (`TRAVERSAL_GATE_ENABLED` first, 2026-07-18) fold this way
+  under the Purity Pass.
 
 ## Dark flags (default-off, decision pending)
 

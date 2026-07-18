@@ -164,9 +164,9 @@ EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this 
 # (S<->R), or hang off one rail and leave dead space (the tell that R/S were
 # marked too wide). Swing size is judged as a FRACTION OF BOX HEIGHT, not a bar
 # count, so the read adapts to box width (tight boxes have short limbs, wide ones
-# long). Measured by engine_alpha.structure.metrics.measure_equilibrium. v1 is
-# measure-first / archive-only — TRAVERSAL_GATE_ENABLED stays False until the
-# live archive proves TRAVERSAL_MIN against forward outcomes / seed-recall.
+# long). Measured by engine_alpha.structure.metrics.measure_equilibrium. The
+# gate is permanent engine behavior (unconditional in code since the Purity Pass
+# flag fold, 2026-07-18); the floors below are the live knobs.
 TRAVERSAL_NOISE_FRAC = 0.15      # a swing < this fraction of box height is chop, merged away
 TRAVERSAL_FULL_FRAC = 0.55       # a limb spanning >= this fraction of the box is a real rail-to-rail trip
 TRAVERSAL_LOW_ZONE = 0.30        # a swing turn at/below this box fraction "reached" the support side
@@ -177,7 +177,8 @@ TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be r
                                  # = 0.045); winners run dense (seed floor ~0.14, median ~0.52). Low density =
                                  # the box is too wide / mis-anchored. 0.08 sits in the empty gap (BMRN/FRPH ~0.04
                                  # vs winner-min 0.14) so it drops the sprawl with margin and clips zero winners.
-TRAVERSAL_GATE_ENABLED = True    # v2 LIVE: pool-aware re-anchor gate (winner floor validated = MIN, 2026-06-15)
+TRAVERSAL_GATE_ENABLED = True    # FOLDED 2026-07-18: code is unconditional (live since 2026-06-15); key
+                                 # retained only for manifest-hash stability until the Task 11 rotation
 
 # Descent-tail gate: a WIDE box whose support rail was abandoned EARLY — price
 # left the low rail (last_support_time_pos <= LSF_MAX, the time-position 0..1 of the

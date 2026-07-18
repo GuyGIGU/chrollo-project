@@ -332,8 +332,8 @@ def _diagnose_candidates(df, root, atr) -> None:
                 trav = measure_equilibrium(sub, R_val, S_val, atr)
                 nf, ns = trav["n_full_traversals"], trav["n_swings"]
                 dens = nf / ns if ns else 0.0
-                if settings.TRAVERSAL_GATE_ENABLED and (
-                        nf < settings.TRAVERSAL_MIN or dens < settings.TRAVERSAL_MIN_DENSITY):
+                if (nf < settings.TRAVERSAL_MIN
+                        or dens < settings.TRAVERSAL_MIN_DENSITY):
                     reject = f"traversal nF={nf} dens={dens:.3f} (<{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})"
                 else:
                     reject = "PASS (would validate)"

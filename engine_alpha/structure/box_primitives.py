@@ -431,11 +431,11 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
     every seed winner >= 2; density: winner floor ~0.14 vs gate 0.08), policed by
     the seed-recall guard — not on keeping a bad box.
 
-    No-op unless ``settings.TRAVERSAL_GATE_ENABLED`` and ``enforce_traversal`` (the
+    No-op unless ``enforce_traversal`` (the
     outer Phase-B path only — inner boxes are short and tight by design, where
     rail-to-rail traversal is naturally rare, so they are measured but never gated).
     """
-    if not (settings.TRAVERSAL_GATE_ENABLED and enforce_traversal):
+    if not enforce_traversal:
         return valid_candidates
 
     # c[9]=cand_start, c[10]=judged-window length, c[1]=R_val, c[2]=S_val — measure
