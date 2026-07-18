@@ -498,16 +498,14 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # re-detection, which would mis-describe (and understate completeness for) an
     # inner-box setup. structure.box is the parent geometry frame (absolute anchors);
     # the elected LPS carries absolute df bars translated by -box.start_bar
-    # (inner ⊆ parent, so no rebasing). Computed ONLY when the flag is on (flag-off
-    # pays zero cost); single call site so both eval-twins inherit it. Reusing the
-    # elected bricks also drops two redundant detector passes per fire.
-    narrative = None
-    if settings.PUZZLE_SCORE_ENABLED:
-        _struct = structure_ctx["structure"]
-        narrative = assemble_box_narrative(
-            df, _struct.box, structure_ctx["atr_for_zone"],
-            spring=_struct.spring, lps=_struct.lps,
-        )
+    # (inner ⊆ parent, so no rebasing). Single call site so both eval-twins
+    # inherit it. Reusing the elected bricks also drops two redundant detector
+    # passes per fire.
+    _struct = structure_ctx["structure"]
+    narrative = assemble_box_narrative(
+        df, _struct.box, structure_ctx["atr_for_zone"],
+        spring=_struct.spring, lps=_struct.lps,
+    )
 
     score_result = score_setup(
         structure_ctx["box_width"],
@@ -543,8 +541,8 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=daily_box))
 
     # Puzzle grades for surfacing (the A/B + a future "why ranked" chip) — present
-    # ONLY when the flag is on (narrative computed); flag-off this is {} and the
-    # spread into the result dict adds nothing -> byte-identical.
+    # only when the narrative produced a read; an abstaining narrative spreads {}
+    # into the result dict and adds nothing.
     puzzle_fields = (
         {
             "_puzzle_completeness": int(narrative["completeness"]),
@@ -812,7 +810,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_base_date_start': str(base_df.index[0])[:10],
         '_base_date_end': str(base_df.index[-1])[:10],
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
-        **score_ctx.get("puzzle_fields", {}),   # E3: empty flag-off -> byte-identical
+        **score_ctx.get("puzzle_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
     }

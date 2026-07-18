@@ -64,8 +64,9 @@ REGISTRY: tuple[TermSpec, ...] = (
     TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural"),
     TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural"),
     TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context"),
-    # Emitted only behind its own flag; its archive column is a Wave-2 add (design P3).
-    TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle", "PUZZLE_SCORE_ENABLED"),
+    # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
+    # its archive column is a Wave-2 add (design P3).
+    TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle"),
 )
 
 

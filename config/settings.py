@@ -545,13 +545,13 @@ SOS_NEAR_R_MAX_BOX = 1.5        # wave-top box_pos ceiling for an SOS (1.0 = R; 
 SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box fraction to count as a consolidation
 # E3 puzzle-quality graded sub-score — wires the L2 assembled Wyckoff puzzle (assemble_box_narrative,
 # read on the engine's OWN elected box) into the score as ONE additive, BONUS-ONLY term: a single
-# [0,1] composite * cap. Sibling of CANDLE_SPREAD_AWARE: flag-off the term AND its computation are
-# fully inert (byte-identical, zero new compute; _puzzle_quality + assemble_box_narrative both live
-# ONLY inside `if PUZZLE_SCORE_ENABLED`). Grades-not-vetoes: it can only RAISE a score, never gate /
-# reject / touch firing. completeness and chronology are CORRELATED (intact => full spine), so they
-# combine into ONE composite (not two terms). The live flip + the forward-return validation are
-# operator-gated (matured ~07-15+ data).
-PUZZLE_SCORE_ENABLED = True     # LIVE 2026-07-04 (operator A/B eyeball, tools/puzzle_ab.py: 128/128 fires lifted, mean +4.5, 22 tier flips); fwd-return revisit ~07-15+
+# [0,1] composite * cap. Grades-not-vetoes: it can only RAISE a score, never gate /
+# reject / touch firing (a missing/None narrative grades neutral 0.0). completeness and
+# chronology are CORRELATED (intact => full spine), so they combine into ONE composite
+# (not two terms). LIVE 2026-07-04 (operator A/B eyeball: 128/128 fires lifted, mean +4.5,
+# 22 tier flips); the forward-return validation stays a revisit (~07-15+ data).
+PUZZLE_SCORE_ENABLED = True     # FOLDED 2026-07-18: term + narrative compute are unconditional; key
+                                # retained only for manifest-hash stability until the Task 11 rotation
 SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
 PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
 PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])

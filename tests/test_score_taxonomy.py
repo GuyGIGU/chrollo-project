@@ -40,12 +40,11 @@ def test_every_cap_setting_resolves_to_a_number():
         assert isinstance(term.cap(), float)
 
 
-def test_emitted_keys_track_the_puzzle_flag(monkeypatch):
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
-    off = taxonomy.emitted_keys()
-    assert "puzzle_quality" not in off and len(off) == 14
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
-    assert "puzzle_quality" in taxonomy.emitted_keys()
+def test_puzzle_quality_always_emitted():
+    # The puzzle term is unconditional (folded 2026-07-18; formerly gated by
+    # PUZZLE_SCORE_ENABLED via TermSpec.present_when) — all 15 terms emit.
+    keys = taxonomy.emitted_keys()
+    assert "puzzle_quality" in keys and len(keys) == 15
 
 
 def test_only_breadth_is_regime_layer():

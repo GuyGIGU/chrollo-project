@@ -261,15 +261,11 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
 
     # Puzzle-quality bonus (E3) — the L2 assembled Wyckoff puzzle as an additive,
-    # bonus-only term, behind its PUZZLE_SCORE_ENABLED flag (live). BOTH the +total arithmetic AND the
-    # breakdown key live ONLY inside the flag: flag-off _puzzle_quality is never called,
-    # no key is added, and `+ s_puzzle` is a 0.0 no-op -> Score/Tier/breakdown
-    # byte-identical (mirrors the CANDLE_SPREAD_AWARE containment). Grades-not-vetoes:
-    # >=0 and clamped to the cap, it can only raise a score.
-    s_puzzle = 0.0
-    if settings.PUZZLE_SCORE_ENABLED:
-        s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
-                          settings.SCORE_PUZZLE_QUALITY)
+    # bonus-only term. A missing/None/malformed narrative grades a neutral 0.0
+    # (the containment lives in _puzzle_quality). Grades-not-vetoes: >=0 and
+    # clamped to the cap, it can only raise a score.
+    s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
+                      settings.SCORE_PUZZLE_QUALITY)
 
     total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
                   + s_uptrend + s_rs + s_high + s_breadth + s_contraction
@@ -291,9 +287,8 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'contraction': round(s_contraction, 2),
         'ascending_support': round(s_ascending, 2),
         'adr': round(s_adr, 2),
+        'puzzle_quality': round(s_puzzle, 2),
     }
-    if settings.PUZZLE_SCORE_ENABLED:
-        result['puzzle_quality'] = round(s_puzzle, 2)
     return result
 
 

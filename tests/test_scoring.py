@@ -549,7 +549,7 @@ def _nar(completeness, chronology, upthrust_terminal=False):
 
 def test_puzzle_quality_neutral_on_missing():
     from engine_alpha.scoring.scoring import _puzzle_quality
-    assert _puzzle_quality(None) == 0.0           # flag-off passes None
+    assert _puzzle_quality(None) == 0.0           # a missing narrative passes None
     assert _puzzle_quality({}) == 0.0             # malformed dict -> neutral
     assert _puzzle_quality("nope") == 0.0         # non-dict -> neutral
     assert _puzzle_quality(_nar(0, "absent")) == 0.0   # well-formed empty narrative
@@ -575,16 +575,6 @@ def test_puzzle_quality_monotonic_and_bounded():
         assert a <= p <= i
 
 
-def test_puzzle_flag_off_is_byte_identical(monkeypatch):
-    from engine_alpha.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
-    # Default flag OFF: a narrative must NOT change the score OR add a key.
-    base = score_setup(**_score_common())
-    with_nar = score_setup(**_score_common(narrative=_nar(4, "intact")))
-    assert "puzzle_quality" not in base and "puzzle_quality" not in with_nar
-    assert base == with_nar                        # total + every sub-score byte-identical
-
-
 def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     """Phase-0 tripwire for the hybrid Technical Analysis Score rework
     (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
@@ -605,10 +595,11 @@ def test_taxonomy_emitted_keys_match_score_setup_output():
     assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
 
 
-def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
+def test_puzzle_awards_bonus_and_adds_key():
+    # The puzzle term is unconditional engine behavior (folded 2026-07-18;
+    # formerly behind PUZZLE_SCORE_ENABLED, live since 2026-07-04).
     from engine_alpha.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
-    none_on = score_setup(**_score_common(narrative=None))   # flag on, no narrative -> 0 bonus
+    none_on = score_setup(**_score_common(narrative=None))   # no narrative -> 0 bonus
     rich = score_setup(**_score_common(narrative=_nar(4, "intact")))
     poor = score_setup(**_score_common(narrative=_nar(1, "absent")))
     assert none_on["puzzle_quality"] == 0.0 and "puzzle_quality" in rich
@@ -619,9 +610,8 @@ def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
     assert rich["total"] > poor["total"]
 
 
-def test_puzzle_term_is_bonus_only_and_capped(monkeypatch):
+def test_puzzle_term_is_bonus_only_and_capped():
     from engine_alpha.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     off = score_setup(**_score_common(narrative=None))["total"]
     for c in range(0, 5):
         for ch in ("absent", "partial", "intact"):
@@ -641,7 +631,6 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     from tools.shadow_diff import _load_fixture
     import engine_alpha.evaluation as evaluation
 
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
 
@@ -700,44 +689,14 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     assert lps_represented > 0                       # the elected LPS is normally represented
 
 
-def test_e3_flag_off_result_has_no_puzzle_and_runs_no_narrative(monkeypatch):
-    # Result-LEVEL flag-off containment (the puzzle_fields spread + the zero-cost
-    # guarantee), which the score_setup-level test cannot see: flag-off, a real fire
-    # carries NO puzzle key anywhere AND assemble_box_narrative is never called.
-    from tools.shadow_diff import _load_fixture
-    import engine_alpha.evaluation as evaluation
-
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
-
-    def _boom(*a, **k):  # AssertionError is NOT in _evaluate_ticker's except list -> propagates
-        raise AssertionError("assemble_box_narrative must not run flag-off")
-    monkeypatch.setattr(evaluation, "assemble_box_narrative", _boom)
-
-    frames, scalars = _load_fixture()
-    spy_6m = float(scalars.get("spy_6m_return", 0.0))
-    fires = 0
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        res = evaluation._evaluate_ticker(ticker, df, spy_6m, None)
-        if res is None:
-            continue
-        fires += 1
-        assert not any("puzzle" in k for k in res)                  # no result-level key
-        assert not any("puzzle" in k for k in res["_sub_scores"])   # none in the breakdown
-    assert fires > 0
-
-
-def test_e3_eval_twins_agree_on_puzzle(monkeypatch):
+def test_e3_eval_twins_agree_on_puzzle():
     # Both eval-twins (live + seed) route through the single score_setup call, so
-    # flag-on they compute the identical puzzle bonus (EC-3 fold).
+    # they compute the identical puzzle bonus (EC-3 fold).
     from tools.shadow_diff import _load_fixture
     from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
     from core.archive.result_adapter import seed_row_from_result
 
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
 

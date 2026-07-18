@@ -240,9 +240,9 @@ def _extract_chart_data(data, results_df, tickers):
                     'ascending_support', 'adr',
                 )
             }
-            # E3 puzzle-quality chip — surfaced ONLY when the scorer emitted it
-            # (PUZZLE_SCORE_ENABLED on). Added conditionally so the flag-off card
-            # payload stays byte-identical (no always-present puzzle_quality: 0.0).
+            # E3 puzzle-quality chip — surfaced when the scorer emitted it
+            # (always, since the 2026-07-18 fold; the presence guard also keeps
+            # older flag-era payloads readable).
             if 'puzzle_quality' in sub:
                 sub_payload['puzzle_quality'] = round(
                     float(sub.get('puzzle_quality', 0) or 0), 2)
