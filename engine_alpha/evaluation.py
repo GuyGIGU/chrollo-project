@@ -72,9 +72,18 @@ def apply_baseline_filters_with_reason(
     order price -> Vol_50 -> SMA50 -> SMA200 -> YoY is the contract: first-fail
     names the reason. Comparison forms are verbatim doctrine — a NaN sample
     passes its ``<`` gate (never add isfinite hardening here).
+
+    The price floor runs BEFORE the rolling enrichment: Close at the latest bar
+    reads off the raw frame, so a sub-``MIN_PRICE`` ticker skips the copy and
+    the three rolling windows entirely. Its reject samples therefore carry only
+    ``close`` — the one value that exists (and the one its consumer reads).
     """
     if len(df) < 200:
         return None, ("bars", {"bars": len(df)})
+
+    close = df['Close'].iloc[-1]
+    if close < settings.MIN_PRICE:
+        return None, ("price", {"close": close})
 
     df = df.copy()
     df['SMA_50'] = df['Close'].rolling(window=50).mean()
@@ -92,7 +101,6 @@ def apply_baseline_filters_with_reason(
     samples = {"close": latest['Close'], "vol_50": latest['Vol_50'],
                "sma_50": latest['SMA_50'], "sma_200": latest['SMA_200'],
                "yearly_return": yearly_return}
-    if latest['Close'] < settings.MIN_PRICE: return None, ("price", samples)
     if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None, ("vol50", samples)
     if latest['Close'] < latest['SMA_50']: return None, ("sma50", samples)
     if latest['Close'] < latest['SMA_200']: return None, ("sma200", samples)
