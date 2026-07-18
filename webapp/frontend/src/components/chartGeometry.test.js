@@ -145,26 +145,28 @@ test('miniFocusLogicalRange: minVisibleBars pads a tiny base out to the floor', 
   assert.equal(range.to - range.from, 90);
 });
 
-test('colorMiniCandles: clones input, paints limb grey and lps gold', () => {
+test('colorMiniCandles: clones input, paints the Phase A root swing grey and lps gold', () => {
   const candles = makeCandles(20);
   const data = {
     candles,
     base_len: 6,
     forward_bars: 0,
-    r_anchor: 1,
-    s_anchor: 4,
+    // The grey marks the engine's Phase A (climax -> AR), NOT the r/s rail anchors:
+    // _phase_a_start_date=2024-01-05 (idx 4) .. _phase_a_end_date=2024-01-08 (idx 7).
+    _phase_a_start_date: '2024-01-05',
+    _phase_a_end_date: '2024-01-08',
+    _phase_b_start_date: '2024-01-15',
     lps_tests: [],
     lps_len: 0,
   };
   const out = colorMiniCandles(data);
   // source untouched (deep clone)
-  assert.equal(candles[15].color, undefined);
-  // baseEnd = 19, baseStart = 14; limbStart = min(15, 18, baseStart) = 14
-  // (left edge pinned to the box start - the back-extension seam), limbEnd=18
-  assert.equal(out[14].color, CHART_COLORS.baseLimb);
-  assert.equal(out[15].color, CHART_COLORS.baseLimb);
-  assert.equal(out[18].color, CHART_COLORS.baseLimb);
-  assert.equal(out[13].color, undefined);
+  assert.equal(candles[4].color, undefined);
+  // Phase A bars 4..7 grey; bars just outside stay unpainted.
+  assert.equal(out[4].color, CHART_COLORS.baseLimb);
+  assert.equal(out[7].color, CHART_COLORS.baseLimb);
+  assert.equal(out[3].color, undefined);
+  assert.equal(out[8].color, undefined);
 });
 
 test('colorMiniCandles: lps_offset path paints gold', () => {

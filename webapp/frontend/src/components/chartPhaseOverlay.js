@@ -161,13 +161,34 @@ const priceRangeForRegion = (data, candles, region) => {
 };
 
 const phaseIndexes = (data, candles) => ({
-  phaseAStart: indexOnOrAfter(candles, data?._phase_a_start_date),
-  phaseAEnd: indexOnOrAfter(candles, data?._phase_a_end_date),
   phaseBStart: indexOnOrAfter(candles, data?._phase_b_start_date),
   phaseDStart: indexOnOrAfter(candles, data?._phase_d_start_date),
   lpsZoneEnd: indexOnOrAfter(candles, data?._lps_zone_end_date),
   lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
 });
+
+// The engine's root-swing (Phase A) span in candle-index space: the elected climax
+// (bc_anchor = structure.climax_bar) -> its automatic reaction, straight from
+// _phase_a_start_date / _phase_a_end_date. SINGLE SOURCE OF TRUTH for the grey
+// root-swing marker — the modal region band, the modal candle tint (colorBase), and
+// the mini-card candle tint (colorMiniCandles) all read it, so the big and small
+// charts colour the IDENTICAL bars. Deliberately NOT the r_anchor / s_anchor rail
+// pivots: those sit deep in the base and made the marker drag across most of Phase B
+// when a rail was set late (the long-standing "root-swing grey drag" bug). The
+// engine's Phase A never crosses phase_b_start, so it always leads INTO the box.
+// Returns null when Phase A can't be placed.
+export const phaseARange = (data, candles) => {
+  if (!candles?.length) return null;
+  const start = indexOnOrAfter(candles, data?._phase_a_start_date);
+  if (start == null) return null;
+  const phaseBStart = indexOnOrAfter(candles, data?._phase_b_start_date);
+  const fallbackEnd = phaseBStart != null
+    ? Math.min(phaseBStart - 1, start + PHASE_A_MAX_BARS - 1)
+    : start + PHASE_A_MAX_BARS - 1;
+  const last = candles.length - 1;
+  const end = Math.min(indexOnOrAfter(candles, data?._phase_a_end_date) ?? fallbackEnd, last);
+  return end >= start ? { startIndex: start, endIndex: end } : null;
+};
 
 const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
   if (startIndex == null || endIndex == null) return null;
@@ -223,23 +244,12 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  // Phase A — the engine's OWN root-swing decision, drawn faithfully: the elected
-  // climax (bc_anchor = structure.climax_bar) into its automatic reaction, straight
-  // from scope_consolidation as _phase_a_start_date -> _phase_a_end_date. This is
-  // "how the engine anchored this consolidation" — nothing more, nothing less.
-  // The engine's Phase A always LEADS INTO Phase B (phase_a_end never crosses
-  // phase_b_start), so it can never drag across the box.
-  //
-  // It is deliberately NOT the r_anchor / s_anchor rail pivots: those are the
-  // boundary-responsible bars deep inside the base, so drawing between them made
-  // the band span most of Phase B whenever a rail was set late — the long-standing
-  // "root-swing gray drag" bug. Rail pivots define R/S; they are not the root swing.
-  if (indexes.phaseAStart != null) {
-    const fallbackEnd = indexes.phaseBStart != null
-      ? Math.min(indexes.phaseBStart - 1, indexes.phaseAStart + PHASE_A_MAX_BARS - 1)
-      : indexes.phaseAStart + PHASE_A_MAX_BARS - 1;
-    const phaseAEnd = indexes.phaseAEnd ?? fallbackEnd;
-    const region = buildRegion('a', candles, indexes.phaseAStart, phaseAEnd);
+  // Phase A — the engine's own root-swing decision (climax -> AR), via the shared
+  // phaseARange helper. The mini card and the modal candle tint mark the identical
+  // bars through the same helper, so the coloured surfaces can't diverge.
+  const phaseA = phaseARange(data, candles);
+  if (phaseA) {
+    const region = buildRegion('a', candles, phaseA.startIndex, phaseA.endIndex);
     if (region) regions.push(region);
   }
   if (indexes.phaseBStart != null) {
