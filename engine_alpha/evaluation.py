@@ -122,11 +122,13 @@ def _structure_to_boxes(s, n: int) -> dict:
     """Adapt a narrative ``Structure`` to the ``detect_boxes`` output shape so the
     rest of the pipeline consumes it unchanged.
 
-    Brick anchors are ABSOLUTE (df-positional); the legacy parent tuple / inner
-    dict want them REBASED to their own box start, because downstream recomputes
+    Brick anchors are ABSOLUTE (df-positional); the legacy parent tuple wants
+    them REBASED to the box start, because downstream recomputes
     ``swing_complete_idx = start + max(r_anchor, s_anchor)``. ``bc_anchor_bar``
     (slot 9) carries the already-resolved-local climax — the narrative path skips
     ``_resolve_phase_a_swing`` and reads ``structure.climax_bar`` directly.
+    The inner dict is ``select_inner_box``'s own (``InnerBox.detection``, stored
+    at election, anchors already box-relative) — no inverse map to keep in sync.
     """
     pbs = int(s.phase_b_start_bar)
     base_len = n - pbs
@@ -144,67 +146,17 @@ def _structure_to_boxes(s, n: int) -> dict:
         # moves live + seed together and seed-recall owns the attributable delta.
         False,
     )
-    inner = None
-    if s.inner is not None:
-        i = s.inner
-        istart = int(i.start_bar)
-        inner = {
-            "R": float(i.R), "S": float(i.S), "box_width": float(i.box_width),
-            "base_len": int(i.base_len), "start_bar": istart,
-            "r_touches": int(i.r_touches), "s_touches": int(i.s_touches),
-            "r_anchor_bar": int(i.r_anchor_bar) - istart,
-            "s_anchor_bar": int(i.s_anchor_bar) - istart,
-            "source": i.source, "search_start_bar": int(i.search_start_bar),
-            "climax_bar": i.climax_bar,
-            "reaction_bar": i.reaction_bar, "reaction_pct": i.reaction_pct,
-            "reaction_bars": i.reaction_bars,
-        }
+    inner = s.inner.detection if s.inner is not None else None
     return {"parent": parent, "inner": inner}
 
 
 def _lps_result_from_brick(lps) -> dict:
-    """The ``detect_lps`` result dict, sourced 1:1 from the walk's elected
-    ``Lps`` brick. The inner-first-then-parent Phase-D election runs ONCE, in
-    ``read_structure``; evaluation consumes the winner and never re-detects.
-    The single renamed pair is ``trigger_price`` <- ``Lps.trigger``; the three
-    keys the brick deliberately drops (spread_decline_quality / start_date /
-    end_date) have zero consumers here and are NOT synthesized."""
-    return {
-        "low_index": lps.low_bar,
-        "start_index": lps.start_bar,
-        "end_index": lps.end_bar,
-        "zone_type": lps.zone_type,
-        "trigger_price": lps.trigger,
-        "length": lps.length,
-        "offset": lps.offset,
-        "setup_type": lps.setup_type,
-        "low": lps.low,
-        "high": lps.high,
-        "vol_contraction": lps.vol_contraction,
-        "tightness_ratio": lps.tightness_ratio,
-        "descent_frac": lps.descent_frac,
-        "high_descent_frac": lps.high_descent_frac,
-        "window_range_pct_box": lps.window_range_pct_box,
-        "high_extension_box": lps.high_extension_box,
-        "high_extension_atr": lps.high_extension_atr,
-        "profile_unit": lps.profile_unit,
-        "profile_unit_pct": lps.profile_unit_pct,
-        "pullback_profile": lps.pullback_profile,
-        "terminal_low_tolerance": lps.terminal_low_tolerance,
-        "spread_expansion_profile": lps.spread_expansion_profile,
-        "first_high": lps.first_high,
-        "last_low": lps.last_low,
-        "window_high": lps.window_high,
-        "window_low": lps.window_low,
-        "swing_type": lps.swing_type,
-        "lps_anchor_bar": lps.lps_anchor_bar,
-        "lps_anchor_date": lps.lps_anchor_date,
-        "lps_low_bar": lps.lps_low_bar,
-        "lps_low_date": lps.lps_low_date,
-        "lps_swing_depth_pct": lps.lps_swing_depth_pct,
-        "lps_swing_depth_atr": lps.lps_swing_depth_atr,
-        "lps_swing_depth_box": lps.lps_swing_depth_box,
-    }
+    """The ``detect_lps`` result dict of the walk's elected ``Lps`` brick. The
+    inner-first-then-parent Phase-D election runs ONCE, in ``read_structure``;
+    evaluation consumes the winner and never re-detects. The brick carries the
+    detector's own dict (``Lps.detection``, stored at election), so there is no
+    field-by-field inverse map to keep in sync with the detector."""
+    return lps.detection
 
 
 def descent_tail_drops(frame, parent_equilibrium, box_width, inner, lps_in_inner, atr):

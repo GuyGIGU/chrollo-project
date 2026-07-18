@@ -668,19 +668,10 @@ def measure_phases(
     elif spring is None:
         phase_c = {}   # no Phase C: out already holds _empty()'s bin_c keys
     else:
-        # The bin_c shape from the elected brick, values verbatim — they were
-        # rounded at source (_phase_c_candidate / _terminal_shakeout).
-        phase_c = {
-            "bin_c_present": True,
-            "bin_c_type": spring.spring_type,
-            "bin_c_event_date": spring.event_date,
-            "bin_c_event_bar": int(spring.tip_bar),
-            "bin_c_undercut_atr": float(spring.undercut_atr),
-            "bin_c_recovery_bars": int(spring.recovery_bars),
-            "bin_c_recovery_bar": int(spring.recovery_bar),
-            "bin_c_time_loc": float(spring.time_loc),
-            "bin_c_spring_vol_z": spring.spring_vol_z,
-        }
+        # The elected brick carries its detector's own bin_c dict
+        # (``Spring.detection``, stored at election) — injected verbatim, so
+        # there is no field-by-field inverse map to keep in sync.
+        phase_c = spring.detection
     out.update(phase_c)
     phase_c_recovery_bar = (
         phase_c.get("bin_c_recovery_bar")

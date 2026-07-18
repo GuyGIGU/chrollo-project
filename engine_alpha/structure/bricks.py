@@ -81,6 +81,9 @@ class InnerBox:
     reaction_bar: Optional[int]
     reaction_pct: Optional[float]
     reaction_bars: Optional[int]
+    # The full select_inner_box dict for THIS box (anchors box-relative), stored
+    # at election; evaluation consumes it instead of a field-by-field inverse map.
+    detection: Optional[dict] = None
 
 
 @dataclass
@@ -93,6 +96,9 @@ class Spring:
     spring_vol_z: Optional[float]
     event_date: Optional[str]
     spring_type: str = "SPRING"
+    # The full _phase_c_candidate dict for THIS spring (the bin_c shape), stored
+    # at election; measure_phases consumes it instead of a field-by-field inverse map.
+    detection: Optional[dict] = None
 
 
 @dataclass
@@ -131,6 +137,9 @@ class Lps:
     lps_swing_depth_pct: Optional[float] = None
     lps_swing_depth_atr: Optional[float] = None
     lps_swing_depth_box: Optional[float] = None
+    # The full detect_lps result dict for THIS LPS, stored at election;
+    # evaluation consumes it instead of a field-by-field inverse map.
+    detection: Optional[dict] = None
 
 
 def _finite(x) -> bool:
@@ -335,6 +344,7 @@ def find_inner_box(
         reaction_bar=selected["reaction_bar"],
         reaction_pct=selected["reaction_pct"],
         reaction_bars=selected["reaction_bars"],
+        detection=selected,
     )
 
 
@@ -371,6 +381,7 @@ def find_spring(
         spring_vol_z=result["bin_c_spring_vol_z"],
         event_date=result["bin_c_event_date"],
         spring_type=result["bin_c_type"],
+        detection=result,
     )
 
 
@@ -464,6 +475,7 @@ def find_lps(
         lps_swing_depth_pct=result.get("lps_swing_depth_pct"),
         lps_swing_depth_atr=result.get("lps_swing_depth_atr"),
         lps_swing_depth_box=result.get("lps_swing_depth_box"),
+        detection=result,
     )
     return _out(lps, rejects)
 
