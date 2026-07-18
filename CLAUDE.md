@@ -5,10 +5,10 @@
 ## Non-negotiable reading rule
 
 Before modifying ANY chart-reading engine code — `engine_alpha/structure/`, `engine_alpha/scoring/`, or
-their detection/scoring knobs in `config/settings.py` — **read `docs/strategy_v2.md`
+their detection/scoring knobs in `config/settings.py` — **read `docs/strategy_alpha.md`
 first** (the Reading Model section at minimum). It is the source of truth for how we
 understand chart analysis; the code implements it, not the other way around. When your
-change moves behavior, **update `docs/strategy_v2.md` in the same change**. Drift between
+change moves behavior, **update `docs/strategy_alpha.md` in the same change**. Drift between
 the doc and the engine is a defect, not a chore to defer.
 
 <!-- ultra-council:begin -->

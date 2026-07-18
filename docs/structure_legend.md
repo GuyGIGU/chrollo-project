@@ -3,7 +3,7 @@
 **Status: north-star / shared vocabulary (v1).** This document describes *how a
 skilled trader reads a base* and the model the structure engine is being
 steered toward. It is intentionally ahead of the code. For what the engine
-*actually does today*, see [strategy_v2.md](strategy_v2.md) (the
+*actually does today*, see [strategy_alpha.md](strategy_alpha.md) (the
 implementation-mirroring source of truth). This file is the language we agree
 on first; the detector is then built to match it.
 
@@ -303,7 +303,7 @@ absence, raw measure archived, tiers untouched).
    `_bin_d_ascending_support_quality` and its D-vs-B support-quality delta. The
    Phase-D boundary is single-sourced with the scoping overlay
    (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
-   scores. See strategy_v2.md, "Region (Bin) Features & Trend Template".
+   scores. See strategy_alpha.md, "Region (Bin) Features & Trend Template".
 
 ---
 

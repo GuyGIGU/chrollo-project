@@ -14,7 +14,7 @@ and never loosens boundary respect (the upthrust defense).
 
 **Boundaries:** No scoring-weight/tier recalibration; no HTF; no provider migration; no archive-lens
 chart overlay in v1 (see Risks); every behavior change is flag-gated, byte-identical flag-off,
-gated by corpus + seed-recall + shadow, and amends the `docs/strategy_v2.md` Reading Model in the
+gated by corpus + seed-recall + shadow, and amends the `docs/strategy_alpha.md` Reading Model in the
 same change.
 
 **Council dispatched:** McKinney (5), Fowler (6), Beck (6), Leach (6), Performance (5), Ramírez (6),

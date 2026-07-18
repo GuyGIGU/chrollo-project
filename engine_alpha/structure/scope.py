@@ -1,7 +1,7 @@
 """
 Consolidation scoping layer — "which part of the base is which".
 
-This is the descriptive Phase-D scoping layer (see docs/strategy_v2.md, "The
+This is the descriptive Phase-D scoping layer (see docs/strategy_alpha.md, "The
 Phase D Model"). It does NOT detect anything new and it does NOT score: it
 consumes values the detector + LPS finder already produced and re-expresses
 them as the right-most launch region the human eye reads first.

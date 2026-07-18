@@ -17,7 +17,7 @@ AND the root-swing / box election together:
   * a text panel: the trend-segment table, the structure summary, the AR off/on
     tighten, and the one-line election trace.
 
-FAITHFULNESS (non-negotiable — see docs/strategy_v2.md + the sibling tools): it
+FAITHFULNESS (non-negotiable — see docs/strategy_alpha.md + the sibling tools): it
 reuses ``ar_first_reaction_diff._prep_live`` (baseline filter -> trim to
 DAILY_STRUCTURE_PERIOD (2y) -> ATR_10/50 -> atr = ATR_10.iloc[-6]) and
 ``read_structure`` on that SAME frame — NEVER the untrimmed 5y frame that

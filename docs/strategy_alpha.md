@@ -1,14 +1,19 @@
-# Wyckoff-Minervini Stock Screener — Strategy & Implementation Reference
+# Strategy α — Wyckoff-Minervini Chart-Reading Reference
+
+*(Formerly `docs/strategy_v2.md`; renamed at the 2026-07-18 Purity Pass close. Strategy α
+documents the engine-α reading in its final, event-organized shape — the Reading Model
+below is a catalog with **one entry per chart event**.)*
 
 > **RULE — read this before touching the reading engine.** Any change to chart-reading
-> algorithm code (`core/structure/`, `core/scoring/`, or their detection/scoring knobs in
-> `config/settings.py`) **starts by reading this document — the Reading Model section at
-> minimum — and lands with this document updated in the same change** when behavior
-> moves. This file is the source of truth for *how Chrollo understands a chart*, not just
-> a description of the code; letting them drift is a defect. (The rule is mirrored in
-> `AGENTS.md` and the root `CLAUDE.md` so every agent session loads it.)
+> algorithm code (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their
+> detection/scoring knobs in `config/settings.py`) **starts by reading this document —
+> the Reading Model section at minimum — and lands with this document updated in the
+> same change** when behavior moves. This file is the source of truth for *how Chrollo
+> understands a chart*, not just a description of the code; letting them drift is a
+> defect. (The rule is mirrored in `AGENTS.md` and the root `CLAUDE.md` so every agent
+> session loads it.)
 
-This document is the **single source of truth** for what the screener actually does — and, in the [Reading Model](#the-reading-model--the-operators-chart-language) below, for *how we understand chart analysis in the first place*. It mirrors the implementation in `core/` and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
+This document is the **single source of truth** for what the screener actually does — and, in the [Reading Model](#the-reading-model--the-operators-chart-language) below, for *how we understand chart analysis in the first place*. It mirrors the implementation in `engine_alpha/` (the reading engine) plus `core/` (pipeline plumbing) and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
 
 The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A/B/C/D structure. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by actual High/Low swing geometry.
 
@@ -48,7 +53,21 @@ and well respected. The term describes the rail-to-bars gap and nothing else; a 
 engine must refuse gets its own honest reason (mis-framed range, trend-continuation dip,
 run-up flag…), never "dead space" as a catch-all.
 
-### The trend model — HH/HL runs with a start, a climax, and a CHoCH
+### The event catalog — one entry per chart event
+
+The engine reads a chart as a chronological sequence of **events** — the same events the
+operator names when narrating a chart. This catalog is the law of ownership:
+
+- **Each event has exactly ONE owning detector.** Variants of an event are **labeled
+  forms inside that detector**, never sibling detectors — one question, one place that
+  answers it (event-domain consolidation, 2026-07-17).
+- **Wire and archive keys are frozen forever.** The operator-locked display names
+  (2026-07-17 sitting) apply wherever humans read — chips, lens, trace, reject reasons.
+- **A new signal declares its event.** Every new measurement names the catalog event it
+  reads and enters under that event's entry (or amends this catalog explicitly with a
+  new one) — measure-first, as graded confidence. No event, no signal.
+
+#### Trend & Change of Character — HH/HL runs with a start, a climax, and a CHoCH
 
 Before the reader can find *where the trend ends* (cascade step 1 below), it has to know
 what a trend *is*. A trend is read off market structure — the sequence of swing highs and
@@ -57,7 +76,7 @@ lows:
 - an **uptrend** prints **higher-highs and higher-lows** (HH/HL);
 - a **downtrend** prints **lower-highs and lower-lows** (LH/LL).
 
-`label_market_structure()` ([core/structure/market_structure.py](../core/structure/market_structure.py)) tags every pivot on the shared swing skeleton HH / HL / LH / LL and tracks a running mechanical trend state. `segment_trends()` walks those labels into explicit directional **trend segments**, each with the four things that define a trend:
+`label_market_structure()` ([engine_alpha/structure/market_structure.py](../engine_alpha/structure/market_structure.py)) tags every pivot on the shared swing skeleton HH / HL / LH / LL and tracks a running mechanical trend state. `segment_trends()` walks those labels into explicit directional **trend segments**, each with the four things that define a trend:
 
 1. **Start** — a trend is *born* at its **change-of-character**: the first HH that breaks a prior down/range (an uptrend's CHoCH-up), or the first LL that breaks a prior up/range (a downtrend's CHoCH-down). It launched off the pivot just before that break.
 2. **Climax (terminal swing)** — the trend's extreme pivot: the highest HH of an uptrend (the **buying climax**), the lowest LL of a downtrend (the **selling climax**).
@@ -68,9 +87,102 @@ lows:
 
 This is **measure-only**: the trend model reads the labels the skeleton already assigns and assigns no points, moves no rails, and gates nothing. It is the geometric substrate the roadmap's richer market-structure reads (CHoCH = Phase A start, BOS = Phase D continuation, liquidity sweeps) grow from — always as graded confidence, never a veto.
 
-### The L2 event reader — Wyckoff puzzle: from rail events to a scored narrative
+#### Climax → Automatic Reaction (Phase A)
 
-Above the geometry sits a second reading layer that does not move a single rail. Once the cascade has **elected** an equilibrium box, the L2 event reader ([core/structure/box_events.py](../core/structure/box_events.py), re-exported through [core/structure/metrics.py](../core/structure/metrics.py)) reads the in-box structure as *facts about a Wyckoff story* — a labeled staircase, independent rail-event zones, and their chronological assembly into the classic spring → SOS → LPS puzzle. Like the trend model, it is **measure-only**: every function here reports what it sees and assigns no points, gates nothing, and moves no rail. It reads the box the engine **already elected** — never a re-detection — so its story is told over the same rails, start, and span everything else measures against.
+The trend-end event: the climax (an uptrend's BC, a downtrend's SC) and the automatic
+reaction off it — the pair every base hangs from, and the names the legend reserves for
+the main trend. The owning read is `collect_root_anchors()` (the calibrated climax→AR
+anchor scan feeding the root walk). The **drawn** Phase-A overlay tells the same event
+in labeled forms, never separate detectors: the canonical anchor scan; the always-on
+**macro-validated bridge** (`macro_bridge_zigzag`, folded 2026-07-18 — abstains unless a
+True-Root bridge validates; see "Phase A — Macro bridge read"); and the dark
+**first-reaction AR refinement** (`first_reaction_after()` under
+`AR_FIRST_REACTION_ENABLED`), which tightens the drawn AR to the trend model's first
+continuous reaction.
+
+#### The Equilibrium box (Phase B) — the Root Swing election
+
+**Equilibrium** is the operator-locked name for what a box must prove: a worked,
+two-sided range price actually zigzags rail-to-rail. A climax→AR pair only *proposes*
+rails; the framing must survive the worked-rails test — touches spread across the
+window, boundary respect, balanced dwell, occupancy, and rail-to-rail traversal
+(`_is_boundary_respected()` + `_validate_base_quality()` + the traversal gate). ONE
+election owns the box: `read_structure()` root backtracking ×
+`collect_zigzag_candidates()` earliest-valid election, start-refined by the always-on
+shared-rail back-extension (`backext_shared_rail`, folded 2026-07-18). The elected box
+is *emergent* — the same pair wins from nearly every scan origin — so the cascade and
+the election converge on the same anchors. The worked example (AGCO 2026) and the
+box-start divergence record live under cascade step 4 below.
+
+#### Spring (Phase C)
+
+The turn-conductor event: penetration below S → reclaim → hold (the bounded-excursion
+model). ONE detector, `find_spring()`, owns it; the terminal-shakeout scale is typed at
+the same single seam (`_phase_c_candidate`, live since 2026-07-16), so the chart's C
+label, the phase read, and the archive can never drift — a calibrated `SPRING` is never
+re-typed. Downstream reads **inject** the elected spring rather than re-detecting. Most
+bases have no Phase C and that is normal (see "The Phase D Model").
+
+#### Support Test
+
+An S-rail hold: a low-zone valley that touches S without a deep breach, then holds.
+Owned by `measure_support_tests()` — deliberately *not* the R-rail wave machinery. A
+deep breach-and-reclaim belongs to the Spring; the two never double-emit.
+
+#### Sign of Strength, Markup & Upthrust — the R-rail wave
+
+One wave machinery, `measure_resistance_events()`, owns every R-rail interaction and
+types each wave by its **terminal outcome**: a creek-jump that held near R with a
+genuine mini-consolidation is an `SOS`; an advance that held far above R is `markup`; a
+run-up that failed back to support is a single `upthrust` (one false-break wave, never a
+string of SOS); the in-between cases stay descriptive (`range` / `rejection` /
+`in_progress`).
+
+#### Phase D — the right-most region
+
+Where the base turns. `resolve_phase_d_boundary()` places the Phase-D open from labeled
+evidence variants — support-test cluster / SOS reclaim / rising support / inner
+mini-consolidation / recovered late-base low (`v_tip`) — with the LPS window as the
+mandatory fallback; the variants' floor policies are labeled and behavior-frozen.
+Measurement only, never a gate — see "The Phase D Model — Reading the Right-Most
+Region".
+
+#### Last Point of Support — the mandatory terminal event
+
+No LPS in the right-most region means no Phase D and no setup. ONE detector,
+`detect_lps()`, owns the event; its sanctioned completion geometries are **labeled swing
+forms inside it**, never sibling detectors (wire enums frozen forever):
+
+| Form (wire enum) | Display | Geometry |
+|---|---|---|
+| `terminal_valley` | LPS | the classic pullback that rests on its low |
+| `holding_shelf` | LPS — flat hold | the two-form doctrine's flat shelf, sanctioned only high in the structure |
+| `buec_shelf` | LPS above R (**Throwback**) | the `OVERSHOOT_R` window class — a back-up to the creek from above, matured-cause bounded (the BBVA defense) |
+
+The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): a window
+still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
+LPS Detection".
+
+#### Cross-event measures — graded context, never events
+
+Some reads grade events rather than being one. **Dwell Balance** — how the box's time
+splits between the rails — docks one-rail hangs. **Resistance/Support Volume**
+(`r/s_touch_vol_z`) is ONE statistic — event volume as a z-score against the base
+window's own distribution — living in TWO guarded homes (the touch families in
+`metrics`, the event families in `bin_features`) kept separate **by design**: each
+home's guards and NaN routing differ, and what they share is the question, not code
+worth merging (event-domain audit C14). Bar spread likewise carries TWO statistics by
+design — the readability texture and the LPS yardstick — pinned apart. All of these are
+graded confidence or archived measures; **geometry is the only veto**.
+
+### The measure-only reader layers
+
+Above the event catalog sit reader layers that move no rail, gate nothing, and score
+nothing (save the puzzle read's one bonus-only term):
+
+#### The L2 event reader — Wyckoff puzzle: from rail events to a scored narrative
+
+Above the geometry sits a second reading layer that does not move a single rail. Once the cascade has **elected** an equilibrium box, the L2 event reader ([engine_alpha/structure/box_events.py](../engine_alpha/structure/box_events.py), re-exported through [engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) reads the in-box structure as *facts about a Wyckoff story* — a labeled staircase, independent rail-event zones, and their chronological assembly into the classic spring → SOS → LPS puzzle. Like the trend model, it is **measure-only**: every function here reports what it sees and assigns no points, gates nothing, and moves no rail. It reads the box the engine **already elected** — never a re-detection — so its story is told over the same rails, start, and span everything else measures against.
 
 The read is a pipeline of four stages. First, `read_box_staircase()` labels the in-box swing sequence: it composes the *same* calibrated significant-swing skeleton the traversal read uses (`_collapse_swings` on the order-1 zigzag, amplitude-filtered by `TRAVERSAL_NOISE_FRAC`) with the L0 labeller (`label_market_structure`), so the staircase swings *are* the worked-equilibrium swings. Each swing is annotated with its box-position (`box_pos`, 0 = S rail, 1 = R rail), a low/mid/high `zone`, and a `rail_event` (`touch_R`/`breach_R`, `touch_S`/`breach_S`, or `interior`) — one chronological HH/HL/LH/LL sequence the later events are read off.
 
@@ -80,19 +192,19 @@ Third, `read_box_events()` (over the shared chokepoint `_box_events_with_meta`) 
 
 Fourth, `assemble_box_narrative()` stitches the zones into the puzzle in one linear pass. It picks the spine (`spring` → first `SOS` → `LPS`), tallies a raw `completeness` (0..4 distinct canonical pieces present — spring, SOS, LPS, held-test), reads a three-valued `chronology` (`intact` only when all three spine pieces are present *and* strictly bar-ordered spring < SOS < LPS, else `partial`/`absent`), derives the B/C/D phase spans off the shared V, and emits an explainable `trace`. Every one of these reads is descriptive — none is shaped as a pass/fail another layer could consume as a filter. A missing piece is reported, never fabricated.
 
-The **only live consumer** is a bonus-only score term. Always on (folded 2026-07-18; formerly flag `PUZZLE_SCORE_ENABLED`), `_puzzle_quality()` in [core/scoring/scoring.py](../core/scoring/scoring.py) folds `completeness` and `chronology` into a single `[0, 1]` composite (they are correlated — an intact chronology is impossible without the full spine — so they never split into two double-counting terms), and `s_puzzle` scales it by `SCORE_PUZZLE_QUALITY` (8.0) and clamps it into `[0, cap]`. It is strictly additive and `>= 0`: it can only ever *raise* a score. A missing, `None`, or malformed narrative reads a neutral `0.0`, so an absent puzzle never demotes a setup below what its geometry already merits. Consistent with the whole reading model, **geometry is the only veto** — the Wyckoff puzzle is graded confidence layered on top of it, never a gate.
+The **only live consumer** is a bonus-only score term. Always on (folded 2026-07-18; formerly flag `PUZZLE_SCORE_ENABLED`), `_puzzle_quality()` in [engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py) folds `completeness` and `chronology` into a single `[0, 1]` composite (they are correlated — an intact chronology is impossible without the full spine — so they never split into two double-counting terms), and `s_puzzle` scales it by `SCORE_PUZZLE_QUALITY` (8.0) and clamps it into `[0, cap]`. It is strictly additive and `>= 0`: it can only ever *raise* a score. A missing, `None`, or malformed narrative reads a neutral `0.0`, so an absent puzzle never demotes a setup below what its geometry already merits. Consistent with the whole reading model, **geometry is the only veto** — the Wyckoff puzzle is graded confidence layered on top of it, never a gate.
 
-### The Event Map — the mechanical swing layer (whole-frame)
+#### The Event Map — the mechanical swing layer (whole-frame)
 
-The Event Map ([core/structure/event_map.py](../core/structure/event_map.py), `read_swing_map`) widens the L2 staircase's calibrated swing skeleton from the elected box's window to the **whole evaluation frame**, so the pre-box trend and the box story are read on one substrate. It stands up no second skeleton: **one** order-1 pivot walk runs per frame, and each windowed view — the pre-box segment, the in-box staircase — is that walk's pivots filtered to its window and fed through the *same* staircase machinery (`_staircase_from_pivots`). The in-box view is **byte-identical** to `read_box_staircase` by construction; the widening only *adds* pre-box swings (including a pivot at the box-start bar itself, which the windowed walk's order margin masked). The two views are stitched, not re-collapsed: alternation and HH/HL/LH/LL labelling reset at the box-start seam — the price of keeping the in-box slice identical to the elected staircase — and the seam is a stated boundary, never an implicit one.
+The Event Map ([engine_alpha/structure/event_map.py](../engine_alpha/structure/event_map.py), `read_swing_map`) widens the L2 staircase's calibrated swing skeleton from the elected box's window to the **whole evaluation frame**, so the pre-box trend and the box story are read on one substrate. It stands up no second skeleton: **one** order-1 pivot walk runs per frame, and each windowed view — the pre-box segment, the in-box staircase — is that walk's pivots filtered to its window and fed through the *same* staircase machinery (`_staircase_from_pivots`). The in-box view is **byte-identical** to `read_box_staircase` by construction; the widening only *adds* pre-box swings (including a pivot at the box-start bar itself, which the windowed walk's order margin masked). The two views are stitched, not re-collapsed: alternation and HH/HL/LH/LL labelling reset at the box-start seam — the price of keeping the in-box slice identical to the elected staircase — and the seam is a stated boundary, never an implicit one.
 
-Every swing carries the **causality stamps** the Event Map contract requires ([specs/event-map-causality-contract.md](../../specs/event-map-causality-contract.md), binding for all Event Map work): `describes_bar` (the pivot bar) and `knowable_bar` — the first bar at whose close the swing was *irreversibly committed*, i.e. the bar that pivot-confirms the first opposite extreme whose counter-move reaches the collapse threshold. A swing whose committing reversal has not printed is `in_progress` and satisfies nothing downstream; the frame's first swing is `edge_uncertain` (its extremity depends on bars left of the live two-year trim). The label set "as of date D" is exactly the swings with `knowable_bar ≤ D` — what makes replay honest instead of quietly clairvoyant. One stated caveat: a *view* younger than three raw pivots emits nothing yet (the staircase's own degenerate-window guard), so a swing's first appearance can lag its `knowable_bar` at view birth — labels may appear late, but never change or vanish retroactively.
+Every swing carries the **causality stamps** the Event Map contract requires ([specs/event-map-causality-contract.md](../specs/event-map-causality-contract.md), binding for all Event Map work): `describes_bar` (the pivot bar) and `knowable_bar` — the first bar at whose close the swing was *irreversibly committed*, i.e. the bar that pivot-confirms the first opposite extreme whose counter-move reaches the collapse threshold. A swing whose committing reversal has not printed is `in_progress` and satisfies nothing downstream; the frame's first swing is `edge_uncertain` (its extremity depends on bars left of the live two-year trim). The label set "as of date D" is exactly the swings with `knowable_bar ≤ D` — what makes replay honest instead of quietly clairvoyant. One stated caveat: a *view* younger than three raw pivots emits nothing yet (the staircase's own degenerate-window guard), so a swing's first appearance can lag its `knowable_bar` at view birth — labels may appear late, but never change or vanish retroactively.
 
 Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the puzzle read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
 
 Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they are staged behind **`EVENT_MAP_ENABLED`** (default OFF, dark-flag ledger + frozen manifest): flag-on, both are computed **for firing setups only** (the puzzle-read placement) and emit four underscore diagnostics (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`) — nothing canonical moves (proven additive-only over the full shadow fixture; evaluation-phase cost ≈ +1ms per firing ticker). Flag-on, the diagnostics are archived as the **`event_map_*` column family** — declared once in `event_map.py` (`EVENT_MAP_COLUMN_SQL`: names, types, row extraction; the live writer and seed both splat the one extraction function) and entering the schema as model-only nullable adds, where NULL means "not measured", never zero. The chart-overlay payload arrives in a later Event Map stage behind its own review; the flip is operator-gated on the scan-metrics cost A/B.
 
-A sibling measure-only diagnostic, **election stability** (`ELECTION_STABILITY_ENABLED`, default OFF, dark-flag ledger + frozen manifest): for firing setups only, the eval-twin prep and the structure election alone are re-run at D−1..D−k (backward shifts only — nothing archived can carry lookahead) and each shifted reading is compared to the live one through the single cross-frame identity predicate (`core/pipeline/election_identity.same_election`: box-start date + rails within a scale-free tolerance). Real structures persist while junk elections flicker day-to-day. The probe measures **backward persistence of the BOX election**, not of the fire: a box can elect well before its LPS completes, so `same_frac` at a fire's first session can legitimately be anywhere in 0..1 (corpus fires measured mostly 0 — the election itself was churning into those fires — while AVT's 0.33 shows pre-fire persistence exists; a low value means election churn, never "the fire is new"). A shift where the eval-twin prep refuses (universe-gate flicker: SMA/volume/price membership, not chart structure) counts as not-same in `same_frac` and is ALSO reported separately, so calibration can tell gate-flicker from election-flicker. Diagnostics emitted raw (`_stability_same_frac` / `_streak` / `_probes` / `_refused`) — never a gate, never a score. Flag-off is byte-identical and compute-free; the flip is gated on the measured cost bound (≈2.75s per firing ticker at k=3 — see the ledger).
+A sibling measure-only diagnostic, **election stability** (`ELECTION_STABILITY_ENABLED`, default OFF, dark-flag ledger + frozen manifest): for firing setups only, the eval-twin prep and the structure election alone are re-run at D−1..D−k (backward shifts only — nothing archived can carry lookahead) and each shifted reading is compared to the live one through the single cross-frame identity predicate (`engine_alpha/election_identity.same_election`: box-start date + rails within a scale-free tolerance). Real structures persist while junk elections flicker day-to-day. The probe measures **backward persistence of the BOX election**, not of the fire: a box can elect well before its LPS completes, so `same_frac` at a fire's first session can legitimately be anywhere in 0..1 (corpus fires measured mostly 0 — the election itself was churning into those fires — while AVT's 0.33 shows pre-fire persistence exists; a low value means election churn, never "the fire is new"). A shift where the eval-twin prep refuses (universe-gate flicker: SMA/volume/price membership, not chart structure) counts as not-same in `same_frac` and is ALSO reported separately, so calibration can tell gate-flicker from election-flicker. Diagnostics emitted raw (`_stability_same_frac` / `_streak` / `_probes` / `_refused`) — never a gate, never a score. Flag-off is byte-identical and compute-free; the flip is gated on the measured cost bound (≈2.75s per firing ticker at k=3 — see the ledger).
 
 ### The Root-Swing cascade (the linear narrative)
 
@@ -160,7 +272,7 @@ The reader walks the chart left to right and anchors by descent:
 
 | Reading step | Implementation |
 |---|---|
-| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "The trend model") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
+| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "Trend & Change of Character") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
 | The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the always-on `backext_shared_rail` start refinement, folded 2026-07-18). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
@@ -179,6 +291,12 @@ The trace is opt-in and free on the live path (`trace=None` = zero cost, byte-id
 New reading logic must **extend the trace, not bypass it** — the narrated process is what
 lets richer story-building (the event puzzle, graded confidence reads) trust the geometry.
 
+**The trace speaks event language.** Every trace label, reject reason, and diagnostic
+names its chart event in the catalog's vocabulary — plain chart language where humans
+read, frozen keys on the wire. The catalog's third law binds here too: **a new signal
+declares its event** before it ships — it enters the catalog under its event,
+measure-first, as graded confidence. No event, no signal.
+
 ---
 
 ## Pipeline Overview
@@ -195,12 +313,12 @@ Archive  Persist + forward-return backfill     core.archive             (writer 
 ```
 
 The code is organized as two engines plus a conductor (see [core/MAP.md](../core/MAP.md)):
-**`core/structure/`** = the Visual Structure Engine (pure geometry/measurement),
-**`core/scoring/`** = the Scoring Engine (the tunable opinion layer),
+**`engine_alpha/structure/`** = the Visual Structure Engine (pure geometry/measurement),
+**`engine_alpha/scoring/`** = the Scoring Engine (the tunable opinion layer),
 **`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
 measuring-stick tooling. Orchestrated by `run_screener()` in
 [core/pipeline/screener.py](../core/pipeline/screener.py), running per-ticker evaluation from
-[core/pipeline/evaluation.py](../core/pipeline/evaluation.py) in a `ProcessPoolExecutor`.
+[engine_alpha/evaluation.py](../engine_alpha/evaluation.py) in a `ProcessPoolExecutor`.
 
 ---
 
@@ -253,7 +371,7 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 
 ## Phase 1 — Baseline Universe Filter
 
-`apply_baseline_filters()` ([core/pipeline/evaluation.py](../core/pipeline/evaluation.py)).
+`apply_baseline_filters()` ([engine_alpha/evaluation.py](../engine_alpha/evaluation.py)).
 
 Reject the ticker entirely if any check fails. Run in this order:
 
@@ -268,7 +386,7 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([core/structure/indicators.py](../core/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
 
@@ -283,7 +401,7 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 ## Phase 2 — Consolidation Detection
 
-`read_structure()` ([core/structure/narrative.py](../core/structure/narrative.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [core/structure/bricks.py](../core/structure/bricks.py):
+`read_structure()` ([engine_alpha/structure/narrative.py](../engine_alpha/structure/narrative.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py):
 
 1. `find_root_swing()` — next calibrated climax -> automatic-reaction anchor, oldest-first.
 2. `validate_equilibrium()` — a real worked Phase-B box, using the existing zigzag candidate and traversal gates.
@@ -321,7 +439,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase A — Locality Resolution
 
-`resolve_phase_a()` ([core/structure/bricks.py](../core/structure/bricks.py)) repackages `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
+`resolve_phase_a()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)) repackages `segment_swings()` ([engine_alpha/structure/segmentation.py](../engine_alpha/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
@@ -329,7 +447,7 @@ This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, c
 
 The locality resolution above answers *which* climax→reaction pair the box belongs to, but its fallbacks can pin the reaction low all the way at the box open (`phase_b_start_bar`). When the descent from the climax to the base is not a single continuous plunge — a quick reaction, a bounce/pause, then a *later* leg down to the base — that pins the drawn AR on the final leg, so the climax→AR stripe smears across half the chart even though the true automatic reaction ended much earlier.
 
-`_first_impulse_ar_end()` ([core/structure/bricks.py](../core/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the low of the first continuous reaction after the trend's terminal swing.** It is a thin overlay adapter over `first_reaction_after()` ([core/structure/market_structure.py](../core/structure/market_structure.py)) — the AR is read from [the trend model](#the-trend-model--hhhl-runs-with-a-start-a-climax-and-a-choch) rather than a raw fixed-bar retrace. Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
+`_first_impulse_ar_end()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the low of the first continuous reaction after the trend's terminal swing.** It is a thin overlay adapter over `first_reaction_after()` ([engine_alpha/structure/market_structure.py](../engine_alpha/structure/market_structure.py)) — the AR is read from [the trend model](#the-trend-model--hhhl-runs-with-a-start-a-climax-and-a-choch) rather than a raw fixed-bar retrace. Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
 
 1. **Retrace basis = the trend's FULL leg.** The reaction is measured against the whole advance the climax ended — from the elected trend segment's **start** pivot up to the terminal higher-high (`elected_trend_leg_base`; mirror: the segment start down to a selling climax), falling back to the blind `AR_UP_LEG_LOOKBACK` (40) extreme only when no confirmed segment tops at/near the climax (within `tol` bars). The reaction only "counts" once it retraces `AR_RETRACE_FRAC` (0.5) of that full leg — small wobbles while price is still rising into the top are ignored. (An earlier build measured against only the *terminal impulse sub-leg*, whose short span let the threshold trip almost immediately and anchored the AR mid-decline; the full leg is what makes "reached" mean *near the true support*.)
 2. **Termination = the first big confirmed bounce.** Once the retrace threshold is met, the AR is the running reaction low, closed at the first **bounce** off it of ≥ `max(AR_BOUNCE_ATR_MULT·ATR, AR_BOUNCE_DROP_FRAC·drop)` (1.5·ATR or half the drop, whichever is larger). This is what distinguishes the *automatic reaction* from a later second leg: a real bounce off the reaction low locks the AR there (so a subsequent, deeper markdown is not mistaken for it — the AAP case), while a mid-decline pause is too small to close it (so a continuous plunge runs to the support that anchors the base — the TOL/PH case). A genuinely one-way descent with no big bounce inside the span is left anchored at the base edge (no tighten). The twitchy 4-bar *stall* terminator of the earlier build is gone — a stall is a pause, not a reaction end.
@@ -339,7 +457,7 @@ The rule is **mirror-symmetric** — a selling-climax paints the first up-reacti
 ### Phase A — Macro bridge read (live; folded 2026-07-18)
 
 `macro_bridge_zigzag()` ([engine_alpha/structure/phase_a.py](../engine_alpha/structure/phase_a.py), formerly `pip.py`), wired
-unconditionally through `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py))
+unconditionally through `segment_swings()` ([engine_alpha/structure/segmentation.py](../engine_alpha/structure/segmentation.py))
 (folded 2026-07-18; formerly flag `PIP_MACRO_PHASE_A_ENABLED`, live 2026-07-04). A multi-resolution PIP (Perceptually Important Points)
 skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
 exact prefix of top-K+1), then walked coarse→fine from `K=4` up to `PIP_MACRO_K_MAX` (24):
@@ -373,7 +491,7 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
 
 ### Phase B — Zigzag S/R Anchoring
 
-`phase_b_zigzag()` ([core/structure/box_primitives.py](../core/structure/box_primitives.py)).
+`phase_b_zigzag()` ([engine_alpha/structure/box_primitives.py](../engine_alpha/structure/box_primitives.py)).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -533,7 +651,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 - the pullback-shape gate is **graded, not binary** — `descent_frac` *multiplies* LPS quality rather than rejecting non-higher-lows (Phase 3, gate 5);
 - the zone gate accepts the LPS **anywhere around the zone** — `INSIDE`, `OVERSHOOT_R` (breakout retest), or `UNDERCUT_S` (spring) — not only a clean higher low (Phase 3, gate 6);
 - the ascending-support footprint is a **bonus-only** score, never a filter (see "Ascending Support / Higher-Lows Footprint");
-- behind the dark `LPS_HOLDING_SHELF_ENABLED` flag, a **second sanctioned completion form** — the flat holding shelf resting **high** in the structure — joins the pullback-and-rest form. This is the canon's two-form doctrine (Wyckoff: the back-up is "a simple pullback **or a new TR at a higher level**"; [lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)), judged on geometry only (Phase 3).
+- behind the `LPS_HOLDING_SHELF_ENABLED` flag (LIVE since 2026-07-16), a **second sanctioned completion form** — the flat holding shelf resting **high** in the structure — joins the pullback-and-rest form. This is the canon's two-form doctrine (Wyckoff: the back-up is "a simple pullback **or a new TR at a higher level**"; [lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)), judged on geometry only (Phase 3).
 
 **The optional tenant: a mini-consolidation.** Phase D *may* contain a second, tighter mini-consolidation — a natural development when live equilibrium shifts during accumulation and the range re-settles inside the larger process. It is **not** always present. The engine handles the "sometimes" through the `find_inner_box()` brick, which mirrors the shared inner search (`inner_box_at` + `detect_inner_root_swing`; see "Parent + Inner"). The inner box is a *structural fact to recognize*, not a requirement to impose.
 
@@ -544,7 +662,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 
 The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the active setup LPS is terminal-bar based and must sit below its trigger (Phase 3, gate 14), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
 
-**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([core/structure/phase_d.py](../core/structure/phase_d.py)) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` ([core/structure/scope.py](../core/structure/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([engine_alpha/structure/phase_d.py](../engine_alpha/structure/phase_d.py)) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` ([engine_alpha/structure/scope.py](../engine_alpha/structure/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
 
 The scoping layer emits best-effort chart anchors:
 
@@ -560,7 +678,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([core/structure/lps.py](../core/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
+`detect_lps()` ([engine_alpha/structure/lps.py](../engine_alpha/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 **The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
@@ -596,7 +714,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([core/scoring/scoring.py](../core/scoring/scoring.py)). Total score is the sum of **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive). Maximum possible total ≈ **209**.
+`score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)). Total score is the sum of **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive). Maximum possible total ≈ **209**.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -632,7 +750,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## VCP Progressive-Contraction Footprint
 
-`measure_contractions()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
+`measure_contractions()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
 
 It reuses the Phase B zigzag machinery over the base window: each peak→valley downswing is one contraction, `depth = (peak − valley) / peak`. The initial BC→AR descent into the base is excluded by design (it's the entry into the base, the early-chop the `cand_start` trim already removes).
 
@@ -649,7 +767,7 @@ Persisted to the archive as `contraction_count`, `contraction_quality`, `final_c
 
 ## Base Bar Compression Footprint
 
-`measure_bar_compression()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
+`measure_bar_compression()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
 
 It reports four raw diagnostics, all persisted to the archive and not scored:
 
@@ -666,7 +784,7 @@ This is **measure-first / never-gated / never-penalizing**. It gives the archive
 
 ## Ascending Support / Higher-Lows Footprint
 
-`measure_support_slope()` ([core/structure/metrics.py](../core/structure/metrics.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
+`measure_support_slope()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
 
 It reuses the same Phase B zigzag as the contraction metric, but reads the **valley** sequence. It fits a least-squares line through the `(bar_index, valley_low)` points and ATR-normalizes the slope so it's comparable across price levels and tickers.
 
@@ -680,7 +798,7 @@ Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as 
 
 ## ADR% Absolute Volatility
 
-`adr_pct()` ([core/structure/indicators.py](../core/structure/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
+`adr_pct()` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
 
 ```
 ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
@@ -795,7 +913,7 @@ heuristic boxes before any later scoring or anchoring change is considered.
 
 ### Minervini Stage-2 trend template
 
-`trend_template()` ([core/structure/indicators.py](../core/structure/indicators.py))
+`trend_template()` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py))
 records the classic price/MA leadership template as raw context, computed
 self-contained from the daily frame:
 
@@ -875,7 +993,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 
 <!-- BEGIN GENERATED: settings-quick-reference -->
 _Generated from the frozen engine-identity allow-list
-(`core/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a
+(`engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a
 detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
@@ -1063,7 +1181,7 @@ HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND
 _Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,
 scheduler, dashboard) are deliberately NOT part of the engine identity — see
 the "DELIBERATELY EXCLUDED" block in
-[core/freeze/manifest.py](../core/freeze/manifest.py)._
+[engine_alpha/freeze/manifest.py](../engine_alpha/freeze/manifest.py)._
 <!-- END GENERATED: settings-quick-reference -->
 
 ---
@@ -1076,7 +1194,7 @@ Per the user's standing guidance: setups on **young bases that break out fast** 
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-The live reader calls `find_inner_box()` ([core/structure/bricks.py](../core/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([core/structure/consolidation.py](../core/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+The live reader calls `find_inner_box()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([engine_alpha/structure/consolidation.py](../engine_alpha/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 `detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 

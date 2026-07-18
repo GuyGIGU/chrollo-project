@@ -64,7 +64,7 @@ AR_MAX_BARS = 15                 # ...within this many bars of the climax
 # reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
 # retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
 # Tighten-only + overlay-only: it can move the AR earlier but never past the box
-# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_v2.md "The
+# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_alpha.md "The
 # trend model" + "Phase A -- First-reaction AR anchor").
 AR_FIRST_REACTION_ENABLED = False
 AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg

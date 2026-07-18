@@ -315,7 +315,7 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     pair examined inside ``validate_equilibrium`` with the stage that rejected
     it (width / window / respect / occupancy / traversal / rescue_unused), or
     "elected" (stage "selection") for the winner. This
-    is the Root-Swing cascade of the Reading Model (strategy_v2.md) made
+    is the Root-Swing cascade of the Reading Model (strategy_alpha.md) made
     explicit. Each record with an elected box also carries a compact Event Map
     ``tape`` summary (swing count + pre-box/box trend), and a complete story a
     ``roles`` summary over the elected bricks — audit context riding the same

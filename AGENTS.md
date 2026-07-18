@@ -2,7 +2,7 @@
 
 Operating manual for AI coding agents working in Chrollo. Read this first, then
 [`README.md`](README.md). For algorithm questions the single source of truth is
-[`docs/strategy_v2.md`](docs/strategy_v2.md); for the engine layout see [`core/MAP.md`](core/MAP.md).
+[`docs/strategy_alpha.md`](docs/strategy_alpha.md); for the engine layout see [`core/MAP.md`](core/MAP.md).
 
 ## What this project is
 Chrollo is a **Wyckoff / VCP / LPS stock screener** in a local web app, with an optional, manual,
@@ -24,7 +24,7 @@ books — it never places trades.**
   user the command instead.
 
 ## 🧮 Engine rules (the screener's prime directive)
-- **Read [`docs/strategy_v2.md`](docs/strategy_v2.md) BEFORE touching any chart-reading algorithm code**
+- **Read [`docs/strategy_alpha.md`](docs/strategy_alpha.md) BEFORE touching any chart-reading algorithm code**
   (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
   Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
   of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.

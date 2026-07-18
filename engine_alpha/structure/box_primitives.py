@@ -204,7 +204,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
     ``trace``: optional list; when given, every pair examined is recorded with
     its verdict and (on rejection) the gate that killed it — the Root-Swing
-    cascade narrating itself (see strategy_v2.md "The explainability rule").
+    cascade narrating itself (see strategy_alpha.md "The explainability rule").
     ``None`` (the live default) records nothing and changes nothing. The list
     must be scoped to a single call (pass a fresh one, as
     ``validate_equilibrium`` does): the rescue bookkeeping and the traversal

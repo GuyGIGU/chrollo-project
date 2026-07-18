@@ -2,7 +2,7 @@
 
 **Status: research + Phase-1 design.** Sibling to
 [structure_legend.md](structure_legend.md) (the shared vocabulary) and
-[strategy_v2.md](strategy_v2.md) (what the code does today). This file records
+[strategy_alpha.md](strategy_alpha.md) (what the code does today). This file records
 *why* we're adding a swing-segmentation layer and *how* it's built measure-first.
 
 ---

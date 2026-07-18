@@ -2,7 +2,7 @@
 
 Completed planning and coordination artifacts, kept for the decision paper trail.
 These are **not** operating docs — the sources of truth stay live at the repo root
-and under `docs/` (`strategy_v2.md`, `MAP.md`, `AGENTS.md`, `CLAUDE.md`, `deploy.md`,
+and under `docs/` (`strategy_alpha.md`, `MAP.md`, `AGENTS.md`, `CLAUDE.md`, `deploy.md`,
 `conventions.md`, `flag_ledger.md`).
 
 Everything here describes work that already **shipped and merged** to `main`; each file

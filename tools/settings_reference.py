@@ -1,5 +1,5 @@
 """
-Generated Settings Quick-Reference for docs/strategy_v2.md.
+Generated Settings Quick-Reference for docs/strategy_alpha.md.
 
 The doc's quick-reference used to be a hand-maintained copy of
 ``config/settings.py`` values - a guaranteed-rot surface (it had already
@@ -31,7 +31,7 @@ except ModuleNotFoundError:
 
 _PROJECT_ROOT = configure_path()
 
-_DOC_PATH = os.path.join(_PROJECT_ROOT, "docs", "strategy_v2.md")
+_DOC_PATH = os.path.join(_PROJECT_ROOT, "docs", "strategy_alpha.md")
 _BEGIN = "<!-- BEGIN GENERATED: settings-quick-reference -->"
 _END = "<!-- END GENERATED: settings-quick-reference -->"
 
@@ -46,7 +46,7 @@ def render_block() -> str:
     return (
         f"{_BEGIN}\n"
         "_Generated from the frozen engine-identity allow-list\n"
-        "(`core/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a\n"
+        "(`engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a\n"
         "detector decision, in manifest order, with its live `config/settings.py` value.\n"
         "Regenerate with `python -m tools.settings_reference --write`;\n"
         "`tests/test_docs_sync.py` fails the suite when this block drifts._\n"
@@ -60,7 +60,7 @@ def render_block() -> str:
         "_Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,\n"
         "scheduler, dashboard) are deliberately NOT part of the engine identity — see\n"
         "the \"DELIBERATELY EXCLUDED\" block in\n"
-        "[core/freeze/manifest.py](../core/freeze/manifest.py)._\n"
+        "[engine_alpha/freeze/manifest.py](../engine_alpha/freeze/manifest.py)._\n"
         f"{_END}"
     )
 
@@ -107,7 +107,7 @@ def check_doc(doc_path: str = _DOC_PATH) -> bool:
 def main() -> None:
     import argparse
 
-    ap = argparse.ArgumentParser(description="Generated settings quick-reference for strategy_v2.md.")
+    ap = argparse.ArgumentParser(description="Generated settings quick-reference for strategy_alpha.md.")
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="regenerate the doc block in place")
     group.add_argument("--check", action="store_true", help="fail (exit 1) if the doc block drifted")

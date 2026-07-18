@@ -2,7 +2,7 @@
 
 The raw ``resolve_phase_a`` fallbacks can pin the drawn automatic reaction at the
 base edge, so the climax->AR stripe smears across half the chart. The flag-gated
-``_first_impulse_ar_end`` (``AR_FIRST_REACTION_ENABLED``, see docs/strategy_v2.md
+``_first_impulse_ar_end`` (``AR_FIRST_REACTION_ENABLED``, see docs/strategy_alpha.md
 "Phase A — First-reaction AR anchor") tightens the AR to the first continuous
 counter-move off the climax. This tool renders both reads on the *faithful* live
 frame so the operator can eyeball the tighten before flipping the flag.
