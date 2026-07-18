@@ -18,9 +18,9 @@ from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
-    select_inner_box,
     select_phase_b_candidate,
 )
+from engine_alpha.structure.inner_box import select_inner_box
 from engine_alpha.structure.lps import detect_lps, lps_range_threshold
 from engine_alpha.structure.market_structure import first_reaction_after
 from engine_alpha.structure.metrics import measure_equilibrium

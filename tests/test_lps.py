@@ -25,10 +25,12 @@ from engine_alpha.structure.metrics import (
     measure_equilibrium,
 )
 from engine_alpha.structure.box_primitives import (
-    _detect_inner_phase_b_start,
     _validate_base_quality,
-    detect_inner_root_swing,
     select_phase_b_candidate,
+)
+from engine_alpha.structure.inner_box import (
+    _detect_inner_phase_b_start,
+    detect_inner_root_swing,
 )
 from engine_alpha.structure.lps import (
     detect_lps,

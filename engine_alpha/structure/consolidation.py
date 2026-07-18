@@ -44,8 +44,8 @@ from config import settings
 from engine_alpha.structure.box_primitives import (
     collect_root_anchors,
     phase_b_zigzag,
-    select_inner_box,
 )
+from engine_alpha.structure.inner_box import select_inner_box
 
 
 # Hierarchical-detection tunables (inner sub-box gating) live in settings and are
