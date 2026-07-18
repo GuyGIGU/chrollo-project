@@ -1,4 +1,4 @@
-import { PHASE_NAMES } from './wireVocabulary';
+import { PHASE_NAMES } from './wireVocabulary.js';
 
 const TOKEN_FALLBACKS = {
   '--accent-blue': '#5B8AFF',
@@ -223,26 +223,18 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  // Phase A — the range's own root-swing pair: the bars that establish R and S
-  // (r_anchor / s_anchor — the boundary-responsible bars the screener already
-  // identifies and colors on the card). This fuses the vertical bin layer with
-  // the box's boundary detection: Phase A IS the swing that worked the rails.
-  // Falls back to the backend climax→reaction dates only if the anchors are
-  // missing.
-  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
-  const rAnchor = finiteNumber(data?.r_anchor);
-  const sAnchor = finiteNumber(data?.s_anchor);
-  if (rAnchor != null && sAnchor != null && baseLen > 0) {
-    const baseStart = baseEnd - baseLen + 1;
-    const rBar = baseStart + rAnchor;
-    const sBar = baseStart + sAnchor;
-    // Left edge pinned to the box start: with the engine's shared-rail
-    // back-extension the box can open BEFORE the anchor pair, and the A band
-    // must keep leading into Phase B rather than float inside it. (Without the
-    // extension min(rBar, sBar) === baseStart, so this changes nothing.)
-    const region = buildRegion('a', candles, Math.min(rBar, sBar, baseStart), Math.max(rBar, sBar));
-    if (region) regions.push(region);
-  } else if (indexes.phaseAStart != null) {
+  // Phase A — the engine's OWN root-swing decision, drawn faithfully: the elected
+  // climax (bc_anchor = structure.climax_bar) into its automatic reaction, straight
+  // from scope_consolidation as _phase_a_start_date -> _phase_a_end_date. This is
+  // "how the engine anchored this consolidation" — nothing more, nothing less.
+  // The engine's Phase A always LEADS INTO Phase B (phase_a_end never crosses
+  // phase_b_start), so it can never drag across the box.
+  //
+  // It is deliberately NOT the r_anchor / s_anchor rail pivots: those are the
+  // boundary-responsible bars deep inside the base, so drawing between them made
+  // the band span most of Phase B whenever a rail was set late — the long-standing
+  // "root-swing gray drag" bug. Rail pivots define R/S; they are not the root swing.
+  if (indexes.phaseAStart != null) {
     const fallbackEnd = indexes.phaseBStart != null
       ? Math.min(indexes.phaseBStart - 1, indexes.phaseAStart + PHASE_A_MAX_BARS - 1)
       : indexes.phaseAStart + PHASE_A_MAX_BARS - 1;
