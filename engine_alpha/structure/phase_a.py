@@ -14,10 +14,11 @@ top-40 = the inner structure — nested resolutions of one skeleton, which is th
 It emits the SAME shape as ``pivots._build_zigzag`` — ``list[(bar, 'peak'|
 'valley', price)]`` — and reuses that helper for High/Low snapping and strict
 alternation, so PIP is a drop-in-comparable skeleton (and a clean future swap
-point). One flag-gated wire remains, default-off, feeding ONLY the Phase-A
-overlay via ``segment_swings`` (never R/S/score/tier):
+point). One wire feeds ONLY the Phase-A overlay via ``segment_swings`` (never
+R/S/score/tier), unconditional since the 2026-07-18 fold (formerly flag
+``PIP_MACRO_PHASE_A_ENABLED``, live 2026-07-04):
 
-  * ``PIP_MACRO_PHASE_A_ENABLED`` — the MACRO read (``macro_bridge_zigzag``):
+  * the MACRO read (``macro_bridge_zigzag``):
     coarse->fine over top-K prefixes, stopping at the SMALLEST skeleton that
     holds a confirmed climax->AR bridge. At the stop-K only macro turns exist,
     so late range retests and noise dips are not in the skeleton to steal the

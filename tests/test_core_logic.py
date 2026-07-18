@@ -10,8 +10,6 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
-from config import settings
-
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
@@ -34,12 +32,13 @@ from engine_alpha.structure.segmentation import segment_swings
 
 
 def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
-    # This is a unit test of the ORDER-N root-bridge detection, so pin the macro
-    # Phase-A read OFF: with PIP_MACRO_PHASE_A_ENABLED on, segment_swings returns
-    # the coarse macro STORY (a different, valid skeleton) instead of the order-N
-    # zigzag asserted below — that path is exercised in test_phase_a. Pinning keeps
-    # this test deterministic across the eventual flag flip.
-    monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", False)
+    # This is a unit test of the ORDER-N root-bridge detection — the live
+    # abstention fallback of the (now unconditional) macro read. Pin the macro
+    # read to ABSTAIN so segment_swings exercises the order-N zigzag asserted
+    # below through the real fallback seam; the macro STORY path (a different,
+    # valid skeleton) is exercised in test_phase_a.
+    from engine_alpha.structure import phase_a
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     # Up-trend (with small pullbacks) into a climax at 60, then a big counter-
     # burst down to 53 (the AR), then a tight range. The root swing is the
     # 60 -> 53 leg: it terminates the trend and births the range.

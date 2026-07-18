@@ -1,7 +1,9 @@
 # PIP macro Phase-A read — the multi-resolution retry
 
-**Status: built + guarded, flag `PIP_MACRO_PHASE_A_ENABLED` default-OFF, awaiting
-the operator eyeball gate.** Sibling to [segmentation_research.md](segmentation_research.md)
+**Status: LIVE — flipped 2026-07-04 (operator eyeball on the overlay A/B), then
+FOLDED 2026-07-18 (Purity task 7): the macro read is unconditional in
+`segment_swings`; the `PIP_MACRO_PHASE_A_ENABLED` key survives only until the
+Task 11 manifest rotation.** Sibling to [segmentation_research.md](segmentation_research.md)
 (which records why the segmentation layer exists) — this records why the PIP
 skeleton gets a second trial, on what evidence the first one ended, and exactly
 what is different this time.

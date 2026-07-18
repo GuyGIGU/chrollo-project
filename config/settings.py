@@ -84,13 +84,14 @@ AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whicheve
 # climax or AR. Deliberately NOT applied to read_market_structure — event
 # labels want the fine skeleton, the Phase-A bridge wants the coarse one.
 # Feeds ONLY the Phase-A overlay via resolve_phase_a, never R/S/score/tier.
-# FLIPPED LIVE 2026-07-04: operator eyeball on the overlay A/B (tools/phase_a_pip_diff.py:
-# 19/140 overlays re-anchor to the genuine trend-top -> reaction, 0 stolen climaxes in
-# EITHER mode, 0 score/fire/tier — Phase-A OVERLAY only). The phase-ordering hold (LUV:
-# macro AR landed AFTER the box start) was a REAL overlay defect, not an over-strict
-# invariant: the box-overrunning macro bridge now abstains (resolve_phase_a bridge_end_max
-# = phase_b_start_bar, 142bf50); the sibling always-on order-N hole was closed in 5882226.
-PIP_MACRO_PHASE_A_ENABLED = True
+# FLIPPED LIVE 2026-07-04: operator eyeball on the overlay A/B (19/140 overlays re-anchor
+# to the genuine trend-top -> reaction, 0 stolen climaxes in EITHER mode, 0 score/fire/tier
+# — Phase-A OVERLAY only). The phase-ordering hold (LUV: macro AR landed AFTER the box
+# start) was a REAL overlay defect, not an over-strict invariant: the box-overrunning macro
+# bridge now abstains (resolve_phase_a bridge_end_max = phase_b_start_bar, 142bf50); the
+# sibling always-on order-N hole was closed in 5882226.
+PIP_MACRO_PHASE_A_ENABLED = True # FOLDED 2026-07-18: the macro read is unconditional in segment_swings;
+                                 # key retained only for manifest-hash stability until the Task 11 rotation
 PIP_MACRO_K_MAX = 24             # refinement cap: finest skeleton size tried
 # "True Phase-A root swing" rule (operator, 2026-07-02): a candidate trend-end
 # bridge qualifies ONLY if it leads to an actual equilibrium. The read stays

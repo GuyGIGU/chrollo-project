@@ -120,7 +120,7 @@ def read_market_structure(df, *, lookback: Optional[int] = None,
     """Build the swing skeleton off ``df`` and label it. Bar indices in the
     result are df-positional. Mirrors ``segment_swings``' pivot order selection,
     so the labels line up with the swings the rest of the engine reads. The
-    MACRO Phase-A read (``PIP_MACRO_PHASE_A_ENABLED``) deliberately does NOT
+    MACRO Phase-A read (``phase_a.macro_bridge_zigzag``) deliberately does NOT
     apply here: event labels want the fine skeleton, the Phase-A bridge wants
     the coarse one — same substrate, different zoom."""
     n_all = len(df)

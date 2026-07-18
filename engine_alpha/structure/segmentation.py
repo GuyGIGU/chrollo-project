@@ -180,34 +180,33 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
 
     zigzag = None
     macro_story = False
-    if settings.PIP_MACRO_PHASE_A_ENABLED:
-        # The coarse->fine MACRO read (checked FIRST): the zigzag at the
-        # smallest top-K importance prefix holding a confirmed, guard-validated
-        # climax->AR bridge, so late range retests / noise dips are not in the
-        # skeleton to steal the climax or AR. The returned STORY ends at the
-        # validated AR (story[-2] = climax, story[-1] = AR, by construction).
-        # Same safe surface as the flat wire below — segment_swings feeds only
-        # resolve_phase_a (the Phase-A OVERLAY), never R/S/score/tier.
-        # Abstention ([] or an AR beyond bridge_end_max — a post-breakout
-        # story, not this box's Phase A) falls through to the calibrated
-        # order-N read below — the merge contract.
-        from engine_alpha.structure.phase_a import macro_bridge_zigzag
-        story = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
-        if len(story) >= 2:
-            ar_df_pos = base_off + int(story[-1][0])
-            is_bc = story[-2][1] == "peak"
-            ar_price = float(story[-1][2])
-            kind_ok = (bridge_kind is None
-                       or is_bc == (bridge_kind == "BC"))
-            level_ok = (
-                (bridge_ar_price_max is None or ar_price <= float(bridge_ar_price_max))
-                if is_bc else
-                (bridge_ar_price_min is None or ar_price >= float(bridge_ar_price_min))
-            )
-            if kind_ok and level_ok and (bridge_end_max is None
-                                         or ar_df_pos <= int(bridge_end_max)):
-                zigzag = story
-                macro_story = True
+    # The coarse->fine MACRO read (checked FIRST): the zigzag at the
+    # smallest top-K importance prefix holding a confirmed, guard-validated
+    # climax->AR bridge, so late range retests / noise dips are not in the
+    # skeleton to steal the climax or AR. The returned STORY ends at the
+    # validated AR (story[-2] = climax, story[-1] = AR, by construction).
+    # Same safe surface as the order-N read below — segment_swings feeds only
+    # resolve_phase_a (the Phase-A OVERLAY), never R/S/score/tier.
+    # Abstention ([] or an AR beyond bridge_end_max — a post-breakout
+    # story, not this box's Phase A) falls through to the calibrated
+    # order-N read below — the merge contract.
+    from engine_alpha.structure.phase_a import macro_bridge_zigzag
+    story = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
+    if len(story) >= 2:
+        ar_df_pos = base_off + int(story[-1][0])
+        is_bc = story[-2][1] == "peak"
+        ar_price = float(story[-1][2])
+        kind_ok = (bridge_kind is None
+                   or is_bc == (bridge_kind == "BC"))
+        level_ok = (
+            (bridge_ar_price_max is None or ar_price <= float(bridge_ar_price_max))
+            if is_bc else
+            (bridge_ar_price_min is None or ar_price >= float(bridge_ar_price_min))
+        )
+        if kind_ok and level_ok and (bridge_end_max is None
+                                     or ar_df_pos <= int(bridge_end_max)):
+            zigzag = story
+            macro_story = True
     if zigzag is None:
         if order is None:
             order = _pivot_order(n)

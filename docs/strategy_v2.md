@@ -160,7 +160,7 @@ The reader walks the chart left to right and anchors by descent:
 
 | Reading step | Implementation |
 |---|---|
-| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "The trend model") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgradeable by the flag-gated macro-PIP read (`macro_bridge_zigzag`, `PIP_MACRO_PHASE_A_ENABLED`, abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
+| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "The trend model") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
 | The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the flag-gated `backext_shared_rail` start refinement, `BOX_BACKEXT_ENABLED`). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
@@ -336,11 +336,11 @@ The locality resolution above answers *which* climax→reaction pair the box bel
 
 The rule is **mirror-symmetric** — a selling-climax paints the first up-reaction off its trough (retrace of the full down-leg; close on the first big give-back) — so the overlay is non-biasing across BC and SC roots. It is **tighten-only and overlay-only**: the search is bounded to the existing span and can only move the AR *earlier*, so the chronological invariant `climax_bar <= ar_bar <= phase_b_start_bar` holds by construction, and — like the locality resolution above — it feeds **no R/S, LPS, scoring, tiering, or filtering**. (It is byte-identical on the scoring/tier/canonical-shadow surface, but a flip is *not* byte-identical on the ARCHIVED `bin_a_*` Phase-A measurement columns — `ar_bar` → `measure_phases` → the winner-fingerprint archive — which no freeze gate covers; a live flip needs an archive-seam guard first. See the flag ledger.) The retarget was driven by the operator's dated BC/AR marks on PH/TOL/AVNT/AAP/AGCO/TFX (2026-07-05): raw is exact on the clean reactions (TOL/AVNT), and the flag now surgically corrects only the second-leg overshoots (AAP-class). Scan tool: `python -m tools.ar_first_reaction_diff` shows which fires re-anchor and by how much.
 
-### Phase A — Macro bridge read (flag-gated, default off)
+### Phase A — Macro bridge read (live; folded 2026-07-18)
 
-`macro_bridge_zigzag()` ([engine_alpha/structure/phase_a.py](../engine_alpha/structure/phase_a.py), formerly `pip.py`), wired through
-`segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py)) when
-`PIP_MACRO_PHASE_A_ENABLED` is on. A multi-resolution PIP (Perceptually Important Points)
+`macro_bridge_zigzag()` ([engine_alpha/structure/phase_a.py](../engine_alpha/structure/phase_a.py), formerly `pip.py`), wired
+unconditionally through `segment_swings()` ([core/structure/segmentation.py](../core/structure/segmentation.py))
+(folded 2026-07-18; formerly flag `PIP_MACRO_PHASE_A_ENABLED`, live 2026-07-04). A multi-resolution PIP (Perceptually Important Points)
 skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
 exact prefix of top-K+1), then walked coarse→fine from `K=4` up to `PIP_MACRO_K_MAX` (24):
 the read stops at the **smallest** skeleton holding a validated climax→AR bridge, so the

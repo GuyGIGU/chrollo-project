@@ -180,15 +180,14 @@ def test_macro_bridge_downtrend_mirror_sc():
     assert min(valleys, key=lambda t: t[1])[0] == 39  # SC = the LEFT bottom
 
 
-def test_segment_swings_macro_wire_and_flag_default(monkeypatch):
+def test_segment_swings_macro_wire():
+    # The macro read is unconditional in segment_swings (folded 2026-07-18;
+    # formerly flag PIP_MACRO_PHASE_A_ENABLED, live since 2026-07-04).
     import pandas as pd
     from engine_alpha.structure.segmentation import segment_swings
 
-    assert settings.PIP_MACRO_PHASE_A_ENABLED is True    # ships LIVE (flipped 2026-07-04)
-
     highs, lows = _markup_range_frame()
     df = pd.DataFrame({"High": highs, "Low": lows})
-    monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", True)
     seg = segment_swings(df, atr_val=2.0)
     root = seg["root_swing"]
     assert root is not None
