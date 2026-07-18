@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
-import { attachPhaseOverlay, colorLpsCandles, phaseARange } from '../components/chartPhaseOverlay';
+import { attachPhaseOverlay, colorLpsCandles, rootSwingRange } from '../components/chartPhaseOverlay';
 import { finiteNumber } from '../components/chartGeometry';
 import { addBoxRails } from '../components/chartRails';
 import { baseChartOptions, CHART_COLORS } from '../components/chartTheme';
@@ -20,10 +20,10 @@ const chartOptions = (width, height) => {
   };
 };
 
-// --- structure candle coloring (modal): root-swing (Phase A) grey, LPS zones
-// painted by the shared chronological gradient. BOTH read the shared
-// chartPhaseOverlay helpers (phaseARange / colorLpsCandles), so the card and modal
-// colour the identical bars by construction. ---
+// --- structure candle coloring (modal): root-swing (the engine's climax->AR that
+// produced the box) grey, LPS zones painted by the shared chronological gradient.
+// BOTH read the shared chartPhaseOverlay helpers (rootSwingRange / colorLpsCandles),
+// so the card and modal colour the identical bars by construction. ---
 const colorStructureCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
@@ -33,13 +33,13 @@ const colorStructureCandles = (data) => {
   return candles;
 };
 
-// Grey the engine's Phase A bars (climax -> AR) via the SAME shared span the mini
-// card and the region band use — never the r/s rail-anchor pivots, which dragged
-// the grey across most of the base.
+// Grey the ROOT SWING bars (the engine's climax -> AR that produced the box) via the
+// SAME shared span the mini card and the region band use — never the r/s rail-anchor
+// pivots, which dragged the grey across most of the base.
 const colorBase = (candles, data) => {
-  const phaseA = phaseARange(data, candles);
-  if (!phaseA) return;
-  for (let index = phaseA.startIndex; index <= phaseA.endIndex; index += 1) {
+  const rootSwing = rootSwingRange(data, candles);
+  if (!rootSwing) return;
+  for (let index = rootSwing.startIndex; index <= rootSwing.endIndex; index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
   }
 };

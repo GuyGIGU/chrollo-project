@@ -167,26 +167,39 @@ const phaseIndexes = (data, candles) => ({
   lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
 });
 
-// The engine's root-swing (Phase A) span in candle-index space: the elected climax
-// (bc_anchor = structure.climax_bar) -> its automatic reaction, straight from
-// _phase_a_start_date / _phase_a_end_date. SINGLE SOURCE OF TRUTH for the grey
-// root-swing marker — the modal region band, the modal candle tint (colorBase), and
-// the mini-card candle tint (colorMiniCandles) all read it, so the big and small
-// charts colour the IDENTICAL bars. Deliberately NOT the r_anchor / s_anchor rail
-// pivots: those sit deep in the base and made the marker drag across most of Phase B
-// when a rail was set late (the long-standing "root-swing grey drag" bug). The
-// engine's Phase A never crosses phase_b_start, so it always leads INTO the box.
-// Returns null when Phase A can't be placed.
-export const phaseARange = (data, candles) => {
+// THE ROOT SWING span in candle-index space — the grey highlight.
+//
+// The Root Swing is the pair of limbs that PRODUCES the box: the swing the
+// consolidation starts from. It is a DISTINCT concept from Phase A (the climax +
+// automatic-reaction that marks where the *trend* ends). They usually coincide, but
+// the operator reads the grey to judge WHERE the engine anchored the box, so the grey
+// shows the swing that produced it — "if the box starts from the climax+AR, highlight
+// that; if it starts a little later, highlight where the box started". The engine
+// already elects that swing: its climax->AR anchor (bc_anchor = structure.climax_bar
+// -> phase_a_end) IS the root swing, whether that's the original climax+AR or a pair
+// it descended forward to. So we draw it straight from _phase_a_start_date ->
+// _phase_a_end_date.
+//
+// SINGLE SOURCE OF TRUTH for the grey — the modal region band, the modal candle tint
+// (colorBase), and the mini-card candle tint (colorMiniCandles) all read it, so the
+// big and small charts colour the IDENTICAL bars. Deliberately NOT the r_anchor /
+// s_anchor rail pivots: those sit deep in the base and dragged the grey across it when
+// a rail was set late (the long-standing "root-swing grey drag" bug).
+//
+// INVARIANT: the root swing always ends STRICTLY BEFORE the box, so "Phase B starts
+// on the next bar after the root swing" holds for every setup. When the engine's AR
+// lands on the box's first bar (phase_a_end == phase_b_start), we stop one bar short
+// and let the box own that bar. Returns null when no root swing can be placed.
+export const rootSwingRange = (data, candles) => {
   if (!candles?.length) return null;
   const start = indexOnOrAfter(candles, data?._phase_a_start_date);
   if (start == null) return null;
   const phaseBStart = indexOnOrAfter(candles, data?._phase_b_start_date);
-  const fallbackEnd = phaseBStart != null
-    ? Math.min(phaseBStart - 1, start + PHASE_A_MAX_BARS - 1)
-    : start + PHASE_A_MAX_BARS - 1;
-  const last = candles.length - 1;
-  const end = Math.min(indexOnOrAfter(candles, data?._phase_a_end_date) ?? fallbackEnd, last);
+  // The box's first bar belongs to Phase B, never the root swing.
+  const ceiling = phaseBStart != null ? phaseBStart - 1 : candles.length - 1;
+  const fallbackEnd = start + PHASE_A_MAX_BARS - 1;
+  const arEnd = indexOnOrAfter(candles, data?._phase_a_end_date) ?? fallbackEnd;
+  const end = Math.min(arEnd, ceiling);
   return end >= start ? { startIndex: start, endIndex: end } : null;
 };
 
@@ -244,12 +257,13 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  // Phase A — the engine's own root-swing decision (climax -> AR), via the shared
-  // phaseARange helper. The mini card and the modal candle tint mark the identical
-  // bars through the same helper, so the coloured surfaces can't diverge.
-  const phaseA = phaseARange(data, candles);
-  if (phaseA) {
-    const region = buildRegion('a', candles, phaseA.startIndex, phaseA.endIndex);
+  // Phase A's drawn span = the ROOT SWING that produced the box (the engine's elected
+  // climax -> AR), via the shared rootSwingRange helper. The mini card and the modal
+  // candle tint mark the identical bars through the same helper, so the coloured
+  // surfaces can't diverge — and it always stops before Phase B's first bar.
+  const rootSwing = rootSwingRange(data, candles);
+  if (rootSwing) {
+    const region = buildRegion('a', candles, rootSwing.startIndex, rootSwing.endIndex);
     if (region) regions.push(region);
   }
   if (indexes.phaseBStart != null) {
