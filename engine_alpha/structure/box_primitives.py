@@ -193,7 +193,7 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
     candles) so the trim and the respect gate speak the same geometry.
     """
     n = len(highs)
-    if not settings.SOS_TRIM_ENABLED or n == 0:
+    if n == 0:
         return n
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
@@ -588,7 +588,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
         # it): an old range price has since blown past is stale, not a setup — the
         # same extension semantics the firing filter uses, applied here so a stale
         # rescued box can't pre-empt the ticker's real recent box in backtracking.
-        if enforce_traversal and settings.SOS_TRIM_ENABLED:
+        if enforce_traversal:
             work_end = _worked_window_end(cand_highs, cand_lows, R_val, S_val, atr_val)
             last_close = float(cand_eq_df['Close'].iloc[-1])
             if work_end < len(cand_highs) \

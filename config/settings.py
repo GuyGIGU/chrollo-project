@@ -207,7 +207,8 @@ DESCENT_TAIL_CFP_MIN = 0.20
 # No-op unless price has already broken out and held, so in-range setups are
 # untouched and the change can only RESCUE SOS-BUEC framings (recall-positive).
 # Outer Phase-B only (like the traversal gate); inner boxes are never trimmed.
-SOS_TRIM_ENABLED = True
+SOS_TRIM_ENABLED = True          # FOLDED 2026-07-18: the trim + SOS-BUEC rescue are unconditional (outer
+                                 # Phase B); key retained only for manifest-hash stability until Task 11
 SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
 SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
 
