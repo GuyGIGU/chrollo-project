@@ -144,7 +144,9 @@ def test_no_consumer_still_names_the_old_engine_paths():
     offences = []
     n_scanned = 0
     for f in ROOT.rglob("*.py"):
-        if any(part in skip_parts for part in f.parts):
+        # Repo-relative parts only: an absolute-path filter goes vacuous when
+        # the checkout itself lives under .claude/worktrees/<name>/.
+        if any(part in skip_parts for part in f.relative_to(ROOT).parts):
             continue
         n_scanned += 1
         src = f.read_text(encoding="utf-8", errors="replace")
