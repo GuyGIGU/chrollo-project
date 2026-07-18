@@ -3,6 +3,7 @@ import { TagRow } from './SetupTags';
 import ScreenerMiniChart from './ScreenerMiniChart';
 import { explainTip } from './tooltipText';
 import { healthStateMeta } from './healthStateData';
+import { tagFlagsFromWire } from './wireVocabulary';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from '../utils/screenerCardData';
@@ -251,32 +252,7 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
     </div>
     <TagRow
       subScores={data.sub_scores}
-      flags={{
-        phaseDInner: data.phase_d_inner,
-        rTouchVolZ: data.r_touch_vol_z,
-        sTouchVolZ: data.s_touch_vol_z,
-        contractionVolTrend: data.contraction_vol_trend,
-        cogEnd: data.bin_b_cog_end,
-        cogCrossings: data.bin_b_cog_crossings,
-        traversalDensity: data.traversal_density,
-        cogRng: data.bin_b_cog_rng,
-        cogCorr: data.bin_b_cog_corr,
-        binCPresent: data.bin_c_present,
-        binCType: data.bin_c_type,
-        binCUndercutAtr: data.bin_c_undercut_atr,
-        binCRecoveryBars: data.bin_c_recovery_bars,
-        binCSpringVolZ: data.bin_c_spring_vol_z,
-        htfWeeklyReaccum: data.htf_w_reaccum,
-        htfWeeklyPhase: data.htf_w_phase,
-        htfDailyNested: data.htf_w_daily_nested,
-        htfMonthlyReaccum: data.htf_m_reaccum,
-        htfMonthlyTrendState: data.htf_m_trend_state,
-        lpsStretchAtr: data.lps_stretch_atr,
-        lpsStretchBox: data.lps_stretch_box,
-        lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
-        lastSupperSourceBoxAge: data.last_supper_source_box_age,
-        lastSupperReclaimQuality: data.last_supper_reclaim_quality,
-      }}
+      flags={tagFlagsFromWire(data)}
       compact
       maxTags="auto"
       rows={2}

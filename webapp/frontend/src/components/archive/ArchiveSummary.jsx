@@ -1,5 +1,6 @@
 import { fixed, labelColor, pct, rMultipleColor, signColor } from '../../utils/archiveTabUtils';
 import { EMPTY, fmtPctFrac } from '../../utils/format';
+import { shortLabel } from '../wireVocabulary';
 
 export default function ArchiveSummary({ linkedTrades = [], setup }) {
   if (!setup) return null;
@@ -144,7 +145,7 @@ function ScoresPanel({ setup }) {
   const rows = [
     ['Box Tight', 'score_box_tightness'],
     ['Touch Dens.', 'score_touch_density'],
-    ['Worked Eq.', 'score_traversal_quality'],
+    [shortLabel('score_traversal_quality'), 'score_traversal_quality'],
     ['ATR Squeeze', 'score_atr_squeeze'],
     ['LPS Tight', 'score_lps_tightness'],
     ['Vol Contr.', 'score_vol_contraction'],

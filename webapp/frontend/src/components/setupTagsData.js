@@ -1,5 +1,6 @@
 import { SUB_SCORE_CAPS } from './setupScoreMath';
 import { explainTip } from './tooltipText';
+import { displayLabel } from './wireVocabulary';
 
 // Tag backgrounds sit quiet (0.12 alpha) so a row of chips reads calm on a dense
 // grid; the meaningful foreground hue is kept, and the warning tag keeps a little
@@ -110,11 +111,11 @@ const TAG_DEFS = [
   }), 80, scores => firesAt(scores, 'ascending_support', 0.80)),
   tag(
     'worked_equilibrium',
-    '⚖️ Worked Equilibrium',
+    `⚖️ ${displayLabel('traversal_density')}`,
     'consolidation',
     explainTip({
       what: 'The base has traveled between support and resistance repeatedly instead of living near one rail.',
-      why: 'Repeated two-sided tests make the rails more meaningful and reduce the chance that the box is just dead space.',
+      why: 'Repeated two-sided tests make the rails more meaningful and reduce the chance a rail was drawn where price never actually traded.',
       use: 'Give more trust to the detected support and resistance, then verify the latest action is tightening near the trigger.',
     }),
     56,

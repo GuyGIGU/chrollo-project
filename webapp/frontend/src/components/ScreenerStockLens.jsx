@@ -2,6 +2,7 @@ import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import { explainTip } from './tooltipText';
+import { displayLabel, tagFlagsFromWire } from './wireVocabulary';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac, fmtDateShort } from '../utils/format';
 import { dailyChangeFrac, htfStateLabel } from '../utils/screenerCardData';
@@ -146,7 +147,7 @@ function TechnicalReadGrid({ data, earnings }) {
     { k: 'Base length', v: bars(data.base_len) },
     { k: 'LPS pullback', v: bars(data.lps_len) },
     { k: 'Contractions', v: contractions == null ? '-' : String(contractions) },
-    { k: 'Traversal', v: fx(data.traversal_density, 2, '-') },
+    { k: displayLabel('traversal_density'), v: fx(data.traversal_density, 2, '-') },
     { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)' },
     { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title },
     { k: 'Weekly', v: weekly.label, tone: weekly.tone },
@@ -224,32 +225,7 @@ function TagsPanel({ data }) {
       </div>
       <TagRow
         subScores={data.sub_scores}
-        flags={{
-          phaseDInner: data.phase_d_inner,
-          rTouchVolZ: data.r_touch_vol_z,
-          sTouchVolZ: data.s_touch_vol_z,
-          contractionVolTrend: data.contraction_vol_trend,
-          cogEnd: data.bin_b_cog_end,
-          cogCrossings: data.bin_b_cog_crossings,
-          traversalDensity: data.traversal_density,
-          cogRng: data.bin_b_cog_rng,
-          cogCorr: data.bin_b_cog_corr,
-          binCPresent: data.bin_c_present,
-          binCType: data.bin_c_type,
-          binCUndercutAtr: data.bin_c_undercut_atr,
-          binCRecoveryBars: data.bin_c_recovery_bars,
-          binCSpringVolZ: data.bin_c_spring_vol_z,
-          htfWeeklyReaccum: data.htf_w_reaccum,
-          htfWeeklyPhase: data.htf_w_phase,
-          htfDailyNested: data.htf_w_daily_nested,
-          htfMonthlyReaccum: data.htf_m_reaccum,
-          htfMonthlyTrendState: data.htf_m_trend_state,
-          lpsStretchAtr: data.lps_stretch_atr,
-          lpsStretchBox: data.lps_stretch_box,
-          lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
-          lastSupperSourceBoxAge: data.last_supper_source_box_age,
-          lastSupperReclaimQuality: data.last_supper_reclaim_quality,
-        }}
+        flags={tagFlagsFromWire(data)}
         maxTags={null}
         style={{ padding: 0 }}
       />

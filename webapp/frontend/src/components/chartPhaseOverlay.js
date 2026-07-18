@@ -1,3 +1,5 @@
+import { PHASE_NAMES } from './wireVocabulary';
+
 const TOKEN_FALLBACKS = {
   '--accent-blue': '#5B8AFF',
   '--accent-pink': '#E07AA0',
@@ -8,11 +10,11 @@ const TOKEN_FALLBACKS = {
 };
 
 const REGION_DEFS = {
-  a: { label: 'A', name: 'Phase A', detail: 'Initial swing setting support/resistance', token: '--text-faint' },
-  b: { label: 'B', name: 'Phase B', detail: 'Two-sided range work', token: '--accent-purple' },
-  c: { label: 'C', name: 'Phase C', detail: 'Support shakeout or test', token: '--accent-pink' },
-  d: { label: 'D', name: 'Phase D', detail: 'Right-side tightening range', token: '--accent-blue' },
-  lps: { label: 'LPS', name: 'LPS', detail: 'Last support-test zone', token: '--accent-yellow' },
+  a: { label: 'A', name: PHASE_NAMES.a, detail: 'Initial swing setting support/resistance', token: '--text-faint' },
+  b: { label: 'B', name: PHASE_NAMES.b, detail: 'Two-sided range work', token: '--accent-purple' },
+  c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
+  d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
+  lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
 };
 
 const PHASE_A_MAX_BARS = 16;
