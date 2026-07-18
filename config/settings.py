@@ -72,7 +72,7 @@ AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend
 AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
 AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
 
-# Coarse->fine MACRO Phase-A read (pip.macro_bridge_zigzag; see
+# Coarse->fine MACRO Phase-A read (phase_a.macro_bridge_zigzag; see
 # engine_alpha/structure/phase_a.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
 # (PIP_PIVOTS_ENABLED — segment_swings sourcing its whole zigzag from one
 # fixed-dist_min PIP skeleton) was eyeball-gated OFF as a wash (fixes some

@@ -172,7 +172,7 @@ class SetupArchive(Base):
 
     # ── Limb-traversal read (raw, no scoring; v1 measure-first) ──
     # Do the swing limbs travel rail-to-rail, or hang off a rail (dead space)?
-    # measure_traversal — the swing-structural complement to eq_* occupancy.
+    # measure_equilibrium (formerly measure_traversal) — the swing-structural complement to eq_* occupancy.
     trav_n_full_traversals = Column(Integer, nullable=True)   # rail-to-rail swings (round-trip S->R->S = 2)
     trav_n_swings = Column(Integer, nullable=True)            # significant swings after amplitude filtering
     trav_top_dead_space = Column(Float, nullable=True)        # 1 - 75th-pct peak position (dead space below R)

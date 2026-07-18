@@ -50,6 +50,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
+from engine_alpha.structure.box_events import _DETECT
 from engine_alpha.structure.metrics import measure_support_slope
 from engine_alpha.structure.phase_d import resolve_phase_d_boundary
 
@@ -509,11 +510,9 @@ def _terminal_shakeout(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
     }
 
 
-# Sentinel: "no spring was injected — self-detect" (distinct from None, which
-# means "the walk elected NO Phase C"). Same pattern as box_events._DETECT.
-_DETECT = object()
-
-
+# The injection sentinel is box_events._DETECT (imported above): "no spring
+# was injected — self-detect", distinct from None ("the walk elected NO Phase
+# C"). ONE shared sentinel so both injection seams compare the same identity.
 def measure_phases(
     df: "pd.DataFrame",
     *,

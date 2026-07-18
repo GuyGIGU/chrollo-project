@@ -37,7 +37,7 @@ def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
     # This is a unit test of the ORDER-N root-bridge detection, so pin the macro
     # Phase-A read OFF: with PIP_MACRO_PHASE_A_ENABLED on, segment_swings returns
     # the coarse macro STORY (a different, valid skeleton) instead of the order-N
-    # zigzag asserted below — that path is exercised in test_pip. Pinning keeps
+    # zigzag asserted below — that path is exercised in test_phase_a. Pinning keeps
     # this test deterministic across the eventual flag flip.
     monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", False)
     # Up-trend (with small pullbacks) into a climax at 60, then a big counter-

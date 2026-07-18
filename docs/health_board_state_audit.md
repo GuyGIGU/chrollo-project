@@ -6,7 +6,7 @@ Grounding for `specs/market-sector-health-board.md`. Produced by an adversarial 
 
 The health read must be a **separate caller** into the box detector + standalone metrics, NOT `read_structure` with gates removed:
 - `read_structure` (`core/structure/narrative.py`) only returns a `Structure` when a full A→B→(C?)→D narrative **with a completed LPS** exists → it collapses a good LPS-less base to `None` (would mislabel real consolidations as no-structure).
-- Build on `find_outer_box`/`detect_boxes` (`core/structure/consolidation.py`) for R/S, plus the standalone, gate-free, no-lookahead metrics: `measure_traversal`, `measure_equilibrium`, `read_box_staircase` (`core/structure/metrics.py`), and freshly recomputed `trend_template`/`adr_pct` (`core/structure/indicators.py`) + `dist_52w_high_pct` (`core/pipeline/evaluation.py:300-305`).
+- Build on `find_outer_box`/`detect_boxes` (`core/structure/consolidation.py`) for R/S, plus the standalone, gate-free, no-lookahead metrics: `measure_equilibrium` (formerly `measure_traversal`), `measure_dwell_balance` (formerly `measure_equilibrium`), `read_box_staircase` (`core/structure/metrics.py`), and freshly recomputed `trend_template`/`adr_pct` (`core/structure/indicators.py`) + `dist_52w_high_pct` (`core/pipeline/evaluation.py:300-305`).
 - **Recompute per member.** The box fields and enrichment measures are surfaced today only for *firing* rows (prefixed `_`). Reading them off firing output blanks the exact non-firing cohort the board exists to show.
 - **Byte-parity:** never touch `_run_eval_chain` / `_resolve_structure_context` / the baseline+crash+extension gates; never mutate shared constants/flags. `us_equities` output stays byte-identical.
 
