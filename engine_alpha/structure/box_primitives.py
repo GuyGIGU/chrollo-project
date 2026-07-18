@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
+from engine_alpha.structure.box_trace import _trace_find, _trace_pair
 from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibrium
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
@@ -336,40 +337,6 @@ def _candidate_atr(eq_df, eq_highs, eq_lows, atr_override=None):
     if atr_val <= 0 or np.isnan(atr_val):
         atr_val = float(np.median(eq_highs - eq_lows))
     return atr_val
-
-
-def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
-                r_anchor_bar, s_anchor_bar, cand_start, rescued=False):
-    """Record one pair-cascade entry (the election narrating itself).
-
-    No-op when ``trace`` is None — the live path never pays for it. Bars are
-    window-relative here; ``validate_equilibrium`` rebases them df-positional.
-    """
-    if trace is None:
-        return
-    trace.append({
-        "r_anchor_bar": int(r_anchor_bar),
-        "s_anchor_bar": int(s_anchor_bar),
-        "cand_start": int(cand_start),
-        "R": round(float(R_val), 4),
-        "S": round(float(S_val), 4),
-        "box_width": round(float(box_width), 4),
-        "verdict": verdict,        # "rejected" | "valid" | "elected"
-        "stage": stage,            # width|window|respect|occupancy|traversal|rescue_unused|selection
-        "detail": detail,
-        "rescued": bool(rescued),
-        "traversal": None,
-    })
-
-
-def _trace_find(trace, cand):
-    """The 'valid' cascade record belonging to candidate tuple ``cand``."""
-    key = (int(cand[7]), int(cand[8]), int(cand[9]))
-    for rec in trace:
-        if rec["verdict"] == "valid" \
-                and (rec["r_anchor_bar"], rec["s_anchor_bar"], rec["cand_start"]) == key:
-            return rec
-    return None
 
 
 def _occupancy_failures(eq, r_touches, s_touches):
