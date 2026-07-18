@@ -333,7 +333,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     escape provenance: add a read in any scanned module — or a registry term whose
     cap/gate is read only via ``TermSpec.cap()`` / ``.is_emitted()`` — and this
     fails until the name is either added to the allow-list or declared an ops
-    exclusion. (Regression guard for the CANDLE_SPREAD_AWARE /
+    exclusion. (Regression guard for the since-retired CANDLE_SPREAD_AWARE /
     PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions, the Lane-C ``_flag()`` indirection
     seam, and the positional-``TermSpec`` registry seam; the scoring / regime /
     fundamentals eval modules and all of core/structure/ are scanned.)

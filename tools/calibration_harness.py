@@ -185,7 +185,10 @@ FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-o
 # as blindness. Bump this on ANY grading-semantics change: it is folded into
 # the backend chip cache signature, so stale chips can never be served as
 # current after the policy moves (engine hash alone would not rotate).
-HARNESS_POLICY_VERSION = 2
+# v3: the reject-slug vocabulary rotation (Purity task 13) — the LPS diagnose
+# counters now speak plain chart language; the bump keeps mixed old/new slug
+# vocabulary from ever serving out of the in-process fired-chip cache.
+HARNESS_POLICY_VERSION = 3
 FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
 FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
 

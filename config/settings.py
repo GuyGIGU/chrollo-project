@@ -562,9 +562,10 @@ EVENT_MAP_ENABLED = False
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
 # folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived
-# from it, and demotes market regime (breadth + SPY) to an informational label. Sibling of
-# PUZZLE_SCORE_ENABLED / CANDLE_SPREAD_AWARE: flag-OFF the entire v2 formula and any new keys
-# are inert (byte-identical, zero new compute); the ON behavior lands incrementally behind
+# from it, and demotes market regime (breadth + SPY) to an informational label. Same flag-OFF
+# discipline as the retired PUZZLE_SCORE_ENABLED / CANDLE_SPREAD_AWARE keys (folded 2026-07-18):
+# flag-OFF the entire v2 formula and any new keys are inert (byte-identical, zero new
+# compute); the ON behavior lands incrementally behind
 # this flag. The live flip is an operator A/B-eyeball decision.
 TA_SCORE_V2 = False
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a

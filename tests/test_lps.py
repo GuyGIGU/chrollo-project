@@ -237,7 +237,7 @@ def test_lps_accepts_shallow_pullback_on_tight_clean_coil(monkeypatch, _lps_beha
     monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.65)
     rejected, rejects = detect_lps(df=df, diagnose=True, **kw)
     assert rejected is None
-    assert any(str(k).startswith("pullback_profile") for k in rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in rejects)
 
 
 def test_lps_rejects_window_that_spans_most_of_box(monkeypatch, _lps_behavior_frame):
@@ -262,7 +262,7 @@ def test_lps_rejects_window_that_spans_most_of_box(monkeypatch, _lps_behavior_fr
     )
 
     assert result is None
-    assert rejects["window_box_range"] == 1
+    assert rejects["window spans the box"] == 1
 
 
 def test_lps_accepts_clean_downswing_even_when_window_spans_box(monkeypatch, _lps_behavior_frame):
@@ -483,7 +483,7 @@ def test_lps_terminal_low_guard_rejects_earlier_lower_low(monkeypatch, _lps_beha
     )
 
     assert result is None
-    assert rejects["terminal_low"] == 1
+    assert rejects["does not rest on its low"] == 1
 
 
 def test_lps_accepts_compact_rising_support_shelf(monkeypatch, _lps_behavior_frame):
@@ -681,8 +681,8 @@ def test_holding_shelf_flag_off_is_inert_and_never_consulted(monkeypatch, _lps_b
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol_contraction"] >= 1  # the pullback form's own reject stands
-    assert "holding_shelf_refused" not in rejects  # flag-off counters unchanged
+    assert rejects["volume not drying up"] >= 1  # the pullback form's own reject stands
+    assert "flat-hold form refused" not in rejects  # flag-off counters unchanged
 
 
 def test_holding_shelf_accepts_hot_volume_high_shelf_flag_on(monkeypatch, _lps_behavior_frame):
@@ -717,10 +717,10 @@ def test_holding_shelf_rejects_low_in_box_flag_on(monkeypatch, _lps_behavior_fra
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol_contraction"] >= 1
+    assert rejects["volume not drying up"] >= 1
     # Form-tagged counters (Task 10): flag-on, the shelf was consulted and
     # ALSO refused this window — both forms' refusals are visible.
-    assert rejects["holding_shelf_refused"] >= 1
+    assert rejects["flat-hold form refused"] >= 1
 
 
 def test_holding_shelf_rejects_rising_lows_wedge_flag_on(monkeypatch, _lps_behavior_frame):
@@ -756,7 +756,7 @@ def test_holding_shelf_converts_short_overshoot_shelf_above_creek(monkeypatch, _
     monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
     off, off_rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
     assert off is None
-    assert any(str(k).startswith("pullback_profile") for k in off_rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in off_rejects)
 
     monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
     on = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
@@ -888,7 +888,7 @@ def test_lps_rejects_extended_shallow_overshoot_shelf(monkeypatch, _lps_behavior
     )
 
     assert result is None
-    assert any(str(k).startswith("pullback_profile") for k in rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in rejects)
 
 
 def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch, _lps_behavior_frame):
@@ -923,7 +923,7 @@ def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch, 
     )
 
     assert tight is None
-    assert tight_rejects["spread_profile"] == 1
+    assert tight_rejects["bar spread too wide"] == 1
     assert wide is not None
     assert wide["profile_unit"] == 4.0
 
@@ -967,7 +967,7 @@ def test_lps_spread_can_expand_slightly_but_not_a_lot(monkeypatch, _lps_behavior
     assert ok is not None
     assert ok["spread_expansion_profile"] == pytest.approx(0.25)
     assert bad is None
-    assert rejects["spread_expansion"] == 1
+    assert rejects["final bar spread expands"] == 1
 
 
 def test_lps_selector_latest_actionable_beats_older_quality(monkeypatch, _lps_behavior_frame):
@@ -1085,7 +1085,7 @@ def test_vol50_non_finite_refuses_both_forms(monkeypatch, _lps_behavior_frame):
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol50_nonpos"] >= 1
+    assert rejects["volume baseline invalid"] >= 1
 
 
 def test_vol_ratio_088_still_rejected_at_the_new_floor(monkeypatch, _lps_behavior_frame):
@@ -1106,7 +1106,7 @@ def test_vol_ratio_088_still_rejected_at_the_new_floor(monkeypatch, _lps_behavio
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol_contraction"] >= 1
+    assert rejects["volume not drying up"] >= 1
 
 
 def test_two_bar_shelf_floor_admits_shelves_not_noise(monkeypatch, _lps_behavior_frame):
@@ -1133,7 +1133,7 @@ def test_two_bar_shelf_floor_admits_shelves_not_noise(monkeypatch, _lps_behavior
     result, rejects = detect_lps(df=low_flat, latest=low_flat.iloc[-1],
                                  diagnose=True, **_SHELF_KW)
     assert result is None
-    assert rejects["holding_shelf_refused"] >= 1
+    assert rejects["flat-hold form refused"] >= 1
 
     # A 2-bar rising-low wedge + hot volume: the monotone axis still bites.
     wedge = _lps_behavior_frame(

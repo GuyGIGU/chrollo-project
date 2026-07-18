@@ -85,7 +85,7 @@ const PHASE_D_SOURCE_DETAILS = {
   sos_reclaim: 'Sign-of-strength reclaim',
   rising_support: 'Rising support',
   inner_box: 'Inner tightening range',
-  v_tip: 'Final V-shaped test',
+  v_tip: 'Recovered late-base low',
   lps: 'LPS support shelf',
 };
 

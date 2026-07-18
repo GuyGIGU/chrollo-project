@@ -129,8 +129,9 @@ def _pullback_rest_low_verdict(
 ) -> tuple[str, bool]:
     """Terminal-rest judgment: does the window rest on its low?
 
-    Returns ``(verdict, rescued)`` — verdict is ``"pass"`` / ``"terminal_low"``
-    / ``"rescue_markup"``; ``rescued`` is True when the rising-support-shelf
+    Returns ``(verdict, rescued)`` — verdict is ``"pass"`` / ``"does not rest
+    on its low"`` / ``"markup leg, not a shelf"`` (plain-language reject slugs,
+    Purity task 13); ``rescued`` is True when the rising-support-shelf
     exception accepts an early low (the caller re-anchors to the window low).
     """
     if last_low <= window_low + terminal_low_tolerance:
@@ -154,9 +155,9 @@ def _pullback_rest_low_verdict(
     if rising_support_shelf and settings.LPS_RESCUE_MAX_ADVANCE_BOX is not None:
         net_advance_box = (end_close - first_close) / box_height
         if net_advance_box > settings.LPS_RESCUE_MAX_ADVANCE_BOX:
-            return "rescue_markup", False
+            return "markup leg, not a shelf", False
     if not rising_support_shelf:
-        return "terminal_low", False
+        return "does not rest on its low", False
     return "pass", True
 
 
@@ -175,7 +176,7 @@ def _vol_dry_refused(avg_pullback_vol: float, vol_50_at_lps: float,
     baseline at the given ceiling — ONE gate asked at two positions (the
     LPS_VOL_CONTRACTION_MAX ask, then the hard ceiling-1.0 ask after the
     post-window checks). Keep the reject-on-True direction: a NaN avg routes
-    to False (pass) by design; the vol50_nonpos refusal upstream owns the
+    to False (pass) by design; the volume-baseline-invalid refusal upstream owns the
     broken-denominator case."""
     return avg_pullback_vol >= vol_50_at_lps * ceiling
 
@@ -293,13 +294,13 @@ def detect_lps_candidates(
     box_height = float(res_avg) - float(sup_avg)
     if box_height <= 0:
         if diagnose:
-            rejects["box_height_nonpos"] += 1
+            rejects["box height invalid"] += 1
         return candidates, rejects
 
     profile_unit = _profile_unit(base_range_threshold, box_height)
     if profile_unit is None:
         if diagnose:
-            rejects["profile_unit_nonpos"] += 1
+            rejects["profile unit invalid"] += 1
         return candidates, rejects
 
     zone_tol = _zone_tolerance(sup_avg, res_avg, atr_val)
@@ -318,18 +319,18 @@ def detect_lps_candidates(
         # The LPS must sit after the swing that established both R and S.
         if eval_idx <= swing_complete_idx:
             if diagnose:
-                rejects["swing_complete"] += 1
+                rejects["before the R/S swing completed"] += 1
             continue
 
         for length in range(settings.LPS_LENGTH_MIN, settings.LPS_LENGTH_MAX + 1):
             start = end - length
             if start < 0:
                 if diagnose:
-                    rejects["start_underflow"] += 1
+                    rejects["window starts before the frame"] += 1
                 continue
             if offset + length > max_window:
                 if diagnose:
-                    rejects["window_overflow"] += 1
+                    rejects["window overruns the base + reaction"] += 1
                 continue
 
             pullback_period = df.iloc[start:end]
@@ -352,7 +353,7 @@ def detect_lps_candidates(
 
             if first_high <= 0:
                 if diagnose:
-                    rejects["first_high_nonpos"] += 1
+                    rejects["first high invalid"] += 1
                 continue
 
             # A support test should be a reaction into support, not a rising
@@ -360,13 +361,13 @@ def detect_lps_candidates(
             low_descent_frac = _pairwise_descent_fraction(low_vals)
             if low_descent_frac < settings.LPS_MIN_DESCENT_FRAC:
                 if diagnose:
-                    rejects["shape_up_march"] += 1
+                    rejects["lows march up, not a reaction"] += 1
                 continue
 
             high_descent_frac = _pairwise_descent_fraction(high_vals)
             if high_descent_frac < settings.LPS_MIN_HIGH_DESCENT_FRAC:
                 if diagnose:
-                    rejects["high_up_march"] += 1
+                    rejects["highs march up, not a reaction"] += 1
                 continue
 
             terminal_low_tolerance = settings.LPS_TERMINAL_LOW_TOL_PROFILE * profile_unit
@@ -394,7 +395,7 @@ def detect_lps_candidates(
             # support zones.
             if support_low < s_floor or support_low > r_ceiling:
                 if diagnose:
-                    rejects["zone_gate"] += 1
+                    rejects["low outside the support zones"] += 1
                 continue
             if support_low < sup_avg:
                 zone_type = "UNDERCUT_S"
@@ -444,7 +445,7 @@ def detect_lps_candidates(
                 # multi-direction chop occupying the whole box.
                 if not clean_downswing:
                     if diagnose:
-                        rejects["window_box_range"] += 1
+                        rejects["window spans the box"] += 1
                     continue
 
             # INSIDE means the low is back inside the old box. If the same
@@ -463,7 +464,7 @@ def detect_lps_candidates(
                 and high_extension_atr > settings.LPS_INSIDE_HIGH_EXTENSION_ATR_MAX
             ):
                 if diagnose:
-                    rejects["inside_high_extension"] += 1
+                    rejects["window launched above resistance"] += 1
                 continue
 
             pullback_profile = (first_high - support_low) / profile_unit
@@ -480,7 +481,7 @@ def detect_lps_candidates(
             # sanctions a window ONLY where the pullback form rejects below, so
             # a fully-passing pullback window keeps its pullback attribution.
             # When consulted-and-refused, the diagnose counters tag BOTH forms:
-            # the pullback's keyed reason plus one holding_shelf_refused tick.
+            # the pullback's keyed reason plus one flat-hold-form-refused tick.
             shelf_consulted = settings.LPS_HOLDING_SHELF_ENABLED
             holding_shelf = shelf_consulted and _holding_shelf_verdict(
                 length, low_descent_frac, support_low, sup_avg,
@@ -490,9 +491,9 @@ def detect_lps_candidates(
             if not depth_ok:
                 if not holding_shelf:
                     if diagnose:
-                        rejects[f"pullback_profile({pullback_profile:.2f})"] += 1
+                        rejects[f"pullback depth out of range ({pullback_profile:.2f})"] += 1
                         if shelf_consulted:
-                            rejects["holding_shelf_refused"] += 1
+                            rejects["flat-hold form refused"] += 1
                     continue
                 shelf_saved = True
 
@@ -500,7 +501,7 @@ def detect_lps_candidates(
             max_spread = float(spreads.max())
             if max_spread > spread_max_allowed:
                 if diagnose:
-                    rejects["spread_profile"] += 1
+                    rejects["bar spread too wide"] += 1
                 continue
 
             tight_spread = float(spreads.iloc[-1])
@@ -512,7 +513,7 @@ def detect_lps_candidates(
                 max_expansion = profile_unit * settings.LPS_SPREAD_EXPANSION_MAX_PROFILE
                 if spread_expansion > max_expansion:
                     if diagnose:
-                        rejects["spread_expansion"] += 1
+                        rejects["final bar spread expands"] += 1
                     continue
                 if settings.LPS_SPREAD_MUST_DECLINE:
                     spread_decline_quality = _spread_decline_quality(
@@ -529,7 +530,7 @@ def detect_lps_candidates(
             # refusal: neither completion form may ride a broken denominator.
             if not np.isfinite(vol_50_at_lps) or vol_50_at_lps <= 0:
                 if diagnose:
-                    rejects["vol50_nonpos"] += 1
+                    rejects["volume baseline invalid"] += 1
                 continue
             avg_pullback_vol = pullback_period["Volume"].mean()
             if _vol_dry_refused(avg_pullback_vol, vol_50_at_lps,
@@ -538,15 +539,15 @@ def detect_lps_candidates(
                 # geometry-only (grades-not-vetoes: volume never gates it).
                 if not holding_shelf:
                     if diagnose:
-                        rejects["vol_contraction"] += 1
+                        rejects["volume not drying up"] += 1
                         if shelf_consulted:
-                            rejects["holding_shelf_refused"] += 1
+                            rejects["flat-hold form refused"] += 1
                     continue
                 shelf_saved = True
 
             if latest["Close"] < (support_low * settings.LPS_HOLD_TOLERANCE):
                 if diagnose:
-                    rejects["hold_tolerance"] += 1
+                    rejects["support hold broken"] += 1
                 continue
 
             # Bars after the LPS evaluation bar must hold above the elected LPS
@@ -555,11 +556,11 @@ def detect_lps_candidates(
                 post_lps = df.iloc[end:n]
                 if post_lps["Low"].min() < support_low * settings.LPS_HOLD_TOLERANCE:
                     if diagnose:
-                        rejects["post_lps_low_breach"] += 1
+                        rejects["low broken after the LPS"] += 1
                     continue
                 if _spread_series(post_lps).max() > spread_max_allowed:
                     if diagnose:
-                        rejects["post_lps_spread"] += 1
+                        rejects["spread widens after the LPS"] += 1
                     continue
 
             vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
@@ -568,9 +569,9 @@ def detect_lps_candidates(
             if _vol_dry_refused(avg_pullback_vol, vol_50_at_lps, 1.0):
                 if not holding_shelf:
                     if diagnose:
-                        rejects["vol_contraction_post"] += 1
+                        rejects["pullback volume above baseline"] += 1
                         if shelf_consulted:
-                            rejects["holding_shelf_refused"] += 1
+                            rejects["flat-hold form refused"] += 1
                     continue
                 shelf_saved = True
             tightness_ratio = tight_spread / profile_unit
@@ -731,7 +732,7 @@ def detect_lps(
     best_candidate = select_active_lps_candidate(candidates, latest)
     if best_candidate is None:
         if diagnose:
-            rejects["not_actionable"] += len(candidates)
+            rejects["no actionable candidate"] += len(candidates)
         return (None, rejects) if diagnose else None
 
     best = _public_candidate(best_candidate, df)

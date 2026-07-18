@@ -704,8 +704,8 @@ def test_e2_deterministic_and_json_native(monkeypatch):
 
 
 def test_e2_assembler_internals_not_imported_by_pipeline():
-    # E3 wired the public assemble_box_narrative into the pipeline (behind the
-    # PUZZLE_SCORE_ENABLED flag) as a scoring input — so that name now legitimately
+    # E3 wired the public assemble_box_narrative into the pipeline (originally behind
+    # the PUZZLE_SCORE_ENABLED flag, since retired) as a scoring input — so that name now legitimately
     # appears in core/pipeline. The INTERNAL helper must stay contained: nothing in
     # core/pipeline may reach past the public assembler into _box_events_with_meta.
     import glob

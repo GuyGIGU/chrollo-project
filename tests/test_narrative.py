@@ -55,7 +55,7 @@ class _Bricks:
         lps = self._lpss.get(box.start_bar)
         if diagnose:
             from collections import Counter
-            return lps, (Counter() if lps is not None else Counter({"terminal_low": 1}))
+            return lps, (Counter() if lps is not None else Counter({"does not rest on its low": 1}))
         return lps
 
     def resolve_phase_a(self, df, root, box, atr):
