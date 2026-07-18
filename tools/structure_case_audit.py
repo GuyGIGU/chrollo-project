@@ -42,11 +42,11 @@ from config import settings
 from core.archive.seed import _evaluate_at_date
 from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure import bricks
-from engine_alpha.structure.box_primitives import (
+from engine_alpha.structure.box_gates import (
     _is_boundary_respected,
-    _pivot_order,
     _validate_base_quality,
 )
+from engine_alpha.structure.box_primitives import _pivot_order
 from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.metrics import measure_equilibrium
 from engine_alpha.structure.narrative import read_structure

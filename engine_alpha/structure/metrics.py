@@ -414,7 +414,7 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     telemetry against a gate must measure the gate's own statistic.
 
     One implementation, re-reported (EC-3): both numbers come from the same
-    ``box_primitives`` helpers the election gate calls. Measure-only — never
+    ``box_gates`` helpers the election gate calls. Measure-only — never
     gates, never penalizes; degenerate windows return None values.
 
     Returns dict: respect_frac, close_lower_dwell, close_mid_dwell,
@@ -426,7 +426,7 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
             or R <= S or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):
         return empty
-    from engine_alpha.structure.box_primitives import (  # noqa: PLC0415 — sibling, lazy vs cycles
+    from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
         _is_boundary_respected,
         _measure_close_residence,
     )
@@ -459,7 +459,7 @@ def measure_dwell_balance(base_df, R, S, atr_val, rail_touches=None):
     starved.
 
     Pure measurement, no gates and no points — the validity rule in
-    ``box_primitives._validate_base_quality`` and the Scoring Engine decide what
+    ``box_gates._validate_base_quality`` and the Scoring Engine decide what
     the numbers are worth.
 
     Returns dict (safe defaults on a degenerate window so it reads as invalid):

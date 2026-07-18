@@ -24,10 +24,8 @@ from engine_alpha.structure.metrics import (
     measure_dwell_balance,
     measure_equilibrium,
 )
-from engine_alpha.structure.box_primitives import (
-    _validate_base_quality,
-    select_phase_b_candidate,
-)
+from engine_alpha.structure.box_gates import _validate_base_quality
+from engine_alpha.structure.box_primitives import select_phase_b_candidate
 from engine_alpha.structure.inner_box import (
     _detect_inner_phase_b_start,
     detect_inner_root_swing,

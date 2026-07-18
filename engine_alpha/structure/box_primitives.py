@@ -6,9 +6,9 @@ The live chronological bricks and the diagnostic standalone detectors in
 A candidate is a Resistance-anchor / Support-anchor pair drawn from the zigzag
 (``BC``/``AR`` are the Phase-A trend climax/rally — the place the search begins,
 not the rails). A pair is only a REAL trading range if price respects, touches,
-and zigzags through both rails CONSTANTLY with no dead space — enforced by
-``_is_boundary_respected`` (respect) + ``_validate_base_quality`` (constant
-two-sided touch + close-residence dwell/coverage). Selection keeps the EARLIEST pair that passes
+and zigzags through both rails CONSTANTLY with no dead space — enforced by the
+``box_gates`` judges (boundary respect + worked-equilibrium occupancy +
+traversal floor). Selection keeps the EARLIEST pair that passes
 every constraint; if none passes, the box is rejected.
 """
 from __future__ import annotations
@@ -16,8 +16,15 @@ from __future__ import annotations
 import numpy as np
 
 from config import settings
+from engine_alpha.structure.box_gates import (
+    _apply_traversal_gate,
+    _buffered_rails,
+    _is_boundary_respected,
+    _occupancy_failures,
+    _validate_base_quality,
+    _worked_window_end,
+)
 from engine_alpha.structure.box_trace import _trace_find, _trace_pair
-from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibrium
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
@@ -30,8 +37,6 @@ __all__ = [
     "collect_zigzag_candidates",
     "select_phase_b_candidate",
     "phase_b_zigzag",
-    "_validate_base_quality",
-    "_worked_window_end",
 ]
 
 
@@ -116,211 +121,6 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
     return anchors
 
 
-def _buffered_rails(R_val, S_val, atr_val):
-    """The ATR-buffered rail levels (R + buffer, S − buffer) every outside /
-    containment judgment measures against. Levels ONLY — each caller keeps its
-    own comparison form verbatim (strict vs inclusive is NaN routing, never
-    restyle; fold-safety dossier)."""
-    buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
-    return R_val + buffer, S_val - buffer
-
-
-def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
-    """
-    Check if price action respects R/S boundaries using ATR-buffered zones.
-
-    Uses the full daily range (highs vs R+buffer, lows vs S-buffer). Wicks
-    that pierce the buffered zone count as breaches, matching the engine's
-    "bars not candles" rule.
-
-    Returns:
-        (respected, r_broken, s_broken, total_outside_days, respect_share)
-    """
-    highs = np.asarray(highs, dtype=float)
-    lows = np.asarray(lows, dtype=float)
-    n = len(highs)
-    if n == 0:
-        return False, False, False, 0, 0.0
-
-    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
-
-    above_r = highs > r_ceiling
-    below_s = lows < s_floor
-    outside = above_r | below_s
-    total_outside = int(outside.sum())
-
-    def _max_consecutive(mask):
-        """Max run length of True values in a boolean array."""
-        if not mask.any():
-            return 0
-        d = np.diff(np.concatenate(([False], mask, [False])).astype(int))
-        starts = np.flatnonzero(d == 1)
-        ends = np.flatnonzero(d == -1)
-        return int((ends - starts).max()) if len(starts) > 0 else 0
-
-    max_consec = _max_consecutive(outside)
-    r_consec_max = _max_consecutive(above_r)
-    s_consec_max = _max_consecutive(below_s)
-
-    respect_pct = 1.0 - (total_outside / n)
-    max_outside = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
-    respected = (max_consec <= max_outside and
-                 respect_pct >= settings.MIN_BOUNDARY_RESPECT_PCT)
-    r_broken = r_consec_max > max_outside
-    s_broken = s_consec_max > max_outside
-
-    return respected, r_broken, s_broken, total_outside, respect_pct
-
-
-def _worked_window_end(highs, lows, R_val, S_val, atr_val):
-    """Index where the worked range ends, trimming a trailing SOS breakout tail.
-
-    A range whose right side has already broken out above R and HELD above
-    support — a creek-jump then back-up (SOS -> BUEC) — should be validated over
-    its worked CAUSE, not penalised for the breakout. We trim the earliest
-    trailing run of ``>= SOS_TRIM_MIN_RUN`` consecutive above-(R+buffer) bars
-    that (a) begins past the worked prefix (``>= SOS_TRIM_MIN_PREFIX_FRAC`` of the
-    window) and (b) holds support to the end (no Low dips below S-buffer after
-    it). Returns ``len(highs)`` when there is no such tail — the no-op case:
-    price never broke out and held, so every ordinary in-range framing (and every
-    downside breakdown) is unaffected.
-
-    Pure / None-safe. Buffer mirrors ``_is_boundary_respected`` (bars, not
-    candles) so the trim and the respect gate speak the same geometry.
-    """
-    n = len(highs)
-    if n == 0:
-        return n
-    highs = np.asarray(highs, dtype=float)
-    lows = np.asarray(lows, dtype=float)
-    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
-    above = highs > r_ceiling
-    min_prefix = settings.SOS_TRIM_MIN_PREFIX_FRAC * n
-    i = 0
-    while i < n:
-        if above[i]:
-            j = i
-            while j < n and above[j]:
-                j += 1
-            if (j - i) >= settings.SOS_TRIM_MIN_RUN and i >= min_prefix \
-                    and float(lows[i:].min()) >= s_floor:
-                return i
-            i = j
-        else:
-            i += 1
-    return n
-
-
-def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
-    """Legacy close-residence occupancy for box-of-record selection.
-
-    Public ``measure_dwell_balance`` now reports High/Low range occupancy for
-    analysis, but selecting the parent box still uses closes as the residence
-    concept. This preserves calibrated Phase-B rails while rail touches and
-    boundary respect continue to use High/Low geometry.
-
-    ``rail_touches`` optionally carries an already-computed
-    ``_rail_touch_thirds`` result for this exact (window, rails, ATR) — the
-    measurement-side caller (``measure_gate_margins``) shares it with its
-    sibling reads; every election-side caller leaves it None.
-    """
-    empty = {
-        "r_touches": 0, "s_touches": 0,
-        "r_touch_thirds": 0, "s_touch_thirds": 0,
-        "lower_dwell": 0.0, "mid_dwell": 1.0, "upper_dwell": 0.0,
-        "coverage": 0.0,
-    }
-    if eq_df is None or len(eq_df) == 0:
-        return empty
-    box = R_val - S_val
-    if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
-        return empty
-
-    highs = eq_df["High"].values.astype(float)
-    lows = eq_df["Low"].values.astype(float)
-    closes = eq_df["Close"].values.astype(float)
-    n = len(closes)
-
-    if rail_touches is None:
-        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val)
-    r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
-
-    pos = np.clip((closes - S_val) / box, 0.0, 1.0)
-    lower_dwell = float(np.mean(pos <= 1.0 / 3.0))
-    mid_dwell = float(np.mean((pos > 1.0 / 3.0) & (pos < 2.0 / 3.0)))
-    upper_dwell = float(np.mean(pos >= 2.0 / 3.0))
-
-    nb = settings.EQ_COVERAGE_BINS
-    bins = np.minimum((pos * nb).astype(int), nb - 1)
-    counts = np.bincount(bins, minlength=nb)
-    min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
-    coverage = float(np.mean(counts >= min_count))
-
-    return {
-        "r_touches": int(r_mask.sum()),
-        "s_touches": int(s_mask.sum()),
-        "r_touch_thirds": int(r_touch_thirds),
-        "s_touch_thirds": int(s_touch_thirds),
-        "lower_dwell": round(lower_dwell, 4),
-        "mid_dwell": round(mid_dwell, 4),
-        "upper_dwell": round(upper_dwell, 4),
-        "coverage": round(coverage, 4),
-    }
-
-
-def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
-    """
-    Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
-    REAL trading range only if price respects, touches, and zigzags through BOTH
-    rails CONSTANTLY, with no dead space.
-
-    Boundary respect is enforced separately by the caller
-    (``_is_boundary_respected``) before this is called; here we add the
-    close-residence occupancy half of the test:
-      - Box width within limits
-      - Crash filter: no catastrophic wick below support
-      - Constant two-sided touch: >= EQ_MIN_TOUCHES_PER_RAIL on each rail, each
-        touched across >= EQ_MIN_TOUCH_THIRDS of 3 time-thirds (not clustered)
-      - No dead space: closes dwell in BOTH the lower and upper box third
-        (>= EQ_MIN_HALF_DWELL each) and the box-height coverage is not starved
-        (>= EQ_MIN_COVERAGE)
-      - Not mid-box churn: middle-third dwell <= EQ_MAX_MID_DWELL
-
-    The old "2 touches/side + N midline crosses" gate is retired — it let the
-    widest BC->AR framing win (a wide box mechanically racks up crosses while a
-    one-time AR low leaves dead space beneath the real range).
-
-    Returns:
-        (r_touches, s_touches, eq, is_valid)  where eq is the close-residence
-        dict (None when rejected on width/crash before measuring).
-    """
-    box_width = (R_val - S_val) / S_val
-    # ``max_width`` widens the cap ONLY for the deep-event pool (a pair
-    # carrying a qualified terminal-shakeout event, BAND_MAX_BOX_WIDTH);
-    # every ordinary caller leaves it None = the unchanged MAX_BOX_WIDTH.
-    if box_width > (settings.MAX_BOX_WIDTH if max_width is None else max_width) \
-            or box_width <= 0:
-        return 0, 0, None, False
-
-    if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
-        return 0, 0, None, False
-
-    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
-    r_touches, s_touches = eq["r_touches"], eq["s_touches"]
-
-    is_valid = (
-        r_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
-        and s_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
-        and eq["r_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
-        and eq["s_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
-        and eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
-        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
-        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
-        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
-    )
-    return r_touches, s_touches, eq, is_valid
-
-
 def _candidate_atr(eq_df, eq_highs, eq_lows, atr_override=None):
     """Return the ATR reference used for candidate boundary and quality checks."""
     if atr_override is not None and atr_override > 0 and not np.isnan(atr_override):
@@ -339,30 +139,6 @@ def _candidate_atr(eq_df, eq_highs, eq_lows, atr_override=None):
     return atr_val
 
 
-def _occupancy_failures(eq, r_touches, s_touches):
-    """Trace-only: name the worked-equilibrium occupancy checks a framing failed."""
-    s = settings
-    checks = [
-        (r_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
-         f"r_touches {r_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
-        (s_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
-         f"s_touches {s_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
-        (eq["r_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
-         f"r_touch_thirds {eq['r_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
-        (eq["s_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
-         f"s_touch_thirds {eq['s_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
-        (eq["lower_dwell"] < s.EQ_MIN_HALF_DWELL,
-         f"dead space low (lower_dwell {eq['lower_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
-        (eq["upper_dwell"] < s.EQ_MIN_HALF_DWELL,
-         f"dead space high (upper_dwell {eq['upper_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
-        (eq["mid_dwell"] > s.EQ_MAX_MID_DWELL,
-         f"mid churn (mid_dwell {eq['mid_dwell']}>{s.EQ_MAX_MID_DWELL})"),
-        (eq["coverage"] < s.EQ_MIN_COVERAGE,
-         f"coverage {eq['coverage']}<{s.EQ_MIN_COVERAGE}"),
-    ]
-    return [msg for failed, msg in checks if failed]
-
-
 def _score_candidate(box_width, r_touches, s_touches, coverage):
     """Combined quality of a (valid) candidate framing — drives "best"/debug
     selection and breaks "earliest" ties. All inputs already passed validity."""
@@ -370,60 +146,6 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
     touch_score = min(1.0, (r_touches + s_touches) / 10.0)
     coverage_score = coverage
     return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * coverage_score
-
-
-def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
-                          trace=None):
-    """Limb-traversal quality gate (v2): keep only framings whose swing limbs
-    genuinely travel rail-to-rail, so the earliest-valid selection re-anchors R/S
-    to the real swing envelope instead of a dead-space climax framing.
-
-    A framing must clear BOTH floors:
-      - COUNT  (``TRAVERSAL_MIN``): >= N genuine rail-to-rail swings.
-      - DENSITY (``TRAVERSAL_MIN_DENSITY``): those swings are a real SHARE of the
-        action. A long base racks up a few full trips amid a sea of interior chop
-        (BMRN 5/111 = 0.045) and clears the count alone; winners run dense (seed
-        floor ~0.14). Low density = the box is too wide / mis-anchored.
-
-    Sub-threshold framings are dropped with NO legacy fallback: when an anchor
-    yields no qualifying framing, ``find_outer_box`` falls through to its other
-    BC/SC anchors (deeper re-anchoring), and a stock whose every framing is sparse
-    simply doesn't fire — that's the point, it isn't a worked range. Recall-safety
-    rides on the thresholds sitting well below the validated winner floor (count:
-    every seed winner >= 2; density: winner floor ~0.14 vs gate 0.08), policed by
-    the seed-recall guard — not on keeping a bad box.
-
-    No-op unless ``enforce_traversal`` (the
-    outer Phase-B path only — inner boxes are short and tight by design, where
-    rail-to-rail traversal is naturally rare, so they are measured but never gated).
-    """
-    if not enforce_traversal:
-        return valid_candidates
-
-    # c[9]=cand_start, c[10]=judged-window length, c[1]=R_val, c[2]=S_val — measure
-    # traversal on the SAME window the framing was respect/occupancy-validated over
-    # (its trimmed worked cause when SOS-rescued; the full window when strict, where
-    # c[10] spans to the edge so this is byte-identical to the legacy full slice).
-    def _passes(c):
-        trav = measure_equilibrium(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
-        nf, ns = trav["n_full_traversals"], trav["n_swings"]
-        ok = (nf >= settings.TRAVERSAL_MIN
-              and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)
-        if trace is not None:
-            rec = _trace_find(trace, c)
-            if rec is not None:
-                density = (nf / ns) if ns > 0 else 0.0
-                rec["traversal"] = {"full": int(nf), "swings": int(ns),
-                                    "density": round(density, 3)}
-                if not ok:
-                    rec["verdict"] = "rejected"
-                    rec["stage"] = "traversal"
-                    rec["detail"] = (
-                        f"full={nf} density={density:.3f} (floors "
-                        f"{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})")
-        return ok
-
-    return [c for c in valid_candidates if _passes(c)]
 
 
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
