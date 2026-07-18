@@ -527,22 +527,11 @@ def test_candle_readability_preserves_clean_discounts_messy():
     assert messy == pytest.approx(settings.CANDLE_GRADE_FLOOR)
 
 
-def test_candle_spread_flag_off_is_byte_identical(monkeypatch):
+def test_candle_spread_discounts_messy_preserves_clean():
+    # The readability multiplier is unconditional engine behavior (folded
+    # 2026-07-18; formerly behind CANDLE_SPREAD_AWARE, live since 2026-07-04).
     from engine_alpha.scoring.scoring import score_setup
 
-    # Flag OFF: bar_compression must NOT move box_tightness (containment).
-    # (CANDLE_SPREAD_AWARE ships LIVE since 2026-07-04; force it off to test the off path.)
-    monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", False)
-    base = score_setup(**_score_common())["box_tightness"]
-    with_messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]
-    with_clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
-    assert base == with_messy == with_clean
-
-
-def test_candle_spread_flag_on_discounts_messy_preserves_clean(monkeypatch):
-    from engine_alpha.scoring.scoring import score_setup
-
-    monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", True)
     neutral = score_setup(**_score_common())["box_tightness"]                       # None -> neutral
     clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
     messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]

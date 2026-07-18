@@ -161,10 +161,9 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         box_tightness_ratio = (settings.MAX_BOX_WIDTH - box_width) / settings.MAX_BOX_WIDTH
     # Candle-spread readability: discount tightness for a base whose interior bars are
     # choppy vs its OWN box/ATR, preserve it for a quiet base (self-referential — never an
-    # absolute bar-width threshold). Flag-gated + multiplicative in [floor, 1] (grades-not-
-    # vetoes); flag-off leaves box_tightness_ratio untouched -> byte-identical.
-    if settings.CANDLE_SPREAD_AWARE:
-        box_tightness_ratio *= _candle_readability(bar_compression)
+    # absolute bar-width threshold). Multiplicative in [floor, 1] (grades-not-vetoes);
+    # missing texture grades neutral 1.0, leaving box_tightness_ratio untouched.
+    box_tightness_ratio *= _candle_readability(bar_compression)
     s_box = _clamp(box_tightness_ratio * settings.SCORE_BOX_TIGHTNESS,
                     settings.SCORE_BOX_TIGHTNESS)
 

@@ -519,10 +519,10 @@ MAX_BOX_WIDTH_ADR = 4.5         # (R-S)/S expressed in ADRs; >= this earns zero 
 # penalized for raw bar width, while a messy wide-bar base (DHX: spread/box ~0.55) is docked.
 # Multiplicative grade in [CANDLE_GRADE_FLOOR, 1.0]: a silent box keeps full tightness, a noisy
 # box is discounted toward the floor (a GRADE, never a veto). LIVE since 2026-07-04 (operator
-# eyeball A/B, tools/candle_ab.py: 61/128 choppy bases docked, mean -0.39, 0 tier flips; clean
-# bases preserved at grade 1.0); flag-off is byte-identical (the term lives ONLY inside
-# `if CANDLE_SPREAD_AWARE` in score_setup). Missing texture -> neutral 1.0.
-CANDLE_SPREAD_AWARE = True
+# eyeball A/B: 61/128 choppy bases docked, mean -0.39, 0 tier flips; clean bases preserved at
+# grade 1.0). Missing texture -> neutral 1.0.
+CANDLE_SPREAD_AWARE = True      # FOLDED 2026-07-18: the multiplier is unconditional in score_setup;
+                                # key retained only for manifest-hash stability until the Task 11 rotation
 CANDLE_GRADE_FLOOR = 0.55       # worst-case multiplier — a choppy base keeps >= 55% of its tightness
 # Ramp anchors (universe medians, 2026-06-30 scan: spread/box ~0.31, spread/ATR ~0.85, tight-bar
 # ~0.68). Each sub-grade ramps full(1)->zero(0) across clean->messy; these are CALIBRATION
