@@ -191,7 +191,11 @@ def score_equilibrium_args(equilibrium, dwell_balance, bins) -> dict:
     return {
         "traversal_density": (equilibrium["n_full_traversals"] / equilibrium["n_swings"]
                               if equilibrium["n_swings"] else 0.0),
-        "max_swing_frac": equilibrium["max_swing_frac"] or 1.0,
+        # None (no measurable swing) reads as 1.0 — the no-penalty neutral for the
+        # overshoot dock, which only fires above 1.0. Explicit None-check: a falsy
+        # `or` would also swallow a measured 0.0 into the fabricated neutral.
+        "max_swing_frac": (float(equilibrium["max_swing_frac"])
+                           if equilibrium["max_swing_frac"] is not None else 1.0),
         "dwell_asymmetry": abs(dwell_balance["upper_dwell"] - dwell_balance["lower_dwell"]),
         "has_spring": bool(bins.get("bin_c_present")),
     }

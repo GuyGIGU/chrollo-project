@@ -52,7 +52,13 @@ _MAX_ANCHORS = 64
 class Structure:
     """The complete A -> B -> (C?) -> D narrative for one base.
 
-    The single source of truth: phase boundaries are sequential by construction.
+    The single source of truth for the A -> B spine: ``climax_bar <= ar_bar <=
+    phase_b_start_bar <= phase_b_end_bar`` by construction (a zero-length
+    climax==ar pair is degenerate but possible on the raw fallback). ``phase_d_start_bar``
+    is NOT on that spine: it is the right-side REGION boundary (evidence-based),
+    while ``phase_b_end_bar`` is the terminator EVENT bar (spring tip / LPS
+    start) — on most no-spring bases the D region opens before the LPS window,
+    so ``phase_d_start_bar < phase_b_end_bar`` is normal, not drift.
     ``spring`` and ``lps`` carry the raw brick results so consumers can read their
     rich fields (trigger, zone, undercut, ...) without a second measurement pass.
 
