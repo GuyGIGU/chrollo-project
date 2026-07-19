@@ -20,8 +20,8 @@ const chartOptions = (width, height) => {
   };
 };
 
-// --- structure candle coloring (modal): root-swing (the engine's climax->AR that
-// produced the box) grey, LPS zones painted by the shared chronological gradient.
+// --- structure candle coloring (modal): root-swing (the r/s anchor pair the box's
+// rails are drawn from) grey, LPS zones painted by the shared chronological gradient.
 // BOTH read the shared chartPhaseOverlay helpers (rootSwingRange / colorLpsCandles),
 // so the card and modal colour the identical bars by construction. ---
 const colorStructureCandles = (data) => {
@@ -33,9 +33,8 @@ const colorStructureCandles = (data) => {
   return candles;
 };
 
-// Grey the ROOT SWING bars (the engine's climax -> AR that produced the box) via the
-// SAME shared span the mini card and the region band use — never the r/s rail-anchor
-// pivots, which dragged the grey across most of the base.
+// Grey the ROOT SWING bars (the r/s anchor pair the box's rails are drawn from) via
+// the SAME shared span the mini card uses, so card and modal never diverge.
 const colorBase = (candles, data) => {
   const rootSwing = rootSwingRange(data, candles);
   if (!rootSwing) return;

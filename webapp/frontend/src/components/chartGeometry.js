@@ -8,8 +8,8 @@
 // distinct functions rather than a merged one.
 //
 // NOTE: root-swing coloring AND LPS coloring are both SHARED with the modal via
-// chartPhaseOverlay (`rootSwingRange` for the grey root-swing limb — the engine's
-// climax->AR that produced the box, `colorLpsCandles` for the chronological gold
+// chartPhaseOverlay (`rootSwingRange` for the grey root swing — the r/s anchor pair
+// the box's rails are drawn from, `colorLpsCandles` for the chronological gold
 // gradient), so the card and the modal colour the identical bars by construction.
 // chartPhaseOverlay is import-free (no lightweight-charts, no DOM at load), so
 // importing its pure helpers keeps this module Node-testable. Colors come from the
@@ -146,16 +146,15 @@ export const boxRailSpecs = (data) => {
 
 // --- candle coloring ---
 
-// ScreenerMiniChart coloring: root-swing (the engine's climax->AR that produced the
-// box) grey, LPS zones painted by the shared chronological gold gradient (via
+// ScreenerMiniChart coloring: root-swing (the r/s anchor pair the box's rails are
+// drawn from) grey, LPS zones painted by the shared chronological gold gradient (via
 // colorLpsCandles). Operates on a deep clone so the source payload is untouched.
 export const colorMiniCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
 
   // Grey the ROOT SWING bars via the SAME shared span the modal uses, so the card and
-  // the big chart colour identical bars (never the rail-anchor span, which dragged
-  // across the base).
+  // the big chart colour identical bars.
   const rootSwing = rootSwingRange(data, candles);
   if (rootSwing) {
     for (let index = rootSwing.startIndex; index <= rootSwing.endIndex; index += 1) {

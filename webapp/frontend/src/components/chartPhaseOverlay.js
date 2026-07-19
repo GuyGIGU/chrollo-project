@@ -58,6 +58,14 @@ const setupEndIndex = (data, candles) => {
   return clamp(candles.length - 1 - forwardBars, 0, candles.length - 1);
 };
 
+// The box's first bar. r_anchor / s_anchor are emitted as offsets from THIS bar
+// (engine: `_r_anchor_bar - phase_b_start`), so it is the origin the root swing
+// resolves against.
+const setupStartIndex = (data, candles) => {
+  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
+  return clamp(setupEndIndex(data, candles) - baseLen + 1, 0, candles.length - 1);
+};
+
 const setupBoxRange = (data) => {
   const support = finiteNumber(data?.S ?? data?._S);
   const resistance = finiteNumber(data?.R ?? data?._R);
@@ -167,41 +175,54 @@ const phaseIndexes = (data, candles) => ({
   lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
 });
 
-// THE ROOT SWING span in candle-index space — the grey highlight.
+// THE ROOT SWING — the grey highlighted bars.
 //
-// DEFINITION (governs, ALWAYS): the grey = the Root Swing that PRODUCES the box — the
-// swing the consolidation starts from. That is the meaning; everything below is only
-// HOW we obtain it. (Generic Phase A = climax + automatic-reaction, "where the *trend*
-// ends", is a different question; the root swing usually sits at Phase A but need not.)
+// DEFINITION (operator, governs always): the two limbs the consolidation is built
+// from — "the two anchors from where you draw Support and Resistance respectively".
+// The engine hands us exactly that pair: r_anchor is the bar whose HIGH sets R, and
+// s_anchor is the bar whose LOW sets S (verified 234/234 against the live payload),
+// both as offsets from the box start. The root swing is the span between them.
 //
-// MECHANISM: the engine ELECTS the box-producing swing for us (worked-equilibrium
-// candidate election) and emits it as its climax->AR anchor (bc_anchor =
-// structure.climax_bar -> phase_a_end). Because that elected anchor IS, by
-// construction, the swing that produces the box, the equality "root swing == the
-// engine's elected climax->AR" holds — a DERIVED consequence of the election, not the
-// definition. So we draw the grey straight from _phase_a_start_date ->
-// _phase_a_end_date; if the engine ever re-elects a different anchor the grey follows
-// it, and any disagreement with the eye is an ENGINE-read question, not a grey tweak.
+// This sits INSIDE the box, not before it — the rails are drawn from bars some way
+// into the consolidation (FHI: 15 and 18 bars in). That is exactly why Phase A (the
+// climax + automatic-reaction that ends the TREND) is the WRONG span for this grey:
+// Phase A lives outside the consolidation entirely. It is a separate concept with its
+// own helper (phaseARange, below) driving the 'A' region band.
 //
-// SINGLE SOURCE OF TRUTH for the grey — the modal region band, the modal candle tint
-// (colorBase), and the mini-card candle tint (colorMiniCandles) all read it, so the
-// big and small charts colour the IDENTICAL bars. Deliberately NOT the r_anchor /
-// s_anchor rail pivots: those sit deep in the base and dragged the grey across it when
-// a rail was set late (the long-standing "root-swing grey drag" bug).
+// Deliberately NOT min(rBar, sBar, baseStart): folding the box start into the span was
+// the long-standing "root-swing grey drag" bug — it stretched the grey from the box
+// OPEN to the later anchor (FHI: 18 bars, Mar 17 -> Apr 13) instead of marking the
+// anchor pair itself (4 bars, Apr 8 -> Apr 13). Real spans run 1-17 bars fleet-wide.
 //
-// INVARIANT: the root swing always ends STRICTLY BEFORE the box, so "Phase B starts
-// on the next bar after the root swing" holds for every setup. When the engine's AR
-// lands on the box's first bar (phase_a_end == phase_b_start), we stop one bar short
-// and let the box own that bar. Returns null when no root swing can be placed.
+// SINGLE SOURCE OF TRUTH for the grey bars — the modal candle tint (colorBase) and the
+// mini-card candle tint (colorMiniCandles) both read it, so the big and small charts
+// colour the IDENTICAL bars. Returns null when the engine emitted no anchor pair.
 export const rootSwingRange = (data, candles) => {
+  if (!candles?.length) return null;
+  const rOffset = finiteNumber(data?.r_anchor);
+  const sOffset = finiteNumber(data?.s_anchor);
+  if (rOffset == null || sOffset == null) return null;
+
+  const last = candles.length - 1;
+  const baseStart = setupStartIndex(data, candles);
+  const rBar = clamp(baseStart + Math.trunc(rOffset), 0, last);
+  const sBar = clamp(baseStart + Math.trunc(sOffset), 0, last);
+  return { startIndex: Math.min(rBar, sBar), endIndex: Math.max(rBar, sBar) };
+};
+
+// Phase A — the climax + automatic reaction that marks where the TREND ends, straight
+// from the engine's own decision (_phase_a_start_date -> _phase_a_end_date, bc_anchor =
+// structure.climax_bar). This is the lead-in BEFORE the consolidation — a different
+// question from the root swing above, and never the grey bars: it drives the 'A'
+// region band only. Clamped to stop strictly before the box so Phase B always owns its
+// first bar. Returns null when Phase A can't be placed.
+export const phaseARange = (data, candles) => {
   if (!candles?.length) return null;
   const start = indexOnOrAfter(candles, data?._phase_a_start_date);
   if (start == null) return null;
   const phaseBStart = indexOnOrAfter(candles, data?._phase_b_start_date);
-  // The box's first bar belongs to Phase B, never the root swing.
   const ceiling = phaseBStart != null ? phaseBStart - 1 : candles.length - 1;
-  const fallbackEnd = start + PHASE_A_MAX_BARS - 1;
-  const arEnd = indexOnOrAfter(candles, data?._phase_a_end_date) ?? fallbackEnd;
+  const arEnd = indexOnOrAfter(candles, data?._phase_a_end_date) ?? start + PHASE_A_MAX_BARS - 1;
   const end = Math.min(arEnd, ceiling);
   return end >= start ? { startIndex: start, endIndex: end } : null;
 };
@@ -260,13 +281,12 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  // Phase A's drawn span = the ROOT SWING that produced the box (the engine's elected
-  // climax -> AR), via the shared rootSwingRange helper. The mini card and the modal
-  // candle tint mark the identical bars through the same helper, so the coloured
-  // surfaces can't diverge — and it always stops before Phase B's first bar.
-  const rootSwing = rootSwingRange(data, candles);
-  if (rootSwing) {
-    const region = buildRegion('a', candles, rootSwing.startIndex, rootSwing.endIndex);
+  // The 'A' band is Phase A proper — the climax -> AR lead-in that ends the trend,
+  // which sits BEFORE the box. Not the root swing (the r/s anchor pair inside the box,
+  // drawn as the grey bars via rootSwingRange): those are two different questions.
+  const phaseA = phaseARange(data, candles);
+  if (phaseA) {
+    const region = buildRegion('a', candles, phaseA.startIndex, phaseA.endIndex);
     if (region) regions.push(region);
   }
   if (indexes.phaseBStart != null) {
