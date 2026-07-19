@@ -100,6 +100,20 @@ True-Root bridge validates; see "Phase A — Macro bridge read"); and the dark
 `AR_FIRST_REACTION_ENABLED`), which tightens the drawn AR to the trend model's first
 continuous reaction.
 
+**Climax terminality is law on every resolution path** (2026-07-19). The trend model
+defines the climax as the trend's *extreme pivot*; a "climax" that price out-runs
+before the box opens is a mid-trend pause, not the trend end. The macro bridge always
+enforced this (its True-Root rule); `_enforce_climax_terminality()` now enforces the
+same rule on the calibrated bridge/seed fallback paths: between the resolved climax
+and the box open, price may exceed the climax by at most
+`PHASE_A_CLIMAX_TERMINALITY_EXCESS` (0.25) × the bridge height (ATR floor). A
+violating pair re-anchors to the box's own run-up extreme → the box open — terminal
+by construction (the FLXS repair: a stale 04-28 seed painted while price ran +38.5%
+into the 06-26 box; fleet-measured, 59% of setups continued >5% past their claimed
+climax before the guard). Overlay + Phase-A diagnostics only; the
+`engine_config_version` rotation partitions the `bin_a_*`/`bars_since_bc`/
+`descent_length` archive seam.
+
 #### The Equilibrium box (Phase B) — the Root Swing election
 
 **Equilibrium** is the operator-locked name for what a box must prove: a worked,
@@ -440,6 +454,21 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 ### Phase A — Locality Resolution
 
 `resolve_phase_a()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)) repackages `segment_swings()` ([engine_alpha/structure/segmentation.py](../engine_alpha/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
+
+**Climax terminality (2026-07-19).** Locality alone was not enough: a seed within the
+`_SEG_LEAD_IN` window could still be a *mid-trend* pause — FLXS's 04-28 seed sat 41 bars
+before the 06-26 box, so the ancient-origin synthesis never triggered, the seg bridge
+found no counter-swing at the box door (the trend rips *upward* into a continuation
+base), the seg root's true climax (07-02) was rightly refused for landing inside the
+box, and the raw-seed fallback painted `bc + AR_MAX_BARS` — a synthetic 15-bar "AR"
+while price ran +38.5% past the claimed climax. `_enforce_climax_terminality()` (wired
+in `resolve_phase_a()` after the BC-down enforcement, before the AR tighten) applies
+the macro bridge's True-Root rule to every calibrated path: post-climax price up to the
+box open may exceed the climax by at most `PHASE_A_CLIMAX_TERMINALITY_EXCESS` (0.25) ×
+bridge height (ATR floor guards degenerate heights; mirror-symmetric for SC roots;
+unknown root kinds pass through). A violating pair re-anchors to the `_SEG_LEAD_IN`
+run-up extreme → the box open, the same local synthesis the ancient-origin fallback
+uses — terminal by construction.
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
@@ -998,7 +1027,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `5a4d2282474457ec70cde167a78bf6c80f83d15971d7f4df3bdb18f76bc1134d`_
+_engine_config_version: `56ac633d164c0556aff439a733a3e1c9fb992239d7e81ac5be9adafe21880267`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1017,6 +1046,7 @@ PIP_MACRO_MAX_POST_EXCESS = 0.25
 PIP_MACRO_MIN_BASE_BARS = 20
 PIP_MACRO_EQ_FLOOR_FRAC = 0.5
 PIP_MACRO_EQ_OSC_FRAC = 0.3
+PHASE_A_CLIMAX_TERMINALITY_EXCESS = 0.25
 AR_FIRST_REACTION_ENABLED = False
 AR_RETRACE_FRAC = 0.5
 AR_UP_LEG_LOOKBACK = 40

@@ -60,6 +60,10 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "PIP_MACRO_MIN_BASE_BARS",
     "PIP_MACRO_EQ_FLOOR_FRAC",
     "PIP_MACRO_EQ_OSC_FRAC",
+    # Climax terminality on the calibrated resolve_phase_a paths (2026-07-19 —
+    # a mid-trend pause may not paint as the climax; re-anchors the Phase-A
+    # overlay + bin_a/bars_since_BC/descent_length diagnostics, never a rail)
+    "PHASE_A_CLIMAX_TERMINALITY_EXCESS",
     # First-reaction AR anchor (Phase-A overlay; default-off flip must bump the
     # version from day one — a flip re-anchors the drawn AR on 19/140 fires)
     "AR_FIRST_REACTION_ENABLED",

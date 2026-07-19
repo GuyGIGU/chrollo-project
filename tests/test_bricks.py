@@ -5,6 +5,7 @@ from engine_alpha.structure.bricks import (
     EquilibriumBox,
     RootSwing,
     _enforce_bc_downswing,
+    _enforce_climax_terminality,
     find_inner_box,
     find_lps,
     find_root_swing,
@@ -574,6 +575,62 @@ def test_enforce_bc_downswing_leaves_sc_upswing():
     box = _box(start_bar=100, base_len=30)
 
     assert _enforce_bc_downswing(df, root, box, 95, 100) == (95, 100)
+
+
+def test_enforce_climax_terminality_repairs_mid_trend_bc():
+    # The FLXS class: a claimed BC at 90 (high 108) with its AR at 100, then the
+    # trend keeps running to 140 into the box open at 120. The claimed climax is
+    # a mid-trend pause -> re-anchor to the run-up extreme (115) -> box open.
+    closes = [100.0] * 160
+    closes[90] = 108.0    # claimed "climax" (mid-trend pause)
+    closes[100] = 103.0   # its claimed AR
+    closes[115] = 140.0   # the trend's REAL extreme, feeding the box
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (115, 120)
+
+
+def test_enforce_climax_terminality_leaves_terminal_bc():
+    # An honest trend end: nothing between the climax and the box open exceeds
+    # the climax (small pokes inside 0.25 x height are tolerated) -> untouched.
+    closes = [100.0] * 160
+    closes[90] = 140.0    # genuine climax
+    closes[100] = 120.0   # AR (height 20 -> tolerance 5)
+    closes[110] = 143.0   # honest poke: 140 + 3 < 140 + 5
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 140.0, 120.0, 0.14, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0) == (90, 100)
+
+
+def test_enforce_climax_terminality_repairs_mid_trend_sc_mirror():
+    # SC mirror: a claimed selling climax at 90 (low 92) undercut by a much
+    # lower low (60) before the box -> re-anchor to the run-down extreme.
+    closes = [100.0] * 160
+    closes[90] = 92.0     # claimed SC
+    closes[100] = 97.0    # its claimed AR (height 5 -> tolerance 1.25)
+    closes[115] = 60.0    # the REAL selling extreme feeding the box
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("SC", 90, 100, 97.0, 92.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (115, 120)
+
+
+def test_enforce_climax_terminality_passes_unknown_root_kind():
+    closes = [100.0] * 160
+    closes[90] = 108.0
+    closes[115] = 140.0   # would fail terminality if the kind were known
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("??", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0) == (90, 100)
 
 
 def test_first_impulse_ar_end_is_a_noop_when_flag_off(monkeypatch):

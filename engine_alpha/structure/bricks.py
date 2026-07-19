@@ -511,6 +511,64 @@ def _enforce_bc_downswing(df, root, box, climax_bar, ar_bar):
     return lo + int(np.argmax(window)), pbs
 
 
+def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
+    """Reject a resolved climax the trend visibly out-ran before the box.
+
+    The trend model defines the climax as the trend's EXTREME pivot, and the
+    macro bridge already enforces exactly this (its "climax terminality"
+    True-Root rule). The calibrated bridge/seed fallback paths had no such
+    check, so a stale scan-origin pause could paint as Phase A while price ran
+    far past it into the box — FLXS drew climax 04-28 -> AR 05-19 and then
+    rallied +38.5% into the 06-26 box open (the seed + AR_MAX_BARS synthetic
+    offset, fleet-measured: 59% of setups continued >5% past their claimed
+    climax).
+
+    Test (mirror-symmetric): between the claimed climax and the box open,
+    price may exceed the climax by at most PHASE_A_CLIMAX_TERMINALITY_EXCESS
+    x the bridge height (ATR floor guards a degenerate height) — the same
+    constant semantics as PIP_MACRO_MAX_POST_EXCESS. A violating pair
+    re-anchors to the box's own run-up (the prominent extreme of the
+    _SEG_LEAD_IN window -> the box open) — the local synthesis the
+    ancient-origin fallback already uses, terminal by construction.
+
+    Unknown root kinds pass through untouched (no direction to test). Overlay
+    + Phase-A diagnostics only (bars_since_BC / descent_length / bin_a — the
+    engine_config_version rotation partitions the archive seam): no rail,
+    gate, score, or tier reads these anchors.
+    """
+    kind = getattr(root, "kind", None)
+    if kind not in ("BC", "SC"):
+        return climax_bar, ar_bar
+    n = len(df)
+    pbs = int(box.start_bar)
+    if not (0 <= climax_bar < n and 0 <= ar_bar < n and 0 < pbs < n):
+        return climax_bar, ar_bar
+    if climax_bar + 1 > pbs:
+        return climax_bar, ar_bar
+    highs = df["High"].values
+    lows = df["Low"].values
+    atr_floor = float(atr) if (_finite(atr) and float(atr) > 0) else 0.0
+    excess = settings.PHASE_A_CLIMAX_TERMINALITY_EXCESS
+    lo = max(0, pbs - _SEG_LEAD_IN)
+    if kind == "BC":
+        height = max(float(highs[climax_bar]) - float(lows[ar_bar]), atr_floor)
+        span = highs[climax_bar + 1:pbs + 1]
+        if not len(span) or float(np.max(span)) <= float(highs[climax_bar]) + excess * height:
+            return climax_bar, ar_bar
+        window = highs[lo:pbs]
+        if not len(window):
+            return climax_bar, ar_bar
+        return lo + int(np.argmax(window)), pbs
+    height = max(float(highs[ar_bar]) - float(lows[climax_bar]), atr_floor)
+    span = lows[climax_bar + 1:pbs + 1]
+    if not len(span) or float(np.min(span)) >= float(lows[climax_bar]) - excess * height:
+        return climax_bar, ar_bar
+    window = lows[lo:pbs]
+    if not len(window):
+        return climax_bar, ar_bar
+    return lo + int(np.argmin(window)), pbs
+
+
 def _first_impulse_ar_end(df, climax_bar, ar_bar, atr):
     """Tighten the overlay AR to the trend model's FIRST reaction off the climax.
 
@@ -575,11 +633,14 @@ def resolve_phase_a(
     """Return the local Phase-A root swing for an already-validated box.
 
     Resolves the raw anchor, enforces the BC-down invariant so a buying climax
-    never paints as an up-swing (see _enforce_bc_downswing), then tightens the
-    AR to the first impulsive reaction so the overlay stops dragging to the base
-    edge (see _first_impulse_ar_end; flag-gated, no-op when off)."""
+    never paints as an up-swing (see _enforce_bc_downswing), enforces climax
+    terminality so a mid-trend pause never paints as the trend end (see
+    _enforce_climax_terminality), then tightens the AR to the first impulsive
+    reaction so the overlay stops dragging to the base edge (see
+    _first_impulse_ar_end; flag-gated, no-op when off)."""
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
     climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
+    climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr)
     ar_bar = _first_impulse_ar_end(df, climax_bar, ar_bar, atr)
     return climax_bar, ar_bar
 

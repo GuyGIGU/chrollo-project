@@ -105,6 +105,16 @@ PIP_MACRO_MIN_BASE_BARS = MIN_BASE_DAYS  # an "actual equilibrium" needs at leas
 PIP_MACRO_EQ_FLOOR_FRAC = 0.5    # max breakdown below the AR (spring-tolerant)
 PIP_MACRO_EQ_OSC_FRAC = 0.3      # min two-sided traversal (x bridge height)
 
+# Climax terminality for the CALIBRATED Phase-A resolution (resolve_phase_a).
+# The same True-Root rule the macro bridge enforces above, applied to the
+# bridge/seed fallback paths that had none: between the resolved climax and the
+# box open, price may exceed the climax by at most this fraction of the bridge
+# height (ATR floor guards a degenerate height). A violating pair is a mid-trend
+# pause, not the trend end (FLXS: +38.5% ran past the claimed climax into the
+# box) — it re-anchors to the box's own run-up extreme. Overlay + Phase-A
+# diagnostics only (bars_since_BC / descent_length / bin_a); no rail or score.
+PHASE_A_CLIMAX_TERMINALITY_EXCESS = 0.25
+
 # ============================================================
 # 3. PHASE B — RAILS & EQUILIBRIUM
 # ============================================================
