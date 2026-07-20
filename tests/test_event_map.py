@@ -322,6 +322,10 @@ def test_event_map_flag_off_never_computes(monkeypatch):
     from config import settings
 
     assert settings.EVENT_MAP_ENABLED is False, "flag must ship dark"
+    # cause_maturity (veto, now live) is an INDEPENDENT legitimate caller of
+    # read_swing_map (its Operand B), so hold the veto off to isolate the
+    # EVENT_MAP flag under test — else the _boom fires for the wrong feature.
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", False)
 
     def _boom(*_a, **_k):
         raise AssertionError("Event Map computed while the flag is off")
