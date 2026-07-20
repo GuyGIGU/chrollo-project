@@ -12,7 +12,7 @@ TWS / TradingView. Chrollo is an **idea-generation and bookkeeping tool — it d
 
 New here? Read this file top-to-bottom, then:
 - [`core/MAP.md`](core/MAP.md) — plain-English tour of how `core/` is organized.
-- [`docs/strategy_v2.md`](docs/strategy_v2.md) — the **single source of truth** for the screener
+- [`docs/strategy_alpha.md`](docs/strategy_alpha.md) — the **single source of truth** for the screener
   algorithm: every gate, formula, and `config/settings.py` value, citing the function it lives in.
 - [`docs/deploy.md`](docs/deploy.md) — how the app runs unattended as a local service.
 
@@ -24,7 +24,7 @@ New here? Read this file top-to-bottom, then:
    (incremental daily refresh; weekly cold refetch). The daily read trims to 2 years, while the
    deeper cache feeds weekly/monthly context. SPY rides along for market context.
 2. **Screens** every ticker through a 4-phase pipeline: baseline filters → consolidation/box
-   detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_v2.md`.
+   detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_alpha.md`.
 3. **Renders** the survivors in a React dashboard: candlestick charts with the detected box/LPS
    drawn on, "why-ranked" tag chips, Visual/Market score pills, filtering, sorting, and a
    star-able watchlist.
@@ -101,7 +101,7 @@ webapp/
   frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveTab,
                          SetupTags, ScoreBreakdown, TradeTable, charts),
                          dist/ (built, gitignored)
-docs/                  strategy_v2.md (algorithm), structure_legend.md (vocab), deploy.md (go-live)
+docs/                  strategy_alpha.md (algorithm), structure_legend.md (vocab), deploy.md (go-live)
 tools/                 Dev/backtest and fidelity harnesses
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend

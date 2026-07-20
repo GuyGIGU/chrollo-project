@@ -456,19 +456,9 @@ def _full_refetch(tickers_to_fetch: list[str]) -> pd.DataFrame:
     return data
 
 
-def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
-    """Trim DataFrame index to the trailing period window (e.g., '2y')."""
-    if data.empty:
-        return data
-    if period.endswith('y'):
-        years = int(period[:-1])
-        cutoff = data.index.max() - pd.Timedelta(days=365 * years + 5)
-    elif period.endswith('mo'):
-        months = int(period[:-2])
-        cutoff = data.index.max() - pd.Timedelta(days=30 * months + 2)
-    else:
-        return data
-    return data.loc[data.index >= cutoff]
+# The daily-structure trim is ENGINE-owned (it defines what the reader sees);
+# re-exported here so existing download/cache callers keep their import path.
+from engine_alpha.frames import _trim_to_period  # noqa: E402,F401
 
 
 def _drop_forming_rows(data: pd.DataFrame, expected_session: pd.Timestamp) -> pd.DataFrame:

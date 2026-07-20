@@ -48,10 +48,17 @@ def reset_fired_cache() -> None:
 
 def _fired_sig() -> str:
     """The fired-policy signature in the cache key — a window/tolerance change
-    invalidates stale chips."""
-    from core.pipeline.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
-    from tools.calibration_harness import FIRED_WINDOW_SESSIONS  # noqa: PLC0415
-    return f"win{FIRED_WINDOW_SESSIONS}:rail{DEFAULT_RAIL_TOL_BOX_FRAC}"
+    invalidates stale chips. Carries HARNESS_POLICY_VERSION so a grading-
+    SEMANTICS change (Family-7: event-window anchoring, fire-session rails)
+    invalidates chips even when every numeric constant is unchanged and the
+    engine hash never rotates."""
+    from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
+    from tools.calibration_harness import (  # noqa: PLC0415
+        FIRED_WINDOW_SESSIONS,
+        HARNESS_POLICY_VERSION,
+    )
+    return (f"v{HARNESS_POLICY_VERSION}:win{FIRED_WINDOW_SESSIONS}"
+            f":rail{DEFAULT_RAIL_TOL_BOX_FRAC}")
 
 
 # ── miss reason (why the box at his rails was rejected) ───────────────
@@ -86,7 +93,7 @@ def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
     """Read-only traced structure read at the mark's as-of -> why the box at his
     rails was rejected. None when the frame/prep is unavailable (degrade to a
     reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit."""
-    from core.structure.narrative import read_structure  # noqa: PLC0415
+    from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
     from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from webapp.backend import frame_store  # noqa: PLC0415
     loader = frame_loader or frame_store.load_frame
@@ -139,7 +146,9 @@ def _chip_from_fired(mark_dict, frag) -> dict:
                 "tier": frag.get("fire_tier"),
                 "rail_delta": _rail_delta(mark_dict, frag),
                 "fire_date": frag.get("fire_date"),
-                "rails_within_tol": bool(frag.get("fire_rails_within_tol"))}
+                "rails_within_tol": bool(frag.get("fire_rails_within_tol")),
+                # binding-gate margin telemetry (nullable; older results omit)
+                "gate_margin": frag.get("fire_gate_margin")}
     if fired is False:
         reason = _miss_reason(mark_dict) or {}
         return {"state": "miss", "kind": "missed",
@@ -180,7 +189,7 @@ def fired_for_marks(marks, *, compute=None, background=True) -> dict:
     — both for tests. mark dicts are extracted here (session live) so the worker
     never touches a detached ORM row.
     """
-    from core.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     from tools.calibration_harness import _mark_dict  # noqa: PLC0415
     grader = compute or _live_fired
     mh = manifest_hash()
@@ -215,4 +224,7 @@ def fired_for_marks(marks, *, compute=None, background=True) -> dict:
             out[mark.id] = {"state": "pending", **base}
         else:
             out[mark.id] = {**chip, **base}
-    return {"marks": out, "computing": computing}
+    # The policy token rides in the response so the CLIENT cache can key on it
+    # too — a dashboard tab left open across a service restart must never keep
+    # serving chips graded under a previous policy (Dodds, plan task 1).
+    return {"marks": out, "computing": computing, "policy": f"{mh[:16]}:{sig}"}

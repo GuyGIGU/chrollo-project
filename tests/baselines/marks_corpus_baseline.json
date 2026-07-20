@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-07-10T12:07:39+00:00",
+  "captured_at": "2026-07-16T21:25:25+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "f54bbc2e5629c3d088c413161497b13df199860f43a919fbdd55047242198ea7",
   "null_trigger_grace_sessions": 2,
@@ -22,7 +22,7 @@
     {
       "key": "WTS",
       "ticker": "WTS",
-      "status": "miss",
+      "status": "hit",
       "windows": [
         [
           "2026-06-04",
@@ -31,7 +31,8 @@
       ],
       "spy_6m_return": 0.08011245727539062,
       "bars": 1236,
-      "stage": "holding-shelf-lps"
+      "first_fire": "2026-06-08",
+      "tier": "B"
     },
     {
       "key": "VIK",
@@ -66,7 +67,7 @@
     {
       "key": "BODI",
       "ticker": "BODI",
-      "status": "miss",
+      "status": "hit",
       "windows": [
         [
           "2026-04-09",
@@ -75,7 +76,8 @@
       ],
       "spy_6m_return": 0.07277786731719971,
       "bars": 1199,
-      "stage": "band-vs-excursion"
+      "first_fire": "2026-04-10",
+      "tier": "A"
     },
     {
       "key": "VLO",
@@ -87,8 +89,8 @@
           "2026-07-08"
         ]
       ],
-      "spy_6m_return": 0.08658444881439209,
-      "bars": 1254,
+      "spy_6m_return": 0.09479677677154541,
+      "bars": 1255,
       "first_fire": "2026-07-07",
       "tier": "S"
     },
@@ -113,7 +115,7 @@
     {
       "key": "PBT",
       "ticker": "PBT",
-      "status": "miss",
+      "status": "hit",
       "windows": [
         [
           "2026-04-28",
@@ -126,7 +128,8 @@
       ],
       "spy_6m_return": 0.10292255878448486,
       "bars": 1214,
-      "stage": "holding-shelf-lps"
+      "first_fire": "2026-04-30",
+      "tier": "S"
     },
     {
       "key": "EGBN",

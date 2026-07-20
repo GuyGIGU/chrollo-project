@@ -3,7 +3,7 @@
 **Status: north-star / shared vocabulary (v1).** This document describes *how a
 skilled trader reads a base* and the model the structure engine is being
 steered toward. It is intentionally ahead of the code. For what the engine
-*actually does today*, see [strategy_v2.md](strategy_v2.md) (the
+*actually does today*, see [strategy_alpha.md](strategy_alpha.md) (the
 implementation-mirroring source of truth). This file is the language we agree
 on first; the detector is then built to match it.
 
@@ -216,7 +216,7 @@ it ever influences ranking.
 > **Shipped (Stage 2A).** The stretch is now a raw archived measure:
 > `_lps_stretch_atr` and `_lps_stretch_box` — the LPS foot's distance above the
 > box ceiling R, in ATR and in box-heights — from
-> [bin_features.py](../core/structure/bin_features.py). Component **b**
+> [phase_features.py](../engine_alpha/structure/phase_features.py). Component **b**
 > ("distance from the last consolidation") is the box-relative form; the
 > innermost range *is* the operative box the detector returned. Measure-first:
 > archived, never yet scored.
@@ -285,8 +285,9 @@ absence, raw measure archived, tiers untouched).
    are the **Resistance anchor / Support anchor** (mini-anchors for inner bases),
    which may coincide with BC/AR but usually sit later/tighter. A candidate pair
    is valid only if price *respects, touches, and zigzags through both rails
-   constantly with no dead space* (`measure_equilibrium`: constant two-sided
-   touch + both-halves dwell + coverage, not mid-churn). Selection keeps the
+   constantly with no dead space* (`measure_dwell_balance`, formerly
+   `measure_equilibrium`: constant two-sided touch + both-halves dwell +
+   coverage, not mid-churn). Selection keeps the
    **earliest** pair that passes every constraint — "the earliest *of the ones
    that qualify*." Because a sparse/dead-space framing can no longer be valid,
    the support anchor climbs off a one-time AR low until the band is genuinely
@@ -295,14 +296,14 @@ absence, raw measure archived, tiers untouched).
    "Change B / `PHASE_B_REACH_QUALITY_FLOOR`" earliest-good-enough rule (retired).
    See segmentation_research.md → Build path → Phase 2.
 
-5. **Regions are now measured (Stage 2A).** `measure_bins` records each region's
+5. **Regions are now measured (Stage 2A).** `measure_phases` records each region's
    (A / B / D / LPS) size, range, and volume as raw archived fields — the
    "where am I in the base?" layer — alongside the Minervini Stage-2 trend
    template. Phase D also carries right-side support behavior:
    `_bin_d_ascending_support_quality` and its D-vs-B support-quality delta. The
    Phase-D boundary is single-sourced with the scoping overlay
    (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
-   scores. See strategy_v2.md, "Region (Bin) Features & Trend Template".
+   scores. See strategy_alpha.md, "Region (Bin) Features & Trend Template".
 
 ---
 
@@ -348,7 +349,7 @@ never thrown away:
   tests stay in the LPS/support-test layer. It remains descriptive, never a gate.
 
 **Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
-`_detect_inner_phase_b_start` (core/structure/box_primitives.py) finds the
+`_detect_inner_phase_b_start` (core/structure/inner_box.py, formerly in `box_primitives.py`) finds the
 most-recent qualifying inner climax — a ≥ `AR_MIN_DROP_PCT` reaction leaving
 ≥ `INNER_MIN_DAYS` bars. But on the 197-ticker fixture a *pure* climax anchor
 regressed inner detections 32 → 12 (it grabs late minor peaks on long bases). So

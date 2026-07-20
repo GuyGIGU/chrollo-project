@@ -78,7 +78,7 @@ def test_run_fixture_drops_eval_error_without_raising(monkeypatch):
     Bite proof: revert the ``or result is EVAL_ERROR`` clause in
     ``shadow_diff.run_fixture`` and this test raises AttributeError.
     """
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
 
     frames, scalars = shadow_diff._load_fixture()
     fixture_tickers = [t for t in scalars["tickers"] if t in frames]

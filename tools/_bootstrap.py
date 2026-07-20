@@ -17,3 +17,24 @@ def configure_path() -> str:
     if _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)
     return _PROJECT_ROOT
+
+
+# Directories no tool-written report may ever land in: the sealed marks
+# corpus (EC-7 — immutable operator ground truth / acceptance specs) and the
+# sealed ratchet baselines. ONE guard for every tool write (EC-3): a mistyped
+# --out/--json path must fail loudly here, never silently clobber a spec.
+_SEALED_DIRS = (
+    os.path.join(_PROJECT_ROOT, "docs", "marks"),
+    os.path.join(_PROJECT_ROOT, "tests", "baselines"),
+)
+
+
+def refuse_sealed_output(path: str) -> str:
+    """Raise if ``path`` sits under a sealed directory; return it otherwise."""
+    target = os.path.abspath(path)
+    for sealed in _SEALED_DIRS:
+        if target == sealed or target.startswith(sealed + os.sep):
+            raise ValueError(
+                f"refusing to write under the sealed directory ({sealed}) — "
+                "tool reports belong under output/ or a scratch area")
+    return path

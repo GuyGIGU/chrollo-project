@@ -37,7 +37,9 @@ const KIND_TITLE = {
 };
 
 function chipTitle(chip, extra = '') {
-  let title = KIND_TITLE[chip.kind] || 'Untested';
+  // Open enum: an unknown kind (a newer harness vocabulary than this build)
+  // stays visible — surface the raw server value, never hide it behind a dash.
+  let title = KIND_TITLE[chip.kind] || (chip.kind ? `Server verdict: ${chip.kind}` : 'Untested');
   if (Number.isFinite(chip.span_overlap)) title += ` · span overlap ${Math.round(chip.span_overlap * 100)}%`;
   if (chip.detail) title += ` · ${chip.detail}`; // the full reject reason, e.g. "respect 0.71 < 0.80"
   if (chip.stale) title += ' · engine changed since this mark was made';
@@ -76,6 +78,11 @@ function EngineChip({ agreement, fired }) {
   }
   if (fired && fired.state === 'untested') {
     return <span className="inst-chip untested" title={chipTitle(fired)}>untested</span>;
+  }
+  if (fired && fired.state && fired.state !== 'pending') {
+    // Unknown state from a newer grading vocabulary: render NEUTRAL with the
+    // raw value visible — never a false green/red, never an info-free dash.
+    return <span className="inst-chip untested" title={chipTitle(fired)}>{String(fired.state)}</span>;
   }
   return <span style={{ color: 'var(--text-faint)' }}>—</span>;
 }
@@ -176,6 +183,31 @@ function CalibrationMarksList({ marks, editingId, agreement, fired, onEdit, onDe
       align: 'left',
       sortable: false,
       render: (row) => <EngineChip agreement={agreement?.[row.id]} fired={fired?.[row.id]} />,
+    },
+    {
+      // Binding-gate margin of the FIRED read (signed distance-to-boundary in
+      // the gate's own statistic) — detail tier, neutral ink, fixed-width dash
+      // until the async fired grade lands so rows never jump. Not sortable for
+      // the same async reason as the Engine column.
+      key: 'gateMargin',
+      label: 'Gate Δ',
+      align: 'right',
+      sortable: false,
+      render: (row) => {
+        const gm = fired?.[row.id]?.gate_margin;
+        if (!gm || !Number.isFinite(Number(gm.margin))) {
+          return <span style={{ color: 'var(--text-faint)', fontVariantNumeric: 'tabular-nums' }}>—</span>;
+        }
+        const value = Number(gm.margin);
+        return (
+          <span
+            title={`Tightest worked-equilibrium gate on the fired read: ${gm.gate} survived by ${value >= 0 ? '+' : ''}${value.toFixed(3)}`}
+            style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {gm.gate} {value >= 0 ? '+' : ''}{value.toFixed(2)}
+          </span>
+        );
+      },
     },
     {
       key: 'delete',

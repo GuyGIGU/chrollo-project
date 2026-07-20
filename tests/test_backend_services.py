@@ -226,7 +226,7 @@ def test_engine_config_version_is_modeled_and_auto_migrated():
 
 def test_event_map_columns_are_modeled_and_auto_migrated():
     """The Event Map tape-summary family (Task 7) is declared ONCE in
-    core.structure.event_map (EVENT_MAP_COLUMN_SQL) and enters the schema as
+    engine_alpha.structure.event_map (EVENT_MAP_COLUMN_SQL) and enters the schema as
     MODEL-ONLY adds (the engine_config_version precedent): every declared column
     is a real SetupArchive column, none is hand-listed in the writer's
     _NEW_COLUMNS or startup._MIGRATIONS, and Track B's model-derived
@@ -234,7 +234,7 @@ def test_event_map_columns_are_modeled_and_auto_migrated():
     import sqlalchemy as sa
     from sqlalchemy import text
 
-    from core.structure.event_map import EVENT_MAP_COLUMN_SQL
+    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL
 
     model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
     assert set(EVENT_MAP_COLUMN_SQL) <= model_columns
@@ -274,7 +274,7 @@ def test_ensure_new_columns_adds_model_only_columns(tmp_path):
     assert "engine_config_version" in present
 
     # A row carrying the stamp inserts and round-trips.
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     h = manifest_hash()
     with eng.begin() as conn:
         conn.execute(text(

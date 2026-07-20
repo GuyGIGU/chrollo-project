@@ -161,9 +161,18 @@ class SetupArchive(Base):
     eq_upper_dwell = Column(Float, nullable=True)             # share of closes in upper third of box
     eq_coverage = Column(Float, nullable=True)                # share of occupied vertical box bins
 
+    # ── Gate-margin telemetry (raw, measure-first; plan task 2) ──
+    # The elected box against the ACTUAL election gates: the respect band
+    # fraction and the dead-space gate's own close-residence dwells (the
+    # eq_*_dwell trio above is range-occupancy, a different statistic).
+    eq_respect_frac = Column(Float, nullable=True)            # share of bars inside the buffered band
+    eq_close_lower_dwell = Column(Float, nullable=True)       # gate's close residence, lower third
+    eq_close_mid_dwell = Column(Float, nullable=True)         # gate's close residence, middle third
+    eq_close_upper_dwell = Column(Float, nullable=True)       # gate's close residence, upper third
+
     # ── Limb-traversal read (raw, no scoring; v1 measure-first) ──
     # Do the swing limbs travel rail-to-rail, or hang off a rail (dead space)?
-    # measure_traversal — the swing-structural complement to eq_* occupancy.
+    # measure_equilibrium (formerly measure_traversal) — the swing-structural complement to eq_* occupancy.
     trav_n_full_traversals = Column(Integer, nullable=True)   # rail-to-rail swings (round-trip S->R->S = 2)
     trav_n_swings = Column(Integer, nullable=True)            # significant swings after amplitude filtering
     trav_top_dead_space = Column(Float, nullable=True)        # 1 - 75th-pct peak position (dead space below R)

@@ -61,7 +61,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.evaluation import EVAL_ERROR
+from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.providers import available_providers, get_provider
 from core.pipeline.screener import _evaluate_ticker
 from tools.shadow_diff import CANONICAL_FIELDS, canonical_fields

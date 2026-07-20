@@ -21,10 +21,10 @@ import math
 import pytest
 
 import config.settings as settings
-from core.pipeline.evaluation import _prepare_eval_frame
-from core.structure.narrative import read_structure
-from core.structure.pivots import _build_zigzag, _find_pivots
-from core.structure.segmentation import segment_swings
+from engine_alpha.evaluation import _prepare_eval_frame
+from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.segmentation import segment_swings
 
 
 # ── Shared fixture: real Structures over the committed shadow fixture ─────────
@@ -215,7 +215,7 @@ def test_segment_swings_alternation_on_ramp(_ramp_frame):
 
 # ── Frozen-config manifest contract ──────────────────────────────────────────
 def test_manifest_hash_is_deterministic():
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
 
     h1 = manifest_hash()
     h2 = manifest_hash()
@@ -225,7 +225,7 @@ def test_manifest_hash_is_deterministic():
 
 
 def test_manifest_includes_engine_excludes_ops():
-    from core.freeze.manifest import collect_manifest
+    from engine_alpha.freeze.manifest import collect_manifest
 
     m = collect_manifest()
     # representative engine constants are present
@@ -242,7 +242,7 @@ def test_manifest_includes_engine_excludes_ops():
 def test_manifest_raises_when_listed_key_vanishes(monkeypatch):
     """The contract must not silently rot: a listed key that no longer exists
     on settings raises, rather than dropping silently from the hash."""
-    import core.freeze.manifest as mod
+    import engine_alpha.freeze.manifest as mod
 
     monkeypatch.setattr(
         mod, "ENGINE_SETTINGS_KEYS",
@@ -256,7 +256,7 @@ def test_manifest_json_is_canonical_sorted():
     """manifest_json is stable, sorted, and round-trips to collect_manifest."""
     import json
 
-    from core.freeze.manifest import collect_manifest, manifest_json
+    from engine_alpha.freeze.manifest import collect_manifest, manifest_json
 
     js = manifest_json()
     parsed = json.loads(js)
@@ -290,9 +290,9 @@ ALLOWED_OPS_EXCLUSIONS = frozenset(
 # modules, so those helpers are listed too — else a lookback/lag knob read one
 # import-hop away escapes the scan (the engine-α second-pass audit gap, 2026-07-06).
 _ENGINE_EVAL_PATH_MODULES = (
-    "core.scoring.scoring",
-    "core.scoring.taxonomy",
-    "core.pipeline.evaluation",
+    "engine_alpha.scoring.scoring",
+    "engine_alpha.scoring.taxonomy",
+    "engine_alpha.evaluation",
     "core.pipeline.screener",
     "core.regime.scan_context",
     "core.regime.rs_line",
@@ -308,11 +308,11 @@ def _engine_eval_path_sources():
     import importlib
     from pathlib import Path
 
-    import core.structure
+    import engine_alpha.structure
 
     paths = [Path(importlib.import_module(m).__file__)
              for m in _ENGINE_EVAL_PATH_MODULES]
-    paths += sorted(Path(core.structure.__file__).parent.glob("*.py"))
+    paths += sorted(Path(engine_alpha.structure.__file__).parent.glob("*.py"))
     return paths
 
 
@@ -333,14 +333,14 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     escape provenance: add a read in any scanned module — or a registry term whose
     cap/gate is read only via ``TermSpec.cap()`` / ``.is_emitted()`` — and this
     fails until the name is either added to the allow-list or declared an ops
-    exclusion. (Regression guard for the CANDLE_SPREAD_AWARE /
+    exclusion. (Regression guard for the since-retired CANDLE_SPREAD_AWARE /
     PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions, the Lane-C ``_flag()`` indirection
     seam, and the positional-``TermSpec`` registry seam; the scoring / regime /
     fundamentals eval modules and all of core/structure/ are scanned.)
     """
     import re
 
-    from core.freeze.manifest import ENGINE_SETTINGS_KEYS
+    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 
     # Union settings reads across the whole eval path, matching both the direct
     # attribute form (``settings.NAME``) and the string-literal getattr form
@@ -364,7 +364,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     # see those names; introspect the registry object itself so a term whose cap /
     # flag is read ONLY via the registry (e.g. a future 0-100 normalization divisor)
     # still cannot escape the manifest.
-    from core.scoring.taxonomy import REGISTRY as _score_registry
+    from engine_alpha.scoring.taxonomy import REGISTRY as _score_registry
     for _term in _score_registry:
         referenced.add(_term.cap_setting)
         if _term.present_when is not None:
@@ -377,7 +377,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     assert not unaccounted, (
         "score/structure-affecting settings read by the engine eval path "
         f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + core/structure/*) are absent from "
-        "core.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
+        "engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
         "engine output WITHOUT bumping engine_config_version, corrupting archive "
         f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "
         "one is genuinely an ops-only knob, to ALLOWED_OPS_EXCLUSIONS with a reason."

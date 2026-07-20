@@ -1,7 +1,7 @@
 # Event Map — the causality contract
 
 **Status:** binding implementation contract for every Event Map task (PLAN-event-tape.md Task 2).
-Merges into `docs/strategy_v2.md` (Reading Model) in the same change that ships the first tape
+Merges into `docs/strategy_alpha.md` (Reading Model) in the same change that ships the first tape
 behavior — until then, this file is the contract the code is built and reviewed against.
 
 **Why this exists:** the swing skeleton is confirmation-lagged and repainting by construction — a

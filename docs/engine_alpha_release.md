@@ -6,7 +6,7 @@ Engine α is the **first named release of Chrollo's full chart-*reading* algorit
 
 The title is scoped honestly:
 
-- **α = the chart-reading algorithm is complete and frozen.** The reading model is authoritative in [`strategy_v2.md`](strategy_v2.md), its config is hashed, and its output is regression-guarded byte-for-byte.
+- **α = the chart-reading algorithm is complete and frozen.** The reading model is authoritative in [`strategy_alpha.md`](strategy_alpha.md), its config is hashed, and its output is regression-guarded byte-for-byte.
 - **β = the edge is calibrated.** Scoring reweighting, cross-regime forward-return validation, and the advisory/enrichment lanes are the *next* milestone. The engine's standalone predictive edge is measured-but-thin (one bull regime); proving it across regimes is **calendar-gated** (needs a non-bull stretch + ~60d maturation), so it does not gate this α.
 
 α does **not** claim a proven edge. It claims a complete, frozen, documented reader.
@@ -62,7 +62,7 @@ Before tagging, the frozen commit was re-audited by an independent 9-seat advers
 
 - **Provenance guard — dead cap/flag regex.** The manifest-completeness scan's `cap_setting=/present_when=` regex matched zero lines (the scoring `TermSpec` registry is built positionally), so that arm was inert. Replaced with a runtime introspection of the taxonomy `REGISTRY` (`cap_setting` + `present_when` per term) — robust to construction style, and it now covers the registry-only read path (`TermSpec.cap()` / `.is_emitted()`).
 - **Provenance guard — Lane-C tuning knobs escaping the scan.** Four numeric advisory knobs (`RS_LINE_NEW_HIGH_LOOKBACK`, `SECTOR_RANKING_LOOKBACKS`, `FUNDAMENTALS_FILING_LAG_DAYS`, `FUNDAMENTALS_EARNINGS_HISTORY_LIMIT`) were read one import-hop outside the scanned modules and sat in neither the manifest nor the ops exclusions — inconsistent with the pre-registration of their sibling `RS_RATING_LOOKBACK`. Added `core.regime.rs_line` / `core.regime.sector_ranking` / `core.fundamentals.metrics` to the scan and the four knobs to the manifest (`SECTOR_RANKING_ETFS`, a symbol set like `INDEX_SYMBOLS`, is ops-excluded). **This is the hash rotation** (163 → 167 keys); the flags stay dark, so live output is byte-identical.
-- **Doc drift.** `strategy_v2.md`'s scoring/LPS tables now document the live ADR-aware box-tightness formula, the `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` markup gate, the S-tier width cap (and the real `calculate_tier()` name), the base-age dead-space dock, and the traversal overshoot exemption; three stale "default-off" comments were corrected; and the `QUALITY_DOCTRINE` flag inventory carries a dated resolution note.
+- **Doc drift.** `strategy_alpha.md`'s scoring/LPS tables now document the live ADR-aware box-tightness formula, the `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` markup gate, the S-tier width cap (and the real `calculate_tier()` name), the base-age dead-space dock, and the traversal overshoot exemption; three stale "default-off" comments were corrected; and the `QUALITY_DOCTRINE` flag inventory carries a dated resolution note.
 - **Test coverage.** Added a test pinning the AR `end_bar` tighten-only clamp (previously every fixture set `end_bar == n-1`, so a regression dropping the clamp passed green).
 
 ## Verify the freeze

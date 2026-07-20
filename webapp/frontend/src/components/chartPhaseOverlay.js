@@ -1,3 +1,5 @@
+import { PHASE_NAMES } from './wireVocabulary.js';
+
 const TOKEN_FALLBACKS = {
   '--accent-blue': '#5B8AFF',
   '--accent-pink': '#E07AA0',
@@ -8,11 +10,11 @@ const TOKEN_FALLBACKS = {
 };
 
 const REGION_DEFS = {
-  a: { label: 'A', name: 'Phase A', detail: 'Initial swing setting support/resistance', token: '--text-faint' },
-  b: { label: 'B', name: 'Phase B', detail: 'Two-sided range work', token: '--accent-purple' },
-  c: { label: 'C', name: 'Phase C', detail: 'Support shakeout or test', token: '--accent-pink' },
-  d: { label: 'D', name: 'Phase D', detail: 'Right-side tightening range', token: '--accent-blue' },
-  lps: { label: 'LPS', name: 'LPS', detail: 'Last support-test zone', token: '--accent-yellow' },
+  a: { label: 'A', name: PHASE_NAMES.a, detail: 'Initial swing setting support/resistance', token: '--text-faint' },
+  b: { label: 'B', name: PHASE_NAMES.b, detail: 'Two-sided range work', token: '--accent-purple' },
+  c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
+  d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
+  lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
 };
 
 const PHASE_A_MAX_BARS = 16;
@@ -56,6 +58,14 @@ const setupEndIndex = (data, candles) => {
   return clamp(candles.length - 1 - forwardBars, 0, candles.length - 1);
 };
 
+// The box's first bar. r_anchor / s_anchor are emitted as offsets from THIS bar
+// (engine: `_r_anchor_bar - phase_b_start`), so it is the origin the root swing
+// resolves against.
+const setupStartIndex = (data, candles) => {
+  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
+  return clamp(setupEndIndex(data, candles) - baseLen + 1, 0, candles.length - 1);
+};
+
 const setupBoxRange = (data) => {
   const support = finiteNumber(data?.S ?? data?._S);
   const resistance = finiteNumber(data?.R ?? data?._R);
@@ -83,7 +93,7 @@ const PHASE_D_SOURCE_DETAILS = {
   sos_reclaim: 'Sign-of-strength reclaim',
   rising_support: 'Rising support',
   inner_box: 'Inner tightening range',
-  v_tip: 'Final V-shaped test',
+  v_tip: 'Recovered late-base low',
   lps: 'LPS support shelf',
 };
 
@@ -159,13 +169,63 @@ const priceRangeForRegion = (data, candles, region) => {
 };
 
 const phaseIndexes = (data, candles) => ({
-  phaseAStart: indexOnOrAfter(candles, data?._phase_a_start_date),
-  phaseAEnd: indexOnOrAfter(candles, data?._phase_a_end_date),
   phaseBStart: indexOnOrAfter(candles, data?._phase_b_start_date),
   phaseDStart: indexOnOrAfter(candles, data?._phase_d_start_date),
   lpsZoneEnd: indexOnOrAfter(candles, data?._lps_zone_end_date),
   lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
 });
+
+// THE ROOT SWING — the grey highlighted bars.
+//
+// DEFINITION (operator, governs always): the two limbs the consolidation is built
+// from — "the two anchors from where you draw Support and Resistance respectively".
+// The engine hands us exactly that pair: r_anchor is the bar whose HIGH sets R, and
+// s_anchor is the bar whose LOW sets S (verified 234/234 against the live payload),
+// both as offsets from the box start. The root swing is the span between them.
+//
+// This sits INSIDE the box, not before it — the rails are drawn from bars some way
+// into the consolidation (FHI: 15 and 18 bars in). That is exactly why Phase A (the
+// climax + automatic-reaction that ends the TREND) is the WRONG span for this grey:
+// Phase A lives outside the consolidation entirely. It is a separate concept with its
+// own helper (phaseARange, below) driving the 'A' region band.
+//
+// Deliberately NOT min(rBar, sBar, baseStart): folding the box start into the span was
+// the long-standing "root-swing grey drag" bug — it stretched the grey from the box
+// OPEN to the later anchor (FHI: 18 bars, Mar 17 -> Apr 13) instead of marking the
+// anchor pair itself (4 bars, Apr 8 -> Apr 13). Real spans run 1-17 bars fleet-wide.
+//
+// SINGLE SOURCE OF TRUTH for the grey bars — the modal candle tint (colorBase) and the
+// mini-card candle tint (colorMiniCandles) both read it, so the big and small charts
+// colour the IDENTICAL bars. Returns null when the engine emitted no anchor pair.
+export const rootSwingRange = (data, candles) => {
+  if (!candles?.length) return null;
+  const rOffset = finiteNumber(data?.r_anchor);
+  const sOffset = finiteNumber(data?.s_anchor);
+  if (rOffset == null || sOffset == null) return null;
+
+  const last = candles.length - 1;
+  const baseStart = setupStartIndex(data, candles);
+  const rBar = clamp(baseStart + Math.trunc(rOffset), 0, last);
+  const sBar = clamp(baseStart + Math.trunc(sOffset), 0, last);
+  return { startIndex: Math.min(rBar, sBar), endIndex: Math.max(rBar, sBar) };
+};
+
+// Phase A — the climax + automatic reaction that marks where the TREND ends, straight
+// from the engine's own decision (_phase_a_start_date -> _phase_a_end_date, bc_anchor =
+// structure.climax_bar). This is the lead-in BEFORE the consolidation — a different
+// question from the root swing above, and never the grey bars: it drives the 'A'
+// region band only. Clamped to stop strictly before the box so Phase B always owns its
+// first bar. Returns null when Phase A can't be placed.
+export const phaseARange = (data, candles) => {
+  if (!candles?.length) return null;
+  const start = indexOnOrAfter(candles, data?._phase_a_start_date);
+  if (start == null) return null;
+  const phaseBStart = indexOnOrAfter(candles, data?._phase_b_start_date);
+  const ceiling = phaseBStart != null ? phaseBStart - 1 : candles.length - 1;
+  const arEnd = indexOnOrAfter(candles, data?._phase_a_end_date) ?? start + PHASE_A_MAX_BARS - 1;
+  const end = Math.min(arEnd, ceiling);
+  return end >= start ? { startIndex: start, endIndex: end } : null;
+};
 
 const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
   if (startIndex == null || endIndex == null) return null;
@@ -221,31 +281,12 @@ export const buildPhaseRegions = (data) => {
   const baseEnd = setupEndIndex(data, candles);
   const regions = [];
 
-  // Phase A — the range's own root-swing pair: the bars that establish R and S
-  // (r_anchor / s_anchor — the boundary-responsible bars the screener already
-  // identifies and colors on the card). This fuses the vertical bin layer with
-  // the box's boundary detection: Phase A IS the swing that worked the rails.
-  // Falls back to the backend climax→reaction dates only if the anchors are
-  // missing.
-  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
-  const rAnchor = finiteNumber(data?.r_anchor);
-  const sAnchor = finiteNumber(data?.s_anchor);
-  if (rAnchor != null && sAnchor != null && baseLen > 0) {
-    const baseStart = baseEnd - baseLen + 1;
-    const rBar = baseStart + rAnchor;
-    const sBar = baseStart + sAnchor;
-    // Left edge pinned to the box start: with the engine's shared-rail
-    // back-extension the box can open BEFORE the anchor pair, and the A band
-    // must keep leading into Phase B rather than float inside it. (Without the
-    // extension min(rBar, sBar) === baseStart, so this changes nothing.)
-    const region = buildRegion('a', candles, Math.min(rBar, sBar, baseStart), Math.max(rBar, sBar));
-    if (region) regions.push(region);
-  } else if (indexes.phaseAStart != null) {
-    const fallbackEnd = indexes.phaseBStart != null
-      ? Math.min(indexes.phaseBStart - 1, indexes.phaseAStart + PHASE_A_MAX_BARS - 1)
-      : indexes.phaseAStart + PHASE_A_MAX_BARS - 1;
-    const phaseAEnd = indexes.phaseAEnd ?? fallbackEnd;
-    const region = buildRegion('a', candles, indexes.phaseAStart, phaseAEnd);
+  // The 'A' band is Phase A proper — the climax -> AR lead-in that ends the trend,
+  // which sits BEFORE the box. Not the root swing (the r/s anchor pair inside the box,
+  // drawn as the grey bars via rootSwingRange): those are two different questions.
+  const phaseA = phaseARange(data, candles);
+  if (phaseA) {
+    const region = buildRegion('a', candles, phaseA.startIndex, phaseA.endIndex);
     if (region) regions.push(region);
   }
   if (indexes.phaseBStart != null) {

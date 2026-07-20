@@ -17,9 +17,8 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.indicators import trend_template
+from engine_alpha.structure.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
-from tools.fidelity_harness import summarize_fidelity
 
 
 def test_trend_template_full_pass_on_clean_uptrend():
@@ -49,46 +48,6 @@ def test_trend_template_insufficient_history_degrades():
     assert t["stage2_ma_stack_pass"] is False
 
 
-def test_fidelity_all_ok_is_full_score():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
-        {"ticker": "BBB", "phase_d_verdict": "OK", "lps_zone_verdict": "ok"},
-    ]
-    s = summarize_fidelity(rows)
-    assert s["n_scored"] == 2
-    assert s["phase_d_ok_pct"] == 100.0
-    assert s["lps_ok_pct"] == 100.0
-    assert s["misreads"] == []
-
-
-def test_fidelity_counts_misreads_and_ignores_unscored():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok"},
-        {"ticker": "BBB", "phase_d_verdict": "early", "lps_zone_verdict": "high"},
-        {"ticker": "CCC", "phase_d_verdict": "late", "lps_zone_verdict": "ok"},
-        {"ticker": "DDD", "phase_d_verdict": "", "lps_zone_verdict": ""},  # unscored → ignored
-    ]
-    s = summarize_fidelity(rows)
-    assert s["n_total"] == 4
-    assert s["n_scored"] == 3
-    assert s["phase_d_ok"] == 1 and s["phase_d_early"] == 1 and s["phase_d_late"] == 1
-    assert round(s["phase_d_ok_pct"], 1) == 33.3
-    assert s["lps_breakdown"]["high"] == 1
-    assert {m["ticker"] for m in s["misreads"]} == {"BBB", "CCC"}
-
-
-def test_fidelity_day_error_median_from_dates():
-    rows = [
-        {"ticker": "AAA", "phase_d_verdict": "ok", "lps_zone_verdict": "ok",
-         "engine_phase_d_date": "2026-06-01", "your_phase_d_date": "2026-06-04"},
-        {"ticker": "BBB", "phase_d_verdict": "late", "lps_zone_verdict": "ok",
-         "engine_phase_d_date": "2026-06-10", "your_phase_d_date": "2026-06-05"},
-    ]
-    s = summarize_fidelity(rows)
-    # |+3| and |-5| → median 4.0
-    assert s["median_day_error"] == 4.0
-
-
 def test_derive_outcomes_maps_barrier_label_to_win_binary():
     df = pd.DataFrame({"barrier_label": ["win", "loss", "timeout", None]})
     out = derive_outcomes(df)
@@ -109,7 +68,7 @@ def test_safe_rank_corr_is_monotonic_not_linear():
 def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     """The traversal-quality term (which replaced the rail-blind oscillation term)
     must rank a genuinely two-sided box above a dead-space one."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -130,7 +89,7 @@ def test_score_traversal_quality_rewards_two_sided_over_dead_space():
 def test_base_age_dead_space_dock_spares_tight_boxes():
     """base_age 'cause' credit is docked for WIDE low-density (dead-space) bases,
     but NOT for ultra-tight ones (whose low density is a small-box / spring artifact)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -151,7 +110,7 @@ def test_adr_relative_box_tightness_demotes_flat_low_adr_drift(monkeypatch):
     absolute box width is a tight coil on a real mover but a wide drift on a flat
     low-ADR name (the GBTG case). With the flag off, ADR is ignored and both score
     the identical absolute tightness (the shadow-preserving default)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -182,7 +141,7 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
     """The max_swing_frac overshoot penalty must not fire on a tight box (overshoot
     is inevitable when the box is tiny, e.g. PRA) or a confirmed spring (the undercut
     is a bullish leg, not dead space)."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
                          "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
@@ -201,11 +160,11 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
 
 def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     """The descent-tail gate drops a WIDE box whose support was abandoned early
-    (last_support_frac <= LSF_MAX) into dead space (coil_floor_pos >= CFP_MIN),
-    but spares tight boxes (the EQIX exemption) and is None-safe / flag-guarded."""
-    from core.structure import descent_tail_rejects
+    (last_support_time_pos <= LSF_MAX) into dead space (low_position_in_box >= CFP_MIN),
+    but spares tight boxes (the EQIX exemption) and is None-safe. Unconditional
+    since the 2026-07-18 fold (formerly behind DESCENT_TAIL_GATE_ENABLED)."""
+    from engine_alpha.structure import descent_tail_rejects
 
-    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", True)
     monkeypatch.setattr(settings, "DESCENT_TAIL_LSF_MAX", 0.40)
     monkeypatch.setattr(settings, "DESCENT_TAIL_CFP_MIN", 0.20)
     monkeypatch.setattr(settings, "BASE_AGE_DEADSPACE_WIDTH", 0.06)
@@ -214,16 +173,13 @@ def test_descent_tail_gate_is_width_aware_and_guarded(monkeypatch):
     assert descent_tail_rejects(0.35, 0.30, 0.10) is True
     # Tight box (<= BASE_AGE_DEADSPACE_WIDTH) is EXEMPT (saves EQIX, w 0.038).
     assert descent_tail_rejects(0.35, 0.30, 0.04) is False
-    # Support held late (high last_support_frac) -> not a dead tail.
+    # Support held late (high last_support_time_pos) -> not a dead tail.
     assert descent_tail_rejects(0.80, 0.30, 0.10) is False
-    # No dead band under the late coil (low coil_floor_pos) -> not a dead tail.
+    # No dead band under the late coil (low low_position_in_box) -> not a dead tail.
     assert descent_tail_rejects(0.35, 0.10, 0.10) is False
-    # None-safe (degenerate measure_traversal).
+    # None-safe (degenerate measure_equilibrium).
     assert descent_tail_rejects(None, 0.30, 0.10) is False
     assert descent_tail_rejects(0.35, None, 0.10) is False
-    # Flag-guarded.
-    monkeypatch.setattr(settings, "DESCENT_TAIL_GATE_ENABLED", False)
-    assert descent_tail_rejects(0.35, 0.30, 0.10) is False
 
 
 def test_eval_twins_share_the_folded_core():
@@ -239,8 +195,8 @@ def test_eval_twins_share_the_folded_core():
     import textwrap
 
     from core.archive.seed import _evaluate_at_date
-    from core.pipeline import evaluation as evaluation_module
-    from core.pipeline.evaluation import _evaluate_ticker, _run_eval_chain
+    from engine_alpha import evaluation as evaluation_module
+    from engine_alpha.evaluation import _evaluate_ticker, _run_eval_chain
 
     def called_names(fn):
         tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
@@ -267,15 +223,17 @@ def test_eval_twins_share_the_folded_core():
     assert "descent_tail_drops" in chain_calls
     assert "_score_eval_context" in chain_calls
 
-    # Deeper folds preserved.
-    assert "select_active_lps" in called_names(evaluation_module._resolve_lps_context)
-    assert "score_traversal_args" in called_names(evaluation_module._score_eval_context)
+    # Deeper folds preserved: the LPS election happens ONCE (in the walk);
+    # _resolve_lps_context consumes the elected brick, never re-detects.
+    assert "_lps_result_from_brick" in called_names(evaluation_module._resolve_lps_context)
+    assert "detect_lps" not in called_names(evaluation_module._resolve_lps_context)
+    assert "score_equilibrium_args" in called_names(evaluation_module._score_eval_context)
 
 
-def test_score_traversal_args_maps_measure_facts():
-    from core.pipeline.evaluation import score_traversal_args
+def test_score_equilibrium_args_maps_measure_facts():
+    from engine_alpha.evaluation import score_equilibrium_args
 
-    args = score_traversal_args(
+    args = score_equilibrium_args(
         {"n_full_traversals": 3, "n_swings": 6, "max_swing_frac": 1.4},
         {"upper_dwell": 0.3, "lower_dwell": 0.5},
         {"bin_c_present": 1},
@@ -286,7 +244,7 @@ def test_score_traversal_args_maps_measure_facts():
     assert args["has_spring"] is True
 
     # Degenerate guards: zero swings -> density 0; None max_swing_frac -> 1.0; no spring.
-    args2 = score_traversal_args(
+    args2 = score_equilibrium_args(
         {"n_full_traversals": 0, "n_swings": 0, "max_swing_frac": None},
         {"upper_dwell": 0.4, "lower_dwell": 0.4},
         {},
@@ -295,42 +253,6 @@ def test_score_traversal_args_maps_measure_facts():
     assert args2["max_swing_frac"] == 1.0
     assert args2["dwell_asymmetry"] == 0.0
     assert args2["has_spring"] is False
-
-
-def test_select_active_lps_prefers_inner_then_parent(monkeypatch, _lps_behavior_frame):
-    """The folded inner-first-then-parent rule: take the inner box's LPS when it
-    yields one (closer trigger/stop), else the parent's; lps_context follows."""
-    from core.pipeline import evaluation
-
-    df = _lps_behavior_frame(
-        highs=[110.0] * 30, lows=[100.0] * 30, closes=[105.0] * 30,
-    )
-    latest = df.iloc[-1]
-    inner = {"base_len": 15, "start_bar": 10, "r_anchor_bar": 12,
-             "s_anchor_bar": 11, "S": 101.0, "R": 109.0}
-    parent = (90.0, 120.0, 5.0, 30, 5)  # (S, R, range_threshold, base_len, swing)
-
-    def fake(which_for_inner):
-        def _f(d, l, S, R, atr, rt, bl, sw):
-            hit = S == inner["S"] if which_for_inner else S == parent[0]
-            return {"setup_type": "LPS", "_who": "inner" if S == inner["S"] else "parent"} if hit else None
-        return _f
-
-    # Inner fires -> inner wins; context switches to the inner rails.
-    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=True))
-    res, in_inner, ctx = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
-    assert in_inner is True and res["_who"] == "inner"
-    assert ctx[0] == inner["S"] and ctx[1] == inner["R"]
-
-    # Inner returns None -> fall back to the parent; context stays parent.
-    monkeypatch.setattr(evaluation, "detect_lps", fake(which_for_inner=False))
-    res2, in_inner2, ctx2 = evaluation.select_active_lps(df, latest, parent, inner, atr=2.0)
-    assert in_inner2 is False and res2["_who"] == "parent"
-    assert ctx2 == parent
-
-    # No inner box at all -> parent path.
-    res3, in_inner3, ctx3 = evaluation.select_active_lps(df, latest, parent, None, atr=2.0)
-    assert in_inner3 is False and res3["_who"] == "parent"
 
 
 def test_signal_edge_classifies_harmful_inert_beneficial():
@@ -445,7 +367,7 @@ def _score_common(**overrides):
 
 
 def test_calculate_tier_maps_each_band_at_its_threshold():
-    from core.scoring.scoring import calculate_tier
+    from engine_alpha.scoring.scoring import calculate_tier
 
     # Exactly at each threshold lands in that tier; one point below drops a band.
     assert calculate_tier(settings.TIER_S) == "S"
@@ -460,7 +382,7 @@ def test_calculate_tier_maps_each_band_at_its_threshold():
 
 
 def test_calculate_tier_width_cap_demotes_wide_s_to_a():
-    from core.scoring.scoring import calculate_tier
+    from engine_alpha.scoring.scoring import calculate_tier
 
     high = settings.TIER_S + 10
     # A tight enough box keeps S; a box wider than the S cap is demoted to A,
@@ -471,7 +393,7 @@ def test_calculate_tier_width_cap_demotes_wide_s_to_a():
 
 
 def test_breadth_bonus_ramps_between_zero_and_full_thresholds():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     # Below the zero point -> no breadth credit; None (no breadth measured) -> 0.
     assert score_setup(**_score_common(breadth_pct=settings.BREADTH_ZERO_PCT))["breadth_bonus"] == 0.0
@@ -491,7 +413,7 @@ def test_ramp_zero_divisor_guard_returns_neutral():
     # MESSY collapse or cross) returns the polarity-safe neutral 0.0 instead of
     # dividing by zero. A normal band (full_at > zero_at) is unaffected — the guard
     # is dead code for every shipped anchor, so no live bonus moves.
-    from core.scoring.scoring import _ramp
+    from engine_alpha.scoring.scoring import _ramp
     assert _ramp(0.5, 0.4, 0.4, 1.0) == 0.0      # full_at == zero_at (collapsed)
     assert _ramp(0.5, 0.6, 0.4, 1.0) == 0.0      # full_at < zero_at (inverted)
     assert _ramp(1.0, 0.4, 0.4, 1.0) == 0.0      # value >> band, guard first -> neutral, no crash
@@ -503,7 +425,7 @@ def test_ramp_zero_divisor_guard_returns_neutral():
 
 
 def test_touch_density_awards_bonus_only_when_touch_floors_met():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     # Sparse touches: base density only, no bonus.
     sparse = score_setup(**_score_common(r_touches=1, s_touches=1))["touch_density"]
@@ -524,7 +446,7 @@ def test_touch_density_awards_bonus_only_when_touch_floors_met():
 
 
 def test_box_tightness_contribution_is_capped_and_rewards_tighter_boxes():
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
 
     tight = score_setup(**_score_common(box_width=0.02))["box_tightness"]
     wide = score_setup(**_score_common(box_width=settings.MAX_BOX_WIDTH))["box_tightness"]
@@ -542,7 +464,7 @@ _EMPTY_TEXTURE = {"median_spread_atr": None, "p80_spread_atr": None,
 
 
 def test_candle_readability_neutral_on_missing_metrics():
-    from core.scoring.scoring import _candle_readability
+    from engine_alpha.scoring.scoring import _candle_readability
 
     # No dict, and the degenerate-base empty dict (spread ratios None), both -> 1.0
     # so absent texture data never silently demotes a setup.
@@ -552,7 +474,7 @@ def test_candle_readability_neutral_on_missing_metrics():
 
 
 def test_candle_readability_preserves_clean_discounts_messy():
-    from core.scoring.scoring import _candle_readability
+    from engine_alpha.scoring.scoring import _candle_readability
 
     clean = _candle_readability(_CLEAN_TEXTURE)
     messy = _candle_readability(_MESSY_TEXTURE)
@@ -561,22 +483,11 @@ def test_candle_readability_preserves_clean_discounts_messy():
     assert messy == pytest.approx(settings.CANDLE_GRADE_FLOOR)
 
 
-def test_candle_spread_flag_off_is_byte_identical(monkeypatch):
-    from core.scoring.scoring import score_setup
+def test_candle_spread_discounts_messy_preserves_clean():
+    # The readability multiplier is unconditional engine behavior (folded
+    # 2026-07-18; formerly behind CANDLE_SPREAD_AWARE, live since 2026-07-04).
+    from engine_alpha.scoring.scoring import score_setup
 
-    # Flag OFF: bar_compression must NOT move box_tightness (containment).
-    # (CANDLE_SPREAD_AWARE ships LIVE since 2026-07-04; force it off to test the off path.)
-    monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", False)
-    base = score_setup(**_score_common())["box_tightness"]
-    with_messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]
-    with_clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
-    assert base == with_messy == with_clean
-
-
-def test_candle_spread_flag_on_discounts_messy_preserves_clean(monkeypatch):
-    from core.scoring.scoring import score_setup
-
-    monkeypatch.setattr(settings, "CANDLE_SPREAD_AWARE", True)
     neutral = score_setup(**_score_common())["box_tightness"]                       # None -> neutral
     clean = score_setup(**_score_common(bar_compression=_CLEAN_TEXTURE))["box_tightness"]
     messy = score_setup(**_score_common(bar_compression=_MESSY_TEXTURE))["box_tightness"]
@@ -593,15 +504,15 @@ def _nar(completeness, chronology, upthrust_terminal=False):
 
 
 def test_puzzle_quality_neutral_on_missing():
-    from core.scoring.scoring import _puzzle_quality
-    assert _puzzle_quality(None) == 0.0           # flag-off passes None
+    from engine_alpha.scoring.scoring import _puzzle_quality
+    assert _puzzle_quality(None) == 0.0           # a missing narrative passes None
     assert _puzzle_quality({}) == 0.0             # malformed dict -> neutral
     assert _puzzle_quality("nope") == 0.0         # non-dict -> neutral
     assert _puzzle_quality(_nar(0, "absent")) == 0.0   # well-formed empty narrative
 
 
 def test_puzzle_quality_monotonic_and_bounded():
-    from core.scoring.scoring import _puzzle_quality
+    from engine_alpha.scoring.scoring import _puzzle_quality
     chronos = ["absent", "partial", "intact"]
     # Bounded [0,1] over the whole completeness x chronology domain.
     for c in range(0, 5):
@@ -620,21 +531,11 @@ def test_puzzle_quality_monotonic_and_bounded():
         assert a <= p <= i
 
 
-def test_puzzle_flag_off_is_byte_identical(monkeypatch):
-    from core.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
-    # Default flag OFF: a narrative must NOT change the score OR add a key.
-    base = score_setup(**_score_common())
-    with_nar = score_setup(**_score_common(narrative=_nar(4, "intact")))
-    assert "puzzle_quality" not in base and "puzzle_quality" not in with_nar
-    assert base == with_nar                        # total + every sub-score byte-identical
-
-
 def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     """Phase-0 tripwire for the hybrid Technical Analysis Score rework
     (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
     and stays the frozen composite. Guards that flag-off never drifts as v2 lands."""
-    from core.scoring.scoring import score_setup
+    from engine_alpha.scoring.scoring import score_setup
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
     for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
@@ -644,16 +545,17 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
 def test_taxonomy_emitted_keys_match_score_setup_output():
     """The registry's emitted keys must exactly equal score_setup's sub-score keys
     (default flags) — the score-dict coupling that keeps the taxonomy authoritative."""
-    from core.scoring.scoring import score_setup
-    from core.scoring import taxonomy
+    from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
     out = score_setup(**_score_common())
     assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
 
 
-def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
-    from core.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
-    none_on = score_setup(**_score_common(narrative=None))   # flag on, no narrative -> 0 bonus
+def test_puzzle_awards_bonus_and_adds_key():
+    # The puzzle term is unconditional engine behavior (folded 2026-07-18;
+    # formerly behind PUZZLE_SCORE_ENABLED, live since 2026-07-04).
+    from engine_alpha.scoring.scoring import score_setup
+    none_on = score_setup(**_score_common(narrative=None))   # no narrative -> 0 bonus
     rich = score_setup(**_score_common(narrative=_nar(4, "intact")))
     poor = score_setup(**_score_common(narrative=_nar(1, "absent")))
     assert none_on["puzzle_quality"] == 0.0 and "puzzle_quality" in rich
@@ -664,9 +566,8 @@ def test_puzzle_flag_on_awards_bonus_and_adds_key(monkeypatch):
     assert rich["total"] > poor["total"]
 
 
-def test_puzzle_term_is_bonus_only_and_capped(monkeypatch):
-    from core.scoring.scoring import score_setup
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
+def test_puzzle_term_is_bonus_only_and_capped():
+    from engine_alpha.scoring.scoring import score_setup
     off = score_setup(**_score_common(narrative=None))["total"]
     for c in range(0, 5):
         for ch in ("absent", "partial", "intact"):
@@ -684,9 +585,8 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     # describe the LPS that actually fired (the inner election), never a fresh
     # parent-box re-detection, and it must never SILENTLY drop the elected LPS.
     from tools.shadow_diff import _load_fixture
-    import core.pipeline.evaluation as evaluation
+    import engine_alpha.evaluation as evaluation
 
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
 
@@ -745,44 +645,14 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     assert lps_represented > 0                       # the elected LPS is normally represented
 
 
-def test_e3_flag_off_result_has_no_puzzle_and_runs_no_narrative(monkeypatch):
-    # Result-LEVEL flag-off containment (the puzzle_fields spread + the zero-cost
-    # guarantee), which the score_setup-level test cannot see: flag-off, a real fire
-    # carries NO puzzle key anywhere AND assemble_box_narrative is never called.
-    from tools.shadow_diff import _load_fixture
-    import core.pipeline.evaluation as evaluation
-
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", False)
-
-    def _boom(*a, **k):  # AssertionError is NOT in _evaluate_ticker's except list -> propagates
-        raise AssertionError("assemble_box_narrative must not run flag-off")
-    monkeypatch.setattr(evaluation, "assemble_box_narrative", _boom)
-
-    frames, scalars = _load_fixture()
-    spy_6m = float(scalars.get("spy_6m_return", 0.0))
-    fires = 0
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        res = evaluation._evaluate_ticker(ticker, df, spy_6m, None)
-        if res is None:
-            continue
-        fires += 1
-        assert not any("puzzle" in k for k in res)                  # no result-level key
-        assert not any("puzzle" in k for k in res["_sub_scores"])   # none in the breakdown
-    assert fires > 0
-
-
-def test_e3_eval_twins_agree_on_puzzle(monkeypatch):
+def test_e3_eval_twins_agree_on_puzzle():
     # Both eval-twins (live + seed) route through the single score_setup call, so
-    # flag-on they compute the identical puzzle bonus (EC-3 fold).
+    # they compute the identical puzzle bonus (EC-3 fold).
     from tools.shadow_diff import _load_fixture
-    from core.pipeline.evaluation import _evaluate_ticker
+    from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
     from core.archive.result_adapter import seed_row_from_result
 
-    monkeypatch.setattr(settings, "PUZZLE_SCORE_ENABLED", True)
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
 

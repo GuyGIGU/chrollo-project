@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
-import { attachPhaseOverlay, colorLpsCandles } from '../components/chartPhaseOverlay';
+import { attachPhaseOverlay, colorLpsCandles, rootSwingRange } from '../components/chartPhaseOverlay';
 import { finiteNumber } from '../components/chartGeometry';
 import { addBoxRails } from '../components/chartRails';
 import { baseChartOptions, CHART_COLORS } from '../components/chartTheme';
@@ -20,36 +20,25 @@ const chartOptions = (width, height) => {
   };
 };
 
-// --- structure candle coloring (modal): r/s anchors grey, LPS zones painted by
-// the shared chronological gradient. Base-limb coloring is modal-specific (its
-// anchor span differs from the mini's); LPS coloring delegates to the shared
-// colorLpsCandles so the card and modal cannot diverge. ---
-const colorStructureCandles = (data, baseEnd) => {
+// --- structure candle coloring (modal): root-swing (the r/s anchor pair the box's
+// rails are drawn from) grey, LPS zones painted by the shared chronological gradient.
+// BOTH read the shared chartPhaseOverlay helpers (rootSwingRange / colorLpsCandles),
+// so the card and modal colour the identical bars by construction. ---
+const colorStructureCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
 
-  const baseStart = Math.max(0, baseEnd - data.base_len + 1);
-  colorBase(candles, data, baseStart, baseEnd);
-  // The SAME LPS colorer the mini card uses — the chronological gold gradient
-  // cannot diverge between card and modal.
+  colorBase(candles, data);
   colorLpsCandles(candles, data, CHART_COLORS.gold);
   return candles;
 };
 
-const colorBase = (candles, data, baseStart, baseEnd) => {
-  if (data.r_anchor == null || data.s_anchor == null) {
-    for (let index = baseStart; index <= baseEnd; index += 1) {
-      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
-    }
-    return;
-  }
-
-  const rawBaseStart = baseEnd - data.base_len + 1;
-  const rBar = rawBaseStart + data.r_anchor;
-  const sBar = rawBaseStart + data.s_anchor;
-  // rawBaseStart in the min: the shared-rail back-extension can open the box
-  // before the anchor pair; the base coloring must still cover its left edge.
-  for (let index = Math.min(rBar, sBar, rawBaseStart); index <= Math.max(rBar, sBar); index += 1) {
+// Grey the ROOT SWING bars (the r/s anchor pair the box's rails are drawn from) via
+// the SAME shared span the mini card uses, so card and modal never diverge.
+const colorBase = (candles, data) => {
+  const rootSwing = rootSwingRange(data, candles);
+  if (!rootSwing) return;
+  for (let index = rootSwing.startIndex; index <= rootSwing.endIndex; index += 1) {
     if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
   }
 };
@@ -116,7 +105,7 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
   const dailyCandles = interval === 'D' ? data?.candles : null;
   const forwardBars = data?.forward_bars || 0;
   const baseEnd = (data?.candles?.length || 0) - 1 - forwardBars;
-  const coloredCandles = dailyCandles?.length ? colorStructureCandles(data, baseEnd) : null;
+  const coloredCandles = dailyCandles?.length ? colorStructureCandles(data) : null;
 
   useLightweightChart(containerRef, {
     chartOptions: (container) => chartOptions(container.clientWidth, container.clientHeight),

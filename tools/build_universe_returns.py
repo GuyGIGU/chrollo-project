@@ -43,7 +43,7 @@ _PROJECT_ROOT = configure_path()
 from config import settings
 from core.archive.forward_returns import _compute_returns, _ticker_frame
 from core.backtest.loader import load_episodes
-from core.pipeline.evaluation import apply_baseline_filters
+from engine_alpha.evaluation import apply_baseline_filters
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 
 log = logging.getLogger("chrollo.tools.build_universe_returns")

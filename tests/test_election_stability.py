@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline import stability
+from engine_alpha import stability
 from core.pipeline.screener import _evaluate_ticker
 from tools.replay import flag_capture, load_sealed_fixture
 
@@ -89,8 +89,8 @@ def _probe_env(monkeypatch, raw_len, reads_by_len, refuse_lens=()):
     sampled (the real prep never returns frames under 200 bars)."""
     import pandas as pd
 
-    import core.pipeline.evaluation as evaluation
-    import core.structure.narrative as narrative
+    import engine_alpha.evaluation as evaluation
+    import engine_alpha.structure.narrative as narrative
 
     monkeypatch.setattr(settings, "STRUCTURE_ATR_SAMPLE_OFFSET", 1)
 

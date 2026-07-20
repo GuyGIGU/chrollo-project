@@ -35,18 +35,21 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | File | What it does (in plain terms) |
 |------|-------------------------------|
 | `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner Phase D range. |
-| `box_primitives.py` | Shared box toolkit: root anchors, zigzag R/S candidates, boundary respect, R/S touch density, and worked-equilibrium dwell/coverage. |
-| `band_rails.py` | Worked-band rail candidates + deep-excursion (terminal-shakeout) event qualification — the dark last-resort pair-election pool (`BAND_RAILS_ENABLED`); band derivation awaits operator calibration. |
+| `box_primitives.py` | Root anchors + the box ELECTION: zigzag R/S candidate collection/scoring, pool selection, the SOS-BUEC rescue, and the shared-rail back-extension. Judges live in `box_gates.py`. |
+| `box_gates.py` | Gate application (split from `box_primitives.py` 2026-07-18): boundary respect, the SOS worked-window trim, close-residence dwell/coverage, worked-equilibrium occupancy, and the traversal floor — the validity judges every candidate pair must pass. |
+| `box_trace.py` | Trace plumbing for the box election cascade (split from `box_primitives.py` 2026-07-18): the two helpers every gate/election verdict narrates through; no-op when no trace is requested. |
+| `inner_box.py` | The inner-box family (split from `box_primitives.py` 2026-07-18): the Phase-D nested range one scale down — inner climax/root-swing detection, inner-stage zigzag, and `select_inner_box`, the one selection rule shared by the live reader and diagnostics. |
+| `rail_qualification.py` | Deep-excursion (terminal-shakeout) event qualification for the pair election (formerly `band_rails.py`): every band-leaving excursion must reclaim/fail back and HOLD, else the pair disqualifies. Last-resort pool, consulted only when strict + rescued pools are empty (`BAND_RAILS_ENABLED`, live since 2026-07-16). |
 | `metrics.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
 | `pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
-| `pip.py` | Alternative multi-resolution swing skeleton (Perceptually Important Points): ranks turning points by importance so the same chart can be read coarse (macro trend) to fine (inner structure). Flag-gated (`PIP_MACRO_PHASE_A_ENABLED`, dark); feeds only the Phase-A overlay. |
+| `phase_a.py` | The macro Phase-A read (formerly `pip.py`): a multi-resolution swing skeleton (Perceptually Important Points) that ranks turning points by importance so the climax→AR bridge can be read coarse-to-fine. Feeds only the Phase-A overlay (unconditional since the 2026-07-18 fold, overlay-only; formerly flag `PIP_MACRO_PHASE_A_ENABLED`). |
 | `segmentation.py` | The trend/range middle layer: labels swings with ATR displacement, measures swing efficiency, and locates the **root swing** (climax → first big counter-burst) that bridges trend into range. |
 | `narrative.py` | The chronological "pair of eyes": reads A → B → (C?) → D left-to-right as one story, each phase validated by a calibrated detector brick. Its `Structure` is the single source of truth consumers read. |
 | `bricks.py` | The narrative's building blocks: each phase detector wrapped as a pure `fits_here?` function (root swing, box, spring, LPS, Phase-A overlay resolution). |
 | `market_structure.py` | The chart in Highs & Lows: labels the swing skeleton HH/HL/LH/LL and marks mechanical breaks (BOS / reversal). Layer 0 of the event reader. |
 | `box_events.py` | The Wyckoff event reader (L2): calibrated SOS / spring / test / LPS / markup pieces + `assemble_box_narrative`, which orders them into a scored, traceable story. |
 | `event_map.py` | The Event Map: (1) the mechanical swing layer — ONE whole-frame pivot walk sliced into a pre-box trend view + the (byte-identical) in-box staircase, every swing stamped with when it *became knowable*; (2) the narrative-role layer — the L2 event zones re-emitted as stamped, tri-stated role labels fed the engine's ELECTED spring/LPS (never re-detecting). Measure-only; staged on the fire path behind `EVENT_MAP_ENABLED` (dark); owns the `event_map_*` archive column family. |
-| `bin_features.py` | Splits the base into left/right halves (bins) and measures how the right side improves on the left — range, support quality, tight-bar share. |
+| `phase_features.py` | Measures the named phase regions of a detected base (`measure_phases`): Phase A/B/D windows, the Phase-C spring candidate, LPS position, and the Last-Supper stretch — pure measurement, archived as the `bin_*` column family. |
 | `phase_d.py` | Phase-D boundary resolution: where the right side of the base actually starts. |
 | `htf.py` | The same trend+box engine on resampled weekly/monthly bars — the higher-timeframe context read. |
 | `scope.py` | Chart-region labels: which bars belong to which phase, for display and archiving. |

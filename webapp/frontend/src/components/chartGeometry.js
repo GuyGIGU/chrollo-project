@@ -7,16 +7,16 @@
 // the EXACT behavior of the site it was lifted from — sites that diverge keep
 // distinct functions rather than a merged one.
 //
-// NOTE: base-limb coloring stays per-site (the mini and modal derive the limb
-// span slightly differently), but LPS coloring is SHARED: both delegate to
-// chartPhaseOverlay's `colorLpsCandles`, so the chronological gold gradient is
-// identical on the card and the modal by construction. chartPhaseOverlay is
-// import-free (no lightweight-charts, no DOM at load), so importing its pure
-// region helpers keeps this module Node-testable. Colors come from the chartTheme
-// palette (also pure).
+// NOTE: root-swing coloring AND LPS coloring are both SHARED with the modal via
+// chartPhaseOverlay (`rootSwingRange` for the grey root swing — the r/s anchor pair
+// the box's rails are drawn from, `colorLpsCandles` for the chronological gold
+// gradient), so the card and the modal colour the identical bars by construction.
+// chartPhaseOverlay is import-free (no lightweight-charts, no DOM at load), so
+// importing its pure helpers keeps this module Node-testable. Colors come from the
+// chartTheme palette (also pure).
 
 import { CHART_COLORS } from './chartTheme.js';
-import { colorLpsCandles } from './chartPhaseOverlay.js';
+import { colorLpsCandles, rootSwingRange } from './chartPhaseOverlay.js';
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
 // price 0 on any timeframe with no box. This is the canonical copy used by the
@@ -146,22 +146,20 @@ export const boxRailSpecs = (data) => {
 
 // --- candle coloring ---
 
-// ScreenerMiniChart coloring: base-limb swing grey, LPS zones painted by the
-// shared chronological gold gradient (via colorLpsCandles). Operates on a deep
-// clone so the source payload is untouched.
+// ScreenerMiniChart coloring: root-swing (the r/s anchor pair the box's rails are
+// drawn from) grey, LPS zones painted by the shared chronological gold gradient (via
+// colorLpsCandles). Operates on a deep clone so the source payload is untouched.
 export const colorMiniCandles = (data) => {
   const candles = JSON.parse(JSON.stringify(data.candles || []));
   if (data.base_len <= 0) return candles;
 
-  const forwardBars = data.forward_bars || 0;
-  const baseEnd = candles.length - 1 - forwardBars;
-  const baseStart = baseEnd - data.base_len + 1;
-  // baseStart in the min: the shared-rail back-extension can open the box
-  // before the anchor pair; the grey base-limb must still mark its left edge.
-  const limbStart = Math.min(baseStart + data.r_anchor, baseStart + data.s_anchor, baseStart);
-  const limbEnd = Math.max(baseStart + data.r_anchor, baseStart + data.s_anchor);
-  for (let index = limbStart; index <= limbEnd; index += 1) {
-    if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
+  // Grey the ROOT SWING bars via the SAME shared span the modal uses, so the card and
+  // the big chart colour identical bars.
+  const rootSwing = rootSwingRange(data, candles);
+  if (rootSwing) {
+    for (let index = rootSwing.startIndex; index <= rootSwing.endIndex; index += 1) {
+      if (index >= 0 && index < candles.length) candles[index].color = CHART_COLORS.baseLimb;
+    }
   }
 
   // LPS coloring is delegated to the SHARED phase-region colorer so the mini card

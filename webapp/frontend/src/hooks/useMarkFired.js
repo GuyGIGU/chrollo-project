@@ -9,7 +9,11 @@ import { API_BASE } from '../api';
 // re-grades but a re-render never re-fetches. The generation ref is bumped
 // FIRST (before the early returns) and the poll timer is cleared on every dep
 // change / unmount, so a superseded ticker can never write or keep polling.
-const cache = new Map(); // signature -> settled { <mark_id>: chip }
+// signature -> { policy, marks } (settled). Entries are served instantly but
+// ALWAYS revalidated once per mount: the grading policy/engine can change
+// under an open tab (service restart mid lever-program), and a chip graded
+// under a previous policy must never keep rendering as current.
+const cache = new Map();
 const POLL_MS = 2000;
 
 function signatureOf(ticker, marks) {
@@ -29,7 +33,7 @@ export default function useMarkFired(ticker, marks) {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     if (!signature) { setFired({}); return undefined; }
     const cached = cache.get(signature);
-    if (cached) { setFired(cached); return undefined; }
+    if (cached) setFired(cached.marks); // instant paint; still revalidate below
 
     const poll = async () => {
       try {
@@ -44,7 +48,10 @@ export default function useMarkFired(ticker, marks) {
           if (body.computing) {
             timer.current = setTimeout(poll, POLL_MS); // keep polling until settled
           } else {
-            cache.set(signature, body.marks);          // settled -> cache
+            // settled -> cache, keyed with the served grading-policy token so
+            // a policy/engine change on the server replaces the entry rather
+            // than being masked by it
+            cache.set(signature, { policy: body.policy ?? null, marks: body.marks });
           }
         }
         // a failure just stops the poll; the Engine column falls back to concordance

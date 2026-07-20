@@ -46,7 +46,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.evaluation import EVAL_ERROR, apply_baseline_filters
+from engine_alpha.evaluation import EVAL_ERROR, apply_baseline_filters
 from core.pipeline.screener import _evaluate_ticker
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
@@ -100,22 +100,23 @@ CASES: tuple[dict, ...] = (
      "label": "rescue-markup run-up",
      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI/AEF/NVT/SPCB drop set)"},
     {"ticker": "SPCB", "as_of": None,
-     "label": "rescue-markup run-up (borderline +0.234)",
-     "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (lone borderline to eyeball)"},
-    # Worked-equilibrium dead-space: the pre-Change-C S/A fires on wide,
-    # dead-space or mid-churn boxes (docs/segmentation_research.md, Change C).
+     "label": "wide/volatile spread",
+     "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (lone borderline to eyeball); operator ruling 2026-07-17 (spread/width/volatility/volume)"},
+    # Change-C reject set, relabeled to the operator's dictated honest reasons
+    # (2026-07-17 rulings; "dead-space" is reserved for the rail-placement
+    # diagnostic, never a junk-chart catch-all).
     {"ticker": "KWR", "as_of": None,
-     "label": "worked-equilibrium dead-space",
-     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"},
+     "label": "no valid setup at the frame",
+     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"},
     {"ticker": "DBD", "as_of": "2026-06-07",
-     "label": "worked-equilibrium dead-space",
-     "evidence": "docs/segmentation_research.md Change C; trimmed to era (fires on a NEWER base at the 2026-07 live edge)"},
+     "label": "mis-framed range - rails no longer in force",
+     "evidence": "docs/segmentation_research.md Change C; trimmed to era (fires on a NEWER base at the 2026-07 live edge); operator ruling 2026-07-17"},
     {"ticker": "RLGT", "as_of": None,
-     "label": "worked-equilibrium dead-space",
-     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"},
+     "label": "trend-continuation, not a base",
+     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"},
     {"ticker": "FLG", "as_of": None,
-     "label": "worked-equilibrium dead-space",
-     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject)"},
+     "label": "trend-continuation dips, not a base",
+     "evidence": "docs/segmentation_research.md Change C (DBD/RLGT/KWR/FLG reject); operator ruling 2026-07-17"},
     {"ticker": "BBVA", "as_of": None,
      "label": "worked-equilibrium dead-space (Change C demotion set)",
      "evidence": "docs/segmentation_research.md Change C (BBVA/ABEV/COLM -> A)"},
@@ -133,6 +134,16 @@ CASES: tuple[dict, ...] = (
     {"ticker": "ENIC", "as_of": None,
      "label": "dividend-adjustment artifact",
      "evidence": "as-traded price cutover 3b4c808 (passed baseline only on adjusted data)"},
+    # Incomplete throwback (the OVERSHOOT_R rescope admission class): an LPS
+    # shelf above R claims the cause below is COMPLETE, but the base barely
+    # existed — 20-bar minimum, 2 full traversals (vs CTOS's 50-bar,
+    # 10-traversal cause). Operator eyeball on the full-package render
+    # 2026-07-17: "BBVA is just incomplete... nothing really going on".
+    # Frozen from the shadow-fixture frame the rescope fired on (edge
+    # 2026-06-05); ``key`` disambiguates from the Change-C BBVA case above.
+    {"ticker": "BBVA", "key": "BBVA@2026-06-05", "as_of": "2026-06-05",
+     "label": "incomplete throwback (immature 20-bar cause)",
+     "evidence": "operator eyeball 2026-07-17; solve-the-engine flip #3 shadow admission; matured-cause floor in lps.py rescope"},
 )
 
 
@@ -149,8 +160,8 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     with open(_FIXTURE_META, "r", encoding="utf-8") as f:
         meta = json.load(f)
     level0 = set(data.columns.get_level_values(0))
-    frames = {c["ticker"]: data[c["ticker"]].dropna()
-              for c in meta["cases"] if c["ticker"] in level0}
+    frames = {c.get("key", c["ticker"]): data[c.get("key", c["ticker"])].dropna()
+              for c in meta["cases"] if c.get("key", c["ticker"]) in level0}
     return frames, meta
 
 
@@ -172,21 +183,22 @@ def check_corpus() -> bool:
 
     for case in cases:
         ticker = case["ticker"]
-        df = frames.get(ticker)
+        key = case.get("key", ticker)
+        df = frames.get(key)
         if df is None or df.empty:
             ok = False
-            lines.append(f"  {ticker}: frame MISSING from fixture parquet - rebuild the fixture")
+            lines.append(f"  {key}: frame MISSING from fixture parquet - rebuild the fixture")
             continue
         result = _evaluate_ticker(ticker, df, float(case["spy_6m_return"]),
                                   float(meta["breadth_pct"]))
         if result is EVAL_ERROR:
             ok = False
-            lines.append(f"  {ticker}: EVAL_ERROR - the eval chain crashed on a corpus frame "
+            lines.append(f"  {key}: EVAL_ERROR - the eval chain crashed on a corpus frame "
                          f"({case['label']}); a crash is not a clean rejection")
         elif result is not None:
             ok = False
             lines.append(
-                f"  {ticker}: FIRES (score={result.get('Score')}, tier={result.get('Tier')}) - "
+                f"  {key}: FIRES (score={result.get('Score')}, tier={result.get('Tier')}) - "
                 f"labeled must-NOT-fire: {case['label']} [{case['evidence']}]"
             )
 
@@ -232,8 +244,9 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     problems: list[str] = []
     for case in CASES:
         ticker, as_of = case["ticker"], case["as_of"]
-        if ticker in frames:
-            problems.append(f"{ticker}: duplicated in CASES")
+        key = case.get("key", ticker)
+        if key in frames:
+            problems.append(f"{key}: duplicated in CASES")
             continue
         if ticker not in level0:
             problems.append(f"{ticker}: not in the data cache")
@@ -264,8 +277,8 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
             # Freezable but weak: it can never fire regardless of detector code.
             print(f"  WARNING {ticker}: fails baseline at as_of={as_of} - guards nothing "
                   "structural; pick an as_of where baseline passes.")
-        frames[ticker] = df
-        meta_cases.append({
+        frames[key] = df
+        entry = {
             "ticker": ticker,
             "as_of": df.index[-1].date().isoformat(),
             "bars": len(df),
@@ -273,7 +286,10 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
             "baseline_pass_at_freeze": baseline_pass,
             "label": case["label"],
             "evidence": case["evidence"],
-        })
+        }
+        if key != ticker:
+            entry["key"] = key
+        meta_cases.append(entry)
 
     if problems:
         raise RuntimeError(

@@ -1,10 +1,14 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 
-from core.structure.bricks import (
+from engine_alpha.structure.bricks import (
     EquilibriumBox,
     RootSwing,
     _enforce_bc_downswing,
+    _enforce_climax_terminality,
+    cause_maturity,
     find_inner_box,
     find_lps,
     find_root_swing,
@@ -138,22 +142,26 @@ def test_backext_extends_elected_start_to_the_earliest_shared_rail_pivot(monkeyp
     # Gap #3: TWO early valleys touch the elected S rail (Low 100 = S) before
     # the anchor pair, every bar in between inside the buffered band. The
     # election alone can't propose either start (pinned to the anchor pair);
-    # the flag-gated shared-rail back-extension must walk onto the EARLIEST
-    # qualifying pivot (bar 1), not the nearer one (bar 4).
-    from config import settings
+    # the shared-rail back-extension (unconditional since the 2026-07-18 fold)
+    # must walk onto the EARLIEST qualifying pivot (bar 1), not the nearer one
+    # (bar 4). The pinned baseline is measured by neutral-pinning the extension
+    # seam itself (return cand_start) — the post-fold analog of flag-OFF.
+    from engine_alpha.structure import bricks
 
     pre = [105, 101, 105, 106, 101, 106]      # S-touch valleys @1 AND @4
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
     df = _ohlc_from_closes(pre + worked)
     root = RootSwing("BC", 0, 0, 110.0, 100.0, 0.1, 0)
 
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", False, raising=False)
+    real_backext = bricks.backext_shared_rail
+    monkeypatch.setattr(bricks, "backext_shared_rail",
+                        lambda eq_df, R, S, cand_start, atr: cand_start)
     baseline = validate_equilibrium(df, root, 1.0)
     assert baseline is not None
     pinned_start = baseline.start_bar
     assert pinned_start > 4                    # the pair pins past both valleys
 
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
+    monkeypatch.setattr(bricks, "backext_shared_rail", real_backext)
     trace: list = []
     box = validate_equilibrium(df, root, 1.0, trace=trace)
 
@@ -167,20 +175,17 @@ def test_backext_extends_elected_start_to_the_earliest_shared_rail_pivot(monkeyp
     assert "shared-rail" in elected[0]["detail"]
 
 
-def test_backext_requires_a_band_conforming_span(monkeypatch):
+def test_backext_requires_a_band_conforming_span():
     # An early S-touching valley, but a spike between it and the elected start
     # breaks band conformance — the extension must NOT bridge across
     # non-conforming bars (the shakeout/upthrust guard; note WDI-class descent
     # legs are excluded by the rail re-touch requirement, not by this check —
     # they band-conform but never re-touch a rail).
-    from config import settings
-
     pre = [105, 101, 105, 113, 105, 106]      # spike @3: High 114 > R + buf
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
     df = _ohlc_from_closes(pre + worked)
     root = RootSwing("BC", 0, 0, 110.0, 100.0, 0.1, 0)
 
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
     trace: list = []
     box = validate_equilibrium(df, root, 1.0, trace=trace)
 
@@ -204,14 +209,13 @@ def _rail_frame(bars):
     })
 
 
-def test_backext_pivot_must_touch_its_own_rail_kind(monkeypatch):
+def test_backext_pivot_must_touch_its_own_rail_kind():
     # A VALLEY hovering at R (its Low ~ R after an upthrust: high-shelf drift
     # under the rail, not worked support) must NOT anchor an extension — rail
     # matching is kind-aware (peak~R / valley~S), the worked-cause-vs-drift
     # distinction the lever exists for. The span from the valley conforms, so
     # only the kind check blocks; a kind-blind mutation would extend to bar 2.
-    from config import settings
-    from core.structure.box_primitives import backext_shared_rail
+    from engine_alpha.structure.box_primitives import backext_shared_rail
 
     bars = [
         (112.0, 108.0),   # 0
@@ -224,20 +228,15 @@ def test_backext_pivot_must_touch_its_own_rail_kind(monkeypatch):
         (106.4, 104.5),   # 7
     ]
     eq_df = _rail_frame(bars)
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
-
     assert backext_shared_rail(eq_df, 110.0, 100.0, 8, 1.0) == 8
 
 
-def test_backext_span_includes_the_pivot_bar_and_the_last_bar(monkeypatch):
+def test_backext_span_includes_the_pivot_bar_and_the_last_bar():
     # Conformance is judged over [pivot_bar, cand_start): a wide shakeout bar
     # at EITHER edge must block the extension — the qualifying pivot's own bar
     # (its High can breach R+buf even while its Low touches S) and the bar
     # just before the pinned start.
-    from config import settings
-    from core.structure.box_primitives import backext_shared_rail
-
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
+    from engine_alpha.structure.box_primitives import backext_shared_rail
 
     filler = [(106.0, 104.0), (105.5, 103.8), (106.2, 104.2),
               (105.8, 104.0), (106.0, 104.1), (105.9, 104.0)]
@@ -259,46 +258,26 @@ def test_backext_span_includes_the_pivot_bar_and_the_last_bar(monkeypatch):
 def test_backext_applies_to_the_diagnostic_mirror_too(monkeypatch):
     # The detect_boxes/find_outer_box path (phase_b_zigzag) must frame the SAME
     # extended box as the live reader, or diagnostic tools drift from
-    # production when the flag is on.
-    from config import settings
-    from core.structure.box_primitives import phase_b_zigzag
+    # production. The pinned control arm neutral-pins the extension seam
+    # (return cand_start) — the post-fold analog of flag-OFF.
+    from engine_alpha.structure import box_primitives
+    from engine_alpha.structure.box_primitives import phase_b_zigzag
 
     pre = [105, 101, 105, 106, 105, 106]
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
     df = _ohlc_from_closes(pre + worked)
     eval_df = df.iloc[:-5]           # the frame find_outer_box hands it
 
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", False, raising=False)
+    real_backext = box_primitives.backext_shared_rail
+    monkeypatch.setattr(box_primitives, "backext_shared_rail",
+                        lambda eq_df, R, S, cand_start, atr: cand_start)
     off = phase_b_zigzag(eval_df, 0, len(df), atr_override=1.0)
     assert len(df) - off[0] > 1      # pinned to the anchor pair
 
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", True, raising=False)
+    monkeypatch.setattr(box_primitives, "backext_shared_rail", real_backext)
     on = phase_b_zigzag(eval_df, 0, len(df), atr_override=1.0)
     assert len(df) - on[0] == 1      # the shared-rail pivot, same as the live reader
     assert on[1] == off[1] and on[2] == off[2]   # rails untouched
-
-
-def test_backext_flag_off_is_inert(monkeypatch):
-    # Flag OFF: byte-identical to the pinned election (the shadow guard's
-    # invariant, asserted here at unit level too — regardless of the shipped
-    # default, which the operator flips).
-    from config import settings
-
-    pre = [105, 101, 105, 106, 105, 106]
-    worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
-    df = _ohlc_from_closes(pre + worked)
-    root = RootSwing("BC", 0, 0, 110.0, 100.0, 0.1, 0)
-
-    monkeypatch.setattr(settings, "BOX_BACKEXT_ENABLED", False, raising=False)
-    trace: list = []
-    box = validate_equilibrium(df, root, 1.0, trace=trace)
-
-    assert box is not None
-    assert box.start_bar > 1
-    elected = [r for r in trace if r["verdict"] == "elected"]
-    assert len(elected) == 1
-    assert "backext_bars" not in elected[0]
-    assert "shared-rail" not in (elected[0]["detail"] or "")
 
 
 def test_validate_equilibrium_trace_explains_a_no_box_rejection():
@@ -601,11 +580,85 @@ def test_enforce_bc_downswing_leaves_sc_upswing():
     assert _enforce_bc_downswing(df, root, box, 95, 100) == (95, 100)
 
 
+def test_enforce_climax_terminality_repairs_mid_trend_bc():
+    # The FLXS class: a claimed BC at 90 (high 108) with its AR at 100, then the
+    # trend keeps running to 140 into the box open at 120. The claimed climax is
+    # a mid-trend pause -> re-anchor to the run-up extreme (115) -> box open.
+    closes = [100.0] * 160
+    closes[90] = 108.0    # claimed "climax" (mid-trend pause)
+    closes[100] = 103.0   # its claimed AR
+    closes[115] = 140.0   # the trend's REAL extreme, feeding the box
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (115, 120)
+
+
+def test_enforce_climax_terminality_collapses_to_box_open_extreme():
+    # The box opens ON the trend's extreme: the box-open bar (120) makes the
+    # run-up high, so the repair must include it and collapse to the sanctioned
+    # one-bar boundary form (climax == AR == box open, operator ruling
+    # 2026-07-20). A pbs-exclusive repair window anchored one bar short here
+    # (caught by the doctrine gate: 27 live setups, FLXS's open IS its R).
+    closes = [100.0] * 160
+    closes[90] = 108.0    # claimed "climax" (mid-trend pause)
+    closes[100] = 103.0   # its claimed AR
+    closes[120] = 150.0   # the REAL extreme: the box-open bar itself
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (120, 120)
+
+
+def test_enforce_climax_terminality_leaves_terminal_bc():
+    # An honest trend end: nothing between the climax and the box open exceeds
+    # the climax (small pokes inside 0.25 x height are tolerated) -> untouched.
+    closes = [100.0] * 160
+    closes[90] = 140.0    # genuine climax
+    closes[100] = 120.0   # AR (height 20 -> tolerance 5)
+    closes[110] = 143.0   # honest poke: 140 + 3 < 140 + 5
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 140.0, 120.0, 0.14, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0) == (90, 100)
+
+
+def test_enforce_climax_terminality_repairs_mid_trend_sc_mirror():
+    # SC mirror: a claimed selling climax at 90 (low 92) undercut by a much
+    # lower low (60) before the box -> re-anchor to the run-down extreme.
+    closes = [100.0] * 160
+    closes[90] = 92.0     # claimed SC
+    closes[100] = 97.0    # its claimed AR (height 5 -> tolerance 1.25)
+    closes[115] = 60.0    # the REAL selling extreme feeding the box
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("SC", 90, 100, 97.0, 92.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (115, 120)
+
+
+def test_enforce_climax_terminality_passes_unknown_root_kind():
+    closes = [100.0] * 160
+    closes[90] = 108.0
+    closes[115] = 140.0   # would fail terminality if the kind were known
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("??", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0) == (90, 100)
+
+
 def test_first_impulse_ar_end_is_a_noop_when_flag_off(monkeypatch):
     # Flag off -> the AR is returned unchanged, byte-identical. (Forced off
     # explicitly so this still guards the off-path after the live default flip.)
     from config import settings
-    from core.structure.bricks import _first_impulse_ar_end
+    from engine_alpha.structure.bricks import _first_impulse_ar_end
     monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", False)
     closes = [100.0] * 140
     for i, b in enumerate(range(80, 91)):
@@ -620,7 +673,7 @@ def test_first_impulse_ar_end_tightens_to_the_trend_reaction_when_on(monkeypatch
     # Flag on -> the dragged AR (bar 130, the box open) pulls back to the trend
     # model's first reaction low (bar 100). Tighten-only: climax fixed, AR earlier.
     from config import settings
-    from core.structure.bricks import _first_impulse_ar_end
+    from engine_alpha.structure.bricks import _first_impulse_ar_end
     monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", True)
     closes = [100.0] * 140
     for i, b in enumerate(range(80, 91)):
@@ -656,3 +709,126 @@ def test_resolve_phase_a_localizes_stale_seed():
     assert ar == 240                         # AR anchors where Phase B opens
     assert 240 - climax <= 60                # climax is local (within _SEG_LEAD_IN)
     assert climax != stale_root.climax_bar   # specifically not the ancient seed
+
+
+# --- cause_maturity: the cause-before-effect predicate (measure-only) --------
+# These stub the two composed top-down reads so the predicate's COMBINATION
+# logic (the short-circuit + the AND + fail-open) is asserted deterministically;
+# macro_bridge_zigzag / read_swing_map keep their own tests for the reads
+# themselves. The behavioral MIDD-reject / winners-survive proof is the corpus
+# pre-flight (plan Task 7), not a synthetic unit frame.
+
+def _swing_tape(pre_trend, box_trend):
+    return {
+        "swings": [], "n_swings": 0,
+        "pre_box": {"n_swings": 0, "trend_state": pre_trend},
+        "box": {"n_swings": 0, "trend_state": box_trend,
+                "counts": {}, "rail_to_rail": False, "is_zigzag": False},
+        "start_bar": 0, "n_bars": 0, "nan_bars": 0,
+    }
+
+
+def test_cause_maturity_validated_bridge_short_circuits(monkeypatch):
+    # A validated macro bridge is a matured cause, full stop: the O(n) swing walk
+    # (Operand B) must not even run, and the trend fields stay empty.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag",
+                        lambda *a, **k: [(0, "peak", 110.0), (5, "valley", 100.0)])
+
+    def _must_not_run(*a, **k):
+        raise AssertionError("read_swing_map must not run when the bridge validated")
+    monkeypatch.setattr(event_map, "read_swing_map", _must_not_run)
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0)
+    assert v.matured is True and v.bridge_validated is True
+    assert v.pre_box_trend == "" and v.box_trend == ""
+
+
+def test_cause_maturity_vetoes_on_abstain_and_live_up_run(monkeypatch):
+    # Abstention AND a live up-staircase on both sides AND a loose LPS shelf =
+    # cause absent -> veto (the MIDD class: shelf never tightened, ratio 0.957).
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    loose = SimpleNamespace(tightness_ratio=0.96)   # the shelf never tightened
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, loose)
+    assert v.matured is False and v.bridge_validated is False
+    assert v.pre_box_trend == "up" and v.box_trend == "up"
+    assert v.lps_tightness_ratio == 0.96
+
+
+def test_cause_maturity_rescued_by_tight_shelf(monkeypatch):
+    # Operand C (the AND-narrowing third leg): abstain + a live up-run but a TIGHT
+    # LPS shelf -> the cause is NOT proven absent -> no veto. This is exactly what
+    # keeps the seeded tight-shelf winners (BP/LECO/MEOH/NTCT/VLO) alive.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    tight = SimpleNamespace(tightness_ratio=0.50)   # the shelf tightened
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, tight)
+    assert v.matured is True and v.lps_tightness_ratio == 0.50
+
+
+def test_cause_maturity_fails_open_on_missing_shelf(monkeypatch):
+    # A missing LPS (or a NaN ratio) reads 0.0 -> not loose -> never vetoes, even
+    # under abstain + up/up. Fail-open is the law; recall is the gate.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, None).matured is True
+    nan_lps = SimpleNamespace(tightness_ratio=float("nan"))
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, nan_lps).matured is True
+
+
+def test_cause_maturity_keeps_when_only_one_side_reads_up(monkeypatch):
+    # The up-run leg is recall-protective: one side not 'up' -> the cause is not
+    # proven absent -> no veto. Pass a LOOSE shelf so this ISOLATES live_up_run —
+    # without it a mutant that drops the up-run guard (matured = not loose_lps)
+    # would still veto here and slip the suite (a dropped-winner regression).
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "range"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    loose = SimpleNamespace(tightness_ratio=0.96)   # loose shelf, but a side is not 'up'
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, loose).matured is True
+
+
+def test_cause_maturity_boundary_shelf_at_threshold_keeps(monkeypatch):
+    # Strict `>`: a shelf at EXACTLY CAUSE_LPS_LOOSE_MAX is NOT loose, so abstain
+    # + up/up still KEEPS. Pins the `>` (not `>=`) semantics against a mutation.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    from config import settings
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    at = SimpleNamespace(tightness_ratio=settings.CAUSE_LPS_LOOSE_MAX)
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, at).matured is True
+
+
+def test_cause_maturity_fails_open_on_degenerate_frame():
+    # A frame too short to prove anything must never veto (recall is the gate).
+    df = _ohlc_from_closes([100.0, 101.0], band=1.0)
+    v = cause_maturity(df, _box(start_bar=0, base_len=2), 1.0)
+    assert v.matured is True and v.bridge_validated is False

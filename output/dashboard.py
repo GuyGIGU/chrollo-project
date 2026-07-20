@@ -37,7 +37,7 @@ import sys
 from config import settings
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
-from core.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
+from engine_alpha.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -240,9 +240,9 @@ def _extract_chart_data(data, results_df, tickers):
                     'ascending_support', 'adr',
                 )
             }
-            # E3 puzzle-quality chip — surfaced ONLY when the scorer emitted it
-            # (PUZZLE_SCORE_ENABLED on). Added conditionally so the flag-off card
-            # payload stays byte-identical (no always-present puzzle_quality: 0.0).
+            # E3 puzzle-quality chip — surfaced when the scorer emitted it
+            # (always, since the 2026-07-18 fold; the presence guard also keeps
+            # older flag-era payloads readable).
             if 'puzzle_quality' in sub:
                 sub_payload['puzzle_quality'] = round(
                     float(sub.get('puzzle_quality', 0) or 0), 2)

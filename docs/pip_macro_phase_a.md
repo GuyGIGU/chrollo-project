@@ -1,7 +1,9 @@
 # PIP macro Phase-A read — the multi-resolution retry
 
-**Status: built + guarded, flag `PIP_MACRO_PHASE_A_ENABLED` default-OFF, awaiting
-the operator eyeball gate.** Sibling to [segmentation_research.md](segmentation_research.md)
+**Status: LIVE — flipped 2026-07-04 (operator eyeball on the overlay A/B), then
+FOLDED 2026-07-18 (Purity task 7): the macro read is unconditional in
+`segment_swings`; the `PIP_MACRO_PHASE_A_ENABLED` key survives only until the
+Task 11 manifest rotation.** Sibling to [segmentation_research.md](segmentation_research.md)
 (which records why the segmentation layer exists) — this records why the PIP
 skeleton gets a second trial, on what evidence the first one ended, and exactly
 what is different this time.
@@ -12,7 +14,7 @@ what is different this time.
 
 | commit | what happened |
 |---|---|
-| `d537cc7` | PIP substrate built measure-only (`core/structure/pip.py`) |
+| `d537cc7` | PIP substrate built measure-only (then `core/structure/pip.py`; now `engine_alpha/structure/phase_a.py`) |
 | `c08e61f` | FLAT wire: `segment_swings` sources its zigzag from `pip_pivots(dist_min=0.03)` behind `PIP_PIVOTS_ENABLED`, default-off. Feeds ONLY the Phase-A overlay (`resolve_phase_a`) — never R/S/score/tier. Universe: fire decisions identical, overlay shifts on 62/106 firing setups. |
 | `d43e7fd` | Eyeball gate: **"PIP is a wash on the overlay (fixes some inverted climax→AR, creates others e.g. GBTG/PLSE/CGNX), so it stays default-off."** |
 
@@ -58,7 +60,7 @@ retest / shallow dip is *not in the skeleton to be chosen*. No confirmed bridge
 by `k_max` (fresh climax whose reaction hasn't held) → fall back to the finest
 prefix and let `resolve_phase_a`'s existing fallbacks behave as today.
 
-Unit-proofed in `tests/test_pip.py`: a synthetic markup→AR→range frame with a
+Unit-proofed in `tests/test_phase_a.py` (formerly `test_pip.py`): a synthetic markup→AR→range frame with a
 planted late poke *above* the true climax — the macro read confirms at K=4 with
 the true climax→AR and the thief never enters the skeleton; mirrored for SC
 (downtrend) roots; fresh-climax falls back with `k=None`.

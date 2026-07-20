@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.pipeline.election_identity import rails_match, same_election
+from engine_alpha.election_identity import rails_match, same_election
 from tools.agreement import (
     OUTCOMES,
     fired_inside_window,

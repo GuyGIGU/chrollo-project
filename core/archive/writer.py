@@ -53,7 +53,7 @@ def _save_sector_etf_cache(cache: dict) -> None:
 # creates missing tables, not missing columns, so we ALTER TABLE on demand.
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
-from core.structure.htf import HTF_COLUMN_SQL, htf_archive_values
+from engine_alpha.structure.htf import HTF_COLUMN_SQL, htf_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -101,6 +101,12 @@ _NEW_COLUMNS: dict[str, str] = {
     "eq_mid_dwell":                 "FLOAT",
     "eq_upper_dwell":               "FLOAT",
     "eq_coverage":                  "FLOAT",
+    # Gate-margin telemetry (plan task 2): the elected box against the ACTUAL
+    # gates — respect band fraction + the dead-space gate's close residence.
+    "eq_respect_frac":              "FLOAT",
+    "eq_close_lower_dwell":         "FLOAT",
+    "eq_close_mid_dwell":           "FLOAT",
+    "eq_close_upper_dwell":         "FLOAT",
     # Limb-traversal read (raw, measure-first)
     "trav_n_full_traversals":       "INTEGER",
     "trav_n_swings":                "INTEGER",
@@ -203,14 +209,14 @@ _NEW_COLUMNS: dict[str, str] = {
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
 # HTF (higher-timeframe) context columns — single source of truth in
-# core.structure.htf so the writer / model / migrations / seed stay in sync.
+# engine_alpha.structure.htf so the writer / model / migrations / seed stay in sync.
 _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
-# Event Map tape-summary columns — single source in core.structure.event_map.
+# Event Map tape-summary columns — single source in engine_alpha.structure.event_map.
 # MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
-from core.structure.event_map import event_map_archive_values
+from engine_alpha.structure.event_map import event_map_archive_values
 
 
 def _ensure_new_columns(engine) -> None:
@@ -329,7 +335,7 @@ def archive_scan_results(
 
     # Frozen engine-config version stamped on every row written this run
     # (computed once — provenance only, never a computed engine field).
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     engine_config_version = manifest_hash()
 
     # Fetch market context once for the whole scan (hard-bounded internally).
@@ -495,6 +501,10 @@ def archive_scan_results(
             eq_mid_dwell=row.get("_eq_mid_dwell"),
             eq_upper_dwell=row.get("_eq_upper_dwell"),
             eq_coverage=row.get("_eq_coverage"),
+            eq_respect_frac=row.get("_eq_respect_frac"),
+            eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
+            eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
+            eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
             # Limb-traversal read (raw, measure-first)
             trav_n_full_traversals=row.get("_trav_n_full_traversals"),
             trav_n_swings=row.get("_trav_n_swings"),

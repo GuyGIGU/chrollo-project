@@ -17,11 +17,11 @@ AND the root-swing / box election together:
   * a text panel: the trend-segment table, the structure summary, the AR off/on
     tighten, and the one-line election trace.
 
-FAITHFULNESS (non-negotiable — see docs/strategy_v2.md + the sibling tools): it
+FAITHFULNESS (non-negotiable — see docs/strategy_alpha.md + the sibling tools): it
 reuses ``ar_first_reaction_diff._prep_live`` (baseline filter -> trim to
 DAILY_STRUCTURE_PERIOD (2y) -> ATR_10/50 -> atr = ATR_10.iloc[-6]) and
 ``read_structure`` on that SAME frame — NEVER the untrimmed 5y frame that
-``structure_case_audit._prep`` / ``l2_staircase_render`` use (those resolve an
+``structure_case_audit._prep`` uses (that resolves an
 OLDER root / different box than live). Every ``*_bar`` from Structure + the trend
 model is df-positional; L2 event zones are box-relative (translated by
 ``+ box.start_bar``). It draws the ELECTED ``read_structure`` output (box / root /
@@ -52,19 +52,19 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.structure.market_structure import (
+from engine_alpha.structure.market_structure import (
     elected_trend_leg_base,
     read_market_structure,
     segment_trends,
 )
-from core.structure.metrics import read_box_events
-from core.structure.narrative import read_structure
+from engine_alpha.structure.metrics import read_box_events
+from engine_alpha.structure.narrative import read_structure
 # Reuse the ONE faithful frame + AR-capture path (single source of truth).
 from tools.ar_first_reaction_diff import _prep_live, capture_overlays
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "full_package")
 
-# L2 event-zone colors — same legend as tools/l2_staircase_render (learn it once).
+# L2 event-zone colors — the one L2 legend (inherited from the retired l2_staircase_render).
 _ZONE_STYLE = {
     "SOS": "#1f9d8b", "markup": "#e0a030", "upthrust": "#e04848",
     "spring": "#8b5cf6", "test": "#5b8aff", "lps": "#0ea5a5",
@@ -438,7 +438,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
 
     # --- P9: macro bridge (optional) -----------------------------------------
     if show_macro:
-        from core.structure.pip import macro_bridge_zigzag
+        from engine_alpha.structure.phase_a import macro_bridge_zigzag
         zz = macro_bridge_zigzag(df["High"].values.astype(float),
                                  df["Low"].values.astype(float))
         if len(zz) >= 2:

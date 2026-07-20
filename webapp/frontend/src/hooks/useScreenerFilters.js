@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deriveScoreBreakdown } from '../components/setupScoreMath';
 import { deriveTags } from '../components/setupTagsData';
+import { tagFlagsFromWire } from '../components/wireVocabulary';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -81,22 +82,7 @@ function buildTagMap(screenerData) {
   const map = {};
   if (!screenerData?.chart_data) return map;
   for (const [ticker, data] of Object.entries(screenerData.chart_data)) {
-    const tags = deriveTags(data.sub_scores, {
-      phaseDInner: data.phase_d_inner,
-      rTouchVolZ: data.r_touch_vol_z,
-      sTouchVolZ: data.s_touch_vol_z,
-      contractionVolTrend: data.contraction_vol_trend,
-      binCPresent: data.bin_c_present,
-      binCType: data.bin_c_type,
-      binCUndercutAtr: data.bin_c_undercut_atr,
-      binCRecoveryBars: data.bin_c_recovery_bars,
-      binCSpringVolZ: data.bin_c_spring_vol_z,
-      lpsStretchAtr: data.lps_stretch_atr,
-      lpsStretchBox: data.lps_stretch_box,
-      lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
-      lastSupperSourceBoxAge: data.last_supper_source_box_age,
-      lastSupperReclaimQuality: data.last_supper_reclaim_quality,
-    });
+    const tags = deriveTags(data.sub_scores, tagFlagsFromWire(data));
     map[ticker] = new Set(tags.map(tag => tag.id));
   }
   return map;

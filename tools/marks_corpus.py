@@ -51,13 +51,13 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.evaluation import EVAL_ERROR
+from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
 # root on sys.path, so `tools.replay` resolves under both documented
-# invocations (band_rails_ab imports it the same way).
+# invocations.
 from tools.replay import (
     BASELINE_DIR as _BASELINE_DIR,
     SEALED_BASELINE_JSON as _BASELINE_JSON,
@@ -84,10 +84,11 @@ NULL_TRIGGER_GRACE_SESSIONS = 2
 # ratchet). Verified at freeze time: the replayed miss-set must equal this key
 # set exactly, so the baseline can never freeze an unexplained miss.
 STAGE_TAGS: dict[str, str] = {
-    "WTS": "holding-shelf-lps",
+    # WTS + PBT converted 2026-07-16 (LPS_HOLDING_SHELF_ENABLED flipped live,
+    # stage-matched: WTS fires 06-08 tier B, PBT 04-30 tier S) — now pinned hits.
+    # BODI converted 2026-07-16 (BAND_RAILS_ENABLED flipped live, stage-matched:
+    # fires 04-10 tier A at the operator's exact rails) — now a pinned hit.
     "DRTS": "holding-shelf-lps",
-    "PBT": "holding-shelf-lps",
-    "BODI": "band-vs-excursion",
     "EGBN": "under-investigation",
 }
 

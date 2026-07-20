@@ -10,36 +10,35 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
-from config import settings
-
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.metrics import (
+from engine_alpha.structure.metrics import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
+    measure_dwell_balance,
     measure_equilibrium,
-    measure_traversal,
 )
-from core.structure.box_primitives import (
+from engine_alpha.structure.box_gates import _validate_base_quality
+from engine_alpha.structure.box_primitives import select_phase_b_candidate
+from engine_alpha.structure.inner_box import (
     _detect_inner_phase_b_start,
-    _validate_base_quality,
     detect_inner_root_swing,
-    select_phase_b_candidate,
 )
-from core.structure.segmentation import segment_swings
+from engine_alpha.structure.segmentation import segment_swings
 
 
 def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
-    # This is a unit test of the ORDER-N root-bridge detection, so pin the macro
-    # Phase-A read OFF: with PIP_MACRO_PHASE_A_ENABLED on, segment_swings returns
-    # the coarse macro STORY (a different, valid skeleton) instead of the order-N
-    # zigzag asserted below — that path is exercised in test_pip. Pinning keeps
-    # this test deterministic across the eventual flag flip.
-    monkeypatch.setattr(settings, "PIP_MACRO_PHASE_A_ENABLED", False)
+    # This is a unit test of the ORDER-N root-bridge detection — the live
+    # abstention fallback of the (now unconditional) macro read. Pin the macro
+    # read to ABSTAIN so segment_swings exercises the order-N zigzag asserted
+    # below through the real fallback seam; the macro STORY path (a different,
+    # valid skeleton) is exercised in test_phase_a.
+    from engine_alpha.structure import phase_a
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     # Up-trend (with small pullbacks) into a climax at 60, then a big counter-
     # burst down to 53 (the AR), then a tight range. The root swing is the
     # 60 -> 53 leg: it terminates the trend and births the range.
@@ -104,8 +103,8 @@ _WORKED = [101, 103, 105, 107, 109, 107, 105, 103] * 3
 _DEAD_SPACE = [100, 102] + [106, 109, 107, 108, 106, 109, 107, 108] * 2 + [106, 109, 107, 108, 106, 109]
 
 
-def test_measure_equilibrium_worked_range_is_filled_and_two_sided(_osc_frame):
-    eq = measure_equilibrium(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+def test_measure_dwell_balance_worked_range_is_filled_and_two_sided(_osc_frame):
+    eq = measure_dwell_balance(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
     assert eq["r_touches"] >= 3 and eq["s_touches"] >= 3
     assert eq["r_touch_thirds"] >= 2 and eq["s_touch_thirds"] >= 2
     assert eq["lower_dwell"] >= 0.15 and eq["upper_dwell"] >= 0.15
@@ -113,22 +112,22 @@ def test_measure_equilibrium_worked_range_is_filled_and_two_sided(_osc_frame):
     assert eq["coverage"] >= 0.80
 
 
-def test_measure_equilibrium_dead_space_starves_the_lower_half(_osc_frame):
-    eq = measure_equilibrium(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+def test_measure_dwell_balance_dead_space_starves_the_lower_half(_osc_frame):
+    eq = measure_dwell_balance(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
     # Price lives up top after a one-time dip: the lower half is dead (dwell
     # collapses there) while the upper half hogs the action.
     assert eq["lower_dwell"] < 0.15
     assert eq["upper_dwell"] > 0.45
 
 
-def test_measure_equilibrium_range_occupancy_uses_high_low_not_close():
+def test_measure_dwell_balance_range_occupancy_uses_high_low_not_close():
     frame = pd.DataFrame([
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
         {"High": 110.0, "Low": 100.0, "Close": 105.0},
     ])
 
-    eq = measure_equilibrium(frame, R=110.0, S=100.0, atr_val=1.0)
+    eq = measure_dwell_balance(frame, R=110.0, S=100.0, atr_val=1.0)
 
     assert eq["r_touches"] == 3
     assert eq["s_touches"] == 3
@@ -136,6 +135,42 @@ def test_measure_equilibrium_range_occupancy_uses_high_low_not_close():
     assert eq["mid_dwell"] == 1.0
     assert eq["upper_dwell"] == 1.0
     assert eq["coverage"] == 1.0
+
+
+def test_measure_gate_margins_reports_the_gates_own_statistics():
+    # Three flat bars fully inside [S-buffer, R+buffer], closes mid-box: the
+    # respect fraction is 1.0 and the close-residence dwell is all-mid — the
+    # GATE's statistic, not the range-occupancy twin (which reads 1.0 in every
+    # third for these bars). Hand-specified, not read off the code.
+    from engine_alpha.structure.metrics import measure_gate_margins
+    frame = pd.DataFrame([
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+    ])
+    gm = measure_gate_margins(frame, 110.0, 100.0, 1.0)
+    assert gm["respect_frac"] == 1.0
+    assert gm["close_lower_dwell"] == 0.0
+    assert gm["close_mid_dwell"] == 1.0
+    assert gm["close_upper_dwell"] == 0.0
+
+
+def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
+    from engine_alpha.structure.metrics import measure_gate_margins
+    # One of four bars wicks above R + 0.5*ATR buffer -> respect 0.75.
+    frame = pd.DataFrame([
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 111.0, "Low": 104.0, "Close": 105.0},  # wick past 110.5
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},
+    ])
+    gm = measure_gate_margins(frame, 110.0, 100.0, 1.0)
+    assert gm["respect_frac"] == 0.75
+    # Degenerate inputs return the all-None dict, never a crash.
+    empty = measure_gate_margins(frame.iloc[:0], 110.0, 100.0, 1.0)
+    assert empty == {"respect_frac": None, "close_lower_dwell": None,
+                     "close_mid_dwell": None, "close_upper_dwell": None}
+    assert measure_gate_margins(frame, 100.0, 110.0, 1.0)["respect_frac"] is None
 
 
 def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
@@ -151,7 +186,7 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
 def test_worked_window_end_trims_only_a_held_late_breakout():
     # The SOS -> BUEC rescue: a worked range whose right side has broken out above
     # R and HELD above support is validated over its cause, not the breakout tail.
-    from core.structure.box_primitives import _worked_window_end
+    from engine_alpha.structure.box_primitives import _worked_window_end
     R, S, atr = 110.0, 100.0, 1.0          # buffer = BOUNDARY_ATR_BUFFER * atr
     base_h, base_l = [105.0] * 20, [104.0] * 20
     # A sustained breakout above R that holds above S -> trim exactly the tail.
@@ -167,42 +202,42 @@ def test_worked_window_end_trims_only_a_held_late_breakout():
                               base_l + [115.0] * 4 + [90.0] * 2, R, S, atr) == 26
 
 
-def test_measure_traversal_counts_rail_to_rail_swings(_osc_frame):
+def test_measure_equilibrium_counts_rail_to_rail_swings(_osc_frame):
     # The worked triangle wave runs the full box repeatedly: many genuine
     # rail-to-rail traversals and no dead space at either rail.
-    t = measure_traversal(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(_osc_frame(_WORKED), R=110.0, S=100.0, atr_val=1.0)
     assert t["n_full_traversals"] >= 2
     assert t["top_dead_space"] is not None and t["top_dead_space"] < 0.15
     assert t["bottom_dead_space"] is not None and t["bottom_dead_space"] < 0.15
 
 
-def test_measure_traversal_flags_dead_space_hanging_from_a_rail(_osc_frame):
+def test_measure_equilibrium_flags_dead_space_hanging_from_a_rail(_osc_frame):
     # Price hangs in the top after one initial dip: only that single trip reaches
     # S, so rail-to-rail traversals collapse and the lower half reads as dead.
-    t = measure_traversal(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(_osc_frame(_DEAD_SPACE), R=110.0, S=100.0, atr_val=1.0)
     assert t["n_full_traversals"] < 2
     assert t["bottom_dead_space"] > 0.30
 
 
-def test_measure_traversal_absorbs_subthreshold_reversal(_flat_frame):
+def test_measure_equilibrium_absorbs_subthreshold_reversal(_flat_frame):
     # A 1.2-wide pullback inside an up-leg of an 11-wide box (min_amp = 0.15*11 =
     # 1.65) must be absorbed: the swing list stays V->P->V (3, via soft endpoints),
     # not split into 5 by the noise pivot, and the leg reads as 2 traversals.
     frame = _flat_frame([100, 110, 108.8, 111, 100])
-    t = measure_traversal(frame, R=111.0, S=100.0, atr_val=1.0)
+    t = measure_equilibrium(frame, R=111.0, S=100.0, atr_val=1.0)
     assert t["n_swings"] == 3
     assert t["n_full_traversals"] == 2
 
 
-def test_measure_traversal_guards_bad_inputs(_flat_frame, _osc_frame):
+def test_measure_equilibrium_guards_bad_inputs(_flat_frame, _osc_frame):
     frame = _osc_frame(_WORKED)
     # Non-positive / NaN ATR and a non-positive box collapse to the empty read.
-    assert (measure_traversal(frame, 110.0, 100.0, 0.0)
-            == measure_traversal(frame, 110.0, 100.0, -1.0))
-    assert measure_traversal(frame, 100.0, 100.0, 1.0)["n_full_traversals"] == 0
-    assert measure_traversal(frame, 110.0, 100.0, float("nan"))["n_swings"] == 0
+    assert (measure_equilibrium(frame, 110.0, 100.0, 0.0)
+            == measure_equilibrium(frame, 110.0, 100.0, -1.0))
+    assert measure_equilibrium(frame, 100.0, 100.0, 1.0)["n_full_traversals"] == 0
+    assert measure_equilibrium(frame, 110.0, 100.0, float("nan"))["n_swings"] == 0
     # Too few bars to form a pivot structure.
-    assert measure_traversal(_flat_frame([1, 2]), 2.0, 1.0, 1.0)["n_swings"] == 0
+    assert measure_equilibrium(_flat_frame([1, 2]), 2.0, 1.0, 1.0)["n_swings"] == 0
 
 
 def test_segment_swings_guards_bad_inputs(_ramp_frame):

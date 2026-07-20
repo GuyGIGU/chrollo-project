@@ -8,7 +8,8 @@ fails, regardless of what the bricks are.
 """
 from types import SimpleNamespace
 
-from core.structure.narrative import Structure, read_structure
+from config import settings
+from engine_alpha.structure.narrative import Structure, read_structure
 
 
 def _root(climax, ar, R=110.0, S=100.0):
@@ -55,7 +56,7 @@ class _Bricks:
         lps = self._lpss.get(box.start_bar)
         if diagnose:
             from collections import Counter
-            return lps, (Counter() if lps is not None else Counter({"terminal_low": 1}))
+            return lps, (Counter() if lps is not None else Counter({"does not rest on its low": 1}))
         return lps
 
     def resolve_phase_a(self, df, root, box, atr):
@@ -128,6 +129,98 @@ def test_narrative_none_when_story_never_completes():
     # A valid box but no LPS, and no further root swing to fall back to.
     bricks = _Bricks([_root(10, 20)], {10: _box(20)}, {20: None}, {20: None})
     assert read_structure(None, 1.0, bricks=bricks) is None
+
+
+class _VetoBricks(_Bricks):
+    """A complete-story provider that also answers the cause-before-effect
+    predicate, so the veto branch in read_structure can be exercised in
+    isolation (the real predicate is unit-tested in test_bricks)."""
+
+    def __init__(self, *args, matured):
+        super().__init__(*args)
+        self._matured = matured
+
+    def cause_maturity(self, df, box, atr, lps=None):
+        # raise-if-touched: proves read_structure never CONSULTS the veto when the
+        # flag is OFF (EC-8 compute-free clause), matching the ELECTION_STABILITY
+        # inert convention — not merely that its verdict is ignored.
+        assert settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED, \
+            "cause_maturity consulted while CAUSE_BEFORE_EFFECT_VETO_ENABLED is OFF"
+        return SimpleNamespace(matured=self._matured, bridge_validated=False,
+                               pre_box_trend="up", box_trend="up",
+                               lps_tightness_ratio=0.95)
+
+
+def _complete_veto_bricks(matured):
+    return _VetoBricks([_root(10, 20)], {10: _box(20)},
+                       {20: None}, {20: _lps(85)}, matured=matured)
+
+
+def test_veto_off_is_inert_even_when_cause_absent(monkeypatch):
+    # Flag OFF (default): the veto branch is dead — cause_maturity is never
+    # consulted, so a cause-absent verdict cannot change the elected Structure.
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", False)
+    s = read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=False))
+    assert isinstance(s, Structure) and s.climax_bar == 10
+
+
+def test_veto_on_abstains_the_setup_when_cause_absent(monkeypatch):
+    # Flag ON + cause absent (matured=False) -> the box predates its own climax
+    # -> abstain the whole Structure with return None (not a backtrack).
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", True)
+    assert read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=False)) is None
+
+
+def test_veto_on_keeps_the_setup_when_cause_matured(monkeypatch):
+    # Flag ON + a matured cause -> the elected Structure stands unchanged.
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", True)
+    s = read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=True))
+    assert isinstance(s, Structure) and s.climax_bar == 10
+
+
+class _InnerBricks(_Bricks):
+    """Scripted provider with an inner box: the walk must run the
+    inner-first-then-parent Phase-D election on it."""
+
+    def __init__(self, *args, inner, inner_lps):
+        super().__init__(*args)
+        self._inner = inner
+        self._inner_lps = inner_lps
+
+    def find_inner_box(self, df, box, atr):
+        return self._inner
+
+    def find_lps(self, df, box, atr, *, diagnose=False):
+        if self._inner is not None and box is self._inner:
+            return self._inner_lps
+        return super().find_lps(df, box, atr, diagnose=diagnose)
+
+
+def test_narrative_prefers_inner_lps_then_parent():
+    """The walk's Phase-D election (the ONE home of the rule): take the inner
+    box's LPS when it yields one (closer trigger/stop), else the parent's;
+    lps_in_inner follows the winner. Migrated from the retired evaluation-side
+    duplicate (select_active_lps)."""
+    inner = SimpleNamespace(start_bar=60, search_start_bar=55)
+
+    # Inner yields an LPS -> it wins; the elected brick is the inner's.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=inner, inner_lps=_lps(88))
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is True and s.lps.start_bar == 88
+    assert s.inner is inner
+
+    # Inner yields none -> the parent's LPS completes; lps_in_inner False.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=inner, inner_lps=None)
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is False and s.lps.start_bar == 85
+
+    # No inner box at all -> parent path.
+    bricks = _InnerBricks([_root(10, 20)], {10: _box(20)}, {20: None},
+                          {20: _lps(85)}, inner=None, inner_lps=None)
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s.lps_in_inner is False and s.lps.start_bar == 85
 
 
 def _full_structure(*, inner, spring):

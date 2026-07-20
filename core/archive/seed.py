@@ -30,12 +30,12 @@ if _BACKEND_DIR not in sys.path:
 
 from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
-from core.pipeline.evaluation import _run_eval_chain
+from engine_alpha.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
-from core.structure.event_map import event_map_archive_values
-from core.structure.htf import htf_archive_values
+from engine_alpha.structure.event_map import event_map_archive_values
+from engine_alpha.structure.htf import htf_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -162,7 +162,7 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
     live screener uses, then re-key the canonical result to the unprefixed shape the
     seed archive writer consumes.
 
-    Delegates to ``core.pipeline.evaluation._run_eval_chain`` so that "replay at T ==
+    Delegates to ``engine_alpha.evaluation._run_eval_chain`` so that "replay at T ==
     live at T" holds by construction rather than by a recall test. Seed runs with
     ``breadth_pct=None`` (there is no live universe-breadth at a historical replay
     date), matching the prior behaviour. ``seed_row_from_result`` is the single
@@ -218,7 +218,7 @@ def seed_archive(
 
     # Frozen engine-config version stamped on every seeded row (computed once —
     # provenance only, never a computed engine field).
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     engine_config_version = manifest_hash()
 
     # Batch download all tickers

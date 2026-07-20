@@ -17,26 +17,26 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.structure.metrics import (
+from engine_alpha.structure.metrics import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
+    measure_dwell_balance,
     measure_equilibrium,
-    measure_traversal,
 )
-from core.structure.box_primitives import (
+from engine_alpha.structure.box_gates import _validate_base_quality
+from engine_alpha.structure.box_primitives import select_phase_b_candidate
+from engine_alpha.structure.inner_box import (
     _detect_inner_phase_b_start,
-    _validate_base_quality,
     detect_inner_root_swing,
-    select_phase_b_candidate,
 )
-from core.structure.lps import (
+from engine_alpha.structure.lps import (
     detect_lps,
     detect_lps_candidates,
     detect_lps_tests,
     select_active_lps_candidate,
 )
-import core.structure.lps as lps_module
+import engine_alpha.structure.lps as lps_module
 
 
 _VCP_LEVELS = [
@@ -237,7 +237,7 @@ def test_lps_accepts_shallow_pullback_on_tight_clean_coil(monkeypatch, _lps_beha
     monkeypatch.setattr(settings, "LPS_PULLBACK_PROFILE_MIN", 0.65)
     rejected, rejects = detect_lps(df=df, diagnose=True, **kw)
     assert rejected is None
-    assert any(str(k).startswith("pullback_profile") for k in rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in rejects)
 
 
 def test_lps_rejects_window_that_spans_most_of_box(monkeypatch, _lps_behavior_frame):
@@ -262,7 +262,7 @@ def test_lps_rejects_window_that_spans_most_of_box(monkeypatch, _lps_behavior_fr
     )
 
     assert result is None
-    assert rejects["window_box_range"] == 1
+    assert rejects["window spans the box"] == 1
 
 
 def test_lps_accepts_clean_downswing_even_when_window_spans_box(monkeypatch, _lps_behavior_frame):
@@ -483,7 +483,7 @@ def test_lps_terminal_low_guard_rejects_earlier_lower_low(monkeypatch, _lps_beha
     )
 
     assert result is None
-    assert rejects["terminal_low"] == 1
+    assert rejects["does not rest on its low"] == 1
 
 
 def test_lps_accepts_compact_rising_support_shelf(monkeypatch, _lps_behavior_frame):
@@ -567,6 +567,89 @@ def test_lps_accepts_shallow_buec_shelf_above_resistance(monkeypatch, _lps_behav
     assert settings.LPS_PULLBACK_PROFILE_MIN <= result["pullback_profile"] < settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
 
 
+# ── OVERSHOOT_R window rescope (dark, LPS_OVERSHOOT_WINDOW_ATR_ENABLED —
+# solve-the-engine task 10). Geometry transcribed from CTOS: his marked shelf
+# spans 1.06 box-heights but only 1.42 ATR — above a NARROW box, box height is
+# the wrong localization yardstick. Same proven shelf as the test above, box
+# shrunk so the window gate becomes the sole discriminator. ─────────────────
+
+def _narrow_box_buec_frame(_lps_behavior_frame):
+    # Final close 110.65 keeps the shelf's box-position extension within the
+    # BUEC exception's 0.35 cap on the 2.0-point box (0.325), mirroring
+    # CTOS's shelf resting ON the rail rather than lifted away from it.
+    return _lps_behavior_frame(
+        highs=[113.0, 112.2, 111.8, 111.6, 111.3],
+        lows=[110.7, 110.4, 110.5, 110.6, 110.5],
+        closes=[111.2, 110.8, 110.9, 111.0, 110.65],
+    )
+
+
+def _detect_on_narrow_box(df, sup_avg, res_avg, base_len=20):
+    return detect_lps(
+        df=df,
+        latest=df.iloc[-1],
+        sup_avg=sup_avg,
+        res_avg=res_avg,
+        atr_val=2,
+        base_range_threshold=4,
+        base_len=base_len,
+        swing_complete_idx=-1,
+    )
+
+
+def test_overshoot_window_rescope_is_inert_flag_off(monkeypatch, _lps_behavior_frame):
+    # Flag-off (the pre-2026-07-16 default, preserved as the OFF contract): the
+    # 2.6-point shelf over a 2.0-point box measures 1.3 box-heights and the
+    # window gate rejects it exactly as the frozen engine always has. This
+    # value is independently reasoned and MUST NOT be changed — if it fails,
+    # fix the implementation.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", False)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    assert _detect_on_narrow_box(df, sup_avg=108, res_avg=110) is None
+
+
+def test_overshoot_window_rescope_admits_the_ctos_class_flag_on(monkeypatch, _lps_behavior_frame):
+    # Flag-on, MATURED cause (real CTOS: 50-bar base, 10 traversals): the
+    # OVERSHOOT_R denominator becomes max(box_height, 2*ATR) = 4.0, so the
+    # 2.6-point shelf measures 0.65 <= 0.85 and completes as the BUEC shelf
+    # it visually is.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", True)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    result = _detect_on_narrow_box(df, sup_avg=108, res_avg=110, base_len=50)
+    assert result is not None
+    assert result["zone_type"] == "OVERSHOOT_R"
+    assert result["swing_type"] == "buec_shelf"
+
+
+def test_overshoot_rescope_refuses_immature_cause(monkeypatch, _lps_behavior_frame):
+    # The BBVA pin (operator-ruled "just incomplete" 2026-07-17): a throwback
+    # above R claims the cause below is complete, so the rescoped ATR
+    # denominator only engages on a matured cause (>= 2x MIN_BASE_DAYS, the
+    # same floor a terminal shakeout needs in rail_qualification). The IDENTICAL
+    # shelf geometry on a bare-minimum 20-bar base falls back to the raw
+    # window gate — the pre-flip path — and refuses.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", True)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    assert _detect_on_narrow_box(df, sup_avg=108, res_avg=110, base_len=20) is None
+
+
+def test_overshoot_window_rescope_never_touches_inside_windows(monkeypatch, _lps_behavior_frame):
+    # Provably invisible outside its scope: the SAME oversized window sitting
+    # INSIDE the box still rejects with the flag on — the rescope reads the
+    # zone, not the flag alone.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 5)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 5)
+    monkeypatch.setattr(settings, "LPS_OVERSHOOT_WINDOW_ATR_ENABLED", True)
+    df = _narrow_box_buec_frame(_lps_behavior_frame)
+    assert _detect_on_narrow_box(df, sup_avg=110, res_avg=111.5) is None
+
+
 # ── The holding-shelf completion form (Event Map Task 8, flag-gated dark) ────
 
 _SHELF_KW = dict(sup_avg=100, res_avg=110, atr_val=2, base_range_threshold=4,
@@ -598,8 +681,8 @@ def test_holding_shelf_flag_off_is_inert_and_never_consulted(monkeypatch, _lps_b
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol_contraction"] >= 1  # the pullback form's own reject stands
-    assert "holding_shelf_refused" not in rejects  # flag-off counters unchanged
+    assert rejects["volume not drying up"] >= 1  # the pullback form's own reject stands
+    assert "flat-hold form refused" not in rejects  # flag-off counters unchanged
 
 
 def test_holding_shelf_accepts_hot_volume_high_shelf_flag_on(monkeypatch, _lps_behavior_frame):
@@ -634,10 +717,10 @@ def test_holding_shelf_rejects_low_in_box_flag_on(monkeypatch, _lps_behavior_fra
     result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
 
     assert result is None
-    assert rejects["vol_contraction"] >= 1
+    assert rejects["volume not drying up"] >= 1
     # Form-tagged counters (Task 10): flag-on, the shelf was consulted and
     # ALSO refused this window — both forms' refusals are visible.
-    assert rejects["holding_shelf_refused"] >= 1
+    assert rejects["flat-hold form refused"] >= 1
 
 
 def test_holding_shelf_rejects_rising_lows_wedge_flag_on(monkeypatch, _lps_behavior_frame):
@@ -673,7 +756,7 @@ def test_holding_shelf_converts_short_overshoot_shelf_above_creek(monkeypatch, _
     monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
     off, off_rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
     assert off is None
-    assert any(str(k).startswith("pullback_profile") for k in off_rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in off_rejects)
 
     monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
     on = detect_lps(df=df, latest=df.iloc[-1], **_SHELF_KW)
@@ -805,7 +888,7 @@ def test_lps_rejects_extended_shallow_overshoot_shelf(monkeypatch, _lps_behavior
     )
 
     assert result is None
-    assert any(str(k).startswith("pullback_profile") for k in rejects)
+    assert any(str(k).startswith("pullback depth out of range") for k in rejects)
 
 
 def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch, _lps_behavior_frame):
@@ -840,7 +923,7 @@ def test_lps_wide_profile_gets_more_spread_room_than_tight_profile(monkeypatch, 
     )
 
     assert tight is None
-    assert tight_rejects["spread_profile"] == 1
+    assert tight_rejects["bar spread too wide"] == 1
     assert wide is not None
     assert wide["profile_unit"] == 4.0
 
@@ -884,7 +967,7 @@ def test_lps_spread_can_expand_slightly_but_not_a_lot(monkeypatch, _lps_behavior
     assert ok is not None
     assert ok["spread_expansion_profile"] == pytest.approx(0.25)
     assert bad is None
-    assert rejects["spread_expansion"] == 1
+    assert rejects["final bar spread expands"] == 1
 
 
 def test_lps_selector_latest_actionable_beats_older_quality(monkeypatch, _lps_behavior_frame):
@@ -979,3 +1062,81 @@ def test_measure_bar_compression_reports_base_spread_texture():
     assert result["p80_spread_atr"] == 1.1
     assert result["median_spread_pct_box"] == 0.2
     assert result["tight_bar_pct"] == 0.8
+
+
+# ── Threshold-move companions (solve-the-engine flip checklist #5/#6,
+#    operator grant 2026-07-16/17) ────────────────────────────────────────────
+
+
+def test_vol50_non_finite_refuses_both_forms(monkeypatch, _lps_behavior_frame):
+    # A NaN Vol_50 makes both ratio comparisons silently False — the dry-up
+    # gate would "pass" on missing data. The refusal guard must dominate even
+    # a geometry the shelf form would otherwise save.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    df = _lps_behavior_frame(
+        highs=[108.5, 107.8, 107.5],
+        lows=[106.5, 106.2, 106.0],
+        closes=[107.5, 107.0, 106.8],
+    )
+    df["Vol_50"] = float("nan")
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["volume baseline invalid"] >= 1
+
+
+def test_vol_ratio_088_still_rejected_at_the_new_floor(monkeypatch, _lps_behavior_frame):
+    # Companion pin for the 0.85 -> 0.87 move: a window whose ONLY pullback
+    # failure is volume at ratio 0.88 stays rejected (the shelf also refuses —
+    # low in the box — so the volume verdict is decisive for the pullback form).
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_VOL_CONTRACTION_MAX", 0.87)
+    df = _lps_behavior_frame(
+        highs=[103.5, 102.8, 102.5],
+        lows=[101.5, 101.2, 101.0],
+        closes=[102.5, 102.0, 101.8],
+    )
+    df["Volume"] = 880  # ratio 0.88 vs Vol_50 1000
+
+    result, rejects = detect_lps(df=df, latest=df.iloc[-1], diagnose=True, **_SHELF_KW)
+
+    assert result is None
+    assert rejects["volume not drying up"] >= 1
+
+
+def test_two_bar_shelf_floor_admits_shelves_not_noise(monkeypatch, _lps_behavior_frame):
+    # Companion pins for the shelf-length 3 -> 2 move. At n=2 the monotone
+    # axis is one comparison (near-vacuous) — the position and profile gates
+    # must carry the discrimination.
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_SHELF_LENGTH_MIN", 2)
+
+    # A 2-bar hot-volume HIGH shelf (the VCTR class): shelf-saved.
+    high_shelf = _lps_behavior_frame(
+        highs=[108.5, 107.5], lows=[106.5, 106.0], closes=[107.5, 106.8])
+    high_shelf["Volume"] = 1400
+    accepted = detect_lps(df=high_shelf, latest=high_shelf.iloc[-1], **_SHELF_KW)
+    assert accepted is not None
+    assert accepted["swing_type"] == "holding_shelf"
+
+    # The canon failure geometry at 2 bars — flat + LOW + hot volume: dead.
+    low_flat = _lps_behavior_frame(
+        highs=[103.5, 102.5], lows=[101.5, 101.0], closes=[102.5, 101.8])
+    low_flat["Volume"] = 1400
+    result, rejects = detect_lps(df=low_flat, latest=low_flat.iloc[-1],
+                                 diagnose=True, **_SHELF_KW)
+    assert result is None
+    assert rejects["flat-hold form refused"] >= 1
+
+    # A 2-bar rising-low wedge + hot volume: the monotone axis still bites.
+    wedge = _lps_behavior_frame(
+        highs=[108.5, 107.5], lows=[106.0, 106.45], closes=[107.5, 107.0])
+    wedge["Volume"] = 1400
+    assert detect_lps(df=wedge, latest=wedge.iloc[-1], **_SHELF_KW) is None

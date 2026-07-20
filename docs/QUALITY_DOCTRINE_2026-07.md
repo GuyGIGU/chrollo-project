@@ -148,7 +148,7 @@ convention; geometry invariants; calibration evidence written into settings comm
     > were deleted, `PIP_MACRO_PHASE_A` / `CANDLE_SPREAD_AWARE` / `PUZZLE_SCORE_ENABLED` flipped live, and
     > the manifest-completeness scan (the P1 above) now globs `core/structure/` plus the regime /
     > fundamentals eval modules. The inventory in these two bullets is the 2026-07-03 snapshot.
-- P2 — strategy_v2.md drift is discipline-only; its hand-maintained Settings Quick-Reference
+- P2 — strategy_alpha.md drift is discipline-only; its hand-maintained Settings Quick-Reference
   (~130 lines) is guaranteed rot. Generate that block from `config/settings.py` (or assert
   values match by test) + grep-test that every manifest key appears in the doc.
 - P2 — Both hard gates bypass the data layer (frozen frames straight into the twins) — the
@@ -315,7 +315,7 @@ tasks registered and running; thoughtful fixture gitignore discipline.
 don't. Rules of engagement for every working session:
 
 1. Read this doc §for-your-package + `AGENTS.md` first. Engine-touching work additionally reads
-   `docs/strategy_v2.md` (house law).
+   `docs/strategy_alpha.md` (house law).
 2. One branch per package off `main`; small PRs; run the gates before handoff
    (`pytest`, `tools/shadow_diff --check`, seed-recall hermetic, FE build).
 3. **Only ONE session at a time may touch `core/structure/`, `core/scoring/`,
@@ -360,12 +360,12 @@ AppRotate commands (elevation) + one end-to-end alert test-fire.
 ### WP-E — Engine guard net (T1) — M — **solo lane, engine-adjacent**
 `tests/` fixtures + `tools/shadow_diff.py`-style third gate, `tests/test_invariants.py`,
 `config/settings.py`, `core/freeze/manifest.py`, `core/structure/pip.py`+`segmentation.py`
-(flag deletion), `docs/strategy_v2.md`.
+(flag deletion), `docs/strategy_alpha.md`.
 Negative-corpus precision gate (~20 frozen must-NOT-fire cases as a hard gate); glob the
 manifest-completeness scan over all of core/structure/; add TA_SCORE_V2 to the allow-list;
 committed flag ledger with kill-by dates; DELETE PIP_PIVOTS_ENABLED (eyeball-rejected);
-generate/assert strategy_v2's settings quick-reference; captured_at on baselines. Read
-strategy_v2.md first; update it in the same change; all gates must stay green (these changes
+generate/assert strategy_alpha's settings quick-reference; captured_at on baselines. Read
+strategy_alpha.md first; update it in the same change; all gates must stay green (these changes
 are behavior-neutral — any shadow/recall diff is a bug).
 
 ### WP-F — Frontend folds (T2) — M/L — after or alongside, low conflict

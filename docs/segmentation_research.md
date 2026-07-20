@@ -2,7 +2,7 @@
 
 **Status: research + Phase-1 design.** Sibling to
 [structure_legend.md](structure_legend.md) (the shared vocabulary) and
-[strategy_v2.md](strategy_v2.md) (what the code does today). This file records
+[strategy_alpha.md](strategy_alpha.md) (what the code does today). This file records
 *why* we're adding a swing-segmentation layer and *how* it's built measure-first.
 
 ---
@@ -145,7 +145,7 @@ rooting to respect **segment ownership**.
   mid-churn boxes anchored from the bottom. The fix makes validity itself encode
   the user's range test: a Resistance/Support-anchor pair is valid only if price
   **respects, touches, and zigzags through both rails constantly with no dead
-  space** (`metrics.measure_equilibrium`: ≥3 two-sided touches spread across the
+  space** (`metrics.measure_dwell_balance`, formerly `measure_equilibrium`: ≥3 two-sided touches spread across the
   span + both-halves dwell + box-height coverage, and not mid-churn), box width
   ≤ 0.18, respect tightened (`MAX_CONSECUTIVE_OUTSIDE_DAYS` 30→10). Selection is
   now plain **earliest-of-valid** (`PHASE_B_REACH_QUALITY_FLOOR` retired — a

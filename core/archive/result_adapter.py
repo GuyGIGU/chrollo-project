@@ -1,6 +1,6 @@
 """Adapter: canonical live-evaluation result -> seed/archive-writer key shape.
 
-The live path (`core.pipeline.evaluation._build_live_result`) is the single source of
+The live path (`engine_alpha.evaluation._build_live_result`) is the single source of
 truth for an evaluation result. It emits a dict whose internal fields are `_`-prefixed
 (e.g. ``_lps_descent_frac``, ``_bin_a_bars``) plus a few display-named fields
 (``Setup``, ``Score``, ``Current Price`` ...).

@@ -2,7 +2,7 @@
 "stale root sees through to a modern box" question (ROIV / TDAY / ADM / BWMX ...).
 
 For each named ticker this REPLICATES the live spine's root walk
-(``read_structure`` in core.structure.narrative): it enumerates the candidate
+(``read_structure`` in engine_alpha.structure.narrative): it enumerates the candidate
 root swings oldest-first exactly as the spine does, and for every root reports
 whether its Phase-B equilibrium validates, how far the worked box starts AFTER
 the automatic-reaction low (the "root-to-box gap"), the box's rail-to-rail
@@ -40,17 +40,17 @@ import pandas as pd
 
 from config import settings
 from core.archive.seed import _evaluate_at_date
-from core.pipeline.evaluation import apply_baseline_filters
-from core.structure import bricks
-from core.structure.box_primitives import (
+from engine_alpha.evaluation import apply_baseline_filters
+from engine_alpha.structure import bricks
+from engine_alpha.structure.box_gates import (
     _is_boundary_respected,
-    _pivot_order,
     _validate_base_quality,
 )
-from core.structure.indicators import calculate_atr
-from core.structure.metrics import measure_traversal
-from core.structure.narrative import read_structure
-from core.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.box_primitives import _pivot_order
+from engine_alpha.structure.indicators import calculate_atr
+from engine_alpha.structure.metrics import measure_equilibrium
+from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
 
 # The cases that drove the Root-Swing + Box-Integrity repair discussion.
 DEFAULT = ["ROIV", "TDAY", "ADM", "BWMX", "NMM", "BBVA"]
@@ -329,11 +329,11 @@ def _diagnose_candidates(df, root, atr) -> None:
             elif not valid:
                 reject = _validity_reject(eq, rt, st)
             else:
-                trav = measure_traversal(sub, R_val, S_val, atr)
+                trav = measure_equilibrium(sub, R_val, S_val, atr)
                 nf, ns = trav["n_full_traversals"], trav["n_swings"]
                 dens = nf / ns if ns else 0.0
-                if settings.TRAVERSAL_GATE_ENABLED and (
-                        nf < settings.TRAVERSAL_MIN or dens < settings.TRAVERSAL_MIN_DENSITY):
+                if (nf < settings.TRAVERSAL_MIN
+                        or dens < settings.TRAVERSAL_MIN_DENSITY):
                     reject = f"traversal nF={nf} dens={dens:.3f} (<{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})"
                 else:
                     reject = "PASS (would validate)"
@@ -348,12 +348,12 @@ def _diagnose_candidates(df, root, atr) -> None:
     # Recovered-support / high-shelf hint from the post-AR window extremes.
     R_ext, S_ext = float(eq_highs.max()), float(eq_lows.min())
     if R_ext > S_ext:
-        trav = measure_traversal(eq_df, R_ext, S_ext, atr)
-        lsf, cfp = trav.get("last_support_frac"), trav.get("coil_floor_pos")
+        trav = measure_equilibrium(eq_df, R_ext, S_ext, atr)
+        lsf, cfp = trav.get("last_support_time_pos"), trav.get("low_position_in_box")
         if lsf is not None and cfp is not None:
             tag = ("recovered-support candidate (old floor abandoned early)"
                    if (lsf <= 0.40 and cfp >= 0.20) else "no early-abandonment signal")
-            print(f"      window: last_support_frac={lsf:.3f} coil_floor_pos={cfp:.3f} "
+            print(f"      window: last_support_time_pos={lsf:.3f} low_position_in_box={cfp:.3f} "
                   f"-> {tag}")
 
 

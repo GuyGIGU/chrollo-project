@@ -46,7 +46,7 @@
     },
     "CVI": {
       "Setup": "LPS",
-      "Score": 98.9,
+      "Score": 102.9,
       "Tier": "A",
       "Base Len": 53,
       "Box Width": 0.14085,
@@ -101,7 +101,7 @@
     },
     "GF": {
       "Setup": "LPS",
-      "Score": 95.7,
+      "Score": 98.3,
       "Tier": "A",
       "Base Len": 91,
       "Box Width": 0.171103,
@@ -167,7 +167,7 @@
     },
     "MEGI": {
       "Setup": "LPS",
-      "Score": 97.5,
+      "Score": 100.1,
       "Tier": "A",
       "Base Len": 68,
       "Box Width": 0.092847,
@@ -233,14 +233,14 @@
     },
     "PLPC": {
       "Setup": "LPS",
-      "Score": 136.0,
+      "Score": 118.8,
       "Tier": "S",
       "Base Len": 22,
       "Box Width": 0.110779,
       "LPS Length": 2,
       "_R": 371.799988,
       "_S": 334.720001,
-      "_trigger_price": 378.809998
+      "_trigger_price": 379.529999
     },
     "SCL": {
       "Setup": "LPS",
@@ -299,11 +299,11 @@
     },
     "TRS": {
       "Setup": "LPS",
-      "Score": 88.8,
+      "Score": 87.0,
       "Tier": "B",
       "Base Len": 79,
       "Box Width": 0.179444,
-      "LPS Length": 4,
+      "LPS Length": 6,
       "_R": 41.915456,
       "_S": 35.53832,
       "_trigger_price": 40.259998
@@ -332,7 +332,7 @@
     },
     "VLO": {
       "Setup": "LPS",
-      "Score": 116.8,
+      "Score": 119.8,
       "Tier": "S",
       "Base Len": 58,
       "Box Width": 0.117777,
@@ -355,15 +355,15 @@
   },
   "ranking": [
     "WCC",
-    "PLPC",
     "VIK",
     "NMM",
     "PBF",
     "EC",
     "PII",
+    "VLO",
+    "PLPC",
     "SWK",
     "CHRW",
-    "VLO",
     "BC",
     "TNC",
     "JAKK",
@@ -374,18 +374,18 @@
     "HOG",
     "COLM",
     "SCL",
-    "IRS",
     "CVI",
     "MEGI",
+    "IRS",
+    "GF",
     "NDSN",
     "SN",
-    "GF",
     "ABEV",
     "FOF",
     "HVT",
-    "TRS",
     "URBN",
+    "TRS",
     "TKO"
   ],
-  "captured_at": "2026-07-04T13:38:10+00:00"
+  "captured_at": "2026-07-17T11:35:44+00:00"
 }

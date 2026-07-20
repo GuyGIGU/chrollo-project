@@ -145,26 +145,48 @@ test('miniFocusLogicalRange: minVisibleBars pads a tiny base out to the floor', 
   assert.equal(range.to - range.from, 90);
 });
 
-test('colorMiniCandles: clones input, paints limb grey and lps gold', () => {
+test('colorMiniCandles: greys the r/s anchor pair — the limbs R and S are drawn from', () => {
   const candles = makeCandles(20);
+  // base_len 6, fwd 0 -> baseEnd 19, baseStart 14. The root swing is the ANCHOR PAIR:
+  // r_anchor=1 -> idx 15 (its high sets R), s_anchor=4 -> idx 18 (its low sets S).
   const data = {
     candles,
     base_len: 6,
     forward_bars: 0,
     r_anchor: 1,
     s_anchor: 4,
+    // Phase A sits outside the box and must NOT drive the grey bars.
+    _phase_a_start_date: '2024-01-05',
+    _phase_a_end_date: '2024-01-08',
+    _phase_b_start_date: '2024-01-15',
     lps_tests: [],
     lps_len: 0,
   };
   const out = colorMiniCandles(data);
-  // source untouched (deep clone)
-  assert.equal(candles[15].color, undefined);
-  // baseEnd = 19, baseStart = 14; limbStart = min(15, 18, baseStart) = 14
-  // (left edge pinned to the box start - the back-extension seam), limbEnd=18
-  assert.equal(out[14].color, CHART_COLORS.baseLimb);
-  assert.equal(out[15].color, CHART_COLORS.baseLimb);
-  assert.equal(out[18].color, CHART_COLORS.baseLimb);
-  assert.equal(out[13].color, undefined);
+  assert.equal(candles[15].color, undefined); // source untouched (deep clone)
+  assert.equal(out[15].color, CHART_COLORS.baseLimb); // R anchor
+  assert.equal(out[16].color, CHART_COLORS.baseLimb); // the limb between the anchors
+  assert.equal(out[18].color, CHART_COLORS.baseLimb); // S anchor
+  // The box OPEN must not be swept in — folding baseStart into the span was the
+  // long-standing "root-swing grey drag" bug.
+  assert.equal(out[14].color, undefined);
+  assert.equal(out[19].color, undefined);
+  // Phase A bars (idx 4..7, outside the consolidation) stay unpainted.
+  assert.equal(out[4].color, undefined);
+  assert.equal(out[7].color, undefined);
+});
+
+test('colorMiniCandles: anchor order does not matter; missing anchors paint no root swing', () => {
+  const candles = makeCandles(20);
+  const base = { candles, base_len: 6, forward_bars: 0, lps_tests: [], lps_len: 0 };
+  // s_anchor before r_anchor -> still spans min..max, never inverted.
+  const flipped = colorMiniCandles({ ...base, r_anchor: 4, s_anchor: 1 });
+  assert.equal(flipped[15].color, CHART_COLORS.baseLimb);
+  assert.equal(flipped[18].color, CHART_COLORS.baseLimb);
+  assert.equal(flipped[14].color, undefined);
+  // No anchor pair emitted -> no grey at all (degrade, never guess a span).
+  const none = colorMiniCandles({ ...base });
+  assert.ok(none.every((candle) => candle.color === undefined));
 });
 
 test('colorMiniCandles: lps_offset path paints gold', () => {

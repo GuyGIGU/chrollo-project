@@ -1,6 +1,6 @@
 """Event Map mechanical layer — Task 4 guards.
 
-Pins the three load-bearing properties of ``core.structure.event_map``:
+Pins the three load-bearing properties of ``engine_alpha.structure.event_map``:
 
 1. **The in-box slice IS the staircase** — the tape's ``region == "box"`` swings,
    re-based and stripped of tape-only fields, equal ``read_box_staircase`` over
@@ -24,9 +24,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.structure.box_events import _EVENT_HOLD_MIN_BARS, read_box_staircase
-from core.structure.event_map import read_role_labels, read_swing_map
-from core.structure.pivots import _find_pivots
+from engine_alpha.structure.box_events import _EVENT_HOLD_MIN_BARS, read_box_staircase
+from engine_alpha.structure.event_map import read_role_labels, read_swing_map
+from engine_alpha.structure.pivots import _find_pivots
 
 pytestmark = pytest.mark.regression
 
@@ -297,7 +297,7 @@ def test_labels_are_chronologically_ordered():
 def _first_firing_fixture_ticker():
     """One real firing (ticker, frame, result, spy, breadth) off the committed
     shadow fixture — loud if the fixture stopped firing entirely."""
-    from core.pipeline.evaluation import EVAL_ERROR
+    from engine_alpha.evaluation import EVAL_ERROR
     from core.pipeline.screener import _evaluate_ticker
     from tools.shadow_diff import _load_fixture
 
@@ -318,7 +318,7 @@ def _first_firing_fixture_ticker():
 def test_event_map_flag_off_never_computes(monkeypatch):
     """EC-8 inert proof: with EVENT_MAP_ENABLED off (the default), a full
     per-ticker evaluation never touches the Event Map readers."""
-    import core.structure.event_map as em
+    import engine_alpha.structure.event_map as em
     from config import settings
 
     assert settings.EVENT_MAP_ENABLED is False, "flag must ship dark"
@@ -372,7 +372,7 @@ def test_event_map_archive_values_live_and_seed_mapping():
     """The tape-summary archive family (Task 7): the owning extraction maps a
     live (prefixed) or seed (unprefixed) row to exactly EVENT_MAP_COLUMN_SQL,
     NaN-scrubbed (EC-2), INTEGER cells as plain int, absent -> None (NULL)."""
-    from core.structure.event_map import EVENT_MAP_COLUMN_SQL, event_map_archive_values
+    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL, event_map_archive_values
 
     live_row = {"_event_map_n_swings": np.int64(7),
                 "_event_map_pre_box_trend": "up",

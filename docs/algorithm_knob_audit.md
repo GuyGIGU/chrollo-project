@@ -246,7 +246,7 @@ Cleanup candidates:
 
 - `scope.py` Phase-D wording — RESOLVED 2026-06-22: docstring matches the shared
   boundary helper (earliest right-side evidence; LPS remains the mandatory gate).
-- `strategy_v2.md` still describes a partly older Phase-D boundary model in
+- `strategy_alpha.md` still describes a partly older Phase-D boundary model in
   places. It should be refreshed after the next calibration pass.
 
 ## LPS Candidate Detection
@@ -505,4 +505,4 @@ with `shadow_diff --check` + `seed_recall`.)
 2. First-class the Phase-D evidence vocabulary in archive/overlay:
    `support_tests`, `rising_support`, `sos_reclaim`, `inner_box`, `v_tip`, `lps`.
 3. Split LPS into explicit candidate detection vs active setup selection.
-4. Refresh `strategy_v2.md`'s older Phase-D boundary wording — after the next calibration pass.
+4. Refresh `strategy_alpha.md`'s older Phase-D boundary wording — after the next calibration pass.
