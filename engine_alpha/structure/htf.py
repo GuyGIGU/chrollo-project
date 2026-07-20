@@ -191,14 +191,12 @@ def _read_htf_structure(df: pd.DataFrame, atr: float, max_roots: int = 40) -> Op
         box = bricks.validate_equilibrium(df, root, atr)
         if box is None:
             continue
-        try:
-            spring = bricks.find_spring(df, box, atr)
-        except Exception:
-            spring = None
-        try:
-            lps = bricks.find_lps(df, box, atr)
-        except Exception:
-            lps = None
+        # A crashing detector must ABSTAIN, not paint: both callers wrap this
+        # walk in an honest catch-all (empty field set / None = "not measured").
+        # Swallowing here instead would fabricate a phase read ("no spring" ->
+        # B/D) out of a failure — the FLXS bug class (doctrine audit 2026-07-19).
+        spring = bricks.find_spring(df, box, atr)
+        lps = bricks.find_lps(df, box, atr)
         phase = "D" if lps is not None else ("C" if spring is not None else "B")
         return {"box": box, "spring": spring, "lps": lps, "phase": phase, "root": root}
     return None

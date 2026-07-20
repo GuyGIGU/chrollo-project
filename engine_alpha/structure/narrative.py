@@ -53,8 +53,10 @@ class Structure:
     """The complete A -> B -> (C?) -> D narrative for one base.
 
     The single source of truth for the A -> B spine: ``climax_bar <= ar_bar <=
-    phase_b_start_bar <= phase_b_end_bar`` by construction (a zero-length
-    climax==ar pair is degenerate but possible on the raw fallback). ``phase_d_start_bar``
+    phase_b_start_bar <= phase_b_end_bar`` by construction. A one-bar
+    climax+AR (``climax_bar == ar_bar``) is a sanctioned form — a single
+    wide-spread bar can breach the trend extreme AND correct deep enough to
+    serve as both boundaries (operator ruling 2026-07-20). ``phase_d_start_bar``
     is NOT on that spine: it is the right-side REGION boundary (evidence-based),
     while ``phase_b_end_bar`` is the terminator EVENT bar (spring tip / LPS
     start) — on most no-spring bases the D region opens before the LPS window,
@@ -81,8 +83,10 @@ class Structure:
     # The parent equilibrium brick — carries the rich measured fields (touches,
     # breach, anchors, traversal) consumers need beyond the phase boundaries.
     box: Any
-    # The tighter Phase-D mini-consolidation nested in the parent box (VCP inner
-    # range), or None. The LPS triggers off this when it is tighter.
+    # The tighter Phase-D mini-consolidation found in the parent's vicinity (VCP
+    # inner range), or None. Nesting is TEMPORAL, not price-bounded: the inner
+    # forms its own R/S and commonly sits ON the parent's R, treating it as its
+    # new Support. The LPS triggers off this when it is tighter.
     inner: Optional[Any]
     # Phase C — the spring (None for a clean A->B->D base; we don't force it)
     spring: Optional[Any]

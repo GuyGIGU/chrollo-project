@@ -110,9 +110,21 @@ and the box open, price may exceed the climax by at most
 violating pair re-anchors to the box's own run-up extreme → the box open — terminal
 by construction (the FLXS repair: a stale 04-28 seed painted while price ran +38.5%
 into the 06-26 box; fleet-measured, 59% of setups continued >5% past their claimed
-climax before the guard). Overlay + Phase-A diagnostics only; the
+climax before the guard). The repair window **includes the box-open bar**
+(2026-07-20, caught by the doctrine gate on its first run: 27 setups leaked when a
+pbs-exclusive window anchored one bar short of a box that opens ON the extreme —
+FLXS's 06-26 open IS its R); when the box-open bar makes the high, the pair
+collapses to the sanctioned one-bar boundary form (climax == AR == box open). Overlay + Phase-A diagnostics only; the
 `engine_config_version` rotation partitions the `bin_a_*`/`bars_since_bc`/
 `descent_length` archive seam.
+
+**The one-bar climax+AR form is sanctioned (operator ruling, 2026-07-20).** A single
+bar can serve as BOTH the climax and the AR — for the trend end or a root swing —
+when it travels enough and carries enough spread to cover both boundaries: the bar
+breaches the trend's extreme AND corrects deep enough within its own range to count
+as the reaction. A zero-length pair (`climax_bar == ar_bar`) is therefore a valid
+degenerate form, not a defect (MIDD exemplar, found by the 2026-07-19 doctrine
+audit). The spine invariant is `climax_bar <= ar_bar`, strict `<` not required.
 
 #### The Equilibrium box (Phase B) — the Root Swing election
 
@@ -1228,7 +1240,7 @@ The live reader calls `find_inner_box()` ([engine_alpha/structure/bricks.py](../
 
 `detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 
-Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless.
+Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless. **Operator ruling (2026-07-20):** "nested" means found in the *vicinity* of the parent at a more advanced point of the accumulation, never bounded by the parent's original rails — the range's contraction naturally forms a new mini process with its **own** R and S, and a mini-consolidation forming ON the parent's Resistance, treating it as its new Support, is a common variation (8/17 live inners sit partly above parent R — measured 2026-07-19, all sanctioned).
 
 The key difference between `inner_zigzag` and `phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 

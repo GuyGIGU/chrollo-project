@@ -529,7 +529,11 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
     constant semantics as PIP_MACRO_MAX_POST_EXCESS. A violating pair
     re-anchors to the box's own run-up (the prominent extreme of the
     _SEG_LEAD_IN window -> the box open) — the local synthesis the
-    ancient-origin fallback already uses, terminal by construction.
+    ancient-origin fallback already uses. The repair window INCLUDES the
+    box-open bar: when the box opens ON the extreme the pair collapses to
+    the sanctioned one-bar boundary form (climax == AR == box open, operator
+    ruling 2026-07-20), which makes the repair terminal by construction —
+    the doctrine gate caught 27 setups leaking past a pbs-exclusive window.
 
     Unknown root kinds pass through untouched (no direction to test). Overlay
     + Phase-A diagnostics only (bars_since_BC / descent_length / bin_a — the
@@ -555,7 +559,7 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
         span = highs[climax_bar + 1:pbs + 1]
         if not len(span) or float(np.max(span)) <= float(highs[climax_bar]) + excess * height:
             return climax_bar, ar_bar
-        window = highs[lo:pbs]
+        window = highs[lo:pbs + 1]
         if not len(window):
             return climax_bar, ar_bar
         return lo + int(np.argmax(window)), pbs
@@ -563,7 +567,7 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
     span = lows[climax_bar + 1:pbs + 1]
     if not len(span) or float(np.min(span)) >= float(lows[climax_bar]) - excess * height:
         return climax_bar, ar_bar
-    window = lows[lo:pbs]
+    window = lows[lo:pbs + 1]
     if not len(window):
         return climax_bar, ar_bar
     return lo + int(np.argmin(window)), pbs

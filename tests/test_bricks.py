@@ -593,6 +593,24 @@ def test_enforce_climax_terminality_repairs_mid_trend_bc():
     assert (climax, ar) == (115, 120)
 
 
+def test_enforce_climax_terminality_collapses_to_box_open_extreme():
+    # The box opens ON the trend's extreme: the box-open bar (120) makes the
+    # run-up high, so the repair must include it and collapse to the sanctioned
+    # one-bar boundary form (climax == AR == box open, operator ruling
+    # 2026-07-20). A pbs-exclusive repair window anchored one bar short here
+    # (caught by the doctrine gate: 27 live setups, FLXS's open IS its R).
+    closes = [100.0] * 160
+    closes[90] = 108.0    # claimed "climax" (mid-trend pause)
+    closes[100] = 103.0   # its claimed AR
+    closes[120] = 150.0   # the REAL extreme: the box-open bar itself
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    box = _box(start_bar=120, base_len=40)
+
+    climax, ar = _enforce_climax_terminality(df, root, box, 90, 100, 1.0)
+    assert (climax, ar) == (120, 120)
+
+
 def test_enforce_climax_terminality_leaves_terminal_bc():
     # An honest trend end: nothing between the climax and the box open exceeds
     # the climax (small pokes inside 0.25 x height are tolerated) -> untouched.
