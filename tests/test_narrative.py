@@ -59,6 +59,16 @@ class _Bricks:
             return lps, (Counter() if lps is not None else Counter({"does not rest on its low": 1}))
         return lps
 
+    def cause_maturity(self, df, box, atr, lps=None):
+        # Default: a matured cause -> no veto, the happy-path spine proceeds.
+        # The cause-absent (veto) branch is exercised by _VetoBricks below; the
+        # real predicate is unit-tested in test_bricks. Now that the veto flag
+        # ships live, every read_structure consults this, so the base fake must
+        # answer it (not only _VetoBricks).
+        return SimpleNamespace(matured=True, bridge_validated=True,
+                               pre_box_trend="", box_trend="",
+                               lps_tightness_ratio=0.0)
+
     def resolve_phase_a(self, df, root, box, atr):
         # Identity passthrough: these tests exercise the spine's control flow /
         # backtracking, not Phase-A locality (that is covered in test_bricks).

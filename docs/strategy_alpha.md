@@ -128,7 +128,7 @@ terminal climax→AR bridge, its reaction held within the bar. The spine invaria
 is `climax_bar <= ar_bar`, strict `<` not required.
 
 **Cause before effect — a box may not predate its own climax (operator ruling,
-2026-07-20; flag `CAUSE_BEFORE_EFFECT_VETO_ENABLED`, default-off).** Phase B has
+2026-07-20; flag `CAUSE_BEFORE_EFFECT_VETO_ENABLED`, FLIPPED LIVE 2026-07-20).** Phase B has
 no meaning without a Phase A: a consolidation is the *cause* worked off after a
 trend ends, so an elected box must be preceded by a matured cause. The failure
 class is **MIDD** (ruled "no setup at all"): price trends UP through both rails
@@ -1072,7 +1072,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `e810be1b641a95003a077fd9638574293675ba012e50bcdec49a60e69735d5c3`_
+_engine_config_version: `2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1097,7 +1097,7 @@ AR_RETRACE_FRAC = 0.5
 AR_UP_LEG_LOOKBACK = 40
 AR_BOUNCE_ATR_MULT = 1.5
 AR_BOUNCE_DROP_FRAC = 0.5
-CAUSE_BEFORE_EFFECT_VETO_ENABLED = False
+CAUSE_BEFORE_EFFECT_VETO_ENABLED = True
 CAUSE_LPS_LOOSE_MAX = 0.9
 BOUNDARY_ATR_BUFFER = 0.5
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10

@@ -80,9 +80,11 @@ AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whicheve
 # staircase reads a live up-run each side of the box open AND the elected LPS shelf never
 # tightened (CAUSE_LPS_LOOSE_MAX, the third leg documented just below). Depth-free (a deep throwback like
 # CTOS keeps its validated bridge) and fail-OPEN (never veto on missing data -- recall is the
-# pass/fail gate). Default OFF; flip only after the corpus recall pre-flight proves the AND is
-# false on every seeded + calibrated winner. See docs/strategy_alpha.md "Cause before effect".
-CAUSE_BEFORE_EFFECT_VETO_ENABLED = False
+# pass/fail gate). FLIPPED LIVE 2026-07-20 (operator grant): the recall pre-flight passed (hermetic
+# seed 43/43, marks ratchet held, MIDD rejects) and the live A/B eyeball removed 7 of 234 fired names,
+# all operator-confirmed skips (MIDD/FLG/BNS/CVCO/HWM/NTCT-current/TPL). See docs/flag_ledger.md
+# (Retired) + docs/strategy_alpha.md "Cause before effect".
+CAUSE_BEFORE_EFFECT_VETO_ENABLED = True
 
 # Third leg of the cause-before-effect veto (consulted ONLY when the flag above is ON and
 # both top-down reads already agree the cause is absent): the elected LPS's final shelf
