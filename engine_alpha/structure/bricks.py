@@ -725,3 +725,137 @@ def _resolve_phase_a_raw(
         bc_anchor_bar + settings.AR_MAX_BARS,
     )
     return bc_anchor_bar, phase_a_end_bar
+
+
+# ---------------------------------------------------------------------------
+# The cause-before-effect precondition (measure-only)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class CauseVerdict:
+    """Whether a matured Phase-A cause precedes an elected box.
+
+    A pure MEASUREMENT — no gate, no score, mutates nothing. ``read_structure``
+    turns ``matured`` into the veto decision; the trace/audit reads the
+    sub-signals to explain WHY a name was (not) vetoed. Composed from three
+    already-existing reads (two top-down + the shelf's own tightness), never a
+    new detector:
+
+      * ``bridge_validated`` — the box-INDEPENDENT macro bridge found a terminal
+        climax->AR that survived its terminality/floor/oscillation guards in the
+        lead-in (``macro_bridge_zigzag`` returned a story, not ``[]``). This is
+        the recall-SAFE operand: a matured base validates here even when it sits
+        far above R (a deep throwback), while MIDD's live up-leg abstains. It is
+        NOT the box-CONSTRAINED resolver fallback, which abstains for the benign
+        "the AR doesn't reach THESE rails" reason and would over-veto matured
+        bases whose climax was re-anchored.
+      * ``pre_box_trend`` / ``box_trend`` — the HH/HL staircase trend state on
+        each side of the box open (``read_swing_map``). A live up-staircase
+        through the rails reads ``'up'`` / ``'up'``.
+      * ``lps_tightness_ratio`` — the elected LPS's final shelf-candle spread
+        over the base profile unit (``lps.tightness_ratio``, a structural fact).
+        The third leg: MIDD's shelf never tightened (ratio 0.957, the census
+        minimum) while every seeded winner tightened more — so a box is causeless
+        only if its final shelf is ALSO loose (ratio > ``CAUSE_LPS_LOOSE_MAX``).
+
+    ``matured`` is False (cause absent -> veto candidate) ONLY when all three
+    agree: the bridge abstained AND both trend states read a live up-staircase
+    AND the LPS shelf is loose. This is an AND-narrowing — a tighter gate than
+    the bridge+staircase pair alone, so it can only ever rescue a winner the two
+    would have dropped, never drop a new one (the seeded tight-shelf winners
+    BP/LECO/MEOH/NTCT/VLO clear it). Every other path — a validated bridge, a
+    non-'up' trend state, a tight shelf, a degenerate frame/box, a bad ATR,
+    a missing LPS — returns ``matured=True``. Fail-OPEN is the law: a veto on the
+    mere absence of a positive cause-absent signal would drop a winner, and
+    recall is the pass/fail gate.
+    """
+    matured: bool
+    bridge_validated: bool
+    pre_box_trend: str
+    box_trend: str
+    lps_tightness_ratio: float
+
+
+def cause_maturity(df, box, atr, lps=None) -> CauseVerdict:
+    """Does a matured Phase-A cause precede this elected box? (measure-only.)
+
+    The MIDD class: a box drawn over a live trend that never matured a cause —
+    price trends up THROUGH both rails into a blow-off, so the consolidation
+    predates its own climax. This reads the two top-down signals that ALREADY
+    exist and reports whether the cause matured; it draws nothing, gates
+    nothing, mutates nothing. ``read_structure`` owns the veto decision.
+
+    Operand A (box-INDEPENDENT, the recall-safe primary): over the SAME lead-in
+    + box window ``resolve_phase_a`` reads (``base_len + _SEG_LEAD_IN``), does
+    the macro bridge validate ANY terminal climax->AR? ``macro_bridge_zigzag``
+    returns ``[]`` on abstention (a trend still making highs, a reaction that
+    never held, a leg glued across other structure) — exactly the MIDD tell —
+    and a >=2-pivot story otherwise. A validated story is a matured cause, full
+    stop: return early and never even compute the trend state (the O(n) swing
+    walk runs only when the cause is already in doubt — Performance's
+    short-circuit).
+
+    Operand B (consulted ONLY on abstention): the HH/HL staircase trend state on
+    each side of the box open (``read_swing_map``). A live up-staircase reads
+    ``pre_box == 'up'`` AND ``box == 'up'`` — the box floating up through its own
+    rails rather than a two-sided range.
+
+    Operand C (the shelf tell): the elected ``lps.tightness_ratio`` — the last
+    shelf candle's spread over the base profile unit. MIDD's shelf never tightened
+    (0.957, the census minimum); every seeded winner's did (nearest 0.842). A box
+    is causeless only if its final shelf is ALSO loose (ratio > ``CAUSE_LPS_LOOSE_MAX``).
+
+    ``matured=False`` (veto candidate) requires ALL THREE operands to agree the
+    cause is absent: the bridge abstained AND the staircase is a live up-run AND
+    the shelf is loose. The shelf leg is an AND-narrowing — it can only rescue a
+    winner the bridge+staircase pair would have vetoed (the seeded tight-shelf
+    names), never drop a new one. Every other path returns ``matured=True``.
+
+    Replay-honest: a pure function of ``df`` up to the election bar plus the
+    elected box. ``macro_bridge_zigzag`` treats the right edge as an unconfirmed
+    'now' (never an AR), so the eval-at-T verdict equals the live verdict at T.
+    """
+    from engine_alpha.structure.phase_a import macro_bridge_zigzag
+
+    # Operand A — the box-independent macro bridge over the same window
+    # resolve_phase_a reads. Abstention ([]) is the primary cause-absent signal.
+    try:
+        n = len(df)
+        lookback = int(getattr(box, "base_len", 0)) + _SEG_LEAD_IN
+        lo = max(0, n - lookback) if lookback > 0 else 0
+        highs = df["High"].values[lo:]
+        lows = df["Low"].values[lo:]
+        story = macro_bridge_zigzag(highs, lows, k_max=settings.PIP_MACRO_K_MAX)
+        bridge_validated = len(story) >= 2
+    except (KeyError, TypeError, ValueError, IndexError, AttributeError):
+        # Fail OPEN on ANY error in the frame setup OR the bridge itself — a
+        # degenerate frame (the common case) or an unexpected fault both leave
+        # the cause unproven, and refusing to veto can only keep a name, never
+        # drop a winner (recall is the gate). The catch is deliberately broad.
+        return CauseVerdict(matured=True, bridge_validated=False,
+                            pre_box_trend="", box_trend="", lps_tightness_ratio=0.0)
+
+    if bridge_validated:
+        # A matured cause validated in the lead-in — never veto. The trend-state
+        # read (Operand B) is not even computed (short-circuit).
+        return CauseVerdict(matured=True, bridge_validated=True,
+                            pre_box_trend="", box_trend="", lps_tightness_ratio=0.0)
+
+    # Operand B — only on abstention: is the box a live up-staircase?
+    from engine_alpha.structure.event_map import read_swing_map
+
+    tape = read_swing_map(df, box, atr)
+    pre_trend = tape["pre_box"]["trend_state"]
+    box_trend = tape["box"]["trend_state"]
+    live_up_run = (pre_trend == "up" and box_trend == "up")
+
+    # Operand C — the shelf tell: does the elected LPS's final candle stay loose?
+    # Fail-open on a missing/NaN ratio (reads 0.0 -> not loose -> never vetoes).
+    raw_tr = getattr(lps, "tightness_ratio", None)
+    lps_tr = float(raw_tr) if _finite(raw_tr) else 0.0
+    loose_lps = lps_tr > settings.CAUSE_LPS_LOOSE_MAX
+
+    matured = not (live_up_run and loose_lps)
+    return CauseVerdict(matured=matured, bridge_validated=False,
+                        pre_box_trend=pre_trend, box_trend=box_trend,
+                        lps_tightness_ratio=lps_tr)

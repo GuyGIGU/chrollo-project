@@ -71,6 +71,14 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "AR_UP_LEG_LOOKBACK",
     "AR_BOUNCE_ATR_MULT",
     "AR_BOUNCE_DROP_FRAC",
+    # Cause-before-effect election precondition (2026-07-20 — a box may not be
+    # elected over a live trend that never matured a cause; the MIDD class).
+    # Default-off; listed BEFORE any read so the flip bumps engine_config_version
+    # from day one (a name that starts abstaining stops archiving its rows).
+    "CAUSE_BEFORE_EFFECT_VETO_ENABLED",
+    # Third leg of that veto (loose-LPS-shelf threshold); read on the eval path
+    # by cause_maturity, so it must bump engine_config_version like any weight.
+    "CAUSE_LPS_LOOSE_MAX",
     # Dynamic recursive S/R scanning (Phase B)
     "BOUNDARY_ATR_BUFFER",
     "MAX_CONSECUTIVE_OUTSIDE_DAYS",

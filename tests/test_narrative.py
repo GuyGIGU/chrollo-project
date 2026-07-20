@@ -8,6 +8,7 @@ fails, regardless of what the bricks are.
 """
 from types import SimpleNamespace
 
+from config import settings
 from engine_alpha.structure.narrative import Structure, read_structure
 
 
@@ -128,6 +129,53 @@ def test_narrative_none_when_story_never_completes():
     # A valid box but no LPS, and no further root swing to fall back to.
     bricks = _Bricks([_root(10, 20)], {10: _box(20)}, {20: None}, {20: None})
     assert read_structure(None, 1.0, bricks=bricks) is None
+
+
+class _VetoBricks(_Bricks):
+    """A complete-story provider that also answers the cause-before-effect
+    predicate, so the veto branch in read_structure can be exercised in
+    isolation (the real predicate is unit-tested in test_bricks)."""
+
+    def __init__(self, *args, matured):
+        super().__init__(*args)
+        self._matured = matured
+
+    def cause_maturity(self, df, box, atr, lps=None):
+        # raise-if-touched: proves read_structure never CONSULTS the veto when the
+        # flag is OFF (EC-8 compute-free clause), matching the ELECTION_STABILITY
+        # inert convention — not merely that its verdict is ignored.
+        assert settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED, \
+            "cause_maturity consulted while CAUSE_BEFORE_EFFECT_VETO_ENABLED is OFF"
+        return SimpleNamespace(matured=self._matured, bridge_validated=False,
+                               pre_box_trend="up", box_trend="up",
+                               lps_tightness_ratio=0.95)
+
+
+def _complete_veto_bricks(matured):
+    return _VetoBricks([_root(10, 20)], {10: _box(20)},
+                       {20: None}, {20: _lps(85)}, matured=matured)
+
+
+def test_veto_off_is_inert_even_when_cause_absent(monkeypatch):
+    # Flag OFF (default): the veto branch is dead — cause_maturity is never
+    # consulted, so a cause-absent verdict cannot change the elected Structure.
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", False)
+    s = read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=False))
+    assert isinstance(s, Structure) and s.climax_bar == 10
+
+
+def test_veto_on_abstains_the_setup_when_cause_absent(monkeypatch):
+    # Flag ON + cause absent (matured=False) -> the box predates its own climax
+    # -> abstain the whole Structure with return None (not a backtrack).
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", True)
+    assert read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=False)) is None
+
+
+def test_veto_on_keeps_the_setup_when_cause_matured(monkeypatch):
+    # Flag ON + a matured cause -> the elected Structure stands unchanged.
+    monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", True)
+    s = read_structure(None, 1.0, bricks=_complete_veto_bricks(matured=True))
+    assert isinstance(s, Structure) and s.climax_bar == 10
 
 
 class _InnerBricks(_Bricks):

@@ -72,6 +72,32 @@ AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend
 AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
 AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
 
+# Cause-before-effect election precondition (engine_alpha/structure/bricks.cause_maturity,
+# consulted in narrative.read_structure). A box may not be elected over a live trend that
+# never matured a cause: the MIDD class, where price trends UP through both rails into a
+# blow-off so the consolidation predates its own climax. Veto ONLY when ALL THREE reads
+# agree the cause is absent -- the box-INDEPENDENT macro bridge abstains AND the HH/HL
+# staircase reads a live up-run each side of the box open AND the elected LPS shelf never
+# tightened (CAUSE_LPS_LOOSE_MAX, the third leg documented just below). Depth-free (a deep throwback like
+# CTOS keeps its validated bridge) and fail-OPEN (never veto on missing data -- recall is the
+# pass/fail gate). Default OFF; flip only after the corpus recall pre-flight proves the AND is
+# false on every seeded + calibrated winner. See docs/strategy_alpha.md "Cause before effect".
+CAUSE_BEFORE_EFFECT_VETO_ENABLED = False
+
+# Third leg of the cause-before-effect veto (consulted ONLY when the flag above is ON and
+# both top-down reads already agree the cause is absent): the elected LPS's final shelf
+# candle must ALSO be loose to veto -- its tightness_ratio (spread of the last shelf bar /
+# base profile unit) strictly ABOVE this. The separator hunt (2026-07-20, wf_8a6fdb42)
+# found MIDD's shelf never tightened (tightness_ratio 0.957 == sub_lps_tightness 1.73, the
+# global minimum of the seed+MIDD census) while all 43 seeded winners tightened more
+# (nearest VIST 0.842); 0.90 centers the cut in the empty band between them. AND-narrowing:
+# a third AND-leg can only SHRINK the veto, so a tight-shelf winner (BP/LECO/MEOH/NTCT/VLO,
+# all tightness_ratio < 0.71) is rescued and never dropped. A distinct axis from the
+# box-geometry respect gate and the dist-above-R depth cap the fleet census killed. Fail-OPEN
+# (a missing/NaN ratio reads 0.0 -> never loose -> never vetoes). See docs/strategy_alpha.md
+# "Cause before effect".
+CAUSE_LPS_LOOSE_MAX = 0.90
+
 # Coarse->fine MACRO Phase-A read (phase_a.macro_bridge_zigzag; see
 # engine_alpha/structure/phase_a.py, docs/pip_macro_phase_a.md). The earlier FLAT PIP wire
 # (PIP_PIVOTS_ENABLED — segment_swings sourcing its whole zigzag from one

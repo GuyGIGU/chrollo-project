@@ -123,8 +123,41 @@ bar can serve as BOTH the climax and the AR — for the trend end or a root swin
 when it travels enough and carries enough spread to cover both boundaries: the bar
 breaches the trend's extreme AND corrects deep enough within its own range to count
 as the reaction. A zero-length pair (`climax_bar == ar_bar`) is therefore a valid
-degenerate form, not a defect (MIDD exemplar, found by the 2026-07-19 doctrine
-audit). The spine invariant is `climax_bar <= ar_bar`, strict `<` not required.
+degenerate form, not a defect: a genuine single-bar climax+AR validates as a
+terminal climax→AR bridge, its reaction held within the bar. The spine invariant
+is `climax_bar <= ar_bar`, strict `<` not required.
+
+**Cause before effect — a box may not predate its own climax (operator ruling,
+2026-07-20; flag `CAUSE_BEFORE_EFFECT_VETO_ENABLED`, default-off).** Phase B has
+no meaning without a Phase A: a consolidation is the *cause* worked off after a
+trend ends, so an elected box must be preceded by a matured cause. The failure
+class is **MIDD** (ruled "no setup at all"): price trends UP through both rails
+into a blow-off (2026-07-07, ~1.8 ATR over R), then breaks down — all *inside*
+the box window, so the "box" is a live trend top, not a range. The tell is NOT
+the zero-length Phase-A pair — that is both the sanctioned one-bar form above AND
+what `_enforce_climax_terminality` *synthesizes* (climax == AR == box open) when
+no cause exists, so the two are the same output pair. The tell is **provenance**:
+does the box-INDEPENDENT macro bridge (`macro_bridge_zigzag`, highs/lows only)
+VALIDATE a terminal climax→AR anywhere in the lead-in, or ABSTAIN (`[]`)? A
+matured base validates even far above R (a deep throwback — CTOS at 3.59 ATR
+keeps its bridge); MIDD's live up-leg abstains. `bricks.cause_maturity` vetoes —
+abstains the whole `Structure` with `return None` — ONLY when **all three** reads
+agree the cause is absent: the macro bridge abstains AND the HH/HL staircase reads
+a live up-run each side of the box open (`read_swing_map` `pre_box`/`box`
+`trend_state` both `'up'`) AND **the elected LPS's final shelf candle never
+tightened** (`lps.tightness_ratio > CAUSE_LPS_LOOSE_MAX`, 0.90). The shelf leg is
+the discriminator that keeps the bridge+staircase pair from over-vetoing: the
+separator hunt (2026-07-20, wf_8a6fdb42) found MIDD's shelf uniquely loose
+(`tightness_ratio` 0.957 — the census minimum, its last shelf bar ~96% as wide as
+the base) while the six tight-shelf winners it was wrongly dropping (BP/LECO/MEOH/
+NTCT/VLO, all `tightness_ratio < 0.71`) had genuinely tightened. Because it is a
+third AND-leg it can only *narrow* the veto — it rescues tight-shelf winners the
+first two reads would drop, and can never drop a new one. Depth-free (never an
+above-R cap — the fleet census killed that: 132/234 live setups sit >1 ATR above
+R, CTOS blessed at 3.59), distinct from the box-geometry/rail respect gate, and
+fail-OPEN (missing data or a missing/NaN shelf ratio never vetoes — recall is the
+pass/fail gate). This CORRECTS the 2026-07-19 audit's misfiling of MIDD as a
+*sanctioned* one-bar exemplar: MIDD is the exemplar the precondition REJECTS.
 
 #### The Equilibrium box (Phase B) — the Root Swing election
 
@@ -1039,7 +1072,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `56ac633d164c0556aff439a733a3e1c9fb992239d7e81ac5be9adafe21880267`_
+_engine_config_version: `e810be1b641a95003a077fd9638574293675ba012e50bcdec49a60e69735d5c3`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1064,6 +1097,8 @@ AR_RETRACE_FRAC = 0.5
 AR_UP_LEG_LOOKBACK = 40
 AR_BOUNCE_ATR_MULT = 1.5
 AR_BOUNCE_DROP_FRAC = 0.5
+CAUSE_BEFORE_EFFECT_VETO_ENABLED = False
+CAUSE_LPS_LOOSE_MAX = 0.9
 BOUNDARY_ATR_BUFFER = 0.5
 MAX_CONSECUTIVE_OUTSIDE_DAYS = 10
 MIN_BOUNDARY_RESPECT_PCT = 0.8

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 
@@ -6,6 +8,7 @@ from engine_alpha.structure.bricks import (
     RootSwing,
     _enforce_bc_downswing,
     _enforce_climax_terminality,
+    cause_maturity,
     find_inner_box,
     find_lps,
     find_root_swing,
@@ -706,3 +709,126 @@ def test_resolve_phase_a_localizes_stale_seed():
     assert ar == 240                         # AR anchors where Phase B opens
     assert 240 - climax <= 60                # climax is local (within _SEG_LEAD_IN)
     assert climax != stale_root.climax_bar   # specifically not the ancient seed
+
+
+# --- cause_maturity: the cause-before-effect predicate (measure-only) --------
+# These stub the two composed top-down reads so the predicate's COMBINATION
+# logic (the short-circuit + the AND + fail-open) is asserted deterministically;
+# macro_bridge_zigzag / read_swing_map keep their own tests for the reads
+# themselves. The behavioral MIDD-reject / winners-survive proof is the corpus
+# pre-flight (plan Task 7), not a synthetic unit frame.
+
+def _swing_tape(pre_trend, box_trend):
+    return {
+        "swings": [], "n_swings": 0,
+        "pre_box": {"n_swings": 0, "trend_state": pre_trend},
+        "box": {"n_swings": 0, "trend_state": box_trend,
+                "counts": {}, "rail_to_rail": False, "is_zigzag": False},
+        "start_bar": 0, "n_bars": 0, "nan_bars": 0,
+    }
+
+
+def test_cause_maturity_validated_bridge_short_circuits(monkeypatch):
+    # A validated macro bridge is a matured cause, full stop: the O(n) swing walk
+    # (Operand B) must not even run, and the trend fields stay empty.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag",
+                        lambda *a, **k: [(0, "peak", 110.0), (5, "valley", 100.0)])
+
+    def _must_not_run(*a, **k):
+        raise AssertionError("read_swing_map must not run when the bridge validated")
+    monkeypatch.setattr(event_map, "read_swing_map", _must_not_run)
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0)
+    assert v.matured is True and v.bridge_validated is True
+    assert v.pre_box_trend == "" and v.box_trend == ""
+
+
+def test_cause_maturity_vetoes_on_abstain_and_live_up_run(monkeypatch):
+    # Abstention AND a live up-staircase on both sides AND a loose LPS shelf =
+    # cause absent -> veto (the MIDD class: shelf never tightened, ratio 0.957).
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    loose = SimpleNamespace(tightness_ratio=0.96)   # the shelf never tightened
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, loose)
+    assert v.matured is False and v.bridge_validated is False
+    assert v.pre_box_trend == "up" and v.box_trend == "up"
+    assert v.lps_tightness_ratio == 0.96
+
+
+def test_cause_maturity_rescued_by_tight_shelf(monkeypatch):
+    # Operand C (the AND-narrowing third leg): abstain + a live up-run but a TIGHT
+    # LPS shelf -> the cause is NOT proven absent -> no veto. This is exactly what
+    # keeps the seeded tight-shelf winners (BP/LECO/MEOH/NTCT/VLO) alive.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    tight = SimpleNamespace(tightness_ratio=0.50)   # the shelf tightened
+    v = cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, tight)
+    assert v.matured is True and v.lps_tightness_ratio == 0.50
+
+
+def test_cause_maturity_fails_open_on_missing_shelf(monkeypatch):
+    # A missing LPS (or a NaN ratio) reads 0.0 -> not loose -> never vetoes, even
+    # under abstain + up/up. Fail-open is the law; recall is the gate.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, None).matured is True
+    nan_lps = SimpleNamespace(tightness_ratio=float("nan"))
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, nan_lps).matured is True
+
+
+def test_cause_maturity_keeps_when_only_one_side_reads_up(monkeypatch):
+    # The up-run leg is recall-protective: one side not 'up' -> the cause is not
+    # proven absent -> no veto. Pass a LOOSE shelf so this ISOLATES live_up_run —
+    # without it a mutant that drops the up-run guard (matured = not loose_lps)
+    # would still veto here and slip the suite (a dropped-winner regression).
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "range"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    loose = SimpleNamespace(tightness_ratio=0.96)   # loose shelf, but a side is not 'up'
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, loose).matured is True
+
+
+def test_cause_maturity_boundary_shelf_at_threshold_keeps(monkeypatch):
+    # Strict `>`: a shelf at EXACTLY CAUSE_LPS_LOOSE_MAX is NOT loose, so abstain
+    # + up/up still KEEPS. Pins the `>` (not `>=`) semantics against a mutation.
+    import engine_alpha.structure.phase_a as phase_a
+    import engine_alpha.structure.event_map as event_map
+    from config import settings
+    monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
+    monkeypatch.setattr(event_map, "read_swing_map",
+                        lambda *a, **k: _swing_tape("up", "up"))
+
+    df = _ohlc_from_closes([100.0] * 80, band=1.0)
+    at = SimpleNamespace(tightness_ratio=settings.CAUSE_LPS_LOOSE_MAX)
+    assert cause_maturity(df, _box(start_bar=50, base_len=30), 1.0, at).matured is True
+
+
+def test_cause_maturity_fails_open_on_degenerate_frame():
+    # A frame too short to prove anything must never veto (recall is the gate).
+    df = _ohlc_from_closes([100.0, 101.0], band=1.0)
+    v = cause_maturity(df, _box(start_bar=0, base_len=2), 1.0)
+    assert v.matured is True and v.bridge_validated is False

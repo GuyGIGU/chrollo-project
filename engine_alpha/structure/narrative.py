@@ -409,6 +409,31 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
         # _resolve_phase_a_swing; in the narrative it's part of the story.
         climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr)
 
+        # Cause before effect: a box may not be elected over a live trend that
+        # never matured a cause (the MIDD class — price trends UP through both
+        # rails into a blow-off, so the consolidation predates its own climax).
+        # cause_maturity vetoes ONLY when ALL THREE reads agree the cause is
+        # absent: the macro bridge abstains AND the HH/HL staircase reads up/up
+        # each side of the box open AND the elected LPS shelf never tightened
+        # (the AND-narrowing third leg that rescues tight-shelf winners).
+        # ABSTAIN with return None, not continue: the box is emergent
+        # (the same R/S wins from many later roots), so backtracking would
+        # re-elect the identical causeless geometry — abstaining is the
+        # operator's "no setup at all". Flag-gated: OFF -> the block is dead, no
+        # call, zero cost, byte-identical.
+        if settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED:
+            cause = bricks.cause_maturity(df, box, atr, lps)
+            if not cause.matured:
+                if rec is not None:
+                    rec["outcome"] = "cause_absent"
+                    rec["cause"] = {
+                        "bridge_validated": cause.bridge_validated,
+                        "pre_box_trend": cause.pre_box_trend,
+                        "box_trend": cause.box_trend,
+                        "lps_tightness_ratio": cause.lps_tightness_ratio,
+                    }
+                return None
+
         # Phase B ends at the FIRST terminator: the spring tip if there is one,
         # else the LPS start. Phase D opens at the best right-side evidence we
         # have, with the LPS as mandatory fallback.
