@@ -4,7 +4,7 @@ import CandleChart from './CandleChart';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
-import CalibrationCoverageTable from './CalibrationCoverageTable';
+import CalibrationRail from './CalibrationRail';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
@@ -104,7 +104,7 @@ function CalibrationTab() {
   barsRef.current = barsByDate;
 
   // Save workflow (Task 12): marks CRUD + label/note + worklist queue.
-  const { marks, saving, saveError, tally, summary, conflict,
+  const { marks, saving, saveError, tally, setups, conflict,
           refresh, refreshSummary, saveMark, resolveConflict,
           clearConflict, removeMark } = useCalibrationMarks();
   useEffect(() => { refreshSummary(); },
@@ -348,7 +348,8 @@ function CalibrationTab() {
   }), [chartData]);
 
   return (
-    <div className="calibration-page" style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
+    <div className="calibration-page">
+      <div className="calibration-main">
       <form className="instrument-tile screener-command-band" onSubmit={submit}>
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
                        textTransform: 'uppercase', color: 'var(--text-faint)' }}>
@@ -509,12 +510,19 @@ function CalibrationTab() {
         onEdit={editMark}
         onDelete={(id) => removeMark(id, chartData?.ticker)}
       />
+      </div>
 
-      <CalibrationCoverageTable
-        summary={summary}
-        activeTicker={chartData?.ticker}
-        onPick={(t, latestAsOf) => { setTicker(t); lookup(t, latestAsOf); }}
-      />
+      {/* The calibrated-list navigator: every setup (ticker @ as_of), the unit
+          the operator reviews/edits/tests. A click LOADS a setup — it does not
+          advance the worklist queue (those stay distinct intents). */}
+      <aside className="calibration-rail">
+        <CalibrationRail
+          setups={setups}
+          activeTicker={chartData?.ticker}
+          activeAsOf={chartData?.as_of_session}
+          onPick={(t, asOf) => { setTicker(t); lookup(t, asOf); }}
+        />
+      </aside>
     </div>
   );
 }

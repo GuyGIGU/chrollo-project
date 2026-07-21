@@ -1334,6 +1334,56 @@ td {
 .instrument-table .row-remove:hover { color: var(--danger); }
 .instrument-table .row-remove:focus-visible { outline: 2px solid var(--accent-active); outline-offset: 1px; }
 
+/* ===================================================================
+   Calibration workbench layout (Task 7): a chart-protagonist main column +
+   a persistent right rail of setups. The rail is a recessed navigator, not a
+   second focus — fixed width, its own scroll, dense rows — so the chart never
+   yields space to it.
+   =================================================================== */
+.calibration-page {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  height: 100%;
+  align-items: stretch;
+}
+.calibration-main {
+  flex: 1;
+  min-width: 0;                 /* let the chart column shrink, never overflow the row */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.calibration-rail {
+  flex: 0 0 320px;
+  width: 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;             /* the InstrumentTable well owns the vertical scroll */
+}
+/* Element chips on a rail row — LPS neutral, Trigger in its warm token. Kept
+   low-chrome so the verdict pill + thumbnail still lead the eye. */
+.cal-rail-tag {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+}
+.cal-rail-tag.trig {
+  border-color: color-mix(in srgb, var(--trigger) 55%, transparent);
+  color: var(--trigger);
+}
+@media (max-width: 1100px) {
+  /* Below the operator's wide secondary monitor: stack the rail under the chart
+     instead of starving the protagonist of width. */
+  .calibration-page { flex-direction: column; }
+  .calibration-rail { flex-basis: auto; width: auto; max-height: 260px; }
+}
+
 @media (max-width: 760px) {
   .screener-modal-shell {
     min-width: 0;
