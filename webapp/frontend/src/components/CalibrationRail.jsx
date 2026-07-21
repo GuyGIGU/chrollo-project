@@ -130,6 +130,12 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
               T
             </span>
           )}
+          {row.note && (
+            // The operator's note (why it might miss / what would make it hit):
+            // a ✎ hint whose full text is one hover away — kept compact so the
+            // Engine column beside it never crops.
+            <span className="cal-rail-tag" title={row.note} style={{ cursor: 'help' }}>✎</span>
+          )}
         </span>
       ),
     },

@@ -4,6 +4,7 @@
 function CalibrationSaveBar({
   disabled, canSave, saving, editingId,
   label, onLabel,
+  note, onNote,
   onSave, onNewMark,
   conflict, onResolveConflict,
   saveError, tally, needs = [],
@@ -23,6 +24,21 @@ function CalibrationSaveBar({
         aria-label="Mark label"
         disabled={disabled}
         style={{ width: 110, fontFamily: 'inherit' }}
+      />
+      {/* The per-setup annotation (operator ask 2026-07-21): why the engine
+          might miss this setup / what would make it hit. Saved on the mark's
+          note column, shown back in the rail (✎), and read when the engine is
+          measured against the mark. Grows to fill the band's row; wraps below
+          when the band is tight. */}
+      <input
+        value={note ?? ''}
+        onChange={(e) => onNote(e.target.value)}
+        placeholder="why it might miss / what would make it hit (optional)"
+        aria-label="Setup note — why the engine might miss it or what would make it hit"
+        title="Attached to this setup. Shown in the rail (✎) and read when the engine is measured against your mark."
+        disabled={disabled}
+        maxLength={500}
+        style={{ flex: '1 1 220px', minWidth: 180, fontFamily: 'inherit' }}
       />
       <button type="button" disabled={disabled || !canSave || saving} onClick={onSave}
               title={updating

@@ -77,6 +77,7 @@ function CalibrationTab() {
       dispatchMarking({ type: 'load', frameKey: key,
                         draft: draftsRef.current.get(key) ?? null });
       setLabel('');
+      setNote('');       // the note is per-setup — it never follows the eye to a new frame
       clearConflict();   // a parked overwrite must not follow the eye to a new frame
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,16 +115,23 @@ function CalibrationTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
   const [label, setLabel] = useState('');
+  // The operator's per-setup annotation (why the engine might miss this setup,
+  // or what would make it hit) — carried on the mark's `note` column, purpose-
+  // built here (operator ask 2026-07-21). Loaded when a saved mark is edited,
+  // cleared when the frame changes, surfaced back in the rail, and read when the
+  // engine is measured against the mark.
+  const [note, setNote] = useState('');
   // The data-restatement notice sits at the pane's bottom edge, over the date
   // axis — so it is dismissible (operator 2026-07-21). A new frame re-shows its
   // own warnings (they are per-frame facts, not a permanent preference).
   const [warningsOpen, setWarningsOpen] = useState(true);
   useEffect(() => { setWarningsOpen(true); }, [chartData?.frame_digest]);
-  // A refused Trigger placement's reason (the buy must be forward of as-of and
-  // after the last LPS bar) — shown as a transient chip, cleared when the tool
-  // changes or the frame does.
-  const [triggerNotice, setTriggerNotice] = useState(null);
-  useEffect(() => { setTriggerNotice(null); }, [marking.tool, chartData?.frame_digest]);
+  // A refused mark placement's reason — a geometry mark clicked PAST the as-of
+  // line (only what was observed by then is markable), or a Trigger clicked
+  // before as-of / at-or-before the last LPS bar (the buy is the forward entry).
+  // Shown as a transient chip, cleared when the tool or frame changes.
+  const [placeNotice, setPlaceNotice] = useState(null);
+  useEffect(() => { setPlaceNotice(null); }, [marking.tool, chartData?.frame_digest]);
 
   useEffect(() => { refresh(chartData?.ticker); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,7 +251,7 @@ function CalibrationTab() {
 
   const save = async () => {
     if (!canSave || saving) return;
-    const payload = markPayloadFromDraft(marking.draft, chartData, { label });
+    const payload = markPayloadFromDraft(marking.draft, chartData, { label, note });
     // A blind Save is a CREATE unless the operator explicitly loaded a mark to
     // edit (editingId). A create that collides parks a conflict the operator
     // resolves with one click — Save never silently overwrites prior ground
@@ -311,6 +319,7 @@ function CalibrationTab() {
       return;
     }
     setLabel(mark.label ?? '');
+    setNote(mark.note ?? '');
     clearConflict();   // don't leave a stale "Update existing" from a prior collision
     dispatchMarking({ type: 'edit-mark', mark });
   };
@@ -396,35 +405,51 @@ function CalibrationTab() {
         const price = series.coordinateToPrice(param.point.y);
         const date = chartTimeToIso(param.time);
         if (price == null || !Number.isFinite(price) || !date) return;
-        // Trigger guard: the buy is forward of as-of and strictly after the last
-        // LPS bar. A click outside that window is REFUSED with a reason, never
-        // placed to fail later at Save (mirrors marks_validity._validate_trigger).
+        const asOf = chartData?.as_of_session;
+        // Placement guards — refuse a click that can't be a valid mark with a
+        // plain reason at click time, never let it fail later at Save with a
+        // cryptic "after as_of_date" (operator, 2026-07-21). Two windows:
+        //  · the Trigger (buy) is FORWARD of as-of and strictly after the last
+        //    LPS bar (mirrors marks_validity._validate_trigger);
+        //  · every OTHER mark is something observed BY as-of, so it lands at or
+        //    left of the divider (mirrors the box_end / event-end <= as_of rule).
         if (st.tool === 'trigger') {
-          const asOf = chartData?.as_of_session;
           const lpsEnd = (st.draft.events || [])
             .filter((e) => e.event_type === 'lps' && e.end_date)
             .map((e) => e.end_date)
             .reduce((a, b) => (a >= b ? a : b), null);
           if (asOf && date < asOf) {
-            setTriggerNotice('The buy can’t be left of the as-of line — it’s the forward entry.');
+            setPlaceNotice('The buy can’t be left of the as-of line — it’s the forward entry.');
             return;
           }
           if (lpsEnd && date <= lpsEnd) {
-            setTriggerNotice('The buy must be after your last LPS bar.');
+            setPlaceNotice('The buy must be after your last LPS bar.');
             return;
           }
-          setTriggerNotice(null);
+        } else if (asOf && date > asOf) {
+          setPlaceNotice('That bar is past the as-of line — only the buy can be placed after it.');
+          return;
         }
+        setPlaceNotice(null);
         dispatchMarking({ type: 'chart-click', date,
                           price: Number(price.toFixed(4)),
                           bar: barsRef.current.get(date) });
       };
       chart.subscribeClick(onClick);
-      // Fit the whole frozen frame into the pane on load — every new frame
-      // opens fully framed; the operator zooms/pans from there. A rebuild only
-      // happens on a NEW frame (deps: [chartData]), so this never fights a
-      // manual zoom mid-mark.
-      chart.timeScale().fitContent();
+      // Open the view at the as-of divider: the chart reads as the stock "up
+      // until that point" — how the setup looked in real time — with the forward
+      // grading bars sitting just off the right edge for a Trigger (operator ask
+      // 2026-07-21). Ending here (rather than fitContent over the whole
+      // [-900d,+45d] window) also lets the price autoscale to the OBSERVED bars,
+      // so the base is not squashed by the forward breakout, and keeps geometry
+      // marks on the left where they belong. A rebuild only happens on a NEW
+      // frame (deps: [chartData]), so this never fights a manual zoom mid-mark.
+      const observedLast = chartData?.bar_count ? chartData.bar_count - 1 : null;
+      if (observedLast != null) {
+        chart.timeScale().setVisibleLogicalRange({ from: 0, to: observedLast + 3 });
+      } else {
+        chart.timeScale().fitContent();
+      }
       return () => {
         chart.unsubscribeClick(onClick);
         hover.detach();
@@ -504,6 +529,8 @@ function CalibrationTab() {
         editingId={marking.editingId}
         label={label}
         onLabel={(v) => { setLabel(v); if (conflict) clearConflict(); }}
+        note={note}
+        onNote={setNote}
         onSave={save}
         onNewMark={() => dispatchMarking({ type: 'clear' })}
         conflict={conflict}
@@ -556,17 +583,20 @@ function CalibrationTab() {
                 {engineLine(engineRead, engineStatus)}
               </div>
             )}
-            {triggerNotice && (
-              // Why a Trigger click was refused (top-center, out of the rails'
-              // way); clears when the tool or frame changes, or a valid buy lands.
+            {placeNotice && (
+              // Why a click was refused (top-center, out of the rails' way): a
+              // geometry mark placed past the as-of line, or a Trigger outside
+              // its forward window. Neutral warning ink — a placement that does
+              // not fit, not an error. Clears when the tool/frame changes or a
+              // valid placement lands.
               <div style={{
                 position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
-                zIndex: 6, fontSize: 11, color: 'var(--trigger)',
-                border: '1px solid color-mix(in srgb, var(--trigger) 55%, transparent)',
+                zIndex: 6, fontSize: 11, color: 'var(--warning)',
+                border: '1px solid color-mix(in srgb, var(--warning) 55%, transparent)',
                 background: 'rgba(23, 25, 34, 0.92)', padding: '3px 10px',
                 borderRadius: 6, whiteSpace: 'nowrap',
               }}>
-                {triggerNotice}
+                {placeNotice}
               </div>
             )}
             {chartData.warnings?.length > 0 && warningsOpen && (

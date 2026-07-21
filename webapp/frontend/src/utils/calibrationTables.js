@@ -168,6 +168,9 @@ export function buildSetupRows(marks) {
       hasTrigger: rep.trigger_date != null,
       revision: finiteOrNull(rep.revision) ?? 0,
       frameDigest: rep.frame_digest ?? null,
+      // The operator's per-setup annotation (why the engine might miss / what
+      // would make it hit) — surfaced flat so the rail shows a ✎ hint on hover.
+      note: rep.note || null,
       raw: rep,        // the representative box — load / edit / grade key
       allMarks: group, // every raw mark at this session — cascade delete
     };
