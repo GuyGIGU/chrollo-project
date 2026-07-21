@@ -164,7 +164,29 @@ export default function useCalibrationMarks() {
     }
   };
 
+  // Delete every mark in a setup — all the marks sharing a (ticker, as_of). The
+  // rail's per-setup cascade delete AND Re Mark's start-over. One refresh after
+  // the whole batch (rail summary + the loaded ledger), so a multi-mark setup
+  // doesn't flicker through N intermediate repaints. Best-effort: a failed
+  // delete is logged and folded into the returned ok, but the rest still go.
+  const removeSetup = async (ids, loadedTicker) => {
+    let ok = true;
+    for (const id of ids) {
+      try {
+        const response = await fetch(`${API_BASE}/calibration/marks/${id}`, {
+          method: 'DELETE', headers: WRITE_HEADERS });
+        if (!response.ok) ok = false;
+      } catch (error) {
+        console.error('calibration setup delete failed:', error);
+        ok = false;
+      }
+    }
+    await refreshSummary();
+    if (loadedTicker) await refresh(loadedTicker);
+    return ok;
+  };
+
   return { marks, saving, saveError, tally, summary, setups, conflict,
            refresh, refreshSummary, saveMark, resolveConflict,
-           clearConflict, removeMark };
+           clearConflict, removeMark, removeSetup };
 }

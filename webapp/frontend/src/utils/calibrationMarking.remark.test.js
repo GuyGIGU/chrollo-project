@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   emptyDraft, markingReducer, initialMarkingState, draftComplete, saveNeeds,
-  snapTrigger, draftFromMark, markPayloadFromDraft,
+  snapTrigger, draftFromMark, markPayloadFromDraft, draftStarted,
 } from './calibrationMarking.js';
 
 const KEYS = Object.keys(emptyDraft());
@@ -42,6 +42,25 @@ function assertInvariants(state, label) {
 }
 
 // ---- targeted re-mark paths -------------------------------------------------
+
+test('draftStarted: false on a pristine/just-saved draft, true once anything is drawn', () => {
+  // The empty draft (fresh frame, or the reset a save leaves) is NOT started —
+  // so the "needs resistance/support/span" readout stays silent and a saved
+  // setup never reads as incomplete.
+  assert.equal(draftStarted(emptyDraft()), false);
+  // Each element that can be placed flips it on, one at a time.
+  assert.equal(draftStarted({ ...emptyDraft(), resistance: 12 }), true);
+  assert.equal(draftStarted({ ...emptyDraft(), support: 10 }), true);
+  assert.equal(draftStarted({ ...emptyDraft(), rAnchorDate: '2026-01-02' }), true);
+  assert.equal(draftStarted({ ...emptyDraft(), boxStartDate: '2026-01-02' }), true);
+  assert.equal(draftStarted({ ...emptyDraft(),
+    events: [{ event_type: 'lps', start_date: '2026-01-02', end_date: '2026-01-03' }] }), true);
+  assert.equal(draftStarted({ ...emptyDraft(), triggerDate: '2026-01-09' }), true);
+  // After a clear, back to not-started (drives the readout going silent again).
+  const cleared = markingReducer(
+    initialMarkingState({ ...emptyDraft(), resistance: 12 }, 'F'), { type: 'clear' });
+  assert.equal(draftStarted(cleared.draft), false);
+});
 
 test('re-arming the same tool toggles it off, never a stuck armed state', () => {
   let s = initialMarkingState(null, 'F');

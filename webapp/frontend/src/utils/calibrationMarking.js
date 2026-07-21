@@ -114,6 +114,20 @@ export function draftComplete(draft) {
     || (draft.rAnchorDate != null && draft.sAnchorDate != null);
 }
 
+// Has the operator begun THIS draft? A pristine draft — a fresh frame, or the
+// empty draft a save leaves behind — carries nothing drawn, so the save-bar's
+// "needs resistance · support · span" readout must stay SILENT until real work
+// exists; otherwise a completed-and-saved setup reads as "incomplete" while its
+// marks sit right there on the chart (operator, 2026-07-21). Any placed rail,
+// anchor, span, event or trigger counts as started.
+export function draftStarted(draft) {
+  return draft.resistance != null || draft.support != null
+    || draft.rAnchorDate != null || draft.sAnchorDate != null
+    || draft.boxStartDate != null || draft.boxEndDate != null
+    || (Array.isArray(draft.events) && draft.events.length > 0)
+    || draft.triggerDate != null;
+}
+
 // The ITEMIZED form of draftComplete: which pieces a Save still needs, in the
 // operator's priority order (rails before span). Empty === ready (draftComplete
 // is true). Negatives carry no geometry, so they are always ready ([]). Powers

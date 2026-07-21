@@ -26,7 +26,7 @@ const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring t
 
 const KEY_LEGEND = 'r/s rail · x span · c/l/t event · b buy · ⏎ save · e engine';
 
-function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
+function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession, onReMark }) {
   const { tool, draft } = state;
   const hasLps = draft.events.some((e) => e.event_type === 'lps');
   const span = effectiveSpan(draft, asOfSession);
@@ -67,8 +67,8 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
       </button>
 
       <button type="button" disabled={disabled}
-              title="Clear this setup's marks and start over"
-              onClick={() => dispatch({ type: 'clear' })}>
+              title="Delete this setup's saved marks and start over"
+              onClick={onReMark}>
         Re Mark
       </button>
 

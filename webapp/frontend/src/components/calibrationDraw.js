@@ -107,13 +107,13 @@ export function attachCalibrationDraw(chart, series) {
                        shape: 'circle', color: CHART_COLORS.operator, text: tag });
         }
       }
-      // The Trigger (buy) — its own warm token, never the operator hue: it is a
-      // distinct concept (the entry), not another ground-truth rail. A price
-      // level, not a box side, so it stays a full-width line.
+      // The Trigger (buy) — a single 'B' flag in its warm token, never the
+      // operator hue: it is the entry, not another ground-truth rail. Just the
+      // flag, no full-width buy line (operator: the line stretching the whole
+      // screen is clutter). Above the bar, so it points DOWN at it.
       if (mark.trigger_date != null && mark.trigger_price != null) {
-        priceLine(mark.trigger_price, '', { color: CHART_COLORS.trigger, axisLabelVisible: false });
         marks.push({ time: mark.trigger_date, position: 'aboveBar',
-                     shape: 'arrowUp', color: CHART_COLORS.trigger, text: 'B' });
+                     shape: 'arrowDown', color: CHART_COLORS.trigger, text: 'B' });
       }
     }
 
@@ -170,12 +170,11 @@ export function attachCalibrationDraw(chart, series) {
                      shape: 'circle', color: DRAWING, text: tag });
       }
     }
-    // The draft Trigger — always the warm trigger token (not DRAWING): the buy
-    // is its own concept, distinct from the rails whether fresh or committed.
+    // The draft Trigger — the same 'B' flag, warm token, above the bar pointing
+    // down at it (no full-width buy line).
     if (draft.triggerDate != null && draft.triggerPrice != null) {
-      priceLine(draft.triggerPrice, 'Buy', { color: CHART_COLORS.trigger });
       marks.push({ time: draft.triggerDate, position: 'aboveBar',
-                   shape: 'arrowUp', color: CHART_COLORS.trigger, text: 'B' });
+                   shape: 'arrowDown', color: CHART_COLORS.trigger, text: 'B' });
     }
 
     // lightweight-charts requires ascending marker times.

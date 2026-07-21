@@ -58,7 +58,7 @@ function GradeCell({ grade, testing, onTest }) {
 // indicators answer the priority order Box/R/S → LPS → Trigger at a glance; the
 // engine-test verdict lands in the Engine column.
 function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
-                          grades = {}, testing = {}, onTest }) {
+                          grades = {}, testing = {}, onTest, onDeleteSetup }) {
   const [sort, setSort] = useState({ by: 'ticker', dir: 'asc' });
 
   const rows = useMemo(
@@ -146,6 +146,23 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
           testing={!!testing[row.ticker]}
           onTest={() => onTest?.(row.ticker)}
         />
+      ),
+    },
+    {
+      // Per-setup cascade delete (operator ask 2026-07-21): the shared .row-remove
+      // × atom, stopPropagation so it never doubles as a row-load. The confirm
+      // (a whole setup's marks go at once) lives in the parent handler.
+      key: 'del',
+      label: '',
+      align: 'right',
+      sortable: false,
+      render: (row) => (
+        <button type="button" className="row-remove"
+                aria-label={`Delete setup ${row.ticker} ${row.asOf}`}
+                title="Delete this setup (removes its saved marks)"
+                onClick={(e) => { e.stopPropagation(); onDeleteSetup?.(row); }}>
+          ×
+        </button>
       ),
     },
   ];

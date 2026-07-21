@@ -17,6 +17,7 @@ import { attachHoverHighlight } from './calibrationHover';
 import {
   chartTimeToIso,
   draftComplete,
+  draftStarted,
   effectiveSpan,
   frameKeyOf,
   initialMarkingState,
@@ -107,11 +108,16 @@ function CalibrationTab() {
   // Save workflow (Task 12): marks CRUD + label.
   const { marks, saving, saveError, tally, setups, conflict,
           refresh, refreshSummary, saveMark, resolveConflict,
-          clearConflict, removeMark } = useCalibrationMarks();
+          clearConflict, removeMark, removeSetup } = useCalibrationMarks();
   useEffect(() => { refreshSummary(); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
   const [label, setLabel] = useState('');
+  // The data-restatement notice sits at the pane's bottom edge, over the date
+  // axis — so it is dismissible (operator 2026-07-21). A new frame re-shows its
+  // own warnings (they are per-frame facts, not a permanent preference).
+  const [warningsOpen, setWarningsOpen] = useState(true);
+  useEffect(() => { setWarningsOpen(true); }, [chartData?.frame_digest]);
 
   useEffect(() => { refresh(chartData?.ticker); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,6 +160,15 @@ function CalibrationTab() {
       && m.frame_digest === chartData.frame_digest
       && m.verdict === 'box' && m.id !== marking.editingId);
   }, [marks, chartData, marking.editingId]);
+
+  // Every mark on the loaded frame (ANY verdict, including one being edited) —
+  // the set Re Mark deletes to let the operator start this setup over.
+  const frameMarks = useMemo(() => {
+    if (!chartData) return [];
+    return marks.filter((m) => m.ticker === chartData.ticker
+      && m.as_of_date === chartData.as_of_session
+      && m.frame_digest === chartData.frame_digest);
+  }, [marks, chartData]);
 
   // Retained redraw, deliberately dependency-free: it runs after every
   // commit (including the child chart effect's rebuilds), the draw is
@@ -241,6 +256,39 @@ function CalibrationTab() {
   const resolveSaveConflict = async () => {
     const saved = await resolveConflict();
     if (saved) dispatchMarking({ type: 'clear' });
+  };
+
+  // Re Mark: wipe this setup and start over (operator ask 2026-07-21 — the old
+  // Clear only reset the in-flight draft, leaving the SAVED marks on the chart,
+  // so it read as "did nothing"). Deletes every saved mark on the loaded frame,
+  // then resets the draft. A destructive wipe of banked ground truth is
+  // confirmed once; clearing a not-yet-saved draft is instant (nothing to lose).
+  const reMark = async () => {
+    if (saving) return;
+    if (frameMarks.length > 0) {
+      const ok = window.confirm(
+        `Re-mark ${chartData.ticker} @ ${chartData.as_of_session}?\n\n`
+        + `This deletes the ${frameMarks.length} saved mark(s) on this setup.`);
+      if (!ok) return;
+      await removeSetup(frameMarks.map((m) => m.id), chartData.ticker);
+    }
+    dispatchMarking({ type: 'clear' });
+  };
+
+  // Delete a whole setup from the rail (operator ask 2026-07-21): cascade every
+  // mark at that (ticker, as_of), confirmed once. If it is the loaded setup, its
+  // marks vanish from the chart and any in-flight edit of it is reset.
+  const deleteSetup = async (row) => {
+    const ids = (row.allMarks || []).map((m) => m.id);
+    if (!ids.length) return;
+    const ok = window.confirm(
+      `Delete setup ${row.ticker} @ ${row.asOf}?\n\n`
+      + `This removes ${ids.length} saved mark(s) and cannot be undone.`);
+    if (!ok) return;
+    await removeSetup(ids, chartData?.ticker);
+    if (row.ticker === chartData?.ticker && row.asOf === chartData?.as_of_session) {
+      dispatchMarking({ type: 'clear' });
+    }
   };
 
   const editMark = (mark) => {
@@ -416,6 +464,7 @@ function CalibrationTab() {
         dispatch={dispatchMarking}
         disabled={!chartData}
         asOfSession={chartData?.as_of_session}
+        onReMark={reMark}
       />
 
       <span className="screener-command-seam" aria-hidden="true" />
@@ -432,7 +481,7 @@ function CalibrationTab() {
         onResolveConflict={resolveSaveConflict}
         saveError={saveError}
         tally={tally}
-        needs={saveNeeds(marking.draft)}
+        needs={draftStarted(marking.draft) ? saveNeeds(marking.draft) : []}
       />
       </div>
 
@@ -468,7 +517,7 @@ function CalibrationTab() {
             {engineOn && (
               // What the engine thinks, in words — rails land on the chart in
               // engine ink; this chip carries the session/no-read verdict.
-              <div style={{
+              <div title={engineTitle(engineRead)} style={{
                 position: 'absolute', top: 8, right: 8, zIndex: 4,
                 fontSize: 11, fontFamily: CHART_FONT, color: 'var(--text-muted)',
                 fontVariantNumeric: 'tabular-nums',
@@ -478,16 +527,28 @@ function CalibrationTab() {
                 {engineLine(engineRead, engineStatus)}
               </div>
             )}
-            {chartData.warnings?.length > 0 && (
-              // Warnings live INSIDE the pane (bottom edge) — the chart's
-              // geometry never shifts when a lookup gains or loses one.
+            {chartData.warnings?.length > 0 && warningsOpen && (
+              // Warnings live INSIDE the pane (bottom edge) — the chart's geometry
+              // never shifts when a lookup gains or loses one. Dismissible with the
+              // × since the banner can sit over the date axis (operator 2026-07-21);
+              // it re-shows on the next frame that carries a notice.
               <div style={{
                 position: 'absolute', bottom: 8, left: 8, zIndex: 5,
+                maxWidth: 'calc(100% - 16px)',
+                display: 'flex', alignItems: 'flex-start', gap: 6,
                 fontSize: 11, color: 'var(--accent-yellow)',
                 background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
                 borderRadius: 6,
               }}>
-                {chartData.warnings.map((w) => <div key={w}>{w}</div>)}
+                <div>{chartData.warnings.map((w) => <div key={w}>{w}</div>)}</div>
+                <button type="button" onClick={() => setWarningsOpen(false)}
+                        aria-label="Dismiss data notice"
+                        title="Dismiss (re-shows on the next frame with a notice)"
+                        style={{ background: 'none', border: 'none', color: 'inherit',
+                                 cursor: 'pointer', fontSize: 13, lineHeight: 1,
+                                 padding: '0 2px', opacity: 0.75 }}>
+                  ×
+                </button>
               </div>
             )}
           </>
@@ -522,6 +583,7 @@ function CalibrationTab() {
           grades={grades}
           testing={testing}
           onTest={test}
+          onDeleteSetup={deleteSetup}
         />
       </aside>
     </div>
@@ -533,12 +595,24 @@ function engineLine(engineRead, engineStatus) {
   if (engineStatus) return `engine: ${engineStatus}`;
   if (!engineRead) return 'engine: —';
   if (!engineRead.elected) {
-    return `engine: no read${engineRead.reason ? ` — ${engineRead.reason}` : ''}`;
+    // Operator's terms (2026-07-21): a plain verdict, not the raw detector
+    // reason ("no structure elects within the snap window") — that moves to the
+    // chip's hover title for when the diagnostic is actually wanted.
+    return 'engine: does NOT confirm your box here';
   }
   const snap = engineRead.snapped
     ? ` (snapped −${engineRead.snapped})` : '';
-  return `engine R ${fx(engineRead.R, 2)} / S ${fx(engineRead.S, 2)}`
+  return `engine finds a box — R ${fx(engineRead.R, 2)} / S ${fx(engineRead.S, 2)}`
     + ` · from ${engineRead.box_start_date} @ ${engineRead.eval_session}${snap}`;
+}
+
+// The raw detector reason, kept off the headline but one hover away — so "why
+// didn't it confirm?" is answerable without cluttering the plain verdict.
+function engineTitle(engineRead) {
+  if (engineRead && !engineRead.elected && engineRead.reason) {
+    return `engine detail: ${engineRead.reason}`;
+  }
+  return undefined;
 }
 
 function paneTitle(loading, failure) {
