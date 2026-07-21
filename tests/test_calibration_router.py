@@ -34,6 +34,7 @@ from routers.calibration import (  # noqa: E402
     calibration_engine_read,
     calibration_fired,
     calibration_frame_thumb,
+    calibration_trigger_grade,
     create_mark,
     delete_mark,
     list_marks,
@@ -258,6 +259,87 @@ def test_list_filters_by_ticker(db, digest):
     assert [m.ticker for m in list_marks("klac", db)] == ["KLAC"]
 
 
+# ── Trigger (the buy) on the write path ──────────────────────────────
+
+
+def _grading_frame(close=11.02):
+    # The <= 2026-04-15 slice must reproduce _bound_frame()'s digest exactly, so
+    # its first three rows mirror it; two forward bars carry the Trigger window.
+    idx = pd.to_datetime(["2026-04-13", "2026-04-14", "2026-04-15",
+                          "2026-04-16", "2026-04-17"])
+    return pd.DataFrame({"Open": [close] * 5, "High": [close + 1] * 5,
+                         "Low": [close - 1] * 5, "Close": [close] * 5,
+                         "Volume": [1_000_000.0] * 5}, index=idx)
+
+
+@pytest.fixture()
+def trigger_digest(tmp_path, monkeypatch):
+    """Freeze BOTH the <= as-of base frame and the forward grading frame for
+    (BODI, 2026-04-15), returning the shared base digest — a Trigger save needs
+    the forward frame on disk (the write-boundary frame check)."""
+    import frame_store
+    import webapp.backend.frame_store as wb_frame_store
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
+    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
+    d, _ = frame_store.freeze_frame("BODI", "2026-04-15", _bound_frame())
+    frame_store.freeze_grading_frame("BODI", "2026-04-15", _grading_frame(), d)
+    return d
+
+
+# A trigger requires an LPS; this one ends 2026-04-14 (<= as-of) so a buy on
+# 2026-04-16 lands strictly after it and at/after as-of.
+_LPS_EVENT = [{"event_type": "lps", "start_date": "2026-04-09",
+               "end_date": "2026-04-14"}]
+
+
+def test_trigger_round_trips_through_create_and_out(db, trigger_digest):
+    saved = MarkOut.model_validate(create_mark(_payload(
+        trigger_digest, events=_LPS_EVENT,
+        trigger_date="2026-04-16", trigger_price=12.55), db))
+    assert saved.trigger_date == "2026-04-16"
+    assert saved.trigger_price == 12.55
+
+
+def test_markout_presents_a_missing_trigger_as_explicit_null(db, trigger_digest):
+    saved = MarkOut.model_validate(create_mark(_payload(
+        trigger_digest, events=_LPS_EVENT), db))
+    dumped = saved.model_dump()
+    # present in the schema, null — the client never guesses "omitted vs no buy".
+    assert "trigger_date" in dumped and dumped["trigger_date"] is None
+    assert "trigger_price" in dumped and dumped["trigger_price"] is None
+
+
+def test_trigger_without_a_frozen_forward_frame_is_refused(db, digest):
+    # `digest` freezes only the <= as-of base frame, not the grading frame — a
+    # Trigger save must be refused loudly (it could never replay frozen-only).
+    with pytest.raises(HTTPException) as err:
+        create_mark(_payload(digest, events=_LPS_EVENT,
+                             trigger_date="2026-04-16", trigger_price=12.55), db)
+    assert (err.value.status_code, err.value.detail["class"]) == (422, "unframed_trigger")
+    assert db.query(CalibrationMark).count() == 0
+
+
+def test_trigger_date_must_be_a_real_forward_session(db, trigger_digest):
+    # 2026-04-18 is past the frozen frame_end (04-17) — not a real session.
+    with pytest.raises(HTTPException) as err:
+        create_mark(_payload(trigger_digest, events=_LPS_EVENT,
+                             trigger_date="2026-04-18", trigger_price=12.55), db)
+    assert err.value.detail["class"] == "trigger_not_a_session"
+
+
+def test_trigger_survives_an_edit_and_can_be_cleared(db, trigger_digest):
+    saved = create_mark(_payload(trigger_digest, events=_LPS_EVENT,
+                                 trigger_date="2026-04-16", trigger_price=12.55), db)
+    updated = MarkOut.model_validate(update_mark(saved.id, _payload(
+        trigger_digest, events=_LPS_EVENT,
+        trigger_date="2026-04-16", trigger_price=12.60), db))
+    assert (updated.trigger_price, updated.revision) == (12.60, 2)
+    # Clearing it is a valid state — the LPS box stands without a buy.
+    cleared = MarkOut.model_validate(update_mark(saved.id, _payload(
+        trigger_digest, events=_LPS_EVENT), db))
+    assert cleared.trigger_date is None and cleared.revision == 3
+
+
 # ── Same-app write guard ─────────────────────────────────────────────
 
 
@@ -277,7 +359,7 @@ def test_every_side_effectful_route_declares_the_guard():
     # pages excluded.
     guarded_gets = {"/calibration/chart", "/calibration/engine-read",
                     "/calibration/agreement", "/calibration/frame-thumb",
-                    "/calibration/fired"}
+                    "/calibration/fired", "/calibration/trigger-grade"}
     seen = {route.path for route in calibration.router.routes}
     assert guarded_gets <= seen  # the pin covers routes that actually exist
     for route in calibration.router.routes:
@@ -381,8 +463,16 @@ def _chart(monkeypatch, frame, tmp_path, ticker="KLAC", as_of="2025-09-11"):
     import frame_store
     import services.market_data as market_data
     import webapp.backend.frame_store as wb_frame_store
+    from core.pipeline import rate_limit
+    from services import candle_cache
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: frame)
+    # WP-0: the endpoint fetches through the session candle cache. Give each case
+    # a clean cache, no retry sleep, and a clear cooldown so the classic chart
+    # assertions stay hermetic (rate-limit behaviour is tested in test_candle_cache).
+    monkeypatch.setattr(candle_cache, "_CACHE", {})
+    monkeypatch.setattr(candle_cache, "_TRANSIENT_RETRY_WAIT_S", 0.0)
+    monkeypatch.setattr(rate_limit, "in_cooldown", lambda: False)
     # Both module instances — never the live store, whichever import form
     # a future change routes through.
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
@@ -463,6 +553,22 @@ def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):
     assert any("resolved to 2025-09-10" in w for w in out["warnings"])
     assert any("short history" in w for w in out["warnings"])
     assert len(out["candles"]) == 4 and len(out["volumes"]) == 4
+
+
+def test_chart_freezes_a_loadable_forward_grading_frame(monkeypatch, tmp_path):
+    # A chart load must also freeze the forward-inclusive grading frame (Task 2),
+    # so a later Trigger grade — a buy AFTER as-of — can replay frozen-only.
+    import frame_store
+    frame = _frame(["2025-09-09", "2025-09-10", "2025-09-12", "2025-09-15"])
+    out = _chart(monkeypatch, frame, tmp_path, as_of="2025-09-11")
+    gf = frame_store.load_grading_frame(out["ticker"], out["as_of_session"],
+                                        out["frame_digest"])
+    assert gf is not None
+    # It carries bars AFTER as-of (the Trigger's forward window)...
+    assert gf.index.max() > pd.Timestamp(out["as_of_session"])
+    # ...and its <= as-of slice reproduces the mark's frozen basis exactly.
+    le = gf[gf.index <= pd.Timestamp(out["as_of_session"])]
+    assert frame_store.ohlcv_digest(le) == out["frame_digest"]
 
 
 # ── Engine agreement (v2 ledger "Engine" chip) ───────────────────────
@@ -828,6 +934,89 @@ def test_fired_endpoint_rejects_a_bad_ticker(db):
         calibration_fired(ticker="!!", db=db)
     assert err.value.status_code == 400
     assert err.value.detail["class"] == "bad_ticker"
+
+
+# ── Trigger grade ("did the engine fire by my buy?") ─────────────────
+from services.trigger_grade import (  # noqa: E402
+    classify_fire_timing,
+    trigger_grade_for_marks,
+)
+
+
+def test_classify_fire_timing_three_honest_outcomes():
+    assert classify_fire_timing("2026-04-14", "2026-04-16") == "at_or_before"
+    assert classify_fire_timing("2026-04-16", "2026-04-16") == "at_or_before"  # on-trigger
+    assert classify_fire_timing("2026-04-20", "2026-04-16") == "after"
+    assert classify_fire_timing(None, "2026-04-16") == "never"  # not "late"
+
+
+def test_trigger_grade_layers_timing_over_the_fired_replay(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    fired = {"marks": {m.id: {"state": "ok", "kind": "fired",
+                              "fire_date": "2026-04-14", "rail_delta": 0.02}},
+             "computing": False}
+    grade = trigger_grade_for_marks([m], fired=fired)["marks"][m.id]
+    assert grade["kind"] == "graded"
+    assert grade["box"] == {"elected": True, "rail_delta": 0.02}  # top priority
+    assert grade["timing"]["outcome"] == "at_or_before"
+    assert grade["timing"]["fire_date"] == "2026-04-14"
+
+
+def test_trigger_grade_fired_after_and_never_are_distinct(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    after = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "ok", "fire_date": "2026-04-20"}},
+        "computing": False})["marks"][m.id]
+    assert after["timing"]["outcome"] == "after"
+    # A missed chip carries NO fire_date -> never, never silently "after/late".
+    never = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "miss", "kind": "missed"}},
+        "computing": False})["marks"][m.id]
+    assert never["timing"]["outcome"] == "never"
+    assert never["box"]["elected"] is False
+
+
+def test_trigger_grade_grades_a_box_without_a_trigger_on_the_top_tiers(db):
+    # The north-star: Box/R/S evidence must show for EVERY setup, buy or not — a
+    # top-priority gap is never hidden just because no Trigger is marked yet.
+    m = _add_mark(db)  # a box, no buy marked
+    fired = {"marks": {m.id: {"state": "ok", "fire_date": "2026-05-01",
+                              "rail_delta": 0.05}}, "computing": False}
+    grade = trigger_grade_for_marks([m], fired=fired)["marks"][m.id]
+    assert grade["kind"] == "graded"
+    assert grade["box"]["elected"] is True             # top tier still graded
+    assert grade["timing"]["outcome"] == "no_trigger"  # timing waits for a buy
+
+
+def test_trigger_grade_negative_has_no_box(db):
+    m = _add_mark(db, verdict="no_structure", resistance=None, support=None,
+                  box_start_date=None, box_end_date=None)
+    out = trigger_grade_for_marks([m], fired={"marks": {}, "computing": False})
+    assert out["marks"][m.id]["kind"] == "negative"
+
+
+def test_trigger_grade_streams_pending_like_fired(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    out = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "pending"}}, "computing": True})
+    assert out["computing"] is True
+    assert out["marks"][m.id]["kind"] == "pending"
+
+
+def test_trigger_grade_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
+    _add_mark(db, ticker="BODI", trigger_date="2026-04-16", trigger_price=12.55)
+    _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
+    import services.trigger_grade as tg
+    seen = {}
+
+    def fake(marks, **_k):
+        seen["tickers"] = {m.ticker for m in marks}
+        return {"marks": {m.id: {"kind": "no_trigger"} for m in marks}, "computing": False}
+
+    monkeypatch.setattr(tg, "trigger_grade_for_marks", fake)
+    body = calibration_trigger_grade(ticker="bodi", db=db)
+    assert body["ticker"] == "BODI"
+    assert seen["tickers"] == {"BODI"}  # never grades another ticker's marks
 
 
 import threading  # noqa: E402 — used by the pool test above

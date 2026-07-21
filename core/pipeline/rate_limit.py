@@ -133,6 +133,15 @@ def note_rate_limit(seconds: float) -> None:
             _cooldown_until = until
 
 
+def in_cooldown() -> bool:
+    """True while a shared Yahoo backoff window is active (a recent 429 armed it
+    via ``note_rate_limit``). Lets a UI fetch classify an empty result as a
+    transient throttle rather than a delisted ticker, and hold off adding
+    pressure while the window is live."""
+    with _cooldown_lock:
+        return _cooldown_until > time.monotonic()
+
+
 def download_workers(default: int = 10) -> int:
     """Bounded worker count for the download pool (caps concurrent connections)."""
     from config import settings  # lazy

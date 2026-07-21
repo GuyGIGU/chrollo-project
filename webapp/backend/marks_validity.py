@@ -118,6 +118,7 @@ def validate_mark(mark: dict) -> list[str]:
         problems += _validate_box_geometry(mark, as_of)
         for i, event in enumerate(events):
             problems += _validate_event(event, i, as_of)
+        problems += _validate_trigger(mark, as_of, events)
     elif verdict in MARK_VERDICTS:
         # A negative verdict is a typed row with NO geometry — a rail on a
         # "no_structure" row is an ambiguous mark, not extra information.
@@ -126,6 +127,8 @@ def validate_mark(mark: dict) -> list[str]:
                 problems.append(f"negative verdict carries geometry ({field})")
         if events:
             problems.append("negative verdict carries event marks")
+        if get("trigger_date") is not None or get("trigger_price") is not None:
+            problems.append("negative verdict carries a trigger")
     return problems
 
 
@@ -187,4 +190,44 @@ def _validate_event(event: dict, index: int, as_of) -> list[str]:
             problems.append(f"{tag} tip_date outside its span")
     if event.get("tip_price") is not None and not _positive_number(event.get("tip_price")):
         problems.append(f"{tag} tip_price {event.get('tip_price')!r} is not a positive number")
+    return problems
+
+
+def _validate_trigger(mark: dict, as_of, events: list) -> list[str]:
+    """The Trigger (the operator's BUY) is the breakout above the High of the
+    LPS's final bar: a FORWARD point (>= as_of, the inverse of every event's
+    <= as_of contract), one per box, requiring an LPS and landing strictly after
+    that LPS's last bar. Absent trigger = a legitimate null state (no buy marked).
+
+    The frame-dependent upper bound (trigger_date is a real session <= frame_end)
+    is checked at the WRITE boundary, where the frozen grading frame is loadable —
+    not here, so this one shared judgment (EC-3) stays pure and import-anywhere.
+    """
+    td = mark.get("trigger_date")
+    tp = mark.get("trigger_price")
+    if td is None and tp is None:
+        return []
+    problems: list[str] = []
+    if (td is None) != (tp is None):
+        problems.append("trigger_date and trigger_price must be set together")
+    if tp is not None and not _positive_number(tp):
+        problems.append(f"trigger_price {tp!r} is not a positive number")
+    if td is None:
+        return problems
+    tdate = parse_iso_date(td)
+    if tdate is None:
+        problems.append(f"trigger_date {td!r} is not YYYY-MM-DD")
+        return problems
+    if as_of is not None and tdate < as_of:
+        problems.append("trigger_date is before as_of_date")
+    # It is the breakout above the last LPS bar's high, so it requires an LPS and
+    # lands strictly after that LPS's final (end) bar.
+    lps_ends = [parse_iso_date(e.get("end_date")) for e in events
+                if e.get("event_type") == "lps"]
+    lps_ends = [d for d in lps_ends if d is not None]
+    if not lps_ends:
+        problems.append("trigger requires an LPS event (the buy is the breakout "
+                        "above the last LPS bar's high)")
+    elif tdate <= max(lps_ends):
+        problems.append("trigger_date must be after the last LPS bar")
     return problems

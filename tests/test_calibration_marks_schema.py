@@ -137,3 +137,49 @@ def test_deleting_a_mark_removes_its_events(session):
     session.delete(mark)  # hard delete — no soft-delete flags in this table
     session.commit()
     assert session.query(CalibrationMarkEvent).count() == 0
+
+
+# ── Trigger CHECKs (fresh-DB defence-in-depth; live DB enforces via validity) ──
+
+
+def test_trigger_round_trips_on_a_box(session):
+    session.add(_mark(trigger_date="2026-04-16", trigger_price=12.55))
+    session.commit()
+    got = session.query(CalibrationMark).one()
+    assert (got.trigger_date, got.trigger_price) == ("2026-04-16", 12.55)
+
+
+def test_a_box_without_a_trigger_stores_null(session):
+    session.add(_mark())
+    session.commit()
+    got = session.query(CalibrationMark).one()
+    assert got.trigger_date is None and got.trigger_price is None
+
+
+def test_trigger_date_and_price_must_be_paired(session):
+    session.add(_mark(trigger_date="2026-04-16"))  # price missing
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+    session.add(_mark(trigger_price=12.55))  # date missing
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_trigger_only_allowed_on_a_box(session):
+    session.add(_mark(verdict="engine_wrong", trigger_date="2026-04-16",
+                      trigger_price=12.55))
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_trigger_not_before_as_of(session):
+    session.add(_mark(trigger_date="2026-04-10", trigger_price=12.55))  # < as_of
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_trigger_price_must_be_positive(session):
+    session.add(_mark(trigger_date="2026-04-16", trigger_price=0.0))
+    with pytest.raises(IntegrityError):
+        session.commit()

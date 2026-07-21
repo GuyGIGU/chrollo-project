@@ -24,7 +24,9 @@ export const CHART_COLORS = {
   goldMuted: '#d4b85a', // LPS bars on dense mini cards; avg-cost / entry lines
   marking: '#4FCFC4', // calibration draft IN PROGRESS (--myth — the ACTIVE color)
   markingWash: 'rgba(79, 207, 196, 0.12)', // marking at 12% — the hovered-bar band while a tool is armed
-  operator: '#9B70F7', // COMMITTED operator marks (calibration ground truth; --accent-purple — reserved, never an engine-read color)
+  operator: '#9B70F7', // COMMITTED operator marks — canvas mirror of CSS --operator (calibration ground truth; never an engine-read color)
+  trigger: '#E8863C', // operator BUY glyph: the LPS-high breakout entry — canvas mirror of CSS --trigger; warm, distinct from LPS gold
+  asOfLine: 'rgba(148, 158, 178, 0.55)', // faint vertical divider at the as-of session (observed <= as-of | forward > as-of); neutral, never a rail color
 };
 
 // Per-surface skins: background/text/grid/border/fontSize. Four deliberate

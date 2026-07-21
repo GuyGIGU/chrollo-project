@@ -1,21 +1,22 @@
-// The save row of the calibration marking loop (Task 12): label/note, Save
-// (POST, or PUT when editing a saved mark), the one-keystroke negatives, the
-// worklist queue, and the sitting tally. Dumb strip — all state in the parent.
+// The save row of the calibration marking loop (Task 12): label, Save (POST, or
+// PUT when editing a saved mark), the duplicate-collision resolve, and the
+// sitting tally. Dumb strip — all state in the parent.
 function CalibrationSaveBar({
   disabled, canSave, saving, editingId,
-  label, onLabel, note, onNote,
-  onSave, onNewMark, onNegative,
+  label, onLabel,
+  note, onNote,
+  onSave, onNewMark,
   conflict, onResolveConflict,
-  saveError, tally,
-  worklist, worklistLabelText, onWorklistText, onWorklistStep,
+  saveError, tally, needs = [],
 }) {
   // A blind save creates; only an explicitly-loaded edit (editingId) updates
   // in place. A duplicate collision is resolved by the operator's deliberate
   // click on "Update existing", never inferred (adversarial review 2026-07-12).
   const updating = editingId != null;
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap',
-                  minHeight: 30, fontSize: 12, overflow: 'hidden' }}>
+    // A cohesive, WRAPPING group in the one command band (Task 8).
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                  minHeight: 30, fontSize: 12 }}>
       <input
         value={label}
         onChange={(e) => onLabel(e.target.value)}
@@ -24,13 +25,20 @@ function CalibrationSaveBar({
         disabled={disabled}
         style={{ width: 110, fontFamily: 'inherit' }}
       />
+      {/* The per-setup annotation (operator ask 2026-07-21): why the engine
+          might miss this setup / what would make it hit. Saved on the mark's
+          note column, shown back in the rail (✎), and read when the engine is
+          measured against the mark. Grows to fill the band's row; wraps below
+          when the band is tight. */}
       <input
-        value={note}
+        value={note ?? ''}
         onChange={(e) => onNote(e.target.value)}
-        placeholder="note"
-        aria-label="Mark note"
+        placeholder="why it might miss / what would make it hit (optional)"
+        aria-label="Setup note — why the engine might miss it or what would make it hit"
+        title="Attached to this setup. Shown in the rail (✎) and read when the engine is measured against your mark."
         disabled={disabled}
-        style={{ width: 170, fontFamily: 'inherit' }}
+        maxLength={500}
+        style={{ flex: '1 1 220px', minWidth: 180, fontFamily: 'inherit' }}
       />
       <button type="button" disabled={disabled || !canSave || saving} onClick={onSave}
               title={updating
@@ -53,16 +61,15 @@ function CalibrationSaveBar({
           Update existing #{conflict.existingId}
         </button>
       )}
-      <button type="button" disabled={disabled || saving}
-              onClick={() => onNegative('no_structure')}
-              title="Save a no-structure mark for this frame [n]">
-        No structure
-      </button>
-      <button type="button" disabled={disabled || saving}
-              onClick={() => onNegative('engine_wrong')}
-              title="Save an engine-wrong mark for this frame [w]">
-        Engine wrong
-      </button>
+
+      {/* Always-visible "what's still needed to save" — a disabled Save is never
+          a silent dead-end. Amber while incomplete, faint "ready" once it isn't. */}
+      {!disabled && (
+        <span style={{ fontSize: 11, whiteSpace: 'nowrap',
+                       color: needs.length ? 'var(--warning)' : 'var(--text-faint)' }}>
+          {needs.length ? `needs ${needs.join(' · ')}` : (canSave ? 'ready to save' : '')}
+        </span>
+      )}
 
       {saveError && (
         <span style={{ color: 'var(--danger)', fontSize: 11 }}>
@@ -72,25 +79,6 @@ function CalibrationSaveBar({
       {tally > 0 && !saveError && (
         <span style={{ color: 'var(--text-faint)' }}>{tally} saved this sitting</span>
       )}
-
-      <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-        {/* A textarea (one row tall) — a single-line input silently strips
-            the newlines out of a pasted list, and nothing parses. */}
-        <textarea
-          rows={1}
-          placeholder="worklist: TICKER YYYY-MM-DD per line (or ;-separated)"
-          aria-label="Worklist"
-          onChange={(e) => onWorklistText(e.target.value)}
-          style={{ width: 220, fontFamily: 'inherit', resize: 'none' }}
-        />
-        {worklist.length > 0 && (
-          <>
-            <button type="button" onClick={() => onWorklistStep(-1)} title="Previous worklist entry">◀</button>
-            <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{worklistLabelText}</span>
-            <button type="button" onClick={() => onWorklistStep(1)} title="Next worklist entry">▶</button>
-          </>
-        )}
-      </span>
     </div>
   );
 }

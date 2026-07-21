@@ -207,6 +207,12 @@ _MIGRATIONS = [
     "ALTER TABLE calibration_marks ADD COLUMN r_anchor_date VARCHAR",
     "ALTER TABLE calibration_marks ADD COLUMN s_anchor_date VARCHAR",
     "ALTER TABLE calibration_marks ADD COLUMN first_rail VARCHAR",
+    # Calibration marks: the Trigger (2026-07-21) — the operator's buy, a forward-
+    # of-as-of point (the LPS-high breakout). Nullable, NO default: a null trigger
+    # is the real "no buy marked yet" state. Its cross-column + requires-LPS rules
+    # live in marks_validity (SQLite can't retrofit CHECKs onto the live corpus DB).
+    "ALTER TABLE calibration_marks ADD COLUMN trigger_date VARCHAR",
+    "ALTER TABLE calibration_marks ADD COLUMN trigger_price FLOAT",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

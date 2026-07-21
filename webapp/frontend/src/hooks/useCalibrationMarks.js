@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { API_BASE } from '../api';
 import { duplicateConflictId } from '../utils/calibrationMarking';
-import { buildCoverageRows } from '../utils/calibrationTables';
+import { buildCoverageRows, buildSetupRows } from '../utils/calibrationTables';
 
 // Marks CRUD for the calibration page (Task 12). Writes carry the same-app
 // header (the backend's cross-app write guard) and echo the server's named
@@ -34,6 +34,11 @@ export default function useCalibrationMarks() {
   // ALL marks by the tested pure helper. Unsorted here; the coverage table
   // owns its (controlled) sort, same as the watchlist.
   const [summary, setSummary] = useState([]);
+  // Every SETUP — one row per (ticker, as_of) — across ALL marks, for the right
+  // rail (the calibrated-list navigator). Same all-marks fetch as the coverage
+  // summary, a different grain (setup, not ticker), so two setups on one symbol
+  // stay two rows. Unsorted here; the rail owns its (controlled) sort.
+  const [setups, setSetups] = useState([]);
   // Monotonic marks-fetch generation: fast ticker switches (coverage clicks,
   // worklist steps, post-save refresh) race, and only the LAST requested
   // ticker's response may win setMarks — a stale one would paint the previous
@@ -47,6 +52,7 @@ export default function useCalibrationMarks() {
       const body = await response.json().catch(() => null);
       if (!response.ok || !Array.isArray(body)) return;
       setSummary(buildCoverageRows(body));
+      setSetups(buildSetupRows(body));
     } catch (error) {
       console.error('calibration summary failed:', error);
     }
@@ -158,7 +164,29 @@ export default function useCalibrationMarks() {
     }
   };
 
-  return { marks, saving, saveError, tally, summary, conflict,
+  // Delete every mark in a setup — all the marks sharing a (ticker, as_of). The
+  // rail's per-setup cascade delete AND Re Mark's start-over. One refresh after
+  // the whole batch (rail summary + the loaded ledger), so a multi-mark setup
+  // doesn't flicker through N intermediate repaints. Best-effort: a failed
+  // delete is logged and folded into the returned ok, but the rest still go.
+  const removeSetup = async (ids, loadedTicker) => {
+    let ok = true;
+    for (const id of ids) {
+      try {
+        const response = await fetch(`${API_BASE}/calibration/marks/${id}`, {
+          method: 'DELETE', headers: WRITE_HEADERS });
+        if (!response.ok) ok = false;
+      } catch (error) {
+        console.error('calibration setup delete failed:', error);
+        ok = false;
+      }
+    }
+    await refreshSummary();
+    if (loadedTicker) await refresh(loadedTicker);
+    return ok;
+  };
+
+  return { marks, saving, saveError, tally, summary, setups, conflict,
            refresh, refreshSummary, saveMark, resolveConflict,
-           clearConflict, removeMark };
+           clearConflict, removeMark, removeSetup };
 }

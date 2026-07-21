@@ -10,11 +10,38 @@ import {
   initialMarkingState,
   markPayloadFromDraft,
   markingReducer,
+  placementRefusal,
   snapRailPrice,
   statusText,
 } from './calibrationMarking.js';
 
 const click = (date, price) => ({ type: 'chart-click', date, price });
+
+// placementRefusal — the client pre-check that mirrors marks_validity's as-of
+// grammar. These tests pin the boundary (== as_of allowed) so the client guard
+// can't silently drift from the backend gate (EC-3).
+test('placementRefusal: geometry marks land at or LEFT of the as-of line', () => {
+  // Strictly past as-of is refused (mirrors box_end / event-end <= as_of)...
+  assert.match(placementRefusal('rail-r', '2026-01-05', '2026-01-02', null), /past the as-of line/);
+  assert.match(placementRefusal('span', '2026-01-03', '2026-01-02', null), /past the as-of line/);
+  assert.match(placementRefusal('event:lps', '2026-01-03', '2026-01-02', null), /past the as-of line/);
+  // ...but ON as-of, and before it, is allowed (that bar was observed).
+  assert.equal(placementRefusal('rail-r', '2026-01-02', '2026-01-02', null), null);
+  assert.equal(placementRefusal('event:phase_c', '2025-12-30', '2026-01-02', null), null);
+});
+
+test('placementRefusal: the Trigger (buy) is FORWARD of as-of and after the last LPS bar', () => {
+  assert.match(placementRefusal('trigger', '2026-01-01', '2026-01-02', null), /forward entry/);
+  assert.equal(placementRefusal('trigger', '2026-01-02', '2026-01-02', null), null); // ON as-of is a valid buy
+  // With an LPS ending 2026-01-06, the buy must be STRICTLY after it.
+  assert.match(placementRefusal('trigger', '2026-01-06', '2026-01-02', '2026-01-06'), /after your last LPS/);
+  assert.equal(placementRefusal('trigger', '2026-01-07', '2026-01-02', '2026-01-06'), null);
+});
+
+test('placementRefusal: no frozen as-of session yet allows any click', () => {
+  assert.equal(placementRefusal('rail-r', '2026-01-05', null, null), null);
+  assert.equal(placementRefusal('trigger', '2026-01-05', null, null), null);
+});
 
 test('rail clicks record price AND anchor bar; the span derives from anchors', () => {
   let s = markingReducer(initialMarkingState(), { type: 'tool', tool: 'rail-r' });

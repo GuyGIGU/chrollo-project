@@ -177,3 +177,63 @@ def test_ddl_checks_pin_the_same_closed_sets():
 
     assert enum_of("verdict") == set(MARK_VERDICTS)
     assert enum_of("event_type") == set(EVENT_TYPES)
+
+
+# ── Trigger (the operator's buy — the LPS-high breakout) ─────────────
+# It inverts the event contract: a FORWARD point (>= as_of), one per box,
+# requiring an LPS and landing strictly after that LPS's last bar.
+
+_LPS = {"event_type": "lps", "start_date": "2026-04-09", "end_date": "2026-04-14"}
+
+
+def _triggered(**over):
+    p = _payload(events=[dict(_LPS)], trigger_date="2026-04-16", trigger_price=12.55)
+    p.update(over)
+    return p
+
+
+def test_a_well_formed_trigger_on_a_box_with_an_lps_is_valid():
+    assert validate_mark(_triggered()) == []
+    # And a box with an LPS but NO trigger is equally valid (null = no buy yet).
+    assert validate_mark(_payload(events=[dict(_LPS)])) == []
+
+
+def test_trigger_requires_an_lps_event():
+    assert any("requires an LPS" in p for p in validate_mark(_triggered(events=[])))
+
+
+def test_trigger_must_land_after_the_last_lps_bar():
+    # as-of == LPS end == trigger isolates the "after the last LPS bar" rule.
+    problems = validate_mark(_triggered(
+        as_of_date="2026-04-15", box_end_date="2026-04-15",
+        events=[{**_LPS, "end_date": "2026-04-15"}], trigger_date="2026-04-15"))
+    assert any("after the last LPS bar" in p for p in problems)
+
+
+def test_trigger_before_as_of_is_rejected():
+    assert any("before as_of_date" in p
+               for p in validate_mark(_triggered(trigger_date="2026-04-10")))
+
+
+def test_trigger_date_and_price_must_be_paired():
+    assert any("set together" in p for p in validate_mark(_triggered(trigger_price=None)))
+    assert any("set together" in p for p in validate_mark(_triggered(trigger_date=None)))
+
+
+def test_trigger_price_must_be_positive_finite():
+    for bad in (0, -3.0, float("nan")):
+        assert any("trigger_price" in p
+                   for p in validate_mark(_triggered(trigger_price=bad))), bad
+
+
+def test_trigger_date_is_strict_iso():
+    assert any("trigger_date" in p and "YYYY-MM-DD" in p
+               for p in validate_mark(_triggered(trigger_date="2026-4-16")))
+
+
+def test_a_negative_verdict_carries_no_trigger():
+    problems = validate_mark(_payload(
+        verdict="no_structure", resistance=None, support=None,
+        box_start_date=None, box_end_date=None, events=[],
+        trigger_date="2026-04-16", trigger_price=12.55))
+    assert any("carries a trigger" in p for p in problems)

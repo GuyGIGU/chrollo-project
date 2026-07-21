@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildCoverageRows, sortCoverageRows, buildMarkRows, sortMarkRows,
+  buildSetupRows, sortSetupRows,
 } from './calibrationTables.js';
 
 // A small marks population across three tickers: AGCO has a box + a negative,
@@ -185,4 +186,117 @@ test('buildCoverageRows tolerates a negative latest with null geometry', () => {
   assert.equal(row.latestSupport, null);
   assert.equal(row.latestDigest, null);
   assert.equal(row.latestComplete, false);
+});
+
+// ---- setup grain: one row per (ticker, as_of) -------------------------------
+
+test('buildSetupRows: two setups on ONE symbol are TWO rows (the core requirement)', () => {
+  // AGCO marked at two as-of sessions must never collapse to one entry — the
+  // operator adds "the same stock at a different date like a copy" precisely so
+  // the engine tests each snapshot separately.
+  const rows = buildSetupRows(marks);
+  const agco = rows.filter((r) => r.ticker === 'AGCO');
+  assert.equal(agco.length, 2);
+  assert.deepEqual(agco.map((r) => r.asOf).sort(), ['2026-07-07', '2026-07-10']);
+  // Four distinct (ticker, as_of) pairs across the population.
+  assert.equal(rows.length, 4);
+  assert.deepEqual([...new Set(rows.map((r) => r.key))].length, 4);
+});
+
+test('buildSetupRows: the box is the representative when a session carries several marks', () => {
+  // One session, a box AND a negative on it: count=2, but the row's geometry is
+  // the box's (the ground truth the thumbnail + engine test read).
+  const rows = buildSetupRows([
+    { id: 1, ticker: 'NVDA', as_of_date: '2026-03-02', verdict: 'no_structure',
+      label: 'chop', resistance: null, support: null, events: [] },
+    { id: 2, ticker: 'NVDA', as_of_date: '2026-03-02', verdict: 'box', label: '',
+      resistance: 90.5, support: 82.1, box_start_date: '2026-02-01',
+      box_end_date: '2026-03-02', revision: 3,
+      events: [{ event_type: 'lps' }] },
+  ]);
+  assert.equal(rows.length, 1);
+  const [row] = rows;
+  assert.equal(row.count, 2);
+  assert.equal(row.isBox, true);
+  assert.equal(row.resistance, 90.5);
+  assert.equal(row.support, 82.1);
+  assert.equal(row.revision, 3);
+  assert.equal(row.hasLps, true);
+  assert.equal(row.allMarks.length, 2);        // both ride along for cascade delete
+  assert.equal(row.raw.id, 2);                 // the box is the load/edit/grade key
+});
+
+test('buildSetupRows: surfaces the Trigger + LPS flat, null-safe', () => {
+  const [row] = buildSetupRows([
+    { id: 1, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 12.4, support: 10.1, box_start_date: '2025-12-12',
+      box_end_date: '2026-01-02', frame_digest: 'deadbeef', revision: 1,
+      trigger_date: '2026-01-06', trigger_price: 12.55,
+      events: [{ event_type: 'lps' }, { event_type: 'phase_c' }] },
+  ]);
+  assert.equal(row.hasLps, true);
+  assert.equal(row.hasTrigger, true);
+  assert.equal(row.triggerDate, '2026-01-06');
+  assert.equal(row.triggerPrice, 12.55);
+  assert.equal(row.frameDigest, 'deadbeef');
+  assert.equal(row.events, 2);
+  // A box with no trigger reads null, not undefined; a bad price sinks to null.
+  const [bare] = buildSetupRows([
+    { id: 2, ticker: 'Y', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 5, support: 4, trigger_price: 'nope', events: [] },
+  ]);
+  assert.equal(bare.hasTrigger, false);
+  assert.equal(bare.triggerDate, null);
+  assert.equal(bare.triggerPrice, null);   // non-finite -> null, never NaN
+  assert.equal(bare.hasLps, false);
+});
+
+test('buildSetupRows: surfaces the operator note, empty -> null (so the rail ✎ hides)', () => {
+  const [withNote] = buildSetupRows([
+    { id: 1, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 5, support: 4, note: 'tight shelf the engine skips', events: [] },
+  ]);
+  assert.equal(withNote.note, 'tight shelf the engine skips');
+  const [empty] = buildSetupRows([
+    { id: 2, ticker: 'Y', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 5, support: 4, note: '', events: [] },
+  ]);
+  assert.equal(empty.note, null);
+});
+
+test('buildSetupRows tolerates null / empty', () => {
+  assert.deepEqual(buildSetupRows(null), []);
+  assert.deepEqual(buildSetupRows([]), []);
+});
+
+test('buildSetupRows representative pick is deterministic regardless of input order', () => {
+  const forward = [
+    { id: 1, ticker: 'Z', as_of_date: '2026-01-02', verdict: 'box', label: '', revision: 1, resistance: 9, support: 8, events: [] },
+    { id: 2, ticker: 'Z', as_of_date: '2026-01-02', verdict: 'box', label: 'second', revision: 5, resistance: 9.2, support: 8.1, events: [] },
+  ];
+  const reversed = [...forward].reverse();
+  // Higher revision wins the representative slot either way.
+  assert.equal(buildSetupRows(forward)[0].raw.id, 2);
+  assert.equal(buildSetupRows(reversed)[0].raw.id, 2);
+});
+
+test('default setup sort: grouped by ticker A->Z, newest session first within a ticker', () => {
+  const rows = sortSetupRows(buildSetupRows(marks));
+  // AGCO(2), KLAC, YPF grouped; within AGCO the 07-10 setup floats above 07-07.
+  assert.deepEqual(rows.map((r) => `${r.ticker}@${r.asOf}`), [
+    'AGCO@2026-07-10', 'AGCO@2026-07-07', 'KLAC@2026-09-11', 'YPF@2026-05-06',
+  ]);
+});
+
+test('setup sort by asOf desc, symmetric and non-mutating / idempotent', () => {
+  const rows = buildSetupRows(marks);
+  const before = rows.map((r) => r.key);
+  const desc = sortSetupRows(rows, 'asOf', 'desc').map((r) => `${r.ticker}@${r.asOf}`);
+  assert.deepEqual(desc, [
+    'KLAC@2026-09-11', 'AGCO@2026-07-10', 'AGCO@2026-07-07', 'YPF@2026-05-06',
+  ]);
+  const once = sortSetupRows(rows).map((r) => r.key);
+  const twice = sortSetupRows(sortSetupRows(rows)).map((r) => r.key);
+  assert.deepEqual(rows.map((r) => r.key), before); // input untouched
+  assert.deepEqual(once, twice);                     // stable
 });
