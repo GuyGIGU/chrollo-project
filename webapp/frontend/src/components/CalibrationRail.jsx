@@ -7,8 +7,12 @@ import { fmtDateShort } from '../utils/format';
 // pass/fail token — Box/R/S first (the top priority), then LPS, then the
 // operator's Trigger vs the engine's fire timing. Green/red are allowed here
 // (engine agreement is the one place the doctrine permits them).
+// Compact timing glyph for the tested chip — the full phrase lives in the
+// tooltip. Kept to one character so the chip (box + Δ + timing) never widens
+// the rail's Engine column past its edge: ≤ fired at/before your buy · > fired
+// after (late) · ∅ never fired.
 const TIMING_LABEL = {
-  at_or_before: '≤ buy', after: '> buy', never: 'no fire', no_trigger: '',
+  at_or_before: '≤', after: '>', never: '∅', no_trigger: '',
 };
 
 function GradeCell({ grade, testing, onTest }) {
@@ -30,7 +34,7 @@ function GradeCell({ grade, testing, onTest }) {
   const { box, lps, timing } = grade;
   const state = box.elected ? 'ok' : 'miss';
   const delta = Number.isFinite(box?.rail_delta) ? ` Δ${box.rail_delta.toFixed(2)}` : '';
-  const timeTxt = TIMING_LABEL[timing?.outcome] ? ` · ${TIMING_LABEL[timing.outcome]}` : '';
+  const timeTxt = TIMING_LABEL[timing?.outcome] ? ` ${TIMING_LABEL[timing.outcome]}` : '';
   const title = `Box: ${box.elected ? 'elected at your rails' : 'NOT elected'}${delta}`
     + ` · LPS: ${lps?.operator_marked ? 'you marked one' : 'none'}`
     + (timing?.outcome === 'no_trigger' ? ' · no buy marked'

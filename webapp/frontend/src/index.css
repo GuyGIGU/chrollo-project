@@ -1355,12 +1355,20 @@ td {
   gap: 10px;
 }
 .calibration-rail {
-  flex: 0 0 300px;
-  width: 300px;
+  flex: 0 0 360px;
+  width: 360px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;             /* the InstrumentTable well owns the vertical scroll */
+}
+/* The rail is a DENSE navigator, so its cells run tighter than the general
+   instrument-table 12px gutters — this scoping keeps every column (through the
+   Engine test result) inside the rail width instead of clipping at the edge,
+   and never touches the archive/watchlist tables that share the primitive. */
+.calibration-rail .instrument-table thead th,
+.calibration-rail .instrument-table tbody td {
+  padding: 6px 8px;
 }
 /* One-click engine test control on a rail row: a quiet ghost at rest that locks
    on with mythril on hover (interactivity IS scarce, so the ONE actionable

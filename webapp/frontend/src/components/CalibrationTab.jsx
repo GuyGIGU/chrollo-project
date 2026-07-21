@@ -298,19 +298,34 @@ function CalibrationTab() {
   };
 
   const spec = useMemo(() => ({
-    chartOptions: (container) => ({
-      ...baseChartOptions('modal', container.clientWidth, container.clientHeight),
-      handleScroll: true,
-      handleScale: true,
-      // Normal, not the library-default Magnet: Magnet snaps the crosshair
-      // to each bar's CLOSE, so the line the operator sees jumps away from
-      // the mouse while clicks land at the true pointer position — the
-      // "cursor follows at some margin" placement bug (operator, 2026-07-11).
-      crosshair: { mode: CrosshairMode.Normal },
-    }),
+    chartOptions: (container) => {
+      const base = baseChartOptions('modal', container.clientWidth, container.clientHeight);
+      return {
+        ...base,
+        // ResizeObserver-backed sizing (matches the mini/pulse charts): the pane
+        // tracks its container through flex settling, rail-width changes and
+        // window resizes on its own — no stale first-paint height, no jank when
+        // zooming, no manual resize handler.
+        autoSize: true,
+        handleScroll: true,
+        handleScale: true,
+        // Reserve the bottom band for the volume histogram and autoscale the
+        // price to the visible bars. Without a bottom margin the candles fill
+        // the whole pane and the volume is hidden underneath (operator: "the
+        // chart is cropped, leaving out the volume").
+        rightPriceScale: { ...base.rightPriceScale,
+                           scaleMargins: { top: 0.08, bottom: 0.22 }, autoScale: true },
+        // Normal, not the library-default Magnet: Magnet snaps the crosshair
+        // to each bar's CLOSE, so the line the operator sees jumps away from
+        // the mouse while clicks land at the true pointer position — the
+        // "cursor follows at some margin" placement bug (operator, 2026-07-11).
+        crosshair: { mode: CrosshairMode.Normal },
+      };
+    },
     candles: chartData?.candles,
     volumes: chartData?.volumes,
     showVolume: true,
+    volumeScaleTop: 0.82,
     onReady: (chart, series) => {
       // The marking controller: click placement + retained draft drawing.
       // The handler reads the CURRENT marking state through a ref (onReady
@@ -329,6 +344,11 @@ function CalibrationTab() {
                           bar: barsRef.current.get(date) });
       };
       chart.subscribeClick(onClick);
+      // Fit the whole frozen frame into the pane on load — every new frame
+      // opens fully framed; the operator zooms/pans from there. A rebuild only
+      // happens on a NEW frame (deps: [chartData]), so this never fights a
+      // manual zoom mid-mark.
+      chart.timeScale().fitContent();
       return () => {
         chart.unsubscribeClick(onClick);
         hover.detach();
@@ -336,9 +356,6 @@ function CalibrationTab() {
         chartApiRef.current = null;
       };
     },
-    onResize: (chart, container) => chart.applyOptions({
-      width: container.clientWidth, height: container.clientHeight,
-    }),
     deps: [chartData],
   }), [chartData]);
 
