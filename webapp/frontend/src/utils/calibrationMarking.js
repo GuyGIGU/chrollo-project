@@ -76,6 +76,22 @@ export function draftComplete(draft) {
     || (draft.rAnchorDate != null && draft.sAnchorDate != null);
 }
 
+// The ITEMIZED form of draftComplete: which pieces a Save still needs, in the
+// operator's priority order (rails before span). Empty === ready (draftComplete
+// is true). Negatives carry no geometry, so they are always ready ([]). Powers
+// the command band's always-visible "what's still needed" readout so a disabled
+// Save is never a silent dead-end.
+export function saveNeeds(draft) {
+  if (draft.verdict !== 'box') return [];
+  const needs = [];
+  if (draft.resistance == null) needs.push('resistance');
+  if (draft.support == null) needs.push('support');
+  const spanKnown = (draft.boxStartDate != null && draft.boxEndDate != null)
+    || (draft.rAnchorDate != null && draft.sAnchorDate != null);
+  if (!spanKnown) needs.push('span');
+  return needs;
+}
+
 // The span the mark will actually save: an explicit x-drawn span wins;
 // otherwise it derives from the anchors — start at the earlier-anchored
 // swing, end at the as-of session (the same geometry the engine projects).

@@ -21,6 +21,7 @@ import {
   initialMarkingState,
   markPayloadFromDraft,
   markingReducer,
+  saveNeeds,
 } from '../utils/calibrationMarking';
 import { parseWorklist, worklistLabel } from '../utils/calibrationWorklist';
 
@@ -350,7 +351,15 @@ function CalibrationTab() {
   return (
     <div className="calibration-page">
       <div className="calibration-main">
-      <form className="instrument-tile screener-command-band" onSubmit={submit}>
+      {/* ONE command band (Task 8): lookup · mark · save read as a single
+          continuous flow, the screener's proven folded pattern (one
+          instrument-tile band, seams between groups). Each group WRAPS rather
+          than clipping, so the full vocabulary stays visible. The lookup group
+          keeps its own <form> so Enter there submits the lookup — and only the
+          lookup (label/note live outside it). */}
+      <div className="instrument-tile screener-command-band calibration-command-band">
+      <form className="ccb-group" onSubmit={submit}
+            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
                        textTransform: 'uppercase', color: 'var(--text-faint)' }}>
           Calibration
@@ -400,6 +409,7 @@ function CalibrationTab() {
         )}
       </form>
 
+      <span className="screener-command-seam" aria-hidden="true" />
       <CalibrationMarkingBar
         state={marking}
         dispatch={dispatchMarking}
@@ -407,6 +417,7 @@ function CalibrationTab() {
         asOfSession={chartData?.as_of_session}
       />
 
+      <span className="screener-command-seam" aria-hidden="true" />
       <CalibrationSaveBar
         disabled={!chartData}
         canSave={canSave}
@@ -423,6 +434,7 @@ function CalibrationTab() {
         onResolveConflict={resolveSaveConflict}
         saveError={saveError}
         tally={tally}
+        needs={saveNeeds(marking.draft)}
         worklist={wlItems}
         worklistLabelText={worklistLabel(wlItems, wlIndex)}
         onWorklistText={(text) => {
@@ -437,6 +449,7 @@ function CalibrationTab() {
         }}
         onWorklistStep={worklistStep}
       />
+      </div>
 
       <div className="instrument-well"
            style={{ flex: 1, minHeight: 420, position: 'relative',

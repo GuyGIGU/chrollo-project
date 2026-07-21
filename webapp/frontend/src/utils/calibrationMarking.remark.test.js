@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  emptyDraft, markingReducer, initialMarkingState, draftComplete,
+  emptyDraft, markingReducer, initialMarkingState, draftComplete, saveNeeds,
 } from './calibrationMarking.js';
 
 const KEYS = Object.keys(emptyDraft());
@@ -132,6 +132,28 @@ test('edit-mark then re-edit replaces the draft cleanly, no bleed between marks'
   assert.equal(s.draft.resistance, 9);
   assert.equal(s.draft.events.length, 1);
   assertInvariants(s, 'after re-edit');
+});
+
+// ---- saveNeeds: the itemized draftComplete (command-band readout) -----------
+
+test('saveNeeds is empty exactly when draftComplete is true (box)', () => {
+  const empty = emptyDraft();
+  assert.deepEqual(saveNeeds(empty), ['resistance', 'support', 'span']);
+  assert.equal(draftComplete(empty), false);
+  // rails placed with anchors -> span is derivable, so only rails were needed.
+  const withRails = { ...empty, resistance: 12, support: 10,
+    rAnchorDate: '2026-01-05', sAnchorDate: '2026-01-02' };
+  assert.deepEqual(saveNeeds(withRails), []);
+  assert.equal(draftComplete(withRails), true);
+  // rails but no anchors and no explicit span -> still needs span.
+  const noSpan = { ...empty, resistance: 12, support: 10 };
+  assert.deepEqual(saveNeeds(noSpan), ['span']);
+  assert.equal(draftComplete(noSpan), false);
+});
+
+test('saveNeeds is empty for negatives (no geometry to require)', () => {
+  assert.deepEqual(saveNeeds({ ...emptyDraft(), verdict: 'no_structure' }), []);
+  assert.deepEqual(saveNeeds({ ...emptyDraft(), verdict: 'engine_wrong' }), []);
 });
 
 // ---- deterministic fuzz -----------------------------------------------------

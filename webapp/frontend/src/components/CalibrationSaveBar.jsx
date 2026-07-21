@@ -6,7 +6,7 @@ function CalibrationSaveBar({
   label, onLabel, note, onNote,
   onSave, onNewMark, onNegative,
   conflict, onResolveConflict,
-  saveError, tally,
+  saveError, tally, needs = [],
   worklist, worklistLabelText, onWorklistText, onWorklistStep,
 }) {
   // A blind save creates; only an explicitly-loaded edit (editingId) updates
@@ -14,8 +14,9 @@ function CalibrationSaveBar({
   // click on "Update existing", never inferred (adversarial review 2026-07-12).
   const updating = editingId != null;
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap',
-                  minHeight: 30, fontSize: 12, overflow: 'hidden' }}>
+    // A cohesive, WRAPPING group in the one command band (Task 8).
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                  minHeight: 30, fontSize: 12 }}>
       <input
         value={label}
         onChange={(e) => onLabel(e.target.value)}
@@ -63,6 +64,15 @@ function CalibrationSaveBar({
               title="Save an engine-wrong mark for this frame [w]">
         Engine wrong
       </button>
+
+      {/* Always-visible "what's still needed to save" — a disabled Save is never
+          a silent dead-end. Amber while incomplete, faint "ready" once it isn't. */}
+      {!disabled && (
+        <span style={{ fontSize: 11, whiteSpace: 'nowrap',
+                       color: needs.length ? 'var(--warning)' : 'var(--text-faint)' }}>
+          {needs.length ? `needs ${needs.join(' · ')}` : (canSave ? 'ready to save' : '')}
+        </span>
+      )}
 
       {saveError && (
         <span style={{ color: 'var(--danger)', fontSize: 11 }}>

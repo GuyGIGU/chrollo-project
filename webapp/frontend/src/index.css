@@ -1377,6 +1377,11 @@ td {
   border-color: color-mix(in srgb, var(--trigger) 55%, transparent);
   color: var(--trigger);
 }
+/* The folded command band (Task 8) packs three groups (lookup · mark · save)
+   into one instrument-tile; a hair more row-gap keeps them legible when the
+   band wraps onto multiple lines on a narrower main column. */
+.calibration-command-band { row-gap: 10px; align-items: center; }
+.calibration-command-band .ccb-group { min-width: 0; }
 @media (max-width: 1100px) {
   /* Below the operator's wide secondary monitor: stack the rail under the chart
      instead of starving the protagonist of width. */

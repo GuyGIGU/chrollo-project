@@ -44,8 +44,11 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
   );
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap',
-                  minHeight: 30, fontSize: 12, overflow: 'hidden' }}>
+    // A cohesive, WRAPPING group in the one command band (Task 8) — no longer a
+    // clipping nowrap strip, so the full R/S/Span/event vocabulary always stays
+    // visible instead of being cut off at the right edge.
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                  minHeight: 30, fontSize: 12 }}>
       <select
         value={draft.verdict}
         disabled={disabled}
