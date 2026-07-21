@@ -14,6 +14,7 @@ import useTriggerGrade from '../hooks/useTriggerGrade';
 import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import { attachHoverHighlight } from './calibrationHover';
+import { attachAsOfDivider } from './calibrationAsOfLine';
 import {
   chartTimeToIso,
   draftComplete,
@@ -118,6 +119,11 @@ function CalibrationTab() {
   // own warnings (they are per-frame facts, not a permanent preference).
   const [warningsOpen, setWarningsOpen] = useState(true);
   useEffect(() => { setWarningsOpen(true); }, [chartData?.frame_digest]);
+  // A refused Trigger placement's reason (the buy must be forward of as-of and
+  // after the last LPS bar) — shown as a transient chip, cleared when the tool
+  // changes or the frame does.
+  const [triggerNotice, setTriggerNotice] = useState(null);
+  useEffect(() => { setTriggerNotice(null); }, [marking.tool, chartData?.frame_digest]);
 
   useEffect(() => { refresh(chartData?.ticker); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -380,13 +386,35 @@ function CalibrationTab() {
       // runs once per chart build; the tool changes many times per build).
       const draw = attachCalibrationDraw(chart, series);
       const hover = attachHoverHighlight(chart, series);
-      chartApiRef.current = { series, draw, hover };
+      const asOfLine = attachAsOfDivider(chart, series);
+      asOfLine.setAsOf(chartData?.as_of_session ?? null);
+      chartApiRef.current = { series, draw, hover, asOfLine };
       const onClick = (param) => {
-        if (markingRef.current.tool === 'idle') return;
+        const st = markingRef.current;
+        if (st.tool === 'idle') return;
         if (!param?.point || param.time == null) return;
         const price = series.coordinateToPrice(param.point.y);
         const date = chartTimeToIso(param.time);
         if (price == null || !Number.isFinite(price) || !date) return;
+        // Trigger guard: the buy is forward of as-of and strictly after the last
+        // LPS bar. A click outside that window is REFUSED with a reason, never
+        // placed to fail later at Save (mirrors marks_validity._validate_trigger).
+        if (st.tool === 'trigger') {
+          const asOf = chartData?.as_of_session;
+          const lpsEnd = (st.draft.events || [])
+            .filter((e) => e.event_type === 'lps' && e.end_date)
+            .map((e) => e.end_date)
+            .reduce((a, b) => (a >= b ? a : b), null);
+          if (asOf && date < asOf) {
+            setTriggerNotice('The buy can’t be left of the as-of line — it’s the forward entry.');
+            return;
+          }
+          if (lpsEnd && date <= lpsEnd) {
+            setTriggerNotice('The buy must be after your last LPS bar.');
+            return;
+          }
+          setTriggerNotice(null);
+        }
         dispatchMarking({ type: 'chart-click', date,
                           price: Number(price.toFixed(4)),
                           bar: barsRef.current.get(date) });
@@ -401,6 +429,7 @@ function CalibrationTab() {
         chart.unsubscribeClick(onClick);
         hover.detach();
         draw.detach();
+        asOfLine.detach();
         chartApiRef.current = null;
       };
     },
@@ -525,6 +554,19 @@ function CalibrationTab() {
                 borderRadius: 6,
               }}>
                 {engineLine(engineRead, engineStatus)}
+              </div>
+            )}
+            {triggerNotice && (
+              // Why a Trigger click was refused (top-center, out of the rails'
+              // way); clears when the tool or frame changes, or a valid buy lands.
+              <div style={{
+                position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+                zIndex: 6, fontSize: 11, color: 'var(--trigger)',
+                border: '1px solid color-mix(in srgb, var(--trigger) 55%, transparent)',
+                background: 'rgba(23, 25, 34, 0.92)', padding: '3px 10px',
+                borderRadius: 6, whiteSpace: 'nowrap',
+              }}>
+                {triggerNotice}
               </div>
             )}
             {chartData.warnings?.length > 0 && warningsOpen && (
