@@ -238,6 +238,16 @@ class CalibrationMark(Base):
     knowable_from_date = Column(String, nullable=True)  # earliest session the verdict is fairly knowable
     note = Column(Text, nullable=True)  # the operator's reason (negatives especially)
 
+    # The Trigger — the operator's BUY: the day price breaks above the High of the
+    # LPS's FINAL bar. It sits at/after as-of (a FORWARD point, unlike every event
+    # which is <= as-of), one per box, and requires an LPS. Nullable with NO
+    # default — a null trigger is the real "no buy marked yet" state. The forward-
+    # window, requires-LPS, and "trigger after the last LPS bar" rules live in the
+    # shared marks_validity (SQLite cannot retrofit these onto the live corpus DB);
+    # the row-local CHECKs below are fresh-DB defence-in-depth only.
+    trigger_date = Column(String, nullable=True)   # ISO; >= as_of, > last LPS bar, <= frame_end
+    trigger_price = Column(Float, nullable=True)   # the last-LPS-bar High (tool-snapped, editable)
+
     # Point-in-time provenance — required, never backfilled.
     data_regime = Column(String, nullable=False)
     engine_config_version = Column(String, nullable=False)
@@ -275,6 +285,24 @@ class CalibrationMark(Base):
             name="ck_calibration_mark_span_order",
         ),
         CheckConstraint("revision >= 1", name="ck_calibration_mark_revision"),
+        # Trigger (fresh-DB defence-in-depth; the live DB enforces via marks_validity).
+        CheckConstraint(
+            "(trigger_date IS NULL AND trigger_price IS NULL) "
+            "OR (trigger_date IS NOT NULL AND trigger_price IS NOT NULL)",
+            name="ck_calibration_mark_trigger_paired",
+        ),
+        CheckConstraint(
+            "trigger_date IS NULL OR verdict = 'box'",
+            name="ck_calibration_mark_trigger_box_only",
+        ),
+        CheckConstraint(
+            "trigger_date IS NULL OR trigger_date >= as_of_date",
+            name="ck_calibration_mark_trigger_after_as_of",
+        ),
+        CheckConstraint(
+            "trigger_price IS NULL OR trigger_price > 0",
+            name="ck_calibration_mark_trigger_price_positive",
+        ),
     )
 
 
