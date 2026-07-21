@@ -83,18 +83,27 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
 
     from core.pipeline.downloads import _price_regime, price_auto_adjust  # noqa: PLC0415 — lazy, yfinance-heavy chain
     from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
-    from services.market_data import chart_candles, daily_candle_frame
+    from services.candle_cache import load_candles  # noqa: PLC0415 — session cache + resilient fetch
+    from services.market_data import chart_candles  # noqa: PLC0415
 
     as_of_ts = pd.Timestamp(as_of)
     start = (as_of_ts - pd.Timedelta(days=_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
     end = (as_of_ts + pd.Timedelta(days=_FORWARD_DAYS)).strftime("%Y-%m-%d")
-    raw = daily_candle_frame(symbol, 0, start=start, end=end,
-                             auto_adjust=price_auto_adjust())
+    # Session cache + transient-throttle-aware fetch: a day-scrub slices a cached
+    # window instead of re-pulling ~900 bars, and a rate-limit blip surfaces as a
+    # calm, distinct class (never the scary "delisted?" copy) with any loaded
+    # chart left up. The cache is display-only — the freeze below reads this
+    # frame, but the digest is computed exactly as before.
+    raw, fetch_status = load_candles(symbol, start, end, price_auto_adjust())
+    if fetch_status == "rate_limited":
+        _refuse(503, "rate_limited",
+                "the market-data vendor is throttling right now — any chart you "
+                "already loaded stays up; wait a few seconds and retry", symbol, as_of)
     if raw.empty:
         _refuse(404, "no_data",
-                "vendor returned nothing — unknown/delisted ticker, or a vendor "
-                "outage / drained rate bucket; retry once before distrusting the "
-                "ticker", symbol, as_of)
+                "no data for this ticker — it may be unknown or delisted, or the "
+                "vendor may be briefly throttling; wait a moment and retry",
+                symbol, as_of)
 
     frame = raw[raw.index <= as_of_ts]
     if frame.empty:

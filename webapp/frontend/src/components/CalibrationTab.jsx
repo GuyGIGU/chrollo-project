@@ -39,7 +39,8 @@ const FAILURE_HINTS = {
   bad_ticker: 'Tickers are 1-10 chars: A-Z, 0-9, dot or dash.',
   bad_date: 'Dates are YYYY-MM-DD, 2000 or later.',
   future_date: 'Pick a past session.',
-  no_data: 'Unknown or delisted ticker — or the vendor hiccuped; retry once.',
+  rate_limited: 'The data vendor is briefly throttling — any loaded chart stays up; wait a few seconds and retry.',
+  no_data: 'Unknown/delisted ticker — or the vendor is briefly throttling; wait a moment and retry.',
   no_bars_at_date: 'This ticker has no history at that date; try a later one.',
   network: 'Start the dashboard service, then retry.',
   service_stale: 'Run update_dashboard.bat to load the new backend, then retry.',
@@ -450,16 +451,19 @@ function CalibrationTab() {
             />
             {failure && (
               // A failed step never wipes the working chart — the last good
-              // frame stays up and the failure rides above it, in danger ink
-              // so it registers peripherally mid-sitting.
+              // frame stays up and the failure rides above it. A transient
+              // rate-limit is not an error: it wears the calm warning ink, not
+              // danger red, so a self-healing hiccup never trains distrust.
               <div style={{
                 position: 'absolute', top: 8, left: 8, right: 8, zIndex: 5,
                 padding: '6px 10px', borderRadius: 6, fontSize: 12,
                 border: `1px solid ${surfaceOf('modal').border}`,
-                borderLeft: '2px solid var(--danger)',
+                borderLeft: `2px solid ${failure.class === 'rate_limited' ? 'var(--accent-yellow)' : 'var(--danger)'}`,
                 background: 'rgba(23, 25, 34, 0.92)',
               }}>
-                Lookup failed — {failure.class}. {paneBody(false, failure)}
+                {failure.class === 'rate_limited'
+                  ? `Vendor busy. ${paneBody(false, failure)}`
+                  : `Lookup failed — ${failure.class}. ${paneBody(false, failure)}`}
               </div>
             )}
             {engineOn && (
@@ -492,7 +496,7 @@ function CalibrationTab() {
           <PaneMessage
             title={paneTitle(loading, failure)}
             body={paneBody(loading, failure)}
-            danger={!loading && !!failure}
+            danger={!loading && !!failure && failure.class !== 'rate_limited'}
           />
         )}
       </div>

@@ -381,8 +381,16 @@ def _chart(monkeypatch, frame, tmp_path, ticker="KLAC", as_of="2025-09-11"):
     import frame_store
     import services.market_data as market_data
     import webapp.backend.frame_store as wb_frame_store
+    from core.pipeline import rate_limit
+    from services import candle_cache
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: frame)
+    # WP-0: the endpoint fetches through the session candle cache. Give each case
+    # a clean cache, no retry sleep, and a clear cooldown so the classic chart
+    # assertions stay hermetic (rate-limit behaviour is tested in test_candle_cache).
+    monkeypatch.setattr(candle_cache, "_CACHE", {})
+    monkeypatch.setattr(candle_cache, "_TRANSIENT_RETRY_WAIT_S", 0.0)
+    monkeypatch.setattr(rate_limit, "in_cooldown", lambda: False)
     # Both module instances — never the live store, whichever import form
     # a future change routes through.
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
