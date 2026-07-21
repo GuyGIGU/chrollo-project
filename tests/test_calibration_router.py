@@ -258,6 +258,87 @@ def test_list_filters_by_ticker(db, digest):
     assert [m.ticker for m in list_marks("klac", db)] == ["KLAC"]
 
 
+# ── Trigger (the buy) on the write path ──────────────────────────────
+
+
+def _grading_frame(close=11.02):
+    # The <= 2026-04-15 slice must reproduce _bound_frame()'s digest exactly, so
+    # its first three rows mirror it; two forward bars carry the Trigger window.
+    idx = pd.to_datetime(["2026-04-13", "2026-04-14", "2026-04-15",
+                          "2026-04-16", "2026-04-17"])
+    return pd.DataFrame({"Open": [close] * 5, "High": [close + 1] * 5,
+                         "Low": [close - 1] * 5, "Close": [close] * 5,
+                         "Volume": [1_000_000.0] * 5}, index=idx)
+
+
+@pytest.fixture()
+def trigger_digest(tmp_path, monkeypatch):
+    """Freeze BOTH the <= as-of base frame and the forward grading frame for
+    (BODI, 2026-04-15), returning the shared base digest — a Trigger save needs
+    the forward frame on disk (the write-boundary frame check)."""
+    import frame_store
+    import webapp.backend.frame_store as wb_frame_store
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
+    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
+    d, _ = frame_store.freeze_frame("BODI", "2026-04-15", _bound_frame())
+    frame_store.freeze_grading_frame("BODI", "2026-04-15", _grading_frame(), d)
+    return d
+
+
+# A trigger requires an LPS; this one ends 2026-04-14 (<= as-of) so a buy on
+# 2026-04-16 lands strictly after it and at/after as-of.
+_LPS_EVENT = [{"event_type": "lps", "start_date": "2026-04-09",
+               "end_date": "2026-04-14"}]
+
+
+def test_trigger_round_trips_through_create_and_out(db, trigger_digest):
+    saved = MarkOut.model_validate(create_mark(_payload(
+        trigger_digest, events=_LPS_EVENT,
+        trigger_date="2026-04-16", trigger_price=12.55), db))
+    assert saved.trigger_date == "2026-04-16"
+    assert saved.trigger_price == 12.55
+
+
+def test_markout_presents_a_missing_trigger_as_explicit_null(db, trigger_digest):
+    saved = MarkOut.model_validate(create_mark(_payload(
+        trigger_digest, events=_LPS_EVENT), db))
+    dumped = saved.model_dump()
+    # present in the schema, null — the client never guesses "omitted vs no buy".
+    assert "trigger_date" in dumped and dumped["trigger_date"] is None
+    assert "trigger_price" in dumped and dumped["trigger_price"] is None
+
+
+def test_trigger_without_a_frozen_forward_frame_is_refused(db, digest):
+    # `digest` freezes only the <= as-of base frame, not the grading frame — a
+    # Trigger save must be refused loudly (it could never replay frozen-only).
+    with pytest.raises(HTTPException) as err:
+        create_mark(_payload(digest, events=_LPS_EVENT,
+                             trigger_date="2026-04-16", trigger_price=12.55), db)
+    assert (err.value.status_code, err.value.detail["class"]) == (422, "unframed_trigger")
+    assert db.query(CalibrationMark).count() == 0
+
+
+def test_trigger_date_must_be_a_real_forward_session(db, trigger_digest):
+    # 2026-04-18 is past the frozen frame_end (04-17) — not a real session.
+    with pytest.raises(HTTPException) as err:
+        create_mark(_payload(trigger_digest, events=_LPS_EVENT,
+                             trigger_date="2026-04-18", trigger_price=12.55), db)
+    assert err.value.detail["class"] == "trigger_not_a_session"
+
+
+def test_trigger_survives_an_edit_and_can_be_cleared(db, trigger_digest):
+    saved = create_mark(_payload(trigger_digest, events=_LPS_EVENT,
+                                 trigger_date="2026-04-16", trigger_price=12.55), db)
+    updated = MarkOut.model_validate(update_mark(saved.id, _payload(
+        trigger_digest, events=_LPS_EVENT,
+        trigger_date="2026-04-16", trigger_price=12.60), db))
+    assert (updated.trigger_price, updated.revision) == (12.60, 2)
+    # Clearing it is a valid state — the LPS box stands without a buy.
+    cleared = MarkOut.model_validate(update_mark(saved.id, _payload(
+        trigger_digest, events=_LPS_EVENT), db))
+    assert cleared.trigger_date is None and cleared.revision == 3
+
+
 # ── Same-app write guard ─────────────────────────────────────────────
 
 

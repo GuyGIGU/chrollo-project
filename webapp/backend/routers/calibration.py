@@ -383,6 +383,11 @@ class MarkIn(BaseModel):
     r_anchor_date: Optional[str] = None
     s_anchor_date: Optional[str] = None
     first_rail: Optional[str] = None
+    # The Trigger (the operator's buy) — shape here, semantics in shared validity
+    # (box-only, requires an LPS, forward-of-as-of); the frame-dependent upper
+    # bound (a real session <= frame_end) is enforced at the write boundary.
+    trigger_date: Optional[str] = None
+    trigger_price: Optional[float] = None
     rails_source: str = "operator"
     knowable_from_date: Optional[str] = None
     note: Optional[str] = None
@@ -411,6 +416,10 @@ class MarkOut(BaseModel):
     r_anchor_date: Optional[str] = None
     s_anchor_date: Optional[str] = None
     first_rail: Optional[str] = None
+    # Presented as explicit null (never omitted) so the client can always read
+    # "no buy marked" without guessing.
+    trigger_date: Optional[str] = None
+    trigger_price: Optional[float] = None
     rails_source: str
     knowable_from_date: Optional[str] = None
     note: Optional[str] = None
@@ -459,10 +468,40 @@ def _reject_unbound(payload: MarkIn):
         })
 
 
+def _reject_unframed_trigger(payload: MarkIn):
+    """The Trigger's upper bound is FRAME-DEPENDENT, so it is enforced here (not
+    in pure validity, which stays import-anywhere): trigger_date must be a real
+    session in the frozen forward GRADING frame — which is `<= frame_end` by
+    construction, and is exactly the frozen basis the Trigger grade replays on.
+    A pure local-file check; saving never triggers a vendor fetch. No trigger =>
+    nothing to check."""
+    if payload.trigger_date is None:
+        return
+    from frame_store import load_grading_frame  # noqa: PLC0415 — file I/O module, lazy
+    ticker = (payload.ticker or "").strip().upper()
+    grading = load_grading_frame(ticker, payload.as_of_date, payload.frame_digest)
+    if grading is None:
+        raise HTTPException(status_code=422, detail={
+            "class": "unframed_trigger",
+            "message": "the forward grading frame for this setup is not frozen — "
+                       "reload the chart for that session (it freezes the forward "
+                       "bars a Trigger is graded against), then save",
+        })
+    sessions = set(grading.index.strftime("%Y-%m-%d"))
+    if payload.trigger_date not in sessions:
+        raise HTTPException(status_code=422, detail={
+            "class": "trigger_not_a_session",
+            "message": f"trigger_date {payload.trigger_date} is not a real session "
+                       "in the frozen forward window — the buy must land on a "
+                       "trading day at or before the frame end",
+        })
+
+
 def _apply_payload(mark: CalibrationMark, payload: MarkIn):
     for field in ("ticker", "as_of_date", "label", "verdict", "resistance",
                   "support", "box_start_date", "box_end_date",
                   "r_anchor_date", "s_anchor_date", "first_rail",
+                  "trigger_date", "trigger_price",
                   "rails_source", "knowable_from_date", "note", "data_regime",
                   "engine_config_version", "anchor_close", "frame_digest"):
         setattr(mark, field, getattr(payload, field))
@@ -495,6 +534,7 @@ def _mark_by_identity(db: Session, ticker: str, as_of_date: str, label: str):
 def create_mark(payload: MarkIn, db: Session = Depends(get_db)):
     _reject_invalid(payload)
     _reject_unbound(payload)
+    _reject_unframed_trigger(payload)
     now = datetime.now(timezone.utc)
     mark = CalibrationMark(created_at=now, updated_at=now, revision=1)
     _apply_payload(mark, payload)
@@ -539,6 +579,7 @@ def update_mark(mark_id: int, payload: MarkIn, db: Session = Depends(get_db)):
             "class": "unknown_mark", "message": f"no mark {mark_id}"})
     _reject_invalid(payload)
     _reject_unbound(payload)
+    _reject_unframed_trigger(payload)
     # A mark's frame binding is IMMUTABLE (the module contract: provenance is
     # "never re-stamped after the fact"). The ledger lists every session's marks
     # for a ticker, so a cross-frame edit could otherwise silently move a mark's
