@@ -4,6 +4,46 @@ import FrameThumb from './FrameThumb';
 import { buildSetupRows, sortSetupRows } from '../utils/calibrationTables';
 import { fmtDateShort } from '../utils/format';
 
+// One-click engine test per setup: priority-ordered evidence, not a bare
+// pass/fail token — Box/R/S first (the top priority), then LPS, then the
+// operator's Trigger vs the engine's fire timing. Green/red are allowed here
+// (engine agreement is the one place the doctrine permits them).
+const TIMING_LABEL = {
+  at_or_before: '≤ buy', after: '> buy', never: 'no fire', no_trigger: '',
+};
+
+function GradeCell({ grade, testing, onTest }) {
+  const test = (e) => { e.stopPropagation(); onTest(); }; // never trigger row-load
+  if (grade == null || grade.kind === 'pending') {
+    return testing || grade?.kind === 'pending'
+      ? <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>testing…</span>
+      : (
+        <button type="button" className="cal-rail-test" onClick={test}
+                title="Test this setup against the engine on its exact frozen snapshot">
+          Test
+        </button>
+      );
+  }
+  if (grade.kind !== 'graded') {
+    // A negative setup — no box for the engine to elect.
+    return <span style={{ color: 'var(--text-faint)' }}>—</span>;
+  }
+  const { box, lps, timing } = grade;
+  const state = box.elected ? 'ok' : 'miss';
+  const delta = Number.isFinite(box?.rail_delta) ? ` Δ${box.rail_delta.toFixed(2)}` : '';
+  const timeTxt = TIMING_LABEL[timing?.outcome] ? ` · ${TIMING_LABEL[timing.outcome]}` : '';
+  const title = `Box: ${box.elected ? 'elected at your rails' : 'NOT elected'}${delta}`
+    + ` · LPS: ${lps?.operator_marked ? 'you marked one' : 'none'}`
+    + (timing?.outcome === 'no_trigger' ? ' · no buy marked'
+      : ` · engine fired ${timing?.fire_date ?? '—'} vs your buy ${timing?.trigger_date ?? '—'}`)
+    + ' — click to re-test';
+  return (
+    <button type="button" className={`inst-chip ${state} cal-rail-grade`} onClick={test} title={title}>
+      {box.elected ? 'box' : 'no box'}{delta}{timeTxt}
+    </button>
+  );
+}
+
 // The calibrated-list navigator (Task 7): a persistent RIGHT-SIDE rail of
 // first-class SETUPS — one row per (ticker, as_of) — so the chart stays the
 // protagonist and two setups on one symbol read as two distinct entries (never
@@ -14,7 +54,8 @@ import { fmtDateShort } from '../utils/format';
 // selectedSetupId. Rows are cheap static DOM (a mini FrameThumb, never a live
 // chart). Element indicators answer the priority order Box/R/S → LPS → Trigger
 // at a glance; the engine-test verdict lands here in Task 12.
-function CalibrationRail({ setups, activeTicker, activeAsOf, onPick }) {
+function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
+                          grades = {}, testing = {}, onTest }) {
   const [sort, setSort] = useState({ by: 'ticker', dir: 'asc' });
 
   const rows = useMemo(
@@ -104,6 +145,21 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick }) {
           s={row.support}
           boxStart={row.boxStart}
           boxEnd={row.boxEnd}
+        />
+      ),
+    },
+    {
+      // One-click engine test on the exact frozen snapshot — the whole point of
+      // the workbench. Lazy: nothing computes until Test is clicked.
+      key: 'engine',
+      label: 'Engine',
+      align: 'left',
+      sortable: false,
+      render: (row) => (
+        <GradeCell
+          grade={grades[row.raw?.id]}
+          testing={!!testing[row.ticker]}
+          onTest={() => onTest?.(row.ticker)}
         />
       ),
     },

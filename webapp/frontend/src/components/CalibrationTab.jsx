@@ -10,6 +10,7 @@ import useCalibrationMarks from '../hooks/useCalibrationMarks';
 import useEngineRead from '../hooks/useEngineRead';
 import useMarkAgreement from '../hooks/useMarkAgreement';
 import useMarkFired from '../hooks/useMarkFired';
+import useTriggerGrade from '../hooks/useTriggerGrade';
 import { CHART_FONT, baseChartOptions, surfaceOf } from './chartTheme';
 import { attachCalibrationDraw } from './calibrationDraw';
 import { attachHoverHighlight } from './calibrationHover';
@@ -139,6 +140,11 @@ function CalibrationTab() {
   // screener? Runs the full pipeline per box mark in a background worker, so
   // this polls and the Engine chip upgrades from concordance -> fired in place.
   const fired = useMarkFired(chartData?.ticker, marks);
+
+  // The rail's one-click engine test: grade a setup on its exact frozen snapshot
+  // (Box/R/S → LPS → Trigger timing). Lazy + on-demand — nothing computes until
+  // the operator clicks Test on a rail row.
+  const { grades, testing, test } = useTriggerGrade();
 
   // Saved marks drawn on THIS frame's chart, always (operator bug report
   // 2026-07-11: with only the draft rendered, saving and starting the next
@@ -567,6 +573,9 @@ function CalibrationTab() {
           activeTicker={chartData?.ticker}
           activeAsOf={chartData?.as_of_session}
           onPick={(t, asOf) => { setTicker(t); lookup(t, asOf); }}
+          grades={grades}
+          testing={testing}
+          onTest={test}
         />
       </aside>
     </div>

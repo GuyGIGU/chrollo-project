@@ -1355,13 +1355,31 @@ td {
   gap: 10px;
 }
 .calibration-rail {
-  flex: 0 0 320px;
-  width: 320px;
+  flex: 0 0 372px;
+  width: 372px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;             /* the InstrumentTable well owns the vertical scroll */
 }
+/* One-click engine test control on a rail row: a quiet ghost at rest that locks
+   on with mythril on hover (interactivity IS scarce, so the ONE actionable
+   affordance per row earns it); the graded result renders as an inst-chip that
+   stays clickable to re-test. */
+.cal-rail-test {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+}
+.cal-rail-test:hover { color: var(--myth-bright); border-color: var(--myth-glow); }
+.cal-rail-test:focus-visible { outline: 2px solid var(--accent-active); outline-offset: 1px; }
+.cal-rail-grade { cursor: pointer; font-family: inherit; }
 /* Element chips on a rail row — LPS neutral, Trigger in its warm token. Kept
    low-chrome so the verdict pill + thumbnail still lead the eye. */
 .cal-rail-tag {

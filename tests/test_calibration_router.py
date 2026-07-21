@@ -976,10 +976,23 @@ def test_trigger_grade_fired_after_and_never_are_distinct(db):
     assert never["box"]["elected"] is False
 
 
-def test_trigger_grade_skips_marks_without_a_trigger(db):
-    m = _add_mark(db)  # no trigger -> costs no compute, returns the sentinel
+def test_trigger_grade_grades_a_box_without_a_trigger_on_the_top_tiers(db):
+    # The north-star: Box/R/S evidence must show for EVERY setup, buy or not — a
+    # top-priority gap is never hidden just because no Trigger is marked yet.
+    m = _add_mark(db)  # a box, no buy marked
+    fired = {"marks": {m.id: {"state": "ok", "fire_date": "2026-05-01",
+                              "rail_delta": 0.05}}, "computing": False}
+    grade = trigger_grade_for_marks([m], fired=fired)["marks"][m.id]
+    assert grade["kind"] == "graded"
+    assert grade["box"]["elected"] is True             # top tier still graded
+    assert grade["timing"]["outcome"] == "no_trigger"  # timing waits for a buy
+
+
+def test_trigger_grade_negative_has_no_box(db):
+    m = _add_mark(db, verdict="no_structure", resistance=None, support=None,
+                  box_start_date=None, box_end_date=None)
     out = trigger_grade_for_marks([m], fired={"marks": {}, "computing": False})
-    assert out["marks"][m.id]["kind"] == "no_trigger"
+    assert out["marks"][m.id]["kind"] == "negative"
 
 
 def test_trigger_grade_streams_pending_like_fired(db):

@@ -45,15 +45,19 @@ def _lps_marked(mark) -> bool:
 
 
 def grade_one(mark, chip) -> dict:
-    """Priority-ordered Trigger grade for one box mark from its FIRED ``chip``.
-    Returns a graded dict, or a ``{'kind': ...}`` sentinel for the non-gradeable
-    states (no Trigger marked / the fired replay still computing)."""
-    if mark.verdict != "box" or mark.trigger_date is None:
-        return {"kind": "no_trigger"}
+    """Priority-ordered engine grade for one BOX mark from its FIRED ``chip``.
+    Every box is graded on the top priorities (Box/R/S, LPS) whether or not it
+    carries a Trigger — the north-star gap at the top must always be visible; the
+    timing tier reads ``no_trigger`` until a buy is marked. Returns a graded dict,
+    or a ``{'kind': ...}`` sentinel (a negative has no box; a pending fired replay
+    is still computing)."""
+    if mark.verdict != "box":
+        return {"kind": "negative"}
     if chip is None or chip.get("state") == "pending":
         return {"kind": "pending"}
     elected = chip.get("state") == "ok"
     fire_date = chip.get("fire_date")  # present only when the engine fired
+    has_trigger = mark.trigger_date is not None
     return {
         "kind": "graded",
         # (1) HIGHEST priority — does the engine elect a box at his rails, and how
@@ -65,23 +69,25 @@ def grade_one(mark, chip) -> dict:
         "lps": {"operator_marked": _lps_marked(mark),
                 "engine_box_elected": elected},
         # (3) LOWEST priority — the fired-at/before/after-Trigger timing, grounded
-        # in the real fire session (never "no read" collapsed into "late").
-        "timing": {"outcome": classify_fire_timing(fire_date, mark.trigger_date),
-                   "fire_date": fire_date, "trigger_date": mark.trigger_date},
+        # in the real fire session (never "no read" collapsed into "late"). Absent
+        # a buy the tier is 'no_trigger'; the box/LPS agreement above still stands.
+        "timing": {
+            "outcome": (classify_fire_timing(fire_date, mark.trigger_date)
+                        if has_trigger else "no_trigger"),
+            "fire_date": fire_date, "trigger_date": mark.trigger_date},
     }
 
 
 def trigger_grade_for_marks(marks, *, fired=None) -> dict:
     """``{marks: {id: grade}, computing}`` for a ticker's marks. Reuses the
-    memoized FIRED replay (only for marks that actually carry a Trigger, so a
-    setup with no buy costs no compute); ``fired`` is injectable for tests. A
-    cache miss streams as ``pending`` exactly like ``/fired`` — the client polls."""
-    triggered = [m for m in marks
-                 if m.verdict == "box" and m.trigger_date is not None]
+    memoized FIRED replay for every BOX mark (one pass feeds the box/LPS/timing
+    tiers); ``fired`` is injectable for tests. Negatives cost no compute; a cache
+    miss streams as ``pending`` exactly like ``/fired`` — the client polls."""
+    box_marks = [m for m in marks if m.verdict == "box"]
     if fired is None:
-        if triggered:
+        if box_marks:
             from services.calibration_fired import fired_for_marks  # noqa: PLC0415
-            fired = fired_for_marks(triggered)
+            fired = fired_for_marks(box_marks)
         else:
             fired = {"marks": {}, "computing": False}
     chips = fired.get("marks", {})
