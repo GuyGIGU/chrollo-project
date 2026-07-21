@@ -34,6 +34,7 @@ from routers.calibration import (  # noqa: E402
     calibration_engine_read,
     calibration_fired,
     calibration_frame_thumb,
+    calibration_trigger_grade,
     create_mark,
     delete_mark,
     list_marks,
@@ -358,7 +359,7 @@ def test_every_side_effectful_route_declares_the_guard():
     # pages excluded.
     guarded_gets = {"/calibration/chart", "/calibration/engine-read",
                     "/calibration/agreement", "/calibration/frame-thumb",
-                    "/calibration/fired"}
+                    "/calibration/fired", "/calibration/trigger-grade"}
     seen = {route.path for route in calibration.router.routes}
     assert guarded_gets <= seen  # the pin covers routes that actually exist
     for route in calibration.router.routes:
@@ -933,6 +934,76 @@ def test_fired_endpoint_rejects_a_bad_ticker(db):
         calibration_fired(ticker="!!", db=db)
     assert err.value.status_code == 400
     assert err.value.detail["class"] == "bad_ticker"
+
+
+# ── Trigger grade ("did the engine fire by my buy?") ─────────────────
+from services.trigger_grade import (  # noqa: E402
+    classify_fire_timing,
+    trigger_grade_for_marks,
+)
+
+
+def test_classify_fire_timing_three_honest_outcomes():
+    assert classify_fire_timing("2026-04-14", "2026-04-16") == "at_or_before"
+    assert classify_fire_timing("2026-04-16", "2026-04-16") == "at_or_before"  # on-trigger
+    assert classify_fire_timing("2026-04-20", "2026-04-16") == "after"
+    assert classify_fire_timing(None, "2026-04-16") == "never"  # not "late"
+
+
+def test_trigger_grade_layers_timing_over_the_fired_replay(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    fired = {"marks": {m.id: {"state": "ok", "kind": "fired",
+                              "fire_date": "2026-04-14", "rail_delta": 0.02}},
+             "computing": False}
+    grade = trigger_grade_for_marks([m], fired=fired)["marks"][m.id]
+    assert grade["kind"] == "graded"
+    assert grade["box"] == {"elected": True, "rail_delta": 0.02}  # top priority
+    assert grade["timing"]["outcome"] == "at_or_before"
+    assert grade["timing"]["fire_date"] == "2026-04-14"
+
+
+def test_trigger_grade_fired_after_and_never_are_distinct(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    after = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "ok", "fire_date": "2026-04-20"}},
+        "computing": False})["marks"][m.id]
+    assert after["timing"]["outcome"] == "after"
+    # A missed chip carries NO fire_date -> never, never silently "after/late".
+    never = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "miss", "kind": "missed"}},
+        "computing": False})["marks"][m.id]
+    assert never["timing"]["outcome"] == "never"
+    assert never["box"]["elected"] is False
+
+
+def test_trigger_grade_skips_marks_without_a_trigger(db):
+    m = _add_mark(db)  # no trigger -> costs no compute, returns the sentinel
+    out = trigger_grade_for_marks([m], fired={"marks": {}, "computing": False})
+    assert out["marks"][m.id]["kind"] == "no_trigger"
+
+
+def test_trigger_grade_streams_pending_like_fired(db):
+    m = _add_mark(db, trigger_date="2026-04-16", trigger_price=12.55)
+    out = trigger_grade_for_marks([m], fired={
+        "marks": {m.id: {"state": "pending"}}, "computing": True})
+    assert out["computing"] is True
+    assert out["marks"][m.id]["kind"] == "pending"
+
+
+def test_trigger_grade_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
+    _add_mark(db, ticker="BODI", trigger_date="2026-04-16", trigger_price=12.55)
+    _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
+    import services.trigger_grade as tg
+    seen = {}
+
+    def fake(marks, **_k):
+        seen["tickers"] = {m.ticker for m in marks}
+        return {"marks": {m.id: {"kind": "no_trigger"} for m in marks}, "computing": False}
+
+    monkeypatch.setattr(tg, "trigger_grade_for_marks", fake)
+    body = calibration_trigger_grade(ticker="bodi", db=db)
+    assert body["ticker"] == "BODI"
+    assert seen["tickers"] == {"BODI"}  # never grades another ticker's marks
 
 
 import threading  # noqa: E402 — used by the pool test above

@@ -357,6 +357,30 @@ def calibration_fired(ticker: str = Query(...), db: Session = Depends(get_db)):
     return {"ticker": symbol, **fired_for_marks(marks)}
 
 
+# ── Trigger grade ("did the engine fire by my buy?") ─────────────────
+
+
+@router.get("/trigger-grade", dependencies=[Depends(require_same_app)])
+def calibration_trigger_grade(ticker: str = Query(...), db: Session = Depends(get_db)):
+    """Per-mark Trigger grade — did the engine surface the pick AT/BEFORE the
+    operator's buy (the LPS-high breakout)? A thin comparison over the SAME
+    memoized FIRED replay (one pass feeds both /fired and this), so a cache miss
+    streams as 'pending' just like /fired and the client polls. Reports
+    priority-ordered agreement (Box/R/S -> LPS -> timing) with three honest
+    outcomes (at/before, after, never). Guarded + read-only + degrade-never-500;
+    a mark with no Trigger costs no compute.
+    """
+    symbol = ticker.strip().upper()
+    if not TICKER_RE.match(symbol):
+        _refuse(400, "bad_ticker",
+                "ticker must be 1-10 chars of A-Z, 0-9, '.' or '-'", symbol, "")
+    marks = (db.query(CalibrationMark)
+             .filter(CalibrationMark.ticker == symbol)
+             .order_by(CalibrationMark.as_of_date).all())
+    from services.trigger_grade import trigger_grade_for_marks  # noqa: PLC0415 — fired/harness chain, lazy
+    return {"ticker": symbol, **trigger_grade_for_marks(marks)}
+
+
 # ── Marks CRUD (Task 4) ──────────────────────────────────────────────
 
 
