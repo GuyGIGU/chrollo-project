@@ -18,7 +18,10 @@ end_bar is exclusive. SC roots mirror every climax check on LOWS.
 Each payload ticker is replayed on its own frame (cache trimmed to its last
 payload candle) through the SAME eval-twin prep the live scan used, so the
 asserted Structure is the one the operator sees. A ticker that refuses to
-re-measure is a coverage hole and fails the gate.
+re-measure is a coverage hole and fails the gate - UNLESS the engine's own
+trace shows a cause-before-effect veto (``cause_absent``): a name that fired
+into a pre-veto payload but now legitimately abstains is an EXPECTED
+non-election, reported separately and never a failure.
 
 Usage:
     python -m tools.doctrine_audit --check    # exit 1 on any violation/refusal
@@ -176,7 +179,7 @@ def run_audit() -> int:
         kind_seen["kind"] = getattr(root, "kind", None)
         return orig_resolve(df, root, box, atr)
 
-    measured, refused = 0, []
+    measured, refused, vetoed = 0, [], []
     bricks.resolve_phase_a = resolve_spy
     try:
         for tk in tickers:
@@ -200,6 +203,15 @@ def run_audit() -> int:
             except Exception as e:
                 refused.append((tk, f"read {type(e).__name__}")); continue
             if s is None:
+                # A cause-before-effect veto-drop is an EXPECTED non-election,
+                # not a coverage hole: the name fired into a pre-veto payload but
+                # read_structure now abstains it. Re-run once with a trace to read
+                # the engine's OWN terminal outcome (never a re-run of the veto
+                # predicate) and separate it from a genuine no-structure refusal.
+                vtrace: list = []
+                read_structure(daily, atr, trace=vtrace)
+                if any(r.get("outcome") == "cause_absent" for r in vtrace):
+                    vetoed.append(tk); continue
                 refused.append((tk, "no structure")); continue
             measured += 1
             _audit_setup(tk, daily, atr, s, kind_seen["kind"], cd[tk], check)
@@ -210,7 +222,8 @@ def run_audit() -> int:
     print("=" * 64)
     print("  DOCTRINE GATE - Reading Model asserted over the live payload")
     print("=" * 64)
-    print(f"setups: {len(tickers)}  measured: {measured}  refused: {len(refused)}")
+    print(f"setups: {len(tickers)}  measured: {measured}  "
+          f"vetoed(cause-absent): {len(vetoed)}  refused: {len(refused)}")
     print(f"{'invariant':<26}{'applied':>8}{'violations':>12}")
     print("-" * 46)
     for inv in sorted(counts):
@@ -223,6 +236,9 @@ def run_audit() -> int:
             print(f"   {tk:<7} {detail}")
         if len(violations[inv]) > 12:
             print(f"   ... and {len(violations[inv]) - 12} more")
+    if vetoed:
+        print("\nVETOED (cause-before-effect — expected non-elections, not holes):")
+        print("   " + " ".join(sorted(vetoed)))
     if refused:
         print("\nREFUSED (coverage holes):")
         for tk, why in refused[:12]:

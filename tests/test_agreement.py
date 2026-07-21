@@ -57,6 +57,28 @@ def test_no_read_and_negative_verdicts():
     assert grade_mark(wrong, READ)["outcome"] == "negative_violated"
 
 
+def test_vetoed_cause_absent_attributes_the_drop():
+    # A box the engine elects nothing at: a plain no-root -> engine_no_read;
+    # the cause-before-effect veto firing -> vetoed_cause_absent (attributable).
+    assert grade_mark(MARK, None)["outcome"] == "engine_no_read"
+    assert grade_mark(MARK, None, vetoed=True)["outcome"] == "vetoed_cause_absent"
+    # `vetoed` is meaningful ONLY when the engine read nothing: a real read
+    # still grades on geometry, and a negative verdict still upholds.
+    assert grade_mark(MARK, READ, vetoed=True)["outcome"] == "match"
+    neg = dict(verdict="no_structure", as_of_date="2026-04-15")
+    assert grade_mark(neg, None, vetoed=True)["outcome"] == "negative_upheld"
+    # A vetoed box stays in the denominator exactly where its engine_no_read
+    # would have — the split changes attribution, never the ratios.
+    graded = [grade_mark(MARK, READ),                 # match
+              grade_mark(MARK, None, vetoed=True),    # vetoed_cause_absent
+              grade_mark(MARK, None)]                 # engine_no_read
+    t = tally(graded)
+    assert t["counts"]["vetoed_cause_absent"] == 1
+    assert t["n_scored_boxes"] == 3
+    assert t["surfaced_over_scored"] == pytest.approx(1 / 3)
+    assert t["match_over_scored"] == pytest.approx(1 / 3)
+
+
 def test_precedence_basis_then_edge():
     assert grade_mark(MARK, READ, basis_ok=False)["outcome"] == "basis_mismatch"
     # Drawn span starts before the frame's left edge: not a disagreement.

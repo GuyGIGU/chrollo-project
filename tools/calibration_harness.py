@@ -124,6 +124,20 @@ def load_marks(session, ticker: str | None = None) -> list[dict]:
     return out
 
 
+def _vetoed_cause_absent(df, atr, variant: dict) -> bool:
+    """Did read_structure elect nothing on THIS frame because the
+    cause-before-effect veto fired? Reads the engine's OWN terminal trace
+    outcome under the variant's flags — never a re-implementation of the
+    veto predicate. Cheap: only consulted for a box mark that already read
+    None, and the pivot walk it drives is the same one the election ran."""
+    from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
+
+    trace: list = []
+    with replay.flag_capture(**variant):
+        read_structure(df, atr, trace=trace)
+    return any(r.get("outcome") == "cause_absent" for r in trace)
+
+
 def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
               election=replay.snapped_election) -> list[dict]:
     """One mark graded under every variant (ONE snapped walk). Returns one
@@ -156,12 +170,18 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
                                    "prep refuses every candidate session "
                                    "(frame too thin)")
                 for _ in variants]
-    (df, _atr, reads), eval_ts, snapped_k = snapped
+    (df, atr, reads), eval_ts, snapped_k = snapped
     frame_start = df.index[0].strftime("%Y-%m-%d")
     rows = []
-    for read in reads:
+    for variant, read in zip(variants, reads):
+        # A box that elects nothing may have been VETOED (cause-before-effect)
+        # rather than plainly unread — re-read this frame under the variant's
+        # flags with a trace and consult the engine's OWN cause_absent outcome,
+        # so the report attributes the drop (never a re-derivation of the veto).
+        vetoed = (mark["verdict"] == "box" and read is None
+                  and _vetoed_cause_absent(df, atr, variant))
         g = agreement.grade_mark(mark, projection(read, df),
-                                 frame_start=frame_start)
+                                 frame_start=frame_start, vetoed=vetoed)
         g.update({"eval_session": eval_ts.strftime("%Y-%m-%d"),
                   "snapped": snapped_k})
         rows.append(g)
