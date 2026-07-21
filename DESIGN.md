@@ -21,6 +21,8 @@ colors:
   accent-pink: "#E07AA0"
   accent-yellow: "#D4B85A"
   accent-orange: "#E0A05A"
+  operator: "#9B70F7"
+  trigger: "#E8863C"
   success: "#3DD37A"
   danger: "#DE6E78"
   warning: "#E2B255"
@@ -172,6 +174,26 @@ green/amber/red status signaling.
 - **Categorical Rose** (#E07AA0): The "setup" category label and critical-severity pill.
 - **Categorical Gold** (#D4B85A): Notes label, medium-severity pill, partial state.
 
+### Calibration — Ground Truth & the Buy
+Two dedicated semantic roles the calibration workbench (chart, right rail, ledger)
+owns. They are **role tokens**, resolved apart from any categorical hue so a
+re-tune of one never drags the other.
+- **Operator** (`--operator`, #9B70F7): "**this is my mark**" — the single hue for
+  operator ground truth wherever it renders: the committed box + rails on the
+  chart, the rail's per-setup rows, the ledger atoms. It **resolves to** the
+  categorical violet but is a *distinct role* from it: the Options/OPT category
+  (raw `--accent-purple`) and **tier-A violet** (`--tier-a` #BB86FC — a lighter,
+  cooler violet) must never be misread as an operator mark. Canvas surfaces mirror
+  it as `CHART_COLORS.operator` (lightweight-charts needs a concrete hex, not a
+  CSS var — the two hold the same value by contract). It is **not** mythril
+  (interactivity stays scarce) and **not** green (that's engine agreement).
+- **Trigger** (`--trigger`, #E8863C): the operator's **BUY** — the breakout above
+  the last LPS bar's High. Its own **warm entry-flag**, deliberately **not**
+  mythril, **not** `--success` green (green means engine-agreement, and a green
+  "BUY" apes a gamified broker), **not** `--danger`. A burnt orange kept distinct
+  from the LPS gold it sits beside on the chart and from `--warning` amber. Canvas
+  mirror: `CHART_COLORS.trigger`.
+
 ### Tertiary — The Tier Palette
 A reserved four-color ladder that encodes screener tier and appears **only** on
 tier identity (badges, the ticker color on a card):
@@ -189,9 +211,14 @@ tier identity (badges, the ticker color on a card):
   each paired with a ~14%-opacity background tint of its own hue for pills/badges.
   The red and amber were softened off their original acid values (#F26770 / #F0BE3C)
   to sit calmly on the cool slate base while still clearly reading loss/caution.
-  Every tint is mixed from a single channel token (`--{success,danger,warning}-rgb`)
+  Every tint is mixed from a single channel token (`--{success,danger,warning,operator,trigger}-rgb`)
   so a softened hue can't drift across files: write `rgba(var(--danger-rgb), α)`,
   never a raw copy of the hex.
+- **The calm-transient rule.** A self-healing hiccup wears **`--warning`, never
+  `--danger`**. Concretely: the calibration chart's `rate_limited` failure (the
+  vendor is briefly throttling; the last-good chart stays up) is amber caution,
+  not a red alarm — training distrust of a state that fixes itself in seconds is
+  a defect. Red is reserved for states the operator must act on.
 
 ### Named Rules
 **The One-Accent Rule (mythril = action, blue = context).** Mythril (#4FCFC4) is

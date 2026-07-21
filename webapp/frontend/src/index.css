@@ -70,6 +70,24 @@
   --warning-rgb: 226, 178, 85;
   --warning-bg: rgba(var(--warning-rgb), 0.14);
 
+  /* Calibration semantic roles — "this is my mark" gets ONE token across the
+     chart, rail, and ledger (Task 5). --operator resolves to the categorical
+     violet but is a DISTINCT role from it: the Options/OPT category (raw
+     --accent-purple) and tier-A violet (--tier-a #BB86FC, a lighter, cooler
+     violet) must never be misread as an operator mark, and re-tuning one must
+     not drag the others. Canvas mirror: CHART_COLORS.operator holds the same
+     hex (lightweight-charts needs a concrete color, not a CSS var). */
+  --operator: var(--accent-purple);
+  --operator-rgb: 155, 112, 247;
+
+  /* Trigger — the operator's BUY (the LPS-high breakout entry). Its own WARM
+     entry flag: NOT mythril (interactivity stays scarce), NOT --success green
+     (that's engine agreement, and reads as a broker "BUY"), NOT --danger. A
+     burnt orange, kept distinct from the LPS gold it sits beside on the chart
+     and from --warning amber. Canvas mirror: CHART_COLORS.trigger. */
+  --trigger: #E8863C;
+  --trigger-rgb: 232, 134, 60;
+
   /* Severity pills (Lucien-style: tinted bg + matching fg) */
   --pill-critical-bg: rgba(224, 122, 160, 0.12);
   --pill-critical-fg: #E07AA0;
@@ -1181,11 +1199,12 @@ td {
    render inside InstrumentTable cells: a verdict pill, an engine-agreement
    chip, a coverage meter, a completeness dot, a frame thumbnail. Color
    doctrine (DESIGN.md One-Accent + Status): mythril is NOT used here (it
-   stays interactivity-only); operator ground truth is --accent-purple;
+   stays interactivity-only); operator ground truth is the --operator role
+   token (the ONE "this is my mark" hue across chart/rail/ledger);
    --success/--danger are reserved for engine agreement ONLY; negatives read
    neutral (information, not an alarm). Low-chrome at rest — no resting glow
-   (Glow-On-State). color-mix tints the purple by token (matches line ~790),
-   never a raw hex copy.
+   (Glow-On-State). color-mix tints the operator hue by token, never a raw
+   hex copy.
    =================================================================== */
 /* Verdict pill — box wears the operator hue, negatives stay neutral. */
 .inst-pill {
@@ -1200,9 +1219,9 @@ td {
   white-space: nowrap;
 }
 .inst-pill.box {
-  background: color-mix(in srgb, var(--accent-purple) 13%, transparent);
-  border-color: color-mix(in srgb, var(--accent-purple) 45%, transparent);
-  color: var(--accent-purple);
+  background: color-mix(in srgb, var(--operator) 13%, transparent);
+  border-color: color-mix(in srgb, var(--operator) 45%, transparent);
+  color: var(--operator);
 }
 .inst-pill.neg {
   background: rgba(255, 255, 255, 0.03);
@@ -1261,16 +1280,16 @@ td {
   width: 56px;
 }
 .inst-bar i { display: block; height: 100%; }
-.inst-bar .b { background: var(--accent-purple); }
+.inst-bar .b { background: var(--operator); }
 .inst-bar .g { background: rgba(255, 255, 255, 0.10); }
 .inst-cov .lbl { color: var(--text-muted); font-size: 10.5px; }
-.inst-cov .lbl b { color: var(--accent-purple); font-weight: 700; }
+.inst-cov .lbl b { color: var(--operator); font-weight: 700; }
 
 /* Completeness dot — the operator's latest mark here is fully specified
    (events + a knowable-from). Operator-domain state, so operator hue (NOT
    mythril: interactivity stays scarce; NOT green: that's engine agreement). */
 .inst-dot {
-  background: var(--accent-purple);
+  background: var(--operator);
   border-radius: 50%;
   display: inline-block;
   height: 6px;
@@ -1294,8 +1313,8 @@ td {
 .inst-thumb svg { display: block; height: 100%; width: 100%; }
 /* Price line stays muted so the operator's box (op hue) is what reads. */
 .inst-thumb .thumb-price { stroke: var(--text-muted); stroke-width: 0.8; }
-.inst-thumb .thumb-box { fill: color-mix(in srgb, var(--accent-purple) 14%, transparent); }
-.inst-thumb .thumb-rail { stroke: var(--accent-purple); stroke-width: 0.8; }
+.inst-thumb .thumb-box { fill: color-mix(in srgb, var(--operator) 14%, transparent); }
+.inst-thumb .thumb-rail { stroke: var(--operator); stroke-width: 0.8; }
 
 /* Scarce-accent remove control: a quiet ghost at rest, brighter on the row
    hover, danger only on its own hover — never a colored column of buttons. */

@@ -458,7 +458,7 @@ function CalibrationTab() {
                 position: 'absolute', top: 8, left: 8, right: 8, zIndex: 5,
                 padding: '6px 10px', borderRadius: 6, fontSize: 12,
                 border: `1px solid ${surfaceOf('modal').border}`,
-                borderLeft: `2px solid ${failure.class === 'rate_limited' ? 'var(--accent-yellow)' : 'var(--danger)'}`,
+                borderLeft: `2px solid ${failure.class === 'rate_limited' ? 'var(--warning)' : 'var(--danger)'}`,
                 background: 'rgba(23, 25, 34, 0.92)',
               }}>
                 {failure.class === 'rate_limited'
