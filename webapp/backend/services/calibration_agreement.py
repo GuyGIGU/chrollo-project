@@ -80,6 +80,12 @@ def _chip_from_fragment(frag: dict) -> dict:
                 "outcome": outcome}
     if outcome == "engine_no_read":
         return {"state": "miss", "kind": "no_read", "outcome": outcome}
+    if outcome == "vetoed_cause_absent":
+        # The engine ACTIVELY ruled no matured cause precedes the pick (the
+        # MIDD class) — still an un-surfaced box (red miss), but labeled
+        # distinctly so the operator can tell a correct cause-absent kill from
+        # a plain no-read (and, per the recall guarantee, from an eaten winner).
+        return {"state": "miss", "kind": "vetoed", "outcome": outcome}
     if outcome == "edge_uncertain":
         return {"state": "untested", "kind": "edge",
                 "outcome": outcome, "detail": frag.get("detail")}

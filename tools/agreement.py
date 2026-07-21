@@ -13,6 +13,13 @@ cannot form a complete view at the asserted session: the drawn span's left
 edge is off its 2y frame, or the eval prep refuses every candidate session)
 > the verdict-specific outcomes.
 
+A box mark the engine elects nothing at splits into two outcomes so the
+marks-ratchet diff can attribute the drop: ``vetoed_cause_absent`` when the
+cause-before-effect veto fired (an ACTIVE "no matured cause here" ruling —
+the MIDD class), versus ``engine_no_read`` for a plain no-root/no-box. The
+caller passes ``vetoed`` from the engine's own ``cause_absent`` trace outcome;
+both still count as an un-surfaced box, so the denominator is unchanged.
+
 Tolerances are INSTRUMENT parameters (scale-free: fractions of the drawn box
 height, calendar-overlap fractions), passed in and stamped into every report
 by the harness — never engine knobs, never firing decisions.
@@ -37,8 +44,9 @@ configure_path()
 
 from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, rails_match
 
-OUTCOMES = ("match", "disagree", "engine_no_read", "edge_uncertain",
-            "basis_mismatch", "negative_upheld", "negative_violated")
+OUTCOMES = ("match", "disagree", "engine_no_read", "vetoed_cause_absent",
+            "edge_uncertain", "basis_mismatch", "negative_upheld",
+            "negative_violated")
 
 DEFAULT_SPAN_OVERLAP_MIN = 0.5   # calendar-Jaccard floor for "the same box span"
 
@@ -99,6 +107,7 @@ def fired_inside_window(fire_date: str | None, knowable_from: str | None,
 def grade_mark(mark: dict, read: dict | None, *,
                basis_ok: bool = True,
                frame_start: str | None = None,
+               vetoed: bool = False,
                rail_tol_box_frac: float = DEFAULT_RAIL_TOL_BOX_FRAC,
                span_overlap_min: float = DEFAULT_SPAN_OVERLAP_MIN) -> dict:
     """One mark, one outcome (+ details).
@@ -108,6 +117,11 @@ def grade_mark(mark: dict, read: dict | None, *,
     "box_end_date"} or None. ``basis_ok``: the caller's digest verification.
     ``frame_start``: the prepared frame's first session — a drawn span
     beginning before it is not a disagreement, the engine cannot see it.
+    ``vetoed``: the engine elected nothing BECAUSE the cause-before-effect veto
+    fired (from its ``cause_absent`` trace outcome), not for a plain no-root —
+    a box that reads None then grades ``vetoed_cause_absent`` instead of
+    ``engine_no_read`` so the drop is attributable. Meaningful only when
+    ``read is None``.
     """
     verdict = mark["verdict"]
     if not basis_ok:
@@ -125,7 +139,7 @@ def grade_mark(mark: dict, read: dict | None, *,
 
     # verdict == "box"
     if read is None:
-        return {"outcome": "engine_no_read"}
+        return {"outcome": "vetoed_cause_absent" if vetoed else "engine_no_read"}
     distances = rail_distances(mark["resistance"], mark["support"],
                                read["R"], read["S"])
     overlap = span_overlap(mark["box_start_date"], mark["box_end_date"],
@@ -145,7 +159,11 @@ def tally(graded: list[dict]) -> dict:
     counts = {o: 0 for o in OUTCOMES}
     for g in graded:
         counts[g["outcome"]] += 1  # KeyError on an unknown outcome = loud
-    scored = counts["match"] + counts["disagree"] + counts["engine_no_read"]
+    # A vetoed box is still an un-surfaced box: it counts in the denominator
+    # exactly where its engine_no_read would have, so the ratios are unchanged
+    # by the split — only the attribution is finer.
+    scored = (counts["match"] + counts["disagree"] + counts["engine_no_read"]
+              + counts["vetoed_cause_absent"])
     negatives = counts["negative_upheld"] + counts["negative_violated"]
     # The HEADLINE is concordance, not replication (operator doctrine,
     # 2026-07-11): "the engine reads a setup at my pick" — match OR disagree —

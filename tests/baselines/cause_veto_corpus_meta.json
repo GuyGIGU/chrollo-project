@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-07-21T09:50:42+00:00",
+  "breadth_pct": 0.5,
+  "cases": [
+    {
+      "ticker": "MIDD",
+      "as_of": "2026-07-17",
+      "bars": 1255,
+      "spy_6m_return": 0.07667016983032227,
+      "fires_off_tier": "B",
+      "fires_off_score": 87.5999984741211,
+      "label": "cause-absent (MIDD class): box floats up through its own rails, loose shelf (tightness_ratio 0.957 = census min)",
+      "evidence": "PLAN-cause-before-effect.md; project_cause_before_effect_veto.md; flipped live 2026-07-20 (ed87029)"
+    }
+  ]
+}
