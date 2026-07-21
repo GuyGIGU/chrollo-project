@@ -187,3 +187,62 @@ def load_frame(ticker: str, as_of: str, digest: str | None = None):
     if versioned is not None and ohlcv_digest(versioned) == digest:
         return versioned
     return None
+
+
+# ── Forward-inclusive grading frame (Trigger replay basis) ───────────
+#
+# A Trigger (the operator's buy) sits AFTER as-of, so grading "did the engine
+# fire at/before the buy?" must replay sessions in ``(as_of, trigger_date]`` —
+# and to do so frozen-only (no vendor fetch, no lookahead) it needs those
+# forward bars persisted. This is a SEPARATE basis from the ``<= as_of`` frame:
+# the mark's ``frame_digest`` still binds to what the operator LOOKED AT (the
+# ``<= as_of`` frame, unchanged above), while the grading frame is the same
+# rendering extended through ``frame_end``, addressed by that base digest so the
+# two always pair. Its ``<= as_of`` slice reproduces the base digest by
+# construction (finite-filtering is per-row, so slicing and filtering commute),
+# which ``load_grading_frame`` verifies — a mismatch is treated as unbound, never
+# silently graded on the wrong bars.
+
+
+def _grading_path(ticker: str, as_of: str, base_digest: str) -> str:
+    return os.path.join(FRAMES_DIR, f"{ticker}_{as_of}.{base_digest[:12]}.grade.parquet")
+
+
+def freeze_grading_frame(ticker: str, as_of: str, full_frame: pd.DataFrame,
+                         base_digest: str) -> None:
+    """Freeze the forward-inclusive (``<= frame_end``) finite frame for a mark's
+    basis, addressed by its ``<= as_of`` ``base_digest``.
+
+    Idempotent: the first capture is the honest point-in-time forward basis and
+    is never overwritten (a later vendor restatement of the forward bars must
+    not move the ground a saved Trigger was graded on). ``full_frame`` is the
+    whole fetched window (``<= frame_end``); only its finite (visible) bars are
+    stored, so the ``<= as_of`` slice matches the base frozen frame exactly.
+    """
+    if not base_digest:
+        return
+    os.makedirs(FRAMES_DIR, exist_ok=True)
+    path = _grading_path(ticker, as_of, base_digest)
+    if os.path.exists(path):
+        return
+    _atomic_write(finite_frame(full_frame), path)
+
+
+def load_grading_frame(ticker: str, as_of: str, base_digest: str):
+    """The forward-inclusive frozen frame for ``(ticker, as_of, base_digest)``,
+    or None if never frozen or its ``<= as_of`` slice does not reproduce
+    ``base_digest`` (a corrupt / mismatched forward basis is never graded on).
+
+    The grader replays the whole ``[frame_start, trigger_date]`` window from this
+    one file: its ``<= as_of`` portion IS the base frame, and the bars after
+    as-of are the frozen forward context the deadline comparison needs.
+    """
+    if not base_digest:
+        return None
+    frame = _read_frame(_grading_path(ticker, as_of, base_digest))
+    if frame is None:
+        return None
+    le = frame[frame.index <= pd.Timestamp(as_of)]
+    if ohlcv_digest(le) != base_digest:
+        return None
+    return frame

@@ -473,6 +473,22 @@ def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):
     assert len(out["candles"]) == 4 and len(out["volumes"]) == 4
 
 
+def test_chart_freezes_a_loadable_forward_grading_frame(monkeypatch, tmp_path):
+    # A chart load must also freeze the forward-inclusive grading frame (Task 2),
+    # so a later Trigger grade — a buy AFTER as-of — can replay frozen-only.
+    import frame_store
+    frame = _frame(["2025-09-09", "2025-09-10", "2025-09-12", "2025-09-15"])
+    out = _chart(monkeypatch, frame, tmp_path, as_of="2025-09-11")
+    gf = frame_store.load_grading_frame(out["ticker"], out["as_of_session"],
+                                        out["frame_digest"])
+    assert gf is not None
+    # It carries bars AFTER as-of (the Trigger's forward window)...
+    assert gf.index.max() > pd.Timestamp(out["as_of_session"])
+    # ...and its <= as-of slice reproduces the mark's frozen basis exactly.
+    le = gf[gf.index <= pd.Timestamp(out["as_of_session"])]
+    assert frame_store.ohlcv_digest(le) == out["frame_digest"]
+
+
 # ── Engine agreement (v2 ledger "Engine" chip) ───────────────────────
 # The chip reuses the harness's grade_one, so its ELECTION grade is pinned in
 # test_calibration_harness.py; here we pin the SERVICE mapping + the endpoint

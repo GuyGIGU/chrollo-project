@@ -134,7 +134,7 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     # rendering by digest, so marks on either rendering keep their basis.
     # Freeze I/O failures get a named class: a chart whose frame could not
     # be frozen would produce unreplayable marks, so it is withheld loudly.
-    from frame_store import freeze_frame  # noqa: PLC0415 — file I/O module, lazy like the fetch chain
+    from frame_store import freeze_frame, freeze_grading_frame  # noqa: PLC0415 — file I/O module, lazy like the fetch chain
     try:
         current_digest, stored_digest = freeze_frame(symbol, as_of_session, frame)
     except Exception as exc:
@@ -147,6 +147,17 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
                         "frozen — today's rendering is frozen alongside the "
                         "original, and marks replay against the frame matching "
                         "their own digest (nothing is lost)")
+
+    # Freeze the forward-inclusive frame too (Task 2), so a Trigger grade — a buy
+    # AFTER as-of — can replay frozen-only (no vendor fetch, no lookahead). Best-
+    # effort and non-blocking: the mark's <= as-of basis is already frozen and
+    # savable above; if the grading frame cannot be written the Trigger grade is
+    # merely unavailable until a reload, never a lost or unreplayable mark. `raw`
+    # spans [frame_start, frame_end] and is addressed by the <= as-of digest.
+    try:
+        freeze_grading_frame(symbol, as_of_session, raw, current_digest)
+    except Exception:
+        logger.info("grading-frame freeze skipped %s@%s", symbol, as_of_session)
 
     candles, volumes = chart_candles(
         raw,
