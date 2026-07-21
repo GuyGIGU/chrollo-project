@@ -57,6 +57,13 @@ export function attachCalibrationDraw(series) {
                        shape: 'circle', color: CHART_COLORS.operator, text: tag });
         }
       }
+      // The Trigger (buy) — its own warm token, never the operator hue: it is a
+      // distinct concept (the entry), not another ground-truth rail.
+      if (mark.trigger_date != null && mark.trigger_price != null) {
+        rail(mark.trigger_price, '', { color: CHART_COLORS.trigger, axisLabelVisible: false });
+        marks.push({ time: mark.trigger_date, position: 'aboveBar',
+                     shape: 'arrowUp', color: CHART_COLORS.trigger, text: 'B' });
+      }
     }
 
     // The engine's read (explicit toggle; harness projection verbatim). Its
@@ -106,6 +113,13 @@ export function attachCalibrationDraw(series) {
         marks.push({ time: ev.end_date, position: 'aboveBar',
                      shape: 'circle', color: DRAWING, text: tag });
       }
+    }
+    // The draft Trigger — always the warm trigger token (not DRAWING): the buy
+    // is its own concept, distinct from the rails whether fresh or committed.
+    if (draft.triggerDate != null && draft.triggerPrice != null) {
+      rail(draft.triggerPrice, 'Buy', { color: CHART_COLORS.trigger });
+      marks.push({ time: draft.triggerDate, position: 'aboveBar',
+                   shape: 'arrowUp', color: CHART_COLORS.trigger, text: 'B' });
     }
 
     // lightweight-charts requires ascending marker times.

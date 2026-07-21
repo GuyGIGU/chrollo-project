@@ -22,6 +22,7 @@ import {
   markPayloadFromDraft,
   markingReducer,
   saveNeeds,
+  snapTrigger,
 } from '../utils/calibrationMarking';
 import { parseWorklist, worklistLabel } from '../utils/calibrationWorklist';
 
@@ -173,6 +174,37 @@ function CalibrationTab() {
 
   const canSave = !!chartData && draftComplete(marking.draft);
 
+  // Assisted Trigger: arming the tool — or re-drawing the LPS while an ASSISTED
+  // trigger stands — re-derives the snapped buy from the LAST LPS end-bar's High
+  // and the first forward bar that clears it. A MANUALLY placed trigger is left
+  // untouched (the operator put it there on purpose). Guarded against a dispatch
+  // loop: it only writes when the snap actually differs from what's drawn.
+  const lastLpsEnd = useMemo(() => (marking.draft.events || [])
+    .filter((e) => e.event_type === 'lps' && e.end_date)
+    .map((e) => e.end_date)
+    .reduce((a, b) => (a >= b ? a : b), null),
+    [marking.draft.events]);
+  useEffect(() => {
+    const d = markingRef.current.draft;
+    if (d.verdict !== 'box') return;
+    const armed = markingRef.current.tool === 'trigger';
+    const assisted = d.triggerSource === 'assisted';
+    if (!armed && !assisted) return;
+    const snap = snapTrigger(d, chartData?.candles, chartData?.as_of_session);
+    if (!snap) {
+      // No breakout in the frozen window: an armed re-derive clears a now-stale
+      // assisted value so the readout can say so; a manual trigger is untouched.
+      if (armed && assisted && d.triggerDate != null) {
+        dispatchMarking({ type: 'set-trigger', date: null });
+      }
+      return;
+    }
+    if (snap.date !== d.triggerDate || snap.price !== d.triggerPrice) {
+      dispatchMarking({ type: 'set-trigger', date: snap.date, price: snap.price,
+                        source: 'assisted' });
+    }
+  }, [marking.tool, lastLpsEnd, chartData]);
+
   // In-progress geometry lives only in memory (draftsRef); guard a reload/close
   // that would silently drop a complete, unsaved box. Armed only when there is
   // real drawn work to lose, so it never nags on an empty page.
@@ -263,7 +295,8 @@ function CalibrationTab() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       const tool = { r: 'rail-r', s: 'rail-s', x: 'span',
-                     c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test' }[k];
+                     c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test',
+                     b: 'trigger' }[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
       const d = keyDeps.current;

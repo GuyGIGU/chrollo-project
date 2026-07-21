@@ -24,11 +24,12 @@ const TOOL_LABELS = [
 
 const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test' };
 
-const KEY_LEGEND = 'r/s rail · x span · c/l/t event · ⏎ save · n/w negative · ,/. day · e engine';
+const KEY_LEGEND = 'r/s rail · x span · c/l/t event · b buy · ⏎ save · n/w negative · ,/. day · e engine';
 
 function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
   const { tool, draft } = state;
   const isBox = draft.verdict === 'box';
+  const hasLps = draft.events.some((e) => e.event_type === 'lps');
   const span = effectiveSpan(draft, asOfSession);
 
   const toolButton = (value, label) => (
@@ -61,6 +62,20 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
       {TOOL_LABELS.map(([value, label]) => toolButton(value, label))}
       {MARK_EVENT_TYPES.map((t) => toolButton(`event:${t}`, EVENT_LABELS[t]))}
 
+      {/* The Trigger (buy): assisted — arming it snaps to the LPS-high breakout.
+          Inert until an LPS exists (it is anchored to the LPS end-bar). */}
+      <button
+        type="button"
+        disabled={disabled || !isBox || !hasLps}
+        aria-pressed={tool === 'trigger'}
+        title={hasLps
+          ? 'Trigger (buy): snap to the breakout above the LPS high, then click a bar to adjust [b]'
+          : 'Mark an LPS first — the Trigger is the breakout above the last LPS bar’s high'}
+        onClick={() => dispatch({ type: 'tool', tool: 'trigger' })}
+      >
+        Trigger
+      </button>
+
       <button type="button" disabled={disabled}
               onClick={() => dispatch({ type: 'clear' })}>
         Clear
@@ -90,6 +105,18 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession }) {
           </button>
         </span>
       ))}
+      {isBox && draft.triggerDate && (
+        // The buy, in its warm token: level @ date, with a one-click clear.
+        <span style={{ color: 'var(--trigger)', fontFamily: CHART_FONT,
+                       fontSize: 11, whiteSpace: 'nowrap' }}>
+          Buy {fx(draft.triggerPrice, 2)}@{draft.triggerDate}
+          <button type="button" aria-label="remove trigger"
+                  onClick={() => dispatch({ type: 'set-trigger', date: null })}
+                  style={{ marginLeft: 2 }}>
+            ×
+          </button>
+        </span>
+      )}
 
       <span style={{ marginLeft: 'auto', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
         {/* Idle shows the key legend — the shortcuts ARE the fast path and

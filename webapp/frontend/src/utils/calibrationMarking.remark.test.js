@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   emptyDraft, markingReducer, initialMarkingState, draftComplete, saveNeeds,
+  snapTrigger, draftFromMark, markPayloadFromDraft,
 } from './calibrationMarking.js';
 
 const KEYS = Object.keys(emptyDraft());
@@ -31,6 +32,11 @@ function assertInvariants(state, label) {
     assert.equal(d.support, null, `${label}: negative carries no S`);
     assert.equal(d.boxStartDate, null, `${label}: negative carries no span`);
     assert.equal(d.events.length, 0, `${label}: negative carries no events`);
+    assert.equal(d.triggerDate, null, `${label}: negative carries no trigger`);
+  }
+  if (d.triggerDate != null) {
+    assert.equal(d.verdict, 'box', `${label}: trigger only on a box`);
+    assert.ok(Number.isFinite(d.triggerPrice), `${label}: trigger has a finite price`);
   }
   assert.equal(typeof draftComplete(d), 'boolean', `${label}: draftComplete total`);
 }
@@ -156,6 +162,108 @@ test('saveNeeds is empty for negatives (no geometry to require)', () => {
   assert.deepEqual(saveNeeds({ ...emptyDraft(), verdict: 'engine_wrong' }), []);
 });
 
+// ---- the Trigger (buy): assisted snap, manual override, re-mark -------------
+
+// A draft that already carries an LPS ending 2026-04-14 (the anchor for the
+// trigger). Frozen forward bars clear the 10.5 LPS-high on 2026-04-16.
+const lpsDraft = () => ({
+  ...emptyDraft(),
+  events: [{ event_type: 'lps', start_date: '2026-04-08', end_date: '2026-04-14',
+             tip_date: null, tip_price: null, source: 'operator' }],
+});
+const CANDLES = [
+  { time: '2026-04-08', high: 10.0, low: 9.6 },
+  { time: '2026-04-14', high: 10.5, low: 10.1 }, // LPS END -> level 10.5
+  { time: '2026-04-15', high: 10.4, low: 10.0 }, // as-of, below the level
+  { time: '2026-04-16', high: 10.7, low: 10.2 }, // first bar clearing 10.5
+  { time: '2026-04-17', high: 11.0, low: 10.5 },
+];
+
+test('snapTrigger: LPS end-bar High is the level; first clearing forward bar is the date', () => {
+  assert.deepEqual(snapTrigger(lpsDraft(), CANDLES, '2026-04-15'),
+    { date: '2026-04-16', price: 10.5 });
+});
+
+test('snapTrigger returns null without an LPS, or with no bar clearing the level', () => {
+  assert.equal(snapTrigger(emptyDraft(), CANDLES, '2026-04-15'), null); // no LPS
+  // A level nothing clears (raise the LPS high above every forward High).
+  const highLps = { ...lpsDraft(),
+    events: [{ event_type: 'lps', start_date: '2026-04-08', end_date: '2026-04-14' }] };
+  const flat = CANDLES.map((b) => (b.time === '2026-04-14' ? { ...b, high: 99 } : b));
+  assert.equal(snapTrigger(highLps, flat, '2026-04-15'), null);
+});
+
+test('the Trigger tool is inert until an LPS exists, armable once it does', () => {
+  let s = initialMarkingState(emptyDraft(), 'F');
+  s = markingReducer(s, { type: 'tool', tool: 'trigger' });
+  assert.equal(s.tool, 'idle');                 // no LPS -> stays idle
+  s = initialMarkingState(lpsDraft(), 'F');
+  s = markingReducer(s, { type: 'tool', tool: 'trigger' });
+  assert.equal(s.tool, 'trigger');              // with an LPS -> arms
+});
+
+test('set-trigger stores/clears; it is box-only', () => {
+  let s = initialMarkingState(lpsDraft(), 'F');
+  s = markingReducer(s, { type: 'set-trigger', date: '2026-04-16', price: 10.5 });
+  assert.equal(s.draft.triggerDate, '2026-04-16');
+  assert.equal(s.draft.triggerPrice, 10.5);
+  assert.equal(s.draft.triggerSource, 'assisted');
+  s = markingReducer(s, { type: 'set-trigger', date: null });   // clear
+  assert.equal(s.draft.triggerDate, null);
+  assert.equal(s.draft.triggerSource, null);
+  // A negative draft refuses a trigger entirely.
+  const neg = markingReducer(initialMarkingState({ ...emptyDraft(), verdict: 'no_structure' }, 'F'),
+    { type: 'set-trigger', date: '2026-04-16', price: 10.5 });
+  assert.equal(neg.draft.triggerDate, null);
+});
+
+test('a manual click on the armed Trigger tool places the buy and disarms', () => {
+  let s = initialMarkingState(lpsDraft(), 'F');
+  s = markingReducer(s, { type: 'tool', tool: 'trigger' });
+  s = markingReducer(s, { type: 'chart-click', date: '2026-04-17', price: 10.9,
+                          bar: { high: 11.0, low: 10.5 } });
+  assert.equal(s.draft.triggerDate, '2026-04-17');
+  assert.equal(s.draft.triggerPrice, 11.0);      // snaps to the clicked bar's High
+  assert.equal(s.draft.triggerSource, 'manual');
+  assert.equal(s.tool, 'idle');
+});
+
+test('re-arming the Trigger tool is idempotent (toggles off cleanly)', () => {
+  let s = initialMarkingState(lpsDraft(), 'F');
+  s = markingReducer(s, { type: 'tool', tool: 'trigger' });
+  s = markingReducer(s, { type: 'tool', tool: 'trigger' }); // re-arm == disarm
+  assert.equal(s.tool, 'idle');
+});
+
+test('draftFromMark loads a saved trigger as MANUAL; markPayloadFromDraft echoes it', () => {
+  const mark = { verdict: 'box', resistance: 12, support: 10,
+    box_start_date: '2026-03-01', box_end_date: '2026-04-15',
+    trigger_date: '2026-04-16', trigger_price: 10.5,
+    events: [{ event_type: 'lps', start_date: '2026-04-08', end_date: '2026-04-14' }] };
+  const draft = draftFromMark(mark);
+  assert.equal(draft.triggerDate, '2026-04-16');
+  assert.equal(draft.triggerPrice, 10.5);
+  assert.equal(draft.triggerSource, 'manual'); // never silently re-derived on edit
+  const chart = { ticker: 'X', as_of_session: '2026-04-15', data_regime: 'as_traded',
+    engine_config_version: 'cfg', anchor_close: 11, frame_digest: 'd' };
+  const payload = markPayloadFromDraft(draft, chart);
+  assert.equal(payload.trigger_date, '2026-04-16');
+  assert.equal(payload.trigger_price, 10.5);
+  // A negative draft persists NO trigger, even if fields lingered.
+  const negPayload = markPayloadFromDraft(
+    { ...draft, verdict: 'no_structure' }, chart);
+  assert.equal(negPayload.trigger_date, null);
+  assert.equal(negPayload.trigger_price, null);
+});
+
+test('switching a triggered box to a negative drops the trigger', () => {
+  let s = initialMarkingState(lpsDraft(), 'F');
+  s = markingReducer(s, { type: 'set-trigger', date: '2026-04-16', price: 10.5 });
+  s = markingReducer(s, { type: 'verdict', verdict: 'engine_wrong' });
+  assert.equal(s.draft.triggerDate, null);
+  assertInvariants(s, 'triggered box -> negative');
+});
+
 // ---- deterministic fuzz -----------------------------------------------------
 
 function mulberry32(seed) {
@@ -169,7 +277,8 @@ function mulberry32(seed) {
 
 test('fuzz: arbitrary re-mark sequences never corrupt the draft (50 seeds x 60 steps)', () => {
   const dates = ['2026-01-02', '2026-01-05', '2026-01-08', '2026-01-10', '2026-01-14'];
-  const tools = ['rail-r', 'rail-s', 'span', 'event:phase_c', 'event:lps', 'event:spring_test'];
+  const tools = ['rail-r', 'rail-s', 'span', 'event:phase_c', 'event:lps',
+                 'event:spring_test', 'trigger'];
   const verdicts = ['box', 'no_structure', 'engine_wrong'];
   for (let seed = 1; seed <= 50; seed += 1) {
     const rnd = mulberry32(seed);

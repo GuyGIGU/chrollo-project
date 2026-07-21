@@ -13,6 +13,10 @@
 export const MARK_EVENT_TYPES = ['phase_c', 'lps', 'spring_test'];
 export const MARK_VERDICTS = ['box', 'no_structure', 'engine_wrong'];
 
+// The operator's BUY: the breakout above the High of the LPS's FINAL bar — a
+// FORWARD-of-as-of point, one per box, meaningful only with an LPS on the draft.
+const hasLpsEvent = (draft) => (draft.events || []).some((e) => e.event_type === 'lps');
+
 export function emptyDraft() {
   return {
     verdict: 'box',
@@ -29,6 +33,12 @@ export function emptyDraft() {
     boxStartDate: null,
     boxEndDate: null,
     events: [],
+    // The Trigger (the buy). triggerSource distinguishes the ASSISTED snap (re-
+    // derived from the LPS end-bar) from a MANUAL placement (left alone when the
+    // LPS moves). UI-only — never persisted (the mark stores just date + price).
+    triggerDate: null,
+    triggerPrice: null,
+    triggerSource: null,
   };
 }
 
@@ -43,6 +53,34 @@ export function initialMarkingState(draft = null, frameKey = null, editingId = n
 export function snapRailPrice(price, bar) {
   if (!bar || !Number.isFinite(bar.high) || !Number.isFinite(bar.low)) return price;
   return Math.abs(bar.high - price) <= Math.abs(bar.low - price) ? bar.high : bar.low;
+}
+
+// The assisted Trigger snap: the buy is the breakout above the High of the LPS's
+// FINAL (chronologically last) bar — NOT the LPS zone's max-High — and its date
+// is the first frozen session strictly after that end-bar (and at/after as-of,
+// since the breakout can land on the as-of bar) whose High clears the level.
+// Returns { date, price } or null (no LPS, no bar for the LPS end, or no
+// clearing bar in the frozen window). Pure — `candles` is the ordered bar list
+// [{ time, high, ... }] the chart already holds; node-testable.
+export function snapTrigger(draft, candles, asOfSession) {
+  if (draft.verdict !== 'box' || !hasLpsEvent(draft)) return null;
+  const lpsEnd = (draft.events || [])
+    .filter((e) => e.event_type === 'lps' && e.end_date)
+    .map((e) => e.end_date)
+    .reduce((a, b) => (a >= b ? a : b), null);
+  if (lpsEnd == null) return null;
+  const list = candles || [];
+  const endBar = list.find((b) => b.time === lpsEnd);
+  if (!endBar || !Number.isFinite(endBar.high)) return null;
+  const level = endBar.high;
+  for (const b of list) {
+    if (b.time <= lpsEnd) continue;                        // strictly after the last LPS bar
+    if (asOfSession && b.time < asOfSession) continue;     // at/after as-of
+    if (Number.isFinite(b.high) && b.high > level) {
+      return { date: b.time, price: Number(level.toFixed(4)) };
+    }
+  }
+  return null; // no breakout above the LPS high inside the frozen forward window
 }
 
 // The identity a draft binds to — mirrors the mark→frame binding contract.
@@ -143,6 +181,18 @@ function applyClick(state, { date, price, bar }) {
     return { ...state, tool: 'idle', spanAnchor: null,
              draft: { ...draft, boxStartDate: start, boxEndDate: end } };
   }
+  if (tool === 'trigger') {
+    // Manual override of the assisted snap: the click sets the buy DATE; the
+    // level stays the snapped LPS-high if one is set, else the clicked bar's
+    // High (the trigger is a high-breakout). Marked 'manual' so a later LPS
+    // re-draw leaves it alone (the operator placed it deliberately).
+    const level = draft.triggerPrice != null
+      ? draft.triggerPrice
+      : Number(((bar && Number.isFinite(bar.high)) ? bar.high : price).toFixed(4));
+    return { ...state, tool: 'idle',
+             draft: { ...draft, triggerDate: date, triggerPrice: level,
+                      triggerSource: 'manual' } };
+  }
   if (tool.startsWith('event:')) {
     if (spanAnchor == null) return { ...state, spanAnchor: date };
     const eventType = tool.slice('event:'.length);
@@ -165,10 +215,26 @@ export function markingReducer(state, action) {
       return initialMarkingState(draftFromMark(action.mark), state.frameKey,
                                  action.mark.id);
     case 'tool': {
+      // The Trigger tool is inert until an LPS exists on the draft — it is
+      // structurally anchored to the LPS end-bar, so there is nothing to snap to
+      // without one (the button/key stay no-ops, never a half-formed trigger).
+      if (action.tool === 'trigger' && !hasLpsEvent(state.draft)) {
+        return { ...state, tool: 'idle', spanAnchor: null };
+      }
       // Re-selecting the active tool disarms it (toggle); switching always
       // drops a half-placed span anchor.
       const tool = state.tool === action.tool ? 'idle' : action.tool;
       return { ...state, tool, spanAnchor: null };
+    }
+    case 'set-trigger': {
+      // The assisted snap (or a clear). Trigger is box-only; a null date clears
+      // both fields. Source defaults to 'assisted' (the re-derivable kind).
+      if (state.draft.verdict !== 'box') return state;
+      const { date = null, price = null, source = 'assisted' } = action;
+      const draft = date == null
+        ? { ...state.draft, triggerDate: null, triggerPrice: null, triggerSource: null }
+        : { ...state.draft, triggerDate: date, triggerPrice: price, triggerSource: source };
+      return { ...state, draft };
     }
     case 'verdict': {
       if (action.verdict === state.draft.verdict) return state;
@@ -208,6 +274,11 @@ export function statusText(state) {
   if (tool === 'span') {
     return spanAnchor == null ? 'click the box START bar' : 'click the box END bar';
   }
+  if (tool === 'trigger') {
+    return draft.triggerDate
+      ? 'snapped to the LPS-high breakout — click a bar to move the buy'
+      : 'no breakout above the LPS high in the forward window — click a bar to place the buy';
+  }
   if (tool.startsWith('event:')) {
     const name = tool.slice('event:'.length).replace('_', ' ');
     return spanAnchor == null ? `click the ${name} START bar` : `click the ${name} END bar`;
@@ -233,6 +304,11 @@ export function draftFromMark(mark) {
       tip_date: e.tip_date ?? null, tip_price: e.tip_price ?? null,
       source: e.source ?? 'operator',
     })),
+    // A loaded trigger is treated as MANUAL (fixed): editing an existing setup
+    // must not silently re-derive the operator's banked buy on a re-render.
+    triggerDate: mark.trigger_date ?? null,
+    triggerPrice: mark.trigger_price ?? null,
+    triggerSource: mark.trigger_date != null ? 'manual' : null,
   };
 }
 
@@ -255,6 +331,10 @@ export function markPayloadFromDraft(draft, chartData, { label = '', note = '' }
     r_anchor_date: isBox ? draft.rAnchorDate : null,
     s_anchor_date: isBox ? draft.sAnchorDate : null,
     first_rail: isBox ? draft.firstRail : null,
+    // The Trigger (buy) — box-only, and only the date/price persist (the
+    // assisted/manual source is UI-only). A negative carries no trigger.
+    trigger_date: isBox ? (draft.triggerDate ?? null) : null,
+    trigger_price: isBox ? (draft.triggerPrice ?? null) : null,
     rails_source: 'operator',
     knowable_from_date: null,
     note: (note || '').trim() || null,
