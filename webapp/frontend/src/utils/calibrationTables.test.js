@@ -251,6 +251,19 @@ test('buildSetupRows: surfaces the Trigger + LPS flat, null-safe', () => {
   assert.equal(bare.hasLps, false);
 });
 
+test('buildSetupRows: surfaces the operator note, empty -> null (so the rail ✎ hides)', () => {
+  const [withNote] = buildSetupRows([
+    { id: 1, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 5, support: 4, note: 'tight shelf the engine skips', events: [] },
+  ]);
+  assert.equal(withNote.note, 'tight shelf the engine skips');
+  const [empty] = buildSetupRows([
+    { id: 2, ticker: 'Y', as_of_date: '2026-01-02', verdict: 'box',
+      resistance: 5, support: 4, note: '', events: [] },
+  ]);
+  assert.equal(empty.note, null);
+});
+
 test('buildSetupRows tolerates null / empty', () => {
   assert.deepEqual(buildSetupRows(null), []);
   assert.deepEqual(buildSetupRows([]), []);

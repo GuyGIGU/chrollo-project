@@ -24,6 +24,7 @@ import {
   initialMarkingState,
   markPayloadFromDraft,
   markingReducer,
+  placementRefusal,
   saveNeeds,
   snapTrigger,
 } from '../utils/calibrationMarking';
@@ -405,31 +406,18 @@ function CalibrationTab() {
         const price = series.coordinateToPrice(param.point.y);
         const date = chartTimeToIso(param.time);
         if (price == null || !Number.isFinite(price) || !date) return;
+        // Placement guard — refuse a click that can't be a valid mark with a
+        // plain reason AT CLICK TIME, never let it fail later at Save with a
+        // cryptic "after as_of_date" (operator, 2026-07-21). The rule lives in
+        // one pure, tested helper that mirrors marks_validity (EC-3), so the
+        // client pre-check can't drift from the backend gate.
         const asOf = chartData?.as_of_session;
-        // Placement guards — refuse a click that can't be a valid mark with a
-        // plain reason at click time, never let it fail later at Save with a
-        // cryptic "after as_of_date" (operator, 2026-07-21). Two windows:
-        //  · the Trigger (buy) is FORWARD of as-of and strictly after the last
-        //    LPS bar (mirrors marks_validity._validate_trigger);
-        //  · every OTHER mark is something observed BY as-of, so it lands at or
-        //    left of the divider (mirrors the box_end / event-end <= as_of rule).
-        if (st.tool === 'trigger') {
-          const lpsEnd = (st.draft.events || [])
-            .filter((e) => e.event_type === 'lps' && e.end_date)
-            .map((e) => e.end_date)
-            .reduce((a, b) => (a >= b ? a : b), null);
-          if (asOf && date < asOf) {
-            setPlaceNotice('The buy can’t be left of the as-of line — it’s the forward entry.');
-            return;
-          }
-          if (lpsEnd && date <= lpsEnd) {
-            setPlaceNotice('The buy must be after your last LPS bar.');
-            return;
-          }
-        } else if (asOf && date > asOf) {
-          setPlaceNotice('That bar is past the as-of line — only the buy can be placed after it.');
-          return;
-        }
+        const lpsEnd = (st.draft.events || [])
+          .filter((e) => e.event_type === 'lps' && e.end_date)
+          .map((e) => e.end_date)
+          .reduce((a, b) => (a >= b ? a : b), null);
+        const refusal = placementRefusal(st.tool, date, asOf, lpsEnd);
+        if (refusal) { setPlaceNotice(refusal); return; }
         setPlaceNotice(null);
         dispatchMarking({ type: 'chart-click', date,
                           price: Number(price.toFixed(4)),
@@ -437,16 +425,18 @@ function CalibrationTab() {
       };
       chart.subscribeClick(onClick);
       // Open the view at the as-of divider: the chart reads as the stock "up
-      // until that point" — how the setup looked in real time — with the forward
-      // grading bars sitting just off the right edge for a Trigger (operator ask
-      // 2026-07-21). Ending here (rather than fitContent over the whole
-      // [-900d,+45d] window) also lets the price autoscale to the OBSERVED bars,
-      // so the base is not squashed by the forward breakout, and keeps geometry
-      // marks on the left where they belong. A rebuild only happens on a NEW
-      // frame (deps: [chartData]), so this never fights a manual zoom mid-mark.
+      // until that point" — how the setup looked in real time — while still
+      // revealing a dozen forward bars past the line so the near breakout and
+      // the auto-snapped buy stay on-screen (the placement guard keeps geometry
+      // LEFT of the divider, so a little forward context can't invite a
+      // misplaced mark) (operator ask 2026-07-21). Ending here (rather than
+      // fitContent over the whole [-900d,+45d] window) also lets the price
+      // autoscale to the observed bars, so the base is not squashed by the
+      // forward breakout. A rebuild only happens on a NEW frame (deps:
+      // [chartData]), so this never fights a manual zoom mid-mark.
       const observedLast = chartData?.bar_count ? chartData.bar_count - 1 : null;
       if (observedLast != null) {
-        chart.timeScale().setVisibleLogicalRange({ from: 0, to: observedLast + 3 });
+        chart.timeScale().setVisibleLogicalRange({ from: 0, to: observedLast + 12 });
       } else {
         chart.timeScale().fitContent();
       }

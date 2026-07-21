@@ -144,6 +144,30 @@ export function saveNeeds(draft) {
   return needs;
 }
 
+// The client-side placement pre-check: is a click a valid place for this tool's
+// mark? Returns the plain refusal reason, or null when allowed. It mirrors the
+// server's as-of grammar so a bad click is refused AT CLICK TIME with a reason,
+// never left to fail later at Save with a cryptic message. The backend
+// (`marks_validity`) is the real gate — this is only the friendly pre-check, so
+// the two MUST NOT DRIFT (EC-3): keep it in lockstep with
+// `_validate_trigger` (buy forward of as-of, strictly after the last LPS bar)
+// and the `box_end / event-end / rail-anchor <= as_of` rule in
+// `_validate_box_geometry` / `_validate_event`. A mark landing exactly ON the
+// as-of session is valid (the operator observed that bar); only STRICTLY past it
+// is refused. `lpsEnd` is the latest LPS end_date on the draft (null if none).
+export function placementRefusal(tool, date, asOf, lpsEnd) {
+  if (!asOf) return null; // no frozen session yet — nothing to check against
+  if (tool === 'trigger') {
+    if (date < asOf) return 'The buy can’t be left of the as-of line — it’s the forward entry.';
+    if (lpsEnd && date <= lpsEnd) return 'The buy must be after your last LPS bar.';
+    return null;
+  }
+  // Every other mark is something OBSERVED by as-of, so it lands at or left of
+  // the divider — never in the forward window.
+  if (date > asOf) return 'That bar is past the as-of line — only the buy can be placed after it.';
+  return null;
+}
+
 // The span the mark will actually save: an explicit x-drawn span wins;
 // otherwise it derives from the anchors — start at the earlier-anchored
 // swing, end at the as-of session (the same geometry the engine projects).
