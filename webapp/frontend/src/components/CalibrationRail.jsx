@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import InstrumentTable from './ui/InstrumentTable';
-import FrameThumb from './FrameThumb';
 import { buildSetupRows, sortSetupRows } from '../utils/calibrationTables';
 import { fmtDateShort } from '../utils/format';
 
@@ -51,9 +50,9 @@ function GradeCell({ grade, testing, onTest }) {
 // A click LOADS that setup for review/edit; it never advances the worklist queue
 // (Friedman watchpoint — the rail and the forward queue are distinct intents).
 // The active row is DERIVED from the loaded (ticker, as_of) — no store, no
-// selectedSetupId. Rows are cheap static DOM (a mini FrameThumb, never a live
-// chart). Element indicators answer the priority order Box/R/S → LPS → Trigger
-// at a glance; the engine-test verdict lands here in Task 12.
+// selectedSetupId. Rows are cheap static DOM (never a live chart). Element
+// indicators answer the priority order Box/R/S → LPS → Trigger at a glance; the
+// engine-test verdict lands in the Engine column.
 function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
                           grades = {}, testing = {}, onTest }) {
   const [sort, setSort] = useState({ by: 'ticker', dir: 'asc' });
@@ -128,24 +127,6 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
             </span>
           )}
         </span>
-      ),
-    },
-    {
-      key: 'frame',
-      label: 'Frame',
-      align: 'left',
-      sortable: false,
-      render: (row) => (
-        <FrameThumb
-          ticker={row.ticker}
-          asOf={row.asOf}
-          digest={row.frameDigest}
-          isBox={row.isBox}
-          r={row.resistance}
-          s={row.support}
-          boxStart={row.boxStart}
-          boxEnd={row.boxEnd}
-        />
       ),
     },
     {

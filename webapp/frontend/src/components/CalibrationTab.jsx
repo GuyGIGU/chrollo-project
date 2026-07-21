@@ -17,7 +17,7 @@ import { attachHoverHighlight } from './calibrationHover';
 import {
   chartTimeToIso,
   draftComplete,
-  emptyDraft,
+  effectiveSpan,
   frameKeyOf,
   initialMarkingState,
   markPayloadFromDraft,
@@ -25,7 +25,6 @@ import {
   saveNeeds,
   snapTrigger,
 } from '../utils/calibrationMarking';
-import { parseWorklist, worklistLabel } from '../utils/calibrationWorklist';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -33,8 +32,8 @@ import { parseWorklist, worklistLabel } from '../utils/calibrationWorklist';
 // pane whose lookup states (blank / loading / failure classes / ideal) render
 // INSIDE the pane so the operator's eyes never lose their place between the
 // dozens of lookups a marking sitting takes. The interactive marking layer
-// (click-to-place rails, worklist loop, verdicts) lands on this shell next
-// (Tasks 11-12); this page deliberately owns all its state — nothing in
+// (click-to-place rails, the per-setup rail, one-click engine test) sits on
+// this shell; this page deliberately owns all its state — nothing in
 // AppShell, no app-level context.
 const fx = (v, d) => ((v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d));
 
@@ -67,8 +66,8 @@ function CalibrationTab() {
   const chartApiRef = useRef(null);   // { series, draw } while a chart is up
   const draftsRef = useRef(new Map()); // frameKey -> draft (per-frame, per-sitting)
 
-  // Drafts are structurally keyed to the frame they were drawn on: scrubbing
-  // to another session swaps to THAT frame's draft (or a fresh one), never
+  // Drafts are structurally keyed to the frame they were drawn on: loading
+  // another session swaps to THAT frame's draft (or a fresh one), never
   // bleeding rails across frames.
   useEffect(() => {
     const key = frameKeyOf(chartData);
@@ -76,7 +75,6 @@ function CalibrationTab() {
       dispatchMarking({ type: 'load', frameKey: key,
                         draft: draftsRef.current.get(key) ?? null });
       setLabel('');
-      setNote('');
       clearConflict();   // a parked overwrite must not follow the eye to a new frame
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,7 +104,7 @@ function CalibrationTab() {
   const barsRef = useRef(barsByDate);
   barsRef.current = barsByDate;
 
-  // Save workflow (Task 12): marks CRUD + label/note + worklist queue.
+  // Save workflow (Task 12): marks CRUD + label.
   const { marks, saving, saveError, tally, setups, conflict,
           refresh, refreshSummary, saveMark, resolveConflict,
           clearConflict, removeMark } = useCalibrationMarks();
@@ -114,9 +112,6 @@ function CalibrationTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []);
   const [label, setLabel] = useState('');
-  const [note, setNote] = useState('');
-  const [wlItems, setWlItems] = useState([]);
-  const [wlIndex, setWlIndex] = useState(0);
 
   useEffect(() => { refresh(chartData?.ticker); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -170,10 +165,14 @@ function CalibrationTab() {
     if (!api) return;
     api.draw.update({
       draft: marking.draft,
+      // The span the draft's rails bind to (bounded, not edge-to-edge) — the
+      // same geometry the mark will save. Null until both rails exist.
+      draftSpan: effectiveSpan(marking.draft, chartData?.as_of_session),
       spanAnchor: marking.spanAnchor,
       committed: marking.editingId != null,
       saved: savedForFrame,
       engine: engineOn ? engineRead : null,
+      candles: chartData?.candles ?? [],
     });
     api.hover.setArmed(marking.tool !== 'idle');
   });
@@ -221,21 +220,9 @@ function CalibrationTab() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [canSave]);
 
-  const worklistStep = async (delta) => {
-    if (!wlItems.length) return;
-    const next = Math.min(Math.max(wlIndex + delta, 0), wlItems.length - 1);
-    const entry = wlItems[next];
-    setTicker(entry.ticker);
-    // Advance the pointer ONLY if the frame actually loaded — a vendor hiccup
-    // must not silently skip the entry (the chart keeps its last good frame,
-    // the failure shows, and the next step retries this same entry).
-    const result = await lookup(entry.ticker, entry.asOf);
-    if (result) setWlIndex(next);
-  };
-
   const save = async () => {
     if (!canSave || saving) return;
-    const payload = markPayloadFromDraft(marking.draft, chartData, { label, note });
+    const payload = markPayloadFromDraft(marking.draft, chartData, { label });
     // A blind Save is a CREATE unless the operator explicitly loaded a mark to
     // edit (editingId). A create that collides parks a conflict the operator
     // resolves with one click — Save never silently overwrites prior ground
@@ -246,20 +233,6 @@ function CalibrationTab() {
     // via savedForFrame, so nothing is visually lost, and the next box on this
     // frame is a NEW mark — never a silent PUT over the one just banked.
     dispatchMarking({ type: 'clear' });
-    if (wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
-  };
-
-  // One-keystroke negatives, gated on nothing: the frame itself IS the
-  // assertion ("no structure here" / "the engine's read here is wrong").
-  // Always a CREATE — a negative never silently converts an existing box; a
-  // collision surfaces the same one-click resolve, so a stray 'n'/'w' can't
-  // destroy drawn geometry.
-  const saveNegative = async (verdict) => {
-    if (!chartData || saving) return;
-    const payload = markPayloadFromDraft(
-      { ...emptyDraft(), verdict }, chartData, { label, note });
-    const saved = await saveMark(payload, null);
-    if (saved && wlItems.length && wlIndex < wlItems.length - 1) worklistStep(1);
   };
 
   // The operator's explicit "yes, overwrite that existing mark" after a
@@ -284,16 +257,14 @@ function CalibrationTab() {
       return;
     }
     setLabel(mark.label ?? '');
-    setNote(mark.note ?? '');
     clearConflict();   // don't leave a stale "Update existing" from a prior collision
     dispatchMarking({ type: 'edit-mark', mark });
   };
 
   // Keyboard loop (skipped while typing in any field): tools b/r/s/x,
-  // events c/l/t, negatives n/w, scrub ,/. , Enter saves, Escape disarms.
+  // events c/l/t, Enter saves, Escape disarms, e toggles the engine peek.
   const keyDeps = useRef({});
-  keyDeps.current = { save, saveNegative };
-  const scrubRef = useRef(() => {});
+  keyDeps.current = { save };
   useEffect(() => {
     const onKey = (e) => {
       const tag = e.target?.tagName;
@@ -305,13 +276,8 @@ function CalibrationTab() {
                      b: 'trigger' }[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
-      const d = keyDeps.current;
-      if (k === 'n') { d.saveNegative('no_structure'); e.preventDefault(); return; }
-      if (k === 'w') { d.saveNegative('engine_wrong'); e.preventDefault(); return; }
       if (k === 'e') { setEngineOn((v) => !v); e.preventDefault(); return; }
-      if (e.key === 'Enter') { d.save(); return; }
-      if (e.key === ',') { scrubRef.current(-1); return; }
-      if (e.key === '.') { scrubRef.current(1); }
+      if (e.key === 'Enter') { keyDeps.current.save(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -331,17 +297,6 @@ function CalibrationTab() {
     if (ticker.trim() && asOf) lookup(ticker, asOf);
   };
 
-  // Day-scrub: step the SERVER-NAMED adjacent sessions (never guessed
-  // calendar days — a Friday's "next day" is Monday, not a Saturday that
-  // resolves straight back to Friday). Cached revisits are instant; each
-  // NEW session costs one bounded fetch (it also freezes that session's
-  // frame server-side, which a mark needs anyway).
-  const scrub = (direction) => {
-    const target = direction < 0 ? chartData?.prev_session : chartData?.next_session;
-    if (target) lookup(chartData.ticker, target);
-  };
-  scrubRef.current = scrub;
-
   const spec = useMemo(() => ({
     chartOptions: (container) => ({
       ...baseChartOptions('modal', container.clientWidth, container.clientHeight),
@@ -360,7 +315,7 @@ function CalibrationTab() {
       // The marking controller: click placement + retained draft drawing.
       // The handler reads the CURRENT marking state through a ref (onReady
       // runs once per chart build; the tool changes many times per build).
-      const draw = attachCalibrationDraw(series);
+      const draw = attachCalibrationDraw(chart, series);
       const hover = attachHoverHighlight(chart, series);
       chartApiRef.current = { series, draw, hover };
       const onClick = (param) => {
@@ -395,7 +350,7 @@ function CalibrationTab() {
           instrument-tile band, seams between groups). Each group WRAPS rather
           than clipping, so the full vocabulary stays visible. The lookup group
           keeps its own <form> so Enter there submits the lookup — and only the
-          lookup (label/note live outside it). */}
+          lookup (the label lives outside it). */}
       <div className="instrument-tile screener-command-band calibration-command-band">
       <form className="ccb-group" onSubmit={submit}
             style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
@@ -421,22 +376,12 @@ function CalibrationTab() {
         </button>
         {chartData && (
           <>
-            <button type="button" onClick={() => scrub(-1)}
-                    disabled={loading || !chartData.prev_session}
-                    title={chartData.prev_session ? 'Previous session' : 'At the left edge of the fetched window'}>
-              ◀ day
-            </button>
-            <button type="button" onClick={() => scrub(1)}
-                    disabled={loading || !chartData.next_session}
-                    title={chartData.next_session ? 'Next session' : 'No later session in the fetched window'}>
-              day ▶
-            </button>
             <button type="button" aria-pressed={engineOn}
                     onClick={() => setEngineOn((v) => !v)}
                     title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
               Engine
             </button>
-            {/* Provenance figures change on every scrub — mono + tabular so
+            {/* Provenance figures change on every load — mono + tabular so
                 the eye can hold position across adjacent sessions. */}
             <span style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
                            fontVariantNumeric: 'tabular-nums', fontSize: 11,
@@ -464,29 +409,13 @@ function CalibrationTab() {
         editingId={marking.editingId}
         label={label}
         onLabel={(v) => { setLabel(v); if (conflict) clearConflict(); }}
-        note={note}
-        onNote={setNote}
         onSave={save}
         onNewMark={() => dispatchMarking({ type: 'clear' })}
-        onNegative={saveNegative}
         conflict={conflict}
         onResolveConflict={resolveSaveConflict}
         saveError={saveError}
         tally={tally}
         needs={saveNeeds(marking.draft)}
-        worklist={wlItems}
-        worklistLabelText={worklistLabel(wlItems, wlIndex)}
-        onWorklistText={(text) => {
-          const items = parseWorklist(text);
-          setWlItems(items);
-          // Preserve the operator's place when they grow the queue mid-sitting:
-          // re-anchor the pointer to the entry they were on if it survives.
-          const cur = wlItems[wlIndex];
-          const at = cur ? items.findIndex(
-            (e) => e.ticker === cur.ticker && e.asOf === cur.asOf) : -1;
-          setWlIndex(at >= 0 ? at : 0);
-        }}
-        onWorklistStep={worklistStep}
       />
       </div>
 
@@ -534,7 +463,7 @@ function CalibrationTab() {
             )}
             {chartData.warnings?.length > 0 && (
               // Warnings live INSIDE the pane (bottom edge) — the chart's
-              // geometry never shifts when a scrub step gains or loses one.
+              // geometry never shifts when a lookup gains or loses one.
               <div style={{
                 position: 'absolute', bottom: 8, left: 8, zIndex: 5,
                 fontSize: 11, color: 'var(--accent-yellow)',
@@ -565,8 +494,8 @@ function CalibrationTab() {
       </div>
 
       {/* The calibrated-list navigator: every setup (ticker @ as_of), the unit
-          the operator reviews/edits/tests. A click LOADS a setup — it does not
-          advance the worklist queue (those stay distinct intents). */}
+          the operator reviews/edits/tests. A click LOADS that setup for
+          review/edit/test. */}
       <aside className="calibration-rail">
         <CalibrationRail
           setups={setups}

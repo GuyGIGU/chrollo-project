@@ -1355,8 +1355,8 @@ td {
   gap: 10px;
 }
 .calibration-rail {
-  flex: 0 0 372px;
-  width: 372px;
+  flex: 0 0 300px;
+  width: 300px;
   min-width: 0;
   display: flex;
   flex-direction: column;
