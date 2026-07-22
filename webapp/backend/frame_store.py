@@ -191,10 +191,13 @@ def load_frame(ticker: str, as_of: str, digest: str | None = None):
 
 # ── Forward-inclusive grading frame (Trigger replay basis) ───────────
 #
-# A Trigger (the operator's buy) sits AFTER as-of, so grading "did the engine
-# fire at/before the buy?" must replay sessions in ``(as_of, trigger_date]`` —
-# and to do so frozen-only (no vendor fetch, no lookahead) it needs those
-# forward bars persisted. This is a SEPARATE basis from the ``<= as_of`` frame:
+# The Trigger (the operator's buy) may land anywhere strictly after the last LPS
+# bar — before, on, or after as-of (relaxed 2026-07-22). Grading "did the engine
+# fire at/before the buy?" replays a real point-in-time walk and compares the fire
+# date to the buy date, so it may need bars on EITHER side of as-of. To stay
+# frozen-only (no vendor fetch, no lookahead) the whole ``[frame_start, frame_end]``
+# rendering must be persisted, not just ``(as_of, trigger_date]``. This is a
+# SEPARATE basis from the ``<= as_of`` frame:
 # the mark's ``frame_digest`` still binds to what the operator LOOKED AT (the
 # ``<= as_of`` frame, unchanged above), while the grading frame is the same
 # rendering extended through ``frame_end``, addressed by that base digest so the

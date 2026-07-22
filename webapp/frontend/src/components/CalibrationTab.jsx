@@ -87,11 +87,17 @@ function CalibrationTab() {
   useEffect(() => {
     const key = frameKeyOf(chartData);
     if (key !== markingRef.current.frameKey) {
-      const carried = carryDraftRef.current;
+      // A carry only applies to the frame it was armed for — its own TICKER. A
+      // stranded carry (a date-change that failed or was abandoned, then a hop to
+      // another setup) is discarded so a setup's marks can never bleed onto an
+      // unrelated frame (adversarial review 2026-07-22).
+      let carried = carryDraftRef.current;
       carryDraftRef.current = null;
+      if (carried && chartData && carried.ticker !== chartData.ticker) carried = null;
       const cached = draftsRef.current.get(key);
       dispatchMarking({ type: 'load', frameKey: key,
-                        draft: carried?.draft ?? cached ?? null });
+                        draft: carried?.draft ?? cached?.draft ?? null,
+                        editingId: carried ? null : (cached?.editingId ?? null) });
       if (carried) {
         setLabel(carried.label ?? '');
         setNote(carried.note ?? '');
@@ -102,16 +108,21 @@ function CalibrationTab() {
       clearConflict();   // a parked overwrite must not follow the eye to a new frame
       // Flag a genuinely fresh frame (no carry, nothing drawn) so it auto-enters
       // edit mode when its saved marks arrive — never a carried/in-progress one.
-      pendingAutoEditRef.current = (!carried && !(cached && draftStarted(cached))) ? key : null;
+      pendingAutoEditRef.current = (!carried && !(cached?.draft && draftStarted(cached.draft))) ? key : null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData]);
 
-  // Stash the draft under ITS OWN frame key (they travel together in state,
-  // so a chart swap can never stash a draft under the wrong frame).
+  // Stash the draft AND its edit binding under the frame key (they travel
+  // together in state, so a swap can never stash them under the wrong frame).
+  // Persisting editingId means returning to a frame mid-edit resumes the PUT,
+  // not a create that collides (adversarial review 2026-07-22).
   useEffect(() => {
-    if (marking.frameKey) draftsRef.current.set(marking.frameKey, marking.draft);
-  }, [marking.frameKey, marking.draft]);
+    if (marking.frameKey) {
+      draftsRef.current.set(marking.frameKey,
+        { draft: marking.draft, editingId: marking.editingId });
+    }
+  }, [marking.frameKey, marking.draft, marking.editingId]);
 
   // A parked "Update existing" holds the geometry AS IT WAS when it collided;
   // the moment the operator redraws, that snapshot is stale — drop the
@@ -151,9 +162,10 @@ function CalibrationTab() {
   const [warningsOpen, setWarningsOpen] = useState(true);
   useEffect(() => { setWarningsOpen(true); }, [chartData?.frame_digest]);
   // A refused mark placement's reason — a geometry mark clicked PAST the as-of
-  // line (only what was observed by then is markable), or a Trigger clicked
-  // before as-of / at-or-before the last LPS bar (the buy is the forward entry).
-  // Shown as a transient chip, cleared when the tool or frame changes.
+  // line (only what was observed by then is markable), a Trigger clicked at/before
+  // the last LPS bar (its only rule now — no as_of floor), or a snapshot lock that
+  // would strand a mark. Shown as a transient chip, cleared when the tool or frame
+  // changes.
   const [placeNotice, setPlaceNotice] = useState(null);
   useEffect(() => { setPlaceNotice(null); }, [marking.tool, chartData?.frame_digest]);
 
@@ -230,8 +242,16 @@ function CalibrationTab() {
   useEffect(() => {
     const key = pendingAutoEditRef.current;
     if (!key || !chartData || frameKeyOf(chartData) !== key) return;
-    const st = markingRef.current;
-    if (st.editingId != null || draftStarted(st.draft)) { pendingAutoEditRef.current = null; return; }
+    // Read the LIVE reducer state, not markingRef: this effect and the frame-swap
+    // effect fire in the same pass on a chartData change, and the swap's 'load'
+    // dispatch hasn't applied yet — markingRef would still be the OUTGOING frame's
+    // editing state (adversarial review 2026-07-22). Wait until the load has landed
+    // (marking.frameKey === key) so a same-ticker hop between pre-marked setups
+    // still auto-enters edit.
+    if (marking.frameKey !== key) return;
+    if (marking.editingId != null || draftStarted(marking.draft)) {
+      pendingAutoEditRef.current = null; return;
+    }
     if (representativeBox) {
       pendingAutoEditRef.current = null;
       setLabel(representativeBox.label ?? '');
@@ -241,7 +261,7 @@ function CalibrationTab() {
     }
     // else: marks for this frame are still loading — keep the flag for the next update
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartData, representativeBox]);
+  }, [chartData, representativeBox, marking.frameKey, marking.editingId, marking.draft]);
 
   // Retained redraw, deliberately dependency-free: it runs after every
   // commit (including the child chart effect's rebuilds), the draw is
@@ -414,7 +434,20 @@ function CalibrationTab() {
     return result;
   };
 
-  const submit = (event) => {
+  // Run a lookup that may have armed a carry, and NEVER leave the carry stranded:
+  // if the load fails, or resolves to the SAME frame, the frame-swap effect won't
+  // consume it, so clear it here (adversarial review 2026-07-22 — a stranded carry
+  // could otherwise bleed onto whatever frame loads next).
+  const loadCarrying = async (t, date) => {
+    const preKey = chartData ? frameKeyOf(chartData) : null;
+    const result = await lookup(t, date);
+    if (carryDraftRef.current && (!result || frameKeyOf(result) === preKey)) {
+      carryDraftRef.current = null;
+    }
+    return result;
+  };
+
+  const submit = async (event) => {
     event?.preventDefault();
     if (!ticker.trim() || !asOf) return;
     const d = marking.draft;
@@ -434,17 +467,18 @@ function CalibrationTab() {
         if (!ok) { setAsOf(chartData.as_of_session); return; }
         // proceed: a blank load at the earlier date (the marks don't fit it)
       } else {
-        carryDraftRef.current = { draft: trimDraftForAsOf(d, asOf), label, note };
+        carryDraftRef.current = { ticker: chartData.ticker, draft: trimDraftForAsOf(d, asOf), label, note };
       }
     }
-    lookup(ticker, asOf);
+    await loadCarrying(ticker, asOf);
   };
 
   // The eve-of-buy snapshot the operator picked (request 6, "auto → eve of buy"):
   // the session immediately BEFORE the placed buy — Chrollo scans after the close,
   // so this asks "would last night's scan have surfaced it?". Null until a buy is
-  // placed (or if it is the very first bar). The buy's eve is always >= every
-  // observed mark (the box/LPS precede the buy), so locking there is a clean carry.
+  // placed (or if it is the very first bar). Usually >= every observed mark (the
+  // box/LPS precede the buy), but not guaranteed — a rail/event placed after the
+  // buy is refused below rather than stranded past the earlier snapshot.
   const eveOfBuyAsOf = useMemo(() => {
     const buy = marking.draft.triggerDate;
     if (!buy || !chartData) return null;
@@ -454,12 +488,21 @@ function CalibrationTab() {
   }, [marking.draft.triggerDate, chartData]);
 
   // Lock the engine's snapshot to the buy's eve, carrying every mark across.
-  const lockSnapshotToBuyEve = () => {
+  const lockSnapshotToBuyEve = async () => {
     if (!eveOfBuyAsOf || !chartData || loading) return;
     if (eveOfBuyAsOf === chartData.as_of_session) return;
-    carryDraftRef.current = { draft: trimDraftForAsOf(marking.draft, eveOfBuyAsOf), label, note };
+    // A mark placed AFTER the buy would be stranded past this earlier snapshot
+    // (trimDraftForAsOf only re-derives box_end, not rail anchors / event ends);
+    // refuse with a reason instead of a cryptic save rejection (review 2026-07-22).
+    const latest = latestObservedDate(marking.draft);
+    if (latest && eveOfBuyAsOf < latest) {
+      setPlaceNotice(`Can’t snapshot to ${eveOfBuyAsOf} — a mark (${latest}) sits after it; move it or the buy first.`);
+      return;
+    }
+    carryDraftRef.current = { ticker: chartData.ticker,
+      draft: trimDraftForAsOf(marking.draft, eveOfBuyAsOf), label, note };
     setAsOf(eveOfBuyAsOf);
-    lookup(chartData.ticker, eveOfBuyAsOf);
+    await loadCarrying(chartData.ticker, eveOfBuyAsOf);
   };
 
   // Add another instance of a setup on this ticker (request 7): a brand-new setup
@@ -467,11 +510,19 @@ function CalibrationTab() {
   // the date input. Deletes nothing and carries nothing (the explicit opposite of
   // the date-change carry) — the existing saved setup is untouched.
   const addInstance = () => {
+    pendingAutoEditRef.current = null; // an explicit CREATE cancels a pending auto-edit
     dispatchMarking({ type: 'clear' });
     setLabel('');
     setNote('');
     setAsOf('');
     dateInputRef.current?.focus();
+  };
+
+  // "New mark" — leave edit mode for a fresh CREATE draft on the SAME frame. Cancels
+  // any pending auto-edit so a mid-fetch New click isn't overridden back into an edit.
+  const newMark = () => {
+    pendingAutoEditRef.current = null;
+    dispatchMarking({ type: 'clear' });
   };
 
   const spec = useMemo(() => ({
@@ -652,7 +703,7 @@ function CalibrationTab() {
         note={note}
         onNote={setNote}
         onSave={save}
-        onNewMark={() => dispatchMarking({ type: 'clear' })}
+        onNewMark={newMark}
         conflict={conflict}
         onResolveConflict={resolveSaveConflict}
         saveError={saveError}

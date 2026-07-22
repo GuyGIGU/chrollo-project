@@ -79,9 +79,10 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession, onReMar
       </div>
 
       {/* ZONE 2 — the live draft readout + the one status/legend line, in a
-          reserved fixed-height row that scrolls if it ever overflows, so its
-          content changes never push the buttons. */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', height: 20,
+          reserved row that scrolls horizontally if it ever overflows, so its
+          content changes never push the buttons. minHeight (not a hard height) so
+          the event/buy × token buttons (~24px) fit without clipping. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 28,
                     flexWrap: 'nowrap', overflowX: 'auto' }}>
         {/* Rails with their anchor bars; the span line shows what WILL save
             (anchor-derived unless x-drawn explicitly). */}
