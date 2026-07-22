@@ -137,3 +137,34 @@ population it scored and stamps a fingerprint of the exact marks set.
 operator-confirmed 2026-07-10
 **Principle:** `references/security.md` → P9 (assume breach); `references/quality-postgres.md` → P5;
 `references/quality-testing.md` → P10
+
+---
+
+### EC-10: The forward grading frame's post-as_of bars are DEADLINES, never engine inputs
+**Convention:** Grading a Trigger uses a SECOND frozen basis — `frame_store.freeze_grading_frame` /
+`load_grading_frame` — that extends past `as_of` through `frame_end`, addressed by the `<= as_of`
+`base_digest` so the two always pair (its `<= as_of` slice MUST reproduce `base_digest`, else it is treated
+as unbound and never graded). Those forward bars exist ONLY to locate the engine's fire date relative to the
+operator's buy — they are the deadline the grade measures against, and are NEVER fed to the reading/scoring
+engine as inputs. The reading engine still sees only `<= as_of` (the no-lookahead invariant is intact), and
+the `frame_digest` a mark binds to remains the `<= as_of` frame the operator actually looked at. This
+forward-inclusive basis is the load-bearing enabler for a frozen-only, no-vendor-fetch Trigger grade.
+**Origin:** McKinney — Council Plan 2026-07-10/2026-07-21 (Calibration at Scale / redesign); built +
+operator-confirmed 2026-07-22 (trigger batch, main `136110b`)
+**Principle:** `references/quality-postgres.md` → P1 (the frozen basis is an assertion);
+`references/quality-testing.md` → P10
+
+---
+
+### EC-11: The Trigger is structurally coupled to the LPS
+**Convention:** A calibration Trigger (the operator's buy) is valid ONLY when the setup carries ≥1 LPS event,
+and its `trigger_date` is strictly AFTER the last LPS bar. It may otherwise land before, on, or after `as_of`
+— the `trigger_date >= as_of` floor was DROPPED 2026-07-22 (the operator often sets an `as_of` already past
+the breakout). The assisted Trigger tool snaps level→last-LPS-bar high and date→first breakout bar, is inert
+until an LPS exists, and RE-DERIVES whenever the LPS is re-drawn; validity does NOT hard-pin `trigger_price`
+to the LPS high (operator flexibility). The single shared judgment lives in `marks_validity._validate_trigger`
+(EC-3); any DDL CHECK is fresh-DB-only (SQLite can't retrofit constraints) and must not contradict the shared
+validator.
+**Origin:** operator-confirmed 2026-07-21 (Trigger = breakout above the last LPS bar's high) + relaxed
+2026-07-22 (drop the `as_of` floor); main `136110b`
+**Principle:** `references/quality-testing.md` → P10 (the spec is the constraint); `conventions.md` EC-3
