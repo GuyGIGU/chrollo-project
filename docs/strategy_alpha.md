@@ -958,16 +958,43 @@ bases legitimately have fewer regions.
 
 ### Last Supper stretch
 
-The over-extension axis from the structure legend: how far the LPS foot sits
-*above the box that birthed it* (its energy source).
+**What a Last Supper is (operator's definition).** The **final run-up that traps
+late buyers before the real pullback** — a last deceptive rally that lures in late
+longs, after which price gives back into the *real* pullback and only then resumes.
+It is a discrete **event**, can appear **before *or* after an LPS** (Phase D holds
+more than one), and setups often break out *after* the Last Supper has run its
+course. The engine does **not** label the run-up as a timed event — it measures the
+over-extension *geometry* around the LPS (below).
+
+**What the engine measures is the over-extension geometry.** Two raw families say
+how exposed *this* entry is to a Last Supper. A precise, well-positioned LPS (near
+support, off a rebound, after a Phase-C spring) survives a Last Supper; a stretched
+one is the trap.
+
+*Stretch* — how far the LPS foot sits *above the box that birthed it* (its energy source):
 
 - `_lps_stretch_atr` = `(lps_low − R) / ATR` — distance above the ceiling, in ATR;
 - `_lps_stretch_box` = `(lps_low − R) / (R − S)` — same, in box-heights.
 
-≤ 0 means the LPS formed in or below the box (no stretch); a large positive
-value flags a stretched, Last-Supper-risk LPS far from its energy source. Raw
-archived measure first — validated against the durable-win vs cash-grab outcome
-before it is ever allowed to influence ranking.
+≤ 0 means the LPS formed in or below the box (no stretch); a large positive value
+flags a stretched, Last-Supper-risk LPS far from its energy source.
+
+*Event geometry* (`engine_alpha/structure/phase_features.py` →
+`_last_supper_measurements`) — the run-up-and-flush around the LPS:
+
+- `_last_supper_pullback_from_extension_pct` = `(anchor_high − lps_low) /
+  anchor_high` — depth of the pullback from the trapping run-up's high
+  (`anchor_high` = the High at the elected LPS anchor bar) down to the LPS low;
+- `_last_supper_reclaim_quality` ∈ [0,1] — how much of that pullback the LPS
+  reclaimed (final close vs the LPS low, over the swing), averaged with the final
+  bar's spread contraction (did it recover cleanly — the "popping off *after* the
+  Last Supper" tell);
+- `_last_supper_source_box_age` = bars from when price left the source box (rose
+  above R) to the LPS low — over-extension in *time* from the energy source; set
+  only when the LPS sits above R.
+
+All raw, archived **measure-first** — never gated or scored until validated against
+the durable-win vs cash-grab outcome.
 
 ### Inner-origin measurements
 
