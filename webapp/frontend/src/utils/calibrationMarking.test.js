@@ -8,11 +8,13 @@ import {
   emptyDraft,
   frameKeyOf,
   initialMarkingState,
+  latestObservedDate,
   markPayloadFromDraft,
   markingReducer,
   placementRefusal,
   snapRailPrice,
   statusText,
+  trimDraftForAsOf,
 } from './calibrationMarking.js';
 
 const click = (date, price) => ({ type: 'chart-click', date, price });
@@ -30,17 +32,48 @@ test('placementRefusal: geometry marks land at or LEFT of the as-of line', () =>
   assert.equal(placementRefusal('event:phase_c', '2025-12-30', '2026-01-02', null), null);
 });
 
-test('placementRefusal: the Trigger (buy) is FORWARD of as-of and after the last LPS bar', () => {
-  assert.match(placementRefusal('trigger', '2026-01-01', '2026-01-02', null), /forward entry/);
-  assert.equal(placementRefusal('trigger', '2026-01-02', '2026-01-02', null), null); // ON as-of is a valid buy
-  // With an LPS ending 2026-01-06, the buy must be STRICTLY after it.
-  assert.match(placementRefusal('trigger', '2026-01-06', '2026-01-02', '2026-01-06'), /after your last LPS/);
-  assert.equal(placementRefusal('trigger', '2026-01-07', '2026-01-02', '2026-01-06'), null);
+test('placementRefusal: the Trigger (buy) only needs to be after the last LPS bar (no as-of floor)', () => {
+  // Relaxed 2026-07-22: a buy BEFORE the as-of is fine (the operator marks the
+  // real breakout day and locks the snapshot separately) — no more "forward entry".
+  assert.equal(placementRefusal('trigger', '2026-01-01', '2026-01-02', null), null);
+  assert.equal(placementRefusal('trigger', '2026-01-02', '2026-01-02', null), null);
+  // With an LPS ending 2026-01-06, the buy must be STRICTLY after it (kept).
+  assert.match(placementRefusal('trigger', '2026-01-06', '2026-01-10', '2026-01-06'), /after your last LPS/);
+  assert.equal(placementRefusal('trigger', '2026-01-07', '2026-01-10', '2026-01-06'), null);
+  // A pre-as-of buy that is still after the LPS is allowed.
+  assert.equal(placementRefusal('trigger', '2026-01-05', '2026-01-10', '2026-01-04'), null);
 });
 
 test('placementRefusal: no frozen as-of session yet allows any click', () => {
   assert.equal(placementRefusal('rail-r', '2026-01-05', null, null), null);
   assert.equal(placementRefusal('trigger', '2026-01-05', null, null), null);
+});
+
+// latestObservedDate / trimDraftForAsOf — the date-change carry primitives.
+test('latestObservedDate: max of rail anchors, explicit box_end, event ends — NOT the buy', () => {
+  const draft = { ...emptyDraft(),
+    rAnchorDate: '2026-04-10', sAnchorDate: '2026-04-08', boxEndDate: '2026-04-14',
+    events: [{ event_type: 'lps', start_date: '2026-04-09', end_date: '2026-04-13' }],
+    triggerDate: '2026-04-20' }; // the buy is ignored — it may sit after the snapshot
+  assert.equal(latestObservedDate(draft), '2026-04-14');
+  assert.equal(latestObservedDate(emptyDraft()), null); // nothing observed yet
+  // Derived-span draft (no explicit box_end): the later rail anchor is the latest.
+  assert.equal(latestObservedDate(
+    { ...emptyDraft(), rAnchorDate: '2026-04-10', sAnchorDate: '2026-04-12' }), '2026-04-12');
+});
+
+test('trimDraftForAsOf: drops only an explicit box_end past the new as-of; keeps the buy', () => {
+  const draft = { ...emptyDraft(), resistance: 10, support: 8,
+    boxStartDate: '2026-01-01', boxEndDate: '2026-04-15',
+    events: [{ event_type: 'lps', start_date: '2026-04-09', end_date: '2026-04-14' }],
+    triggerDate: '2026-04-16', triggerPrice: 12.5, triggerSource: 'manual' };
+  const trimmed = trimDraftForAsOf(draft, '2026-04-10'); // new as-of before box_end
+  assert.equal(trimmed.boxEndDate, null);          // re-derives to the new as-of
+  assert.equal(trimmed.triggerDate, '2026-04-16'); // the buy is preserved exactly
+  assert.equal(trimmed.triggerSource, 'manual');
+  assert.equal(trimmed.resistance, 10);            // geometry otherwise untouched
+  // A box_end already at/before the new as-of is kept as-is.
+  assert.equal(trimDraftForAsOf({ ...draft, boxEndDate: '2026-04-08' }, '2026-04-10').boxEndDate, '2026-04-08');
 });
 
 test('rail clicks record price AND anchor bar; the span derives from anchors', () => {

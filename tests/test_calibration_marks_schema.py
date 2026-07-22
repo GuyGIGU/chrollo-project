@@ -173,10 +173,13 @@ def test_trigger_only_allowed_on_a_box(session):
         session.commit()
 
 
-def test_trigger_not_before_as_of(session):
+def test_trigger_may_precede_as_of_at_the_ddl_level(session):
+    # Relaxed 2026-07-22: the as_of-floor CHECK is gone — the buy may precede the
+    # snapshot. "After the last LPS bar" is enforced in marks_validity (it needs
+    # the event rows a row-local CHECK can't see), so the DB accepts this row.
     session.add(_mark(trigger_date="2026-04-10", trigger_price=12.55))  # < as_of
-    with pytest.raises(IntegrityError):
-        session.commit()
+    session.commit()
+    assert session.query(CalibrationMark).one().trigger_date == "2026-04-10"
 
 
 def test_trigger_price_must_be_positive(session):

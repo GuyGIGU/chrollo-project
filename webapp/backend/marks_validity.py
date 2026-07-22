@@ -195,9 +195,13 @@ def _validate_event(event: dict, index: int, as_of) -> list[str]:
 
 def _validate_trigger(mark: dict, as_of, events: list) -> list[str]:
     """The Trigger (the operator's BUY) is the breakout above the High of the
-    LPS's final bar: a FORWARD point (>= as_of, the inverse of every event's
-    <= as_of contract), one per box, requiring an LPS and landing strictly after
-    that LPS's last bar. Absent trigger = a legitimate null state (no buy marked).
+    LPS's final bar. Its ONLY placement rule is that it lands strictly AFTER the
+    last LPS bar (and requires an LPS). It may sit before, on, or after the as-of
+    (relaxed 2026-07-22): the operator marks the real breakout day, then locks the
+    snapshot separately — so the buy is deliberately NOT constrained to as_of here
+    (the grade compares the engine's fire date to the buy date, never to as_of).
+    Absent trigger = a legitimate null state (no buy marked). `as_of` is accepted
+    for signature symmetry with the other validators but no longer bounds the buy.
 
     The frame-dependent upper bound (trigger_date is a real session <= frame_end)
     is checked at the WRITE boundary, where the frozen grading frame is loadable —
@@ -218,10 +222,9 @@ def _validate_trigger(mark: dict, as_of, events: list) -> list[str]:
     if tdate is None:
         problems.append(f"trigger_date {td!r} is not YYYY-MM-DD")
         return problems
-    if as_of is not None and tdate < as_of:
-        problems.append("trigger_date is before as_of_date")
     # It is the breakout above the last LPS bar's high, so it requires an LPS and
-    # lands strictly after that LPS's final (end) bar.
+    # lands strictly after that LPS's final (end) bar. (No as_of floor — relaxed
+    # 2026-07-22; the buy may precede the snapshot.)
     lps_ends = [parse_iso_date(e.get("end_date")) for e in events
                 if e.get("event_type") == "lps"]
     lps_ends = [d for d in lps_ends if d is not None]

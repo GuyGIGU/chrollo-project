@@ -198,18 +198,26 @@ const CANDLES = [
   { time: '2026-04-17', high: 11.0, low: 10.5 },
 ];
 
-test('snapTrigger: LPS end-bar High is the level; first clearing forward bar is the date', () => {
-  assert.deepEqual(snapTrigger(lpsDraft(), CANDLES, '2026-04-15'),
+test('snapTrigger: LPS end-bar High is the level; first clearing bar is the date', () => {
+  assert.deepEqual(snapTrigger(lpsDraft(), CANDLES),
+    { date: '2026-04-16', price: 10.5 });
+});
+
+test('snapTrigger: no as-of floor — a breakout BEFORE the snapshot still snaps (relaxed)', () => {
+  // The breakout clears the LPS high on 2026-04-16, well before this late as-of.
+  // Old behavior skipped pre-as-of bars; now the snap lands on the real breakout.
+  const lateBars = [...CANDLES, { time: '2026-05-01', high: 12.0, low: 11.0 }];
+  assert.deepEqual(snapTrigger(lpsDraft(), lateBars),
     { date: '2026-04-16', price: 10.5 });
 });
 
 test('snapTrigger returns null without an LPS, or with no bar clearing the level', () => {
-  assert.equal(snapTrigger(emptyDraft(), CANDLES, '2026-04-15'), null); // no LPS
+  assert.equal(snapTrigger(emptyDraft(), CANDLES), null); // no LPS
   // A level nothing clears (raise the LPS high above every forward High).
   const highLps = { ...lpsDraft(),
     events: [{ event_type: 'lps', start_date: '2026-04-08', end_date: '2026-04-14' }] };
   const flat = CANDLES.map((b) => (b.time === '2026-04-14' ? { ...b, high: 99 } : b));
-  assert.equal(snapTrigger(highLps, flat, '2026-04-15'), null);
+  assert.equal(snapTrigger(highLps, flat), null);
 });
 
 test('the Trigger tool is inert until an LPS exists, armable once it does', () => {

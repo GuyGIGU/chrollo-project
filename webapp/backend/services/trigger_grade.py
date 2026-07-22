@@ -7,6 +7,17 @@ session — and resolves to THREE honest outcomes: fired at/before the Trigger,
 fired after, never fired. "Never fired" is its OWN outcome, never collapsed into
 "late": branding a setup the engine never elected as a late buy would be a lie.
 
+The buy may now sit before, on, or after the as-of (trigger relaxed 2026-07-22):
+the grade compares ONLY the engine's fire date to the buy date — as_of is never
+in that comparison — so it stays coherent, and the "after" (fired-late) outcome
+is now reachable, which the old buy>=as_of rule made impossible. The comparison
+is one-directional-safe: fire_date is always a real point-in-time surface session
+from the walk, so a pre-as_of buy can grade pessimistically (say "after"/"never"
+when it actually fired at/before) but can NEVER falsely credit the engine. One
+coverage caveat: the fired walk is anchored near as_of, so a buy far from the
+snapshot may fall in an unwalked gap — locking the snapshot to the buy's eve (the
+workbench's default) keeps the walk over the buy neighborhood and the grade sharp.
+
 This is a THIN layer over the existing FIRED replay (``services.calibration_fired``
 -> ``tools.calibration_harness.fired_one``), NOT a second engine path: ``fire_date``
 is the session the engine would have surfaced the pick — computed once inside the
@@ -32,8 +43,9 @@ def classify_fire_timing(fire_date, trigger_date) -> str:
     ISO ``YYYY-MM-DD`` strings compare chronologically.
 
     An absent read is ``never`` — NEVER ``after`` — so a setup the engine did not
-    elect is never branded a late buy. The buy can land on the as-of bar itself,
-    so an on-Trigger fire is ``at_or_before``.
+    elect is never branded a late buy. The buy may land before, on, or after the
+    as-of (relaxed 2026-07-22), so ``after`` is a live outcome: a fire strictly
+    after the buy means the engine surfaced the pick too late.
     """
     if fire_date is None or trigger_date is None:
         return "never"

@@ -51,9 +51,9 @@ function GradeCell({ grade, testing, onTest }) {
 // first-class SETUPS — one row per (ticker, as_of) — so the chart stays the
 // protagonist and two setups on one symbol read as two distinct entries (never
 // collapsed onto "the ticker"). Grouped by ticker like a TradingView watchlist.
-// A click LOADS that setup for review/edit; it never advances the worklist queue
-// (Friedman watchpoint — the rail and the forward queue are distinct intents).
-// The active row is DERIVED from the loaded (ticker, as_of) — no store, no
+// A click LOADS that setup for review/edit (which auto-enters edit mode on its
+// box, so the Trigger is immediately editable). The active row is DERIVED from
+// the loaded (ticker, as_of) — no store, no
 // selectedSetupId. Rows are cheap static DOM (never a live chart). Element
 // indicators answer the priority order Box/R/S → LPS → Trigger at a glance; the
 // engine-test verdict lands in the Engine column.

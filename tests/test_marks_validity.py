@@ -210,9 +210,16 @@ def test_trigger_must_land_after_the_last_lps_bar():
     assert any("after the last LPS bar" in p for p in problems)
 
 
-def test_trigger_before_as_of_is_rejected():
-    assert any("before as_of_date" in p
-               for p in validate_mark(_triggered(trigger_date="2026-04-10")))
+def test_trigger_may_precede_as_of_after_the_lps():
+    # Relaxed 2026-07-22: the buy only needs to be strictly after the last LPS
+    # bar; it MAY sit before the as-of (the operator marks the real breakout day
+    # and locks the snapshot separately). LPS ends 04-14, as-of 04-20, buy 04-16.
+    assert validate_mark(_triggered(
+        as_of_date="2026-04-20", trigger_date="2026-04-16")) == []
+    # A buy at/before the last LPS bar is still rejected — that rule is kept.
+    assert any("after the last LPS bar" in p
+               for p in validate_mark(_triggered(
+                   as_of_date="2026-04-20", trigger_date="2026-04-14")))
 
 
 def test_trigger_date_and_price_must_be_paired():

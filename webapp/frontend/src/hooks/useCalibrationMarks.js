@@ -39,8 +39,8 @@ export default function useCalibrationMarks() {
   // summary, a different grain (setup, not ticker), so two setups on one symbol
   // stay two rows. Unsorted here; the rail owns its (controlled) sort.
   const [setups, setSetups] = useState([]);
-  // Monotonic marks-fetch generation: fast ticker switches (coverage clicks,
-  // worklist steps, post-save refresh) race, and only the LAST requested
+  // Monotonic marks-fetch generation: fast ticker switches (rail picks,
+  // post-save refresh) race, and only the LAST requested
   // ticker's response may win setMarks — a stale one would paint the previous
   // ticker's marks over the current frame, and an edit/delete in that window
   // would act on the wrong ticker. Mirrors useCalibrationChart's guard.
