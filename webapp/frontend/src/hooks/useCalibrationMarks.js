@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { API_BASE } from '../api';
 import { duplicateConflictId } from '../utils/calibrationMarking';
-import { buildCoverageRows, buildSetupRows } from '../utils/calibrationTables';
+import { buildSetupRows } from '../utils/calibrationTables';
 
 // Marks CRUD for the calibration page (Task 12). Writes carry the same-app
 // header (the backend's cross-app write guard) and echo the server's named
@@ -29,15 +29,9 @@ export default function useCalibrationMarks() {
   // A create that collided with an existing identity, parked for the operator
   // to resolve EXPLICITLY (never auto-overwritten): {payload, existingId}.
   const [conflict, setConflict] = useState(null);
-  // Every ticker calibrated so far: [{ticker, count, boxes, negatives,
-  // latestAsOf}] — the operator's "what have I covered" list, aggregated from
-  // ALL marks by the tested pure helper. Unsorted here; the coverage table
-  // owns its (controlled) sort, same as the watchlist.
-  const [summary, setSummary] = useState([]);
   // Every SETUP — one row per (ticker, as_of) — across ALL marks, for the right
-  // rail (the calibrated-list navigator). Same all-marks fetch as the coverage
-  // summary, a different grain (setup, not ticker), so two setups on one symbol
-  // stay two rows. Unsorted here; the rail owns its (controlled) sort.
+  // rail (the calibrated-list navigator), from the all-marks fetch. Two setups on
+  // one symbol stay two rows. Unsorted here; the rail owns its (controlled) sort.
   const [setups, setSetups] = useState([]);
   // Monotonic marks-fetch generation: fast ticker switches (rail picks,
   // post-save refresh) race, and only the LAST requested
@@ -51,7 +45,6 @@ export default function useCalibrationMarks() {
       const response = await fetch(`${API_BASE}/calibration/marks`);
       const body = await response.json().catch(() => null);
       if (!response.ok || !Array.isArray(body)) return;
-      setSummary(buildCoverageRows(body));
       setSetups(buildSetupRows(body));
     } catch (error) {
       console.error('calibration summary failed:', error);
@@ -186,7 +179,7 @@ export default function useCalibrationMarks() {
     return ok;
   };
 
-  return { marks, saving, saveError, tally, summary, setups, conflict,
+  return { marks, saving, saveError, tally, setups, conflict,
            refresh, refreshSummary, saveMark, resolveConflict,
            clearConflict, removeMark, removeSetup };
 }
