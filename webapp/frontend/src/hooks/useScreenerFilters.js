@@ -50,6 +50,8 @@ function useScreenerFilters(screenerData, watchlist) {
   }, []);
 
   const resetFilters = () => {
+    setSearchTerm('');
+    setTierFilter('ALL');
     setSetupFilter('ALL');
     setTagFilter(new Set());
     setSortBy('score');
