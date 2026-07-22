@@ -169,6 +169,31 @@ export function placementRefusal(tool, date, asOf, lpsEnd) {
   return null;
 }
 
+// The latest OBSERVED date a draft carries — everything that must sit at or left
+// of the as-of line: the two rail anchors, an explicit box_end, and every event's
+// end_date. The Trigger is NOT included (the buy may sit after the snapshot).
+// Powers the "dialed back too far" guard: moving the as-of BEFORE this date would
+// push a mark into the forward window and invalidate it. Null if nothing observed.
+export function latestObservedDate(draft) {
+  const dates = [draft.rAnchorDate, draft.sAnchorDate, draft.boxEndDate];
+  for (const e of draft.events || []) dates.push(e.end_date);
+  const observed = dates.filter((d) => typeof d === 'string' && d.length === 10);
+  return observed.length ? observed.reduce((a, b) => (a >= b ? a : b)) : null;
+}
+
+// Prepare a draft to travel to a DIFFERENT snapshot (as-of) — the date-change
+// carry and the eve-of-buy lock. Only an EXPLICIT box_end past the new as-of needs
+// dropping (it re-derives to the new as-of); rails, LPS and the Trigger travel
+// UNCHANGED — the buy is unconstrained by as-of (relaxed), so the operator's exact
+// entry is preserved. Pure. (Callers only carry when the new as-of is >= every
+// observed date, so no rail/LPS is ever left stranded past the line.)
+export function trimDraftForAsOf(draft, targetAsOf) {
+  if (draft.boxEndDate != null && draft.boxEndDate > targetAsOf) {
+    return { ...draft, boxEndDate: null };
+  }
+  return draft;
+}
+
 // The span the mark will actually save: an explicit x-drawn span wins;
 // otherwise it derives from the anchors — start at the earlier-anchored
 // swing, end at the as-of session (the same geometry the engine projects).

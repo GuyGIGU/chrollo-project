@@ -22,11 +22,13 @@ import {
   effectiveSpan,
   frameKeyOf,
   initialMarkingState,
+  latestObservedDate,
   markPayloadFromDraft,
   markingReducer,
   placementRefusal,
   saveNeeds,
   snapTrigger,
+  trimDraftForAsOf,
 } from '../utils/calibrationMarking';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
@@ -68,18 +70,39 @@ function CalibrationTab() {
   markingRef.current = marking;
   const chartApiRef = useRef(null);   // { series, draw } while a chart is up
   const draftsRef = useRef(new Map()); // frameKey -> draft (per-frame, per-sitting)
+  const dateInputRef = useRef(null);   // focused by "Add instance" (request 7)
+  // A draft handed forward to the NEXT frame that loads — the date-change carry
+  // and the eve-of-buy snapshot lock preserve the current marks (+ label/note)
+  // across an as-of change instead of wiping them (request 6). Consumed once, by
+  // the frame swap below.
+  const carryDraftRef = useRef(null);
+  // A frame flagged to auto-enter edit mode once its saved marks load (request 2:
+  // the Trigger is editable on a loaded setup without a Re-Mark). Holds a frameKey.
+  const pendingAutoEditRef = useRef(null);
 
   // Drafts are structurally keyed to the frame they were drawn on: loading
-  // another session swaps to THAT frame's draft (or a fresh one), never
-  // bleeding rails across frames.
+  // another session swaps to THAT frame's draft (or a fresh one), never bleeding
+  // rails across frames. A carried draft (the date-change / snapshot-lock) wins
+  // for the one swap that consumes it and keeps the setup's label/note with it.
   useEffect(() => {
     const key = frameKeyOf(chartData);
     if (key !== markingRef.current.frameKey) {
+      const carried = carryDraftRef.current;
+      carryDraftRef.current = null;
+      const cached = draftsRef.current.get(key);
       dispatchMarking({ type: 'load', frameKey: key,
-                        draft: draftsRef.current.get(key) ?? null });
-      setLabel('');
-      setNote('');       // the note is per-setup — it never follows the eye to a new frame
+                        draft: carried?.draft ?? cached ?? null });
+      if (carried) {
+        setLabel(carried.label ?? '');
+        setNote(carried.note ?? '');
+      } else {
+        setLabel('');
+        setNote('');     // the note is per-setup — it never follows the eye to a new frame
+      }
       clearConflict();   // a parked overwrite must not follow the eye to a new frame
+      // Flag a genuinely fresh frame (no carry, nothing drawn) so it auto-enters
+      // edit mode when its saved marks arrive — never a carried/in-progress one.
+      pendingAutoEditRef.current = (!carried && !(cached && draftStarted(cached))) ? key : null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData]);
@@ -184,6 +207,41 @@ function CalibrationTab() {
       && m.as_of_date === chartData.as_of_session
       && m.frame_digest === chartData.frame_digest);
   }, [marks, chartData]);
+
+  // The representative BOX mark for the loaded frame (highest revision, then the
+  // primary/empty label) — the setup that loading auto-enters for edit. Null if
+  // the frame carries no saved box.
+  const representativeBox = useMemo(() => {
+    if (!chartData) return null;
+    const boxes = marks.filter((m) => m.ticker === chartData.ticker
+      && m.as_of_date === chartData.as_of_session
+      && m.frame_digest === chartData.frame_digest
+      && m.verdict === 'box');
+    if (!boxes.length) return null;
+    return [...boxes].sort((a, b) => ((b.revision ?? 0) - (a.revision ?? 0))
+      || (a.label || '').localeCompare(b.label || ''))[0];
+  }, [marks, chartData]);
+
+  // Auto-enter edit mode on a pre-marked frame (request 2): once the frame's saved
+  // marks have loaded, drop the representative box into the draft so its LPS is "in
+  // hand" and the Trigger tool un-grays — no Re-Mark needed. Fires ONLY for a frame
+  // the swap flagged fresh (so never right after a save on the same frame, and never
+  // over a carried or in-progress draft). "New mark"/"Add instance" escape it.
+  useEffect(() => {
+    const key = pendingAutoEditRef.current;
+    if (!key || !chartData || frameKeyOf(chartData) !== key) return;
+    const st = markingRef.current;
+    if (st.editingId != null || draftStarted(st.draft)) { pendingAutoEditRef.current = null; return; }
+    if (representativeBox) {
+      pendingAutoEditRef.current = null;
+      setLabel(representativeBox.label ?? '');
+      setNote(representativeBox.note ?? '');
+      clearConflict();
+      dispatchMarking({ type: 'edit-mark', mark: representativeBox });
+    }
+    // else: marks for this frame are still loading — keep the flag for the next update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartData, representativeBox]);
 
   // Retained redraw, deliberately dependency-free: it runs after every
   // commit (including the child chart effect's rebuilds), the draw is
@@ -358,7 +416,62 @@ function CalibrationTab() {
 
   const submit = (event) => {
     event?.preventDefault();
-    if (ticker.trim() && asOf) lookup(ticker, asOf);
+    if (!ticker.trim() || !asOf) return;
+    const d = marking.draft;
+    const sameTicker = chartData && ticker.trim().toUpperCase() === chartData.ticker;
+    const dateChanged = chartData && asOf !== chartData.as_of_session;
+    // Request 6: a same-ticker as-of change CARRIES the current marks to the new
+    // snapshot instead of wiping them. Dialing the date BEFORE the drawn marks
+    // would push the box/LPS into the forward window (invalid), so that is
+    // confirmed — and on cancel the date input is reset so it isn't left poisoned.
+    if (sameTicker && dateChanged && draftStarted(d)) {
+      const latest = latestObservedDate(d);
+      if (latest && asOf < latest) {
+        const ok = window.confirm(
+          `${asOf} is before your marks (last observed ${latest}).\n\n`
+          + 'On that earlier frame the box/LPS would fall after the as-of line and '
+          + `can't be kept. Load a fresh chart at ${asOf} and drop the current marks?`);
+        if (!ok) { setAsOf(chartData.as_of_session); return; }
+        // proceed: a blank load at the earlier date (the marks don't fit it)
+      } else {
+        carryDraftRef.current = { draft: trimDraftForAsOf(d, asOf), label, note };
+      }
+    }
+    lookup(ticker, asOf);
+  };
+
+  // The eve-of-buy snapshot the operator picked (request 6, "auto → eve of buy"):
+  // the session immediately BEFORE the placed buy — Chrollo scans after the close,
+  // so this asks "would last night's scan have surfaced it?". Null until a buy is
+  // placed (or if it is the very first bar). The buy's eve is always >= every
+  // observed mark (the box/LPS precede the buy), so locking there is a clean carry.
+  const eveOfBuyAsOf = useMemo(() => {
+    const buy = marking.draft.triggerDate;
+    if (!buy || !chartData) return null;
+    const list = chartData.candles || [];
+    const idx = list.findIndex((b) => b.time === buy);
+    return idx > 0 ? list[idx - 1].time : null;
+  }, [marking.draft.triggerDate, chartData]);
+
+  // Lock the engine's snapshot to the buy's eve, carrying every mark across.
+  const lockSnapshotToBuyEve = () => {
+    if (!eveOfBuyAsOf || !chartData || loading) return;
+    if (eveOfBuyAsOf === chartData.as_of_session) return;
+    carryDraftRef.current = { draft: trimDraftForAsOf(marking.draft, eveOfBuyAsOf), label, note };
+    setAsOf(eveOfBuyAsOf);
+    lookup(chartData.ticker, eveOfBuyAsOf);
+  };
+
+  // Add another instance of a setup on this ticker (request 7): a brand-new setup
+  // at a NEW as-of. Clear the draft/label/note and the date, keep the ticker, focus
+  // the date input. Deletes nothing and carries nothing (the explicit opposite of
+  // the date-change carry) — the existing saved setup is untouched.
+  const addInstance = () => {
+    dispatchMarking({ type: 'clear' });
+    setLabel('');
+    setNote('');
+    setAsOf('');
+    dateInputRef.current?.focus();
   };
 
   const spec = useMemo(() => ({
@@ -479,6 +592,7 @@ function CalibrationTab() {
           value={asOf}
           onChange={(e) => setAsOf(e.target.value)}
           aria-label="As-of date"
+          ref={dateInputRef}
         />
         <button type="submit" disabled={loading || !ticker.trim() || !asOf}>
           {loading ? 'Loading…' : 'Load'}
@@ -489,6 +603,22 @@ function CalibrationTab() {
                     onClick={() => setEngineOn((v) => !v)}
                     title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
               Engine
+            </button>
+            {/* Lock the snapshot to the session before the buy (request 6): the
+                grade then asks "would last night's scan have surfaced it?". Only
+                shown once a buy is placed and the as-of isn't already there. */}
+            {eveOfBuyAsOf && eveOfBuyAsOf !== chartData.as_of_session && (
+              <button type="button" onClick={lockSnapshotToBuyEve} disabled={loading}
+                      title={`Set the engine snapshot to ${eveOfBuyAsOf} — the session before your buy (Chrollo scans after the close). Your marks come with it.`}
+                      style={{ borderColor: 'var(--trigger)' }}>
+                Snapshot → buy eve ({eveOfBuyAsOf})
+              </button>
+            )}
+            {/* Start another setup on this ticker at a new date (request 7) —
+                clears the draft + date, keeps the ticker, leaves saved setups be. */}
+            <button type="button" onClick={addInstance} disabled={loading}
+                    title="Add another instance of a setup on this ticker at a new date — your saved setups are untouched.">
+              + Add instance
             </button>
             {/* Provenance figures change on every load — mono + tabular so
                 the eye can hold position across adjacent sessions. */}
