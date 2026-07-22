@@ -239,13 +239,14 @@ class CalibrationMark(Base):
     note = Column(Text, nullable=True)  # the operator's reason (negatives especially)
 
     # The Trigger — the operator's BUY: the day price breaks above the High of the
-    # LPS's FINAL bar. It sits at/after as-of (a FORWARD point, unlike every event
-    # which is <= as-of), one per box, and requires an LPS. Nullable with NO
-    # default — a null trigger is the real "no buy marked yet" state. The forward-
-    # window, requires-LPS, and "trigger after the last LPS bar" rules live in the
-    # shared marks_validity (SQLite cannot retrofit these onto the live corpus DB);
-    # the row-local CHECKs below are fresh-DB defence-in-depth only.
-    trigger_date = Column(String, nullable=True)   # ISO; >= as_of, > last LPS bar, <= frame_end
+    # LPS's FINAL bar. Its only placement rule is "strictly after the last LPS bar"
+    # (requires an LPS); it may sit before/on/after as-of — the operator marks the
+    # real breakout and locks the snapshot separately (relaxed 2026-07-22). Nullable
+    # with NO default — a null trigger is the real "no buy marked yet" state. The
+    # requires-LPS and after-last-LPS-bar rules live in the shared marks_validity
+    # (SQLite cannot retrofit these onto the live corpus DB); the row-local CHECKs
+    # below are fresh-DB defence-in-depth only.
+    trigger_date = Column(String, nullable=True)   # ISO; > last LPS bar, <= frame_end (no as_of floor)
     trigger_price = Column(Float, nullable=True)   # the last-LPS-bar High (tool-snapped, editable)
 
     # Point-in-time provenance — required, never backfilled.
@@ -295,10 +296,12 @@ class CalibrationMark(Base):
             "trigger_date IS NULL OR verdict = 'box'",
             name="ck_calibration_mark_trigger_box_only",
         ),
-        CheckConstraint(
-            "trigger_date IS NULL OR trigger_date >= as_of_date",
-            name="ck_calibration_mark_trigger_after_as_of",
-        ),
+        # No as_of floor on the trigger (relaxed 2026-07-22): the buy may precede
+        # the snapshot, so the former ck_calibration_mark_trigger_after_as_of is
+        # gone. "After the last LPS bar" is enforced in marks_validity (it needs
+        # the event rows, which a row-local CHECK cannot see). The live corpus DB
+        # never carried this CHECK — the trigger columns were added CHECK-less via
+        # ALTER TABLE — so no migration is required.
         CheckConstraint(
             "trigger_price IS NULL OR trigger_price > 0",
             name="ck_calibration_mark_trigger_price_positive",

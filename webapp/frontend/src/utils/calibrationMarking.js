@@ -57,12 +57,13 @@ export function snapRailPrice(price, bar) {
 
 // The assisted Trigger snap: the buy is the breakout above the High of the LPS's
 // FINAL (chronologically last) bar — NOT the LPS zone's max-High — and its date
-// is the first frozen session strictly after that end-bar (and at/after as-of,
-// since the breakout can land on the as-of bar) whose High clears the level.
-// Returns { date, price } or null (no LPS, no bar for the LPS end, or no
-// clearing bar in the frozen window). Pure — `candles` is the ordered bar list
+// is the first frozen session strictly after that end-bar whose High clears the
+// level. No as-of filter (relaxed 2026-07-22): the snap lands on the real
+// historical breakout the moment the LPS is marked, wherever it is relative to
+// the snapshot. Returns { date, price } or null (no LPS, no bar for the LPS end,
+// or no clearing bar in the frame). Pure — `candles` is the ordered bar list
 // [{ time, high, ... }] the chart already holds; node-testable.
-export function snapTrigger(draft, candles, asOfSession) {
+export function snapTrigger(draft, candles) {
   if (draft.verdict !== 'box' || !hasLpsEvent(draft)) return null;
   const lpsEnd = (draft.events || [])
     .filter((e) => e.event_type === 'lps' && e.end_date)
@@ -75,12 +76,11 @@ export function snapTrigger(draft, candles, asOfSession) {
   const level = endBar.high;
   for (const b of list) {
     if (b.time <= lpsEnd) continue;                        // strictly after the last LPS bar
-    if (asOfSession && b.time < asOfSession) continue;     // at/after as-of
     if (Number.isFinite(b.high) && b.high > level) {
       return { date: b.time, price: Number(level.toFixed(4)) };
     }
   }
-  return null; // no breakout above the LPS high inside the frozen forward window
+  return null; // no breakout above the LPS high in the frame
 }
 
 // The identity a draft binds to — mirrors the mark→frame binding contract.
@@ -146,25 +146,26 @@ export function saveNeeds(draft) {
 
 // The client-side placement pre-check: is a click a valid place for this tool's
 // mark? Returns the plain refusal reason, or null when allowed. It mirrors the
-// server's as-of grammar so a bad click is refused AT CLICK TIME with a reason,
-// never left to fail later at Save with a cryptic message. The backend
-// (`marks_validity`) is the real gate — this is only the friendly pre-check, so
-// the two MUST NOT DRIFT (EC-3): keep it in lockstep with
-// `_validate_trigger` (buy forward of as-of, strictly after the last LPS bar)
-// and the `box_end / event-end / rail-anchor <= as_of` rule in
-// `_validate_box_geometry` / `_validate_event`. A mark landing exactly ON the
-// as-of session is valid (the operator observed that bar); only STRICTLY past it
-// is refused. `lpsEnd` is the latest LPS end_date on the draft (null if none).
+// server's grammar so a bad click is refused AT CLICK TIME with a reason, never
+// left to fail later at Save. The backend (`marks_validity`) is the real gate —
+// this is only the friendly pre-check, so the two MUST NOT DRIFT (EC-3): keep it
+// in lockstep with `_validate_trigger` (the buy's ONLY rule is "strictly after
+// the last LPS bar" — no as_of floor, relaxed 2026-07-22) and the
+// `box_end / event-end / rail-anchor <= as_of` rule in `_validate_box_geometry`
+// / `_validate_event`. A geometry mark ON the as-of session is valid (the
+// operator observed that bar); only STRICTLY past it is refused. `lpsEnd` is the
+// latest LPS end_date on the draft (null if none).
 export function placementRefusal(tool, date, asOf, lpsEnd) {
-  if (!asOf) return null; // no frozen session yet — nothing to check against
   if (tool === 'trigger') {
-    if (date < asOf) return 'The buy can’t be left of the as-of line — it’s the forward entry.';
+    // The buy may sit before, on, or after the as-of — the operator marks the
+    // real breakout day and locks the snapshot separately. Its only rule:
+    // strictly after the last LPS bar.
     if (lpsEnd && date <= lpsEnd) return 'The buy must be after your last LPS bar.';
     return null;
   }
   // Every other mark is something OBSERVED by as-of, so it lands at or left of
   // the divider — never in the forward window.
-  if (date > asOf) return 'That bar is past the as-of line — only the buy can be placed after it.';
+  if (asOf && date > asOf) return 'That bar is past the as-of line — only the buy can be placed after it.';
   return null;
 }
 

@@ -225,9 +225,9 @@ function CalibrationTab() {
     const armed = markingRef.current.tool === 'trigger';
     const assisted = d.triggerSource === 'assisted';
     if (!armed && !assisted) return;
-    const snap = snapTrigger(d, chartData?.candles, chartData?.as_of_session);
+    const snap = snapTrigger(d, chartData?.candles);
     if (!snap) {
-      // No breakout in the frozen window: an armed re-derive clears a now-stale
+      // No breakout in the frame: an armed re-derive clears a now-stale
       // assisted value so the readout can say so; a manual trigger is untouched.
       if (armed && assisted && d.triggerDate != null) {
         dispatchMarking({ type: 'set-trigger', date: null });

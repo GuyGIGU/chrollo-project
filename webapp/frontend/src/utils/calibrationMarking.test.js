@@ -30,12 +30,16 @@ test('placementRefusal: geometry marks land at or LEFT of the as-of line', () =>
   assert.equal(placementRefusal('event:phase_c', '2025-12-30', '2026-01-02', null), null);
 });
 
-test('placementRefusal: the Trigger (buy) is FORWARD of as-of and after the last LPS bar', () => {
-  assert.match(placementRefusal('trigger', '2026-01-01', '2026-01-02', null), /forward entry/);
-  assert.equal(placementRefusal('trigger', '2026-01-02', '2026-01-02', null), null); // ON as-of is a valid buy
-  // With an LPS ending 2026-01-06, the buy must be STRICTLY after it.
-  assert.match(placementRefusal('trigger', '2026-01-06', '2026-01-02', '2026-01-06'), /after your last LPS/);
-  assert.equal(placementRefusal('trigger', '2026-01-07', '2026-01-02', '2026-01-06'), null);
+test('placementRefusal: the Trigger (buy) only needs to be after the last LPS bar (no as-of floor)', () => {
+  // Relaxed 2026-07-22: a buy BEFORE the as-of is fine (the operator marks the
+  // real breakout day and locks the snapshot separately) — no more "forward entry".
+  assert.equal(placementRefusal('trigger', '2026-01-01', '2026-01-02', null), null);
+  assert.equal(placementRefusal('trigger', '2026-01-02', '2026-01-02', null), null);
+  // With an LPS ending 2026-01-06, the buy must be STRICTLY after it (kept).
+  assert.match(placementRefusal('trigger', '2026-01-06', '2026-01-10', '2026-01-06'), /after your last LPS/);
+  assert.equal(placementRefusal('trigger', '2026-01-07', '2026-01-10', '2026-01-06'), null);
+  // A pre-as-of buy that is still after the LPS is allowed.
+  assert.equal(placementRefusal('trigger', '2026-01-05', '2026-01-10', '2026-01-04'), null);
 });
 
 test('placementRefusal: no frozen as-of session yet allows any click', () => {
