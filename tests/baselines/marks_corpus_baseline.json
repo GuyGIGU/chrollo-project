@@ -1,12 +1,12 @@
 {
-  "captured_at": "2026-07-24T14:54:20+00:00",
+  "captured_at": "2026-07-24T15:40:48+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "2262cedd09f75815142da6a2af44e247e82562fcb7b8e00293ad6164dd808020",
   "null_trigger_grace_sessions": 2,
   "population": "guided-list",
   "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard",
-  "engine_config_version": "2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e",
+  "engine_config_version": "aaf853bd0103bc65afa6356ccc8f898d9e8d1f29f6f142f998a5717abdfa0465",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -130,7 +130,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "stage": "commit-the-cause"
+      "stage": "rail-placement"
     },
     {
       "key": "EWTX:2026-03-31",
@@ -264,7 +264,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "engagement-respect"
+      "stage": "rail-placement"
     },
     {
       "key": "NOK:2026-02-17",
@@ -499,7 +499,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "stage": "commit-the-cause"
+      "stage": "lps-envelope"
     }
   ]
 }

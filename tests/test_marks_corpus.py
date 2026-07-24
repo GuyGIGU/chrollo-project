@@ -20,8 +20,10 @@ from tools import marks_corpus
 
 pytestmark = pytest.mark.regression
 
-# The gap-breach build-order stages (PLAN-guided-list-gap-breach, 2026-07-24).
-_KNOWN_STAGES = {"engagement-respect", "commit-the-cause", "lps-envelope"}
+# The gap-breach build-order stages (PLAN-guided-list-gap-breach, 2026-07-24;
+# re-tagged same day after Tasks 3+4 falsified engagement-respect and
+# commit-the-cause — rail-placement is the named future stage).
+_KNOWN_STAGES = {"rail-placement", "lps-envelope"}
 
 
 def _load_baseline() -> dict:

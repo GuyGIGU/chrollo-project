@@ -197,6 +197,22 @@ evidence base for any future rail-PLACEMENT work (the engine's S-below-drawn-S
 bias), which is where the Guided List says the wick/close divergence actually
 bites.
 
+**Commit-tail rescue — tested and REJECTED (2026-07-24, gap-breach Task 4).**
+The dual of the SOS worked-window trim (re-judge a failing framing on its
+window minus a bounded terminal floor-holding pullback tail — "the completing
+LPS may not re-litigate its own cause") was built dark and probed on its
+stage-tagged targets: **no cap (5/8/12/15 bars) restores the EGBN or YPF
+elections.** Their right-edge collapses are structural, not bounded-tail
+artifacts — EGBN's shelf resides ~two weeks above the creek-anchored
+candidate ceilings (the creek-vs-ceiling rail-PLACEMENT family), YPF's drawn
+base is 19 bars with occupancy failures — and a trim long enough to matter
+re-elects stale windows (the rejected 13b arbitration lesson at a new seam).
+Cause-commitment remains open only via a genuinely CROSS-FRAME mechanism
+(the measure-only election-stability probe is the calibration instrument);
+never via window trims. The ratchet stage tags were corrected accordingly:
+NKTR + EGBN → `rail-placement` (where the wick/close divergence actually
+bites), YPF → `lps-envelope`.
+
 #### Spring (Phase C)
 
 The turn-conductor event: penetration below S → reclaim → hold (the bounded-excursion

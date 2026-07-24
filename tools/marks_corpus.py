@@ -106,13 +106,18 @@ STAGE_TAGS: dict[str, str] = {
     # Keys are FULL setup keys (ticker:label) — ORMP/NGL carry two instances with
     # different outcomes, so a bare-ticker tag would misapply. Lookup falls back
     # to the bare ticker for single-instance entries.
-    "NKTR:2026-04-10": "engagement-respect",  # Move 1 — bar-basis magnitude respect (Task 3)
-    "EGBN:2026-01-15": "commit-the-cause",    # Move 2 — right-edge election stability (Task 4)
-    "YPF:2026-05-18": "commit-the-cause",
+    # Re-tagged 2026-07-24 after Tasks 3+4 falsified their original stages
+    # (engagement-respect and commit-the-cause both tested + REJECTED — see
+    # strategy_alpha.md): NKTR + EGBN belong to the rail-PLACEMENT family
+    # (wick-anchored candidate rails inflate width / sit at the creek), a
+    # named FUTURE stage outside this program's remaining tasks.
+    "NKTR:2026-04-10": "rail-placement",
+    "EGBN:2026-01-15": "rail-placement",
+    "YPF:2026-05-18": "lps-envelope",         # 19-bar drawn base + shelf geometry
     "NOK:2026-02-17": "lps-envelope",         # Move 3 — LPS envelope calibration (Task 6)
     "ORMP:2026-05-08": "lps-envelope",
     "PKE:2026-02-24": "lps-envelope",
-    "SKYT:2026-04-13": "lps-envelope",        # also gate-flicker — Move 4 names its refusals
+    "SKYT:2026-04-13": "lps-envelope",        # + sma50 universe refusal 9/10 (Move 4 telemetry)
 }
 
 # Corpus schema: every key a setup may carry. An unrecognized key FAILS the
