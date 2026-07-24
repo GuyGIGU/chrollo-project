@@ -59,7 +59,6 @@ import pandas as pd
 
 from config import settings
 from engine_alpha.freeze.manifest import manifest_hash
-from core.pipeline.downloads import _trim_to_period
 from engine_alpha.election_identity import (
     DEFAULT_RAIL_TOL_BOX_FRAC,
     projection,
@@ -194,7 +193,11 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
 # eval chain — structure, LPS, gates, scoring — not just the election. Opt-in
 # (--fired) because a full eval costs ~1s/session; the walk is bounded and
 # the report stamps the bound.
-FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
+# The fired-policy window is OWNED by the replay seam (one policy, every
+# instrument — the marks-corpus ratchet grades the same criterion since the
+# Guided List graduation 2026-07-24): re-exported here only for report
+# stamping, exactly like SNAP_BACK_SESSIONS above.
+FIRED_WINDOW_SESSIONS = replay.FIRED_WINDOW_SESSIONS
 
 # Harness grading-policy version (Family-7 instrument fix, plan task 1).
 # v2: the fired-walk is anchored to where the setup was LIVE — the union of
@@ -209,8 +212,8 @@ FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-o
 # counters now speak plain chart language; the bump keeps mixed old/new slug
 # vocabulary from ever serving out of the in-process fired-chip cache.
 HARNESS_POLICY_VERSION = 3
-FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
-FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
+FIRED_EVENT_TAIL_SESSIONS = replay.FIRED_EVENT_TAIL_SESSIONS
+FIRED_WALK_MAX_SESSIONS = replay.FIRED_WALK_MAX_SESSIONS
 
 # Frozen market scalars (marks-corpus twin): scoring-only inputs — they shape
 # Score/Tier, never the fire/no-fire decision — pinned so the replay is
@@ -219,69 +222,18 @@ _FROZEN_BREADTH = 0.5
 _FROZEN_SPY_6M = 0.0
 
 
-def _full_live_basis(frozen: pd.DataFrame, ts) -> bool:
-    """Does ``frozen.loc[:ts]`` contain the FULL trailing daily-structure
-    window the nightly scan evaluated at ``ts``? The live eval trims the 5y
-    cache to ``DAILY_STRUCTURE_PERIOD`` behind each session and the root walk
-    is left-edge-sensitive, so a slice the trim cannot cut is thinner than
-    live — unless the frame the trim cannot cut even at its END is simply the
-    ticker's full (young-listing) history, in which case live saw the very
-    same bars and every session is faithful."""
-    sliced = frozen.loc[:ts]
-    trimmed = _trim_to_period(sliced, settings.DAILY_STRUCTURE_PERIOD)
-    if trimmed.index[0] > sliced.index[0]:
-        return True   # the trim cut lead-in -> the live window is fully present
-    full = _trim_to_period(frozen, settings.DAILY_STRUCTURE_PERIOD)
-    return len(full) == len(frozen)
-
-
 def _fired_sessions(frozen: pd.DataFrame, mark: dict) -> tuple[list, str | None]:
     """The mark's fair window as frame sessions ending at its as-of.
 
-    Policy v2 (Family-7): the walk covers where the setup was LIVE, not just
-    when the mark was typed — a mark drawn weeks after its breakout (MS, NGL)
-    must still be graded at the sessions its marked LPS was actionable. The
-    window is: ``knowable_from_date`` onward when the mark declares one
-    (unchanged v1 override); otherwise the union of each marked-LPS event
-    span extended ``FIRED_EVENT_TAIL_SESSIONS`` past its end, plus the last
-    ``FIRED_WINDOW_SESSIONS`` sessions before the as-of. Walked oldest-first
-    so the reported fire is the FIRST night the pick would have appeared.
-
-    Every window is CLAMPED to the frame's faithful-basis zone
-    (``_full_live_basis``) — event windows can now reach deep into the frame,
-    where a thin lead-in would replay a thinner basis than live — and capped
-    at ``FIRED_WALK_MAX_SESSIONS`` keeping the OLDEST sessions (the event
-    windows; the fire is reported at the first night anyway). Returns
-    ``(sessions, clamp_note|None)`` — every clamp is NAMED, never silent."""
-    idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
-    knowable = mark.get("knowable_from_date")
-    if knowable:
-        sessions = list(idx[idx >= pd.Timestamp(knowable)])
-    else:
-        picked = set(idx[-FIRED_WINDOW_SESSIONS:])
-        for ev in mark.get("events") or []:
-            if ev.get("event_type") != "lps" or not ev.get("start_date"):
-                continue
-            start = pd.Timestamp(ev["start_date"])
-            end = pd.Timestamp(ev.get("end_date") or ev["start_date"])
-            in_span = idx[(idx >= start) & (idx <= end)]
-            picked.update(in_span)
-            after = idx[idx > end]
-            picked.update(after[:FIRED_EVENT_TAIL_SESSIONS])
-        sessions = sorted(picked)
-    notes = []
-    faithful = [ts for ts in sessions if _full_live_basis(frozen, ts)]
-    if len(faithful) != len(sessions):
-        notes.append(
-            f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
-            f"frame's lead-in cannot reproduce the live "
-            f"{settings.DAILY_STRUCTURE_PERIOD} basis before "
-            + (faithful[0].strftime("%Y-%m-%d") if faithful else "any session"))
-    if len(faithful) > FIRED_WALK_MAX_SESSIONS:
-        notes.append(f"walk capped at the oldest {FIRED_WALK_MAX_SESSIONS} "
-                     f"of {len(faithful)} sessions")
-        faithful = faithful[:FIRED_WALK_MAX_SESSIONS]
-    return faithful, ("; ".join(notes) or None)
+    Thin adapter over the ONE fired-policy window in the replay seam
+    (``replay.fired_window_sessions`` — moved there verbatim 2026-07-24 so the
+    marks-corpus ratchet grades the SAME pops-up-live criterion): this wrapper
+    only extracts the mark dict's LPS spans and knowable_from override."""
+    spans = [(ev["start_date"], ev.get("end_date") or ev["start_date"])
+             for ev in mark.get("events") or []
+             if ev.get("event_type") == "lps" and ev.get("start_date")]
+    return replay.fired_window_sessions(frozen, mark["as_of_date"], spans,
+                                        mark.get("knowable_from_date"))
 
 
 def _binding_gate_margin(result: dict) -> dict | None:

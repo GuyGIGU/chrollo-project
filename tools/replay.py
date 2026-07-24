@@ -38,6 +38,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
+from core.pipeline.downloads import _trim_to_period
 from engine_alpha.evaluation import _prepare_eval_frame
 from engine_alpha.structure.narrative import read_structure
 
@@ -61,6 +62,19 @@ def load_sealed_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     level0 = set(data.columns.get_level_values(0))
     frames = {t: data[t].dropna() for t in level0}
     return frames, baseline
+
+
+def fixture_frame(frames: dict, key: str, ticker: str | None = None):
+    """The sealed-fixture frame for one baseline setup, or None.
+
+    Digest-graduated setups (Guided List, 2026-07-24) freeze under their FULL
+    setup key — two marks on one ticker are two distinct drawn bases — while
+    legacy setups freeze under the bare ticker. The ONE lookup every fixture
+    consumer shares (gate, chronology battery, election tests)."""
+    df = frames.get(key)
+    if df is not None:
+        return df
+    return frames.get(ticker if ticker is not None else key.split(":")[0])
 
 
 _LIVE_PANEL: pd.DataFrame | None = None
@@ -171,3 +185,75 @@ def snapped_election(raw: pd.DataFrame, span_end, variants: list[dict],
         if any(s is not None for s in reads):
             return (df, atr, reads), ts, k
     return first
+
+
+# ------------------------------------------------------------------
+# The ONE fired-policy window (pops-up-live acceptance bar)
+# ------------------------------------------------------------------
+# Owned by the replay seam so the agreement harness (--fired) and the
+# marks-corpus ratchet grade the SAME criterion — one scoreboard, one ground
+# truth. Moved here verbatim from tools/calibration_harness.py 2026-07-24
+# (Guided List graduation, PLAN-guided-list-gap-breach Task 1); the harness
+# re-exports for report stamping. Changing any of these values or the window
+# semantics is a deliberate re-freeze event, never a tuning knob.
+FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
+FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
+FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
+
+
+def full_live_basis(frozen: pd.DataFrame, ts) -> bool:
+    """Does ``frozen.loc[:ts]`` contain the FULL trailing daily-structure
+    window the nightly scan evaluated at ``ts``? The live eval trims the 5y
+    cache to ``DAILY_STRUCTURE_PERIOD`` behind each session and the root walk
+    is left-edge-sensitive, so a slice the trim cannot cut is thinner than
+    live — unless the frame the trim cannot cut even at its END is simply the
+    ticker's full (young-listing) history, in which case live saw the very
+    same bars and every session is faithful."""
+    sliced = frozen.loc[:ts]
+    trimmed = _trim_to_period(sliced, settings.DAILY_STRUCTURE_PERIOD)
+    if trimmed.index[0] > sliced.index[0]:
+        return True   # the trim cut lead-in -> the live window is fully present
+    full = _trim_to_period(frozen, settings.DAILY_STRUCTURE_PERIOD)
+    return len(full) == len(frozen)
+
+
+def fired_window_sessions(frozen: pd.DataFrame, as_of, lps_spans,
+                          knowable_from=None) -> tuple[list, str | None]:
+    """The fair pops-up-live window as frame sessions ending at ``as_of``.
+
+    The walk covers where the setup was LIVE, not just when the mark was
+    typed: ``knowable_from`` onward when declared (v1 override); otherwise
+    the union of each marked-LPS span in ``lps_spans`` (``[start, end]``
+    pairs) extended ``FIRED_EVENT_TAIL_SESSIONS`` past its end, plus the
+    last ``FIRED_WINDOW_SESSIONS`` sessions before the as-of. Walked
+    oldest-first so the reported fire is the FIRST night the pick would have
+    appeared. Every window is CLAMPED to the frame's faithful-basis zone
+    (``full_live_basis``) and capped at ``FIRED_WALK_MAX_SESSIONS`` keeping
+    the OLDEST sessions. Returns ``(sessions, clamp_note|None)`` — every
+    clamp is NAMED, never silent."""
+    idx = frozen.index[frozen.index <= pd.Timestamp(as_of)]
+    if knowable_from:
+        sessions = list(idx[idx >= pd.Timestamp(knowable_from)])
+    else:
+        picked = set(idx[-FIRED_WINDOW_SESSIONS:])
+        for start, end in lps_spans:
+            start = pd.Timestamp(start)
+            end = pd.Timestamp(end or start)
+            in_span = idx[(idx >= start) & (idx <= end)]
+            picked.update(in_span)
+            after = idx[idx > end]
+            picked.update(after[:FIRED_EVENT_TAIL_SESSIONS])
+        sessions = sorted(picked)
+    notes = []
+    faithful = [ts for ts in sessions if full_live_basis(frozen, ts)]
+    if len(faithful) != len(sessions):
+        notes.append(
+            f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
+            f"frame's lead-in cannot reproduce the live "
+            f"{settings.DAILY_STRUCTURE_PERIOD} basis before "
+            + (faithful[0].strftime("%Y-%m-%d") if faithful else "any session"))
+    if len(faithful) > FIRED_WALK_MAX_SESSIONS:
+        notes.append(f"walk capped at the oldest {FIRED_WALK_MAX_SESSIONS} "
+                     f"of {len(faithful)} sessions")
+        faithful = faithful[:FIRED_WALK_MAX_SESSIONS]
+    return faithful, ("; ".join(notes) or None)

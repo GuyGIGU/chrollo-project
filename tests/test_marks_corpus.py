@@ -20,7 +20,8 @@ from tools import marks_corpus
 
 pytestmark = pytest.mark.regression
 
-_KNOWN_STAGES = {"holding-shelf-lps", "band-vs-excursion", "under-investigation"}
+# The gap-breach build-order stages (PLAN-guided-list-gap-breach, 2026-07-24).
+_KNOWN_STAGES = {"engagement-respect", "commit-the-cause", "lps-envelope"}
 
 
 def _load_baseline() -> dict:
@@ -80,8 +81,13 @@ def test_baseline_is_a_complete_ratchet():
         f"corpus/baseline key mismatch: only-in-corpus={sorted(keys - baseline_keys)} "
         f"only-in-baseline={sorted(baseline_keys - keys)} — re-freeze deliberately."
     )
-    missing_frames = [s["ticker"] for s in setups
-                      if s["ticker"] not in frames or frames[s["ticker"]].empty]
+    # Digest-graduated setups freeze under their full setup key; legacy by
+    # ticker — the ONE shared lookup (tools.replay.fixture_frame).
+    from tools.replay import fixture_frame
+
+    missing_frames = [k for k in sorted(keys)
+                      if fixture_frame(frames, k) is None
+                      or fixture_frame(frames, k).empty]
     assert not missing_frames, f"baseline setups without fixture frames: {missing_frames}"
 
     for entry in baseline["setups"]:

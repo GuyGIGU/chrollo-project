@@ -1,0 +1,545 @@
+{
+  "_about": "The Guided List \u2014 the operator's curated engine-test standard (33 setups / 31 tickers), graduated one-way from the editable calibration-marks DB (EC-9) on the pinned fingerprint below. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
+  "_provenance": {
+    "population": "guided-list",
+    "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
+    "engine_config_version": "2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e",
+    "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard",
+    "exported_at": "2026-07-24T14:33:39+00:00",
+    "n_setups": 33
+  },
+  "setups": [
+    {
+      "ticker": "ALB",
+      "setup": "2026-04-13",
+      "source": "operator",
+      "as_of": "2026-04-13",
+      "frame_digest": "935a059e479eab5ee021b8b62c5a909ae588e242a412f2a532527d52caf71c1e",
+      "lps": [
+        "2026-04-08",
+        "2026-04-10"
+      ],
+      "trigger": "2026-04-13",
+      "rails_drawn": {
+        "R": 173.0,
+        "S": 157.27000427246094
+      }
+    },
+    {
+      "ticker": "AVT",
+      "setup": "2026-04-08",
+      "source": "operator",
+      "as_of": "2026-04-08",
+      "frame_digest": "6fb9db4a4a053630ed7a580fe14133b3808dca35fc6b2bc6cff00bec5cd451f3",
+      "lps": [
+        "2026-04-01",
+        "2026-04-06"
+      ],
+      "trigger": "2026-04-07",
+      "rails_drawn": {
+        "R": 62.18000030517578,
+        "S": 58.599998474121094
+      }
+    },
+    {
+      "ticker": "BODI",
+      "setup": "2026-04-21",
+      "source": "operator",
+      "as_of": "2026-04-21",
+      "frame_digest": "48974660c35ba83f4718cf8677f5d14d49535514b313aa1098b22d602b6b518d",
+      "lps": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "trigger": "2026-04-17",
+      "rails_drawn": {
+        "R": 12.329999923706055,
+        "S": 10.180000305175781
+      }
+    },
+    {
+      "ticker": "BWA",
+      "setup": "2026-05-05",
+      "source": "operator",
+      "as_of": "2026-05-05",
+      "frame_digest": "c3869257b1b953632e210a00cda271439e1ade5407c587ff1069515910f3132d",
+      "lps": [
+        "2026-04-27",
+        "2026-04-29"
+      ],
+      "trigger": "2026-04-30",
+      "rails_drawn": {
+        "R": 56.650001525878906,
+        "S": 52.029998779296875
+      }
+    },
+    {
+      "ticker": "CTOS",
+      "setup": "2026-07-23",
+      "source": "operator",
+      "as_of": "2026-07-23",
+      "frame_digest": "8374787e87c705a427ca3e26683730ed4a11763c3bd9babd76e4224275ddc786",
+      "lps": [
+        "2026-07-16",
+        "2026-07-22"
+      ],
+      "trigger": "2026-07-23",
+      "rails_drawn": {
+        "R": 10.204999923706055,
+        "S": 9.46500015258789
+      }
+    },
+    {
+      "ticker": "DLX",
+      "setup": "2026-04-13",
+      "source": "operator",
+      "as_of": "2026-04-13",
+      "frame_digest": "29a4a49ab8883c6179668d597f18b01f1cdb9e43613e8a9517dc23b8a53e5fa2",
+      "lps": [
+        "2026-04-08",
+        "2026-04-10"
+      ],
+      "trigger": "2026-04-13",
+      "rails_drawn": {
+        "R": 28.600000381469727,
+        "S": 26.719999313354492
+      }
+    },
+    {
+      "ticker": "DSGN",
+      "setup": "2026-03-31",
+      "source": "operator",
+      "as_of": "2026-03-31",
+      "frame_digest": "1c45175712891d8aa21f23c6170c0077c9ac393388a391c46debcac4e709dfa8",
+      "lps": [
+        "2026-03-26",
+        "2026-03-30"
+      ],
+      "trigger": "2026-03-31",
+      "rails_drawn": {
+        "R": 10.305999755859375,
+        "S": 9.0
+      }
+    },
+    {
+      "ticker": "EGBN",
+      "setup": "2026-01-15",
+      "source": "operator",
+      "as_of": "2026-01-15",
+      "frame_digest": "02f7433b47d1ef727cacca41ce0a38cb9d051a2200e868ae3e388760d405996a",
+      "lps": [
+        "2026-01-08",
+        "2026-01-13"
+      ],
+      "trigger": "2026-01-14",
+      "rails_drawn": {
+        "R": 21.639999389648438,
+        "S": 20.489999771118164
+      }
+    },
+    {
+      "ticker": "EWTX",
+      "setup": "2026-03-31",
+      "source": "operator",
+      "as_of": "2026-03-31",
+      "frame_digest": "6a9aa7391017eb3ae2be92937b8e8714c10e32ebaf5685d2f6ce369fa4c89715",
+      "lps": [
+        "2026-03-25",
+        "2026-03-30"
+      ],
+      "trigger": "2026-03-31",
+      "rails_drawn": {
+        "R": 30.25,
+        "S": 27.579999923706055
+      }
+    },
+    {
+      "ticker": "FOSL",
+      "setup": "2026-02-18",
+      "source": "operator",
+      "as_of": "2026-02-18",
+      "frame_digest": "bb726cb3f2b7bb75f5a46fdbbdc3ca0796173151a2dd1b0e3b1794275b567daf",
+      "lps": [
+        "2026-02-12",
+        "2026-02-17"
+      ],
+      "trigger": "2026-02-18",
+      "rails_drawn": {
+        "R": 4.0,
+        "S": 3.609999895095825
+      }
+    },
+    {
+      "ticker": "JAZZ",
+      "setup": "2026-02-24",
+      "source": "operator",
+      "as_of": "2026-02-24",
+      "frame_digest": "ac4f422ca38ea479ce2fc0477130c393321e7aff26a40ad4e286b8aeee07ec26",
+      "lps": [
+        "2026-02-05",
+        "2026-02-11"
+      ],
+      "trigger": "2026-02-12",
+      "rails_drawn": {
+        "R": 171.50999450683594,
+        "S": 164.44000244140625
+      }
+    },
+    {
+      "ticker": "MATX",
+      "setup": "2026-07-01",
+      "source": "operator",
+      "as_of": "2026-07-01",
+      "frame_digest": "91fbe5a227f8532a9ad19999eb21d656b257b1f052eee9d911deff17f782719f",
+      "lps": [
+        "2026-06-25",
+        "2026-06-30"
+      ],
+      "trigger": "2026-07-01",
+      "rails_drawn": {
+        "R": 189.99000549316406,
+        "S": 176.99000549316406
+      }
+    },
+    {
+      "ticker": "MS",
+      "setup": "2026-06-04",
+      "source": "operator",
+      "as_of": "2026-06-04",
+      "frame_digest": "3f816eda3a551bf6003906122d0dd8e6e9f5a37ff6aa14006903c7ad652ee6e6",
+      "lps": [
+        "2026-05-14",
+        "2026-05-19"
+      ],
+      "trigger": "2026-05-20",
+      "rails_drawn": {
+        "R": 194.58999633789062,
+        "S": 186.6699981689453
+      }
+    },
+    {
+      "ticker": "MSGS",
+      "setup": "2026-05-22",
+      "source": "operator",
+      "as_of": "2026-05-22",
+      "frame_digest": "ac14a4e0c6952ae27e6a106b67c879c4e9db7691f83d60a038b8b4d9b21712fe",
+      "lps": [
+        "2026-05-18",
+        "2026-05-21"
+      ],
+      "trigger": "2026-05-22",
+      "rails_drawn": {
+        "R": 345.4599914550781,
+        "S": 320.7049865722656
+      }
+    },
+    {
+      "ticker": "NGL",
+      "setup": "2026-01-20",
+      "source": "operator",
+      "as_of": "2026-01-20",
+      "frame_digest": "c681eb1781ed72ecd1936bab28ec9d78f449cf670a0a5f234567641a2fec8662",
+      "lps": [
+        "2026-01-14",
+        "2026-01-16"
+      ],
+      "trigger": "2026-01-20",
+      "rails_drawn": {
+        "R": 10.289999961853027,
+        "S": 9.380000114440918
+      }
+    },
+    {
+      "ticker": "NGL",
+      "setup": "2026-04-20",
+      "source": "operator",
+      "as_of": "2026-04-20",
+      "frame_digest": "e60e8ec458540e060360a1bec134c5730167812d788df355da1a66b3d793dca3",
+      "lps": [
+        "2026-04-13",
+        "2026-04-17"
+      ],
+      "trigger": "2026-04-20",
+      "rails_drawn": {
+        "R": 12.529999732971191,
+        "S": 11.460000038146973
+      }
+    },
+    {
+      "ticker": "NKTR",
+      "setup": "2026-04-10",
+      "source": "operator",
+      "as_of": "2026-04-10",
+      "frame_digest": "843516ae00925dd713de24f8b7165b3dd8b15c2cb956486e0f78dcf3d2d2fcc1",
+      "lps": [
+        "2026-04-01",
+        "2026-04-07"
+      ],
+      "trigger": "2026-04-08",
+      "rails_drawn": {
+        "R": 75.66999816894531,
+        "S": 68.19999694824219
+      }
+    },
+    {
+      "ticker": "NOK",
+      "setup": "2026-02-17",
+      "source": "operator",
+      "as_of": "2026-02-17",
+      "frame_digest": "d437ebd83f2fb59d5533eb734b78eeb9cbd5f6661ceccb0930b6d4cb2b0d63db",
+      "lps": [
+        "2026-02-11",
+        "2026-02-13"
+      ],
+      "trigger": "2026-02-17",
+      "rails_drawn": {
+        "R": 6.940000057220459,
+        "S": 6.429999828338623
+      }
+    },
+    {
+      "ticker": "NTCT",
+      "setup": "2026-03-04",
+      "source": "operator",
+      "as_of": "2026-03-04",
+      "frame_digest": "81eca61c25ad693fb4cc2552701e21ecdcb0e002002f3001a98e7e045a8df821",
+      "lps": [
+        "2026-02-26",
+        "2026-03-03"
+      ],
+      "trigger": "2026-03-04",
+      "rails_drawn": {
+        "R": 28.200000762939453,
+        "S": 26.829999923706055
+      }
+    },
+    {
+      "ticker": "ORMP",
+      "setup": "2026-04-13",
+      "source": "operator",
+      "as_of": "2026-04-13",
+      "frame_digest": "15438c147b2c9b1542b3015e89c6d90c2546e3153d3e8441804d2524b1778629",
+      "lps": [
+        "2026-04-06",
+        "2026-04-09"
+      ],
+      "trigger": "2026-04-10",
+      "rails_drawn": {
+        "R": 3.7100000381469727,
+        "S": 3.3499999046325684
+      }
+    },
+    {
+      "ticker": "ORMP",
+      "setup": "2026-05-08",
+      "source": "operator",
+      "as_of": "2026-05-08",
+      "frame_digest": "5d263e3c65a12366bd5861ae97ac9e0cdf1cca1e1d958aca2ff0f357f033b21e",
+      "lps": [
+        "2026-05-04",
+        "2026-05-07"
+      ],
+      "trigger": "2026-05-08",
+      "rails_drawn": {
+        "R": 3.9100000858306885,
+        "S": 3.700000047683716
+      }
+    },
+    {
+      "ticker": "PBT",
+      "setup": "2026-05-11",
+      "source": "operator",
+      "as_of": "2026-05-11",
+      "frame_digest": "43900066bc08fe684b65b11f2cf3a76df2a1f4d8e2087e3945ca7c519d635f27",
+      "lps": [
+        "2026-04-28",
+        "2026-05-01"
+      ],
+      "trigger": "2026-05-08",
+      "rails_drawn": {
+        "R": 22.649999618530273,
+        "S": 21.579999923706055
+      },
+      "lps2": [
+        "2026-05-05",
+        "2026-05-07"
+      ]
+    },
+    {
+      "ticker": "PKE",
+      "setup": "2026-02-24",
+      "source": "operator",
+      "as_of": "2026-02-24",
+      "frame_digest": "faa2e2486018280ce4390d5c051422dd281fd09b840d202c25d5be6d8227ba43",
+      "lps": [
+        "2026-02-20",
+        "2026-02-23"
+      ],
+      "trigger": "2026-02-24",
+      "rails_drawn": {
+        "R": 26.1200008392334,
+        "S": 24.149999618530273
+      }
+    },
+    {
+      "ticker": "RGR",
+      "setup": "2026-03-19",
+      "source": "operator",
+      "as_of": "2026-03-19",
+      "frame_digest": "b549c8fd4ef50ea162cff6744d4870d77d11055a4d821ea475258e87fceb8b6c",
+      "lps": [
+        "2026-03-17",
+        "2026-03-18"
+      ],
+      "trigger": "2026-03-19",
+      "rails_drawn": {
+        "R": 38.470001220703125,
+        "S": 36.86000061035156
+      }
+    },
+    {
+      "ticker": "ROIV",
+      "setup": "2026-06-17",
+      "source": "operator",
+      "as_of": "2026-06-17",
+      "frame_digest": "3e7a8f5a03572b35446ca5dc57b6bc1a1f9d3cdf03d27900e9990dabfadfe376",
+      "lps": [
+        "2026-06-12",
+        "2026-06-16"
+      ],
+      "trigger": "2026-06-17",
+      "rails_drawn": {
+        "R": 30.329999923706055,
+        "S": 27.920000076293945
+      }
+    },
+    {
+      "ticker": "SILC",
+      "setup": "2026-04-13",
+      "source": "operator",
+      "as_of": "2026-04-13",
+      "frame_digest": "f4fef53b0048a8f794c3b37901df45db79ffd93570d370f5910a1e04babd247b",
+      "lps": [
+        "2026-04-06",
+        "2026-04-10"
+      ],
+      "trigger": "2026-04-13",
+      "rails_drawn": {
+        "R": 21.700000762939453,
+        "S": 19.350000381469727
+      }
+    },
+    {
+      "ticker": "SKYT",
+      "setup": "2026-04-13",
+      "source": "operator",
+      "as_of": "2026-04-13",
+      "frame_digest": "384f76009dddaf60cb74be63ef8e36b94d78e90f82b6a5376bbfac44367b4c12",
+      "lps": [
+        "2026-04-08",
+        "2026-04-10"
+      ],
+      "trigger": "2026-04-13",
+      "rails_drawn": {
+        "R": 30.8700008392334,
+        "S": 28.1299991607666
+      }
+    },
+    {
+      "ticker": "ST",
+      "setup": "2026-04-17",
+      "source": "operator",
+      "as_of": "2026-04-17",
+      "frame_digest": "d87dcbe8a91c8542c41f31b6eaa8ec1262a4f932aa052e780fc0d6571858f056",
+      "lps": [
+        "2026-03-18",
+        "2026-03-20"
+      ],
+      "trigger": "2026-03-23",
+      "rails_drawn": {
+        "R": 36.13999938964844,
+        "S": 33.95000076293945
+      }
+    },
+    {
+      "ticker": "SYRE",
+      "setup": "2026-02-12",
+      "source": "operator",
+      "as_of": "2026-02-12",
+      "frame_digest": "b0a09ec241c1ca2784dceea0bffb89b84effecf125ff5915cdb79612a7cea644",
+      "lps": [
+        "2026-02-09",
+        "2026-02-11"
+      ],
+      "trigger": "2026-02-12",
+      "rails_drawn": {
+        "R": 34.209999084472656,
+        "S": 31.6200008392334
+      }
+    },
+    {
+      "ticker": "VIK",
+      "setup": "2026-06-11",
+      "source": "operator",
+      "as_of": "2026-06-11",
+      "frame_digest": "b2eab6b47c3afd99aefca99a828c5002981d8b5804fa907ed4746850eb5f18ab",
+      "lps": [
+        "2026-06-09",
+        "2026-06-10"
+      ],
+      "trigger": "2026-06-11",
+      "rails_drawn": {
+        "R": 87.0,
+        "S": 79.27999877929688
+      }
+    },
+    {
+      "ticker": "VLO",
+      "setup": "2026-07-08",
+      "source": "operator",
+      "as_of": "2026-07-08",
+      "frame_digest": "dedeaaec5461d707c985162f42f62ad7d19249d49c0337b46f246ec967baf8fc",
+      "lps": [
+        "2026-07-02",
+        "2026-07-07"
+      ],
+      "trigger": "2026-07-08",
+      "rails_drawn": {
+        "R": 258.42999267578125,
+        "S": 235.69000244140625
+      }
+    },
+    {
+      "ticker": "WTS",
+      "setup": "2026-06-12",
+      "source": "operator",
+      "as_of": "2026-06-12",
+      "frame_digest": "f45dabe854af90ad2b5aff02f41108bcf51c4f9365d04169c56dc191c1115edd",
+      "lps": [
+        "2026-06-09",
+        "2026-06-10"
+      ],
+      "trigger": "2026-06-12",
+      "rails_drawn": {
+        "R": 312.3999938964844,
+        "S": 288.5899963378906
+      }
+    },
+    {
+      "ticker": "YPF",
+      "setup": "2026-05-18",
+      "source": "operator",
+      "as_of": "2026-05-18",
+      "frame_digest": "230fce006fcd93c3609b91be3090ab846d2fdcc937e697a49766d7044b713afc",
+      "lps": [
+        "2026-05-12",
+        "2026-05-14"
+      ],
+      "trigger": "2026-05-15",
+      "rails_drawn": {
+        "R": 44.369998931884766,
+        "S": 42.02000045776367
+      }
+    }
+  ]
+}

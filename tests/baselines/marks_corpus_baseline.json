@@ -1,179 +1,505 @@
 {
-  "captured_at": "2026-07-16T21:25:25+00:00",
+  "captured_at": "2026-07-24T14:41:14+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "f54bbc2e5629c3d088c413161497b13df199860f43a919fbdd55047242198ea7",
+  "corpus_sha256": "acbfdbebcd8fdd9c9df61dee7c2c491fbc3201317a5104a587330253ee8795ad",
   "null_trigger_grace_sessions": 2,
+  "population": "guided-list",
+  "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
+  "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard",
+  "engine_config_version": "2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e",
+  "fired_policy": {
+    "window_sessions": 10,
+    "event_tail_sessions": 5,
+    "max_walk_sessions": 40
+  },
   "setups": [
     {
-      "key": "ROIV",
-      "ticker": "ROIV",
+      "key": "ALB:2026-04-13",
+      "ticker": "ALB",
       "status": "hit",
       "windows": [
         [
-          "2026-06-12",
-          "2026-06-17"
+          "2026-03-30",
+          "2026-04-13"
         ]
       ],
-      "spy_6m_return": 0.10871315002441406,
-      "bars": 1242,
-      "first_fire": "2026-06-15",
-      "tier": "S"
-    },
-    {
-      "key": "WTS",
-      "ticker": "WTS",
-      "status": "hit",
-      "windows": [
-        [
-          "2026-06-04",
-          "2026-06-09"
-        ]
-      ],
-      "spy_6m_return": 0.08011245727539062,
-      "bars": 1236,
-      "first_fire": "2026-06-08",
-      "tier": "B"
-    },
-    {
-      "key": "VIK",
-      "ticker": "VIK",
-      "status": "hit",
-      "windows": [
-        [
-          "2026-06-05",
-          "2026-06-11"
-        ]
-      ],
-      "spy_6m_return": 0.09527409076690674,
-      "bars": 532,
-      "first_fire": "2026-06-05",
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-03-30",
       "tier": "A"
     },
     {
-      "key": "AVT",
+      "key": "AVT:2026-04-08",
       "ticker": "AVT",
       "status": "hit",
       "windows": [
         [
-          "2026-04-01",
+          "2026-03-25",
           "2026-04-08"
         ]
       ],
-      "spy_6m_return": 0.009433865547180176,
-      "bars": 1193,
-      "first_fire": "2026-04-06",
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-03-31",
       "tier": "S"
     },
     {
-      "key": "BODI",
+      "key": "BODI:2026-04-21",
       "ticker": "BODI",
       "status": "hit",
       "windows": [
         [
-          "2026-04-09",
-          "2026-04-16"
+          "2026-04-08",
+          "2026-04-21"
         ]
       ],
-      "spy_6m_return": 0.07277786731719971,
-      "bars": 1199,
+      "spy_6m_return": 0.0,
+      "bars": 616,
       "first_fire": "2026-04-10",
       "tier": "A"
     },
     {
-      "key": "VLO",
-      "ticker": "VLO",
+      "key": "BWA:2026-05-05",
+      "ticker": "BWA",
       "status": "hit",
       "windows": [
         [
-          "2026-06-30",
-          "2026-07-08"
+          "2026-04-22",
+          "2026-05-05"
         ]
       ],
-      "spy_6m_return": 0.09479677677154541,
-      "bars": 1255,
-      "first_fire": "2026-07-07",
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-27",
       "tier": "S"
     },
     {
-      "key": "DRTS",
-      "ticker": "DRTS",
+      "key": "CTOS:2026-07-23",
+      "ticker": "CTOS",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-07-10",
+          "2026-07-23"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-07-15",
+      "tier": "S"
+    },
+    {
+      "key": "DLX:2026-04-13",
+      "ticker": "DLX",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-03-30",
+          "2026-04-13"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-03-30",
+      "tier": "S"
+    },
+    {
+      "key": "DSGN:2026-03-31",
+      "ticker": "DSGN",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-03-18",
+          "2026-03-31"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-03-24",
+      "tier": "S"
+    },
+    {
+      "key": "EGBN:2026-01-15",
+      "ticker": "EGBN",
       "status": "miss",
       "windows": [
         [
-          "2026-04-01",
-          "2026-04-08"
-        ],
-        [
-          "2026-05-04",
-          "2026-05-07"
+          "2026-01-02",
+          "2026-01-15"
         ]
       ],
-      "spy_6m_return": 0.10292255878448486,
-      "bars": 1214,
-      "stage": "holding-shelf-lps"
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "stage": "commit-the-cause"
     },
     {
-      "key": "PBT",
+      "key": "EWTX:2026-03-31",
+      "ticker": "EWTX",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-03-18",
+          "2026-03-31"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-03-19",
+      "tier": "S"
+    },
+    {
+      "key": "FOSL:2026-02-18",
+      "ticker": "FOSL",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-02-04",
+          "2026-02-18"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-02-12",
+      "tier": "S"
+    },
+    {
+      "key": "JAZZ:2026-02-24",
+      "ticker": "JAZZ",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-02-05",
+          "2026-02-24"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-02-17",
+      "tier": "S"
+    },
+    {
+      "key": "MATX:2026-07-01",
+      "ticker": "MATX",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-06-17",
+          "2026-07-01"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-06-29",
+      "tier": "S"
+    },
+    {
+      "key": "MS:2026-06-04",
+      "ticker": "MS",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-05-14",
+          "2026-06-04"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-05-18",
+      "tier": "A"
+    },
+    {
+      "key": "MSGS:2026-05-22",
+      "ticker": "MSGS",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-05-11",
+          "2026-05-22"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-05-21",
+      "tier": "S"
+    },
+    {
+      "key": "NGL:2026-01-20",
+      "ticker": "NGL",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-01-06",
+          "2026-01-20"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-01-06",
+      "tier": "S"
+    },
+    {
+      "key": "NGL:2026-04-20",
+      "ticker": "NGL",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-04-07",
+          "2026-04-20"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-16",
+      "tier": "A"
+    },
+    {
+      "key": "NKTR:2026-04-10",
+      "ticker": "NKTR",
+      "status": "miss",
+      "windows": [
+        [
+          "2026-03-27",
+          "2026-04-10"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "stage": "engagement-respect"
+    },
+    {
+      "key": "NOK:2026-02-17",
+      "ticker": "NOK",
+      "status": "miss",
+      "windows": [
+        [
+          "2026-02-03",
+          "2026-02-17"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "stage": "lps-envelope"
+    },
+    {
+      "key": "NTCT:2026-03-04",
+      "ticker": "NTCT",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-02-19",
+          "2026-03-04"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-03-02",
+      "tier": "A"
+    },
+    {
+      "key": "ORMP:2026-04-13",
+      "ticker": "ORMP",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-03-30",
+          "2026-04-13"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-02",
+      "tier": "S"
+    },
+    {
+      "key": "ORMP:2026-05-08",
+      "ticker": "ORMP",
+      "status": "miss",
+      "windows": [
+        [
+          "2026-04-27",
+          "2026-05-08"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "stage": "lps-envelope"
+    },
+    {
+      "key": "PBT:2026-05-11",
       "ticker": "PBT",
       "status": "hit",
       "windows": [
         [
           "2026-04-28",
-          "2026-05-04"
-        ],
-        [
-          "2026-05-05",
-          "2026-05-07"
+          "2026-05-11"
         ]
       ],
-      "spy_6m_return": 0.10292255878448486,
-      "bars": 1214,
+      "spy_6m_return": 0.0,
+      "bars": 616,
       "first_fire": "2026-04-30",
       "tier": "S"
     },
     {
-      "key": "EGBN",
-      "ticker": "EGBN",
+      "key": "PKE:2026-02-24",
+      "ticker": "PKE",
       "status": "miss",
       "windows": [
         [
-          "2026-01-09",
-          "2026-01-15"
+          "2026-02-10",
+          "2026-02-24"
         ]
       ],
-      "spy_6m_return": 0.07762777805328369,
-      "bars": 1137,
-      "stage": "under-investigation"
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "stage": "lps-envelope"
     },
     {
-      "key": "NGL:A",
-      "ticker": "NGL",
+      "key": "RGR:2026-03-19",
+      "ticker": "RGR",
       "status": "hit",
       "windows": [
         [
-          "2026-01-14",
-          "2026-01-16"
+          "2026-03-06",
+          "2026-03-19"
         ]
       ],
-      "spy_6m_return": 0.08990883827209473,
-      "bars": 1138,
-      "first_fire": "2026-01-16",
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-03-13",
+      "tier": "A"
+    },
+    {
+      "key": "ROIV:2026-06-17",
+      "ticker": "ROIV",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-06-04",
+          "2026-06-17"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-06-04",
       "tier": "S"
     },
     {
-      "key": "NGL:B",
-      "ticker": "NGL",
+      "key": "SILC:2026-04-13",
+      "ticker": "SILC",
       "status": "hit",
       "windows": [
         [
-          "2026-04-13",
+          "2026-03-30",
+          "2026-04-13"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-10",
+      "tier": "S"
+    },
+    {
+      "key": "SKYT:2026-04-13",
+      "ticker": "SKYT",
+      "status": "miss",
+      "windows": [
+        [
+          "2026-03-30",
+          "2026-04-13"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "stage": "lps-envelope"
+    },
+    {
+      "key": "ST:2026-04-17",
+      "ticker": "ST",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-03-18",
           "2026-04-17"
         ]
       ],
-      "spy_6m_return": 0.059738993644714355,
-      "bars": 1200,
-      "first_fire": "2026-04-16",
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-03-26",
+      "tier": "S"
+    },
+    {
+      "key": "SYRE:2026-02-12",
+      "ticker": "SYRE",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-01-30",
+          "2026-02-12"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-02-03",
       "tier": "A"
+    },
+    {
+      "key": "VIK:2026-06-11",
+      "ticker": "VIK",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-05-29",
+          "2026-06-11"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 530,
+      "first_fire": "2026-06-03",
+      "tier": "S"
+    },
+    {
+      "key": "VLO:2026-07-08",
+      "ticker": "VLO",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-06-24",
+          "2026-07-08"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-07-07",
+      "tier": "S"
+    },
+    {
+      "key": "WTS:2026-06-12",
+      "ticker": "WTS",
+      "status": "hit",
+      "windows": [
+        [
+          "2026-06-01",
+          "2026-06-12"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-06-08",
+      "tier": "A"
+    },
+    {
+      "key": "YPF:2026-05-18",
+      "ticker": "YPF",
+      "status": "miss",
+      "windows": [
+        [
+          "2026-05-05",
+          "2026-05-18"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "stage": "commit-the-cause"
     }
   ]
 }

@@ -44,6 +44,7 @@ _PROJECT_ROOT = configure_path()
 from engine_alpha.evaluation import _prepare_eval_frame, _resolve_structure_context
 from engine_alpha.structure.event_map import read_role_labels
 from tools.marks_corpus import _load_fixture, eval_windows, load_corpus, setup_key
+from tools.replay import fixture_frame
 
 # Sessions added on each side of the marked windows so the battery watches the
 # labels as the story approaches, crosses, and leaves the marked entry.
@@ -119,7 +120,7 @@ def run(check: bool = False) -> bool:
     print("=" * 68)
     for setup in setups:
         key = setup_key(setup)
-        frame = frames.get(setup["ticker"])
+        frame = fixture_frame(frames, key, setup["ticker"])
         if frame is None or frame.empty:
             print(f"{key}: frame missing from fixture - rebuild it")
             ok = False

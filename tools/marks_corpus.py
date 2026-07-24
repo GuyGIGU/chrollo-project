@@ -11,11 +11,18 @@ setup is replayed point-in-time through the SAME per-ticker evaluation the
 nightly screener runs, entirely offline from a committed fixture.
 
 The matcher: a setup is a HIT when the pipeline fires on ANY session inside its
-marked entry window(s) - each window runs from an LPS start to its trigger
-(inclusive); a null trigger gets ``NULL_TRIGGER_GRACE_SESSIONS`` sessions past
-the LPS end ("by the trigger"); a second entry (``lps2`` / ``last_support`` +
-``trigger_alt``) contributes its own window. These semantics FREEZE with the
-baseline: changing them is an EC-7 event, not a tuning knob.
+marked entry window(s). A GRADUATED setup (one carrying ``frame_digest`` — the
+Guided List population, 2026-07-24) is graded on the ONE fired-policy window
+owned by the replay seam (``tools.replay.fired_window_sessions``: marked-LPS
+spans + tail, union the trailing as-of window, faithful-basis clamped) — the
+SAME pops-up-live criterion the agreement harness scores, so the gate and the
+operator's scoreboard can never tell two different stories. A LEGACY setup
+keeps the original semantics verbatim: each window runs from an LPS start to
+its trigger (inclusive); a null trigger gets ``NULL_TRIGGER_GRACE_SESSIONS``
+sessions past the LPS end ("by the trigger"); a second entry (``lps2`` /
+``last_support`` + ``trigger_alt``) contributes its own window. These
+semantics FREEZE with the baseline: changing them is an EC-7 event, not a
+tuning knob.
 
 The baseline is a RATCHET, verified at freeze time:
   * every HIT is pinned forever - a pinned setup that stops firing FAILS;
@@ -52,6 +59,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
+from engine_alpha.freeze.manifest import manifest_hash
 from core.pipeline.screener import _evaluate_ticker
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
@@ -60,14 +68,24 @@ from core.pipeline.screener import _evaluate_ticker
 # invocations.
 from tools.replay import (
     BASELINE_DIR as _BASELINE_DIR,
+    FIRED_EVENT_TAIL_SESSIONS,
+    FIRED_WALK_MAX_SESSIONS,
+    FIRED_WINDOW_SESSIONS,
     SEALED_BASELINE_JSON as _BASELINE_JSON,
     SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
+    fired_window_sessions,
+    fixture_frame,
     load_sealed_fixture,
 )
 
 # The operator-marks corpus files (EC-7: append-only ground truth under docs/marks/).
+# Population re-pointed 2026-07-24 (operator GO, PLAN-guided-list-gap-breach Task 1):
+# the Guided List (33 setups graduated from the calibration DB via
+# tools.guided_list_export, fingerprint-pinned) is THE gate population.
+# part2_2026-07.json stays on disk as EC-7 history but no longer gates —
+# one scoreboard, one ground truth.
 CORPUS_FILES: tuple[str, ...] = (
-    os.path.join(_PROJECT_ROOT, "docs", "marks", "part2_2026-07.json"),
+    os.path.join(_PROJECT_ROOT, "docs", "marks", "guided_list_2026-07.json"),
 )
 
 _CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
@@ -84,12 +102,17 @@ NULL_TRIGGER_GRACE_SESSIONS = 2
 # ratchet). Verified at freeze time: the replayed miss-set must equal this key
 # set exactly, so the baseline can never freeze an unexplained miss.
 STAGE_TAGS: dict[str, str] = {
-    # WTS + PBT converted 2026-07-16 (LPS_HOLDING_SHELF_ENABLED flipped live,
-    # stage-matched: WTS fires 06-08 tier B, PBT 04-30 tier S) — now pinned hits.
-    # BODI converted 2026-07-16 (BAND_RAILS_ENABLED flipped live, stage-matched:
-    # fires 04-10 tier A at the operator's exact rails) — now a pinned hit.
-    "DRTS": "holding-shelf-lps",
-    "EGBN": "under-investigation",
+    # Guided List population (operator GO 2026-07-24; PLAN-guided-list-gap-breach).
+    # Keys are FULL setup keys (ticker:label) — ORMP/NGL carry two instances with
+    # different outcomes, so a bare-ticker tag would misapply. Lookup falls back
+    # to the bare ticker for single-instance entries.
+    "NKTR:2026-04-10": "engagement-respect",  # Move 1 — bar-basis magnitude respect (Task 3)
+    "EGBN:2026-01-15": "commit-the-cause",    # Move 2 — right-edge election stability (Task 4)
+    "YPF:2026-05-18": "commit-the-cause",
+    "NOK:2026-02-17": "lps-envelope",         # Move 3 — LPS envelope calibration (Task 6)
+    "ORMP:2026-05-08": "lps-envelope",
+    "PKE:2026-02-24": "lps-envelope",
+    "SKYT:2026-04-13": "lps-envelope",        # also gate-flicker — Move 4 names its refusals
 }
 
 # Corpus schema: every key a setup may carry. An unrecognized key FAILS the
@@ -101,11 +124,15 @@ _ALLOWED_KEYS = frozenset({
     "lps", "lps_source", "lps2", "trigger", "trigger_source", "trigger_alt",
     "last_supper", "last_support", "springs", "sos", "shakeout_dates",
     "consolidation_start", "root_swing", "rails_drawn", "rails_source",
+    # Guided List graduation provenance: the frozen as-drawn basis. A setup
+    # carrying frame_digest freezes from calibration_frames/ by digest (the
+    # exact bars the operator marked), never from a live re-fetch.
+    "as_of", "frame_digest", "knowable_from",
 })
 _DATE_SPAN_KEYS = ("lps", "lps2", "last_supper", "last_support",
                    "consolidation_start", "root_swing", "sos")
 _DATE_LIST_KEYS = ("springs", "shakeout_dates")
-_DATE_SCALAR_KEYS = ("bc", "ar", "trigger", "trigger_alt")
+_DATE_SCALAR_KEYS = ("bc", "ar", "trigger", "trigger_alt", "as_of", "knowable_from")
 
 
 def _parse_date(value: str, ctx: str) -> date:
@@ -176,6 +203,18 @@ def corpus_sha256(paths: tuple[str, ...] = CORPUS_FILES) -> str:
     return h.hexdigest()
 
 
+def corpus_provenance(paths: tuple[str, ...] = CORPUS_FILES) -> dict:
+    """The graduation provenance embedded in the corpus file(s) (population,
+    pinned marks fingerprint, authorization) - passed through into the frozen
+    baseline so 'which ground truth' is answerable from either artifact."""
+    prov: dict = {}
+    for path in paths:
+        with open(path, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+        prov.update(doc.get("_provenance") or {})
+    return prov
+
+
 def eval_windows(setup: dict) -> list[tuple[date, date]]:
     """The marked entry window(s) - see module docstring. Frozen semantics."""
     lps_start = _parse_date(setup["lps"][0], "lps[0]")
@@ -234,10 +273,28 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     return load_sealed_fixture()
 
 
+def _lps_spans(setup: dict) -> list[tuple[str, str]]:
+    """A graduated setup's marked-LPS spans (lps + optional lps2)."""
+    spans = [tuple(setup["lps"])]
+    if setup.get("lps2"):
+        spans.append(tuple(setup["lps2"]))
+    return spans
+
+
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
-    """Replay one setup's window sessions; return {status, first_fire|reason}."""
+    """Replay one setup's window sessions; return {status, first_fire|reason}.
+
+    A graduated setup (``frame_digest``) is graded on the ONE fired-policy
+    window from the replay seam — the SAME pops-up-live criterion the
+    agreement harness scores, so gate and scoreboard can never diverge.
+    Legacy setups keep the frozen lps->trigger window semantics verbatim.
+    """
     ticker = setup["ticker"]
-    sessions = _window_sessions(df, eval_windows(setup))
+    if setup.get("frame_digest"):
+        sessions, _note = fired_window_sessions(
+            df, setup["as_of"], _lps_spans(setup), setup.get("knowable_from"))
+    else:
+        sessions = _window_sessions(df, eval_windows(setup))
     if not sessions:
         return {"status": "error", "reason": "no frame sessions inside the marked windows"}
     for ts in sessions:
@@ -282,7 +339,7 @@ def check_corpus() -> bool:
             ok = False
             lines.append(f"  {key}: in the corpus but not in the baseline - re-freeze deliberately")
             continue
-        df = frames.get(setup["ticker"])
+        df = fixture_frame(frames, key, setup["ticker"])
         if df is None or df.empty:
             ok = False
             lines.append(f"  {key}: frame MISSING from fixture parquet - rebuild the fixture")
@@ -311,6 +368,10 @@ def check_corpus() -> bool:
     print("=" * 64)
     print("  OPERATOR-MARKS ACCEPTANCE GUARD - must-fire setups (Event Map)")
     print("=" * 64)
+    pop = baseline.get("population")
+    if pop:
+        fp = baseline.get("marks_fingerprint") or ""
+        print(f"population: {pop}   marks_fingerprint: {fp[:16]}{'…' if fp else ''}")
     if ok:
         hits = sum(1 for s in baseline["setups"] if s["status"] == "hit")
         print(f"ratchet held: {hits}/{len(baseline['setups'])} pinned hits still fire; "
@@ -327,57 +388,95 @@ def check_corpus() -> bool:
 # ------------------------------------------------------------------
 # Fixture build (one-time / per-stage re-freeze; reads the live data cache)
 # ------------------------------------------------------------------
+def _frozen_frame(ticker: str, as_of: str, digest: str):
+    """The as-drawn frozen basis for a graduated mark (calibration_frames/ by
+    digest). Lazy import: the backend package is a build-time-only dependency."""
+    backend = os.path.join(_PROJECT_ROOT, "webapp", "backend")
+    if backend not in sys.path:
+        sys.path.insert(1, backend)
+    from webapp.backend import frame_store
+    return frame_store.load_frame(ticker, as_of, digest=digest)
+
+
 def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
-    """Freeze frames + the ratchet baseline from the live cache.
+    """Freeze frames + the ratchet baseline.
+
+    A setup carrying ``frame_digest`` (a Guided List graduation) freezes the
+    EXACT frozen frame the operator drew on, loaded by digest — never a live
+    re-fetch, so vendor restatements can never move the sealed basis. Its
+    scoring-only market scalar is frozen at 0.0 (the agreement harness's
+    fired-policy parity). Legacy setups freeze from the live cache as before.
 
     Refuses to freeze when the replayed miss-set differs from STAGE_TAGS -
     every frozen miss must carry the build-order stage expected to convert it,
     and a pinned hit that does not actually fire is a broken freeze, not a
     baseline.
     """
-    if not os.path.exists(cache_path):
-        raise FileNotFoundError(
-            f"Data cache not found at {cache_path} - run a real scan first "
-            "(`python run_screener.py`) so the parquet exists."
-        )
     setups = load_corpus()
-    data = pd.read_parquet(cache_path, engine=settings.PARQUET_ENGINE)
-    level0 = set(data.columns.get_level_values(0))
-    spy_close = data[settings.SPY_SYMBOL]["Close"].dropna()
+    needs_cache = any(not s.get("frame_digest") for s in setups)
+    data = spy_close = None
+    level0: set = set()
+    if needs_cache:
+        if not os.path.exists(cache_path):
+            raise FileNotFoundError(
+                f"Data cache not found at {cache_path} - run a real scan first "
+                "(`python run_screener.py`) so the parquet exists."
+            )
+        data = pd.read_parquet(cache_path, engine=settings.PARQUET_ENGINE)
+        level0 = set(data.columns.get_level_values(0))
+        spy_close = data[settings.SPY_SYMBOL]["Close"].dropna()
 
     frames: dict[str, pd.DataFrame] = {}
     baseline_setups: list[dict] = []
     problems: list[str] = []
     for setup in setups:
         key, ticker = setup_key(setup), setup["ticker"]
-        if ticker not in level0:
-            problems.append(f"{key}: not in the data cache")
-            continue
-        windows = eval_windows(setup)
-        last_end = max(w[1] for w in windows)
-        # Freeze through the last window end + grace room; full history before it
-        # (the pipeline applies its own live structure trim internally).
-        df_full = data[ticker].dropna()
-        cutoff_idx = df_full.index[df_full.index <= pd.Timestamp(last_end)]
-        if not len(cutoff_idx):
-            problems.append(f"{key}: no bars at/before window end {last_end}")
-            continue
-        pos = df_full.index.get_loc(cutoff_idx[-1])
-        df = df_full.iloc[: pos + 1 + NULL_TRIGGER_GRACE_SESSIONS]
-        if len(df) < 200:
-            problems.append(f"{key}: only {len(df)} bars through {last_end}")
-            continue
-        prior = frames.get(ticker)
-        if prior is None or len(df) > len(prior):
-            frames[ticker] = df  # one frame per ticker, longest window wins (NGL x2)
+        if setup.get("frame_digest"):
+            df = _frozen_frame(ticker, setup["as_of"], setup["frame_digest"])
+            if df is None or df.empty:
+                problems.append(f"{key}: no frozen frame matches digest "
+                                f"{setup['frame_digest'][:12]} - the drawn basis is unbound")
+                continue
+            if len(df) < 200:
+                problems.append(f"{key}: frozen frame has only {len(df)} bars")
+                continue
+            sessions, _note = fired_window_sessions(
+                df, setup["as_of"], _lps_spans(setup), setup.get("knowable_from"))
+            if not sessions:
+                problems.append(f"{key}: fired-policy window has no frame sessions")
+                continue
+            windows = [(sessions[0].date(), sessions[-1].date())]
+            frames[key] = df  # keyed by setup: two marks on one ticker = two bases
+            spy_6m = 0.0
+        else:
+            if ticker not in level0:
+                problems.append(f"{key}: not in the data cache")
+                continue
+            windows = eval_windows(setup)
+            last_end = max(w[1] for w in windows)
+            # Freeze through the last window end + grace room; full history before it
+            # (the pipeline applies its own live structure trim internally).
+            df_full = data[ticker].dropna()
+            cutoff_idx = df_full.index[df_full.index <= pd.Timestamp(last_end)]
+            if not len(cutoff_idx):
+                problems.append(f"{key}: no bars at/before window end {last_end}")
+                continue
+            pos = df_full.index.get_loc(cutoff_idx[-1])
+            df = df_full.iloc[: pos + 1 + NULL_TRIGGER_GRACE_SESSIONS]
+            if len(df) < 200:
+                problems.append(f"{key}: only {len(df)} bars through {last_end}")
+                continue
+            prior = frames.get(ticker)
+            if prior is None or len(df) > len(prior):
+                frames[ticker] = df  # one frame per ticker, longest window wins
 
-        spy = spy_close.loc[: df.index[-1]]
-        spy_6m = float(spy.iloc[-1] / spy.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
+            spy = spy_close.loc[: df.index[-1]]
+            spy_6m = float(spy.iloc[-1] / spy.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
         got = _replay_setup(setup, df, spy_6m)
         if got["status"] == "error":
             problems.append(f"{key}: {got['reason']}")
             continue
-        stage = STAGE_TAGS.get(key.split(":")[0])
+        stage = STAGE_TAGS.get(key, STAGE_TAGS.get(key.split(":")[0]))
         if got["status"] == "miss" and stage is None:
             problems.append(f"{key}: replays as a MISS but has no STAGE_TAGS entry - "
                             "every frozen miss must name its converting stage")
@@ -403,13 +502,29 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
                            + "\n  ".join(problems))
 
     os.makedirs(_BASELINE_DIR, exist_ok=True)
-    combined = pd.concat(frames, axis=1)  # MultiIndex columns: (ticker, field)
+    # MultiIndex columns: (key-or-ticker, field). sort=True pins today's
+    # union-and-sort index behavior against the pandas-4 default flip.
+    combined = pd.concat(frames, axis=1, sort=True)
     combined.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
+    prov = corpus_provenance()
     baseline = {
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "breadth_pct": _FROZEN_BREADTH,
         "corpus_sha256": corpus_sha256(),
         "null_trigger_grace_sessions": NULL_TRIGGER_GRACE_SESSIONS,
+        # Graduation provenance (pass-through from the corpus file) + the engine
+        # this baseline was frozen under: which ground truth, approved when, and
+        # what read it — answerable from this artifact alone.
+        "population": prov.get("population", "legacy"),
+        "marks_fingerprint": prov.get("marks_fingerprint"),
+        "authorization": prov.get("authorization"),
+        "engine_config_version": manifest_hash(),
+        # The acceptance bar graduated setups are graded on (the harness's
+        # pops-up-live policy, owned by the replay seam) — frozen with the
+        # baseline; changing it is an EC-7 event.
+        "fired_policy": {"window_sessions": FIRED_WINDOW_SESSIONS,
+                         "event_tail_sessions": FIRED_EVENT_TAIL_SESSIONS,
+                         "max_walk_sessions": FIRED_WALK_MAX_SESSIONS},
         "setups": baseline_setups,
     }
     with open(_BASELINE_JSON, "w", encoding="utf-8") as f:

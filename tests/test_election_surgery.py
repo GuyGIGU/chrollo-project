@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from engine_alpha.election_identity import projection, same_election
 from engine_alpha.structure.narrative import read_structure
-from tools.replay import flag_capture, load_sealed_fixture, prepared_frame
+from tools.replay import fixture_frame, flag_capture, load_sealed_fixture, prepared_frame
 
 
 def test_flag_state_and_rejected_lever():
@@ -49,7 +49,7 @@ def test_election_surgery_moves_no_corpus_election():
     n_elected = 0
     moved = []
     for setup in hits:
-        raw = frames[setup["ticker"]]
+        raw = fixture_frame(frames, setup["key"], setup["ticker"])
         prep = prepared_frame(raw, pd.Timestamp(setup["first_fire"]))
         if prep is None:
             continue
