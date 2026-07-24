@@ -39,7 +39,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.pipeline.downloads import _trim_to_period
-from engine_alpha.evaluation import _prepare_eval_frame
+from engine_alpha.evaluation import _prepare_eval_frame_with_reason
 from engine_alpha.structure.narrative import read_structure
 
 # Sealed-corpus fixture paths (written by `tools.marks_corpus --build-fixture`,
@@ -115,16 +115,41 @@ def resolve_frame(ticker: str, *, sealed: dict | None = None):
     return panel[ticker].dropna(), "5y cache"
 
 
-def prepared_frame(raw: pd.DataFrame, as_of) -> tuple[pd.DataFrame, float] | None:
-    """The faithful live-twin frame at one eval date: slice to ``as_of``, run
-    ``_prepare_eval_frame`` (baseline filters -> 2y trim -> ATR columns), take
-    the live ATR snapshot. None when the prep refuses the slice."""
-    prep = _prepare_eval_frame(raw.loc[:pd.Timestamp(as_of)])
+def prepared_frame_with_reason(
+    raw: pd.DataFrame, as_of,
+) -> tuple[tuple[pd.DataFrame, float] | None, tuple[str, dict] | None]:
+    """The faithful live-twin frame at one eval date, reasoned: slice to
+    ``as_of``, run the ONE reasoned prep (baseline filters -> 2y trim -> ATR
+    columns), take the live ATR snapshot. Returns ``((df, atr), None)`` on
+    pass or ``(None, (gate, samples))`` naming the FIRST failing universe
+    gate (Move 4 — a refusal is a named operational outcome, never a bare
+    silence). The reasonless ``prepared_frame`` derives from this."""
+    prep, reason = _prepare_eval_frame_with_reason(raw.loc[:pd.Timestamp(as_of)])
     if prep is None:
-        return None
+        return None, reason
     df = prep["df"]
     atr = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
-    return df, atr
+    return (df, atr), None
+
+
+def prepared_frame(raw: pd.DataFrame, as_of) -> tuple[pd.DataFrame, float] | None:
+    """The faithful live-twin frame at one eval date (reason discarded)."""
+    prep, _ = prepared_frame_with_reason(raw, as_of)
+    return prep
+
+
+def refusal_scan(raw: pd.DataFrame, sessions) -> list[tuple[str, str]]:
+    """Named universe-prep refusals across ``sessions`` — one ``(session ISO,
+    gate slug)`` per refused session, in walk order. The reason vocabulary is
+    the baseline gate's frozen first-fail contract (bars, price, vol50, sma50,
+    sma200, yoy). Inert evidence only: produced for harness reports; no
+    election, gate, or scoring path may ever branch on it."""
+    out: list[tuple[str, str]] = []
+    for ts in sessions:
+        prep, reason = prepared_frame_with_reason(raw, ts)
+        if prep is None and reason is not None:
+            out.append((pd.Timestamp(ts).strftime("%Y-%m-%d"), reason[0]))
+    return out
 
 
 @contextmanager

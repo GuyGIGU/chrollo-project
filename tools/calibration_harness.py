@@ -42,6 +42,7 @@ import hashlib
 import json
 import sys
 import time
+from collections import Counter
 from datetime import datetime, timezone
 
 try:
@@ -165,10 +166,21 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
     snap = SNAP_BACK_SESSIONS if mark["verdict"] == "box" else 0
     snapped = election(frozen, mark["as_of_date"], variants, snap_back=snap)
     if snapped is None:
-        return [agreement.ungraded("edge_uncertain",
+        # Move 4: name WHICH gate refused each candidate session instead of
+        # the bare "too thin" guess — report-only, never a grading input.
+        idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
+        refused = replay.refusal_scan(frozen, idx[-(snap + 1):])
+        rows = [agreement.ungraded("edge_uncertain",
                                    "prep refuses every candidate session "
                                    "(frame too thin)")
                 for _ in variants]
+        if refused:
+            pr = {"refused": len(refused), "walked": min(snap + 1, len(idx)),
+                  "reasons": dict(Counter(slug for _, slug in refused)),
+                  "sessions": [s for s, _ in refused]}
+            for r in rows:
+                r["prep_refusals"] = pr
+        return rows
     (df, atr, reads), eval_ts, snapped_k = snapped
     frame_start = df.index[0].strftime("%Y-%m-%d")
     rows = []
@@ -367,6 +379,19 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
                     except (ValueError, TypeError):
                         pass
                 break
+        # Move 4: a walked-but-silent window must say WHICH sessions the
+        # universe prep refused (SKYT was refused 5/6 sessions, invisibly).
+        # Computed only on the no-fire branch — the pass path pays nothing —
+        # and flag-independent (universe gates are not engine flags), so one
+        # scan serves every variant. Inert evidence: report-only.
+        if frag.get("fired") is False:
+            refused = replay.refusal_scan(frozen, sessions)
+            if refused:
+                frag["prep_refusals"] = {
+                    "refused": len(refused), "walked": len(sessions),
+                    "reasons": dict(Counter(slug for _, slug in refused)),
+                    "sessions": [s for s, _ in refused],
+                }
         if clamp_note:
             frag["fired_window_clamped"] = clamp_note
         fragments.append(frag)
@@ -540,6 +565,13 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
                 else:
                     fired_s = (f" | no fire in "
                                f"{row['fired_sessions_walked']}-session window")
+                    pr = row.get("prep_refusals")
+                    if pr:
+                        reasons = ", ".join(
+                            f"{slug} x{n}" for slug, n in
+                            sorted(pr["reasons"].items(), key=lambda kv: -kv[1]))
+                        fired_s += (f" | REFUSED(universe) "
+                                    f"{pr['refused']}/{pr['walked']}: {reasons}")
                 if row.get("fired_window_clamped"):
                     fired_s += " [window clamped: thin lead-in]"
             print(f"    {row['mark']:<24} {row['verdict']:<13} -> "
