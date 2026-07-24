@@ -103,6 +103,11 @@ _NEW_COLUMNS: dict[str, str] = {
     "eq_coverage":                  "FLOAT",
     # Gate-margin telemetry (plan task 2): the elected box against the ACTUAL
     # gates — respect band fraction + the dead-space gate's close residence.
+    # The two engagement measures (2026-07-24) are listed here by hand ONLY to
+    # keep this eq_* gate-margin family contiguous with its siblings; the
+    # DEFAULT for any new column is model-only (the boot pass + this writer's
+    # second pass derive ALTERs from SetupArchive.__table__ — the Lane E /
+    # Event Map route). Do not grow the hand lists for a new family.
     "eq_respect_frac":              "FLOAT",
     "eq_engagement_respect_frac":   "FLOAT",
     "eq_max_excursion_atr":         "FLOAT",

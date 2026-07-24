@@ -455,7 +455,10 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
         "close_lower_dwell": float(eq["lower_dwell"]),
         "close_mid_dwell": float(eq["mid_dwell"]),
         "close_upper_dwell": float(eq["upper_dwell"]),
-        "engagement_respect_frac": round(1.0 - eng_outside / len(base_df), 4),
+        # Raw, matching respect_frac exactly (same units, same masks): the
+        # natural downstream read is the difference of the two, and one
+        # rounded operand would inject fifth-decimal noise into it.
+        "engagement_respect_frac": 1.0 - eng_outside / len(base_df),
         "max_excursion_atr": _max_excursion_atr(
             above_r, below_s, highs, lows, r_ceiling, s_floor, atr_val),
     }

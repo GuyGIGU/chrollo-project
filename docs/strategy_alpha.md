@@ -206,12 +206,16 @@ elections.** Their right-edge collapses are structural, not bounded-tail
 artifacts — EGBN's shelf resides ~two weeks above the creek-anchored
 candidate ceilings (the creek-vs-ceiling rail-PLACEMENT family), YPF's drawn
 base is 19 bars with occupancy failures — and a trim long enough to matter
-re-elects stale windows (the rejected 13b arbitration lesson at a new seam).
-Cause-commitment remains open only via a genuinely CROSS-FRAME mechanism
-(the measure-only election-stability probe is the calibration instrument);
-never via window trims. The ratchet stage tags were corrected accordingly:
-NKTR + EGBN → `rail-placement` (where the wick/close divergence actually
-bites), YPF → `lps-envelope`.
+re-elects stale windows (the same lesson as the rejected rescued-pool
+arbitration attempt recorded under the SOS→BUEC rescue: re-judging a framing
+on an alternative window quietly re-litigates the election). Cause-commitment
+remains open only via a genuinely CROSS-FRAME mechanism (the measure-only
+election-stability probe is the calibration instrument); never via window
+trims. The ratchet stage tags were corrected at this task: NKTR + EGBN →
+`rail-placement`, YPF → `lps-envelope` — an interim tag SUPERSEDED by Task
+6's calibration answer, which re-tagged YPF to `rail-placement` too (the
+final taxonomy: every chart-readable miss is rail-placement; SKYT is
+universe-gate).
 
 #### Spring (Phase C)
 

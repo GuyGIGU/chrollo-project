@@ -122,6 +122,15 @@ Two structural findings:
 
 ## 5. What this directs (the gap-breach program, one code per event)
 
+> **PROGRAM EXECUTED 2026-07-24** (branch `engine/gap-breach`) — this section is the point-in-time
+> plan, kept for the record; the OUTCOMES live in `docs/strategy_alpha.md` (Tasks 3/4/6/7 records).
+> #1 shipped as measures only — the election-gate variant was tested and REJECTED (the junk corpus
+> admits FLG/BBVA at every bound). #2 tested and REJECTED (no tail cap restores EGBN/YPF — their
+> collapses are structural). #3 answered NO MOVES (the shelves genuinely rest; ORMP-2/PKE pass at
+> the drawn rails — their gap is the elected box). #4 SHIPPED (REFUSED(universe) telemetry; it
+> re-classified SKYT as an sma50 universe exclusion). Do not re-request #1–#3 from this list —
+> the doctrine records exist to prevent exactly that.
+
 Ground truth = this list; gate = fired-in-window ≥ 26/33 ratchet + rail-tol diagnostics. Then, in
 order of evidence weight:
 

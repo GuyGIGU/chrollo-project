@@ -219,6 +219,26 @@ def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
     gm = measure_gate_margins(_frame(113.0, 110.0), 110.0, 100.0, 1.0)
     assert gm["engagement_respect_frac"] == 0.75
     assert gm["max_excursion_atr"] == 2.5
+    # Declared NaN route (conservative by contract, not by accident): an
+    # outside bar whose Close is NaN must NOT hang — it stays a full outside
+    # day. Pinned at the helper (live frames are finite; only the masks own
+    # this route): a refactor flipping the comparison direction would quietly
+    # inflate every archived engagement_respect_frac with the battery green.
+    from engine_alpha.structure.box_gates import (
+        _engagement_hang_masks,
+        _rail_outside_masks,
+    )
+
+    nan_frame = _frame(111.5, float("nan"))
+    highs = nan_frame["High"].to_numpy(float)
+    lows = nan_frame["Low"].to_numpy(float)
+    closes = nan_frame["Close"].to_numpy(float)
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
+        highs, lows, 110.0, 100.0, 1.0)
+    assert bool(above_r[-1])                       # it IS an outside bar
+    hang_r, hang_s = _engagement_hang_masks(
+        above_r, below_s, highs, lows, closes, r_ceiling, s_floor, 1.0)
+    assert not hang_r.any() and not hang_s.any()   # NaN close never hangs
 
 
 def test_worked_window_end_trims_only_a_held_late_breakout():

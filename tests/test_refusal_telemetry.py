@@ -65,6 +65,37 @@ def test_refusals_are_named_by_the_first_failing_gate():
     assert "vol_50" in samples                     # sampled values ride along
 
 
+def test_first_fail_precedence_holds_across_the_whole_gate_order():
+    """A frame failing SEVERAL gates at once must name the EARLIEST in the
+    documented order (price -> vol50 -> sma50 -> sma200 -> yoy) — the
+    REFUSED(universe) console lines are only trustworthy if a reorder of the
+    checks cannot silently relabel a refusal."""
+    # Declining + illiquid: below SMA50, below SMA200, negative YoY AND
+    # illiquid — vol50 must be the one named (earliest failing gate).
+    multi = _healthy_frame()
+    multi["Close"] = multi["Close"].iloc[::-1].to_numpy()   # monotonic DOWN
+    multi["Open"] = multi["Close"]
+    multi["High"] = multi["Close"] * 1.01
+    multi["Low"] = multi["Close"] * 0.99
+    multi["Volume"] = float(settings.MIN_VOLUME_50D) * 0.01
+    prep, reason = _prepare_eval_frame_with_reason(multi)
+    assert prep is None and reason[0] == "vol50"
+
+    # Same declining frame, liquid: sma50 outranks sma200 and yoy.
+    declining = multi.copy()
+    declining["Volume"] = float(settings.MIN_VOLUME_50D) * 3
+    prep, reason = _prepare_eval_frame_with_reason(declining)
+    assert prep is None and reason[0] == "sma50"
+
+    # Sub-price floor outranks everything after bars (a penny stock that is
+    # also illiquid and declining still names "price").
+    penny = multi.copy()
+    penny[["Open", "High", "Low", "Close"]] *= (
+        float(settings.MIN_PRICE) * 0.1 / float(penny["Close"].iloc[-1]))
+    prep, reason = _prepare_eval_frame_with_reason(penny)
+    assert prep is None and reason[0] == "price"
+
+
 def test_replay_seam_scan_names_refused_sessions_and_stays_quiet_on_pass():
     healthy = _healthy_frame()
     tail = healthy.index[-3:]

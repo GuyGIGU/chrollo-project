@@ -26,23 +26,25 @@ try:
 except ModuleNotFoundError:
     from _bootstrap import configure_path
 
-_PROJECT_ROOT = configure_path()
-
-sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
+_PROJECT_ROOT = configure_path(backend=True)
 
 import database  # noqa: E402  binds the live SQLite engine + SessionLocal
-from models import CalibrationMark  # noqa: E402
 
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 
-# The shared judgment: the SAME canonicalization + fingerprint the agreement
-# harness stamps on every report (EC-3 — never a second fingerprint recipe).
-from tools.calibration_harness import _mark_dict, marks_fingerprint  # noqa: E402
+# The shared judgments (EC-3): the harness's validated ORM loader + the SAME
+# canonicalization/fingerprint recipe it stamps on every report — never a
+# second loader, never a second fingerprint recipe.
+from tools.calibration_harness import load_box_marks  # noqa: E402
 
 # Operator-approved seal for THIS graduation event (sign-off: "GO" 2026-07-24,
-# PLAN-guided-list-gap-breach Task 1). The pin covers the full content of all
-# 33 box marks — any post-sign-off edit changes the fingerprint and the export
-# refuses. A future graduation re-pins deliberately, never silently.
+# PLAN-guided-list-gap-breach Task 1). Any post-sign-off edit to a covered
+# field changes the fingerprint and the export refuses. KNOWN COVERAGE GAP
+# (council review 2026-07-24): the shared fingerprint recipe (_mark_dict)
+# does NOT include trigger_date/trigger_price, so a Trigger edited after
+# sign-off passes the pin unchanged — widening the recipe rotates EVERY
+# fingerprint, so it is an operator re-pin decision, recorded here until
+# made. A future graduation re-pins deliberately, never silently.
 OPERATOR_APPROVED_FINGERPRINT = (
     "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523"
 )
@@ -63,9 +65,10 @@ _ABOUT = (
 def export() -> str:
     session = database.SessionLocal()
     try:
-        marks = [m for m in session.query(CalibrationMark).all() if m.verdict == "box"]
-        mark_dicts = [_mark_dict(m) for m in marks]
-        fingerprint = marks_fingerprint(mark_dicts)
+        # The shared validated loader: every mark passes the ONE validity
+        # judgment (EC-11 etc.) before anything is sealed, and the
+        # fingerprint recipe is the harness's own.
+        marks, fingerprint = load_box_marks(session)
         if fingerprint != OPERATOR_APPROVED_FINGERPRINT:
             raise RuntimeError(
                 "REFUSING to export: the calibration-marks DB fingerprint\n"
@@ -83,7 +86,7 @@ def export() -> str:
             )
 
         setups: list[dict] = []
-        for m in sorted(marks, key=lambda x: (x.ticker, str(x.as_of_date))):
+        for m in marks:
             lps_events = sorted(
                 (e for e in m.events if e.event_type == "lps"),
                 key=lambda e: str(e.start_date),
@@ -92,6 +95,14 @@ def export() -> str:
                 raise RuntimeError(
                     f"REFUSING to export: {m.ticker}@{m.as_of_date} has no LPS event "
                     "(EC-11: a gate setup needs its marked entry window)."
+                )
+            if len(lps_events) > 2:
+                raise RuntimeError(
+                    f"REFUSING to export: {m.ticker}@{m.as_of_date} carries "
+                    f"{len(lps_events)} LPS events but the corpus schema seals at "
+                    "most two (lps + lps2) — silently dropping a marked shelf "
+                    "would misrepresent the ground truth and narrow the fired "
+                    "window. Extending the schema is a deliberate EC-7 event."
                 )
             if not m.trigger_date:
                 raise RuntimeError(
@@ -122,6 +133,16 @@ def export() -> str:
     finally:
         session.close()
 
+    labels = [f"{s['ticker']}:{s['setup']}" for s in setups]
+    dupes = sorted({k for k in labels if labels.count(k) > 1})
+    if dupes:
+        raise RuntimeError(
+            "REFUSING to export: two box marks share a (ticker, as_of) identity "
+            f"({dupes}) — the sealed setup label is the as_of date, so they "
+            "would collide. Deriving a richer label is a deliberate corpus-"
+            "schema decision, not a silent fallback."
+        )
+
     doc = {
         "_about": _ABOUT,
         "_provenance": {
@@ -134,12 +155,25 @@ def export() -> str:
         },
         "setups": setups,
     }
-    # newline="\n": the EC-7 seal hashes this file's RAW BYTES and
-    # .gitattributes pins docs/marks/*.json to eol=lf — LF on disk keeps the
-    # frozen digest identical across every checkout (see .gitattributes note).
-    with open(OUT_PATH, "w", encoding="utf-8", newline="\n") as f:
+    # Atomic + self-checking seal: write to a temp sibling, load THAT file
+    # through the gate's own corpus loader (the artifact must satisfy the
+    # rules its consumers enforce BEFORE it becomes immutable), then rename
+    # into place — a crash mid-write can never leave a torn file posing as
+    # ground truth that the refuse-if-exists check would then protect.
+    # newline="\n": the EC-7 seal hashes RAW BYTES and .gitattributes pins
+    # docs/marks/*.json to eol=lf — LF on disk keeps the digest identical
+    # across every checkout.
+    tmp_path = OUT_PATH + ".exporting"
+    with open(tmp_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(doc, f, indent=2)
         f.write("\n")
+    try:
+        from tools.marks_corpus import load_corpus
+        load_corpus((tmp_path,))
+    except Exception:
+        os.remove(tmp_path)
+        raise
+    os.replace(tmp_path, OUT_PATH)
     print(f"Graduated {len(setups)} Guided List setups -> {OUT_PATH}")
     print(f"  marks_fingerprint: {fingerprint}")
     return OUT_PATH
