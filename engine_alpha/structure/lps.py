@@ -27,7 +27,17 @@ def _finite(value) -> bool:
 
 
 def _zone_tolerance(sup_avg: float, res_avg: float, atr_val: float) -> float:
-    """Tolerance around the active box used by the LPS zone gate."""
+    """Tolerance around the active box used by the LPS zone gate.
+
+    RULING (2026-07-24, gap-breach Task 2): this is a genuinely DIFFERENT
+    concept from rail respect and is kept apart on purpose. Respect asks
+    "does this bar stay inside the box envelope?" and is owned by the ONE
+    per-bar classification in ``box_gates._rail_outside_masks``; zone
+    tolerance asks "which zone (INSIDE / OVERSHOOT_R / UNDERCUT_S) does the
+    shelf's terminal level belong to?" — an event-LOCATION typing band, with
+    its own tight-box widening rescue. They share the ATR yardstick, not the
+    question; do not fold them.
+    """
     box_height = res_avg - sup_avg
     bw = box_height / sup_avg if sup_avg > 0 else 0.0
     if bw < _TIGHT_BOX_WIDTH:

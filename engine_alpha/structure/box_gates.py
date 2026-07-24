@@ -20,6 +20,7 @@ from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibri
 
 __all__ = [
     "_buffered_rails",
+    "_rail_outside_masks",
     "_is_boundary_respected",
     "_worked_window_end",
     "_measure_close_residence",
@@ -36,6 +37,27 @@ def _buffered_rails(R_val, S_val, atr_val):
     restyle; fold-safety dossier)."""
     buffer = settings.BOUNDARY_ATR_BUFFER * atr_val
     return R_val + buffer, S_val - buffer
+
+
+def _rail_outside_masks(highs, lows, R_val, S_val, atr_val):
+    """The ONE per-bar rail classification against the buffered box envelope.
+
+    Whole-bar basis — highs vs R+buffer, lows vs S−buffer (operator ruling
+    2026-07-24: "the HIGH and the LOW Values are the ones that matters most
+    since Visually we use the entire bar in Technical analysis ALWAYS").
+    Every consumer of "is this bar outside a rail?" — the respect gate, the
+    SOS worked-window trim, and any graded engagement read layered on top —
+    derives from THESE masks, so the physics can never fork per call site.
+
+    Returns ``(above_r, below_s, r_ceiling, s_floor)``. The mask comparisons
+    are strict (NaN → False = inside on both sides — the established NaN
+    route); callers keep any FURTHER comparison of their own verbatim.
+    Pure; assumes float ndarrays (callers coerce).
+    """
+    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
+    above_r = highs > r_ceiling
+    below_s = lows < s_floor
+    return above_r, below_s, r_ceiling, s_floor
 
 
 def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
@@ -55,10 +77,8 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     if n == 0:
         return False, False, False, 0, 0.0
 
-    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
-
-    above_r = highs > r_ceiling
-    below_s = lows < s_floor
+    above_r, below_s, _r_ceiling, _s_floor = _rail_outside_masks(
+        highs, lows, R_val, S_val, atr_val)
     outside = above_r | below_s
     total_outside = int(outside.sum())
 
@@ -106,8 +126,8 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
         return n
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
-    r_ceiling, s_floor = _buffered_rails(R_val, S_val, atr_val)
-    above = highs > r_ceiling
+    above, _below_s, _r_ceiling, s_floor = _rail_outside_masks(
+        highs, lows, R_val, S_val, atr_val)
     min_prefix = settings.SOS_TRIM_MIN_PREFIX_FRAC * n
     i = 0
     while i < n:
