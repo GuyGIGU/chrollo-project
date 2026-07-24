@@ -134,7 +134,10 @@ def export() -> str:
         },
         "setups": setups,
     }
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
+    # newline="\n": the EC-7 seal hashes this file's RAW BYTES and
+    # .gitattributes pins docs/marks/*.json to eol=lf — LF on disk keeps the
+    # frozen digest identical across every checkout (see .gitattributes note).
+    with open(OUT_PATH, "w", encoding="utf-8", newline="\n") as f:
         json.dump(doc, f, indent=2)
         f.write("\n")
     print(f"Graduated {len(setups)} Guided List setups -> {OUT_PATH}")

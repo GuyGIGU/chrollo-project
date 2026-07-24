@@ -1,7 +1,7 @@
 {
-  "captured_at": "2026-07-24T14:41:14+00:00",
+  "captured_at": "2026-07-24T14:54:20+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "acbfdbebcd8fdd9c9df61dee7c2c491fbc3201317a5104a587330253ee8795ad",
+  "corpus_sha256": "2262cedd09f75815142da6a2af44e247e82562fcb7b8e00293ad6164dd808020",
   "null_trigger_grace_sessions": 2,
   "population": "guided-list",
   "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
