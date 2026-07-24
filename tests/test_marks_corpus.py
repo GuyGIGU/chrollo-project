@@ -20,10 +20,11 @@ from tools import marks_corpus
 
 pytestmark = pytest.mark.regression
 
-# The gap-breach build-order stages (PLAN-guided-list-gap-breach, 2026-07-24;
-# re-tagged same day after Tasks 3+4 falsified engagement-respect and
-# commit-the-cause — rail-placement is the named future stage).
-_KNOWN_STAGES = {"rail-placement", "lps-envelope"}
+# The post-gap-breach stages (2026-07-24): Tasks 3/4/6 falsified
+# engagement-respect, commit-the-cause, and lps-envelope in turn — every
+# chart-readable miss converged on rail-placement (the named next program);
+# SKYT is a universe-gate exclusion, not a chart-reading gap.
+_KNOWN_STAGES = {"rail-placement", "universe-gate"}
 
 
 def _load_baseline() -> dict:

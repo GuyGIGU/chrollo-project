@@ -111,13 +111,22 @@ STAGE_TAGS: dict[str, str] = {
     # strategy_alpha.md): NKTR + EGBN belong to the rail-PLACEMENT family
     # (wick-anchored candidate rails inflate width / sit at the creek), a
     # named FUTURE stage outside this program's remaining tasks.
+    # Task 6 (2026-07-24) closed the lps-envelope stage with a NO-MOVES
+    # calibration answer: the marked-shelf terminal-turn envelope median is
+    # 0.0 (his shelves genuinely rest), ORMP-2/PKE marked shelves PASS the
+    # detector at the DRAWN rails, and NOK's launch-gate case is n=1. Every
+    # chart-readable miss belongs to ONE family — rail-placement (the engine
+    # anchors candidate rails at wick extremes / the creek where the operator
+    # anchors body levels / the ceiling) — the named next program. SKYT is a
+    # universe-gate exclusion (below SMA50 on 9/10 walked sessions), not a
+    # chart-reading gap; converting it is an operator strategy decision.
     "NKTR:2026-04-10": "rail-placement",
     "EGBN:2026-01-15": "rail-placement",
-    "YPF:2026-05-18": "lps-envelope",         # 19-bar drawn base + shelf geometry
-    "NOK:2026-02-17": "lps-envelope",         # Move 3 — LPS envelope calibration (Task 6)
-    "ORMP:2026-05-08": "lps-envelope",
-    "PKE:2026-02-24": "lps-envelope",
-    "SKYT:2026-04-13": "lps-envelope",        # + sma50 universe refusal 9/10 (Move 4 telemetry)
+    "YPF:2026-05-18": "rail-placement",
+    "NOK:2026-02-17": "rail-placement",
+    "ORMP:2026-05-08": "rail-placement",
+    "PKE:2026-02-24": "rail-placement",
+    "SKYT:2026-04-13": "universe-gate",
 }
 
 # Corpus schema: every key a setup may carry. An unrecognized key FAILS the

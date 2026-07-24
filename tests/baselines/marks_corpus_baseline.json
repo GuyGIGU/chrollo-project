@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-07-24T15:40:48+00:00",
+  "captured_at": "2026-07-24T15:49:19+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "2262cedd09f75815142da6a2af44e247e82562fcb7b8e00293ad6164dd808020",
   "null_trigger_grace_sessions": 2,
@@ -278,7 +278,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "stage": "lps-envelope"
+      "stage": "rail-placement"
     },
     {
       "key": "NTCT:2026-03-04",
@@ -322,7 +322,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "lps-envelope"
+      "stage": "rail-placement"
     },
     {
       "key": "PBT:2026-05-11",
@@ -351,7 +351,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "stage": "lps-envelope"
+      "stage": "rail-placement"
     },
     {
       "key": "RGR:2026-03-19",
@@ -410,7 +410,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "stage": "lps-envelope"
+      "stage": "universe-gate"
     },
     {
       "key": "ST:2026-04-17",
@@ -499,7 +499,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "stage": "lps-envelope"
+      "stage": "rail-placement"
     }
   ]
 }

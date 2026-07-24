@@ -222,6 +222,22 @@ label, the phase read, and the archive can never drift — a calibrated `SPRING`
 re-typed. Downstream reads **inject** the elected spring rather than re-detecting. Most
 bases have no Phase C and that is normal (see "The Phase D Model").
 
+**LPS envelope calibration — answered NO MOVES (2026-07-24, gap-breach Task
+6).** The shelf-harness (`tools.shelf_harness` — the ONE detector graded over
+all 34 marked shelves at the drawn basis) plus the terminal-turn envelope
+settled the calibration question the Guided List raised: the operator's
+shelves genuinely REST (terminal-turn median 0.0 profile-units; the p90 tail
+0.18 comes from marks that already fire), so `LPS_TERMINAL_LOW_TOL_PROFILE`
+(0.1) has no envelope support for widening; ORMP-2 and PKE's marked shelves
+PASS this detector at the operator's drawn rails (their misses are the
+elected BOX, not shelf geometry); NOK's launched-above form is a single case
+(tail-fit risk — don't build acceptance forms off n=1). Every chart-readable
+Guided List miss therefore belongs to ONE family — **rail placement**: the
+election anchors candidate rails at wick extremes / the creek where the
+operator anchors body levels / the ceiling (the S-below-drawn-S bias, EGBN's
+creek-vs-ceiling, NKTR's width inflation). That family is the named next
+program; no LPS geometry knob moved in this one.
+
 #### Support Test
 
 An S-rail hold: a low-zone valley that touches S without a deep breach, then holds.
