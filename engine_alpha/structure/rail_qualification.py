@@ -160,6 +160,57 @@ def _qualify_band(closes, lows, highs, S_val, R_val, buf,
             "judged": judged, "excursions": excursions}
 
 
+def cluster_rails(highs, lows, atr_val, *, min_rest: Optional[int] = None,
+                  tol_atr: Optional[float] = None):
+    """The representative RESTING extremes of a window — cluster-anchored rail
+    levels (Rail Program Task 6; measure-only, no live caller yet).
+
+    Rails sit at bar High/Low — the operator's rule. The question a
+    wick-inflated window poses (NKTR) is WHICH bars' extremes define the rail:
+    the level several bars genuinely rest at, or the one outlier wick. This
+    statistic answers with a pure counting rule over the window's own bars:
+
+      R = the HIGHEST high supported by >= ``min_rest`` bars whose highs rest
+          within ``tol_atr`` * ATR of it (the bar itself counts);
+      S = the LOWEST low with the mirrored support.
+
+    Never mean/std — the outlier inflates those; a count simply skips it.
+    Defaults are the touch machinery's own constants
+    (``EQ_MIN_TOUCHES_PER_RAIL`` / ``TOUCH_TOLERANCE_ATR``): the cluster rail
+    is the outermost level the touch gate itself would call worked — no new
+    calibration knob is introduced by the statistic.
+
+    Pinned routes: NaN extremes are excluded (never a candidate level, never
+    support); a non-finite or non-positive ATR returns ``(None, None)``; bars
+    sharing one extreme value propose one identical level, so the tie-break is
+    the value itself (fixed by construction). Suffix-precomputable: support is
+    pairwise ``|x_i - x_j| <= tol`` counting, so every suffix window of an eq
+    window derives from one vectorized pass (the dark-build hot loop
+    precomputes exactly that; this pure form is its parity oracle).
+
+    Returns ``(R, S)``; either side is ``None`` when no level has enough
+    support.
+    """
+    if atr_val is None or not np.isfinite(atr_val) or atr_val <= 0:
+        return None, None
+    k = settings.EQ_MIN_TOUCHES_PER_RAIL if min_rest is None else int(min_rest)
+    tol = ((settings.TOUCH_TOLERANCE_ATR if tol_atr is None else float(tol_atr))
+           * float(atr_val))
+
+    def _outermost(values, take_max: bool):
+        v = np.asarray(values, dtype=float)
+        v = v[np.isfinite(v)]
+        if len(v) < k:
+            return None
+        support = (np.abs(v[:, None] - v[None, :]) <= tol).sum(axis=1)
+        qualified = v[support >= k]
+        if len(qualified) == 0:
+            return None
+        return float(qualified.max() if take_max else qualified.min())
+
+    return _outermost(highs, True), _outermost(lows, False)
+
+
 def qualify_pair_events(eq_df, S_val: float, R_val: float,
                         atr_val: float) -> Optional[dict]:
     """Qualify one CHRONOLOGICAL pair's window: type its excursions or refuse.

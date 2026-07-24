@@ -55,12 +55,10 @@ from engine_alpha.structure.narrative import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402
 from tools.replay import (  # noqa: E402
-    MARK_ATR_OFFSET,
-    enrich_marked_frame,
+    drawn_box_window,
     fixture_frame,
     load_sealed_fixture,
     prepared_frame,
-    session_pos,
 )
 
 # The pre-registered grids (docs/rail_program_protocol_2026-07.md §2). Sealed:
@@ -158,16 +156,14 @@ def drawn_rows(setups: list[dict], frames: dict) -> tuple[list[dict], str]:
         raw = fixture_frame(frames, key)
         if raw is None or raw.empty:
             raise SystemExit(f"drawn population: no sealed fixture frame for {key}")
-        frozen = enrich_marked_frame(raw)
-        end = session_pos(frozen.index, mark.box_end_date, boundary="end")
-        df = frozen.iloc[: end + 1]
-        atr_val = df["ATR_10"].iloc[-MARK_ATR_OFFSET]
-        if pd.isna(atr_val) or float(atr_val) <= 0:
-            raise SystemExit(f"drawn population: ATR unavailable at box_end for {key}")
-        bs = session_pos(df.index, mark.box_start_date)
+        try:
+            base_df, atr_val = drawn_box_window(raw, mark.box_start_date,
+                                                mark.box_end_date)
+        except ValueError as exc:
+            raise SystemExit(f"drawn population: {key}: {exc}") from exc
         R = float(s["rails_drawn"]["R"])
         S = float(s["rails_drawn"]["S"])
-        row = gate_stats(df.iloc[bs:], R, S, float(atr_val))
+        row = gate_stats(base_df, R, S, atr_val)
         row.update({"case": key, "pop": "drawn"})
         rows.append(row)
     return rows, fingerprint

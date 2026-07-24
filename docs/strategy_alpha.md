@@ -217,6 +217,24 @@ trims. The ratchet stage tags were corrected at this task: NKTR + EGBN →
 final taxonomy: every chart-readable miss is rail-placement; SKYT is
 universe-gate).
 
+**Cluster-anchored rail statistic — defined, measure-only (2026-07-25, Rail
+Program Task 6).** The operator's ruling reframed the rail-placement family:
+rails DO sit at bar High/Low (never a wick-vs-body question); the question a
+wick-inflated window poses (NKTR: 1900+ width rejects, no candidate within
+0.5 box-heights of the drawn box) is WHICH bars' extremes define the rail —
+the level several bars genuinely rest at, or the one outlier wick. The
+statistic is `cluster_rails` in `rail_qualification.py`, a pure counting rule
+(never mean/std, which the outlier inflates): R = the highest high with
+≥ `EQ_MIN_TOUCHES_PER_RAIL` bar-highs resting within `TOUCH_TOLERANCE_ATR`
+ATRs of it; S mirrored. It reuses the touch machinery's own constants — no
+new knob. Pinned routes: NaN extremes excluded; non-finite ATR → no cluster
+rail; the tie-break is the level value itself. Validation gate (pre-registered
+in `docs/cluster_rail_validation_2026-07.md` BEFORE evaluation): the statistic
+must reproduce the drawn rails over ALL 33 Guided List boxes, not just
+NKTR's — a definition matching only NKTR is a tail fit and the answer is NO
+(protocol §8). Measure-only: no live path calls it; the dark candidate-width
+form (its only prospective consumer) is a separate EC-8 flag build.
+
 #### Spring (Phase C)
 
 The turn-conductor event: penetration below S → reclaim → hold (the bounded-excursion
