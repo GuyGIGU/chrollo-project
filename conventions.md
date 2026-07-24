@@ -56,6 +56,17 @@ INTRODUCE a divergence on the reachable present-null case.
 **Origin:** McKinney — Council Review 2026-06-30-1338
 **Rationale:** Parity is correct on the whole reachable input domain; the divergence is unreachable.
 
+### AP-7: The eq_* archive columns' hand-listing is a family-contiguity exception
+**Pattern:** `eq_engagement_respect_frac` / `eq_max_excursion_atr` are hand-listed in
+`webapp/backend/services/startup.py` `_MIGRATIONS` and `core/archive/writer.py` `_NEW_COLUMNS`
+ONLY to keep the eq_* gate-margin family contiguous with its already-listed siblings. Do NOT flag
+this as triple registration, and do NOT grow the hand lists for any new column family — the
+default for new archive columns is MODEL-ONLY registration (the boot pass and the writer's second
+pass derive ALTERs from `SetupArchive.__table__`; the Lane E / Event Map route).
+**Origin:** Ramírez — Council Review 2026-07-24-1903 (engine/gap-breach); operator-confirmed 2026-07-25
+**Rationale:** A half-listed family misleads more than a documented exception; the note at the
+writer list carries the rule forward.
+
 ---
 
 ## Enforced Conventions
@@ -168,3 +179,40 @@ validator.
 **Origin:** operator-confirmed 2026-07-21 (Trigger = breakout above the last LPS bar's high) + relaxed
 2026-07-22 (drop the `as_of` floor); main `136110b`
 **Principle:** `references/quality-testing.md` → P10 (the spec is the constraint); `conventions.md` EC-3
+
+---
+
+### EC-12: A committed replay basis must be content-verified at check time
+**Convention:** Any committed artifact that carries a replay basis (today: the marks-corpus fixture
+parquet — the ONLY in-repo carrier of the sealed drawn bases) must be BOUND to sealed content
+evidence and verified where it is consumed: the gate's check recomputes each graduated frame's
+content digest against the corpus's sealed `frame_digest`, and the cheap pytest plumbing pins each
+frame's bar count to the frozen baseline. A seal that covers the spec but not the data the spec is
+graded on is one unsealed link — three seats found it independently.
+**Origin:** Leach / Beck / Hunt — Council Review 2026-07-24-1903 (engine/gap-breach);
+operator-confirmed 2026-07-25
+**Principle:** `references/quality-postgres.md` → P1 (constraints are assertions);
+`references/quality-testing.md` → P10; `references/security.md` → P9 (assume breach)
+
+---
+
+### EC-13: Marks-consuming instruments use the ONE validated loader and stamp the exact set scored
+**Convention:** Every tool that reads a marks population loads it through the shared validated
+loader (`tools.calibration_harness.load_marks` / `load_box_marks`) — a malformed row aborts the
+batch naming the offender, never a silent skip — and every report stamps its population name, the
+fingerprint of EXACTLY the marks it scored (a filtered run stamps the filtered set), and the engine
+manifest hash. No instrument re-implements mark loading, window indexing (`tools.replay.session_pos`),
+or frame enrichment (`tools.replay.enrich_marked_frame`).
+**Origin:** Fowler / Hunt / McKinney — Council Review 2026-07-24-1903 (engine/gap-breach);
+operator-confirmed 2026-07-25
+**Principle:** `conventions.md` EC-3 / EC-9; `references/refactoring.md` → P5 (twin code paths)
+
+---
+
+### EC-14: Every tool write passes the sealed-output guard
+**Convention:** Any file a `tools/` script writes from a user-supplied path (`--json`, `--out`, …)
+must be routed through `tools._bootstrap.refuse_sealed_output` BEFORE the file is opened — a
+mistyped path must fail loudly, never truncate a sealed spec (`docs/marks/`) or a frozen baseline
+(`tests/baselines/`) in place.
+**Origin:** Hunt — Council Review 2026-07-24-1903 (engine/gap-breach); operator-confirmed 2026-07-25
+**Principle:** `references/security.md` → P7 (deploy assertions as tripwires); `conventions.md` EC-3
