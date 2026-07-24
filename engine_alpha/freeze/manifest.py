@@ -234,6 +234,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Election stability probe (measure-only diagnostics, flag-gated dark)
     "ELECTION_STABILITY_ENABLED",
     "ELECTION_STABILITY_LOOKBACK",
+    # Engagement measure yardstick (Move 1 gap-breach; measure-only — the
+    # election-variant form was tested and REJECTED 2026-07-24)
+    "ENGAGEMENT_MAX_EXCURSION_ATR",
     "SCORE_TRAVERSAL_QUALITY",
     "TRAVERSAL_QUALITY_DENSITY_FULL",
     "TRAVERSAL_QUALITY_DWELL_PENALTY",

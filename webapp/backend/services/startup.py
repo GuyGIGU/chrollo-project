@@ -83,6 +83,8 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive ADD COLUMN eq_upper_dwell FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN eq_coverage FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN eq_respect_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_engagement_respect_frac FLOAT",
+    "ALTER TABLE setup_archive ADD COLUMN eq_max_excursion_atr FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN eq_close_lower_dwell FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN eq_close_mid_dwell FLOAT",
     "ALTER TABLE setup_archive ADD COLUMN eq_close_upper_dwell FLOAT",

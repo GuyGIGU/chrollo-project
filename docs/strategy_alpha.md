@@ -173,6 +173,30 @@ is *emergent* — the same pair wins from nearly every scan origin — so the ca
 the election converge on the same anchors. The worked example (AGCO 2026) and the
 box-start divergence record live under cascade step 4 below.
 
+**Engagement respect — tested and REJECTED as a gate; kept as a measure
+(2026-07-24, gap-breach Task 3).** The operator reads rail respect as
+*engagement* — a bar poking a bounded distance past a rail and closing back
+inside "hangs" (bar-basis primary, closes supplementary; his ruling: "the HIGH
+and the LOW Values are the ones that matters most since Visually we use the
+entire bar in Technical analysis ALWAYS"). An election-gate variant of exactly
+that rule (bounded excursion + close-back-inside re-read as respect) was built
+dark and A/B'd: **the negative corpus admitted FLG + BBVA at every excursion
+bound ≥ 0.5 ATR** (SPCB/DBD/ENIC too at 1.5) **while converting zero Guided
+List misses** — NKTR, the stage-tagged target, stays unread because its
+candidate rejects are width-dominated, not respect-dominated. Ruling: the
+whole-bar wick containment gate IS the upthrust/junk defense (the shelf-R
+lesson, now confirmed at election scope with corpus evidence); never re-wire
+an engagement read into the gate on anecdote. The engagement read survives
+measure-first as two archived, never-gated columns on every fired setup —
+`eq_engagement_respect_frac` (respect share when bounded close-confirmed
+excursions hang; yardstick `ENGAGEMENT_MAX_EXCURSION_ATR`) and
+`eq_max_excursion_atr` (deepest single-bar excursion beyond the buffered
+rails) — one arithmetic home (`_engagement_hang_masks` in `box_gates`),
+consumed by `measure_gate_margins`. Their live-fleet distributions are the
+evidence base for any future rail-PLACEMENT work (the engine's S-below-drawn-S
+bias), which is where the Guided List says the wick/close divergence actually
+bites.
+
 #### Spring (Phase C)
 
 The turn-conductor event: penetration below S → reclaim → hold (the bounded-excursion
@@ -1099,7 +1123,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e`_
+_engine_config_version: `aaf853bd0103bc65afa6356ccc8f898d9e8d1f29f6f142f998a5717abdfa0465`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1246,6 +1270,7 @@ PUZZLE_CHRONO_PARTIAL = 0.5
 EVENT_MAP_ENABLED = False
 ELECTION_STABILITY_ENABLED = False
 ELECTION_STABILITY_LOOKBACK = 3
+ENGAGEMENT_MAX_EXCURSION_ATR = 1.5
 SCORE_TRAVERSAL_QUALITY = 10
 TRAVERSAL_QUALITY_DENSITY_FULL = 0.33
 TRAVERSAL_QUALITY_DWELL_PENALTY = 8

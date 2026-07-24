@@ -421,18 +421,33 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     close_upper_dwell (all nullable floats).
     """
     empty = {"respect_frac": None, "close_lower_dwell": None,
-             "close_mid_dwell": None, "close_upper_dwell": None}
+             "close_mid_dwell": None, "close_upper_dwell": None,
+             "engagement_respect_frac": None, "max_excursion_atr": None}
     if (base_df is None or len(base_df) == 0 or R is None or S is None
             or R <= S or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):
         return empty
     from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
+        _engagement_hang_masks,
         _is_boundary_respected,
+        _max_excursion_atr,
         _measure_close_residence,
+        _rail_outside_masks,
     )
+    highs = base_df["High"].to_numpy(dtype=float)
+    lows = base_df["Low"].to_numpy(dtype=float)
     _, _, _, _, respect_share = _is_boundary_respected(
-        base_df["High"].to_numpy(dtype=float),
-        base_df["Low"].to_numpy(dtype=float), R, S, atr_val)
+        highs, lows, R, S, atr_val)
+    # Move 1 dark measures — ALWAYS computed (never-gated, archived raw;
+    # measure-first): the engagement-basis respect share and the deepest
+    # single-bar excursion, from the SAME masks the gate reads. NULL upstream
+    # means "not measured"; a box with zero outside bars measures 0.0.
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
+        highs, lows, R, S, atr_val)
+    all_closes = base_df["Close"].to_numpy(dtype=float)
+    hang_r, hang_s = _engagement_hang_masks(
+        above_r, below_s, highs, lows, all_closes, r_ceiling, s_floor, atr_val)
+    eng_outside = int(((above_r & ~hang_r) | (below_s & ~hang_s)).sum())
     eq = _measure_close_residence(base_df, R, S, atr_val,
                                   rail_touches=rail_touches)
     return {
@@ -440,6 +455,9 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
         "close_lower_dwell": float(eq["lower_dwell"]),
         "close_mid_dwell": float(eq["mid_dwell"]),
         "close_upper_dwell": float(eq["upper_dwell"]),
+        "engagement_respect_frac": round(1.0 - eng_outside / len(base_df), 4),
+        "max_excursion_atr": _max_excursion_atr(
+            above_r, below_s, highs, lows, r_ceiling, s_floor, atr_val),
     }
 
 

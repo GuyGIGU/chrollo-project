@@ -179,6 +179,17 @@ MAX_CONSECUTIVE_OUTSIDE_DAYS = 10 # Max consecutive bars whose full range pierce
 MIN_BOUNDARY_RESPECT_PCT = 0.80  # At least 80% of bars must keep their full range inside [S-buffer, R+buffer]
 TOUCH_TOLERANCE_ATR = 0.5        # ATR multiplier for S/R touch zone (price-level agnostic)
 
+# Engagement measure yardstick (Move 1, gap-breach Task 3; MEASURE-ONLY).
+# The archived eq_engagement_respect_frac re-reads an outside bar as a "hang"
+# when its excursion beyond the buffered rail stays within this x ATR and its
+# close came back inside (bar-basis primary per the operator ruling
+# 2026-07-24; close supplementary). NEVER a gate: an election-gate variant of
+# this exact rule was built and REJECTED 2026-07-24 — the negative corpus
+# admitted FLG+BBVA at every bound >= 0.5 (SPCB/DBD/ENIC too at 1.5) while
+# converting ZERO Guided List misses (NKTR's no-box is width-dominated).
+# The wick-basis respect gate IS the junk defense; see strategy_alpha.md.
+ENGAGEMENT_MAX_EXCURSION_ATR = 1.5
+
 # Worked-equilibrium validity (Phase B) — a candidate Resistance/Support-anchor
 # pair is only a real trading range if price RESPECTS, TOUCHES, and ZIGZAGS
 # THROUGH both rails CONSTANTLY, with no dead space. These gates replace the old

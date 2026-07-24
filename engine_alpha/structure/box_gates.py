@@ -21,6 +21,8 @@ from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibri
 __all__ = [
     "_buffered_rails",
     "_rail_outside_masks",
+    "_engagement_hang_masks",
+    "_max_excursion_atr",
     "_is_boundary_respected",
     "_worked_window_end",
     "_measure_close_residence",
@@ -60,13 +62,58 @@ def _rail_outside_masks(highs, lows, R_val, S_val, atr_val):
     return above_r, below_s, r_ceiling, s_floor
 
 
+def _engagement_hang_masks(above_r, below_s, highs, lows, closes,
+                           r_ceiling, s_floor, atr_val):
+    """The engagement form of Move 1 (operator ruling 2026-07-24): an outside
+    bar HANGS on its rail — reads as respect — when its excursion beyond the
+    buffered level stays within ``ENGAGEMENT_MAX_EXCURSION_ATR`` × ATR AND its
+    close came back inside the buffered band (bar-basis primary; the close is
+    supplementary evidence only). A close-out or a deeper excursion stays a
+    full outside day — the upthrust defense. Returns ``(hang_r, hang_s)``
+    masks (subsets of ``above_r`` / ``below_s``).
+
+    Declared NaN/degenerate routes: a NaN close or NaN excursion compares
+    False → the bar does NOT hang (stays outside — conservative); a NaN or
+    zero ATR yields no hangs at all → identical to the flag-off read
+    (fail-safe). ONE ATR basis: the same ``atr_val`` `_buffered_rails`
+    consumed. Pure arithmetic on the already-loaded arrays — no second pass.
+    """
+    bound = settings.ENGAGEMENT_MAX_EXCURSION_ATR * atr_val
+    hang_r = above_r & ((highs - r_ceiling) <= bound) & (closes <= r_ceiling)
+    hang_s = below_s & ((s_floor - lows) <= bound) & (closes >= s_floor)
+    return hang_r, hang_s
+
+
+def _max_excursion_atr(above_r, below_s, highs, lows, r_ceiling, s_floor,
+                       atr_val):
+    """Deepest single-bar excursion beyond the buffered rails, in ATR — the
+    Move 1 dark measure's yardstick. 0.0 when no bar is outside (a real
+    measured value, never a NULL stand-in); None on a non-finite/zero ATR."""
+    try:
+        if atr_val is None or not np.isfinite(atr_val) or atr_val <= 0:
+            return None
+    except TypeError:
+        return None
+    over_r = np.where(above_r, highs - r_ceiling, 0.0)
+    under_s = np.where(below_s, s_floor - lows, 0.0)
+    worst = max(float(np.nanmax(over_r, initial=0.0)),
+                float(np.nanmax(under_s, initial=0.0)))
+    return worst / float(atr_val)
+
+
 def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     """
     Check if price action respects R/S boundaries using ATR-buffered zones.
 
     Uses the full daily range (highs vs R+buffer, lows vs S-buffer). Wicks
     that pierce the buffered zone count as breaches, matching the engine's
-    "bars not candles" rule.
+    "bars not candles" rule. An engagement-form ELECTION variant of this gate
+    (bounded close-back-inside excursions re-read as hangs) was built and
+    REJECTED 2026-07-24: the negative corpus admitted FLG+BBVA at every
+    excursion bound >= 0.5 ATR while converting zero Guided List misses —
+    this wick-basis read IS the junk defense. The engagement read survives as
+    the archived MEASURE only (``_engagement_hang_masks`` via
+    ``measure_gate_margins``); never re-wire it into the gate on anecdote.
 
     Returns:
         (respected, r_broken, s_broken, total_outside_days, respect_share)

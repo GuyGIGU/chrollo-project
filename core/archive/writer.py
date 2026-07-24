@@ -104,6 +104,8 @@ _NEW_COLUMNS: dict[str, str] = {
     # Gate-margin telemetry (plan task 2): the elected box against the ACTUAL
     # gates — respect band fraction + the dead-space gate's close residence.
     "eq_respect_frac":              "FLOAT",
+    "eq_engagement_respect_frac":   "FLOAT",
+    "eq_max_excursion_atr":         "FLOAT",
     "eq_close_lower_dwell":         "FLOAT",
     "eq_close_mid_dwell":           "FLOAT",
     "eq_close_upper_dwell":         "FLOAT",
@@ -502,6 +504,8 @@ def archive_scan_results(
             eq_upper_dwell=row.get("_eq_upper_dwell"),
             eq_coverage=row.get("_eq_coverage"),
             eq_respect_frac=row.get("_eq_respect_frac"),
+            eq_engagement_respect_frac=row.get("_eq_engagement_respect_frac"),
+            eq_max_excursion_atr=row.get("_eq_max_excursion_atr"),
             eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
             eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
             eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
