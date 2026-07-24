@@ -217,6 +217,48 @@ trims. The ratchet stage tags were corrected at this task: NKTR + EGBN →
 final taxonomy: every chart-readable miss is rail-placement; SKYT is
 universe-gate).
 
+**Margin calibration campaign — every lever tested and REJECTED (2026-07-25,
+Rail Program Tasks 3/5).** The three hair-thin judgment margins that reject
+the operator's exact drawn boxes (EGBN lower-dwell 3/23 vs the 0.15 floor;
+YPF lower-dwell 2/14 + mid-dwell 7/14 vs the 0.45 cap; PKE respect 5/22
+outside vs 0.80) were A/B'd against a protocol SEALED before any measurement
+(`docs/rail_program_protocol_2026-07.md`: closed grids, accept conditions
+A–F, verdict templates). Fire evidence (`tools.rail_margin_ab`, per-variant
+manifest stamps, elections+rails diffed at every pinned first-fire):
+
+- `EQ_MIN_HALF_DWELL` 0.15→0.125 converts EGBN (tier B) with 26/26 hits kept
+  and 18/18 junk rejecting — but fails the sealed separation condition: ten
+  junk candidates (KWR ×3, BBVA-throwback ×2, BMRN/OHI/NVT/RLGT/GOOD) newly
+  cross the dwell leg at 0.125, so the marks and junk populations overlap at
+  the boundary with zero bars of gap. The floor stays. (Converting EGBN is
+  one operator RULING away — amending condition D via the protocol changelog
+  — but it is a ruling, never a default.)
+- 0.15→0.10 additionally breaks the ratchet (MS fires early; NTCT/ROIV
+  elections displaced) and converts NKTR unpredicted — dead.
+- `EQ_MAX_MID_DWELL` 0.45→0.50/0.55 is the widest blast radius of the
+  program: 4–6 pinned hits break (BWA/EWTX/MS/VIK fire on different days,
+  WTS's election displaced, **MATX stops firing entirely**), PKE/YPF/ORMP
+  convert unpredicted via different elected boxes, and at 0.55 the DGII junk
+  case FIRES. The cap stays; YPF (which needs BOTH dwell and mid moves) is
+  therefore unconvertible by calibration — a correct miss.
+- `MIN_BOUNDARY_RESPECT_PCT` 0.80→0.75 admits FLG + BBVA-throwback junk
+  fires, displaces FOSL/NTCT elections — and PKE still misses: its respect
+  leg passes and the candidate then dies at occupancy (upper-third dwell
+  1/22). The "one bar short" diagnosis is SUPERSEDED: PKE is respect AND
+  upper-third dead space — structural, not hair-thin. The one-bar tolerance
+  reframing (allowance identical to rate-0.75 at PKE's n=22) therefore
+  converts nothing and was answered NO without an EC-8 build. The respect
+  gate remains never-loosened (shelf-R doctrine, now with campaign evidence).
+
+Net: **zero moves; the ratchet stays 26/33; every gate floor is already
+sitting exactly where the junk begins** (the margin instrument's headline:
+converting marks pass candidate floors with zero bars to spare while the
+nearest junk candidate sits one bar away). The named junk counter-cases
+carrying lever names are existing negative-corpus members: DGII (mid cap
+0.55), FLG + BBVA-throwback (respect 0.75), and the ten dwell-leg crossers
+(dwell 0.125). Do not re-request these levers; a re-proposal must beat the
+sealed protocol as written.
+
 **Cluster-anchored rail statistic — tested and REJECTED (2026-07-25, Rail
 Program Task 6).** The operator's ruling reframed the rail-placement family:
 rails DO sit at bar High/Low (never a wick-vs-body question); the question a

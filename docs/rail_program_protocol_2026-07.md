@@ -172,3 +172,8 @@ re-proposal trips a fixture mechanically.
 
 - 2026-07-25 — v1 sealed (pre-registration; no variant has run). Author: council-implement
   build, operator GO of the council plan PLAN-rail-program.md.
+- 2026-07-25 — campaign EXECUTED, zero amendments: every lever answered NO under this document
+  as sealed (L1@0.125 failed only condition D — ten junk dwell-leg crossings; L1@0.10, L2 both
+  values, L1+L2, L3a failed E and/or B; L3b's only predicted conversion is provably
+  unreachable). Results: docs/rail_program_close_2026-07.md. Amending condition D to accept
+  the EGBN conversion remains an available OPERATOR ruling, recorded here if taken.
