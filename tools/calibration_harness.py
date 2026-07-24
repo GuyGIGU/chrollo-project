@@ -42,6 +42,7 @@ import hashlib
 import json
 import sys
 import time
+from collections import Counter
 from datetime import datetime, timezone
 
 try:
@@ -49,17 +50,12 @@ try:
 except ModuleNotFoundError:
     from _bootstrap import configure_path
 
-_PROJECT_ROOT = configure_path()
-
-import os
-
-sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
+_PROJECT_ROOT = configure_path(backend=True)
 
 import pandas as pd
 
 from config import settings
 from engine_alpha.freeze.manifest import manifest_hash
-from core.pipeline.downloads import _trim_to_period
 from engine_alpha.election_identity import (
     DEFAULT_RAIL_TOL_BOX_FRAC,
     projection,
@@ -124,6 +120,31 @@ def load_marks(session, ticker: str | None = None) -> list[dict]:
     return out
 
 
+def load_box_marks(session, ticker: str | None = None):
+    """The marked-window instruments' shared ORM read (EC-3): box-verdict
+    marks, each validated loudly through the ONE shared judgment (an invalid
+    row aborts naming the offender — a silently skipped mark shrinks every
+    denominator), sorted, plus the fingerprint of EXACTLY the rows returned
+    (the harness stamp contract: a filtered report claims only what it
+    scored). Rows stay ORM objects — the instruments read event children."""
+    from marks_validity import validate_mark
+    from models import CalibrationMark
+
+    q = session.query(CalibrationMark).filter(CalibrationMark.verdict == "box")
+    if ticker:
+        q = q.filter(CalibrationMark.ticker == ticker.strip().upper())
+    rows = sorted(q.all(), key=lambda m: (m.ticker, str(m.as_of_date), m.label or ""))
+    dicts = [_mark_dict(m) for m in rows]
+    for d in dicts:
+        problems = validate_mark(d)
+        if problems:
+            raise ValueError(
+                f"calibration mark ({d['ticker']}, {d['as_of_date']}, "
+                f"{d['label']!r}) is invalid — batch refused, fix the mark: "
+                + "; ".join(problems))
+    return rows, marks_fingerprint(dicts)
+
+
 def _vetoed_cause_absent(df, atr, variant: dict) -> bool:
     """Did read_structure elect nothing on THIS frame because the
     cause-before-effect veto fired? Reads the engine's OWN terminal trace
@@ -166,10 +187,18 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
     snap = SNAP_BACK_SESSIONS if mark["verdict"] == "box" else 0
     snapped = election(frozen, mark["as_of_date"], variants, snap_back=snap)
     if snapped is None:
-        return [agreement.ungraded("edge_uncertain",
-                                   "prep refuses every candidate session "
-                                   "(frame too thin)")
+        # Move 4: name WHICH gate refused each candidate session instead of
+        # a bare guess — report-only, never a grading input.
+        idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
+        refused = replay.refusal_scan(frozen, idx[-(snap + 1):])
+        rows = [agreement.ungraded("edge_uncertain",
+                                   "prep refuses every candidate session")
                 for _ in variants]
+        if refused:
+            pr = _refusal_fragment(refused, min(snap + 1, len(idx)))
+            for r in rows:
+                r["prep_refusals"] = pr
+        return rows
     (df, atr, reads), eval_ts, snapped_k = snapped
     frame_start = df.index[0].strftime("%Y-%m-%d")
     rows = []
@@ -194,7 +223,11 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
 # eval chain — structure, LPS, gates, scoring — not just the election. Opt-in
 # (--fired) because a full eval costs ~1s/session; the walk is bounded and
 # the report stamps the bound.
-FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
+# The fired-policy window is OWNED by the replay seam (one policy, every
+# instrument — the marks-corpus ratchet grades the same criterion since the
+# Guided List graduation 2026-07-24): re-exported here only for report
+# stamping, exactly like SNAP_BACK_SESSIONS above.
+FIRED_WINDOW_SESSIONS = replay.FIRED_WINDOW_SESSIONS
 
 # Harness grading-policy version (Family-7 instrument fix, plan task 1).
 # v2: the fired-walk is anchored to where the setup was LIVE — the union of
@@ -209,79 +242,38 @@ FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-o
 # counters now speak plain chart language; the bump keeps mixed old/new slug
 # vocabulary from ever serving out of the in-process fired-chip cache.
 HARNESS_POLICY_VERSION = 3
-FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
-FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
+FIRED_EVENT_TAIL_SESSIONS = replay.FIRED_EVENT_TAIL_SESSIONS
+FIRED_WALK_MAX_SESSIONS = replay.FIRED_WALK_MAX_SESSIONS
 
-# Frozen market scalars (marks-corpus twin): scoring-only inputs — they shape
-# Score/Tier, never the fire/no-fire decision — pinned so the replay is
-# deterministic and needs no SPY/breadth history alongside the frozen frame.
-_FROZEN_BREADTH = 0.5
-_FROZEN_SPY_6M = 0.0
+# Frozen market scalars (scoring-only; they shape Score/Tier, never the
+# fire/no-fire decision) — OWNED by the replay seam beside the fired-policy
+# constants so the gate and the harness can never drift apart; re-exported
+# here only for report stamping, exactly like the window constants above.
+_FROZEN_BREADTH = replay.FROZEN_BREADTH
+_FROZEN_SPY_6M = replay.FROZEN_SPY_6M
 
 
-def _full_live_basis(frozen: pd.DataFrame, ts) -> bool:
-    """Does ``frozen.loc[:ts]`` contain the FULL trailing daily-structure
-    window the nightly scan evaluated at ``ts``? The live eval trims the 5y
-    cache to ``DAILY_STRUCTURE_PERIOD`` behind each session and the root walk
-    is left-edge-sensitive, so a slice the trim cannot cut is thinner than
-    live — unless the frame the trim cannot cut even at its END is simply the
-    ticker's full (young-listing) history, in which case live saw the very
-    same bars and every session is faithful."""
-    sliced = frozen.loc[:ts]
-    trimmed = _trim_to_period(sliced, settings.DAILY_STRUCTURE_PERIOD)
-    if trimmed.index[0] > sliced.index[0]:
-        return True   # the trim cut lead-in -> the live window is fully present
-    full = _trim_to_period(frozen, settings.DAILY_STRUCTURE_PERIOD)
-    return len(full) == len(frozen)
+def _refusal_fragment(refused: list, walked: int) -> dict:
+    """The Move-4 refusal-telemetry fragment — ONE shape for both report
+    paths (graded rows and the fired walk), so the printer can never read
+    two spellings of the same evidence."""
+    return {"refused": len(refused), "walked": walked,
+            "reasons": dict(Counter(slug for _, slug in refused)),
+            "sessions": [s for s, _ in refused]}
 
 
 def _fired_sessions(frozen: pd.DataFrame, mark: dict) -> tuple[list, str | None]:
     """The mark's fair window as frame sessions ending at its as-of.
 
-    Policy v2 (Family-7): the walk covers where the setup was LIVE, not just
-    when the mark was typed — a mark drawn weeks after its breakout (MS, NGL)
-    must still be graded at the sessions its marked LPS was actionable. The
-    window is: ``knowable_from_date`` onward when the mark declares one
-    (unchanged v1 override); otherwise the union of each marked-LPS event
-    span extended ``FIRED_EVENT_TAIL_SESSIONS`` past its end, plus the last
-    ``FIRED_WINDOW_SESSIONS`` sessions before the as-of. Walked oldest-first
-    so the reported fire is the FIRST night the pick would have appeared.
-
-    Every window is CLAMPED to the frame's faithful-basis zone
-    (``_full_live_basis``) — event windows can now reach deep into the frame,
-    where a thin lead-in would replay a thinner basis than live — and capped
-    at ``FIRED_WALK_MAX_SESSIONS`` keeping the OLDEST sessions (the event
-    windows; the fire is reported at the first night anyway). Returns
-    ``(sessions, clamp_note|None)`` — every clamp is NAMED, never silent."""
-    idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
-    knowable = mark.get("knowable_from_date")
-    if knowable:
-        sessions = list(idx[idx >= pd.Timestamp(knowable)])
-    else:
-        picked = set(idx[-FIRED_WINDOW_SESSIONS:])
-        for ev in mark.get("events") or []:
-            if ev.get("event_type") != "lps" or not ev.get("start_date"):
-                continue
-            start = pd.Timestamp(ev["start_date"])
-            end = pd.Timestamp(ev.get("end_date") or ev["start_date"])
-            in_span = idx[(idx >= start) & (idx <= end)]
-            picked.update(in_span)
-            after = idx[idx > end]
-            picked.update(after[:FIRED_EVENT_TAIL_SESSIONS])
-        sessions = sorted(picked)
-    notes = []
-    faithful = [ts for ts in sessions if _full_live_basis(frozen, ts)]
-    if len(faithful) != len(sessions):
-        notes.append(
-            f"walked {len(faithful)}/{len(sessions)} sessions — the frozen "
-            f"frame's lead-in cannot reproduce the live "
-            f"{settings.DAILY_STRUCTURE_PERIOD} basis before "
-            + (faithful[0].strftime("%Y-%m-%d") if faithful else "any session"))
-    if len(faithful) > FIRED_WALK_MAX_SESSIONS:
-        notes.append(f"walk capped at the oldest {FIRED_WALK_MAX_SESSIONS} "
-                     f"of {len(faithful)} sessions")
-        faithful = faithful[:FIRED_WALK_MAX_SESSIONS]
-    return faithful, ("; ".join(notes) or None)
+    Thin adapter over the ONE fired-policy window in the replay seam
+    (``replay.fired_window_sessions`` — moved there verbatim 2026-07-24 so the
+    marks-corpus ratchet grades the SAME pops-up-live criterion): this wrapper
+    only extracts the mark dict's LPS spans and knowable_from override."""
+    spans = [(ev["start_date"], ev.get("end_date") or ev["start_date"])
+             for ev in mark.get("events") or []
+             if ev.get("event_type") == "lps" and ev.get("start_date")]
+    return replay.fired_window_sessions(frozen, mark["as_of_date"], spans,
+                                        mark.get("knowable_from_date"))
 
 
 def _binding_gate_margin(result: dict) -> dict | None:
@@ -345,6 +337,7 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
     window = [sessions[0].strftime("%Y-%m-%d"), sessions[-1].strftime("%Y-%m-%d")]
 
     fragments = []
+    refusals = None   # variant-independent; scanned ONCE, on the first no-fire
     for variant in variants:
         frag: dict = {"fired": False, "fired_window": window,
                       "fired_sessions_walked": len(sessions)}
@@ -415,6 +408,17 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
                     except (ValueError, TypeError):
                         pass
                 break
+        # Move 4: a walked-but-silent window must say WHICH sessions the
+        # universe prep refused (SKYT was refused 5/6 sessions, invisibly).
+        # Computed only on the no-fire branch — the pass path pays nothing —
+        # and flag-independent (universe gates are not engine flags), so ONE
+        # scan (cached across the variant loop) serves every variant.
+        # Inert evidence: report-only.
+        if frag.get("fired") is False:
+            if refusals is None:
+                refusals = replay.refusal_scan(frozen, sessions)
+            if refusals:
+                frag["prep_refusals"] = _refusal_fragment(refusals, len(sessions))
         if clamp_note:
             frag["fired_window_clamped"] = clamp_note
         fragments.append(frag)
@@ -575,6 +579,18 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
         for row in rows:
             extra = f" snapped={row['snapped']}" if row.get("snapped") else ""
             detail = f" [{row['detail']}]" if row.get("detail") else ""
+            # Move 4: the refusal suffix renders on EVERY row that carries the
+            # evidence — the fired walk's silent windows AND graded-only rows
+            # (an edge_uncertain whose real cause is a universe gate must
+            # never print as a bare frame-thin guess).
+            pr = row.get("prep_refusals")
+            refused_s = ""
+            if pr:
+                reasons = ", ".join(
+                    f"{slug} x{n}" for slug, n in
+                    sorted(pr["reasons"].items(), key=lambda kv: -kv[1]))
+                refused_s = (f" | REFUSED(universe) "
+                             f"{pr['refused']}/{pr['walked']}: {reasons}")
             fired_s = ""
             if "fired" in row:
                 if row["fired"] is None:
@@ -587,9 +603,12 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
                                f"tier {row['fire_tier']} ({at})")
                 else:
                     fired_s = (f" | no fire in "
-                               f"{row['fired_sessions_walked']}-session window")
+                               f"{row['fired_sessions_walked']}-session window"
+                               + refused_s)
                 if row.get("fired_window_clamped"):
                     fired_s += " [window clamped: thin lead-in]"
+            elif refused_s:
+                fired_s = refused_s
             print(f"    {row['mark']:<24} {row['verdict']:<13} -> "
                   f"{row['outcome']}{extra}{detail}{fired_s}")
         report["variants"][label] = {"tally": t, "rows": rows}

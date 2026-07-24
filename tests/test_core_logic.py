@@ -153,6 +153,10 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
     assert gm["close_lower_dwell"] == 0.0
     assert gm["close_mid_dwell"] == 1.0
     assert gm["close_upper_dwell"] == 0.0
+    # Move 1 dark measures: fully-inside bars — engagement basis agrees with
+    # the wick basis, and the deepest excursion is a real measured 0.0.
+    assert gm["engagement_respect_frac"] == 1.0
+    assert gm["max_excursion_atr"] == 0.0
 
 
 def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
@@ -166,10 +170,17 @@ def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
     ])
     gm = measure_gate_margins(frame, 110.0, 100.0, 1.0)
     assert gm["respect_frac"] == 0.75
+    # Move 1 dark measures discriminate: the 0.5-ATR poke past R+buffer that
+    # CLOSED back inside hangs on the engagement basis (respect 1.0 vs the
+    # wick basis 0.75), and the excursion depth is the measured 0.5 ATR.
+    # Hand-specified: High 111.0 vs ceiling 110.5 with ATR 1.0.
+    assert gm["engagement_respect_frac"] == 1.0
+    assert gm["max_excursion_atr"] == 0.5
     # Degenerate inputs return the all-None dict, never a crash.
     empty = measure_gate_margins(frame.iloc[:0], 110.0, 100.0, 1.0)
     assert empty == {"respect_frac": None, "close_lower_dwell": None,
-                     "close_mid_dwell": None, "close_upper_dwell": None}
+                     "close_mid_dwell": None, "close_upper_dwell": None,
+                     "engagement_respect_frac": None, "max_excursion_atr": None}
     assert measure_gate_margins(frame, 100.0, 110.0, 1.0)["respect_frac"] is None
 
 
@@ -181,6 +192,53 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
         _osc_frame(_DEAD_SPACE), 110.0, 100.0, 1.0)
     assert ok_worked is True
     assert ok_dead is False
+
+
+def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
+    """Move 1 (gap-breach Task 3, MEASURE-ONLY — the election-variant form
+    was tested and rejected 2026-07-24): the archived engagement read must
+    discriminate in BOTH directions. Hand-specified (R 110, S 100, ATR 1 ->
+    ceiling 110.5; bound 1.5 ATR): a 1.0-ATR poke that closes back inside
+    hangs; a close-out bar and a deep 2.5-ATR poke NEVER hang."""
+    from engine_alpha.structure.metrics import measure_gate_margins
+
+    def _frame(high_last, close_last):
+        rows = [{"High": 106.0, "Low": 104.0, "Close": 105.0}] * 3
+        rows.append({"High": high_last, "Low": 104.0, "Close": close_last})
+        return pd.DataFrame(rows)
+
+    # Bounded poke (1.0 ATR past the ceiling), closed back inside -> hangs.
+    gm = measure_gate_margins(_frame(111.5, 110.0), 110.0, 100.0, 1.0)
+    assert gm["respect_frac"] == 0.75
+    assert gm["engagement_respect_frac"] == 1.0
+    assert gm["max_excursion_atr"] == 1.0
+    # Close-out beyond the ceiling: never a hang (upthrust defense).
+    gm = measure_gate_margins(_frame(111.5, 111.0), 110.0, 100.0, 1.0)
+    assert gm["engagement_respect_frac"] == 0.75
+    # Deep 2.5-ATR excursion: never a hang even closing back inside.
+    gm = measure_gate_margins(_frame(113.0, 110.0), 110.0, 100.0, 1.0)
+    assert gm["engagement_respect_frac"] == 0.75
+    assert gm["max_excursion_atr"] == 2.5
+    # Declared NaN route (conservative by contract, not by accident): an
+    # outside bar whose Close is NaN must NOT hang — it stays a full outside
+    # day. Pinned at the helper (live frames are finite; only the masks own
+    # this route): a refactor flipping the comparison direction would quietly
+    # inflate every archived engagement_respect_frac with the battery green.
+    from engine_alpha.structure.box_gates import (
+        _engagement_hang_masks,
+        _rail_outside_masks,
+    )
+
+    nan_frame = _frame(111.5, float("nan"))
+    highs = nan_frame["High"].to_numpy(float)
+    lows = nan_frame["Low"].to_numpy(float)
+    closes = nan_frame["Close"].to_numpy(float)
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
+        highs, lows, 110.0, 100.0, 1.0)
+    assert bool(above_r[-1])                       # it IS an outside bar
+    hang_r, hang_s = _engagement_hang_masks(
+        above_r, below_s, highs, lows, closes, r_ceiling, s_floor, 1.0)
+    assert not hang_r.any() and not hang_s.any()   # NaN close never hangs
 
 
 def test_worked_window_end_trims_only_a_held_late_breakout():

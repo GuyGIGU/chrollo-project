@@ -44,6 +44,7 @@ FEED_FLOOR = (
     "_contraction_vol_trend", "_descent_length", "_dist_52w_high_pct",
     "_eq_close_lower_dwell", "_eq_close_mid_dwell", "_eq_close_upper_dwell",
     "_eq_coverage", "_eq_lower_dwell", "_eq_mid_dwell",
+    "_eq_engagement_respect_frac", "_eq_max_excursion_atr",
     "_eq_r_touch_thirds", "_eq_r_touches", "_eq_respect_frac",
     "_eq_s_touch_thirds", "_eq_s_touches", "_eq_upper_dwell",
     "_excess_return_6m", "_final_contraction_depth",

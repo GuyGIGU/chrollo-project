@@ -59,17 +59,15 @@ def test_corpus_gate_aliases_the_shared_layer(monkeypatch):
     assert marks_corpus._load_fixture() == sentinel
 
 
-def test_resolve_frame_names_its_source(monkeypatch):
-    import pandas as pd
-    fake = pd.DataFrame({"Close": [1.0]})
-    raw, src = replay.resolve_frame("XYZ", sealed={"XYZ": fake})
-    assert src == "corpus fixture" and raw is fake
-
-    monkeypatch.setattr(replay, "_LIVE_PANEL",
-                        pd.DataFrame(columns=pd.MultiIndex.from_tuples(
-                            [("ABC", "Close")])))
-    raw, src = replay.resolve_frame("XYZ", sealed={})
-    assert raw is None and "not in corpus fixture nor cache" in src
+def test_fixture_frame_never_borrows_a_sibling_basis():
+    # A digest-graduated setup (no ticker fallback passed) whose keyed frame
+    # is missing must surface as MISSING — never silently receive a
+    # same-ticker legacy frame (Council review 2026-07-24: wrong-basis grade).
+    frames = {"ORMP": "legacy-frame", "ORMP:2026-05-08": "drawn-basis"}
+    assert replay.fixture_frame(frames, "ORMP:2026-05-08") == "drawn-basis"
+    assert replay.fixture_frame(frames, "ORMP:2026-02-02") is None
+    # Legacy setups opt into the bare-ticker fallback explicitly.
+    assert replay.fixture_frame(frames, "ORMP:legacy", "ORMP") == "legacy-frame"
 
 
 # ── The frozen day-snap policy (Council finding 13: it had no coverage) ──

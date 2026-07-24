@@ -286,6 +286,18 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                 if tup is not None:
                     rescued.append(tup)
 
+        # NOTE (gap-breach Task 4, 2026-07-24): a COMMIT-TAIL rescue — the
+        # dual of the SOS trim, re-judging a failing framing on its window
+        # minus a bounded terminal floor-holding pullback tail — was built
+        # and REJECTED here. No cap (5/8/12/15 bars) restores the EGBN/YPF
+        # right-edge elections it targeted: their collapses are structural
+        # (EGBN's two-week above-creek shelf residence = rail-PLACEMENT;
+        # YPF's 19-bar base + occupancy), not bounded-tail artifacts, and a
+        # trim long enough to matter re-elects stale windows (the rejected
+        # 13b arbitration lesson). Cause-commitment stays open only via a
+        # genuinely cross-frame mechanism (the measure-only election-
+        # stability probe is the instrument), never via window trims.
+
     pool = strict if strict else rescued
     # NOTE (solve-the-engine task 13b, 2026-07-16): a rescued-pool
     # ARBITRATION lever (let a fully-valid rescued framing that predates

@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from engine_alpha import stability
 from core.pipeline.screener import _evaluate_ticker
-from tools.replay import flag_capture, load_sealed_fixture
+from tools.replay import fixture_frame, flag_capture, load_sealed_fixture
 
 
 def _fire_frame():
@@ -25,7 +25,8 @@ def _fire_frame():
     frames, baseline = load_sealed_fixture()
     hit = next(s for s in baseline["setups"] if s["status"] == "hit")
     import pandas as pd
-    df = frames[hit["ticker"]].loc[:pd.Timestamp(hit["first_fire"])]
+    raw = fixture_frame(frames, hit["key"], hit["ticker"])
+    df = raw.loc[:pd.Timestamp(hit["first_fire"])]
     return hit["ticker"], df, float(hit["spy_6m_return"])
 
 

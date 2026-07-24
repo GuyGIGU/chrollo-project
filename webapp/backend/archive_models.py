@@ -166,6 +166,11 @@ class SetupArchive(Base):
     # fraction and the dead-space gate's own close-residence dwells (the
     # eq_*_dwell trio above is range-occupancy, a different statistic).
     eq_respect_frac = Column(Float, nullable=True)            # share of bars inside the buffered band
+    # Move 1 dark measures (gap-breach Task 3; never-gated, NULL = engine
+    # version predates the measure): engagement-basis respect (bounded
+    # close-back-inside excursions read as hangs) + deepest excursion in ATR.
+    eq_engagement_respect_frac = Column(Float, nullable=True) # respect share on the engagement basis
+    eq_max_excursion_atr = Column(Float, nullable=True)       # deepest single-bar excursion beyond the buffered rails (ATR)
     eq_close_lower_dwell = Column(Float, nullable=True)       # gate's close residence, lower third
     eq_close_mid_dwell = Column(Float, nullable=True)         # gate's close residence, middle third
     eq_close_upper_dwell = Column(Float, nullable=True)       # gate's close residence, upper third

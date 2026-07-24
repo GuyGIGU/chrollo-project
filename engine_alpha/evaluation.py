@@ -201,10 +201,19 @@ def score_equilibrium_args(equilibrium, dwell_balance, bins) -> dict:
     }
 
 
-def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
-    baseline = apply_baseline_filters(df)
+def _prepare_eval_frame_with_reason(
+    df: pd.DataFrame,
+) -> tuple[Optional[dict], Optional[tuple[str, dict]]]:
+    """The eval-frame prep, reasoned — ONE implementation (the reasonless
+    ``_prepare_eval_frame`` derives from it, mirroring the baseline-gate pair
+    above, so no caller can ever obtain a verdict by a path that lacks the
+    reason). Returns ``(prep, None)`` on pass or ``(None, (gate, samples))``
+    naming the FIRST failing universe gate. The reason is inert evidence —
+    additive data on the refusal branch only; no election, gate, or scoring
+    path may ever read it (geometry is the only veto)."""
+    baseline, reason = apply_baseline_filters_with_reason(df)
     if baseline is None:
-        return None
+        return None, reason
     full_df, yearly_return = baseline
 
     # Keep the full (up to 5y) frame for HTF resampling, but run the DAILY
@@ -224,7 +233,12 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
         # probe (flag-dark): its backward shifts must re-run THIS twin on the
         # same raw frame, never a lightweight re-prep of the filtered one.
         "raw_df": df,
-    }
+    }, None
+
+
+def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
+    prep, _ = _prepare_eval_frame_with_reason(df)
+    return prep
 
 
 def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
@@ -736,6 +750,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_eq_upper_dwell': float(dwell_balance['upper_dwell']),
         '_eq_coverage': float(dwell_balance['coverage']),
         '_eq_respect_frac': gate_margins['respect_frac'],
+        '_eq_engagement_respect_frac': gate_margins['engagement_respect_frac'],
+        '_eq_max_excursion_atr': gate_margins['max_excursion_atr'],
         '_eq_close_lower_dwell': gate_margins['close_lower_dwell'],
         '_eq_close_mid_dwell': gate_margins['close_mid_dwell'],
         '_eq_close_upper_dwell': gate_margins['close_upper_dwell'],

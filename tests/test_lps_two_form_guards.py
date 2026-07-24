@@ -32,15 +32,18 @@ from core.pipeline.screener import _evaluate_ticker
 from tools import shadow_diff
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 
 
-# The Task-8 acceptance battery's proven conversion points (frozen frames):
-# ticker -> (eval session, spy key). WTS fires at the operator's trigger_alt.
+# The Task-8 acceptance battery's proven conversion points, re-grounded on the
+# Guided List fixture (2026-07-24 graduation: frames keyed by full setup key,
+# frozen as-drawn basis). The sessions are unchanged — both conversions replay
+# at the same first-fire sessions on the new basis (freeze log 2026-07-24).
 _CONVERSIONS = {
-    "WTS": "2026-06-08",
-    "PBT": "2026-04-30",
+    "WTS:2026-06-12": "2026-06-08",
+    "PBT:2026-05-11": "2026-04-30",
 }
 
 
@@ -85,12 +88,13 @@ def test_marked_corpus_shelves_convert_flag_on_only(monkeypatch):
     flag-on — no pullback-form gate moved. The provenance key the archive
     writer maps (``_lps_swing_type``) carries the form."""
     frames, baseline = _load_marks_fixture()
-    spy_by_ticker = {s["key"].split(":")[0]: float(s["spy_6m_return"])
-                     for s in baseline["setups"]}
+    spy_by_key = {s["key"]: float(s["spy_6m_return"])
+                  for s in baseline["setups"]}
 
-    for ticker, session in _CONVERSIONS.items():
-        sliced = frames[ticker].loc[:pd.Timestamp(session)]
-        spy = spy_by_ticker[ticker]
+    for key, session in _CONVERSIONS.items():
+        ticker = key.split(":")[0]
+        sliced = fixture_frame(frames, key, ticker).loc[:pd.Timestamp(session)]
+        spy = spy_by_key[key]
 
         monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
         off = _evaluate_ticker(ticker, sliced, spy, _FROZEN_BREADTH)
