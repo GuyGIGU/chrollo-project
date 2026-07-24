@@ -198,13 +198,23 @@ def test_fingerprint_is_order_free_and_content_bound(session):
     _add_mark(session)
     _add_mark(session, ticker="KLAC", as_of_date="2025-09-11",
               box_start_date="2025-07-18", box_end_date="2025-09-11",
-              resistance=95.0, support=87.74)
+              resistance=95.0, support=87.74,
+              trigger_date="2025-09-02", trigger_price=96.0)
+    _add_lps_event(session, "2025-08-25", "2025-09-01")
     a = marks_fingerprint(load_marks(session))
     b = marks_fingerprint(list(reversed(load_marks(session))))
     assert a == b
-    session.query(CalibrationMark).filter_by(ticker="KLAC").first().resistance = 95.5
+    klac = session.query(CalibrationMark).filter_by(ticker="KLAC").first()
+    klac.resistance = 95.5
     session.commit()
-    assert marks_fingerprint(load_marks(session)) != a
+    c = marks_fingerprint(load_marks(session))
+    assert c != a
+    # The Trigger is inside the seal (recipe widened 2026-07-24, council
+    # finding 13): a buy edited after sign-off must rotate the fingerprint,
+    # never slide through the EC-9 pin.
+    klac.trigger_price = 96.5
+    session.commit()
+    assert marks_fingerprint(load_marks(session)) not in (a, c)
 
 
 def test_parse_variant():

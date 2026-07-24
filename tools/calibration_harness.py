@@ -70,12 +70,16 @@ SNAP_BACK_SESSIONS = replay.SNAP_BACK_SESSIONS
 
 def _mark_dict(mark) -> dict:
     """ORM row -> the model-shaped dict the shared judgment expects."""
+    # trigger_date/trigger_price joined the recipe 2026-07-24 (council finding
+    # 13: the EC-9 seal must cover the Trigger a sealed setup carries, not just
+    # its geometry). Widening this tuple rotates EVERY marks fingerprint, so
+    # adding a field is a deliberate operator re-pin event, never a drive-by.
     d = {c: getattr(mark, c) for c in (
         "ticker", "as_of_date", "label", "verdict", "resistance", "support",
         "box_start_date", "box_end_date", "r_anchor_date", "s_anchor_date",
         "first_rail", "rails_source", "knowable_from_date",
         "note", "data_regime", "engine_config_version", "anchor_close",
-        "frame_digest")}
+        "frame_digest", "trigger_date", "trigger_price")}
     # Events canonicalized by (type, start, end): the ORM returns children in
     # rowid order, and an edit delete-reinserts them in redraw order, so an
     # unsorted list would let a semantically-null redraw move the marks

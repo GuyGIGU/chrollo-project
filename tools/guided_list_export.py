@@ -38,15 +38,18 @@ from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 
 # Operator-approved seal for THIS graduation event (sign-off: "GO" 2026-07-24,
-# PLAN-guided-list-gap-breach Task 1). Any post-sign-off edit to a covered
-# field changes the fingerprint and the export refuses. KNOWN COVERAGE GAP
-# (council review 2026-07-24): the shared fingerprint recipe (_mark_dict)
-# does NOT include trigger_date/trigger_price, so a Trigger edited after
-# sign-off passes the pin unchanged — widening the recipe rotates EVERY
-# fingerprint, so it is an operator re-pin decision, recorded here until
-# made. A future graduation re-pins deliberately, never silently.
+# PLAN-guided-list-gap-breach Task 1; re-pinned later that day when the
+# fingerprint recipe was widened to cover trigger_date/trigger_price — council
+# finding 13 closed: the operator re-approved the IDENTICAL 33-mark set, whose
+# old-recipe fingerprint still matched the original pin, under the new recipe).
+# Any post-sign-off edit to a covered field — the Trigger included — changes
+# the fingerprint and the export refuses. The sealed corpus file and the
+# ratchet baseline keep the original-recipe fingerprint (b671e056…) as
+# export-day provenance (EC-7 append-only, never rewritten); this pin alone
+# speaks for the live DB. A future graduation re-pins deliberately, never
+# silently.
 OPERATOR_APPROVED_FINGERPRINT = (
-    "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523"
+    "c0c5c88e102c4303f01cfbe4b0b62320ea156466100880f98b2bdc74e3cdbd6a"
 )
 AUTHORIZATION = "operator GO 2026-07-24 — Guided List = THE engine-test standard"
 
