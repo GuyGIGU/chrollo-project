@@ -20,9 +20,11 @@ EC-10: the detector sees only bars at-or-before the shelf end.
 Per-shelf output is Specific (Beck): the verdict, the single reject slug when
 rejected (isolated by pinning the detector's window length to the marked
 length under ``flag_capture``), and the measured envelope values in the
-operator's units (bars, ATR, box-heights) so hot boundaries — e.g. the 1.25
-overshoot pullback floor sitting on VIK 1.228 / VLO 1.167 — read directly
-off the row.
+operator's units (bars, ATR, box-heights). The printed ``pullback_profile``
+is the DETECTOR'S own gated statistic — first-bar high minus terminal low
+over the profile unit; pass rows print the blessed candidate's exact value —
+never the (always-wider) whole-window range, which stays available as
+``window_range_pct_box``.
 
 Usage (ChrolloDashboard venv python, from repo root):
     python -m tools.shelf_harness [--ticker X] [--json OUT]
@@ -31,29 +33,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 
 import numpy as np
 import pandas as pd
 
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path
+    from _bootstrap import configure_path, refuse_sealed_output
 
-_PROJECT_ROOT = configure_path()
-
-import os  # noqa: E402
-
-sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
+_PROJECT_ROOT = configure_path(backend=True)
 
 import database  # noqa: E402
-from models import CalibrationMark  # noqa: E402
 
 from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.indicators import calculate_atr  # noqa: E402
 from engine_alpha.structure.lps import (  # noqa: E402
     _profile_unit,
     _spread_series,
@@ -62,26 +57,13 @@ from engine_alpha.structure.lps import (  # noqa: E402
     lps_range_threshold,
 )
 from engine_alpha.structure.market_structure import _pairwise_descent_fraction  # noqa: E402
-from tools.calibration_harness import _mark_dict, marks_fingerprint  # noqa: E402
-from tools.replay import flag_capture  # noqa: E402
-
-ATR_OFFSET = getattr(settings, "STRUCTURE_ATR_SAMPLE_OFFSET", 6)
-
-
-def _pos(index: pd.DatetimeIndex, date_str) -> int:
-    ts = pd.Timestamp(str(date_str))
-    p = int(index.get_indexer([ts])[0])
-    if p == -1:
-        p = min(int(index.searchsorted(ts)), len(index) - 1)
-    return p
-
-
-def _enrich(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["ATR_10"] = calculate_atr(df, 10)
-    df["Vol_50"] = df["Volume"].rolling(50).mean()
-    df["Spread"] = df["High"] - df["Low"]
-    return df
+from tools.calibration_harness import load_box_marks  # noqa: E402
+from tools.replay import (  # noqa: E402
+    MARK_ATR_OFFSET,
+    enrich_marked_frame,
+    flag_capture,
+    session_pos,
+)
 
 
 def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
@@ -89,18 +71,26 @@ def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
     R, S = float(mark.resistance), float(mark.support)
     box_height = R - S
     idx = frozen.index
-    start_pos = _pos(idx, ev.start_date)
-    end_pos = _pos(idx, ev.end_date)
+    start_pos = session_pos(idx, ev.start_date)
+    end_pos = session_pos(idx, ev.end_date, boundary="end")
     marked_len = end_pos - start_pos + 1
 
-    work = _enrich(frozen.iloc[: end_pos + 1])
-    atr = float(work["ATR_10"].iloc[-ATR_OFFSET]) if len(work) >= ATR_OFFSET \
+    work = enrich_marked_frame(frozen.iloc[: end_pos + 1])
+    atr = float(work["ATR_10"].iloc[-MARK_ATR_OFFSET]) if len(work) >= MARK_ATR_OFFSET \
         else float(work["ATR_10"].iloc[-1])
-    box_start_pos = _pos(idx, mark.box_start_date)
+    if not np.isfinite(atr) or atr <= 0:
+        # A NaN ATR would flow into the range threshold and zone tolerance,
+        # where NaN comparisons silently pass everything — the worst failure
+        # for an instrument. Refuse the shelf loudly instead.
+        raise RuntimeError(
+            f"{mark.ticker}@{mark.as_of_date}: ATR unavailable at the shelf "
+            f"end ({ev.start_date}..{ev.end_date}; frame too thin) — refusing "
+            "a quiet verdict")
+    box_start_pos = session_pos(idx, mark.box_start_date)
     base_df = work.iloc[box_start_pos:]
     thr = lps_range_threshold(base_df, atr)
     anchors = [d for d in (mark.r_anchor_date, mark.s_anchor_date) if d]
-    swing_idx = max((_pos(idx, d) for d in anchors), default=box_start_pos)
+    swing_idx = max((session_pos(idx, d) for d in anchors), default=box_start_pos)
 
     row = {
         "ticker": mark.ticker, "as_of": str(mark.as_of_date),
@@ -117,12 +107,18 @@ def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
     lows = window["Low"].to_numpy(float)
     highs = window["High"].to_numpy(float)
     last_low = float(lows[-1])
+    first_high = float(highs[0])
     m = {
         "tightness_ratio": (float(spreads.iloc[-1]) / profile_unit
                             if profile_unit else None),
         "window_range_pct_box": float((np.nanmax(highs) - np.nanmin(lows))
                                       / box_height) if box_height > 0 else None,
-        "pullback_profile": (float(np.nanmax(highs) - np.nanmin(lows)) / profile_unit
+        # The DETECTOR's gated statistic (first-bar high − terminal low, over
+        # the profile unit — its primary support-low form); a pass row below
+        # overwrites this with the blessed candidate's exact value. Never the
+        # whole-window range: that is always ≥ the gate's own number and
+        # would overstate every boundary-proximity diagnosis.
+        "pullback_profile": ((first_high - last_low) / profile_unit
                              if profile_unit else None),
         "position_in_box": ((last_low - S) / box_height) if box_height > 0 else None,
         "low_descent_frac": float(_pairwise_descent_fraction(lows)),
@@ -132,13 +128,17 @@ def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
                             if np.isfinite(work["Vol_50"].iloc[-1])
                             and work["Vol_50"].iloc[-1] > 0 else None),
     }
+    # Descriptive only, and deliberately NOT named "zone": the detector's own
+    # zone_type (printed on pass rows) calls the valid throwback band
+    # OVERSHOOT_R, while this classifies the terminal low against the
+    # tolerance limits the detector REJECTS beyond — one word, one meaning.
     zone_tol = _zone_tolerance(S, R, atr)
     if last_low > R + zone_tol:
-        m["zone"] = "OVERSHOOT_R"
+        m["low_beyond_tol"] = "above_R"
     elif last_low < S - zone_tol:
-        m["zone"] = "UNDERCUT_S"
+        m["low_beyond_tol"] = "below_S"
     else:
-        m["zone"] = "INSIDE"
+        m["low_beyond_tol"] = "inside"
     row["m"] = {k: (round(v, 4) if isinstance(v, float) else v)
                 for k, v in m.items()}
 
@@ -160,6 +160,11 @@ def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
         row["verdict"] = "pass"
         row["swing_type"] = exact[0].get("swing_type")
         row["zone_type"] = exact[0].get("zone_type")
+        pp = exact[0].get("pullback_profile")
+        if pp is not None:
+            # The blessed candidate's EXACT gated value (covers the detector's
+            # rising-shelf window-low re-anchor, which the row estimate can't see).
+            row["m"]["pullback_profile"] = round(float(pp), 4)
         return row
 
     # Isolate the marked window's own reject path: pin the detector's length
@@ -175,24 +180,39 @@ def probe_shelf(frozen: pd.DataFrame, mark, ev) -> dict:
     return row
 
 
+def _metrics_line(m: dict) -> str:
+    """Constant order, fixed width, '-' placeholders — one metric = one
+    column down the whole report, so a boundary scan never re-hunts a key."""
+    def num(key: str) -> str:
+        v = m.get(key)
+        return f"{v:>7.4f}" if isinstance(v, (int, float)) else f"{'-':>7}"
+
+    return (f"beyond_tol={m.get('low_beyond_tol') or '-':<8}"
+            f" tight={num('tightness_ratio')}"
+            f" pullback={num('pullback_profile')}"
+            f" pos_box={num('position_in_box')}"
+            f" low_desc={num('low_descent_frac')}"
+            f" vol_ctr={num('vol_contraction')}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Grade the ONE LPS detector over the operator's marked shelves.")
     ap.add_argument("--ticker", help="only this ticker")
     ap.add_argument("--json", dest="json_out", help="also dump per-shelf JSON")
     args = ap.parse_args()
+    if args.json_out:
+        refuse_sealed_output(args.json_out)
 
     session = database.SessionLocal()
     try:
-        marks = [m for m in session.query(CalibrationMark).all()
-                 if m.verdict == "box"
-                 and (not args.ticker or m.ticker == args.ticker.upper())]
-        all_box = [m for m in session.query(CalibrationMark).all()
-                   if m.verdict == "box"]
-        fingerprint = marks_fingerprint([_mark_dict(m) for m in all_box])
+        # The shared validated loader (EC-3): loud per-mark validation, and
+        # the fingerprint covers EXACTLY the marks scored — a --ticker run
+        # stamps the filtered set, never a claim over marks it didn't measure.
+        marks, fingerprint = load_box_marks(session, args.ticker)
 
         rows: list[dict] = []
-        for mark in sorted(marks, key=lambda x: (x.ticker, str(x.as_of_date))):
+        for mark in marks:
             frozen = frame_store.load_frame(
                 mark.ticker, mark.as_of_date, digest=mark.frame_digest)
             if frozen is None or frozen.empty:
@@ -209,29 +229,26 @@ def main() -> None:
     finally:
         session.close()
 
+    scope = f"filtered: {args.ticker.upper()}" if args.ticker else "all box marks"
     print("=" * 100)
     print("  SHELF-HARNESS — the ONE LPS detector vs the operator's marked shelves"
           " (drawn basis)")
     print("=" * 100)
-    print(f"population: calibration marks (EC-9)   marks_fingerprint: {fingerprint[:16]}…")
+    print(f"population: calibration marks (EC-9; {scope})   "
+          f"marks_fingerprint: {fingerprint[:16]}… (exact set scored)")
     print(f"engine_config_version: {manifest_hash()[:16]}…   shelves: {len(rows)}")
     print(f"detector thresholds: len [{settings.LPS_LENGTH_MIN},{settings.LPS_LENGTH_MAX}]"
           f"   descent floors {settings.LPS_MIN_DESCENT_FRAC}/{settings.LPS_MIN_HIGH_DESCENT_FRAC}"
           f"   zone ATR mult {settings.LPS_ZONE_ATR_MULT}")
     print()
     for r in rows:
-        m = r.get("m", {})
-        nums = ("  ".join(f"{k}={m[k]}" for k in
-                          ("zone", "tightness_ratio", "pullback_profile",
-                           "position_in_box", "low_descent_frac",
-                           "vol_contraction") if m.get(k) is not None))
         head = f"{r['ticker']:6} {r['as_of']}  shelf {r['shelf']} ({r['len']}b)"
         if r["verdict"] == "pass":
             print(f"  PASS    {head}  [{r.get('swing_type') or '?'}]")
         else:
             print(f"  REJECT  {head}")
             print(f"          -> {r.get('reject')}")
-        print(f"          {nums}")
+        print(f"          {_metrics_line(r.get('m', {}))}")
 
     n_pass = sum(1 for r in rows if r["verdict"] == "pass")
     print()
@@ -244,7 +261,9 @@ def main() -> None:
             print(f"  {n:>2}x  {slug}")
 
     if args.json_out:
-        doc = {"marks_fingerprint": fingerprint,
+        doc = {"population": "calibration_marks",
+               "scope": scope,
+               "marks_fingerprint": fingerprint,
                "engine_config_version": manifest_hash(),
                "n_shelves": len(rows), "n_pass": n_pass, "rows": rows}
         with open(args.json_out, "w", encoding="utf-8") as f:

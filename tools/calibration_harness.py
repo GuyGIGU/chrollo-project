@@ -50,11 +50,7 @@ try:
 except ModuleNotFoundError:
     from _bootstrap import configure_path
 
-_PROJECT_ROOT = configure_path()
-
-import os
-
-sys.path.insert(1, os.path.join(_PROJECT_ROOT, "webapp", "backend"))
+_PROJECT_ROOT = configure_path(backend=True)
 
 import pandas as pd
 
@@ -124,6 +120,31 @@ def load_marks(session, ticker: str | None = None) -> list[dict]:
     return out
 
 
+def load_box_marks(session, ticker: str | None = None):
+    """The marked-window instruments' shared ORM read (EC-3): box-verdict
+    marks, each validated loudly through the ONE shared judgment (an invalid
+    row aborts naming the offender — a silently skipped mark shrinks every
+    denominator), sorted, plus the fingerprint of EXACTLY the rows returned
+    (the harness stamp contract: a filtered report claims only what it
+    scored). Rows stay ORM objects — the instruments read event children."""
+    from marks_validity import validate_mark
+    from models import CalibrationMark
+
+    q = session.query(CalibrationMark).filter(CalibrationMark.verdict == "box")
+    if ticker:
+        q = q.filter(CalibrationMark.ticker == ticker.strip().upper())
+    rows = sorted(q.all(), key=lambda m: (m.ticker, str(m.as_of_date), m.label or ""))
+    dicts = [_mark_dict(m) for m in rows]
+    for d in dicts:
+        problems = validate_mark(d)
+        if problems:
+            raise ValueError(
+                f"calibration mark ({d['ticker']}, {d['as_of_date']}, "
+                f"{d['label']!r}) is invalid — batch refused, fix the mark: "
+                + "; ".join(problems))
+    return rows, marks_fingerprint(dicts)
+
+
 def _vetoed_cause_absent(df, atr, variant: dict) -> bool:
     """Did read_structure elect nothing on THIS frame because the
     cause-before-effect veto fired? Reads the engine's OWN terminal trace
@@ -167,17 +188,14 @@ def grade_one(mark: dict, variants: list[dict], *, frame_loader=None,
     snapped = election(frozen, mark["as_of_date"], variants, snap_back=snap)
     if snapped is None:
         # Move 4: name WHICH gate refused each candidate session instead of
-        # the bare "too thin" guess — report-only, never a grading input.
+        # a bare guess — report-only, never a grading input.
         idx = frozen.index[frozen.index <= pd.Timestamp(mark["as_of_date"])]
         refused = replay.refusal_scan(frozen, idx[-(snap + 1):])
         rows = [agreement.ungraded("edge_uncertain",
-                                   "prep refuses every candidate session "
-                                   "(frame too thin)")
+                                   "prep refuses every candidate session")
                 for _ in variants]
         if refused:
-            pr = {"refused": len(refused), "walked": min(snap + 1, len(idx)),
-                  "reasons": dict(Counter(slug for _, slug in refused)),
-                  "sessions": [s for s, _ in refused]}
+            pr = _refusal_fragment(refused, min(snap + 1, len(idx)))
             for r in rows:
                 r["prep_refusals"] = pr
         return rows
@@ -227,11 +245,21 @@ HARNESS_POLICY_VERSION = 3
 FIRED_EVENT_TAIL_SESSIONS = replay.FIRED_EVENT_TAIL_SESSIONS
 FIRED_WALK_MAX_SESSIONS = replay.FIRED_WALK_MAX_SESSIONS
 
-# Frozen market scalars (marks-corpus twin): scoring-only inputs — they shape
-# Score/Tier, never the fire/no-fire decision — pinned so the replay is
-# deterministic and needs no SPY/breadth history alongside the frozen frame.
-_FROZEN_BREADTH = 0.5
-_FROZEN_SPY_6M = 0.0
+# Frozen market scalars (scoring-only; they shape Score/Tier, never the
+# fire/no-fire decision) — OWNED by the replay seam beside the fired-policy
+# constants so the gate and the harness can never drift apart; re-exported
+# here only for report stamping, exactly like the window constants above.
+_FROZEN_BREADTH = replay.FROZEN_BREADTH
+_FROZEN_SPY_6M = replay.FROZEN_SPY_6M
+
+
+def _refusal_fragment(refused: list, walked: int) -> dict:
+    """The Move-4 refusal-telemetry fragment — ONE shape for both report
+    paths (graded rows and the fired walk), so the printer can never read
+    two spellings of the same evidence."""
+    return {"refused": len(refused), "walked": walked,
+            "reasons": dict(Counter(slug for _, slug in refused)),
+            "sessions": [s for s, _ in refused]}
 
 
 def _fired_sessions(frozen: pd.DataFrame, mark: dict) -> tuple[list, str | None]:
@@ -309,6 +337,7 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
     window = [sessions[0].strftime("%Y-%m-%d"), sessions[-1].strftime("%Y-%m-%d")]
 
     fragments = []
+    refusals = None   # variant-independent; scanned ONCE, on the first no-fire
     for variant in variants:
         frag: dict = {"fired": False, "fired_window": window,
                       "fired_sessions_walked": len(sessions)}
@@ -382,16 +411,14 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
         # Move 4: a walked-but-silent window must say WHICH sessions the
         # universe prep refused (SKYT was refused 5/6 sessions, invisibly).
         # Computed only on the no-fire branch — the pass path pays nothing —
-        # and flag-independent (universe gates are not engine flags), so one
-        # scan serves every variant. Inert evidence: report-only.
+        # and flag-independent (universe gates are not engine flags), so ONE
+        # scan (cached across the variant loop) serves every variant.
+        # Inert evidence: report-only.
         if frag.get("fired") is False:
-            refused = replay.refusal_scan(frozen, sessions)
-            if refused:
-                frag["prep_refusals"] = {
-                    "refused": len(refused), "walked": len(sessions),
-                    "reasons": dict(Counter(slug for _, slug in refused)),
-                    "sessions": [s for s, _ in refused],
-                }
+            if refusals is None:
+                refusals = replay.refusal_scan(frozen, sessions)
+            if refusals:
+                frag["prep_refusals"] = _refusal_fragment(refusals, len(sessions))
         if clamp_note:
             frag["fired_window_clamped"] = clamp_note
         fragments.append(frag)
@@ -552,6 +579,18 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
         for row in rows:
             extra = f" snapped={row['snapped']}" if row.get("snapped") else ""
             detail = f" [{row['detail']}]" if row.get("detail") else ""
+            # Move 4: the refusal suffix renders on EVERY row that carries the
+            # evidence — the fired walk's silent windows AND graded-only rows
+            # (an edge_uncertain whose real cause is a universe gate must
+            # never print as a bare frame-thin guess).
+            pr = row.get("prep_refusals")
+            refused_s = ""
+            if pr:
+                reasons = ", ".join(
+                    f"{slug} x{n}" for slug, n in
+                    sorted(pr["reasons"].items(), key=lambda kv: -kv[1]))
+                refused_s = (f" | REFUSED(universe) "
+                             f"{pr['refused']}/{pr['walked']}: {reasons}")
             fired_s = ""
             if "fired" in row:
                 if row["fired"] is None:
@@ -564,16 +603,12 @@ def run(ticker: str | None, variant_specs: list[str], json_out: str | None,
                                f"tier {row['fire_tier']} ({at})")
                 else:
                     fired_s = (f" | no fire in "
-                               f"{row['fired_sessions_walked']}-session window")
-                    pr = row.get("prep_refusals")
-                    if pr:
-                        reasons = ", ".join(
-                            f"{slug} x{n}" for slug, n in
-                            sorted(pr["reasons"].items(), key=lambda kv: -kv[1]))
-                        fired_s += (f" | REFUSED(universe) "
-                                    f"{pr['refused']}/{pr['walked']}: {reasons}")
+                               f"{row['fired_sessions_walked']}-session window"
+                               + refused_s)
                 if row.get("fired_window_clamped"):
                     fired_s += " [window clamped: thin lead-in]"
+            elif refused_s:
+                fired_s = refused_s
             print(f"    {row['mark']:<24} {row['verdict']:<13} -> "
                   f"{row['outcome']}{extra}{detail}{fired_s}")
         report["variants"][label] = {"tally": t, "rows": rows}

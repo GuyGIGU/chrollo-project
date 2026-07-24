@@ -46,6 +46,7 @@ _PROJECT_ROOT = configure_path()
 from config import settings
 from core.pipeline.downloads import _trim_to_period
 from engine_alpha.evaluation import _prepare_eval_frame_with_reason
+from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.narrative import read_structure
 
 # Sealed-corpus fixture paths (written by `tools.marks_corpus --build-fixture`,
@@ -121,6 +122,42 @@ def refusal_scan(raw: pd.DataFrame, sessions) -> list[tuple[str, str]]:
         if prep is None and reason is not None:
             out.append((pd.Timestamp(ts).strftime("%Y-%m-%d"), reason[0]))
     return out
+
+
+# ------------------------------------------------------------------
+# Marked-window instrument helpers (ONE definition — EC-3)
+# ------------------------------------------------------------------
+# Shared by the marked-window instruments (shelf harness, stat card) so two
+# reports over the same mark can never measure different windows or a
+# different ATR. The setting always exists; no silent default.
+MARK_ATR_OFFSET = settings.STRUCTURE_ATR_SAMPLE_OFFSET
+
+
+def session_pos(index: pd.DatetimeIndex, date_str, *, boundary: str = "start") -> int:
+    """Resolve a mark date to a frame position. An exact session match wins;
+    a non-session date resolves INWARD for its boundary role — a start
+    boundary to the first session at-or-after, an END boundary to the last
+    session at-or-before (resolving an end forward would silently add a
+    post-mark bar to the measured window). Clamped to the frame."""
+    ts = pd.Timestamp(str(date_str))
+    p = int(index.get_indexer([ts])[0])
+    if p != -1:
+        return p
+    p = int(index.searchsorted(ts))
+    if boundary == "end":
+        p -= 1
+    return max(0, min(p, len(index) - 1))
+
+
+def enrich_marked_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """The instrument enrichment (ATR/volume/spread columns) on a copy of a
+    frozen frame — the columns the engine's measure functions expect."""
+    df = df.copy()
+    df["ATR_10"] = calculate_atr(df, 10)
+    df["ATR_50"] = calculate_atr(df, 50)
+    df["Vol_50"] = df["Volume"].rolling(50).mean()
+    df["Spread"] = df["High"] - df["Low"]
+    return df
 
 
 @contextmanager

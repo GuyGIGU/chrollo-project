@@ -20,29 +20,25 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import statistics
-import sys
 
 import numpy as np
 import pandas as pd
 
 # --- bootstrap repo path (mirror tools/calibration_harness.py) --------------
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:  # invoked as a script from repo root
-    from _bootstrap import configure_path  # type: ignore
-_ROOT = configure_path()
-sys.path.insert(1, os.path.join(_ROOT, "webapp", "backend"))
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
+_ROOT = configure_path(backend=True)
 
 import database  # noqa: E402  binds the live SQLite engine + SessionLocal
-from models import CalibrationMark  # noqa: E402
 
 from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
+from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.structure.indicators import (  # noqa: E402
     adr_pct,
-    calculate_atr,
     distance_to_52w_high_pct,
     trend_template,
 )
@@ -63,8 +59,12 @@ from engine_alpha.structure.metrics import (  # noqa: E402
 )
 from engine_alpha.structure.lps import lps_range_threshold, _profile_unit  # noqa: E402
 from engine_alpha.structure.market_structure import _pairwise_descent_fraction  # noqa: E402
-
-ATR_OFFSET = getattr(settings, "STRUCTURE_ATR_SAMPLE_OFFSET", 6)
+from tools.calibration_harness import load_box_marks  # noqa: E402
+from tools.replay import (  # noqa: E402
+    MARK_ATR_OFFSET,
+    enrich_marked_frame,
+    session_pos,
+)
 
 
 # --- helpers ----------------------------------------------------------------
@@ -76,30 +76,18 @@ def _safe(fn, *a, **k):
         return None, f"{type(exc).__name__}: {exc}"
 
 
-def _pos(index: pd.DatetimeIndex, date_str: str) -> int:
-    ts = pd.Timestamp(date_str)
-    p = int(index.get_indexer([ts])[0])
-    if p == -1:
-        p = int(index.searchsorted(ts))
-        p = min(p, len(index) - 1)
-    return p
-
-
-def _enrich(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["ATR_10"] = calculate_atr(df, 10)
-    df["ATR_50"] = calculate_atr(df, 50)
-    df["Vol_50"] = df["Volume"].rolling(50).mean()
-    df["Spread"] = df["High"] - df["Low"]
-    return df
-
-
 def _num(x):
     try:
         f = float(x)
         return f if np.isfinite(f) else None
     except (TypeError, ValueError):
         return None
+
+
+def _round(x, digits: int):
+    """Nullable round — the ONE idiom for a maybe-missing numeric cell."""
+    v = _num(x)
+    return None if v is None else round(v, digits)
 
 
 # --- per-mark measurement ---------------------------------------------------
@@ -126,20 +114,20 @@ def measure_mark(mark) -> dict:
     if frozen is None or frozen.empty:
         out["errors"].append("basis_mismatch: no frozen frame for this digest")
         return out
-    frozen = _enrich(frozen)
+    frozen = enrich_marked_frame(frozen)
 
     # slice to the box's right edge so the engine's "box ends at last bar" convention holds
-    end_idx_full = _pos(frozen.index, mark.box_end_date)
+    end_idx_full = session_pos(frozen.index, mark.box_end_date, boundary="end")
     df = frozen.iloc[: end_idx_full + 1]
-    if len(df) < ATR_OFFSET + 1:
+    if len(df) < MARK_ATR_OFFSET + 1:
         out["errors"].append(f"too few bars before box_end ({len(df)})")
         return out
-    atr = _num(df["ATR_10"].iloc[-ATR_OFFSET])
+    atr = _num(df["ATR_10"].iloc[-MARK_ATR_OFFSET])
     if atr is None or atr <= 0:
         out["errors"].append("ATR unavailable at box_end")
         return out
 
-    bs = _pos(df.index, mark.box_start_date)
+    bs = session_pos(df.index, mark.box_start_date)
     be = len(df) - 1
     base_df = df.iloc[bs : be + 1]
     box_height = R - S
@@ -148,9 +136,8 @@ def measure_mark(mark) -> dict:
     m["box_width"] = round(box_width, 4)
     m["box_width_atr"] = round(box_height / atr, 3)
     m["base_length"] = int(be - bs + 1)
-    m["atr_squeeze"] = _num(df["ATR_10"].iloc[-ATR_OFFSET]) and round(
-        float(df["ATR_10"].iloc[-ATR_OFFSET]) / float(df["ATR_50"].iloc[-ATR_OFFSET]), 3
-    ) if _num(df["ATR_50"].iloc[-ATR_OFFSET]) else None
+    atr50 = _num(df["ATR_50"].iloc[-MARK_ATR_OFFSET])
+    m["atr_squeeze"] = round(atr / atr50, 3) if atr50 else None
 
     highs = base_df["High"].to_numpy()
     lows = base_df["Low"].to_numpy()
@@ -215,22 +202,25 @@ def measure_mark(mark) -> dict:
                 out["gate_fails"].append("descent-tail: support abandoned early under a late coil")
 
     dwm, err = _safe(measure_gate_margins, base_df, R, S, atr)
-    if isinstance(dwm, dict):
+    if err:
+        out["errors"].append(f"gate_margins: {err}")
+    elif isinstance(dwm, dict):
         for k in ("respect_frac", "close_lower_dwell", "close_mid_dwell", "close_upper_dwell"):
             if k in dwm and isinstance(dwm[k], (int, float)):
                 m[k] = round(float(dwm[k]), 3)
 
     tv, err = _safe(measure_touch_volume, base_df, R, S, atr)
-    if isinstance(tv, tuple) and len(tv) == 2:
-        m["r_touch_vol_z"] = _num(tv[0]) and round(_num(tv[0]), 3)
-        m["s_touch_vol_z"] = _num(tv[1]) and round(_num(tv[1]), 3)
+    if err:
+        out["errors"].append(f"touch_volume: {err}")
+    elif isinstance(tv, tuple) and len(tv) == 2:
+        m["r_touch_vol_z"] = _round(tv[0], 3)
+        m["s_touch_vol_z"] = _round(tv[1], 3)
 
     con, err = _safe(measure_contractions, base_df)
     if err:
         out["errors"].append(f"contractions: {err}")
     elif isinstance(con, dict):
         for src, dst in (("n_contractions", "contraction_count"),
-                         ("contraction_count", "contraction_count"),
                          ("quality", "contraction_quality"),
                          ("final_depth", "final_contraction_depth"),
                          ("vol_trend", "contraction_vol_trend")):
@@ -238,31 +228,43 @@ def measure_mark(mark) -> dict:
                 m[dst] = round(float(con[src]), 3)
 
     bc, err = _safe(measure_bar_compression, base_df, box_height, atr)
-    if isinstance(bc, dict):
+    if err:
+        out["errors"].append(f"bar_compression: {err}")
+    elif isinstance(bc, dict):
         for k in ("median_spread_atr", "p80_spread_atr", "median_spread_pct_box", "tight_bar_pct"):
             if k in bc and isinstance(bc[k], (int, float)):
                 m[k] = round(float(bc[k]), 3)
 
     ss, err = _safe(measure_support_slope, base_df, atr)
-    if isinstance(ss, dict):
+    if err:
+        out["errors"].append(f"support_slope: {err}")
+    elif isinstance(ss, dict):
         for k in ("support_slope_atr", "higher_low_frac", "ascending_support_quality"):
             if k in ss and isinstance(ss[k], (int, float)):
                 m[k] = round(float(ss[k]), 3)
 
     dwb, err = _safe(measure_dwell_balance, base_df, R, S, atr)
-    if isinstance(dwb, dict):
+    if err:
+        out["errors"].append(f"dwell_balance: {err}")
+    elif isinstance(dwb, dict):
         for k in ("lower_dwell", "mid_dwell", "upper_dwell", "coverage"):
             if k in dwb and isinstance(dwb[k], (int, float)):
                 m[f"occ_{k}"] = round(float(dwb[k]), 3)
 
     # --- ADR / trend context (on the full <= box_end frame) --------------
-    adr, _ = _safe(adr_pct, df, settings.ADR_WINDOW)
-    m["adr_pct"] = _num(adr) and round(_num(adr), 2)
+    adr, err = _safe(adr_pct, df, settings.ADR_WINDOW)
+    if err:
+        out["errors"].append(f"adr: {err}")
+    m["adr_pct"] = _round(adr, 2)
     price = _num(df["Close"].iloc[be])
-    dhp, _ = _safe(distance_to_52w_high_pct, df["High"], price, 252)
-    m["dist_52w_high_pct"] = _num(dhp) and round(_num(dhp), 3)
-    tt, _ = _safe(trend_template, df, dist_52w_high_pct=_num(dhp))
-    if isinstance(tt, dict) and "trend_pass_count" in tt:
+    dhp, err = _safe(distance_to_52w_high_pct, df["High"], price, 252)
+    if err:
+        out["errors"].append(f"dist_52w: {err}")
+    m["dist_52w_high_pct"] = _round(dhp, 3)
+    tt, err = _safe(trend_template, df, dist_52w_high_pct=_num(dhp))
+    if err:
+        out["errors"].append(f"trend_template: {err}")
+    elif isinstance(tt, dict) and "trend_pass_count" in tt:
         m["stage2_trend_pass_count"] = tt.get("trend_pass_count")
 
     # --- LPS window (measured on the operator's marked span) -------------
@@ -277,8 +279,8 @@ def measure_mark(mark) -> dict:
 def _measure_lps(out, df, base_df, ev, R, S, atr, box_height):
     m = out["m"]
     try:
-        ls = _pos(df.index, ev.start_date)
-        le = _pos(df.index, ev.end_date)
+        ls = session_pos(df.index, ev.start_date)
+        le = session_pos(df.index, ev.end_date, boundary="end")
         if le < ls:
             ls, le = le, ls
         window = df.iloc[ls : le + 1]
@@ -324,10 +326,28 @@ def _measure_lps(out, df, base_df, ev, R, S, atr, box_height):
             if m["lps_zone"] == "OVERSHOOT_R":
                 lo = settings.LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R
             if not (lo <= pp <= settings.LPS_PULLBACK_PROFILE_MAX):
-                out["gate_fails"].append(f"lps_pullback_profile {pp} outside [{lo},{settings.LPS_PULLBACK_PROFILE_MAX}]")
+                # Approximate by design: anchored on the operator's drawn tip
+                # (the engine anchors the terminal/window low) and blind to
+                # the BUEC / holding-shelf acceptance forms — an envelope
+                # check, not the detector's verdict (that is the shelf
+                # harness's job).
+                out["gate_fails"].append(
+                    f"lps_pullback_profile {pp} outside [{lo},"
+                    f"{settings.LPS_PULLBACK_PROFILE_MAX}] (approx envelope: "
+                    "tip-anchored; BUEC/shelf exceptions not modeled)")
         vc = m.get("lps_vol_contraction")
-        if vc is not None and vc > settings.LPS_VOL_CONTRACTION_MAX:
-            out["gate_fails"].append(f"lps_vol_contraction {vc} > {settings.LPS_VOL_CONTRACTION_MAX}")
+        # The engine rejects when avg pullback volume is NOT drying:
+        # avg >= LPS_VOL_CONTRACTION_MAX x Vol50 — in this card's units
+        # (contraction = (Vol50 - avg)/Vol50) that is a LOW contraction,
+        # at or below 1 - MAX. (The original comparison pointed the wrong
+        # way at the wrong end: it flagged the deepest dry-ups and missed
+        # every real fail — council review 2026-07-24.)
+        if vc is not None and vc <= 1.0 - settings.LPS_VOL_CONTRACTION_MAX:
+            out["gate_fails"].append(
+                f"lps_vol_contraction {vc} <= "
+                f"{1.0 - settings.LPS_VOL_CONTRACTION_MAX:.2f} (avg pullback "
+                f"volume >= {settings.LPS_VOL_CONTRACTION_MAX:.0%} of Vol50 "
+                "- not drying)")
     except Exception as exc:  # noqa: BLE001
         out["errors"].append(f"lps: {type(exc).__name__}: {exc}")
 
@@ -395,25 +415,36 @@ def main():
     ap.add_argument("--ticker", help="limit to one ticker")
     ap.add_argument("--json", metavar="PATH", help="dump per-mark measures to JSON")
     args = ap.parse_args()
+    if args.json:
+        refuse_sealed_output(args.json)
 
     session = database.SessionLocal()
     try:
-        q = session.query(CalibrationMark).filter(CalibrationMark.verdict == "box")
-        if args.ticker:
-            q = q.filter(CalibrationMark.ticker == args.ticker.upper())
-        marks = q.order_by(CalibrationMark.ticker, CalibrationMark.as_of_date,
-                           CalibrationMark.label).all()
+        # The shared validated loader (EC-3): loud per-mark validation, and
+        # the fingerprint covers EXACTLY the marks scored (EC-9 stamp).
+        marks, fingerprint = load_box_marks(session, args.ticker)
         cards = [measure_mark(mk) for mk in marks]
     finally:
         session.close()
 
+    scope = f"filtered: {args.ticker.upper()}" if args.ticker else "all box marks"
+    print("=" * 78)
+    print("  SETUP STAT CARD — the operator's DRAWN geometry, measured")
+    print("=" * 78)
+    print(f"population: calibration marks (EC-9; {scope})   "
+          f"marks_fingerprint: {fingerprint[:16]}… (exact set scored)")
+    print(f"engine_config_version: {manifest_hash()[:16]}…   marks: {len(cards)}")
     for c in cards:
         print_card(c)
     print_aggregate(cards)
 
     if args.json:
+        doc = {"population": "calibration_marks", "scope": scope,
+               "marks_fingerprint": fingerprint,
+               "engine_config_version": manifest_hash(),
+               "cards": cards}
         with open(args.json, "w", encoding="utf-8") as fh:
-            json.dump(cards, fh, indent=2, default=str)
+            json.dump(doc, fh, indent=2, default=str)
         print(f"\nwrote {args.json}")
 
 

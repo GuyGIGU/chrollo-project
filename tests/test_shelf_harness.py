@@ -67,8 +67,13 @@ def test_clean_pullback_shelf_passes():
     mark, ev = _mark_and_event(df, 3)
     row = probe_shelf(df, mark, ev)
     assert row["verdict"] == "pass", row
-    assert row["m"]["zone"] == "INSIDE"
+    assert row["m"]["low_beyond_tol"] == "inside"
     assert row["m"]["low_descent_frac"] == 1.0
+    # The printed pullback_profile is the DETECTOR's own gated statistic —
+    # on a pass row, the blessed candidate's exact value (first-bar high −
+    # support low over the profile unit), never the whole-window range.
+    assert row["m"]["pullback_profile"] is not None
+    assert row["m"]["pullback_profile"] <= settings.LPS_PULLBACK_PROFILE_MAX
 
 
 def test_marked_window_reject_is_isolated_and_named():
@@ -84,7 +89,11 @@ def test_marked_window_reject_is_isolated_and_named():
     mark, ev = _mark_and_event(df, 3)
     row = probe_shelf(df, mark, ev)
     assert row["verdict"] == "reject", row
-    assert isinstance(row.get("reject"), str) and row["reject"], row
+    # The SPECIFIC first-fail slug for this window (lows marching up = the
+    # rest gate), not any non-empty string: this is what proves the
+    # length-pinned isolation returns THIS window's own reject rather than a
+    # verdict aggregated from other scanned lengths.
+    assert row["reject"] == "does not rest on its low", row
 
 
 def test_out_of_range_length_named_before_detector():
