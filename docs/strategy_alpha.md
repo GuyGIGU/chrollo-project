@@ -859,8 +859,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **LPS tightness** | `(1 - tightness_ratio) × (20 × 2)` | `SCORE_LPS_TIGHTNESS = 20` |
 | **Volume contraction** | `vol_contraction × (20 × 2)` | `SCORE_VOL_CONTRACTION = 20` |
 | **Base age** (only if `base_len > MIN_BASE_DAYS`) | `sqrt(base_len / BASE_AGE_CAP_DAYS) × 22`. Hits ~50% at 30d, ~71% at 60d, 100% at 120d. **Dead-space dock:** a WIDE base (`box_width > BASE_AGE_DEADSPACE_WIDTH`) that did not work rail-to-rail (`traversal_density < TRAVERSAL_QUALITY_DENSITY_FULL`) scales its age credit by the achieved density fraction (`traversal_density / TRAVERSAL_QUALITY_DENSITY_FULL`, capped at 1) — long "cause" only counts if the base actually traversed; tight boxes are exempt. | `SCORE_BASE_AGE = 22`, `BASE_AGE_CAP_DAYS = 120`, `BASE_AGE_DEADSPACE_WIDTH = 0.06` |
-| **Strong-uptrend bonus** | **Linear ramp**: `0` below 30% YoY return, full points at 60%+, linear between. Re-accumulation inside an established uptrend breaks out more reliably than the same structure on a flat YoY chart. The other three "uptrend conditions" (above SMA50, above SMA200, ≥ 50K volume) are already hard baseline gates in Phase 1, so YoY return is the only differentiating axis. | `SCORE_UPTREND_BONUS = 15`, `MIN_STRONG_YEARLY_RETURN = 0.30`, `MAX_STRONG_YEARLY_RETURN = 0.60` |
-| **Soft RS bonus** | `min(1, excess_return_6m / 0.30) × 15` where `excess_return_6m = stock_6m_return − spy_6m_return`. Leadership reward, no filter — laggards just earn 0. | `SCORE_RS_BONUS = 15`, `RS_LOOKBACK_BARS = 126`, `RS_MAX_EXCESS_RETURN = 0.30` |
+| **Strong-uptrend bonus** — **DEMOTED to measure-only (weight 0) 2026-07-25, operator-authorized** | Was a linear ramp (`0` below 30% YoY return, full at 60%+). Both edge reads graded the archived sub-score HARMFUL (corr −0.19 with forward returns at n=1977, `docs/edge_read_2026-07-22.md`): momentum context was hurting the ranking. The ramp still computes (weight 0 → 0 points) and the RAW input is now archived (`yearly_return` column, model-only) so a regime-spanning revisit can re-open the question with evidence. | `SCORE_UPTREND_BONUS = 0` (was 15), `MIN_STRONG_YEARLY_RETURN = 0.30`, `MAX_STRONG_YEARLY_RETURN = 0.60` |
+| **Soft RS bonus** — **DEMOTED to measure-only (weight 0) 2026-07-25, operator-authorized** | Was `min(1, excess_return_6m / 0.30) × 15`. The worst term in the book on both edge reads (corr −0.22 at n=1977). Raw signal stays archived (`excess_return_6m`). | `SCORE_RS_BONUS = 0` (was 15), `RS_LOOKBACK_BARS = 126`, `RS_MAX_EXCESS_RETURN = 0.30` |
 | **52w-high proximity** | Linear ramp from `0` at −20% below 52w high to full at −5% (or higher). Bases that consolidate near recent highs hold their breakouts more reliably than ones rebuilding from deep drawdowns. | `SCORE_52W_HIGH_PROXIMITY = 8`, `HIGH_PROXIMITY_FULL_PCT = -0.05`, `HIGH_PROXIMITY_ZERO_PCT = -0.20` |
 | **Market-breadth bonus** | Linear ramp on % of universe with `Close > SMA_50`. Zero below 35%, full at 60%+. Same value for every setup in a run (it's a market-wide scalar), but a strong-tape setup is structurally a better trade than the same chart in a defensive regime where most stocks are under their SMA_50. | `SCORE_BREADTH_BONUS = 8`, `BREADTH_FULL_PCT = 0.60`, `BREADTH_ZERO_PCT = 0.35` |
 | **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
@@ -1159,7 +1159,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `aaf853bd0103bc65afa6356ccc8f898d9e8d1f29f6f142f998a5717abdfa0465`_
+_engine_config_version: `ab5bf340e46289474bae6439a68ee28237175ae1155c0ae3cc2bfbcfc055fa91`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1312,8 +1312,8 @@ TRAVERSAL_QUALITY_DENSITY_FULL = 0.33
 TRAVERSAL_QUALITY_DWELL_PENALTY = 8
 MIN_STRONG_YEARLY_RETURN = 0.3
 MAX_STRONG_YEARLY_RETURN = 0.6
-SCORE_UPTREND_BONUS = 15
-SCORE_RS_BONUS = 15
+SCORE_UPTREND_BONUS = 0
+SCORE_RS_BONUS = 0
 RS_LOOKBACK_BARS = 126
 RS_MAX_EXCESS_RETURN = 0.3
 SCORE_52W_HIGH_PROXIMITY = 8

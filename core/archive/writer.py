@@ -535,6 +535,7 @@ def archive_scan_results(
             rs_vs_sector_pct=rs_vs_sector,
             dist_52w_high_pct=row.get("_dist_52w_high_pct"),
             excess_return_6m=row.get("_excess_return_6m"),
+            yearly_return=row.get("_yearly_return"),
             breadth_pct=row.get("_breadth_pct"),
             regime_state=row.get("_regime_state"),
             regime_breadth_50_pct=row.get("_regime_breadth_50_pct"),

@@ -101,6 +101,7 @@ class SetupArchive(Base):
     rs_vs_sector_pct = Column(Float, nullable=True)   # stock_return_during_base − sector_return_during_base
     dist_52w_high_pct = Column(Float, nullable=True)  # (current − max_high_252d) / max_high_252d (negative)
     excess_return_6m = Column(Float, nullable=True)   # stock 6m return − SPY 6m return at scan_date
+    yearly_return = Column(Float, nullable=True)      # raw YoY return at scan_date (the demoted uptrend-bonus ramp input; model-only column)
     breadth_pct = Column(Float, nullable=True)        # % of universe with Close > SMA_50 on scan_date
     regime_state = Column(String, nullable=True)      # UPTREND / NEUTRAL / UNDER_PRESSURE / CORRECTION
     regime_breadth_50_pct = Column(Float, nullable=True)
