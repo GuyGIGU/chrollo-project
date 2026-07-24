@@ -217,23 +217,29 @@ trims. The ratchet stage tags were corrected at this task: NKTR + EGBN →
 final taxonomy: every chart-readable miss is rail-placement; SKYT is
 universe-gate).
 
-**Cluster-anchored rail statistic — defined, measure-only (2026-07-25, Rail
+**Cluster-anchored rail statistic — tested and REJECTED (2026-07-25, Rail
 Program Task 6).** The operator's ruling reframed the rail-placement family:
 rails DO sit at bar High/Low (never a wick-vs-body question); the question a
 wick-inflated window poses (NKTR: 1900+ width rejects, no candidate within
-0.5 box-heights of the drawn box) is WHICH bars' extremes define the rail —
-the level several bars genuinely rest at, or the one outlier wick. The
-statistic is `cluster_rails` in `rail_qualification.py`, a pure counting rule
-(never mean/std, which the outlier inflates): R = the highest high with
-≥ `EQ_MIN_TOUCHES_PER_RAIL` bar-highs resting within `TOUCH_TOLERANCE_ATR`
-ATRs of it; S mirrored. It reuses the touch machinery's own constants — no
-new knob. Pinned routes: NaN extremes excluded; non-finite ATR → no cluster
-rail; the tie-break is the level value itself. Validation gate (pre-registered
-in `docs/cluster_rail_validation_2026-07.md` BEFORE evaluation): the statistic
-must reproduce the drawn rails over ALL 33 Guided List boxes, not just
-NKTR's — a definition matching only NKTR is a tail fit and the answer is NO
-(protocol §8). Measure-only: no live path calls it; the dark candidate-width
-form (its only prospective consumer) is a separate EC-8 flag build.
+0.5 box-heights of the drawn box) is WHICH bars' extremes define the rail.
+The candidate statistic — `cluster_rails` in `rail_qualification.py`, a pure
+counting rule (R = the highest high with ≥ `EQ_MIN_TOUCHES_PER_RAIL`
+bar-highs resting within `TOUCH_TOLERANCE_ATR` ATRs; S mirrored; no new
+knobs) — was validated against ALL 33 Guided List boxes under an acceptance
+sealed BEFORE the run (`docs/cluster_rail_validation_2026-07.md`), and
+**failed decisively: 20/66 rails within 0.5 ATR (needed 60), median 0.88
+ATR; on NKTR the cluster level EQUALS the wick anchor** (the "outlier" has
+three resting neighbors at the touch tolerance). A (k, tol) sensitivity
+sweep caps the whole family at 34/66; the one cell that nails NKTR (k=5,
+tol=0.1) collapses to 33/66 — the tail fit the sealed guard rejects. The
+real finding: the operator's rail is a **representative interior bar's
+extreme**, not the outermost level with k resting neighbors — where his rail
+IS the clustered extreme the statistic matches to 0.000 (PKE R, SKYT R,
+EGBN S). Tested-DEAD: never re-propose an outermost-level/order-statistic
+rule for rail placement; future placement work must model the anchor-BAR
+choice. The function + validation tool stay in the tree as the mechanical
+tripwire (measure-only, no live caller); the dark cluster-width form and its
+flip (planned Tasks 7–9) were NOT built — their premise failed.
 
 #### Spring (Phase C)
 
