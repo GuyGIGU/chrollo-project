@@ -1,26 +1,32 @@
 """Shared point-in-time replay layer (Calibration at Scale, Task 6).
 
-ONE home for the jobs every mark-replay tool repeats, so the sealed-corpus
-GATE (``tools.marks_corpus``) and
-the agreement harness (Task 9) all measure through the same lens — four
-slightly different definitions of "what the engine saw" would turn every
-agreement number into an argument about tooling:
+ONE home for the jobs every mark-replay consumer repeats — the sealed-corpus
+GATE (``tools.marks_corpus``), the agreement harness
+(``tools.calibration_harness``), the chronology battery
+(``tools.event_map_chronology``), the election/shelf instruments and tests,
+and the backend calibration read paths (``webapp.backend`` calibration
+router + services) — so two definitions of "what the engine saw" can never
+turn a number into an argument about tooling:
 
-* ``resolve_frame`` — the faithful raw frame for a ticker with its source
-  named honestly ("corpus fixture" first, calibration fixture when Task 7
-  lands, else "5y cache"). A tool that silently replays a mark on rolled
-  live data produces reports nobody can distrust in time.
-* ``prepared_frame`` / ``snapped_election`` — the live-twin point-in-time
-  prep (``_prepare_eval_frame`` + the ATR snapshot) and the day-snapped
-  structure capture (elections are day-sensitive: BODI's flag-ON pair exists
-  2026-04-15 and dies 04-16), folded out of the A/B renderer.
+* ``prepared_frame`` / ``prepared_frame_with_reason`` / ``snapped_election``
+  — the live-twin point-in-time prep (reasoned: a refusal NAMES its first
+  failing universe gate) and the day-snapped structure capture (elections
+  are day-sensitive: BODI's flag-ON pair exists 2026-04-15 and dies 04-16).
 * ``flag_capture`` — the ONE self-restoring engine-flag toggle for
   rule-variant batches; a leaked flag mid-batch silently poisons every
   subsequent measurement in the run.
+* ``fired_window_sessions`` + the ``FIRED_*`` policy and frozen scalars —
+  the ONE pops-up-live acceptance window the gate and the harness both grade.
+* ``load_sealed_fixture`` / ``fixture_frame`` — the sealed-corpus basis and
+  its one lookup rule.
 
-Gate vs instrument: this layer is shared UNDERNEATH the tools; verdict
-logic, baselines and ratchets stay with their owners (EC-9 spirit).
-Read-only: nothing live imports it.
+FROZEN calibration frames are deliberately NOT resolved here — their policy
+is frozen-or-refuse (a mark must never silently replay on fallback data) and
+``webapp.backend.frame_store.load_frame`` (digest-resolved) is their one door.
+
+Gate vs instrument: this layer is shared UNDERNEATH the consumers; verdict
+logic, baselines and ratchets stay with their owners (EC-9 spirit). Every
+helper is read-only; live backend READ paths import this module.
 """
 from __future__ import annotations
 
@@ -68,51 +74,16 @@ def fixture_frame(frames: dict, key: str, ticker: str | None = None):
     """The sealed-fixture frame for one baseline setup, or None.
 
     Digest-graduated setups (Guided List, 2026-07-24) freeze under their FULL
-    setup key — two marks on one ticker are two distinct drawn bases — while
-    legacy setups freeze under the bare ticker. The ONE lookup every fixture
+    setup key — two marks on one ticker are two distinct drawn bases. Pass
+    ``ticker`` ONLY for a legacy (non-digest) setup: it is the bare-ticker
+    fallback for the old one-frame-per-ticker freeze. A graduated setup whose
+    keyed frame is missing must surface as MISSING (None) — never silently
+    borrow a same-ticker sibling's basis. The ONE lookup every fixture
     consumer shares (gate, chronology battery, election tests)."""
     df = frames.get(key)
-    if df is not None:
+    if df is not None or ticker is None:
         return df
-    return frames.get(ticker if ticker is not None else key.split(":")[0])
-
-
-_LIVE_PANEL: pd.DataFrame | None = None
-
-
-def _live_panel() -> pd.DataFrame:
-    """The live 5y cache, loaded ONCE per process and sliced per ticker —
-    never re-read per unit of work (the A/B tool's old per-mark reload does
-    not generalize to a harness over hundreds of marks)."""
-    global _LIVE_PANEL
-    if _LIVE_PANEL is None:
-        _LIVE_PANEL = pd.read_parquet(settings.CACHE_FILENAME,
-                                      engine=settings.PARQUET_ENGINE)
-    return _LIVE_PANEL
-
-
-def resolve_frame(ticker: str, *, sealed: dict | None = None):
-    """(raw_frame, source_label) for ``ticker``, or (None, reason).
-
-    Source order and labels are decided HERE, once: the sealed corpus fixture
-    (pass a preloaded dict to avoid re-reading it per call), then the live 5y
-    cache. FROZEN calibration frames are deliberately NOT resolved here —
-    their policy is frozen-or-refuse (a mark must never silently replay on
-    fallback data), and ``webapp.backend.frame_store.load_frame`` (digest-
-    resolved) is their one door; the agreement harness goes through it.
-    """
-    if sealed is None:
-        try:
-            sealed, _ = load_sealed_fixture()
-        except FileNotFoundError:
-            sealed = {}
-    raw = sealed.get(ticker)
-    if raw is not None:
-        return raw, "corpus fixture"
-    panel = _live_panel()
-    if ticker not in set(panel.columns.get_level_values(0)):
-        return None, "not in corpus fixture nor cache"
-    return panel[ticker].dropna(), "5y cache"
+    return frames.get(ticker)
 
 
 def prepared_frame_with_reason(
@@ -224,6 +195,14 @@ def snapped_election(raw: pd.DataFrame, span_end, variants: list[dict],
 FIRED_WINDOW_SESSIONS = 10   # default backward window ending at the mark's as-of
 FIRED_EVENT_TAIL_SESSIONS = 5    # sessions walked past each marked-LPS end
 FIRED_WALK_MAX_SESSIONS = 40     # hard cap per mark; oldest kept, clamp named
+
+# Frozen market scalars for replays (scoring-only inputs — they shape
+# Score/Tier, never the fire/no-fire decision), pinned HERE so the gate and
+# the harness replay the same deterministic basis with no SPY/breadth history
+# alongside the frozen frame. Frozen with the baselines: moving either is a
+# deliberate re-freeze event.
+FROZEN_BREADTH = 0.5
+FROZEN_SPY_6M = 0.0
 
 
 def full_live_basis(frozen: pd.DataFrame, ts) -> bool:

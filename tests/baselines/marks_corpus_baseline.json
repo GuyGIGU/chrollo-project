@@ -1,8 +1,7 @@
 {
-  "captured_at": "2026-07-24T15:49:19+00:00",
+  "captured_at": "2026-07-24T16:41:54+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "2262cedd09f75815142da6a2af44e247e82562fcb7b8e00293ad6164dd808020",
-  "null_trigger_grace_sessions": 2,
   "population": "guided-list",
   "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard",

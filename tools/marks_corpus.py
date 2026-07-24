@@ -10,19 +10,19 @@ editing a mark, widening a window, or reinterpreting trigger rules), and each
 setup is replayed point-in-time through the SAME per-ticker evaluation the
 nightly screener runs, entirely offline from a committed fixture.
 
-The matcher: a setup is a HIT when the pipeline fires on ANY session inside its
-marked entry window(s). A GRADUATED setup (one carrying ``frame_digest`` — the
-Guided List population, 2026-07-24) is graded on the ONE fired-policy window
-owned by the replay seam (``tools.replay.fired_window_sessions``: marked-LPS
-spans + tail, union the trailing as-of window, faithful-basis clamped) — the
-SAME pops-up-live criterion the agreement harness scores, so the gate and the
-operator's scoreboard can never tell two different stories. A LEGACY setup
-keeps the original semantics verbatim: each window runs from an LPS start to
-its trigger (inclusive); a null trigger gets ``NULL_TRIGGER_GRACE_SESSIONS``
-sessions past the LPS end ("by the trigger"); a second entry (``lps2`` /
-``last_support`` + ``trigger_alt``) contributes its own window. These
-semantics FREEZE with the baseline: changing them is an EC-7 event, not a
-tuning knob.
+The matcher: a setup is a HIT when the pipeline fires on ANY session of its
+fair window. The population is ONE kind of setup — digest-GRADUATED marks
+(the Guided List, 2026-07-24: every setup carries ``frame_digest``, ``as_of``
+and a ``trigger``, sealed through the EC-9 export) — graded on the ONE
+fired-policy window owned by the replay seam
+(``tools.replay.fired_window_sessions``: marked-LPS spans + tail, union the
+trailing as-of window, faithful-basis clamped, every clamp NAMED) — the SAME
+pops-up-live criterion the agreement harness scores, so the gate and the
+operator's scoreboard can never tell two different stories. The pre-Guided-
+List legacy window machinery was deleted with its population (council review
+2026-07-24); ``docs/marks/part2_2026-07.json`` stays on disk as EC-7 history
+but does not gate. These semantics FREEZE with the baseline: changing them is
+an EC-7 event, not a tuning knob.
 
 The baseline is a RATCHET, verified at freeze time:
   * every HIT is pinned forever - a pinned setup that stops firing FAILS;
@@ -37,7 +37,7 @@ the default suite, so it is the dedicated CI / per-stage acceptance step
 ``tests/test_marks_corpus.py`` keeps the plumbing honest on every pytest run.
 
 Usage:
-    python -m tools.marks_corpus --build-fixture   # one-time, from the live data cache
+    python -m tools.marks_corpus --build-fixture   # per-stage re-freeze, from the frozen frame store
     python -m tools.marks_corpus --check           # fail (exit 1) on any ratchet break
 """
 from __future__ import annotations
@@ -55,7 +55,10 @@ try:  # works under both `python -m tools.marks_corpus` and `python tools/marks_
 except ModuleNotFoundError:
     from _bootstrap import configure_path
 
-_PROJECT_ROOT = configure_path()
+# backend=True: the graduated build loads frozen frames (frame_store) and the
+# loader validates tickers through the shared strict grammar (marks_validity)
+# — both pure, root-safe backend modules, lazily imported where used.
+_PROJECT_ROOT = configure_path(backend=True)
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
@@ -71,6 +74,8 @@ from tools.replay import (
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
+    FROZEN_BREADTH as _FROZEN_BREADTH,
+    FROZEN_SPY_6M as _FROZEN_SPY_6M,
     SEALED_BASELINE_JSON as _BASELINE_JSON,
     SEALED_FIXTURE_PARQUET as _FIXTURE_PARQUET,
     fired_window_sessions,
@@ -88,14 +93,10 @@ CORPUS_FILES: tuple[str, ...] = (
     os.path.join(_PROJECT_ROOT, "docs", "marks", "guided_list_2026-07.json"),
 )
 
-_CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
-
-# Frozen market scalar for the breadth bonus - scoring-only, never a firing
-# decision; any fixed value keeps the replay deterministic (negative-corpus twin).
-_FROZEN_BREADTH = 0.5
-
-# "By the trigger" grace when a setup has no trigger mark: the entry window runs
-# this many sessions past the LPS end. Frozen with the baseline (EC-7).
+# Second-window grace for the CHRONOLOGY battery's entry windows: an lps2 span
+# has no second trigger, so its window runs this many sessions past the span
+# end ("by the trigger"). The GATE itself never uses these windows — graduated
+# setups are graded on the replay seam's fired-policy window. Frozen (EC-7).
 NULL_TRIGGER_GRACE_SESSIONS = 2
 
 # Build-order stage expected to convert each known miss (PLAN-event-tape.md
@@ -103,9 +104,8 @@ NULL_TRIGGER_GRACE_SESSIONS = 2
 # set exactly, so the baseline can never freeze an unexplained miss.
 STAGE_TAGS: dict[str, str] = {
     # Guided List population (operator GO 2026-07-24; PLAN-guided-list-gap-breach).
-    # Keys are FULL setup keys (ticker:label) — ORMP/NGL carry two instances with
-    # different outcomes, so a bare-ticker tag would misapply. Lookup falls back
-    # to the bare ticker for single-instance entries.
+    # Keys are FULL setup keys (ticker:label) — ORMP/NGL carry two instances
+    # with different outcomes, so a bare-ticker tag would misapply.
     # Re-tagged 2026-07-24 after Tasks 3+4 falsified their original stages
     # (engagement-respect and commit-the-cause both tested + REJECTED — see
     # strategy_alpha.md): NKTR + EGBN belong to the rail-PLACEMENT family
@@ -129,24 +129,22 @@ STAGE_TAGS: dict[str, str] = {
     "SKYT:2026-04-13": "universe-gate",
 }
 
-# Corpus schema: every key a setup may carry. An unrecognized key FAILS the
-# load (a typo'd mark silently skipped would shrink the acceptance set).
-_REQUIRED_KEYS = ("ticker", "source", "lps", "rails_drawn")
+# Corpus schema: every key a graduated setup may carry (the EC-9 export's
+# exact output shape). An unrecognized key FAILS the load (a typo'd mark
+# silently skipped would shrink the acceptance set). The retired legacy
+# grammar (bc/ar/springs/last_support/trigger_alt/…) was deleted with its
+# population; part2_2026-07.json is EC-7 history, not a loadable input.
+_REQUIRED_KEYS = ("ticker", "source", "lps", "trigger", "rails_drawn")
 _ALLOWED_KEYS = frozenset({
     "ticker", "setup", "source", "notes",
-    "bc", "bc_source", "ar", "ar_source",
-    "lps", "lps_source", "lps2", "trigger", "trigger_source", "trigger_alt",
-    "last_supper", "last_support", "springs", "sos", "shakeout_dates",
-    "consolidation_start", "root_swing", "rails_drawn", "rails_source",
+    "lps", "lps2", "trigger", "rails_drawn",
     # Guided List graduation provenance: the frozen as-drawn basis. A setup
     # carrying frame_digest freezes from calibration_frames/ by digest (the
     # exact bars the operator marked), never from a live re-fetch.
     "as_of", "frame_digest", "knowable_from",
 })
-_DATE_SPAN_KEYS = ("lps", "lps2", "last_supper", "last_support",
-                   "consolidation_start", "root_swing", "sos")
-_DATE_LIST_KEYS = ("springs", "shakeout_dates")
-_DATE_SCALAR_KEYS = ("bc", "ar", "trigger", "trigger_alt", "as_of", "knowable_from")
+_DATE_SPAN_KEYS = ("lps", "lps2")
+_DATE_SCALAR_KEYS = ("trigger", "as_of", "knowable_from")
 
 
 def _parse_date(value: str, ctx: str) -> date:
@@ -154,6 +152,14 @@ def _parse_date(value: str, ctx: str) -> date:
         return date.fromisoformat(value)
     except (TypeError, ValueError):
         raise ValueError(f"marks corpus: {ctx} is not an ISO date: {value!r}")
+
+
+def _ticker_re():
+    """The ONE strict ticker grammar (marks_validity.TICKER_RE, pure module) —
+    lazy so the hermetic loader tests don't pay a backend import until a
+    ticker is actually validated."""
+    from marks_validity import TICKER_RE
+    return TICKER_RE
 
 
 def setup_key(setup: dict) -> str:
@@ -183,6 +189,11 @@ def load_corpus(paths: tuple[str, ...] = CORPUS_FILES) -> list[dict]:
             for key in _REQUIRED_KEYS:
                 if key not in raw:
                     raise ValueError(f"marks corpus: {ctx} missing required key '{key}'")
+            ticker = raw["ticker"]
+            if not (isinstance(ticker, str) and _ticker_re().match(ticker)):
+                raise ValueError(f"marks corpus: {ctx} ticker fails the strict "
+                                 f"grammar: {ticker!r} (it becomes an identity "
+                                 "key and a frame filename — rejected, never sanitized)")
             for key in _DATE_SPAN_KEYS:
                 if raw.get(key) is not None:
                     span = raw[key]
@@ -191,15 +202,20 @@ def load_corpus(paths: tuple[str, ...] = CORPUS_FILES) -> list[dict]:
                     lo, hi = (_parse_date(v, f"{ctx}.{key}") for v in span)
                     if lo > hi:
                         raise ValueError(f"marks corpus: {ctx}.{key} start after end")
-            for key in _DATE_LIST_KEYS:
-                for v in raw.get(key) or []:
-                    _parse_date(v, f"{ctx}.{key}")
             for key in _DATE_SCALAR_KEYS:
                 if raw.get(key) is not None:
                     _parse_date(raw[key], f"{ctx}.{key}")
+            if raw.get("frame_digest") and not raw.get("as_of"):
+                raise ValueError(f"marks corpus: {ctx} carries frame_digest but no "
+                                 "as_of - the drawn basis is unaddressable")
             rails = raw["rails_drawn"]
             if not (isinstance(rails, dict) and {"R", "S"} <= set(rails)):
                 raise ValueError(f"marks corpus: {ctx}.rails_drawn needs R and S")
+            r, s = rails.get("R"), rails.get("S")
+            if not (isinstance(r, (int, float)) and isinstance(s, (int, float))
+                    and r == r and s == s and float(r) > float(s) > 0):
+                raise ValueError(f"marks corpus: {ctx}.rails_drawn must be ordered "
+                                 f"positive numbers with R above S (got R={r!r} S={s!r})")
             key = setup_key(raw)
             if key in seen:
                 raise ValueError(f"marks corpus: duplicate setup key {key!r}")
@@ -220,62 +236,43 @@ def corpus_sha256(paths: tuple[str, ...] = CORPUS_FILES) -> str:
 def corpus_provenance(paths: tuple[str, ...] = CORPUS_FILES) -> dict:
     """The graduation provenance embedded in the corpus file(s) (population,
     pinned marks fingerprint, authorization) - passed through into the frozen
-    baseline so 'which ground truth' is answerable from either artifact."""
-    prov: dict = {}
+    baseline so 'which ground truth' is answerable from either artifact.
+
+    REFUSES when more than one file carries a provenance block: a last-write-
+    wins merge would stamp one file's fingerprint over the whole gate,
+    misattributing half the setups. Extending to a per-file provenance list is
+    a deliberate schema change made WHEN a second graduation lands."""
+    carriers: list[tuple[str, dict]] = []
     for path in paths:
         with open(path, "r", encoding="utf-8") as f:
             doc = json.load(f)
-        prov.update(doc.get("_provenance") or {})
-    return prov
+        if doc.get("_provenance"):
+            carriers.append((os.path.basename(path), doc["_provenance"]))
+    if len(carriers) > 1:
+        raise ValueError(
+            "marks corpus: multiple corpus files carry _provenance blocks "
+            f"({[name for name, _ in carriers]}) - extend corpus_provenance to "
+            "a per-file record before freezing over a multi-graduation corpus")
+    return carriers[0][1] if carriers else {}
 
 
-def eval_windows(setup: dict) -> list[tuple[date, date]]:
-    """The marked entry window(s) - see module docstring. Frozen semantics."""
+def eval_windows(setup: dict) -> list[tuple[date, date, int]]:
+    """The marked entry window(s) as (start, end, grace_sessions) triples —
+    consumed by the CHRONOLOGY battery only (the gate grades on the replay
+    seam's fired-policy window). LPS start -> trigger (inclusive); an lps2
+    span contributes its own window with grace past its end (it carries no
+    second trigger). A second window fully inside the first collapses away.
+    Frozen semantics (EC-7)."""
     lps_start = _parse_date(setup["lps"][0], "lps[0]")
-    lps_end = _parse_date(setup["lps"][1], "lps[1]")
-    windows: list[tuple[date, date, int]] = []  # (start, end, grace_sessions)
-    if setup.get("trigger"):
-        windows.append((lps_start, _parse_date(setup["trigger"], "trigger"), 0))
-    else:
-        windows.append((lps_start, lps_end, NULL_TRIGGER_GRACE_SESSIONS))
-
-    second_start = second_end = None
-    grace = 0
+    windows = [(lps_start, _parse_date(setup["trigger"], "trigger"), 0)]
     if setup.get("lps2"):
-        second_start = _parse_date(setup["lps2"][0], "lps2[0]")
-        second_end, grace = _parse_date(setup["lps2"][1], "lps2[1]"), NULL_TRIGGER_GRACE_SESSIONS
-    if setup.get("last_support"):
-        second_start = _parse_date(setup["last_support"][0], "last_support[0]")
-        if second_end is None:
-            second_end, grace = _parse_date(setup["last_support"][1], "last_support[1]"), NULL_TRIGGER_GRACE_SESSIONS
-    if setup.get("trigger_alt"):
-        alt = _parse_date(setup["trigger_alt"], "trigger_alt")
-        if second_start is not None:
-            second_end, grace = alt, 0
-        elif alt > windows[0][1]:
-            second_start, second_end, grace = windows[0][1], alt, 0
-    if second_start is not None and second_end is not None:
-        windows.append((second_start, second_end, grace))
-
-    # Windows whose alt trigger sits inside the first window collapse away.
-    merged: list[tuple[date, date, int]] = []
-    for w in windows:
-        if merged and w[0] >= merged[0][0] and w[1] <= merged[0][1]:
-            continue
-        merged.append(w)
-    return [(s, e, g) for s, e, g in merged]
-
-
-def _window_sessions(df: pd.DataFrame, windows) -> list[pd.Timestamp]:
-    """The frame's actual trading sessions inside each window (+ grace bars)."""
-    sessions: list[pd.Timestamp] = []
-    for start, end, grace in windows:
-        inside = df.index[(df.index >= pd.Timestamp(start)) & (df.index <= pd.Timestamp(end))]
-        sessions.extend(inside)
-        if grace and len(inside):
-            after = df.index[df.index > pd.Timestamp(end)][:grace]
-            sessions.extend(after)
-    return sorted(set(sessions))
+        second = (_parse_date(setup["lps2"][0], "lps2[0]"),
+                  _parse_date(setup["lps2"][1], "lps2[1]"),
+                  NULL_TRIGGER_GRACE_SESSIONS)
+        first = windows[0]
+        if not (second[0] >= first[0] and second[1] <= first[1]):
+            windows.append(second)
+    return windows
 
 
 # ------------------------------------------------------------------
@@ -296,33 +293,35 @@ def _lps_spans(setup: dict) -> list[tuple[str, str]]:
 
 
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
-    """Replay one setup's window sessions; return {status, first_fire|reason}.
-
-    A graduated setup (``frame_digest``) is graded on the ONE fired-policy
-    window from the replay seam — the SAME pops-up-live criterion the
-    agreement harness scores, so gate and scoreboard can never diverge.
-    Legacy setups keep the frozen lps->trigger window semantics verbatim.
-    """
-    ticker = setup["ticker"]
-    if setup.get("frame_digest"):
-        sessions, _note = fired_window_sessions(
-            df, setup["as_of"], _lps_spans(setup), setup.get("knowable_from"))
-    else:
-        sessions = _window_sessions(df, eval_windows(setup))
+    """Replay one graduated setup on the ONE fired-policy window from the
+    replay seam — the SAME pops-up-live criterion the agreement harness
+    scores, so gate and scoreboard can never diverge. Returns
+    ``{status, first_fire|reason, window, clamp_note}``: the walked window's
+    span and any faithful-basis/cap clamp ride along so the seam's "every
+    clamp is NAMED, never silent" contract survives into the baseline and
+    the check report."""
+    if not setup.get("frame_digest"):
+        return {"status": "error",
+                "reason": "legacy (non-digest) setups no longer gate - "
+                          "graduate via tools.guided_list_export (EC-9)"}
+    sessions, note = fired_window_sessions(
+        df, setup["as_of"], _lps_spans(setup), setup.get("knowable_from"))
     if not sessions:
-        return {"status": "error", "reason": "no frame sessions inside the marked windows"}
+        return {"status": "error", "reason": "fired-policy window has no frame sessions"}
+    out = {"window": [sessions[0].date().isoformat(), sessions[-1].date().isoformat()],
+           "clamp_note": note}
     for ts in sessions:
         sliced = df.loc[:ts]
         if len(sliced) < 200:
             continue
-        result = _evaluate_ticker(ticker, sliced, spy_6m, _FROZEN_BREADTH)
+        result = _evaluate_ticker(setup["ticker"], sliced, spy_6m, _FROZEN_BREADTH)
         if result is EVAL_ERROR:
             return {"status": "error",
                     "reason": f"EVAL_ERROR at {ts.date()} - a crash is neither a hit nor a miss"}
         if result is not None:
-            return {"status": "hit", "first_fire": ts.date().isoformat(),
+            return {**out, "status": "hit", "first_fire": ts.date().isoformat(),
                     "tier": result.get("Tier"), "score": result.get("Score")}
-    return {"status": "miss"}
+    return {**out, "status": "miss"}
 
 
 def check_corpus() -> bool:
@@ -345,6 +344,13 @@ def check_corpus() -> bool:
             "  `python -m tools.marks_corpus --build-fixture`."
         )
 
+    # The fixture parquet is the ONLY in-repo carrier of the frozen drawn
+    # bases (the frame store is operator-local) — verify each frame's CONTENT
+    # against the digest the sealed corpus pins, so a regenerated, drifted,
+    # or edited parquet can never silently change the replay basis while the
+    # seal still reports PASS. frame_store is pure (pandas/stdlib), lazy here.
+    from frame_store import ohlcv_digest
+
     by_key = {s["key"]: s for s in baseline["setups"]}
     for setup in setups:
         key = setup_key(setup)
@@ -353,16 +359,31 @@ def check_corpus() -> bool:
             ok = False
             lines.append(f"  {key}: in the corpus but not in the baseline - re-freeze deliberately")
             continue
-        df = fixture_frame(frames, key, setup["ticker"])
+        df = fixture_frame(frames, key,
+                           None if setup.get("frame_digest") else setup["ticker"])
         if df is None or df.empty:
             ok = False
             lines.append(f"  {key}: frame MISSING from fixture parquet - rebuild the fixture")
+            continue
+        if setup.get("frame_digest") and ohlcv_digest(df) != setup["frame_digest"]:
+            ok = False
+            lines.append(f"  {key}: FIXTURE BASIS DRIFTED - the parquet frame no longer "
+                         "matches the sealed frame_digest; the gate would grade bars the "
+                         "operator never drew. Rebuild the fixture from the frame store.")
             continue
         got = _replay_setup(setup, df, float(pinned["spy_6m_return"]))
         if got["status"] == "error":
             ok = False
             lines.append(f"  {key}: {got['reason']}")
-        elif pinned["status"] == "hit" and got["status"] == "miss":
+            continue
+        if got.get("window") != pinned.get("windows", [None])[0] or \
+                (got.get("clamp_note") or None) != pinned.get("window_clamp"):
+            ok = False
+            lines.append(f"  {key}: FIRED-POLICY WINDOW DRIFTED - frozen "
+                         f"{pinned.get('windows')} clamp={pinned.get('window_clamp')!r}, "
+                         f"derived {got.get('window')} clamp={got.get('clamp_note')!r}. "
+                         "The acceptance criterion moved; re-freeze deliberately (EC-7).")
+        if pinned["status"] == "hit" and got["status"] == "miss":
             ok = False
             lines.append(f"  {key}: PINNED HIT REGRESSED - fired at freeze "
                          f"({pinned.get('first_fire')}), now silent in its marked window")
@@ -400,26 +421,22 @@ def check_corpus() -> bool:
 
 
 # ------------------------------------------------------------------
-# Fixture build (one-time / per-stage re-freeze; reads the live data cache)
+# Fixture build (per-stage re-freeze; reads the operator-local frame store)
 # ------------------------------------------------------------------
 def _frozen_frame(ticker: str, as_of: str, digest: str):
     """The as-drawn frozen basis for a graduated mark (calibration_frames/ by
-    digest). Lazy import: the backend package is a build-time-only dependency."""
-    backend = os.path.join(_PROJECT_ROOT, "webapp", "backend")
-    if backend not in sys.path:
-        sys.path.insert(1, backend)
-    from webapp.backend import frame_store
-    return frame_store.load_frame(ticker, as_of, digest=digest)
+    digest). Lazy import: frame_store is pure and the build-time-only door."""
+    from frame_store import load_frame
+    return load_frame(ticker, as_of, digest=digest)
 
 
-def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
+def build_fixture() -> dict:
     """Freeze frames + the ratchet baseline.
 
-    A setup carrying ``frame_digest`` (a Guided List graduation) freezes the
-    EXACT frozen frame the operator drew on, loaded by digest — never a live
-    re-fetch, so vendor restatements can never move the sealed basis. Its
-    scoring-only market scalar is frozen at 0.0 (the agreement harness's
-    fired-policy parity). Legacy setups freeze from the live cache as before.
+    Every setup freezes the EXACT frozen frame the operator drew on, loaded
+    from calibration_frames/ by digest — never a live re-fetch, so vendor
+    restatements can never move the sealed basis. The scoring-only market
+    scalars are the replay seam's frozen constants (harness parity).
 
     Refuses to freeze when the replayed miss-set differs from STAGE_TAGS -
     every frozen miss must carry the build-order stage expected to convert it,
@@ -427,70 +444,29 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     baseline.
     """
     setups = load_corpus()
-    needs_cache = any(not s.get("frame_digest") for s in setups)
-    data = spy_close = None
-    level0: set = set()
-    if needs_cache:
-        if not os.path.exists(cache_path):
-            raise FileNotFoundError(
-                f"Data cache not found at {cache_path} - run a real scan first "
-                "(`python run_screener.py`) so the parquet exists."
-            )
-        data = pd.read_parquet(cache_path, engine=settings.PARQUET_ENGINE)
-        level0 = set(data.columns.get_level_values(0))
-        spy_close = data[settings.SPY_SYMBOL]["Close"].dropna()
-
     frames: dict[str, pd.DataFrame] = {}
     baseline_setups: list[dict] = []
     problems: list[str] = []
     for setup in setups:
         key, ticker = setup_key(setup), setup["ticker"]
-        if setup.get("frame_digest"):
-            df = _frozen_frame(ticker, setup["as_of"], setup["frame_digest"])
-            if df is None or df.empty:
-                problems.append(f"{key}: no frozen frame matches digest "
-                                f"{setup['frame_digest'][:12]} - the drawn basis is unbound")
-                continue
-            if len(df) < 200:
-                problems.append(f"{key}: frozen frame has only {len(df)} bars")
-                continue
-            sessions, _note = fired_window_sessions(
-                df, setup["as_of"], _lps_spans(setup), setup.get("knowable_from"))
-            if not sessions:
-                problems.append(f"{key}: fired-policy window has no frame sessions")
-                continue
-            windows = [(sessions[0].date(), sessions[-1].date())]
-            frames[key] = df  # keyed by setup: two marks on one ticker = two bases
-            spy_6m = 0.0
-        else:
-            if ticker not in level0:
-                problems.append(f"{key}: not in the data cache")
-                continue
-            windows = eval_windows(setup)
-            last_end = max(w[1] for w in windows)
-            # Freeze through the last window end + grace room; full history before it
-            # (the pipeline applies its own live structure trim internally).
-            df_full = data[ticker].dropna()
-            cutoff_idx = df_full.index[df_full.index <= pd.Timestamp(last_end)]
-            if not len(cutoff_idx):
-                problems.append(f"{key}: no bars at/before window end {last_end}")
-                continue
-            pos = df_full.index.get_loc(cutoff_idx[-1])
-            df = df_full.iloc[: pos + 1 + NULL_TRIGGER_GRACE_SESSIONS]
-            if len(df) < 200:
-                problems.append(f"{key}: only {len(df)} bars through {last_end}")
-                continue
-            prior = frames.get(ticker)
-            if prior is None or len(df) > len(prior):
-                frames[ticker] = df  # one frame per ticker, longest window wins
-
-            spy = spy_close.loc[: df.index[-1]]
-            spy_6m = float(spy.iloc[-1] / spy.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
-        got = _replay_setup(setup, df, spy_6m)
+        if not setup.get("frame_digest"):
+            problems.append(f"{key}: no frame_digest - legacy setups no longer "
+                            "gate; graduate via tools.guided_list_export (EC-9)")
+            continue
+        df = _frozen_frame(ticker, setup["as_of"], setup["frame_digest"])
+        if df is None or df.empty:
+            problems.append(f"{key}: no frozen frame matches digest "
+                            f"{setup['frame_digest'][:12]} - the drawn basis is unbound")
+            continue
+        if len(df) < 200:
+            problems.append(f"{key}: frozen frame has only {len(df)} bars")
+            continue
+        frames[key] = df  # keyed by setup: two marks on one ticker = two bases
+        got = _replay_setup(setup, df, _FROZEN_SPY_6M)
         if got["status"] == "error":
             problems.append(f"{key}: {got['reason']}")
             continue
-        stage = STAGE_TAGS.get(key, STAGE_TAGS.get(key.split(":")[0]))
+        stage = STAGE_TAGS.get(key)
         if got["status"] == "miss" and stage is None:
             problems.append(f"{key}: replays as a MISS but has no STAGE_TAGS entry - "
                             "every frozen miss must name its converting stage")
@@ -500,8 +476,12 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
                             "remove the stale tag deliberately")
             continue
         entry = {"key": key, "ticker": ticker, "status": got["status"],
-                 "windows": [[w[0].isoformat(), w[1].isoformat()] for w in windows],
-                 "spy_6m_return": spy_6m, "bars": len(df)}
+                 "windows": [got["window"]],
+                 "spy_6m_return": _FROZEN_SPY_6M, "bars": len(df)}
+        if got.get("clamp_note"):
+            # The seam's contract: every clamp is NAMED, never silent — the
+            # narrowing survives into the frozen artifact and --check output.
+            entry["window_clamp"] = got["clamp_note"]
         if got["status"] == "hit":
             entry.update({"first_fire": got["first_fire"], "tier": got.get("tier")})
         else:
@@ -509,14 +489,16 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
         baseline_setups.append(entry)
         print(f"  {key}: {got['status'].upper()}"
               + (f" (first fire {got['first_fire']}, tier {got.get('tier')})"
-                 if got["status"] == "hit" else f" (stage: {stage})"), flush=True)
+                 if got["status"] == "hit" else f" (stage: {stage})")
+              + (f" [clamped: {got['clamp_note']}]" if got.get("clamp_note") else ""),
+              flush=True)
 
     if problems:
         raise RuntimeError("Refusing to freeze the marks corpus - unresolved setups:\n  "
                            + "\n  ".join(problems))
 
     os.makedirs(_BASELINE_DIR, exist_ok=True)
-    # MultiIndex columns: (key-or-ticker, field). sort=True pins today's
+    # MultiIndex columns: (setup key, field). sort=True pins today's
     # union-and-sort index behavior against the pandas-4 default flip.
     combined = pd.concat(frames, axis=1, sort=True)
     combined.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
@@ -525,7 +507,6 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "breadth_pct": _FROZEN_BREADTH,
         "corpus_sha256": corpus_sha256(),
-        "null_trigger_grace_sessions": NULL_TRIGGER_GRACE_SESSIONS,
         # Graduation provenance (pass-through from the corpus file) + the engine
         # this baseline was frozen under: which ground truth, approved when, and
         # what read it — answerable from this artifact alone.
@@ -541,7 +522,10 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
                          "max_walk_sessions": FIRED_WALK_MAX_SESSIONS},
         "setups": baseline_setups,
     }
-    with open(_BASELINE_JSON, "w", encoding="utf-8") as f:
+    # newline="\n": tests/baselines/*.json is .gitattributes-pinned to LF —
+    # writing platform CRLF would make every local re-freeze byte-differ from
+    # the checkout (the corpus export learned this the hard way).
+    with open(_BASELINE_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(baseline, f, indent=2)
 
     hits = sum(1 for s in baseline_setups if s["status"] == "hit")
@@ -556,16 +540,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Operator-marks acceptance guard (Event Map).")
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--build-fixture", action="store_true",
-                       help="Freeze corpus frames + the ratchet baseline from the live data cache")
+                       help="Freeze corpus frames + the ratchet baseline from the frozen frame store")
     group.add_argument("--check", action="store_true",
                        help="Fail (exit 1) on any ratchet break (regressed hit, converted miss, corpus edit)")
-    ap.add_argument("--cache", default=_CACHE_PATH,
-                    help="Path to the market data cache parquet (build only)")
     args = ap.parse_args()
 
     try:
         if args.build_fixture:
-            build_fixture(cache_path=args.cache)
+            build_fixture()
         elif args.check:
             sys.exit(0 if check_corpus() else 1)
     except (FileNotFoundError, RuntimeError, ValueError) as e:
