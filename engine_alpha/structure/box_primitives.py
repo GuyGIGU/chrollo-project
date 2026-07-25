@@ -198,6 +198,28 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, len(highs))
 
 
+def _oriented_pairs(zigzag):
+    """Consecutive zigzag limbs as oriented rail pairs — the ONE enumeration
+    every candidate pool shares (the strict/rescued loop, the band pool, and
+    any later last-resort rung). Yields ``(R_val, S_val, r_anchor_bar,
+    s_anchor_bar)`` in chronological pair order; same-kind neighbours and
+    degenerate pairs (``R <= S``) are skipped — exactly the comparisons both
+    former copies applied."""
+    for i in range(len(zigzag) - 1):
+        zi, zj = zigzag[i], zigzag[i + 1]
+        if zi[1] == 'peak' and zj[1] == 'valley':
+            R_val, S_val = zi[2], zj[2]
+            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
+        elif zi[1] == 'valley' and zj[1] == 'peak':
+            R_val, S_val = zj[2], zi[2]
+            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
+        else:
+            continue
+        if R_val <= S_val:
+            continue
+        yield R_val, S_val, r_anchor_bar, s_anchor_bar
+
+
 def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
@@ -227,19 +249,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # in-range setup is never re-framed — the trim can only save a box that would
     # otherwise be rejected outright (NMM's SOS -> BUEC).
     strict, rescued = [], []
-    for i in range(len(zigzag) - 1):
-        zi, zj = zigzag[i], zigzag[i + 1]
-        if zi[1] == 'peak' and zj[1] == 'valley':
-            R_val, S_val = zi[2], zj[2]
-            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
-        elif zi[1] == 'valley' and zj[1] == 'peak':
-            R_val, S_val = zj[2], zi[2]
-            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
-        else:
-            continue
-        if R_val <= S_val:
-            continue
-
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
             _trace_pair(trace, "rejected", "width",
@@ -377,18 +387,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
     from engine_alpha.structure.rail_qualification import qualify_pair_events
 
     pool = []
-    for i in range(len(zigzag) - 1):
-        zi, zj = zigzag[i], zigzag[i + 1]
-        if zi[1] == 'peak' and zj[1] == 'valley':
-            R_val, S_val = zi[2], zj[2]
-            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
-        elif zi[1] == 'valley' and zj[1] == 'peak':
-            R_val, S_val = zj[2], zi[2]
-            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
-        else:
-            continue
-        if R_val <= S_val:
-            continue
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.BAND_MAX_BOX_WIDTH:
             continue
