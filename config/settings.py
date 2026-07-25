@@ -629,13 +629,21 @@ TRAVERSAL_QUALITY_DWELL_PENALTY = 8    # max dock for dwell asymmetry + one-off-
 # Strong-uptrend bonus — linear ramp from MIN to MAX yearly return.
 # Re-accumulation setups inside an established uptrend break out more reliably
 # than the same structure on a flat YoY chart, so we elevate them.
+# DEMOTED TO MEASURE-ONLY (weight 0) 2026-07-25, operator-authorized: the
+# archived sub-score graded HARMFUL on both edge reads (corr −0.19 at n=1977,
+# docs/edge_read_2026-07-22.md) — momentum context was hurting the ranking it
+# was meant to help. The RAW signal stays archived (yearly_return column) so a
+# regime-spanning revisit can re-open the question with evidence.
 MIN_STRONG_YEARLY_RETURN = 0.30
 MAX_STRONG_YEARLY_RETURN = 0.60   # Saturation point for the ramp
-SCORE_UPTREND_BONUS = 15
+SCORE_UPTREND_BONUS = 0           # was 15 until 2026-07-25
 
 # Soft Relative Strength bonus — additive points for stocks outperforming SPY
 # over a 6-month lookback. Not a filter; just rewards leadership.
-SCORE_RS_BONUS = 15
+# DEMOTED TO MEASURE-ONLY (weight 0) 2026-07-25, operator-authorized: HARMFUL
+# on both edge reads (corr −0.22 at n=1977 — the worst term in the book). Raw
+# signal stays archived (excess_return_6m column).
+SCORE_RS_BONUS = 0                # was 15 until 2026-07-25
 RS_LOOKBACK_BARS = 126            # ~6 months of trading days
 RS_MAX_EXCESS_RETURN = 0.30       # Stock 6m − SPY 6m saturation
 

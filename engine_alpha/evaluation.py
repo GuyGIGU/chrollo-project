@@ -698,6 +698,9 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_dist_52w_high_pct': (float(rel_ctx["dist_52w_high_pct"])
                                if rel_ctx["dist_52w_high_pct"] is not None else None),
         '_excess_return_6m': float(rel_ctx["excess_return_6m"]),
+        # Raw uptrend context (the demoted SCORE_UPTREND_BONUS ramp input) —
+        # archived so the zero-weight signal stays measurable (measure-first).
+        '_yearly_return': float(prepared["yearly_return"]),
         '_breadth_pct': float(breadth_pct) if breadth_pct is not None else None,
         '_r_touch_vol_z': measurements["r_touch_vol_z"],
         '_s_touch_vol_z': measurements["s_touch_vol_z"],
