@@ -334,12 +334,21 @@ def test_event_map_flag_off_never_computes(monkeypatch):
     # read_swing_map (its Operand B), so hold the veto off to isolate the
     # EVENT_MAP flag under test — else the _boom fires for the wrong feature.
     monkeypatch.setattr(settings, "CAUSE_BEFORE_EFFECT_VETO_ENABLED", False)
+    # The story pool is the one OTHER legitimate caller of the episode layer;
+    # hold it off (its own compute-free proof lives in test_story_pool) so
+    # the booms below cover the WHOLE family this flag gates.
+    monkeypatch.setattr(settings, "STORY_POOL_ENABLED", False)
 
     def _boom(*_a, **_k):
         raise AssertionError("Event Map computed while the flag is off")
 
     monkeypatch.setattr(em, "read_swing_map", _boom)
     monkeypatch.setattr(em, "read_role_labels", _boom)
+    monkeypatch.setattr(em, "read_rail_episodes", _boom)
+    monkeypatch.setattr(em, "read_rail_episodes_arrays", _boom)
+    monkeypatch.setattr(em, "episode_sequence_stats", _boom)
+    monkeypatch.setattr(em, "story_admission", _boom)
+    monkeypatch.setattr(em, "episode_substrate_fields", _boom)
     _ticker, _df, result, _spy, _breadth = _first_firing_fixture_ticker()
     assert result["Score"] > 0
 
@@ -488,12 +497,21 @@ def test_rail_episodes_type_outcomes_and_stamps():
 
 
 def test_rail_episodes_as_of_counts_only_knowable():
+    """The as-of rule reads a frame TRUNCATED at the decision bar (contract
+    §1): completed history counts only episodes knowable by that edge. A
+    sub-edge ``as_of_bar`` over a longer frame is REFUSED loudly — the
+    terminal flags and profile are right-edge reads, so deriving decision-day
+    state from a longer frame would be a silent lookahead in the exact
+    predicate that gates story rescues."""
     df, R, S, atr = _story_frame()
-    read = read_rail_episodes(df, R, S, atr)
-    early = episode_sequence_stats(read, as_of_bar=5)
+    early = episode_sequence_stats(
+        read_rail_episodes(df.iloc[:6], R, S, atr), as_of_bar=5)
     assert (early["n_completed_s"], early["n_completed_r"]) == (1, 0)
-    both = episode_sequence_stats(read, as_of_bar=9)
+    both = episode_sequence_stats(
+        read_rail_episodes(df.iloc[:10], R, S, atr), as_of_bar=9)
     assert (both["n_completed_s"], both["n_completed_r"]) == (1, 1)
+    with pytest.raises(ValueError, match="below the frame edge"):
+        episode_sequence_stats(read_rail_episodes(df, R, S, atr), as_of_bar=5)
 
 
 def test_rail_episode_truncation_reproduces_committed_episodes():
@@ -591,3 +609,113 @@ def test_story_admission_pins_the_ruled_form_option_a():
     # R-side completions neither required nor disqualifying (the v1 lesson:
     # the material legally ENDS at R; mid-window rejections are not demanded).
     assert story_admission({**base, "n_completed_r": 4}) is True
+
+
+def test_rail_episode_split_side_of_the_merge_horizon():
+    """EXACTLY EPISODE_MAX_GAP_BARS + 1 inside bars between two same-rail
+    visits do NOT merge — the split side of the horizon (the merging side is
+    pinned above). An off-by-one that widens the merge collapses these two
+    completed support tests into one and fails here: each episode keeps its
+    own outcome and its own knowable stamp."""
+    bars = [
+        (12.5, 11.5, 12.0),
+        (12.5, 10.4, 11.0),   # S visit A
+        (12.5, 11.5, 12.0),   # inside (1) — also A's confirm -> completed
+        (12.5, 11.5, 12.0),   # inside (2)
+        (12.5, 11.5, 12.0),   # inside (3) -> beyond the merge horizon
+        (12.5, 10.3, 11.0),   # S visit B — a SEPARATE episode
+        (12.5, 11.5, 12.0),   # B's confirm -> completed
+        (12.5, 11.5, 12.1),
+        (12.5, 11.5, 12.2),
+        (12.5, 11.5, 12.3),
+    ]
+    read = read_rail_episodes(_episode_frame(bars), 14.0, 10.0, 1.0)
+    assert [(e["rail"], e["outcome"], e["start_bar"], e["end_bar"],
+             e["knowable_bar"]) for e in read["episodes"]] == [
+        ("S", "completed", 1, 1, 4),
+        ("S", "completed", 5, 5, 8),
+    ]
+    assert episode_sequence_stats(read)["n_completed_s"] == 2
+
+
+def test_unreadable_confirm_close_types_unreadable_never_failed():
+    """Contract §5: the confirming close IS the verdict — when it is not
+    finite the episode types UNREADABLE (profile '?'), never a printed
+    'failed'. On readable data the confirm comparison cannot flip an
+    outcome (the run-end bar sits outside the zone by construction), so a
+    'failed' confirm was only ever reachable via NaN — a fabricated bearish
+    fact that would suppress a completed-S count and veto a legitimate
+    story admission."""
+    bars = [
+        (12.5, 11.5, 12.0),
+        (12.5, 10.4, 11.0),                            # S visit
+        (float("nan"), float("nan"), float("nan")),    # confirm bar unreadable
+        (12.5, 11.5, 12.0),
+        (12.5, 11.5, 12.1),
+        (12.5, 11.5, 12.2),
+    ]
+    read = read_rail_episodes(_episode_frame(bars), 14.0, 10.0, 1.0)
+    assert [(e["rail"], e["outcome"]) for e in read["episodes"]] == [
+        ("S", "unreadable")]
+    st = episode_sequence_stats(read)
+    assert (st["n_completed_s"], st["profile"]) == (0, "S?")
+    assert read["nan_bars"] == 1
+
+
+def test_identity_unfixed_verdicts_carry_the_tilde_and_are_excluded_as_of():
+    """A verdict still inside its merge horizon at the frame edge prints
+    with a '~' suffix and is EXCLUDED from the as-of counts — the sentence
+    can never appear to contradict the scalar columns beside it."""
+    bars = [
+        (12.5, 11.5, 12.0),
+        (12.5, 10.4, 11.0),   # S visit
+        (12.5, 11.5, 12.0),   # confirm -> completed; horizon NOT printed
+        (12.5, 11.5, 12.1),   # frame ends 2 bars after the run
+    ]
+    read = read_rail_episodes(_episode_frame(bars), 14.0, 10.0, 1.0)
+    e = read["episodes"][0]
+    assert (e["outcome"], e["knowable_bar"], e["in_progress"]) == (
+        "completed", None, True)
+    st = episode_sequence_stats(read, as_of_bar=len(bars) - 1)
+    assert st["n_completed_s"] == 0
+    assert st["profile"] == "S+~"
+    # The full-frame (probe) read still counts every typed outcome.
+    assert episode_sequence_stats(read)["n_completed_s"] == 1
+
+
+def test_episode_substrate_producer_is_as_of_at_the_window_edge():
+    """The archived substrate (the producer evaluation.py actually calls)
+    EXCLUDES a completed-but-identity-unfixed episode at the window edge —
+    replacing the producer's as-of read with the census's full-frame
+    semantics (the easy copy-paste regression) reddens here. The tape's
+    shape and date anchoring are pinned in the same pass (the cell's one
+    owning module)."""
+    import json as _json
+
+    from engine_alpha.structure.event_map import episode_substrate_fields
+
+    bars = [
+        (12.5, 11.5, 12.0),
+        (12.5, 10.4, 11.0),   # S test A — knowable inside the window
+        (12.5, 11.5, 12.0),   # A's confirm
+        (12.5, 11.5, 12.0),
+        (12.5, 11.5, 12.0),   # A's identity fixed here (1 + 3)
+        (12.5, 10.3, 11.0),   # S test B
+        (12.5, 11.5, 12.0),   # B's confirm — horizon NOT printed at the edge
+        (14.2, 13.6, 14.3),   # terminal R engagement, close above R
+    ]
+    df = _episode_frame(bars)
+    df.index = pd.date_range("2026-01-05", periods=len(bars), freq="B")
+    fields = episode_substrate_fields(df, 14.0, 10.0, 1.0)
+    assert fields["_event_map_completed_s"] == 1        # B excluded (as-of)
+    assert fields["_event_map_terminal_posture"] == 1
+    assert fields["_event_map_story_admitted"] == 0     # 1 knowable S < 2
+    assert fields["_event_map_episode_profile"] == "S+ S+~ R^"
+    tape = _json.loads(fields["_event_map_episodes"])
+    assert [set(e) for e in tape] == [
+        {"rail", "outcome", "posture", "span", "knowable"}] * 3
+    assert all("-" in e["span"][0] for e in tape)   # ISO dates, never indexes
+    # Full-frame semantics would have counted B: the discriminating pin.
+    full = episode_sequence_stats(
+        read_rail_episodes(df, 14.0, 10.0, 1.0))
+    assert full["n_completed_s"] == 2

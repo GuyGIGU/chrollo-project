@@ -15,6 +15,7 @@ import pandas as pd
 from config import settings
 from engine_alpha.structure.phase_features import _phase_c_candidate
 from engine_alpha.structure.box_primitives import (
+    ELECTED_POOLS,
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
@@ -202,6 +203,19 @@ def _rebase_pair_trace(trace, from_idx, offset):
         rec["cand_start"] += offset
 
 
+def _pool_label(value) -> str:
+    """The single stamping point of the archive's electing-pool provenance.
+    The column is a CLOSED set: a future rung that mislabels (or leaves the
+    Candidate slot unset) must fail HERE, loudly — a blind str() would
+    happily persist "None" and silently fork the rescued cohort forever."""
+    label = str(value)
+    if label not in ELECTED_POOLS:
+        raise ValueError(
+            f"unknown electing-pool label {value!r} — the archive's closed "
+            f"set is {'/'.join(ELECTED_POOLS)}")
+    return label
+
+
 def validate_equilibrium(
     df: "pd.DataFrame",
     root: RootSwing,
@@ -311,7 +325,7 @@ def validate_equilibrium(
         n_full_traversals=n_full,
         traversal_density=float(density),
         equilibrium=equilibrium,
-        elected_pool=str(selected[11]),
+        elected_pool=_pool_label(selected[11]),
         story_admission_profile=(str(selected[12])
                                  if selected[12] is not None else None),
     )

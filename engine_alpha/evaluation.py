@@ -578,14 +578,10 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        import json as _json
-
         from engine_alpha.structure.event_map import (
-            episode_sequence_stats,
-            read_rail_episodes,
+            episode_substrate_fields,
             read_role_labels,
             read_swing_map,
-            story_admission,
         )
         _struct = structure_ctx["structure"]
         _tape = read_swing_map(df, _struct.box, structure_ctx["atr_for_zone"])
@@ -593,40 +589,23 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             df, _struct.box, structure_ctx["atr_for_zone"],
             spring=_struct.spring, lps=_struct.lps,
         )
-        # Rail-episode substrate (Task 10): the AS-OF sentence over the
-        # ELECTED window/rails — the same read the story pool consults, so a
-        # rescued fire's archived sentence is by construction the evidence
-        # that admitted it. Explicit zeros are evidence (NULL only when this
-        # block never ran); the tape's anchors are DATES, never bar indexes.
+        # Rail-episode substrate (Task 10): the ELECTED-geometry read — the
+        # same READER the story pool consults but a DIFFERENT basis (elected
+        # window + zone ATR vs the admission's candidate window + candidate
+        # ATR), so the two may legally disagree (YPF: story-elected with
+        # story_admitted=0). The evidence that admitted a story fire travels
+        # separately in '_story_admission_profile'; the producer and the
+        # tape's shape live in event_map beside the column family they feed.
+        # Explicit zeros are evidence (NULL only when this block never ran).
         _win = df.iloc[int(_struct.box.start_bar):]
-        _epi = read_rail_episodes(_win, float(_struct.box.R),
-                                  float(_struct.box.S),
-                                  structure_ctx["atr_for_zone"])
-        _stats = episode_sequence_stats(_epi, as_of_bar=len(_win) - 1)
-        _dates = _win.index
-        _tape_json = _json.dumps([
-            {"rail": e["rail"], "outcome": e["outcome"],
-             "posture": bool(e["terminal_posture"]),
-             "span": [str(_dates[e["start_bar"]].date()),
-                      str(_dates[e["end_bar"]].date())],
-             "knowable": (str(_dates[e["knowable_bar"]].date())
-                          if e["knowable_bar"] is not None else None)}
-            for e in _epi["episodes"]], separators=(",", ":"))
         event_map_fields = {
             "_event_map_n_swings": int(_tape["n_swings"]),
             "_event_map_pre_box_trend": _tape["pre_box"]["trend_state"],
             "_event_map_n_labels": int(_roles["n_labels"]),
             "_event_map_n_committed": sum(
                 1 for lbl in _roles["labels"] if not lbl["in_progress"]),
-            "_event_map_completed_s": int(_stats["n_completed_s"]),
-            "_event_map_completed_r": int(_stats["n_completed_r"]),
-            "_event_map_alternations": int(_stats["alternations"]),
-            "_event_map_terminal_posture": int(_stats["terminal_r_posture"]),
-            "_event_map_terminal_drift": int(_stats["terminal_s_drift"]),
-            "_event_map_story_admitted": int(story_admission(_stats)),
-            "_event_map_episode_nan_bars": int(_epi["nan_bars"]),
-            "_event_map_episode_profile": _stats["profile"],
-            "_event_map_episodes": _tape_json,
+            **episode_substrate_fields(_win, _struct.box.R, _struct.box.S,
+                                       structure_ctx["atr_for_zone"]),
         }
 
     # Election stability (measure-only, flag-dark): does the elected reading

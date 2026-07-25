@@ -94,6 +94,91 @@ def test_story_flag_on_shadow_panel_is_identical(monkeypatch):
                 + "\n".join(lines))
 
 
+def test_story_pool_elects_the_ab_conversions_end_to_end(monkeypatch):
+    """The feature's HAPPY PATH through the REAL cascade at production flag
+    values (BAND_RAILS live, its pool naturally empty; only the story flag
+    forced on): the two Task-14 fire-A/B conversions elect, carry the
+    'story' pool label AND the exact admitting sentence into the evaluation
+    result fields. A regression that couples the rung to the band flag,
+    breaks the ruled admission, or drops the sentence reddens HERE — and
+    the flag-off leg pins that these fires are story-CAUSED."""
+    frames, baseline = _load_marks_fixture()
+    by_key = {e["key"]: e for e in baseline["setups"]}
+    # NKTR's final S-test is identity-UNFIXED on fire day (merge horizon
+    # open at the edge -> '~', excluded from the as-of counts): admission
+    # passed on the two knowable completed tests. The A/B record (2026-07-25)
+    # predates the '~' rendering; semantics identical, marks refined.
+    for key, fire_day, sentence in [
+        ("NKTR:2026-04-10", "2026-04-09", "R+ S+ R+ S+ R+ S+~ R^"),
+        ("YPF:2026-05-18", "2026-05-06", "S+ R+ S+ R^"),
+    ]:
+        e = by_key[key]
+        sliced = fixture_frame(frames, key, e["ticker"]).loc[
+            :pd.Timestamp(fire_day)]
+        spy = float(e["spy_6m_return"])
+
+        monkeypatch.setattr(settings, "STORY_POOL_ENABLED", False)
+        off = _evaluate_ticker(e["ticker"], sliced, spy, _FROZEN_BREADTH)
+        assert not isinstance(off, dict), (
+            f"{key}: fires WITHOUT the story pool — no longer a story "
+            "conversion; re-pin this guard deliberately")
+
+        monkeypatch.setattr(settings, "STORY_POOL_ENABLED", True)
+        on = _evaluate_ticker(e["ticker"], sliced, spy, _FROZEN_BREADTH)
+        assert isinstance(on, dict), (
+            f"{key}: the A/B story conversion no longer fires at {fire_day}")
+        assert on["_elected_pool"] == "story", (
+            f"{key}: elected via {on['_elected_pool']!r}, not the story pool")
+        assert on["_story_admission_profile"] == sentence, (
+            f"{key}: admitting sentence moved — "
+            f"{on['_story_admission_profile']!r}")
+
+
+def test_pool_label_stamping_point_refuses_unknown_labels():
+    """The archive's electing-pool column is a CLOSED set enforced at the
+    single stamping point — a future rung that mislabels (or leaves the
+    Candidate slot unset) fails loudly instead of persisting 'None' and
+    silently forking the rescued cohort."""
+    from engine_alpha.structure.bricks import _pool_label
+
+    for ok in ("strict", "rescued", "band", "story"):
+        assert _pool_label(ok) == ok
+    for bad in (None, "typo", "", "Strict"):
+        with pytest.raises(ValueError, match="closed"):
+            _pool_label(bad)
+
+
+def test_archive_check_closes_the_elected_pool_set(tmp_path):
+    """Fresh-DB DDL enforcement — the universe_type precedent applied to
+    elected_pool: create_all carries a CHECK, so an illegal label cannot
+    even be inserted around the stamping point on a new database."""
+    import archive_models
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import sessionmaker
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'arch.db'}")
+    archive_models.SetupArchive.__table__.create(bind=eng)
+    db = sessionmaker(bind=eng)()
+
+    def _row(ticker, pool):
+        return archive_models.SetupArchive(
+            ticker=ticker, scan_date="2026-07-26", setup_type="LPS",
+            tier="A", score=1.0, s_level=90.0, trigger_price=0.0,
+            source="screener", universe_type="us_equities",
+            elected_pool=pool)
+
+    for i, ok in enumerate(("strict", "rescued", "band", "story", None)):
+        db.add(_row(f"OK{i}", ok))
+    db.commit()
+
+    db.add(_row("BAD", "typo"))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+    db.close()
+
+
 def test_fires_carry_elected_pool_provenance():
     """Task 11: every fire archives its electing pool (closed set). The
     shadow fixture's ordinary fires must all read 'strict' — the label is

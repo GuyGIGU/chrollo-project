@@ -154,6 +154,35 @@ def test_rung_is_last_resort_after_the_band_pool(monkeypatch):
                                      enforce_traversal=True) == sentinel
 
 
+def test_prefilter_equals_the_reader_posture_at_both_zone_edges():
+    """The O(1) prefilter and the reader's terminal-R posture are ONE
+    predicate (event_map.frame_terminal_posture) — stepped across the
+    zone-entry edge, the close-above edge, and NaN, pinning that a future
+    edit cannot silently split the two copies apart (a split prefilter
+    refuses windows the reader would admit, with no trace and no log)."""
+    from engine_alpha.structure.event_map import (
+        frame_terminal_posture, read_rail_episodes)
+
+    R_test, S_test = 14.0, 10.0
+    tol = settings.TOUCH_TOLERANCE_ATR * ATR
+    edge = R_test - tol
+    cases = [
+        (edge - 0.01, R_test + 0.01), (edge, R_test + 0.01),
+        (edge + 0.01, R_test + 0.01),
+        (R_test + 0.2, R_test - 0.01), (R_test + 0.2, R_test),
+        (R_test + 0.2, R_test + 0.01),
+        (float("nan"), R_test + 0.5), (R_test + 0.5, float("nan")),
+    ]
+    filler = [(12.5, 11.5, 12.0)] * 4
+    for last_high, last_close in cases:
+        df = _frame(filler + [(last_high, 11.5, last_close)])
+        read = read_rail_episodes(df, R_test, S_test, ATR)
+        reader_posture = any(e["terminal_posture"] for e in read["episodes"])
+        assert frame_terminal_posture(
+            last_high, last_close, R_test, tol) == reader_posture, (
+            f"prefilter/reader split at high={last_high} close={last_close}")
+
+
 def test_traversal_gate_judges_the_story_pool(monkeypatch):
     df = _frame(_story_bars())
     tup = (0.5, R, S, 0.1667, 3, 3, 0, 0, 5, 0, len(df), "story", "S+ R^")

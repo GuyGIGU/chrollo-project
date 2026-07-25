@@ -357,6 +357,16 @@ class SetupArchive(Base):
             "universe_type IN ('us_equities', 'us_sectors', 'commodities_etf')",
             name="ck_setup_archive_universe_type",
         ),
+        # The universe_type precedent applied to the electing-pool provenance:
+        # the closed set is enforced on every FRESH create_all database (SQLite
+        # cannot retrofit a table-level CHECK via the ADD COLUMN migration
+        # path, so the existing live DB is guarded by the write-time assertion
+        # at the single stamping point — bricks._pool_label).
+        CheckConstraint(
+            "elected_pool IS NULL OR "
+            "elected_pool IN ('strict', 'rescued', 'band', 'story')",
+            name="ck_setup_archive_elected_pool",
+        ),
         Index("ix_setup_archive_universe_type", "universe_type"),
     )
 
