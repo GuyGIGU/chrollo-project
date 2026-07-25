@@ -1321,7 +1321,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `ab5bf340e46289474bae6439a68ee28237175ae1155c0ae3cc2bfbcfc055fa91`_
+_engine_config_version: `f00560248c3b6d43289ffb254531b0bc343eb490ed6192aa3f4cc260a4ce2e7b`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1406,6 +1406,7 @@ BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
+STORY_POOL_ENABLED = False
 ELECTION_DETHRONE_ENABLED = True
 ELECTION_DETHRONE_SESSIONS = 10
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4

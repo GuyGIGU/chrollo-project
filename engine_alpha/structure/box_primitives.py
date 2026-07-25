@@ -13,6 +13,8 @@ every constraint; if none passes, the box is rejected.
 """
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from config import settings
@@ -29,6 +31,8 @@ from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_ske
 
 
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
+
+_story_log = logging.getLogger("chrollo.engine.story_pool")
 
 __all__ = [
     "EMPTY_BOX",
@@ -361,6 +365,16 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace)
 
+    # LAST-RESORT story pool (STORY_POOL_ENABLED, dark; outer Phase B only):
+    # consulted ONLY when the extreme-anchored pools AND the band pool are all
+    # empty, so an ordinary election can never move. The RULED narrative form
+    # (operator ruling 2026-07-25 — strategy_alpha.md "The rail-episode read")
+    # replaces only the occupancy-family judgment; width/window/respect/crash
+    # run unchanged here and the traversal gate below judges the returned pool.
+    if not pool and enforce_traversal and settings.STORY_POOL_ENABLED:
+        pool = _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
+                                      min_candidate_days, trace=trace)
+
     if trace is not None and strict and rescued:
         for rec in trace:
             if rec["verdict"] == "valid" and rec["rescued"]:
@@ -411,6 +425,79 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
                 rec["detail"] = (f"chronological pair with {len(read['excursions'])} "
                                  "qualified excursion event(s) excised from the "
                                  "judged window")
+        pool.append(tup)
+    return pool
+
+
+def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
+                           min_candidate_days, trace=None):
+    """Build the story-rescue candidate pool for a window (possibly empty).
+
+    The RULED narrative form (operator ruling 2026-07-25 — strategy_alpha.md
+    "The rail-episode read"; ``event_map.story_admission``) replaces ONLY the
+    occupancy-family judgment: a pair whose AS-OF episode read shows the
+    ruled sentence (>= 2 completed support tests + terminal resistance
+    posture + no terminal support drift) carries its worked-cause evidence in
+    chronological ORDER instead of in dwell shares — the EGBN class, which
+    the drift-junk twins (zero completed episodes) can never counterfeit.
+
+    Every other law runs unchanged: the standard width cap (NO band-style
+    allowance), the window floor, boundary respect (the junk defense), the
+    crash filter, and the traversal gate on the returned pool (measured
+    requirement: order alone does not carry the junk occupancy deaths —
+    traversal kills 30 of 69). Trace narration covers the story-stage
+    judgment only; width/window/respect verdicts for these same pairs were
+    already narrated by the strict pass over the identical windows.
+    """
+    from engine_alpha.structure.event_map import (
+        episode_sequence_stats, read_rail_episodes, story_admission)
+
+    pool = []
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
+        box_width = (R_val - S_val) / S_val
+        if box_width > settings.MAX_BOX_WIDTH:
+            continue
+        cand_start = min(r_anchor_bar, s_anchor_bar)
+        cand_eq_df = eq_df.iloc[cand_start:]
+        if len(cand_eq_df) < min_candidate_days:
+            continue
+        cand_highs = eq_highs[cand_start:]
+        cand_lows = eq_lows[cand_start:]
+        respected, _rb, _sb, total_outside, _share = _is_boundary_respected(
+            cand_highs, cand_lows, R_val, S_val, atr_val)
+        if not respected:
+            continue
+        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
+            cand_eq_df, R_val, S_val, atr_val)
+        if eq is None:
+            continue                          # crash filter — never waived
+        read = read_rail_episodes(cand_eq_df, R_val, S_val, atr_val)
+        stats = episode_sequence_stats(read, as_of_bar=len(cand_eq_df) - 1)
+        if not story_admission(stats):
+            _story_log.debug(
+                "story pool refused pair R=%.4f S=%.4f start=%d: %s",
+                R_val, S_val, cand_start, stats["profile"] or "no episodes")
+            _trace_pair(trace, "rejected", "story",
+                        f"ruled form not read: {stats['profile'] or 'no episodes'}",
+                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                        cand_start, rescued=True)
+            continue
+        combined = _score_candidate(box_width, r_touches, s_touches,
+                                    eq["coverage"])
+        _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
+                    r_anchor_bar, s_anchor_bar, cand_start, rescued=True)
+        # Same 11-slot shape _build_candidate returns; the judged window is
+        # the full candidate window (strict-style — no trim, no excision).
+        tup = (combined, R_val, S_val, box_width, r_touches, s_touches,
+               total_outside, r_anchor_bar, s_anchor_bar, cand_start,
+               len(cand_highs))
+        if trace is not None:
+            rec = _trace_find(trace, tup)
+            if rec is not None:
+                rec["detail"] = f"story-admitted (ruled form): {stats['profile']}"
+        _story_log.info(
+            "story pool admitted pair R=%.4f S=%.4f start=%d profile=%r",
+            R_val, S_val, cand_start, stats["profile"])
         pool.append(tup)
     return pool
 

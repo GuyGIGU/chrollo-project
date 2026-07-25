@@ -318,6 +318,20 @@ BAND_EVENT_MAX_DEPTH_ATR = 5.0
 # MAX_CONSECUTIVE_OUTSIDE_DAYS.
 BAND_EVENT_MAX_BARS = 20
 
+# --- Story-rescue LAST-RESORT pool (Event Map program Task 8, dark) ----------
+# Consulted ONLY when the strict, rescued, AND band pools are all empty, so an
+# ordinary election can never move (the BAND_RAILS insertion pattern). A pair
+# is admitted on the RULED narrative form (operator ruling 2026-07-25, census
+# Option A; canonical spec in strategy_alpha.md "The rail-episode read"):
+# >= 2 completed support tests + terminal resistance posture + no terminal
+# support drift, read AS-OF the judged window's last bar
+# (event_map.story_admission). The form replaces ONLY the occupancy-family
+# judgment — width/window/respect/crash run unchanged, and the traversal gate
+# judges the returned pool (measured: traversal kills 30/69 junk occupancy
+# deaths; the form is not asked to carry them alone). Target class: EGBN
+# (S+ S+ S+ R^) vs the drift-junk zero-completed-episode twins (DGII/FLG).
+STORY_POOL_ENABLED = False
+
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for
 # the trailing N sessions loses the election in favor of a later valid
