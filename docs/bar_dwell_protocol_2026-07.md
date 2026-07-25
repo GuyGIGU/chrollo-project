@@ -85,3 +85,8 @@ rewritten to bar-basis + full battery — ONE commit (one lever = one reseal).
 ## §7 Changelog
 
 - v1 sealed 2026-07-25 before any flag-on run. No amendments.
+- 2026-07-25 dark build: registering `EQ_DWELL_BAR_BASIS` in the manifest
+  rotates the hash `ab5bf340… → 1fb3bcc3…` at flag OFF (mechanical key
+  registration, fire-neutral — 26/33 + 7 misses re-frozen identical). The
+  §1 manifest pin refers to the pre-build identity; A/B evidence pairs
+  against `1fb3bcc3…`. Not a condition change.
