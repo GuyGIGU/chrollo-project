@@ -300,9 +300,14 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     os.makedirs(_BASELINE_DIR, exist_ok=True)
     combined = pd.concat(frames, axis=1)  # MultiIndex columns: (ticker, field)
     combined.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
+    from engine_alpha.freeze.manifest import manifest_hash
+
     meta = {
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "breadth_pct": _FROZEN_BREADTH,
+        # The engine the cases were verified non-firing against (Rail Program
+        # Task 2): stamped at every rebuild so junk evidence is cohortable.
+        "engine_config_version": manifest_hash(),
         "cases": meta_cases,
     }
     with open(_FIXTURE_META, "w", encoding="utf-8") as f:

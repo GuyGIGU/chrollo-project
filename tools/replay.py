@@ -160,6 +160,24 @@ def enrich_marked_frame(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def drawn_box_window(raw: pd.DataFrame, box_start, box_end):
+    """The operator's drawn-box window on a frozen frame, plus the instrument
+    ATR — the ONE derivation every drawn-geometry instrument shares (EC-13):
+    enrich, slice to the box end (end boundaries resolve inward), take ATR_10
+    at ``MARK_ATR_OFFSET``, slice to the box start. Raises ``ValueError`` when
+    the ATR is unavailable — a mark instrument fails loudly, never guesses."""
+    frozen = enrich_marked_frame(raw)
+    end = session_pos(frozen.index, box_end, boundary="end")
+    df = frozen.iloc[: end + 1]
+    if len(df) < MARK_ATR_OFFSET + 1:
+        raise ValueError(f"too few bars before box_end {box_end} ({len(df)})")
+    atr_val = df["ATR_10"].iloc[-MARK_ATR_OFFSET]
+    if pd.isna(atr_val) or float(atr_val) <= 0:
+        raise ValueError(f"ATR unavailable at box_end {box_end}")
+    bs = session_pos(df.index, box_start)
+    return df.iloc[bs:], float(atr_val)
+
+
 @contextmanager
 def flag_capture(**overrides):
     """Toggle engine flags for one capture, guaranteed restored — even on a

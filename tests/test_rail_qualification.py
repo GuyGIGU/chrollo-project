@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 import engine_alpha.structure.box_primitives as bp
+import engine_alpha.structure.rail_qualification as rq
 from engine_alpha.structure.rail_qualification import (
     _merge_spans,
     _qualify_band,
@@ -379,3 +380,66 @@ def test_phase_c_feed_never_retypes_a_calibrated_spring(monkeypatch):
                               R=100.0, S=90.0, atr_val=2.0)
     assert r["bin_c_present"] is True and r["bin_c_type"] == "SPRING"
     assert r["bin_c_event_bar"] == 30
+
+
+# ---------------------------------------------------------------------------
+# cluster_rails (Rail Program Task 6): the representative resting extreme.
+# Measure-only statistic — these pin its promised routes so the dark-build
+# consumer can never inherit a silently different definition.
+# ---------------------------------------------------------------------------
+
+def test_cluster_rails_quarantines_the_outlier_wick():
+    # Ten bars resting near 100/90 plus ONE wick to 106: the plain extreme
+    # anchor reads R=106; the cluster rail must ignore the unsupported wick
+    # and sit at the resting cluster's top.
+    highs = np.array([100.0, 99.8, 100.2, 99.9, 100.1, 106.0,
+                      99.7, 100.0, 99.9, 100.1])
+    lows = highs - 10.0
+    R, S = rq.cluster_rails(highs, lows, atr_val=1.0)
+    assert R == 100.2                      # top of the cluster, not the wick
+    assert S == 89.7                       # mirrored: bottom of the low cluster
+    # the low side has no outlier, so it equals the plain extreme
+    assert S == float(np.min(lows))
+
+
+def test_cluster_rails_needs_enough_resting_bars():
+    # TWO bars sharing a wick level are still not "resting" at the default
+    # EQ_MIN_TOUCHES_PER_RAIL=3: twin wicks stay quarantined.
+    assert settings.EQ_MIN_TOUCHES_PER_RAIL == 3
+    highs = np.array([100.0, 100.1, 99.9, 100.0, 106.0, 106.0])
+    lows = highs - 10.0
+    R, _S = rq.cluster_rails(highs, lows, atr_val=1.0)
+    assert R == 100.1
+    # ...but with min_rest=2 the twin wicks qualify (the knob is explicit)
+    R2, _ = rq.cluster_rails(highs, lows, atr_val=1.0, min_rest=2)
+    assert R2 == 106.0
+
+
+def test_cluster_rails_pinned_routes():
+    highs = np.array([100.0, 100.1, 99.9, 100.0])
+    lows = highs - 10.0
+    # non-finite / non-positive ATR -> no cluster rail, loudly None
+    assert rq.cluster_rails(highs, lows, atr_val=np.nan) == (None, None)
+    assert rq.cluster_rails(highs, lows, atr_val=0.0) == (None, None)
+    assert rq.cluster_rails(highs, lows, atr_val=None) == (None, None)
+    # NaN extremes are excluded: never a candidate level, never support
+    h_nan = np.array([100.0, np.nan, 100.1, 99.9, np.nan, 100.0])
+    R, S = rq.cluster_rails(h_nan, h_nan - 10.0, atr_val=1.0)
+    assert R == 100.1 and S == 89.9
+    # fewer finite extremes than min_rest -> None (never a fabricated level)
+    tiny = np.array([100.0, np.nan])
+    assert rq.cluster_rails(tiny, tiny - 10.0, atr_val=1.0) == (None, None)
+
+
+def test_cluster_rails_is_suffix_consistent():
+    # The pure form is the parity oracle for the dark build's suffix
+    # precompute: recomputing on any suffix must equal slicing the inputs.
+    rng = np.random.default_rng(7)
+    highs = 100.0 + rng.normal(0.0, 0.6, size=40)
+    highs[5] = 108.0                       # one outlier wick
+    lows = highs - 8.0
+    for start in (0, 3, 11, 25):
+        R_full, S_full = rq.cluster_rails(highs[start:], lows[start:], atr_val=1.0)
+        R_again, S_again = rq.cluster_rails(np.array(highs[start:]),
+                                            np.array(lows[start:]), atr_val=1.0)
+        assert R_full == R_again and S_full == S_again

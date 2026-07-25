@@ -120,6 +120,12 @@ STAGE_TAGS: dict[str, str] = {
     # anchors body levels / the ceiling) — the named next program. SKYT is a
     # universe-gate exclusion (below SMA50 on 9/10 walked sessions), not a
     # chart-reading gap; converting it is an operator strategy decision.
+    # THE RAIL PROGRAM EXECUTED 2026-07-25 (docs/rail_program_close_2026-07.md):
+    # every margin lever AND the cluster-rail statistic answered NO under a
+    # pre-registered protocol — these tags now mark CORRECT misses under
+    # current doctrine (tested-DEAD; see strategy_alpha.md), not pending work.
+    # Converting any of them requires an operator ruling or a new insight,
+    # never a re-run of the tested levers.
     "NKTR:2026-04-10": "rail-placement",
     "EGBN:2026-01-15": "rail-placement",
     "YPF:2026-05-18": "rail-placement",
