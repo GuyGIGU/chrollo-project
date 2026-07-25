@@ -626,10 +626,13 @@ PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, a
 # tickers a night. MEASURE-ONLY and additive: gates nothing, scores nothing, moves
 # no rail; emits only underscore-prefixed diagnostic fields (never canonical).
 # Flag-off is byte-identical with ZERO new compute (import + computation live only
-# inside the flag). Consumers (archive column family, chart-overlay payload) arrive
-# in later Event Map stages. The live flip is operator-gated on the scan-metrics
-# cost A/B (EC-8).
-EVENT_MAP_ENABLED = False
+# inside the flag). FLIPPED LIVE 2026-07-25 (Event Map program Task 13, operator
+# grant at the program scope gate): fires-only, canonical outputs untouched (the
+# map-ON parity contract — only archive columns gain values), cost measured
+# median +2.2 ms per firing ticker incl. the rail-episode substrate (Task 12).
+# The flip is the archive family's FIRST SEAM (engine_config_version rotates).
+# The chart-overlay payload still arrives in a later Event Map stage.
+EVENT_MAP_ENABLED = True
 
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):

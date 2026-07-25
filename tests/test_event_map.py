@@ -322,12 +322,14 @@ def _first_firing_fixture_ticker():
 
 
 def test_event_map_flag_off_never_computes(monkeypatch):
-    """EC-8 inert proof: with EVENT_MAP_ENABLED off (the default), a full
-    per-ticker evaluation never touches the Event Map readers."""
+    """EC-8 inert proof: the OFF branch stays compute-free. The flag is LIVE
+    by default since 2026-07-25 (Event Map program Task 13) — this pins that
+    the off branch remains a pure short-circuit, which every flag-off A/B
+    replay and the parity contract depend on."""
     import engine_alpha.structure.event_map as em
     from config import settings
 
-    assert settings.EVENT_MAP_ENABLED is False, "flag must ship dark"
+    monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", False)
     # cause_maturity (veto, now live) is an INDEPENDENT legitimate caller of
     # read_swing_map (its Operand B), so hold the veto off to isolate the
     # EVENT_MAP flag under test — else the _boom fires for the wrong feature.
@@ -343,11 +345,14 @@ def test_event_map_flag_off_never_computes(monkeypatch):
 
 
 def test_event_map_flag_on_is_additive_only(monkeypatch):
-    """EC-8: flag-on changes NOTHING pre-existing — it only ADDS the
-    underscore Event Map diagnostics to a firing result."""
+    """The map-ON parity contract as an executable assertion (EC-8 / plan
+    Task 13): ON changes NOTHING pre-existing — fires, elections, and scores
+    byte-identical; only the underscore Event Map diagnostics are ADDED.
+    Both sides pinned explicitly (the flag ships LIVE since 2026-07-25)."""
     from config import settings
     from core.pipeline.screener import _evaluate_ticker
 
+    monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", False)
     ticker, df, off, spy, breadth = _first_firing_fixture_ticker()
     monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", True)
     on = _evaluate_ticker(ticker, df, spy, breadth)

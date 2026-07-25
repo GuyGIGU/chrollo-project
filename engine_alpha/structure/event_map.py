@@ -42,9 +42,12 @@ non-finite bars are counted in ``nan_bars`` and can never pivot (every pivot
 comparison against NaN is False — the walk fails closed, and the count makes the
 silence visible).
 
-Measure-only: moves no rail, gates nothing, scores nothing. Nothing on the live
-scan path calls this yet — fire-path staging with its flag protocol is plan
-Task 6 (PLAN-event-tape.md).
+Measure-only: moves no rail, gates nothing, scores nothing. LIVE on the fire
+path since 2026-07-25 (``EVENT_MAP_ENABLED``, Event Map program Task 13):
+firing setups compute the tape + roles + the rail-episode substrate and
+archive them as the ``event_map_*`` column family; the story-rescue pool
+(``STORY_POOL_ENABLED``, dark) consults ``read_rail_episodes`` +
+``story_admission`` at the election cascade's last-resort rung.
 """
 from __future__ import annotations
 
@@ -139,7 +142,7 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
                    the staircase's own summary, verbatim
         start_bar / n_bars / nan_bars
 
-    Measure-only; no live-path caller (fire-path staging is plan Task 6).
+    Measure-only; live on the fire path since 2026-07-25 (EVENT_MAP_ENABLED).
     """
     if df is None or len(df) == 0 or box is None:
         return _empty_map()
@@ -266,8 +269,8 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
         frame-scoped rather than truncation-stable.
 
     Bars are df-absolute; ``describes`` spans use the assembler's emitted zone
-    bounds. Measure-only — gates nothing, scores nothing, no live-path caller
-    (fire-path staging is plan Task 6).
+    bounds. Measure-only — gates nothing, scores nothing; live on the fire
+    path since 2026-07-25 (EVENT_MAP_ENABLED).
     """
     empty = {"labels": [], "n_labels": 0}
     events, _v_bar, _base_n, _has_valley = _box_events_with_meta(
