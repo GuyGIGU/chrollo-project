@@ -92,10 +92,23 @@ def test_builder_admits_the_ruled_sentence_and_narrates():
 
 def test_builder_refuses_without_terminal_posture():
     """Two completed support tests alone are NOT the ruled form — the window
-    must end engaging R in pre-breakout posture."""
+    must end engaging R in pre-breakout posture. A no-posture window dies at
+    the O(1) prefilter, silently (like width): no episode read, no trace."""
     trace = []
     assert _run_builder(_story_bars()[:20], trace=trace) == []
+    assert trace == []
+
+
+def test_builder_narrates_a_story_stage_refusal():
+    """Posture without the worked-support leg (one completed S-test only)
+    reaches the episode read and is refused at the story stage, narrated."""
+    bars = _story_bars()
+    for i in (10, 11, 12):                   # flatten the second S-test
+        bars[i] = (13.3, 12.7, 13.0)
+    trace = []
+    assert _run_builder(bars, trace=trace) == []
     assert {r["stage"] for r in trace} == {"story"}
+    assert "ruled form not read" in trace[0]["detail"]
 
 
 def test_builder_keeps_the_respect_gate():

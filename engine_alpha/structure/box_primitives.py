@@ -457,10 +457,26 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     from engine_alpha.structure.event_map import (
         episode_sequence_stats, read_rail_episodes, story_admission)
 
+    # Cost shape (Task 12 profile): the branch is reached by MOST windows in
+    # a scan (38/55 fixture tickers; ~69 consultations x ~44 pairs on a busy
+    # evaluation — root backtracking multiplies it), so the judgment runs
+    # cheapest-first. Pure conjunction throughout: the pool's content is
+    # order-independent.
+    tol = settings.TOUCH_TOLERANCE_ATR * atr_val
+    last_high = eq_highs[-1] if len(eq_highs) else float("nan")
+    _closes = eq_df['Close'].values
+    _last_close = float(_closes[-1]) if len(_closes) else float("nan")
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
+            continue
+        # O(1) EXACT necessary condition of the ruled form's posture leg:
+        # terminal resistance posture means the window's LAST bar engages the
+        # R zone (high >= R - tol) and closes above R — seg[-1] IS the frame's
+        # last close. Refusing here (silently, like width) skips the episode
+        # read for the overwhelming majority of pairs; NaN fails closed.
+        if not (last_high >= R_val - tol and _last_close > R_val):
             continue
         cand_start = min(r_anchor_bar, s_anchor_bar)
         cand_eq_df = eq_df.iloc[cand_start:]
@@ -468,14 +484,6 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
             continue
         cand_highs = eq_highs[cand_start:]
         cand_lows = eq_lows[cand_start:]
-        respected, _rb, _sb, total_outside, _share = _is_boundary_respected(
-            cand_highs, cand_lows, R_val, S_val, atr_val)
-        if not respected:
-            continue
-        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
-            cand_eq_df, R_val, S_val, atr_val)
-        if eq is None:
-            continue                          # crash filter — never waived
         read = read_rail_episodes(cand_eq_df, R_val, S_val, atr_val)
         stats = episode_sequence_stats(read, as_of_bar=len(cand_eq_df) - 1)
         if not story_admission(stats):
@@ -487,6 +495,14 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                         R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
                         cand_start, rescued=True)
             continue
+        respected, _rb, _sb, total_outside, _share = _is_boundary_respected(
+            cand_highs, cand_lows, R_val, S_val, atr_val)
+        if not respected:
+            continue
+        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
+            cand_eq_df, R_val, S_val, atr_val)
+        if eq is None:
+            continue                          # crash filter — never waived
         combined = _score_candidate(box_width, r_touches, s_touches,
                                     eq["coverage"])
         _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
