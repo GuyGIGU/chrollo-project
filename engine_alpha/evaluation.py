@@ -702,8 +702,10 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_S': float(structure_ctx["sup_avg"]),
         '_base_len': int(structure_ctx["base_len"]),
         # Electing-pool provenance (closed set: strict/rescued/band/story) —
-        # archived on every fire so a rescued cohort stays separable forever.
+        # archived on every fire so a rescued cohort stays separable forever;
+        # a story fire also carries the sentence that admitted it.
         '_elected_pool': str(structure_ctx["structure"].box.elected_pool),
+        '_story_admission_profile': structure_ctx["structure"].box.story_admission_profile,
         '_lps_len': int(lps_ctx["lps_length"]),
         '_lps_offset': int(lps_ctx["lps_offset"]),
         '_r_anchor_bar': int(structure_ctx["r_anchor_bar"]),

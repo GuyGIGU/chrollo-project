@@ -65,8 +65,11 @@ class EquilibriumBox:
     # The electing pool's closed-set provenance (strict / rescued / band /
     # story) — Event Map program Task 11: a rescued cohort must stay
     # separable in the archive, the harness output, and forward-returns
-    # cohorts, forever.
+    # cohorts, forever. A story election also carries the admitting sentence
+    # (the evidence the pool judged — the substrate read at the elected
+    # geometry is a DIFFERENT basis and may legally disagree).
     elected_pool: str = "strict"
+    story_admission_profile: "Optional[str]" = None
 
 
 @dataclass
@@ -309,6 +312,8 @@ def validate_equilibrium(
         traversal_density=float(density),
         equilibrium=equilibrium,
         elected_pool=str(selected[11]),
+        story_admission_profile=(str(selected[12])
+                                 if selected[12] is not None else None),
     )
 
 

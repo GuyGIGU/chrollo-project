@@ -201,9 +201,11 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     # the full candidate window for a strict framing, or its trimmed worked cause
     # for a rescued one. The traversal gate measures over the SAME window, so a
     # rescued SOS tail can't be ignored for respect/occupancy yet counted here.
-    # Slot 11 = the electing pool's provenance label (closed set).
+    # Slot 11 = the electing pool's provenance label (closed set); slot 12 =
+    # the story pool's admitting sentence (None everywhere else) — a rescued
+    # fire must carry ITS OWN admission evidence into the archive.
     return (combined, R_val, S_val, box_width, r_touches, s_touches, total_outside,
-            r_anchor_bar, s_anchor_bar, cand_start, len(highs), pool)
+            r_anchor_bar, s_anchor_bar, cand_start, len(highs), pool, None)
 
 
 def _oriented_pairs(zigzag):
@@ -512,7 +514,7 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
         # carries the story pool's provenance label.
         tup = (combined, R_val, S_val, box_width, r_touches, s_touches,
                total_outside, r_anchor_bar, s_anchor_bar, cand_start,
-               len(cand_highs), "story")
+               len(cand_highs), "story", stats["profile"])
         if trace is not None:
             rec = _trace_find(trace, tup)
             if rec is not None:

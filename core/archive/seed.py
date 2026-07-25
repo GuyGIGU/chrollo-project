@@ -433,6 +433,7 @@ def seed_archive(
             # Electing-pool provenance — the seed result's keys are already
             # underscore-stripped (result_adapter), hence unprefixed here.
             elected_pool=best_result.get("elected_pool"),
+            story_admission_profile=best_result.get("story_admission_profile"),
             # Labels
             source="seed",
             quality_label="perfect",

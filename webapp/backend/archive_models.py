@@ -334,6 +334,11 @@ class SetupArchive(Base):
     # forward returns are how the operator later judges whether a rescue
     # tier earns its keep. Pure provenance — never a computed engine field.
     elected_pool = Column(String, nullable=True)
+    # A story election's admitting sentence (the pool's own evidence at the
+    # consultation basis; NULL for ordinary elections). The event_map_*
+    # substrate reads the ELECTED geometry — a different basis that may
+    # legally disagree; this column is what the rescue was judged on.
+    story_admission_profile = Column(String, nullable=True)
 
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss
