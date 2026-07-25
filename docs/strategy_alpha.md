@@ -410,6 +410,46 @@ Like the trend model and the L2 reader, both layers are **measure-only** — the
 
 A sibling measure-only diagnostic, **election stability** (`ELECTION_STABILITY_ENABLED`, default OFF, dark-flag ledger + frozen manifest): for firing setups only, the eval-twin prep and the structure election alone are re-run at D−1..D−k (backward shifts only — nothing archived can carry lookahead) and each shifted reading is compared to the live one through the single cross-frame identity predicate (`engine_alpha/election_identity.same_election`: box-start date + rails within a scale-free tolerance). Real structures persist while junk elections flicker day-to-day. The probe measures **backward persistence of the BOX election**, not of the fire: a box can elect well before its LPS completes, so `same_frac` at a fire's first session can legitimately be anywhere in 0..1 (corpus fires measured mostly 0 — the election itself was churning into those fires — while AVT's 0.33 shows pre-fire persistence exists; a low value means election churn, never "the fire is new"). A shift where the eval-twin prep refuses (universe-gate flicker: SMA/volume/price membership, not chart structure) counts as not-same in `same_frac` and is ALSO reported separately, so calibration can tell gate-flicker from election-flicker. Diagnostics emitted raw (`_stability_same_frac` / `_streak` / `_probes` / `_refused`) — never a gate, never a score. Flag-off is byte-identical and compute-free; the flip is gated on the measured cost bound (≈2.75s per firing ticker at k=3 — see the ledger).
 
+#### The rail-episode read — chronological completion over a rail pair (Event Map, layer 3)
+
+Where the swing map reads *structure* and the role layer reads *the elected story*, the
+rail-episode read tells a candidate window's story **chronologically, one rail engagement at
+a time** — the read that separated EGBN (`S+ S+ S+ R^`) from its drift-junk statistical twins
+(DGII/CHCT/COLM/FLG: zero completed episodes) when every aggregate failed (the 2026-07-25
+sequence probe). It is a bar-level read over ANY rail pair — an elected box or a raw
+candidate framing — using only the engine's existing yardsticks, no free knobs:
+
+- **rail episode** — one merged visit of a rail's touch zone (zone = the touch yardstick,
+  `TOUCH_TOLERANCE_ATR` × ATR; visits separated by ≤ `EPISODE_MAX_GAP_BARS` (2) inside bars
+  merge into ONE episode — the band-rails same-side-span convention).
+- **Outcomes (wire enums frozen; one per episode):**
+
+  | Wire | Display | Meaning | Profile token |
+  |---|---|---|---|
+  | `completed` | completed support test / completed resistance rejection | the engagement resolves back inside the box: any breach beyond the respect buffer (`BOUNDARY_ATR_BUFFER` × ATR) is reclaimed and the first close after the episode confirms the rail held | `S+` / `R+` |
+  | `failed` | failed episode | the engagement resolves through the rail — an unreclaimed breach, or the confirming close lands beyond the rail | `S×` / `R×` |
+  | `open` | open episode | the window ends inside the engagement — no verdict printed (contract §2: `open` never satisfies a completion predicate) | `S0` / `R0` |
+
+- **Terminal postures** (frame-scoped right-edge reads over the `open` outcome, reported
+  separately from completed history — never counted as completed facts): **terminal
+  resistance posture** (`R^`) — the window's last episode engages R and its final close sits
+  above R: the pre-breakout stance the operator's marks end on; **terminal support drift** —
+  an open S-side episode ≥ 3 bars at the window end: price lying on support with no verdict,
+  the drift-junk tell.
+- **The sentence** — the chronological profile string (`S+ S+ S+ R^`) — is the read's
+  compact narrative form; per-window counts (completed support tests, completed resistance
+  rejections, alternations between completed episodes) are its summary statistics.
+
+Causality follows the contract: a completed/failed verdict prints at the first close after
+the episode (`describes` = the episode's bar span), but the episode's IDENTITY is only
+irreversible once the merge horizon has printed clean — `knowable_bar` = the last bar of the
+episode + `EPISODE_MAX_GAP_BARS` + 1; an episode still inside its merge horizon at the frame
+edge is `in_progress`, and the as-of sentence counts only episodes with `knowable_bar ≤ D`.
+Like every reader layer, this is **measure-only**: it moves no rail, gates nothing, scores
+nothing. Its two planned consumers (PLAN-event-map.md) are the story-rescue last-resort pool
+(a thin, separately named admission predicate — the operator-ruled form, never baked into
+this reader) and the archived sequence substrate; neither is live yet.
+
 ### The Root-Swing cascade (the linear narrative)
 
 The reader walks the chart left to right and anchors by descent:
