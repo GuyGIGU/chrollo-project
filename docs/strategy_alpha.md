@@ -448,7 +448,24 @@ edge is `in_progress`, and the as-of sentence counts only episodes with `knowabl
 Like every reader layer, this is **measure-only**: it moves no rail, gates nothing, scores
 nothing. Its two planned consumers (PLAN-event-map.md) are the story-rescue last-resort pool
 (a thin, separately named admission predicate — the operator-ruled form, never baked into
-this reader) and the archived sequence substrate; neither is live yet.
+this reader) and the archived sequence substrate.
+
+**The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
+menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**
+a candidate window is story-admissible when its as-of episode read shows **at least 2
+completed support tests AND terminal resistance posture AND no terminal support drift**
+(`story_admission` in `event_map.py` — the judgment beside the reader, never inside it).
+Census evidence (fingerprint `b671e056…`, engine `ab5bf340…`, run
+`.council/implement-output/2026-07-25-1707/`): 22/33 marks admitted at drawn rails with
+**zero live junk exposure** — every parsing junk sentence is either pool-unreachable
+(ordinary election stands: KWR/NVT/GOOD) or traversal-killed in-pool; RLGT, the one
+reachable junk case, is admitted by no form. **Accepted misses under the ruling** (part of
+the ruling, never regressions): ALB, DLX, FOSL, MATX, NGL-2026-01, ORMP-2026-04, PKE, RGR,
+SKYT, SYRE (S-poor profiles / respect-killed / universe classes). The measured in-pool
+requirement: the traversal gate MUST keep running on story candidates (it kills 30 of the
+69 junk occupancy deaths; the admission form is not asked to carry them alone). A re-ruling
+of the form is a NEW seam (archive rule-version discipline) and re-runs the census, never a
+silent predicate edit.
 
 ### The Root-Swing cascade (the linear narrative)
 

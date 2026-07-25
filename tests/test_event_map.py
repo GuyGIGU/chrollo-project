@@ -548,3 +548,22 @@ def test_rail_episode_degenerate_and_nan_inputs():
     assert read["nan_bars"] == 1                       # counted loudly
     assert [(e["rail"], e["outcome"]) for e in read["episodes"]] == [
         ("S", "completed")]                            # NaN bar never visits
+
+
+def test_story_admission_pins_the_ruled_form_option_a():
+    """Operator ruling 2026-07-25 (Option A): >=2 completed support tests AND
+    terminal resistance posture AND no terminal support drift. This truth
+    table IS the mechanical drift check against the Reading Model's canonical
+    spec — a predicate edit that no longer matches the ruled form fails here."""
+    from engine_alpha.structure.event_map import story_admission
+
+    base = {"n_completed_s": 2, "n_completed_r": 0, "alternations": 0,
+            "terminal_s_drift": False, "terminal_r_posture": True}
+    assert story_admission(base) is True
+    assert story_admission({**base, "n_completed_s": 3}) is True
+    assert story_admission({**base, "n_completed_s": 1}) is False
+    assert story_admission({**base, "terminal_r_posture": False}) is False
+    assert story_admission({**base, "terminal_s_drift": True}) is False
+    # R-side completions neither required nor disqualifying (the v1 lesson:
+    # the material legally ENDS at R; mid-window rejections are not demanded).
+    assert story_admission({**base, "n_completed_r": 4}) is True

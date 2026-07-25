@@ -492,6 +492,19 @@ def read_rail_episodes(df, R, S, atr_val) -> dict:
             "nan_bars": nan_bars}
 
 
+def story_admission(stats) -> bool:
+    """The RULED story-pool admission form — operator ruling 2026-07-25,
+    Option A of the census menu (canonical spec: strategy_alpha.md, "The
+    rail-episode read"; the truth-table pin in test_event_map.py is the
+    drift check). A judgment, deliberately OUTSIDE the factual reader: a
+    re-ruling replaces THIS function (a new archive seam + a census re-run),
+    never the measurement. Consumes an AS-OF stats dict — the caller is
+    responsible for passing decision-day stats (contract §1)."""
+    return (stats["n_completed_s"] >= 2
+            and stats["terminal_r_posture"]
+            and not stats["terminal_s_drift"])
+
+
 _EPISODE_MARK = {"completed": "+", "failed": "x", "open": "0"}
 
 
