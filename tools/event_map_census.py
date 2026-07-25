@@ -15,22 +15,30 @@ drift) is reported as the recorded baseline only — admission-form research
 is the census layer on top (PLAN Task 5), and the ruled form will be a
 separate predicate, never baked into the reader.
 
-``--check`` is the promotion regression: the headline evidence the program
-was approved on (EGBN's three completed support tests + terminal resistance
-posture; the drift-junk zeros DGII 0/11, CHCT 0/7, COLM 0/10, FLG 0/2;
-15/33 marks under v1; 17 parse-passing junk of 95) must reproduce exactly on
-the sealed fixture, else the instrument no longer measures what the evidence
-measured (exit 1, named diffs).
+``--check`` is the promotion regression AND a standing gate (run it before
+any merge/flip that touches the episode reader): the headline evidence the
+program was approved on (EGBN's three completed support tests + terminal
+resistance posture; the drift-junk zeros DGII 0/11, CHCT 0/7, COLM 0/10,
+FLG 0/2; 15/33 marks under v1; 17 parse-passing junk of 95) must reproduce
+exactly, AND the marks fingerprint must equal the promotion-time pin — the
+outcome pins alone cannot see the drawn windows being re-drawn under them
+(the calibration DB is editable ground truth by design, EC-9; a legitimate
+re-draw moves the fingerprint and the pin fails LOUDLY, which is the point:
+re-pin deliberately, never drift silently). Exit 1, named diffs.
 
-Deterministic + stamped (EC-13): marks load through the ONE validated loader,
-frames come from the sealed fixtures by digest, and every report stamps the
-populations, the marks fingerprint, and the engine manifest hash. Writes are
-guarded (EC-14). Read-only against the DB.
+Deterministic + stamped (EC-13): marks load through the ONE validated
+loader; frames come from the committed sealed-fixture parquets (git-tracked;
+their content digests are verified by the ``tools.marks_corpus --check``
+gate, not re-verified here); every report stamps the populations, the marks
+fingerprint, and the engine manifest hash. Writes are guarded (EC-14).
+Read-only against the DB.
 
 Usage (ChrolloDashboard venv python, from repo root):
     python -m tools.event_map_census            # full report
     python -m tools.event_map_census --check    # pinned promotion regression
     python -m tools.event_map_census --json OUT # report rows as JSON
+    python -m tools.event_map_census --ticker T # one mark's as-of drill-down
+(modes run alone — combined flags are refused loudly, never dropped)
 """
 from __future__ import annotations
 
@@ -51,6 +59,7 @@ from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.structure.event_map import (  # noqa: E402
     episode_sequence_stats,
     read_rail_episodes,
+    story_admission,
 )
 from engine_alpha.structure.metrics import measure_equilibrium  # noqa: E402
 from engine_alpha.structure.narrative import read_structure  # noqa: E402
@@ -75,8 +84,9 @@ def _v1_parses(st: dict) -> bool:
             and st["alternations"] >= 2 and not st["terminal_s_drift"])
 
 
-def read_mark_sentences() -> list[dict]:
-    """Every Guided List drawn box (drawn window + drawn rails) as a sentence."""
+def read_mark_sentences() -> tuple[list[dict], str]:
+    """Every Guided List drawn box (drawn window + drawn rails) as a
+    sentence, plus the marks fingerprint the rows were computed on."""
     frames, baseline = load_sealed_fixture()
     setups = load_corpus()
     status = {e["key"]: e["status"] for e in baseline["setups"]}
@@ -162,7 +172,7 @@ def read_junk_sentences() -> list[dict]:
     return rows
 
 
-def read_mark_asof_sentences():
+def read_mark_asof_sentences() -> list[dict]:
     """The consultation-day read: for each mark, the live-twin prepared frame
     at ``as_of`` (2y trim, live ATR — what the engine actually sees on
     decision day), the window from the drawn box start to the frame end, the
@@ -234,10 +244,15 @@ FORMS: dict[str, tuple[str, object]] = {
            "R-rejections of material that ENDS at R)",
            lambda st: (st["n_completed_s"] >= 2 and st["n_completed_r"] >= 2
                        and st["alternations"] >= 2 and _no_drift(st))),
+    # Form A delegates to THE ruled live predicate (EC-3: one implementation
+    # — a re-ruling that replaces event_map.story_admission re-scores here
+    # automatically; the pre-registration record is preserved because the
+    # ruled truth table equals the pre-registered lambda, pinned in
+    # test_event_map's truth table).
     "A": ("worked support + terminal resistance engagement (>=2 completed "
-          "support tests, window ends engaging R in pre-breakout posture)",
-          lambda st: (st["n_completed_s"] >= 2 and st["terminal_r_posture"]
-                      and _no_drift(st))),
+          "support tests, window ends engaging R in pre-breakout posture) "
+          "== the RULED live predicate (event_map.story_admission)",
+          story_admission),
     "B": ("worked support + any resistance evidence (>=2 completed support "
           "tests, plus a completed resistance rejection OR terminal posture)",
           lambda st: (st["n_completed_s"] >= 2
@@ -247,8 +262,9 @@ FORMS: dict[str, tuple[str, object]] = {
     "C": ("worked support only (>=2 completed support tests, no drift — "
           "the loosest doctrine-legal floor: Phase B is proven at S)",
           lambda st: st["n_completed_s"] >= 2 and _no_drift(st)),
-    "D": ("EGBN-certain class (>=3 completed support tests + terminal "
-          "resistance posture — the tightest read of the flagship)",
+    "D": ("EGBN admission-certain class (>=3 completed support tests + "
+          "terminal resistance posture — the tightest read of the flagship's "
+          "ADMISSION; its conversion stays rail-placement-blocked upstream)",
           lambda st: (st["n_completed_s"] >= 3 and st["terminal_r_posture"]
                       and _no_drift(st))),
 }
@@ -326,10 +342,13 @@ def _report(mark_rows, junk_rows, fingerprint) -> None:
 def _census(mark_asof_rows, junk_rows, forms) -> None:
     print("\n" + "=" * 78)
     print("  FORM-RESEARCH CENSUS — consultation-day (as-of) reads, drawn rails")
-    print("  Recall ceiling stated up front: 27-29/33 is the realistic target")
-    print("  (EGBN certain; NOK/YPF plausible; PKE/ORMP respect-killed = correct")
-    print("  misses; SKYT = universe call). Do NOT chase the S-poor eight with")
-    print("  bespoke forms in this program.")
+    print("  STANDING RULING: Option A (operator, 2026-07-25 — sealed in")
+    print("  strategy_alpha 'The rail-episode read'). Executed fire A/B (Task 14,")
+    print("  2026-07-25): 26->28/33 — NKTR + YPF convert; EGBN is ADMISSION-certain")
+    print("  at drawn rails but conversion is blocked upstream by rail PLACEMENT")
+    print("  (never proposed at a story-passing shape). PKE/ORMP respect-killed =")
+    print("  correct misses; SKYT = universe call. Do NOT chase the S-poor eight")
+    print("  with bespoke forms.")
     print("=" * 78)
 
     print("\nMARKS AS-OF — prepared live-twin frame at as_of, drawn rails,")
@@ -392,9 +411,12 @@ def _census(mark_asof_rows, junk_rows, forms) -> None:
             print("    junk admitted: NONE")
 
     print("\n" + "=" * 78)
-    print("  DECISION MENU — the Task-6 ruling closes on ONE of these (or an")
-    print("  operator amendment recorded against it). Each option names both")
-    print("  legs; accepted misses are part of the ruling, not a regression.")
+    print("  DECISION MENU — CLOSED: the Task-6 ruling landed on OPTION A")
+    print("  (operator, 2026-07-25). The menu stays printed for RE-RULING")
+    print("  research only — a re-ruling replaces event_map.story_admission,")
+    print("  cuts a new archive seam, and re-runs this census. Each option")
+    print("  names both legs; accepted ADMISSION-misses are part of a ruling,")
+    print("  not recall regressions (most fire via ordinary election).")
     print("=" * 78)
     for name, f in forms.items():
         if name == "v1":
@@ -405,7 +427,8 @@ def _census(mark_asof_rows, junk_rows, forms) -> None:
                        if a["exposure"] == "traversal kills in-pool"})
         blocked = sorted({a["key"] for a in f["junk_admitted"]
                           if a["exposure"].startswith("blocked")})
-        print(f"\n  OPTION {name} — {f['desc']}")
+        ruled = "   <== THE STANDING RULING" if name == "A" else ""
+        print(f"\n  OPTION {name}{ruled} — {f['desc']}")
         print(f"    admits {len(f['covered'])}/33 marks; accepted misses: "
               + (", ".join(f["missed"] + f["refused"]) or "none"))
         print(f"    junk LIVE EXPOSURE (reachable, survives unchanged gates): "
@@ -438,7 +461,13 @@ def _drill(mark_asof_rows, ticker: str) -> None:
 
 
 # The promotion regression: the exact evidence the program was approved on
-# (probe capture 2026-07-25, .council/implement-output/2026-07-25-1707/).
+# (probe capture 2026-07-25; committed record: docs/event_map_program_2026-07.md).
+# The fingerprint pins the GROUND-TRUTH IDENTITY — the exact drawn marks the
+# outcome pins were computed on. The calibration DB is editable by design
+# (EC-9): a re-drawn window moves the fingerprint and fails this check BY
+# NAME, so evidence is re-pinned deliberately, never re-based silently.
+_PINNED_MARKS_FINGERPRINT = (
+    "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523")
 _PINNED_MARKS_PARSE_V1 = 15
 _PINNED_MARKS_TOTAL = 33
 _PINNED_JUNK_TOTAL = 95
@@ -451,7 +480,7 @@ _PINNED_CASES = {
 _PINNED_JUNK_ZEROS = {"DGII": 11, "CHCT": 7, "COLM": 10, "FLG": 2}
 
 
-def check(mark_rows, junk_rows) -> list[str]:
+def check(mark_rows, junk_rows, fingerprint) -> list[str]:
     """Exact-match assertions on the headline evidence; returns named diffs."""
     diffs = []
 
@@ -459,6 +488,8 @@ def check(mark_rows, junk_rows) -> list[str]:
         if got != want:
             diffs.append(f"{name}: got {got!r}, pinned {want!r}")
 
+    _pin("marks fingerprint (ground-truth identity)", fingerprint,
+         _PINNED_MARKS_FINGERPRINT)
     _pin("marks total", len(mark_rows), _PINNED_MARKS_TOTAL)
     _pin("marks parse (v1)", sum(r["parses_v1"] for r in mark_rows),
          _PINNED_MARKS_PARSE_V1)
@@ -490,11 +521,19 @@ def main() -> int:
     ap.add_argument("--ticker", help="per-episode drill-down for one mark")
     args = ap.parse_args()
 
-    mark_rows, fingerprint = read_mark_sentences()
-    junk_rows = read_junk_sentences()
+    # Modes run ALONE. Refuse combinations loudly — a silently dropped --json
+    # leaves a stale artifact at the target path masquerading as fresh
+    # evidence; a silently dropped --ticker hides the drill the operator
+    # asked for.
+    if args.check and (args.json or args.ticker):
+        ap.error("--check runs alone; combine with no other flag")
+    if args.ticker and args.json:
+        ap.error("--ticker is a read-only drill-down; it writes no JSON")
 
     if args.check:
-        diffs = check(mark_rows, junk_rows)
+        mark_rows, fingerprint = read_mark_sentences()
+        junk_rows = read_junk_sentences()
+        diffs = check(mark_rows, junk_rows, fingerprint)
         if diffs:
             print("EVENT MAP CENSUS CHECK: DRIFT — the instrument no longer "
                   "reproduces the recorded evidence:")
@@ -507,12 +546,17 @@ def main() -> int:
               f"fingerprint {fingerprint}, engine {manifest_hash()[:16]})")
         return 0
 
+    if args.ticker:
+        # The drill needs ONLY the as-of rows — never the junk-corpus engine
+        # walks (the census's dominant cost). Keep it snappy: this is the
+        # surface the operator lives on during a per-fire eyeball campaign.
+        _drill(read_mark_asof_sentences(), args.ticker)
+        return 0
+
+    mark_rows, fingerprint = read_mark_sentences()
+    junk_rows = read_junk_sentences()
     mark_asof_rows = read_mark_asof_sentences()
     forms = score_forms(mark_asof_rows, junk_rows)
-
-    if args.ticker:
-        _drill(mark_asof_rows, args.ticker)
-        return 0
 
     if args.json:
         path = refuse_sealed_output(args.json)
