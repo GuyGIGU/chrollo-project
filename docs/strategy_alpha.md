@@ -406,7 +406,7 @@ Every swing carries the **causality stamps** the Event Map contract requires ([s
 
 Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the puzzle read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
 
-Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they run behind **`EVENT_MAP_ENABLED`** (**LIVE since 2026-07-25** — Event Map program Task 13, operator grant; frozen manifest — the flip is the family's first `engine_config_version` seam): the readers are computed **for firing setups only** (the puzzle-read placement) and emit underscore diagnostics — the four tape-summary reads (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`; proven additive-only over the full shadow fixture, evaluation-phase cost ≈ +1ms per firing ticker) plus the **rail-episode substrate** (Event Map program Task 10): the AS-OF sentence over the elected window and rails — the SAME read the story pool consults, so a rescued fire's archived sentence is by construction the evidence that admitted it — as typed scalars (`completed_s` / `completed_r` / `alternations` / `terminal_posture` / `terminal_drift` / `story_admitted`), the readability companion (`episode_nan_bars` — an explicit zero is evidence, and it can never masquerade for unreadable bars), the sentence text, and ONE compact JSON episode tape whose anchors are dates, never bar indexes. Flag-on, the diagnostics are archived as the **`event_map_*` column family** — declared once in `event_map.py` (`EVENT_MAP_COLUMN_SQL`: names, types, row extraction; the live writer and seed both splat the one extraction function) and entering the schema as model-only nullable adds, where NULL means "not measured", never zero. **Seam discipline (Task 11):** archived sequence values are partitioned by `engine_config_version` — the flip is the family's first seam and every later episode-typing or ruled-form refinement is a NEW seam; pre-flip NULL rows are **never backfilled** by re-running a later reader over cached history (the `bin_a_*` precedent — a backfill stamps current-rule values onto rows whose replay basis may differ, destroying the seam's meaning while looking like a completeness win). Separately and unconditionally, every fire archives its **electing-pool provenance** — `elected_pool`, a closed set (`strict` / `rescued` / `band` / `story`) carried from the candidate tuple through the elected box (`EquilibriumBox.elected_pool`) into both writers — so the rescued cohort's own forward returns stay separable forever. The chart-overlay payload arrives in a later Event Map stage behind its own review; the flip is operator-gated on the scan-metrics cost A/B.
+Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they run behind **`EVENT_MAP_ENABLED`** (**LIVE since 2026-07-25** — Event Map program Task 13, operator grant; frozen manifest — the flip is the family's first `engine_config_version` seam): the readers are computed **for firing setups only** (the puzzle-read placement) and emit underscore diagnostics — the four tape-summary reads (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`; proven additive-only over the full shadow fixture, evaluation-phase cost ≈ +1ms per firing ticker) plus the **rail-episode substrate** (Event Map program Task 10): the AS-OF sentence over the elected window and rails — the same READER the story pool consults but a **different basis** (elected window + zone ATR, vs the admission's candidate window + candidate ATR), so the substrate and the admission may legally disagree: YPF fires story-elected while `event_map_story_admitted` reads 0. The evidence that ACTUALLY admitted a story fire is archived separately in `story_admission_profile`; this substrate is what a later TA-score calibration grades, never the admission record — as typed scalars (`completed_s` / `completed_r` / `alternations` / `terminal_posture` / `terminal_drift` / `story_admitted`), the readability companion (`episode_nan_bars` — an explicit zero is evidence, and it can never masquerade for unreadable bars), the sentence text, and ONE compact JSON episode tape whose anchors are dates, never bar indexes. Flag-on, the diagnostics are archived as the **`event_map_*` column family** — declared once in `event_map.py` (`EVENT_MAP_COLUMN_SQL`: names, types, row extraction; the live writer and seed both splat the one extraction function) and entering the schema as model-only nullable adds, where NULL means "not measured", never zero. **Seam discipline (Task 11):** archived sequence values are partitioned by `engine_config_version` — the flip is the family's first seam and every later episode-typing or ruled-form refinement is a NEW seam; pre-flip NULL rows are **never backfilled** by re-running a later reader over cached history (the `bin_a_*` precedent — a backfill stamps current-rule values onto rows whose replay basis may differ, destroying the seam's meaning while looking like a completeness win). Separately and unconditionally, every fire archives its **electing-pool provenance** — `elected_pool`, a closed set (`strict` / `rescued` / `band` / `story`) carried from the candidate tuple through the elected box (`EquilibriumBox.elected_pool`) into both writers — so the rescued cohort's own forward returns stay separable forever. The chart-overlay payload arrives in a later Event Map stage behind its own review; the flip is operator-gated on the scan-metrics cost A/B.
 
 A sibling measure-only diagnostic, **election stability** (`ELECTION_STABILITY_ENABLED`, default OFF, dark-flag ledger + frozen manifest): for firing setups only, the eval-twin prep and the structure election alone are re-run at D−1..D−k (backward shifts only — nothing archived can carry lookahead) and each shifted reading is compared to the live one through the single cross-frame identity predicate (`engine_alpha/election_identity.same_election`: box-start date + rails within a scale-free tolerance). Real structures persist while junk elections flicker day-to-day. The probe measures **backward persistence of the BOX election**, not of the fire: a box can elect well before its LPS completes, so `same_frac` at a fire's first session can legitimately be anywhere in 0..1 (corpus fires measured mostly 0 — the election itself was churning into those fires — while AVT's 0.33 shows pre-fire persistence exists; a low value means election churn, never "the fire is new"). A shift where the eval-twin prep refuses (universe-gate flicker: SMA/volume/price membership, not chart structure) counts as not-same in `same_frac` and is ALSO reported separately, so calibration can tell gate-flicker from election-flicker. Diagnostics emitted raw (`_stability_same_frac` / `_streak` / `_probes` / `_refused`) — never a gate, never a score. Flag-off is byte-identical and compute-free; the flip is gated on the measured cost bound (≈2.75s per firing ticker at k=3 — see the ledger).
 
@@ -417,7 +417,13 @@ rail-episode read tells a candidate window's story **chronologically, one rail e
 a time** — the read that separated EGBN (`S+ S+ S+ R^`) from its drift-junk statistical twins
 (DGII/CHCT/COLM/FLG: zero completed episodes) when every aggregate failed (the 2026-07-25
 sequence probe). It is a bar-level read over ANY rail pair — an elected box or a raw
-candidate framing — using only the engine's existing yardsticks, no free knobs:
+candidate framing — on the engine's touch/buffer yardsticks with TWO layer-local
+conventions, stated: **zone entry reads wick extremes** (the touch convention) while
+**breach-and-reclaim read closes** — a deliberate divergence from the respect gate's
+extreme-basis buffer (a deep intrabar flush that closes back inside is a worked test to
+this read, a breach to respect) — and `EPISODE_DRIFT_MIN_BARS` (3) is this layer's own
+drift floor. The promotion counts are pinned on exactly these bases; "aligning" them with
+the respect yardsticks later is a re-measurement (a new archive seam), never a cleanup:
 
 - **rail episode** — one merged visit of a rail's touch zone (zone = the touch yardstick,
   `TOUCH_TOLERANCE_ATR` × ATR; visits separated by ≤ `EPISODE_MAX_GAP_BARS` (2) inside bars
@@ -428,6 +434,7 @@ candidate framing — using only the engine's existing yardsticks, no free knobs
   |---|---|---|---|
   | `completed` | completed support test / completed resistance rejection | the engagement resolves back inside the box: any breach beyond the respect buffer (`BOUNDARY_ATR_BUFFER` × ATR) is reclaimed and the first close after the episode confirms the rail held | `S+` / `R+` |
   | `failed` | failed episode | the engagement resolves through the rail — an unreclaimed breach, or the confirming close lands beyond the rail | `S×` / `R×` |
+  | `unreadable` | unreadable episode | a verdict-relevant close (the confirming close, or the run's last close when a breach needs its reclaim read) is not finite — no verdict printed on unreadable bars (contract §5; refined 2026-07-26: a NaN confirm previously printed a false `failed`) | `S?` / `R?` |
   | `open` | open episode | the window ends inside the engagement — no verdict printed (contract §2: `open` never satisfies a completion predicate) | `S0` / `R0` |
 
 - **Terminal postures** (frame-scoped right-edge reads over the `open` outcome, reported
@@ -437,35 +444,53 @@ candidate framing — using only the engine's existing yardsticks, no free knobs
   an open S-side episode ≥ 3 bars at the window end: price lying on support with no verdict,
   the drift-junk tell.
 - **The sentence** — the chronological profile string (`S+ S+ S+ R^`) — is the read's
-  compact narrative form; per-window counts (completed support tests, completed resistance
-  rejections, alternations between completed episodes) are its summary statistics.
+  compact narrative form; an identity-UNFIXED verdict (merge horizon still open at the
+  frame edge) carries a `~` suffix (`S+~`), so a sentence can never appear to contradict
+  the as-of counts beside it (which rightly exclude it). Per-window counts (completed
+  support tests, completed resistance rejections, alternations between completed episodes)
+  are its summary statistics.
 
 Causality follows the contract: a completed/failed verdict prints at the first close after
 the episode (`describes` = the episode's bar span), but the episode's IDENTITY is only
 irreversible once the merge horizon has printed clean — `knowable_bar` = the last bar of the
 episode + `EPISODE_MAX_GAP_BARS` + 1; an episode still inside its merge horizon at the frame
 edge is `in_progress`, and the as-of sentence counts only episodes with `knowable_bar ≤ D`.
-Like every reader layer, this is **measure-only**: it moves no rail, gates nothing, scores
-nothing. Its two planned consumers (PLAN-event-map.md) are the story-rescue last-resort pool
-(a thin, separately named admission predicate — the operator-ruled form, never baked into
-this reader) and the archived sequence substrate.
+An as-of read is taken on a frame that ENDS at D: because the terminal flags and the
+profile are right-edge reads of the frame as printed, the stats layer REFUSES a sub-edge
+as-of over a longer frame (a replay that wants "admission as of D" truncates the frame at
+D — contract §1; the refusal is the tripwire). Like every reader layer, this is
+**measure-only**: it moves no rail, gates nothing, scores nothing. Its two consumers (both
+live in the code) are the story-rescue last-resort pool (a thin, separately named admission
+predicate — the operator-ruled form, never baked into this reader) and the archived
+sequence substrate.
 
 **The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
 menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**
 a candidate window is story-admissible when its as-of episode read shows **at least 2
 completed support tests AND terminal resistance posture AND no terminal support drift**
 (`story_admission` in `event_map.py` — the judgment beside the reader, never inside it).
-Census evidence (fingerprint `b671e056…`, engine `ab5bf340…`, run
-`.council/implement-output/2026-07-25-1707/`): 22/33 marks admitted at drawn rails with
-**zero live junk exposure** — every parsing junk sentence is either pool-unreachable
-(ordinary election stands: KWR/NVT/GOOD) or traversal-killed in-pool; RLGT, the one
-reachable junk case, is admitted by no form. **Accepted misses under the ruling** (part of
-the ruling, never regressions): ALB, DLX, FOSL, MATX, NGL-2026-01, ORMP-2026-04, PKE, RGR,
-SKYT, SYRE (S-poor profiles / respect-killed / universe classes). The measured in-pool
+Census evidence (fingerprint `b671e056…`, ruled at engine `ab5bf340…`; committed record:
+[event_map_program_2026-07.md](event_map_program_2026-07.md); standing gate `python -m
+tools.event_map_census --check` pins the fingerprint AND the headline): 22/33 marks
+admitted at drawn rails with **zero live junk exposure** — every parsing junk sentence is
+either pool-unreachable (ordinary election stands: KWR/NVT/GOOD) or traversal-killed
+in-pool; RLGT, the one reachable junk case, is admitted by no form. **Accepted
+ADMISSION-misses under the ruling** (part of the ruling, never recall regressions — "miss"
+here means the FORM does not admit the mark, NOT the Guided-List must-fire sense; most of
+these fire through ordinary election, where the last-resort pool is never consulted, so
+non-admission costs them nothing): ALB, DLX, FOSL, MATX, NGL-2026-01, ORMP-2026-04, PKE,
+RGR, SKYT, SYRE (S-poor profiles / respect-killed / universe classes). The measured in-pool
 requirement: the traversal gate MUST keep running on story candidates (it kills 30 of the
 69 junk occupancy deaths; the admission form is not asked to carry them alone). A re-ruling
 of the form is a NEW seam (archive rule-version discipline) and re-runs the census, never a
-silent predicate edit.
+silent predicate edit. **Executed fire-level A/B (Task 14, 2026-07-25):** pool ON converts
+**26→28/33** — NKTR@2026-04-09 and YPF@2026-05-06 elect via the story pool, their admitting
+sentences riding `story_admission_profile`; the negative bench stays clean and all 26
+existing hit elections are per-identity byte-identical. **EGBN itself does NOT convert** —
+the honest headline: its framing is never PROPOSED at a story-passing shape (rail
+PLACEMENT, upstream of any pool), so the flagship is admission-certain at drawn rails and
+conversion-blocked at proposal. The flip stays gated on the operator's per-fire eyeball
+(NKTR/YPF).
 
 ### The Root-Swing cascade (the linear narrative)
 
