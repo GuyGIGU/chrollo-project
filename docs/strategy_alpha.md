@@ -734,24 +734,26 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      - **No dead space:** ≥ `EQ_MIN_HALF_DWELL` (0.15) of closes in BOTH the lower
        and upper box third, and box-height `coverage` ≥ `EQ_MIN_COVERAGE` (0.80).
      - **Not mid-churn:** middle-third dwell ≤ `EQ_MAX_MID_DWELL` (0.45).
-     - **Bar-as-unit dwell variant (`EQ_DWELL_BAR_BASIS`, dark build 2026-07-25,
-       default OFF)** — flag-on, the dwell trio is judged in the operator's bar
-       unit on the identical window (docs/bar_dwell_protocol_2026-07.md, sealed
-       pre-registration; his THIRD bar-as-unit statement: "I'm measuring the
-       entire bar and counting it as a single UNIT"): lower/upper ENGAGEMENT —
-       a bar whose Low/High reaches the end third has worked it — at the
-       unchanged 0.15 floors, and mid RESIDENCY — bars living entirely interior,
-       touching neither end zone — at the unchanged 0.45 cap. A measurement-basis
-       correction, not a threshold move; the tested-DEAD floor slides stay dead.
-       Coverage stays close-basis (explicitly deferred); `measure_gate_margins`
-       telemetry stays close-basis under its `close_*` names. Evidence at seal:
-       EGBN at the operator's exact drawn box reads 3/23 closes vs **8/23
-       bar-lows** in the lower third (his named support tests 2025-12-24 and
-       2026-01-02 are bar engagements whose closes recover — the definition of a
-       support test); YPF's two dwell kills flip identically at his exact rails;
-       all 26 ratchet hits pass the trio at unchanged floors; junk leg admission
-       (+209/1647) disclosed and accepted by the ruling — the fire-level A/B
-       (predicted conversions: EGBN + YPF at drawn-box identity) decides the flip.
+     - **Bar-as-unit dwell — gate form tested and REJECTED 2026-07-25; kept as
+       the MEASURE `_dwell_bar_basis`** (docs/bar_dwell_protocol_2026-07.md,
+       sealed campaign; the operator's THIRD bar-as-unit statement). The read:
+       lower/upper ENGAGEMENT — a bar whose Low/High reaches the end third has
+       worked it — plus mid RESIDENCY (bars living entirely interior). It
+       diagnoses EGBN exactly: at his drawn box the lower third holds 3/23
+       closes but **8/23 bar-lows** (his named support tests 2025-12-24 and
+       2026-01-02 are bar engagements whose closes recover — the definition of
+       a support test), and the sealed fire A/B converts EGBN AT his rails on
+       his bar (first_fire 2026-01-02). **But the gate form is dead:** swapped
+       into `_validate_base_quality`, 10/26 ratchet hit identities break (MATX
+       stops firing; FOSL/NGL/NTCT/ROIV/WTS elect displaced boxes; BWA/EWTX/
+       MS/VIK re-date) and junk **DGII + FLG fire** — DGII being EGBN's
+       statistical twin, now proven twin THROUGH fire level. Close-residence
+       dwell is load-bearing for ELECTION STABILITY ("Phase-B rails do not
+       drift" is measured fact), not merely junk defense. Do not re-request a
+       basis swap; converting EGBN without breaking the fleet requires NEW
+       measured information (the operator's narrative separator: SOS → Test →
+       SOS 2 → True LPS; excursion→recovery-into-box) — the event-sequence
+       direction, recorded for the TA-score / narrative program.
      - Public `metrics.measure_dwell_balance()` (formerly `measure_equilibrium`;
        the Equilibrium name now belongs to the rail-to-rail swing read, formerly
        `measure_traversal`) additionally reports High/Low range occupancy for
@@ -1262,7 +1264,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `1fb3bcc3450e86c969d4122fab2899fe2d9ce3f4f84b4110222bc6756f1f4812`_
+_engine_config_version: `ab5bf340e46289474bae6439a68ee28237175ae1155c0ae3cc2bfbcfc055fa91`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1297,7 +1299,6 @@ EQ_MIN_TOUCHES_PER_RAIL = 3
 EQ_MIN_TOUCH_THIRDS = 2
 EQ_MIN_HALF_DWELL = 0.15
 EQ_MAX_MID_DWELL = 0.45
-EQ_DWELL_BAR_BASIS = False
 EQ_MIN_COVERAGE = 0.8
 EQ_COVERAGE_BINS = 6
 EQ_COVERAGE_MIN_FRAC = 0.03

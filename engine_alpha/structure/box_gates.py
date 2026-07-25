@@ -255,10 +255,16 @@ def _dwell_bar_basis(eq_df, R_val, S_val):
     reaches the lower box third has worked it, a bar whose High reaches the
     upper third has worked it, and a bar living entirely interior (touching
     neither end zone) is mid-RESIDENT churn. Same thirds, same window, same
-    4dp rounding as the close-residence read it substitutes; positions are
-    clipped so out-of-box extremes count toward the end they exceed (mirrors
-    the close ``pos`` clip). NaN extremes compare False -> the bar lands in
-    no bucket (the established NaN route on both bases).
+    4dp rounding as the close-residence read; positions are clipped so
+    out-of-box extremes count toward the end they exceed (mirrors the close
+    ``pos`` clip). NaN extremes compare False -> the bar lands in no bucket.
+
+    MEASURE-ONLY. A GATE form of this read (EQ_DWELL_BAR_BASIS swapping the
+    judged trio) was built and REJECTED 2026-07-25 by the sealed fire A/B
+    (docs/bar_dwell_protocol_2026-07.md §8): it converts EGBN at the
+    operator's exact rails, but 10/26 hit elections break (MATX lost, five
+    displaced winners) and junk DGII+FLG fire — close residence is
+    load-bearing for ELECTION STABILITY. Never re-wire this into the gate.
 
     Returns ``(lower_dwell, mid_dwell, upper_dwell)`` fractions.
     """
@@ -313,13 +319,6 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
         return 0, 0, None, False
 
     eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
-    if settings.EQ_DWELL_BAR_BASIS:
-        # The bar-as-unit basis switch (docs/bar_dwell_protocol_2026-07.md):
-        # the judged dwell trio — and therefore the trace narration and every
-        # downstream reader of this eq — becomes engagement/residency. The
-        # gate-margin telemetry keeps its own close-basis call untouched.
-        (eq["lower_dwell"], eq["mid_dwell"],
-         eq["upper_dwell"]) = _dwell_bar_basis(eq_df, R_val, S_val)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
     is_valid = (

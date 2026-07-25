@@ -223,21 +223,20 @@ _EGBN_SHAPE = pd.DataFrame([
 ])
 
 
-def test_bar_basis_flag_converts_the_egbn_shape(monkeypatch):
-    # Flag-off (the live default): the sole failing leg is close lower dwell —
-    # the parity pin AND the EGBN diagnosis in one frame.
-    _rt, _st, eq_off, ok_off = _validate_base_quality(_EGBN_SHAPE, 110.0, 100.0, 1.0)
-    assert ok_off is False
-    assert eq_off["lower_dwell"] == 0.10
-    assert eq_off["upper_dwell"] >= 0.15 and eq_off["mid_dwell"] <= 0.45
+def test_egbn_shape_close_gate_rejects_bar_measure_documents():
+    # The gate (close residence — the LIVE basis; the bar-basis GATE variant
+    # was tested and REJECTED 2026-07-25, see _dwell_bar_basis): the sole
+    # failing leg is close lower dwell.
+    _rt, _st, eq, ok = _validate_base_quality(_EGBN_SHAPE, 110.0, 100.0, 1.0)
+    assert ok is False
+    assert eq["lower_dwell"] == 0.10
+    assert eq["upper_dwell"] >= 0.15 and eq["mid_dwell"] <= 0.45
 
-    # Flag-on: the same window judged bar-as-unit — support was worked.
-    from config import settings as live_settings
-    monkeypatch.setattr(live_settings, "EQ_DWELL_BAR_BASIS", True)
-    _rt2, _st2, eq_on, ok_on = _validate_base_quality(_EGBN_SHAPE, 110.0, 100.0, 1.0)
-    assert ok_on is True
-    assert eq_on["lower_dwell"] == 0.25          # 5/20 bar-lows reach the lower third
-    assert eq_on["mid_dwell"] == 0.0             # no bar lives entirely interior
+    # The measure-only bar-unit read documents WHY the operator disagrees:
+    # the same window's bar-lows DID work the lower third.
+    lower, mid, _upper = _dwell_bar_basis(_EGBN_SHAPE, 110.0, 100.0)
+    assert lower == 0.25                         # 5/20 bar-lows reach the lower third
+    assert mid == 0.0                            # no bar lives entirely interior
 
 
 def test_dwell_bar_basis_residency_and_nan_routes():

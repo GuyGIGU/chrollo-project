@@ -90,3 +90,41 @@ rewritten to bar-basis + full battery — ONE commit (one lever = one reseal).
   registration, fire-neutral — 26/33 + 7 misses re-frozen identical). The
   §1 manifest pin refers to the pre-build identity; A/B evidence pairs
   against `1fb3bcc3…`. Not a condition change.
+- 2026-07-25 EXECUTED — verdict NO (§8). Flag removed same day (manifest
+  returns to the pre-build key set); `_dwell_bar_basis` retained measure-only.
+
+## §8 Results (EXECUTED 2026-07-25, tools/bar_dwell_ab.py, variant manifest 0ede06ed…)
+
+**VERDICT: NO — every hard condition failed.**
+
+- **A** — EGBN converts **at the drawn rails to the cent** (21.64/20.49,
+  first_fire 2026-01-02 = the operator's named support-test bar, tier B):
+  the diagnosis is CONFIRMED — EGBN's miss is a basis artifact. But YPF
+  elects displaced rails (44.48/41.35 vs drawn 44.37/42.02), and PKE + ORMP
+  convert UNPREDICTED through side-door boxes (their examined candidates
+  still die at respect; other candidates became valid and fired). A FAIL.
+- **B** — junk **DGII and FLG fire**. DGII is the EGBN statistical twin the
+  compensation falsification named; it passes the bar-basis trio exactly as
+  EGBN does. The twin problem is now proven THROUGH fire level: no statistic
+  currently measured separates them. B FAIL (hard).
+- **E** — **10/26 hit identities break**: MATX stops firing entirely;
+  FOSL/NGL/NTCT/ROIV/WTS keep firing but elect displaced boxes;
+  BWA/EWTX/MS fire early, VIK late (different election stories). The
+  doctrine's recorded rationale for close residence — "so Phase-B rails do
+  not drift" — is now measured fact: the close-dwell legs are load-bearing
+  for the earliest-of-valid ELECTION, not just junk defense. E FAIL (hard).
+
+**Dual framing, disclosed:** by fired-at-all concordance the variant fires
+31/33 marks (25 pinned + 6 conversions) — seductive — but with 2 junk fires,
+5 wrong-box winners, 4 re-dated fires, and MATX lost. The operator trades
+the drawn rails; box identity IS the product. The pinned-identity standard
+stands.
+
+**What survives:** (1) EGBN's cause of death is settled — basis, not floor;
+it fires on his exact bar at his exact rails the moment the gate sees bars.
+(2) The bar-unit dwell read stays as the measure-only `_dwell_bar_basis`.
+(3) The road to converting EGBN without breaking the fleet is NEW measured
+information — the operator's own narrative separator (SOS → Test → SOS 2 →
+True LPS; excursion→recovery-into-box) — the event-sequence direction, not
+another re-weighing of existing statistics. Recorded for the TA-score /
+narrative program.

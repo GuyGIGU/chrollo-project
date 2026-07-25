@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-07-25T12:44:01+00:00",
+  "captured_at": "2026-07-25T12:55:41+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "2262cedd09f75815142da6a2af44e247e82562fcb7b8e00293ad6164dd808020",
   "population": "guided-list",
   "marks_fingerprint": "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard",
-  "engine_config_version": "1fb3bcc3450e86c969d4122fab2899fe2d9ce3f4f84b4110222bc6756f1f4812",
+  "engine_config_version": "ab5bf340e46289474bae6439a68ee28237175ae1155c0ae3cc2bfbcfc055fa91",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,

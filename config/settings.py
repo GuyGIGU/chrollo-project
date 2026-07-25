@@ -206,16 +206,14 @@ EQ_MIN_COVERAGE = 0.80           # >= this fraction of box-height bins must hold
 EQ_COVERAGE_BINS = 6             # number of equal box-height bins for the coverage measure
 EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this fraction of closes
 
-# Occupancy dwell basis (the operator's bar-as-unit ruling, third statement
-# 2026-07-25): flag-on, the dwell trio above is judged BAR-AS-UNIT on the same
-# window — lower/upper ENGAGEMENT (a bar's Low/High reaching the end third
-# works it) at the unchanged EQ_MIN_HALF_DWELL floors, and mid RESIDENCY (bars
-# living entirely interior, touching neither end zone) at the unchanged
-# EQ_MAX_MID_DWELL cap. Closes remain the basis for coverage (explicitly
-# deferred) and for the archived close_* gate-margin telemetry. Campaign:
-# docs/bar_dwell_protocol_2026-07.md (EGBN at his exact box: 3/23 closes vs
-# 8/23 bar-lows in the lower third — the BASIS was the miss, not the floor).
-EQ_DWELL_BAR_BASIS = False       # dark build 2026-07-25; flip only via the sealed protocol
+# Dwell BASIS note (bar-as-unit gate variant tested and REJECTED 2026-07-25,
+# docs/bar_dwell_protocol_2026-07.md §8): judging the dwell trio on bar
+# extremes instead of closes converts EGBN at the operator's exact rails BUT
+# breaks 10/26 hit elections (MATX lost, five displaced winners) and fires
+# DGII+FLG junk — close residence is load-bearing for ELECTION STABILITY, not
+# just junk defense ("Phase-B rails do not drift" is measured fact). The
+# bar-unit read survives as measure-only (`box_gates._dwell_bar_basis`);
+# never re-wire it into the gate.
 
 # Limb-traversal read (Phase B) — the swing-structural complement to the
 # occupancy gate above. The occupancy gate asks where price resides; this asks
