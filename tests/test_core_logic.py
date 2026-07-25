@@ -22,7 +22,7 @@ from engine_alpha.structure.metrics import (
     measure_dwell_balance,
     measure_equilibrium,
 )
-from engine_alpha.structure.box_gates import _validate_base_quality
+from engine_alpha.structure.box_gates import _dwell_bar_basis, _validate_base_quality
 from engine_alpha.structure.box_primitives import select_phase_b_candidate
 from engine_alpha.structure.inner_box import (
     _detect_inner_phase_b_start,
@@ -192,6 +192,65 @@ def test_validate_base_quality_accepts_worked_rejects_dead_space(_osc_frame):
         _osc_frame(_DEAD_SPACE), 110.0, 100.0, 1.0)
     assert ok_worked is True
     assert ok_dead is False
+
+
+_EGBN_SHAPE = pd.DataFrame([
+    # The EGBN twin (bar_dwell_protocol §3): closes hug the top of the box, so
+    # close-residence starves the lower third (2/20 = 0.10 < 0.15) — but the
+    # bar LOWS probe it (5/20 = 0.25): support IS tested, by bars whose closes
+    # recover. Everything else passes on both bases (touches both rails across
+    # thirds, close coverage 6/6 bins, close mid 7/20, zero resident-mid bars).
+    {"High": 110.0, "Low": 106.0, "Close": 109.0},
+    {"High": 110.0, "Low": 106.0, "Close": 108.0},
+    {"High": 109.0, "Low": 100.0, "Close": 101.0},
+    {"High": 110.0, "Low": 105.0, "Close": 108.0},
+    {"High": 108.0, "Low": 104.0, "Close": 106.0},
+    {"High": 109.0, "Low": 103.0, "Close": 105.0},
+    {"High": 110.0, "Low": 106.0, "Close": 109.0},
+    {"High": 109.0, "Low": 100.0, "Close": 102.8},
+    {"High": 108.0, "Low": 104.0, "Close": 107.0},
+    {"High": 110.0, "Low": 105.0, "Close": 108.0},
+    {"High": 109.0, "Low": 104.0, "Close": 106.0},
+    {"High": 108.0, "Low": 104.0, "Close": 105.0},
+    {"High": 110.0, "Low": 106.0, "Close": 109.0},
+    {"High": 109.0, "Low": 100.0, "Close": 104.5},
+    {"High": 108.0, "Low": 104.0, "Close": 107.0},
+    {"High": 110.0, "Low": 105.0, "Close": 108.0},
+    {"High": 109.0, "Low": 104.0, "Close": 106.0},
+    {"High": 110.0, "Low": 106.0, "Close": 109.0},
+    {"High": 108.0, "Low": 103.0, "Close": 105.0},
+    {"High": 110.0, "Low": 106.0, "Close": 109.5},
+])
+
+
+def test_egbn_shape_close_gate_rejects_bar_measure_documents():
+    # The gate (close residence — the LIVE basis; the bar-basis GATE variant
+    # was tested and REJECTED 2026-07-25, see _dwell_bar_basis): the sole
+    # failing leg is close lower dwell.
+    _rt, _st, eq, ok = _validate_base_quality(_EGBN_SHAPE, 110.0, 100.0, 1.0)
+    assert ok is False
+    assert eq["lower_dwell"] == 0.10
+    assert eq["upper_dwell"] >= 0.15 and eq["mid_dwell"] <= 0.45
+
+    # The measure-only bar-unit read documents WHY the operator disagrees:
+    # the same window's bar-lows DID work the lower third.
+    lower, mid, _upper = _dwell_bar_basis(_EGBN_SHAPE, 110.0, 100.0)
+    assert lower == 0.25                         # 5/20 bar-lows reach the lower third
+    assert mid == 0.0                            # no bar lives entirely interior
+
+
+def test_dwell_bar_basis_residency_and_nan_routes():
+    # Interior-resident bars are mid churn; bars reaching an end zone are not;
+    # a NaN-extreme bar lands in NO bucket (denominator still counts it).
+    frame = pd.DataFrame([
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},   # resident interior
+        {"High": 106.0, "Low": 104.0, "Close": 105.0},   # resident interior
+        {"High": 110.0, "Low": 104.0, "Close": 108.0},   # reaches upper -> not mid
+        {"High": 106.0, "Low": 100.0, "Close": 104.0},   # reaches lower -> not mid
+        {"High": float("nan"), "Low": float("nan"), "Close": 105.0},  # no bucket
+    ])
+    lower, mid, upper = _dwell_bar_basis(frame, 110.0, 100.0)
+    assert lower == 0.2 and upper == 0.2 and mid == 0.4
 
 
 def test_engagement_measure_hangs_are_bounded_and_close_confirmed():

@@ -206,6 +206,15 @@ EQ_MIN_COVERAGE = 0.80           # >= this fraction of box-height bins must hold
 EQ_COVERAGE_BINS = 6             # number of equal box-height bins for the coverage measure
 EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this fraction of closes
 
+# Dwell BASIS note (bar-as-unit gate variant tested and REJECTED 2026-07-25,
+# docs/bar_dwell_protocol_2026-07.md §8): judging the dwell trio on bar
+# extremes instead of closes converts EGBN at the operator's exact rails BUT
+# breaks 10/26 hit elections (MATX lost, five displaced winners) and fires
+# DGII+FLG junk — close residence is load-bearing for ELECTION STABILITY, not
+# just junk defense ("Phase-B rails do not drift" is measured fact). The
+# bar-unit read survives as measure-only (`box_gates._dwell_bar_basis`);
+# never re-wire it into the gate.
+
 # Limb-traversal read (Phase B) — the swing-structural complement to the
 # occupancy gate above. The occupancy gate asks where price resides; this asks
 # whether the up/down swing LIMBS of the chop actually travel rail-to-rail

@@ -734,6 +734,26 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      - **No dead space:** ≥ `EQ_MIN_HALF_DWELL` (0.15) of closes in BOTH the lower
        and upper box third, and box-height `coverage` ≥ `EQ_MIN_COVERAGE` (0.80).
      - **Not mid-churn:** middle-third dwell ≤ `EQ_MAX_MID_DWELL` (0.45).
+     - **Bar-as-unit dwell — gate form tested and REJECTED 2026-07-25; kept as
+       the MEASURE `_dwell_bar_basis`** (docs/bar_dwell_protocol_2026-07.md,
+       sealed campaign; the operator's THIRD bar-as-unit statement). The read:
+       lower/upper ENGAGEMENT — a bar whose Low/High reaches the end third has
+       worked it — plus mid RESIDENCY (bars living entirely interior). It
+       diagnoses EGBN exactly: at his drawn box the lower third holds 3/23
+       closes but **8/23 bar-lows** (his named support tests 2025-12-24 and
+       2026-01-02 are bar engagements whose closes recover — the definition of
+       a support test), and the sealed fire A/B converts EGBN AT his rails on
+       his bar (first_fire 2026-01-02). **But the gate form is dead:** swapped
+       into `_validate_base_quality`, 10/26 ratchet hit identities break (MATX
+       stops firing; FOSL/NGL/NTCT/ROIV/WTS elect displaced boxes; BWA/EWTX/
+       MS/VIK re-date) and junk **DGII + FLG fire** — DGII being EGBN's
+       statistical twin, now proven twin THROUGH fire level. Close-residence
+       dwell is load-bearing for ELECTION STABILITY ("Phase-B rails do not
+       drift" is measured fact), not merely junk defense. Do not re-request a
+       basis swap; converting EGBN without breaking the fleet requires NEW
+       measured information (the operator's narrative separator: SOS → Test →
+       SOS 2 → True LPS; excursion→recovery-into-box) — the event-sequence
+       direction, recorded for the TA-score / narrative program.
      - Public `metrics.measure_dwell_balance()` (formerly `measure_equilibrium`;
        the Equilibrium name now belongs to the rail-to-rail swing read, formerly
        `measure_traversal`) additionally reports High/Low range occupancy for

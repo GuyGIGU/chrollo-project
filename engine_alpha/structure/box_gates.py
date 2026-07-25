@@ -26,6 +26,7 @@ __all__ = [
     "_is_boundary_respected",
     "_worked_window_end",
     "_measure_close_residence",
+    "_dwell_bar_basis",
     "_validate_base_quality",
     "_occupancy_failures",
     "_apply_traversal_gate",
@@ -246,6 +247,38 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
         "upper_dwell": round(upper_dwell, 4),
         "coverage": round(coverage, 4),
     }
+
+
+def _dwell_bar_basis(eq_df, R_val, S_val):
+    """The occupancy dwell trio measured BAR-AS-UNIT (operator ruling
+    2026-07-25, third statement of the bar-as-unit doctrine): a bar whose Low
+    reaches the lower box third has worked it, a bar whose High reaches the
+    upper third has worked it, and a bar living entirely interior (touching
+    neither end zone) is mid-RESIDENT churn. Same thirds, same window, same
+    4dp rounding as the close-residence read; positions are clipped so
+    out-of-box extremes count toward the end they exceed (mirrors the close
+    ``pos`` clip). NaN extremes compare False -> the bar lands in no bucket.
+
+    MEASURE-ONLY. A GATE form of this read (EQ_DWELL_BAR_BASIS swapping the
+    judged trio) was built and REJECTED 2026-07-25 by the sealed fire A/B
+    (docs/bar_dwell_protocol_2026-07.md §8): it converts EGBN at the
+    operator's exact rails, but 10/26 hit elections break (MATX lost, five
+    displaced winners) and junk DGII+FLG fire — close residence is
+    load-bearing for ELECTION STABILITY. Never re-wire this into the gate.
+
+    Returns ``(lower_dwell, mid_dwell, upper_dwell)`` fractions.
+    """
+    box = R_val - S_val
+    lows = eq_df["Low"].values.astype(float)
+    highs = eq_df["High"].values.astype(float)
+    lo = np.clip((lows - S_val) / box, 0.0, 1.0)
+    hi = np.clip((highs - S_val) / box, 0.0, 1.0)
+    eng_l = lo <= 1.0 / 3.0
+    eng_u = hi >= 2.0 / 3.0
+    mid_res = (lo > 1.0 / 3.0) & (hi < 2.0 / 3.0)
+    return (round(float(np.mean(eng_l)), 4),
+            round(float(np.mean(mid_res)), 4),
+            round(float(np.mean(eng_u)), 4))
 
 
 def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
