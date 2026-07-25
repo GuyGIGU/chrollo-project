@@ -283,6 +283,25 @@ choice. The function + validation tool stay in the tree as the mechanical
 tripwire (measure-only, no live caller); the dark cluster-width form and its
 flip (planned Tasks 7–9) were NOT built — their premise failed.
 
+**Anchor-bar study — the eye model, measured (2026-07-25,
+`docs/anchor_bar_study_2026-07.md`).** All 33 marks carry declared anchor
+bars; the study made three reading-model claims into measured fact: (1)
+drawn rails are EXACT bar extremes (fidelity 0.000 on 66/66 rails — the
+rails-at-H/L ruling); (2) the box is born at its first swing — R = the
+window's first bar's high (drawn first 28/33), S = the first reaction low a
+few bars later, i.e. the operator's own climax→AR; (3) the drawn rails then
+tolerate heavy later overshoot (window extreme median 1.6 ATR above R,
+~12 bars beyond R inside his own box) and are proven by re-touch (median
+11–15 later touches), not redrawn. The engine's candidate anchors already
+land on his exact bar 27/64 (median 2 bars apart; misses median 0) — rail
+placement is NOT the eye gap. **Bounded compensation over the gate margins
+is tested-DEAD in the same study:** EGBN's fail-one-leg-by-one-bar-with-
+big-surplus profile has exact junk twins (DGII/BMRN surplus 14, GOOD 49; 15
+junk candidates fail narrow-but-rich), so no compensation rule on the
+worked-equilibrium/respect legs separates them. The residual eye-gap is
+separable only by NEW measured information (why a third is empty; what
+story an excursion tells), entering measure-first as always.
+
 #### Spring (Phase C)
 
 The turn-conductor event: penetration below S → reclaim → hold (the bounded-excursion
