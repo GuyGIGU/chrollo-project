@@ -83,7 +83,7 @@ def test_builder_admits_the_ruled_sentence_and_narrates():
     pool = _run_builder(_story_bars(), trace=trace)
     assert len(pool) == 1
     tup = pool[0]
-    assert (tup[1], tup[2], tup[9], tup[10]) == (R, S, 0, 30)
+    assert (tup[1], tup[2], tup[9], tup[10], tup[11]) == (R, S, 0, 30, "story")
     valid = [r for r in trace if r["verdict"] == "valid"]
     assert len(valid) == 1
     assert valid[0]["detail"].startswith("story-admitted")
@@ -124,7 +124,7 @@ def test_flag_off_is_compute_free(monkeypatch):
 
 def test_rung_is_last_resort_after_the_band_pool(monkeypatch):
     df = _frame(_story_bars())
-    sentinel = [(0.5, R, S, 0.1667, 3, 3, 0, 0, 5, 0, len(df))]
+    sentinel = [(0.5, R, S, 0.1667, 3, 3, 0, 0, 5, 0, len(df), "band")]
     monkeypatch.setattr(box_primitives, "_build_candidate", lambda *a, **k: None)
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", True)
     monkeypatch.setattr(settings, "STORY_POOL_ENABLED", True)
@@ -142,7 +142,7 @@ def test_rung_is_last_resort_after_the_band_pool(monkeypatch):
 
 def test_traversal_gate_judges_the_story_pool(monkeypatch):
     df = _frame(_story_bars())
-    tup = (0.5, R, S, 0.1667, 3, 3, 0, 0, 5, 0, len(df))
+    tup = (0.5, R, S, 0.1667, 3, 3, 0, 0, 5, 0, len(df), "story")
     monkeypatch.setattr(box_primitives, "_build_candidate", lambda *a, **k: None)
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", False)
     monkeypatch.setattr(settings, "STORY_POOL_ENABLED", True)

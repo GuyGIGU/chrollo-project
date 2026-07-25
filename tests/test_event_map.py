@@ -356,9 +356,28 @@ def test_event_map_flag_on_is_additive_only(monkeypatch):
     assert set(on) - set(off) == {
         "_event_map_n_swings", "_event_map_pre_box_trend",
         "_event_map_n_labels", "_event_map_n_committed",
+        "_event_map_completed_s", "_event_map_completed_r",
+        "_event_map_alternations", "_event_map_terminal_posture",
+        "_event_map_terminal_drift", "_event_map_story_admitted",
+        "_event_map_episode_nan_bars", "_event_map_episode_profile",
+        "_event_map_episodes",
     }
     assert on["_event_map_n_swings"] > 0
     assert on["_event_map_n_labels"] >= on["_event_map_n_committed"] >= 0
+    # Substrate discipline (Task 10): explicit values on a measured fire —
+    # zeros are evidence, never None; flags are 0/1 ints; the tape is JSON
+    # whose span/knowable anchors are DATES, never bar indexes.
+    import json as _json
+    for k in ("_event_map_completed_s", "_event_map_completed_r",
+              "_event_map_alternations", "_event_map_terminal_posture",
+              "_event_map_terminal_drift", "_event_map_story_admitted",
+              "_event_map_episode_nan_bars"):
+        assert isinstance(on[k], int), f"{k} must be a plain int, got {type(on[k])}"
+    tape = _json.loads(on["_event_map_episodes"])
+    assert isinstance(tape, list)
+    for entry in tape:
+        assert set(entry) == {"rail", "outcome", "posture", "span", "knowable"}
+        assert "-" in entry["span"][0]      # ISO date, not a bar index
 
 
 def test_degenerate_inputs_return_empty_shape():

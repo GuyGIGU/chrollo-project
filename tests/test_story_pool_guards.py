@@ -92,3 +92,26 @@ def test_story_flag_on_shadow_panel_is_identical(monkeypatch):
         {"fields": fields, "ranking": ranking}, baseline)
     assert ok, ("story-pool-ON canonical drift vs committed baseline:\n"
                 + "\n".join(lines))
+
+
+def test_fires_carry_elected_pool_provenance():
+    """Task 11: every fire archives its electing pool (closed set). The
+    shadow fixture's ordinary fires must all read 'strict' — the label is
+    unconditional (no flag), so a NULL here is a threading defect."""
+    frames, scalars = shadow_diff._load_fixture()
+    spy_6m = float(scalars.get("spy_6m_return", 0.0))
+    breadth = scalars.get("breadth_pct")
+    breadth = float(breadth) if breadth is not None else None
+
+    seen = 0
+    for ticker in scalars["tickers"]:
+        df = frames.get(ticker)
+        if df is None:
+            continue
+        result = _evaluate_ticker(ticker, df, spy_6m, breadth)
+        if result is None or not isinstance(result, dict):
+            continue
+        seen += 1
+        assert result.get("_elected_pool") in {"strict", "rescued", "band"}, (
+            f"{ticker}: _elected_pool={result.get('_elected_pool')!r}")
+    assert seen > 0, "no shadow fire evaluated — fixture problem"

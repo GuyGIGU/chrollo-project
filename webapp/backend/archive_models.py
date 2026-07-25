@@ -292,6 +292,18 @@ class SetupArchive(Base):
     event_map_pre_box_trend = Column(String, nullable=True)   # pre-box view trend_state
     event_map_n_labels = Column(Integer, nullable=True)       # role labels over the elected bricks
     event_map_n_committed = Column(Integer, nullable=True)    # labels knowable at scan close
+    # Rail-episode substrate (Event Map program Task 10): typed scalars the
+    # TA-score session may grade + the ONE compact audit tape. Explicit zeros
+    # are evidence (the junk separator IS zero); NULL only = never measured.
+    event_map_completed_s = Column(Integer, nullable=True)      # completed support tests (as-of)
+    event_map_completed_r = Column(Integer, nullable=True)      # completed resistance rejections
+    event_map_alternations = Column(Integer, nullable=True)     # completed-episode rail changes
+    event_map_terminal_posture = Column(Integer, nullable=True)  # 0/1 pre-breakout R engagement
+    event_map_terminal_drift = Column(Integer, nullable=True)    # 0/1 open S drift at the edge
+    event_map_story_admitted = Column(Integer, nullable=True)    # 0/1 ruled form (2026-07-25)
+    event_map_episode_nan_bars = Column(Integer, nullable=True)  # readability companion
+    event_map_episode_profile = Column(String, nullable=True)    # the sentence "S+ S+ S+ R^"
+    event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 
     # ── Advisory metadata (Lane E) — GRADED context, NOT a veto, NOT scored ──
     # Flag-gated (FUNDAMENTALS_ENABLED / RS_LINE_ENABLED / SECTOR_RANKING_ENABLED),
@@ -316,6 +328,12 @@ class SetupArchive(Base):
     # config version and detect silent drift. Nullable: pre-existing rows have
     # no stamp. Pure provenance — never a computed engine field.
     engine_config_version = Column(String, nullable=True)
+    # The electing pool's closed-set provenance (strict / rescued / band /
+    # story) — Event Map program Task 11. Stamped on every fire by BOTH
+    # writers; NULL only on pre-provenance rows. The rescued cohort's own
+    # forward returns are how the operator later judges whether a rescue
+    # tier earns its keep. Pure provenance — never a computed engine field.
+    elected_pool = Column(String, nullable=True)
 
     # ── Manual curation (human-in-the-loop) ──────────────────────
     quality_label = Column(String, nullable=True)     # perfect / good / noise / miss

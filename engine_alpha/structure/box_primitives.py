@@ -154,13 +154,16 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
 
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                     trace=None, rescued=False, max_width=None):
+                     trace=None, rescued=False, max_width=None, pool="strict"):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
     (the full candidate window for a strict framing, or its trimmed worked cause
     for a rescued one). R/S/anchors/cand_start are always the framing's true
-    full-base coordinates — only the measurement window narrows.
+    full-base coordinates — only the measurement window narrows. ``pool`` is
+    the electing pool's closed-set provenance label (strict / rescued / band /
+    story — Event Map program Task 11), carried on the tuple's last slot so a
+    rescued cohort stays separable all the way into the archive.
     """
     respected, _r_broken, _s_broken, total_outside, share = _is_boundary_respected(
         highs, lows, R_val, S_val, atr_val,
@@ -194,12 +197,13 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
     _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued)
-    # Last slot = the JUDGED window length (= len(highs), relative to cand_start):
+    # Slot 10 = the JUDGED window length (= len(highs), relative to cand_start):
     # the full candidate window for a strict framing, or its trimmed worked cause
     # for a rescued one. The traversal gate measures over the SAME window, so a
     # rescued SOS tail can't be ignored for respect/occupancy yet counted here.
+    # Slot 11 = the electing pool's provenance label (closed set).
     return (combined, R_val, S_val, box_width, r_touches, s_touches, total_outside,
-            r_anchor_bar, s_anchor_bar, cand_start, len(highs))
+            r_anchor_bar, s_anchor_bar, cand_start, len(highs), pool)
 
 
 def _oriented_pairs(zigzag):
@@ -295,7 +299,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     cand_highs[:work_end], cand_lows[:work_end],
                     cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
                     r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                    trace=trace, rescued=True,
+                    trace=trace, rescued=True, pool="rescued",
                 )
                 if tup is not None:
                     rescued.append(tup)
@@ -416,6 +420,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
             trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
+            pool="band",
         )
         if tup is None:
             continue
@@ -486,11 +491,12 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                     eq["coverage"])
         _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                     r_anchor_bar, s_anchor_bar, cand_start, rescued=True)
-        # Same 11-slot shape _build_candidate returns; the judged window is
-        # the full candidate window (strict-style — no trim, no excision).
+        # Same tuple shape _build_candidate returns; the judged window is the
+        # full candidate window (strict-style — no trim, no excision); slot 11
+        # carries the story pool's provenance label.
         tup = (combined, R_val, S_val, box_width, r_touches, s_touches,
                total_outside, r_anchor_bar, s_anchor_bar, cand_start,
-               len(cand_highs))
+               len(cand_highs), "story")
         if trace is not None:
             rec = _trace_find(trace, tup)
             if rec is not None:

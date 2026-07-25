@@ -578,19 +578,55 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        from engine_alpha.structure.event_map import read_role_labels, read_swing_map
+        import json as _json
+
+        from engine_alpha.structure.event_map import (
+            episode_sequence_stats,
+            read_rail_episodes,
+            read_role_labels,
+            read_swing_map,
+            story_admission,
+        )
         _struct = structure_ctx["structure"]
         _tape = read_swing_map(df, _struct.box, structure_ctx["atr_for_zone"])
         _roles = read_role_labels(
             df, _struct.box, structure_ctx["atr_for_zone"],
             spring=_struct.spring, lps=_struct.lps,
         )
+        # Rail-episode substrate (Task 10): the AS-OF sentence over the
+        # ELECTED window/rails — the same read the story pool consults, so a
+        # rescued fire's archived sentence is by construction the evidence
+        # that admitted it. Explicit zeros are evidence (NULL only when this
+        # block never ran); the tape's anchors are DATES, never bar indexes.
+        _win = df.iloc[int(_struct.box.start_bar):]
+        _epi = read_rail_episodes(_win, float(_struct.box.R),
+                                  float(_struct.box.S),
+                                  structure_ctx["atr_for_zone"])
+        _stats = episode_sequence_stats(_epi, as_of_bar=len(_win) - 1)
+        _dates = _win.index
+        _tape_json = _json.dumps([
+            {"rail": e["rail"], "outcome": e["outcome"],
+             "posture": bool(e["terminal_posture"]),
+             "span": [str(_dates[e["start_bar"]].date()),
+                      str(_dates[e["end_bar"]].date())],
+             "knowable": (str(_dates[e["knowable_bar"]].date())
+                          if e["knowable_bar"] is not None else None)}
+            for e in _epi["episodes"]], separators=(",", ":"))
         event_map_fields = {
             "_event_map_n_swings": int(_tape["n_swings"]),
             "_event_map_pre_box_trend": _tape["pre_box"]["trend_state"],
             "_event_map_n_labels": int(_roles["n_labels"]),
             "_event_map_n_committed": sum(
                 1 for lbl in _roles["labels"] if not lbl["in_progress"]),
+            "_event_map_completed_s": int(_stats["n_completed_s"]),
+            "_event_map_completed_r": int(_stats["n_completed_r"]),
+            "_event_map_alternations": int(_stats["alternations"]),
+            "_event_map_terminal_posture": int(_stats["terminal_r_posture"]),
+            "_event_map_terminal_drift": int(_stats["terminal_s_drift"]),
+            "_event_map_story_admitted": int(story_admission(_stats)),
+            "_event_map_episode_nan_bars": int(_epi["nan_bars"]),
+            "_event_map_episode_profile": _stats["profile"],
+            "_event_map_episodes": _tape_json,
         }
 
     # Election stability (measure-only, flag-dark): does the elected reading
@@ -665,6 +701,9 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_R': float(structure_ctx["res_avg"]),
         '_S': float(structure_ctx["sup_avg"]),
         '_base_len': int(structure_ctx["base_len"]),
+        # Electing-pool provenance (closed set: strict/rescued/band/story) —
+        # archived on every fire so a rescued cohort stays separable forever.
+        '_elected_pool': str(structure_ctx["structure"].box.elected_pool),
         '_lps_len': int(lps_ctx["lps_length"]),
         '_lps_offset': int(lps_ctx["lps_offset"]),
         '_r_anchor_bar': int(structure_ctx["r_anchor_bar"]),

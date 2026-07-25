@@ -563,6 +563,23 @@ EVENT_MAP_COLUMN_SQL: dict[str, str] = {
     "event_map_pre_box_trend": "TEXT",     # pre-box view trend_state
     "event_map_n_labels": "INTEGER",       # role labels over the elected bricks
     "event_map_n_committed": "INTEGER",    # labels whose verdict was knowable at scan close
+    # Rail-episode substrate (Event Map program Task 10) — the sequence
+    # statistics a later TA-score calibration may grade: typed scalars only,
+    # one value per column, designed in ONE pass. The compact episode tape is
+    # the single audit/display artifact (time anchors, never bar indexes).
+    # NULL = not measured (flag off / pre-flip rows); measured-and-empty
+    # stores explicit ZEROS — the junk separator IS zero — with the
+    # readability companion so zero-by-unreadable-bars can never masquerade
+    # as zero-by-drift.
+    "event_map_completed_s": "INTEGER",       # completed support tests (as-of)
+    "event_map_completed_r": "INTEGER",       # completed resistance rejections (as-of)
+    "event_map_alternations": "INTEGER",      # rail changes across completed episodes
+    "event_map_terminal_posture": "INTEGER",  # 0/1 window ends engaging R, close above R
+    "event_map_terminal_drift": "INTEGER",    # 0/1 open S episode at the edge >= drift floor
+    "event_map_story_admitted": "INTEGER",    # 0/1 the RULED form's read (ruling 2026-07-25)
+    "event_map_episode_nan_bars": "INTEGER",  # readability companion for the zeros
+    "event_map_episode_profile": "TEXT",      # the sentence, e.g. "S+ S+ S+ R^"
+    "event_map_episodes": "TEXT",             # compact JSON tape (rail/outcome/span/knowable dates)
 }
 
 

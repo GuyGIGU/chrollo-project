@@ -62,6 +62,11 @@ class EquilibriumBox:
     # The full measure_equilibrium dict for THIS box, measured once at election;
     # evaluation consumes it instead of re-measuring the same window/rails/ATR.
     equilibrium: Optional[dict] = None
+    # The electing pool's closed-set provenance (strict / rescued / band /
+    # story) — Event Map program Task 11: a rescued cohort must stay
+    # separable in the archive, the harness output, and forward-returns
+    # cohorts, forever.
+    elected_pool: str = "strict"
 
 
 @dataclass
@@ -303,6 +308,7 @@ def validate_equilibrium(
         n_full_traversals=n_full,
         traversal_density=float(density),
         equilibrium=equilibrium,
+        elected_pool=str(selected[11]),
     )
 
 
