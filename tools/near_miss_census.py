@@ -396,13 +396,14 @@ _PINNED = {
     "marks_fingerprint":
         "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
     "junk_captured_at": "2026-07-03T12:20:14+00:00",
-    # Re-pinned 2026-07-26 twice, each axis named: the Task-6 ruling's
-    # manifest-listed NEAR_MISS_* constants rotated 53c208dc… → 5516256f…,
-    # then the Task-7 collector flag (dark) rotated → df3cddeb…. The
-    # distributions themselves did not move (nothing here touches a gate) —
-    # counts below unchanged and re-verified on fresh walks.
+    # Re-pinned 2026-07-26 three times, each axis named: the Task-6 ruling's
+    # constants rotated 53c208dc… → 5516256f…; the Task-7 collector flag
+    # (dark) → df3cddeb…; the Task-8 recording-shape knobs (TOP_K + writer
+    # caps, dark) → 28498359…. The distributions themselves did not move
+    # (nothing here touches a gate) — counts unchanged, re-verified on fresh
+    # walks at every seam.
     "engine_manifest":
-        "df3cddeb819d5974a2a5c23fda369820591f755b510bce43b00edfe45e762e9f",
+        "28498359ce9e62839a0d87a2ee542e1a5b3fbe921260d437af9d6928c1cedf91",
     "n_drawn": 33,
     "n_examined": 33,
     "n_junk": 1805,

@@ -362,6 +362,14 @@ NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
 # flag). Flip is operator-gated on the Task-13 cost A/B against the ledger
 # row's pre-registered budget.
 NEAR_MISS_LANE_ENABLED = False
+# Recording-shape knobs (Tasks 8/9; manifest-listed with the flag so a change
+# partitions the cohort by engine seam). Sized from the Task-4 counters
+# (docs/near_miss_lane_2026-07.md §3: one-leg median 5 / p90 137 per
+# evaluation; ruled junk density ~1 per corpus frame). Every cap drop is
+# COUNTED and reported — a silent cap reads as "covered everything".
+NEAR_MISS_TOP_K = 32            # deferred full-vector completions per evaluation
+NEAR_MISS_WRITER_TICKER_CAP = 8     # cohort rows persisted per ticker per night
+NEAR_MISS_WRITER_GLOBAL_CAP = 200   # cohort rows persisted per scan night
 
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for

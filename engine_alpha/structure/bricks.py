@@ -259,8 +259,11 @@ def validate_equilibrium(
     # earlier calls' records into their view. Appended back at the end.
     if near_miss is not None:
         # Window-relative bars rebase to df-positional through this offset —
-        # the recorder's identity keys must survive across consultations.
-        near_miss.begin_consultation(int(root.ar_bar))
+        # the recorder's identity keys must survive across consultations. The
+        # enumeration frame + eval ATR ride along as the deferred phase's
+        # judged-window basis (references, not copies).
+        near_miss.begin_consultation(int(root.ar_bar), frame=eval_df,
+                                     atr=float(atr))
     cascade = [] if trace is not None else None
     candidates = collect_zigzag_candidates(
         eq_df,

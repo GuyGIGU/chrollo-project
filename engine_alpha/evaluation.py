@@ -961,6 +961,12 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # one attribute read and nothing else — no import, no allocation.
         from engine_alpha.structure.near_miss import NearMissRecorder  # noqa: PLC0415
         near_miss = NearMissRecorder()
+    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss)
+
+
+def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
+    """The chain under the standard skip-guard — folded once (EC-3) so the
+    plain evaluation and the lane-carrying scan twin cannot drift."""
     try:
         result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
                                  near_miss=near_miss)
@@ -969,10 +975,31 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
         # Return the error sentinel — NOT None — so the caller can distinguish a
         # swallowed eval crash from a genuine structural reject and count it.
         return EVAL_ERROR
-    # near_miss (when the lane flag is on) now holds the deduped refusal map
-    # for THIS evaluation, fired or not. The bounded deferred completion
-    # (Task 8) and the cohort writer (Task 9) consume it here; until they
-    # land, the map is measured and released.
     if result is not None:
         _attach_advisory_metadata(ticker, df, result)
     return result
+
+
+def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
+                                   spy_6m_return: float = 0.0,
+                                   breadth_pct: Optional[float] = None):
+    """The scan-path twin of ``_evaluate_ticker`` used when the near-miss
+    lane flag is on: returns ``(result, near_miss_rows, lane_stats)`` so the
+    refusal cohort can cross the worker-pool boundary alongside the fire
+    verdict. Flag-off it degrades to the plain evaluation with empty lane
+    output — the screener only submits it under the flag, but the degrade
+    keeps a mid-scan flag flip harmless. Top-level for pickling."""
+    if not settings.NEAR_MISS_LANE_ENABLED:
+        return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct), [], {}
+    from engine_alpha.structure.near_miss import (  # noqa: PLC0415 — inside the flag
+        NearMissRecorder, deferred_rows)
+    recorder = NearMissRecorder()
+    result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
+                                recorder)
+    rows, stats = deferred_rows(recorder, fired=isinstance(result, dict),
+                                scan_close=float(df["Close"].iloc[-1]))
+    scan_date = str(df.index[-1])[:10]
+    for row in rows:
+        row["ticker"] = ticker
+        row["scan_date"] = scan_date
+    return result, rows, stats
