@@ -67,3 +67,33 @@ def same_election(read_a: dict, read_b: dict,
         return False
     return rails_match(read_a["R"], read_a["S"], read_b["R"], read_b["S"],
                        tol_box_frac=tol_box_frac)
+
+
+# ---------------------------------------------------------------------------
+# Candidate-FRAMING identity (near-miss lane Task 2) — the identity of a
+# PROPOSED R/S pair, before and regardless of election. Where the election
+# identity above matches two readings within a tolerance, the framing
+# identity is EXACT: it is a dedup/UNIQUE key, and two keys either collide or
+# they don't. One definition, two forms; every consumer (the cascade trace
+# match, the lane recorder's per-evaluation map, the census, the cohort
+# store's UNIQUE constraint) derives from these two functions.
+# ---------------------------------------------------------------------------
+
+def framing_window_key(r_anchor_bar, s_anchor_bar, cand_start) -> tuple:
+    """The in-window form: integer anchor/start positions, valid ONLY inside
+    the single window (one ``collect_zigzag_candidates`` call) that produced
+    them — window-relative positions do not survive a consultation change,
+    let alone a frame shift. O(1) hashable for per-evaluation dedup maps."""
+    return (int(r_anchor_bar), int(s_anchor_bar), int(cand_start))
+
+
+def framing_date_key(ticker, R, S, index, r_anchor_bar, s_anchor_bar) -> tuple:
+    """The date-anchored, cross-night form: ticker + 4dp rails + the anchor
+    DATES (never positional bar indices, which slide nightly with the 2y
+    trim). ``index`` is the window's DatetimeIndex and the anchor bars are
+    positions INTO IT; dates leave this function as exact categorical keys.
+    4dp mirrors the trace/archive rail convention so equality holds across
+    every surface that stores a rail."""
+    return (str(ticker), round(float(R), 4), round(float(S), 4),
+            index[int(r_anchor_bar)].strftime("%Y-%m-%d"),
+            index[int(s_anchor_bar)].strftime("%Y-%m-%d"))

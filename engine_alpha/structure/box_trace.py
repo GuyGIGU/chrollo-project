@@ -10,6 +10,8 @@ structural move — both functions verbatim.
 """
 from __future__ import annotations
 
+from engine_alpha.election_identity import framing_window_key
+
 __all__ = ["_trace_pair", "_trace_find"]
 
 
@@ -46,10 +48,13 @@ def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
 
 
 def _trace_find(trace, cand):
-    """The 'valid' cascade record belonging to candidate tuple ``cand``."""
-    key = (int(cand[7]), int(cand[8]), int(cand[9]))
+    """The 'valid' cascade record belonging to candidate tuple ``cand`` —
+    matched on the ONE in-window framing identity (Task 2: anchors + start;
+    window-relative, so only valid against records from the same call)."""
+    key = framing_window_key(cand[7], cand[8], cand[9])
     for rec in trace:
         if rec["verdict"] == "valid" \
-                and (rec["r_anchor_bar"], rec["s_anchor_bar"], rec["cand_start"]) == key:
+                and framing_window_key(rec["r_anchor_bar"], rec["s_anchor_bar"],
+                                       rec["cand_start"]) == key:
             return rec
     return None
