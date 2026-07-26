@@ -30,6 +30,7 @@ __all__ = [
     "_rail_outside_masks",
     "_engagement_hang_masks",
     "_max_excursion_atr",
+    "_respect_stats",
     "_is_boundary_respected",
     "_worked_window_end",
     "_measure_close_residence",
@@ -188,28 +189,22 @@ def _max_excursion_atr(above_r, below_s, highs, lows, r_ceiling, s_floor,
     return worst / float(atr_val)
 
 
-def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
-    """
-    Check if price action respects R/S boundaries using ATR-buffered zones.
-
-    Uses the full daily range (highs vs R+buffer, lows vs S-buffer). Wicks
-    that pierce the buffered zone count as breaches, matching the engine's
-    "bars not candles" rule. An engagement-form ELECTION variant of this gate
-    (bounded close-back-inside excursions re-read as hangs) was built and
-    REJECTED 2026-07-24: the negative corpus admitted FLG+BBVA at every
-    excursion bound >= 0.5 ATR while converting zero Guided List misses —
-    this wick-basis read IS the junk defense. The engagement read survives as
-    the archived MEASURE only (``_engagement_hang_masks`` via
-    ``measure_gate_margins``); never re-wire it into the gate on anecdote.
+def _respect_stats(highs, lows, R_val, S_val, atr_val):
+    """The respect gate's full statistics in ONE pass — the legacy verdict
+    tuple plus the consecutive-run maxima it always computed and used to
+    discard (near-miss lane Task 3: the run maximum is the respect_run leg's
+    measured statistic; margin telemetry reads it from here instead of a
+    second O(n) pass).
 
     Returns:
-        (respected, r_broken, s_broken, total_outside_days, respect_share)
+        (respected, r_broken, s_broken, total_outside_days, respect_share,
+         max_consec, r_consec_max, s_consec_max)
     """
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
     n = len(highs)
     if n == 0:
-        return False, False, False, 0, 0.0
+        return False, False, False, 0, 0.0, 0, 0, 0
 
     above_r, below_s, _r_ceiling, _s_floor = _rail_outside_masks(
         highs, lows, R_val, S_val, atr_val)
@@ -236,7 +231,28 @@ def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
     r_broken = r_consec_max > max_outside
     s_broken = s_consec_max > max_outside
 
-    return respected, r_broken, s_broken, total_outside, respect_pct
+    return (respected, r_broken, s_broken, total_outside, respect_pct,
+            max_consec, r_consec_max, s_consec_max)
+
+
+def _is_boundary_respected(highs, lows, R_val, S_val, atr_val):
+    """
+    Check if price action respects R/S boundaries using ATR-buffered zones.
+
+    Uses the full daily range (highs vs R+buffer, lows vs S-buffer). Wicks
+    that pierce the buffered zone count as breaches, matching the engine's
+    "bars not candles" rule. An engagement-form ELECTION variant of this gate
+    (bounded close-back-inside excursions re-read as hangs) was built and
+    REJECTED 2026-07-24: the negative corpus admitted FLG+BBVA at every
+    excursion bound >= 0.5 ATR while converting zero Guided List misses —
+    this wick-basis read IS the junk defense. The engagement read survives as
+    the archived MEASURE only (``_engagement_hang_masks`` via
+    ``measure_gate_margins``); never re-wire it into the gate on anecdote.
+
+    Returns:
+        (respected, r_broken, s_broken, total_outside_days, respect_share)
+    """
+    return _respect_stats(highs, lows, R_val, S_val, atr_val)[:5]
 
 
 def _worked_window_end(highs, lows, R_val, S_val, atr_val):
@@ -296,6 +312,8 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
         "r_touch_thirds": 0, "s_touch_thirds": 0,
         "lower_dwell": 0.0, "mid_dwell": 1.0, "upper_dwell": 0.0,
         "coverage": 0.0,
+        "n": 0, "lower_count": 0, "mid_count": 0, "upper_count": 0,
+        "coverage_bins": 0, "coverage_occupied": 0,
     }
     if eq_df is None or len(eq_df) == 0:
         return empty
@@ -312,16 +330,24 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
         rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val)
     r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
 
+    # Counts are the ground truth; the judged fractions derive from them
+    # (count/n is the identical float64 np.mean produced — byte-parity), so
+    # margin telemetry reads raw integer numerators, never a re-derivation
+    # from the 4dp-rounded fractions (near-miss lane Task 3).
     pos = np.clip((closes - S_val) / box, 0.0, 1.0)
-    lower_dwell = float(np.mean(pos <= 1.0 / 3.0))
-    mid_dwell = float(np.mean((pos > 1.0 / 3.0) & (pos < 2.0 / 3.0)))
-    upper_dwell = float(np.mean(pos >= 2.0 / 3.0))
+    lower_count = int(np.sum(pos <= 1.0 / 3.0))
+    mid_count = int(np.sum((pos > 1.0 / 3.0) & (pos < 2.0 / 3.0)))
+    upper_count = int(np.sum(pos >= 2.0 / 3.0))
+    lower_dwell = lower_count / n
+    mid_dwell = mid_count / n
+    upper_dwell = upper_count / n
 
     nb = settings.EQ_COVERAGE_BINS
     bins = np.minimum((pos * nb).astype(int), nb - 1)
     counts = np.bincount(bins, minlength=nb)
     min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
-    coverage = float(np.mean(counts >= min_count))
+    occupied = int(np.sum(counts >= min_count))
+    coverage = occupied / nb
 
     return {
         "r_touches": int(r_mask.sum()),
@@ -332,6 +358,12 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
         "mid_dwell": round(mid_dwell, 4),
         "upper_dwell": round(upper_dwell, 4),
         "coverage": round(coverage, 4),
+        "n": n,
+        "lower_count": lower_count,
+        "mid_count": mid_count,
+        "upper_count": upper_count,
+        "coverage_bins": int(nb),
+        "coverage_occupied": occupied,
     }
 
 
