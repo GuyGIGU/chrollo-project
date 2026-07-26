@@ -399,11 +399,13 @@ _PINNED = {
     # Re-pinned 2026-07-26 three times, each axis named: the Task-6 ruling's
     # constants rotated 53c208dc… → 5516256f…; the Task-7 collector flag
     # (dark) → df3cddeb…; the Task-8 recording-shape knobs (TOP_K + writer
-    # caps, dark) → 28498359…. The distributions themselves did not move
+    # caps, dark) → 28498359…. Re-pinned 2026-07-27: the FLIP —
+    # NEAR_MISS_LANE_ENABLED False → True (operator-accepted §6b overrun)
+    # → c1a5cca0…. The distributions themselves did not move at any seam
     # (nothing here touches a gate) — counts unchanged, re-verified on fresh
-    # walks at every seam.
+    # walks; the flip walk drifted on engine_manifest ALONE.
     "engine_manifest":
-        "28498359ce9e62839a0d87a2ee542e1a5b3fbe921260d437af9d6928c1cedf91",
+        "c1a5cca0bfa3023979d311076aab2687e3b1e64a27ccfd224f6c8fd0c041e90a",
     "n_drawn": 33,
     "n_examined": 33,
     "n_junk": 1805,

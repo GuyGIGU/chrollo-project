@@ -352,16 +352,17 @@ NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
 NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
 
-# DARK (near-miss lane Task 7) — the refusal collector: a numbers-only,
-# per-evaluation recorder on the outer Phase-B consultation seam (never the
-# inner-box calls, never the diagnostic mirror). Records every gate refusal's
-# kill-site tuple keyed on the framing identity; a near-miss NEVER scores,
-# never fires, never enters the picks — telemetry for the archived cohort +
-# review report only. Flag-off is byte-identical and compute-free (one
-# attribute read at evaluation entry; import + allocation live inside the
-# flag). Flip is operator-gated on the Task-13 cost A/B against the ledger
-# row's pre-registered budget.
-NEAR_MISS_LANE_ENABLED = False
+# LIVE 2026-07-27 (near-miss lane Task 7) — the refusal collector: a
+# numbers-only, per-evaluation recorder on the outer Phase-B consultation seam
+# (never the inner-box calls, never the diagnostic mirror). Records every gate
+# refusal's kill-site tuple keyed on the framing identity; a near-miss NEVER
+# scores, never fires, never enters the picks — telemetry for the archived
+# cohort + review report only. Flag-off is byte-identical and compute-free.
+# Flipped on the §6b re-measured A/B: all three pre-registered bounds FAIL
+# (p50 +7.10ms / p95 +57.97ms / wall +2.96%); overrun ACCEPTED by the operator
+# ("3% aint a biggie"). The flip HARDENS ruleset 2026-07-26.A + the per-pool
+# grain (docs/near_miss_lane_2026-07.md §5/§7).
+NEAR_MISS_LANE_ENABLED = True
 # Recording-shape knobs (Tasks 8/9; manifest-listed with the flag so a change
 # partitions the cohort by engine seam). Sized from the Task-4 counters
 # (docs/near_miss_lane_2026-07.md §3: one-leg median 5 / p90 137 per

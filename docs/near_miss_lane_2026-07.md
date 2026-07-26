@@ -201,7 +201,7 @@ respect_share candidates and ~8 across ALL other integer legs combined.
   crash IN costs nothing measured and preserves the spring-shaped-refusal
   telemetry the plan motivated.
 
-## §5 Operator ruling — Task 6 — **CLOSED 2026-07-26, PROVISIONAL until the flip** · ruleset `2026-07-26.A`
+## §5 Operator ruling — Task 6 — **CLOSED 2026-07-26 · HARDENED 2026-07-27 (the flip, §8)** · ruleset `2026-07-26.A`
 
 The closed five-axis menu was presented in-session on 2026-07-26 with a named
 recommended slate and per-option exposure legs (§4 evidence). Provenance,
@@ -312,7 +312,8 @@ evaluations.
   (EC-15); the budget is not retro-widened. The §6 levers stand unchanged
   (TOP_K cut / early-exit completion / accept the wall / hold dark) —
   early-exit now sized at **335 of 431** completions not_ruled. The flip
-  remains the operator's decision against THIS record.
+  remains the operator's decision against THIS record. **→ Taken: §8
+  (LIVE 2026-07-27, overrun accepted).**
 
 ## §7 Council review + fixes — 2026-07-26 (post-build, pre-flip)
 
@@ -347,3 +348,29 @@ Measurement caveats now attached to older sections: the §3 volume counters
 and the §6 cost A/B were measured on the PRE-fix collector (strict-only
 records); the per-pool grain records strictly more. The §6 verdicts stand as
 recorded (EC-15); re-run before a flip that stalls on the tail.
+
+## §8 THE FLIP — LIVE 2026-07-27
+
+Decision, verbatim: **"3% aint a biggie lets flip it"** — the operator,
+against the §6b record (all three pre-registered bounds FAILED; the overrun
+is ACCEPTED, not excused; the budget is not retro-widened). What the flip
+hardens, per §5/§7: **ruleset `2026-07-26.A`** and the **per-pool dedup
+grain (strict > rescued > band)** — both were PROVISIONAL-stamped and are
+now the lane's law; a future re-rule is an archive-seam event (EVERY
+distribution re-bases; new manifest, cohort partitioned).
+
+Mechanics of the flip commit:
+- `config/settings.py`: `NEAR_MISS_LANE_ENABLED = False → True`.
+- Census re-pin, axis named (the flag is manifest-listed): engine
+  `28498359… → c1a5cca0…`; the flip walk drifted on `engine_manifest`
+  ALONE — fingerprint, junk counts, one-leg, zero-fail, ruled all held.
+- Full suite green with the flag live before commit.
+- No knob, gate, weight, or ruling constant moved. Picks are untouched by
+  design (a near-miss never scores/fires); the lane adds archive rows and
+  the report cohort only.
+
+First live cohort: the next scheduled scan. Review surface:
+`python -m tools.near_miss_report` (add `--outcomes` once maturation has
+had its 5 sessions). The §6 cost levers (TOP_K cut, early-exit completion
+sized at 335-of-431) stay on the shelf — pull only if the live scan wall
+actually hurts.
