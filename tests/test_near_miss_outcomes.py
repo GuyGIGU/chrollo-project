@@ -103,3 +103,68 @@ def test_maturation_fills_elapsed_outcomes_and_the_trigger_touch(
     db.commit()
     db.close()
     assert nmo.update_near_miss_outcomes(min_age_days=5) == 0
+
+
+def _boundary_row(ticker, days_old):
+    first_seen = (datetime.today() - timedelta(days=days_old)).strftime("%Y-%m-%d")
+    return {"ticker": ticker, "scan_date": first_seen, "r_level": 25.0,
+            "s_level": 22.5, "r_anchor_date": "2026-05-01",
+            "s_anchor_date": "2026-05-08", "window_start_date": "2026-05-01",
+            "window_end_date": first_seen, "pool": "strict",
+            "kill_stage": "occupancy", "failing_leg": "occupancy",
+            "judged_n": 28, "fired_night": 0, "episode_profile": "S+",
+            "margins": dict(_MARGINS), "would_be_trigger": 25.0,
+            "scan_close": 24.2, "lane_ruleset": "2026-07-26.A"}
+
+
+def test_maturation_selection_boundaries(tmp_path, monkeypatch):
+    """min-age and age-cap boundaries pinned by which tickers reach the
+    download (review 2026-07-26 finding 10): exactly-at-min-age is IN,
+    fresher is OUT, beyond the age cap is OUT unless --force. Rows are built
+    relative to today, so the outcome is deterministic on any run date."""
+    eng = create_engine(f"sqlite:///{tmp_path / 'lane.db'}")
+    monkeypatch.setattr(database, "engine", eng)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=eng))
+    monkeypatch.setattr(database, "make_sqlite_engine", lambda _path: eng)
+
+    rows = [_boundary_row("ATCUTOFF", 5),
+            _boundary_row("TOOFRESH", 4),
+            _boundary_row("ANCIENT", fr.FORWARD_RETURN_MAX_SCAN_AGE_DAYS + 1)]
+    counters = nmw.archive_near_miss_rows(rows, universe_type="us_equities",
+                                          enable=True)
+    assert counters["inserted"] == 3
+
+    seen: dict = {}
+
+    def _fake_dl(tickers, params, label):
+        seen["tickers"] = sorted(tickers)
+        return {}
+
+    monkeypatch.setattr(dl, "_batched_download", _fake_dl)
+    monkeypatch.setattr(fr, "_ticker_frame", lambda raw, t: pd.DataFrame())
+
+    nmo.update_near_miss_outcomes(min_age_days=5)
+    assert seen["tickers"] == sorted(["ATCUTOFF", fr.SPY_TICKER])
+
+    nmo.update_near_miss_outcomes(min_age_days=5, force=True)
+    assert "ANCIENT" in seen["tickers"]           # --force re-admits the aged
+    assert "TOOFRESH" not in seen["tickers"]      # min-age holds even forced
+
+
+def test_lane_maturation_is_contained_and_named(monkeypatch, capsys):
+    """A lane-only maturation failure returns -1 and prints — it can never
+    own the shared fires-maturation run's status (review finding 6); and the
+    __main__ seam is pinned to call the CONTAINED wrapper (finding 10)."""
+    def _boom(**_kw):
+        raise RuntimeError("download pathology")
+    monkeypatch.setattr(nmo, "update_near_miss_outcomes", _boom)
+    assert fr.run_near_miss_maturation(min_age_days=5) == -1
+    out = capsys.readouterr().out
+    assert "Near-miss maturation FAILED" in out
+
+    monkeypatch.setattr(nmo, "update_near_miss_outcomes",
+                        lambda min_age_days, force=False: 7)
+    assert fr.run_near_miss_maturation(min_age_days=5) == 7
+
+    src = Path(fr.__file__).read_text(encoding="utf-8")
+    assert "run_near_miss_maturation(min_age_days=args.min_age" in src

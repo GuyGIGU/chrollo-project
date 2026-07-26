@@ -198,15 +198,33 @@ def test_flag_off_twin_degrades_to_the_plain_evaluation(monkeypatch):
     result, rows, stats = evaluate_ticker_with_near_miss(
         e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
     assert isinstance(result, dict) and rows == [] and stats == {}
+    # "Degrades to the plain evaluation" pinned as canonical-field EQUALITY,
+    # not just firing (review 2026-07-26 finding 10): a drifted degrade
+    # branch must red here, not in a live scan whose flag flipped mid-run.
+    from core.pipeline.screener import _evaluate_ticker
+    from tools import shadow_diff
+    plain = _evaluate_ticker(e["ticker"], sliced,
+                             float(e["spy_6m_return"]), _FROZEN_BREADTH)
+    assert shadow_diff.canonical_fields(result) == \
+        shadow_diff.canonical_fields(plain)
 
 
 def test_fired_night_flag_rides_every_row_of_a_firing_ticker(monkeypatch):
     monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
     frames, baseline = _load_marks_fixture()
-    e = next(x for x in baseline["setups"] if x["status"] == "hit")
-    sliced = fixture_frame(frames, e["key"], e["ticker"]).loc[
-        :pd.Timestamp(e["first_fire"])]
-    result, rows, _stats = evaluate_ticker_with_near_miss(
-        e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
-    assert isinstance(result, dict)
-    assert all(r["fired_night"] == 1 for r in rows)
+    flagged = 0
+    for e in (x for x in baseline["setups"] if x["status"] == "hit"):
+        sliced = fixture_frame(frames, e["key"], e["ticker"]).loc[
+            :pd.Timestamp(e["first_fire"])]
+        result, rows, _stats = evaluate_ticker_with_near_miss(
+            e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
+        assert isinstance(result, dict)
+        assert all(r["fired_night"] == 1 for r in rows)
+        flagged += len(rows)
+        if flagged:
+            break
+    # The guard must never pass vacuously (review 2026-07-26 finding 10): at
+    # least one firing ticker demonstrably records ruled refusals — if a
+    # reseal dries every hit, this reds so the guard gets re-pointed
+    # consciously instead of asserting nothing forever.
+    assert flagged > 0, "no firing ticker produced a ruled refusal row"

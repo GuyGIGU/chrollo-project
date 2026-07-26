@@ -1,6 +1,8 @@
 # The Near-Miss Lane — protocol record (2026-07)
 
-Program: `PLAN-near-miss-lane.md` (13 tasks; council plan 2026-07-26). Measure-first
+Program: [`docs/archive/PLAN-near-miss-lane.md`](archive/PLAN-near-miss-lane.md)
+(13 tasks; council plan 2026-07-26 — retired to the committed archive per
+EC-16; review 2026-07-26 finding 13). Measure-first
 telemetry for one-leg box-election-gate refusals. **No gate moves; a near-miss never
 scores, never fires, never enters the picks.** Gate loosening / margin compensation /
 threshold fuzzing are PERMANENTLY out (tested-dead — rail program 2026-07-25).
@@ -117,9 +119,13 @@ that filters by margin exists before that ruling** (the plan's hard gate).
 
 Basis: marks fingerprint `b671e056…`, junk fixture captured_at
 `2026-07-03T12:20:14+00:00`, engine `53c208dc…`. Cached rows + full report:
-`tools.near_miss_census --json` run of 2026-07-26 (re-render any time with
-`--from`; the tool refuses a cache whose engine manifest differs). §2 was
-committed at `docs(lane)` BEFORE this section's tables were first rendered.
+`tools.near_miss_census --json` run of 2026-07-26. §2 was committed at
+`docs(lane)` BEFORE this section's tables were first rendered. NOTE
+(review 2026-07-26 finding 11): the branch ships at engine `28498359…`
+after three named seam rotations, so the 2026-07-26 cache is superseded —
+`--from` correctly REFUSES it now. Re-verification path: a fresh walk, or
+`tools.near_miss_census --check`, whose pins carry the counts re-verified
+at every rotation (unchanged through all three).
 
 ### §4.1 Junk co-failure structure (1,805 deduped proposed candidates)
 
@@ -195,7 +201,7 @@ respect_share candidates and ~8 across ALL other integer legs combined.
   crash IN costs nothing measured and preserves the spring-shaped-refusal
   telemetry the plan motivated.
 
-## §5 Operator ruling — Task 6 — **CLOSED 2026-07-26** · ruleset `2026-07-26.A`
+## §5 Operator ruling — Task 6 — **CLOSED 2026-07-26, PROVISIONAL until the flip** · ruleset `2026-07-26.A`
 
 The closed five-axis menu was presented in-session on 2026-07-26 with a named
 recommended slate and per-option exposure legs (§4 evidence). Provenance,
@@ -244,14 +250,66 @@ pinned eval days + 18 negative frames):
   refusals; 0 kill/vector mismatches; **52 ruled rows** on this
   (deliberately junk/busy-heavy) corpus.
 - Cost shape: the inline recorder is effectively free; the p95/max tail is
-  the DEFERRED completion on busy frames (KWR/FLG/EGBN-class: ~40+
-  finalists × an O(n) traversal read each). Whole-scan estimate at the
-  median: ≈ +4.5 ms × ~5,500 evaluations ≈ **+25 s per scan (~+2%)**,
-  consistent with the corpus wall figure.
+  the DEFERRED completion on busy frames (KWR/FLG/EGBN-class) — up to the
+  TOP_K=32 completions per evaluation (the cap never bound, so no frame
+  exceeded 32; a "40+ finalists" figure previously here was impossible per
+  these counters — corrected, review 2026-07-26 finding 11). Whole-scan
+  figure: ≈ +4.5 ms × ~5,500 evaluations ≈ **+25 s (~+2%)** — a SERIAL,
+  median-based bound (the live eval phase runs across a worker pool, which
+  divides the wall impact; the corpus mean would roughly double the
+  per-eval figure — two opposite approximations, stated as such).
 - **The pre-registered per-evaluation bounds FAILED; the corpus bound
   held.** Recorded as measured (EC-15) — the budget is not retro-widened.
   The flip is the operator's decision against this record; the named
-  levers if the tail matters to him: lower `NEAR_MISS_TOP_K` (cap the busy
-  tail — cap currently never binds at 32, so a cut to 8–12 bounds the tail
-  roughly proportionally at zero median cost), or accept ~+2% scan wall as
-  the price of the cohort. No lever is pulled here.
+  levers if the tail matters to him:
+  1. lower `NEAR_MISS_TOP_K` (cap the busy tail — the cap never binds at
+     32, so a cut to 8–12 bounds the tail roughly proportionally at zero
+     median cost; a new seam);
+  2. **early-exit completion** (review finding 11, semantics-preserving):
+     `ruled_near_miss` needs exactly ONE coarse failing leg, yet the
+     completion always finishes the vector — stopping once two coarse
+     concepts have failed yields byte-identical rows AND stats (222 of 274
+     completions were not_ruled here). Trade: skipped legs skip the
+     sign-lock tripwire; size it from the existing counters BEFORE
+     building;
+  3. accept ~+2% scan wall as the price of the cohort.
+  No lever is pulled here.
+- **Post-review caveat (2026-07-26, §7):** these numbers predate the
+  review fixes — the per-pool dedup grain (finding 1) records strictly
+  more refusals and re-materializes band completions, so the deferred tail
+  can only have grown. If the flip decision stalls on the per-eval tail,
+  RE-RUN this A/B on the fixed branch first.
+
+## §7 Council review + fixes — 2026-07-26 (post-build, pre-flip)
+
+Ten-seat council review of the full branch (run `2026-07-26-2156`; findings
+distilled here — the review scaffolding itself is machine-local): **15
+findings (3 P1, 10 P2, 2 P3), all fixed on the branch** in four gated
+batches (`fix(lane): council review batch A..D`). The load-bearing three:
+
+1. **The dedup key was pool-blind (P1):** a strict kill permanently occupied
+   the framing key, so every rescued/band re-judgment booked as a benign
+   "repeat" — the lane was structurally blind to two of its three pools.
+   Fixed: per-pool records; the deferred cut keeps ONE row per framing by
+   pool precedence **strict > rescued > band** (`pool_shadowed` counted).
+   **Grain ruling provenance:** the operator delegated the review fixes and
+   rulings wholesale ("I don't really understand code like that, so I'll
+   leave it you man, Kill it", 2026-07-26); the recommended per-pool grain
+   was adopted under that delegation — PROVISIONAL like the §5 slate,
+   re-rulable before the flip at zero seam cost.
+2. **The deferred phase ran unguarded in the worker (P1):** one lane
+   exception (including the sign-lock tripwire, which a one-ulp crash-leg
+   basis split could fire on legitimate data) would have voided the whole
+   nightly scan. Fixed: per-ticker containment (`lane_errored` counted), the
+   crash leg's margin/verdict now share one comparison basis, the writer's
+   operational span is covered, and a lane maturation failure can no longer
+   fail the fires' shared job record.
+3. **Band completions used the strict laws (P2):** width judged at 0.18 on
+   a pool that legally measures to 0.23 (phantom second failing leg → never
+   ruled), traversal on the wrong window form. Fixed: the electing pool's
+   own laws thread into `complete_leg_vector`.
+
+Measurement caveats now attached to older sections: the §3 volume counters
+and the §6 cost A/B were measured on the PRE-fix collector (strict-only
+records); the per-pool grain records strictly more. The §6 verdicts stand as
+recorded (EC-15); re-run before a flip that stalls on the tail.

@@ -172,7 +172,13 @@ def test_trace_none_narration_sites_do_no_work(monkeypatch):
     def _boom(*a, **k):
         raise AssertionError("_trace_pair called on the trace=None path")
     monkeypatch.setattr(bp, "_trace_pair", _boom)
-    monkeypatch.setattr(settings, "MAX_BOX_WIDTH", 1e-6)   # every pair width-rejects
     df = _frame(_boxy_closes())
+    # WINDOW site first, at the live width cap (review 2026-07-26 finding 10:
+    # only the width site was proven boom-free): every pair window-rejects.
+    assert bp.collect_zigzag_candidates(df, len(df), atr_val=1.0,
+                                        enforce_traversal=True, trace=None,
+                                        min_candidate_days=10_000) == []
+    # Then the width site: every pair width-rejects before anything else.
+    monkeypatch.setattr(settings, "MAX_BOX_WIDTH", 1e-6)
     assert bp.collect_zigzag_candidates(df, len(df), atr_val=1.0,
                                         enforce_traversal=True, trace=None) == []

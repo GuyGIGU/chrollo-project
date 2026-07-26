@@ -75,6 +75,16 @@ def test_truth_table():
         ("traversal_density within its decile",
          _vector(traversal_density=-0.005), True),
         ("traversal_density beyond", _vector(traversal_density=-0.05), False),
+        # Exactly AT each sealed decile: the boundary is IN, and the row is
+        # sourced from the settings constant so a re-ruling moves it with the
+        # ruleset (review 2026-07-26 finding 10 — a > vs >= rewrite must red).
+        ("width exactly at its decile",
+         _vector(width=-settings.NEAR_MISS_WIDTH_DEFICIT_MAX), True),
+        ("crash exactly at its decile",
+         _vector(crash=-settings.NEAR_MISS_CRASH_DEFICIT_MAX), True),
+        ("traversal_density exactly at its decile",
+         _vector(traversal_density=-settings.NEAR_MISS_DENSITY_DEFICIT_MAX),
+         True),
         ("traversal pair co-failing = two coarse legs",
          _vector(traversal_count=-1, traversal_density=-0.005), False),
         ("None vector", None, False),

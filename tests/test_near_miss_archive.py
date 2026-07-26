@@ -150,6 +150,47 @@ def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     assert kept == ["AAA", "BBB"]                             # the reproducible cut
 
 
+def test_real_deferred_rows_round_trip_through_the_writer(lane_db, monkeypatch):
+    """The producer→writer contract proven on REAL deferred_rows output, not
+    hand-typed fixture twins (review 2026-07-26 finding 10): a renamed margin
+    key or row field now KeyErrors HERE, not on the first live flush."""
+    import pandas as pd
+    import pytest as _pytest
+
+    from engine_alpha.evaluation import evaluate_ticker_with_near_miss
+    from tools.marks_corpus import _FROZEN_BREADTH
+    from tools.marks_corpus import _load_fixture as _load_marks_fixture
+    from tools.replay import fixture_frame
+
+    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
+    frames, baseline = _load_marks_fixture()
+    e = next(x for x in baseline["setups"] if x["key"] == "EGBN:2026-01-15")
+    sliced = fixture_frame(frames, e["key"], e["ticker"]).loc[
+        :pd.Timestamp("2026-01-15")]
+    _result, rows, _stats = evaluate_ticker_with_near_miss(
+        e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
+    assert rows, "the flagship frame produced no ruled rows"
+
+    counters = nmw.archive_near_miss_rows(rows, universe_type="us_equities",
+                                          enable=True)
+    assert counters["inserted"] == len(rows) and counters["flush_error"] == 0
+
+    db = database.SessionLocal()
+    for row in rows:
+        stored = db.query(archive_models.NearMissArchive).filter_by(
+            ticker=row["ticker"], r_level=row["r_level"],
+            s_level=row["s_level"], r_anchor_date=row["r_anchor_date"],
+            s_anchor_date=row["s_anchor_date"]).one()
+        for leg, margin in row["margins"].items():
+            if leg == "window":
+                continue          # nullable: floor unconsulted at this seam
+            assert getattr(stored, f"nm_{leg}") == _pytest.approx(margin), leg
+        assert stored.pool == row["pool"]
+        assert stored.failing_leg == row["failing_leg"]
+        assert stored.first_seen == row["scan_date"]
+    db.close()
+
+
 def test_writer_enable_passthrough_writes_nothing(lane_db):
     counters = nmw.archive_near_miss_rows([_row()], universe_type="us_equities",
                                           enable=False)

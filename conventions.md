@@ -293,3 +293,45 @@ saying "closed set" is not enforcement.
 **Origin:** Leach — Council Review 2026-07-26 (engine/event-map-program, finding 8);
 operator-confirmed 2026-07-26
 **Principle:** `references/quality-postgres.md` → P1 (constraints are assertions)
+
+---
+
+### EC-20: A telemetry lane never widens the blast radius of the path it observes
+**Convention:** Measure-only passengers (refusal telemetry, probes, shadow reads) get their own
+containment at EVERY layer they ride: per-item in the worker (degrade to empty output + a loud
+dedicated counter the nightly print surfaces), operational-error coverage across their whole DB
+span (ensure DDL + probes + commit, duplicate-tolerant like the established siblings), and ordering
+that puts the paying artifact first. Programmer errors inside the lane still surface — via the
+counter in production, via the raise in tests/census. "Never touches the scan" is an operational
+property, not just a data property.
+**Origin:** Ramírez / McKinney / Leach — Council Review 2026-07-26-2156 (engine/near-miss-lane,
+findings 2/5/6: three seats found the same class at three layers); operator-delegated 2026-07-26
+**Principle:** `references/quality-backend.md` → P1 (deliberate crash boundaries);
+`references/quality-postgres.md` → P2
+
+### EC-21: A passenger on a shared job never owns the job's status
+**Convention:** When telemetry rides a books-of-record job (the forward-returns maturation run
+today), the passenger's call is wrapped in its own narrow logged catch at the seam — the shared
+run's recorded status reflects the paying customer only, and the passenger's failure prints
+distinctly. A false "failed" on a health surface is a trust defect, not a conservative default.
+**Origin:** Ramírez / Leach — Council Review 2026-07-26-2156 (finding 6); operator-delegated
+2026-07-26
+**Principle:** `references/quality-postgres.md` → P2 (the job record must tell the truth)
+
+### EC-22: Every value in a closed-set label column has a committed producing test
+**Convention:** EC-19 proves an illegal label cannot land; this adds the mirror: each LEGAL value
+of a closed-set column (pool, failing_leg, elected_pool, …) has a committed test in which the real
+producer actually emits it end-to-end — or the vocabulary is explicitly narrowed. A CHECK whose
+value is unreachable is an advertised capability the system does not have (the near-miss lane
+shipped with rescued/band unreachable behind a pool-blind dedup key and stayed green).
+**Origin:** McKinney / Fowler / Beck — Council Review 2026-07-26-2156 (finding 1);
+operator-delegated 2026-07-26
+**Principle:** `conventions.md` EC-19; `references/quality-testing.md` → P4/P5
+
+### EC-23: Columns forming one fact are written as one unit in every branch
+**Convention:** When two columns state one fact (triggered/trigger_date today; any stamped
+value+date or value+source pair), every branch that writes one writes both — the paired value on
+the affirmative branch, NULL on the negative — so no code path can half-flip the pair into a
+contradiction (`triggered=0` with a stale date). Mirrors the fires' pair-coherent write.
+**Origin:** Leach — Council Review 2026-07-26-2156 (finding 7); operator-delegated 2026-07-26
+**Principle:** `references/quality-postgres.md` → P1 (constraints are assertions)
