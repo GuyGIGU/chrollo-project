@@ -49,18 +49,25 @@ def _egbn_recorder():
 
 
 def test_flagship_egbn_is_a_ruled_row_end_to_end(monkeypatch):
-    """The census headline as a living test: EGBN's refusal at as_of is a
-    one-quantum occupancy near-miss — the lane must SEE it (Task 8's whole
-    point), with the evidence fields render-complete."""
-    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
+    """The census headline as a living test AND the EC-17 happy path: the
+    real cascade at production flag values, only the lane flag forced on —
+    EGBN's refusal at as_of is a one-quantum occupancy near-miss the lane
+    must SEE, with render-complete evidence, and the ticker fires in
+    NEITHER flag state (recording is never a gate move)."""
     frames, baseline = _load_marks_fixture()
     e = next(x for x in baseline["setups"] if x["key"] == "EGBN:2026-01-15")
     raw = fixture_frame(frames, e["key"], e["ticker"])
     sliced = raw.loc[:pd.Timestamp("2026-01-15")]
 
+    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", False)
+    off, off_rows, off_stats = evaluate_ticker_with_near_miss(
+        e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
+    assert not isinstance(off, dict) and off_rows == [] and off_stats == {}
+
+    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
     result, rows, stats = evaluate_ticker_with_near_miss(
         e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
-    assert not isinstance(result, dict)      # EGBN stays a miss — no gate moved
+    assert not isinstance(result, dict)      # fires in NEITHER state
     assert stats["ruled"] == len(rows) and rows, (
         f"EGBN produced no ruled near-miss rows (stats={stats})")
     flag = [r for r in rows if r["failing_leg"] == "occupancy"
@@ -73,10 +80,32 @@ def test_flagship_egbn_is_a_ruled_row_end_to_end(monkeypatch):
     assert row["fired_night"] == 0
     assert row["would_be_trigger"] == row["r_level"]
     assert row["scan_close"] > 0
-    # Render-complete geometry: dates, never bar indices.
+    # The FULL vector rides every row (fourteen legs; window unconsulted at
+    # the outer seam), and the evidence is render-complete: dates, never bar
+    # indices, none of them past the evaluation day (as-of discipline).
+    assert len(row["margins"]) == 14 and "window" not in row["margins"]
     for key in ("r_anchor_date", "s_anchor_date", "window_start_date",
                 "window_end_date"):
         assert len(row[key]) == 10 and row[key].count("-") == 2
+        assert row[key] <= "2026-01-15"
+
+
+def test_truncation_sweep_keeps_every_row_as_of(monkeypatch):
+    """As-of honesty: at every cut the emitted evidence uses only bars at or
+    before that cut (dates are ISO, so string order IS date order)."""
+    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
+    frames, baseline = _load_marks_fixture()
+    e = next(x for x in baseline["setups"] if x["key"] == "EGBN:2026-01-15")
+    raw = fixture_frame(frames, e["key"], e["ticker"])
+    for cut in ("2026-01-08", "2026-01-12", "2026-01-15"):
+        sliced = raw.loc[:pd.Timestamp(cut)]
+        _result, rows, _stats = evaluate_ticker_with_near_miss(
+            e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
+        for row in rows:
+            assert row["scan_date"] <= cut
+            for key in ("r_anchor_date", "s_anchor_date",
+                        "window_start_date", "window_end_date"):
+                assert row[key] <= cut, (cut, key, row[key])
 
 
 def test_kill_leg_screen_is_a_necessary_condition_of_the_ruling():

@@ -120,6 +120,49 @@ def test_completion_vector_reproduces_the_real_gate_verdicts():
             assert (row["margin"] >= 0) == row["passed"]
 
 
+def test_per_leg_margins_match_the_hand_derivation():
+    """Task-12 per-leg battery: ONE eye-readable 20-bar frame, every native
+    margin derived BY HAND against the live calibration (heterogeneous units
+    are exactly where pasted-output tautologies hide — these numbers were
+    written on paper first, then asserted).
+
+    Frame: box R=110/S=100, ATR=1. Six floor bars (close 100.2; lows touch
+    S), four mid bars (105), ten ceiling bars (109.8; highs touch R). Hand
+    counts: s_touches 6 (first third only -> 1 third), r_touches 10 (thirds
+    2+3), dwell counts 6/4/10 of n=20, zero outside bars, min low 99.8,
+    width 0.10, three occupied coverage bins, zero rail-to-rail traversals.
+    """
+    closes = [100.2] * 6 + [105.0] * 4 + [109.8] * 10
+    df = _frame(closes)
+    rows = complete_leg_vector(df, 110.0, 100.0, 1.0)
+    assert rows is not None
+
+    got = {leg: r["margin"] for leg, r in rows.items()}
+    assert got["width"] == pytest.approx(settings.MAX_BOX_WIDTH - 0.10)
+    assert got["respect_share"] == outside_allowed(
+        settings.MIN_BOUNDARY_RESPECT_PCT, 20) - 0          # zero outside
+    assert got["respect_run"] == settings.MAX_CONSECUTIVE_OUTSIDE_DAYS - 0
+    assert got["crash"] == pytest.approx(99.8 / 100.0 - settings.CRASH_FILTER_MULT)
+    assert got["r_touches"] == 10 - settings.EQ_MIN_TOUCHES_PER_RAIL
+    assert got["s_touches"] == 6 - settings.EQ_MIN_TOUCHES_PER_RAIL
+    assert got["r_touch_thirds"] == 2 - settings.EQ_MIN_TOUCH_THIRDS
+    assert got["s_touch_thirds"] == 1 - settings.EQ_MIN_TOUCH_THIRDS
+    assert got["lower_dwell"] == 6 - count_needed(settings.EQ_MIN_HALF_DWELL, 20)
+    assert got["upper_dwell"] == 10 - count_needed(settings.EQ_MIN_HALF_DWELL, 20)
+    assert got["mid_dwell"] == count_allowed(settings.EQ_MAX_MID_DWELL, 20) - 4
+    assert got["coverage"] == 3 - count_needed(settings.EQ_MIN_COVERAGE,
+                                               settings.EQ_COVERAGE_BINS)
+    assert got["traversal_count"] == 0 - settings.TRAVERSAL_MIN
+    assert got["traversal_density"] == pytest.approx(
+        -settings.TRAVERSAL_MIN_DENSITY)
+    # At the LIVE calibration the hand numbers read: width +0.08,
+    # respect +4/+10, crash +0.298, touches +7/+3, thirds 0/-1,
+    # dwell +3/+7, mid +5, coverage -2 (3 of 6 bins occupied, 5 needed;
+    # the first paper pass assumed 10 bins — corrected against
+    # EQ_COVERAGE_BINS=6), traversal -2/-0.080.
+    assert got["s_touch_thirds"] == -1 and got["coverage"] == -2
+
+
 def test_completion_vector_window_leg_and_degenerate_refusals():
     df = _frame(_boxy_closes())
     rows = complete_leg_vector(df, 110.4, 99.6, 1.0, min_candidate_days=25)
