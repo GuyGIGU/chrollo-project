@@ -874,10 +874,11 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     as one function is what makes "replay at T == live at T" true by construction
     rather than by a recall test.
 
-    ``near_miss``: the lane's refusal recorder, created by ``_evaluate_ticker``
-    under its flag and OWNED there — it must survive a structural reject (a
-    refused evaluation is the lane's whole subject), which is why it is not
-    constructed here. The seed/replay path passes nothing.
+    ``near_miss``: the lane's refusal recorder, created by
+    ``evaluate_ticker_with_near_miss`` (the only harvesting caller) and OWNED
+    there — it must survive a structural reject (a refused evaluation is the
+    lane's whole subject), which is why it is not constructed here. The plain
+    entry and the seed/replay path pass nothing.
     """
     prepared = _prepare_eval_frame(df)
     if prepared is None:
@@ -955,13 +956,10 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     Returns a result dict if the ticker passes, or None if filtered out.
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
-    near_miss = None
-    if settings.NEAR_MISS_LANE_ENABLED:
-        # Lazy import + call-time flag read (AP-3 / EC-8): flag-off pays for
-        # one attribute read and nothing else — no import, no allocation.
-        from engine_alpha.structure.near_miss import NearMissRecorder  # noqa: PLC0415
-        near_miss = NearMissRecorder()
-    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss)
+    # The lane records ONLY through evaluate_ticker_with_near_miss (the one
+    # caller that harvests the map — review 2026-07-26 finding 14): the plain
+    # entry never pays recorder work, in either flag state.
+    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, None)
 
 
 def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
@@ -996,8 +994,21 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
     recorder = NearMissRecorder()
     result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
                                 recorder)
-    rows, stats = deferred_rows(recorder, fired=isinstance(result, dict),
-                                scan_close=float(df["Close"].iloc[-1]))
+    if result is EVAL_ERROR:
+        # An aborted walk's refusal map is incomplete evidence — no lane rows
+        # from a crashed evaluation (review 2026-07-26 findings 2/14); the
+        # counter keeps the drop visible in the nightly stats print.
+        return result, [], {"lane_errored": 1}
+    try:
+        rows, stats = deferred_rows(recorder, fired=isinstance(result, dict),
+                                    scan_close=float(df["Close"].iloc[-1]))
+    except Exception as e:  # noqa: BLE001 — the lane's contract is "never
+        # touches the scan": ANY telemetry failure (including the sign-lock
+        # tripwire, which stays loud in tests and the census) degrades to a
+        # counted per-ticker drop, never a dead night (review finding 2).
+        print(f"  [near-miss skip {ticker}] {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return result, [], {"lane_errored": 1}
     scan_date = str(df.index[-1])[:10]
     for row in rows:
         row["ticker"] = ticker

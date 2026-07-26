@@ -156,11 +156,16 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
                                    int(run_max) - int(max_consec),
                                    not (max_consec > run_max))
 
-    # crash — the gate's exact comparison is min(Low) < S * mult.
+    # crash — the gate's exact comparison is min(Low) < S * mult. Margin and
+    # verdict derive from the SAME subtraction (min_low - S*mult, sign
+    # preserved by the positive-S division) so an ulp at the threshold can
+    # never split them and trip the self-check on legitimate data — the one
+    # leg where the two forms could diverge (review 2026-07-26 finding 2).
     crash_mult = leg_threshold("crash")
     min_low = float(np.min(lows))
+    crash_gap = min_low - S * float(crash_mult)
     rows["crash"] = _leg_row("crash", min_low / S, float(crash_mult),
-                             min_low / S - float(crash_mult),
+                             crash_gap / S,
                              not (min_low < S * crash_mult))
 
     # occupancy family — integer numerators from the gate's own read.

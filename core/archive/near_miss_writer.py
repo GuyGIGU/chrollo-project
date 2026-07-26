@@ -75,9 +75,18 @@ def _ensure_table(engine) -> None:
         for column in NearMissArchive.__table__.columns:
             if column.primary_key or column.name in existing:
                 continue
-            conn.execute(text(
-                f"ALTER TABLE near_miss_archive ADD COLUMN "
-                f"{column.name} {column.type}"))
+            try:
+                conn.execute(text(
+                    f"ALTER TABLE near_miss_archive ADD COLUMN "
+                    f"{column.name} {column.type}"))
+            except Exception as exc:
+                # Idempotency vs a concurrently booting backend's own ensure
+                # pass — the startup runner's exact predicate (review
+                # 2026-07-26 finding 5; both siblings already tolerate this).
+                message = str(exc).lower()
+                if "duplicate column" in message or "already exists" in message:
+                    continue
+                raise
 
 
 def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
@@ -92,6 +101,13 @@ def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
         return counters
 
     from config import settings  # lazy: the backend-cwd config shadow (AP-3)
+
+    # Deterministic writer order regardless of the worker pool's completion
+    # order — WHICH episodes the caps drop (and so where the R-EPISODE clock
+    # anchors) must reproduce on identical data (review 2026-07-26 finding 15).
+    rows = sorted(rows, key=lambda r: (
+        r["ticker"], r["r_anchor_date"], r["s_anchor_date"],
+        r["r_level"], r["s_level"]))
 
     # In-memory dedup on the framing identity (two consultations of one
     # framing may both survive into rows only across ticker boundaries by
@@ -125,8 +141,16 @@ def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
     import database
     from archive_models import NearMissArchive
     from engine_alpha.freeze.manifest import manifest_hash
+    from sqlalchemy.exc import OperationalError
 
-    _ensure_table(database.engine)
+    try:
+        _ensure_table(database.engine)
+    except OperationalError:
+        # Locked DB / disk error during the ensure DDL: operational, counted,
+        # never the night's scan (review 2026-07-26 finding 5).
+        log.exception("near-miss table-ensure failed; night's rows dropped")
+        counters["flush_error"] = len(capped)
+        return counters
     engine_version = manifest_hash()
 
     session = database.SessionLocal()
@@ -197,6 +221,16 @@ def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
             counters["flush_error"] = counters["inserted"] + counters["recurred"]
             counters["inserted"] = 0
             counters["recurred"] = 0
+    except OperationalError:
+        # Locked DB / disk error on an upsert probe: the whole batch degrades
+        # to a counted drop (nothing committed). Row-content programmer errors
+        # (the EC-19 label refusals, missing keys) still surface — the split
+        # the module header promises (review 2026-07-26 finding 5).
+        log.exception("near-miss cohort DB phase failed; rows dropped")
+        session.rollback()
+        counters["flush_error"] = len(capped)
+        counters["inserted"] = 0
+        counters["recurred"] = 0
     finally:
         session.close()
     return counters

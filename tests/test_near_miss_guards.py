@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screener import _evaluate_ticker, evaluate_ticker_with_near_miss
 from engine_alpha.structure import near_miss as near_miss_mod
 from engine_alpha.structure.box_gates import GATE_LEG_INDEX
 from engine_alpha.structure.narrative import read_structure
@@ -57,7 +57,10 @@ def test_lane_flag_on_keeps_every_hit_election_identical(monkeypatch):
         monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", False)
         off = _evaluate_ticker(ticker, sliced, spy, _FROZEN_BREADTH)
         monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
-        on = _evaluate_ticker(ticker, sliced, spy, _FROZEN_BREADTH)
+        # The recording path IS the scan twin (the plain entry never records
+        # — review 2026-07-26 finding 14), so the ON leg drives it directly.
+        on, _rows, _stats = evaluate_ticker_with_near_miss(
+            ticker, sliced, spy, _FROZEN_BREADTH)
 
         assert isinstance(off, dict) and isinstance(on, dict), (
             f"{e['key']}: pinned hit did not fire on both legs "
@@ -81,7 +84,8 @@ def test_lane_flag_on_shadow_panel_is_identical(monkeypatch):
         df = frames.get(ticker)
         if df is None:
             continue
-        result = _evaluate_ticker(ticker, df, spy_6m, breadth)
+        result, _rows, _stats = evaluate_ticker_with_near_miss(
+            ticker, df, spy_6m, breadth)
         if result is None or not isinstance(result, dict):
             continue
         fields[ticker] = shadow_diff.canonical_fields(result)
@@ -107,7 +111,8 @@ def test_lane_flag_on_negative_corpus_stays_refused(monkeypatch):
         monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", False)
         off = _evaluate_ticker(case["ticker"], sliced, 0.0, _FROZEN_BREADTH)
         monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
-        on = _evaluate_ticker(case["ticker"], sliced, 0.0, _FROZEN_BREADTH)
+        on, _rows, _stats = evaluate_ticker_with_near_miss(
+            case["ticker"], sliced, 0.0, _FROZEN_BREADTH)
 
         assert not isinstance(on, dict), (
             f"negative case {key} FIRED with the collector on")
@@ -126,9 +131,16 @@ def test_flag_off_is_construction_free(monkeypatch):
         raise AssertionError("NearMissRecorder constructed with the flag OFF")
     monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", False)
     monkeypatch.setattr(near_miss_mod, "NearMissRecorder", _boom)
-    result = _evaluate_ticker(e["ticker"], sliced,
-                              float(e["spy_6m_return"]), _FROZEN_BREADTH)
+    # The scan twin is what the screener submits — flag-off it must degrade
+    # to the plain evaluation without touching the recorder class, and the
+    # plain entry itself never constructs one in any flag state.
+    result, rows, stats = evaluate_ticker_with_near_miss(
+        e["ticker"], sliced, float(e["spy_6m_return"]), _FROZEN_BREADTH)
     assert isinstance(result, dict)   # the hit still fires, untouched
+    assert rows == [] and stats == {}
+    plain = _evaluate_ticker(e["ticker"], sliced,
+                             float(e["spy_6m_return"]), _FROZEN_BREADTH)
+    assert isinstance(plain, dict)
 
 
 def test_recorder_mechanics_and_real_frame_collection():

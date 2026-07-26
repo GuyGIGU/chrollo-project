@@ -532,6 +532,24 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     return updated
 
 
+def run_near_miss_maturation(min_age_days: int = 5, force: bool = False) -> int:
+    """The near-miss lane's maturation pass, CONTAINED: a telemetry passenger
+    must never own the shared maturation run's status — the fires' record
+    stays ok even when the lane's dead-ticker-heavy cohort hits a download
+    pathology (review 2026-07-26 finding 6). Returns rows updated, or -1 on a
+    contained failure (printed + logged, never raised)."""
+    try:
+        from core.archive.near_miss_outcomes import update_near_miss_outcomes
+        n = update_near_miss_outcomes(min_age_days=min_age_days, force=force)
+        print(f"Near-miss outcomes updated: {n} row(s).", flush=True)
+        return n
+    except Exception as exc:  # noqa: BLE001 — passenger isolation
+        log.exception("near-miss maturation failed (fires' run unaffected)")
+        print(f"Near-miss maturation FAILED: {type(exc).__name__}: {exc}",
+              flush=True)
+        return -1
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -558,10 +576,10 @@ if __name__ == "__main__":
         _updated = update_forward_returns(min_age_days=args.min_age, force=args.force)
         # The near-miss cohort matures inside the SAME registered run (lane
         # Task 10): one nightly maturation job, one watchdog surface. Its
-        # count is printed, not folded into n_setups (fires stay fires).
-        from core.archive.near_miss_outcomes import update_near_miss_outcomes
-        _nm = update_near_miss_outcomes(min_age_days=args.min_age, force=args.force)
-        print(f"Near-miss outcomes updated: {_nm} row(s).", flush=True)
+        # count is printed, not folded into n_setups (fires stay fires) — and
+        # the call is CONTAINED, so a lane-only failure can never mark the
+        # fires' committed maturation "failed" (review finding 6).
+        run_near_miss_maturation(min_age_days=args.min_age, force=args.force)
         if _status is not None and _run_id is not None:
             _status.finish_run(_run_id, status="ok", n_setups=_updated)
     except Exception as _exc:

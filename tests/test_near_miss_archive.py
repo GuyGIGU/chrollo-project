@@ -129,16 +129,25 @@ def test_writer_episode_upsert_and_counters(lane_db):
 def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     monkeypatch.setattr(settings, "NEAR_MISS_WRITER_TICKER_CAP", 1)
     monkeypatch.setattr(settings, "NEAR_MISS_WRITER_GLOBAL_CAP", 2)
-    rows = [_row(), _row(),                                   # exact duplicate
-            _row(r=26.0, s=23.0),                             # same ticker, 2nd framing
+    # The writer sorts on (ticker, anchors, rails) BEFORE dedup/caps (review
+    # 2026-07-26 finding 15), so WHICH rows the caps drop is a function of the
+    # rows alone — the deliberately shuffled input below must land exactly
+    # the same drop set as any other arrival order.
+    rows = [_row(),                                           # EGBN — sorts past the global 2
+            _row(ticker="BBB", r=12.0, s=11.0),
+            _row(ticker="AAA", r=13.0, s=12.0),               # AAA's 2nd framing
             _row(ticker="AAA", r=11.0, s=10.0),
-            _row(ticker="BBB", r=12.0, s=11.0)]
+            _row(ticker="AAA", r=11.0, s=10.0)]               # exact duplicate
     counters = nmw.archive_near_miss_rows(rows, universe_type="us_equities",
                                           enable=True)
     assert counters["dedup_dropped"] == 1
-    assert counters["ticker_cap_dropped"] == 1                # EGBN's 2nd framing
-    assert counters["global_cap_dropped"] == 1                # BBB over the global 2
+    assert counters["ticker_cap_dropped"] == 1                # AAA's 2nd framing
+    assert counters["global_cap_dropped"] == 1                # EGBN, deterministically
     assert counters["inserted"] == 2
+    db = database.SessionLocal()
+    kept = sorted(r.ticker for r in db.query(archive_models.NearMissArchive).all())
+    db.close()
+    assert kept == ["AAA", "BBB"]                             # the reproducible cut
 
 
 def test_writer_enable_passthrough_writes_nothing(lane_db):

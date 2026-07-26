@@ -81,82 +81,92 @@ def update_near_miss_outcomes(min_age_days: int = 5,
             NearMissArchive.bars_to_date.is_(None),
             NearMissArchive.bars_to_date < HORIZON_BARS,
         ))
-    rows = query.all()
-    if not rows:
-        log.info("No near-miss rows need outcome updates.")
-        session.close()
-        return 0
-
-    log.info("Updating near-miss outcomes for %d rows...", len(rows))
-    by_ticker: dict[str, list] = {}
-    for r in rows:
-        by_ticker.setdefault(r.ticker, []).append(r)
-
-    earliest = min(r.first_seen for r in rows)
-    start = pd.Timestamp(earliest) - pd.Timedelta(days=5)
-    latest_needed = max(
-        pd.Timestamp(r.first_seen) + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)
-        for r in rows)
-    end = min(pd.Timestamp.now() + pd.Timedelta(days=2), latest_needed)
-
-    from core.pipeline.downloads import _batched_download, price_auto_adjust
-    raw = _batched_download(
-        list(dict.fromkeys([*by_ticker, SPY_TICKER])),
-        {"start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"),
-         "auto_adjust": price_auto_adjust()},
-        "Near-miss outcomes",
-    )
     try:
-        spy_df = _ticker_frame(raw, SPY_TICKER)
-    except (KeyError, AttributeError):
-        spy_df = pd.DataFrame()
+        rows = query.all()
+        if not rows:
+            log.info("No near-miss rows need outcome updates.")
+            return 0
 
-    updated = 0
-    for ticker, ticker_rows in by_ticker.items():
+        log.info("Updating near-miss outcomes for %d rows...", len(rows))
+        by_ticker: dict[str, list] = {}
+        for r in rows:
+            by_ticker.setdefault(r.ticker, []).append(r)
+
+        earliest = min(r.first_seen for r in rows)
+        start = pd.Timestamp(earliest) - pd.Timedelta(days=5)
+        latest_needed = max(
+            pd.Timestamp(r.first_seen) + pd.Timedelta(days=FORWARD_RETURN_DOWNLOAD_DAYS)
+            for r in rows)
+        end = min(pd.Timestamp.now() + pd.Timedelta(days=2), latest_needed)
+
+        from core.pipeline.downloads import _batched_download, price_auto_adjust
+        raw = _batched_download(
+            list(dict.fromkeys([*by_ticker, SPY_TICKER])),
+            {"start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"),
+             "auto_adjust": price_auto_adjust()},
+            "Near-miss outcomes",
+        )
         try:
-            df = _ticker_frame(raw, ticker)
+            spy_df = _ticker_frame(raw, SPY_TICKER)
         except (KeyError, AttributeError):
-            log.warning("  No data for %s, skipping.", ticker)
-            continue
-        if df.empty:
-            continue
-        for row in ticker_rows:
-            scan_ts = pd.Timestamp(row.first_seen)
-            mask_on = df.index <= scan_ts
-            if not mask_on.any():
+            spy_df = pd.DataFrame()
+
+        updated = 0
+        for ticker, ticker_rows in by_ticker.items():
+            try:
+                df = _ticker_frame(raw, ticker)
+            except (KeyError, AttributeError):
+                log.warning("  No data for %s, skipping.", ticker)
                 continue
-            close_cell = df.loc[df.index[mask_on][-1], "Close"]
-            fresh_close = float(close_cell.iloc[0]
-                                if hasattr(close_cell, "iloc") else close_cell)
-            scale = _price_scale_factor(fresh_close, row.scan_close)
-
-            fwd = df[df.index > scan_ts]
-            if fwd.empty:
+            if df.empty:
                 continue
-            capped = _cap_forward_window(fwd)
-            fwd_end_ts = capped.index[-1] if capped is not None and not capped.empty else None
-            spy_ret = _spy_window_return(spy_df, scan_ts, fwd_end_ts)
+            for row in ticker_rows:
+                scan_ts = pd.Timestamp(row.first_seen)
+                mask_on = df.index <= scan_ts
+                if not mask_on.any():
+                    continue
+                close_cell = df.loc[df.index[mask_on][-1], "Close"]
+                fresh_close = float(close_cell.iloc[0]
+                                    if hasattr(close_cell, "iloc") else close_cell)
+                scale = _price_scale_factor(fresh_close, row.scan_close)
 
-            highs = _col(fwd, "High").to_numpy(dtype=float)
-            lows = _col(fwd, "Low").to_numpy(dtype=float)
-            closes = _col(fwd, "Close").to_numpy(dtype=float)
-            elapsed = compute_elapsed_outcome(
-                highs, lows, closes, fresh_close, spy_window_return=spy_ret)
-            for key, val in elapsed.items():
-                setattr(row, key, val)
+                fwd = df[df.index > scan_ts]
+                if fwd.empty:
+                    continue
+                capped = _cap_forward_window(fwd)
+                fwd_end_ts = capped.index[-1] if capped is not None and not capped.empty else None
+                spy_ret = _spy_window_return(spy_df, scan_ts, fwd_end_ts)
 
-            trigger = _rescaled(row.would_be_trigger, scale)
-            n = min(len(highs), HORIZON_BARS)
-            hit = next((i for i in range(n) if highs[i] >= trigger), None) \
-                if trigger is not None else None
-            if hit is not None:
-                row.triggered = 1
-                row.trigger_date = str(fwd.index[hit])[:10]
-            elif (elapsed.get("bars_to_date") or 0) >= HORIZON_BARS:
-                row.triggered = 0
-            updated += 1
+                highs = _col(fwd, "High").to_numpy(dtype=float)
+                lows = _col(fwd, "Low").to_numpy(dtype=float)
+                closes = _col(fwd, "Close").to_numpy(dtype=float)
+                elapsed = compute_elapsed_outcome(
+                    highs, lows, closes, fresh_close, spy_window_return=spy_ret)
+                for key, val in elapsed.items():
+                    setattr(row, key, val)
 
-    session.commit()
-    session.close()
-    log.info("Updated near-miss outcomes for %d rows.", updated)
-    return updated
+                # The touch is re-derived from fresh data every pass, so the
+                # pair is WRITTEN as a pair in every branch (date on 1, NULL
+                # otherwise) — a --force recompute can never half-flip a row
+                # into matured-untriggered-with-a-date, mirroring the fires'
+                # pair-coherent write (review 2026-07-26 finding 7).
+                trigger = _rescaled(row.would_be_trigger, scale)
+                n = min(len(highs), HORIZON_BARS)
+                hit = next((i for i in range(n) if highs[i] >= trigger), None) \
+                    if trigger is not None else None
+                if hit is not None:
+                    row.triggered = 1
+                    row.trigger_date = str(fwd.index[hit])[:10]
+                elif (elapsed.get("bars_to_date") or 0) >= HORIZON_BARS:
+                    row.triggered = 0
+                    row.trigger_date = None
+                else:
+                    row.triggered = None
+                    row.trigger_date = None
+                updated += 1
+
+        session.commit()
+        log.info("Updated near-miss outcomes for %d rows.", updated)
+        return updated
+    finally:
+        session.close()
