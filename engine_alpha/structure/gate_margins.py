@@ -45,10 +45,14 @@ from engine_alpha.structure.metrics import measure_equilibrium
 
 __all__ = [
     "JudgedBasis",
+    "NEAR_MISS_RULESET",
+    "OCCUPANCY_FAMILY",
     "count_needed",
     "count_allowed",
     "outside_allowed",
     "complete_leg_vector",
+    "coarse_failing_legs",
+    "ruled_near_miss",
 ]
 
 _EPS = 1e-9
@@ -205,3 +209,67 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
         ns > 0 and density >= density_min)
 
     return rows
+
+
+# --- the operator-RULED near-miss form (Task 6 ruling, 2026-07-26) -----------
+# THE one implementation of the ruled judgment (EC-18): every consumer (the
+# lane collector, the census, the review report) DELEGATES here or pins
+# equivalence in its check battery — never a re-typed twin. A re-ruling edits
+# THIS function + the NEAR_MISS_* settings (manifest-listed: the rotation is
+# the new lane seam) and re-runs the census; ruling record:
+# docs/near_miss_lane_2026-07.md §5.
+
+NEAR_MISS_RULESET = "2026-07-26.A"
+
+OCCUPANCY_FAMILY = ("r_touches", "s_touches", "r_touch_thirds",
+                    "s_touch_thirds", "lower_dwell", "upper_dwell",
+                    "mid_dwell", "coverage")
+
+_FLOAT_DEFICIT_SETTINGS = {
+    "width": "NEAR_MISS_WIDTH_DEFICIT_MAX",
+    "crash": "NEAR_MISS_CRASH_DEFICIT_MAX",
+    "traversal_density": "NEAR_MISS_DENSITY_DEFICIT_MAX",
+}
+
+
+def coarse_failing_legs(vector) -> list:
+    """The failing set at the RULED taxonomy (T-COARSE-8): the eight
+    occupancy checks collapse to ONE concept; width / window / the respect
+    pair / crash / the traversal pair stay themselves. Order follows the
+    vector's own leg order with `occupancy` appended last when any family
+    member fails."""
+    out, occ = [], False
+    for leg, row in vector.items():
+        if row["passed"]:
+            continue
+        if leg in OCCUPANCY_FAMILY:
+            occ = True
+        else:
+            out.append(leg)
+    if occ:
+        out.append("occupancy")
+    return out
+
+
+def ruled_near_miss(vector) -> bool:
+    """The RULED one-leg-narrow predicate over one complete leg vector:
+    exactly ONE coarse leg fails, and every failing fine leg is NARROW —
+    integer-quantum margins within NEAR_MISS_MAX_QUANTA, float-quantum legs
+    (width / crash / traversal_density) within their junk-calibrated decile
+    deficits. Crash is IN as its own leg. A vector that passes everything is
+    not a near-miss (it is a refusal of some later stage, not of these
+    gates)."""
+    if vector is None or len(coarse_failing_legs(vector)) != 1:
+        return False
+    max_quanta = settings.NEAR_MISS_MAX_QUANTA
+    for leg, row in vector.items():
+        if row["passed"]:
+            continue
+        margin = row["margin"]
+        setting = _FLOAT_DEFICIT_SETTINGS.get(leg)
+        if setting is not None:
+            if -margin > getattr(settings, setting):
+                return False
+        elif margin < -max_quanta:
+            return False
+    return True

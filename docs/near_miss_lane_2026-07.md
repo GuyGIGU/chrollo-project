@@ -195,7 +195,34 @@ respect_share candidates and ~8 across ALL other integer legs combined.
   crash IN costs nothing measured and preserves the spring-shaped-refusal
   telemetry the plan motivated.
 
-## §5 Operator ruling — Task 6 (pending)
+## §5 Operator ruling — Task 6 — **CLOSED 2026-07-26** · ruleset `2026-07-26.A`
 
-*(the closed decision menu, the ruling, and the standing-ruling stamp land here;
-every citing surface updates in the same change — EC-15/EC-16)*
+The closed five-axis menu was presented in-session on 2026-07-26 with a named
+recommended slate and per-option exposure legs (§4 evidence). Provenance,
+recorded honestly: the operator continued the build against the presented menu
+("…other then that we can continue") — recorded as **adoption of the
+recommended slate**, PROVISIONAL-STAMPED: it hardens at the Task-13 flip
+decision (explicitly his); a re-rule before the flip re-pins the predicate at
+zero archive-seam cost, the flag never having been live.
+
+| Axis | Ruling |
+|---|---|
+| 1. Taxonomy × narrowness | **T-COARSE-8 + N1**: the eight occupancy checks judged as ONE concept; every failing fine leg within 1 native quantum; float legs (width / crash / traversal_density) within the junk-calibrated decile deficits **0.0081 / 0.0083 / 0.011** |
+| 2. Crash filter | **IN**, as its own leg (zero crash-only junk measured; spring-shaped refusals stay visible) |
+| 3. Recurrence | **R-EPISODE**: one row per framing identity, first/last-seen + nights-seen; the forward-return clock anchors at FIRST refusal |
+| 4. Retention | **P-KEEP**: rows persist, partitioned by `engine_config_version` + lane-ruleset version (a re-ruling partitions, never reinterprets) |
+| 5. Fired tickers | **Record always; the review report defaults to non-fired tickers** (`--all` reveals) — the shadow-signal hazard stays managed without discarding evidence |
+
+**The ruled definition is ONE predicate (EC-18):**
+`engine_alpha.structure.gate_margins.ruled_near_miss` (+ `coarse_failing_legs`),
+constants `NEAR_MISS_MAX_QUANTA` / `NEAR_MISS_*_DEFICIT_MAX` (manifest-listed —
+the rotation is the lane's first seam), truth-table pin
+`tests/test_near_miss_ruling.py` (the table IS the ruling; a moved row is a
+re-ruling). The census delegates (`--check` pins the ruled junk cohort at
+**20**); the Task-7 collector and Task-11 report delegate to the same function.
+Expected cohort scale at this ruling (census §4): ~20 junk rows per 18-frame
+corpus (~1/frame), EGBN-class marks in, YPF-class occupancy-concept misses in.
+
+**MENU CLOSED.** Re-ruling path: edit the predicate + constants (new ruleset
+string), re-run `tools.near_miss_census`, re-pin, new seam — never a silent
+predicate edit.

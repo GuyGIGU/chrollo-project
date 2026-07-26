@@ -336,6 +336,22 @@ BAND_EVENT_MAX_BARS = 20
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
 
+# --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
+# Measurement constants for the operator-ruled near-miss predicate
+# (engine_alpha.structure.gate_margins.ruled_near_miss; ruling record
+# docs/near_miss_lane_2026-07.md §5, 2026-07-26): taxonomy T-COARSE-8 (the
+# eight occupancy checks judged as ONE concept; crash IN as its own leg;
+# policy stages never legs), narrowness = every failing fine leg within
+# NEAR_MISS_MAX_QUANTA native quanta, float-quantum legs within their
+# junk-calibrated decile deficits (census §4, sealed 2026-07-26 — junk
+# 10th-percentile deficits on width / crash / traversal_density). These are
+# TELEMETRY constants: nothing here gates, scores, or moves a rail; a
+# re-ruling changes them (new lane ruleset + manifest rotation), never tuning.
+NEAR_MISS_MAX_QUANTA = 1
+NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
+NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
+NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
+
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for
 # the trailing N sessions loses the election in favor of a later valid

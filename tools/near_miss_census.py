@@ -57,7 +57,12 @@ import database  # noqa: E402
 from engine_alpha.election_identity import framing_date_key  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.structure.box_gates import GATE_LEGS  # noqa: E402
-from engine_alpha.structure.gate_margins import complete_leg_vector  # noqa: E402
+from engine_alpha.structure.gate_margins import (  # noqa: E402
+    NEAR_MISS_RULESET,
+    coarse_failing_legs,
+    complete_leg_vector,
+    ruled_near_miss,
+)
 from engine_alpha.structure.narrative import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
@@ -70,12 +75,9 @@ from tools.replay import (  # noqa: E402
     prepared_frame_with_reason,
 )
 
-# The eight occupancy checks as ONE family for the coarse-granularity view.
-# Crash stays its own leg at both granularities (in-or-out is itself a
-# pre-registered Task-6 question); width/window/respect/traversal are
-# unambiguous at both.
-OCCUPANCY_LEGS = ("r_touches", "s_touches", "r_touch_thirds", "s_touch_thirds",
-                  "lower_dwell", "upper_dwell", "mid_dwell", "coverage")
+# The coarse-granularity family view delegates to the engine's ruled-form
+# helpers (EC-18): OCCUPANCY_FAMILY and the collapse both live in
+# gate_margins beside the ruled predicate.
 INT_QUANTA = {"bars", "touches", "thirds", "traversals"}
 _LEG_ORDER = [spec.leg for spec in GATE_LEGS]
 
@@ -219,16 +221,9 @@ def junk_rows() -> tuple[list[dict], dict, int]:
 # --- analysis (pure over rows — the --from path runs only this) --------------
 
 def failing_coarse(row) -> list[str]:
-    """The failing set with the occupancy family collapsed to one leg."""
-    out, occ = [], False
-    for leg in row["failing"]:
-        if leg in OCCUPANCY_LEGS:
-            occ = True
-        else:
-            out.append(leg)
-    if occ:
-        out.append("occupancy")
-    return out
+    """The failing set with the occupancy family collapsed to one leg —
+    DELEGATES to the engine's ruled-taxonomy collapse (EC-18)."""
+    return coarse_failing_legs(row["legs"])
 
 
 def k_fail_hists(rows) -> tuple[Counter, Counter]:
@@ -365,6 +360,18 @@ def _report(doc) -> None:
         print(f"    {h['case']:12} {h['leg']:16} margin {m_s} "
               f"(died_at={h['died_at']})")
 
+    ruled_junk = [r for r in j_rows if ruled_near_miss(r["legs"])]
+    ruled_exam = [r for r in x_rows
+                  if not r.get("refused") and ruled_near_miss(r["legs"])]
+    by_case = Counter(r["case"] for r in ruled_junk)
+    print(f"\nRULED COHORT — gate_margins.ruled_near_miss "
+          f"(ruleset {doc.get('near_miss_ruleset', '?')}):")
+    print(f"  junk in-cohort: {len(ruled_junk)} candidates "
+          f"({dict(by_case.most_common())})")
+    for r in ruled_exam:
+        flag = "HIT " if r["status"] == "hit" else "MISS"
+        print(f"  mark in-cohort: {r['case']:20} {flag} {_fmt_legs(r)}")
+
     print("\nSEPARATION — ratchet-miss examined candidates vs the junk band "
           "on each failing leg:")
     for r in x_rows:
@@ -389,13 +396,20 @@ _PINNED = {
     "marks_fingerprint":
         "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
     "junk_captured_at": "2026-07-03T12:20:14+00:00",
+    # Re-pinned 2026-07-26 (same change as the Task-6 ruling): the ruling's
+    # manifest-listed NEAR_MISS_* constants rotated the seam 53c208dc… →
+    # 5516256f…; the distributions themselves did not move (the constants
+    # touch no gate) — counts below are unchanged and re-verified.
     "engine_manifest":
-        "53c208dc1e2482206a3cb9946effc27f01d8365d2d2029b01875bae75a5cbaa2",
+        "5516256f09aec746d4ef9b468b7be50a46d4bfb12469d4265dcac601a92d384b",
     "n_drawn": 33,
     "n_examined": 33,
     "n_junk": 1805,
     "junk_one_leg_fine": 75,
     "junk_zero_fail": 19,
+    # The ruled cohort under gate_margins.ruled_near_miss (ruleset
+    # 2026-07-26.A) — pinned so a silent predicate edit fails BY NAME.
+    "junk_ruled": 20,
 }
 
 
@@ -418,6 +432,8 @@ def check(doc) -> list[str]:
     fine, _coarse = k_fail_hists(doc["junk"])
     _pin("junk_one_leg_fine", fine.get(1, 0))
     _pin("junk_zero_fail", fine.get(0, 0))
+    _pin("junk_ruled",
+         sum(1 for r in doc["junk"] if ruled_near_miss(r["legs"])))
     return diffs
 
 
@@ -430,6 +446,7 @@ def _build_doc() -> dict:
     return {"marks_fingerprint": fingerprint,
             "junk_captured_at": jmeta["captured_at"],
             "engine_manifest": manifest_hash(),
+            "near_miss_ruleset": NEAR_MISS_RULESET,
             "rescued_skipped": rescued_skipped,
             "drawn": d_rows, "examined": x_rows, "junk": j_rows}
 
