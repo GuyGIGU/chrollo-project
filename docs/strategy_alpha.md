@@ -489,8 +489,15 @@ sentences riding `story_admission_profile`; the negative bench stays clean and a
 existing hit elections are per-identity byte-identical. **EGBN itself does NOT convert** —
 the honest headline: its framing is never PROPOSED at a story-passing shape (rail
 PLACEMENT, upstream of any pool), so the flagship is admission-certain at drawn rails and
-conversion-blocked at proposal. The flip stays gated on the operator's per-fire eyeball
-(NKTR/YPF).
+conversion-blocked at proposal. **LIVE since 2026-07-26:** the operator's per-fire chart
+eyeball of both conversions passed (rails confirmed correct on both; YPF ruled
+early-but-right — post-window breakout → LPS 05-12..05-15 → true breakout; NKTR's pre-base
+gap ruled irrelevant to the box's traits), and the ratchet was deliberately resealed
+**26→28/33** with the two story-caused hits pinned by name as the only legally
+flag-off-silent identities (`test_story_pool_guards`). The flip rotated
+`engine_config_version` → `53c208dc…` (the story pool's archive seam; fires archive
+`elected_pool='story'` + `story_admission_profile` from that seam forward). Evidence:
+[event_map_program_2026-07.md](event_map_program_2026-07.md) §flip.
 
 ### The Root-Swing cascade (the linear narrative)
 
@@ -1346,7 +1353,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `e3b000e99f33e407a908931446a5c448d29c90242122867e91c662bfde8ef805`_
+_engine_config_version: `53c208dc1e2482206a3cb9946effc27f01d8365d2d2029b01875bae75a5cbaa2`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1431,7 +1438,7 @@ BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
-STORY_POOL_ENABLED = False
+STORY_POOL_ENABLED = True
 ELECTION_DETHRONE_ENABLED = True
 ELECTION_DETHRONE_SESSIONS = 10
 LPS_DRAW_MIN_DESCENT_FRAC = 0.4

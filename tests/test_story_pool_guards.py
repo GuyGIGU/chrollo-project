@@ -8,7 +8,10 @@ a behavioral test. These guards convert it:
    (rails, box, score, tier) with ``STORY_POOL_ENABLED`` forced ON vs OFF.
    Asserted per identity, never as an aggregate count — the bar-dwell
    campaign proved "converts the target" and "moves ten elections" coexist
-   invisibly behind aggregates.
+   invisibly behind aggregates. Since the 2026-07-26 flip + reseal (26 -> 28)
+   the two ruled story conversions are pinned BY NAME as the only hits whose
+   flag-off leg is legally silent (story-caused fires); any third off-silent
+   hit fails loudly.
 2. **Whole-shadow-panel identity flag-ON** — the panel-scale dark-flag leak
    tripwire: canonical fields + ranking match the committed flag-off
    baseline (a NEW fire would surface as NEW in the diff, never silently).
@@ -43,11 +46,15 @@ from tools.replay import fixture_frame
 pytestmark = pytest.mark.regression
 
 
+_STORY_CAUSED_HITS = ["NKTR:2026-04-10", "YPF:2026-05-18"]
+
+
 def test_story_flag_on_keeps_every_hit_election_identical(monkeypatch):
     frames, baseline = _load_marks_fixture()
     hits = [e for e in baseline["setups"] if e["status"] == "hit"]
-    assert len(hits) == 26, "the Guided List ratchet floor moved under this guard"
+    assert len(hits) == 28, "the Guided List ratchet floor moved under this guard"
 
+    story_only = []
     for e in hits:
         ticker = e["ticker"]
         sliced = fixture_frame(frames, e["key"], ticker).loc[
@@ -59,11 +66,22 @@ def test_story_flag_on_keeps_every_hit_election_identical(monkeypatch):
         monkeypatch.setattr(settings, "STORY_POOL_ENABLED", True)
         on = _evaluate_ticker(ticker, sliced, spy, _FROZEN_BREADTH)
 
-        assert isinstance(off, dict) and isinstance(on, dict), (
+        assert isinstance(on, dict), (
             f"{e['key']}: pinned hit did not fire at {e['first_fire']}")
-        assert shadow_diff.canonical_fields(off) == shadow_diff.canonical_fields(on), (
-            f"{e['key']}: canonical/election drift with the story pool ON — "
-            "the last-resort construction has broken")
+        if isinstance(off, dict):
+            assert shadow_diff.canonical_fields(off) == shadow_diff.canonical_fields(on), (
+                f"{e['key']}: canonical/election drift with the story pool ON — "
+                "the last-resort construction has broken")
+        else:
+            assert on["_elected_pool"] == "story", (
+                f"{e['key']}: off-silent hit elected via "
+                f"{on['_elected_pool']!r} — only a story-caused fire may be "
+                "silent with the flag off")
+            story_only.append(e["key"])
+    assert sorted(story_only) == _STORY_CAUSED_HITS, (
+        f"story-caused hit set moved: {sorted(story_only)} — a new off-silent "
+        "hit means an ordinary pool regressed OR a new story conversion "
+        "landed unruled; re-pin deliberately")
 
 
 def test_story_flag_on_shadow_panel_is_identical(monkeypatch):

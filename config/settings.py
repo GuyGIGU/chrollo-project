@@ -330,7 +330,11 @@ BAND_EVENT_MAX_BARS = 20
 # judges the returned pool (measured: traversal kills 30/69 junk occupancy
 # deaths; the form is not asked to carry them alone). Target class: EGBN
 # (S+ S+ S+ R^) vs the drift-junk zero-completed-episode twins (DGII/FLG).
-STORY_POOL_ENABLED = False
+# LIVE 2026-07-26: operator chart eyeball passed both A/B conversions (NKTR
+# rails/box confirmed; YPF confirmed pre-breakout — broke out, LPS'd
+# 05-12..05-15, then broke out truly). Ratchet resealed 26 -> 28
+# (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
+STORY_POOL_ENABLED = True
 
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for

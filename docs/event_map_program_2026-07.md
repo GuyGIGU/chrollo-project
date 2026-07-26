@@ -2,7 +2,7 @@
 
 The committed, durable record of the evidence the Event Map program's decisions were made
 on. The flag-ledger rows for `EVENT_MAP_ENABLED` (retired — flipped live 2026-07-25) and
-`STORY_POOL_ENABLED` (dark — flip pending) point HERE; the raw captures lived in the
+`STORY_POOL_ENABLED` (retired — flipped live 2026-07-26) point HERE; the raw captures lived in the
 machine-local council run folder (`.council/implement-output/2026-07-25-1707/`, gitignored)
 and everything decision-bearing is reproduced below. Reproduce any of it fresh with the
 standing instrument:
@@ -138,6 +138,26 @@ exercise it as a routine tweak.
   `python -m tools.event_map_census --check` (fingerprint + headline pins) alongside the
   pytest battery (truth table, truncation invariance, split-side horizon, the pinned
   NKTR/YPF conversions).
-- `STORY_POOL_ENABLED` stays DARK. What remains before the flip: the operator's per-fire
-  chart eyeball of NKTR@2026-04-09 and YPF@2026-05-06; on grant → flip + deliberate
-  ratchet reseal 26→28 + ledger row to Retired + strategy_alpha dark→live wording.
+- `STORY_POOL_ENABLED` **FLIPPED LIVE 2026-07-26.** The final gate — the operator's
+  per-fire chart eyeball of NKTR@2026-04-09 and YPF@2026-05-06 (rendered from the sealed
+  fixture with the ENGINE's elected rails/windows/episode tape drawn on) — **PASSED**:
+  - Verdict (operator, verbatim gist): "the Support and Resistance on both is correct …
+    the engine did a good job at surfacing these pre-breakout." Both elections confirmed
+    real tight pre-breakout structure at the engine's own rails (concordance doctrine:
+    the pick belongs on the surface; 1:1 rail replication was never the bar).
+  - YPF ruled early-but-right: the as-of window ends at the story fire (2026-05-06);
+    after it the price broke out, LPS'd 2026-05-12..2026-05-15, then broke out truly —
+    the surfacing preceded the real move, which is the job.
+  - NKTR's pre-base gap ruled irrelevant: "it doesn't change anything regarding the box
+    and its traits" — the election judges the window from the worked equilibrium onward;
+    pre-box context is Phase-A material.
+  - Flip mechanics executed: `STORY_POOL_ENABLED = True`; STAGE_TAGS entries for
+    NKTR:2026-04-10 + YPF:2026-05-18 removed (the tool's converted-miss protocol);
+    deliberate reseal `marks_corpus --build-fixture` → **28 pinned hits / 5 staged
+    misses**, baseline diff surgical (two status conversions + timestamp + manifest
+    restamp only, parquet byte-identical); floors re-pinned 26→28
+    (`test_marks_corpus`, `test_story_pool_guards`); the election-stability guard now
+    pins the two story-caused hits BY NAME as the only legally off-silent identities.
+  - The flip rotates `engine_config_version` `e3b000e9… → 53c208dc…` — the story pool's
+    archive seam; story fires archive `elected_pool='story'` +
+    `story_admission_profile` from here forward.

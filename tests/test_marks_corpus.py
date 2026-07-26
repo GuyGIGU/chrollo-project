@@ -134,9 +134,10 @@ def test_baseline_is_a_complete_ratchet():
         f"corpus shrank below the Guided List floor ({len(baseline['setups'])}/33 setups)"
     )
     hits = sum(1 for s in baseline["setups"] if s["status"] == "hit")
-    assert hits >= 26, (
-        f"pinned hits fell below the Guided List floor ({hits}/26) — "
-        "the gate protects the hits"
+    assert hits >= 28, (
+        f"pinned hits fell below the Guided List floor ({hits}/28) — "
+        "the gate protects the hits (26 -> 28 resealed 2026-07-26: the story "
+        "pool's NKTR/YPF conversions, operator-eyeballed)"
     )
 
 
