@@ -6,9 +6,16 @@ election; never the inner-box calls to the same enumeration, never the
 diagnostic mirror). At each gate refusal it records the raw-numbers tuple
 the gate already had in hand — no strings, no dicts, no trace
 materialization — into a per-evaluation hash map keyed on the framing
-identity (Task 2), O(1) per refusal, first record canonical (one framing has
-ONE judged window per evaluation, so a re-observation across consultations
-carries identical numbers; it bumps a counter, never a record).
+identity (Task 2) PLUS the judging pool form, O(1) per refusal, first record
+canonical per (framing, pool). The pool belongs in the key because the
+cascade legally re-judges one framing under different laws on different
+windows (full/strict, SOS-trimmed/rescued, excision-masked/band) — a
+pool-blind key silently discarded every rescued and band refusal as a
+"repeat" (review 2026-07-26 finding 1). Within one pool form the judged
+window IS unique per evaluation, so a same-pool re-observation carries
+identical numbers and bumps a counter, never a record. The archive identity
+stays pool-less: the deferred cut keeps ONE row per framing by pool
+precedence (strict > rescued > band), every shadowed row counted.
 
 The recorder is constructed ONLY under ``settings.NEAR_MISS_LANE_ENABLED``
 (read lazily at evaluation entry — AP-3) and imported ONLY there (EC-8:
@@ -27,8 +34,9 @@ from typing import NamedTuple
 
 from config import settings
 from engine_alpha.election_identity import framing_window_key
-from engine_alpha.structure.box_gates import leg_threshold
+from engine_alpha.structure.box_gates import GATE_LEG_INDEX, leg_threshold
 from engine_alpha.structure.gate_margins import (
+    _FLOAT_DEFICIT_SETTINGS,
     NEAR_MISS_RULESET,
     coarse_failing_legs,
     complete_leg_vector,
@@ -98,15 +106,23 @@ class NearMissRecorder:
     def refusal(self, leg, pool, r_anchor_bar, s_anchor_bar, cand_start,
                 R, S, judged_len, a=float("nan"), b=float("nan"),
                 c=float("nan")) -> None:
+        if leg not in GATE_LEG_INDEX and leg != "occupancy":
+            # The registry (+ the documented family verdict label) is the ONLY
+            # legal vocabulary — a free-typed leg id would ride invisibly past
+            # the completion, the screen, and the archive CHECK (review
+            # 2026-07-26 finding 9); mirror of box_gates._leg_record's guard.
+            raise ValueError(f"unknown gate-leg id {leg!r} recorded at a "
+                             f"kill site — not in GATE_LEGS")
         off = self._offset
-        key = framing_window_key(off + r_anchor_bar, off + s_anchor_bar,
+        win = framing_window_key(off + r_anchor_bar, off + s_anchor_bar,
                                  off + cand_start)
+        key = (win, str(pool))       # one record per framing PER POOL FORM
         self.n_refusals += 1
         if key in self.records:
             self.n_repeats += 1
             return
         self.records[key] = Refusal(
-            leg, pool, key[0], key[1], key[2], float(R), float(S),
+            leg, pool, win[0], win[1], win[2], float(R), float(S),
             int(judged_len), float(a), float(b), float(c))
 
 
@@ -127,32 +143,38 @@ def _kill_leg_screen(rec: Refusal):
     sites (occupancy family verdict, crash) always pass with rank +inf: they
     are exactly the EGBN class the lane exists for. ``cap_rank`` orders the
     TOP-K cap only (higher = nearer); it is a bounding heuristic, never
-    evidence — the report ranks within legs by native margin (Task 11)."""
-    s = settings
+    evidence — the report ranks within legs by native margin (Task 11).
+
+    Each arm computes the kill leg's SIGNED margin from the kill-site
+    numbers; which narrowness band then applies is dispatched through the
+    ruled mapping itself (``gate_margins._FLOAT_DEFICIT_SETTINGS`` for the
+    float legs, ``NEAR_MISS_MAX_QUANTA`` otherwise) — one mapping, imported,
+    so a re-ruling that moves a leg between families re-scores the screen
+    automatically (review 2026-07-26 finding 8, EC-18)."""
     leg = rec.leg
     if leg == "width":
-        deficit = rec.a - rec.b
-        return deficit <= s.NEAR_MISS_WIDTH_DEFICIT_MAX, -deficit
-    if leg == "window":
+        margin = rec.b - rec.a               # cap - width (b = the electing
+        #                                      pool's own cap at the kill site)
+    elif leg == "window":
         margin = rec.a - rec.b
-        return margin >= -s.NEAR_MISS_MAX_QUANTA, margin
-    if leg == "respect_share":
+    elif leg == "respect_share":
         margin = outside_allowed(leg_threshold("respect_share"),
                                  int(rec.b)) - int(rec.a)
-        return margin >= -s.NEAR_MISS_MAX_QUANTA, margin
-    if leg == "respect_run":
+    elif leg == "respect_run":
         margin = int(leg_threshold("respect_run")) - int(rec.c)
-        return margin >= -s.NEAR_MISS_MAX_QUANTA, margin
-    if leg == "traversal_count":
+    elif leg == "traversal_count":
         margin = int(rec.a) - int(leg_threshold("traversal_count"))
-        return margin >= -s.NEAR_MISS_MAX_QUANTA, margin
-    if leg == "traversal_density":
+    elif leg == "traversal_density":
         density = (rec.a / rec.b) if rec.b > 0 else 0.0
-        deficit = leg_threshold("traversal_density") - density
-        return deficit <= s.NEAR_MISS_DENSITY_DEFICIT_MAX, -deficit
-    # occupancy / crash: numbers were deliberately not computed at the kill
-    # site — always finalists, completed first.
-    return True, float("inf")
+        margin = density - leg_threshold("traversal_density")
+    else:
+        # occupancy / crash: numbers were deliberately not computed at the
+        # kill site — always finalists, completed first.
+        return True, float("inf")
+    setting = _FLOAT_DEFICIT_SETTINGS.get(leg)
+    if setting is not None:
+        return -margin <= getattr(settings, setting), margin
+    return margin >= -settings.NEAR_MISS_MAX_QUANTA, margin
 
 
 def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
@@ -168,7 +190,8 @@ def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
              "refusals": int(recorder.n_refusals),
              "repeats": int(recorder.n_repeats),
              "screened_out": 0, "cap_dropped": 0, "completion_refused": 0,
-             "kill_mismatch": 0, "not_ruled": 0, "ruled": 0}
+             "kill_mismatch": 0, "not_ruled": 0, "ruled": 0,
+             "pool_shadowed": 0}
     frame, atr = recorder.frame, recorder.atr
     if frame is None or not recorder.records:
         return [], stats
@@ -192,18 +215,35 @@ def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
     idx = frame.index
     rows = []
     for _rank, rec in finalists:
+        completion_kw = {}
         if rec.pool == "band":
+            # The band pool's OWN laws (review 2026-07-26 findings 1/4):
+            # build legs judge the excision-masked window, width measures
+            # against the band class cap, and the traversal pair judges the
+            # CONTIGUOUS cand_start..+judged_len slice — exactly the windows
+            # the live cascade consulted (box_gates._apply_traversal_gate).
             from engine_alpha.structure.rail_qualification import qualify_pair_events
             read = qualify_pair_events(frame.iloc[rec.cand_start:], rec.S,
                                        rec.R, atr)
             window = (None if read is None
                       else frame.iloc[rec.cand_start:][read["judged"]])
+            if window is not None and len(window) != rec.judged_len:
+                # The re-derived mask no longer matches the judged basis the
+                # gate killed on — basis drift, counted, never completed.
+                stats["completion_refused"] += 1
+                continue
+            completion_kw = {
+                "width_max": settings.BAND_MAX_BOX_WIDTH,
+                "traversal_df": frame.iloc[
+                    rec.cand_start:rec.cand_start + rec.judged_len],
+            }
         else:
             window = frame.iloc[rec.cand_start:rec.cand_start + rec.judged_len]
         if window is None or len(window) < 2:
             stats["completion_refused"] += 1
             continue
-        vector = complete_leg_vector(window, rec.R, rec.S, atr)
+        vector = complete_leg_vector(window, rec.R, rec.S, atr,
+                                     **completion_kw)
         if vector is None:
             stats["completion_refused"] += 1
             continue
@@ -241,4 +281,21 @@ def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
             "scan_close": float(scan_close),
             "lane_ruleset": NEAR_MISS_RULESET,
         })
-    return rows, stats
+
+    # ONE row per framing: the archive identity is pool-less, so when the
+    # same framing rules under more than one judging law the primary law
+    # wins (strict > rescued > band) and every shadowed row is counted —
+    # the grain ruling of review 2026-07-26 finding 1 (operator-delegated).
+    precedence = {"strict": 0, "rescued": 1, "band": 2}
+    best: dict = {}
+    for row in rows:
+        fkey = (row["r_level"], row["s_level"],
+                row["r_anchor_date"], row["s_anchor_date"])
+        cur = best.get(fkey)
+        if cur is None:
+            best[fkey] = row
+            continue
+        stats["pool_shadowed"] += 1
+        if precedence.get(row["pool"], 9) < precedence.get(cur["pool"], 9):
+            best[fkey] = row
+    return list(best.values()), stats

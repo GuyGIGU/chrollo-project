@@ -149,12 +149,22 @@ def test_recorder_mechanics_and_real_frame_collection():
     rec.refusal("width", "strict", 4, 8, 4, 110.0, 100.0, 30, 0.21, 0.18)
     rec.begin_consultation(0)
     rec.refusal("width", "strict", 14, 18, 14, 110.0, 100.0, 30, 0.21, 0.18)
-    # Same physical pair seen from two consultations -> ONE record (keep-first).
+    # Same physical pair seen from two consultations, SAME pool form -> ONE
+    # record (keep-first).
     assert rec.n_refusals == 2 and rec.n_repeats == 1
     (key, row), = rec.records.items()
-    assert key == (14, 18, 14)                      # df-absolute identity
+    assert key == ((14, 18, 14), "strict")          # df-absolute identity + pool
     assert row.leg == "width" and row.pool == "strict"
     assert row.r_anchor == 14 and row.judged_len == 30
+    # The SAME pair re-judged under another pool form is a NEW record, never
+    # a "repeat" — the pool-blind key silently discarded every rescued/band
+    # refusal (review 2026-07-26 finding 1).
+    rec.refusal("respect_share", "rescued", 14, 18, 14, 110.0, 100.0, 22, 3, 22, 2)
+    assert rec.n_repeats == 1 and len(rec.records) == 2
+    assert rec.records[((14, 18, 14), "rescued")].pool == "rescued"
+    # And a free-typed leg id is refused at the recording seam (finding 9).
+    with pytest.raises(ValueError, match="unknown gate-leg id"):
+        rec.refusal("no_such_leg", "strict", 1, 2, 1, 11.0, 10.0, 5)
 
     # Real-frame smoke: a busy fixture evaluation collects a non-trivial map
     # speaking the registry vocabulary.

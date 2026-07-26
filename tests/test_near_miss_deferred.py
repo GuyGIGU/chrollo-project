@@ -109,25 +109,75 @@ def test_truncation_sweep_keeps_every_row_as_of(monkeypatch):
 
 
 def test_kill_leg_screen_is_a_necessary_condition_of_the_ruling():
+    """Every pool form included: band refusals rebuild their masked basis +
+    pool laws exactly as deferred_rows does (review 2026-07-26 findings 1/8
+    — the sweep used to skip band, leaving the screen unproven on the class
+    the deep-event pool exists to observe)."""
+    from engine_alpha.structure.rail_qualification import qualify_pair_events
     rec, _e, _frames = _egbn_recorder()
     assert rec.records
     frame, atr = rec.frame, rec.atr
     checked = 0
     for r in rec.records.values():
         possible, _rank = _kill_leg_screen(r)
-        if possible or r.pool == "band" or checked >= 40:
+        if possible or checked >= 40:
             continue
-        window = frame.iloc[r.cand_start:r.cand_start + r.judged_len]
-        if len(window) < 2:
+        completion_kw = {}
+        if r.pool == "band":
+            read = qualify_pair_events(frame.iloc[r.cand_start:], r.S, r.R, atr)
+            window = (None if read is None
+                      else frame.iloc[r.cand_start:][read["judged"]])
+            if window is None or len(window) != r.judged_len:
+                continue
+            completion_kw = {
+                "width_max": settings.BAND_MAX_BOX_WIDTH,
+                "traversal_df": frame.iloc[
+                    r.cand_start:r.cand_start + r.judged_len]}
+        else:
+            window = frame.iloc[r.cand_start:r.cand_start + r.judged_len]
+        if window is None or len(window) < 2:
             continue
-        vector = complete_leg_vector(window, r.R, r.S, atr)
+        vector = complete_leg_vector(window, r.R, r.S, atr, **completion_kw)
         if vector is None:
             continue
         checked += 1
         assert not ruled_near_miss(vector), (
             f"screen rejected a refusal whose completion IS ruled — the "
-            f"necessary condition is broken on leg {r.leg}")
+            f"necessary condition is broken on leg {r.leg} (pool {r.pool})")
     assert checked >= 10, "too few screened-out refusals exercised"
+
+
+def test_pool_precedence_keeps_one_row_per_framing():
+    """The grain ruling (review 2026-07-26 finding 1, operator-delegated):
+    per-pool records, pool-less archive identity — when one framing rules
+    under two judging laws, the primary law wins and the shadowed row is
+    COUNTED. Proven through deferred_rows on the real EGBN map with the
+    ruled strict record cloned into a rescued-form sibling (same framing,
+    same judged window — the strict/rescued reconstruction coincides)."""
+    rec, _e, _frames = _egbn_recorder()
+    base_rows, base_stats = deferred_rows(rec, fired=False, scan_close=25.0)
+    assert base_rows, "the EGBN frame produced no ruled row"
+    strict_ruled = {(r["r_level"], r["s_level"]) for r in base_rows
+                    if r["pool"] == "strict"}
+    assert strict_ruled, "no strict ruled row to clone"
+
+    # Clone one ruled strict record into its rescued form (same framing,
+    # same judged window — the strict/rescued reconstruction coincides).
+    (win, _pool), ruled_rec = next(
+        (k, v) for k, v in rec.records.items()
+        if k[1] == "strict"
+        and (round(v.R, 4), round(v.S, 4)) in strict_ruled)
+    rec.records[(win, "rescued")] = ruled_rec._replace(pool="rescued")
+
+    idx = rec.frame.index
+    framing = (round(ruled_rec.R, 4), round(ruled_rec.S, 4),
+               idx[ruled_rec.r_anchor].strftime("%Y-%m-%d"),
+               idx[ruled_rec.s_anchor].strftime("%Y-%m-%d"))
+    rows, stats = deferred_rows(rec, fired=False, scan_close=25.0)
+    assert stats["pool_shadowed"] == base_stats["pool_shadowed"] + 1
+    kept = [r for r in rows if (r["r_level"], r["s_level"], r["r_anchor_date"],
+                                r["s_anchor_date"]) == framing]
+    assert len(kept) == 1 and kept[0]["pool"] == "strict"
 
 
 def test_cap_drops_are_counted_never_silent(monkeypatch):

@@ -101,7 +101,11 @@ def test_completion_vector_reproduces_the_real_gate_verdicts():
         rows = complete_leg_vector(df, R, S, atr)
         assert rows is not None
         assert "window" not in rows              # floor not consulted here
-        assert len(rows) == 14
+        # Set-equality against the registry, not a count: a 16th leg landing
+        # in GATE_LEGS but forgotten here must go RED, not stay green behind
+        # a stale "== 14" (review 2026-07-26 finding 9).
+        from engine_alpha.structure.box_gates import GATE_LEG_INDEX
+        assert set(rows) == set(GATE_LEG_INDEX) - {"window"}
         # The vector's respect verdicts recompose the gate's own verdict.
         respected, *_ = _is_boundary_respected(
             df["High"].values, df["Low"].values, R, S, atr)
@@ -118,6 +122,34 @@ def test_completion_vector_reproduces_the_real_gate_verdicts():
         # reaching here IS the proof; assert the invariant explicitly anyway).
         for row in rows.values():
             assert (row["margin"] >= 0) == row["passed"]
+
+
+def test_completion_judges_by_the_electing_pools_laws():
+    """A band candidate legally measures width up to BAND_MAX_BOX_WIDTH —
+    judged by the strict cap it grows a phantom failing leg and can never
+    rule (review 2026-07-26 finding 4). The traversal window override is the
+    same law: the live band gate judges traversal on the contiguous slice."""
+    df = _frame(_boxy_closes())
+    R, S, atr = 120.0, 99.6, 1.0                 # width 0.2048: band-legal only
+    box_width = (R - S) / S
+    assert settings.MAX_BOX_WIDTH < box_width <= settings.BAND_MAX_BOX_WIDTH
+
+    strict_law = complete_leg_vector(df, R, S, atr)
+    band_law = complete_leg_vector(df, R, S, atr,
+                                   width_max=settings.BAND_MAX_BOX_WIDTH)
+    assert not strict_law["width"]["passed"]     # the phantom the fix removes
+    assert band_law["width"]["passed"]
+    assert band_law["width"]["threshold"] == settings.BAND_MAX_BOX_WIDTH
+    assert band_law["width"]["margin"] == pytest.approx(
+        settings.BAND_MAX_BOX_WIDTH - box_width)
+
+    # traversal_df: the pair is measured on the given window form, while the
+    # build legs stay on the judged window.
+    contiguous = complete_leg_vector(df, R, S, atr,
+                                     width_max=settings.BAND_MAX_BOX_WIDTH,
+                                     traversal_df=df.iloc[:4])
+    assert contiguous["traversal_count"]["measured"] == 0   # 4 bars: no trips
+    assert contiguous["lower_dwell"] == band_law["lower_dwell"]
 
 
 def test_per_leg_margins_match_the_hand_derivation():

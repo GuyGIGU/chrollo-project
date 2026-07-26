@@ -19,10 +19,12 @@ ruling record, never something to paper over.
 The cascade short-circuits, so "which legs failed" is unknowable at a kill
 site — ``complete_leg_vector`` is the post-hoc FULL-VECTOR completion that
 runs the gates' own pure helpers over a given judged window (the
-``gate_stats`` pattern, engine-side). The judged-window definition + rails +
-ATR travel together as one basis clump (``JudgedBasis``), captured at the
-consultation seam by the recorder — rescued/band margins are structurally
-unmeasurable from the raw candidate window alone.
+``gate_stats`` pattern, engine-side). The judged basis is NOT derivable from
+the framing alone (strict judges the full candidate window, rescued the
+SOS-trimmed cause, band the excision-masked bars under its own width cap
+with traversal on the contiguous slice) — the recorder's ``Refusal`` tuple
+carries the coordinates and the deferred caller threads the electing pool's
+own laws in via ``width_max``/``traversal_df`` (review 2026-07-26 finding 4).
 
 MEASURE-ONLY: nothing here gates, scores, or moves a rail. No live path
 imports this module; the lane's collector (flag-gated) and the census
@@ -44,7 +46,6 @@ from engine_alpha.structure.box_gates import (
 from engine_alpha.structure.metrics import measure_equilibrium
 
 __all__ = [
-    "JudgedBasis",
     "NEAR_MISS_RULESET",
     "OCCUPANCY_FAMILY",
     "count_needed",
@@ -56,22 +57,6 @@ __all__ = [
 ]
 
 _EPS = 1e-9
-
-
-class JudgedBasis(NamedTuple):
-    """The basis clump one margin vector is measured on — captured whole at
-    the consultation seam and carried together, because the judged window is
-    NOT derivable from the framing alone: strict judges the full candidate
-    window, rescued judges the SOS-trimmed cause, band judges the
-    excision-masked bars. ``judged_start``/``judged_end`` are positions into
-    the window that produced the candidate (the recorder translates to dates
-    at persistence time; positions never cross a frame boundary)."""
-    pool: str            # strict | rescued | band | story (ELECTED_POOLS vocabulary)
-    R: float
-    S: float
-    atr: float
-    judged_start: int
-    judged_end: int      # exclusive; band masks materialize before measuring
 
 
 # --- the count math: fraction thresholds as integer quanta (ONE home) -------
@@ -107,7 +92,8 @@ def _leg_row(leg, measured, threshold, margin, passed):
             "margin": margin, "passed": bool(passed)}
 
 
-def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
+def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
+                        width_max=None, traversal_df=None):
     """The complete signed-margin vector over ONE judged window, through the
     gates' own helpers. Returns ``{leg: row}`` with every consulted leg's
     measured statistic, threshold, native-quantum margin, and pass verdict —
@@ -118,6 +104,14 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
     (its floor is caller-bound: INNER_MIN_DAYS inner, pre-gated by
     MIN_BASE_DAYS at the outer consultation seam — passing None means the
     floor was not consulted for this window).
+
+    The electing pool's own laws thread in explicitly (review 2026-07-26
+    finding 4): ``width_max`` overrides the strict cap (band candidates
+    legally measure up to BAND_MAX_BOX_WIDTH — judging them by the strict
+    law manufactures a phantom failing leg), and ``traversal_df`` overrides
+    the traversal pair's window (the live band gate judges traversal on the
+    CONTIGUOUS slice, not the masked build window). Defaults reproduce the
+    strict law on ``judged_df`` byte-identically.
     """
     if (judged_df is None or len(judged_df) == 0 or R is None or S is None
             or R <= S or S <= 0 or atr_val is None or atr_val <= 0
@@ -129,9 +123,10 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
     n = len(judged_df)
     rows: dict[str, dict] = {}
 
-    # width — the gate compares the raw ratio to the cap.
+    # width — the gate compares the raw ratio to the electing pool's cap.
     box_width = (R - S) / S
-    width_max = leg_threshold("width")
+    width_max = (leg_threshold("width") if width_max is None
+                 else float(width_max))
     rows["width"] = _leg_row("width", float(box_width), float(width_max),
                              float(width_max - box_width),
                              not (box_width > width_max))
@@ -200,8 +195,11 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None):
         int(eq["coverage_occupied"]) - count_needed(cov_min, nb),
         eq["coverage"] >= cov_min)
 
-    # traversal — the pool-aware gate's two floors over the same window.
-    trav = measure_equilibrium(judged_df, R, S, atr_val)
+    # traversal — the pool-aware gate's two floors, on the window form the
+    # live gate actually judges (contiguous for band; the judged window
+    # itself for strict/rescued, where the two coincide).
+    trav = measure_equilibrium(
+        judged_df if traversal_df is None else traversal_df, R, S, atr_val)
     nf, ns = int(trav["n_full_traversals"]), int(trav["n_swings"])
     count_min = leg_threshold("traversal_count")
     rows["traversal_count"] = _leg_row("traversal_count", nf, int(count_min),
