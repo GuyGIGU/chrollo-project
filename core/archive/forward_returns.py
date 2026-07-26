@@ -556,6 +556,12 @@ if __name__ == "__main__":
         _run_id = None
     try:
         _updated = update_forward_returns(min_age_days=args.min_age, force=args.force)
+        # The near-miss cohort matures inside the SAME registered run (lane
+        # Task 10): one nightly maturation job, one watchdog surface. Its
+        # count is printed, not folded into n_setups (fires stay fires).
+        from core.archive.near_miss_outcomes import update_near_miss_outcomes
+        _nm = update_near_miss_outcomes(min_age_days=args.min_age, force=args.force)
+        print(f"Near-miss outcomes updated: {_nm} row(s).", flush=True)
         if _status is not None and _run_id is not None:
             _status.finish_run(_run_id, status="ok", n_setups=_updated)
     except Exception as _exc:
