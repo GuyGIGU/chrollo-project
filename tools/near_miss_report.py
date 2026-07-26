@@ -25,6 +25,7 @@ Usage (ChrolloDashboard venv python, from repo root):
     python -m tools.near_miss_report --all          # every row, fired incl.
     python -m tools.near_miss_report --leg occupancy
     python -m tools.near_miss_report --ticker EGBN
+    python -m tools.near_miss_report --outcomes    # the payoff cohort only
     python -m tools.near_miss_report --json OUT     # rows as JSON (alone)
 """
 from __future__ import annotations
@@ -41,19 +42,17 @@ _PROJECT_ROOT = configure_path(backend=True)
 
 BATCH = 8   # bounded default review batch (plan: 5-10, forced-ranked)
 
-_LEGS = ("width", "window", "respect_share", "respect_run", "crash",
-         "occupancy", "traversal_count", "traversal_density")
+# ONE committed source per vocabulary (review 2026-07-26 finding 9): the
+# writer's stamping tuple IS the ruled T-COARSE-8 set the model CHECK
+# enforces, and the occupancy membership comes from the ruled taxonomy —
+# a re-ruling re-scores this surface instead of desyncing it.
+from core.archive.near_miss_writer import _FAILING_LEGS as _LEGS
+from engine_alpha.structure.gate_margins import OCCUPANCY_FAMILY
 
 # The failing coarse leg's native margin lives in these cohort columns; the
 # occupancy concept displays its BINDING member (min of the family margins).
-_OCC_MEMBERS = ("nm_r_touches", "nm_s_touches", "nm_r_touch_thirds",
-                "nm_s_touch_thirds", "nm_lower_dwell", "nm_upper_dwell",
-                "nm_mid_dwell", "nm_coverage")
-_LEG_COLUMN = {"width": "nm_width", "window": "nm_window",
-               "respect_share": "nm_respect_share",
-               "respect_run": "nm_respect_run", "crash": "nm_crash",
-               "traversal_count": "nm_traversal_count",
-               "traversal_density": "nm_traversal_density"}
+_OCC_MEMBERS = tuple(f"nm_{leg}" for leg in OCCUPANCY_FAMILY)
+_LEG_COLUMN = {leg: f"nm_{leg}" for leg in _LEGS if leg != "occupancy"}
 
 
 def _native_margin(row) -> tuple[str, float]:
@@ -108,10 +107,13 @@ def main() -> int:
                     help="every row (fired tickers + beyond the batch cap)")
     ap.add_argument("--leg", help="filter: one failing-leg label")
     ap.add_argument("--ticker", help="filter: one ticker")
+    ap.add_argument("--outcomes", action="store_true",
+                    help="only outcome-bearing episodes (the payoff cohort) "
+                         "— a bounded batch, never an --all archaeology dig")
     ap.add_argument("--json", help="dump rows as JSON (runs alone; EC-14)")
     args = ap.parse_args()
 
-    if args.json and (args.all or args.leg or args.ticker):
+    if args.json and (args.all or args.leg or args.ticker or args.outcomes):
         ap.error("--json runs alone; combine with no other flag")
     if args.leg and args.leg not in _LEGS:
         ap.error(f"unknown failing-leg {args.leg!r} — the ruled vocabulary "
@@ -140,9 +142,14 @@ def main() -> int:
         flag = "ON" if settings.NEAR_MISS_LANE_ENABLED else "OFF"
         print(f"\n0 near-misses recorded. Collector flag: {flag}; archive "
               f"gate ARCHIVE_LIVE_SCANS: {settings.ARCHIVE_LIVE_SCANS}. "
-              "An empty cohort with the collector ON means every scanned "
-              "refusal was wide — this line is the proof the lane ran.")
+              "The lane is wired; no archived scan has produced a qualifying "
+              "refusal. (This tool cannot see whether a scan ran — if you "
+              "expected rows, check the nightly scan record first.)")
         return 0
+
+    # The NEW reference night comes from the UNFILTERED cohort, so the badge
+    # means the same night in every view (review 2026-07-26 finding 12).
+    latest = max(r.last_seen for r in rows)
 
     scope = []
     if args.leg:
@@ -151,11 +158,21 @@ def main() -> int:
     if args.ticker:
         rows = [r for r in rows if r.ticker == args.ticker.upper()]
         scope.append(f"ticker={args.ticker.upper()}")
+    if args.outcomes:
+        rows = [r for r in rows if r.bars_to_date]
+        scope.append("outcomes-only")
+
+    if not rows:
+        # Affirmative filtered-empty state — the drill's zero is a REPORT,
+        # never a traceback (review 2026-07-26 finding 3).
+        print(f"\n0 episode(s) match [{', '.join(scope)}] — the exact set "
+              "scored is empty. The lane and cohort are fine; nothing under "
+              "this filter has been refused near enough to rule.")
+        return 0
 
     seams = sorted({r.engine_config_version[:8] for r in rows})
     rulesets = sorted({r.lane_ruleset for r in rows})
     span = (min(r.first_seen for r in rows), max(r.last_seen for r in rows))
-    latest = max(r.last_seen for r in rows)
     print(f"\ncohort: {len(rows)} episode(s)"
           + (f" [filtered: {', '.join(scope)} — the EXACT set scored]"
              if scope else "")
