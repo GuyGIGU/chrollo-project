@@ -226,3 +226,32 @@ corpus (~1/frame), EGBN-class marks in, YPF-class occupancy-concept misses in.
 **MENU CLOSED.** Re-ruling path: edit the predicate + constants (new ruleset
 string), re-run `tools.near_miss_census`, re-pin, new seam — never a silent
 predicate edit.
+
+## §6 Cost A/B — EXECUTED 2026-07-26 (Task 13; engine `28498359…`)
+
+Interleaved OFF/ON, best-of-3 per leg, 51 replay evaluations (33 marks at
+pinned eval days + 18 negative frames):
+
+| measure | pre-registered budget | measured | verdict |
+|---|---|---|---|
+| per-evaluation p50 | ≤ +1 ms | **+4.47 ms** | **OVER** |
+| per-evaluation p95 | ≤ +10 ms | **+122.76 ms** (max +214.25) | **OVER** |
+| corpus wall clock | ±2% | **+1.72%** (26.17s → 26.62s) | within |
+
+- Inline screen selectivity (measured, per the pre-registration — never
+  asserted): **94.5%** of deduped refusals screened out (4,744/5,018);
+  274 completions corpus-wide; cap never bound (0 dropped); 0 completion
+  refusals; 0 kill/vector mismatches; **52 ruled rows** on this
+  (deliberately junk/busy-heavy) corpus.
+- Cost shape: the inline recorder is effectively free; the p95/max tail is
+  the DEFERRED completion on busy frames (KWR/FLG/EGBN-class: ~40+
+  finalists × an O(n) traversal read each). Whole-scan estimate at the
+  median: ≈ +4.5 ms × ~5,500 evaluations ≈ **+25 s per scan (~+2%)**,
+  consistent with the corpus wall figure.
+- **The pre-registered per-evaluation bounds FAILED; the corpus bound
+  held.** Recorded as measured (EC-15) — the budget is not retro-widened.
+  The flip is the operator's decision against this record; the named
+  levers if the tail matters to him: lower `NEAR_MISS_TOP_K` (cap the busy
+  tail — cap currently never binds at 32, so a cut to 8–12 bounds the tail
+  roughly proportionally at zero median cost), or accept ~+2% scan wall as
+  the price of the cohort. No lever is pulled here.
