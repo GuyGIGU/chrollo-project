@@ -113,9 +113,87 @@ that filters by margin exists before that ruling** (the plan's hard gate).
   entries; top-K completion per ticker sized against median 5 / p90 137 one-leg
   candidates; write caps sized in the ruling from the census's junk shares.
 
-## §4 Census evidence — appended at scoring time (see seal note below)
+## §4 Census evidence — scored once, 2026-07-26
 
-*(appended after §2 was committed; the census is scored once)*
+Basis: marks fingerprint `b671e056…`, junk fixture captured_at
+`2026-07-03T12:20:14+00:00`, engine `53c208dc…`. Cached rows + full report:
+`tools.near_miss_census --json` run of 2026-07-26 (re-render any time with
+`--from`; the tool refuses a cache whose engine manifest differs). §2 was
+committed at `docs(lane)` BEFORE this section's tables were first rendered.
+
+### §4.1 Junk co-failure structure (1,805 deduped proposed candidates)
+
+- exactly-k failing legs, T-FINE-15: `{0:19, 1:75, 2:248, 3:284, 4:199, 5:160,
+  6:207, 7:387, 8:128, 9:76, 10:21, 11:1}` — **one-leg junk = 75 (4.2%)**.
+- exactly-k, T-COARSE-8: `{0:19, 1:104, 2:281, 3:536, 4:587, 5:230, 6:44, 7:4}`
+  — coarse one-leg = 104.
+- Top co-failing pairs: `respect_share+respect_run` 1,551 (the shared-mask twins,
+  exactly as pre-registered), then `respect_share+coverage` 1,096,
+  `respect_run+coverage` 1,069.
+- 8,115 rescued/band framings were NOT completable from the trace (trimmed/masked
+  windows) — the Task-7 seam capture is the fix; this census under-counts those
+  pools by construction and says so.
+
+### §4.2 Junk mass immediately under each floor (failing ONLY that leg)
+
+| leg | n only-this-leg | at −1 | at −2 | at −3 | ≤−4 |
+|---|---|---|---|---|---|
+| respect_share | **58** | 7 | 5 | 8 | 38 |
+| traversal_density (float) | 4 | nearest −0.007 / −0.019 / −0.035 | | | |
+| lower_dwell | 3 | 2 | 1 | 0 | 0 |
+| s_touch_thirds | 2 | 2 | 0 | 0 | 0 |
+| mid_dwell | 2 | 1 | 1 | 0 | 0 |
+| coverage | 2 | 1 | 1 | 0 | 0 |
+| width (float) | 1 | nearest −0.057 | | | |
+| respect_run | 1 | 1 | 0 | 0 | 0 |
+| upper_dwell | 1 | 0 | 1 | 0 | 0 |
+| traversal_count | 1 | 1 | 0 | 0 | 0 |
+
+The junk one-leg mass is **77% respect_share**; every other leg's whole-corpus
+only-fail count is 1–4 candidates. An N1 band (margin −1) holds ~7 junk
+respect_share candidates and ~8 across ALL other integer legs combined.
+
+- Passing-candidate headroom: 19 junk candidates pass every leg (they died at
+  selection or downstream); thinnest legs `width×6, s_touch_thirds×4,
+  r_touch_thirds×3, respect_share×3, s_touches×2, r_touches×1`, several at
+  margin +0 — floors sit where junk begins, measured again.
+
+### §4.3 The examined-candidate separation (the converting statistic)
+
+- **EGBN:2026-01-15 (MISS): the engine-examined candidate at as_of sits at
+  0.000 box-heights off the drawn rails and fails EXACTLY ONE leg —
+  `lower_dwell` 3/4, margin −1.** The lane's flagship class is visible to the
+  lane: the plan's "EGBN invisible" expectation held for the STORY-pool
+  conversion (never proposed at a story-passing shape), but the refusal record
+  itself is a textbook one-quantum near-miss. Junk-only-this-leg mass beside
+  it: 3 candidates (−1, −1, −2).
+- YPF:2026-05-18 examined: `lower_dwell −1 + mid_dwell −1` — two legs at
+  T-FINE, ONE (occupancy) at T-COARSE. (Fires live via the story pool since
+  2026-07-26 regardless.)
+- ORMP:2026-05-08 examined: six failing legs (respect-killed, deep) —
+  correctly far from any narrowness band. PKE: 3 legs (−1/−1/−3). SKYT:
+  respect_share −5 — deep, plus universe-gate class.
+- NOK:2026-02-17 examined: passes every box-election leg (died at
+  `selection`/downstream — LPS territory, outside this lane's scope by
+  boundary).
+- Several HITS' examined candidates are one-leg refusals (JAZZ, VLO, MS
+  respect_share −1; EWTX lower_dwell −1) — nearest-to-drawn framings that
+  miss narrowly while the ticker fires via another framing; whether fired
+  tickers' refusals enter the review cohort is a ruling axis (§5 menu — noted
+  as a post-table addition, policy not narrowness).
+
+### §4.4 What the evidence says about the pre-registered candidates
+
+*(compiled mechanically; the choice is the operator's — §5)*
+
+- **T-FINE-15 + N1:** cohort ≈ 15 junk/corpus + EGBN-class marks; respect_share
+  dominance means most rows are respect near-misses.
+- **T-COARSE-8 + N1:** adds the YPF-class (occupancy-concept one-leg) at the
+  cost of blurring WHICH occupancy check bound; the census keeps the fine
+  vector on every row either way (NULL-free evidence, ruling-independent).
+- **Crash in/out:** zero crash-only junk candidates in the corpus; keeping
+  crash IN costs nothing measured and preserves the spring-shaped-refusal
+  telemetry the plan motivated.
 
 ## §5 Operator ruling — Task 6 (pending)
 

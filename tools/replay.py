@@ -46,8 +46,19 @@ _PROJECT_ROOT = configure_path()
 from config import settings
 from core.pipeline.downloads import _trim_to_period
 from engine_alpha.evaluation import _prepare_eval_frame_with_reason
+from engine_alpha.structure.gate_margins import (
+    count_allowed,
+    count_needed,
+    outside_allowed,
+)
 from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.narrative import read_structure
+
+# count_needed / count_allowed / outside_allowed are re-exported here for the
+# sibling instruments (near-miss lane Task 5): the ONE integer translation of
+# the gate's fraction thresholds lives in engine_alpha.structure.gate_margins
+# (EC-3); instruments import it from THIS seam so tooling never grows a twin.
+_COUNT_MATH = (count_needed, count_allowed, outside_allowed)
 
 # Sealed-corpus fixture paths (written by `tools.marks_corpus --build-fixture`,
 # read by every replay consumer). The corpus tool aliases these.
@@ -176,6 +187,20 @@ def drawn_box_window(raw: pd.DataFrame, box_start, box_end):
         raise ValueError(f"ATR unavailable at box_end {box_end}")
     bs = session_pos(df.index, box_start)
     return df.iloc[bs:], float(atr_val)
+
+
+def judged_window(df: pd.DataFrame, cand_start: int) -> pd.DataFrame:
+    """The exact window the pair election judged a strict candidate on:
+    ``validate_equilibrium`` enumerates over ``df.iloc[:-STRUCTURE_EDGE_SKIP_BARS]``
+    (the box as of ~5 bars ago, uncontaminated by the live edge), so a
+    candidate's window is cand_start .. len(df) - skip — NOT the frame end.
+    The junk self-check against the trace's own detail numbers certifies this
+    slice; a drift there voids the run. Promoted here verbatim from
+    ``tools.rail_margin_evidence`` (near-miss lane Task 5) — the third
+    sibling instrument imports it from this seam."""
+    skip = settings.STRUCTURE_EDGE_SKIP_BARS
+    end = len(df) - skip if len(df) > skip else len(df)
+    return df.iloc[cand_start:end]
 
 
 @contextmanager
