@@ -12,6 +12,8 @@ structural move — every function verbatim.
 """
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import numpy as np
 
 from config import settings
@@ -19,6 +21,11 @@ from engine_alpha.structure.box_trace import _trace_find
 from engine_alpha.structure.metrics import _rail_touch_thirds, measure_equilibrium
 
 __all__ = [
+    "GateLeg",
+    "GATE_LEGS",
+    "GATE_LEG_INDEX",
+    "leg_threshold",
+    "_leg_record",
     "_buffered_rails",
     "_rail_outside_masks",
     "_engagement_hang_masks",
@@ -28,9 +35,88 @@ __all__ = [
     "_measure_close_residence",
     "_dwell_bar_basis",
     "_validate_base_quality",
+    "_occupancy_leg_failures",
     "_occupancy_failures",
     "_apply_traversal_gate",
 ]
+
+
+class GateLeg(NamedTuple):
+    """One leg of the box-election validity judgment — the machine-readable
+    vocabulary every narration/census/telemetry surface derives from
+    (near-miss lane Task 1). The leg id is a cohort key downstream: renaming
+    one is a re-measurement seam, never a cleanup."""
+    leg: str          # canonical identifier (frozen wire vocabulary)
+    stage: str        # the cascade stage that reports it
+    stat: str         # the statistic the leg reads, in the gate's own terms
+    setting: str      # settings attribute bound as the threshold (read lazily,
+                      # AP-3); "" = caller-bound (the window floor arrives as an
+                      # argument: INNER_MIN_DAYS inner, pre-gated by
+                      # MIN_BASE_DAYS at the outer consultation seam)
+    quantum: str      # native unit: fraction | bars | touches | thirds |
+                      # traversals | ratio | price_ratio
+    op: str           # exact PASS comparison: measured <op> threshold
+
+
+# Finest-grain leg taxonomy (15). The band pool judges the width leg against
+# BAND_MAX_BOX_WIDTH (the deep-event class allowance) — the registry binds the
+# default law; a stage-local override is context, not a second leg.
+GATE_LEGS = (
+    GateLeg("width", "width", "box_width", "MAX_BOX_WIDTH", "fraction", "<="),
+    GateLeg("window", "window", "judged_window_bars", "", "bars", ">="),
+    GateLeg("respect_share", "respect", "respect_share",
+            "MIN_BOUNDARY_RESPECT_PCT", "fraction", ">="),
+    GateLeg("respect_run", "respect", "max_consecutive_outside",
+            "MAX_CONSECUTIVE_OUTSIDE_DAYS", "bars", "<="),
+    GateLeg("crash", "occupancy", "min_low_over_s", "CRASH_FILTER_MULT",
+            "price_ratio", ">="),
+    GateLeg("r_touches", "occupancy", "r_touches", "EQ_MIN_TOUCHES_PER_RAIL",
+            "touches", ">="),
+    GateLeg("s_touches", "occupancy", "s_touches", "EQ_MIN_TOUCHES_PER_RAIL",
+            "touches", ">="),
+    GateLeg("r_touch_thirds", "occupancy", "r_touch_thirds",
+            "EQ_MIN_TOUCH_THIRDS", "thirds", ">="),
+    GateLeg("s_touch_thirds", "occupancy", "s_touch_thirds",
+            "EQ_MIN_TOUCH_THIRDS", "thirds", ">="),
+    GateLeg("lower_dwell", "occupancy", "lower_dwell", "EQ_MIN_HALF_DWELL",
+            "fraction", ">="),
+    GateLeg("upper_dwell", "occupancy", "upper_dwell", "EQ_MIN_HALF_DWELL",
+            "fraction", ">="),
+    GateLeg("mid_dwell", "occupancy", "mid_dwell", "EQ_MAX_MID_DWELL",
+            "fraction", "<="),
+    GateLeg("coverage", "occupancy", "coverage", "EQ_MIN_COVERAGE",
+            "fraction", ">="),
+    GateLeg("traversal_count", "traversal", "n_full_traversals",
+            "TRAVERSAL_MIN", "traversals", ">="),
+    GateLeg("traversal_density", "traversal", "full_per_swing",
+            "TRAVERSAL_MIN_DENSITY", "ratio", ">="),
+)
+
+GATE_LEG_INDEX = {spec.leg: spec for spec in GATE_LEGS}
+
+
+def leg_threshold(leg: str):
+    """The leg's live threshold, read lazily from settings (AP-3). Raises on
+    a caller-bound leg (``window``) — its floor arrives as an argument."""
+    spec = GATE_LEG_INDEX[leg]
+    if not spec.setting:
+        raise ValueError(f"leg {leg!r} is caller-bound; no settings threshold")
+    return getattr(settings, spec.setting)
+
+
+def _leg_record(leg, measured, threshold, **extras):
+    """One structured seam entry: leg id + the measured statistic + the
+    threshold as NUMBERS (the sentence beside it is derived from the same
+    values — prose can never be the only carrier again). ``measured`` may be
+    None when the gate does not have the number in hand at the kill site
+    (crash's min-low ratio, respect's run maximum) — the lane's post-hoc
+    completion primitive fills those, never a re-parse of prose. ``extras``
+    carry the native-quantum numerators a sentence needs (outside, n)."""
+    if leg not in GATE_LEG_INDEX:
+        raise ValueError(f"unknown gate leg {leg!r}")
+    rec = {"leg": leg, "measured": measured, "threshold": threshold}
+    rec.update(extras)
+    return rec
 
 
 def _buffered_rails(R_val, S_val, atr_val):
@@ -334,28 +420,45 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     return r_touches, s_touches, eq, is_valid
 
 
+def _occupancy_leg_failures(eq, r_touches, s_touches):
+    """Structured occupancy-family failures: ``(leg_record, sentence)`` per
+    failing check, thresholds resolved through the leg registry and the
+    sentence derived from the same numbers the record carries (byte-identical
+    to the legacy ``_occupancy_failures`` prose)."""
+    touches_min = leg_threshold("r_touches")
+    thirds_min = leg_threshold("r_touch_thirds")
+    dwell_min = leg_threshold("lower_dwell")
+    mid_max = leg_threshold("mid_dwell")
+    cov_min = leg_threshold("coverage")
+    checks = [
+        ("r_touches", r_touches, touches_min, r_touches < touches_min,
+         f"r_touches {r_touches}<{touches_min}"),
+        ("s_touches", s_touches, touches_min, s_touches < touches_min,
+         f"s_touches {s_touches}<{touches_min}"),
+        ("r_touch_thirds", eq["r_touch_thirds"], thirds_min,
+         eq["r_touch_thirds"] < thirds_min,
+         f"r_touch_thirds {eq['r_touch_thirds']}<{thirds_min} (clustered)"),
+        ("s_touch_thirds", eq["s_touch_thirds"], thirds_min,
+         eq["s_touch_thirds"] < thirds_min,
+         f"s_touch_thirds {eq['s_touch_thirds']}<{thirds_min} (clustered)"),
+        ("lower_dwell", eq["lower_dwell"], dwell_min,
+         eq["lower_dwell"] < dwell_min,
+         f"dead space low (lower_dwell {eq['lower_dwell']}<{dwell_min})"),
+        ("upper_dwell", eq["upper_dwell"], dwell_min,
+         eq["upper_dwell"] < dwell_min,
+         f"dead space high (upper_dwell {eq['upper_dwell']}<{dwell_min})"),
+        ("mid_dwell", eq["mid_dwell"], mid_max, eq["mid_dwell"] > mid_max,
+         f"mid churn (mid_dwell {eq['mid_dwell']}>{mid_max})"),
+        ("coverage", eq["coverage"], cov_min, eq["coverage"] < cov_min,
+         f"coverage {eq['coverage']}<{cov_min}"),
+    ]
+    return [(_leg_record(leg, measured, threshold), msg)
+            for leg, measured, threshold, failed, msg in checks if failed]
+
+
 def _occupancy_failures(eq, r_touches, s_touches):
     """Trace-only: name the worked-equilibrium occupancy checks a framing failed."""
-    s = settings
-    checks = [
-        (r_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
-         f"r_touches {r_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
-        (s_touches < s.EQ_MIN_TOUCHES_PER_RAIL,
-         f"s_touches {s_touches}<{s.EQ_MIN_TOUCHES_PER_RAIL}"),
-        (eq["r_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
-         f"r_touch_thirds {eq['r_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
-        (eq["s_touch_thirds"] < s.EQ_MIN_TOUCH_THIRDS,
-         f"s_touch_thirds {eq['s_touch_thirds']}<{s.EQ_MIN_TOUCH_THIRDS} (clustered)"),
-        (eq["lower_dwell"] < s.EQ_MIN_HALF_DWELL,
-         f"dead space low (lower_dwell {eq['lower_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
-        (eq["upper_dwell"] < s.EQ_MIN_HALF_DWELL,
-         f"dead space high (upper_dwell {eq['upper_dwell']}<{s.EQ_MIN_HALF_DWELL})"),
-        (eq["mid_dwell"] > s.EQ_MAX_MID_DWELL,
-         f"mid churn (mid_dwell {eq['mid_dwell']}>{s.EQ_MAX_MID_DWELL})"),
-        (eq["coverage"] < s.EQ_MIN_COVERAGE,
-         f"coverage {eq['coverage']}<{s.EQ_MIN_COVERAGE}"),
-    ]
-    return [msg for failed, msg in checks if failed]
+    return [msg for _rec, msg in _occupancy_leg_failures(eq, r_touches, s_touches)]
 
 
 def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
@@ -402,11 +505,22 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
                 rec["traversal"] = {"full": int(nf), "swings": int(ns),
                                     "density": round(density, 3)}
                 if not ok:
+                    count_min = leg_threshold("traversal_count")
+                    density_min = leg_threshold("traversal_density")
+                    legs = []
+                    if nf < count_min:
+                        legs.append(_leg_record("traversal_count", int(nf),
+                                                count_min, swings=int(ns)))
+                    if not (ns > 0 and density >= density_min):
+                        legs.append(_leg_record("traversal_density",
+                                                float(density), density_min,
+                                                full=int(nf), swings=int(ns)))
                     rec["verdict"] = "rejected"
                     rec["stage"] = "traversal"
+                    rec["legs"] = legs
                     rec["detail"] = (
                         f"full={nf} density={density:.3f} (floors "
-                        f"{settings.TRAVERSAL_MIN}/{settings.TRAVERSAL_MIN_DENSITY})")
+                        f"{count_min}/{density_min})")
         return ok
 
     return [c for c in valid_candidates if _passes(c)]

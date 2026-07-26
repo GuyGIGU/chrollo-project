@@ -584,6 +584,19 @@ The trace is opt-in and free on the live path (`trace=None` = zero cost, byte-id
 New reading logic must **extend the trace, not bypass it** — the narrated process is what
 lets richer story-building (the event puzzle, graded confidence reads) trust the geometry.
 
+**The gate legs speak from one registry (near-miss lane Task 1, 2026-07-26).** The
+validity judgment's fifteen legs — width, window, the respect share/run pair, crash, the
+eight-check occupancy family, the traversal count/density pair — have ONE machine-readable
+home, `box_gates.GATE_LEGS`: each leg's identifier, the statistic it reads, its settings
+binding (resolved lazily at call time), its native quantum (fraction / bars / touches /
+thirds / traversals / ratio), and its exact comparison form. A gate rejection record now
+carries structured `legs` — leg id + measured statistic + threshold as NUMBERS — with the
+prose `detail` derived from the same values, so a downstream instrument (census, near-miss
+telemetry) reads the numbers and never re-parses a sentence. A `measured` of `None` is a
+declared kill-site unknown (crash's min-low ratio, respect's run maximum): the cascade
+short-circuits, so those numbers are only knowable to a post-hoc completion read, never to
+the refusal record itself.
+
 **The trace speaks event language.** Every trace label, reject reason, and diagnostic
 names its chart event in the catalog's vocabulary — plain chart language where humans
 read, frozen keys on the wire. The catalog's third law binds here too: **a new signal

@@ -14,11 +14,18 @@ __all__ = ["_trace_pair", "_trace_find"]
 
 
 def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
-                r_anchor_bar, s_anchor_bar, cand_start, rescued=False):
+                r_anchor_bar, s_anchor_bar, cand_start, rescued=False,
+                legs=None):
     """Record one pair-cascade entry (the election narrating itself).
 
     No-op when ``trace`` is None — the live path never pays for it. Bars are
     window-relative here; ``validate_equilibrium`` rebases them df-positional.
+
+    ``legs``: optional list of structured leg records
+    (``box_gates._leg_record`` — leg id + measured statistic + threshold as
+    NUMBERS) for a rejection; the ``detail`` sentence is derived from the same
+    numbers, so downstream instruments read the records and never re-parse
+    prose (near-miss lane Task 1 seam contract).
     """
     if trace is None:
         return
@@ -30,10 +37,11 @@ def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
         "S": round(float(S_val), 4),
         "box_width": round(float(box_width), 4),
         "verdict": verdict,        # "rejected" | "valid" | "elected"
-        "stage": stage,            # width|window|respect|occupancy|traversal|rescue_unused|selection
+        "stage": stage,            # width|window|respect|occupancy|traversal|story|rescue_unused|selection
         "detail": detail,
         "rescued": bool(rescued),
         "traversal": None,
+        "legs": legs,
     })
 
 

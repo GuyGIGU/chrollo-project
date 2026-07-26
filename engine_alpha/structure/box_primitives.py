@@ -24,9 +24,11 @@ from engine_alpha.structure.box_gates import (
     _apply_traversal_gate,
     _buffered_rails,
     _is_boundary_respected,
-    _occupancy_failures,
+    _leg_record,
+    _occupancy_leg_failures,
     _validate_base_quality,
     _worked_window_end,
+    leg_threshold,
 )
 from engine_alpha.structure.box_trace import _trace_find, _trace_pair
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
@@ -218,27 +220,44 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
         if trace is not None:
             # Name the sub-condition that actually fired: respect fails on the
             # outside SHARE or on a too-long consecutive RUN. When the share
-            # passed, the run cap is — by elimination — the killer.
+            # passed, the run cap is — by elimination — the killer. The run
+            # maximum itself is not in hand at this seam (measured=None; the
+            # lane's completion primitive fills it).
             n = len(highs)
-            if share < settings.MIN_BOUNDARY_RESPECT_PCT:
+            share_min = leg_threshold("respect_share")
+            run_max = leg_threshold("respect_run")
+            if share < share_min:
                 detail = (f"{total_outside}/{n} bars outside the buffered rails "
-                          f"(respect {share:.2f} < {settings.MIN_BOUNDARY_RESPECT_PCT})")
+                          f"(respect {share:.2f} < {share_min})")
+                legs = [_leg_record("respect_share", float(share), share_min,
+                                    outside=int(total_outside), n=n)]
             else:
                 detail = ("an outside run exceeded MAX_CONSECUTIVE_OUTSIDE_DAYS "
-                          f"{settings.MAX_CONSECUTIVE_OUTSIDE_DAYS} "
+                          f"{run_max} "
                           f"({total_outside}/{n} bars outside in total)")
+                legs = [_leg_record("respect_run", None, run_max,
+                                    outside=int(total_outside), n=n)]
             _trace_pair(trace, "rejected", "respect", detail, R_val, S_val,
-                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued,
+                        legs=legs)
         return None
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val, max_width=max_width,
     )
     if not is_valid:
         if trace is not None:
-            detail = ("crash filter: min Low < S x CRASH_FILTER_MULT" if eq is None
-                      else "; ".join(_occupancy_failures(eq, r_touches, s_touches)))
+            if eq is None:
+                detail = "crash filter: min Low < S x CRASH_FILTER_MULT"
+                # The min-low ratio was consumed inside the gate, not returned —
+                # measured=None at the seam; post-hoc completion fills it.
+                legs = [_leg_record("crash", None, leg_threshold("crash"))]
+            else:
+                failures = _occupancy_leg_failures(eq, r_touches, s_touches)
+                detail = "; ".join(msg for _rec, msg in failures)
+                legs = [rec for rec, _msg in failures]
             _trace_pair(trace, "rejected", "occupancy", detail, R_val, S_val,
-                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued,
+                        legs=legs)
         return None
     _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued)
@@ -303,19 +322,27 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
-            _trace_pair(trace, "rejected", "width",
-                        f"box_width {box_width:.3f} > MAX_BOX_WIDTH {settings.MAX_BOX_WIDTH}",
-                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
-                        min(r_anchor_bar, s_anchor_bar))
+            # Narration guarded whole: an unguarded call evaluated its f-string
+            # argument on every trace=None live rejection (Task 1 leak fix).
+            if trace is not None:
+                width_max = leg_threshold("width")
+                _trace_pair(trace, "rejected", "width",
+                            f"box_width {box_width:.3f} > MAX_BOX_WIDTH {width_max}",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            min(r_anchor_bar, s_anchor_bar),
+                            legs=[_leg_record("width", float(box_width), width_max)])
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
         cand_eq_df = eq_df.iloc[cand_start:]
         if len(cand_eq_df) < min_candidate_days:
-            _trace_pair(trace, "rejected", "window",
-                        f"window {len(cand_eq_df)} < min_candidate_days {min_candidate_days}",
-                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
-                        cand_start)
+            if trace is not None:
+                _trace_pair(trace, "rejected", "window",
+                            f"window {len(cand_eq_df)} < min_candidate_days {min_candidate_days}",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            cand_start,
+                            legs=[_leg_record("window", len(cand_eq_df),
+                                              min_candidate_days)])
             continue
 
         cand_highs = eq_highs[cand_start:]
