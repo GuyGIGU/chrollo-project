@@ -241,14 +241,16 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
     return prep
 
 
-def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
+def _resolve_structure_context(df: pd.DataFrame, latest,
+                               near_miss=None) -> Optional[dict]:
     # Parent (outer) is the base of record; inner is the nested companion. One
     # chronological A->B->(C?)->D narrative is the structure source of truth.
     # ONE ATR sample serves the walk, atr_ratio, and atr_for_zone below — the
     # box-carried equilibrium read is coherent with eval-time measures because
     # they share this row, structurally, not by twin expressions.
     atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
-    structure = read_structure(df, float(atr_eval['ATR_10']))
+    structure = read_structure(df, float(atr_eval['ATR_10']),
+                               near_miss=near_miss)
     if structure is None:
         return None
 
@@ -861,7 +863,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
 
 def _run_eval_chain(ticker: str, df: pd.DataFrame,
                     spy_6m_return: float = 0.0,
-                    breadth_pct: Optional[float] = None) -> Optional[dict]:
+                    breadth_pct: Optional[float] = None,
+                    near_miss=None) -> Optional[dict]:
     """The single numeric evaluation chain shared by the live screener
     (`_evaluate_ticker`) and the seed/replay path
     (`core.archive.seed._evaluate_at_date`).
@@ -870,13 +873,19 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     on a degenerate frame; callers wrap it with the standard skip-guard. Keeping this
     as one function is what makes "replay at T == live at T" true by construction
     rather than by a recall test.
+
+    ``near_miss``: the lane's refusal recorder, created by ``_evaluate_ticker``
+    under its flag and OWNED there — it must survive a structural reject (a
+    refused evaluation is the lane's whole subject), which is why it is not
+    constructed here. The seed/replay path passes nothing.
     """
     prepared = _prepare_eval_frame(df)
     if prepared is None:
         return None
 
     eval_df = prepared["df"]
-    structure_ctx = _resolve_structure_context(eval_df, prepared["latest"])
+    structure_ctx = _resolve_structure_context(eval_df, prepared["latest"],
+                                               near_miss=near_miss)
     if structure_ctx is None:
         return None
 
@@ -946,13 +955,24 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     Returns a result dict if the ticker passes, or None if filtered out.
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
+    near_miss = None
+    if settings.NEAR_MISS_LANE_ENABLED:
+        # Lazy import + call-time flag read (AP-3 / EC-8): flag-off pays for
+        # one attribute read and nothing else — no import, no allocation.
+        from engine_alpha.structure.near_miss import NearMissRecorder  # noqa: PLC0415
+        near_miss = NearMissRecorder()
     try:
-        result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
+        result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
+                                 near_miss=near_miss)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         # Return the error sentinel — NOT None — so the caller can distinguish a
         # swallowed eval crash from a genuine structural reject and count it.
         return EVAL_ERROR
+    # near_miss (when the lane flag is on) now holds the deduped refusal map
+    # for THIS evaluation, fired or not. The bounded deferred completion
+    # (Task 8) and the cohort writer (Task 9) consume it here; until they
+    # land, the map is measured and released.
     if result is not None:
         _attach_advisory_metadata(ticker, df, result)
     return result

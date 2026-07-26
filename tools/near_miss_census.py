@@ -396,12 +396,13 @@ _PINNED = {
     "marks_fingerprint":
         "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
     "junk_captured_at": "2026-07-03T12:20:14+00:00",
-    # Re-pinned 2026-07-26 (same change as the Task-6 ruling): the ruling's
-    # manifest-listed NEAR_MISS_* constants rotated the seam 53c208dc… →
-    # 5516256f…; the distributions themselves did not move (the constants
-    # touch no gate) — counts below are unchanged and re-verified.
+    # Re-pinned 2026-07-26 twice, each axis named: the Task-6 ruling's
+    # manifest-listed NEAR_MISS_* constants rotated 53c208dc… → 5516256f…,
+    # then the Task-7 collector flag (dark) rotated → df3cddeb…. The
+    # distributions themselves did not move (nothing here touches a gate) —
+    # counts below unchanged and re-verified on fresh walks.
     "engine_manifest":
-        "5516256f09aec746d4ef9b468b7be50a46d4bfb12469d4265dcac601a92d384b",
+        "df3cddeb819d5974a2a5c23fda369820591f755b510bce43b00edfe45e762e9f",
     "n_drawn": 33,
     "n_examined": 33,
     "n_junk": 1805,

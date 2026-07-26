@@ -494,7 +494,7 @@ def _occupancy_failures(eq, r_touches, s_touches):
 
 
 def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
-                          trace=None):
+                          trace=None, recorder=None):
     """Limb-traversal quality gate (v2): keep only framings whose swing limbs
     genuinely travel rail-to-rail, so the earliest-valid selection re-anchors R/S
     to the real swing envelope instead of a dead-space climax framing.
@@ -530,6 +530,11 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
         nf, ns = trav["n_full_traversals"], trav["n_swings"]
         ok = (nf >= settings.TRAVERSAL_MIN
               and ns > 0 and nf / ns >= settings.TRAVERSAL_MIN_DENSITY)
+        if not ok and recorder is not None:
+            leg = ("traversal_count" if nf < settings.TRAVERSAL_MIN
+                   else "traversal_density")
+            recorder.refusal(leg, c[11], c[7], c[8], c[9], c[1], c[2], c[10],
+                             nf, ns)
         if trace is not None:
             rec = _trace_find(trace, c)
             if rec is not None:

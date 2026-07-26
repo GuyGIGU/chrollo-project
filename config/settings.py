@@ -352,6 +352,17 @@ NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
 NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
 
+# DARK (near-miss lane Task 7) — the refusal collector: a numbers-only,
+# per-evaluation recorder on the outer Phase-B consultation seam (never the
+# inner-box calls, never the diagnostic mirror). Records every gate refusal's
+# kill-site tuple keyed on the framing identity; a near-miss NEVER scores,
+# never fires, never enters the picks — telemetry for the archived cohort +
+# review report only. Flag-off is byte-identical and compute-free (one
+# attribute read at evaluation entry; import + allocation live inside the
+# flag). Flip is operator-gated on the Task-13 cost A/B against the ledger
+# row's pre-registered budget.
+NEAR_MISS_LANE_ENABLED = False
+
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for
 # the trailing N sessions loses the election in favor of a later valid
