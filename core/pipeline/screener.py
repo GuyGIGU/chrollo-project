@@ -23,7 +23,12 @@ import pandas as pd
 from config import settings
 from core.pipeline.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
-from engine_alpha.evaluation import EVAL_ERROR, _evaluate_ticker, apply_baseline_filters
+from engine_alpha.evaluation import (
+    EVAL_ERROR,
+    _evaluate_ticker,
+    apply_baseline_filters,
+    evaluate_ticker_with_near_miss,
+)
 from core.pipeline.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,
@@ -66,8 +71,15 @@ def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
 
 def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
-                     breadth_pct: float | None) -> tuple[list[dict], int]:
+                     breadth_pct: float | None,
+                     near_miss_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
+
+    ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector for
+    the refusal lane. When given AND ``NEAR_MISS_LANE_ENABLED`` is on (read
+    lazily at call time), workers run the lane-carrying evaluation twin and
+    the deduped ruled rows + counters accumulate here; otherwise the exact
+    legacy submission runs (flag-off stays byte-identical and sink-empty).
 
     Returns ``(results, errored)`` where ``errored`` is the number of tickers
     whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
@@ -79,9 +91,12 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     errored = 0
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
+    lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
+    worker_fn = evaluate_ticker_with_near_miss if lane_on else _evaluate_ticker
+
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {
-            executor.submit(_evaluate_ticker, ticker, df, spy_6m_return, breadth_pct): ticker
+            executor.submit(worker_fn, ticker, df, spy_6m_return, breadth_pct): ticker
             for ticker, df in ticker_frames.items()
         }
 
@@ -96,6 +111,12 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
+            if lane_on:
+                result, lane_rows, lane_stats = result
+                near_miss_sink["rows"].extend(lane_rows)
+                stats = near_miss_sink.setdefault("stats", {})
+                for k, v in lane_stats.items():
+                    stats[k] = stats.get(k, 0) + v
             if result is EVAL_ERROR:
                 # Swallowed eval crash — NOT a structural reject. Counted, not appended.
                 errored += 1
@@ -158,13 +179,19 @@ def _read_cached_market_data(tickers: list[str], universe=None) -> pd.DataFrame:
 
 
 def run_screener(mode: str = "download",
-                 universe=None) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
+                 universe=None,
+                 near_miss_sink: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     """
     Execute the full Wyckoff VCP/LPS screening pipeline.
 
     ``universe`` selects which market to scan (a :class:`Universe`, a key string,
     or ``None`` for US-Stocks). The default resolves to the exact current ticker
     source / cache / index set, so the US-Stocks run is byte-identical.
+
+    ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector the
+    refusal lane fills when ``NEAR_MISS_LANE_ENABLED`` is on (scan_job passes
+    one and hands the rows to the cohort writer behind the SAME archive
+    freshness gate as the fires; no sink or flag off = untouched legacy path).
 
     Returns:
         (results_df, market_data, tickers, market_context)
@@ -213,7 +240,9 @@ def run_screener(mode: str = "download",
         # Number of tickers whose eval chain THREW and was swallowed (distinct from
         # a structural reject) is returned in-band alongside the results, so there
         # is no cross-call stale-read hazard.
-        results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return, breadth_pct)
+        results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
+                                                    breadth_pct,
+                                                    near_miss_sink=near_miss_sink)
 
     # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
     # into a universe-relative in-house RS rating (percentile across the firing

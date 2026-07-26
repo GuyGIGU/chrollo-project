@@ -405,33 +405,46 @@ def migrate_universe_type(bind) -> bool:
         raw.close()
 
 
-def model_add_column_migrations(bind) -> list[str]:
-    """ADD-only migrations to bring `setup_archive` up to the model's columns.
+# Every archive model the ADD-only auto-migrator covers. A NEW archive table
+# registers HERE at birth (near-miss lane Task 9 generalization) — otherwise
+# its first model-only column silently never reaches the live DB.
+_MIGRATED_ARCHIVE_MODELS = (
+    ("setup_archive", lambda: archive_models.SetupArchive),
+    ("near_miss_archive", lambda: archive_models.NearMissArchive),
+)
 
-    Diffs ``SetupArchive.__table__.columns`` against the live table (via
+
+def model_add_column_migrations(bind) -> list[str]:
+    """ADD-only migrations to bring every registered archive table up to its
+    model's columns (``_MIGRATED_ARCHIVE_MODELS`` — generalized from the
+    setup_archive-only pass, near-miss lane Task 9).
+
+    Diffs each model's ``__table__.columns`` against the live table (via
     ``PRAGMA table_info``, exposed through SQLAlchemy's inspector) and returns one
-    ``ALTER TABLE ... ADD COLUMN`` per column the model declares but the DB lacks.
-    The model is the single source of truth: a new column on SetupArchive flows
-    into the DB on the next boot with no hand-written migration.
+    ``ALTER TABLE ... ADD COLUMN`` per column a model declares but the DB lacks.
+    The model is the single source of truth: a new column flows into the DB on
+    the next boot with no hand-written migration.
 
     ADD-only by design — Brandur/SQLite: there is no safe in-place DROP/ALTER, so
     a removed-from-model column is left in place (its retirement is an explicit
     one-off DROP in _MIGRATIONS, never inferred here). Returns [] when the DB is
-    already at the model (idempotent, no spurious ALTERs), or when the table does
-    not exist yet (create_all handles a fresh DB). The auto-increment ``id`` PK is
-    never ADDed.
+    already at the models (idempotent, no spurious ALTERs); a table that does
+    not exist yet is skipped (create_all handles a fresh DB). The auto-increment
+    ``id`` PK is never ADDed.
     """
     inspector = inspect(bind)
-    if "setup_archive" not in inspector.get_table_names():
-        return []
-    existing = {col["name"] for col in inspector.get_columns("setup_archive")}
+    tables = set(inspector.get_table_names())
     statements: list[str] = []
-    for column in archive_models.SetupArchive.__table__.columns:
-        if column.primary_key or column.name in existing:
+    for table_name, model_fn in _MIGRATED_ARCHIVE_MODELS:
+        if table_name not in tables:
             continue
-        statements.append(
-            f"ALTER TABLE setup_archive ADD COLUMN {column.name} {column.type}"
-        )
+        existing = {col["name"] for col in inspector.get_columns(table_name)}
+        for column in model_fn().__table__.columns:
+            if column.primary_key or column.name in existing:
+                continue
+            statements.append(
+                f"ALTER TABLE {table_name} ADD COLUMN {column.name} {column.type}"
+            )
     return statements
 
 

@@ -251,6 +251,22 @@ def _maybe_build_health_board(data, universe):
         return None
 
 
+def _archive_near_misses(near_miss_sink, uni) -> None:
+    """Persist the lane sink behind the SAME gate that admitted the fires.
+    Called only on freshness-passed paths; every writer bound is printed
+    (no silent caps). A None/empty sink is a quiet no-op."""
+    if near_miss_sink is None:
+        return
+    rows = near_miss_sink.get("rows") or []
+    stats = near_miss_sink.get("stats") or {}
+    from core.archive.near_miss_writer import archive_near_miss_rows
+    counters = archive_near_miss_rows(rows, universe_type=uni.universe_type,
+                                      enable=True)
+    print(f"\nNear-miss lane: {counters['inserted']} new + "
+          f"{counters['recurred']} recurring episode(s) archived "
+          f"(deferred stats {stats}; writer {counters}).", flush=True)
+
+
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
     """Run the screener and write every non-broker output artifact.
 
@@ -260,8 +276,15 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     byte-identical to the prior single-universe behavior.
     """
     uni = resolve_universe(universe)
+    # The near-miss lane rides the scan only when BOTH the lane flag and live
+    # archiving are on — its rows land behind the same freshness gate as the
+    # fires (a stale/degraded basis is telemetry noise, skipped and said so).
+    near_miss_sink = ({"rows": [], "stats": {}}
+                      if settings.ARCHIVE_LIVE_SCANS
+                      and settings.NEAR_MISS_LANE_ENABLED else None)
     try:
-        results_df, data, tickers, market_context = run_screener(mode=mode, universe=uni)
+        results_df, data, tickers, market_context = run_screener(
+            mode=mode, universe=uni, near_miss_sink=near_miss_sink)
     except CachedMarketDataError as exc:
         raise StaleMarketDataError(str(exc), n_setups=0) from exc
 
@@ -294,7 +317,10 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
             # Genuine stale data raises (reported stale); a fresh day and the
             # tolerated cache-mode partial-coverage case both fall through to the
             # dashboard refresh below (the empty artifact clears stale names).
-            _passes_archive_freshness(data, tickers, uni, mode, n_setups=0)
+            if _passes_archive_freshness(data, tickers, uni, mode, n_setups=0):
+                # A zero-fire night is prime lane material — the refusal
+                # cohort archives on the same freshness verdict as fires would.
+                _archive_near_misses(near_miss_sink, uni)
         # Write an empty artifact so this universe reads as "scanned, matched
         # nothing" rather than "never scanned" — and so an empty day clears any
         # stale setups instead of leaving the previous scan's names on screen. The
@@ -350,12 +376,18 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                       f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
                       f"(degraded universe coverage; source='screener', "
                       f"universe_type='{uni.universe_type}').", flush=True)
+                if near_miss_sink is not None:
+                    # Degraded coverage: refusal telemetry on a partial basis
+                    # is noise — skipped, and said so (never a silent drop).
+                    print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
+                          "row(s) skipped (degraded universe coverage).", flush=True)
                 return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                         n_errored=n_errored)
             # status == "fresh" → archive the whole cohort.
             n_archived = archive_scan_results(results_df, enable=True, universe=uni)
             print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
                   f"(source='screener', universe_type='{uni.universe_type}').")
+            _archive_near_misses(near_miss_sink, uni)
             return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                     n_errored=n_errored)
 
@@ -372,6 +404,7 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         n_archived = archive_scan_results(results_df, enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
+        _archive_near_misses(near_miss_sink, uni)
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                             n_errored=n_errored)
