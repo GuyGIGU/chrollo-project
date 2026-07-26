@@ -148,6 +148,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_EVENT_MIN_BARS",
     "BAND_EVENT_MAX_DEPTH_ATR",
     "BAND_EVENT_MAX_BARS",
+    # Story-rescue last-resort pool (Event Map program Task 8, dark)
+    "STORY_POOL_ENABLED",
     # Election surgery (solve-the-engine task 13, dark)
     "ELECTION_DETHRONE_ENABLED",
     "ELECTION_DETHRONE_SESSIONS",

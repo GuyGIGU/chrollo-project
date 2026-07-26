@@ -209,6 +209,19 @@ operator-confirmed 2026-07-25
 
 ---
 
+### AP-8: The story-admission read and the archive substrate read are DIFFERENT bases — by design
+**Pattern:** The story pool's admission judgment runs on the CANDIDATE window + candidate ATR;
+the archived `event_map_*` substrate runs on the ELECTED window + zone ATR. They share ONE reader
+but may legally disagree (`elected_pool='story'` with `event_map_story_admitted=0` — YPF is the
+live example); the admitting evidence travels separately in `story_admission_profile`. Do NOT
+propose "unifying" the two reads, and do NOT treat the substrate profile as the admission record.
+**Origin:** Council Review 2026-07-26 (engine/event-map-program) — Friedman/McKinney/Leach finding 2's
+underlying design, operator-confirmed 2026-07-26
+**Rationale:** The admission must be judged on what the pool actually consulted; the substrate must
+describe the elected geometry the TA-score charter grades. Collapsing them falsifies one or the other.
+
+---
+
 ### EC-14: Every tool write passes the sealed-output guard
 **Convention:** Any file a `tools/` script writes from a user-supplied path (`--json`, `--out`, …)
 must be routed through `tools._bootstrap.refuse_sealed_output` BEFORE the file is opened — a
@@ -216,3 +229,67 @@ mistyped path must fail loudly, never truncate a sealed spec (`docs/marks/`) or 
 (`tests/baselines/`) in place.
 **Origin:** Hunt — Council Review 2026-07-24-1903 (engine/gap-breach); operator-confirmed 2026-07-25
 **Principle:** `references/security.md` → P7 (deploy assertions as tripwires); `conventions.md` EC-3
+
+---
+
+### EC-15: An executed gating A/B replaces its pre-registration in the decision record — in the same change
+**Convention:** When a pre-registered A/B (fire-level, cost, any flip gate) is EXECUTED, every
+decision surface that cited the pre-registered expectations — the flag-ledger row first — must be
+updated in the SAME change to record the executed outcome, including failed expectations, and to
+restate what actually remains open. A ledger row that still reads as "gated on" an A/B that already
+ran is a falsified decision record, not a stale doc.
+**Origin:** Friedman / Hunt — Council Review 2026-07-26 (engine/event-map-program, finding 1: the
+STORY_POOL row still carried "EGBN converts" after the executed A/B proved it false);
+operator-confirmed 2026-07-26
+**Principle:** `references/quality-ux.md` → P9 (trust is destroyed by single failures);
+`references/security.md` → P9
+
+---
+
+### EC-16: Evidence cited by ledger rows and rulings lives in committed paths
+**Convention:** The evidence pointers on a flag-ledger row, a ruling record, or any decision doc
+must resolve inside the repository (the `docs/` protocol-doc convention — e.g.
+`docs/event_map_program_2026-07.md`), never in gitignored scaffolding (`.council/`, root
+`PLAN-*.md`). Machine-local captures are distilled into a committed record BEFORE the row cites
+them; a pointer that dies on a fresh clone is not an evidence trail.
+**Origin:** Hunt / Friedman — Council Review 2026-07-26 (engine/event-map-program, finding 1);
+operator-confirmed 2026-07-26
+**Principle:** `references/security.md` → P9 (absence of evidence is not evidence of absence)
+
+---
+
+### EC-17: A dark flag's happy path is pinned through the REAL cascade before its flip decision
+**Convention:** Every dark engine flag ships (or gains, before its flip is decided) at least one
+committed test that drives the feature's ACCEPTANCE path through the real code path — production
+values for every other flag, only the flag under test forced on — asserting the feature's
+observable outcome end to end (for an election feature: the election happens, with provenance and
+evidence fields intact). Builder-in-isolation tests and monkeypatched rung tests do not satisfy
+this; the suite must be able to go red if the dark feature silently stops working. Extends EC-8.
+**Origin:** Beck — Council Review 2026-07-26 (engine/event-map-program, finding 3: no committed
+test elected a story candidate; the production BAND-on/story-on cell was uncovered);
+operator-confirmed 2026-07-26
+**Principle:** `references/quality-testing.md` → P4/P5 (missing happy path = P1)
+
+---
+
+### EC-18: A ruled judgment predicate has exactly ONE implementation
+**Convention:** An operator-ruled judgment (story admission today; any future ruled form) exists
+as ONE function in the engine. Research and evidence instruments (census menus, harnesses) that
+score "the ruled form" DELEGATE to that function or pin equivalence against it in their check
+battery — never a re-typed twin lambda. A re-ruling then re-scores every instrument automatically
+instead of silently diverging from the live pool. Sharpens EC-3 for ruled predicates.
+**Origin:** Fowler — Council Review 2026-07-26 (engine/event-map-program, finding 7: census Form A
+was a character-for-character twin of `story_admission`); operator-confirmed 2026-07-26
+**Principle:** `conventions.md` EC-3; `references/refactoring.md` → P5
+
+---
+
+### EC-19: Closed-set archive label columns get the universe_type treatment
+**Convention:** Any archive column documented as a closed set (`elected_pool` today) is enforced
+three ways: a model-level CHECK constraint (guards every fresh create_all database; SQLite cannot
+retrofit), a write-time assertion at the single stamping point (guards the live DB — e.g.
+`bricks._pool_label`), and an archive-layer test proving an illegal label cannot land. A comment
+saying "closed set" is not enforcement.
+**Origin:** Leach — Council Review 2026-07-26 (engine/event-map-program, finding 8);
+operator-confirmed 2026-07-26
+**Principle:** `references/quality-postgres.md` → P1 (constraints are assertions)

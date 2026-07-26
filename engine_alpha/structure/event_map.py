@@ -42,11 +42,16 @@ non-finite bars are counted in ``nan_bars`` and can never pivot (every pivot
 comparison against NaN is False — the walk fails closed, and the count makes the
 silence visible).
 
-Measure-only: moves no rail, gates nothing, scores nothing. Nothing on the live
-scan path calls this yet — fire-path staging with its flag protocol is plan
-Task 6 (PLAN-event-tape.md).
+Measure-only: moves no rail, gates nothing, scores nothing. LIVE on the fire
+path since 2026-07-25 (``EVENT_MAP_ENABLED``, Event Map program Task 13):
+firing setups compute the tape + roles + the rail-episode substrate and
+archive them as the ``event_map_*`` column family; the story-rescue pool
+(``STORY_POOL_ENABLED``, dark) consults ``read_rail_episodes`` +
+``story_admission`` at the election cascade's last-resort rung.
 """
 from __future__ import annotations
+
+import json
 
 import numpy as np
 import pandas as pd
@@ -139,7 +144,7 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
                    the staircase's own summary, verbatim
         start_bar / n_bars / nan_bars
 
-    Measure-only; no live-path caller (fire-path staging is plan Task 6).
+    Measure-only; live on the fire path since 2026-07-25 (EVENT_MAP_ENABLED).
     """
     if df is None or len(df) == 0 or box is None:
         return _empty_map()
@@ -266,8 +271,8 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
         frame-scoped rather than truncation-stable.
 
     Bars are df-absolute; ``describes`` spans use the assembler's emitted zone
-    bounds. Measure-only — gates nothing, scores nothing, no live-path caller
-    (fire-path staging is plan Task 6).
+    bounds. Measure-only — gates nothing, scores nothing; live on the fire
+    path since 2026-07-25 (EVENT_MAP_ENABLED).
     """
     empty = {"labels": [], "n_labels": 0}
     events, _v_bar, _base_n, _has_valley = _box_events_with_meta(
@@ -364,6 +369,257 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
     return {"labels": labels, "n_labels": len(labels)}
 
 
+# ---------------------------------------------------------------------------
+# The rail-episode read — layer 3 (chronological completion over a rail pair)
+# ---------------------------------------------------------------------------
+
+EPISODE_MAX_GAP_BARS = 2    # inside-run merge horizon (band-rails same-side convention)
+EPISODE_DRIFT_MIN_BARS = 3  # an open terminal S episode at least this long = drift
+
+
+def _zone_visit_runs(mask, max_gap=EPISODE_MAX_GAP_BARS):
+    """Merged True runs as inclusive ``(start, end)`` pairs; visits separated
+    by ``<= max_gap`` inside bars merge into one run."""
+    idx = np.flatnonzero(mask)
+    if len(idx) == 0:
+        return []
+    runs = []
+    a = prev = int(idx[0])
+    for i in idx[1:]:
+        i = int(i)
+        if i - prev <= max_gap + 1:
+            prev = i
+        else:
+            runs.append((a, prev))
+            a = prev = i
+    runs.append((a, prev))
+    return runs
+
+
+def frame_terminal_posture(last_high, last_close, R, tol) -> bool:
+    """The ruled form's POSTURE leg as a frame-level fact: the frame's last
+    bar engages the R touch zone AND closes above R (the pre-breakout stance,
+    profile ``R^``). This is THE single expression of the posture leg — the
+    episode reader's terminal-R assignment and the story pool's O(1)
+    prefilter both resolve here, so they cannot drift apart (NaN fails
+    closed on both comparisons)."""
+    return bool(last_high >= R - tol and last_close > R)
+
+
+def read_rail_episodes(df, R, S, atr_val) -> dict:
+    """The chronological rail-episode read over ANY rail pair (doctrine:
+    strategy_alpha.md "The rail-episode read"). Bar-level BY DESIGN: the
+    sequence probe's separating evidence (EGBN ``S+ S+ S+ R^`` vs the
+    drift-junk zeros) is a zone-visit read, and the promotion battery pins
+    those counts — deriving episodes from the swing walk would change the
+    measurement.
+
+    Yardsticks: zone entry uses the engine's touch convention on WICK
+    extremes (low/high vs rail ± ``TOUCH_TOLERANCE_ATR``); breach-beyond-
+    buffer and reclaim are read on CLOSES — a deliberate, stated divergence
+    from the respect gate's extreme-basis buffer (a deep intrabar flush that
+    closes back inside is a worked test to this read, a breach to respect).
+    ``EPISODE_DRIFT_MIN_BARS`` (3) is this layer's own drift floor. The
+    promotion counts were pinned on exactly these bases — do NOT "align"
+    them with the respect yardsticks later; that is a re-measurement and a
+    new archive seam.
+
+    Each episode is one merged visit of a rail's touch zone, typed by outcome:
+
+      * ``completed`` — the engagement resolves back inside: any close-basis
+        breach beyond the buffer is reclaimed and the first close after the
+        episode confirms the rail held (support reclaimed / advance rejected).
+      * ``failed`` — an unreclaimed breach, or the confirming close lands
+        beyond the rail.
+      * ``unreadable`` — a verdict-relevant close (the confirming close, or
+        the run's last close when a breach needs a reclaim read) is not
+        finite: no verdict printed on unreadable bars (contract §5 — the
+        choice between rejected and unreadable is explicit, never silent).
+      * ``open`` — the window ends inside the engagement: no verdict printed
+        (contract §2 — never satisfies a completion predicate). An open R
+        episode satisfying ``frame_terminal_posture`` carries
+        ``terminal_posture=True``.
+
+    Causality (contract §1–§2): the verdict prints at the first close after
+    the episode, but the episode's IDENTITY is only irreversible once the
+    merge horizon has printed clean — a later zone visit within
+    ``EPISODE_MAX_GAP_BARS`` would have merged into it. So ``knowable_bar`` =
+    ``end_bar + EPISODE_MAX_GAP_BARS + 1`` when that bar exists; an episode
+    still inside its merge horizon at the frame edge (terminal episodes
+    included) is ``in_progress``.
+
+    Chronological order is by ``(end_bar, start_bar)`` with S-rail episodes
+    before R-rail episodes on full ties — a pinned, deterministic rule.
+
+    NaN policy (contract §5): arrays are coerced once at entry; a NaN bar can
+    never enter a zone (comparisons fail closed), an unreadable bar inside an
+    engagement carries NO breach evidence (a breach that never printed is not
+    asserted), and ``nan_bars`` plus the ``unreadable`` outcome make the
+    silence visible. Measure-only: moves no rail, gates nothing, scores
+    nothing.
+    """
+    if df is None or len(df) == 0:
+        return {"episodes": [], "n_episodes": 0, "nan_bars": 0, "n_bars": 0}
+    return read_rail_episodes_arrays(
+        df["High"].values, df["Low"].values, df["Close"].values,
+        R, S, atr_val)
+
+
+def read_rail_episodes_arrays(highs, lows, closes, R, S, atr_val) -> dict:
+    """Array-level core of ``read_rail_episodes`` — same read, same dict.
+    Exists so per-pair callers (the story pool consults this on ~44 pairs ×
+    ~69 consultations per busy evaluation) can pass numpy suffix VIEWS of
+    arrays they already hold instead of constructing a DataFrame slice per
+    pair; ``np.asarray(dtype=float)`` is copy-free on float64 input."""
+    n = int(len(closes))
+    empty = {"episodes": [], "n_episodes": 0, "nan_bars": 0, "n_bars": n}
+    if n == 0:
+        return empty
+    R, S = float(R), float(S)
+    if not np.isfinite(R) or not np.isfinite(S) or R - S <= 0:
+        return empty
+    if atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
+        return empty
+
+    highs = np.asarray(highs, dtype=float)
+    lows = np.asarray(lows, dtype=float)
+    closes = np.asarray(closes, dtype=float)
+    nan_bars = int((~(np.isfinite(highs) & np.isfinite(lows)
+                      & np.isfinite(closes))).sum())
+
+    tol = settings.TOUCH_TOLERANCE_ATR * atr_val
+    buf = settings.BOUNDARY_ATR_BUFFER * atr_val
+    horizon = EPISODE_MAX_GAP_BARS + 1
+
+    episodes = []
+    for rail, visit in (("S", lows <= S + tol), ("R", highs >= R - tol)):
+        for a, b in _zone_visit_runs(visit):
+            seg = closes[a:b + 1]
+            terminal = b >= n - 1
+            posture = False
+            if terminal:
+                outcome = "open"
+                if rail == "R":
+                    posture = frame_terminal_posture(highs[b], closes[b],
+                                                     R, tol)
+            elif rail == "S":
+                broke = bool(np.nanmin(seg) < S - buf)
+                if broke and not np.isfinite(seg[-1]):
+                    outcome = "unreadable"      # reclaim read unreadable
+                elif broke and seg[-1] < S:
+                    outcome = "failed"          # unreclaimed breach
+                elif not np.isfinite(closes[b + 1]):
+                    outcome = "unreadable"      # confirming close unreadable
+                else:
+                    outcome = ("completed" if closes[b + 1] >= S
+                               else "failed")
+            else:
+                broke_up = bool(np.nanmax(seg) > R + buf)
+                if broke_up and not np.isfinite(seg[-1]):
+                    outcome = "unreadable"
+                elif broke_up and seg[-1] > R:
+                    outcome = "failed"          # unheld upside break
+                elif not np.isfinite(closes[b + 1]):
+                    outcome = "unreadable"
+                else:
+                    outcome = ("completed" if closes[b + 1] <= R
+                               else "failed")
+            know = b + horizon if (b + horizon <= n - 1 and not terminal) else None
+            episodes.append({
+                "rail": rail,
+                "outcome": outcome,
+                "start_bar": int(a),
+                "end_bar": int(b),
+                "n_bars": int(b - a + 1),
+                "describes": [int(a), int(b)],
+                "knowable_bar": know,
+                "in_progress": know is None,
+                "terminal_posture": posture,
+            })
+    # Stable sort: construction order is all-S then all-R, so a full (end,
+    # start) tie deterministically keeps S before R.
+    episodes.sort(key=lambda e: (e["end_bar"], e["start_bar"]))
+    return {"episodes": episodes, "n_episodes": len(episodes),
+            "nan_bars": nan_bars, "n_bars": n}
+
+
+def story_admission(stats) -> bool:
+    """The RULED story-pool admission form — operator ruling 2026-07-25,
+    Option A of the census menu (canonical spec: strategy_alpha.md, "The
+    rail-episode read"; the truth-table pin in test_event_map.py is the
+    drift check). A judgment, deliberately OUTSIDE the factual reader: a
+    re-ruling replaces THIS function (a new archive seam + a census re-run),
+    never the measurement. Consumes an AS-OF stats dict — the caller is
+    responsible for passing decision-day stats (contract §1)."""
+    return (stats["n_completed_s"] >= 2
+            and stats["terminal_r_posture"]
+            and not stats["terminal_s_drift"])
+
+
+_EPISODE_MARK = {"completed": "+", "failed": "x", "open": "0",
+                 "unreadable": "?"}
+
+
+def _profile_mark(e) -> str:
+    """One episode's profile token. ``^`` = terminal posture; ``+``/``x`` =
+    completed/failed; ``0`` = open; ``?`` = unreadable verdict. A verdict
+    whose IDENTITY is not yet fixed (non-terminal, merge horizon still open
+    at the frame edge) carries a ``~`` suffix so the sentence can never
+    appear to contradict the as-of scalar counts, which rightly exclude it."""
+    mark = "^" if e["terminal_posture"] else _EPISODE_MARK[e["outcome"]]
+    if e["in_progress"] and e["outcome"] != "open":
+        mark += "~"
+    return f"{e['rail']}{mark}"
+
+
+def episode_sequence_stats(read, *, as_of_bar=None) -> dict:
+    """Summary statistics over a rail-episode read — the sentence and its
+    counts. With ``as_of_bar`` given, completed history counts ONLY episodes
+    whose ``knowable_bar`` ≤ ``as_of_bar`` (the contract's as-of rule); the
+    terminal flags and the profile are right-edge reads of the frame as
+    printed and are reported separately from completed history, never
+    counted as facts. Because they read the PHYSICAL frame edge, an
+    ``as_of_bar`` below that edge is REFUSED loudly — deriving decision-day
+    terminal state from a longer frame is a contract-§1 lookahead; truncate
+    the frame at the decision bar instead (an ``as_of_bar`` at or beyond the
+    edge is legal: the frame simply ends at or before the decision day).
+    ``as_of_bar=None`` is the full-frame read (the probe's own semantics —
+    every typed outcome counts, stamps ignored)."""
+    eps = read["episodes"]
+    if as_of_bar is None:
+        completed = [e for e in eps if e["outcome"] == "completed"]
+    else:
+        if as_of_bar < read["n_bars"] - 1:
+            raise ValueError(
+                f"as_of_bar {as_of_bar} is below the frame edge "
+                f"{read['n_bars'] - 1}: terminal flags/profile are right-edge "
+                "reads — pass the frame truncated at the decision bar "
+                "(contract §1)")
+        completed = [e for e in eps
+                     if e["outcome"] == "completed"
+                     and e["knowable_bar"] is not None
+                     and e["knowable_bar"] <= as_of_bar]
+    n_s = sum(1 for e in completed if e["rail"] == "S")
+    n_r = sum(1 for e in completed if e["rail"] == "R")
+    alternations = sum(1 for x, y in zip(completed, completed[1:])
+                       if x["rail"] != y["rail"])
+    s_eps = [e for e in eps if e["rail"] == "S"]
+    drift = bool(
+        s_eps and s_eps[-1]["outcome"] == "open"
+        and s_eps[-1]["n_bars"] >= EPISODE_DRIFT_MIN_BARS)
+    posture = any(e["terminal_posture"] for e in eps)
+    profile = " ".join(_profile_mark(e) for e in eps)
+    return {
+        "n_completed_s": n_s,
+        "n_completed_r": n_r,
+        "alternations": alternations,
+        "terminal_s_drift": drift,
+        "terminal_r_posture": posture,
+        "profile": profile,
+        "n_episodes": len(eps),
+    }
+
+
 # ── Archive column family: the tape summary ──────────────────────────────────
 # Owning declaration for the Event Map archive columns (the HTF precedent —
 # engine_alpha.structure.htf): names, SQL types, and row-value extraction live HERE;
@@ -380,7 +636,68 @@ EVENT_MAP_COLUMN_SQL: dict[str, str] = {
     "event_map_pre_box_trend": "TEXT",     # pre-box view trend_state
     "event_map_n_labels": "INTEGER",       # role labels over the elected bricks
     "event_map_n_committed": "INTEGER",    # labels whose verdict was knowable at scan close
+    # Rail-episode substrate (Event Map program Task 10) — the sequence
+    # statistics a later TA-score calibration may grade: typed scalars only,
+    # one value per column, designed in ONE pass. The compact episode tape is
+    # the single audit/display artifact (time anchors, never bar indexes).
+    # NULL = not measured (flag off / pre-flip rows); measured-and-empty
+    # stores explicit ZEROS — the junk separator IS zero — with the
+    # readability companion so zero-by-unreadable-bars can never masquerade
+    # as zero-by-drift.
+    "event_map_completed_s": "INTEGER",       # completed support tests (as-of)
+    "event_map_completed_r": "INTEGER",       # completed resistance rejections (as-of)
+    "event_map_alternations": "INTEGER",      # rail changes across completed episodes
+    "event_map_terminal_posture": "INTEGER",  # 0/1 window ends engaging R, close above R
+    "event_map_terminal_drift": "INTEGER",    # 0/1 open S episode at the edge >= drift floor
+    "event_map_story_admitted": "INTEGER",    # 0/1 the RULED form's read (ruling 2026-07-25)
+    "event_map_episode_nan_bars": "INTEGER",  # readability companion for the zeros
+    "event_map_episode_profile": "TEXT",      # the sentence, e.g. "S+ S+ S+ R^"
+    "event_map_episodes": "TEXT",             # compact JSON tape (rail/outcome/span/knowable dates)
 }
+
+
+def episode_substrate_fields(win_df, R, S, atr_val) -> dict:
+    """The archived rail-episode substrate for ONE elected window (Task 10)
+    — the producer lives HERE beside ``EVENT_MAP_COLUMN_SQL`` so the family's
+    names, SQL types, row extraction AND the tape cell's shape have a single
+    owning module; the per-episode tape keys (rail / outcome / posture /
+    span / knowable, date-anchored) are pinned by the serializer guards in
+    tests/test_event_map.py.
+
+    BASIS NOTE: this is the ELECTED-geometry read (elected window, zone ATR)
+    — a DIFFERENT basis from the story pool's admission read (candidate
+    window, candidate ATR), and the two may legally disagree: YPF fires
+    story-elected while this read's ``event_map_story_admitted`` is 0. The
+    evidence that admitted a story fire travels separately in
+    ``story_admission_profile``; this column family is the substrate a later
+    TA-score calibration grades, never the admission record.
+
+    As-of discipline (contract §1): the read is taken at the window's own
+    edge — episodes still inside their merge horizon are excluded from the
+    completed counts (and marked ``~`` in the sentence). Explicit zeros are
+    evidence; NULL only ever means the producer never ran."""
+    epi = read_rail_episodes(win_df, float(R), float(S), atr_val)
+    stats = episode_sequence_stats(epi, as_of_bar=len(win_df) - 1)
+    dates = win_df.index
+    tape = json.dumps([
+        {"rail": e["rail"], "outcome": e["outcome"],
+         "posture": bool(e["terminal_posture"]),
+         "span": [str(dates[e["start_bar"]].date()),
+                  str(dates[e["end_bar"]].date())],
+         "knowable": (str(dates[e["knowable_bar"]].date())
+                      if e["knowable_bar"] is not None else None)}
+        for e in epi["episodes"]], separators=(",", ":"))
+    return {
+        "_event_map_completed_s": int(stats["n_completed_s"]),
+        "_event_map_completed_r": int(stats["n_completed_r"]),
+        "_event_map_alternations": int(stats["alternations"]),
+        "_event_map_terminal_posture": int(stats["terminal_r_posture"]),
+        "_event_map_terminal_drift": int(stats["terminal_s_drift"]),
+        "_event_map_story_admitted": int(story_admission(stats)),
+        "_event_map_episode_nan_bars": int(epi["nan_bars"]),
+        "_event_map_episode_profile": stats["profile"],
+        "_event_map_episodes": tape,
+    }
 
 
 def event_map_archive_values(get, *, prefixed: bool) -> dict:

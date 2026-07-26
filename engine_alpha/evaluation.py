@@ -578,19 +578,34 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        from engine_alpha.structure.event_map import read_role_labels, read_swing_map
+        from engine_alpha.structure.event_map import (
+            episode_substrate_fields,
+            read_role_labels,
+            read_swing_map,
+        )
         _struct = structure_ctx["structure"]
         _tape = read_swing_map(df, _struct.box, structure_ctx["atr_for_zone"])
         _roles = read_role_labels(
             df, _struct.box, structure_ctx["atr_for_zone"],
             spring=_struct.spring, lps=_struct.lps,
         )
+        # Rail-episode substrate (Task 10): the ELECTED-geometry read — the
+        # same READER the story pool consults but a DIFFERENT basis (elected
+        # window + zone ATR vs the admission's candidate window + candidate
+        # ATR), so the two may legally disagree (YPF: story-elected with
+        # story_admitted=0). The evidence that admitted a story fire travels
+        # separately in '_story_admission_profile'; the producer and the
+        # tape's shape live in event_map beside the column family they feed.
+        # Explicit zeros are evidence (NULL only when this block never ran).
+        _win = df.iloc[int(_struct.box.start_bar):]
         event_map_fields = {
             "_event_map_n_swings": int(_tape["n_swings"]),
             "_event_map_pre_box_trend": _tape["pre_box"]["trend_state"],
             "_event_map_n_labels": int(_roles["n_labels"]),
             "_event_map_n_committed": sum(
                 1 for lbl in _roles["labels"] if not lbl["in_progress"]),
+            **episode_substrate_fields(_win, _struct.box.R, _struct.box.S,
+                                       structure_ctx["atr_for_zone"]),
         }
 
     # Election stability (measure-only, flag-dark): does the elected reading
@@ -665,6 +680,11 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_R': float(structure_ctx["res_avg"]),
         '_S': float(structure_ctx["sup_avg"]),
         '_base_len': int(structure_ctx["base_len"]),
+        # Electing-pool provenance (closed set: strict/rescued/band/story) —
+        # archived on every fire so a rescued cohort stays separable forever;
+        # a story fire also carries the sentence that admitted it.
+        '_elected_pool': str(structure_ctx["structure"].box.elected_pool),
+        '_story_admission_profile': structure_ctx["structure"].box.story_admission_profile,
         '_lps_len': int(lps_ctx["lps_length"]),
         '_lps_offset': int(lps_ctx["lps_offset"]),
         '_r_anchor_bar': int(structure_ctx["r_anchor_bar"]),

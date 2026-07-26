@@ -126,9 +126,12 @@ STAGE_TAGS: dict[str, str] = {
     # current doctrine (tested-DEAD; see strategy_alpha.md), not pending work.
     # Converting any of them requires an operator ruling or a new insight,
     # never a re-run of the tested levers.
-    "NKTR:2026-04-10": "rail-placement",
+    # STORY POOL LIVE 2026-07-26 (the "new insight" path taken): the ruled
+    # narrative form converted NKTR:2026-04-10 + YPF:2026-05-18 (operator
+    # eyeball passed; docs/event_map_program_2026-07.md) — tags removed at
+    # the deliberate 26 -> 28 reseal. EGBN stays rail-placement: its ADMISSION
+    # is certain but its wick-anchored candidate rails die upstream.
     "EGBN:2026-01-15": "rail-placement",
-    "YPF:2026-05-18": "rail-placement",
     "NOK:2026-02-17": "rail-placement",
     "ORMP:2026-05-08": "rail-placement",
     "PKE:2026-02-24": "rail-placement",

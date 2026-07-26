@@ -514,6 +514,9 @@ def archive_scan_results(
             eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
             eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
             eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
+            # Electing-pool provenance (strict/rescued/band/story, Task 11)
+            elected_pool=row.get("_elected_pool"),
+            story_admission_profile=row.get("_story_admission_profile"),
             # Limb-traversal read (raw, measure-first)
             trav_n_full_traversals=row.get("_trav_n_full_traversals"),
             trav_n_swings=row.get("_trav_n_swings"),

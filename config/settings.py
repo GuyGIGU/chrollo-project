@@ -318,6 +318,24 @@ BAND_EVENT_MAX_DEPTH_ATR = 5.0
 # MAX_CONSECUTIVE_OUTSIDE_DAYS.
 BAND_EVENT_MAX_BARS = 20
 
+# --- Story-rescue LAST-RESORT pool (Event Map program Task 8, dark) ----------
+# Consulted ONLY when the strict, rescued, AND band pools are all empty, so an
+# ordinary election can never move (the BAND_RAILS insertion pattern). A pair
+# is admitted on the RULED narrative form (operator ruling 2026-07-25, census
+# Option A; canonical spec in strategy_alpha.md "The rail-episode read"):
+# >= 2 completed support tests + terminal resistance posture + no terminal
+# support drift, read AS-OF the judged window's last bar
+# (event_map.story_admission). The form replaces ONLY the occupancy-family
+# judgment — width/window/respect/crash run unchanged, and the traversal gate
+# judges the returned pool (measured: traversal kills 30/69 junk occupancy
+# deaths; the form is not asked to carry them alone). Target class: EGBN
+# (S+ S+ S+ R^) vs the drift-junk zero-completed-episode twins (DGII/FLG).
+# LIVE 2026-07-26: operator chart eyeball passed both A/B conversions (NKTR
+# rails/box confirmed; YPF confirmed pre-breakout — broke out, LPS'd
+# 05-12..05-15, then broke out truly). Ratchet resealed 26 -> 28
+# (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
+STORY_POOL_ENABLED = True
+
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for
 # the trailing N sessions loses the election in favor of a later valid
@@ -612,10 +630,13 @@ PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, a
 # tickers a night. MEASURE-ONLY and additive: gates nothing, scores nothing, moves
 # no rail; emits only underscore-prefixed diagnostic fields (never canonical).
 # Flag-off is byte-identical with ZERO new compute (import + computation live only
-# inside the flag). Consumers (archive column family, chart-overlay payload) arrive
-# in later Event Map stages. The live flip is operator-gated on the scan-metrics
-# cost A/B (EC-8).
-EVENT_MAP_ENABLED = False
+# inside the flag). FLIPPED LIVE 2026-07-25 (Event Map program Task 13, operator
+# grant at the program scope gate): fires-only, canonical outputs untouched (the
+# map-ON parity contract — only archive columns gain values), cost measured
+# median +2.2 ms per firing ticker incl. the rail-episode substrate (Task 12).
+# The flip is the archive family's FIRST SEAM (engine_config_version rotates).
+# The chart-overlay payload still arrives in a later Event Map stage.
+EVENT_MAP_ENABLED = True
 
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
 # Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):

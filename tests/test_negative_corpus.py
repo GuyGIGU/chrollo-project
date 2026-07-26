@@ -70,6 +70,25 @@ def test_negative_corpus_still_rejects_every_case_flag_on(monkeypatch):
     )
 
 
+def test_negative_corpus_still_rejects_every_case_story_pool_on(monkeypatch):
+    """Story-pool guard (Event Map program Task 9): the last-resort story
+    rung widens BOX acceptance for occupancy-killed candidates, so replay the
+    SAME committed junk corpus with STORY_POOL_ENABLED forced ON — the ruled
+    narrative form must not make labeled junk fire. The census named the
+    exposure this pins: RLGT is the one pool-REACHABLE junk case (every
+    candidate dies at occupancy), and KWR/NVT/GOOD carry parsing sentences
+    behind standing ordinary elections."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "STORY_POOL_ENABLED", True)
+    assert negative_corpus.check_corpus() is True, (
+        "Negative-corpus guard failed with the story pool ON: a labeled "
+        "must-NOT-fire chart fires through the ruled admission form. Run "
+        "`python -m tools.negative_corpus --check` to name the case; the "
+        "admission form / in-pool gates must own it before any flip."
+    )
+
+
 def test_meta_cases_all_have_frames():
     """Fixture integrity: every labeled case has a frame in the parquet.
 

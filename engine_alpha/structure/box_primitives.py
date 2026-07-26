@@ -13,6 +13,10 @@ every constraint; if none passes, the box is rejected.
 """
 from __future__ import annotations
 
+import logging
+
+from typing import NamedTuple
+
 import numpy as np
 
 from config import settings
@@ -29,6 +33,8 @@ from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_ske
 
 
 EMPTY_BOX = (0, 0, 0, 1.0, 0, 0, 0, 0, 0)
+
+_story_log = logging.getLogger("chrollo.engine.story_pool")
 
 __all__ = [
     "EMPTY_BOX",
@@ -148,15 +154,62 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
     return 0.4 * tightness_score + 0.4 * touch_score + 0.2 * coverage_score
 
 
+ELECTED_POOLS = ("strict", "rescued", "band", "story")
+
+
+class Candidate(NamedTuple):
+    """The ONE candidate-framing shape every pool produces and every consumer
+    reads (bricks slots 11/12, box_gates slots 1/2/9/10, box_trace slots
+    7/8/9, the phase_b_zigzag slice surgery). It IS a tuple — every
+    positional index, slice, and unpack keeps working byte-identically —
+    but the field ORDER is a cross-module contract: append-only, and
+    construction happens ONLY in ``_pack_candidate``."""
+    combined: float
+    R: float
+    S: float
+    box_width: float
+    r_touches: int
+    s_touches: int
+    total_outside: int
+    r_anchor_bar: int
+    s_anchor_bar: int
+    cand_start: int
+    # The JUDGED window length (bars from cand_start actually measured): the
+    # full candidate window for strict/story framings, the trimmed worked
+    # cause for rescued, the excised judged mask for band. The traversal gate
+    # measures over the SAME window, so a trimmed tail can't be ignored for
+    # respect/occupancy yet counted there.
+    judged_len: int
+    # Electing-pool provenance — closed set ELECTED_POOLS, enforced at the
+    # bricks stamping point and by the archive CHECK.
+    pool: str
+    # The story pool's admitting sentence (None everywhere else) — a rescued
+    # fire carries ITS OWN admission evidence into the archive.
+    story_profile: "str | None"
+
+
+def _pack_candidate(box_width, r_touches, s_touches, coverage, total_outside,
+                    R_val, S_val, r_anchor_bar, s_anchor_bar, cand_start,
+                    judged_len, pool, story_profile=None):
+    """Score + construct — the single producer of the Candidate shape."""
+    combined = _score_candidate(box_width, r_touches, s_touches, coverage)
+    return Candidate(combined, R_val, S_val, box_width, r_touches, s_touches,
+                     total_outside, r_anchor_bar, s_anchor_bar, cand_start,
+                     judged_len, pool, story_profile)
+
+
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                     trace=None, rescued=False, max_width=None):
+                     trace=None, rescued=False, max_width=None, pool="strict"):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
     (the full candidate window for a strict framing, or its trimmed worked cause
     for a rescued one). R/S/anchors/cand_start are always the framing's true
-    full-base coordinates — only the measurement window narrows.
+    full-base coordinates — only the measurement window narrows. ``pool`` is
+    the electing pool's closed-set provenance label (strict / rescued / band /
+    story — Event Map program Task 11), carried on the tuple's last slot so a
+    rescued cohort stays separable all the way into the archive.
     """
     respected, _r_broken, _s_broken, total_outside, share = _is_boundary_respected(
         highs, lows, R_val, S_val, atr_val,
@@ -187,15 +240,35 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
             _trace_pair(trace, "rejected", "occupancy", detail, R_val, S_val,
                         box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
         return None
-    combined = _score_candidate(box_width, r_touches, s_touches, eq["coverage"])
     _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued)
-    # Last slot = the JUDGED window length (= len(highs), relative to cand_start):
-    # the full candidate window for a strict framing, or its trimmed worked cause
-    # for a rescued one. The traversal gate measures over the SAME window, so a
-    # rescued SOS tail can't be ignored for respect/occupancy yet counted here.
-    return (combined, R_val, S_val, box_width, r_touches, s_touches, total_outside,
-            r_anchor_bar, s_anchor_bar, cand_start, len(highs))
+    # Slot semantics live on the Candidate type — this call site is one of
+    # the two judgment sequences, never a second shape producer.
+    return _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
+                           total_outside, R_val, S_val, r_anchor_bar,
+                           s_anchor_bar, cand_start, len(highs), pool)
+
+
+def _oriented_pairs(zigzag):
+    """Consecutive zigzag limbs as oriented rail pairs — the ONE enumeration
+    every candidate pool shares (the strict/rescued loop, the band pool, and
+    any later last-resort rung). Yields ``(R_val, S_val, r_anchor_bar,
+    s_anchor_bar)`` in chronological pair order; same-kind neighbours and
+    degenerate pairs (``R <= S``) are skipped — exactly the comparisons both
+    former copies applied."""
+    for i in range(len(zigzag) - 1):
+        zi, zj = zigzag[i], zigzag[i + 1]
+        if zi[1] == 'peak' and zj[1] == 'valley':
+            R_val, S_val = zi[2], zj[2]
+            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
+        elif zi[1] == 'valley' and zj[1] == 'peak':
+            R_val, S_val = zj[2], zi[2]
+            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
+        else:
+            continue
+        if R_val <= S_val:
+            continue
+        yield R_val, S_val, r_anchor_bar, s_anchor_bar
 
 
 def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
@@ -227,19 +300,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # in-range setup is never re-framed — the trim can only save a box that would
     # otherwise be rejected outright (NMM's SOS -> BUEC).
     strict, rescued = [], []
-    for i in range(len(zigzag) - 1):
-        zi, zj = zigzag[i], zigzag[i + 1]
-        if zi[1] == 'peak' and zj[1] == 'valley':
-            R_val, S_val = zi[2], zj[2]
-            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
-        elif zi[1] == 'valley' and zj[1] == 'peak':
-            R_val, S_val = zj[2], zi[2]
-            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
-        else:
-            continue
-        if R_val <= S_val:
-            continue
-
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
             _trace_pair(trace, "rejected", "width",
@@ -281,7 +342,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     cand_highs[:work_end], cand_lows[:work_end],
                     cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
                     r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                    trace=trace, rescued=True,
+                    trace=trace, rescued=True, pool="rescued",
                 )
                 if tup is not None:
                     rescued.append(tup)
@@ -351,6 +412,16 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace)
 
+    # LAST-RESORT story pool (STORY_POOL_ENABLED, dark; outer Phase B only):
+    # consulted ONLY when the extreme-anchored pools AND the band pool are all
+    # empty, so an ordinary election can never move. The RULED narrative form
+    # (operator ruling 2026-07-25 — strategy_alpha.md "The rail-episode read")
+    # replaces only the occupancy-family judgment; width/window/respect/crash
+    # run unchanged here and the traversal gate below judges the returned pool.
+    if not pool and enforce_traversal and settings.STORY_POOL_ENABLED:
+        pool = _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
+                                      min_candidate_days, trace=trace)
+
     if trace is not None and strict and rescued:
         for rec in trace:
             if rec["verdict"] == "valid" and rec["rescued"]:
@@ -377,18 +448,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
     from engine_alpha.structure.rail_qualification import qualify_pair_events
 
     pool = []
-    for i in range(len(zigzag) - 1):
-        zi, zj = zigzag[i], zigzag[i + 1]
-        if zi[1] == 'peak' and zj[1] == 'valley':
-            R_val, S_val = zi[2], zj[2]
-            r_anchor_bar, s_anchor_bar = zi[0], zj[0]
-        elif zi[1] == 'valley' and zj[1] == 'peak':
-            R_val, S_val = zj[2], zi[2]
-            r_anchor_bar, s_anchor_bar = zj[0], zi[0]
-        else:
-            continue
-        if R_val <= S_val:
-            continue
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.BAND_MAX_BOX_WIDTH:
             continue
@@ -403,6 +463,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
             trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
+            pool="band",
         )
         if tup is None:
             continue
@@ -412,6 +473,103 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
                 rec["detail"] = (f"chronological pair with {len(read['excursions'])} "
                                  "qualified excursion event(s) excised from the "
                                  "judged window")
+        pool.append(tup)
+    return pool
+
+
+def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
+                           min_candidate_days, trace=None):
+    """Build the story-rescue candidate pool for a window (possibly empty).
+
+    The RULED narrative form (operator ruling 2026-07-25 — strategy_alpha.md
+    "The rail-episode read"; ``event_map.story_admission``) replaces ONLY the
+    occupancy-family judgment: a pair whose AS-OF episode read shows the
+    ruled sentence (>= 2 completed support tests + terminal resistance
+    posture + no terminal support drift) carries its worked-cause evidence in
+    chronological ORDER instead of in dwell shares — the EGBN class, which
+    the drift-junk twins (zero completed episodes) can never counterfeit.
+
+    Every other law runs unchanged: the standard width cap (NO band-style
+    allowance), the window floor, boundary respect (the junk defense), the
+    crash filter, and the traversal gate on the returned pool (measured
+    requirement: order alone does not carry the junk occupancy deaths —
+    traversal kills 30 of 69). Trace narration covers the story-stage
+    judgment only; width/window/respect verdicts for these same pairs were
+    already narrated by the strict pass over the identical windows.
+    """
+    from engine_alpha.structure.event_map import (
+        episode_sequence_stats, frame_terminal_posture,
+        read_rail_episodes_arrays, story_admission)
+
+    # Cost shape (Task 12 profile, reordered per Council Review 2026-07-26):
+    # the branch is reached by MOST windows in a scan (38/55 fixture tickers;
+    # ~69 consultations x ~44 pairs on a busy evaluation — root backtracking
+    # multiplies it), so the judgment runs cheapest-first: width -> O(1)
+    # posture prefilter -> window floor -> boundary respect (pure numpy, and
+    # the gate that actually kills the stale far-below-market pairs the
+    # posture prefilter cannot) -> episode read (array views, no DataFrame
+    # slice) -> ruled admission -> crash. Pure conjunction throughout: the
+    # pool's content is order-independent.
+    tol = settings.TOUCH_TOLERANCE_ATR * atr_val
+    n_win = len(eq_df)
+    last_high = eq_highs[-1] if len(eq_highs) else float("nan")
+    _closes = eq_df['Close'].values
+    _last_close = float(_closes[-1]) if len(_closes) else float("nan")
+    pool = []
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
+        box_width = (R_val - S_val) / S_val
+        if box_width > settings.MAX_BOX_WIDTH:
+            continue
+        # O(1) EXACT necessary condition of the ruled form's posture leg —
+        # THE shared predicate (event_map.frame_terminal_posture), so the
+        # prefilter and the reader's terminal-posture read cannot drift
+        # apart. Refusing here (silently, like width) skips everything
+        # below for most pairs; NaN fails closed.
+        if not frame_terminal_posture(last_high, _last_close, R_val, tol):
+            continue
+        cand_start = min(r_anchor_bar, s_anchor_bar)
+        judged_len = n_win - cand_start
+        if judged_len < min_candidate_days:
+            continue
+        cand_highs = eq_highs[cand_start:]
+        cand_lows = eq_lows[cand_start:]
+        respected, _rb, _sb, total_outside, _share = _is_boundary_respected(
+            cand_highs, cand_lows, R_val, S_val, atr_val)
+        if not respected:
+            continue        # silent, like width — the strict pass narrated it
+        read = read_rail_episodes_arrays(cand_highs, cand_lows,
+                                         _closes[cand_start:],
+                                         R_val, S_val, atr_val)
+        stats = episode_sequence_stats(read, as_of_bar=judged_len - 1)
+        if not story_admission(stats):
+            _story_log.debug(
+                "story pool refused pair R=%.4f S=%.4f start=%d: %s",
+                R_val, S_val, cand_start, stats["profile"] or "no episodes")
+            _trace_pair(trace, "rejected", "story",
+                        f"ruled form not read: {stats['profile'] or 'no episodes'}",
+                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                        cand_start, rescued=True)
+            continue
+        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
+            eq_df.iloc[cand_start:], R_val, S_val, atr_val)
+        if eq is None:
+            continue                          # crash filter — never waived
+        _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
+                    r_anchor_bar, s_anchor_bar, cand_start, rescued=True)
+        # The judged window is the full candidate window (strict-style — no
+        # trim, no excision); the admitting sentence rides the Candidate so
+        # the archive records the evidence that ACTUALLY admitted the fire.
+        tup = _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
+                              total_outside, R_val, S_val, r_anchor_bar,
+                              s_anchor_bar, cand_start, judged_len,
+                              "story", stats["profile"])
+        if trace is not None:
+            rec = _trace_find(trace, tup)
+            if rec is not None:
+                rec["detail"] = f"story-admitted (ruled form): {stats['profile']}"
+        _story_log.debug(
+            "story pool admitted pair R=%.4f S=%.4f start=%d profile=%r",
+            R_val, S_val, cand_start, stats["profile"])
         pool.append(tup)
     return pool
 
