@@ -150,6 +150,19 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_EVENT_MAX_BARS",
     # Story-rescue last-resort pool (Event Map program Task 8, dark)
     "STORY_POOL_ENABLED",
+    # Near-miss lane ruled-form constants (Task 6 ruling 2026-07-26 —
+    # measure-only telemetry; listed with the ruling so a re-ruling rotates
+    # engine_config_version from day one) + the collector flag (Task 7, dark;
+    # recording-shape knobs are manifest-listed so a re-ruling partitions the
+    # cohort by seam, never reinterprets it)
+    "NEAR_MISS_MAX_QUANTA",
+    "NEAR_MISS_WIDTH_DEFICIT_MAX",
+    "NEAR_MISS_CRASH_DEFICIT_MAX",
+    "NEAR_MISS_DENSITY_DEFICIT_MAX",
+    "NEAR_MISS_LANE_ENABLED",
+    "NEAR_MISS_TOP_K",
+    "NEAR_MISS_WRITER_TICKER_CAP",
+    "NEAR_MISS_WRITER_GLOBAL_CAP",
     # Election surgery (solve-the-engine task 13, dark)
     "ELECTION_DETHRONE_ENABLED",
     "ELECTION_DETHRONE_SESSIONS",

@@ -371,6 +371,111 @@ class SetupArchive(Base):
     )
 
 
+class NearMissArchive(Base):
+    """The near-miss lane's cohort table (near-miss lane Task 9) — one row
+    per RULED one-leg-narrow refusal EPISODE (operator ruling 2026-07-26,
+    docs/near_miss_lane_2026-07.md §5: R-EPISODE recurrence — one row per
+    framing identity, re-observations bump the counters, never the record).
+
+    A DEDICATED table by design: setup_archive is the FIRE population (NOT
+    NULL tier/score, every consumer treats it as picks) — one forgotten
+    filter on a shared table would poison the edge record forever. A
+    near-miss NEVER scores, never fires, never enters the picks.
+
+    NULL discipline: margins are NOT NULL for every leg the completion
+    measured (all fourteen on a completed vector); ``nm_window`` is NULL
+    when the floor was never consulted (the outer seam pre-gates it).
+    Outcome columns are NULL until the Task-10 maturation pass fills them;
+    ``would_be_score``/``would_be_tier`` ship NULL-until-measured (a refused
+    framing has no election context to score — the ledger records this
+    fallback). A re-ruling PARTITIONS by (engine_config_version,
+    lane_ruleset); it never reinterprets old rows.
+    """
+    __tablename__ = "near_miss_archive"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # ── Identity (the Task-2 date-anchored framing key + universe) ──
+    ticker = Column(String, nullable=False, index=True)
+    universe_type = Column(String, nullable=False, server_default="us_equities")
+    r_level = Column(Float, nullable=False)            # 4dp rail convention
+    s_level = Column(Float, nullable=False)
+    r_anchor_date = Column(String, nullable=False)     # YYYY-MM-DD
+    s_anchor_date = Column(String, nullable=False)
+
+    # ── R-EPISODE recurrence (first refusal anchors the forward clock) ──
+    first_seen = Column(String, nullable=False, index=True)   # YYYY-MM-DD
+    last_seen = Column(String, nullable=False)
+    nights_seen = Column(Integer, nullable=False, server_default="1")
+    fired_first_night = Column(Integer, nullable=False)       # 0/1
+    fired_any_night = Column(Integer, nullable=False)         # 0/1, OR-updated
+
+    # ── Ruling + provenance stamps ──
+    pool = Column(String, nullable=False)              # strict / rescued / band
+    kill_stage = Column(String, nullable=False)        # the cascade's kill leg
+    failing_leg = Column(String, nullable=False)       # THE ruled coarse leg
+    lane_ruleset = Column(String, nullable=False)      # e.g. 2026-07-26.A
+    engine_config_version = Column(String, nullable=False)
+
+    # ── The margin vector at FIRST refusal (native quanta, signed) ──
+    judged_n = Column(Integer, nullable=False)
+    window_start_date = Column(String, nullable=False)
+    window_end_date = Column(String, nullable=False)
+    nm_width = Column(Float, nullable=False)
+    nm_window = Column(Integer, nullable=True)         # NULL = never consulted
+    nm_respect_share = Column(Integer, nullable=False)
+    nm_respect_run = Column(Integer, nullable=False)
+    nm_crash = Column(Float, nullable=False)
+    nm_r_touches = Column(Integer, nullable=False)
+    nm_s_touches = Column(Integer, nullable=False)
+    nm_r_touch_thirds = Column(Integer, nullable=False)
+    nm_s_touch_thirds = Column(Integer, nullable=False)
+    nm_lower_dwell = Column(Integer, nullable=False)
+    nm_upper_dwell = Column(Integer, nullable=False)
+    nm_mid_dwell = Column(Integer, nullable=False)
+    nm_coverage = Column(Integer, nullable=False)
+    nm_traversal_count = Column(Integer, nullable=False)
+    nm_traversal_density = Column(Float, nullable=False)
+
+    # ── Episode evidence + outcome substrate at refusal time ──
+    episode_profile = Column(String, nullable=True)    # the rail sentence
+    would_be_trigger = Column(Float, nullable=False)   # breakout over the box's R
+    scan_close = Column(Float, nullable=False)         # scan-time price scale
+    would_be_score = Column(Float, nullable=True)      # NULL-until-measured
+    would_be_tier = Column(String, nullable=True)      # NULL-until-measured
+
+    # ── Forward outcomes (Task-10 maturation pass; core/archive/outcomes.py) ──
+    triggered = Column(Integer, nullable=True)
+    trigger_date = Column(String, nullable=True)
+    mfe_to_date = Column(Float, nullable=True)
+    mae_to_date = Column(Float, nullable=True)
+    ret_to_date = Column(Float, nullable=True)
+    bars_to_date = Column(Integer, nullable=True)
+    abnormal_ret_to_date = Column(Float, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "universe_type", "r_level", "s_level",
+                         "r_anchor_date", "s_anchor_date",
+                         name="uq_near_miss_framing_identity"),
+        # EC-19: closed-set label columns get the universe_type treatment —
+        # fresh-DB CHECK here, the write-time assertion at the single
+        # stamping point (near_miss_writer._failing_leg_label), and the
+        # archive-layer test. Vocabulary = the RULED T-COARSE-8 taxonomy
+        # (box_gates.GATE_LEGS stages + the occupancy family collapse).
+        CheckConstraint(
+            "failing_leg IN ('width', 'window', 'respect_share', "
+            "'respect_run', 'crash', 'occupancy', 'traversal_count', "
+            "'traversal_density')",
+            name="ck_near_miss_failing_leg",
+        ),
+        CheckConstraint(
+            "pool IN ('strict', 'rescued', 'band')",
+            name="ck_near_miss_pool",
+        ),
+        Index("ix_near_miss_identity", "ticker", "first_seen"),
+    )
+
+
 # ─────────────────────────────────────────────────────────────────
 # Sector ETF mapping (ticker → SPDR sector ETF)
 # ─────────────────────────────────────────────────────────────────

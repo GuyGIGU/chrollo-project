@@ -66,10 +66,10 @@ from engine_alpha.structure.narrative import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402
-from tools.rail_margin_evidence import judged_window  # noqa: E402
 from tools.replay import (  # noqa: E402
     drawn_box_window,
     fixture_frame,
+    judged_window,
     load_sealed_fixture,
     prepared_frame,
     prepared_frame_with_reason,

@@ -241,14 +241,16 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
     return prep
 
 
-def _resolve_structure_context(df: pd.DataFrame, latest) -> Optional[dict]:
+def _resolve_structure_context(df: pd.DataFrame, latest,
+                               near_miss=None) -> Optional[dict]:
     # Parent (outer) is the base of record; inner is the nested companion. One
     # chronological A->B->(C?)->D narrative is the structure source of truth.
     # ONE ATR sample serves the walk, atr_ratio, and atr_for_zone below — the
     # box-carried equilibrium read is coherent with eval-time measures because
     # they share this row, structurally, not by twin expressions.
     atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
-    structure = read_structure(df, float(atr_eval['ATR_10']))
+    structure = read_structure(df, float(atr_eval['ATR_10']),
+                               near_miss=near_miss)
     if structure is None:
         return None
 
@@ -861,7 +863,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
 
 def _run_eval_chain(ticker: str, df: pd.DataFrame,
                     spy_6m_return: float = 0.0,
-                    breadth_pct: Optional[float] = None) -> Optional[dict]:
+                    breadth_pct: Optional[float] = None,
+                    near_miss=None) -> Optional[dict]:
     """The single numeric evaluation chain shared by the live screener
     (`_evaluate_ticker`) and the seed/replay path
     (`core.archive.seed._evaluate_at_date`).
@@ -870,13 +873,20 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     on a degenerate frame; callers wrap it with the standard skip-guard. Keeping this
     as one function is what makes "replay at T == live at T" true by construction
     rather than by a recall test.
+
+    ``near_miss``: the lane's refusal recorder, created by
+    ``evaluate_ticker_with_near_miss`` (the only harvesting caller) and OWNED
+    there — it must survive a structural reject (a refused evaluation is the
+    lane's whole subject), which is why it is not constructed here. The plain
+    entry and the seed/replay path pass nothing.
     """
     prepared = _prepare_eval_frame(df)
     if prepared is None:
         return None
 
     eval_df = prepared["df"]
-    structure_ctx = _resolve_structure_context(eval_df, prepared["latest"])
+    structure_ctx = _resolve_structure_context(eval_df, prepared["latest"],
+                                               near_miss=near_miss)
     if structure_ctx is None:
         return None
 
@@ -946,8 +956,18 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     Returns a result dict if the ticker passes, or None if filtered out.
     This is a top-level function so it can be pickled by ProcessPoolExecutor.
     """
+    # The lane records ONLY through evaluate_ticker_with_near_miss (the one
+    # caller that harvests the map — review 2026-07-26 finding 14): the plain
+    # entry never pays recorder work, in either flag state.
+    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, None)
+
+
+def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
+    """The chain under the standard skip-guard — folded once (EC-3) so the
+    plain evaluation and the lane-carrying scan twin cannot drift."""
     try:
-        result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct)
+        result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
+                                 near_miss=near_miss)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         # Return the error sentinel — NOT None — so the caller can distinguish a
@@ -956,3 +976,41 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     if result is not None:
         _attach_advisory_metadata(ticker, df, result)
     return result
+
+
+def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
+                                   spy_6m_return: float = 0.0,
+                                   breadth_pct: Optional[float] = None):
+    """The scan-path twin of ``_evaluate_ticker`` used when the near-miss
+    lane flag is on: returns ``(result, near_miss_rows, lane_stats)`` so the
+    refusal cohort can cross the worker-pool boundary alongside the fire
+    verdict. Flag-off it degrades to the plain evaluation with empty lane
+    output — the screener only submits it under the flag, but the degrade
+    keeps a mid-scan flag flip harmless. Top-level for pickling."""
+    if not settings.NEAR_MISS_LANE_ENABLED:
+        return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct), [], {}
+    from engine_alpha.structure.near_miss import (  # noqa: PLC0415 — inside the flag
+        NearMissRecorder, deferred_rows)
+    recorder = NearMissRecorder()
+    result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
+                                recorder)
+    if result is EVAL_ERROR:
+        # An aborted walk's refusal map is incomplete evidence — no lane rows
+        # from a crashed evaluation (review 2026-07-26 findings 2/14); the
+        # counter keeps the drop visible in the nightly stats print.
+        return result, [], {"lane_errored": 1}
+    try:
+        rows, stats = deferred_rows(recorder, fired=isinstance(result, dict),
+                                    scan_close=float(df["Close"].iloc[-1]))
+    except Exception as e:  # noqa: BLE001 — the lane's contract is "never
+        # touches the scan": ANY telemetry failure (including the sign-lock
+        # tripwire, which stays loud in tests and the census) degrades to a
+        # counted per-ticker drop, never a dead night (review finding 2).
+        print(f"  [near-miss skip {ticker}] {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return result, [], {"lane_errored": 1}
+    scan_date = str(df.index[-1])[:10]
+    for row in rows:
+        row["ticker"] = ticker
+        row["scan_date"] = scan_date
+    return result, rows, stats

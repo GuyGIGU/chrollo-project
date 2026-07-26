@@ -196,7 +196,12 @@ def test_eval_twins_share_the_folded_core():
 
     from core.archive.seed import _evaluate_at_date
     from engine_alpha import evaluation as evaluation_module
-    from engine_alpha.evaluation import _evaluate_ticker, _run_eval_chain
+    from engine_alpha.evaluation import (
+        _evaluate_ticker,
+        _run_eval_chain,
+        _run_guarded_chain,
+        evaluate_ticker_with_near_miss,
+    )
 
     def called_names(fn):
         tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
@@ -210,8 +215,12 @@ def test_eval_twins_share_the_folded_core():
                 calls.add(node.func.attr)
         return calls
 
-    # Both entry points delegate to the one shared chain.
-    assert "_run_eval_chain" in called_names(_evaluate_ticker)
+    # Every entry point delegates to the one shared chain — the live path and
+    # its lane-carrying twin through the ONE guarded wrapper (near-miss lane
+    # Task 8 fold), the seed path directly.
+    assert "_run_guarded_chain" in called_names(_evaluate_ticker)
+    assert "_run_guarded_chain" in called_names(evaluate_ticker_with_near_miss)
+    assert "_run_eval_chain" in called_names(_run_guarded_chain)
     seed_calls = called_names(_evaluate_at_date)
     assert "_run_eval_chain" in seed_calls, "_evaluate_at_date no longer routes through the shared chain"
     assert "seed_row_from_result" in seed_calls, "_evaluate_at_date must re-key via the adapter"

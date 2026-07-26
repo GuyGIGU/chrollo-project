@@ -310,7 +310,8 @@ def _lps_reject_brief(bricks, df, box, inner, atr) -> dict:
     return out
 
 
-def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
+def read_structure(df, atr, *, bricks=None, trace=None,
+                   near_miss=None) -> Optional[Structure]:
     """Walk candidate root swings oldest-first; return the first that yields a
     complete A -> B -> (C?) -> D narrative, or ``None`` if no coherent story holds.
 
@@ -332,6 +333,12 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
     per-root records, computed only when tracing. Default ``None`` = no trace,
     zero behaviour change (the live path never pays for it). This is the engine
     explaining its own walk, so consumers stop re-deriving it externally.
+
+    ``near_miss``: the near-miss lane's bounded refusal recorder
+    (``structure.near_miss.NearMissRecorder``; flag-gated at evaluation
+    entry). Forwarded to the outer consultation seam only when present, so a
+    ``None`` (the live flag-off default) keeps every call byte-identical —
+    injected fakes without the parameter included.
     """
     if bricks is None:
         from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
@@ -362,12 +369,14 @@ def read_structure(df, atr, *, bricks=None, trace=None) -> Optional[Structure]:
         # Phase B: is the region a genuinely worked equilibrium? When tracing,
         # the pair election narrates its cascade — every candidate R/S pair
         # examined, the gate that rejected it, and why the winner was elected.
+        nm_kw = {"near_miss": near_miss} if near_miss is not None else {}
         if rec is not None:
             cascade: list = []
-            box = bricks.validate_equilibrium(df, root, atr, trace=cascade)
+            box = bricks.validate_equilibrium(df, root, atr, trace=cascade,
+                                              **nm_kw)
             rec["box_cascade"] = cascade
         else:
-            box = bricks.validate_equilibrium(df, root, atr)
+            box = bricks.validate_equilibrium(df, root, atr, **nm_kw)
         if box is None:
             if rec is not None:
                 rec["outcome"] = "no_box"

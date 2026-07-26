@@ -221,6 +221,7 @@ def validate_equilibrium(
     root: RootSwing,
     atr,
     trace=None,
+    near_miss=None,
 ) -> EquilibriumBox | None:
     """Validate a worked Phase-B range born from ``root``.
 
@@ -230,6 +231,11 @@ def validate_equilibrium(
     default) records nothing and changes nothing. When the flag-gated
     shared-rail back-extension moves the elected start, the elected record
     carries ``backext_bars`` and says so in its detail.
+
+    ``near_miss``: the lane's bounded refusal recorder — THIS is the one
+    consultation seam it attaches to (the outer enforce-traversal election;
+    inner boxes and the diagnostic mirror never pass one). ``None`` (the live
+    flag-off default) records nothing and changes nothing.
     """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
@@ -251,6 +257,13 @@ def validate_equilibrium(
     # Scope the cascade to THIS call: collect + the traversal gate match records
     # inside the list they are handed, so a caller-reused list must never leak
     # earlier calls' records into their view. Appended back at the end.
+    if near_miss is not None:
+        # Window-relative bars rebase to df-positional through this offset —
+        # the recorder's identity keys must survive across consultations. The
+        # enumeration frame + eval ATR ride along as the deferred phase's
+        # judged-window basis (references, not copies).
+        near_miss.begin_consultation(int(root.ar_bar), frame=eval_df,
+                                     atr=float(atr))
     cascade = [] if trace is not None else None
     candidates = collect_zigzag_candidates(
         eq_df,
@@ -258,6 +271,7 @@ def validate_equilibrium(
         float(atr),
         enforce_traversal=True,
         trace=cascade,
+        recorder=near_miss,
     )
     if not candidates:
         if trace is not None:

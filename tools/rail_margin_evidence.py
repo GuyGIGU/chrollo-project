@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import re
 import statistics
 
@@ -55,9 +54,13 @@ from engine_alpha.structure.narrative import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402
 from tools.replay import (  # noqa: E402
+    count_allowed,
+    count_needed,
     drawn_box_window,
     fixture_frame,
+    judged_window,
     load_sealed_fixture,
+    outside_allowed,
     prepared_frame,
 )
 
@@ -67,24 +70,22 @@ DWELL_GRID = (0.125, 0.10)
 MID_GRID = (0.50, 0.55)
 RESPECT_GRID = (0.75,)
 
-_EPS = 1e-9
 _RESPECT_DETAIL = re.compile(r"respect (\d\.\d+) <")
 
 
 # --- count math: the gate's fraction thresholds as integer bars -------------
+# The canonical forms live in engine_alpha.structure.gate_margins and arrive
+# through the tools.replay seam (near-miss lane Task 5 promotion); the
+# campaign names below are kept as aliases so the sealed protocol vocabulary
+# (docs/rail_program_protocol_2026-07.md) still reads.
 def dwell_needed(floor_frac: float, n: int) -> int:
     """closes required in a third: dwell >= floor  <=>  count >= ceil(floor*n)."""
-    return math.ceil(floor_frac * n - _EPS)
+    return count_needed(floor_frac, n)
 
 
 def mid_allowed(cap_frac: float, n: int) -> int:
     """closes allowed in the middle third: dwell <= cap <=> count <= floor(cap*n)."""
-    return math.floor(cap_frac * n + _EPS)
-
-
-def outside_allowed(rate: float, n: int) -> int:
-    """outside bars allowed: 1 - outside/n >= rate <=> outside <= floor((1-rate)*n)."""
-    return math.floor((1.0 - rate) * n + _EPS)
+    return count_allowed(cap_frac, n)
 
 
 def tolerance_allowed(rate: float, n: int) -> int:
@@ -169,16 +170,8 @@ def drawn_rows(setups: list[dict], frames: dict) -> tuple[list[dict], str]:
     return rows, fingerprint
 
 
-def judged_window(df: pd.DataFrame, cand_start: int) -> pd.DataFrame:
-    """The exact window the pair election judged a strict candidate on:
-    ``validate_equilibrium`` enumerates over ``df.iloc[:-STRUCTURE_EDGE_SKIP_BARS]``
-    (the box as of ~5 bars ago, uncontaminated by the live edge), so a
-    candidate's window is cand_start .. len(df) - skip — NOT the frame end.
-    The junk self-check against the trace's own detail numbers certifies this
-    slice; a drift there voids the run."""
-    skip = settings.STRUCTURE_EDGE_SKIP_BARS
-    end = len(df) - skip if len(df) > skip else len(df)
-    return df.iloc[cand_start:end]
+# ``judged_window`` now lives in tools.replay (Task 5 promotion) and is
+# imported above — the junk self-check below still certifies the slice.
 
 
 # --- population (b): the ratchet hits' elected boxes ------------------------

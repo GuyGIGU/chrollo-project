@@ -336,6 +336,41 @@ BAND_EVENT_MAX_BARS = 20
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
 
+# --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
+# Measurement constants for the operator-ruled near-miss predicate
+# (engine_alpha.structure.gate_margins.ruled_near_miss; ruling record
+# docs/near_miss_lane_2026-07.md §5, 2026-07-26): taxonomy T-COARSE-8 (the
+# eight occupancy checks judged as ONE concept; crash IN as its own leg;
+# policy stages never legs), narrowness = every failing fine leg within
+# NEAR_MISS_MAX_QUANTA native quanta, float-quantum legs within their
+# junk-calibrated decile deficits (census §4, sealed 2026-07-26 — junk
+# 10th-percentile deficits on width / crash / traversal_density). These are
+# TELEMETRY constants: nothing here gates, scores, or moves a rail; a
+# re-ruling changes them (new lane ruleset + manifest rotation), never tuning.
+NEAR_MISS_MAX_QUANTA = 1
+NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
+NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
+NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
+
+# DARK (near-miss lane Task 7) — the refusal collector: a numbers-only,
+# per-evaluation recorder on the outer Phase-B consultation seam (never the
+# inner-box calls, never the diagnostic mirror). Records every gate refusal's
+# kill-site tuple keyed on the framing identity; a near-miss NEVER scores,
+# never fires, never enters the picks — telemetry for the archived cohort +
+# review report only. Flag-off is byte-identical and compute-free (one
+# attribute read at evaluation entry; import + allocation live inside the
+# flag). Flip is operator-gated on the Task-13 cost A/B against the ledger
+# row's pre-registered budget.
+NEAR_MISS_LANE_ENABLED = False
+# Recording-shape knobs (Tasks 8/9; manifest-listed with the flag so a change
+# partitions the cohort by engine seam). Sized from the Task-4 counters
+# (docs/near_miss_lane_2026-07.md §3: one-leg median 5 / p90 137 per
+# evaluation; ruled junk density ~1 per corpus frame). Every cap drop is
+# COUNTED and reported — a silent cap reads as "covered everything".
+NEAR_MISS_TOP_K = 32            # deferred full-vector completions per evaluation
+NEAR_MISS_WRITER_TICKER_CAP = 8     # cohort rows persisted per ticker per night
+NEAR_MISS_WRITER_GLOBAL_CAP = 200   # cohort rows persisted per scan night
+
 # DARK (solve-the-engine task 13) — stale-frame dethronement: a
 # rescue-propped framing whose buffered R the tape has left FULLY behind for
 # the trailing N sessions loses the election in favor of a later valid

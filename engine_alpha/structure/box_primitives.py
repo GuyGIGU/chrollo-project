@@ -24,9 +24,12 @@ from engine_alpha.structure.box_gates import (
     _apply_traversal_gate,
     _buffered_rails,
     _is_boundary_respected,
-    _occupancy_failures,
+    _leg_record,
+    _occupancy_leg_failures,
+    _respect_stats,
     _validate_base_quality,
     _worked_window_end,
+    leg_threshold,
 )
 from engine_alpha.structure.box_trace import _trace_find, _trace_pair
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
@@ -200,7 +203,8 @@ def _pack_candidate(box_width, r_touches, s_touches, coverage, total_outside,
 
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
-                     trace=None, rescued=False, max_width=None, pool="strict"):
+                     trace=None, rescued=False, max_width=None, pool="strict",
+                     recorder=None):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -209,36 +213,67 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     full-base coordinates — only the measurement window narrows. ``pool`` is
     the electing pool's closed-set provenance label (strict / rescued / band /
     story — Event Map program Task 11), carried on the tuple's last slot so a
-    rescued cohort stays separable all the way into the archive.
+    rescued cohort stays separable all the way into the archive. ``recorder``
+    is the near-miss lane's numbers-only refusal recorder (outer consultation
+    seam only; None = record nothing, byte-identical).
     """
-    respected, _r_broken, _s_broken, total_outside, share = _is_boundary_respected(
-        highs, lows, R_val, S_val, atr_val,
-    )
+    stats = _respect_stats(highs, lows, R_val, S_val, atr_val)
+    respected, _r_broken, _s_broken, total_outside, share = stats[:5]
     if not respected:
+        if recorder is not None:
+            leg = ("respect_share" if share < settings.MIN_BOUNDARY_RESPECT_PCT
+                   else "respect_run")
+            recorder.refusal(leg, pool, r_anchor_bar, s_anchor_bar, cand_start,
+                             R_val, S_val, len(highs),
+                             total_outside, len(highs), stats[5])
         if trace is not None:
             # Name the sub-condition that actually fired: respect fails on the
             # outside SHARE or on a too-long consecutive RUN. When the share
-            # passed, the run cap is — by elimination — the killer.
+            # passed, the run cap is — by elimination — the killer. The run
+            # maximum itself is not in hand at this seam (measured=None; the
+            # lane's completion primitive fills it).
             n = len(highs)
-            if share < settings.MIN_BOUNDARY_RESPECT_PCT:
+            share_min = leg_threshold("respect_share")
+            run_max = leg_threshold("respect_run")
+            if share < share_min:
                 detail = (f"{total_outside}/{n} bars outside the buffered rails "
-                          f"(respect {share:.2f} < {settings.MIN_BOUNDARY_RESPECT_PCT})")
+                          f"(respect {share:.2f} < {share_min})")
+                legs = [_leg_record("respect_share", float(share), share_min,
+                                    outside=int(total_outside), n=n)]
             else:
                 detail = ("an outside run exceeded MAX_CONSECUTIVE_OUTSIDE_DAYS "
-                          f"{settings.MAX_CONSECUTIVE_OUTSIDE_DAYS} "
+                          f"{run_max} "
                           f"({total_outside}/{n} bars outside in total)")
+                legs = [_leg_record("respect_run", None, run_max,
+                                    outside=int(total_outside), n=n)]
             _trace_pair(trace, "rejected", "respect", detail, R_val, S_val,
-                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued,
+                        legs=legs)
         return None
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val, max_width=max_width,
     )
     if not is_valid:
+        if recorder is not None:
+            # Family verdict only — itemized margins are the deferred
+            # completion's job, never pair-loop work (crash's min-low was
+            # consumed inside the gate; eq None marks it).
+            recorder.refusal("crash" if eq is None else "occupancy", pool,
+                             r_anchor_bar, s_anchor_bar, cand_start,
+                             R_val, S_val, len(highs))
         if trace is not None:
-            detail = ("crash filter: min Low < S x CRASH_FILTER_MULT" if eq is None
-                      else "; ".join(_occupancy_failures(eq, r_touches, s_touches)))
+            if eq is None:
+                detail = "crash filter: min Low < S x CRASH_FILTER_MULT"
+                # The min-low ratio was consumed inside the gate, not returned —
+                # measured=None at the seam; post-hoc completion fills it.
+                legs = [_leg_record("crash", None, leg_threshold("crash"))]
+            else:
+                failures = _occupancy_leg_failures(eq, r_touches, s_touches)
+                detail = "; ".join(msg for _rec, msg in failures)
+                legs = [rec for rec, _msg in failures]
             _trace_pair(trace, "rejected", "occupancy", detail, R_val, S_val,
-                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued)
+                        box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued,
+                        legs=legs)
         return None
     _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued)
@@ -272,7 +307,8 @@ def _oriented_pairs(zigzag):
 
 
 def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
-                              enforce_traversal=False, trace=None):
+                              enforce_traversal=False, trace=None,
+                              recorder=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
 
     ``trace``: optional list; when given, every pair examined is recorded with
@@ -282,6 +318,12 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     must be scoped to a single call (pass a fresh one, as
     ``validate_equilibrium`` does): the rescue bookkeeping and the traversal
     gate match records across the WHOLE list they are handed.
+
+    ``recorder``: the near-miss lane's numbers-only refusal recorder
+    (``validate_equilibrium`` passes it on the outer consultation seam;
+    inner boxes and the diagnostic mirror never do). ``None`` = record
+    nothing, byte-identical. Policy stages (rescue_unused / dethroned /
+    story) are election policy, never gate legs — the recorder ignores them.
     """
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
@@ -303,26 +345,43 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
-            _trace_pair(trace, "rejected", "width",
-                        f"box_width {box_width:.3f} > MAX_BOX_WIDTH {settings.MAX_BOX_WIDTH}",
-                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
-                        min(r_anchor_bar, s_anchor_bar))
+            if recorder is not None:
+                cs = min(r_anchor_bar, s_anchor_bar)
+                recorder.refusal("width", "strict", r_anchor_bar, s_anchor_bar,
+                                 cs, R_val, S_val, len(eq_highs) - cs,
+                                 box_width, settings.MAX_BOX_WIDTH)
+            # Narration guarded whole: an unguarded call evaluated its f-string
+            # argument on every trace=None live rejection (Task 1 leak fix).
+            if trace is not None:
+                width_max = leg_threshold("width")
+                _trace_pair(trace, "rejected", "width",
+                            f"box_width {box_width:.3f} > MAX_BOX_WIDTH {width_max}",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            min(r_anchor_bar, s_anchor_bar),
+                            legs=[_leg_record("width", float(box_width), width_max)])
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
         cand_eq_df = eq_df.iloc[cand_start:]
         if len(cand_eq_df) < min_candidate_days:
-            _trace_pair(trace, "rejected", "window",
-                        f"window {len(cand_eq_df)} < min_candidate_days {min_candidate_days}",
-                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
-                        cand_start)
+            if recorder is not None:
+                recorder.refusal("window", "strict", r_anchor_bar, s_anchor_bar,
+                                 cand_start, R_val, S_val, len(cand_eq_df),
+                                 len(cand_eq_df), min_candidate_days)
+            if trace is not None:
+                _trace_pair(trace, "rejected", "window",
+                            f"window {len(cand_eq_df)} < min_candidate_days {min_candidate_days}",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            cand_start,
+                            legs=[_leg_record("window", len(cand_eq_df),
+                                              min_candidate_days)])
             continue
 
         cand_highs = eq_highs[cand_start:]
         cand_lows = eq_lows[cand_start:]
         tup = _build_candidate(cand_highs, cand_lows, cand_eq_df, R_val, S_val,
                                box_width, r_anchor_bar, s_anchor_bar, cand_start,
-                               atr_val, trace=trace)
+                               atr_val, trace=trace, recorder=recorder)
         if tup is not None:
             strict.append(tup)
             continue
@@ -343,6 +402,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                     cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
                     r_anchor_bar, s_anchor_bar, cand_start, atr_val,
                     trace=trace, rescued=True, pool="rescued",
+                    recorder=recorder,
                 )
                 if tup is not None:
                     rescued.append(tup)
@@ -410,7 +470,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # judged window; every gate below runs UNCHANGED on the judged bars.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
-                                     trace=trace)
+                                     trace=trace, recorder=recorder)
 
     # LAST-RESORT story pool (STORY_POOL_ENABLED, dark; outer Phase B only):
     # consulted ONLY when the extreme-anchored pools AND the band pool are all
@@ -428,10 +488,12 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                 rec["verdict"] = "rejected"
                 rec["stage"] = "rescue_unused"
                 rec["detail"] = "strict framings exist; the rescued pool is discarded"
-    return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal, trace=trace)
+    return _apply_traversal_gate(eq_df, pool, atr_val, enforce_traversal,
+                                 trace=trace, recorder=recorder)
 
 
-def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None):
+def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
+                          recorder=None):
     """Build the deep-event candidate pool for a window (possibly empty).
 
     Re-judges the SAME chronological zigzag pairs the strict pool enumerated —
@@ -463,7 +525,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None)
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
             trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
-            pool="band",
+            pool="band", recorder=recorder,
         )
         if tup is None:
             continue

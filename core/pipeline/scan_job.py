@@ -251,6 +251,22 @@ def _maybe_build_health_board(data, universe):
         return None
 
 
+def _archive_near_misses(near_miss_sink, uni) -> None:
+    """Persist the lane sink behind the SAME gate that admitted the fires.
+    Called only on freshness-passed paths; every writer bound is printed
+    (no silent caps). A None/empty sink is a quiet no-op."""
+    if near_miss_sink is None:
+        return
+    rows = near_miss_sink.get("rows") or []
+    stats = near_miss_sink.get("stats") or {}
+    from core.archive.near_miss_writer import archive_near_miss_rows
+    counters = archive_near_miss_rows(rows, universe_type=uni.universe_type,
+                                      enable=True)
+    print(f"\nNear-miss lane: {counters['inserted']} new + "
+          f"{counters['recurred']} recurring episode(s) archived "
+          f"(deferred stats {stats}; writer {counters}).", flush=True)
+
+
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
     """Run the screener and write every non-broker output artifact.
 
@@ -260,8 +276,15 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     byte-identical to the prior single-universe behavior.
     """
     uni = resolve_universe(universe)
+    # The near-miss lane rides the scan only when BOTH the lane flag and live
+    # archiving are on — its rows land behind the same freshness gate as the
+    # fires (a stale/degraded basis is telemetry noise, skipped and said so).
+    near_miss_sink = ({"rows": [], "stats": {}}
+                      if settings.ARCHIVE_LIVE_SCANS
+                      and settings.NEAR_MISS_LANE_ENABLED else None)
     try:
-        results_df, data, tickers, market_context = run_screener(mode=mode, universe=uni)
+        results_df, data, tickers, market_context = run_screener(
+            mode=mode, universe=uni, near_miss_sink=near_miss_sink)
     except CachedMarketDataError as exc:
         raise StaleMarketDataError(str(exc), n_setups=0) from exc
 
@@ -290,17 +313,31 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # empty branch with the SAME freshness check as the archive path so degraded
         # zeros raise (reported stale) instead of silently clobbering the screen. A
         # genuine zero-setup day on healthy data still writes the valid empty artifact.
+        lane_freshness_ok = False
         if settings.ARCHIVE_LIVE_SCANS:
             # Genuine stale data raises (reported stale); a fresh day and the
             # tolerated cache-mode partial-coverage case both fall through to the
             # dashboard refresh below (the empty artifact clears stale names).
-            _passes_archive_freshness(data, tickers, uni, mode, n_setups=0)
+            if _passes_archive_freshness(data, tickers, uni, mode, n_setups=0):
+                lane_freshness_ok = True
+            elif near_miss_sink is not None:
+                # Tolerated cache-mode partial coverage: the lane's rows are
+                # dropped by the same gate that skipped the archive — said so,
+                # never silent (review 2026-07-26 finding 5).
+                print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
+                      "row(s) skipped (cache-mode partial coverage).", flush=True)
         # Write an empty artifact so this universe reads as "scanned, matched
         # nothing" rather than "never scanned" — and so an empty day clears any
         # stale setups instead of leaving the previous scan's names on screen. The
         # health board rides this same write (the ETF universes usually land here).
         generate_dashboard(results_df, data, tickers, market_context, universe=uni,
                            health_board=health_board)
+        if lane_freshness_ok:
+            # A zero-fire night is prime lane material — the refusal cohort
+            # archives on the same freshness verdict as fires would. Ordered
+            # AFTER the dashboard write so even an unforeseen lane escape can
+            # never cost the empty artifact (review 2026-07-26 finding 5).
+            _archive_near_misses(near_miss_sink, uni)
         return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored)
 
     print_results(results_df)
@@ -350,12 +387,18 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                       f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
                       f"(degraded universe coverage; source='screener', "
                       f"universe_type='{uni.universe_type}').", flush=True)
+                if near_miss_sink is not None:
+                    # Degraded coverage: refusal telemetry on a partial basis
+                    # is noise — skipped, and said so (never a silent drop).
+                    print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
+                          "row(s) skipped (degraded universe coverage).", flush=True)
                 return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                         n_errored=n_errored)
             # status == "fresh" → archive the whole cohort.
             n_archived = archive_scan_results(results_df, enable=True, universe=uni)
             print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
                   f"(source='screener', universe_type='{uni.universe_type}').")
+            _archive_near_misses(near_miss_sink, uni)
             return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                     n_errored=n_errored)
 
@@ -367,11 +410,15 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                 "dashboard updated, archive write skipped.",
                 flush=True,
             )
+            if near_miss_sink is not None:
+                print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
+                      "row(s) skipped (cache-mode partial coverage).", flush=True)
             return ScanExportResult(n_setups=len(results_df), n_archived=0,
                                     n_errored=n_errored)
         n_archived = archive_scan_results(results_df, enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
+        _archive_near_misses(near_miss_sink, uni)
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                             n_errored=n_errored)
