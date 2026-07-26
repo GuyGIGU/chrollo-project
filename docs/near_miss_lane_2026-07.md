@@ -278,7 +278,41 @@ pinned eval days + 18 negative frames):
   review fixes — the per-pool dedup grain (finding 1) records strictly
   more refusals and re-materializes band completions, so the deferred tail
   can only have grown. If the flip decision stalls on the per-eval tail,
-  RE-RUN this A/B on the fixed branch first.
+  RE-RUN this A/B on the fixed branch first. **→ Done: §6b.**
+
+## §6b Cost A/B RE-RUN — EXECUTED 2026-07-27 (post-fix; merged main `38fe0b1`, engine `28498359…`)
+
+Per the §6 caveat, re-measured after the review fixes, on a CLEAN temporary
+worktree at the merge commit (the shared checkout carried another program's
+uncommitted work — never measured through it). `tools.near_miss_census
+--check` ran immediately before on the same worktree: **OK** (fingerprint
+`b671e056…`, junk 1805, engine `28498359…`) — the merged instrument is the
+sealed instrument. Same protocol: interleaved OFF/ON, best-of-3, 51
+evaluations.
+
+| measure | pre-registered budget | §6 (pre-fix) | §6b (post-fix) | verdict |
+|---|---|---|---|---|
+| per-evaluation p50 | ≤ +1 ms | +4.47 ms | **+7.10 ms** | **OVER** |
+| per-evaluation p95 | ≤ +10 ms | +122.76 ms (max +214) | **+57.97 ms** (max +100.77) | **OVER** |
+| corpus wall clock | ±2% | +1.72% | **+2.96%** (23.02s → 23.70s) | **OVER (was within)** |
+
+- The per-pool grain is visible in every counter, as the caveat predicted:
+  deduped refusal records 5,018 → **5,756** (rescued/band no longer
+  shadowed by a strict occupation), completions 274 → **431**, ruled rows
+  52 → **96**, selectivity 94.5% → **92.5%** (5,325/5,756 screened out),
+  `pool_shadowed` 1; cap still never bound, 0 completion refusals, 0
+  kill/vector mismatches.
+- The tail measured LOWER despite strictly more completions (p95 +122.8 →
+  +58.0; max +214 → +101) — treat that as run-to-run tail variance under a
+  different machine state, not an improvement claim. The stable statistics
+  — median and corpus wall — both worsened (+4.47 → +7.10 ms;
+  +1.72% → +2.96%). Absolute walls also differ from §6 (off-leg 26.17s →
+  23.02s): machine state; compare percentages, not seconds.
+- **All three pre-registered bounds now FAIL.** Recorded as measured
+  (EC-15); the budget is not retro-widened. The §6 levers stand unchanged
+  (TOP_K cut / early-exit completion / accept the wall / hold dark) —
+  early-exit now sized at **335 of 431** completions not_ruled. The flip
+  remains the operator's decision against THIS record.
 
 ## §7 Council review + fixes — 2026-07-26 (post-build, pre-flip)
 
