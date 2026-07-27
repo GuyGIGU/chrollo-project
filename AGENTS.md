@@ -28,6 +28,15 @@ books — it never places trades.**
   (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
   Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
   of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.
+- The engine docs are split by lifecycle, and each has one job:
+  **[`strategy_alpha.md`](docs/strategy_alpha.md)** = theory (what a good setup IS; deliberately names no
+  files or functions so it cannot rot) · **[`engine_reference.md`](docs/engine_reference.md)** = how it is
+  built and why it took that shape · **[`decisions.md`](docs/decisions.md)** = operator rulings + the
+  **Tested-DEAD** registry, append-only.
+- **Check `decisions.md` before proposing any new knob, threshold, or heuristic.** This engine has a real
+  graveyard — overshoot-magnitude tests, `root.kind` keying, shelf-R, HTF scoring — and re-proposing a dead
+  lever costs a full A/B cycle. Measured 2026-07-27: four designs falsified in one session, two of them
+  already documented and still missed.
 - **Wyckoff is a source of ideas, not a specification.** Before arguing any change from Wyckoff
   doctrine, read [`docs/wyckoff_canon.md`](docs/wyckoff_canon.md) — it records what Chrollo took,
   adapted, and *deliberately left* (PS, ST, the distribution mirror, effort-vs-result), the words

@@ -321,7 +321,7 @@ absence, raw measure archived, tiers untouched).
    `_bin_d_ascending_support_quality` and its D-vs-B support-quality delta. The
    Phase-D boundary is single-sourced with the scoping overlay
    (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
-   scores. See strategy_alpha.md, "Region (Bin) Features & Trend Template".
+   scores. See engine_reference.md, "Region (Bin) Features & Trend Template".
 
 ---
 
