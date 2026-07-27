@@ -336,6 +336,25 @@ BAND_EVENT_MAX_BARS = 20
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
 
+# --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
+# Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the
+# opposite direction of the trend if we are still inside that trend." A box may
+# not OPEN before the terminal pivot — the buying/selling climax — of the trend
+# segment containing that open (market_structure.trend_terminal_floor). The
+# engine already reads this correctly and then ignores it: on LIVN its own
+# segment_trends put the uptrend's terminal at 2026-07-06 while the box opened
+# 2026-06-18, anchoring the climax on a bar labelled HH/up and the AR on a bar
+# labelled HL/up — a higher low cannot be the reaction that ends a trend.
+# The shipped _enforce_climax_terminality only tests climax -> box open, so a
+# trend topping INSIDE the box is invisible to it (and it moves the overlay
+# only — the overlay feeds no rails/LPS/score, so it could never fix the box).
+# Measured 2026-07-27: 142/332 live boxes (42.8%, incl. rank-0 XMAX) open before
+# their trend topped, vs the operator's own 33 marks at 31/33 = 93.9% obeying
+# the rule. Applies to every pool (strict / rescued / band / story) through the
+# one shared _oriented_pairs enumeration. Refused pairs are not candidates at
+# all, so the near-miss lane does not see them — flag ON is a census seam.
+TREND_TERMINAL_BOX_GATE_ENABLED = False
+
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
 # Measurement constants for the operator-ruled near-miss predicate
 # (engine_alpha.structure.gate_margins.ruled_near_miss; ruling record

@@ -142,6 +142,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_HOLDING_SHELF_ENABLED",
     "LPS_SHELF_LENGTH_MIN",
     "LPS_SHELF_MIN_LOW_POS_BOX",
+    # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
+    "TREND_TERMINAL_BOX_GATE_ENABLED",
     # Deep-excursion pair events (Event Map Task 11, dark)
     "BAND_RAILS_ENABLED",
     "BAND_MAX_BOX_WIDTH",
