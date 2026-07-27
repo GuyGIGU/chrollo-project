@@ -486,7 +486,22 @@ ADMISSION-misses under the ruling** (part of the ruling, never recall regression
 here means the FORM does not admit the mark, NOT the Guided-List must-fire sense; most of
 these fire through ordinary election, where the last-resort pool is never consulted, so
 non-admission costs them nothing): ALB, DLX, FOSL, MATX, NGL-2026-01, ORMP-2026-04, PKE,
-RGR, SKYT, SYRE (S-poor profiles / respect-killed / universe classes). The measured in-pool
+RGR, SKYT, SYRE (S-poor profiles / respect-killed / universe classes).
+
+> **Scope correction (measured 2026-07-27).** "The last-resort pool is never consulted"
+> above is true **per root**, not per engine. `read_structure` walks root swings
+> oldest-first and returns the FIRST root that completes, so a last-resort box on an
+> EARLY root can end the walk before a later root's ordinary box is ever reached — the
+> election moves even though no *window* preferred the last-resort candidate. Measured
+> over the 332-setup payload: exactly **1 of 332** moves under the story pool (AMCX,
+> strict→story). This is **pre-existing design shared with the rescued pool** (same
+> per-root scope, not even flag-gated) and with `BAND_RAILS` (live since 2026-07-21 —
+> CMPR band-elects this way *inside the payload* and passes the doctrine gate). **Do not
+> "fix" it with a two-pass walk:** simulated over the 12 live last-resort elections, that
+> reverses 2 of them — including CMPR's operator-accepted band election — so the
+> "strict superset of recall" claim is false.
+
+The measured in-pool
 requirement: the traversal gate MUST keep running on story candidates (it kills 30 of the
 69 junk occupancy deaths; the admission form is not asked to carry them alone). A re-ruling
 of the form is a NEW seam (archive rule-version discipline) and re-runs the census, never a

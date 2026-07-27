@@ -465,7 +465,15 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
     # LAST-RESORT worked-band pool (BAND_RAILS_ENABLED, dark; outer Phase B
     # only): consulted ONLY when both extreme-anchored pools are empty, so an
-    # ordinary election can never move. Rails at the max-dwell close band;
+    # an ordinary election can never move WITHIN THIS ROOT'S WINDOW. (Scope
+    # caveat, measured 2026-07-27: the guard is per-ROOT, but read_structure walks
+    # roots oldest-first and returns the FIRST that completes — so a last-resort box
+    # on an EARLY root can end the walk before a later root's ordinary box is ever
+    # reached. Live instances: CMPR band-elects at root-early (payload agrees), AMCX
+    # story-elects likewise. This is pre-existing design shared with the rescued pool,
+    # NOT a story/band regression; do not "fix" it with a two-pass walk — measured,
+    # that reverses CMPR's operator-accepted band election.)
+    # Rails at the max-dwell close band;
     # qualified excursions (reclaim/fail-back + hold) are excised from the
     # judged window; every gate below runs UNCHANGED on the judged bars.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
@@ -474,7 +482,15 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
     # LAST-RESORT story pool (STORY_POOL_ENABLED, dark; outer Phase B only):
     # consulted ONLY when the extreme-anchored pools AND the band pool are all
-    # empty, so an ordinary election can never move. The RULED narrative form
+    # empty, so an an ordinary election can never move WITHIN THIS ROOT'S WINDOW. (Scope
+    # caveat, measured 2026-07-27: the guard is per-ROOT, but read_structure walks
+    # roots oldest-first and returns the FIRST that completes — so a last-resort box
+    # on an EARLY root can end the walk before a later root's ordinary box is ever
+    # reached. Live instances: CMPR band-elects at root-early (payload agrees), AMCX
+    # story-elects likewise. This is pre-existing design shared with the rescued pool,
+    # NOT a story/band regression; do not "fix" it with a two-pass walk — measured,
+    # that reverses CMPR's operator-accepted band election.)
+    # The RULED narrative form
     # (operator ruling 2026-07-25 — strategy_alpha.md "The rail-episode read")
     # replaces only the occupancy-family judgment; width/window/respect/crash
     # run unchanged here and the traversal gate below judges the returned pool.
