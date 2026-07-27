@@ -1267,6 +1267,29 @@ flags a stretched, Last-Supper-risk LPS far from its energy source.
   above R) to the LPS low — over-extension in *time* from the energy source; set
   only when the LPS sits above R.
 
+*Pivot-anchored over-extension* (added 2026-07-26, `_run_up_pivot_bar`) — the same
+question, anchored on the run-up's **terminal swing pivot** instead of the elected
+LPS window's first bar. The operator's statement of the read: *"how far above [the
+energy source] sits the last pivot that caused that run up… to avoid traps of a deep
+correction."*
+
+- `_last_supper_pivot_stretch_atr` = `(pivot_high − R) / ATR` — the operator's
+  measure: how far above the energy source the run-up actually reached;
+- `_last_supper_pivot_stretch_box` — the same, in box-heights;
+- `_last_supper_pullback_from_pivot_pct` = `(pivot_high − lps_low) / pivot_high`;
+- `_last_supper_pivot_bars_back` = bars from the pivot to the LPS low.
+
+**Why a sibling family and not a redefinition.** `anchor_high` above is the High at
+the *elected window's first bar*, and elected windows run 2–7 bars — so its reach is
+~2–3 bars in practice and it cannot see a give-back that began earlier. Measured over
+4,561 archived rows, `_last_supper_pullback_from_extension_pct` has a **maximum ever
+recorded value of 0.144**; it structurally cannot report a deep pullback. The defect is
+tail-shaped, not universal: over 17 Guided-List tickers 9/17 agree exactly with the
+pivot anchor (median ratio 1.00×) while the tail diverges hard — EGBN 0.019 → 0.100
+(5.3×), WTS 2.7×, CTOS 2.4×. The old columns are kept unchanged so historical rows stay
+comparable; redefining a live column in place would make new rows non-comparable while
+looking like a fix (the `bin_a_*` seam precedent).
+
 All raw, archived **measure-first** — never gated or scored until validated against
 the durable-win vs cash-grab outcome.
 

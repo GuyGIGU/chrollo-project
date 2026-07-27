@@ -253,6 +253,13 @@ class SetupArchive(Base):
     last_supper_pullback_from_extension_pct = Column(Float, nullable=True) # anchor-high to LPS-low pullback fraction
     last_supper_source_box_age = Column(Integer, nullable=True)            # bars since price first left the source box
     last_supper_reclaim_quality = Column(Float, nullable=True)             # [0,1] cleanup/reclaim quality after the LPS low
+    # Pivot-anchored over-extension (2026-07-26): siblings of the three above,
+    # anchored on the run-up's terminal PIVOT rather than the LPS window's first
+    # bar. Measure-only; added alongside so the existing columns stay comparable.
+    last_supper_pivot_stretch_atr = Column(Float, nullable=True)           # (run-up pivot high - R) / ATR
+    last_supper_pivot_stretch_box = Column(Float, nullable=True)           # (run-up pivot high - R) / box height
+    last_supper_pullback_from_pivot_pct = Column(Float, nullable=True)     # pivot-high to LPS-low pullback fraction
+    last_supper_pivot_bars_back = Column(Integer, nullable=True)           # bars from the run-up pivot to the LPS low
 
     # ── Minervini Stage-2 trend template (raw context, no scoring) ──
     stage2_ma_stack_pass = Column(Integer, nullable=True)       # 1 if price > SMA50 > SMA150 > SMA200

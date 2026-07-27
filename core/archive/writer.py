@@ -181,6 +181,10 @@ _NEW_COLUMNS: dict[str, str] = {
     "last_supper_pullback_from_extension_pct": "FLOAT",
     "last_supper_source_box_age":   "INTEGER",
     "last_supper_reclaim_quality":  "FLOAT",
+    "last_supper_pivot_stretch_atr": "FLOAT",
+    "last_supper_pivot_stretch_box": "FLOAT",
+    "last_supper_pullback_from_pivot_pct": "FLOAT",
+    "last_supper_pivot_bars_back":  "INTEGER",
     # Minervini Stage-2 trend template (raw context)
     "stage2_ma_stack_pass":         "INTEGER",
     "stage2_ma200_slope_1m_pct":    "FLOAT",
@@ -618,6 +622,10 @@ def archive_scan_results(
             last_supper_pullback_from_extension_pct=row.get("_last_supper_pullback_from_extension_pct"),
             last_supper_source_box_age=row.get("_last_supper_source_box_age"),
             last_supper_reclaim_quality=row.get("_last_supper_reclaim_quality"),
+            last_supper_pivot_stretch_atr=row.get("_last_supper_pivot_stretch_atr"),
+            last_supper_pivot_stretch_box=row.get("_last_supper_pivot_stretch_box"),
+            last_supper_pullback_from_pivot_pct=row.get("_last_supper_pullback_from_pivot_pct"),
+            last_supper_pivot_bars_back=row.get("_last_supper_pivot_bars_back"),
             # Minervini Stage-2 trend-template context (raw, no scoring)
             stage2_ma_stack_pass=(int(bool(row.get("_stage2_ma_stack_pass")))
                                   if row.get("_stage2_ma_stack_pass") is not None else None),

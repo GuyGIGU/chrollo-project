@@ -386,3 +386,72 @@ def test_measure_phases_phase_c_requires_atr_frame(_flat_ohlc):
 
     assert bins["bin_c_present"] is False
     assert bins["bin_c_type"] is None
+
+
+# ── Pivot-anchored over-extension (the run-up's terminal pivot) ──────────────
+# The elected LPS window's own first bar is at most `lps_length` bars old, so it
+# under-reports the give-back whenever the run-up peaked before the window
+# opened. These pin the pivot anchor's reach and its refusals.
+
+def test_run_up_pivot_anchor_reaches_past_the_lps_window(_flat_ohlc):
+    """A run-up peaking well before the LPS window is found by the pivot anchor
+    and reported deeper than the window-edge anchor."""
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    # Run-up pivot at bar 108, ~12 bars before the LPS low at 119.
+    df.loc[108, "High"] = 112.0
+    df.loc[108, "Close"] = 111.0
+    for b in range(109, 120):
+        df.loc[b, "High"] = 104.0 - (b - 109) * 0.2
+    df.loc[119, "Low"] = 100.0
+
+    bins = measure_phases(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=3,
+        R=101.0, S=99.0, atr_val=1.0,
+        lps_anchor_bar=117, lps_low_bar=119,
+    )
+
+    back = bins["last_supper_pivot_bars_back"]
+    assert back is not None and back > 3, "anchor must reach past the LPS window"
+    old = bins["last_supper_pullback_from_extension_pct"]
+    new = bins["last_supper_pullback_from_pivot_pct"]
+    assert new > old, "the pivot anchor must see the deeper give-back"
+    # Stretch is measured against the box ceiling R, in ATR and box-heights.
+    assert bins["last_supper_pivot_stretch_atr"] == pytest.approx(11.0, abs=0.5)
+    assert bins["last_supper_pivot_stretch_box"] == pytest.approx(5.5, abs=0.5)
+
+
+def test_run_up_pivot_anchor_refuses_a_nan_window(_flat_ohlc):
+    """A NaN inside the search window distorts the pivot masks, so the anchor
+    refuses rather than reporting a moved pivot."""
+    df = _flat_ohlc(120, low=100.0, close=100.2)
+    df.loc[110, "High"] = np.nan
+
+    bins = measure_phases(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=3,
+        R=101.0, S=99.0, atr_val=1.0,
+        lps_anchor_bar=117, lps_low_bar=119,
+    )
+
+    assert bins["last_supper_pivot_bars_back"] is None
+    assert bins["last_supper_pullback_from_pivot_pct"] is None
+    assert bins["last_supper_pivot_stretch_atr"] is None
+
+
+def test_run_up_pivot_stretch_is_negative_when_the_lps_never_left_the_box(_flat_ohlc):
+    """No over-extension: a run-up pivot below R reports a negative stretch
+    rather than None, so 'measured and flat' stays distinguishable from 'unmeasured'."""
+    # Whole frame sits under R = 101, so the only peak is a sub-R one.
+    df = _flat_ohlc(120, high=100.0, low=99.0, close=100.0)
+    df.loc[108, "High"] = 100.8          # a real pivot, still under R
+
+    bins = measure_phases(
+        df, bc_anchor_bar=10, phase_b_start_bar=30, base_len=60,
+        is_inner_box=False, lps_offset=0, lps_length=3,
+        R=101.0, S=99.0, atr_val=1.0,
+        lps_anchor_bar=117, lps_low_bar=119,
+    )
+
+    stretch = bins["last_supper_pivot_stretch_atr"]
+    assert stretch is not None and stretch < 0
