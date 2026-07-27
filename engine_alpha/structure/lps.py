@@ -203,14 +203,14 @@ def _pullback_rest_depth_ok(
     """Pullback-depth judgment: is the reaction deep enough for its zone?
 
     Returns ``(ok, buec_shelf)``. An OVERSHOOT_R window normally owes the
-    stricter overshoot floor; the BUEC / resistance-shelf exception accepts a
+    stricter overshoot floor; the LPS-above-R / resistance-shelf exception accepts a
     longer shallow shelf holding just above R.
     """
     min_pullback = settings.LPS_PULLBACK_PROFILE_MIN
     buec_shelf = False
     if zone_type == "OVERSHOOT_R":
         close_extension_box = _box_position(end_close, res_avg, box_height)
-        # BUEC / resistance-shelf behavior: a longer shelf holding just
+        # LPS-above-R / resistance-shelf behavior: a longer shelf holding just
         # above R can be a valid shallow LPS. Keep the stricter overshoot
         # floor when price has already lifted away from R or when the
         # pullback is nearly a normal overshoot reaction.
@@ -460,7 +460,7 @@ def detect_lps_candidates(
 
             # INSIDE means the low is back inside the old box. If the same
             # window first launched far above R, the chosen block is usually a
-            # late pullback/off-structure reaction rather than BUEC behavior.
+            # late pullback/off-structure reaction rather than LPS-above-R behavior.
             high_extension = max(0.0, window_high - res_avg)
             high_extension_box = high_extension / box_height
             high_extension_atr = (

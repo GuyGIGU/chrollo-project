@@ -135,7 +135,7 @@ def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
         check("D4 lps-price-order", tk, float(lps.low) <= float(lps.high),
               f"low={lps.low} high={lps.high}")
         if getattr(lps, "swing_type", "terminal_valley") == "buec_shelf":
-            check("D5 buec-above-R", tk, float(lps.low) >= R - 1e-6 * R,
+            check("D5 lps-above-R", tk, float(lps.low) >= R - 1e-6 * R,
                   f"low={lps.low} R={R}")
     if s.terminator == "spring":
         check("D6 terminator", tk, sp is not None and pbe == int(sp.tip_bar),

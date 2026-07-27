@@ -13,6 +13,13 @@ below is a catalog with **one entry per chart event**.)*
 > defect. (The rule is mirrored in `AGENTS.md` and the root `CLAUDE.md` so every agent
 > session loads it.)
 
+> **Companion — [`wyckoff_canon.md`](wyckoff_canon.md).** This document says what Chrollo *does*.
+> Its companion says which Wyckoff ideas Chrollo **took, adapted, and deliberately left**, and
+> which of his words are reused here with a different meaning. **Wyckoff is a source of ideas, not
+> a specification** (operator ruling, 2026-07-26) — read the companion before proposing any change
+> argued from "Wyckoff says…", and never open one whose whole justification is "canon has this and
+> we don't."
+
 This document is the **single source of truth** for what the screener actually does — and, in the [Reading Model](#the-reading-model--the-operators-chart-language) below, for *how we understand chart analysis in the first place*. It mirrors the implementation in `engine_alpha/` (the reading engine) plus `core/` (pipeline plumbing) and the parameter values in `config/settings.py` exactly. Every rule below cites the function and the module it lives in. (For the high-level map of how `core/` is organized, see [core/MAP.md](../core/MAP.md).)
 
 The strategy combines Mark Minervini's Volatility Contraction Pattern (VCP) bias with Richard Wyckoff's Phase A/B/C/D structure. Goal: isolate **tight horizontal equilibrium bases** that have just printed an active **Last Point of Support (LPS)**, with no widening downward continuation, sitting after both R/S have been carved out by actual High/Low swing geometry.
@@ -203,11 +210,11 @@ window minus a bounded terminal floor-holding pullback tail — "the completing
 LPS may not re-litigate its own cause") was built dark and probed on its
 stage-tagged targets: **no cap (5/8/12/15 bars) restores the EGBN or YPF
 elections.** Their right-edge collapses are structural, not bounded-tail
-artifacts — EGBN's shelf resides ~two weeks above the creek-anchored
-candidate ceilings (the creek-vs-ceiling rail-PLACEMENT family), YPF's drawn
+artifacts — EGBN's shelf resides ~two weeks above the body-level-anchored
+candidate ceilings (the body-level-vs-wick-extreme rail-PLACEMENT family), YPF's drawn
 base is 19 bars with occupancy failures — and a trim long enough to matter
 re-elects stale windows (the same lesson as the rejected rescued-pool
-arbitration attempt recorded under the SOS→BUEC rescue: re-judging a framing
+arbitration attempt recorded under the break-above-R-then-rest rescue: re-judging a framing
 on an alternative window quietly re-litigates the election). Cause-commitment
 remains open only via a genuinely CROSS-FRAME mechanism (the measure-only
 election-stability probe is the calibration instrument); never via window
@@ -322,9 +329,9 @@ PASS this detector at the operator's drawn rails (their misses are the
 elected BOX, not shelf geometry); NOK's launched-above form is a single case
 (tail-fit risk — don't build acceptance forms off n=1). Every chart-readable
 Guided List miss therefore belongs to ONE family — **rail placement**: the
-election anchors candidate rails at wick extremes / the creek where the
-operator anchors body levels / the ceiling (the S-below-drawn-S bias, EGBN's
-creek-vs-ceiling, NKTR's width inflation). That family is the named next
+election anchors candidate rails at wick extremes where the operator anchors
+BODY levels (the S-below-drawn-S bias, EGBN's body-level-vs-wick-extreme
+placement, NKTR's width inflation). That family is the named next
 program; no LPS geometry knob moved in this one.
 
 #### Support Test
@@ -336,7 +343,7 @@ deep breach-and-reclaim belongs to the Spring; the two never double-emit.
 #### Sign of Strength, Markup & Upthrust — the R-rail wave
 
 One wave machinery, `measure_resistance_events()`, owns every R-rail interaction and
-types each wave by its **terminal outcome**: a creek-jump that held near R with a
+types each wave by its **terminal outcome**: a break above R that held near R with a
 genuine mini-consolidation is an `SOS`; an advance that held far above R is `markup`; a
 run-up that failed back to support is a single `upthrust` (one false-break wave, never a
 string of SOS); the in-between cases stay descriptive (`range` / `rejection` /
@@ -361,7 +368,7 @@ forms inside it**, never sibling detectors (wire enums frozen forever):
 |---|---|---|
 | `terminal_valley` | LPS | the classic pullback that rests on its low |
 | `holding_shelf` | LPS — flat hold | the two-form doctrine's flat shelf, sanctioned only high in the structure |
-| `buec_shelf` | LPS above R (**Throwback**) | the `OVERSHOOT_R` window class — a back-up to the creek from above, matured-cause bounded (the BBVA defense) |
+| `buec_shelf` | LPS above R | the `OVERSHOOT_R` window class — an LPS that forms ABOVE the old resistance, after price broke out and came back to rest on it; matured-cause bounded (the BBVA defense). The wire key is frozen; read it as "LPS above R" |
 
 The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): a window
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
@@ -390,7 +397,7 @@ Above the geometry sits a second reading layer that does not move a single rail.
 
 The read is a pipeline of four stages. First, `read_box_staircase()` labels the in-box swing sequence: it composes the *same* calibrated significant-swing skeleton the traversal read uses (`_collapse_swings` on the order-1 zigzag, amplitude-filtered by `TRAVERSAL_NOISE_FRAC`) with the L0 labeller (`label_market_structure`), so the staircase swings *are* the worked-equilibrium swings. Each swing is annotated with its box-position (`box_pos`, 0 = S rail, 1 = R rail), a low/mid/high `zone`, and a `rail_event` (`touch_R`/`breach_R`, `touch_S`/`breach_S`, or `interior`) — one chronological HH/HL/LH/LL sequence the later events are read off.
 
-Second, the two rails are measured **independently**. `measure_resistance_events()` walks the R-rail: every peak that turns in the high zone is a rail interaction, and consecutive higher-highs with no drop back to support between them are grouped into one *wave* that is typed by its **terminal outcome** — a creek-jump that held near R with a genuine mini-consolidation is an `SOS`, an advance that held far above R is `markup`, a run-up that failed back to support is a single `upthrust` (one false-break wave, not a string of SOS), and the in-between cases stay descriptive (`range` / `rejection` / `in_progress`). The Phase-D split is anchored on the structural **V** (the deepest staircase valley). `measure_support_tests()` is the S-rail sibling — deliberately *not* a mirror of the wave machinery — reporting each low-zone valley that touches S without a deep breach and then holds as a `test` (a deep breach-and-reclaim is left to the spring brick, so the two never double-emit).
+Second, the two rails are measured **independently**. `measure_resistance_events()` walks the R-rail: every peak that turns in the high zone is a rail interaction, and consecutive higher-highs with no drop back to support between them are grouped into one *wave* that is typed by its **terminal outcome** — a break above R that held near R with a genuine mini-consolidation is an `SOS`, an advance that held far above R is `markup`, a run-up that failed back to support is a single `upthrust` (one false-break wave, not a string of SOS), and the in-between cases stay descriptive (`range` / `rejection` / `in_progress`). The Phase-D split is anchored on the structural **V** (the deepest staircase valley). `measure_support_tests()` is the S-rail sibling — deliberately *not* a mirror of the wave machinery — reporting each low-zone valley that touches S without a deep breach and then holds as a `test` (a deep breach-and-reclaim is left to the spring brick, so the two never double-emit).
 
 Third, `read_box_events()` (over the shared chokepoint `_box_events_with_meta`) unifies these into one flat, deterministically-ordered list of independent zones, adding the calibrated **spring** brick (Phase C) and **LPS** brick (Phase D, gated purely on bar position — right of the V — never on an SOS existing). Each piece is detected on its own geometry and is never gated on another; the bricks come either from a measure-only re-detection or, when the scorer calls in, from the pieces the engine *actually elected* (including a tighter inner-box LPS), so the read describes what fired rather than a fresh parent-box guess.
 
@@ -871,7 +878,7 @@ shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
      dead.
    - **SOS trim rescue** — a worked box whose right side has already broken out
      and held above R can be validated over the worked cause before that
-     breakout tail. This rescues SOS -> BUEC structures (e.g. a valid range that
+     breakout tail. This rescues break-above-R-then-rest structures (e.g. a valid range that
      backs up to an LPS) without moving ordinary in-range setups.
    - **Deep-excursion pair pool (`BAND_RAILS_ENABLED`, LIVE since 2026-07-16 —
      Event Map Task 11)** — a LAST-RESORT pool consulted only when the
@@ -1019,7 +1026,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([engine_alpha/structure/lps.py](../engine_alpha/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow BUEC shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
+`detect_lps()` ([engine_alpha/structure/lps.py](../engine_alpha/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 **The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
@@ -1036,7 +1043,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
-| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow BUEC shelf above R may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50`. Flag-on, a window failing this gate may still complete as a **holding shelf** (see above) | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
+| 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow above-R shelf may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50`. Flag-on, a window failing this gate may still complete as a **holding shelf** (see above) | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
 | 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
 | 10 | **Declining spread quality** | last bar spread narrower than the prior bar earns full quality; widening inside the allowed expansion cap is discounted against `profile_unit` but does not reject by itself | `LPS_SPREAD_MUST_DECLINE = True` |
@@ -1292,9 +1299,13 @@ self-contained from the daily frame:
 Fields: `_stage2_ma_stack_pass`, `_stage2_ma200_slope_1m_pct`,
 `_stage2_52w_low_pct`, `_stage2_trend_pass_count` (0–7), `_stage2_trend_pass`
 (all 7). Minervini's 8th criterion (RS rating ≥ 70, a *universe percentile*) is
-**deliberately omitted** — Chrollo measures relative strength SPY-relatively via
-`excess_return_6m` and does not compute a universe rank — so the count is out of
-7. Context only; no gate, no score.
+**deliberately omitted from the count** — the live scoring path measures relative
+strength SPY-relatively via `excess_return_6m` — so the count is out of 7.
+Context only; no gate, no score. **Correction 2026-07-26:** a universe-percentile
+RS rank DOES exist in the tree (`core/regime/percentile.py` + `scan_context.attach_rs_ratings`,
+wired at `screener.py` and archived as `rs_rating`); it is dormant only because
+`RS_LINE_ENABLED` / `SECTOR_RANKING_ENABLED` are False. Do not rebuild it — the
+action is a flag flip plus a shadow re-capture.
 
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.

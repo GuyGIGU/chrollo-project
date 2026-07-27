@@ -328,13 +328,13 @@ def _measure_lps(out, df, base_df, ev, R, S, atr, box_height):
             if not (lo <= pp <= settings.LPS_PULLBACK_PROFILE_MAX):
                 # Approximate by design: anchored on the operator's drawn tip
                 # (the engine anchors the terminal/window low) and blind to
-                # the BUEC / holding-shelf acceptance forms — an envelope
+                # the above-R / holding-shelf acceptance forms — an envelope
                 # check, not the detector's verdict (that is the shelf
                 # harness's job).
                 out["gate_fails"].append(
                     f"lps_pullback_profile {pp} outside [{lo},"
                     f"{settings.LPS_PULLBACK_PROFILE_MAX}] (approx envelope: "
-                    "tip-anchored; BUEC/shelf exceptions not modeled)")
+                    "tip-anchored; above-R/shelf exceptions not modeled)")
         vc = m.get("lps_vol_contraction")
         # The engine rejects when avg pullback volume is NOT drying:
         # avg >= LPS_VOL_CONTRACTION_MAX x Vol50 — in this card's units

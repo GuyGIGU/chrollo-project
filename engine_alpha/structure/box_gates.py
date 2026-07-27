@@ -259,7 +259,7 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
     """Index where the worked range ends, trimming a trailing SOS breakout tail.
 
     A range whose right side has already broken out above R and HELD above
-    support — a creek-jump then back-up (SOS -> BUEC) — should be validated over
+    support — a break above R then a rest back on it (SOS -> LPS above R) — should be validated over
     its worked CAUSE, not penalised for the breakout. We trim the earliest
     trailing run of ``>= SOS_TRIM_MIN_RUN`` consecutive above-(R+buffer) bars
     that (a) begins past the worked prefix (``>= SOS_TRIM_MIN_PREFIX_FRAC`` of the

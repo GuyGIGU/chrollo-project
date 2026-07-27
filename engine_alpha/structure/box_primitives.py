@@ -340,7 +340,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # trailing SOS breakout tail is trimmed (see ``_worked_window_end``). Rescued
     # framings are used ONLY when a window yields no strict one, so an ordinary
     # in-range setup is never re-framed — the trim can only save a box that would
-    # otherwise be rejected outright (NMM's SOS -> BUEC).
+    # otherwise be rejected outright (NMM's break above R, then a rest on it).
     strict, rescued = [], []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
@@ -386,7 +386,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
             strict.append(tup)
             continue
 
-        # Rescue the SOS -> BUEC case: the worked cause is a clean range, only the
+        # Rescue the break-above-R-then-rest case: the worked cause is a clean range, only the
         # already-broken-out right side tripped the gates. Outer Phase-B only, and
         # only while price is still BACKING UP to the box (not extended away from
         # it): an old range price has since blown past is stale, not a setup — the
@@ -412,7 +412,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
         # minus a bounded terminal floor-holding pullback tail — was built
         # and REJECTED here. No cap (5/8/12/15 bars) restores the EGBN/YPF
         # right-edge elections it targeted: their collapses are structural
-        # (EGBN's two-week above-creek shelf residence = rail-PLACEMENT;
+        # (EGBN's two-week above-R shelf residence = rail-PLACEMENT;
         # YPF's 19-bar base + occupancy), not bounded-tail artifacts, and a
         # trim long enough to matter re-elects stale windows (the rejected
         # 13b arbitration lesson). Cause-commitment stays open only via a

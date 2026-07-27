@@ -251,14 +251,14 @@ DESCENT_TAIL_CFP_MIN = 0.20
 
 # Sign-of-strength (SOS) breakout tolerance for Phase-B validation. A worked
 # range whose RIGHT side has already broken out above R and HELD above support —
-# a creek-jump then back-up (SOS -> BUEC) — is the setup, not a failed box. The
+# a break above R then a rest back on it (SOS -> LPS above R) — is the setup, not a failed box. The
 # legacy respect/occupancy gates measured to the live edge, so they counted that
 # breakout as a boundary failure and rejected the range (e.g. NMM: a clean April
 # box buried under a sustained May breakout above R, backing up to an early-June
 # LPS). Fix: validate the range over its WORKED CAUSE — trim a trailing sustained
 # above-R run that holds support before measuring boundary-respect + occupancy.
 # No-op unless price has already broken out and held, so in-range setups are
-# untouched and the change can only RESCUE SOS-BUEC framings (recall-positive).
+# untouched and the change can only RESCUE break-above-R-then-rest framings (recall-positive).
 # Outer Phase-B only (like the traversal gate); inner boxes are never trimmed.
 SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
 SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
@@ -527,7 +527,7 @@ LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves
                                   # n=2 (the negative corpus is the arbiter).
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the canon position test
                                   # (SMI: the back-up completes between the range's halfway point
-                                  # and the creek; IBD: handle midpoint above the base midpoint).
+                                  # and the broken resistance; IBD: handle midpoint above the base midpoint).
                                   # Flat-and-LOW is the named failure geometry, never sanctioned.
 
 # Drawn LPS/Test staircase filter (DISPLAY-ONLY, recall-safe). The screener's
@@ -638,7 +638,7 @@ CANDLE_SPREAD_ATR_MESSY = 1.40  # median spread/ATR >= this -> zero on this meas
 CANDLE_TIGHTBAR_CLEAN = 0.65    # tight-bar % >= this -> full readability (higher = cleaner)
 CANDLE_TIGHTBAR_MESSY = 0.30    # tight-bar % <= this -> zero on this measure
 # L2 SOS calibration (measure-only event reader; gates/scores nothing). An SOS is a Phase-D
-# creek-jump that TESTS the rail and HOLDS. Two box-relative bounds keep markup out of the SOS
+# break above R that TESTS the rail and HOLDS. Two box-relative bounds keep markup out of the SOS
 # bucket so it stops over-firing in active/extended boxes (AMRZ fired ~15 SOS):
 #  (1) NEAR R — the wave-top peak must sit near R (peak_box_pos <= SOS_NEAR_R_MAX_BOX); a reach
 #      far above R (AMRZ pkPos 2.0-2.4) is post-breakout MARKUP, typed `markup`, not SOS.

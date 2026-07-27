@@ -182,13 +182,13 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     nothing is gated on another event (an LPS is found separately by
     ``detect_lps`` and is NEVER a precondition).
 
-      * ``SOS``        a Phase-D creek-jump that HELD: the wave-top sits NEAR R
+      * ``SOS``        a Phase-D break above R that HELD: the wave-top sits NEAR R
                        (``peak_box_pos <= SOS_NEAR_R_MAX_BOX``) AND the printed
                        post-top hold window is a genuine mini-consolidation (a tight
                        band, ``<= SOS_HOLD_MAX_RANGE_BOX`` of the box) — CONFIRMED BY
                        A HOLD, not by continuation. One SOS per wave.
       * ``markup``     a Phase-D advance that held FAR above R (``peak_box_pos >
-                       SOS_NEAR_R_MAX_BOX``) — post-breakout markup, not a creek-jump
+                       SOS_NEAR_R_MAX_BOX``) — post-breakout markup, not a break-and-hold at R
                        test of the rail (this is what over-fired SOS in active boxes).
       * ``upthrust``   a Phase-D advance that FAILED — it gave back to the support
                        low-zone before establishing a hold; the WHOLE run-up wave
@@ -299,7 +299,7 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
                           if len(hold_hi) else None)
         consolidation = (hold_range_box is not None
                          and hold_range_box <= settings.SOS_HOLD_MAX_RANGE_BOX)
-        # A creek-jump TESTS the rail: the wave-top sits NEAR R (box-relative). A
+        # A break above R TESTS the rail: the wave-top sits NEAR R (box-relative). A
         # reach far above R (peak_box_pos > SOS_NEAR_R_MAX_BOX) is post-breakout
         # MARKUP, not an SOS — this is what over-fired in active/extended boxes.
         near_r = peak_box_pos <= settings.SOS_NEAR_R_MAX_BOX
@@ -311,7 +311,7 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
             if not in_phase_d:
                 etype = "range"          # Phase B (left of the V): cause-building, never an SOS
             elif not near_r:
-                etype = "markup"         # held far above R: post-breakout markup, not a creek-jump
+                etype = "markup"         # held far above R: post-breakout markup, not a break-and-hold at R
             elif not consolidation:
                 etype = "range"          # held at R but no genuine mini-consolidation: unconfirmed
             else:
@@ -645,7 +645,7 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
         elif t == "markup":
             has_phase_d_event = True
 
-    # First chronological SOS = the creek-jump that opens markup; later held
+    # First chronological SOS = the break above R that opens markup; later held
     # reaches stay in events[] but are not the spine SOS. Full key is defensive —
     # SOS waves are non-overlapping so anchor_bar is already unique.
     sos = (min(sos_events, key=lambda e: (int(e["anchor_bar"]),
@@ -717,7 +717,7 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
                       f"(undercut {spring['undercut_atr']} ATR)"))
     if sos is not None:
         steps.append((int(sos["anchor_bar"]),
-                      f"D[bar {int(sos['anchor_bar'])}]: SOS - creek-jump held "
+                      f"D[bar {int(sos['anchor_bar'])}]: SOS - break above R held "
                       f"near R (hold {sos['hold_range_box']} box)"))
     if lps_event is not None:
         steps.append((int(lps_event["anchor_bar"]),

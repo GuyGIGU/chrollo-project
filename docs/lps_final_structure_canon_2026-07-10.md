@@ -68,8 +68,8 @@ mid-base drift.
 |---|---|---|
 | Two sanctioned forms | ONE form (`_pullback_rest_low_verdict` + depth floor) | The shelf form is doctrine-backed; build it |
 | Wedging/rising-lows failure | Already encoded: `rising_march` classification + markup gate `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` | Keep as the shelf's hard guard — canon-aligned; the OHI hole stays closed |
-| Position condition for flat finals | `zone_type` machinery (support zone / BUEC) exists | The shelf predicate should require rest at/above the worked S (or above broken R for BUEC shelves) — not accepted anywhere in the box |
-| Overshoot envelope ~7–8 % above prior high | `LPS_INSIDE_HIGH_EXTENSION_BOX_MAX 0.35` / `_ATR_MAX 0.75` | Comparable intent; canon gives a %-of-price cross-check for BUEC/high shelves |
+| Position condition for flat finals | `zone_type` machinery (support zone / above-R) exists | The shelf predicate should require rest at/above the worked S (or above broken R for above-R shelves) — not accepted anywhere in the box |
+| Overshoot envelope ~7–8 % above prior high | `LPS_INSIDE_HIGH_EXTENSION_BOX_MAX 0.35` / `_ATR_MAX 0.75` | Comparable intent; canon gives a %-of-price cross-check for above-R / high shelves |
 | Invalidation = final low breach | `LPS_HOLD_TOLERANCE = 0.95` | Same concept (5 % crash budget below the LPS low) |
 | Duration ≥ 5 days (whole final structure) | `LPS_LENGTH_MIN 2 / MAX 7` (the *window*, i.e. the tail rest) | **Mapping caveat:** the engine's window is the final REST, not the whole handle — the operator's marked shelves run 3–5 sessions (WTS 3, PBT 4, DRTS 4–5), under IBD's 5-day handle floor precisely because the window is the tail. Do not blind-import the floor onto the window; if anything the *structure containing* the shelf should satisfy it |
 | No verified depth ceiling | `LPS_PULLBACK_PROFILE_MAX = 4.50` | Stays engine-calibrated (unchallenged by canon) |
