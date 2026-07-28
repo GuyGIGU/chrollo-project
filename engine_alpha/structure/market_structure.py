@@ -26,7 +26,7 @@ adds labels — it never moves R/S, scores, or any canonical field. The pure
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import numpy as np
 
@@ -452,6 +452,85 @@ def segment_trends(points) -> list:
                          if end_idx is not None else None),
         })
     return segments
+
+
+class TrendFloor(NamedTuple):
+    """Per-bar covering-trend terminal: bar index, price, direction (+1/-1)."""
+    bar: np.ndarray
+    price: np.ndarray
+    direction: np.ndarray
+
+
+def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
+    """Per-bar EARLIEST LEGAL BOX OPEN — the terminal pivot of the CAUSE trend.
+
+    ``segment_trends`` already defines ``terminal_bar`` as the trend's extreme
+    pivot: *the buying / selling climax*. **A base may not open before its own
+    trend has printed that extreme** (operator ruling 2026-07-27, LIVN) — a box
+    opening earlier is describing a still-running trend leg as an equilibrium,
+    and every read anchored to it (rails, Phase C, LPS, tier) inherits the lie.
+
+    **Overlap resolution is the load-bearing detail.** Segments overlap by one
+    leg: an uptrend runs to its CHoCH, which IS the next downtrend's start. The
+    EARLIER segment — the cause — wins those shared bars (first write, never
+    overwritten). Letting the later one win would make a base's own automatic
+    reaction (BC -> AR: the base forming) veto the box open at the very top
+    where it belongs; measured 2026-07-27, that form broke 6 pinned Guided-List
+    hits (AVT/CTOS/MATX/NGL/SYRE/VIK).
+
+    Direction-blind by construction, and deliberately NOT keyed to the root's
+    BC/SC kind — the root is only a scan origin, not the box's cause (LIVN's
+    winning root is an SC at bar 114 while the trend that swallowed its box is
+    the advance topping at 491). The cause is whichever segment actually runs
+    into the candidate bar.
+
+    Returns a ``TrendFloor`` of three ``len(df)`` arrays — the covering trend's
+    terminal ``bar``, its ``price``, and its ``direction``. ``bar`` is ``-1``
+    where no segment covers (no trend to still be inside of).
+
+    **Only ``bar`` is consulted.** ``price`` and ``direction`` are measurement,
+    carried for diagnostics; no live caller reads them. The legality test lives
+    in ``box_primitives.trend_terminal_legal_open`` and is **post-climax
+    MATURITY**: a box opening before this terminal survives iff
+    ``MIN_BASE_DAYS`` bars have printed since it.
+
+    **Do NOT rebuild a price test off these arrays — it is Tested-DEAD.**
+    Refusing a box on how far the trend ran past its own rail (the removed
+    ``TREND_TERMINAL_OVERSHOOT_BOX`` knob) was falsified three times: the
+    operator ACCEPTS 47.9% (PXS), 82% (VIK) and 101% (MATX) of a box height
+    past R — those are upthrusts inside an established base — and REJECTS LIVN
+    at 20.6%. Maturity is the separator (LIVN 13 bars, PXS 53), and it needs no
+    price leg to hold the case the price form was written for: CTOS (box
+    R 10.20, "terminal" 10.22 = 2.7% of box height) still fires as a pinned
+    Guided-List hit with the gate ON. See docs/decisions.md, Tested-DEAD.
+    """
+    n = 0 if df is None else len(df)
+    floor = TrendFloor(np.full(max(n, 0), -1, dtype=int),
+                       np.full(max(n, 0), np.nan, dtype=float),
+                       np.zeros(max(n, 0), dtype=int))
+    if n == 0:
+        return floor
+    if segments is None:
+        segments = segment_trends(read_market_structure(df).get("points", []))
+    for seg in segments:
+        end = seg["end_bar"]
+        if end is None:
+            # STILL RUNNING at the right edge: its "terminal" is only the
+            # highest-high-so-far, an unconfirmed extreme — the trend has not
+            # printed a CHoCH, so nothing proves it topped. Vetoing a box on it
+            # is the very error the macro bridge's True-Root rule avoids ("the
+            # right edge is now, never an AR"). VIK 2026-06 is exactly this: a
+            # provisional terminal 3 bars from the edge that cost a pinned hit.
+            continue
+        lo = max(0, int(seg["start_bar"]))
+        hi = min(n - 1, int(end))
+        if lo > hi:
+            continue
+        unset = floor.bar[lo:hi + 1] < 0
+        floor.bar[lo:hi + 1][unset] = int(seg["terminal_bar"])
+        floor.price[lo:hi + 1][unset] = float(seg["terminal_price"])
+        floor.direction[lo:hi + 1][unset] = int(seg["direction"])
+    return floor
 
 
 def elected_trend_leg_base(df, terminal_bar, direction, *, tol: int = 3,

@@ -35,7 +35,7 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | File | What it does (in plain terms) |
 |------|-------------------------------|
 | `consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner Phase D range. |
-| `box_primitives.py` | Root anchors + the box ELECTION: zigzag R/S candidate collection/scoring, pool selection, the SOS-BUEC rescue, and the shared-rail back-extension. Judges live in `box_gates.py`. |
+| `box_primitives.py` | Root anchors + the box ELECTION: zigzag R/S candidate collection/scoring, pool selection, the break-above-R-then-rest rescue, and the shared-rail back-extension. Judges live in `box_gates.py`. |
 | `box_gates.py` | Gate application (split from `box_primitives.py` 2026-07-18): boundary respect, the SOS worked-window trim, close-residence dwell/coverage, worked-equilibrium occupancy, and the traversal floor — the validity judges every candidate pair must pass. |
 | `box_trace.py` | Trace plumbing for the box election cascade (split from `box_primitives.py` 2026-07-18): the two helpers every gate/election verdict narrates through; no-op when no trace is requested. |
 | `inner_box.py` | The inner-box family (split from `box_primitives.py` 2026-07-18): the Phase-D nested range one scale down — inner climax/root-swing detection, inner-stage zigzag, and `select_inner_box`, the one selection rule shared by the live reader and diagnostics. |

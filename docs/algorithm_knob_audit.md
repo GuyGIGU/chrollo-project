@@ -135,7 +135,7 @@ Fallback/tolerance:
 - `TRAVERSAL_LOW_ZONE = 0.30`
 - `TRAVERSAL_HIGH_ZONE = 0.70`
 
-SOS/BUEC rescue:
+SOS / above-R-rest rescue:
 
 - `SOS_TRIM_ENABLED = True`
 - `SOS_TRIM_MIN_RUN = 3`
@@ -150,7 +150,7 @@ Taxonomy:
   selection; public `measure_equilibrium()` also reports High/Low range
   occupancy as analysis geometry.
 - SOS trim is not a loosened box rule. It says: validate the worked cause before
-  a sustained breakout tail, then let the LPS/BUEC decide if the setup is active.
+  a sustained breakout tail, then let the LPS / above-R shelf decide if the setup is active.
 - Two-sided rail-working is now BOTH a hard validity rule (the traversal gate)
   and a graded scoring reward (`SCORE_TRAVERSAL_QUALITY`, which replaced the
   rail-blind `oscillation` term). The `worked_equilibrium` chip (formerly

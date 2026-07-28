@@ -41,7 +41,7 @@ OPERATOR-CORRECTED TAXONOMY — bake this in, do NOT re-derive (the operator cor
   are the same class. The staircase swing LOCATES the event; you measure the zone around it.
 - Detect every event INDEPENDENTLY on its own geometry — NEVER gate one on another. The bullish
   chronology spring→SOS→LPS is a QUALITY GRADE when present, never a definition or gate.
-- SOS = "jump across the creek": a strong push UP through R, confirmed ONLY by a HOLD afterward
+- SOS = a strong push UP through R, confirmed ONLY by a HOLD afterward
   (a mini-consolidation / LPS that proves the strength stuck). Continuation (another higher high) is
   NOT confirmation — just more running. RETROACTIVE: a whole running wave that ENDS IN AN UPTHRUST is
   ONE upthrust (none of those pushes were SOS). Shakeout-tolerant: a hold that dips then RECOVERS
@@ -58,7 +58,7 @@ WORK (measure-only; gate + eyeball after each):
    above R = post-breakout markup, wave_bars=1). The two fixes the operator already identified:
    (a) "held" must be a REAL mini-consolidation / tightening, not merely "no collapse in 6 bars" — a
        shallow range pullback currently counts as a hold; detect genuine consolidation.
-   (b) Bound SOS to reaches NEAR R (a creek-jump tests the rail); reaches far above R are markup, not
+   (b) Bound SOS to reaches NEAR R (a break above R tests the rail); reaches far above R are markup, not
        SOS — classify them markup/none, not SOS (these may also be stale/extended boxes).
    Keep the wave-based terminal-outcome model (running wave → upthrust if it ends in a non-recovering
    breakdown, SOS if it ends in a confirmed hold, in_progress at the edge), shakeout-tolerant.

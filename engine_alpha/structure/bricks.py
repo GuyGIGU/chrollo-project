@@ -19,6 +19,7 @@ from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
+    trend_terminal_legal_open,
     select_phase_b_candidate,
 )
 from engine_alpha.structure.inner_box import select_inner_box
@@ -222,6 +223,7 @@ def validate_equilibrium(
     atr,
     trace=None,
     near_miss=None,
+    terminal_floor=None,
 ) -> EquilibriumBox | None:
     """Validate a worked Phase-B range born from ``root``.
 
@@ -236,6 +238,12 @@ def validate_equilibrium(
     consultation seam it attaches to (the outer enforce-traversal election;
     inner boxes and the diagnostic mirror never pass one). ``None`` (the live
     flag-off default) records nothing and changes nothing.
+
+    ``terminal_floor``: the df-positional trend-terminal array
+    (``market_structure.trend_terminal_floor``) under
+    ``TREND_TERMINAL_BOX_GATE_ENABLED`` — a box may not open before its trend's
+    climax. Computed ONCE per read (the root cascade walks up to 64 anchors) and
+    handed down. ``None`` (flag off) is byte-identical.
     """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
@@ -273,6 +281,22 @@ def validate_equilibrium(
         trace=cascade,
         recorder=near_miss,
     )
+
+    # Trend-terminal legality (TREND_TERMINAL_BOX_GATE_ENABLED): a box may not
+    # OPEN before the trend running into it printed its climax. Judged on each
+    # candidate's BACK-EXTENDED start — the bar that actually becomes
+    # box.start_bar — because the raw cand_start can sit one bar the far side of
+    # a trend handover (the MATX case). Filtering here rather than inside the
+    # pair enumeration keeps every pool's judgment untouched and still lets a
+    # later legal framing win this root instead of losing the whole story.
+    if terminal_floor is not None and candidates:
+        legal_open = trend_terminal_legal_open(terminal_floor, int(root.ar_bar))
+        candidates = [
+            c for c in candidates
+            if legal_open(backext_shared_rail(eq_df, float(c[1]), float(c[2]),
+                                              int(c[9]), float(atr)))
+        ]
+
     if not candidates:
         if trace is not None:
             _rebase_pair_trace(cascade, 0, root.ar_bar)

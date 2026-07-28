@@ -251,14 +251,14 @@ DESCENT_TAIL_CFP_MIN = 0.20
 
 # Sign-of-strength (SOS) breakout tolerance for Phase-B validation. A worked
 # range whose RIGHT side has already broken out above R and HELD above support —
-# a creek-jump then back-up (SOS -> BUEC) — is the setup, not a failed box. The
+# a break above R then a rest back on it (SOS -> LPS above R) — is the setup, not a failed box. The
 # legacy respect/occupancy gates measured to the live edge, so they counted that
 # breakout as a boundary failure and rejected the range (e.g. NMM: a clean April
 # box buried under a sustained May breakout above R, backing up to an early-June
 # LPS). Fix: validate the range over its WORKED CAUSE — trim a trailing sustained
 # above-R run that holds support before measuring boundary-respect + occupancy.
 # No-op unless price has already broken out and held, so in-range setups are
-# untouched and the change can only RESCUE SOS-BUEC framings (recall-positive).
+# untouched and the change can only RESCUE break-above-R-then-rest framings (recall-positive).
 # Outer Phase-B only (like the traversal gate); inner boxes are never trimmed.
 SOS_TRIM_MIN_RUN = 3             # a breakout tail must be >= this many consecutive above-(R+buffer) bars (not a one-bar wick)
 SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be >= this fraction of the candidate window
@@ -335,6 +335,25 @@ BAND_EVENT_MAX_BARS = 20
 # 05-12..05-15, then broke out truly). Ratchet resealed 26 -> 28
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
+
+# --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
+# Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the
+# opposite direction of the trend if we are still inside that trend." A box may
+# not OPEN before the terminal pivot — the buying/selling climax — of the trend
+# segment containing that open (market_structure.trend_terminal_floor). The
+# engine already reads this correctly and then ignores it: on LIVN its own
+# segment_trends put the uptrend's terminal at 2026-07-06 while the box opened
+# 2026-06-18, anchoring the climax on a bar labelled HH/up and the AR on a bar
+# labelled HL/up — a higher low cannot be the reaction that ends a trend.
+# The shipped _enforce_climax_terminality only tests climax -> box open, so a
+# trend topping INSIDE the box is invisible to it (and it moves the overlay
+# only — the overlay feeds no rails/LPS/score, so it could never fix the box).
+# Measured 2026-07-27: 142/332 live boxes (42.8%, incl. rank-0 XMAX) open before
+# their trend topped, vs the operator's own 33 marks at 31/33 = 93.9% obeying
+# the rule. Applies to every pool (strict / rescued / band / story) through the
+# one shared _oriented_pairs enumeration. Refused pairs are not candidates at
+# all, so the near-miss lane does not see them — flag ON is a census seam.
+TREND_TERMINAL_BOX_GATE_ENABLED = False
 
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
 # Measurement constants for the operator-ruled near-miss predicate
@@ -527,7 +546,7 @@ LPS_SHELF_LENGTH_MIN = 3          # a 2-bar pause is not a shelf; marked shelves
                                   # n=2 (the negative corpus is the arbiter).
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the canon position test
                                   # (SMI: the back-up completes between the range's halfway point
-                                  # and the creek; IBD: handle midpoint above the base midpoint).
+                                  # and the broken resistance; IBD: handle midpoint above the base midpoint).
                                   # Flat-and-LOW is the named failure geometry, never sanctioned.
 
 # Drawn LPS/Test staircase filter (DISPLAY-ONLY, recall-safe). The screener's
@@ -638,7 +657,7 @@ CANDLE_SPREAD_ATR_MESSY = 1.40  # median spread/ATR >= this -> zero on this meas
 CANDLE_TIGHTBAR_CLEAN = 0.65    # tight-bar % >= this -> full readability (higher = cleaner)
 CANDLE_TIGHTBAR_MESSY = 0.30    # tight-bar % <= this -> zero on this measure
 # L2 SOS calibration (measure-only event reader; gates/scores nothing). An SOS is a Phase-D
-# creek-jump that TESTS the rail and HOLDS. Two box-relative bounds keep markup out of the SOS
+# break above R that TESTS the rail and HOLDS. Two box-relative bounds keep markup out of the SOS
 # bucket so it stops over-firing in active/extended boxes (AMRZ fired ~15 SOS):
 #  (1) NEAR R — the wave-top peak must sit near R (peak_box_pos <= SOS_NEAR_R_MAX_BOX); a reach
 #      far above R (AMRZ pkPos 2.0-2.4) is post-breakout MARKUP, typed `markup`, not SOS.

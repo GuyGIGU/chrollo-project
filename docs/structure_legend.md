@@ -75,6 +75,17 @@ Phase C). One vocabulary is spoken end-to-end:
 - **Overlay** — `chartPhaseOverlay.js` reads `evidence.selected.source` and labels
   it (`SOS reclaim`, `Rising support`, `LPS shelf`, …).
 
+> **`sos_reclaim` is misnamed — read it as "an above-R test."** It is computed at
+> `phase_d.py` as the support tests whose window sits in the `OVERSHOOT_R` zone —
+> i.e. price *resting on* broken resistance — which is the same geometry
+> `detect_lps` calls `buec_shelf` and the UI shows as **LPS above R**. It is NOT a
+> Sign of Strength: an SOS is the advance *through* resistance, and
+> `resolve_phase_d_boundary` never even imports `measure_resistance_events`, the one
+> function that types an `SOS`. The key is a frozen wire/archive string, so this
+> sentence is the fix — do not rename it, and do not "repair" the resolver by
+> wiring the real SOS typer into it (that would move every Phase-D start currently
+> sourced `sos_reclaim` and break the archived `phase_d_evidence_json` seam).
+
 ---
 
 ## The two lego pieces
@@ -106,22 +117,29 @@ own* R/S rooted by *its own* swing pair, somewhere else.
 
 ---
 
-## Relative labeling — Mini-BC / Mini-AR
+## Relative labeling — the operative climax pair
 
 Labels attach to the **current** consolidation, not to the stock's entire
 history. When a larger macro climax came earlier, the swing responsible for the
-*current* range's boundaries is the **Mini-BC / Mini-SC** and **Mini-AR**.
+*current* range's boundaries is a smaller, local climax→reaction pair.
 
-The engine only ever acts on the **operative (Mini) pair** — the local swing
-that birthed the range in front of us. The macro climax is left-side context.
+The engine only ever acts on that **operative pair** — the local swing that
+birthed the range in front of us. The macro climax is left-side context.
+
+> **Naming (binding — see the `strategy_alpha.md` legend).** These smaller pairs
+> are **never labeled BC/AR**; those names are reserved for the end of the main
+> trend. In code the pair is a `RootSwing`, and `RootSwing.kind` (`'BC'`/`'SC'`)
+> is a **qualification label** — which direction the anchor scan matched — never
+> a claim that this is the stock's primary trend top. There is no `Mini-BC` /
+> `Mini-AR` object anywhere in the engine: an earlier draft of this file named
+> one, it was never built, and the name is retired here (2026-07-26).
 
 ### The reading procedure (generalized)
 
 1. Start at the **right edge** — the consolidation being evaluated.
 2. Walk **left** to the swing that *births* that range: follow the advance up to
-   its **terminal high → that peak is BC** (Mini-BC).
-3. The **reaction / deep correction right after → AR** (Mini-AR), which sets the
-   floor of that move.
+   its **terminal high** — that peak is the operative climax.
+3. The **reaction / deep correction right after** sets the floor of that move.
 4. *Only then* scope the consolidation (R, S, phases, LPS) **inside** the box
    those two events define.
 
@@ -184,8 +202,8 @@ It can appear **before *or* after an LPS** — Phase D holds more than one LPS (
 
 **The good case has a name:** an LPS resting *just above* freshly-breached
 resistance (R flipped to support) is close to its energy source and *not*
-over-extended — the Wyckoff **Back-Up to the Edge of the Creek (BUEC)**, which
-the engine already classifies as the `OVERSHOOT_R` zone.
+over-extended — the engine classifies it as the `OVERSHOOT_R` zone and displays
+it as **LPS above R** (wire key `buec_shelf`, frozen).
 
 **Stretch = the move from the LPS, measured relative to the range that birthed
 it** — where "the range that birthed it" is the **last energy-gathering stage
@@ -303,7 +321,7 @@ absence, raw measure archived, tiers untouched).
    `_bin_d_ascending_support_quality` and its D-vs-B support-quality delta. The
    Phase-D boundary is single-sourced with the scoping overlay
    (`scope._resolve_phase_d_start`). Still measure-first: nothing here gates or
-   scores. See strategy_alpha.md, "Region (Bin) Features & Trend Template".
+   scores. See engine_reference.md, "Region (Bin) Features & Trend Template".
 
 ---
 

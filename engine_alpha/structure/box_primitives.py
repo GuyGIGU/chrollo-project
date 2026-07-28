@@ -44,6 +44,7 @@ __all__ = [
     "backext_shared_rail",
     "collect_root_anchors",
     "collect_zigzag_candidates",
+    "trend_terminal_legal_open",
     "select_phase_b_candidate",
     "phase_b_zigzag",
 ]
@@ -306,6 +307,52 @@ def _oriented_pairs(zigzag):
         yield R_val, S_val, r_anchor_bar, s_anchor_bar
 
 
+def trend_terminal_legal_open(terminal_floor, floor_offset):
+    """Build the trend-terminal legality test for a box's OPENING bar.
+
+    ``terminal_floor`` is the df-positional ``market_structure.TrendFloor``;
+    box bars are window-relative, so ``floor_offset`` rebases them. Bars outside
+    the array, and bars no trend segment covers (``bar < 0``), are legal — there
+    is no trend there to still be inside of.
+
+    **Judge the FINAL, back-extended open, never the raw ``cand_start``.** The
+    floor is deliberately not monotonic: the bar where one trend hands over to
+    the next carries the OLD trend's terminal (already printed = legal), while
+    the very next bar carries the NEW leg's terminal (not yet printed). MATX
+    opens exactly on such a handover bar (468, floor 467 = legal) while its
+    anchor pair sits at 469+ inside the following advance — gating the raw
+    anchor cost a pinned Guided-List hit for a box that is in fact honest.
+
+    When the terminal DOES land inside the box, the question is not how far the
+    trend ran — it is whether what followed the climax is itself a base. The box
+    is legal iff at least ``MIN_BASE_DAYS`` bars have printed since that terminal.
+    This is the operator's own objection, verbatim: LIVN's correction was "way
+    too young" at **13 bars** past its climax, while PXS has **53** and is the
+    box he drew.
+
+    **Overshoot magnitude is NOT the test — it was falsified three times.** The
+    operator accepts boxes whose trend ran 47.9% (PXS), 82% (VIK) and 101%
+    (MATX) of a box height past R — those are upthrusts *inside* an established
+    base, and PXS's R is deliberately drawn beneath its 4.92 spike — while
+    rejecting LIVN at 20.57%. Only post-climax maturity separates them.
+    """
+    bars = terminal_floor.bar
+    n = len(bars)
+    floor_offset = int(floor_offset)
+    min_base = int(settings.MIN_BASE_DAYS)
+
+    def _legal(open_bar):
+        bar = int(open_bar) + floor_offset
+        if not (0 <= bar < n):
+            return True
+        term = int(bars[bar])
+        if term < 0 or bar >= term:
+            return True                      # trend already printed its extreme
+        return (n - term) >= min_base        # ... else the base since it must be real
+
+    return _legal
+
+
 def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
                               recorder=None):
@@ -340,7 +387,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
     # trailing SOS breakout tail is trimmed (see ``_worked_window_end``). Rescued
     # framings are used ONLY when a window yields no strict one, so an ordinary
     # in-range setup is never re-framed — the trim can only save a box that would
-    # otherwise be rejected outright (NMM's SOS -> BUEC).
+    # otherwise be rejected outright (NMM's break above R, then a rest on it).
     strict, rescued = [], []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
@@ -386,7 +433,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
             strict.append(tup)
             continue
 
-        # Rescue the SOS -> BUEC case: the worked cause is a clean range, only the
+        # Rescue the break-above-R-then-rest case: the worked cause is a clean range, only the
         # already-broken-out right side tripped the gates. Outer Phase-B only, and
         # only while price is still BACKING UP to the box (not extended away from
         # it): an old range price has since blown past is stale, not a setup — the
@@ -412,7 +459,7 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
         # minus a bounded terminal floor-holding pullback tail — was built
         # and REJECTED here. No cap (5/8/12/15 bars) restores the EGBN/YPF
         # right-edge elections it targeted: their collapses are structural
-        # (EGBN's two-week above-creek shelf residence = rail-PLACEMENT;
+        # (EGBN's two-week above-R shelf residence = rail-PLACEMENT;
         # YPF's 19-bar base + occupancy), not bounded-tail artifacts, and a
         # trim long enough to matter re-elects stale windows (the rejected
         # 13b arbitration lesson). Cause-commitment stays open only via a
@@ -465,7 +512,15 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
     # LAST-RESORT worked-band pool (BAND_RAILS_ENABLED, dark; outer Phase B
     # only): consulted ONLY when both extreme-anchored pools are empty, so an
-    # ordinary election can never move. Rails at the max-dwell close band;
+    # an ordinary election can never move WITHIN THIS ROOT'S WINDOW. (Scope
+    # caveat, measured 2026-07-27: the guard is per-ROOT, but read_structure walks
+    # roots oldest-first and returns the FIRST that completes — so a last-resort box
+    # on an EARLY root can end the walk before a later root's ordinary box is ever
+    # reached. Live instances: CMPR band-elects at root-early (payload agrees), AMCX
+    # story-elects likewise. This is pre-existing design shared with the rescued pool,
+    # NOT a story/band regression; do not "fix" it with a two-pass walk — measured,
+    # that reverses CMPR's operator-accepted band election.)
+    # Rails at the max-dwell close band;
     # qualified excursions (reclaim/fail-back + hold) are excised from the
     # judged window; every gate below runs UNCHANGED on the judged bars.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
@@ -474,7 +529,15 @@ def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
 
     # LAST-RESORT story pool (STORY_POOL_ENABLED, dark; outer Phase B only):
     # consulted ONLY when the extreme-anchored pools AND the band pool are all
-    # empty, so an ordinary election can never move. The RULED narrative form
+    # empty, so an an ordinary election can never move WITHIN THIS ROOT'S WINDOW. (Scope
+    # caveat, measured 2026-07-27: the guard is per-ROOT, but read_structure walks
+    # roots oldest-first and returns the FIRST that completes — so a last-resort box
+    # on an EARLY root can end the walk before a later root's ordinary box is ever
+    # reached. Live instances: CMPR band-elects at root-early (payload agrees), AMCX
+    # story-elects likewise. This is pre-existing design shared with the rescued pool,
+    # NOT a story/band regression; do not "fix" it with a two-pass walk — measured,
+    # that reverses CMPR's operator-accepted band election.)
+    # The RULED narrative form
     # (operator ruling 2026-07-25 — strategy_alpha.md "The rail-episode read")
     # replaces only the occupancy-family judgment; width/window/respect/crash
     # run unchanged here and the traversal gate below judges the returned pool.

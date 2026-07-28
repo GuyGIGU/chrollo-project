@@ -343,6 +343,16 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     if bricks is None:
         from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
+    # Trend-terminal box gate: read the trend ONCE for the whole cascade (the
+    # walk below visits up to _MAX_ANCHORS roots, each electing over the same
+    # frame). None when the flag is off — every call stays byte-identical.
+    terminal_floor = None
+    if settings.TREND_TERMINAL_BOX_GATE_ENABLED:
+        from engine_alpha.structure.market_structure import (  # noqa: PLC0415
+            trend_terminal_floor,
+        )
+        terminal_floor = trend_terminal_floor(df)
+
     search_from = 0
     for i in range(_MAX_ANCHORS):
         # Phase A: the next root swing at/after the cursor (oldest-first = longest cause).
@@ -370,6 +380,8 @@ def read_structure(df, atr, *, bricks=None, trace=None,
         # the pair election narrates its cascade — every candidate R/S pair
         # examined, the gate that rejected it, and why the winner was elected.
         nm_kw = {"near_miss": near_miss} if near_miss is not None else {}
+        if terminal_floor is not None:
+            nm_kw["terminal_floor"] = terminal_floor
         if rec is not None:
             cascade: list = []
             box = bricks.validate_equilibrium(df, root, atr, trace=cascade,

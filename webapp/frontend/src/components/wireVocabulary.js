@@ -19,11 +19,16 @@ export const DISPLAY_LABELS = {
   dwell_balance: { label: 'Dwell Balance', short: 'Dwell' },
   r_touch_vol_z: { label: 'Resistance Volume', short: 'R vol' },
   s_touch_vol_z: { label: 'Support Volume', short: 'S vol' },
-  // LPS completion forms (one detector, three forms; wire enums frozen)
+  // LPS completion forms (ONE detector; the wire enum has SIX values and every
+  // one of them now carries a signed label — before 2026-07-26 the last three
+  // fell through and rendered to the operator as raw snake_case slugs).
   terminal_valley: { label: 'LPS', short: 'LPS' },
   holding_shelf: { label: 'LPS — flat hold', short: 'flat hold' },
-  buec_shelf: { label: 'LPS above R (throwback)', short: 'throwback' },
-  OVERSHOOT_R: { label: 'LPS above R (throwback)', short: 'throwback' },
+  buec_shelf: { label: 'LPS above R', short: 'above R' },
+  OVERSHOOT_R: { label: 'LPS above R', short: 'above R' },
+  rising_support_shelf: { label: 'LPS — rising support', short: 'rising support' },
+  clean_downswing: { label: 'LPS — clean pullback', short: 'clean pullback' },
+  undercut_rebound: { label: 'LPS — spring rebound', short: 'spring rebound' },
   // Structure verdict labels
   descent_tail: { label: 'Stale-Support Reject', short: 'stale support' },
 };

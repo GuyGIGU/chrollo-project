@@ -53,6 +53,26 @@ _PAYLOAD = os.path.join(_PROJECT_ROOT, "output", "screener_data.json")
 _CACHE = os.path.join(_PROJECT_ROOT, "market_data_cache_5y.parquet")
 
 
+# The payload quantizes rails to 2 decimals (output/dashboard.py:261-262,
+# ``round(float(row['_R']), 2)``). B6 must therefore ask "would today's rail still
+# SERIALIZE to the value the payload recorded?" — quantize the same way the writer
+# did rather than approximating its cell with an absolute epsilon. The old
+# ``abs(engine - payload) < 0.005`` used a tolerance exactly equal to the
+# quantization half-step, so a rail landing on a half-cent was written exactly
+# 0.005 away from itself and could NEVER pass (PECO's S = 41.375 -> 41.38; the
+# realized IEEE difference is 0.005000000000002558, so even ``<= 0.005`` fails).
+# Latent since the gate was authored; first tripped when a half-cent rail entered
+# the payload. Census at the fix: 664 rail comparisons, 1 case the epsilon failed
+# and round-compare passes (the artifact), 0 the reverse (no regression).
+_PAYLOAD_PRICE_DP = 2
+
+
+def _same_price(engine_val, payload_val) -> bool:
+    if payload_val is None:
+        return False
+    return abs(round(float(engine_val), _PAYLOAD_PRICE_DP) - float(payload_val)) < 1e-9
+
+
 def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
     H = daily["High"].values.astype(float)
     L = daily["Low"].values.astype(float)
@@ -99,8 +119,8 @@ def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
           f"pbs={pbs} r_anchor={ra} s_anchor={sa}")
     check("B5 box.start==pbs", tk, int(box.start_bar) == pbs,
           f"box.start={box.start_bar} pbs={pbs}")
-    same_R = abs(R - float(payload_fields.get("R") or 0)) < 0.005
-    same_S = abs(S - float(payload_fields.get("S") or 0)) < 0.005
+    same_R = _same_price(R, payload_fields.get("R"))
+    same_S = _same_price(S, payload_fields.get("S"))
     same_len = (n - pbs) == int(payload_fields.get("base_len") or -1)
     check("B6 payload-immobility", tk, same_R and same_S and same_len,
           f"R {R} vs {payload_fields.get('R')}  S {S} vs {payload_fields.get('S')}  "
@@ -135,7 +155,7 @@ def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
         check("D4 lps-price-order", tk, float(lps.low) <= float(lps.high),
               f"low={lps.low} high={lps.high}")
         if getattr(lps, "swing_type", "terminal_valley") == "buec_shelf":
-            check("D5 buec-above-R", tk, float(lps.low) >= R - 1e-6 * R,
+            check("D5 lps-above-R", tk, float(lps.low) >= R - 1e-6 * R,
                   f"low={lps.low} R={R}")
     if s.terminator == "spring":
         check("D6 terminator", tk, sp is not None and pbe == int(sp.tip_bar),

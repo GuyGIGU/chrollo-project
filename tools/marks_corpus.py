@@ -109,14 +109,14 @@ STAGE_TAGS: dict[str, str] = {
     # Re-tagged 2026-07-24 after Tasks 3+4 falsified their original stages
     # (engagement-respect and commit-the-cause both tested + REJECTED — see
     # strategy_alpha.md): NKTR + EGBN belong to the rail-PLACEMENT family
-    # (wick-anchored candidate rails inflate width / sit at the creek), a
+    # (wick-anchored candidate rails inflate width / sit at the body level), a
     # named FUTURE stage outside this program's remaining tasks.
     # Task 6 (2026-07-24) closed the lps-envelope stage with a NO-MOVES
     # calibration answer: the marked-shelf terminal-turn envelope median is
     # 0.0 (his shelves genuinely rest), ORMP-2/PKE marked shelves PASS the
     # detector at the DRAWN rails, and NOK's launch-gate case is n=1. Every
     # chart-readable miss belongs to ONE family — rail-placement (the engine
-    # anchors candidate rails at wick extremes / the creek where the operator
+    # anchors candidate rails at wick extremes / the body level where the operator
     # anchors body levels / the ceiling) — the named next program. SKYT is a
     # universe-gate exclusion (below SMA50 on 9/10 walked sessions), not a
     # chart-reading gap; converting it is an operator strategy decision.

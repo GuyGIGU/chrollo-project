@@ -1,5 +1,5 @@
 """
-Generated Settings Quick-Reference for docs/strategy_alpha.md.
+Generated Settings Quick-Reference for docs/engine_reference.md.
 
 The doc's quick-reference used to be a hand-maintained copy of
 ``config/settings.py`` values - a guaranteed-rot surface (it had already
@@ -31,7 +31,7 @@ except ModuleNotFoundError:
 
 _PROJECT_ROOT = configure_path()
 
-_DOC_PATH = os.path.join(_PROJECT_ROOT, "docs", "strategy_alpha.md")
+_DOC_PATH = os.path.join(_PROJECT_ROOT, "docs", "engine_reference.md")
 _BEGIN = "<!-- BEGIN GENERATED: settings-quick-reference -->"
 _END = "<!-- END GENERATED: settings-quick-reference -->"
 
@@ -107,7 +107,7 @@ def check_doc(doc_path: str = _DOC_PATH) -> bool:
 def main() -> None:
     import argparse
 
-    ap = argparse.ArgumentParser(description="Generated settings quick-reference for strategy_alpha.md.")
+    ap = argparse.ArgumentParser(description="Generated settings quick-reference for engine_reference.md.")
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="regenerate the doc block in place")
     group.add_argument("--check", action="store_true", help="fail (exit 1) if the doc block drifted")

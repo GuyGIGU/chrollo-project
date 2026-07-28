@@ -53,6 +53,7 @@ from config import settings
 from engine_alpha.structure.box_events import _DETECT
 from engine_alpha.structure.metrics import measure_support_slope
 from engine_alpha.structure.phase_d import resolve_phase_d_boundary
+from engine_alpha.structure.pivots import _find_pivots
 
 
 def _empty() -> dict:
@@ -97,6 +98,10 @@ def _empty() -> dict:
         "last_supper_pullback_from_extension_pct": None,
         "last_supper_source_box_age": None,
         "last_supper_reclaim_quality": None,
+        "last_supper_pivot_stretch_atr": None,
+        "last_supper_pivot_stretch_box": None,
+        "last_supper_pullback_from_pivot_pct": None,
+        "last_supper_pivot_bars_back": None,
     }
 
 
@@ -241,6 +246,41 @@ def _source_box_exit_bar(df: "pd.DataFrame", start: int, end: int,
     return None
 
 
+def _run_up_pivot_bar(df: "pd.DataFrame", start: int, end: int) -> Optional[int]:
+    """The last swing PEAK at/before ``end`` — the run-up's terminal pivot.
+
+    The over-extension read asks how far above its energy source the run-up that
+    birthed the LPS actually reached (operator ruling 2026-07-26: "how far above
+    it sits the last pivot that caused that run up… to avoid traps of a deep
+    correction"). The elected LPS window's own first bar is a poor stand-in for
+    that pivot — it is at most ``LPS_LENGTH_MAX`` (7) bars old — so the anchor is
+    read off the same pivot skeleton every other structure read uses.
+
+    Returns a df-positional bar, or None when the window is too short to pivot,
+    carries a non-finite bar, or holds no confirmed peak.
+    """
+    lo = max(0, int(start))
+    hi = min(len(df), int(end) + 1)
+    if hi - lo < 3:
+        return None
+    try:
+        highs = df["High"].to_numpy(dtype=float)[lo:hi]
+        lows = df["Low"].to_numpy(dtype=float)[lo:hi]
+    except (KeyError, TypeError, ValueError):
+        return None
+    # A NaN inside the window silently distorts the comparison masks, which
+    # would move the anchor rather than refuse it.
+    if not (np.isfinite(highs).all() and np.isfinite(lows).all()):
+        return None
+    order = (settings.PIVOT_ORDER_LONG
+             if (hi - lo) >= settings.PIVOT_ORDER_THRESHOLD
+             else settings.PIVOT_ORDER_SHORT)
+    peaks_idx, _ = _find_pivots(highs, lows, order)
+    if not peaks_idx:
+        return None
+    return lo + int(peaks_idx[-1])
+
+
 def _last_supper_measurements(
     df: "pd.DataFrame",
     *,
@@ -249,11 +289,17 @@ def _last_supper_measurements(
     lps_end: int,
     box_start: int,
     active_R: float,
+    atr_val: Optional[float] = None,
+    box_height: Optional[float] = None,
 ) -> dict:
     out = {
         "last_supper_pullback_from_extension_pct": None,
         "last_supper_source_box_age": None,
         "last_supper_reclaim_quality": None,
+        "last_supper_pivot_stretch_atr": None,
+        "last_supper_pivot_stretch_box": None,
+        "last_supper_pullback_from_pivot_pct": None,
+        "last_supper_pivot_bars_back": None,
     }
     n = len(df) if df is not None else 0
     if n == 0 or anchor_bar is None or low_bar is None:
@@ -289,6 +335,32 @@ def _last_supper_measurements(
         exit_bar = _source_box_exit_bar(df, box_start, low_bar, float(active_R))
         if exit_bar is not None:
             out["last_supper_source_box_age"] = int(low_bar - exit_bar)
+
+    # ── Pivot-anchored over-extension (measure-only, never gated/scored) ─────
+    # Sibling of the fields above, anchored on the run-up's terminal PIVOT
+    # instead of the LPS window's first bar. Archived alongside rather than
+    # replacing them: redefining a live column in place would make new rows
+    # non-comparable to every historical one (the bin_a_* seam precedent).
+    pivot_bar = _run_up_pivot_bar(df, box_start, low_bar)
+    if pivot_bar is None:
+        return out
+    try:
+        pivot_high = float(df["High"].iloc[pivot_bar])
+    except (KeyError, TypeError, ValueError):
+        return out
+    if not _finite(pivot_high) or pivot_high <= 0:
+        return out
+
+    out["last_supper_pivot_bars_back"] = int(low_bar - pivot_bar)
+    pivot_swing = pivot_high - lps_low
+    if pivot_swing > 0:
+        out["last_supper_pullback_from_pivot_pct"] = _round(pivot_swing / pivot_high)
+    if _finite(active_R):
+        above_source = pivot_high - float(active_R)
+        if atr_val is not None and _finite(atr_val) and float(atr_val) > 0:
+            out["last_supper_pivot_stretch_atr"] = _round(above_source / float(atr_val))
+        if box_height is not None and _finite(box_height) and float(box_height) > 0:
+            out["last_supper_pivot_stretch_box"] = _round(above_source / float(box_height))
 
     return out
 
@@ -739,6 +811,8 @@ def measure_phases(
             lps_end=lps_end,
             box_start=box_start,
             active_R=active_R,
+            atr_val=float(atr_val) if has_atr else None,
+            box_height=active_box_height if active_box_ok else None,
         ))
 
     return out
