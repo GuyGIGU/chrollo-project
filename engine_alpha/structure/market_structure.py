@@ -486,12 +486,23 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
 
     Returns a ``TrendFloor`` of three ``len(df)`` arrays — the covering trend's
     terminal ``bar``, its ``price``, and its ``direction``. ``bar`` is ``-1``
-    where no segment covers (no trend to still be inside of). The PRICE is what
-    makes the rule survive contact: a candidate is only mid-trend if the trend
-    went on to an extreme materially beyond that candidate's OWN rail — a bar
-    that merely retests the ceiling is a touch, not the trend running on (CTOS
-    2026-05: box R 10.20, "terminal" 10.22 = 2.7% of box height, a false
-    positive that cost a pinned Guided-List hit; LIVN's is 20.6%).
+    where no segment covers (no trend to still be inside of).
+
+    **Only ``bar`` is consulted.** ``price`` and ``direction`` are measurement,
+    carried for diagnostics; no live caller reads them. The legality test lives
+    in ``box_primitives.trend_terminal_legal_open`` and is **post-climax
+    MATURITY**: a box opening before this terminal survives iff
+    ``MIN_BASE_DAYS`` bars have printed since it.
+
+    **Do NOT rebuild a price test off these arrays — it is Tested-DEAD.**
+    Refusing a box on how far the trend ran past its own rail (the removed
+    ``TREND_TERMINAL_OVERSHOOT_BOX`` knob) was falsified three times: the
+    operator ACCEPTS 47.9% (PXS), 82% (VIK) and 101% (MATX) of a box height
+    past R — those are upthrusts inside an established base — and REJECTS LIVN
+    at 20.6%. Maturity is the separator (LIVN 13 bars, PXS 53), and it needs no
+    price leg to hold the case the price form was written for: CTOS (box
+    R 10.20, "terminal" 10.22 = 2.7% of box height) still fires as a pinned
+    Guided-List hit with the gate ON. See docs/decisions.md, Tested-DEAD.
     """
     n = 0 if df is None else len(df)
     floor = TrendFloor(np.full(max(n, 0), -1, dtype=int),
