@@ -335,3 +335,64 @@ the affirmative branch, NULL on the negative — so no code path can half-flip t
 contradiction (`triggered=0` with a stale date). Mirrors the fires' pair-coherent write.
 **Origin:** Leach — Council Review 2026-07-26-2156 (finding 7); operator-delegated 2026-07-26
 **Principle:** `references/quality-postgres.md` → P1 (constraints are assertions)
+
+---
+
+### EC-24: A staleness budget counts only sessions the provider could have supplied
+**Convention:** Freshness/staleness arithmetic that bounds a tolerance (session lag, retry
+budgets) must discount sessions PROVEN absent upstream (the `absent_sessions` ledger) — the
+budget measures our lag against what exists, not against a calendar ideal. Without the discount
+the tolerance is consumed by exactly the event it exists to survive: a provider-lost Friday would
+have expired the `session_lag` state at 16:31 ET the same day it shipped, when the expected
+session rolled forward.
+**Origin:** Council Review 2026-07-27-1732 (provider-lost-session hardening, ledger redesign);
+operator-delegated 2026-08-04
+**Principle:** `references/quality-postgres.md` → P2 (the record must tell the truth)
+
+### EC-25: Cooldowns are keyed on the thing they describe, never on the wall clock
+**Convention:** A "don't retry what we already learned" guard is keyed to the FACT it records
+(the absent session; the unchanged symbol set), not to elapsed time. A wall-clock window is dead
+exactly when it is needed — measured repeats were ~24h apart and a lost Friday spans ~72h to
+Monday's close — and it silently re-arms on schedules nobody chose. A new fact (a newly completed
+session, an operator Refresh) gets a fresh attempt by construction, not by timer expiry.
+**Origin:** Council Review 2026-07-27-1732 (the failed-cold-fetch cooldown was redesigned into the
+session-keyed `absent_sessions` ledger); operator-delegated 2026-08-04
+**Principle:** `docs/decisions.md` → Tested-DEAD 2026-07-27 (the wall-clock variant, refuted at
+design time); `references/quality-postgres.md` → P1
+
+### EC-26: Published payload fields are derived at the publisher, never echoed defaults
+**Convention:** A field on a health/status payload is computed at the boundary that publishes it
+(or by a caller that provably computed it) — never accepted as a parameter default most call
+sites silently leave unset. `weekly_refresh_due` shipped as accepted-but-never-computed: 5/7
+callers passed nothing, the payload never emitted it, and the Refresh button no-op'd without a
+trace. A default that travels the wire as data is a lie on the only surface the operator sees.
+**Origin:** Council Review 2026-07-27-1732 (the silent-Refresh defect); operator-delegated
+2026-08-04
+**Principle:** `references/quality-ux.md` → P9 (trust is destroyed by single failures);
+`conventions.md` EC-21
+
+### EC-27: A conjunctive guard's tests must assert WHICH condition refused
+**Convention:** A test battery for a guard of the form `A and B and C` must distinguish which leg
+refused (distinct sentinel, counter, or message per leg), not merely that the guard refused. A
+conjunctive guard can stay green while the wrong leg fires — the repair dropout_guard shipped with
+a denominator bug that made the manual "Repair N" path issue ZERO batches 100% of the time, and
+every existing test passed because they all tripped the guard through another leg. Complements
+EC-22: every legal value producible, every refusing leg distinguishable.
+**Origin:** adversarial review + Council Review 2026-07-27-1732 (the repair-guard denominator P1);
+operator-delegated 2026-08-04
+**Principle:** `references/quality-testing.md` → P4/P5
+
+---
+
+### AP-9: `can_archive=False` is THE archive block — the evaluate/archive split is load-bearing
+**Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
+`can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the
+archive path's ONLY gate is `can_archive`, enforced at the archive layer and pinned by
+`tests/test_archive_reliability.py`. Do NOT "simplify" the pair into one boolean, and do NOT add
+a second, parallel archive gate (a belt-and-suspenders twin lets the load-bearing one rot
+unobserved). New consumers of panel readability key on `can_evaluate`; anything that PERSISTS
+keys on `can_archive`.
+**Origin:** Council Review 2026-07-27-1732 (provider-lost-session hardening); operator-delegated
+2026-08-04
+**Rationale:** Readable-but-never-archivable is the entire safety contract of `session_lag`;
+merging the flags or duplicating the gate both destroy it silently.

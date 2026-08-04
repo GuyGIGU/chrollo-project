@@ -959,8 +959,35 @@ SESSION_FINALIZATION_MARGIN_MINUTES = 30
 # 100 is well below ADMISSION_MIN_HISTORY_BARS(200) yet ~16x above a wiped cache.
 MARKET_DATA_MIN_HISTORY_BARS = 100
 MARKET_DATA_MIN_HISTORY_COVERAGE = 0.5
+# The provider can simply LOSE a whole trading session. Measured 2026-07-24: a normal
+# Friday (S&P 500 settled 7,411.98) for which Yahoo carries no bar at all — every symbol
+# probed goes 07-23 -> 07-27. Our calendar was right; the data was missing. Every freshness
+# gate keys on Close, so that reads as 0% coverage and a cache complete through 07-23 looks
+# dead. Allow EVALUATION (never archiving) to proceed on a cache this many completed
+# sessions behind, provided the cache's own last session clears
+# MARKET_DATA_MIN_LATEST_COVERAGE. 0 restores the previous hard block.
+MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS = 1
+# A cold refetch that fails its coverage gate persists nothing, so repeating it for the SAME
+# expected session re-pays the full-universe download (~30 min measured) to learn the same fact.
+# When a full fetch proves a session essentially unpublished upstream, that session is recorded in
+# cache_meta's `absent_sessions` ledger and no further cold fetch is attempted FOR THAT SESSION.
+# Deliberately not time-bounded: a wall-clock window is dead exactly when it is needed (the measured
+# repeats were ~24h apart, and a Friday loss spans ~72h to Monday's close). A newly completed
+# session always gets a fresh attempt, and the operator's Refresh click clears the ledger, so the
+# human override stays intact. Capped so meta cannot grow without bound.
+ABSENT_SESSION_LEDGER_MAX = 20
+# A session counts as "the provider does not have this" only at essentially-zero coverage — the
+# measured 2026-07-24 incident recorded 0.0018. A partial response is a repair target, not an
+# absent session, and must stay retryable.
+PROVIDER_ABSENT_SESSION_MAX_COVERAGE = 0.02
 LATEST_REPAIR_BATCH_SIZE = 100     # Smaller latest-bar repair batches after a sparse Yahoo response
 LATEST_REPAIR_SLEEP_SECONDS = 2.0  # Gentle pause between repair batches to reduce Yahoo rate limits
+# When essentially EVERY symbol lacks the latest close the cause is provider-side (an absent
+# session), not per-symbol sparseness, and the batch-by-batch repair cannot help — skip it instead
+# of paying ~55 serial batches. Uses the same "essentially unpublished" bar as the absent-session
+# ledger, deliberately NOT a 50% one: between 51% and 95% missing the repair CAN lift a partial
+# response back over the trust bar, and discarding it there would throw away a ~30-minute download.
+LATEST_REPAIR_MAX_MISSING_FRACTION = 1.0 - PROVIDER_ABSENT_SESSION_MAX_COVERAGE
 MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES = 10   # Sparse eligible-symbol repair: first unchanged retry window
 MARKET_DATA_REPAIR_SECOND_RETRY_MINUTES = 20  # Sparse eligible-symbol repair: second unchanged retry window
 

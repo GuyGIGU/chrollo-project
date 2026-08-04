@@ -103,6 +103,138 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
   counts. A current-but-short symbol is **not** treated as delisted and no longer
   gets an immediate per-ticker fallback retry; it is marked/rechecked as too young.
 
+#### When the provider loses a whole session
+
+Measured 2026-07-27: Yahoo carries **no bar at all for 2026-07-24** — an explicit-window
+fetch returns `07-20, 07-21, 07-22, 07-23, 07-27` for every symbol probed, while
+`latest_completed_session()` returned `2026-07-24`.
+
+**2026-07-24 was a completely normal trading day** (S&P 500 settled 7,411.98, Nasdaq
+24,975.82, Dow 51,947.25). The NYSE calendar here was *right*; Yahoo had simply dropped a
+full session across the entire US universe. So the failure class to design for is not an
+exotic calendar edge — it is **the provider silently losing a day**, which no amount of
+retrying fixes. Every freshness gate keys on Close (`_has_symbol_close`), so a cache 98.1%
+complete through 2026-07-23 measured **0.0% coverage** on the expected session.
+
+Consequences worth knowing: the cached panel carries a genuine **one-day hole** at 07-24
+(bars go 07-23 → 07-27), no archive row for that date can ever exist, and any measure
+reading consecutive bars spans it. `_prepare_ticker_frames` drops the missing bar per
+ticker, so nothing breaks — the series is simply one session shorter. This is also the
+strongest argument yet for the parked second-provider work: a single source that can lose a
+day has no cross-check.
+
+> **Diagnostic caution, learned the hard way.** This was first read as "the provider
+> published the session with a null Close", because a probe printed the returned *index*
+> and saw a `2026-07-24` row. The values told a different story: that row was the **forming
+> 2026-07-27 bar under the wrong date**, which the market open confirmed when 07-27 appeared
+> carrying its Open (738.510010) to six decimals. Never conclude a bar exists from its index
+> alone.
+
+The 0% verdict is *correct* — the panel genuinely is not current — but three responses to it
+were pathological, and each is now bounded:
+
+- **The cold refetch repeated forever.** A cold fetch that misses its coverage gate
+  persists nothing and leaves `last_full_refresh` untouched (`_write_unhealthy_cold_result`),
+  while `last_full_refresh` is written *only* on the success path — so `weekly_refresh_due`
+  stayed True, the incremental path stayed disabled, and the only legal transition was the
+  same ~30-minute full-universe download (measured 1709.9 s and 1813.2 s on consecutive
+  days).
+  A full fetch that comes back with **essentially no closes** now records the session in
+  `cache_meta`'s **`absent_sessions`** ledger, and `_cold_retry_blocked()` refuses another
+  cold fetch for a session on that list. Three design points, each learned the hard way:
+  - **Keyed on the session, not a wall clock.** A time-bounded cooldown is dead exactly
+    when it is needed — the measured repeats were ~24 h apart and a Friday loss spans the
+    weekend, so any window short enough to be safe is too short to catch them.
+  - **Only essentially-zero coverage counts** (`PROVIDER_ABSENT_SESSION_MAX_COVERAGE`; the
+    incident recorded 0.0018). A thin or throttled response is a repair target and must stay
+    retryable, and so is a shallow-history failure — which is why the record carries a
+    `kind` and only the coverage branch arms the ledger. The caller cannot recover that
+    distinction later: it would be inspecting the healthy panel preserved on disk, not the
+    thin one just fetched.
+  - **An empty full-universe pass is NOT an absent session.** It costs the same request
+    volume, so it records the failure, but nobody returning anything is a total provider
+    failure and marking the session absent would suppress the retry that recovers.
+
+  Honoured **only** with a usable cache in hand — a regime mismatch or truncated history
+  still goes cold. A newly completed session is not on the list, so the cache can never
+  strand itself, and a human asking for data outranks the ledger: the download-only job
+  clears it **immediately before contacting the provider**, not at the top of the request,
+  so the override is not spent by the three branches that return without fetching.
+- **The latest-session repair ran anyway.** `_repair_latest_session()` saw every symbol
+  missing and chunked ~5,500 of them into 55 serial batches. When more than
+  `LATEST_REPAIR_MAX_MISSING_FRACTION` of symbols lack the close the cause is the session,
+  not per-symbol sparseness, so the repair is skipped — mirroring the >50% dropout guard
+  already in `_recover_missing_data`.
+  The guard is **opt-in** (`dropout_guard=True`) and only `_cold_fetch` sets it, for two
+  reasons found in review. `repair_latest_session_cache` — the manual "Repair N" button —
+  passes *only the already-missing symbols*, so `missing == symbols` by construction and a
+  fraction test would fire for every N ≥ 1, silently turning that button into a no-op that
+  then escalates itself to `symbol_lagging`. And `_incremental_fetch`'s repair is the
+  *cheap* retry over a ~6-bar window; skipping it there merely drops through to the 5y ×
+  ~5.5k-symbol cold path instead. It additionally requires the repair to span more than one
+  batch, so a small universe (`us_sectors` is 13 symbols) still gets its single cheap
+  attempt rather than being skipped on a fraction alone.
+- **Evaluation was refused outright.** See `session_lag` under Phase 0 health below.
+
+Deliberately **not** changed: the gate still keys on Close, OHLV-only bars are still
+refused, and a Close is never synthesised from `regularMarketPrice` (a live quote, not a
+settled close). Only what happens *after* the gate fails was touched.
+
+#### Cache health — `compute_market_data_health()` ([core/pipeline/market_data_health.py](../core/pipeline/market_data_health.py))
+
+`_classify()` returns `can_evaluate` / `can_archive` / `can_download` for the cached panel.
+Alongside the existing states it distinguishes:
+
+- **`session_lag`** — the panel is complete through its *own* last session but sits behind
+  the expected one. `can_evaluate=True`, `can_archive=False`. Gated by
+  `_evaluable_despite_lag()` on four conditions, each load-bearing: the gap is ≥ 1 and
+  ≤ `MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS`; deep history is intact; coverage on the cache's
+  own last session clears `MARKET_DATA_MIN_LATEST_COVERAGE` (so a panel that is *both* behind
+  and sparse still blocks); **and the expected session is essentially unpublished**
+  (`PROVIDER_ABSENT_SESSION_MAX_COVERAGE` — its OWN constant, deliberately not the complement
+  of the trust bar, which would silently invert and admit a majority-published session if that
+  bar were ever set below 0.5). That last condition is what keeps a *half*-published session
+  out: the panel would carry the new session for some tickers and not others, evaluation reads
+  each ticker as-of its own last bar, and the result would be a leaderboard silently mixing two
+  dates. A partly-published session is a real repair target. Setting the knob to `0` restores
+  the previous hard block.
+  **The gap is counted in sessions the provider could plausibly have published** — sessions on
+  the `absent_sessions` ledger are discounted. Without that discount a single phantom session
+  consumes the whole budget: measured, the 2026-07-24 loss made the tolerance expire at 16:31
+  ET the very next day and hard-block evaluation again, defeating the feature. The discount
+  excludes both endpoints; excluding the *upper* one is load-bearing, since `expected` is the
+  session being waited for and discounting it would cancel the lag to zero, failing the
+  `1 <= lag` test on the very day the provider lost it.
+  **Archiving.** `can_archive=False` here is the load-bearing block. `scan_job._archive_freshness`
+  is *not* a fully independent second gate — its date compare reads the first index symbol only,
+  so if the index symbols disagree it can pass. The per-ticker filter in `_fresh_result_subset`
+  is the backstop: a row is only written for a ticker that individually carries the expected
+  session's close.
+  The **download-only** job (`refresh_market_data_cache`) treats `session_lag` as a *failed*
+  refresh and raises `StaleMarketDataError`: it is readable, but that job exists to reach the
+  expected session, and without this it would exit 0 / status `ok` and raise no alert on a day
+  the cache never advanced. It does **not** call `record_repair_attempt` on that state — that
+  helper's vocabulary is per-symbol sparseness, and on an absent session the missing set is the
+  whole universe, so its signature is identical every attempt and escalates to `symbol_lagging`
+  on the third, which sets `can_download=False` and disables the Refresh button until something
+  unrelated heals the cache.
+
+  **Cache-mode evaluation tolerates it.** `_archive_freshness` returns a distinct
+  `"session_lag"` status (carried onto the exception as `freshness_status`, so callers need not
+  re-match diagnosis prose), and `_passes_archive_freshness` treats it in cache mode exactly
+  like a partial-coverage day: refresh the dashboard, skip the archive, exit 0. Without this the
+  operator watched his leaderboard render and then vanish behind a red failure, while a page
+  reload showed it sitting there fine. Tolerated still means **not archivable** — it is not in
+  the `degraded_coverage` set, so no per-ticker subset is written either.
+- `coverage["cache_last"]` reports completeness through the cache's own last session — the
+  number that tells a one-session lag apart from a dead cache. The other three coverage
+  figures are all measured on the *expected* session and read 0% together when the provider
+  has not published it.
+- The returned dict now includes `weekly_refresh_due`. It was accepted as a parameter but
+  never emitted, so `scan_job._refresh_market_data_cache_locked` read `None` from
+  `.get("weekly_refresh_due")` and its guard collapsed to "if archive-healthy, do nothing" —
+  the Refresh button silently skipped the weekly cold refetch it was labelled for.
+
 ---
 
 ## Phase 1 — Baseline Universe Filter

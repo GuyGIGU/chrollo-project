@@ -295,7 +295,8 @@ def test_incremental_fetch_forces_full_recovery_for_new_listings(monkeypatch):
     monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
     monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+                        lambda data, *_args, **_kwargs: data)
     monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
     calls = []
 
@@ -334,7 +335,8 @@ def test_incremental_fetch_forces_full_recovery_for_split_drift(monkeypatch):
     monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.7)
     monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+                        lambda data, *_args, **_kwargs: data)
     monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, ["SPLT"]))
     calls = []
 

@@ -21,6 +21,7 @@ from core.pipeline.cache import (
     _write_meta,
 )
 from core.pipeline.data_freshness import (
+    CloseCoverage,
     close_coverage_on,
     has_all_closes_on,
     history_too_shallow,
@@ -508,6 +509,7 @@ def _repair_latest_session(
     expected_session: pd.Timestamp,
     min_latest_coverage: float,
     label: str,
+    dropout_guard: bool = False,
 ) -> pd.DataFrame:
     coverage = close_coverage_on(data, symbols, expected_session)
     if coverage.ratio >= min_latest_coverage:
@@ -518,6 +520,35 @@ def _repair_latest_session(
         return data
 
     batch_size = max(1, int(getattr(settings, "LATEST_REPAIR_BATCH_SIZE", 100)))
+
+    # Blast-radius guard, mirroring the >50% dropout skip in _recover_missing_data.
+    # When essentially EVERY symbol lacks the latest close, the cause is the session
+    # itself — not published, or not a session at all (measured 2026-07-24: Yahoo
+    # carries no bar for that Friday while the static NYSE rule calendar says it is a
+    # session). Re-asking for the same bar 100 symbols at a time cannot conjure it,
+    # and costs ~55 serial batches.
+    #
+    # OPT-IN, and only for a full-universe caller. ``repair_latest_session_cache``
+    # (the manual "Repair N" button) passes ONLY the already-missing symbols, so
+    # there ``missing == symbols`` by construction and any fraction test would fire
+    # for every N >= 1 — silently turning that button into a no-op. Same reason
+    # _recover_missing_data is called with dropout_guard=False on its
+    # known-missing-by-construction paths.
+    #
+    # Also requires the repair to span more than one batch: the cost this avoids is
+    # MANY serial batches, so a small universe (us_sectors is 13 symbols) still gets
+    # its single cheap attempt rather than being skipped on a fraction alone.
+    if dropout_guard and symbols and len(missing) > batch_size:
+        max_missing_fraction = float(
+            getattr(settings, "LATEST_REPAIR_MAX_MISSING_FRACTION", 0.5)
+        )
+        if len(missing) > len(symbols) * max_missing_fraction:
+            print(f"  {label}: {len(missing)}/{len(symbols)} symbols missing the "
+                  f"{expected_session.date()} close (>{max_missing_fraction:.0%}); that is a "
+                  "provider-side absent session, not per-symbol sparseness — skipping the "
+                  "batch repair.", flush=True)
+            return data
+
     sleep_seconds = max(0.0, float(getattr(settings, "LATEST_REPAIR_SLEEP_SECONDS", 2.0)))
     start = (expected_session - pd.tseries.offsets.BDay(settings.INCREMENTAL_OVERLAP_BDAYS)).normalize()
     end = (expected_session + pd.Timedelta(days=1)).normalize()
@@ -686,8 +717,15 @@ def _try_fresh_cache(
     scope: _FetchScope,
     expected_session: pd.Timestamp,
     min_latest_coverage: float,
+    weekly_refresh_due: bool = False,
 ) -> pd.DataFrame | None:
     if not os.path.exists(cache_file):
+        return None
+    if weekly_refresh_due:
+        # The weekly cold refetch outranks the TTL fast path — otherwise a refresh
+        # requested inside the 12h TTL returns the cache untouched, last_full_refresh
+        # never advances, and the button keeps asking for the refresh it just
+        # appeared to perform. (_try_current_cache and do_incremental already defer.)
         return None
 
     cache_age_hours = (time.time() - os.path.getmtime(cache_file)) / 3600.0
@@ -753,6 +791,62 @@ def _read_cached_panel(cache_file: str) -> pd.DataFrame | None:
     except Exception as e:
         print(f"  Cached parquet unreadable ({e}); falling back to full refetch.")
         return None
+
+
+ABSENT_SESSIONS_KEY = "absent_sessions"
+
+
+def absent_sessions(meta: dict) -> set[str]:
+    """The sessions a full fetch has PROVEN the provider does not carry.
+
+    Fails OPEN (empty set) on anything malformed: every consumer uses this only to
+    SKIP work or to forgive a gap, so a corrupt ledger must degrade toward doing the
+    work, never toward raising out of the download path.
+    """
+    try:
+        return {str(day) for day in (meta.get(ABSENT_SESSIONS_KEY) or []) if day}
+    except Exception:
+        return set()
+
+
+def record_absent_session(meta: dict, session: pd.Timestamp) -> None:
+    """Append ``session`` to the ledger, newest last, de-duplicated and capped."""
+    day = str(pd.Timestamp(session).date())
+    ledger = [d for d in sorted(absent_sessions(meta)) if d != day]
+    ledger.append(day)
+    cap = max(1, int(getattr(settings, "ABSENT_SESSION_LEDGER_MAX", 20)))
+    meta[ABSENT_SESSIONS_KEY] = ledger[-cap:]
+
+
+def _is_provider_absent_session(coverage) -> bool:
+    """True when a FRESH full-universe fetch came back with essentially no closes for
+    the expected session — the shape that means "the provider does not have this day",
+    as opposed to a thin or throttled response, which is a repair target."""
+    if coverage is None:
+        return False
+    bar = float(getattr(settings, "PROVIDER_ABSENT_SESSION_MAX_COVERAGE", 0.02))
+    return float(coverage.ratio) <= bar
+
+
+def _cold_retry_blocked(meta: dict, expected_session: pd.Timestamp) -> bool:
+    """True when a full fetch already proved this expected session absent upstream.
+
+    A cold fetch that misses its coverage gate persists nothing and leaves
+    ``last_full_refresh`` untouched (see ``_write_unhealthy_cold_result``), so every
+    input to the next run's decision tree is unchanged — the run repeats verbatim.
+    When the expected session is simply absent upstream (measured 2026-07-24: Yahoo
+    carries no bar for that Friday for any symbol, while the static NYSE rule calendar
+    calls it a session) that costs ~30 minutes per attempt to re-learn the same fact.
+
+    Keyed on the SESSION rather than a wall clock. A time window is dead exactly when
+    it is needed: the two measured repeats were ~24h apart and a Friday loss spans the
+    weekend, so any cooldown short enough to be safe is too short to catch them. A
+    newly completed session is not in the ledger and always gets a fresh attempt, and
+    the operator's Refresh click clears the ledger — the human override is intact.
+    Only ESSENTIALLY-ZERO coverage lands here (see ``_is_provider_absent_session``), so
+    a throttled or thin response stays retryable, as does a shallow-history failure.
+    """
+    return str(pd.Timestamp(expected_session).date()) in absent_sessions(meta)
 
 
 def _weekly_refresh_due(meta: dict) -> bool:
@@ -843,6 +937,10 @@ def _write_incremental_result(
     _atomic_write_parquet(data, cache_file)
     meta['last_modified'] = _now_iso()
     meta['price_series'] = _price_regime()   # reachable only when regimes match
+    # Progress made — drop the failure telemetry and the absent-session ledger so a
+    # recovered cache never carries a skip that would suppress a later fetch.
+    meta.pop('last_cold_failure', None)
+    meta.pop(ABSENT_SESSIONS_KEY, None)
     # Health only: the cold full-refetch owns quarantine updates. A ticker
     # absent from a small incremental window is not necessarily dead.
     returned_active = present_tickers(data) & set(scope.requested_non_index)
@@ -895,6 +993,7 @@ def _write_unhealthy_cold_result(
     min_latest_coverage: float,
     started_at: float,
     reason: str | None = None,
+    failure_kind: str = "coverage",
 ) -> pd.DataFrame:
     # Unhealthy cold run (rate-limited OR came back shallow): record health for
     # observability but do not persist the panel, do not touch quarantine, and
@@ -911,6 +1010,27 @@ def _write_unhealthy_cold_result(
         "updates": {},
         "active_skip_counts": count_active_skips(scope.admission),
     }
+    # The one record that this expensive run happened at all: fetch_health above
+    # reports the DOWNLOAD (returned/requested, healthy by quarantine ratio) and
+    # reads fine even when the panel is discarded, so without this the next run — and
+    # the operator — have no way to know it would be repeating itself.
+    meta['last_cold_failure'] = {
+        'at': _now_iso(),
+        'expected_session': str(pd.Timestamp(expected_session).date()),
+        'coverage_ratio': round(float(coverage.ratio), 4) if coverage is not None else None,
+        'duration_s': round(time.time() - started_at, 1),
+        'kind': failure_kind,
+    }
+    # ...but only an essentially-empty COVERAGE failure proves the provider lacks the
+    # session. A shallow-history failure is a thin/throttled response the next fetch can
+    # repair, and arming the skip from it would suppress the retry that fixes it — the
+    # caller's exemption cannot recover this, because it inspects the healthy panel
+    # preserved on disk rather than the thin one just fetched.
+    if failure_kind == "coverage" and _is_provider_absent_session(coverage):
+        record_absent_session(meta, expected_session)
+        print(f"  Recorded {pd.Timestamp(expected_session).date()} as absent upstream "
+              f"(coverage {coverage.format()}); further full fetches for that session "
+              "are skipped until it changes or you press Download.", flush=True)
     _write_meta(meta_file, meta)
     print(reason or (
         f"Full refetch latest-session coverage is {coverage.format()} for "
@@ -983,7 +1103,21 @@ def _cold_fetch(
 ) -> pd.DataFrame:
     data = _full_refetch(scope.tickers_with_indexes)
     if data.empty:
-        return data
+        # An empty full-universe pass costs the same request volume as a successful
+        # one, so it must leave the same record — otherwise the most expensive failure
+        # mode is the one the brake cannot see. Deliberately NOT an absent session:
+        # nobody returning anything is a total provider/network failure, and marking
+        # the session absent from it would suppress the retry that recovers.
+        return _write_unhealthy_cold_result(
+            data, cached, meta_file, meta, scope,
+            CloseCoverage(day=expected_session, present=0,
+                          total=len(scope.tickers_with_indexes)),
+            expected_session, min_latest_coverage, started_at,
+            reason=("Full refetch returned no data for any symbol; keeping the existing "
+                    "cache. This is a total provider failure, not an absent session — "
+                    "the next run retries."),
+            failure_kind="empty",
+        )
 
     if isinstance(data.columns, pd.MultiIndex):
         data = data.loc[:, ~data.columns.duplicated(keep='last')]
@@ -998,6 +1132,10 @@ def _cold_fetch(
         expected_session,
         min_latest_coverage,
         "Full refetch",
+        # The ONLY full-universe caller that measured the 55-serial-batch cost.
+        # _incremental_fetch's repair is the CHEAP retry (a ~6-bar window); skipping
+        # it there would just drop through to this 5y × ~5.5k-symbol path instead.
+        dropout_guard=True,
     )
     coverage = close_coverage_on(data, scope.tickers_with_indexes, expected_session)
     if (not has_all_closes_on(data, scope.index_symbols, expected_session)
@@ -1021,6 +1159,7 @@ def _cold_fetch(
                     f"truncated for {expected_session.date()} (thin provider "
                     "response); not persisting the shallow panel — keeping the "
                     "existing cache if possible."),
+            failure_kind="shallow_history",
         )
 
     return _write_successful_cold_result(data, cache_file, meta_file, scope, started_at)
@@ -1071,16 +1210,17 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
                   f"settings ({_price_regime()}); forcing a full cold refetch.",
                   flush=True)
 
+        weekly_refresh_due = _weekly_refresh_due(meta)
+
         # ── Fast path: fresh cache ─────────────────────────────────────────────
         fresh_cache = None if regime_mismatch else _try_fresh_cache(
-            cache_file, scope, expected_session, min_latest_coverage
+            cache_file, scope, expected_session, min_latest_coverage, weekly_refresh_due
         )
         if fresh_cache is not None:
             return fresh_cache
 
         # ── Decide cold vs. incremental ────────────────────────────────────────
         cached = _read_cached_panel(cache_file)
-        weekly_refresh_due = _weekly_refresh_due(meta)
         last_cached_date, gap_bdays, latest_coverage = _cache_status(
             cached, scope, expected_session
         )
@@ -1092,16 +1232,24 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
         if current_cache is not None:
             return current_cache
 
-        do_incremental = (
+        # "The cache on disk is usable as-is" — needed by BOTH the incremental decision
+        # and the absent-session skip below. Computed once: the two spellings had to
+        # agree or the skip could park a fetch on a cache the incremental path had
+        # already rejected, and _history_too_shallow scans the whole ~5.5k-symbol panel.
+        cached_usable = (
             not regime_mismatch
             and cached is not None
             and not cached.empty
-            and gap_bdays is not None
-            and 1 <= gap_bdays <= settings.INCREMENTAL_MAX_GAP_BDAYS
-            and not weekly_refresh_due
             # A truncated cache must NOT be incrementally patched (that only adds
             # recent rows, leaving the deep history hollow) — go cold to rebuild it.
             and not _history_too_shallow(cached, scope.tickers_with_indexes)
+        )
+
+        do_incremental = (
+            cached_usable
+            and gap_bdays is not None
+            and 1 <= gap_bdays <= settings.INCREMENTAL_MAX_GAP_BDAYS
+            and not weekly_refresh_due
         )
 
         if do_incremental:
@@ -1110,6 +1258,20 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
             )
             if incremental is not None:
                 return incremental
+
+        # A full fetch already proved this expected session absent upstream, and a cold
+        # fetch persists nothing — repeating it re-pays the full-universe download to
+        # reach the identical verdict. Only honoured with a usable cache in hand; a
+        # regime mismatch or truncated history still goes cold, because those a refetch
+        # CAN repair.
+        if cached_usable and _cold_retry_blocked(meta, expected_session):
+            failure = meta.get('last_cold_failure') or {}
+            print(f"Skipping cold refetch: {expected_session.date()} is recorded absent "
+                  f"upstream (a full fetch reached coverage {failure.get('coverage_ratio')} "
+                  f"in {failure.get('duration_s')}s). Serving the cached panel; the next "
+                  "completed session retries automatically, and Download New Data forces "
+                  "a retry now.", flush=True)
+            return cached
 
         return _cold_fetch(
             cache_file, meta_file, meta, cached, scope, expected_session,
@@ -1158,6 +1320,12 @@ def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
         expected_session,
         min_latest_coverage,
         "Incremental",
+        # Also a full-universe caller, so the guard applies. The earlier reasoning
+        # ("skipping here just drops through to the cold path anyway") stopped being
+        # true once the absent-session skip made that fallback cheap: without this the
+        # leg pays ~59 serial batches plus ~118s of inter-batch sleep chasing a bar that
+        # does not exist, and returns the cache regardless.
+        dropout_guard=True,
     )
     fresh_coverage = close_coverage_on(fresh, tickers_with_spy, expected_session)
     if (last_cached_date < expected_session

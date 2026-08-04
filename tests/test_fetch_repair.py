@@ -484,7 +484,8 @@ def test_incremental_fetch_rejects_missing_latest_reference_bar(monkeypatch):
     monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
     monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+                        lambda data, *_args, **_kwargs: data)
 
     out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
 
@@ -513,7 +514,8 @@ def test_incremental_fetch_rejects_low_latest_coverage_with_fresh_indexes(monkey
     monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
     monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session", lambda data, *_args: data)
+    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+                        lambda data, *_args, **_kwargs: data)
 
     out = downloads_module._incremental_fetch(cached_panel, ["AAA", "BBB", "CCC", "SPY", "QQQ"], 1)
 
@@ -552,6 +554,120 @@ def test_latest_session_repair_patches_missing_closes_without_dropping_history(m
     assert out.loc[dates[0], ("AAA", "Close")] == 10.0
     assert out.loc[dates[-1], ("AAA", "Close")] == 11.0
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+
+
+def _repair_probe(monkeypatch, n_symbols, batch_size=2):
+    """Panel of n_symbols all missing the latest close; returns (panel, symbols, calls)."""
+    dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    symbols = [f"T{i:03d}" for i in range(n_symbols)]
+    base = pd.concat(
+        {
+            symbol: pd.DataFrame({"Close": [10.0, None], "Volume": [1000, None]}, index=dates)
+            for symbol in symbols
+        },
+        axis=1,
+    )
+    calls = []
+
+    def _record(batch, *args, **kwargs):
+        calls.append(list(batch))
+        return pd.DataFrame()
+
+    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
+    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_BATCH_SIZE", batch_size)
+    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", _record)
+    return base, symbols, calls, dates[-1]
+
+
+def test_latest_session_repair_skips_a_provider_wide_absent_session(monkeypatch):
+    """When essentially EVERY symbol lacks the latest close, the session itself is
+    absent upstream (measured 2026-07-24: Yahoo carries no bar for that Friday at all,
+    while the static NYSE rule calendar calls it a session). Re-asking for it 100
+    symbols at a time cannot conjure it, so the full-universe caller skips rather
+    than paying ~55 serial batches."""
+    base, symbols, calls, day = _repair_probe(monkeypatch, 10)
+
+    out = downloads_module._repair_latest_session(
+        base, symbols, day, 0.95, "test", dropout_guard=True
+    )
+
+    assert calls == []      # no provider traffic at all
+    assert out is base      # panel handed back untouched
+
+
+def test_latest_session_repair_still_runs_for_the_manual_missing_only_caller(monkeypatch):
+    """REGRESSION GUARD. repair_latest_session_cache (the manual "Repair N" button)
+    passes ONLY the already-missing symbols, so missing == symbols by construction
+    and a fraction test would fire for every N >= 1 — silently turning that button
+    into a no-op that then escalates itself to symbol_lagging. The guard is opt-in
+    for full-universe callers precisely so this path keeps working."""
+    base, symbols, calls, day = _repair_probe(monkeypatch, 10)
+
+    downloads_module._repair_latest_session(base, symbols, day, 0.95, "Manual repair")
+
+    assert calls, "the manual repair path must still issue provider batches"
+    assert sorted(s for batch in calls for s in batch) == sorted(symbols)
+
+
+def test_latest_session_repair_does_not_skip_a_single_batch_universe(monkeypatch):
+    """The cost being avoided is MANY serial batches, so a small universe (us_sectors
+    is 13 symbols) still gets its one cheap attempt even at 100% missing."""
+    base, symbols, calls, day = _repair_probe(monkeypatch, 3, batch_size=100)
+
+    downloads_module._repair_latest_session(
+        base, symbols, day, 0.95, "test", dropout_guard=True
+    )
+
+    assert len(calls) == 1
+
+
+def test_cold_retry_is_blocked_for_a_session_proven_absent():
+    """A cold fetch that misses its coverage gate persists nothing, so repeating it
+    for the same expected session re-pays the full-universe download (~30 min
+    measured) to reach an identical verdict."""
+    meta = {downloads_module.ABSENT_SESSIONS_KEY: ["2026-07-24"]}
+    assert downloads_module._cold_retry_blocked(meta, pd.Timestamp("2026-07-24")) is True
+
+
+def test_cold_retry_is_allowed_for_a_new_expected_session():
+    """Keyed on the SESSION, so a newly completed one always gets a fresh attempt —
+    the cache must never be able to strand itself."""
+    meta = {downloads_module.ABSENT_SESSIONS_KEY: ["2026-07-24"]}
+    assert downloads_module._cold_retry_blocked(meta, pd.Timestamp("2026-07-27")) is False
+
+
+def test_cold_retry_is_allowed_when_the_ledger_is_empty_or_malformed():
+    """Fails OPEN on anything unexpected: this guard only ever SKIPS work, so a
+    corrupt ledger must degrade toward doing the download, never toward raising out
+    of fetch_data or parking the cache forever."""
+    for meta in ({}, {downloads_module.ABSENT_SESSIONS_KEY: None},
+                 {downloads_module.ABSENT_SESSIONS_KEY: "not-a-list"},
+                 {downloads_module.ABSENT_SESSIONS_KEY: []}):
+        assert downloads_module._cold_retry_blocked(
+            meta, pd.Timestamp("2026-07-24")) is False
+
+
+def test_absent_session_ledger_dedupes_and_caps(monkeypatch):
+    monkeypatch.setattr(downloads_module.settings, "ABSENT_SESSION_LEDGER_MAX", 3)
+    meta = {}
+    for day in ["2026-07-20", "2026-07-21", "2026-07-21", "2026-07-22", "2026-07-23"]:
+        downloads_module.record_absent_session(meta, pd.Timestamp(day))
+    ledger = meta[downloads_module.ABSENT_SESSIONS_KEY]
+    assert len(ledger) == 3                      # capped
+    assert len(set(ledger)) == 3                 # de-duplicated
+    assert "2026-07-23" in ledger                # newest retained
+
+
+def test_only_an_essentially_empty_coverage_failure_proves_a_session_absent():
+    """A thin or throttled response is a REPAIR target and must stay retryable; only
+    essentially-zero coverage means the provider does not carry the session. The
+    caller cannot recover this distinction later — it inspects the healthy panel kept
+    on disk, not the thin one just fetched."""
+    day = pd.Timestamp("2026-07-24")
+    absent = downloads_module.CloseCoverage(day=day, present=2, total=5000)
+    partial = downloads_module.CloseCoverage(day=day, present=3000, total=5000)
+    assert downloads_module._is_provider_absent_session(absent) is True
+    assert downloads_module._is_provider_absent_session(partial) is False
 
 
 def test_patch_market_data_tolerates_duplicate_base_columns():

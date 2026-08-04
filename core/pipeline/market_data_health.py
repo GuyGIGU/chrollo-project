@@ -102,7 +102,7 @@ def compute_market_data_health(
     index_symbols: list[str] | None = None,
     now_utc: datetime | None = None,
     closed_reason: str | None = None,
-    weekly_refresh_due: bool = False,
+    weekly_refresh_due: bool | None = None,
 ) -> dict:
     if meta_file is None:
         _, meta_file = _cache_paths()
@@ -117,6 +117,15 @@ def compute_market_data_health(
     panel = _normalize_index(data)
     scope = build_symbol_scope(tickers, meta_file, index_symbols)
     min_coverage = float(getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95))
+
+    # DERIVE it rather than echo the parameter. It was published as a fact while five of
+    # seven production call sites never computed it, so an `after_health` payload
+    # reported "no refresh due" on a day one was overdue — the same silent-default class
+    # this key was added to fix. The parameter stays for tests and for a caller that has
+    # already computed it.
+    if weekly_refresh_due is None:
+        from core.pipeline.downloads import _weekly_refresh_due  # noqa: PLC0415 — lazy, yfinance-heavy module
+        weekly_refresh_due = _weekly_refresh_due(meta)
 
     # Price-regime guard — the SAME test fetch_data / _read_cached_market_data
     # apply. A cache fetched under a different DATA_DIVIDEND_ADJUSTED regime is
@@ -165,30 +174,63 @@ def compute_market_data_health(
     history_ok = not history_too_shallow(
         panel, scope.eligible_symbols, min_bars=min_history_bars, min_cov=min_history_cov
     )
+    # How complete the cache is through its OWN last session, and how far that sits
+    # behind the expected one. Together these separate "incomplete panel" from
+    # "complete panel, older session" — see _evaluable_despite_lag.
+    cache_last_coverage = None
+    lag_sessions = None
+    if cache_last_session is not None:
+        from core.pipeline.market_calendar import session_gap  # noqa: PLC0415 — lazy, mirrors expected_session above
+        from core.pipeline.downloads import absent_sessions  # noqa: PLC0415 — lazy, yfinance-heavy module
+        # A session the provider has PROVEN it does not carry is not staleness: the
+        # cache is as current as the data that exists. Counting it would let one phantom
+        # session consume the entire budget — measured, the 2026-07-24 loss made the
+        # tolerance expire at 16:31 ET the very next day and hard-block evaluation again,
+        # which is exactly what this state was added to prevent.
+        lag_sessions = max(0, session_gap(cache_last_session, expected_session)
+                           - _absent_sessions_between(absent_sessions(meta),
+                                                      cache_last_session, expected_session))
+        # On a current cache this is eligible_coverage by definition, and the per-symbol
+        # scan costs ~350 ms on the live 5,500-symbol panel — pay it only when the cache
+        # is genuinely behind, which is the only case the value can affect the verdict.
+        cache_last_coverage = (
+            eligible_coverage
+            if pd.Timestamp(cache_last_session).normalize() == expected_session
+            else close_coverage_on(panel, scope.eligible_symbols, cache_last_session)
+        )
+
+    # Keyword args deliberately: this call reached thirteen positional parameters, three
+    # of them session-shaped and two interchangeable Coverage objects, so a mis-ordered
+    # insertion would type-check silently and surface only as a wrong health state — in
+    # the one function that decides whether the operator may read or archive his data.
     health_state, severity, can_evaluate, can_archive, can_download, help_needed = _classify(
-        cache_last_session,
-        last_reference,
-        expected_session,
-        index_missing,
-        eligible_coverage,
-        min_coverage,
-        repair_state,
-        closed_reason,
-        weekly_refresh_due,
-        history_ok,
-        regime_mismatch,
+        cache_last_session=cache_last_session,
+        last_reference=last_reference,
+        expected_session=expected_session,
+        index_missing=index_missing,
+        eligible_coverage=eligible_coverage,
+        min_coverage=min_coverage,
+        repair_state=repair_state,
+        closed_reason=closed_reason,
+        weekly_refresh_due=weekly_refresh_due,
+        history_ok=history_ok,
+        regime_mismatch=regime_mismatch,
+        cache_last_coverage=cache_last_coverage,
+        lag_sessions=lag_sessions,
     )
 
     diagnosis = _diagnosis(
-        health_state,
-        raw_coverage,
-        eligible_coverage,
-        min_coverage,
-        missing_summary,
-        cache_last_session,
-        expected_session,
-        repair_state,
-        regime_note,
+        health_state=health_state,
+        raw_coverage=raw_coverage,
+        eligible_coverage=eligible_coverage,
+        min_coverage=min_coverage,
+        missing_summary=missing_summary,
+        cache_last_session=cache_last_session,
+        expected_session=expected_session,
+        repair_state=repair_state,
+        regime_note=regime_note,
+        cache_last_coverage=cache_last_coverage,
+        lag_sessions=lag_sessions,
     )
     download_label = _download_label(
         health_state,
@@ -201,6 +243,12 @@ def compute_market_data_health(
     coverage = {
         "raw": _coverage_payload(raw_coverage),
         "eligible": _coverage_payload(eligible_coverage),
+        # How complete the cache is through its OWN last session — the number that
+        # tells a one-session lag apart from a dead cache. The three above are all
+        # measured on the EXPECTED session, so they all read 0% when the provider
+        # has not published it.
+        "cache_last": (_coverage_payload(cache_last_coverage)
+                       if cache_last_coverage is not None else None),
         "archive_target": min_coverage,
         # Compatibility: previous callers expected coverage.text/ratio.
         **_coverage_payload(eligible_coverage),
@@ -209,6 +257,15 @@ def compute_market_data_health(
         "health_state": health_state,
         "status": health_state,
         "severity": severity,
+        # Consumed by scan_job._refresh_market_data_cache_locked to decide whether an
+        # archive-healthy cache still owes a weekly cold refetch. It was passed IN but
+        # never returned, so that guard silently read None and always skipped the refresh.
+        "weekly_refresh_due": bool(weekly_refresh_due),
+        # NOT named session_lag: that is a health_state, and this number is non-zero on
+        # other states too, so one word would mean "the tolerance fired" in one place and
+        # "how far behind, whatever the state" in another — and a truthiness test on it
+        # would report readable-but-behind for a hard-stale cache.
+        "sessions_behind": lag_sessions,
         "can_evaluate": can_evaluate,
         "can_archive": can_archive,
         "can_download": can_download,
@@ -353,15 +410,100 @@ def missing_signature(symbols: list[str]) -> str:
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _absent_sessions_between(known_absent, after, upto) -> int:
+    """Count recorded-absent sessions STRICTLY between ``after`` and ``upto``.
+
+    Both endpoints are excluded, and the upper one is load-bearing: ``upto`` is the
+    session we are waiting FOR, so discounting it would cancel the lag to zero on the
+    very day the provider lost it — and a zero lag fails the tolerance's ``1 <= lag``
+    test, blocking evaluation on exactly the incident this state exists to survive.
+    Sessions in between are different: they are gaps we have already proven nobody can
+    fill, so they are not staleness.
+
+    Malformed entries are skipped rather than raised on — the ledger only ever forgives
+    a gap, so a corrupt entry must degrade toward reporting MORE staleness, not less.
+    """
+    if not known_absent:
+        return 0
+    after = pd.Timestamp(after).normalize()
+    upto = pd.Timestamp(upto).normalize()
+    count = 0
+    for day in known_absent:
+        try:
+            stamp = pd.Timestamp(day).normalize()
+        except (TypeError, ValueError):
+            continue
+        if after < stamp < upto:
+            count += 1
+    return count
+
+
+def _evaluable_despite_lag(history_ok, cache_last_coverage, expected_coverage,
+                           lag_sessions, min_coverage) -> bool:
+    """True when the cache is merely BEHIND the expected session, not broken.
+
+    The distinction that matters: "this panel is incomplete" (block) versus "this
+    panel is complete, through an older session" (readable). Measured 2026-07-24:
+    the static NYSE rule calendar called it a session, Yahoo carried no bar for it
+    at all, and since every freshness gate keys on Close a 98%-complete cache read
+    as 0% coverage and evaluation was refused outright.
+
+    Four conditions, each load-bearing:
+
+    - the gap is 1..MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS, so a long outage still
+      reads as broken;
+    - deep history is intact (a NaN-wiped panel is not readable at any lag);
+    - the panel is complete through its OWN last session, so a cache that is both
+      behind AND sparse still blocks — the tolerance must never launder one;
+    - the expected session is essentially UNPUBLISHED. A half-published session is
+      the dangerous case: the panel would carry the new session for some tickers
+      and not others, and evaluation reads each ticker as-of its own last bar, so
+      the result is a leaderboard mixing two dates. That case is a genuine repair
+      target (the missing symbols really are fetchable), not a provider outage, so
+      it must fall through to needs_repair.
+
+    The unpublished bar is its OWN constant, deliberately not the complement of the
+    trust bar: derived that way, lowering the trust bar below 0.5 would silently
+    invert this condition and admit a MAJORITY-published session — the exact panel
+    the paragraph above says must be refused.
+
+    Callers must keep ``can_archive`` False — this permits READING only.
+    """
+    max_lag = int(getattr(settings, "MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS", 0))
+    if max_lag <= 0 or not history_ok:
+        return False
+    if lag_sessions is None or not (1 <= int(lag_sessions) <= max_lag):
+        return False
+    if cache_last_coverage is None or cache_last_coverage.ratio < min_coverage:
+        return False
+    unpublished_bar = float(
+        getattr(settings, "PROVIDER_ABSENT_SESSION_MAX_COVERAGE", 0.02)
+    )
+    return expected_coverage is not None and expected_coverage.ratio <= unpublished_bar
+
+
 def _classify(cache_last_session, last_reference, expected_session, index_missing,
               eligible_coverage, min_coverage, repair_state, closed_reason,
-              weekly_refresh_due, history_ok=True, regime_mismatch=False):
+              weekly_refresh_due, history_ok=True, regime_mismatch=False,
+              cache_last_coverage=None, lag_sessions=None):
     if regime_mismatch:
         # Wrong price-series regime outranks every other read: freshness and
         # coverage are meaningless across regimes, evaluation refuses the panel,
         # and only a full cold refetch (can_download) can fix it.
         return "regime_mismatch", "repair", False, False, True, True
-    if last_reference is None or index_missing or cache_last_session is None:
+    if last_reference is None or cache_last_session is None:
+        return "stale_session", "blocked", False, False, True, True
+    if _evaluable_despite_lag(history_ok, cache_last_coverage, eligible_coverage,
+                              lag_sessions, min_coverage):
+        # Complete through its OWN last session, just behind the expected one —
+        # typically a provider that has not published the expected session's close
+        # yet. Reading is safe; ARCHIVING is not (an archive row would be stamped
+        # with the expected session while carrying the prior session's bars), so
+        # can_archive is False here. That is the load-bearing block: scan_job's
+        # _archive_freshness date compare reads the FIRST index symbol only, so it
+        # is not an independent second gate when the index symbols disagree.
+        return "session_lag", "watch", True, False, True, False
+    if index_missing:
         return "stale_session", "blocked", False, False, True, True
     if pd.Timestamp(last_reference).normalize() < expected_session:
         return "stale_session", "blocked", False, False, True, True
@@ -390,7 +532,17 @@ def _classify(cache_last_session, last_reference, expected_session, index_missin
 
 def _diagnosis(health_state, raw_coverage, eligible_coverage, min_coverage,
                missing_summary, cache_last_session, expected_session, repair_state,
-               regime_note=None):
+               regime_note=None, cache_last_coverage=None, lag_sessions=None):
+    if health_state == "session_lag":
+        session_word = "session" if lag_sessions == 1 else "sessions"
+        return (
+            f"Cache is complete through {cache_last_session.date()} "
+            f"({cache_last_coverage.format() if cache_last_coverage else 'n/a'}) but "
+            f"{lag_sessions} {session_word} behind {expected_session.date()}, which has "
+            f"{eligible_coverage.format()} closes. Evaluation reads the "
+            f"{cache_last_session.date()} panel; archiving stays closed until the "
+            "expected session lands."
+        )
     if health_state == "regime_mismatch":
         # Coverage numbers are meaningless across price regimes; the note is
         # the whole story.
@@ -430,6 +582,10 @@ def _download_label(health_state, can_download, weekly_refresh_due, eligible_mis
         return "Refresh Data"
     if health_state in {"healthy", "market_wait"}:
         return "Not needed"
+    if health_state == "session_lag":
+        # Readable but behind: the download is worth offering (the expected session
+        # may land at any time) without implying the cache is broken.
+        return "Download New Data"
     if repair_state.get("active") and not can_download:
         return f"Cooldown {_minutes_label(repair_state.get('retry_seconds', 0))}"
     if health_state == "symbol_lagging":
