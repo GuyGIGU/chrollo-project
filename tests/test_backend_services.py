@@ -830,6 +830,12 @@ def test_market_data_status_reports_current_cache(tmp_path, monkeypatch):
 
 
 def test_market_data_status_reports_new_data_available(tmp_path, monkeypatch):
+    """One session behind with a COMPLETE panel reads as session_lag, not stale.
+
+    Operator ruling 2026-07-27, after 2026-07-24 (which the static NYSE rule calendar
+    calls a session and Yahoo has no bar for): a cache complete through its own last
+    session is readable. Downloading is still offered and archiving stays shut.
+    """
     _wire_cache_status(
         tmp_path,
         monkeypatch,
@@ -838,9 +844,27 @@ def test_market_data_status_reports_new_data_available(tmp_path, monkeypatch):
 
     status = cache_status_module.build_market_data_status()
 
-    assert status["status"] == "stale_session"
+    assert status["status"] == "session_lag"
     assert status["can_download"] is True
+    assert status["can_evaluate"] is True
+    assert status["can_archive"] is False
+
+
+def test_market_data_status_blocks_when_lag_exceeds_tolerance(tmp_path, monkeypatch):
+    """The lag tolerance is BOUNDED. Beyond MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS a
+    complete-but-old panel is still refused, so a real outage can never read as
+    usable just because the bars it does have are internally complete."""
+    _wire_cache_status(
+        tmp_path,
+        monkeypatch,
+        panel=_status_panel(["AAA", "SPY", "QQQ"], "2026-06-17"),
+    )
+
+    status = cache_status_module.build_market_data_status()
+
+    assert status["status"] == "stale_session"
     assert status["can_evaluate"] is False
+    assert status["can_archive"] is False
 
 
 def test_market_data_status_reports_low_coverage(tmp_path, monkeypatch):

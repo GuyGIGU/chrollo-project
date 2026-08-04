@@ -301,7 +301,10 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
 #                         DOWNLOAD_PERIOD, TICKER_* admission/skiplist, ...
 #   archiving:            ARCHIVE_LIVE_SCANS
 #   fetch tuning:         TTL_*, FULL_REFRESH_*, INCREMENTAL_*, *_REPAIR_*,
-#                         MARKET_DATA_MIN_LATEST_COVERAGE, SPLIT_PROBE_*
+#                         MARKET_DATA_MIN_LATEST_COVERAGE, SPLIT_PROBE_*,
+#                         MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS,
+#                         ABSENT_SESSION_LEDGER_MAX,
+#                         PROVIDER_ABSENT_SESSION_MAX_COVERAGE
 #   rate limit / quarantine:  YAHOO_RATE_LIMIT_*, YAHOO_DOWNLOAD_WORKERS,
 #                         QUARANTINE_*
 #   market-context fetch: SPY_SYMBOL, INDEX_SYMBOLS, SECTOR_RANKING_ETFS,

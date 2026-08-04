@@ -10,7 +10,7 @@ import pandas as pd
 from config import settings
 from core.archive.writer import archive_scan_results
 from core.pipeline import run_screener
-from core.pipeline.cache import _cache_paths, _read_meta
+from core.pipeline.cache import _cache_paths, _read_meta, _write_meta
 from core.pipeline.data import get_provider, get_tickers
 from core.pipeline.downloads import repair_latest_session_cache
 from core.pipeline.file_lock import cache_lock
@@ -116,12 +116,24 @@ def _archive_freshness(data: pd.DataFrame, tickers: list[str], universe=None) ->
     # feed is missing a session it should have. A bar that is current or newer
     # (e.g. today's forming bar during an intraday manual scan) is fine. ISO
     # "YYYY-MM-DD" strings compare chronologically, so "<" is correct here.
+    _, meta_file = _cache_paths(universe)
     if last_bar is None or last_bar < expected:
-        return "stale_session", (
+        stale_msg = (
             f"stale market data: last bar {last_bar or 'none'}, expected >= {expected}"
         )
+        # Behind is NEVER archivable — but it may still be READABLE. Without this
+        # branch a cache-mode evaluation on a session_lag day aborts, so the operator
+        # watches his leaderboard render and then vanish behind a red failure, while a
+        # page reload shows it sitting there fine. Distinguish the two: the caller
+        # tolerates `session_lag` in cache mode (dashboard refreshed, archive skipped)
+        # and still aborts on a genuine stale session.
+        if last_bar is not None and compute_market_data_health(
+            data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
+            index_symbols=list(resolve_universe(universe).index_symbols),
+        )["health_state"] == "session_lag":
+            return "session_lag", stale_msg
+        return "stale_session", stale_msg
 
-    _, meta_file = _cache_paths(universe)
     health = compute_market_data_health(
         data, tickers, expected_session=pd.Timestamp(expected), meta_file=meta_file,
         index_symbols=list(resolve_universe(universe).index_symbols),
@@ -153,7 +165,11 @@ def _assert_fresh_for_archive(data: pd.DataFrame, tickers: list[str], universe=N
     status, msg = _archive_freshness(data, tickers, universe)
     if status != "fresh":
         log.warning("Aborting archive write: %s", msg)
-        raise StaleMarketDataError(msg)
+        error = StaleMarketDataError(msg)
+        # Carry the classification so a caller can tell a readable-but-behind panel
+        # from a genuinely stale one without re-matching diagnosis prose.
+        error.freshness_status = status
+        raise error
 
 
 def _fresh_result_subset(
@@ -204,7 +220,13 @@ def _passes_archive_freshness(
     try:
         _assert_fresh_for_archive(data, tickers, universe)
     except StaleMarketDataError as exc:
-        if mode == "cache" and _is_latest_coverage_error(exc):
+        # Two tolerated cache-mode shapes, both "refresh the dashboard, skip the
+        # archive, exit 0": a partial latest-session coverage day, and a session_lag
+        # panel (complete through its own last session, provider has not published the
+        # expected one). Neither may archive — that is what returning False means.
+        tolerated = (_is_latest_coverage_error(exc)
+                     or getattr(exc, "freshness_status", None) == "session_lag")
+        if mode == "cache" and tolerated:
             return False
         exc.n_setups = n_setups
         raise
@@ -477,6 +499,30 @@ def refresh_market_data_cache() -> DownloadOnlyResult:
         )
 
 
+def _clear_absent_session_ledger(meta_file: str) -> None:
+    """Forget which sessions were proven absent, so the next fetch may go cold.
+
+    Called ONLY immediately before a run that actually reaches the provider. Clearing
+    it at the top of the request instead would spend the operator's override on the
+    three branches that return without fetching (already-healthy, repair-not-ready, the
+    windowed per-symbol repair) — a click the job itself reports as a no-op would
+    silently re-arm the full-universe refetch for the next scheduled run.
+
+    Best-effort: this is housekeeping for a guard that only skips work, so a Windows
+    file-replace denial must not abort the operator's refresh and record the job as
+    failed (conventions EC-20 / EC-21 — a passenger never owns the paying job's status).
+    """
+    from core.pipeline.downloads import ABSENT_SESSIONS_KEY  # noqa: PLC0415 — lazy, yfinance-heavy module
+    try:
+        meta = _read_meta(meta_file)
+        dropped = [meta.pop(key, None) for key in (ABSENT_SESSIONS_KEY, 'last_cold_failure')]
+        if any(value is not None for value in dropped):
+            _write_meta(meta_file, meta)
+    except Exception:
+        log.warning("Could not clear the absent-session ledger; continuing with the "
+                    "refresh.", exc_info=True)
+
+
 def _refresh_market_data_cache_locked(
     tickers: list[str], cache_file: str, meta_file: str,
     index_symbols: list[str],
@@ -523,6 +569,11 @@ def _refresh_market_data_cache_locked(
         print(after_health["diagnosis"], flush=True)
         return _download_result(tickers, after_health)
 
+    # THE human-override point: this is the one line past which the provider is
+    # actually contacted, so the operator's click spends its override here and nowhere
+    # earlier. He may know the provider has just published; the ledger must not swallow
+    # the very click that is the correct response to the incident.
+    _clear_absent_session_ledger(meta_file)
     try:
         data = get_provider().fetch(tickers)
     except Exception as exc:
@@ -540,6 +591,15 @@ def _refresh_market_data_cache_locked(
     )
     if after_health["can_archive"]:
         clear_repair_state(meta_file)
+    elif after_health["health_state"] == "session_lag":
+        # Do NOT spend the repair budget here. record_repair_attempt's vocabulary is
+        # per-symbol sparseness: on an absent session the missing set is the whole
+        # eligible universe, so its signature is identical on every attempt and
+        # attempt_count escalates to symbol_lagging on the third — which sets
+        # can_download=False and makes the Refresh button early-return "repair is not
+        # ready" until something unrelated heals the cache. There is no per-symbol
+        # laggard to repair when the session itself is absent.
+        clear_repair_state(meta_file)
     else:
         record_repair_attempt(meta_file, before_health, after_health)
         after_health = compute_market_data_health(
@@ -547,7 +607,14 @@ def _refresh_market_data_cache_locked(
             meta=_read_meta(meta_file), index_symbols=index_symbols,
         )
 
-    if after_health["health_state"] in ("stale_session", "shallow_history", "regime_mismatch"):
+    # "session_lag" belongs here too: it is READABLE (evaluation may proceed on the
+    # cache's own last session) but this job exists to REACH the expected session, so
+    # finishing still a session behind is a failed refresh, not a success. Without it
+    # the run exits 0 / status "ok" and raises no degraded-fetch alert on a day the
+    # cache never advanced — and it composes with the cold-retry cooldown, which can
+    # return in seconds.
+    if after_health["health_state"] in ("stale_session", "shallow_history",
+                                        "regime_mismatch", "session_lag"):
         msg = f"stale market data: {after_health['diagnosis']}"
         log.warning("Download-only cache refresh did not reach current data: %s", msg)
         raise StaleMarketDataError(msg, n_setups=None)

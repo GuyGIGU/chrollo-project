@@ -165,6 +165,41 @@ def test_archive_freshness_classifies_three_states(tmp_path, monkeypatch):
     assert scan_job_module._archive_freshness(stale, ["AAA"], None)[0] == "stale_session"
 
 
+def test_session_lag_panel_is_readable_but_never_archivable(tmp_path, monkeypatch):
+    """The diff's headline invariant, pinned at the layer that enforces it.
+
+    `session_lag` is the first state that lets a panel BEHIND the expected session get
+    past evaluation, so `_archive_freshness` sees an input class it never saw before.
+    An archive row is keyed on the EXPECTED session, so a row written off the prior
+    session's bars would silently poison every forward return and edge read.
+
+    Both halves matter: cache-mode must TOLERATE it (return False = refresh the
+    dashboard, skip the archive, exit 0) or the operator watches his leaderboard render
+    and then vanish behind a red failure; download-mode must still RAISE, because that
+    job exists to reach the expected session."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)          # 2026-06-25
+    lagging = _panel(["AAA", "SPY", "QQQ"], "2026-06-24")    # exactly one session behind
+
+    status, _ = scan_job_module._archive_freshness(lagging, ["AAA"], None)
+    assert status == "session_lag"
+    assert status != "degraded_coverage", (
+        "degraded_coverage would per-ticker archive the subset — that must never "
+        "happen for a panel whose bars predate the expected session")
+
+    # Cache mode: tolerated, and tolerated means NOT archivable.
+    assert scan_job_module._passes_archive_freshness(
+        lagging, ["AAA"], None, "cache", n_setups=3) is False
+
+    # Download mode: still a failed refresh.
+    with pytest.raises(scan_job_module.StaleMarketDataError):
+        scan_job_module._passes_archive_freshness(
+            lagging, ["AAA"], None, "download", n_setups=3)
+
+    # And the all-or-nothing helper still refuses outright.
+    with pytest.raises(scan_job_module.StaleMarketDataError):
+        scan_job_module._assert_fresh_for_archive(lagging, ["AAA"], None)
+
+
 def test_fresh_result_subset_keeps_per_ticker_fresh(tmp_path, monkeypatch):
     expected = _wire_scanjob(tmp_path, monkeypatch)
     panel = _panel(["AAA", "SPY", "QQQ"], expected)  # AAA fresh; BBB absent -> stale

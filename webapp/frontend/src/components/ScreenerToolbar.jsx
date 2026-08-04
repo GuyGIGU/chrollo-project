@@ -127,7 +127,10 @@ function ScreenerToolbar({
             style={dataTriggerStyle}
           >
             <span style={statusDotStyle(healthState, marketDataStatus?.severity)} />
-            <span style={{ color: 'var(--text-muted)' }}>
+            {/* minWidth/ellipsis so an unrecognised state (statusLabel falls back to
+                the full diagnosis) truncates instead of shoving the caret out of the
+                fixed-width, nowrap trigger. */}
+            <span style={{ color: 'var(--text-muted)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {marketDataStatus ? statusLabel(marketDataStatus) : 'Checking…'}
             </span>
             <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>Data ▾</span>
@@ -162,6 +165,15 @@ function statusLabel(status) {
   if (state === 'symbol_lagging') return 'Needs help';
   if (state === 'shallow_history' || state === 'regime_mismatch') return 'Rebuild data';
   if (state === 'stale_session') return `Stale: ${status.cache_last_session || '-'}`;
+  // Readable but behind. Must stay SHORT (the pill is nowrap/232px; the full diagnosis
+  // is in the trigger title and the popover), and must state the RELATION: "Behind:
+  // <date>" reads as "behind that date" while the date supplied is the one the cache
+  // HAS, which is an off-by-one on the only always-visible freshness indicator.
+  if (state === 'session_lag') {
+    const behind = status.sessions_behind;
+    const suffix = behind ? ` (${behind} session${behind === 1 ? '' : 's'} behind)` : '';
+    return `On ${status.cache_last_session || '-'}${suffix}`;
+  }
   if (state === 'cache_missing') return 'No cache';
   if (state === 'cache_unreadable') return 'Cache unreadable';
   if (state === 'missing_universe') return 'No ticker cache';
@@ -261,13 +273,18 @@ const scanButtonStyle = (disabled) => ({
   fontSize: '12px', whiteSpace: 'nowrap', flex: '0 0 auto',
 });
 
+// Fills light enough that white ink fails contrast — these take the dark ink instead.
+const DARK_INK_FILLS = new Set(['var(--accent-active)', 'var(--warning)']);
+
 const downloadButtonStyle = (disabled, status, severity) => {
   const bg = downloadColor(status, severity);
   return {
     background: disabled ? 'var(--bg-hover)' : bg,
-    // Dark ink on the mythril (healthy) fill; white stays on the pink/red
-    // repair + blocked states where it reads correctly.
-    color: disabled ? 'var(--text-muted)' : bg === 'var(--accent-active)' ? 'var(--myth-ink)' : '#fff',
+    // Dark ink on the LIGHT fills (mythril, warning amber); white stays on the
+    // pink/red repair + blocked states where it reads correctly. White on
+    // --warning (#E2B255) is about 1.8:1 — unreadable — so the amber fill must
+    // take the dark treatment, not inherit the white default.
+    color: disabled ? 'var(--text-muted)' : DARK_INK_FILLS.has(bg) ? 'var(--myth-ink)' : '#fff',
     border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     fontWeight: bg === 'var(--accent-active)' ? '700' : '600', transition: 'all 0.2s', fontFamily: 'inherit',
@@ -278,6 +295,10 @@ const downloadButtonStyle = (disabled, status, severity) => {
 const downloadColor = (status, severity) => {
   if (severity === 'repair' || status === 'needs_repair') return 'var(--accent-pink, #bb86fc)';
   if (severity === 'blocked' || status === 'stale_session') return 'var(--danger)';
+  // Deliberate, not a fall-through: on a lag day the trigger cautions amber, so the
+  // panel it opens must not present the full mythril "recommended next step" fill for
+  // a click that now launches a ~30-minute full-universe refetch.
+  if (status === 'session_lag') return 'var(--warning)';
   return 'var(--accent-active)';
 };
 
@@ -293,10 +314,18 @@ const dataTriggerStyle = {
   fontSize: '12px',
   fontWeight: 600,
   gap: '7px',
-  maxWidth: '260px',
+  // FIXED, not max: the pill sits last in the right-aligned cluster, so a
+  // state-dependent width drags Evaluate sideways under the operator's cursor every
+  // time the status resolves ("Checking…" → real label, and again after each run) —
+  // and on the 1536-effective display a wider pill is a plausible trigger for the
+  // wrapping command band to take a second row. Truncation now has a stable boundary.
+  width: '232px',
   overflow: 'hidden',
   padding: '6px 11px',
   whiteSpace: 'nowrap',
+  // The pill renders changing numbers (coverage %, session dates); its neighbour
+  // `matchedStyle` on the same band is already tabular. A jittering number is a defect.
+  fontVariantNumeric: 'tabular-nums',
 };
 
 const statusDotStyle = (status, severity) => ({
@@ -310,6 +339,11 @@ const statusDotStyle = (status, severity) => ({
 
 const statusColor = (status, severity) => {
   if (severity === 'ok' || status === 'healthy' || status === 'market_wait') return 'var(--success)';
+  // Behind but readable: warn, don't alarm — and don't fall through to the muted
+  // default, which is indistinguishable from an unrecognised state. Bare token, no hex
+  // fallback: --warning is #E2B255, deliberately softened off the acid #F0BE3C the
+  // design system rejected, so a hardcoded fallback would repaint this off-doctrine.
+  if (status === 'session_lag') return 'var(--warning)';
   if (status === 'provider_cooldown') return 'var(--warning, #f2c94c)';
   if (severity === 'repair' || status === 'needs_repair') return 'var(--accent-pink, #bb86fc)';
   if (severity === 'blocked' || status === 'cache_missing' || status === 'cache_unreadable' || status === 'stale_session' || status === 'symbol_lagging') return 'var(--danger)';

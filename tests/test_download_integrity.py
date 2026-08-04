@@ -97,7 +97,7 @@ def test_incremental_recovery_never_merges_forming_bars(tmp_path, monkeypatch):
     monkeypatch.setattr(dl, "latest_completed_session", lambda: expected)
     monkeypatch.setattr(dl.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
     monkeypatch.setattr(dl, "_batched_download", lambda *a, **k: fresh)
-    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a: data)
+    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a, **k: data)
 
     def fake_recover(data, tickers, **kwargs):
         out = data.reindex(data.index.union([forming])).sort_index()
