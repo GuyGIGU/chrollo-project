@@ -268,10 +268,11 @@ const ScreenerGrid = () => {
           ticker={activeModalTicker}
           data={modalChart[activeModalTicker]}
           earnings={earningsByTicker[activeModalTicker]}
-          // The archive identity's scan-level half, verbatim from the payload
-          // (drilldown carries no identity -> the read-verdict control disables
-          // honestly rather than guessing a date).
-          scanDate={drilldown ? null : (screenerData?.scan_identity?.scan_date ?? null)}
+          // The archive identity, verbatim from the payload — the drilldown
+          // response now carries the source artifact's own scan_identity, so
+          // the verdict loop stays live in the top-down view too (council
+          // review 2026-08-05, finding 4).
+          scanIdentity={drilldown ? (drilldown.scan_identity ?? null) : (screenerData?.scan_identity ?? null)}
           onClose={closeModal}
           onNext={handleNextModal}
           onPrev={handlePrevModal}

@@ -429,6 +429,15 @@ def read_structure(df, atr, *, bricks=None, trace=None,
         # that merely seeded the search. Legacy patched this after the fact with
         # _resolve_phase_a_swing; in the narrative it's part of the story.
         climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr)
+        if rec is not None:
+            # The trace's fired root carries BOTH pairs: the seed swing (the
+            # walk's honest history, kept in climax_bar/ar_bar above) and the
+            # resolved bridge the published Structure/overlay/strategy-read
+            # all use — the exporter narrates the resolved pair for this root
+            # so the trace never contradicts the drawn chart (council review
+            # 2026-08-05, finding 9).
+            rec["resolved_climax_bar"] = int(climax_bar)
+            rec["resolved_ar_bar"] = int(ar_bar)
 
         # Cause before effect: a box may not be elected over a live trend that
         # never matured a cause (the MIDD class — price trends UP through both

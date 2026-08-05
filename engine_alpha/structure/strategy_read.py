@@ -24,6 +24,9 @@ live archive, not an add-time threshold (measure-first doctrine). Flag-gated
 """
 from __future__ import annotations
 
+import logging
+import math
+
 import pandas as pd
 
 __all__ = [
@@ -31,6 +34,8 @@ __all__ = [
     "strategy_archive_values",
     "strategy_read_fields",
 ]
+
+_log = logging.getLogger("chrollo.strategy_read")
 
 # Owning declaration (the EVENT_MAP_COLUMN_SQL precedent): names, SQL types,
 # extraction live HERE; both archive writers splat the one extraction; the ORM
@@ -44,14 +49,30 @@ STRATEGY_COLUMN_SQL: dict[str, str] = {
 def strategy_read_fields(df, structure) -> dict:
     """The two raw strategy measures for ONE fired evaluation, ``_``-prefixed
     for the live result row. Reads only facts the walk already resolved
-    (climax/AR bars, the elected S) — no new detection, no re-election."""
+    (climax/AR bars, the elected S) — no new detection, no re-election.
+
+    Degrade contract (council review 2026-08-05, finding 3): the family is
+    all-or-nothing — a NaN bar at the climax or AR (a reachable reality;
+    ``event_map_episode_nan_bars`` exists because of them) returns the empty
+    dict, ONE honest NULL family. It must never archive a half-measured pair:
+    ``floor >= nan`` is False, so an unguarded NaN AR low would fabricate the
+    measured fact "the base floor undercut the AR" (0) while the depth went
+    NULL. And a lookup failure logs LOUDLY (EC-20 containment shape) — these
+    inputs cannot legitimately be absent on a fire, so silence would record a
+    broken measure as "never measured", indistinguishable from pre-flip rows.
+    """
     try:
         climax_high = float(df["High"].iloc[int(structure.climax_bar)])
         ar_low = float(df["Low"].iloc[int(structure.ar_bar)])
         floor = float(structure.S)
     except (KeyError, IndexError, TypeError, ValueError):
+        _log.error("strategy read failed on a FIRE — resolved facts missing "
+                   "(climax_bar/ar_bar/S); archiving NULL, but this is a "
+                   "defect, not an unmeasured row", exc_info=True)
         return {}
-    if not (climax_high > 0):
+    if not all(math.isfinite(v) for v in (climax_high, ar_low, floor)):
+        return {}
+    if not climax_high > 0:
         return {}
     return {
         "_strategy_correction_depth_pct": (climax_high - floor) / climax_high,

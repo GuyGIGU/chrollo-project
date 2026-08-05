@@ -225,3 +225,25 @@ def test_serve_boundary_legs_stay_distinguishable():
     absent = SetupOut.model_validate(base)
     assert absent.event_map_episodes is None
     assert absent.event_map_completed_s is None
+
+
+def test_serve_boundary_degrades_wrong_container_shapes_per_row():
+    """Council review 2026-08-05, finding 8: a cell holding syntactically VALID
+    JSON of the wrong container must degrade that row's field to None like the
+    not-JSON leg — never escape the validator to 500 the whole list at
+    response-model time. One anomalous archive row must never blank the
+    archive browse."""
+    from routers.archive_schemas import SetupOut
+
+    base = dict(id=1, ticker="T", scan_date="2026-08-04", setup_type="LPS",
+                tier="A", score=100.0)
+    # episodes cell must be a LIST — a dict, scalar, or string payload degrades.
+    for wrong in (json.dumps({"rail": "S"}), json.dumps(7), json.dumps("tape")):
+        row = SetupOut.model_validate({**base, "event_map_completed_s": 2,
+                                       "event_map_episodes": wrong})
+        assert row.event_map_episodes is None
+        assert row.event_map_completed_s == 2   # scalars still survive
+    # trace cell must be a DICT — a list or scalar degrades.
+    for wrong in (json.dumps([1, 2]), json.dumps(0)):
+        row = SetupOut.model_validate({**base, "election_trace": wrong})
+        assert row.election_trace is None

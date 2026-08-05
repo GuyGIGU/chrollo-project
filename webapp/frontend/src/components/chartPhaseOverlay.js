@@ -1,3 +1,4 @@
+import { episodeSpans } from './narrativeRead.js';
 import { PHASE_NAMES } from './wireVocabulary.js';
 
 const TOKEN_FALLBACKS = {
@@ -436,21 +437,22 @@ const applyLpsSequenceColors = (regions) => {
 
 // Rail-episode spans (Surface the Read): date-anchored highlight targets for
 // the tape's hover/focus — they ride the SAME activeRegion channel as the
-// phase bins (ids `episode-N`, matching narrativeRead.episodeSpans), so the
-// chart can only ever highlight one thing. Deliberately NOT part of
-// buildPhaseRegions: the phase-bin panel lists phases, the tape lists these.
+// phase bins, so the chart can only ever highlight one thing. Deliberately
+// NOT part of buildPhaseRegions: the phase-bin panel lists phases, the tape
+// lists these. The ids, span validity, and alignment-degrade rule all come
+// from narrativeRead.episodeSpans — the ONE shaper of the tape (council
+// review 2026-08-05, finding 14: re-deriving the mapping here let the two
+// modules disagree on which glyphs are highlightable); this module only
+// resolves dates to candle indexes.
 export const buildEpisodeRegions = (data) => {
   const candles = data?.candles || [];
-  const episodes = Array.isArray(data?.event_map_episodes) ? data.event_map_episodes : [];
-  if (candles.length === 0 || episodes.length === 0) return [];
+  if (candles.length === 0) return [];
   const regions = [];
-  episodes.forEach((episode, index) => {
-    const span = Array.isArray(episode?.span) ? episode.span : null;
-    if (!span || span.length !== 2) return;
-    const startIndex = indexOnOrAfter(candles, span[0]);
-    const endIndex = indexOnOrAfter(candles, span[1]);
+  episodeSpans(data).forEach((span) => {
+    const startIndex = indexOnOrAfter(candles, span.from);
+    const endIndex = indexOnOrAfter(candles, span.to);
     const region = buildRegion('episode', candles, startIndex, endIndex, {
-      id: `episode-${index}`,
+      id: span.id,
     });
     if (region) regions.push(region);
   });

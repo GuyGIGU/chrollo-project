@@ -12,7 +12,21 @@ from __future__ import annotations
 
 from engine_alpha.election_identity import framing_window_key
 
-__all__ = ["_trace_pair", "_trace_find"]
+__all__ = ["CASCADE_STAGES", "_trace_pair", "_trace_find"]
+
+# The cascade's closed stage vocabulary, in kill-DEPTH order — how far a
+# candidate got before dying. The pair gates run width → … → traversal;
+# "story" is the last-resort pool's own admission judgment; "rescue_unused"
+# and "dethroned" are POLICY kills of framings that had already PASSED every
+# pair gate (a strict election discards the rescued pool; the dethrone rule
+# drops a stale rescue-propped pair), so they rank deeper than any gate
+# death; "selection" annotates only the elected winner and never appears on
+# a rejected record. This tuple is the ONE owning declaration — trace_export
+# derives its depth ranking from it (council review 2026-08-05, finding 9: a
+# hand-typed subset over there shipped already drifted, ranking the two
+# policy kills below a width death).
+CASCADE_STAGES = ("width", "window", "respect", "occupancy", "traversal",
+                  "story", "rescue_unused", "dethroned", "selection")
 
 
 def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
@@ -39,7 +53,7 @@ def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
         "S": round(float(S_val), 4),
         "box_width": round(float(box_width), 4),
         "verdict": verdict,        # "rejected" | "valid" | "elected"
-        "stage": stage,            # width|window|respect|occupancy|traversal|story|rescue_unused|selection
+        "stage": stage,            # one of CASCADE_STAGES (None on a valid record)
         "detail": detail,
         "rescued": bool(rescued),
         "traversal": None,

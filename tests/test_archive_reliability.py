@@ -9,6 +9,7 @@ project_archive_silent_stall):
   #5 an orphaned status='running' scan_runs row is reconciled to failed at boot
 """
 import json
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -231,7 +232,9 @@ def test_download_degraded_coverage_archives_fresh_subset(tmp_path, monkeypatch)
     result = scan_job_module.run_scan_and_export(mode="download")
 
     assert archived["tickers"] == ["AAA"]   # only the per-ticker-fresh setup archived
-    assert archived["scan_date_str"]        # the one threaded scan_date reached the writer
+    # The one threaded scan_date reached the writer AND is the payload's own
+    # date shape (council F2: bare truthiness let a broken thread pass).
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", archived["scan_date_str"] or "")
     assert result.n_archived == 1
     assert result.n_setups == 2             # both still counted as fired
 

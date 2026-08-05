@@ -464,7 +464,7 @@ def build_health_payload(members, unreadable, data, universe=None):
 # ⚠️ LIVE — invoked on every scan by core/pipeline/scan_job.py; writes the React
 #    frontend's screener_data.json artifact. DO NOT delete as retired HTML residue.
 def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
-                       universe=None, health_board=None, scan_date=None):
+                       universe=None, health_board=None, *, scan_date):
     """Extract chart data and export it as JSON for the React frontend.
 
     ``universe`` selects which artifact to write (``None`` = US-Stocks ->
@@ -472,10 +472,13 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
     through the universe descriptor so the writer and the serving reader stay in
     lockstep on a single closed set of artifact names.
 
-    ``scan_date`` is the SAME string ``archive_scan_results`` stamps (scan_job
-    computes it once and threads it to both writers), so a verdict recorded
-    against a payload row binds to the archive row's identity verbatim —
-    (ticker, scan_date, universe_type) — never a client-derived date.
+    ``scan_date`` is REQUIRED (council review 2026-08-05, finding 2): it is the
+    SAME string ``archive_scan_results`` stamps (scan_job computes it once and
+    threads it to both writers), so a verdict recorded against a payload row
+    binds to the archive row's identity verbatim — (ticker, scan_date,
+    universe_type) — never a client-derived date. An optional default here
+    would let an ad-hoc caller publish a live-shaped payload with a null
+    identity (EC-26's trap shape).
     """
 
     # Extract chart data if market data is provided. Skip on an empty result set:

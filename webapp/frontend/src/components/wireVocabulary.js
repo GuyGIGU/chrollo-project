@@ -40,6 +40,9 @@ export const DISPLAY_LABELS = {
   rescued: { label: 'Above Resistance', short: 'above R' },
   band: { label: 'Structure Break Tolerance', short: 'break tolerance' },
   story: { label: 'Event Map', short: 'event map' },
+  // (The former worked-story chip entry was removed 2026-08-05 on the
+  // operator's ruling: the Event Map is a base feature every stock carries —
+  // the grading rework will grade setups BY their event maps — never a chip.)
 };
 
 // Rail-episode outcomes (Surface the Read): the wire enum is frozen

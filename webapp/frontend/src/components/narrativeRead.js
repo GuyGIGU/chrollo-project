@@ -24,7 +24,22 @@ const FAMILY_SCALARS = [
   'event_map_story_admitted', 'event_map_episode_nan_bars',
 ];
 
+// Every narrative field a wire can carry — the ONE list a surface uses to
+// merge the family from a SetupOut row into a chart payload (the archive
+// chart endpoint serves candles only; the clicked row carries the read —
+// council review 2026-08-05, finding 4).
+export const NARRATIVE_WIRE_FIELDS = [
+  'event_map_n_swings', 'event_map_pre_box_trend', 'event_map_n_labels',
+  'event_map_n_committed', 'event_map_completed_s', 'event_map_completed_r',
+  'event_map_alternations', 'event_map_terminal_posture',
+  'event_map_terminal_drift', 'event_map_story_admitted',
+  'event_map_episode_nan_bars', 'event_map_episode_profile',
+  'event_map_episodes', 'elected_pool', 'story_admission_profile',
+  'election_trace',
+];
+
 export const NARRATIVE_STATUS = Object.freeze({
+  NOT_CARRIED: 'not_carried',
   NOT_MEASURED: 'not_measured',
   EMPTY: 'empty',
   READY: 'ready',
@@ -32,14 +47,24 @@ export const NARRATIVE_STATUS = Object.freeze({
 
 // The two absences, worded once for every surface (same semantic meaning
 // always wears the same words): "not measured" says WHY in plain language;
-// "empty" states the measured zero as a finding, not a blank.
+// "empty" states the measured zero as a finding, not a blank. NOT_CARRIED
+// deliberately has no copy — a wire that doesn't carry the family cannot
+// say anything honest about the row, so the surface renders nothing
+// (council F4: the "predates the read" diagnosis was rendered on wires that
+// simply never carried the family, including rows measured yesterday).
 export const ABSENCE_COPY = Object.freeze({
   not_measured: 'not measured — this row predates the event-map read',
   empty: 'no completed rail events',
 });
 
 export function narrativeStatus(data) {
-  if (!data || FAMILY_SCALARS.every((k) => data[k] == null)) {
+  // Key-ABSENCE (no family key on the object at all) is a different state
+  // from present-as-NULL: only a wire that carries the family may claim the
+  // row was never measured.
+  if (!data || FAMILY_SCALARS.every((k) => !(k in data))) {
+    return NARRATIVE_STATUS.NOT_CARRIED;
+  }
+  if (FAMILY_SCALARS.every((k) => data[k] == null)) {
     return NARRATIVE_STATUS.NOT_MEASURED;
   }
   const episodes = Array.isArray(data.event_map_episodes)
@@ -50,6 +75,16 @@ export function narrativeStatus(data) {
     return NARRATIVE_STATUS.EMPTY;
   }
   return NARRATIVE_STATUS.READY;
+}
+
+// The readability companion, surfaced (council F10): the engine archives
+// event_map_episode_nan_bars precisely so zero-by-unreadable-bars can never
+// masquerade as the junk-separator zero — a surface showing the measured
+// zero appends this caveat. Display of an engine fact; no re-derivation.
+export function readabilityCaveat(data) {
+  const nan = data?.event_map_episode_nan_bars;
+  if (typeof nan !== 'number' || !Number.isFinite(nan) || nan <= 0) return null;
+  return `${nan} bar${nan === 1 ? '' : 's'} unreadable`;
 }
 
 // The glyph strip: zip the engine-built profile tokens (authoritative — they
@@ -64,18 +99,18 @@ export function tapeGlyphs(data) {
   const episodes = Array.isArray(data?.event_map_episodes)
     ? data.event_map_episodes : [];
   const aligned = tokens.length === episodes.length;
+  // Only the fields a surface actually renders — speculative per-glyph
+  // fields shipped with subtly wrong mismatch fallbacks nothing tested
+  // (council F14); a future consumer adds what it needs WITH pinned
+  // fallbacks, never inherits dead guesses.
   return tokens.map((token, i) => {
     const ep = aligned ? episodes[i] : null;
     return {
       id: `episode-${i}`,
       token,
       unknowable: token.endsWith('~'),
-      rail: ep ? ep.rail : (token.startsWith('S') ? 'S' : 'R'),
-      outcome: ep ? ep.outcome : null,
       label: ep ? episodeLabel(ep.rail, ep.outcome) : token,
-      span: ep && Array.isArray(ep.span) ? ep.span : null,
-      knowable: ep ? (ep.knowable ?? null) : null,
-      posture: ep ? Boolean(ep.posture) : token.endsWith('^'),
+      span: ep && Array.isArray(ep.span) && ep.span.length === 2 ? ep.span : null,
     };
   });
 }

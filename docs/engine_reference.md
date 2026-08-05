@@ -972,7 +972,7 @@ Pipeline returns `(results_df, market_data, tickers, market_context)` — `resul
 Each `chart_data` entry in the payload artifact also carries the engine's read of the chart —
 what the frontend narrative surface renders and the operator grades concordance against:
 
-- **The `event_map_*` family** (all 14 archive columns), projected by
+- **The `event_map_*` family** (the whole `EVENT_MAP_COLUMN_SQL` family), projected by
   `event_map.narrative_chart_fields()` — the THIRD consumer of the same extraction both archive
   writers splat, so the archived cell and the served field are value-identical per fire by
   construction. Keys match the archive column names verbatim. The one shape change at this

@@ -31,6 +31,7 @@ import json
 import pandas as pd
 
 from engine_alpha.structure.box_gates import GATE_LEG_INDEX
+from engine_alpha.structure.box_trace import CASCADE_STAGES
 
 __all__ = [
     "ELECTION_TRACE_COLUMN_SQL",
@@ -41,11 +42,13 @@ __all__ = [
     "terminal_verdict",
 ]
 
-# Cascade depth — how far a candidate got before dying. "story" is the
-# last-resort pool's own admission stage; "rescue_unused"/"selection" annotate,
-# they never kill.
-_STAGE_DEPTH = {"width": 0, "window": 1, "respect": 2, "occupancy": 3,
-                "traversal": 4, "story": 5}
+# Cascade depth — how far a candidate got before dying — DERIVED from the one
+# owning stage declaration (box_trace.CASCADE_STAGES), never hand-typed here:
+# the hand-typed subset this replaced shipped drifted on day one, missing the
+# two POLICY kills ("rescue_unused"/"dethroned" — rejected verdicts stamped by
+# the producer on framings that had already passed every gate) and ranking
+# them below a width death (council review 2026-08-05, finding 9).
+_STAGE_DEPTH = {stage: depth for depth, stage in enumerate(CASCADE_STAGES)}
 
 # Operator-language phrasing per gate leg (strategy_alpha's explainability rule:
 # trace labels speak plain chart language where humans read). {m} = measured,
@@ -87,6 +90,27 @@ def _fmt(value, quantum: str) -> str:
         return str(value)
 
 
+def _fmt_pair(measured, threshold, quantum: str) -> tuple[str, str]:
+    """Format a measured/threshold PAIR so a real difference never renders as
+    equality (council review 2026-08-05, finding 9: a respect share of 0.798
+    against floor 0.80 rendered "0.80 vs 0.80" — a refusal sentence whose
+    numbers read as a pass, on exactly the near-threshold kills the operator
+    inspects). Fraction/ratio quanta widen precision until the two strings
+    differ; integer quanta stay ints — their measured values are true counts."""
+    if quantum in ("bars", "touches", "thirds", "traversals"):
+        return _fmt(measured, quantum), _fmt(threshold, quantum)
+    try:
+        m, t = float(measured), float(threshold)
+    except (TypeError, ValueError):
+        return _fmt(measured, quantum), _fmt(threshold, quantum)
+    m_str, t_str = f"{m:.2f}", f"{t:.2f}"
+    decimals = 2
+    while m_str == t_str and m != t and decimals < 6:
+        decimals += 1
+        m_str, t_str = f"{m:.{decimals}f}", f"{t:.{decimals}f}"
+    return m_str, t_str
+
+
 def leg_sentence(leg_rec: dict) -> str:
     """ONE plain-language sentence for a structured gate-leg record — derived
     from the record's NUMBERS + the leg registry, never from ``detail`` prose.
@@ -96,17 +120,23 @@ def leg_sentence(leg_rec: dict) -> str:
     spec = GATE_LEG_INDEX.get(leg)
     phrase = _LEG_PHRASES.get(leg)
     if spec is None or phrase is None:
-        return (f"{leg}: {_fmt(leg_rec.get('measured'), 'ratio')} vs "
-                f"{_fmt(leg_rec.get('threshold'), 'ratio')}")
-    return phrase.format(m=_fmt(leg_rec.get("measured"), spec.quantum),
-                         t=_fmt(leg_rec.get("threshold"), spec.quantum))
+        m_str, t_str = _fmt_pair(leg_rec.get("measured"),
+                                 leg_rec.get("threshold"), "ratio")
+        return f"{leg}: {m_str} vs {t_str}"
+    m_str, t_str = _fmt_pair(leg_rec.get("measured"),
+                             leg_rec.get("threshold"), spec.quantum)
+    return phrase.format(m=m_str, t=t_str)
 
 
 def terminal_verdict(cascade) -> dict:
     """THE summarizer: did this framing's cascade pass, and if not, which
-    stage/legs killed the candidate that got furthest? One implementation —
-    the census/evidence instruments re-derive this independently today; new
-    surfaces consume this function, never a fourth copy.
+    stage/legs killed the candidate that got furthest? New surfaces consume
+    this function, never another copy. KNOWN DEBT (tracked in
+    docs/BACKLOG_2026-07.md): the pre-existing census/evidence tools still
+    carry three independent re-derivations of this judgment — fold them onto
+    this function (or pin equivalence in a check battery) before the next
+    consumer lands, else the evidence reports and the operator-facing trace
+    can tell different stories about one cascade.
 
     Furthest = the rejected record with the deepest stage (later record wins
     ties — the cascade walks candidates in order, so a later same-stage death
@@ -118,7 +148,10 @@ def terminal_verdict(cascade) -> dict:
     for rec in cascade or []:
         if rec.get("verdict") != "rejected":
             continue
-        depth = _STAGE_DEPTH.get(rec.get("stage"), -1)
+        # A stage missing from the registry means a NEW cascade stage shipped
+        # without registering in CASCADE_STAGES — rank it DEEPEST so it
+        # surfaces as the terminal story (loud), never buried below width.
+        depth = _STAGE_DEPTH.get(rec.get("stage"), len(CASCADE_STAGES))
         if depth >= best_depth:
             best, best_depth = rec, depth
     if best is None:
@@ -159,9 +192,14 @@ def export_election_trace(trace, df):
             if c.get("verdict") == "rejected":
                 stage = c.get("stage") or "unknown"
                 refused[stage] = refused.get(stage, 0) + 1
+        # The fired root narrates the RESOLVED Phase A (the climax→AR bridge
+        # the chart overlay draws and the strategy read measures against);
+        # died roots keep the seed swing — the honest narration of the walk
+        # (council review 2026-08-05, finding 9: seed dates on the fired root
+        # disagreed with the drawn Phase-A on the same screen).
         entry = {
-            "climax": _date(rec.get("climax_bar")),
-            "ar": _date(rec.get("ar_bar")),
+            "climax": _date(rec.get("resolved_climax_bar", rec.get("climax_bar"))),
+            "ar": _date(rec.get("resolved_ar_bar", rec.get("ar_bar"))),
             "kind": rec.get("kind"),
             "outcome": rec.get("outcome"),
             "candidates": len(cascade),
@@ -177,9 +215,14 @@ def export_election_trace(trace, df):
         if rec.get("outcome") == "complete" and elected is None:
             e = next((c for c in cascade if c.get("verdict") == "elected"), None)
             box = rec.get("box") or {}
+            # "start" anchors to the PUBLISHED geometry (the box's own
+            # start_bar — back-extension included), never the elected
+            # record's raw cand_start: whenever the start was walked left to
+            # a shared-rail pivot the raw value names a date the drawn box
+            # contradicts (council review 2026-08-05, finding 9).
             elected = {
                 "root_index": int(rec.get("root_index", len(roots) - 1)),
-                "start": _date((e or {}).get("cand_start", box.get("start_bar"))),
+                "start": _date(box.get("start_bar", (e or {}).get("cand_start"))),
                 "R": (e or {}).get("R", box.get("R")),
                 "S": (e or {}).get("S", box.get("S")),
                 "n_candidates": len(cascade),
@@ -187,6 +230,10 @@ def export_election_trace(trace, df):
                                if c.get("verdict") in ("valid", "elected")),
                 "rescued": bool((e or {}).get("rescued")),
             }
+            backext = (e or {}).get("backext_bars")
+            if backext:
+                # Let the story say the start was walked left, and how far.
+                elected["backext_bars"] = int(backext)
     return {"roots": roots, "elected": elected}
 
 

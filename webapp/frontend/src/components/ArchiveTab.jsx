@@ -14,6 +14,7 @@ import ArchiveSummary from './archive/ArchiveSummary';
 import ArchiveTable from './archive/ArchiveTable';
 import ArchiveTierCards from './archive/ArchiveTierCards';
 import { ArchiveAnalysisModal, ScanHistoryModal } from './ArchiveMaintenanceModals';
+import { NARRATIVE_WIRE_FIELDS } from './narrativeRead';
 import ScreenerModal from './ScreenerModal';
 
 export default function ArchiveTab() {
@@ -118,13 +119,32 @@ function ChartViewer({ chart }) {
     );
   }
   if (!chart.chartData || !chart.chartTicker) return null;
+  // The chart endpoint serves candles only; the clicked ROW (a SetupOut) is
+  // what carries the narrative family and the archive identity — merge them
+  // in so the lens reads the archived story truthfully instead of diagnosing
+  // "predates the read" on rows measured yesterday (council review
+  // 2026-08-05, finding 4). The row's per-row identity is MORE precise than
+  // any live payload's top-level one.
+  const setup = chart.chartSetup;
+  const merged = { ...chart.chartData };
+  if (setup) {
+    NARRATIVE_WIRE_FIELDS.forEach((field) => {
+      if (field in setup) merged[field] = setup[field];
+    });
+  }
+  const scanIdentity = setup?.scan_date ? {
+    scan_date: setup.scan_date,
+    universe_type: setup.universe_type ?? null,
+    engine_config_version: setup.engine_config_version ?? null,
+  } : null;
   return (
     <ScreenerModal
-      data={chart.chartData}
+      data={merged}
       footer={<ArchiveSummary setup={chart.chartSetup} linkedTrades={chart.linkedTrades} />}
       onClose={chart.closeChart}
       onNext={() => {}}
       onPrev={() => {}}
+      scanIdentity={scanIdentity}
       ticker={chart.chartTicker}
     />
   );

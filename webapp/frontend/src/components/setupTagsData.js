@@ -121,25 +121,12 @@ const TAG_DEFS = [
     56,
     (_scores, flags) => typeof flags.traversalDensity === 'number' && flags.traversalDensity >= 0.33,
   ),
-  tag(
-    'worked_story',
-    `📜 ${displayLabel('story')}`,
-    'consolidation',
-    (_scores, flags) => {
-      const base = explainTip({
-        what: 'The chronological rail-episode read shows a worked story: at least two completed support tests, ending engaged with resistance and not drifting on support (the ruled story-admission form).',
-        why: 'Order separates real work from drift — junk bases show zero completed rail events even when their aggregates look fine.',
-        use: 'Open the lens to see the tape and locate each episode on the chart; the full read lives there.',
-      });
-      return typeof flags.episodeProfile === 'string' && flags.episodeProfile
-        ? `${base} Tape: ${flags.episodeProfile}.`
-        : base;
-    },
-    58,
-    // Fires on the engine's OWN ruled admission bit — never a frontend
-    // re-derivation (EC-18). NULL (not measured) never fires.
-    (_scores, flags) => flags.storyAdmitted === 1,
-  ),
+  // NOTE (operator ruling 2026-08-05): the Event Map is NOT a chip — it is a
+  // base feature every stock carries (the lens's "The Engine's Read" panel is
+  // its surface), and the coming grading rework will grade setups BY their
+  // event maps. The former 📜 worked-story chip was removed on that ruling;
+  // the wire fields (storyAdmitted / episodeProfile in tagFlagsFromWire)
+  // remain — they are the rework's substrate.
   tag(
     'phase_c_test',
     '🪝 Spring/Test',

@@ -206,21 +206,35 @@ class ReadVerdict(Base):
     the setup (a correct read of junk and a wrong read of a winner are both
     legal), so it must never collide with the card's 'considered' mark or the
     archive's 'saw & passed' skip (whose verdict column is NOT NULL and whose
-    rows feed missed-winners). Keyed VERBATIM to the archive identity's
-    (ticker, scan_date) — the payload's scan_identity, never a client-derived
-    date."""
+    rows feed missed-winners). Keyed VERBATIM to the archive identity triple
+    (ticker, scan_date, universe_type) — the payload's scan_identity, never a
+    client-derived date. ``engine_config_version`` stamps the evidence the
+    operator actually saw: setup_archive upserts in place, so a same-day
+    re-scan under a rotated manifest replaces the narrative — the concordance
+    reader flags verdicts whose stored version no longer matches the row it
+    joins (council review 2026-08-05, finding 6)."""
 
     __tablename__ = "read_verdicts"
 
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, nullable=False, index=True)
     scan_date = Column(String, nullable=False, index=True)
+    universe_type = Column(String, nullable=False, index=True)
     verdict = Column(String, nullable=False)   # 'agree' | 'disagree'
     note = Column(Text, nullable=True)         # read-reason (rails/story/posture/…)
+    # Evidence provenance — nullable, never backfilled (a version stamped after
+    # the fact is not what the operator saw).
+    engine_config_version = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("ticker", "scan_date", name="uq_read_verdict"),
+        UniqueConstraint("ticker", "scan_date", "universe_type",
+                         name="uq_read_verdict"),
+        # Closed set, all three EC-19 legs: this CHECK (free on a NEW table —
+        # create_all builds it on live DBs too), the router's write-time
+        # assertion, and the refusing test in test_backend_services.
+        CheckConstraint("verdict IN ('agree', 'disagree')",
+                        name="ck_read_verdict_vocabulary"),
     )
 
 

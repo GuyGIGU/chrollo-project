@@ -57,6 +57,49 @@ def test_terminal_verdict_empty_cascade_is_honest():
     assert terminal_verdict(None) == {"passed": False, "stage": None, "sentences": []}
 
 
+def test_stage_depth_derives_from_the_one_owning_declaration():
+    """Council F9: the depth registry is DERIVED from box_trace.CASCADE_STAGES —
+    a hand-typed subset shipped drifted on day one (missing the two policy
+    kills). Every producable rejected stage must rank."""
+    from engine_alpha.structure.box_trace import CASCADE_STAGES
+    from engine_alpha.structure.trace_export import _STAGE_DEPTH
+
+    assert set(_STAGE_DEPTH) == set(CASCADE_STAGES)
+    # The policy kills reject framings that already PASSED every pair gate —
+    # they must outrank every gate death.
+    for policy in ("rescue_unused", "dethroned"):
+        assert _STAGE_DEPTH[policy] > _STAGE_DEPTH["traversal"]
+        assert _STAGE_DEPTH[policy] > _STAGE_DEPTH["story"]
+
+
+def test_terminal_verdict_policy_kills_outrank_gate_deaths():
+    """A dethroned/rescue-discarded candidate got FURTHER than a width kill —
+    the epitaph must name the policy stage, not the shallow gate."""
+    cascade = [
+        {"verdict": "rejected", "stage": "dethroned", "legs": []},
+        {"verdict": "rejected", "stage": "width",
+         "legs": [{"leg": "width", "measured": 0.31, "threshold": 0.25}]},
+    ]
+    assert terminal_verdict(cascade)["stage"] == "dethroned"
+    cascade = [
+        {"verdict": "rejected", "stage": "rescue_unused", "legs": []},
+        {"verdict": "rejected", "stage": "occupancy",
+         "legs": [{"leg": "coverage", "measured": 0.4, "threshold": 0.6}]},
+    ]
+    assert terminal_verdict(cascade)["stage"] == "rescue_unused"
+
+
+def test_terminal_verdict_unregistered_stage_surfaces_loudly():
+    """A NEW cascade stage shipped without registering in CASCADE_STAGES must
+    surface as the terminal story (deepest), never sink below a width kill."""
+    cascade = [
+        {"verdict": "rejected", "stage": "future_stage", "legs": []},
+        {"verdict": "rejected", "stage": "traversal",
+         "legs": [{"leg": "traversal_count", "measured": 1, "threshold": 2}]},
+    ]
+    assert terminal_verdict(cascade)["stage"] == "future_stage"
+
+
 # ── the sentence vocabulary ──────────────────────────────────────────────────
 
 def test_leg_sentence_formats_in_the_native_quantum():
@@ -74,6 +117,16 @@ def test_leg_sentence_kill_site_unknown_is_an_em_dash_never_fabricated():
 def test_leg_sentence_unknown_leg_renders_verbatim_never_blank():
     s = leg_sentence({"leg": "future_leg", "measured": 1, "threshold": 2})
     assert s.startswith("future_leg:") and s.strip()
+
+
+def test_near_threshold_kill_never_renders_as_an_equal_pass():
+    """Council F9: 0.798 vs floor 0.80 rendered '0.80 vs 0.80' — a refusal
+    whose numbers read as a pass. Precision widens until the strings differ;
+    genuinely equal values stay at the native two decimals."""
+    s = leg_sentence({"leg": "respect_share", "measured": 0.798, "threshold": 0.80})
+    assert "0.798" in s and "0.800" in s
+    same = leg_sentence({"leg": "respect_share", "measured": 0.80, "threshold": 0.80})
+    assert "0.80 vs floor 0.80" in same
 
 
 def test_leg_sentences_never_carry_engineer_vocabulary():
@@ -143,6 +196,79 @@ def test_export_is_date_anchored_and_compact():
 def test_export_empty_trace_is_none():
     assert export_election_trace([], _df()) is None
     assert export_election_trace(None, _df()) is None
+
+
+def test_elected_start_is_the_published_backextended_geometry():
+    """Council F9: the drawn box's left rail is the back-extended start_bar;
+    exporting the elected record's raw cand_start names a date the chart
+    contradicts whenever back-extension fired. The fixture makes them differ."""
+    df = _df()
+    trace = [{
+        "root_index": 0, "climax_bar": 2, "ar_bar": 4, "kind": "BC",
+        "outcome": "complete",
+        "box": {"R": 11.5, "S": 10.0, "start_bar": 8},   # walked left to bar 8
+        "box_cascade": [
+            {"verdict": "elected", "stage": "selection", "cand_start": 12,
+             "R": 11.5, "S": 10.0, "rescued": False, "backext_bars": 4},
+        ],
+    }]
+    e = export_election_trace(trace, df)["elected"]
+    assert e["start"] == str(df.index[8].date())     # published, not cand_start
+    assert e["backext_bars"] == 4                    # and the story says so
+
+
+def test_elected_start_falls_back_to_cand_start_without_a_box_brief():
+    df = _df()
+    trace = [{
+        "root_index": 0, "climax_bar": 2, "ar_bar": 4, "kind": "BC",
+        "outcome": "complete", "box": None,
+        "box_cascade": [
+            {"verdict": "elected", "stage": "selection", "cand_start": 12,
+             "R": 11.5, "S": 10.0, "rescued": False},
+        ],
+    }]
+    e = export_election_trace(trace, df)["elected"]
+    assert e["start"] == str(df.index[12].date())
+    assert "backext_bars" not in e
+
+
+def test_fired_root_narrates_the_resolved_phase_a_died_roots_keep_the_seed():
+    """Council F9: the chart overlay and the strategy read use the RESOLVED
+    climax→AR bridge; the trace's fired root must narrate the same pair while
+    died roots keep the seed swing (the walk's honest history)."""
+    df = _df()
+    trace = [
+        {"root_index": 0, "climax_bar": 2, "ar_bar": 4, "kind": "BC",
+         "outcome": "no_box", "box": None, "box_cascade": []},
+        {"root_index": 1, "climax_bar": 8, "ar_bar": 10, "kind": "BC",
+         "resolved_climax_bar": 9, "resolved_ar_bar": 11,
+         "outcome": "complete", "box": {"R": 11.5, "S": 10.0, "start_bar": 11},
+         "box_cascade": [
+             {"verdict": "elected", "stage": "selection", "cand_start": 11,
+              "R": 11.5, "S": 10.0, "rescued": False}]},
+    ]
+    out = export_election_trace(trace, df)
+    assert out["roots"][0]["climax"] == str(df.index[2].date())   # seed kept
+    assert out["roots"][1]["climax"] == str(df.index[9].date())   # resolved
+    assert out["roots"][1]["ar"] == str(df.index[11].date())
+
+
+def test_no_lps_root_carries_no_epitaph_and_bad_bars_degrade_to_none():
+    """A no_lps root's cascade PASSED (the walk died at Phase D — the outcome
+    states it); and an out-of-range/None bar anchors to None, never raises."""
+    df = _df()
+    trace = [{
+        "root_index": 0, "climax_bar": 999, "ar_bar": None, "kind": "BC",
+        "outcome": "no_lps", "box": {"R": 11.5, "S": 10.0, "start_bar": 10},
+        "box_cascade": [
+            {"verdict": "valid", "stage": None, "cand_start": 10,
+             "R": 11.5, "S": 10.0, "rescued": False}],
+    }]
+    out = export_election_trace(trace, df)
+    r = out["roots"][0]
+    assert "furthest" not in r          # only no_box roots get the epitaph
+    assert r["climax"] is None and r["ar"] is None
+    assert out["elected"] is None       # no complete root -> nothing elected
 
 
 # ── archive / payload round-trip ─────────────────────────────────────────────

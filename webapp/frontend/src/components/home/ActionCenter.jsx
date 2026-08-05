@@ -131,6 +131,7 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
         <ScreenerModal
           ticker={peek}
           data={chartData[peek]}
+          scanIdentity={screenerData?.scan_identity ?? null}
           onClose={() => setPeek(null)}
           footer={<BridgeOut ticker={peek} />}
         />

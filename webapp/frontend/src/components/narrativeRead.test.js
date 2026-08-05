@@ -4,21 +4,40 @@ import assert from 'node:assert/strict';
 import {
   ABSENCE_COPY,
   NARRATIVE_STATUS,
+  NARRATIVE_WIRE_FIELDS,
   episodeSpans,
   narrativeStatus,
+  readabilityCaveat,
   shapeTrace,
   tapeGlyphs,
 } from './narrativeRead.js';
 
 // ── the status enum: NULL ≠ 0 is the load-bearing distinction ───────────────
 
-test('a null family is NOT_MEASURED — never empty', () => {
-  assert.equal(narrativeStatus(null), NARRATIVE_STATUS.NOT_MEASURED);
-  assert.equal(narrativeStatus({}), NARRATIVE_STATUS.NOT_MEASURED);
+test('key-ABSENCE is NOT_CARRIED — only a wire carrying the family may claim not-measured', () => {
+  // Council review 2026-08-05, finding 4: a payload that never carries the
+  // family (the old archive chart dict) must not render the "predates the
+  // read" diagnosis — that copy was shown on rows measured yesterday.
+  assert.equal(narrativeStatus(null), NARRATIVE_STATUS.NOT_CARRIED);
+  assert.equal(narrativeStatus({}), NARRATIVE_STATUS.NOT_CARRIED);
+  assert.equal(narrativeStatus({ ticker: 'AAA', candles: [] }), NARRATIVE_STATUS.NOT_CARRIED);
+});
+
+test('a present-as-NULL family is NOT_MEASURED — never empty, never not-carried', () => {
   assert.equal(
     narrativeStatus({ event_map_completed_s: null, event_map_completed_r: null }),
     NARRATIVE_STATUS.NOT_MEASURED,
   );
+});
+
+test('a partial write reads as measured — ANY family scalar carries the proof', () => {
+  // The design rule stated in the module header, pinned (council F15/beck):
+  // a row where only a non-s/r scalar is non-null must NOT collapse into
+  // NOT_MEASURED (and with zero completed tests + no episodes it is the
+  // measured-empty state).
+  const row = { event_map_terminal_drift: 0, event_map_completed_s: null };
+  assert.notEqual(narrativeStatus(row), NARRATIVE_STATUS.NOT_MEASURED);
+  assert.equal(narrativeStatus(row), NARRATIVE_STATUS.EMPTY);
 });
 
 test('explicit zeros are EMPTY — a measured finding, distinct from not-measured', () => {
@@ -64,14 +83,41 @@ const READY_ROW = {
   ],
 };
 
-test('glyphs zip tokens with tape entries — dates, labels, the ~ mark, the posture', () => {
+test('glyphs zip tokens with tape entries — dates, labels, the ~ mark', () => {
   const glyphs = tapeGlyphs(READY_ROW);
   assert.equal(glyphs.length, 3);
   assert.equal(glyphs[0].token, 'S+');
   assert.equal(glyphs[0].label, 'completed support test');
   assert.deepEqual(glyphs[0].span, ['2026-05-01', '2026-05-05']);
   assert.equal(glyphs[1].unknowable, true);      // the ~ suffix survives display
-  assert.equal(glyphs[2].posture, true);          // terminal R engagement
+  // Only rendered fields ship (council F14): the speculative rail/outcome/
+  // posture fields carried untested wrong fallbacks — a future consumer adds
+  // what it needs WITH pinned fallbacks.
+  assert.deepEqual(
+    Object.keys(glyphs[0]).sort(),
+    ['id', 'label', 'span', 'token', 'unknowable'],
+  );
+});
+
+test('readabilityCaveat surfaces the nan-bars companion — zero-by-unreadable never masquerades', () => {
+  // Council F10: the engine archives event_map_episode_nan_bars precisely so
+  // an unreadable-bars zero can't pose as the junk-separator zero.
+  assert.equal(readabilityCaveat({ event_map_episode_nan_bars: 3 }), '3 bars unreadable');
+  assert.equal(readabilityCaveat({ event_map_episode_nan_bars: 1 }), '1 bar unreadable');
+  assert.equal(readabilityCaveat({ event_map_episode_nan_bars: 0 }), null);
+  assert.equal(readabilityCaveat({ event_map_episode_nan_bars: null }), null);
+  assert.equal(readabilityCaveat({}), null);
+  assert.equal(readabilityCaveat(null), null);
+});
+
+test('the wire-fields list carries every family key a SetupOut row serves', () => {
+  // The archive chart merge copies exactly these (council F4); the family
+  // scalars the status enum reads must all be on the list.
+  for (const key of ['event_map_completed_s', 'event_map_episode_nan_bars',
+    'event_map_episodes', 'event_map_episode_profile', 'elected_pool',
+    'story_admission_profile', 'election_trace']) {
+    assert.ok(NARRATIVE_WIRE_FIELDS.includes(key), key);
+  }
 });
 
 test('a token/tape length mismatch degrades to tokens-only — never throws, never invents spans', () => {

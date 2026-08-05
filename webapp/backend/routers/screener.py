@@ -210,6 +210,11 @@ def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
         "source_universe": DEFAULT_UNIVERSE_KEY,
         "ordered_tickers": members,
         "chart_data": {t: us_chart[t] for t in members if t in us_chart},
+        # The source artifact's identity VERBATIM — every member row came from
+        # this scan, so the read-verdict loop stays live in the top-down view
+        # (council review 2026-08-05, finding 4; no new request path, no
+        # client-derived date).
+        "scan_identity": us.get("scan_identity"),
     }
 
 

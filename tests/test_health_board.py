@@ -271,7 +271,8 @@ def test_generate_dashboard_flag_off_omits_health_key(tmp_path, monkeypatch):
 
     # Empty results (the ETF-universe common case); no health board passed.
     dash.generate_dashboard(pd.DataFrame(), data=None, tickers=None,
-                            market_context={}, universe=_FakeUniverse(), health_board=None)
+                            market_context={}, universe=_FakeUniverse(), health_board=None,
+                            scan_date="2026-08-05")
     import json
     doc = json.loads(out.read_text(encoding="utf-8"))
     assert "health_board" not in doc  # byte-identical to today's empty artifact
@@ -291,11 +292,33 @@ def test_generate_dashboard_rides_health_board_into_same_artifact(tmp_path, monk
 
     # Empty firing results, but a health board present → one atomic write carries both.
     dash.generate_dashboard(pd.DataFrame(), data=None, tickers=None,
-                            market_context={}, universe=_FakeUniverse(), health_board=payload)
+                            market_context={}, universe=_FakeUniverse(), health_board=payload,
+                            scan_date="2026-08-05")
     doc = json.loads(out.read_text(encoding="utf-8"))
     assert "health_board" in doc
     assert doc["chart_data"] == {} and doc["ordered_tickers"] == []  # firing side untouched
     assert doc["health_board"]["members"][0]["state"] == "consolidating"
+
+
+def test_generate_dashboard_publishes_the_exact_scan_identity(tmp_path, monkeypatch):
+    """Council review 2026-08-05 finding 2: the payload's scan_identity must
+    carry EXACTLY the threaded scan_date (the archive writer's key), the
+    universe's own type, and a non-empty engine_config_version — re-deriving
+    the date inside the writer (the midnight-straddle split) or dropping the
+    thread must fail here."""
+    import json
+    import output.dashboard as dash
+
+    out = tmp_path / "screener_data_us_sectors.json"
+    monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
+
+    dash.generate_dashboard(pd.DataFrame(), data=None, tickers=None,
+                            market_context={}, universe=_FakeUniverse(),
+                            health_board=None, scan_date="2001-02-03")
+    ident = json.loads(out.read_text(encoding="utf-8"))["scan_identity"]
+    assert ident["scan_date"] == "2001-02-03"   # verbatim, never re-derived
+    assert ident["universe_type"] == "us_sectors"
+    assert isinstance(ident["engine_config_version"], str) and ident["engine_config_version"]
 
 
 # --------------------------------------------------------------------------
