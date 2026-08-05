@@ -720,3 +720,27 @@ def event_map_archive_values(get, *, prefixed: bool) -> dict:
             value = int(value)
         out[col] = value
     return out
+
+
+def narrative_chart_fields(get) -> dict:
+    """The payload projection of the same family — the THIRD consumer of the
+    one extraction both archive writers splat (never a re-declared field
+    list), keyed by the archive column names so the archived cell and the
+    served field can be asserted value-identical per fire.
+
+    Only the tape cell changes shape at this boundary: the archive stores
+    JSON text, the wire carries it parsed once here (structure, never a
+    string each consumer re-parses). An unparseable cell degrades that one
+    field to ``None`` while the family's scalars stay measured — so
+    "tape unreadable" (scalars present, tape None) can never masquerade as
+    "not measured" (the whole family None). The frontend renders the two
+    distinctly; it never re-derives counts from the tape (the sentence and
+    its counts share one as-of basis upstream)."""
+    out = event_map_archive_values(get, prefixed=True)
+    tape = out.get("event_map_episodes")
+    if tape is not None:
+        try:
+            out["event_map_episodes"] = json.loads(tape)
+        except (TypeError, ValueError):
+            out["event_map_episodes"] = None
+    return out

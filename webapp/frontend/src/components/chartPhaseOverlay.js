@@ -15,6 +15,9 @@ const REGION_DEFS = {
   c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
   d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
   lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
+  // Rail episodes (Surface the Read): the tape describes, it never judges —
+  // the neutral faint ink, deliberately no outcome color on the chart.
+  episode: { label: 'EP', name: 'Rail episode', detail: 'One rail engagement', token: '--text-faint' },
 };
 
 const PHASE_A_MAX_BARS = 16;
@@ -431,8 +434,31 @@ const applyLpsSequenceColors = (regions) => {
   });
 };
 
+// Rail-episode spans (Surface the Read): date-anchored highlight targets for
+// the tape's hover/focus — they ride the SAME activeRegion channel as the
+// phase bins (ids `episode-N`, matching narrativeRead.episodeSpans), so the
+// chart can only ever highlight one thing. Deliberately NOT part of
+// buildPhaseRegions: the phase-bin panel lists phases, the tape lists these.
+export const buildEpisodeRegions = (data) => {
+  const candles = data?.candles || [];
+  const episodes = Array.isArray(data?.event_map_episodes) ? data.event_map_episodes : [];
+  if (candles.length === 0 || episodes.length === 0) return [];
+  const regions = [];
+  episodes.forEach((episode, index) => {
+    const span = Array.isArray(episode?.span) ? episode.span : null;
+    if (!span || span.length !== 2) return;
+    const startIndex = indexOnOrAfter(candles, span[0]);
+    const endIndex = indexOnOrAfter(candles, span[1]);
+    const region = buildRegion('episode', candles, startIndex, endIndex, {
+      id: `episode-${index}`,
+    });
+    if (region) regions.push(region);
+  });
+  return regions;
+};
+
 const styledRegions = (data, container) =>
-  buildPhaseRegions(data).map((region) => {
+  [...buildPhaseRegions(data), ...buildEpisodeRegions(data)].map((region) => {
     const color = region.color || tokenColor(container, region.token);
     return {
       ...region,

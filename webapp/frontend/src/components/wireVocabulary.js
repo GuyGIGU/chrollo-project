@@ -31,6 +31,61 @@ export const DISPLAY_LABELS = {
   undercut_rebound: { label: 'LPS — spring rebound', short: 'spring rebound' },
   // Structure verdict labels
   descent_tail: { label: 'Stale-Support Reject', short: 'stale support' },
+  // Electing-pool provenance (Surface the Read; closed set, frozen wire).
+  // All four SIGNED by the operator 2026-08-04: "Above Resistance" =
+  // consolidation -> breakout/SOS -> LPS above resistance; band = a special
+  // second attempt with structure-break tolerance; story = judged BY the
+  // event map (which every read carries — this route is the one it elects).
+  strict: { label: 'Clean election', short: 'clean' },
+  rescued: { label: 'Above Resistance', short: 'above R' },
+  band: { label: 'Structure Break Tolerance', short: 'break tolerance' },
+  story: { label: 'Event Map', short: 'event map' },
+};
+
+// Rail-episode outcomes (Surface the Read): the wire enum is frozen
+// (completed/failed/unreadable/open per rail); the display names are the
+// RULED forms from strategy_alpha's episode table. Keyed "RAIL:outcome"
+// because a completed episode reads differently per rail.
+export const EPISODE_LABELS = {
+  'S:completed': 'completed support test',
+  'R:completed': 'completed resistance rejection',
+  'S:failed': 'failed episode — support broke',
+  'R:failed': 'failed episode — closed above resistance',
+  'S:unreadable': 'unreadable episode',
+  'R:unreadable': 'unreadable episode',
+  'S:open': 'open episode',
+  'R:open': 'open episode',
+};
+
+export function episodeLabel(rail, outcome) {
+  return EPISODE_LABELS[`${rail}:${outcome}`] ?? `${rail}:${outcome}`;
+}
+
+// Election-trace vocabulary (Surface the Read): cascade stages + per-root
+// outcomes, plain chart words. Sentences inside the trace arrive PRE-RENDERED
+// from the engine's own vocabulary (trace_export.leg_sentence) — these label
+// only the codes the compact shape still carries.
+export const TRACE_STAGE_LABELS = {
+  width: 'box width',
+  window: 'window length',
+  respect: 'rail respect',
+  occupancy: 'occupancy',
+  traversal: 'rail-to-rail traversal',
+  story: 'story admission',
+  selection: 'election',
+};
+
+export const ROOT_OUTCOME_LABELS = {
+  no_box: 'no worked range',
+  no_lps: 'no last point of support',
+  complete: 'complete story',
+};
+
+// Pre-box trend states (event_map_pre_box_trend).
+export const TREND_STATE_LABELS = {
+  up: 'uptrend',
+  down: 'downtrend',
+  range: 'range',
 };
 
 // Phase overlay names — the one source for A/B/C/D naming (chartPhaseOverlay
@@ -79,6 +134,11 @@ export function tagFlagsFromWire(data) {
     htfMonthlyTrendState: data.htf_m_trend_state,
     lpsStretchAtr: data.lps_stretch_atr,
     lpsStretchBox: data.lps_stretch_box,
+    // Narrative read (Surface the Read): the engine's RULED story-admission
+    // bit + the tape sentence — the chip consumes the ruled judgment, it
+    // never re-derives one (EC-18).
+    storyAdmitted: data.event_map_story_admitted,
+    episodeProfile: data.event_map_episode_profile,
     lastSupperPullbackPct: data.last_supper_pullback_from_extension_pct,
     lastSupperSourceBoxAge: data.last_supper_source_box_age,
     lastSupperReclaimQuality: data.last_supper_reclaim_quality,

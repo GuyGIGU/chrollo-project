@@ -37,7 +37,9 @@ import sys
 from config import settings
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
+from engine_alpha.structure.event_map import narrative_chart_fields
 from engine_alpha.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
+from engine_alpha.structure.trace_export import election_trace_chart_fields
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -364,6 +366,17 @@ def _extract_chart_data(data, results_df, tickers):
                 'last_supper_source_box_age': row.get('_last_supper_source_box_age'),
                 'last_supper_reclaim_quality': row.get('_last_supper_reclaim_quality'),
                 'phase_d_evidence_json': row.get('_phase_d_evidence_json'),
+                # The narrative fact block (Surface the Read): the event_map
+                # archive family projected onto the wire by the SAME extraction
+                # both archive writers splat (one producer in event_map.py),
+                # plus the electing-pool provenance. Absent-as-None when the
+                # Event Map never ran (flag off): NULL means "not measured",
+                # never zero — the frontend renders the two distinctly and
+                # never re-derives a judgment from the tape.
+                'elected_pool': row.get('_elected_pool'),
+                'story_admission_profile': row.get('_story_admission_profile'),
+                **narrative_chart_fields(row.get),
+                **election_trace_chart_fields(row.get),
                 # Phase-D scoping bands — consumed by the chart phase overlay.
                 # Underscore-prefixed to match the keys chartPhaseOverlay.js reads.
                 '_phase_a_start_date': row.get('_phase_a_start_date'),
@@ -451,13 +464,18 @@ def build_health_payload(members, unreadable, data, universe=None):
 # ⚠️ LIVE — invoked on every scan by core/pipeline/scan_job.py; writes the React
 #    frontend's screener_data.json artifact. DO NOT delete as retired HTML residue.
 def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
-                       universe=None, health_board=None):
+                       universe=None, health_board=None, scan_date=None):
     """Extract chart data and export it as JSON for the React frontend.
 
     ``universe`` selects which artifact to write (``None`` = US-Stocks ->
     ``output/screener_data.json``, byte-identical to before); the path is resolved
     through the universe descriptor so the writer and the serving reader stay in
     lockstep on a single closed set of artifact names.
+
+    ``scan_date`` is the SAME string ``archive_scan_results`` stamps (scan_job
+    computes it once and threads it to both writers), so a verdict recorded
+    against a payload row binds to the archive row's identity verbatim —
+    (ticker, scan_date, universe_type) — never a client-derived date.
     """
 
     # Extract chart data if market data is provided. Skip on an empty result set:
@@ -476,10 +494,19 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
     json_path = resolve_universe(universe).artifact_path()
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
+    # Provenance for the concordance loop: the archive identity key's scan-level
+    # half plus the engine version that produced this read. Lazy import mirrors
+    # the writer's own manifest_hash call site.
+    from engine_alpha.freeze.manifest import manifest_hash
     payload_body = {
         "chart_data": chart_data,
         "ordered_tickers": ordered_tickers,
         "market_context": market_context or {},
+        "scan_identity": {
+            "scan_date": scan_date,
+            "universe_type": resolve_universe(universe).universe_type,
+            "engine_config_version": manifest_hash(),
+        },
     }
     # The health-board section rides this SAME atomic write. Added ONLY when the
     # caller passed one (flag on, non-equities universe) — absent otherwise, so the

@@ -249,8 +249,12 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     # box-carried equilibrium read is coherent with eval-time measures because
     # they share this row, structurally, not by twin expressions.
     atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
+    # Election-trace capture (flag-dark): the trace rides the ONE walk that
+    # elects the published box — same-run by construction, never a re-run.
+    # None keeps the call byte-identical (the trace plumbing's no-op contract).
+    trace = [] if settings.ELECTION_TRACE_EXPORT_ENABLED else None
     structure = read_structure(df, float(atr_eval['ATR_10']),
-                               near_miss=near_miss)
+                               near_miss=near_miss, trace=trace)
     if structure is None:
         return None
 
@@ -278,6 +282,7 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
 
     return {
         "structure": structure,
+        "election_trace": trace,
         "base_len": base_len,
         "res_avg": res_avg,
         "sup_avg": sup_avg,
@@ -627,6 +632,30 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             "_stability_refused": int(_probe["refused"]),
         }
 
+    # Strategy read (Surface the Read Task 13, flag-dark): two RAW
+    # held-through-correction measures over facts the walk already resolved.
+    # Import + compute strictly inside the flag: flag-off pays zero cost and
+    # spreads {} -> byte-identical.
+    strategy_fields = {}
+    if settings.STRATEGY_READ_ENABLED:
+        from engine_alpha.structure.strategy_read import strategy_read_fields
+        strategy_fields = strategy_read_fields(df, structure_ctx["structure"])
+
+    # Election-trace export (Surface the Read, flag-dark): the walk's own
+    # narration, captured above from the SAME election that produced this box,
+    # summarized to the compact date-anchored story — the raw trace never
+    # leaves the engine. Import + compute strictly inside the flag: flag-off
+    # pays zero cost and spreads {} -> byte-identical.
+    trace_fields = {}
+    if settings.ELECTION_TRACE_EXPORT_ENABLED:
+        import json
+        from engine_alpha.structure.trace_export import export_election_trace
+        _exported = export_election_trace(structure_ctx.get("election_trace"), df)
+        if _exported is not None:
+            trace_fields = {
+                "_election_trace": json.dumps(_exported, separators=(",", ":")),
+            }
+
     return {
         "trend": trend,
         "adr_value": adr_value,
@@ -638,6 +667,8 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "puzzle_fields": puzzle_fields,
         "event_map_fields": event_map_fields,
         "stability_fields": stability_fields,
+        "trace_fields": trace_fields,
+        "strategy_fields": strategy_fields,
     }
 
 
@@ -862,6 +893,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("puzzle_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
+        **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
+        **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
     }
 
 

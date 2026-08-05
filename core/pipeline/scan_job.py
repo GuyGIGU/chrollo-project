@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 from config import settings
@@ -326,6 +326,12 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # the ETF universes usually fire zero setups and take the empty branch.
     health_board = _maybe_build_health_board(data, uni)
 
+    # ONE scan_date for every store this export writes (the payload's
+    # scan_identity and the archive's upsert key), computed once so the two
+    # can never straddle midnight into different identities for one scan.
+    # Same local-date convention archive_scan_results has always defaulted to.
+    scan_date = date.today().strftime("%Y-%m-%d")
+
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")
         # An empty result is only a legitimate "scanned, matched nothing" day when
@@ -353,7 +359,7 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # stale setups instead of leaving the previous scan's names on screen. The
         # health board rides this same write (the ETF universes usually land here).
         generate_dashboard(results_df, data, tickers, market_context, universe=uni,
-                           health_board=health_board)
+                           health_board=health_board, scan_date=scan_date)
         if lane_freshness_ok:
             # A zero-fire night is prime lane material — the refusal cohort
             # archives on the same freshness verdict as fires would. Ordered
@@ -370,7 +376,7 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     print_finviz_url(results_df)
 
     generate_dashboard(results_df, data, tickers, market_context, universe=uni,
-                       health_board=health_board)
+                       health_board=health_board, scan_date=scan_date)
 
     # Persist every setup to setup_archive (idempotent upsert by
     # ticker+scan_date+universe_type). Forward returns are filled in later by
@@ -404,7 +410,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                     # as the pre-partial-archive all-or-nothing gate did for this input.
                     log.warning("Aborting archive write: %s", msg)
                     raise StaleMarketDataError(msg, n_setups=len(results_df))
-                n_archived = archive_scan_results(fresh_df, enable=True, universe=uni)
+                n_archived = archive_scan_results(fresh_df, scan_date_str=scan_date,
+                                                  enable=True, universe=uni)
                 print(f"\nArchived {n_archived} per-ticker-fresh {uni.key} setups to "
                       f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
                       f"(degraded universe coverage; source='screener', "
@@ -417,7 +424,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                 return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                         n_errored=n_errored)
             # status == "fresh" → archive the whole cohort.
-            n_archived = archive_scan_results(results_df, enable=True, universe=uni)
+            n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
+                                              enable=True, universe=uni)
             print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
                   f"(source='screener', universe_type='{uni.universe_type}').")
             _archive_near_misses(near_miss_sink, uni)
@@ -437,7 +445,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                       "row(s) skipped (cache-mode partial coverage).", flush=True)
             return ScanExportResult(n_setups=len(results_df), n_archived=0,
                                     n_errored=n_errored)
-        n_archived = archive_scan_results(results_df, enable=True, universe=uni)
+        n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
+                                          enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
         _archive_near_misses(near_miss_sink, uni)

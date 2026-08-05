@@ -268,6 +268,10 @@ const ScreenerGrid = () => {
           ticker={activeModalTicker}
           data={modalChart[activeModalTicker]}
           earnings={earningsByTicker[activeModalTicker]}
+          // The archive identity's scan-level half, verbatim from the payload
+          // (drilldown carries no identity -> the read-verdict control disables
+          // honestly rather than guessing a date).
+          scanDate={drilldown ? null : (screenerData?.scan_identity?.scan_date ?? null)}
           onClose={closeModal}
           onNext={handleNextModal}
           onPrev={handlePrevModal}

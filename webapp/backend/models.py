@@ -200,6 +200,30 @@ class SetupReview(Base):
     )
 
 
+class ReadVerdict(Base):
+    """The operator's verdict on the ENGINE'S READ of a chart (Surface the
+    Read) — a third axis, deliberately its own table: it judges the READ, not
+    the setup (a correct read of junk and a wrong read of a winner are both
+    legal), so it must never collide with the card's 'considered' mark or the
+    archive's 'saw & passed' skip (whose verdict column is NOT NULL and whose
+    rows feed missed-winners). Keyed VERBATIM to the archive identity's
+    (ticker, scan_date) — the payload's scan_identity, never a client-derived
+    date."""
+
+    __tablename__ = "read_verdicts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    scan_date = Column(String, nullable=False, index=True)
+    verdict = Column(String, nullable=False)   # 'agree' | 'disagree'
+    note = Column(Text, nullable=True)         # read-reason (rails/story/posture/…)
+    created_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "scan_date", name="uq_read_verdict"),
+    )
+
+
 class CalibrationMark(Base):
     """One operator verdict about one chart — editable calibration ground truth.
 

@@ -219,8 +219,11 @@ def test_download_degraded_coverage_archives_fresh_subset(tmp_path, monkeypatch)
 
     archived = {}
 
-    def _archive(df, enable=False, universe=None):
+    def _archive(df, scan_date_str=None, enable=False, universe=None):
         archived["tickers"] = list(df["Ticker"])
+        # scan_job threads ONE scan_date to both writers (payload identity +
+        # archive upsert key) — a None here means the threading broke.
+        archived["scan_date_str"] = scan_date_str
         return len(df)
 
     monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive)
@@ -228,6 +231,7 @@ def test_download_degraded_coverage_archives_fresh_subset(tmp_path, monkeypatch)
     result = scan_job_module.run_scan_and_export(mode="download")
 
     assert archived["tickers"] == ["AAA"]   # only the per-ticker-fresh setup archived
+    assert archived["scan_date_str"]        # the one threaded scan_date reached the writer
     assert result.n_archived == 1
     assert result.n_setups == 2             # both still counted as fired
 
@@ -240,7 +244,7 @@ def test_download_fresh_archives_full_cohort(tmp_path, monkeypatch):
 
     archived = {}
     monkeypatch.setattr(scan_job_module, "archive_scan_results",
-                        lambda df, enable=False, universe=None: (archived.setdefault("t", list(df["Ticker"])), len(df))[1])
+                        lambda df, scan_date_str=None, enable=False, universe=None: (archived.setdefault("t", list(df["Ticker"])), len(df))[1])
 
     result = scan_job_module.run_scan_and_export(mode="download")
     assert archived["t"] == ["AAA", "BBB"]

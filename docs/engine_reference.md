@@ -967,6 +967,52 @@ The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`
 
 Pipeline returns `(results_df, market_data, tickers, market_context)` — `results_df` is sorted by `Score` descending.
 
+### The narrative fact block (Surface the Read)
+
+Each `chart_data` entry in the payload artifact also carries the engine's read of the chart —
+what the frontend narrative surface renders and the operator grades concordance against:
+
+- **The `event_map_*` family** (all 14 archive columns), projected by
+  `event_map.narrative_chart_fields()` — the THIRD consumer of the same extraction both archive
+  writers splat, so the archived cell and the served field are value-identical per fire by
+  construction. Keys match the archive column names verbatim. The one shape change at this
+  boundary: `event_map_episodes` travels PARSED (the archive's JSON text cell decoded once,
+  engine-side), so the wire carries structure. An unparseable tape degrades that one field to
+  `None` while the scalars stay measured — "tape unreadable" (scalars present, tape `None`) is
+  distinguishable from "not measured" (whole family `None`, i.e. pre-flip rows / flag off).
+- **Electing-pool provenance**: `elected_pool` (closed set) and `story_admission_profile`
+  (the sentence that admitted a story fire — AP-8: a different basis from the substrate's
+  `event_map_story_admitted`, and the two may legally disagree).
+- **`scan_identity`** (payload top level): `scan_date` — the SAME string
+  `archive_scan_results` stamps (scan_job computes it once and threads it to both writers, so
+  payload and archive can never straddle midnight into different identities) — plus
+  `universe_type` and `engine_config_version`. A review verdict recorded from the frontend binds
+  to the archive row via this key verbatim, never a client-derived date.
+
+- **The election trace** (`election_trace`, flag `ELECTION_TRACE_EXPORT_ENABLED`, dark):
+  `read_structure`'s own narration captured during the SAME election that fired (evaluation
+  passes `trace=[]` under the flag — never a re-run, which could elect a different box) and
+  summarized by the ONE owner of the outbound shape, `structure/trace_export.py`: per-root
+  climax/AR **dates** + outcome + per-stage refusal counts + how far the best candidate got
+  (`terminal_verdict` — the one summarizer; the census tools' three independent copies are its
+  migration backlog) + the elected framing's provenance (start date, rails, candidate/valid
+  counts, rescued). Gate-leg sentences render from the structured leg records + `GATE_LEGS`
+  through the one operator-language vocabulary (`leg_sentence`) — internal `detail` prose never
+  reaches a surface. The RAW trace stays engine-internal (measured 2026-08-04: median ~106 KB,
+  p90 3.6 MB per ticker); the export is ~1–2 KB. Archived per fire as ONE TEXT cell (model-only
+  column; NULL = never captured, never backfilled) and served parsed in `chart_data`. Capture
+  cost measured +20.3 ms per evaluated ticker (~+111 s per full scan); the flip is gated on that
+  bound re-measured in scan metrics (see the flag-ledger row).
+
+- **The strategy read** (`strategy_correction_depth_pct` / `strategy_floor_above_ar`, flag
+  `STRATEGY_READ_ENABLED`, dark): the held-through-correction campaign context, measure-first —
+  how deep the base floor cut below the resolved climax high, and whether it held at/above the
+  automatic reaction's low. Raw values only (`structure/strategy_read.py`); a ruled judgment over
+  them is a later archive calibration, never an add-time threshold.
+
+The block is display/record data only: no score, tier, gate, or election reads it, and the
+frontend formats it without re-deriving any judgment (one implementation per ruled predicate).
+
 Every scan also writes timing telemetry:
 
 - `cache_meta.json["scan_metrics"]` — latest run summary.
@@ -1017,7 +1063,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `a4a4154750c0885224a19a3d86981b7b0ef6371691c570c8a4b8acf79a510d0c`_
+_engine_config_version: `68dcec6ebd9ad0451e507b4912a4c52f24b8044649cce1aa3de9d6487fa2e89e`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1174,6 +1220,8 @@ PUZZLE_CHRONO_PARTIAL = 0.5
 EVENT_MAP_ENABLED = True
 ELECTION_STABILITY_ENABLED = False
 ELECTION_STABILITY_LOOKBACK = 3
+ELECTION_TRACE_EXPORT_ENABLED = False
+STRATEGY_READ_ENABLED = False
 ENGAGEMENT_MAX_EXCURSION_ATR = 1.5
 SCORE_TRAVERSAL_QUALITY = 10
 TRAVERSAL_QUALITY_DENSITY_FULL = 0.33

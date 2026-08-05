@@ -432,6 +432,34 @@ def test_event_map_archive_values_live_and_seed_mapping():
     assert seed_out["event_map_n_swings"] == 3
 
 
+def test_narrative_chart_fields_projects_the_same_family_with_a_parsed_tape():
+    """The payload projection (Surface the Read): same extraction as the
+    writers — same keys, same NULL fidelity — with ONLY the tape cell parsed
+    from JSON text to structure. An unparseable tape degrades to None while
+    the scalars stay measured (tape-unreadable ≠ not-measured)."""
+    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL, narrative_chart_fields
+
+    tape = '[{"rail":"S","outcome":"completed","posture":false,' \
+           '"span":["2026-05-01","2026-05-02"],"knowable":"2026-05-05"}]'
+    live_row = {"_event_map_completed_s": np.int64(1),
+                "_event_map_episode_profile": "S+",
+                "_event_map_episodes": tape}
+    out = narrative_chart_fields(live_row.get)
+    assert set(out) == set(EVENT_MAP_COLUMN_SQL)
+    assert out["event_map_completed_s"] == 1
+    assert out["event_map_episodes"] == [
+        {"rail": "S", "outcome": "completed", "posture": False,
+         "span": ["2026-05-01", "2026-05-02"], "knowable": "2026-05-05"}]
+    # Not measured: the whole family is None, tape included.
+    absent = narrative_chart_fields({}.get)
+    assert all(v is None for v in absent.values())
+    # Tape unreadable: ONLY the tape drops to None; the scalars stay measured.
+    broken = narrative_chart_fields(
+        {"_event_map_completed_s": 2, "_event_map_episodes": "{not json"}.get)
+    assert broken["event_map_episodes"] is None
+    assert broken["event_map_completed_s"] == 2
+
+
 # ---------------------------------------------------------------------------
 # The rail-episode read (layer 3) — plan Task 3 guards
 # ---------------------------------------------------------------------------

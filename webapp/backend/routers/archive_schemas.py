@@ -1,9 +1,10 @@
 """Pydantic schemas for archive API responses and requests."""
 from __future__ import annotations
 
+import json
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class SetupOut(BaseModel):
@@ -199,6 +200,43 @@ class SetupOut(BaseModel):
     quality_label: Optional[str] = None
     notes: Optional[str] = None
     source: Optional[str] = None
+    # ── The narrative fact block (Surface the Read) ──
+    # The event_map family + electing-pool provenance + the election trace,
+    # served so the grading loop sees the story the archive recorded. NULL =
+    # not measured (pre-flip rows / flag off) — never defaulted here (EC-26);
+    # the operator must be able to tell "not measured" from "nothing happened"
+    # (explicit zeros). The two JSON TEXT cells are parsed ONCE at this
+    # boundary so the wire carries structure; an unparseable cell serves None
+    # for that setup (honest degrade — one corrupt row never 500s the list).
+    # Pool vocabulary is enforced three ways at WRITE time (CHECK + stamping
+    # assertion + producing tests); the serve side stays a plain string so one
+    # historic anomaly cannot blank the whole surface.
+    elected_pool: Optional[str] = None
+    story_admission_profile: Optional[str] = None
+    event_map_n_swings: Optional[int] = None
+    event_map_pre_box_trend: Optional[str] = None
+    event_map_n_labels: Optional[int] = None
+    event_map_n_committed: Optional[int] = None
+    event_map_completed_s: Optional[int] = None
+    event_map_completed_r: Optional[int] = None
+    event_map_alternations: Optional[int] = None
+    event_map_terminal_posture: Optional[int] = None
+    event_map_terminal_drift: Optional[int] = None
+    event_map_story_admitted: Optional[int] = None
+    event_map_episode_nan_bars: Optional[int] = None
+    event_map_episode_profile: Optional[str] = None
+    event_map_episodes: Optional[list] = None
+    election_trace: Optional[dict] = None
+
+    @field_validator("event_map_episodes", "election_trace", mode="before")
+    @classmethod
+    def _parse_json_cell(cls, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except ValueError:
+                return None
+        return value
 
     model_config = {"from_attributes": True}
 
@@ -235,4 +273,15 @@ class ReviewToggleIn(BaseModel):
 
 
 class ReviewMarkIn(ReviewToggleIn):
+    note: Optional[str] = None
+
+
+class ReadVerdictIn(BaseModel):
+    """The concordance verdict on the engine's READ. ``scan_date`` is REQUIRED
+    and verbatim (the payload's scan_identity / the archive row's own date) —
+    the read changes across scans, so this never resolves to an episode.
+    ``verdict`` None clears the mark."""
+    ticker: str
+    scan_date: str
+    verdict: Optional[str] = None   # 'agree' | 'disagree' | None (clear)
     note: Optional[str] = None

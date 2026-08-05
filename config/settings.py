@@ -414,6 +414,32 @@ ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run c
 ELECTION_STABILITY_ENABLED = False
 ELECTION_STABILITY_LOOKBACK = 3   # backward shifts probed (D-1..D-k); election stage only
 
+# ── Election-trace export — the walk's narration, published (Surface the Read) ──
+# read_structure's own trace (every root tried, every candidate pair's gate
+# verdict — the explainability rule) captured during the SAME election that
+# fired and summarized engine-side (trace_export.py) to a compact date-anchored
+# story: per-root refusal counts + how far the best candidate got + the elected
+# framing's provenance. The RAW trace never leaves the engine (measured
+# 2026-08-04 on 40 real fires: median ~106 KB, p90 3.6 MB per ticker). Archived
+# raw on every fire (election_trace TEXT, NULL = never captured, no backfill)
+# and served in the payload narrative block. Changes NO election, gate, or
+# score — capture cost only, measured +20.3 ms per evaluated ticker
+# (~+111 s per full US-Stocks scan); the flip is gated on that bound
+# re-measured in the scan-metrics evaluation phase (EC-8).
+ELECTION_TRACE_EXPORT_ENABLED = False
+
+# ── The strategy read — held-through-correction, measure-first (dark) ────────
+# Two RAW campaign-context measures per fire (structure/strategy_read.py):
+# how deep the base floor cut below the resolved climax high
+# (strategy_correction_depth_pct) and whether that floor held at/above the
+# automatic reaction's low (strategy_floor_above_ar). Never gates, never
+# scores; NULL = never measured; a ruled judgment over these is a LATER
+# calibration against the live archive, not an add-time threshold. Reads only
+# facts the walk already resolved — two array lookups per FIRE, expected
+# evaluation-phase delta ~0 s; the flip still requires the ScanTimer
+# re-measure on a real nightly scan (EC-8).
+STRATEGY_READ_ENABLED = False
+
 # ============================================================
 # 4. PHASE C — SPRING
 # ============================================================

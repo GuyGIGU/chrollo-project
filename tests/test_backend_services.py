@@ -364,6 +364,16 @@ _SETUP_OUT_FIELDS = (
     "last_supper_pullback_from_extension_pct", "last_supper_source_box_age",
     "last_supper_reclaim_quality", "adr_pct", "score_adr", "quality_label", "notes",
     "source",
+    # The narrative fact block (Surface the Read, 2026-08-04): the event_map
+    # family + electing-pool provenance + the parsed election trace, exposed
+    # deliberately for the concordance/grading loop.
+    "elected_pool", "story_admission_profile",
+    "event_map_n_swings", "event_map_pre_box_trend", "event_map_n_labels",
+    "event_map_n_committed", "event_map_completed_s", "event_map_completed_r",
+    "event_map_alternations", "event_map_terminal_posture",
+    "event_map_terminal_drift", "event_map_story_admitted",
+    "event_map_episode_nan_bars", "event_map_episode_profile",
+    "event_map_episodes", "election_trace",
 )
 
 
