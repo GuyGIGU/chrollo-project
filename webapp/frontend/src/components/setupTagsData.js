@@ -121,6 +121,12 @@ const TAG_DEFS = [
     56,
     (_scores, flags) => typeof flags.traversalDensity === 'number' && flags.traversalDensity >= 0.33,
   ),
+  // NOTE (operator ruling 2026-08-05): the Event Map is NOT a chip — it is a
+  // base feature every stock carries (the lens's "The Engine's Read" panel is
+  // its surface), and the coming grading rework will grade setups BY their
+  // event maps. The former 📜 worked-story chip was removed on that ruling;
+  // the wire fields (storyAdmitted / episodeProfile in tagFlagsFromWire)
+  // remain — they are the rework's substrate.
   tag(
     'phase_c_test',
     '🪝 Spring/Test',

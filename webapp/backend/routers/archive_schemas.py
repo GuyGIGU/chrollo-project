@@ -1,9 +1,13 @@
 """Pydantic schemas for archive API responses and requests."""
 from __future__ import annotations
 
+import json
+import logging
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
+
+_serve_log = logging.getLogger("chrollo.archive_serve")
 
 
 class SetupOut(BaseModel):
@@ -199,6 +203,67 @@ class SetupOut(BaseModel):
     quality_label: Optional[str] = None
     notes: Optional[str] = None
     source: Optional[str] = None
+    # Archive identity + evidence provenance — the read-verdict loop binds to
+    # the (ticker, scan_date, universe_type) triple and stamps the version the
+    # operator saw, so archive rows must serve both (council review 2026-08-05,
+    # findings 4 + 6).
+    universe_type: Optional[str] = None
+    engine_config_version: Optional[str] = None
+    # ── The narrative fact block (Surface the Read) ──
+    # The event_map family + electing-pool provenance + the election trace,
+    # served so the grading loop sees the story the archive recorded. NULL =
+    # not measured (pre-flip rows / flag off) — never defaulted here (EC-26);
+    # the operator must be able to tell "not measured" from "nothing happened"
+    # (explicit zeros). The two JSON TEXT cells are parsed ONCE at this
+    # boundary so the wire carries structure; an unparseable cell serves None
+    # for that setup (honest degrade — one corrupt row never 500s the list).
+    # Pool vocabulary is enforced three ways at WRITE time (CHECK + stamping
+    # assertion + producing tests); the serve side stays a plain string so one
+    # historic anomaly cannot blank the whole surface.
+    elected_pool: Optional[str] = None
+    story_admission_profile: Optional[str] = None
+    event_map_n_swings: Optional[int] = None
+    event_map_pre_box_trend: Optional[str] = None
+    event_map_n_labels: Optional[int] = None
+    event_map_n_committed: Optional[int] = None
+    event_map_completed_s: Optional[int] = None
+    event_map_completed_r: Optional[int] = None
+    event_map_alternations: Optional[int] = None
+    event_map_terminal_posture: Optional[int] = None
+    event_map_terminal_drift: Optional[int] = None
+    event_map_story_admitted: Optional[int] = None
+    event_map_episode_nan_bars: Optional[int] = None
+    event_map_episode_profile: Optional[str] = None
+    event_map_episodes: Optional[list] = None
+    election_trace: Optional[dict] = None
+
+    # The two deep JSON cells degrade PER ROW — parse failure AND wrong
+    # container shape both land None (council review 2026-08-05, finding 8:
+    # a cell holding valid JSON of the wrong container would otherwise pass
+    # this validator and 500 the whole list at response-model time). Every
+    # degrade logs, so corruption is visible without breaking the serve —
+    # never confusable with the legitimate tape-unreadable state, which is
+    # NULL in the cell itself.
+    @field_validator("event_map_episodes", "election_trace", mode="before")
+    @classmethod
+    def _parse_json_cell(cls, value, info: ValidationInfo):
+        if value is None:
+            return None
+        expected = list if info.field_name == "event_map_episodes" else dict
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (ValueError, RecursionError):
+                _serve_log.warning(
+                    "archive %s cell unparseable — row degraded to None",
+                    info.field_name)
+                return None
+        if not isinstance(value, expected):
+            _serve_log.warning(
+                "archive %s cell parsed to %s, expected %s — row degraded to None",
+                info.field_name, type(value).__name__, expected.__name__)
+            return None
+        return value
 
     model_config = {"from_attributes": True}
 
@@ -236,3 +301,23 @@ class ReviewToggleIn(BaseModel):
 
 class ReviewMarkIn(ReviewToggleIn):
     note: Optional[str] = None
+
+
+class ReadVerdictIn(BaseModel):
+    """The concordance verdict on the engine's READ. ``scan_date`` is REQUIRED
+    and verbatim (the payload's scan_identity / the archive row's own date) —
+    the read changes across scans, so this never resolves to an episode.
+    ``verdict`` None clears the mark; an EMPTY STRING is a 422, never a clear.
+    The write contract mirrors (and is at least as strict as) the GET twin's
+    Query constraints — a persisted row the read path refuses to serve is a
+    write-boundary defect (council review 2026-08-05, finding 7)."""
+    ticker: str = Field(min_length=1, max_length=12)
+    scan_date: str = Field(min_length=10, max_length=10,
+                           pattern=r"^\d{4}-\d{2}-\d{2}$")
+    # Scan-level half of the archive identity triple; None resolves to the
+    # equities-default scope server-side (EC-1 one source).
+    universe_type: Optional[str] = Field(default=None, max_length=32)
+    # Evidence provenance from the payload's scan_identity (manifest hash).
+    engine_config_version: Optional[str] = Field(default=None, max_length=64)
+    verdict: Optional[str] = None   # 'agree' | 'disagree' | None (clear)
+    note: Optional[str] = Field(default=None, max_length=500)

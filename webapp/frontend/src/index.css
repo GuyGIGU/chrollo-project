@@ -920,6 +920,133 @@ td {
   min-height: 42px;
 }
 
+/* The Engine's Read panel (Surface the Read). A third lens section made the
+   fixed two-column bottom grid orphan "Why It Stands Out" into the narrow
+   track with an empty wide cell beside it — with three sections, the third
+   (the tags) spans its own full row; the two-section weekly/monthly and
+   no-narrative cases keep the original layout (council review 2026-08-05,
+   finding 12). */
+.stock-lens-bottom .stock-lens-section:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+/* The panel's controls speak the house interaction grammar — the same
+   hover wash + border strengthening as .phase-bin-control beside them, the
+   app's accent focus ring, one shared padding and type size. A SELECTED
+   verdict wears the modal's selection grammar (the IntervalTabs myth-soft
+   wash), never the solid primary-action fill: a recorded verdict is a
+   resting state, not a live action. */
+.narrative-glyph {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 3px 8px;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.narrative-glyph:hover,
+.narrative-glyph:focus-visible {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.narrative-glyph.is-active {
+  border-color: var(--accent-active);
+}
+
+/* A glyph whose chart anchor degraded renders inert honestly — no pointer
+   affordance, no hover response (its tooltip says why). */
+.narrative-glyph.is-inert {
+  cursor: default;
+}
+
+.narrative-glyph.is-inert:hover {
+  background: transparent;
+  border-color: var(--border-color);
+}
+
+.narrative-verdict-btn,
+.narrative-trace-toggle,
+.narrative-reason-chip {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.narrative-trace-toggle {
+  margin-top: 8px;
+}
+
+.narrative-verdict-btn:hover:not(:disabled),
+.narrative-verdict-btn:focus-visible,
+.narrative-trace-toggle:hover,
+.narrative-trace-toggle:focus-visible,
+.narrative-reason-chip:hover,
+.narrative-reason-chip:focus-visible {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.narrative-verdict-btn.is-active,
+.narrative-reason-chip.is-active {
+  background: var(--myth-soft);
+  border-color: var(--myth);
+  color: var(--myth);
+  font-weight: 700;
+}
+
+.narrative-verdict-btn:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.narrative-reason-input {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  width: 150px;
+}
+
+.narrative-reason-input:focus-visible {
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+/* Recessed readout below the panel surface — a rostered surface token, not
+   a raw black overlay (the old var(--bg-deep, …) referenced a token defined
+   nowhere, so the hardcoded fallback always won). */
+.narrative-trace-well {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  margin-top: 8px;
+  overflow-x: auto;
+  padding: 8px 10px;
+}
+
 /* Keyboard focus ring for the screener cards (now role=button, Enter/Space to
    open). :focus-visible keeps the ring off mouse clicks but shows it for
    keyboard navigation, so a power user can sweep the grid. */

@@ -100,8 +100,33 @@ def list_episodes(
         universe_type=_resolve_universe_type(universe_type),
     )
 
+    # Sort on raw values, then model_validate ONLY the paginated page (council
+    # review 2026-08-05, finding 8): per-row validation now parses the two deep
+    # JSON cells, so validating the FULL filtered set before slicing would pay
+    # parse-and-discard for every row the page never shows — a cost that grows
+    # with the archive. Derived episode fields sort from the episode record;
+    # everything else sorts from the canonical ORM row (identical ordering:
+    # validation never changes a sortable scalar).
+    def _sort_value(ep):
+        derived = {
+            "episode_key": _episode_key(ep.ticker, ep.setup_type, ep.first_seen),
+            "scan_count": ep.scan_count,
+            "first_seen": ep.first_seen,
+            "last_seen": ep.last_seen,
+        }
+        if sort_by in derived:
+            return derived[sort_by]
+        return getattr(row_by_id[ep.canonical_id], sort_by, None)
+
+    # Nulls sort last in either direction so missing returns/scores don't
+    # break the comparison.
+    non_null = [ep for ep in eps if _sort_value(ep) is not None]
+    nulls = [ep for ep in eps if _sort_value(ep) is None]
+    non_null.sort(key=_sort_value, reverse=(sort_dir != "asc"))
+    page = (non_null + nulls)[skip: skip + limit]
+
     out: List[EpisodeOut] = []
-    for ep in eps:
+    for ep in page:
         canonical = SetupOut.model_validate(row_by_id[ep.canonical_id])
         review_key = (ep.ticker, ep.first_seen)
         out.append(EpisodeOut(
@@ -113,15 +138,7 @@ def list_episodes(
             passed=review_key in passed_notes,
             review_note=passed_notes.get(review_key),
         ))
-
-    # Episodes are derived (not a DB column), so sort in Python. Nulls sort last
-    # in either direction so missing returns/scores don't break the comparison.
-    non_null = [e for e in out if getattr(e, sort_by, None) is not None]
-    nulls = [e for e in out if getattr(e, sort_by, None) is None]
-    non_null.sort(key=lambda e: getattr(e, sort_by), reverse=(sort_dir != "asc"))
-    out = non_null + nulls
-
-    return out[skip: skip + limit]
+    return out
 
 
 @router.get("/setups/{setup_id}", response_model=SetupOut)

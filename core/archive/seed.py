@@ -36,6 +36,8 @@ from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.structure.event_map import event_map_archive_values
 from engine_alpha.structure.htf import htf_archive_values
+from engine_alpha.structure.strategy_read import strategy_archive_values
+from engine_alpha.structure.trace_export import election_trace_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -441,6 +443,10 @@ def seed_archive(
             **htf_archive_values(best_result.get, prefixed=False),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
+            # Election-trace evidence — NULL when the export flag is off
+            **election_trace_archive_values(best_result.get, prefixed=False),
+            # Strategy read (held-through-correction) — NULL when dark
+            **strategy_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,
         )

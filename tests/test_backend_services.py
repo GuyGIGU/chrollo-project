@@ -364,6 +364,20 @@ _SETUP_OUT_FIELDS = (
     "last_supper_pullback_from_extension_pct", "last_supper_source_box_age",
     "last_supper_reclaim_quality", "adr_pct", "score_adr", "quality_label", "notes",
     "source",
+    # Archive identity + evidence provenance (council review 2026-08-05,
+    # findings 4+6): the verdict loop binds to the triple and stamps the
+    # version the operator saw.
+    "universe_type", "engine_config_version",
+    # The narrative fact block (Surface the Read, 2026-08-04): the event_map
+    # family + electing-pool provenance + the parsed election trace, exposed
+    # deliberately for the concordance/grading loop.
+    "elected_pool", "story_admission_profile",
+    "event_map_n_swings", "event_map_pre_box_trend", "event_map_n_labels",
+    "event_map_n_committed", "event_map_completed_s", "event_map_completed_r",
+    "event_map_alternations", "event_map_terminal_posture",
+    "event_map_terminal_drift", "event_map_story_admitted",
+    "event_map_episode_nan_bars", "event_map_episode_profile",
+    "event_map_episodes", "election_trace",
 )
 
 
@@ -530,6 +544,47 @@ def test_portfolio_stream_listens_to_snapshot_changing_channels():
         "orders",
         "executions",
     )
+
+
+def test_screener_summary_strips_heavy_cells_and_keeps_narrative_scalars(monkeypatch):
+    """Council review 2026-08-05 (finding 15 / beck B4): the /screener-summary
+    denylist is the ONE mechanism keeping the bar arrays AND the two deep
+    narrative cells (the episode tape, the election trace) off the light wire
+    the Home tiles poll — a key typo here would ship the tape on every
+    freshness check with nothing going red."""
+    from types import SimpleNamespace
+
+    from routers import screener as sr
+
+    payload = {
+        "chart_data": {"AAA": {
+            "score": 91.0,
+            "candles": [1], "volumes": [1], "weekly_candles": [1],
+            "weekly_volumes": [1], "monthly_candles": [1], "monthly_volumes": [1],
+            "event_map_episodes": [{"rail": "S"}],
+            "election_trace": {"roots": []},
+            "event_map_completed_s": 2,
+            "event_map_episode_profile": "S+ S+",
+            "elected_pool": "strict",
+        }},
+        "ordered_tickers": ["AAA"],
+        "market_context": {},
+    }
+    monkeypatch.setattr(
+        sr, "_artifact_state",
+        lambda universe: (SimpleNamespace(key="us-stocks"), "unused.json", "ready", "t"))
+    monkeypatch.setattr(sr, "read_screener_data", lambda path: payload)
+
+    row = sr.get_screener_summary()["setups"]["AAA"]
+    for heavy in ("candles", "volumes", "weekly_candles", "weekly_volumes",
+                  "monthly_candles", "monthly_volumes",
+                  "event_map_episodes", "election_trace"):
+        assert heavy not in row
+    # The scalars + the sentence + the pool ride the light wire deliberately.
+    assert row["event_map_completed_s"] == 2
+    assert row["event_map_episode_profile"] == "S+ S+"
+    assert row["elected_pool"] == "strict"
+    assert row["score"] == 91.0
 
 
 def test_screener_data_serves_last_good_payload_on_bad_json(tmp_path):
@@ -1432,3 +1487,221 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     assert (1, "failed") in finishes       # scan run still recorded as failed
     assert (2, "ok") in finishes           # maturation recorded as its OWN run (now visible)
     assert not scan_runner.SCAN_LOCK.locked()  # lock released on every path
+
+
+# ── Read-verdict write path (Surface the Read; council review 2026-08-05 F1) ──
+# The concordance corpus is born through this endpoint — every leg of the
+# conjunctive guard is asserted distinctly (EC-27), and the closed verdict set
+# carries all three EC-19 legs (model CHECK / router assertion / these tests).
+
+
+def _verdict_db(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import database
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'verdicts.db'}")
+    database.Base.metadata.create_all(bind=eng)
+    return sessionmaker(bind=eng)()
+
+
+def _verdict_in(**overrides):
+    from routers.archive_schemas import ReadVerdictIn
+
+    base = {"ticker": "AAA", "scan_date": "2026-08-05"}
+    base.update(overrides)
+    return ReadVerdictIn(**base)
+
+
+def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
+    from routers.archive_reviews import get_read_verdict, set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        out = set_read_verdict(_verdict_in(verdict="agree", note="rails"), db=db)
+        assert out["verdict"] == "agree" and out["note"] == "rails"
+        got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
+                               universe_type=None, db=db)
+        assert got == {"verdict": "agree", "note": "rails"}
+    finally:
+        db.close()
+
+
+def test_read_verdict_disagree_overwrites_in_place_one_row(tmp_path):
+    from models import ReadVerdict
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(verdict="agree"), db=db)
+        set_read_verdict(_verdict_in(verdict="disagree", note="posture"), db=db)
+        rows = db.query(ReadVerdict).all()
+        assert len(rows) == 1
+        assert rows[0].verdict == "disagree" and rows[0].note == "posture"
+    finally:
+        db.close()
+
+
+def test_read_verdict_null_clears_the_row(tmp_path):
+    from models import ReadVerdict
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(verdict="agree"), db=db)
+        out = set_read_verdict(_verdict_in(verdict=None), db=db)
+        assert out["verdict"] is None
+        assert db.query(ReadVerdict).count() == 0
+    finally:
+        db.close()
+
+
+def test_read_verdict_empty_string_is_422_never_a_clear(tmp_path):
+    """council F7: '' must be a malformed verdict, not the clear sentinel — a
+    client bug that sends verdict '' must never silently DELETE a verdict."""
+    from fastapi import HTTPException
+
+    from models import ReadVerdict
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(verdict="agree"), db=db)
+        with pytest.raises(HTTPException) as exc:
+            set_read_verdict(_verdict_in(verdict=""), db=db)
+        assert exc.value.status_code == 422
+        assert db.query(ReadVerdict).count() == 1   # the verdict survived
+    finally:
+        db.close()
+
+
+def test_read_verdict_unknown_vocabulary_is_422(tmp_path):
+    from fastapi import HTTPException
+
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        with pytest.raises(HTTPException) as exc:
+            set_read_verdict(_verdict_in(verdict="maybe"), db=db)
+        assert exc.value.status_code == 422
+    finally:
+        db.close()
+
+
+def test_read_verdict_blank_ticker_is_400(tmp_path):
+    from fastapi import HTTPException
+
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        with pytest.raises(HTTPException) as exc:
+            set_read_verdict(_verdict_in(ticker=" ", verdict="agree"), db=db)
+        assert exc.value.status_code == 400
+    finally:
+        db.close()
+
+
+def test_read_verdict_malformed_identity_refused_at_the_schema():
+    """council F7: the write contract is at least as strict as the GET twin —
+    a scan_date the read path can't serve is refused at construction."""
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError):
+        _verdict_in(scan_date="2026-8-5", verdict="agree")       # not date-shaped
+    with pytest.raises(pydantic.ValidationError):
+        _verdict_in(scan_date="2026-08-05T18:00", verdict="agree")  # datetime leak
+    with pytest.raises(pydantic.ValidationError):
+        _verdict_in(ticker="WAYTOOLONGTICKER", verdict="agree")  # > GET's 12-char cap
+
+
+def test_read_verdict_mixed_case_ticker_normalizes(tmp_path):
+    from routers.archive_reviews import get_read_verdict, set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(ticker="aApl", verdict="agree"), db=db)
+        got = get_read_verdict(ticker="AAPL", scan_date="2026-08-05",
+                               universe_type=None, db=db)
+        assert got["verdict"] == "agree"
+    finally:
+        db.close()
+
+
+def test_read_verdict_get_serves_nulls_when_absent(tmp_path):
+    from routers.archive_reviews import get_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
+                               universe_type=None, db=db)
+        assert got == {"verdict": None, "note": None}
+    finally:
+        db.close()
+
+
+def test_read_verdict_universe_type_separates_same_day_rows(tmp_path):
+    """council F6: the identity is the archive TRIPLE — the same ticker+date in
+    two universes must hold two independent verdicts, and the omitted-universe
+    default must resolve to the equities scope (EC-1 one source)."""
+    from core.pipeline.universe import default_universe_type
+
+    from models import ReadVerdict
+    from routers.archive_reviews import get_read_verdict, set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(verdict="agree"), db=db)
+        set_read_verdict(_verdict_in(verdict="disagree",
+                                     universe_type="us_sectors"), db=db)
+        assert db.query(ReadVerdict).count() == 2
+        assert get_read_verdict(ticker="AAA", scan_date="2026-08-05",
+                                universe_type="us_sectors", db=db)["verdict"] == "disagree"
+        # Omitted universe on the read resolves to the same default the write used.
+        assert get_read_verdict(ticker="AAA", scan_date="2026-08-05",
+                                universe_type=None, db=db)["verdict"] == "agree"
+        default_row = (db.query(ReadVerdict)
+                       .filter(ReadVerdict.verdict == "agree").one())
+        assert default_row.universe_type == default_universe_type()
+    finally:
+        db.close()
+
+
+def test_read_verdict_stamps_and_refreshes_engine_config_version(tmp_path):
+    """council F6: the verdict carries the evidence version the operator SAW;
+    re-recording re-stamps it (the archive row may have been upserted since)."""
+    from models import ReadVerdict
+    from routers.archive_reviews import set_read_verdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        set_read_verdict(_verdict_in(verdict="agree",
+                                     engine_config_version="cbd7df83"), db=db)
+        assert db.query(ReadVerdict).one().engine_config_version == "cbd7df83"
+        set_read_verdict(_verdict_in(verdict="disagree",
+                                     engine_config_version="deadbeef"), db=db)
+        row = db.query(ReadVerdict).one()
+        assert row.verdict == "disagree"
+        assert row.engine_config_version == "deadbeef"
+    finally:
+        db.close()
+
+
+def test_read_verdict_model_check_refuses_illegal_label(tmp_path):
+    """EC-19 leg 3: a writer that is NOT the router (seed tool, manual session)
+    cannot land an out-of-vocabulary verdict — the model CHECK refuses it."""
+    from sqlalchemy.exc import IntegrityError
+
+    from models import ReadVerdict
+
+    db = _verdict_db(tmp_path)
+    try:
+        db.add(ReadVerdict(ticker="AAA", scan_date="2026-08-05",
+                           universe_type="us_equities", verdict="maybe"))
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+    finally:
+        db.close()

@@ -312,6 +312,20 @@ class SetupArchive(Base):
     event_map_episode_profile = Column(String, nullable=True)    # the sentence "S+ S+ S+ R^"
     event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 
+    # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
+    # Owning declaration in core/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);
+    # same MODEL-ONLY convention as the event_map family above. The compact
+    # date-anchored export the operator was shown, as JSON text — NULL means
+    # never captured, and pre-flip NULLs are never backfilled (a trace
+    # re-derived under a rotated engine is not the evidence he graded).
+    election_trace = Column(String, nullable=True)
+
+    # ── Strategy read — flag-gated (STRATEGY_READ_ENABLED), measure-first ──
+    # Owning declaration in core/structure/strategy_read.py; raw campaign
+    # context, never gated, never scored; NULL = never measured.
+    strategy_correction_depth_pct = Column(Float, nullable=True)
+    strategy_floor_above_ar = Column(Integer, nullable=True)
+
     # ── Advisory metadata (Lane E) — GRADED context, NOT a veto, NOT scored ──
     # Flag-gated (FUNDAMENTALS_ENABLED / RS_LINE_ENABLED / SECTOR_RANKING_ENABLED),
     # all default OFF -> these stay NULL and the engine output is byte-identical.

@@ -76,3 +76,18 @@ Cross-checked against `origin/main` — **do not chase these**:
 
 ## Branches safe to prune once confirmed
 `engine/band-rails-flip` · `claude/nervous-goldstine-5c7d81` · `wip/audit-tool-tweaks` (local + remote where present). Keep `wip/signal-edge-backtest`, `engine/ta-score-v2`, `worktree-council-p2-followups`, `codex/backend-hardening`, `docs/last-supper-definition` until their salvageable slices are re-ported (items above).
+
+---
+
+## Added 2026-08-05 (Surface-the-Read council review, finding 9)
+
+- **Fold the cascade-summarizer copies onto `trace_export.terminal_verdict`** — the census /
+  evidence tools still carry three independent re-derivations of the "which stage killed the
+  furthest candidate" judgment. Fold them onto the one function (or pin equivalence in a check
+  battery) before the next consumer lands; until then an evidence report and the operator-facing
+  exported trace can tell different stories about the same cascade. The function's docstring
+  names this debt.
+- **Hoist one shared family-splat helper** when the NEXT archive column family arrives — the
+  get → NaN-scrub → INTEGER-coerce loop now has four copies (event_map, election_trace,
+  strategy_read, plus htf's older bool variant). Ownership of names/types stays per-module;
+  only the mechanics fold (review finding, fowler seat).

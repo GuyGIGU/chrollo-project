@@ -88,6 +88,7 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
         <ScreenerModal
           ticker={peek}
           data={chartData[peek]}
+          scanIdentity={screenerData?.scan_identity ?? null}
           onClose={() => setPeek(null)}
           footer={<BridgeOut ticker={peek} />}
         />

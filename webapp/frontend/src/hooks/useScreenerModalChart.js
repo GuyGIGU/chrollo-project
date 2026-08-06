@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
 import { attachPhaseOverlay, colorLpsCandles, rootSwingRange } from '../components/chartPhaseOverlay';
@@ -105,7 +105,14 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
   const dailyCandles = interval === 'D' ? data?.candles : null;
   const forwardBars = data?.forward_bars || 0;
   const baseEnd = (data?.candles?.length || 0) - 1 - forwardBars;
-  const coloredCandles = dailyCandles?.length ? colorStructureCandles(data) : null;
+  // Memoized on the chart's own deps: the glyph-tape hover re-renders the
+  // whole modal per mouse transition, and unmemoized this deep-cloned the
+  // full candle array every time just to throw it away (council review
+  // 2026-08-05, finding 13 — ~24 clone-and-discard renders per tape sweep).
+  const coloredCandles = useMemo(
+    () => (dailyCandles?.length ? colorStructureCandles(data) : null),
+    [data, dailyCandles],
+  );
 
   useLightweightChart(containerRef, {
     chartOptions: (container) => chartOptions(container.clientWidth, container.clientHeight),

@@ -1,3 +1,4 @@
+import { episodeSpans } from './narrativeRead.js';
 import { PHASE_NAMES } from './wireVocabulary.js';
 
 const TOKEN_FALLBACKS = {
@@ -15,6 +16,9 @@ const REGION_DEFS = {
   c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
   d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
   lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
+  // Rail episodes (Surface the Read): the tape describes, it never judges —
+  // the neutral faint ink, deliberately no outcome color on the chart.
+  episode: { label: 'EP', name: 'Rail episode', detail: 'One rail engagement', token: '--text-faint' },
 };
 
 const PHASE_A_MAX_BARS = 16;
@@ -431,8 +435,32 @@ const applyLpsSequenceColors = (regions) => {
   });
 };
 
+// Rail-episode spans (Surface the Read): date-anchored highlight targets for
+// the tape's hover/focus — they ride the SAME activeRegion channel as the
+// phase bins, so the chart can only ever highlight one thing. Deliberately
+// NOT part of buildPhaseRegions: the phase-bin panel lists phases, the tape
+// lists these. The ids, span validity, and alignment-degrade rule all come
+// from narrativeRead.episodeSpans — the ONE shaper of the tape (council
+// review 2026-08-05, finding 14: re-deriving the mapping here let the two
+// modules disagree on which glyphs are highlightable); this module only
+// resolves dates to candle indexes.
+export const buildEpisodeRegions = (data) => {
+  const candles = data?.candles || [];
+  if (candles.length === 0) return [];
+  const regions = [];
+  episodeSpans(data).forEach((span) => {
+    const startIndex = indexOnOrAfter(candles, span.from);
+    const endIndex = indexOnOrAfter(candles, span.to);
+    const region = buildRegion('episode', candles, startIndex, endIndex, {
+      id: span.id,
+    });
+    if (region) regions.push(region);
+  });
+  return regions;
+};
+
 const styledRegions = (data, container) =>
-  buildPhaseRegions(data).map((region) => {
+  [...buildPhaseRegions(data), ...buildEpisodeRegions(data)].map((region) => {
     const color = region.color || tokenColor(container, region.token);
     return {
       ...region,

@@ -134,7 +134,7 @@ function ModalToolbar({ data, onClose, onNext, onPrev, ticker, interval, onInter
   );
 }
 
-const ScreenerModal = ({ ticker, data, earnings, onClose, onPrev, onNext, footer = null }) => {
+const ScreenerModal = ({ ticker, data, earnings, scanIdentity = null, onClose, onPrev, onNext, footer = null }) => {
   const chartContainerRef = useRef(null);
   const [activeRegion, setActiveRegion] = useState(null);
   const [interval, selectInterval] = useState('D');
@@ -227,6 +227,8 @@ const ScreenerModal = ({ ticker, data, earnings, onClose, onPrev, onNext, footer
             earnings={earnings}
             interval={interval}
             onRegionChange={setActiveRegion}
+            scanIdentity={scanIdentity}
+            ticker={ticker}
           />
         </div>
         {footer}

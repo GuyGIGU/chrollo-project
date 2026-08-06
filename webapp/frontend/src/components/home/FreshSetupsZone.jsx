@@ -94,6 +94,7 @@ export default function FreshSetupsZone({ screenerData, scanStatus }) {
         <ScreenerModal
           ticker={peek}
           data={chartData[peek]}
+          scanIdentity={screenerData?.scan_identity ?? null}
           onClose={() => setPeek(null)}
           footer={<BridgeOut ticker={peek} />}
         />

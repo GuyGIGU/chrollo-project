@@ -66,6 +66,18 @@ class HealthBoard(BaseModel):
     member_count: int
 
 
+class ScanIdentity(BaseModel):
+    """The payload's provenance block (Surface the Read): the scan-level half
+    of the archive identity key + the engine version. Closed contract — a
+    review verdict binds to (ticker, scan_date, universe_type) verbatim, so a
+    malformed identity must SURFACE here, never serve as plausible garbage."""
+    model_config = ConfigDict(extra="forbid")
+
+    scan_date: str | None
+    universe_type: str
+    engine_config_version: str
+
+
 def configure_screener_routes(screener_json_path: str) -> None:
     # Retained for the US-Stocks default / health report; the data route resolves
     # each universe's artifact through the descriptor below.
@@ -117,6 +129,12 @@ def get_screener_data(
     health = payload.get("health_board")
     if health is not None:
         HealthBoard.model_validate(health)
+    # Same treatment for the scan-identity block (absent on pre-feature
+    # artifacts → nothing to validate; the frontend reads absent as "no
+    # identity", never a fabricated one).
+    identity = payload.get("scan_identity")
+    if identity is not None:
+        ScanIdentity.model_validate(identity)
     return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
 
 
@@ -134,8 +152,13 @@ def get_screener_summary(
     payload = read_screener_data(path)
     chart_data = payload.get("chart_data") or {}
     # Every per-ticker bar array (daily + the resampled weekly/monthly pairs) —
-    # together ~95% of the artifact's weight.
-    heavy = {"candles", "volumes", "weekly_candles", "weekly_volumes", "monthly_candles", "monthly_volumes"}
+    # together ~95% of the artifact's weight — plus the two deep narrative
+    # cells (the episode tape and the election trace): detail-view material
+    # the light pollers (Home tiles, freshness checks) never render. The
+    # narrative SCALARS and the sentence stay on this wire deliberately.
+    heavy = {"candles", "volumes", "weekly_candles", "weekly_volumes",
+             "monthly_candles", "monthly_volumes",
+             "event_map_episodes", "election_trace"}
     setups = {
         ticker: {k: v for k, v in (data or {}).items() if k not in heavy}
         for ticker, data in chart_data.items()
@@ -187,6 +210,11 @@ def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
         "source_universe": DEFAULT_UNIVERSE_KEY,
         "ordered_tickers": members,
         "chart_data": {t: us_chart[t] for t in members if t in us_chart},
+        # The source artifact's identity VERBATIM — every member row came from
+        # this scan, so the read-verdict loop stays live in the top-down view
+        # (council review 2026-08-05, finding 4; no new request path, no
+        # client-derived date).
+        "scan_identity": us.get("scan_identity"),
     }
 
 
