@@ -4,10 +4,12 @@ One ordered registry of every scoring sub-score term. For each term it records:
   - ``key``          the ``score_setup`` result-dict key,
   - ``column``       the ``setup_archive`` column (``None`` = not persisted yet),
   - ``cap_setting``  the ``config.settings`` attribute holding its point cap,
-  - ``layer``        ``'ta'``  = part of the 0-100 Technical Analysis Score / tier,
-                     ``'regime'`` = market-state, EXCLUDED from the score (label only),
+  - ``layer``        ``'ta'``  = part of the 0-100 Technical Analysis Grade / tier,
+                     ``'regime'`` = market-state, EXCLUDED from the grade (label only),
   - ``kind``         structural | context | puzzle | tag | warning | new_term,
-  - ``present_when`` a settings BOOL flag gating emission (``None`` = always emitted).
+  - ``present_when`` a settings BOOL flag gating emission (``None`` = always emitted),
+  - ``chapter``      the story chapter this term grades inside (``CHAPTER_ORDER``;
+                     ``None`` on the regime layer — no chapter, no grade membership).
 
 Consumers (the ``score_setup`` result dict, the archive writers, ``analyze.py``,
 the ``/calibration`` endpoint, the frontend chips, and — later — the 0-100
@@ -33,9 +35,10 @@ class TermSpec:
     key: str                          # score_setup result-dict key
     column: Optional[str]             # setup_archive column (None = not persisted yet)
     cap_setting: str                  # config.settings attribute holding the point cap
-    layer: str                        # 'ta' (in the TA Score + tier) | 'regime' (label only)
+    layer: str                        # 'ta' (in the TA Grade + tier) | 'regime' (label only)
     kind: str                         # structural | context | puzzle | tag | warning | new_term
     present_when: Optional[str] = None  # settings BOOL flag gating emission (None = always)
+    chapter: Optional[str] = None     # story chapter (CHAPTER_ORDER); None on the regime layer
 
     def cap(self) -> float:
         """The term's point cap, resolved lazily from settings at call time."""
@@ -48,25 +51,66 @@ class TermSpec:
         return bool(getattr(settings, self.present_when))
 
 
+# ── Story chapters — the grade's frame (operator-ruled 2026-08-06) ───────────
+# The 0-100 Technical Analysis Grade decomposes into story chapters that read
+# left→right like the chart, the way the operator narrates it:
+#   cause          the base itself — is there a proper, tight, mature Phase-B range?
+#   work           what happened inside — touches, genuine traversal, progressive
+#                  contraction, the completeness of the told story
+#   turn           the right-side improvement — rising support, spring/Phase-D
+#   finish         the pre-breakout state — LPS tightness, its volume dry-up,
+#                  the terminal ATR squeeze
+#   trend_context  the chart around the base — trend, RS, 52w proximity, ADR
+# Chapters are a DISPLAY PARTITION of the single fixed-divisor affine sum —
+# never per-chapter normalization (the present-cap denominator is tested-DEAD).
+# Membership is hashed into engine_config_version (freeze/manifest.py), so a
+# re-chaptering is a visible archive seam, never a silent relabel.
+CHAPTER_ORDER: tuple[str, ...] = ("cause", "work", "turn", "finish", "trend_context")
+
+# Reserved result-dict / wire keys for the flag-gated v2 grade — settled BEFORE
+# anything serializes so no rename ever crosses a frozen surface. NOTHING may
+# emit these while TA_SCORE_V2 is off (the flag-off tripwires derive from this
+# tuple); archive columns reuse the same names where they persist.
+#   ta_grade           the 0-100 (post-normalization, post-warnings; full precision,
+#                      rounding is display-only). NOT ta_score — it must never be
+#                      confusable with the 0-100 rs_rating percentile beside it.
+#   ta_grade_raw       the raw affine sum (pre-normalization)
+#   ta_grade_chapters  fixed-arity {chapter_id: points on the 0-100 scale}
+#   ta_grade_warnings  the resolved floored warning discounts applied
+#   structure_tier     letter tier derived from ta_grade
+#   fired_tags         backend-resolved chip verdicts (the wire carries verdicts,
+#                      never rules)
+#   regime_label       market-state label — OUTSIDE the grade (breadth/SPY leave
+#                      the score, taxonomy layer='regime')
+# (Replaces the pre-chapter reserved names ta_structure_score / context_score /
+# ta_score_v2 — retired unserialized 2026-08-08; structure_tier carries over.)
+V2_RESULT_KEYS: tuple[str, ...] = (
+    "ta_grade", "ta_grade_raw", "ta_grade_chapters", "ta_grade_warnings",
+    "structure_tier", "fired_tags", "regime_label",
+)
+
 # Ordered to match the score_setup result-dict emission order (scoring.py).
 REGISTRY: tuple[TermSpec, ...] = (
-    TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural"),
-    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural"),
-    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural"),
-    TermSpec("atr_squeeze",       "score_atr_squeeze",       "SCORE_ATR_SQUEEZE",        "ta",     "structural"),
-    TermSpec("lps_tightness",     "score_lps_tightness",     "SCORE_LPS_TIGHTNESS",      "ta",     "structural"),
-    TermSpec("vol_contraction",   "score_vol_contraction",   "SCORE_VOL_CONTRACTION",    "ta",     "structural"),
-    TermSpec("base_age",          "score_base_age",          "SCORE_BASE_AGE",           "ta",     "structural"),
-    TermSpec("uptrend_bonus",     "score_uptrend_bonus",     "SCORE_UPTREND_BONUS",      "ta",     "context"),
-    TermSpec("rs_bonus",          "score_rs_bonus",          "SCORE_RS_BONUS",           "ta",     "context"),
-    TermSpec("high_proximity",    "score_high_proximity",    "SCORE_52W_HIGH_PROXIMITY", "ta",     "context"),
+    TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural", chapter="cause"),
+    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural", chapter="work"),
+    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural", chapter="work"),
+    # atr_squeeze is ATR_10/ATR_50 at the right edge — the TERMINAL volatility
+    # squeeze into the pivot, not a whole-base trait; it finishes the story.
+    TermSpec("atr_squeeze",       "score_atr_squeeze",       "SCORE_ATR_SQUEEZE",        "ta",     "structural", chapter="finish"),
+    TermSpec("lps_tightness",     "score_lps_tightness",     "SCORE_LPS_TIGHTNESS",      "ta",     "structural", chapter="finish"),
+    TermSpec("vol_contraction",   "score_vol_contraction",   "SCORE_VOL_CONTRACTION",    "ta",     "structural", chapter="finish"),
+    TermSpec("base_age",          "score_base_age",          "SCORE_BASE_AGE",           "ta",     "structural", chapter="cause"),
+    TermSpec("uptrend_bonus",     "score_uptrend_bonus",     "SCORE_UPTREND_BONUS",      "ta",     "context",    chapter="trend_context"),
+    TermSpec("rs_bonus",          "score_rs_bonus",          "SCORE_RS_BONUS",           "ta",     "context",    chapter="trend_context"),
+    TermSpec("high_proximity",    "score_high_proximity",    "SCORE_52W_HIGH_PROXIMITY", "ta",     "context",    chapter="trend_context"),
     TermSpec("breadth_bonus",     "score_breadth_bonus",     "SCORE_BREADTH_BONUS",      "regime", "context"),
-    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural"),
-    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural"),
-    TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context"),
+    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural", chapter="work"),
+    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="turn"),
+    TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend_context"),
     # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
-    # its archive column is a Wave-2 add (design P3).
-    TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle"),
+    # its archive column is a Wave-2 add (design P3). Chapter: the puzzle grades
+    # the completeness of the told story — the work the range did.
+    TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="work"),
 )
 
 
@@ -83,3 +127,8 @@ def archive_columns() -> list[str]:
 def caps() -> dict[str, float]:
     """{key: point cap} for every registered term, resolved from settings."""
     return {t.key: t.cap() for t in REGISTRY}
+
+
+def chapter_map() -> dict[str, str]:
+    """{key: chapter} for every ta-layer term — the grade's story partition."""
+    return {t.key: t.chapter for t in REGISTRY if t.layer == "ta"}

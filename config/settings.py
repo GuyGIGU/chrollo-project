@@ -728,6 +728,20 @@ EVENT_MAP_ENABLED = True
 # compute); the ON behavior lands incrementally behind
 # this flag. The live flip is an operator A/B-eyeball decision.
 TA_SCORE_V2 = False
+# TA-grade v2 vocabulary pre-registrations (2026-08-08, build task 1 — ONE
+# batched engine_config_version seam; registration only, scores byte-identical):
+#  - SCORE_SPRING: the spring term's point cap. The term itself lands with the
+#    v2 composite (shape port of the stale ta-score-v2 branch); 0 = shape-only
+#    until the operator's A/B eyeball assigns weights (weights move LAST).
+#  - The three named slopes promote the scorer's last hidden in-code literals
+#    (touches * 2.0 at scoring.py touch density; the * 2 saturation slopes on
+#    lps_tightness / vol_contraction). Consumed by the v2 term expressions; the
+#    frozen v1 path keeps its literals until retirement so flag-off stays
+#    byte-identical by construction.
+SCORE_SPRING = 0                  # spring term cap — shape-only until the A/B
+TOUCH_POINT_RATE = 2.0            # points per rail touch (v1 literal: touches * 2.0)
+LPS_TIGHTNESS_SLOPE = 2.0         # saturation slope: full credit at tightness_ratio <= 0.5
+VOL_CONTRACTION_SLOPE = 2.0       # saturation slope: full credit at vol_contraction >= 0.5
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

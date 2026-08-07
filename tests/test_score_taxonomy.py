@@ -56,3 +56,44 @@ def test_only_breadth_is_regime_layer():
 
 def test_layers_are_only_ta_or_regime():
     assert {t.layer for t in taxonomy.REGISTRY} == {"ta", "regime"}
+
+
+def test_chapter_taxonomy_is_the_ruled_story_partition():
+    # Operator-ruled 2026-08-06 (docs/decisions.md): the grade's breakdown reads
+    # left→right like the chart — Cause → Work → Turn → Finish → Trend context.
+    # This order is a RULING; changing it is a re-chaptering seam, not a tidy-up.
+    assert taxonomy.CHAPTER_ORDER == (
+        "cause", "work", "turn", "finish", "trend_context")
+    for t in taxonomy.REGISTRY:
+        if t.layer == "ta":
+            assert t.chapter in taxonomy.CHAPTER_ORDER, (
+                f"ta-layer term {t.key!r} declares no chapter — every graded "
+                "term belongs to exactly one story chapter")
+        else:
+            assert t.chapter is None, (
+                f"regime term {t.key!r} carries a chapter — the regime layer "
+                "is outside the grade and has no story membership")
+    # No orphan chapters: every ruled chapter has at least one term (an empty
+    # chapter would render an empty breakdown segment).
+    populated = {t.chapter for t in taxonomy.REGISTRY if t.chapter is not None}
+    assert populated == set(taxonomy.CHAPTER_ORDER)
+
+
+def test_chapter_map_covers_exactly_the_ta_layer():
+    cm = taxonomy.chapter_map()
+    assert set(cm) == {t.key for t in taxonomy.REGISTRY if t.layer == "ta"}
+    assert all(ch in taxonomy.CHAPTER_ORDER for ch in cm.values())
+
+
+def test_manifest_hashes_the_chapter_taxonomy():
+    # Chapter membership is engine identity: the frozen-config manifest must
+    # carry the taxonomy's own projection (one registry, no second map), so a
+    # re-chaptering rotates engine_config_version like any weight. The batched
+    # v2 settings names ride the same registration seam.
+    from engine_alpha.freeze.manifest import collect_manifest
+    m = collect_manifest()
+    assert m["TA_GRADE_CHAPTER_ORDER"] == list(taxonomy.CHAPTER_ORDER)
+    assert m["TA_GRADE_CHAPTER_MAP"] == {t.key: t.chapter for t in taxonomy.REGISTRY}
+    for name in ("SCORE_SPRING", "TOUCH_POINT_RATE",
+                 "LPS_TIGHTNESS_SLOPE", "VOL_CONTRACTION_SLOPE"):
+        assert name in m, f"batched v2 setting {name} missing from the manifest"

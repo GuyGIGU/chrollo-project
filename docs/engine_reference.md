@@ -1063,7 +1063,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `68dcec6ebd9ad0451e507b4912a4c52f24b8044649cce1aa3de9d6487fa2e89e`_
+_engine_config_version: `626c00ceb2550b80f6b7cab0615d4a299f11abbb46e0375648f252ceb5bfc1e5`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1205,6 +1205,10 @@ CANDLE_SPREAD_ATR_MESSY = 1.4
 CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
 TA_SCORE_V2 = False
+SCORE_SPRING = 0
+TOUCH_POINT_RATE = 2.0
+LPS_TIGHTNESS_SLOPE = 2.0
+VOL_CONTRACTION_SLOPE = 2.0
 FUNDAMENTALS_ENABLED = False
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75
