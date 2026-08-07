@@ -558,6 +558,53 @@ def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
     out = score_setup(**_score_common())
     for k in taxonomy.V2_RESULT_KEYS:
         assert k not in out, f"v2 key {k!r} leaked from score_setup with the flag off"
+    assert "spring" not in out, "the flag-gated spring term leaked with the flag off"
+
+
+def test_ta_grade_flag_on_publishes_bounded_rank_preserving_grade(monkeypatch):
+    """Flag-ON (build task 3): score_setup adds the ta_grade skeleton —
+    bounded [0, 100], raw = (composite − breadth) + promoted terms at FULL
+    precision, ordering within a run (breadth constant) equal to the legacy
+    composite's — WITHOUT touching total, the sub-scores, or tier inputs.
+    Weight-agnostic on purpose: every assertion holds at SCORE_SPRING=0 and at
+    any future operator-assigned weight (weights move only at the A/B)."""
+    from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    at_breadth = dict(breadth_pct=settings.BREADTH_FULL_PCT)  # per-run constant
+    weak = score_setup(**_score_common(box_width=settings.MAX_BOX_WIDTH,
+                                       r_touches=1, s_touches=1, **at_breadth))
+    strong = score_setup(**_score_common(box_width=0.02, r_touches=12,
+                                         s_touches=12, base_len=120, **at_breadth))
+    for out in (weak, strong):
+        assert 0.0 <= out["ta_grade"] <= 100.0
+        # raw is full-precision: composite (unrounded, so ±0.05 vs the rounded
+        # total) minus breadth plus the promoted terms.
+        assert out["ta_grade_raw"] == pytest.approx(
+            out["total"] - out["breadth_bonus"] + out["spring"], abs=0.06)
+    # The v1 face of the result is untouched by the flag (total/sub-scores).
+    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
+    legacy = score_setup(**_score_common(box_width=0.02, r_touches=12,
+                                         s_touches=12, base_len=120, **at_breadth))
+    assert legacy["total"] == strong["total"]
+    # Rank preservation within a run — the affine identity, not the A/B diff.
+    assert (strong["ta_grade"] > weak["ta_grade"]) == (strong["total"] > weak["total"])
+    assert "breadth_bonus" not in {t.key for t in taxonomy.ta_layer_terms()}
+
+
+def test_ta_grade_spring_term_is_present_mask_neutral(monkeypatch):
+    """Flag-ON, the spring term reads its registered cap when a spring is
+    present and exactly 0.0 when absent — never negative, never demoting
+    (grades-not-vetoes). Holds at the shape-only cap of 0 and any A/B value."""
+    from engine_alpha.scoring.scoring import score_setup
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    sprung = score_setup(**_score_common(has_spring=True))
+    flat = score_setup(**_score_common(has_spring=False))
+    assert sprung["spring"] == pytest.approx(float(settings.SCORE_SPRING))
+    assert flat["spring"] == 0.0
+    assert sprung["ta_grade_raw"] - flat["ta_grade_raw"] == pytest.approx(
+        float(settings.SCORE_SPRING), abs=1e-9)
+    assert sprung["ta_grade"] >= flat["ta_grade"] - 1e-9
 
 
 def test_taxonomy_emitted_keys_match_score_setup_output():

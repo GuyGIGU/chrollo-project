@@ -267,9 +267,10 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
                       settings.SCORE_PUZZLE_QUALITY)
 
-    total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
-                  + s_uptrend + s_rs + s_high + s_breadth + s_contraction
-                  + s_ascending + s_adr + s_puzzle, 1)
+    unrounded_total = (s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
+                       + s_uptrend + s_rs + s_high + s_breadth + s_contraction
+                       + s_ascending + s_adr + s_puzzle)
+    total = round(unrounded_total, 1)
 
     result = {
         'total': total,
@@ -289,7 +290,54 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'adr': round(s_adr, 2),
         'puzzle_quality': round(s_puzzle, 2),
     }
+    # Technical Analysis Grade v2 (0-100, flag-gated) — byte-identical and
+    # compute-free off: the whole block is skipped, no new keys, zero new
+    # compute (the sibling of the retired PUZZLE/CANDLE containment). It
+    # publishes the ta_grade family alongside the legacy total; total, the
+    # sub-scores, and the tier inputs are untouched (the tier re-source waits
+    # on TIER_*_STRUCT at the flip). Fed the UNROUNDED sum so the grade never
+    # inherits the display rounding (round-once: display only, at the wire).
+    if settings.TA_SCORE_V2:
+        result.update(_ta_grade_block(unrounded_total, s_breadth,
+                                      has_spring=has_spring))
     return result
+
+
+def _ta_v2_terms(*, has_spring: bool = False) -> dict:
+    """Promoted graded terms that feed the v2 raw grade only (never the legacy
+    total). Each is bounded [0, cap], present-mask neutral (a missing/false
+    input contributes 0.0 and never demotes below the geometry merits),
+    grades-not-vetoes. FULL precision — nothing rounds before the sum."""
+    return {
+        # Phase-C spring: the undercut+reclaim at the base floor. Binary
+        # promotion (has_spring already flows through both eval twins);
+        # shape-only — SCORE_SPRING stays 0 until the operator's A/B.
+        'spring': float(settings.SCORE_SPRING) if has_spring else 0.0,
+    }
+
+
+def _ta_grade_block(unrounded_total: float, breadth_points: float,
+                    **inputs) -> dict:
+    """The affine skeleton of the Technical Analysis Grade (build task 3; the
+    story-chapter composite builds on it in task 4):
+
+        ta_grade_raw = (unrounded composite - breadth) + Σ promoted v2 terms
+        ta_grade     = clamp(ta_grade_raw / structural_cap_sum() * 100, 0, 100)
+
+    ``structural_cap_sum()`` is the fixed sum of the emitted ta-layer caps
+    (breadth/regime excluded; grows as promoted terms register) — a pure
+    function of config, never a per-row or cohort max, so the map is strictly
+    monotonic: within a run (breadth is a per-run constant) the v2 ordering
+    equals the composite ordering exactly. Emitted at FULL precision — the
+    archive stores exact floats; rounding is display-only, at the wire."""
+    from engine_alpha.scoring import taxonomy
+    v2 = _ta_v2_terms(**inputs)
+    raw = (unrounded_total - (breadth_points or 0.0)) + sum(v2.values())
+    cap_sum = taxonomy.structural_cap_sum()
+    grade = 0.0 if cap_sum <= 0 else max(0.0, min(100.0, (raw / cap_sum) * 100.0))
+    out = {'ta_grade_raw': raw, 'ta_grade': grade}
+    out.update(v2)
+    return out
 
 
 def calculate_tier(score: float, box_width: Optional[float] = None) -> str:

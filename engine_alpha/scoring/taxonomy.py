@@ -111,6 +111,11 @@ REGISTRY: tuple[TermSpec, ...] = (
     # its archive column is a Wave-2 add (design P3). Chapter: the puzzle grades
     # the completeness of the told story — the work the range did.
     TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="work"),
+    # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
+    # appends it after the always-on terms, so it sits last here to keep the
+    # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's
+    # A/B assigns weights; its archive column is a task-5 add.
+    TermSpec("spring",            None,                      "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="turn"),
 )
 
 
@@ -132,3 +137,21 @@ def caps() -> dict[str, float]:
 def chapter_map() -> dict[str, str]:
     """{key: chapter} for every ta-layer term — the grade's story partition."""
     return {t.key: t.chapter for t in REGISTRY if t.layer == "ta"}
+
+
+def ta_layer_terms() -> tuple[TermSpec, ...]:
+    """The terms that make up the Technical Analysis Grade (layer 'ta') and are
+    emitted under the CURRENT flags — everything except the regime label."""
+    return tuple(t for t in REGISTRY if t.layer == "ta" and t.is_emitted())
+
+
+def structural_cap_sum() -> float:
+    """The grade's fixed 0-100 divisor: summed point caps of the emitted
+    ta-layer terms (the regime label is excluded). A pure function of config
+    that grows as new terms register — NEVER a per-row or cohort max (the
+    present-cap denominator is tested-DEAD backend-side), so the affine map
+    stays strictly monotonic and rank-preserving. Zero-cap demoted terms
+    contribute zero by arithmetic, never by special-casing. This is the ONE
+    derivation — no literal copy may exist anywhere (every hand-copied total
+    in this codebase has eventually lied)."""
+    return sum(t.cap() for t in ta_layer_terms())

@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
+import pytest
+
 from config import settings
 from engine_alpha.scoring import taxonomy
 from core.archive.analyze import SUB_SCORES
@@ -83,6 +85,33 @@ def test_chapter_map_covers_exactly_the_ta_layer():
     cm = taxonomy.chapter_map()
     assert set(cm) == {t.key for t in taxonomy.REGISTRY if t.layer == "ta"}
     assert all(ch in taxonomy.CHAPTER_ORDER for ch in cm.values())
+
+
+def test_structural_cap_sum_is_the_machine_pinned_divisor():
+    # The grade's 0-100 divisor is ONE lazy registry derivation: the summed
+    # caps of the emitted ta-layer terms, breadth (regime) excluded, zero-cap
+    # demoted terms contributing zero by arithmetic. Pinned here because every
+    # hand-copied total in this codebase has eventually lied ("~122" in
+    # settings, "128 pts" in the calibration router against an actual 117).
+    ta = taxonomy.ta_layer_terms()
+    assert all(t.layer == "ta" and t.is_emitted() for t in ta)
+    assert "breadth_bonus" not in {t.key for t in ta}
+    expected = sum(float(getattr(settings, t.cap_setting)) for t in ta)
+    assert taxonomy.structural_cap_sum() == pytest.approx(expected)
+    assert taxonomy.structural_cap_sum() > 0
+
+
+def test_structural_cap_sum_tracks_the_flag_gated_spring_term(monkeypatch):
+    # Flag-off the spring term is not emitted and stays out of the divisor;
+    # flag-on it joins at its registered cap (0 today — shape-only until the
+    # A/B; the assertion stays valid at any future operator-assigned weight).
+    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
+    base = taxonomy.structural_cap_sum()
+    assert "spring" not in {t.key for t in taxonomy.ta_layer_terms()}
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+    assert "spring" in {t.key for t in taxonomy.ta_layer_terms()}
+    assert taxonomy.structural_cap_sum() == pytest.approx(
+        base + float(settings.SCORE_SPRING))
 
 
 def test_manifest_hashes_the_chapter_taxonomy():
