@@ -384,6 +384,33 @@ operator-delegated 2026-08-04
 
 ---
 
+### EC-28: The wire carries verdicts, never rules
+**Convention:** No scoring cap, threshold, fire-rule, or chapter-membership may be re-declared in
+frontend JS. Every judgment (which chips fired, the grade, chapter subtotals, tier) crosses the
+wire already resolved by the engine; the frontend keeps only presentational lookups (labels,
+tones, ordering, copy). If a surface needs a number that isn't on the wire, the fix is a backend
+serialization addition — never a client computation. Operator's framing: "rules are carried by
+the engine itself; the purpose of this layer is to grade the passing stocks."
+**Origin:** Council Plan 2026-08-06-1038 (TA grade — the seven-copies disease: caps/fire-rules/
+vol-z thresholds duplicated across setupScoreMath.js and friends, rs/uptrend caps already
+drifted stale); operator-confirmed 2026-08-08
+**Principle:** `conventions.md` EC-3/EC-5 (one source of truth, server-side derivation);
+`references/refactoring.md` → P5 (twin code paths)
+
+### EC-29: Baselines recapture only at a flip/seam commit
+**Convention:** Shadow-pipeline, seed-recall, marks-corpus, and fold-parity baselines may be
+recaptured ONLY in an explicit flip/seam task with committed evidence (EC-15/EC-16); a baseline
+recapture appearing in any other diff is treated as masking a regression and rejected. The
+regression ground truth is the operator's two signals — a stock he deems high quality
+disappearing or getting demoted, and calibrated-list (Guided List) stocks no longer firing — and
+a mid-build reseal silently destroys the second signal's meaning.
+**Origin:** Council Plan 2026-08-06-1038 (TA grade — Carmack watchpoint: mid-build baseline
+recapture is one of the two cheat temptations); operator-confirmed 2026-08-08
+**Principle:** `conventions.md` EC-7/EC-15; `references/quality-testing.md` → P10 (the test spec
+is the constraint)
+
+---
+
 ### AP-9: `can_archive=False` is THE archive block — the evaluate/archive split is load-bearing
 **Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
 `can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the
