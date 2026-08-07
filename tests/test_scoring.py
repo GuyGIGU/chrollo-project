@@ -541,14 +541,23 @@ def test_puzzle_quality_monotonic_and_bounded():
 
 
 def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
-    """Phase-0 tripwire for the hybrid Technical Analysis Score rework
-    (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
-    and stays the frozen composite. Guards that flag-off never drifts as v2 lands."""
+    """Flag-off tripwire at the SCORER boundary (TA-grade build task 2): with
+    TA_SCORE_V2 off, score_setup emits NONE of the reserved v2 vocabulary and
+    stays the frozen composite. The key list derives from the ONE settled
+    vocabulary (taxonomy.V2_RESULT_KEYS, build task 1) so every key added there
+    is guarded here automatically; the anchor assertions pin the core names so
+    an emptied or renamed vocabulary can never quietly green this test. The
+    wire-boundary twin lives in tests/test_dashboard_wire.py."""
     from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
+    for core in ("ta_grade", "ta_grade_raw", "ta_grade_chapters",
+                 "structure_tier", "fired_tags"):
+        assert core in taxonomy.V2_RESULT_KEYS, (
+            f"core v2 name {core!r} missing from the settled vocabulary")
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
-    for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
-        assert k not in out, f"v2 key {k!r} leaked with the flag off"
+    for k in taxonomy.V2_RESULT_KEYS:
+        assert k not in out, f"v2 key {k!r} leaked from score_setup with the flag off"
 
 
 def test_taxonomy_emitted_keys_match_score_setup_output():
