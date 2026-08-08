@@ -221,6 +221,12 @@ class ReadVerdict(Base):
     scan_date = Column(String, nullable=False, index=True)
     universe_type = Column(String, nullable=False, index=True)
     verdict = Column(String, nullable=False)   # 'agree' | 'disagree'
+    # The GRADE channel (TA-grade build task 14, the ruled closed vocabulary):
+    # 'read right, grade wrong' must be separable from a reading error, or the
+    # harvested corpus cannot tell the two apart. NULL = the grade was not
+    # judged; the READ verdict above stays about the read. Live-DB constraint
+    # = the router's write-time refusal (the ALTER path strips CHECKs).
+    grade_verdict = Column(String, nullable=True)  # 'agree'|'too_high'|'too_low'
     note = Column(Text, nullable=True)         # read-reason (rails/story/posture/…)
     # Evidence provenance — nullable, never backfilled (a version stamped after
     # the fact is not what the operator saw).
@@ -235,6 +241,10 @@ class ReadVerdict(Base):
         # assertion, and the refusing test in test_backend_services.
         CheckConstraint("verdict IN ('agree', 'disagree')",
                         name="ck_read_verdict_vocabulary"),
+        CheckConstraint(
+            "grade_verdict IS NULL OR "
+            "grade_verdict IN ('agree', 'too_high', 'too_low')",
+            name="ck_read_verdict_grade_vocabulary"),
     )
 
 

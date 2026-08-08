@@ -344,4 +344,7 @@ class ReadVerdictIn(BaseModel):
     # Evidence provenance from the payload's scan_identity (manifest hash).
     engine_config_version: Optional[str] = Field(default=None, max_length=64)
     verdict: Optional[str] = None   # 'agree' | 'disagree' | None (clear)
+    # The GRADE channel (task 14): 'read right, grade wrong' separable from a
+    # reading error. None = not judged (and clears any prior grade verdict).
+    grade_verdict: Optional[str] = None  # 'agree' | 'too_high' | 'too_low' | None
     note: Optional[str] = Field(default=None, max_length=500)

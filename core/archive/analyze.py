@@ -321,6 +321,18 @@ def section_composition(df: pd.DataFrame, min_rows: int) -> dict:
     by_type = df["setup_type"].fillna("?").value_counts().to_dict()
     emit(f"By source:     {by_source}")
     emit(f"By tier:       {by_tier}")
+    # Epoch honesty (task 14): stored tier/score MEAN different things across
+    # an engine_config_version seam. Post-flip this shows two epochs, and
+    # every tier/score slice below then blends incompatible scales — the
+    # badge says so loudly (per-epoch partitioned analytics are flip-window
+    # work; pre-flip this is a single-epoch no-op).
+    if "engine_config_version" in df.columns:
+        epochs = {str(v)[:12]: int(n) for v, n in
+                  df["engine_config_version"].fillna("?").value_counts().items()}
+        emit(f"By engine epoch: {epochs}")
+        if len(epochs) > 1:
+            emit("*** MIXED-EPOCH POPULATION: tier/score slices below blend "
+                 "incompatible scoring scales — read them per-epoch. ***")
     emit(f"By setup_type: {by_type}")
     emit(f"Date range:    {df['scan_date'].min()} -> {df['scan_date'].max()}")
 

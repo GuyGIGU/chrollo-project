@@ -93,6 +93,9 @@ def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[st
 
 
 _READ_VERDICTS = {"agree", "disagree"}
+# The grade channel's closed vocabulary (task 14) — write-time refusal is the
+# live DB's operative constraint (the ALTER path strips model CHECKs).
+_GRADE_VERDICTS = {"agree", "too_high", "too_low"}
 
 
 def _read_verdict_key(payload_universe: str | None) -> str:
@@ -136,6 +139,13 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         if verdict not in _READ_VERDICTS:
             raise HTTPException(status_code=422,
                                 detail=f"verdict must be one of {sorted(_READ_VERDICTS)} or null")
+    grade_verdict = payload.grade_verdict
+    if grade_verdict is not None:
+        grade_verdict = grade_verdict.strip().lower()
+        if grade_verdict not in _GRADE_VERDICTS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"grade_verdict must be one of {sorted(_GRADE_VERDICTS)} or null")
     note = (payload.note or "").strip() or None
     ecv = (payload.engine_config_version or "").strip() or None
 
@@ -157,13 +167,16 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         return {**identity, "verdict": None, "note": None}
     if existing:
         existing.verdict = verdict
+        existing.grade_verdict = grade_verdict
         existing.note = note
         existing.engine_config_version = ecv
         db.commit()
-        return {**identity, "verdict": verdict, "note": note}
+        return {**identity, "verdict": verdict,
+                "grade_verdict": grade_verdict, "note": note}
     try:
         db.add(ReadVerdict(ticker=ticker, scan_date=scan_date,
                            universe_type=universe_type, verdict=verdict,
+                           grade_verdict=grade_verdict,
                            note=note, engine_config_version=ecv,
                            created_at=datetime.utcnow()))
         db.commit()
@@ -176,10 +189,12 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         if existing is None:
             raise
         existing.verdict = verdict
+        existing.grade_verdict = grade_verdict
         existing.note = note
         existing.engine_config_version = ecv
         db.commit()
-    return {**identity, "verdict": verdict, "note": note}
+    return {**identity, "verdict": verdict,
+            "grade_verdict": grade_verdict, "note": note}
 
 
 @router.get("/reviews/read-verdict")
