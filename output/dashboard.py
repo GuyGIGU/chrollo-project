@@ -432,6 +432,10 @@ def _extract_chart_data(data, results_df, tickers):
                     'story_richness_rate': _round_opt(row.get('_story_richness_rate'), 4),
                     'trend_base_count': row.get('_trend_base_count'),
                     'inter_base_width_ratio': _round_opt(row.get('_inter_base_width_ratio'), 4),
+                    # The resolved chip verdicts (task 10) — the wire carries
+                    # the parsed list; [] = resolved-nothing-fired, distinct
+                    # from the key being absent flag-off.
+                    'fired_tags': row.get('_fired_tags') or [],
                 }),
             }
         except Exception as e:

@@ -255,6 +255,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Wave-2 charter measurement (task-8 batch — fifth declared seam)
     "TREND_BASE_COUNT_CAP",
     "TREND_BASE_WALK_MAX_ROOTS",
+    # Tag fire-rule thresholds + the weak_monthly warning knob (task-10
+    # batch — sixth declared seam)
+    "TOUCH_VOL_Z_NO_SUPPLY",
+    "TOUCH_VOL_Z_SPRING",
+    "TOUCH_VOL_Z_HEAVY_R",
+    "TA_WARN_WEAK_MONTHLY",
     # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
     # default-off + byte-identical off, read via _flag()/getattr on the advisory
     # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires
@@ -399,6 +405,9 @@ def collect_manifest() -> Dict[str, Any]:
 
     manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
     manifest["TA_GRADE_CHAPTER_MAP"] = {t.key: t.chapter for t in taxonomy.REGISTRY}
+    # The tag fire-rules are judgments (which chips fire): a rule change must
+    # rotate the version exactly like a weight change (task 10).
+    manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
     return manifest
 
 

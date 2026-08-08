@@ -354,6 +354,11 @@ class SetupArchive(Base):
     # no predecessor base in the covering up-segment (never 1, never inf).
     trend_base_count = Column(Integer, nullable=True)        # Minervini base # in the current up-segment, capped
     inter_base_width_ratio = Column(Float, nullable=True)    # elected width / most-recent predecessor width
+    # Fired tags (task 10): the resolved chip verdicts, compact JSON array of
+    # {id, detail} — ids are a closed set (taxonomy.TAG_IDS) refused at write
+    # in ta_grade_archive_values. NULL = flag-off/pre-flip; '[]' = resolved,
+    # nothing fired (absent vs empty are DIFFERENT states).
+    fired_tags = Column(String, nullable=True)
 
     # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
     # Owning declaration in core/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);

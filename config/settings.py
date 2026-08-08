@@ -770,6 +770,18 @@ STORY_RICHNESS_FULL = 0.15         # story events per bar at saturation (den flo
 # count AND the inter-base width ratio together. Fires-only inside TA_SCORE_V2.
 TREND_BASE_COUNT_CAP = 4           # count saturates where grading value does (Minervini counts bases 1-4)
 TREND_BASE_WALK_MAX_ROOTS = 12     # root attempts on the sub-frame (the full HTF walk allows 40 on a whole frame)
+# Tag fire-rule thresholds (task-10 batch — sixth declared seam): the
+# touch-volume z judgments absorbed from frontend JS (setupTagsData.js
+# :32-34) into the ONE registry — values relocated VERBATIM so the flip does
+# not silently change which chips fire. The worked-equilibrium density rule
+# links to TRAVERSAL_QUALITY_DENSITY_FULL (no more unlinked 0.33 twin).
+TOUCH_VOL_Z_NO_SUPPLY = -0.30      # no_supply fires when r_touch_vol_z < this
+TOUCH_VOL_Z_SPRING = 0.30          # demand_at_s fires when s_touch_vol_z > this
+TOUCH_VOL_Z_HEAVY_R = 0.50         # heavy_resistance fires when r_touch_vol_z > this
+# weak_monthly's grade-side disposition (the 2026-08-06 HTF ruling): the chip
+# stays in the vocabulary AND registers as a warning discount — neutral 1.0
+# until the operator's A/B assigns its cost.
+TA_WARN_WEAK_MONTHLY = 1.0
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

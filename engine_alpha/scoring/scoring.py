@@ -13,6 +13,7 @@ archive can later tell us which ingredients actually predicted winners.
 """
 from __future__ import annotations
 
+import json
 import math
 from typing import Optional
 
@@ -365,24 +366,30 @@ def _ta_v2_terms(*, has_spring: bool = False,
     return terms
 
 
-def _ta_grade_warnings(event_map: Optional[dict]) -> dict:
+def _ta_grade_warnings(event_map: Optional[dict],
+                       htf: Optional[dict] = None) -> dict:
     """{warning_id: factor} — the resolved warning discounts. Only warnings
     whose input is PRESENT and firing are emitted; a missing input emits no
     entry, so its factor is 1.0 EXACTLY, by absence. Factors are floored
     multiplicative discounts on the bounded 0-100 (grades-not-vetoes: a
-    warning discounts, never vetoes). terminal_drift is the first registered
-    warning — neutral 1.0 until the operator's A/B assigns its cost."""
-    if not isinstance(event_map, dict):
-        return {}
+    warning discounts, never vetoes). Both registered warnings are neutral
+    1.0 until the operator's A/B assigns their costs."""
     out = {}
-    drift = event_map.get("event_map_terminal_drift")
-    if drift is not None and _finite(drift) == 1.0:
-        out["terminal_drift"] = float(settings.TA_WARN_TERMINAL_DRIFT)
+    if isinstance(event_map, dict):
+        drift = event_map.get("event_map_terminal_drift")
+        if drift is not None and _finite(drift) == 1.0:
+            out["terminal_drift"] = float(settings.TA_WARN_TERMINAL_DRIFT)
+    # weak_monthly (task 10, the 2026-08-06 HTF ruling's warning side): a
+    # confirmed monthly downtrend discounts the grade — the same fact fires
+    # the warning chip, ONE judgment surface.
+    if isinstance(htf, dict) and htf.get("htf_m_trend_state") == "down":
+        out["weak_monthly"] = float(settings.TA_WARN_WEAK_MONTHLY)
     return out
 
 
 def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
-                     event_map: Optional[dict] = None) -> dict:
+                     event_map: Optional[dict] = None,
+                     htf: Optional[dict] = None) -> dict:
     """The Technical Analysis Grade — ONE fixed-divisor affine sum, displayed
     as story chapters (operator rulings 2026-08-06; build task 4).
 
@@ -414,7 +421,7 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
     cap_sum = taxonomy.structural_cap_sum()
     scale = 0.0 if cap_sum <= 0 else 100.0 / cap_sum
     pre = max(0.0, min(100.0, raw * scale))
-    warnings = _ta_grade_warnings(event_map)
+    warnings = _ta_grade_warnings(event_map, htf)
     factor = 1.0
     for f in warnings.values():
         factor *= f
@@ -477,6 +484,14 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     # the SAME raw units; NULL = no predecessor (never 1, never inf).
     "trend_base_count": "INTEGER",
     "inter_base_width_ratio": "REAL",
+    # Fired tags (task 10) — the resolved chip verdicts as ONE compact JSON
+    # cell (the event_map_episodes precedent). The id vocabulary is a closed
+    # set (taxonomy.TAG_IDS): unknown ids are REFUSED at write below —
+    # EC-19/22 adapted for a JSON cell, the serializer-guard tests pin the
+    # vocabulary. NULL = flag-off/pre-flip; [] = resolved, nothing fired
+    # (absent and empty are DIFFERENT states — the dual-epoch frontend
+    # switch keys on exactly this distinction).
+    "fired_tags": "TEXT",
 }
 
 PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
@@ -536,6 +551,19 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
                 f"lps_window_classification {value!r} is outside the closed "
                 f"set {sorted(LPS_WINDOW_CLASSIFICATION_VALUES)} — refusing "
                 "the write (EC-19: an illegal label must never land)")
+        if col == "fired_tags" and value is not None:
+            # The result carries the LIST; the archive stores compact JSON.
+            # Every id is validated against the registry's closed set —
+            # a typo'd or renamed tag id must fail loudly, never land
+            # (every downstream filter on it would silently read the
+            # wrong population).
+            from engine_alpha.scoring import taxonomy
+            ids = [e.get("id") for e in value] if isinstance(value, list) else None
+            if ids is None or not all(i in taxonomy.TAG_IDS for i in ids):
+                raise ValueError(
+                    f"fired_tags entries {value!r} are not a list of "
+                    "registry-known ids — refusing the write (EC-19)")
+            value = json.dumps(value, separators=(",", ":"))
         out[col] = value
     return out
 

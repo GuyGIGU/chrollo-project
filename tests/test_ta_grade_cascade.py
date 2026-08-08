@@ -128,6 +128,16 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert set(chart["sub_scores"]) >= set(
         t.key for t in taxonomy.REGISTRY if t.present_when is None)
 
+    # 7. The fired_tags leg (task 10): verdicts resolved on the real fire,
+    #    every id inside the closed set, identical on the wire, JSON in the
+    #    archive cell.
+    assert isinstance(row["_fired_tags"], list)
+    assert {e["id"] for e in row["_fired_tags"]} <= taxonomy.TAG_IDS
+    assert chart["fired_tags"] == row["_fired_tags"]
+    import json as _json
+    archived = ta_grade_archive_values(row.get, prefixed=True)["fired_tags"]
+    assert _json.loads(archived) == row["_fired_tags"]
+
 
 def test_flag_off_cascade_emits_no_v2_fields(monkeypatch):
     """The same real cascade flag-OFF: not one v2 field on the result — the

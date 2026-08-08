@@ -630,6 +630,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             score_result,
             has_spring=bool(bins.get("bin_c_present")),
             event_map=_em_scalars or None,
+            htf=htf_ctx or None,
         )
         # Archive-ready field names, mapped in this ONE place: the grade
         # family keeps its own names (_ta_grade*); per-term v2 points take
@@ -759,7 +760,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
     scope = phase_ctx["scope"]
     trend = score_ctx["trend"]
 
-    return {
+    result = {
         'Ticker': ticker,
         'Tier': score_ctx["tier"],
         'Setup': lps_ctx["setup_state"],
@@ -966,6 +967,14 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
     }
+    # Fired tags (task 10, flag-dark): the chip verdicts resolved ONCE over
+    # the finished canonical row — the SAME row both twins and all three
+    # writers consume, so live/seed/manual chips can never diverge. Import +
+    # compute strictly inside the flag: flag-off adds no key, zero compute.
+    if settings.TA_SCORE_V2 and result.get("_ta_grade") is not None:
+        from engine_alpha.scoring.tags import resolve_fired_tags
+        result["_fired_tags"] = resolve_fired_tags(result, prefixed=True)
+    return result
 
 
 def _run_eval_chain(ticker: str, df: pd.DataFrame,

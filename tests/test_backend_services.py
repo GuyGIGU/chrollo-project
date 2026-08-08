@@ -371,7 +371,7 @@ _SETUP_OUT_FIELDS = (
     'ta_grade_raw', 'puzzle_completeness', 'puzzle_chronology', 'puzzle_upthrust_terminal',
     'score_puzzle_quality', 'score_spring', 'score_story_s_tests', 'score_story_r_rejections',
     'score_story_alternations', 'score_story_terminal_posture', 'lps_shrink_frac', 'lps_window_classification',
-    'story_richness_rate', 'trend_base_count', 'inter_base_width_ratio',
+    'story_richness_rate', 'trend_base_count', 'inter_base_width_ratio', 'fired_tags',
 )
 
 

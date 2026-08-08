@@ -142,6 +142,10 @@ def test_manifest_hashes_the_chapter_taxonomy():
     m = collect_manifest()
     assert m["TA_GRADE_CHAPTER_ORDER"] == list(taxonomy.CHAPTER_ORDER)
     assert m["TA_GRADE_CHAPTER_MAP"] == {t.key: t.chapter for t in taxonomy.REGISTRY}
+    # The tag fire-rules are judgments: their projection rides the same seam
+    # (task 10) — a rule change rotates the version like a weight change.
+    assert m["TA_GRADE_TAG_RULES"] == taxonomy.tag_rules_manifest()
+    assert set(m["TA_GRADE_TAG_RULES"]) == set(taxonomy.TAG_IDS)
     for name in ("SCORE_SPRING", "TOUCH_POINT_RATE",
                  "LPS_TIGHTNESS_SLOPE", "VOL_CONTRACTION_SLOPE"):
         assert name in m, f"batched v2 setting {name} missing from the manifest"

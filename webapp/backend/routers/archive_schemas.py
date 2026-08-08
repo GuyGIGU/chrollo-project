@@ -258,6 +258,7 @@ class SetupOut(BaseModel):
     story_richness_rate: Optional[float] = None
     trend_base_count: Optional[int] = None
     inter_base_width_ratio: Optional[float] = None
+    fired_tags: Optional[list] = None
 
     # The two deep JSON cells degrade PER ROW — parse failure AND wrong
     # container shape both land None (council review 2026-08-05, finding 8:
@@ -266,12 +267,13 @@ class SetupOut(BaseModel):
     # degrade logs, so corruption is visible without breaking the serve —
     # never confusable with the legitimate tape-unreadable state, which is
     # NULL in the cell itself.
-    @field_validator("event_map_episodes", "election_trace", mode="before")
+    @field_validator("event_map_episodes", "election_trace", "fired_tags",
+                     mode="before")
     @classmethod
     def _parse_json_cell(cls, value, info: ValidationInfo):
         if value is None:
             return None
-        expected = list if info.field_name == "event_map_episodes" else dict
+        expected = dict if info.field_name == "election_trace" else list
         if isinstance(value, str):
             try:
                 value = json.loads(value)

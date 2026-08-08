@@ -151,6 +151,97 @@ def chapter_map() -> dict[str, str]:
     return {t.key: t.chapter for t in REGISTRY if t.layer == "ta"}
 
 
+# ── The tag fire-rules — chip verdicts resolved ENGINE-SIDE (build task 10) ──
+# One declarative registry absorbing the judgments that lived only in
+# frontend JS (setupTagsData.js): the three touch-volume z thresholds, the
+# firesAt cap-fractions, and the worked-equilibrium density (LINKED to its
+# settings twin TRAVERSAL_QUALITY_DENSITY_FULL — the 0.33 was an unlinked
+# numeric copy). The resolver lives in engine_alpha/scoring/tags.py; the
+# frontend keeps ONLY presentational lookups (labels, tones, order, copy) —
+# the wire carries verdicts, never rules (EC-28).
+#
+# Rule kinds (interpreted by the resolver; params reference settings by NAME,
+# resolved lazily like cap_setting):
+#   fraction    term points >= fraction × the term's registered cap; a
+#               ZERO-cap term's chip is DEAD BY DESIGN (0 >= 0×f must never
+#               fire — the demoted rs/uptrend chips stay dead deliberately,
+#               where the stale JS caps kept them dead by accident)
+#   flag        a truthy result fact
+#   gt_setting / lt_setting / ge_setting   fact compared to a settings value
+#   eq          fact equals a literal
+#   any_gt0     any of the listed facts > 0
+# ``detail`` names the result facts that ride the fired entry (the tooltip
+# interpolations the frontend used to re-derive).
+@dataclass(frozen=True)
+class TagSpec:
+    id: str
+    rule: str
+    term: Optional[str] = None          # fraction rules: the registry term key
+    fraction: Optional[float] = None
+    field: Optional[str] = None         # fact rules: the result-fact name (bare)
+    fields: Optional[tuple] = None      # any_gt0: the fact names
+    setting: Optional[str] = None       # *_setting rules: the settings NAME
+    value: Optional[str] = None         # eq rules: the literal
+    warning: bool = False               # warning-side chip (display grouping)
+    detail: tuple = ()                  # facts attached to the fired entry
+
+
+TAGS: tuple[TagSpec, ...] = (
+    TagSpec("phase_d",            "flag", field="phase_d_inner"),
+    TagSpec("heavy_resistance",   "gt_setting", field="r_touch_vol_z",
+            setting="TOUCH_VOL_Z_HEAVY_R", warning=True,
+            detail=("r_touch_vol_z",)),
+    TagSpec("last_supper",        "any_gt0",
+            fields=("lps_stretch_box", "lps_stretch_atr"), warning=True,
+            detail=("lps_stretch_box", "lps_stretch_atr",
+                    "last_supper_pullback_from_extension_pct",
+                    "last_supper_reclaim_quality")),
+    # weak_monthly's settled disposition (task 10, per the 2026-08-06 HTF
+    # ruling): it STAYS in the vocabulary as the natural warning-side chip —
+    # a warning that silently vanishes is indistinguishable from one that
+    # stopped firing — AND registers as a ta-grade warning discount
+    # (TA_WARN_WEAK_MONTHLY, neutral 1.0 until the operator's A/B).
+    TagSpec("weak_monthly",       "eq", field="htf_m_trend_state",
+            value="down", warning=True, detail=("htf_m_trend_state",)),
+    TagSpec("old_base",           "fraction", term="base_age",     fraction=0.80),
+    TagSpec("vcp_coil",           "fraction", term="contraction",  fraction=0.80,
+            detail=("contraction_count", "contraction_vol_trend")),
+    TagSpec("tight_box",          "fraction", term="box_tightness", fraction=0.80),
+    TagSpec("phase_c_test",       "flag", field="bin_c_present",
+            detail=("bin_c_type", "bin_c_undercut_atr", "bin_c_recovery_bars")),
+    TagSpec("tight_lps",          "fraction", term="lps_tightness", fraction=1.00),
+    TagSpec("ascending_support",  "fraction", term="ascending_support", fraction=0.80),
+    TagSpec("no_supply",          "lt_setting", field="r_touch_vol_z",
+            setting="TOUCH_VOL_Z_NO_SUPPLY", detail=("r_touch_vol_z",)),
+    TagSpec("vol_dryup",          "fraction", term="vol_contraction", fraction=0.80),
+    TagSpec("demand_at_s",        "gt_setting", field="s_touch_vol_z",
+            setting="TOUCH_VOL_Z_SPRING", detail=("s_touch_vol_z",)),
+    TagSpec("strong_rs",          "fraction", term="rs_bonus",      fraction=0.95),
+    TagSpec("weekly_reaccum",     "flag", field="htf_w_reaccum"),
+    TagSpec("high_adr",           "fraction", term="adr",           fraction=0.80),
+    TagSpec("uptrend",            "fraction", term="uptrend_bonus", fraction=0.95),
+    TagSpec("worked_equilibrium", "ge_setting", field="traversal_density",
+            setting="TRAVERSAL_QUALITY_DENSITY_FULL",
+            detail=("traversal_density",)),
+)
+
+TAG_IDS: frozenset = frozenset(t.id for t in TAGS)
+
+
+def tag_rules_manifest() -> dict:
+    """The tag registry's hashable projection for the freeze manifest — a
+    fire-rule change is a judgment change and must rotate
+    engine_config_version like any weight."""
+    return {
+        t.id: {
+            "rule": t.rule, "term": t.term, "fraction": t.fraction,
+            "field": t.field, "fields": list(t.fields) if t.fields else None,
+            "setting": t.setting, "value": t.value, "warning": t.warning,
+        }
+        for t in TAGS
+    }
+
+
 def ta_layer_terms() -> tuple[TermSpec, ...]:
     """The terms that make up the Technical Analysis Grade (layer 'ta') and are
     emitted under the CURRENT flags — everything except the regime label."""
