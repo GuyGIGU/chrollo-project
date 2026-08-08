@@ -9,10 +9,14 @@
 import { CHAPTER_REGION, chapterCells, warningItems } from './chapterStrip.js';
 import { formatScore } from '../utils/scoreFormat.js';
 
-export function TaGradePanel({ data, onRegionChange }) {
+export function TaGradePanel({ activeRegion, data, onRegionChange }) {
+  // The headline renders whenever the row carries a grade — the strip only
+  // when the wire carries resolved chapters (the archive serves the grade
+  // without them; fabricating a strip there was review finding 12).
+  if (data?.ta_grade == null) return null;
   const cells = chapterCells(data);
-  if (cells.length === 0) return null;
   const warnings = warningItems(data);
+  const fx1 = (v) => (v == null ? '—' : v.toFixed(1));
   return (
     <div className="ta-grade-panel">
       <div
@@ -22,14 +26,17 @@ export function TaGradePanel({ data, onRegionChange }) {
         <span className="ta-grade-value">{formatScore(data.ta_grade)}</span>
         <span className="ta-grade-scale">/100</span>
       </div>
+      {cells.length > 0 && (
       <div className="ta-grade-strip">
         {cells.map((cell) => (
           <div
             key={cell.key}
-            className="ta-grade-chapter"
+            className={'ta-grade-chapter'
+              + (activeRegion && activeRegion === CHAPTER_REGION[cell.key]
+                ? ' is-active' : '')}
             title={cell.subtext
               ? `${cell.label}: ${cell.subtext}`
-              : `${cell.label}: ${cell.points.toFixed(1)} of the grade's 100`}
+              : `${cell.label}: ${fx1(cell.points)} of the grade's 100`}
             onMouseEnter={() => onRegionChange?.(CHAPTER_REGION[cell.key] ?? null)}
             onMouseLeave={() => onRegionChange?.(null)}
           >
@@ -40,13 +47,14 @@ export function TaGradePanel({ data, onRegionChange }) {
                 style={{ width: `${(cell.fraction * 100).toFixed(1)}%` }}
               />
             </span>
-            <span className="ta-grade-chapter-points">{cell.points.toFixed(1)}</span>
+            <span className="ta-grade-chapter-points">{fx1(cell.points)}</span>
             {cell.subtext ? (
               <span className="ta-grade-chapter-caveat">{cell.subtext}</span>
             ) : null}
           </div>
         ))}
       </div>
+      )}
       {warnings.length > 0 && (
         <div className="ta-grade-warnings">
           {warnings.map((warning) => (

@@ -45,9 +45,11 @@ export function resolveTags(data) {
           detail: entry.detail || {},
         };
       }
-      // Presentation only: label/group from the frozen catalog; the rich
-      // explainTip copy migrates to the surviving catalog with the lens
-      // rebuild (task 12). Which chips FIRE was decided engine-side.
+      // Presentation only: label/group from the frozen catalog. The rich
+      // explainTip copy migrates at the STAGED-RETIREMENT wave, post-flip
+      // (docs/ta_grade_flip_checklist_2026-08.md, "Migrate the rich
+      // explainTip tooltip copy") — label-only v2 titles until then are BY
+      // DESIGN. Which chips FIRE was decided engine-side.
       return {
         id: def.id,
         label: def.label,

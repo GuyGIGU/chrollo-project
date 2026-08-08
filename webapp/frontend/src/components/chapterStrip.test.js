@@ -45,6 +45,34 @@ test('ungraded payload renders no strip at all', () => {
   assert.deepEqual(chapterCells(null), []);
 });
 
+test('graded payload WITHOUT chapters renders no strip — never five fabricated 0.0 cells', () => {
+  // The SetupOut shape (2026-08-08 review, finding 12): the archive serves
+  // ta_grade + fired_tags but no resolved chapters; the old mirror
+  // iteration rendered confident measured zeros over it.
+  assert.deepEqual(chapterCells({ ta_grade: 61.2, fired_tags: [] }), []);
+});
+
+test('unknown wire chapters render verbatim; non-finite points read as a dash, not 0.0', () => {
+  const cells = chapterCells({
+    ...GRADED,
+    ta_grade_chapters: { ...GRADED.ta_grade_chapters, mystery: 'wat' },
+  });
+  const mystery = cells.find(c => c.key === 'mystery');
+  assert.equal(mystery.label, 'mystery');       // visible fallthrough
+  assert.equal(mystery.points, null);           // dash downstream, never 0.0
+});
+
+test('NOT_CARRIED renders NO subtext — the "predates the read" copy is reserved for wire-carried nulls', () => {
+  // A wire that does not carry the family at all (no event_map_* keys):
+  // narrativeRead's own law says nothing honest can be said (council F4).
+  const notCarried = { ...GRADED };
+  Object.keys(notCarried).forEach((k) => {
+    if (k.startsWith('event_map_')) delete notCarried[k];
+  });
+  const phaseB = chapterCells(notCarried).find(c => c.key === 'phase_b');
+  assert.equal(phaseB.subtext, null);
+});
+
 test('story chapters carry the not-measured honesty wording', () => {
   const preEventMap = {
     ...GRADED,

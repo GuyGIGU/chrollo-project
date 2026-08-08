@@ -746,11 +746,30 @@ td {
   grid-template-columns: repeat(5, 1fr);
 }
 
+/* Chapter cells drive the chart's activeRegion channel on hover — they
+   speak the house control grammar their two lens siblings speak
+   (.phase-bin-control, .narrative-glyph): cursor, hover wash, and the
+   mythril is-active border when their region is lit (2026-08-08 review,
+   finding 13c — an invisible control is an unfound feature). */
 .ta-grade-chapter {
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: help;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  padding: 2px 3px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.ta-grade-chapter:hover {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+}
+
+.ta-grade-chapter.is-active {
+  border-color: var(--accent-active);
 }
 
 .ta-grade-chapter-label {
@@ -800,7 +819,11 @@ td {
 }
 
 .ta-grade-warning {
-  background: rgba(255, 159, 67, 0.16);
+  /* The panel's ONLY hot element wears the WARNING channel — never a raw
+     copy of the tier-S hex (the Tier-Reserve rule; 2026-08-08 review,
+     finding 13a). Tint + hairline mirror the sibling warning chips. */
+  background: var(--warning-bg);
+  border: 1px solid rgba(var(--warning-rgb), 0.30);
   border-radius: var(--radius-xs);
   color: var(--warning);
   font-size: 11px;

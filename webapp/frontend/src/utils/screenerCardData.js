@@ -22,8 +22,10 @@ export const asOfDate = (candles) => fmtDateShort(candles?.[candles.length - 1]?
 // worked box in progress is context blue; a bare Stage-2 uptrend is green.
 export function htfStateLabel({ stage2, trendState, inConsol, phase, reaccum }) {
   // Tier-Reserve (task 12): tier hues belong to tier badges ONLY. Re-accum
-  // keeps a premium gold that is deliberately NOT the S-tier hue.
-  if (reaccum) return { label: `Re-accum${phase ? ` ${phase}` : ''}`, tone: '#e3b341' };
+  // wears the registered Categorical Gold token — the raw #e3b341 was the
+  // LPS/trigger gold (already meaning four other things) a hair from the
+  // warning amber (2026-08-08 review, finding 13b).
+  if (reaccum) return { label: `Re-accum${phase ? ` ${phase}` : ''}`, tone: 'var(--accent-yellow)' };
   if (inConsol) return { label: `Consol${phase ? ` ${phase}` : ''}`, tone: 'var(--accent-blue)' };
   if (stage2) return { label: 'Uptrend', tone: 'var(--success)' };
   if (trendState == null || trendState === 'unknown') return { label: 'no data', tone: 'var(--text-faint)' };

@@ -236,6 +236,8 @@ function SelectControl({ label, value, options, onChange }) {
   );
 }
 
+const TAG_CATALOG_IDS = new Set(TAG_CATALOG.map(tag => tag.id));
+
 function TagFilterRow({ filters }) {
   if (filters.availableTagIds.size === 0) return null;
   return (
@@ -251,6 +253,24 @@ function TagFilterRow({ filters }) {
             style={tagButtonStyle(active)}
           >
             {tag.label}
+          </button>
+        );
+      })}
+      {/* Unknown engine ids stay filterable, same verbatim-slug fallthrough
+          as the chips — the cards and the filter bar must agree on the tag
+          vocabulary (2026-08-08 review, D5: a new engine chip was visible
+          on cards but silently unselectable here). */}
+      {[...filters.availableTagIds].filter(id => !TAG_CATALOG_IDS.has(id)).map(id => {
+        const active = filters.tagFilter.has(id);
+        return (
+          <button
+            key={id}
+            onClick={() => filters.toggleTagFilter(id)}
+            title={active ? 'Click to remove this tag filter'
+              : 'New engine tag (label pending) — show only setups carrying it'}
+            style={tagButtonStyle(active)}
+          >
+            {id}
           </button>
         );
       })}

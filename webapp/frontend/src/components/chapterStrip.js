@@ -31,22 +31,35 @@ export const CHAPTER_REGION = {
 
 export function chapterCells(data) {
   if (data?.ta_grade == null) return [];
-  const points = data.ta_grade_chapters || {};
+  // The WIRE's chapters drive the cells (2026-08-08 review, finding 12):
+  // the backend pins their emission order to taxonomy.CHAPTER_ORDER, the
+  // local maps supply labels only (unknown wire chapters fall through
+  // verbatim — visible, never dropped), and a payload WITHOUT a chapters
+  // dict yields NO strip — the old CHAPTER_ORDER-mirror iteration rendered
+  // a grade-carrying, chapters-less payload (SetupOut's exact shape) as
+  // five confident "0.0" cells: absence dressed as measured zero.
+  const points = data.ta_grade_chapters;
+  if (!points || typeof points !== 'object') return [];
   const fractions = data.ta_grade_chapter_fractions || {};
   const status = narrativeStatus(data);
   const caveat = readabilityCaveat(data);
-  return CHAPTER_ORDER.map((key) => {
+  return Object.keys(points).map((key) => {
+    const value = Number(points[key]);
     const cell = {
       key,
       label: CHAPTER_LABELS[key]?.label ?? key,
       short: CHAPTER_LABELS[key]?.short ?? key,
-      points: Number(points[key]) || 0,
+      // null (rendered as a dash), never a fabricated 0.0.
+      points: Number.isFinite(value) ? value : null,
       fraction: Math.max(0, Math.min(1, Number(fractions[key]) || 0)),
       subtext: null,
     };
-    if (STORY_CHAPTERS.has(key)) {
-      if (status === NARRATIVE_STATUS.NOT_MEASURED
-          || status === NARRATIVE_STATUS.NOT_CARRIED) {
+    // NOT_CARRIED renders NO subtext — narrativeRead's own law (the
+    // council-F4 ruling): a wire that doesn't carry the family cannot say
+    // anything honest, and "predates the event-map read" is exactly the
+    // falsifiable diagnosis that state must never wear.
+    if (STORY_CHAPTERS.has(key) && status !== NARRATIVE_STATUS.NOT_CARRIED) {
+      if (status === NARRATIVE_STATUS.NOT_MEASURED) {
         cell.subtext = ABSENCE_COPY.not_measured;
       } else if (status === NARRATIVE_STATUS.EMPTY) {
         cell.subtext = caveat

@@ -539,7 +539,7 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   );
 }
 
-function TagsPanel({ data, onRegionChange }) {
+function TagsPanel({ activeRegion, data, onRegionChange }) {
   const read = triggerRead(distanceToTriggerPct(data));
   return (
     <section className="stock-lens-section">
@@ -556,7 +556,7 @@ function TagsPanel({ data, onRegionChange }) {
           strip; a pre-v2 payload keeps the legacy Visual/Market pills. The
           pills' JSX+CSS delete as one unit at the flag's retirement. */}
       {data.ta_grade != null ? (
-        <TaGradePanel data={data} onRegionChange={onRegionChange} />
+        <TaGradePanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
       ) : (
         <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
       )}
@@ -582,7 +582,7 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
             ticker={ticker}
           />
         ) : null}
-        <TagsPanel data={data} onRegionChange={onRegionChange} />
+        <TagsPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
       </div>
     </div>
   );

@@ -93,6 +93,19 @@ def test_chapter_taxonomy_is_the_ruled_story_partition():
     assert populated == set(taxonomy.CHAPTER_ORDER)
 
 
+def test_story_chapter_membership_mirrors_the_frontend_set():
+    """The strip's STORY_CHAPTERS presentational set keys the three-state
+    honesty subtext to the chapters carrying story terms. This pin turns a
+    story-term re-chaptering into a red that NAMES the JS mirror (2026-08-08
+    review, D2 — the caveat machinery would otherwise keep working, silently
+    pointed at stale chapters)."""
+    story_chapters = {t.chapter for t in taxonomy.REGISTRY
+                      if t.key.startswith("story_")}
+    assert story_chapters == {"phase_b", "phase_d"}, (
+        "story terms re-chaptered — update STORY_CHAPTERS in "
+        "webapp/frontend/src/components/chapterStrip.js in the SAME change")
+
+
 def test_chapter_map_is_the_one_projection_the_manifest_hashes():
     """chapter_map() covers the WHOLE registry (regime terms as None — their
     None is hashed coverage, not absence) and the manifest consumes IT —
