@@ -5,21 +5,39 @@ decision (flag ledger, kill-by 2026-08-31). Everything below happens at the
 flip commit and ONLY there — a baseline recapture appearing in any other
 diff is the agent-cheating signature and rejects the diff (EC-29).
 
-The build behind this checklist: tasks 1–14 of `PLAN-ta-grade.md`, commits
-`9085e93..68540c0` on `claude/gallant-hodgkin-906536` (all reweight-neutral;
-every weight/cap/discount/tier-cut remains the operator's, decided here).
+The build behind this checklist: the 14 build commits `9085e93..68540c0` +
+the 2026-08-08 council-review fix commits (chapter vocabulary re-ruled to
+Cause → Phase B → Phase C → Phase D → Trend; 15 findings fixed) on
+`claude/gallant-hodgkin-906536` — the branch's `git log` is the task
+enumeration. All reweight-neutral; every weight/cap/discount/tier-cut
+remains the operator's, decided here.
+
+**Every command below runs on the ChrolloDashboard venv interpreter, from
+the repo root** — bare `python` is this machine's documented trap (two
+colliding 3.14 installs):
+
+```bash
+PY="C:\Users\User\Documents\Projects\Chrollo Project\.venv\Scripts\python.exe"
+```
+
+(In PowerShell: `$PY = "C:\Users\User\Documents\Projects\Chrollo Project\.venv\Scripts\python.exe"`
+then `& $PY -m ...`.)
 
 ## 0 — The A/B eyeball (no flip required)
 
 ```bash
-python -m tools.ta_grade_ab
+"$PY" -m tools.ta_grade_ab
 ```
 
 Per archived fire: stored score/tier vs the would-be 0-100 from the row's
-own archived facts, rank deltas over the scan's fire list, `--top` chapter
-drill. The affine identity is checked on every run (exit 2 = a bug, never
-movement). Optionally `--json output/ta_grade_ab_<date>.json` for the
-evidence record. Judge here; nothing changes until step 1.
+own archived facts, rank deltas over the scan's fire list (`+` = climbed
+under v2), `--top` chapter drill. The affine identity is checked on every
+run against the PRE-warning ordering (exit 2 + a printed verdict on BOTH
+output modes = a bug, never movement; warning-driven reordering reports as
+movement). Warnings print with their cost — `:neutral` entries contribute
+ZERO until you set their `TA_WARN_*` factors. Optionally
+`--json output/ta_grade_ab_<date>.json` for the evidence record (the
+identity verdict still prints). Judge here; nothing changes until step 1.
 
 ## 1 — The flip commit (ONE atomic change)
 
@@ -37,22 +55,35 @@ evidence record. Judge here; nothing changes until step 1.
    archive/watchlist vocab but is un-filterable on those three — do not
    fork it further).
 3. The scripted re-bless, in this order, all in the flip commit:
-   - `python -m tools.shadow_diff --capture` (score/tier/ranking recapture
-     — BY DESIGN at this seam),
-   - seed-recall + hermetic baseline recapture (informational tier/score
-     fields go stale even when green),
-   - the marks-corpus re-freeze as an explicit EC-7 event (ratchet stays
-     28/33 or better — a regressed pinned hit is a design falsification,
-     not a threshold to tune),
-   - fresh fold-parity capture,
-   - `python -m tools.settings_reference --write` (Quick-Reference; the
+   - `"$PY" -m tools.shadow_diff --capture` (score/tier/ranking recapture
+     — BY DESIGN at this seam), then `"$PY" -m tools.shadow_diff --check`
+     green;
+   - `"$PY" -m core.archive.seed_recall --fresh-capture` then
+     `--fresh-check` green (informational tier/score fields go stale even
+     when green);
+   - `"$PY" -m tools.marks_corpus --build-fixture` then `--check` green —
+     the re-freeze is an explicit EC-7 event (ratchet stays 28/33 or better
+     — a regressed pinned hit is a design falsification, not a threshold to
+     tune);
+   - `"$PY" -m tools.fold_parity --capture output/flip_fold_parity.json`
+     (the fresh fold-parity basis);
+   - `"$PY" -m tools.settings_reference --write` (Quick-Reference; the
      manifest rotation is THE seam).
-4. Cost + payload certification (EC-8): re-run the per-fire timing of the
-   measurement block (the task-8 instrument measured worst-case 0.31 ms
-   median / 0.54 ms max per fire) and record the payload delta of the v2
-   block (~1 kB/setup expected vs the 14.8 MB artifact).
+4. Cost + payload certification (EC-8): run the COMMITTED instrument
+   `"$PY" -m tools.ta_grade_timing` and record its numbers in the flip
+   evidence. Post-review baseline (2026-08-08, after the finding-8 walk
+   fix made the ratio honest by always paying the full root budget):
+   median 0.64 ms / p90 1.02 / max 1.37 ms per fire on the 32 firing
+   fixture tickers — ~0.4 s per 300-fire scan, three orders inside the
+   evaluation budget (the task-8 pre-fix figures were 0.31/0.54). Also
+   record the payload delta of the v2 block (~1-1.5 kB/setup expected vs
+   the 14.8 MB artifact).
 5. The 1536×864 lens eyeball on the first flag-on payload (the TaGradePanel
-   + chapter strip render on real fires; the card face is unchanged).
+   + chapter strip render on real fires; the card face is unchanged). Two
+   named checks: (a) the 26px grade headline is visible in the lens
+   WITHOUT scrolling on a graded row — if not, the panel moves UP in its
+   section, never the section cap up; (b) chapter hover lights the chart
+   region and the cell's is-active border answers.
 6. Same-change docs: `strategy_alpha.md` Reading Model (the grade IS the
    read's number now), `engine_reference.md` Phase-4 section (the 0-100 +
    chapters replace the raw-total table; the stale "~209" goes), the flag
@@ -66,9 +97,17 @@ evidence record. Judge here; nothing changes until step 1.
 - The cockpit's "Fresh S-tier" selects a different population under the
   re-based tier — stated flip evidence, never silent drift.
 - The mixed-epoch badges (analyze banner, /calibration per-tier `epochs`,
-  ArchiveTierCards ⚠) light up the day two epochs coexist — that is them
-  working.
+  ArchiveTierCards ⚠) count DISTINCT `engine_config_version` values, and
+  the matured archive already spans several manifest rotations — so they
+  are lit BEFORE the flip; that is normal, not a defect to hunt. The
+  flip-day signal is different: the first rows whose GRADE columns are
+  non-NULL (the score-scale seam inside the epoch count).
 - Pre-flip rows keep NULL grade columns FOREVER (no backfill, ever).
+- The grade-verdict channel (agree / too_high / too_low) is live end-to-end
+  on the backend and round-trips on the identity GET, but has NO lens
+  control yet — its UI lands at the flip commit beside the read-verdict
+  buttons (or gets its own named deferral here). Until then a grade
+  judgment can only be recorded via the API.
 
 ## 2 — Staged retirement (a later commit, only after the flip is blessed)
 
