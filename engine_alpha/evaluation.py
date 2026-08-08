@@ -615,6 +615,24 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
                                        structure_ctx["atr_for_zone"]),
         }
 
+    # Technical Analysis Grade v2 (flag-dark): the chapter composite over the
+    # SAME scored terms plus the story scalars measured just above — computed
+    # HERE, in the one shared eval chain, so live, seed, and the manual route
+    # produce byte-identical grades by construction (never a second
+    # implementation). Consumes the archived as-of scalars only (the event-map
+    # fields), never the tape. Import + compute strictly inside the flag:
+    # flag-off pays zero cost and spreads {} -> byte-identical.
+    ta_grade_fields = {}
+    if settings.TA_SCORE_V2:
+        from engine_alpha.scoring.scoring import compose_ta_grade
+        _em_scalars = {k[1:]: v for k, v in event_map_fields.items()}
+        _grade = compose_ta_grade(
+            score_result,
+            has_spring=bool(bins.get("bin_c_present")),
+            event_map=_em_scalars or None,
+        )
+        ta_grade_fields = {"_" + k: v for k, v in _grade.items()}
+
     # Election stability (measure-only, flag-dark): does the elected reading
     # survive backward eval-day shifts? Real structures persist, junk flickers
     # (BODI 04-15 vs 04-16). Fires only; election stage only; raw diagnostics,
@@ -666,6 +684,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "htf_ctx": htf_ctx,
         "puzzle_fields": puzzle_fields,
         "event_map_fields": event_map_fields,
+        "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
         "trace_fields": trace_fields,
         "strategy_fields": strategy_fields,
@@ -892,6 +911,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("puzzle_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
+        **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: empty flag-off -> byte-identical
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical

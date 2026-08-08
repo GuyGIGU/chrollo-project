@@ -101,17 +101,26 @@ def test_structural_cap_sum_is_the_machine_pinned_divisor():
     assert taxonomy.structural_cap_sum() > 0
 
 
-def test_structural_cap_sum_tracks_the_flag_gated_spring_term(monkeypatch):
-    # Flag-off the spring term is not emitted and stays out of the divisor;
-    # flag-on it joins at its registered cap (0 today — shape-only until the
-    # A/B; the assertion stays valid at any future operator-assigned weight).
+def test_structural_cap_sum_tracks_the_flag_gated_v2_terms(monkeypatch):
+    # Flag-off the v2 terms (spring + story) are not emitted and stay out of
+    # the divisor; flag-on they join at their registered caps (all 0 today —
+    # shape-only until the A/B; the arithmetic stays valid at any future
+    # operator-assigned weights).
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     base = taxonomy.structural_cap_sum()
-    assert "spring" not in {t.key for t in taxonomy.ta_layer_terms()}
+    off_keys = {t.key for t in taxonomy.ta_layer_terms()}
+    assert not off_keys & {"spring", "story_s_tests", "story_r_rejections",
+                           "story_alternations", "story_terminal_posture"}
     monkeypatch.setattr(settings, "TA_SCORE_V2", True)
-    assert "spring" in {t.key for t in taxonomy.ta_layer_terms()}
-    assert taxonomy.structural_cap_sum() == pytest.approx(
-        base + float(settings.SCORE_SPRING))
+    on_keys = {t.key for t in taxonomy.ta_layer_terms()}
+    assert {"spring", "story_s_tests", "story_r_rejections",
+            "story_alternations", "story_terminal_posture"} <= on_keys
+    v2_caps = (float(settings.SCORE_SPRING)
+               + float(settings.SCORE_STORY_S_TESTS)
+               + float(settings.SCORE_STORY_R_REJECTIONS)
+               + float(settings.SCORE_STORY_ALTERNATIONS)
+               + float(settings.SCORE_STORY_TERMINAL_POSTURE))
+    assert taxonomy.structural_cap_sum() == pytest.approx(base + v2_caps)
 
 
 def test_manifest_hashes_the_chapter_taxonomy():

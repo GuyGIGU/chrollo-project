@@ -267,10 +267,9 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
                       settings.SCORE_PUZZLE_QUALITY)
 
-    unrounded_total = (s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
-                       + s_uptrend + s_rs + s_high + s_breadth + s_contraction
-                       + s_ascending + s_adr + s_puzzle)
-    total = round(unrounded_total, 1)
+    total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
+                  + s_uptrend + s_rs + s_high + s_breadth + s_contraction
+                  + s_ascending + s_adr + s_puzzle, 1)
 
     result = {
         'total': total,
@@ -290,52 +289,144 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'adr': round(s_adr, 2),
         'puzzle_quality': round(s_puzzle, 2),
     }
-    # Technical Analysis Grade v2 (0-100, flag-gated) — byte-identical and
-    # compute-free off: the whole block is skipped, no new keys, zero new
-    # compute (the sibling of the retired PUZZLE/CANDLE containment). It
-    # publishes the ta_grade family alongside the legacy total; total, the
-    # sub-scores, and the tier inputs are untouched (the tier re-source waits
-    # on TIER_*_STRUCT at the flip). Fed the UNROUNDED sum so the grade never
-    # inherits the display rounding (round-once: display only, at the wire).
-    if settings.TA_SCORE_V2:
-        result.update(_ta_grade_block(unrounded_total, s_breadth,
-                                      has_spring=has_spring))
     return result
 
 
-def _ta_v2_terms(*, has_spring: bool = False) -> dict:
-    """Promoted graded terms that feed the v2 raw grade only (never the legacy
+def _finite(value, fallback: float = 0.0) -> float:
+    """NaN/None/inf quarantine at the term boundary: a non-finite or missing
+    input reads as its neutral ``fallback`` BEFORE anything is summed — one
+    unguarded NaN would poison grade, chapters, and every downstream column."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return v if math.isfinite(v) else fallback
+
+
+def _story_points(event_map: Optional[dict]) -> dict:
+    """The story terms' points from the archived as-of Event-Map scalars.
+
+    Three-state input discipline (the grade's law for story inputs):
+      * missing family (map never ran / pre-flip rows)      -> ABSENT: every
+        story term contributes neutral 0.0 against the FIXED divisor.
+      * explicit zeros (measured-and-empty)                 -> EVIDENCE: the
+        junk separator IS zero — the ramps read 0 and grade low.
+      * all-zero counts with >= STORY_UNREADABLE_NAN_BARS unreadable bars
+        -> ABSENT: zero-by-unreadable must never masquerade as zero-by-drift
+        (the whole row routes to absent, stance included).
+    Consumes the named scalars ONLY — never the episode tape, never the
+    profile sentence (the archived counts already exclude in-progress and
+    identity-unfixed episodes on the one as-of basis; a recount downstream
+    would be lookahead by re-derivation). The right-edge stance (terminal
+    posture) is its own term and is never added into completed-event facts."""
+    absent = {"story_s_tests": 0.0, "story_r_rejections": 0.0,
+              "story_alternations": 0.0, "story_terminal_posture": 0.0}
+    if not isinstance(event_map, dict):
+        return absent
+    s = event_map.get("event_map_completed_s")
+    r = event_map.get("event_map_completed_r")
+    alt = event_map.get("event_map_alternations")
+    posture = event_map.get("event_map_terminal_posture")
+    if s is None and r is None and alt is None and posture is None:
+        return absent
+    s, r, alt = _finite(s), _finite(r), _finite(alt)
+    nan_bars = _finite(event_map.get("event_map_episode_nan_bars"))
+    if (s == 0 and r == 0 and alt == 0
+            and nan_bars >= settings.STORY_UNREADABLE_NAN_BARS):
+        return absent
+    tests_full = float(settings.STORY_COMPLETED_TESTS_FULL)
+    return {
+        "story_s_tests": _ramp(s, 0.0, tests_full,
+                               settings.SCORE_STORY_S_TESTS),
+        "story_r_rejections": _ramp(r, 0.0, tests_full,
+                                    settings.SCORE_STORY_R_REJECTIONS),
+        "story_alternations": _ramp(alt, 0.0,
+                                    float(settings.STORY_ALTERNATIONS_FULL),
+                                    settings.SCORE_STORY_ALTERNATIONS),
+        "story_terminal_posture": (
+            float(settings.SCORE_STORY_TERMINAL_POSTURE)
+            if _finite(posture) == 1.0 else 0.0),
+    }
+
+
+def _ta_v2_terms(*, has_spring: bool = False,
+                 event_map: Optional[dict] = None) -> dict:
+    """Promoted graded terms that feed the v2 grade only (never the legacy
     total). Each is bounded [0, cap], present-mask neutral (a missing/false
     input contributes 0.0 and never demotes below the geometry merits),
     grades-not-vetoes. FULL precision — nothing rounds before the sum."""
-    return {
+    terms = {
         # Phase-C spring: the undercut+reclaim at the base floor. Binary
         # promotion (has_spring already flows through both eval twins);
         # shape-only — SCORE_SPRING stays 0 until the operator's A/B.
         'spring': float(settings.SCORE_SPRING) if has_spring else 0.0,
     }
+    terms.update(_story_points(event_map))
+    return terms
 
 
-def _ta_grade_block(unrounded_total: float, breadth_points: float,
-                    **inputs) -> dict:
-    """The affine skeleton of the Technical Analysis Grade (build task 3; the
-    story-chapter composite builds on it in task 4):
+def _ta_grade_warnings(event_map: Optional[dict]) -> dict:
+    """{warning_id: factor} — the resolved warning discounts. Only warnings
+    whose input is PRESENT and firing are emitted; a missing input emits no
+    entry, so its factor is 1.0 EXACTLY, by absence. Factors are floored
+    multiplicative discounts on the bounded 0-100 (grades-not-vetoes: a
+    warning discounts, never vetoes). terminal_drift is the first registered
+    warning — neutral 1.0 until the operator's A/B assigns its cost."""
+    if not isinstance(event_map, dict):
+        return {}
+    out = {}
+    drift = event_map.get("event_map_terminal_drift")
+    if drift is not None and _finite(drift) == 1.0:
+        out["terminal_drift"] = float(settings.TA_WARN_TERMINAL_DRIFT)
+    return out
 
-        ta_grade_raw = (unrounded composite - breadth) + Σ promoted v2 terms
-        ta_grade     = clamp(ta_grade_raw / structural_cap_sum() * 100, 0, 100)
 
-    ``structural_cap_sum()`` is the fixed sum of the emitted ta-layer caps
-    (breadth/regime excluded; grows as promoted terms register) — a pure
-    function of config, never a per-row or cohort max, so the map is strictly
-    monotonic: within a run (breadth is a per-run constant) the v2 ordering
-    equals the composite ordering exactly. Emitted at FULL precision — the
-    archive stores exact floats; rounding is display-only, at the wire."""
+def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
+                     event_map: Optional[dict] = None) -> dict:
+    """The Technical Analysis Grade — ONE fixed-divisor affine sum, displayed
+    as story chapters (operator rulings 2026-08-06; build task 4).
+
+        points[t]     the term's value: v1 terms from ``sub_scores``, promoted
+                      v2 terms (spring + story) computed here; each
+                      NaN-quarantined, absent -> neutral 0.0
+        ta_grade_raw  Σ points over the emitted ta-layer terms
+        chapters[c]   Σ points of c's terms × 100 / structural_cap_sum()
+        pre           clamp(ta_grade_raw × 100 / structural_cap_sum(), 0, 100)
+        ta_grade      pre × max(TA_GRADE_WARNING_FLOOR, Π warning factors)
+
+    Chapters are a DISPLAY PARTITION of the one sum: the subtotals sum exactly
+    to the pre-warning grade, and there is NO per-chapter divisor, floor, or
+    clamp — any of those recreates the tested-DEAD present-cap denominator one
+    level down. Absence is neutral against the FIXED divisor (a row missing an
+    input grades against the same denominator as a full row). Warnings
+    multiply on the bounded 0-100; a missing warning reads exactly 1.0. FULL
+    precision throughout — rounding is display-only, at the wire. Called from
+    the ONE shared eval chain (``_score_eval_context``) so live, seed, and
+    manual rows are byte-identical by construction."""
     from engine_alpha.scoring import taxonomy
-    v2 = _ta_v2_terms(**inputs)
-    raw = (unrounded_total - (breadth_points or 0.0)) + sum(v2.values())
+    v2 = _ta_v2_terms(has_spring=has_spring, event_map=event_map)
+    chapters = {ch: 0.0 for ch in taxonomy.CHAPTER_ORDER}
+    raw = 0.0
+    for term in taxonomy.ta_layer_terms():
+        pts = v2[term.key] if term.key in v2 else _finite(sub_scores.get(term.key))
+        chapters[term.chapter] += pts
+        raw += pts
     cap_sum = taxonomy.structural_cap_sum()
-    grade = 0.0 if cap_sum <= 0 else max(0.0, min(100.0, (raw / cap_sum) * 100.0))
-    out = {'ta_grade_raw': raw, 'ta_grade': grade}
+    scale = 0.0 if cap_sum <= 0 else 100.0 / cap_sum
+    pre = max(0.0, min(100.0, raw * scale))
+    warnings = _ta_grade_warnings(event_map)
+    factor = 1.0
+    for f in warnings.values():
+        factor *= f
+    if warnings:
+        factor = max(float(settings.TA_GRADE_WARNING_FLOOR), factor)
+    out = {
+        'ta_grade_raw': raw,
+        'ta_grade': pre * factor,
+        'ta_grade_chapters': {ch: chapters[ch] * scale
+                              for ch in taxonomy.CHAPTER_ORDER},
+        'ta_grade_warnings': warnings,
+    }
     out.update(v2)
     return out
 

@@ -237,6 +237,18 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "TOUCH_POINT_RATE",
     "LPS_TIGHTNESS_SLOPE",
     "VOL_CONTRACTION_SLOPE",
+    # Story terms + warning knobs (task-4 batch — third declared seam): the
+    # Event-Map substrate graded inside the chapters, shape-only caps + the
+    # provisional anchors, plus the floored warning-discount knobs.
+    "SCORE_STORY_S_TESTS",
+    "SCORE_STORY_R_REJECTIONS",
+    "SCORE_STORY_ALTERNATIONS",
+    "SCORE_STORY_TERMINAL_POSTURE",
+    "STORY_COMPLETED_TESTS_FULL",
+    "STORY_ALTERNATIONS_FULL",
+    "STORY_UNREADABLE_NAN_BARS",
+    "TA_WARN_TERMINAL_DRIFT",
+    "TA_GRADE_WARNING_FLOOR",
     # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
     # default-off + byte-identical off, read via _flag()/getattr on the advisory
     # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires

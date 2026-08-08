@@ -116,6 +116,16 @@ REGISTRY: tuple[TermSpec, ...] = (
     # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's
     # A/B assigns weights; its archive column is a task-5 add.
     TermSpec("spring",            None,                      "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="turn"),
+    # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
+    # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
+    # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
+    # columns are a task-5 add. They consume the archived as-of scalars ONLY
+    # (completed counts + right-edge stance) — never the tape, never the
+    # profile sentence (AP-8; nothing re-derives counts downstream).
+    TermSpec("story_s_tests",          None,                 "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_r_rejections",     None,                 "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_alternations",     None,                 "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_terminal_posture", None,                 "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="finish"),
 )
 
 

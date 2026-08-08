@@ -742,6 +742,24 @@ SCORE_SPRING = 0                  # spring term cap — shape-only until the A/B
 TOUCH_POINT_RATE = 2.0            # points per rail touch (v1 literal: touches * 2.0)
 LPS_TIGHTNESS_SLOPE = 2.0         # saturation slope: full credit at tightness_ratio <= 0.5
 VOL_CONTRACTION_SLOPE = 2.0       # saturation slope: full credit at vol_contraction >= 0.5
+# Story terms + warnings (task-4 batch — the build's third declared seam).
+# The story terms grade the Event-Map substrate INSIDE the chapters (operator
+# ruling 2026-08-06: grade the setups by their story). All caps start 0 =
+# shape-only (weights move LAST, at the operator's A/B eyeball); the anchors
+# are provisional calibration references recalibrated against the live archive
+# at the A/B — the measure-first pattern, never gates, never penalties.
+SCORE_STORY_S_TESTS = 0            # completed support tests (work chapter)
+SCORE_STORY_R_REJECTIONS = 0       # completed resistance rejections (work chapter)
+SCORE_STORY_ALTERNATIONS = 0       # rail alternations across completed episodes (work chapter)
+SCORE_STORY_TERMINAL_POSTURE = 0   # right-edge R-engagement stance (finish chapter)
+STORY_COMPLETED_TESTS_FULL = 3     # rail-test count at saturation (EGBN separator: 3 completed S-tests vs drift junk 0)
+STORY_ALTERNATIONS_FULL = 2        # alternation count at full credit
+STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars read ABSENT, never zero
+# Warnings are floored multiplicative discounts applied to the bounded 0-100
+# (never the raw sum); a missing warning input is factor 1.0 EXACTLY.
+# terminal_drift is the first registered warning — neutral 1.0 until the A/B.
+TA_WARN_TERMINAL_DRIFT = 1.0       # discount when the window ends in an open S-drift episode
+TA_GRADE_WARNING_FLOOR = 0.5       # the warning product never discounts below this factor
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)
