@@ -722,17 +722,17 @@ def test_compose_story_terms_distinguish_absent_zero_and_unreadable(v2_on, monke
 
 
 def test_compose_stance_enters_its_own_term_never_the_facts(v2_on, monkeypatch):
-    """Right-edge stance (terminal posture) may only move its own finish-term —
-    never a completed-event count, never the work chapter."""
+    """Right-edge stance (terminal posture) may only move its own Phase-D term —
+    never a completed-event count, never the Phase-B chapter."""
     from engine_alpha.scoring.scoring import compose_ta_grade
     monkeypatch.setattr(settings, "SCORE_STORY_TERMINAL_POSTURE", 8)
     up = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=1))
     down = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=0))
     for k in ("story_s_tests", "story_r_rejections", "story_alternations"):
         assert up[k] == down[k]
-    assert up["ta_grade_chapters"]["work"] == pytest.approx(
-        down["ta_grade_chapters"]["work"])
-    assert up["ta_grade_chapters"]["finish"] > down["ta_grade_chapters"]["finish"]
+    assert up["ta_grade_chapters"]["phase_b"] == pytest.approx(
+        down["ta_grade_chapters"]["phase_b"])
+    assert up["ta_grade_chapters"]["phase_d"] > down["ta_grade_chapters"]["phase_d"]
 
 
 def test_compose_never_reads_the_tape(v2_on):

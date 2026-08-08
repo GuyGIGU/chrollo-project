@@ -748,10 +748,10 @@ VOL_CONTRACTION_SLOPE = 2.0       # saturation slope: full credit at vol_contrac
 # shape-only (weights move LAST, at the operator's A/B eyeball); the anchors
 # are provisional calibration references recalibrated against the live archive
 # at the A/B — the measure-first pattern, never gates, never penalties.
-SCORE_STORY_S_TESTS = 0            # completed support tests (work chapter)
-SCORE_STORY_R_REJECTIONS = 0       # completed resistance rejections (work chapter)
-SCORE_STORY_ALTERNATIONS = 0       # rail alternations across completed episodes (work chapter)
-SCORE_STORY_TERMINAL_POSTURE = 0   # right-edge R-engagement stance (finish chapter)
+SCORE_STORY_S_TESTS = 0            # completed support tests (Phase-B chapter)
+SCORE_STORY_R_REJECTIONS = 0       # completed resistance rejections (Phase-B chapter)
+SCORE_STORY_ALTERNATIONS = 0       # rail alternations across completed episodes (Phase-B chapter)
+SCORE_STORY_TERMINAL_POSTURE = 0   # right-edge R-engagement stance (Phase-D chapter)
 STORY_COMPLETED_TESTS_FULL = 3     # rail-test count at saturation (EGBN separator: 3 completed S-tests vs drift junk 0)
 STORY_ALTERNATIONS_FULL = 2        # alternation count at full credit
 STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars read ABSENT, never zero

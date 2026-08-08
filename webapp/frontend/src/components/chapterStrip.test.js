@@ -6,10 +6,10 @@ import { CHAPTER_REGION, chapterCells, warningItems } from './chapterStrip.js';
 const GRADED = {
   ta_grade: 61.2,
   ta_grade_chapters: {
-    cause: 18.2, work: 21.0, turn: 2.1, finish: 14.9, trend_context: 5.0,
+    cause: 18.2, phase_b: 21.0, phase_c: 2.1, phase_d: 14.9, trend: 5.0,
   },
   ta_grade_chapter_fractions: {
-    cause: 0.66, work: 0.55, turn: 0.26, finish: 0.62, trend_context: 0.31,
+    cause: 0.66, phase_b: 0.55, phase_c: 0.26, phase_d: 0.62, trend: 0.31,
   },
   // A carried, measured story family (READY): counts present and non-zero.
   event_map_completed_s: 3,
@@ -30,7 +30,7 @@ const GRADED = {
 test('graded payload yields the five ruled chapters, in story order', () => {
   const cells = chapterCells(GRADED);
   assert.deepEqual(cells.map(c => c.key),
-    ['cause', 'work', 'turn', 'finish', 'trend_context']);
+    ['cause', 'phase_b', 'phase_c', 'phase_d', 'trend']);
   assert.equal(cells[0].points, 18.2);
   assert.equal(cells[0].fraction, 0.66);
   assert.equal(cells.every(c => c.fraction >= 0 && c.fraction <= 1), true);
@@ -57,9 +57,9 @@ test('story chapters carry the not-measured honesty wording', () => {
     event_map_episodes: null,
   };
   const cells = chapterCells(preEventMap);
-  const work = cells.find(c => c.key === 'work');
+  const phaseB = cells.find(c => c.key === 'phase_b');
   const cause = cells.find(c => c.key === 'cause');
-  assert.match(work.subtext, /not measured/);
+  assert.match(phaseB.subtext, /not measured/);
   assert.equal(cause.subtext, null);       // non-story chapters carry none
 });
 
@@ -72,9 +72,9 @@ test('measured-zero story rows say so, with the readability caveat', () => {
     event_map_n_swings: 0, event_map_n_labels: 0, event_map_n_committed: 0,
     event_map_episode_nan_bars: 6,
   };
-  const work = chapterCells(zeros).find(c => c.key === 'work');
-  assert.match(work.subtext, /no completed rail events/);
-  assert.match(work.subtext, /6 bars unreadable/);
+  const phaseB = chapterCells(zeros).find(c => c.key === 'phase_b');
+  assert.match(phaseB.subtext, /no completed rail events/);
+  assert.match(phaseB.subtext, /6 bars unreadable/);
 });
 
 test('warnings render with their cost — neutral factors visibly costless', () => {
@@ -90,7 +90,7 @@ test('warnings render with their cost — neutral factors visibly costless', () 
 });
 
 test('chapter hover targets map onto the existing chart regions', () => {
-  assert.equal(CHAPTER_REGION.finish, 'lps');
-  assert.equal(CHAPTER_REGION.turn, 'd');
-  assert.equal(CHAPTER_REGION.trend_context, null);
+  assert.equal(CHAPTER_REGION.phase_d, 'lps');
+  assert.equal(CHAPTER_REGION.phase_c, 'd');
+  assert.equal(CHAPTER_REGION.trend, null);
 });

@@ -92,16 +92,18 @@ export const TREND_STATE_LABELS = {
 };
 
 // Story chapters (TA-grade build task 12): the grade's breakdown vocabulary.
-// Wire ids are FROZEN (taxonomy.CHAPTER_ORDER, ruled 2026-08-06); the order
-// here mirrors the ruling — left→right like the chart, NEVER points-sorted.
-export const CHAPTER_ORDER = ['cause', 'work', 'turn', 'finish', 'trend_context'];
+// Wire ids mirror taxonomy.CHAPTER_ORDER (ruled 2026-08-06; vocabulary
+// re-ruled 2026-08-08 to the operator's phase-overlay words — the same
+// vocabulary as PHASE_NAMES below); the order mirrors the ruling —
+// left→right like the chart, NEVER points-sorted.
+export const CHAPTER_ORDER = ['cause', 'phase_b', 'phase_c', 'phase_d', 'trend'];
 
 export const CHAPTER_LABELS = {
   cause: { label: 'Cause', short: 'Cause' },
-  work: { label: 'Work', short: 'Work' },
-  turn: { label: 'Turn', short: 'Turn' },
-  finish: { label: 'Finish', short: 'Finish' },
-  trend_context: { label: 'Trend context', short: 'Trend' },
+  phase_b: { label: 'Phase B', short: 'B' },
+  phase_c: { label: 'Phase C', short: 'C' },
+  phase_d: { label: 'Phase D', short: 'D' },
+  trend: { label: 'Trend', short: 'Trend' },
 };
 
 // Grade warning labels (unknown ids fall through verbatim — never blank).

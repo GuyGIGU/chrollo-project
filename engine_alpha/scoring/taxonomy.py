@@ -53,21 +53,25 @@ class TermSpec:
         return bool(getattr(settings, self.present_when))
 
 
-# ── Story chapters — the grade's frame (operator-ruled 2026-08-06) ───────────
+# ── Story chapters — the grade's frame (operator-ruled 2026-08-06; vocabulary
+# re-ruled 2026-08-08: the operator's own phase-overlay words — "Work/Turn/
+# Finish" were invented labels he never used, retired per the naming doctrine) ─
 # The 0-100 Technical Analysis Grade decomposes into story chapters that read
 # left→right like the chart, the way the operator narrates it:
-#   cause          the base itself — is there a proper, tight, mature Phase-B range?
-#   work           what happened inside — touches, genuine traversal, progressive
-#                  contraction, the completeness of the told story
-#   turn           the right-side improvement — rising support, spring/Phase-D
-#   finish         the pre-breakout state — LPS tightness, its volume dry-up,
-#                  the terminal ATR squeeze
-#   trend_context  the chart around the base — trend, RS, 52w proximity, ADR
+#   cause    the consolidation itself — the re/accumulation process, Wyckoff's
+#            cause: is there a proper, tight, mature base?
+#   phase_b  what happened inside the range — touches, genuine traversal,
+#            progressive contraction, the completeness of the told story
+#   phase_c  the bullish tell — the spring below S, the rising support
+#   phase_d  the right side into the pivot — LPS tightness, its volume
+#            dry-up, the terminal ATR squeeze
+#   trend    the chart around the base — trend, RS, 52w proximity, ADR:
+#            hopefully the RESULT of said cause
 # Chapters are a DISPLAY PARTITION of the single fixed-divisor affine sum —
 # never per-chapter normalization (the present-cap denominator is tested-DEAD).
 # Membership is hashed into engine_config_version (freeze/manifest.py), so a
 # re-chaptering is a visible archive seam, never a silent relabel.
-CHAPTER_ORDER: tuple[str, ...] = ("cause", "work", "turn", "finish", "trend_context")
+CHAPTER_ORDER: tuple[str, ...] = ("cause", "phase_b", "phase_c", "phase_d", "trend")
 
 # Reserved result-dict / wire keys for the flag-gated v2 grade — settled BEFORE
 # anything serializes so no rename ever crosses a frozen surface. NOTHING may
@@ -97,40 +101,40 @@ V2_RESULT_KEYS: tuple[str, ...] = (
 # Ordered to match the score_setup result-dict emission order (scoring.py).
 REGISTRY: tuple[TermSpec, ...] = (
     TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural", chapter="cause"),
-    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural", chapter="work"),
-    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural", chapter="work"),
+    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural", chapter="phase_b"),
+    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural", chapter="phase_b"),
     # atr_squeeze is ATR_10/ATR_50 at the right edge — the TERMINAL volatility
     # squeeze into the pivot, not a whole-base trait; it finishes the story.
-    TermSpec("atr_squeeze",       "score_atr_squeeze",       "SCORE_ATR_SQUEEZE",        "ta",     "structural", chapter="finish"),
-    TermSpec("lps_tightness",     "score_lps_tightness",     "SCORE_LPS_TIGHTNESS",      "ta",     "structural", chapter="finish"),
-    TermSpec("vol_contraction",   "score_vol_contraction",   "SCORE_VOL_CONTRACTION",    "ta",     "structural", chapter="finish"),
+    TermSpec("atr_squeeze",       "score_atr_squeeze",       "SCORE_ATR_SQUEEZE",        "ta",     "structural", chapter="phase_d"),
+    TermSpec("lps_tightness",     "score_lps_tightness",     "SCORE_LPS_TIGHTNESS",      "ta",     "structural", chapter="phase_d"),
+    TermSpec("vol_contraction",   "score_vol_contraction",   "SCORE_VOL_CONTRACTION",    "ta",     "structural", chapter="phase_d"),
     TermSpec("base_age",          "score_base_age",          "SCORE_BASE_AGE",           "ta",     "structural", chapter="cause"),
-    TermSpec("uptrend_bonus",     "score_uptrend_bonus",     "SCORE_UPTREND_BONUS",      "ta",     "context",    chapter="trend_context"),
-    TermSpec("rs_bonus",          "score_rs_bonus",          "SCORE_RS_BONUS",           "ta",     "context",    chapter="trend_context"),
-    TermSpec("high_proximity",    "score_high_proximity",    "SCORE_52W_HIGH_PROXIMITY", "ta",     "context",    chapter="trend_context"),
+    TermSpec("uptrend_bonus",     "score_uptrend_bonus",     "SCORE_UPTREND_BONUS",      "ta",     "context",    chapter="trend"),
+    TermSpec("rs_bonus",          "score_rs_bonus",          "SCORE_RS_BONUS",           "ta",     "context",    chapter="trend"),
+    TermSpec("high_proximity",    "score_high_proximity",    "SCORE_52W_HIGH_PROXIMITY", "ta",     "context",    chapter="trend"),
     TermSpec("breadth_bonus",     "score_breadth_bonus",     "SCORE_BREADTH_BONUS",      "regime", "context"),
-    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural", chapter="work"),
-    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="turn"),
-    TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend_context"),
+    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural", chapter="phase_b"),
+    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="phase_c"),
+    TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend"),
     # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
     # archived since task 5 (the measure-first breach closed). Chapter: the puzzle grades
     # the completeness of the told story — the work the range did.
-    TermSpec("puzzle_quality",    "score_puzzle_quality",    "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="work"),
+    TermSpec("puzzle_quality",    "score_puzzle_quality",    "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="phase_b"),
     # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
     # appends it after the always-on terms, so it sits last here to keep the
     # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's
     # A/B assigns weights; its archive column is a task-5 add.
-    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="turn"),
+    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="phase_c"),
     # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
     # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
     # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
     # columns are a task-5 add. They consume the archived as-of scalars ONLY
     # (completed counts + right-edge stance) — never the tape, never the
     # profile sentence (AP-8; nothing re-derives counts downstream).
-    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="finish"),
+    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
+    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
+    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
+    TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="phase_d"),
 )
 
 

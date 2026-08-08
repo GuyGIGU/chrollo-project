@@ -72,10 +72,12 @@ def test_layers_are_only_ta_or_regime():
 
 def test_chapter_taxonomy_is_the_ruled_story_partition():
     # Operator-ruled 2026-08-06 (docs/decisions.md): the grade's breakdown reads
-    # left→right like the chart — Cause → Work → Turn → Finish → Trend context.
+    # left→right like the chart; vocabulary RE-RULED 2026-08-08 to the operator's
+    # own phase-overlay words — Cause → Phase B → Phase C → Phase D → Trend
+    # ("Work/Turn/Finish" were invented labels, retired per the naming doctrine).
     # This order is a RULING; changing it is a re-chaptering seam, not a tidy-up.
     assert taxonomy.CHAPTER_ORDER == (
-        "cause", "work", "turn", "finish", "trend_context")
+        "cause", "phase_b", "phase_c", "phase_d", "trend")
     for t in taxonomy.REGISTRY:
         if t.layer == "ta":
             assert t.chapter in taxonomy.CHAPTER_ORDER, (

@@ -16,16 +16,17 @@ import { CHAPTER_LABELS, CHAPTER_ORDER, WARNING_LABELS } from './wireVocabulary.
 
 // The chapters whose terms read the Event-Map story — their honesty subtext
 // keys off the narrative family's own three-state read.
-const STORY_CHAPTERS = new Set(['work', 'finish']);
+const STORY_CHAPTERS = new Set(['phase_b', 'phase_d']);
 
 // Chapter → chart-region hover target (the lens's activeRegion channel):
-// cause/work light the base, turn lights Phase D, finish lights the LPS.
+// cause/phase_b light the base, phase_c lights Phase D (its terms — spring,
+// rising support — mark the right side), phase_d lights the LPS.
 export const CHAPTER_REGION = {
   cause: 'b',
-  work: 'b',
-  turn: 'd',
-  finish: 'lps',
-  trend_context: null,
+  phase_b: 'b',
+  phase_c: 'd',
+  phase_d: 'lps',
+  trend: null,
 };
 
 export function chapterCells(data) {
