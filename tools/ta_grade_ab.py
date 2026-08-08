@@ -87,6 +87,23 @@ def _ranks(keyed: list) -> dict:
     return {ticker: i + 1 for i, (ticker, _v) in enumerate(ordered)}
 
 
+def _identity_ranks(graded: list) -> tuple[dict, dict]:
+    """The affine identity's two rank orders, on QUANTIZED operands.
+
+    raw accumulates term-by-term while prewarn sums the chapter subtotals, so
+    two rows whose TRUE sums are equal can land ~1e-14 apart in one operand
+    and bit-identical in the other — the noisy operand splits them, the tied
+    operand falls back to the ticker tiebreak, and the identity false-alarms
+    exit 2 (first live population, 2026-08-08: OHI/NTES both truly raw
+    84.28). 1e-9 sits orders of magnitude above float noise and below any
+    real term-point distinction; a genuine affine break (a per-chapter
+    clamp/floor) moves points, not 1e-14s."""
+    raw = _ranks([(g["ticker"], round(g["ta_grade_raw"], 9)) for g in graded])
+    prewarn = _ranks([(g["ticker"], round(g["ta_grade_prewarn"], 9))
+                      for g in graded])
+    return raw, prewarn
+
+
 def build_report(session, scan_date: str | None) -> dict:
     import hashlib
 
@@ -160,9 +177,7 @@ def build_report(session, scan_date: str | None) -> dict:
 
     old_ranks = _ranks([(g["ticker"], g["old_score"] or 0.0) for g in graded])
     new_ranks = _ranks([(g["ticker"], g["ta_grade"]) for g in graded])
-    raw_ranks = _ranks([(g["ticker"], g["ta_grade_raw"]) for g in graded])
-    prewarn_ranks = _ranks([(g["ticker"], g["ta_grade_prewarn"])
-                            for g in graded])
+    raw_ranks, prewarn_ranks = _identity_ranks(graded)
     for g in graded:
         g["rank_old"] = old_ranks[g["ticker"]]
         g["rank_new"] = new_ranks[g["ticker"]]

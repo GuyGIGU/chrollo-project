@@ -17,7 +17,7 @@ sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 from config import settings
 from engine_alpha.freeze.manifest import manifest_hash
 from engine_alpha.scoring import taxonomy
-from tools.ta_grade_ab import build_report, main
+from tools.ta_grade_ab import _identity_ranks, _ranks, build_report, main
 
 
 def _mem_session():
@@ -144,6 +144,27 @@ def test_identity_checks_the_prewarning_operand_not_the_headline(monkeypatch):
     assert a["rank_new"] == 1 and b["rank_new"] == 2
     # The pre-warning operand is what the identity ranked.
     assert b["ta_grade_prewarn"] > a["ta_grade_prewarn"]
+
+
+def test_identity_survives_float_noise_ties():
+    """First live population (2026-08-08, 256 fires): OHI and NTES both truly
+    summed to raw 84.28, but term-order accumulation put them 3e-14 apart in
+    raw while their chapter-grouped prewarn sums came out bit-identical — the
+    raw ordering split them by noise, the prewarn ordering tie-broke by
+    ticker, and the identity false-alarmed exit 2 on a correct map. The
+    operands are quantized before ranking: a true tie must rank identically
+    in both orderings. Values below are the ACTUAL live doubles."""
+    graded = [
+        {"ticker": "OHI", "ta_grade_raw": 84.28000000000002,
+         "ta_grade_prewarn": 49.28654970760233},
+        {"ticker": "NTES", "ta_grade_raw": 84.27999999999999,
+         "ta_grade_prewarn": 49.28654970760233},
+    ]
+    # The red step, kept in the pin: unquantized, the two orderings disagree.
+    assert (_ranks([(g["ticker"], g["ta_grade_raw"]) for g in graded])
+            != _ranks([(g["ticker"], g["ta_grade_prewarn"]) for g in graded]))
+    raw_ranks, prewarn_ranks = _identity_ranks(graded)
+    assert raw_ranks == prewarn_ranks == {"NTES": 1, "OHI": 2}
 
 
 def test_empty_state_is_affirmative():
