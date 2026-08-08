@@ -277,3 +277,71 @@ def test_min_ta_grade_filter_excludes_ungraded_rows():
     unfiltered = {r.ticker for r in _apply_setup_filters(
         session.query(SetupArchive)).all()}
     assert unfiltered == {"HIGRD", "LOGRD", "PREV2"}
+
+
+def test_episode_grade_floor_is_the_current_grade_and_keeps_the_anchor():
+    """The episode view's ruled semantics (2026-08-08, operator-delegated):
+    min_ta_grade floors on the episode's LATEST member's grade — a
+    flip-straddling episode keeps its TRUE first-seen anchor, scan count,
+    and saw-and-passed marker (the row-level filter re-anchored all three),
+    and an episode whose grade decayed below the floor drops even though an
+    older scan once passed. latest_ta_grade is served either way."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from database import Base
+    from archive_models import SetupArchive
+    import models
+    from routers.archive_browse import list_episodes
+
+    eng = create_engine("sqlite://")
+    Base.metadata.create_all(eng)
+    session = sessionmaker(bind=eng)()
+
+    def _row(ticker, scan_date, grade):
+        return SetupArchive(
+            ticker=ticker, scan_date=scan_date, setup_type="LPS",
+            tier="B", score=90.0, current_price=10.0, r_level=11.0,
+            s_level=9.5, trigger_price=11.1, base_length=30, box_width=0.1,
+            touches=4, atr_ratio=0.5, lps_length=3, breach_days=0,
+            vol_contraction=0.4, tightness_ratio=0.4, ta_grade=grade)
+
+    session.add_all([
+        # STRAD: pre-flip NULL scan, then graded — one episode across the seam.
+        _row("STRAD", "2026-08-03", None),
+        _row("STRAD", "2026-08-04", 80.0),
+        _row("STRAD", "2026-08-05", 75.0),
+        # DECAY: once above the floor, latest below it.
+        _row("DECAY", "2026-08-04", 90.0),
+        _row("DECAY", "2026-08-05", 60.0),
+        # PREV2: never graded.
+        _row("PREV2", "2026-08-05", None),
+    ])
+    # The marker is keyed on the TRUE first_seen — it must survive the filter.
+    session.add(models.SetupReview(ticker="STRAD", scan_date="2026-08-03",
+                                   verdict="passed", note="looked, skipped"))
+    session.commit()
+
+    def _episodes(min_grade):
+        # Plain-function route call: every Query default passed explicitly.
+        return list_episodes(
+            skip=0, limit=200, tier=None, setup_type=None, source=None,
+            quality_label=None, min_score=None, min_ta_grade=min_grade,
+            date_from=None, date_to=None, universe_type="us_equities",
+            sort_by="first_seen", sort_dir="desc", db=session)
+
+    eps = _episodes(70.0)
+    assert [e.ticker for e in eps] == ["STRAD"]
+    strad = eps[0]
+    assert strad.first_seen == "2026-08-03"      # the true anchor, not 08-04
+    assert strad.scan_count == 3                 # the NULL scan still counts
+    assert strad.latest_ta_grade == 75.0         # the value the floor judged
+    assert strad.ta_grade is None                # canonical row: honest NULL
+    assert strad.passed is True                  # the marker did not detach
+
+    lower = _episodes(50.0)
+    assert {e.ticker for e in lower} == {"STRAD", "DECAY"}
+    unfiltered = _episodes(None)
+    assert {e.ticker for e in unfiltered} == {"STRAD", "DECAY", "PREV2"}
+    by_ticker = {e.ticker: e for e in unfiltered}
+    assert by_ticker["DECAY"].latest_ta_grade == 60.0   # served unfiltered too
+    assert by_ticker["PREV2"].latest_ta_grade is None

@@ -300,6 +300,10 @@ class EpisodeOut(SetupOut):
     scan_count: int       # number of daily scans that flagged this base
     first_seen: str       # == canonical scan_date (the entry anchor)
     last_seen: str        # latest scan that still flagged the same base
+    # The episode's CURRENT grade — the LATEST member's ta_grade (the value
+    # min_ta_grade floors on; the inherited ta_grade above is the canonical
+    # first-seen row's, NULL forever on flip-straddling episodes).
+    latest_ta_grade: Optional[float] = None
     passed: bool = False  # operator reviewed this setup and skipped it
     review_note: Optional[str] = None
 

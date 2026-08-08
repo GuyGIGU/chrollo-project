@@ -104,6 +104,19 @@ def _rows_by_ids(db, ids) -> dict:
     return out
 
 
+def _ta_grades_by_ids(db, ids) -> dict:
+    """{row id: ta_grade} for the given ids (two columns only, chunked) —
+    the episode view's CURRENT-grade lookup (each episode's latest member)."""
+    ids = list(ids)
+    out: dict = {}
+    for start in range(0, len(ids), 900):
+        chunk = ids[start:start + 900]
+        for row_id, grade in (db.query(SetupArchive.id, SetupArchive.ta_grade)
+                              .filter(SetupArchive.id.in_(chunk)).all()):
+            out[row_id] = grade
+    return out
+
+
 def _grouped_episodes(db, filters: dict):
     """Episodes for the filtered archive, cached per (filter, archive-version).
 
