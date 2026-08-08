@@ -1517,7 +1517,10 @@ def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
         assert out["verdict"] == "agree" and out["note"] == "rails"
         got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
                                universe_type=None, db=db)
-        assert got == {"verdict": "agree", "note": "rails"}
+        # grade_verdict serves alongside — the GET's old two-key shape WAS
+        # review finding 6 (a stored grade verdict was unreadable).
+        assert got == {"verdict": "agree", "grade_verdict": None,
+                       "note": "rails"}
     finally:
         db.close()
 
@@ -1631,7 +1634,7 @@ def test_read_verdict_get_serves_nulls_when_absent(tmp_path):
     try:
         got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
                                universe_type=None, db=db)
-        assert got == {"verdict": None, "note": None}
+        assert got == {"verdict": None, "grade_verdict": None, "note": None}
     finally:
         db.close()
 

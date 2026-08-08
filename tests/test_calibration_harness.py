@@ -191,6 +191,13 @@ def test_json_output_refuses_the_sealed_dirs(tmp_path):
         with pytest.raises(ValueError) as err:
             _refuse_sealed_output(sealed)
         assert "sealed" in str(err.value)
+    # Case variants refuse too — Chrollo deploys on case-insensitive NTFS,
+    # where `docs/Marks/…` opens the REAL sealed directory (2026-08-08
+    # review, finding 15; the guard normcases both sides).
+    for cased in (os.path.join(str(ROOT), "docs", "Marks", "report.json"),
+                  os.path.join(str(ROOT), "Tests", "BASELINES", "report.json")):
+        with pytest.raises(ValueError):
+            _refuse_sealed_output(cased)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
 
 

@@ -40,10 +40,16 @@ _SEALED_DIRS = (
 
 
 def refuse_sealed_output(path: str) -> str:
-    """Raise if ``path`` sits under a sealed directory; return it otherwise."""
-    target = os.path.abspath(path)
+    """Raise if ``path`` sits under a sealed directory; return it otherwise.
+
+    Both sides are case-normalized AND symlink-resolved: Chrollo deploys on
+    NTFS, where paths are case-insensitive — a case-sensitive prefix check
+    let ``docs/Marks/…`` sail into the real sealed directory (2026-08-08
+    review, finding 15)."""
+    target = os.path.normcase(os.path.realpath(os.path.abspath(path)))
     for sealed in _SEALED_DIRS:
-        if target == sealed or target.startswith(sealed + os.sep):
+        s = os.path.normcase(os.path.realpath(sealed))
+        if target == s or target.startswith(s + os.sep):
             raise ValueError(
                 f"refusing to write under the sealed directory ({sealed}) — "
                 "tool reports belong under output/ or a scratch area")

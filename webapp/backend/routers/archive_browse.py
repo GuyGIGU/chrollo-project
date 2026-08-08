@@ -45,7 +45,8 @@ def list_setups(
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
     min_ta_grade: Optional[float] = Query(
-        None, description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
+        None, ge=0, le=100,
+        description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(
@@ -80,7 +81,11 @@ def list_episodes(
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
     min_ta_grade: Optional[float] = Query(
-        None, description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
+        None, ge=0, le=100,
+        description="0-100 grade floor applied per ROW before episode grouping; "
+                    "pre-v2 (NULL-grade) scans are excluded, so an episode "
+                    "straddling the flip seam anchors at its first GRADED scan "
+                    "in this filtered view (declared semantics, 2026-08-08)."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(

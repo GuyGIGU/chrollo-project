@@ -30,6 +30,20 @@ def _finite_or_none(value) -> Optional[float]:
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
+def _detail_value(value):
+    """Quarantine non-finite NUMERIC detail facts to None at fire time —
+    the fire-rules run through _finite_or_none but the detail dict used to
+    copy facts RAW, and a NaN inside the JSON cell is invisible to the
+    column-level EC-2 scrub (2026-08-08 review, finding 5). Strings and
+    None pass through untouched (bin_c_type, htf_m_trend_state)."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value if value == value and value not in (
+            float("inf"), float("-inf")) else None
+    return value
+
+
 def resolve_fired_tags(row: dict, *, prefixed: bool = True) -> list[dict]:
     """Resolve the registry's fire-rules over one canonical result row.
 
@@ -90,6 +104,7 @@ def resolve_fired_tags(row: dict, *, prefixed: bool = True) -> list[dict]:
         if hit:
             fired.append({
                 "id": tag.id,
-                "detail": {name: fact(name) for name in tag.detail},
+                "detail": {name: _detail_value(fact(name))
+                           for name in tag.detail},
             })
     return fired

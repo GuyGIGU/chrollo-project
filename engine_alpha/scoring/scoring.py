@@ -574,7 +574,12 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
                 raise ValueError(
                     f"fired_tags entries {value!r} are not a list of "
                     "registry-known ids — refusing the write (EC-19)")
-            value = json.dumps(value, separators=(",", ":"))
+            # allow_nan=False: a non-finite leak refuses AT WRITE, matching
+            # the wire's serializer — pre-fix the archive accepted a bare
+            # NaN token the wire (and every strict parser) refuses, so the
+            # two sinks of the same list disagreed (2026-08-08 review,
+            # finding 5; the resolver also quarantines details at fire time).
+            value = json.dumps(value, separators=(",", ":"), allow_nan=False)
         out[col] = value
     return out
 

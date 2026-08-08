@@ -113,6 +113,43 @@ def test_grade_verdict_closed_vocabulary_at_the_router():
     assert row.grade_verdict is None and row.verdict == "agree"
 
 
+def test_grade_verdict_round_trips_and_the_clear_coupling_refuses():
+    """2026-08-08 review, finding 6: the channel must ROUND-TRIP — the
+    identity GET serves the stored grade_verdict (it used to omit it, so the
+    only read path could never show what the write path stored), a
+    grade-verdict-with-null-read payload is a 422 (not an accept-and-drop),
+    and the clear branch returns the same keys as its two siblings."""
+    from fastapi import HTTPException
+    from routers.archive_reviews import get_read_verdict, set_read_verdict
+    from routers.archive_schemas import ReadVerdictIn
+    from models import ReadVerdict
+
+    session = _mem_session()
+    set_read_verdict(ReadVerdictIn(
+        ticker="BBB", scan_date="2026-08-07", verdict="disagree",
+        grade_verdict="too_low", note="graded thin"), db=session)
+    served = get_read_verdict(ticker="BBB", scan_date="2026-08-07",
+                              universe_type=None, db=session)
+    assert served == {"verdict": "disagree", "grade_verdict": "too_low",
+                      "note": "graded thin"}
+    # Grade-without-read is unrepresentable — refused, and the stored row
+    # is untouched (no silent discard reporting success).
+    with pytest.raises(HTTPException) as err:
+        set_read_verdict(ReadVerdictIn(
+            ticker="BBB", scan_date="2026-08-07", verdict=None,
+            grade_verdict="too_high"), db=session)
+    assert err.value.status_code == 422
+    row = session.query(ReadVerdict).filter_by(ticker="BBB").one()
+    assert row.verdict == "disagree" and row.grade_verdict == "too_low"
+    # The clear branch's shape matches its siblings (grade_verdict present).
+    out = set_read_verdict(ReadVerdictIn(
+        ticker="BBB", scan_date="2026-08-07", verdict=None), db=session)
+    assert out["verdict"] is None and out["grade_verdict"] is None
+    empty = get_read_verdict(ticker="BBB", scan_date="2026-08-07",
+                             universe_type=None, db=session)
+    assert empty == {"verdict": None, "grade_verdict": None, "note": None}
+
+
 def test_read_verdicts_is_registered_with_the_auto_migrator():
     """The table joined _MIGRATED_ARCHIVE_MODELS when it gained its first
     model-only column — otherwise grade_verdict would silently never reach

@@ -114,8 +114,11 @@ def _grouped_episodes(db, filters: dict):
 
     ``quality_label`` is the one filter that's mutable after insert (PATCH
     ``/setups/{id}/label``), so a grouping *selected by it* can go stale without
-    ``(max_id, count)`` moving. Bypass the cache when it's in play; every other
-    filter keys on immutable identity columns and is safe to cache.
+    ``(max_id, count)`` moving. Bypass the cache when it's in play. (A same-day
+    upsert can also rewrite ``score``/``ta_grade`` in place, but it always
+    REPLACES the day's row through the same writer — the stale window is one
+    re-scan of the same day, accepted.) Every other filter keys on immutable
+    identity columns and is safe to cache.
     """
     # Default the equities scope EXPLICITLY here (not only via _apply_setup_filters'
     # param default) so it lands in the cache key — otherwise the default

@@ -218,10 +218,15 @@ def test_trend_bases_dedup_rule_skips_non_chronological_starts(monkeypatch):
     assert out["inter_base_width_ratio"] == pytest.approx(0.05 / 0.10)
 
 
-def test_trend_bases_count_saturates_at_the_cap(monkeypatch):
-    # Five walkable predecessors, cap 4: the walk STOPS once 1+len == cap —
-    # count = TREND_BASE_COUNT_CAP, and the ratio uses the last ADMITTED
-    # width (the walk never pays past saturation).
+def test_trend_bases_count_saturates_but_the_ratio_stays_honest(monkeypatch):
+    # Five walkable predecessors (widths (i+1)*0.01), cap 4: the COUNT
+    # saturates at the cap, but the walk keeps paying to the segment's right
+    # edge so the ratio compares against the TRUE most recent predecessor
+    # (width 0.05) — the old cap break truncated the enumeration exactly
+    # where the most recent predecessor lives, so saturated rows (the
+    # strongest names) archived a ratio against the wrong base (2026-08-08
+    # review, finding 8; the old pinned expectation was 0.01/0.03 — the
+    # third-oldest base, not the most recent).
     _covering_up_segment(monkeypatch)
     roots = [5, 15, 25, 35, 45]
     boxes = {r: _FakeBox(10.0 + (i + 1) * 0.1, 10.0, r + 2)
@@ -231,9 +236,24 @@ def test_trend_bases_count_saturates_at_the_cap(monkeypatch):
                                      elected_start_bar=100,
                                      elected_width=0.01)
     assert out["trend_base_count"] == settings.TREND_BASE_COUNT_CAP
-    admitted = settings.TREND_BASE_COUNT_CAP - 1
-    last_width = ((10.0 + admitted * 0.1) - 10.0) / 10.0
-    assert out["inter_base_width_ratio"] == pytest.approx(0.01 / last_width)
+    assert out["inter_base_width_ratio"] == pytest.approx(0.01 / 0.05)
+
+
+def test_trend_bases_budget_truncated_walk_emits_no_ratio(monkeypatch):
+    # More walkable roots than TREND_BASE_WALK_MAX_ROOTS: the enumeration
+    # never reaches the segment's right edge, so the most recent predecessor
+    # is UNKNOWN — the count still saturates, the ratio is ABSENT, never a
+    # value measured against whatever base the truncation happened to stop at.
+    _covering_up_segment(monkeypatch)
+    budget = int(settings.TREND_BASE_WALK_MAX_ROOTS)
+    roots = [5 + 3 * i for i in range(budget + 3)]
+    boxes = {r: _FakeBox(11.0, 10.0, r + 1) for r in roots}
+    _scripted_bricks(monkeypatch, roots, boxes)
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 300), 1.0,
+                                     elected_start_bar=250,
+                                     elected_width=0.05)
+    assert out["trend_base_count"] == settings.TREND_BASE_COUNT_CAP
+    assert out["inter_base_width_ratio"] is None
 
 
 def test_trend_bases_no_predecessor_ratio_is_null_never_one(monkeypatch):

@@ -555,7 +555,10 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
         bounded by TREND_BASE_WALK_MAX_ROOTS root attempts;
       * widths compare in the SAME units — raw (R-S)/S fractions on BOTH
         sides — and the ratio is elected / most-recent-predecessor (a
-        tighter current base reads < 1);
+        tighter current base reads < 1). The walk runs its full root budget
+        even after the count saturates, so the last admission truly IS the
+        most recent predecessor; a walk the budget truncated emits NO ratio
+        (the real predecessor may lie beyond the truncation);
       * no predecessor → ratio None — never 1.0, never infinity;
       * the labelling refusing entirely → the WHOLE measurement is absent
         (None, None) — a fabricated count never archives.
@@ -582,6 +585,17 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
             covering = seg              # the LATEST covering up-segment wins
     widths: list = []
     cap = int(settings.TREND_BASE_COUNT_CAP)
+    # True only when the enumeration genuinely reached the segment's right
+    # edge (find_root_swing returned None). The walk runs the FULL root
+    # budget even after the count saturates — the ratio's contract is
+    # "elected / MOST-RECENT predecessor", and the old cap break truncated
+    # the RIGHT end of the enumeration, exactly where the most recent
+    # predecessor lives, so saturated rows (the strongest names) archived a
+    # ratio against the wrong base (2026-08-08 review, finding 8). A walk
+    # the root BUDGET truncated never emits a ratio: absent, not a guess.
+    # Cost: bounded by the same TREND_BASE_WALK_MAX_ROOTS the task-8 timing
+    # certified (0.54 ms max/fire IS the full-budget case).
+    walk_reached_right_edge = False
     if covering is not None:
         sub = df.iloc[int(covering["start_bar"]):start]
         if len(sub) >= int(settings.MIN_BASE_DAYS):
@@ -589,10 +603,9 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
             last_admitted_start = -1
             search_from = 0
             for _ in range(int(settings.TREND_BASE_WALK_MAX_ROOTS)):
-                if 1 + len(widths) >= cap:
-                    break               # grading value saturated — stop paying
                 root = bricks.find_root_swing(sub, search_from, atr_val)
                 if root is None:
+                    walk_reached_right_edge = True
                     break
                 search_from = int(root.climax_bar) + 1
                 box = bricks.validate_equilibrium(sub, root, atr_val)
@@ -609,7 +622,7 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
                 widths.append(width)
                 last_admitted_start = box_start
     out["trend_base_count"] = min(cap, 1 + len(widths))
-    if widths:
+    if widths and walk_reached_right_edge:
         try:
             ew = float(elected_width)
         except (TypeError, ValueError):

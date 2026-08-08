@@ -138,8 +138,12 @@ def measure_lps_contraction(tests, window_highs, window_lows, atr_val) -> dict:
             continue
         if np.isfinite(value):
             ranges.append(value)
+    # Floored at 2: _non_rising_fraction divides by len-1, so a knob set to 1
+    # (a plausible operator experiment) must read ABSENT, never divide by
+    # zero inside the flag block (the _ramp degenerate-band precedent).
+    min_tests = max(2, int(settings.LPS_SHRINK_MIN_TESTS))
     shrink = (_non_rising_fraction(ranges)
-              if len(ranges) >= int(settings.LPS_SHRINK_MIN_TESTS) else None)
+              if len(ranges) >= min_tests else None)
 
     classification = None
     if (window_highs is not None and window_lows is not None
