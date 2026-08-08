@@ -109,6 +109,25 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert kwargs["score_spring"] == pytest.approx(row["_score_spring"])
     assert kwargs["puzzle_completeness"] == fam_live["puzzle_completeness"]
 
+    # 6. The wire leg (task 9): the REAL payload builder serializes the v2
+    #    block from the same fired row — resolved, display-rounded verdicts
+    #    (EC-28), the archive keeping full precision.
+    import pandas as pd
+    from output import dashboard as dashboard_module
+    monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker",
+                        lambda *_a: None)
+    monkeypatch.setattr(settings, "DASHBOARD_CHART_TIERS", [row["Tier"]],
+                        raising=False)
+    frames, _ = shadow_diff._load_fixture()
+    chart = dashboard_module._extract_chart_data(
+        {ticker: frames[ticker]}, pd.DataFrame([row]), [ticker, "_pad"])[ticker]
+    assert chart["ta_grade"] == round(row["_ta_grade"], 1)
+    assert chart["ta_grade_raw"] == round(row["_ta_grade_raw"], 2)
+    assert tuple(chart["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
+    assert chart["trend_base_count"] == row["_trend_base_count"]
+    assert set(chart["sub_scores"]) >= set(
+        t.key for t in taxonomy.REGISTRY if t.present_when is None)
+
 
 def test_flag_off_cascade_emits_no_v2_fields(monkeypatch):
     """The same real cascade flag-OFF: not one v2 field on the result — the

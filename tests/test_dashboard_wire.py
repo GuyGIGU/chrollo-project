@@ -21,14 +21,17 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
 from config import settings
 from engine_alpha.scoring import taxonomy
+from engine_alpha.scoring.scoring import TA_GRADE_COLUMN_SQL
 from output import dashboard as dashboard_module
 
 
-def _flag_off_payload(monkeypatch):
-    """The per-ticker payload exactly as a flag-off scan would serialize it."""
+def _payload(monkeypatch, *, v2_overlay=None, flag=False):
+    """The per-ticker payload exactly as a scan would serialize it; an
+    optional overlay injects flag-on v2 result fields onto the row."""
     dates = pd.date_range("2026-01-01", periods=10, freq="B", name="Date")
     data = pd.DataFrame({
         "Open": np.linspace(10, 11, len(dates)),
@@ -44,7 +47,7 @@ def _flag_off_payload(monkeypatch):
         "high_proximity": 4.0, "breadth_bonus": 5.0, "contraction": 6.0,
         "ascending_support": 3.0, "adr": 4.0, "puzzle_quality": 5.0,
     }
-    results = pd.DataFrame([{
+    row = {
         "Ticker": "AAA",
         "Tier": "A",
         "Score": 100,
@@ -59,17 +62,19 @@ def _flag_off_payload(monkeypatch):
         "_r_anchor_bar": 2,
         "_s_anchor_bar": 3,
         "_sub_scores": sub_scores,
-    }])
+    }
+    row.update(v2_overlay or {})
+    results = pd.DataFrame([row])
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker",
                         lambda *_args: None)
-    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
+    monkeypatch.setattr(settings, "TA_SCORE_V2", flag)
     return dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
 
 
 def test_wire_flag_off_leaks_no_v2_keys(monkeypatch):
     """No reserved v2 key may reach the wire — top level or sub_scores — while
     TA_SCORE_V2 is off. Derives from the ONE settled vocabulary (task 1)."""
-    chart = _flag_off_payload(monkeypatch)
+    chart = _payload(monkeypatch)
     for k in taxonomy.V2_RESULT_KEYS:
         assert k not in chart, (
             f"v2 key {k!r} leaked onto the flag-off wire payload")
@@ -80,7 +85,7 @@ def test_wire_flag_off_leaks_no_v2_keys(monkeypatch):
 def test_wire_sub_scores_are_exactly_the_registry_emission(monkeypatch):
     """The served sub_scores key set equals the taxonomy's emitted keys — the
     wire cannot silently drop a registered term or invent an unregistered one."""
-    chart = _flag_off_payload(monkeypatch)
+    chart = _payload(monkeypatch)
     assert set(chart["sub_scores"]) == set(taxonomy.emitted_keys())
 
 
@@ -157,5 +162,102 @@ def test_wire_flag_off_key_set_snapshot(monkeypatch):
     """The exact flag-off wire key set — the boundary snapshot EC-8's
     byte-identical promise was missing. Any add/remove/rename fails here until
     the snapshot is updated deliberately in the same change."""
-    chart = _flag_off_payload(monkeypatch)
+    chart = _payload(monkeypatch)
     assert tuple(sorted(chart.keys())) == tuple(sorted(FLAG_OFF_WIRE_KEYS))
+
+
+# ── Task 9: the flag-ON v2 block + coverage/drift tripwires ─────────────────
+
+_V2_OVERLAY = {
+    "_ta_grade": 61.2345, "_ta_grade_raw": 104.777,
+    "_ta_grade_chapters": {ch: 12.345678 for ch in taxonomy.CHAPTER_ORDER},
+    "_ta_grade_warnings": {"terminal_drift": 0.8},
+    "_score_spring": 0.0, "_score_story_s_tests": 0.0,
+    "_score_story_r_rejections": 0.0, "_score_story_alternations": 0.0,
+    "_score_story_terminal_posture": 0.0,
+    "_lps_shrink_frac": 2.0 / 3.0, "_lps_window_classification": "clean_dip",
+    "_story_richness_rate": 0.123456, "_trend_base_count": 2,
+    "_inter_base_width_ratio": 0.512345,
+}
+
+
+def test_wire_flag_on_v2_block_serializes_rounded_fixed_arity(monkeypatch):
+    """Flag-ON the v2 block rides the payload: display-rounded ONCE here,
+    chapters exactly the ruled five, warnings a small dict — fixed arity
+    only, nothing that grows with the chart."""
+    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY, flag=True)
+    assert chart["ta_grade"] == 61.2                    # 1dp headline
+    assert chart["ta_grade_raw"] == 104.78              # 2dp raw
+    assert tuple(chart["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
+    assert all(v == 12.35 for v in chart["ta_grade_chapters"].values())
+    assert chart["ta_grade_warnings"] == {"terminal_drift": 0.8}
+    assert chart["lps_shrink_frac"] == 0.6667           # 4dp measurement
+    assert chart["lps_window_classification"] == "clean_dip"
+    assert chart["story_richness_rate"] == 0.1235
+    assert chart["trend_base_count"] == 2
+    assert chart["inter_base_width_ratio"] == 0.5123
+    assert chart["score_spring"] == 0.0
+
+
+def test_wire_covers_every_registry_term_and_family_column(monkeypatch):
+    """The 6th-copy disease dies structurally: every ALWAYS-EMITTED registry
+    term reaches the wire through sub_scores (a registry iteration now, never
+    a hand tuple), and every flag-gated term column + family column reaches
+    it through the v2 block. A TermSpec without wire coverage fails HERE at
+    add time."""
+    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY, flag=True)
+    for t in taxonomy.REGISTRY:
+        if t.present_when is None:
+            assert t.key in chart["sub_scores"], (
+                f"always-emitted term {t.key!r} missing from sub_scores")
+        else:
+            assert t.column in chart, (
+                f"flag-gated term column {t.column!r} missing from the v2 block")
+    for col in TA_GRADE_COLUMN_SQL:
+        if col.startswith("puzzle_"):
+            continue        # the puzzle grades ride the archive, not this wire block
+        assert col in chart, f"family column {col!r} missing from the v2 block"
+
+
+def test_setupout_covers_every_term_and_family_column():
+    """SetupOut drift-tripwire: a registry term or family column the archive
+    API cannot serve fails at add time (the ArchiveSummary 7th-copy lesson)."""
+    from routers.archive_schemas import SetupOut
+    fields = set(SetupOut.model_fields)
+    for t in taxonomy.REGISTRY:
+        assert t.column in fields, f"SetupOut is missing {t.column!r}"
+    for col in TA_GRADE_COLUMN_SQL:
+        assert col in fields, f"SetupOut is missing family column {col!r}"
+
+
+def test_min_ta_grade_filter_excludes_ungraded_rows():
+    """The grade's OWN filter: min_score keeps raw-sum semantics forever; a
+    ta_grade floor excludes graded-below AND pre-v2 NULL rows (three-valued
+    logic, deliberately — an ungraded row can never satisfy a grade floor)."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from database import Base
+    from archive_models import SetupArchive
+    from services.archive_queries import _apply_setup_filters
+
+    eng = create_engine("sqlite://")
+    Base.metadata.create_all(eng)
+    session = sessionmaker(bind=eng)()
+
+    def _row(ticker, grade):
+        return SetupArchive(
+            ticker=ticker, scan_date="2026-08-01", setup_type="LPS",
+            tier="B", score=90.0, current_price=10.0, r_level=11.0,
+            s_level=9.5, trigger_price=11.1, base_length=30, box_width=0.1,
+            touches=4, atr_ratio=0.5, lps_length=3, breach_days=0,
+            vol_contraction=0.4, tightness_ratio=0.4, ta_grade=grade)
+
+    session.add_all([_row("HIGRD", 71.0), _row("LOGRD", 40.0),
+                     _row("PREV2", None)])
+    session.commit()
+    got = {r.ticker for r in _apply_setup_filters(
+        session.query(SetupArchive), min_ta_grade=50.0).all()}
+    assert got == {"HIGRD"}
+    unfiltered = {r.ticker for r in _apply_setup_filters(
+        session.query(SetupArchive)).all()}
+    assert unfiltered == {"HIGRD", "LOGRD", "PREV2"}

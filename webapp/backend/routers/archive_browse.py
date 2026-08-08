@@ -44,6 +44,8 @@ def list_setups(
     source: Optional[str] = Query(None),
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
+    min_ta_grade: Optional[float] = Query(
+        None, description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(
@@ -58,6 +60,7 @@ def list_setups(
         db.query(SetupArchive),
         tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
+        min_ta_grade=min_ta_grade,
         date_from=date_from, date_to=date_to,
         universe_type=_resolve_universe_type(universe_type),
     )
@@ -76,6 +79,8 @@ def list_episodes(
     source: Optional[str] = Query(None),
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
+    min_ta_grade: Optional[float] = Query(
+        None, description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(
@@ -96,6 +101,7 @@ def list_episodes(
     eps, row_by_id, passed_notes = _episode_context(
         db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
+        min_ta_grade=min_ta_grade,
         date_from=date_from, date_to=date_to,
         universe_type=_resolve_universe_type(universe_type),
     )

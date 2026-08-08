@@ -22,6 +22,7 @@ def _apply_setup_filters(
     source: Optional[str] = None,
     quality_label: Optional[str] = None,
     min_score: Optional[float] = None,
+    min_ta_grade: Optional[float] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE,
@@ -50,6 +51,12 @@ def _apply_setup_filters(
         q = q.filter(SetupArchive.quality_label == quality_label)
     if min_score is not None:
         q = q.filter(SetupArchive.score >= min_score)
+    # The grade's OWN filter (task 9): min_score keeps raw-sum semantics
+    # FOREVER (the two scales are incommensurable); a ta_grade threshold
+    # excludes pre-v2 NULL rows by SQL three-valued logic — deliberately
+    # (an ungraded row can never satisfy a grade floor).
+    if min_ta_grade is not None:
+        q = q.filter(SetupArchive.ta_grade >= min_ta_grade)
     if date_from:
         q = q.filter(SetupArchive.scan_date >= date_from)
     if date_to:
