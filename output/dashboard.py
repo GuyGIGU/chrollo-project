@@ -421,6 +421,10 @@ def _extract_chart_data(data, results_df, tickers):
                         ch: round(float(v), 2)
                         for ch, v in (row.get('_ta_grade_chapters') or {}).items()
                     },
+                    'ta_grade_chapter_fractions': {
+                        ch: round(float(v), 4)
+                        for ch, v in (row.get('_ta_grade_chapter_fractions') or {}).items()
+                    },
                     'ta_grade_warnings': row.get('_ta_grade_warnings') or {},
                     'score_spring': _round_opt(row.get('_score_spring'), 2),
                     'score_story_s_tests': _round_opt(row.get('_score_story_s_tests'), 2),

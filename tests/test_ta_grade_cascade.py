@@ -58,6 +58,9 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert sum(chapters.values()) == pytest.approx(
         row["_ta_grade_raw"] * 100.0 / cap_sum, abs=1e-9)
     assert isinstance(row["_ta_grade_warnings"], dict)
+    fractions = row["_ta_grade_chapter_fractions"]
+    assert tuple(fractions) == taxonomy.CHAPTER_ORDER
+    assert all(0.0 <= v <= 1.0 for v in fractions.values())
     for term in taxonomy.ta_layer_terms():
         if term.present_when == "TA_SCORE_V2":
             assert ("_" + term.column) in row, (

@@ -87,7 +87,10 @@ CHAPTER_ORDER: tuple[str, ...] = ("cause", "work", "turn", "finish", "trend_cont
 # (Replaces the pre-chapter reserved names ta_structure_score / context_score /
 # ta_score_v2 — retired unserialized 2026-08-08; structure_tier carries over.)
 V2_RESULT_KEYS: tuple[str, ...] = (
-    "ta_grade", "ta_grade_raw", "ta_grade_chapters", "ta_grade_warnings",
+    "ta_grade", "ta_grade_raw", "ta_grade_chapters",
+    "ta_grade_chapter_fractions",   # per-chapter earned fraction (task 12) —
+                                    # the strip's fill, resolved engine-side
+    "ta_grade_warnings",
     "structure_tier", "fired_tags", "regime_label",
 )
 

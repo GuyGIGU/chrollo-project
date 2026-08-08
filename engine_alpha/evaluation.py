@@ -637,7 +637,8 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         # their registry column names (_score_<key>) so every writer maps
         # them by the same per-term literal route as their v1 siblings.
         _grade_family = ("ta_grade", "ta_grade_raw",
-                         "ta_grade_chapters", "ta_grade_warnings")
+                         "ta_grade_chapters", "ta_grade_chapter_fractions",
+                         "ta_grade_warnings")
         ta_grade_fields = {
             ("_" + k) if k in _grade_family else ("_score_" + k): v
             for k, v in _grade.items()

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatScore } from '../utils/scoreFormat';
 
 import { ScoreBreakdownPills } from './ScoreBreakdown';
+import { TaGradePanel } from './TaGradePanel';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import {
@@ -538,7 +539,7 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   );
 }
 
-function TagsPanel({ data }) {
+function TagsPanel({ data, onRegionChange }) {
   const read = triggerRead(distanceToTriggerPct(data));
   return (
     <section className="stock-lens-section">
@@ -551,7 +552,14 @@ function TagsPanel({ data }) {
         maxTags={null}
         style={{ padding: 0 }}
       />
-      <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
+      {/* Dual-epoch (task 12): a graded payload shows the 0-100 + chapter
+          strip; a pre-v2 payload keeps the legacy Visual/Market pills. The
+          pills' JSX+CSS delete as one unit at the flag's retirement. */}
+      {data.ta_grade != null ? (
+        <TaGradePanel data={data} onRegionChange={onRegionChange} />
+      ) : (
+        <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
+      )}
     </section>
   );
 }
@@ -574,7 +582,7 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
             ticker={ticker}
           />
         ) : null}
-        <TagsPanel data={data} />
+        <TagsPanel data={data} onRegionChange={onRegionChange} />
       </div>
     </div>
   );

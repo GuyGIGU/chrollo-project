@@ -94,6 +94,21 @@ components:
     rounded: "4px"
     height: "18px"
     padding: "0 6px"
+  # TA-grade panel (build task 12; supersedes the Visual/Market pill pair at
+  # the flip — the pills survive only for pre-v2 payloads until retirement).
+  # The 0-100 is the lens's single dominant datum: mono/tabular, permanent
+  # "/100" scale marker (it must never be misread as the legacy raw score).
+  # The chapter strip beneath it keeps EQUAL-width segments in the ruled
+  # story order (cause→work→turn→finish→trend, never points-sorted); fill =
+  # the engine-resolved earned fraction, so an A/B reweight moves fills,
+  # never the layout. Chromatically neutral (accent-blue fills, muted
+  # labels); NO chapter or HTF element may wear a tier hue (Tier-Reserve);
+  # warnings keep the only hot treatment, as labeled line items with cost.
+  ta-grade-panel:
+    headline: "{typography.mono} 26px/800 + /100 marker in text-faint 12px"
+    strip: "5 equal columns, 5px bars, fill {colors.accent-blue}"
+    caveats: "narrativeRead three-state wording, text-faint 9px"
+    warnings: "warning tint chips, the panel's only hot hue"
   status-pill:
     textColor: "{colors.text-main}"
     rounded: "{rounded.pill}"

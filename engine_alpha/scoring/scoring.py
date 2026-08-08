@@ -427,11 +427,22 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
         factor *= f
     if warnings:
         factor = max(float(settings.TA_GRADE_WARNING_FLOOR), factor)
+    # Per-chapter earned fraction (task 12): chapter points / the chapter's
+    # own cap sum, resolved HERE so the display never re-derives caps
+    # (EC-28). This is the chapter strip's FILL — the segments themselves
+    # stay equal-width (weight-independent geometry), so an A/B reweight
+    # moves the fill, never the panel's shape.
+    chapter_caps = {ch: 0.0 for ch in taxonomy.CHAPTER_ORDER}
+    for term in taxonomy.ta_layer_terms():
+        chapter_caps[term.chapter] += term.cap()
     out = {
         'ta_grade_raw': raw,
         'ta_grade': pre * factor,
         'ta_grade_chapters': {ch: chapters[ch] * scale
                               for ch in taxonomy.CHAPTER_ORDER},
+        'ta_grade_chapter_fractions': {
+            ch: (chapters[ch] / chapter_caps[ch] if chapter_caps[ch] > 0 else 0.0)
+            for ch in taxonomy.CHAPTER_ORDER},
         'ta_grade_warnings': warnings,
     }
     out.update(v2)

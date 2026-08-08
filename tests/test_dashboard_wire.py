@@ -171,6 +171,7 @@ def test_wire_flag_off_key_set_snapshot(monkeypatch):
 _V2_OVERLAY = {
     "_ta_grade": 61.2345, "_ta_grade_raw": 104.777,
     "_ta_grade_chapters": {ch: 12.345678 for ch in taxonomy.CHAPTER_ORDER},
+    "_ta_grade_chapter_fractions": {ch: 0.654321 for ch in taxonomy.CHAPTER_ORDER},
     "_ta_grade_warnings": {"terminal_drift": 0.8},
     "_score_spring": 0.0, "_score_story_s_tests": 0.0,
     "_score_story_r_rejections": 0.0, "_score_story_alternations": 0.0,
@@ -191,6 +192,8 @@ def test_wire_flag_on_v2_block_serializes_rounded_fixed_arity(monkeypatch):
     assert tuple(chart["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
     assert all(v == 12.35 for v in chart["ta_grade_chapters"].values())
     assert chart["ta_grade_warnings"] == {"terminal_drift": 0.8}
+    assert tuple(chart["ta_grade_chapter_fractions"]) == taxonomy.CHAPTER_ORDER
+    assert all(v == 0.6543 for v in chart["ta_grade_chapter_fractions"].values())
     assert chart["lps_shrink_frac"] == 0.6667           # 4dp measurement
     assert chart["lps_window_classification"] == "clean_dip"
     assert chart["story_richness_rate"] == 0.1235

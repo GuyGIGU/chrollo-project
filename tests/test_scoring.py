@@ -629,6 +629,13 @@ def test_compose_grade_chapters_partition_the_one_sum(v2_on):
     # the _sub ta-layer values sum to 107.0; breadth's 6.0 is excluded; story
     # terms absent contribute 0 against the FIXED divisor.
     assert grid[0]["ta_grade_raw"] == pytest.approx(107.0)
+    # Per-chapter earned fractions (task 12): bounded, fixed arity, and the
+    # cause anchor by hand — cause points 15+14=29 of its 44-cap = 29/44.
+    for out in grid:
+        fr = out["ta_grade_chapter_fractions"]
+        assert tuple(fr) == taxonomy.CHAPTER_ORDER
+        assert all(0.0 <= v <= 1.0 for v in fr.values())
+    assert grid[0]["ta_grade_chapter_fractions"]["cause"] == pytest.approx(29.0 / 44.0)
     assert grid[0]["ta_grade"] == pytest.approx(107.0 * 100.0 / cap_sum)
     # The all-absent row is a finite geometry-only baseline, not NaN.
     assert grid[3]["ta_grade"] == 0.0 and grid[3]["ta_grade_raw"] == 0.0
