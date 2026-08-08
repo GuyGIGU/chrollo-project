@@ -219,6 +219,21 @@ _MIGRATIONS = [
     # live in marks_validity (SQLite can't retrofit CHECKs onto the live corpus DB).
     "ALTER TABLE calibration_marks ADD COLUMN trigger_date VARCHAR",
     "ALTER TABLE calibration_marks ADD COLUMN trigger_price FLOAT",
+    # Retired vocabulary — "puzzle quality" became "setup quality" (operator
+    # ruling 2026-08-09). The four pre-rename columns were added 2026-08-08 and
+    # never carried a value: no scan ran between the add and the rename, so the
+    # retirement destroys nothing (verified 0 non-NULL across all 9,575 rows and
+    # all three sources). Their replacements are the model-declared setup_*
+    # columns the ADD-only pass below supplies — and it runs after this list, so
+    # a pre-rename DB lands on the right schema in one boot. Recorded here rather
+    # than only hand-run because a DB restored from a pre-rename backup (the kept
+    # pre-journal-wipe file still carries them) would otherwise resurrect them
+    # permanently — the ADD-only auto-migrator can never remove a column.
+    # Idempotent: "no such column" on an already-clean DB reads as applied.
+    "ALTER TABLE setup_archive DROP COLUMN puzzle_completeness",
+    "ALTER TABLE setup_archive DROP COLUMN puzzle_chronology",
+    "ALTER TABLE setup_archive DROP COLUMN puzzle_upthrust_terminal",
+    "ALTER TABLE setup_archive DROP COLUMN score_puzzle_quality",
 ]
 
 _log = logging.getLogger("chrollo.migrate")
