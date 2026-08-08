@@ -27,13 +27,23 @@ def test_analyze_sub_scores_are_registry_sourced():
     assert len(SUB_SCORES) == len(set(SUB_SCORES))   # no dupes
 
 
-def test_persisted_columns_follow_score_prefix_convention():
-    # Every persisted column is 'score_' + its result key. Combined with the
-    # engine anchor (test_taxonomy_emitted_keys_match_score_setup_output), this ties
-    # the registry's columns back to real score_setup output, not just to itself.
+def test_every_term_persists_and_follows_the_score_prefix_convention():
+    # THE MANDATE (task 5): a registry term cannot exist without a persisted
+    # archive column — puzzle_quality scored invisibly for weeks because its
+    # column was "a later add"; that class of breach is refused here. And every
+    # column is 'score_' + its result key, tying the registry's columns back to
+    # real score_setup / compose output, not just to itself.
+    from archive_models import SetupArchive
+    model_cols = set(SetupArchive.__table__.columns.keys())
     for term in taxonomy.REGISTRY:
-        if term.column is not None:
-            assert term.column == f"score_{term.key}"
+        assert term.column is not None, (
+            f"term {term.key!r} has no archive column — a registered term "
+            "persists at add time (the puzzle_quality breach, refused)")
+        assert term.column == f"score_{term.key}"
+        assert term.column in model_cols, (
+            f"term {term.key!r} declares column {term.column!r} which does "
+            "not exist on SetupArchive — add the model column in the same "
+            "change as the registry entry")
 
 
 def test_every_cap_setting_resolves_to_a_number():

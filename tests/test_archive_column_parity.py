@@ -59,6 +59,7 @@ import pytest  # noqa: E402
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
+from engine_alpha.scoring.scoring import ta_grade_archive_values  # noqa: E402
 from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
 from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
@@ -171,6 +172,11 @@ def _event_map_cols(*, prefixed: bool) -> frozenset[str]:
         event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _ta_grade_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _election_trace_cols(*, prefixed: bool) -> frozenset[str]:
     return frozenset(
         election_trace_archive_values((lambda _k: None), prefixed=prefixed).keys())
@@ -214,12 +220,14 @@ def _scan_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "ta_grade_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (literal | _htf_cols(prefixed=True)
             | _event_map_cols(prefixed=True)
+            | _ta_grade_cols(prefixed=True)
             | _election_trace_cols(prefixed=True)
             | _strategy_cols(prefixed=True) | _sector_rank_cols())
 
@@ -231,12 +239,14 @@ def _seed_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "ta_grade_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
             | _event_map_cols(prefixed=False)
+            | _ta_grade_cols(prefixed=False)
             | _election_trace_cols(prefixed=False)
             | _strategy_cols(prefixed=False) | _fwd_return_cols())
 

@@ -192,6 +192,11 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "score_contraction": sub.get("contraction"),
         "score_ascending_support": sub.get("ascending_support"),
         "score_adr": sub.get("adr"),
+        # E3 puzzle term points — nested like its siblings above. The rest of
+        # the TA-grade family (ta_grade pair, puzzle grades, score_spring /
+        # score_story_*) is FLAT on the adapted result and auto-fills through
+        # archive_row_from_result's model pass — no edit needed here.
+        "score_puzzle_quality": sub.get("puzzle_quality"),
         # Coercions (nullable 0/1)
         "bin_c_present": (int(bool(result.get("bin_c_present")))
                           if result.get("bin_c_present") is not None else None),

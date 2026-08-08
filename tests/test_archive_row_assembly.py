@@ -59,6 +59,7 @@ import pytest  # noqa: E402
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
+from engine_alpha.scoring.scoring import ta_grade_archive_values  # noqa: E402
 from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
 from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
@@ -130,6 +131,12 @@ def _htf_splat_keys(*, prefixed: bool) -> frozenset[str]:
     return frozenset(htf_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _ta_grade_splat_keys(*, prefixed: bool) -> frozenset[str]:
+    """Columns the TA-grade family ``**`` splat contributes (hermetic)."""
+    return frozenset(
+        ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _event_map_splat_keys(*, prefixed: bool) -> frozenset[str]:
     """Columns the Event Map ``**`` splat contributes (driven hermetically)."""
     return frozenset(
@@ -194,6 +201,7 @@ def test_writer_values_dict_is_subset_of_model_columns():
     # 2. The **splats are the ones we resolve hermetically below (fail loudly if
     #    a new/renamed splat appears so the guard is extended, not silently blind).
     assert set(splats) == {"htf_archive_values", "event_map_archive_values",
+                           "ta_grade_archive_values",
                            "election_trace_archive_values",
                            "strategy_archive_values",
                            "sector_rank_columns"}, (
@@ -202,6 +210,7 @@ def test_writer_values_dict_is_subset_of_model_columns():
     )
     splat_cols = (_htf_splat_keys(prefixed=True)
                   | _event_map_splat_keys(prefixed=True)
+                  | _ta_grade_splat_keys(prefixed=True)
                   | _election_trace_splat_keys(prefixed=True)
                   | _strategy_splat_keys(prefixed=True)
                   | _sector_rank_splat_keys())
@@ -256,6 +265,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
     # 3. The **splats inside overrides are the ones we resolve hermetically (fail
     #    loudly on a new/renamed splat so the guard is extended, not blind).
     assert set(splats) == {"htf_archive_values", "event_map_archive_values",
+                           "ta_grade_archive_values",
                            "election_trace_archive_values",
                            "strategy_archive_values", "fwd_returns"}, (
         f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
@@ -263,6 +273,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
     )
     splat_cols = (_htf_splat_keys(prefixed=False)
                   | _event_map_splat_keys(prefixed=False)
+                  | _ta_grade_splat_keys(prefixed=False)
                   | _election_trace_splat_keys(prefixed=False)
                   | _strategy_splat_keys(prefixed=False)
                   | _fwd_return_splat_keys())

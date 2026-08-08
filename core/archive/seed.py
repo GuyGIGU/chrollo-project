@@ -34,6 +34,7 @@ from engine_alpha.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from engine_alpha.scoring.scoring import ta_grade_archive_values
 from engine_alpha.structure.event_map import event_map_archive_values
 from engine_alpha.structure.htf import htf_archive_values
 from engine_alpha.structure.strategy_read import strategy_archive_values
@@ -401,6 +402,16 @@ def seed_archive(
             score_contraction=sub.get("contraction"),
             score_ascending_support=sub.get("ascending_support"),
             score_adr=sub.get("adr"),
+            # E3 puzzle term points (v1, scored on every row; archived since
+            # the task-5 breach close)
+            score_puzzle_quality=sub.get("puzzle_quality"),
+            # Flag-gated v2 term points — flat on the adapted result (the
+            # eval chain emits archive-ready _score_* names); NULL while dark
+            score_spring=best_result.get("score_spring"),
+            score_story_s_tests=best_result.get("score_story_s_tests"),
+            score_story_r_rejections=best_result.get("score_story_r_rejections"),
+            score_story_alternations=best_result.get("score_story_alternations"),
+            score_story_terminal_posture=best_result.get("score_story_terminal_posture"),
             # int(bool(...)) coercions (nullable 0/1)
             bin_c_present=(int(bool(best_result.get("bin_c_present")))
                            if best_result.get("bin_c_present") is not None else None),
@@ -443,6 +454,9 @@ def seed_archive(
             **htf_archive_values(best_result.get, prefixed=False),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
+            # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
+            # + the three puzzle grades (NULL when the narrative abstained)
+            **ta_grade_archive_values(best_result.get, prefixed=False),
             # Election-trace evidence — NULL when the export flag is off
             **election_trace_archive_values(best_result.get, prefixed=False),
             # Strategy read (held-through-correction) — NULL when dark

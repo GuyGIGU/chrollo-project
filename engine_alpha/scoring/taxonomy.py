@@ -2,7 +2,9 @@
 
 One ordered registry of every scoring sub-score term. For each term it records:
   - ``key``          the ``score_setup`` result-dict key,
-  - ``column``       the ``setup_archive`` column (``None`` = not persisted yet),
+  - ``column``       the ``setup_archive`` column (MANDATORY since task 5:
+                     every registered term persists — a term without a column
+                     is the puzzle_quality breach again, refused by test),
   - ``cap_setting``  the ``config.settings`` attribute holding its point cap,
   - ``layer``        ``'ta'``  = part of the 0-100 Technical Analysis Grade / tier,
                      ``'regime'`` = market-state, EXCLUDED from the grade (label only),
@@ -33,7 +35,7 @@ from config import settings
 @dataclass(frozen=True)
 class TermSpec:
     key: str                          # score_setup result-dict key
-    column: Optional[str]             # setup_archive column (None = not persisted yet)
+    column: Optional[str]             # setup_archive column (mandatory — see docstring)
     cap_setting: str                  # config.settings attribute holding the point cap
     layer: str                        # 'ta' (in the TA Grade + tier) | 'regime' (label only)
     kind: str                         # structural | context | puzzle | tag | warning | new_term
@@ -108,24 +110,24 @@ REGISTRY: tuple[TermSpec, ...] = (
     TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="turn"),
     TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend_context"),
     # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
-    # its archive column is a Wave-2 add (design P3). Chapter: the puzzle grades
+    # archived since task 5 (the measure-first breach closed). Chapter: the puzzle grades
     # the completeness of the told story — the work the range did.
-    TermSpec("puzzle_quality",    None,                      "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="work"),
+    TermSpec("puzzle_quality",    "score_puzzle_quality",    "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="work"),
     # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
     # appends it after the always-on terms, so it sits last here to keep the
     # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's
     # A/B assigns weights; its archive column is a task-5 add.
-    TermSpec("spring",            None,                      "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="turn"),
+    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="turn"),
     # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
     # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
     # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
     # columns are a task-5 add. They consume the archived as-of scalars ONLY
     # (completed counts + right-edge stance) — never the tape, never the
     # profile sentence (AP-8; nothing re-derives counts downstream).
-    TermSpec("story_s_tests",          None,                 "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_r_rejections",     None,                 "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_alternations",     None,                 "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
-    TermSpec("story_terminal_posture", None,                 "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="finish"),
+    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="work"),
+    TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="finish"),
 )
 
 

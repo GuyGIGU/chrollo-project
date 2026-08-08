@@ -631,7 +631,16 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             has_spring=bool(bins.get("bin_c_present")),
             event_map=_em_scalars or None,
         )
-        ta_grade_fields = {"_" + k: v for k, v in _grade.items()}
+        # Archive-ready field names, mapped in this ONE place: the grade
+        # family keeps its own names (_ta_grade*); per-term v2 points take
+        # their registry column names (_score_<key>) so every writer maps
+        # them by the same per-term literal route as their v1 siblings.
+        _grade_family = ("ta_grade", "ta_grade_raw",
+                         "ta_grade_chapters", "ta_grade_warnings")
+        ta_grade_fields = {
+            ("_" + k) if k in _grade_family else ("_score_" + k): v
+            for k, v in _grade.items()
+        }
 
     # Election stability (measure-only, flag-dark): does the elected reading
     # survive backward eval-day shifts? Real structures persist, junk flickers

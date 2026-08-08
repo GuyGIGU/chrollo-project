@@ -737,6 +737,47 @@ def test_compose_never_reads_the_tape(v2_on):
         compose_ta_grade(_sub(), event_map=_em())
 
 
+# --- Task 5: the TA-grade archive family extraction -----------------------------
+
+def test_ta_grade_archive_values_null_through_when_dark():
+    """A flag-dark row (no _ta_grade / _puzzle_* fields) archives the whole
+    family as NULL — never zero (NULL = not measured, the pre-flip contract)."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    out = ta_grade_archive_values((lambda _k: None), prefixed=True)
+    assert set(out) == {"ta_grade", "ta_grade_raw", "puzzle_completeness",
+                        "puzzle_chronology", "puzzle_upthrust_terminal"}
+    assert all(v is None for v in out.values())
+
+
+def test_ta_grade_archive_values_scrubs_and_coerces():
+    """EC-2 at the pandas boundary: NaN scrubs to NULL; INTEGER cells land as
+    plain ints (bools on the 0/1 convention); floats pass at full precision."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    row = {"_ta_grade": 61.5, "_ta_grade_raw": float("nan"),
+           "_puzzle_completeness": 3.0, "_puzzle_chronology": "partial",
+           "_puzzle_upthrust_terminal": True}
+    out = ta_grade_archive_values(row.get, prefixed=True)
+    assert out["ta_grade"] == 61.5
+    assert out["ta_grade_raw"] is None
+    assert out["puzzle_completeness"] == 3
+    assert isinstance(out["puzzle_completeness"], int)
+    assert out["puzzle_upthrust_terminal"] == 1
+    assert out["puzzle_chronology"] == "partial"
+
+
+def test_ta_grade_archive_values_refuses_illegal_chronology():
+    """EC-19/22 adapted for the write producer: every legal chronology value
+    passes through; an illegal label fails loudly and never lands."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    for legal in ("intact", "partial", "absent"):
+        out = ta_grade_archive_values({"puzzle_chronology": legal}.get,
+                                      prefixed=False)
+        assert out["puzzle_chronology"] == legal
+    with pytest.raises(ValueError, match="closed set"):
+        ta_grade_archive_values({"puzzle_chronology": "Intact"}.get,
+                                prefixed=False)
+
+
 def test_compose_spring_term_is_present_mask_neutral(v2_on):
     """The spring term reads its registered cap when present, exactly 0.0 when
     absent — never negative, never demoting. Weight-agnostic: holds at the

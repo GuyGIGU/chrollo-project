@@ -431,6 +431,67 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
     return out
 
 
+# ── TA-grade archive family (build task 5) ───────────────────────────────────
+# The grade pair + the three puzzle grades, archived by ONE extraction both
+# writers splat (the event_map_archive_values precedent — never a re-declared
+# field list). The per-term score_* columns (score_spring, score_story_*,
+# score_puzzle_quality) deliberately take the established per-term LITERAL
+# route in the three writers instead: the seed pinning guard
+# (tests/test_archive_column_parity.py) requires every score_* column as an
+# explicit overrides key, and double-providing a key from both a literal and
+# a splat is a TypeError in dict().
+#
+# NULL contracts (written per Leach's rule — the ALTER migration strips
+# CHECK/NOT NULL, so the operative constraint lives HERE and in the tests):
+#   ta_grade / ta_grade_raw   NULL = flag-off / pre-flip row (never zero);
+#                             FULL-precision floats, rounding is display-only.
+#   puzzle_completeness       NULL = narrative abstained; explicit 0 = a read
+#                             that found no pieces (evidence).
+#   puzzle_chronology         closed set {intact, partial, absent} or NULL —
+#                             refused at write below (fresh-DB CHECK in the
+#                             model is documentation + defence only).
+#   puzzle_upthrust_terminal  0/1 or NULL (narrative abstained).
+TA_GRADE_COLUMN_SQL: dict[str, str] = {
+    "ta_grade": "REAL",
+    "ta_grade_raw": "REAL",
+    "puzzle_completeness": "INTEGER",
+    "puzzle_chronology": "TEXT",
+    "puzzle_upthrust_terminal": "INTEGER",
+}
+
+PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
+
+
+def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
+    """Map a result row to the family's {column: value} archive dict. ``get``
+    is the row's ``.get``; the LIVE result carries ``_``-prefixed keys
+    (``prefixed=True``), the SEED result does not. Cells are NaN-scrubbed at
+    the pandas boundary (EC-2), INTEGER cells coerced to plain int, and the
+    ``puzzle_chronology`` closed set is refused at write (EC-19 adapted: the
+    live DB's operative constraint is this assertion — a typo'd label must
+    fail loudly, never land). A missing/scrubbed cell stays None (NULL =
+    "not measured")."""
+    out = {}
+    for col, sql_type in TA_GRADE_COLUMN_SQL.items():
+        value = get(("_" + col) if prefixed else col)
+        if value is not None:
+            try:
+                if pd.isna(value):
+                    value = None
+            except (TypeError, ValueError):
+                pass
+        if value is not None and sql_type == "INTEGER":
+            value = int(value)
+        if col == "puzzle_chronology" and value is not None \
+                and value not in PUZZLE_CHRONOLOGY_VALUES:
+            raise ValueError(
+                f"puzzle_chronology {value!r} is outside the closed set "
+                f"{sorted(PUZZLE_CHRONOLOGY_VALUES)} — refusing the write "
+                "(EC-19: an illegal label must never land)")
+        out[col] = value
+    return out
+
+
 def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
     """Map a numeric score to a letter tier grade.
 

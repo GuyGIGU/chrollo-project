@@ -228,6 +228,9 @@ _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
 from engine_alpha.structure.event_map import event_map_archive_values
+# TA-grade family (grade pair + puzzle grades) — single source in
+# engine_alpha.scoring.scoring (same model-only convention).
+from engine_alpha.scoring.scoring import ta_grade_archive_values
 # Election-trace evidence cell — single source in engine_alpha.structure.trace_export
 # (same model-only convention as the event_map family).
 from engine_alpha.structure.trace_export import election_trace_archive_values
@@ -488,6 +491,15 @@ def archive_scan_results(
             score_rs_bonus=sub.get("rs_bonus"),
             score_high_proximity=sub.get("high_proximity"),
             score_breadth_bonus=sub.get("breadth_bonus"),
+            # E3 puzzle term points (v1, scored on every row since 2026-07-18;
+            # archived since the task-5 breach close)
+            score_puzzle_quality=sub.get("puzzle_quality"),
+            # Flag-gated v2 term points — NULL while TA_SCORE_V2 is dark
+            score_spring=row.get("_score_spring"),
+            score_story_s_tests=row.get("_score_story_s_tests"),
+            score_story_r_rejections=row.get("_score_story_r_rejections"),
+            score_story_alternations=row.get("_score_story_alternations"),
+            score_story_terminal_posture=row.get("_score_story_terminal_posture"),
             # Volume-around-touches signature + LPS shape/zone detail
             r_touch_vol_z=row.get("_r_touch_vol_z"),
             s_touch_vol_z=row.get("_s_touch_vol_z"),
@@ -643,6 +655,9 @@ def archive_scan_results(
             **htf_archive_values(row.get, prefixed=True),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(row.get, prefixed=True),
+            # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
+            # + the three puzzle grades (NULL when the narrative abstained)
+            **ta_grade_archive_values(row.get, prefixed=True),
             # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED
             # is off; never backfilled (the archived cell is what was shown)
             **election_trace_archive_values(row.get, prefixed=True),
