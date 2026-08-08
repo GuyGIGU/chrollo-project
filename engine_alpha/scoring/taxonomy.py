@@ -157,6 +157,18 @@ def emitted_keys() -> list[str]:
     return [t.key for t in REGISTRY if t.is_emitted()]
 
 
+def always_emitted_terms() -> tuple[TermSpec, ...]:
+    """The flag-INDEPENDENT sub-score family (``present_when is None``) — the
+    third named projection beside ``emitted_keys``/``ta_layer_terms``
+    (2026-08-08 review: two production sites re-spelled this predicate inline
+    with warning paragraphs each). The wire's ``sub_scores`` block and the
+    archive's sub-score producer consume THIS, never ``emitted_keys()``:
+    flag-on the two sets diverge (spring + the story terms join
+    ``emitted_keys``), and coercing the v2 terms' absence to 0 at those
+    sites would fabricate measured zeros."""
+    return tuple(t for t in REGISTRY if t.present_when is None)
+
+
 def archive_columns() -> list[str]:
     """Persisted archive columns for every term that has one (order-preserving)."""
     return [t.column for t in REGISTRY if t.column is not None]
@@ -167,9 +179,16 @@ def caps() -> dict[str, float]:
     return {t.key: t.cap() for t in REGISTRY}
 
 
-def chapter_map() -> dict[str, str]:
-    """{key: chapter} for every ta-layer term — the grade's story partition."""
-    return {t.key: t.chapter for t in REGISTRY if t.layer == "ta"}
+def chapter_map() -> dict[str, Optional[str]]:
+    """{key: chapter} over the WHOLE registry — the projection the freeze
+    manifest hashes. Regime terms carry ``None``, and that None IS part of
+    the hashed contract: a re-layering that gives a regime term a chapter
+    must rotate ``engine_config_version``. Never narrow this to the ta layer
+    (2026-08-08 review: the old ta-only helper was production-dead and
+    subtly disagreed with the manifest's inline projection — a tidy-up that
+    substituted it would have silently dropped the regime terms from the
+    hash's coverage)."""
+    return {t.key: t.chapter for t in REGISTRY}
 
 
 # ── The tag fire-rules — chip verdicts resolved ENGINE-SIDE (build task 10) ──

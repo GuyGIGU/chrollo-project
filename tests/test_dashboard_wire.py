@@ -31,7 +31,13 @@ from output import dashboard as dashboard_module
 
 def _payload(monkeypatch, *, v2_overlay=None, flag=False):
     """The per-ticker payload exactly as a scan would serialize it; an
-    optional overlay injects flag-on v2 result fields onto the row."""
+    optional overlay injects flag-on v2 result fields onto the row.
+
+    NOTE (2026-08-08 review): the ``flag`` parameter mirrors the production
+    ambient state only — the wire itself is NOT flag-gated; its v2 block
+    keys on ROW CONTENT (``_ta_grade`` presence). The leak chain is: the
+    cascade guards the row, this file's snapshot guards the serialization.
+    Do not treat the wire as a second flag gate."""
     dates = pd.date_range("2026-01-01", periods=10, freq="B", name="Date")
     data = pd.DataFrame({
         "Open": np.linspace(10, 11, len(dates)),
@@ -82,11 +88,18 @@ def test_wire_flag_off_leaks_no_v2_keys(monkeypatch):
             f"v2 key {k!r} leaked into flag-off sub_scores")
 
 
-def test_wire_sub_scores_are_exactly_the_registry_emission(monkeypatch):
-    """The served sub_scores key set equals the taxonomy's emitted keys — the
-    wire cannot silently drop a registered term or invent an unregistered one."""
-    chart = _payload(monkeypatch)
-    assert set(chart["sub_scores"]) == set(taxonomy.emitted_keys())
+def test_wire_sub_scores_are_exactly_the_always_emitted_projection(monkeypatch):
+    """The served sub_scores key set equals the ALWAYS-EMITTED projection —
+    the wire cannot silently drop a registered term or invent an
+    unregistered one. Pinned against always_emitted_terms(), NOT
+    emitted_keys(): flag-on the two diverge (spring + story join
+    emitted_keys), and the old pin held only because this test forces the
+    flag off (2026-08-08 review). Proven under BOTH flag states."""
+    for flag in (False, True):
+        chart = _payload(monkeypatch, flag=flag,
+                         v2_overlay=_V2_OVERLAY if flag else None)
+        assert set(chart["sub_scores"]) == {
+            t.key for t in taxonomy.always_emitted_terms()}
 
 
 # The exact flag-off per-ticker key set (149 keys, captured 2026-08-08 at the

@@ -236,17 +236,15 @@ def _extract_chart_data(data, results_df, tickers):
             
             # Sub-scores power the "why ranked" tag chips on the frontend
             # card. Emit the raw point values for every ALWAYS-EMITTED
-            # registry term — the taxonomy is the ONE source (task 9; the
-            # hand-listed tuple was the 6th copy of the scoring vocabulary,
-            # and a term missing from it silently never reached the
-            # frontend). Byte-identical to the former list + puzzle guard.
+            # registry term via the ONE named projection (task 9; the
+            # hand-listed tuple was the 6th copy of the scoring vocabulary).
             # Flag-gated v2 term points ride the v2 block below instead —
-            # they are never in _sub_scores, and coercing their absence to
-            # 0 here would fabricate a "measured zero".
+            # see always_emitted_terms' docstring for why emitted_keys()
+            # must never be substituted here.
             sub = row.get('_sub_scores') or {}
             sub_payload = {
                 t.key: round(float(sub.get(t.key, 0) or 0), 2)
-                for t in taxonomy.REGISTRY if t.present_when is None
+                for t in taxonomy.always_emitted_terms()
             }
 
             sector_etf = _sector_etf_for_ticker(ticker, sector_etf_cache)

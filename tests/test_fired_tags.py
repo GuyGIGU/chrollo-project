@@ -72,6 +72,43 @@ def test_every_registered_tag_id_is_producible(monkeypatch):
             f"tag {tag.id!r} not producible by its own rule")
 
 
+def test_each_rule_kind_refuses_a_present_finite_wrong_side_fact():
+    """2026-08-08 review, finding 14: every comparison KIND gets one PRESENT,
+    FINITE, wrong-side case — pre-fix no committed row ever sat on the
+    refusing side of gt/lt or a non-demoted fraction, so a resolver mutated
+    to 'fire whenever the fact is present and finite' stayed suite-green
+    while every chip fired on every setup. One case per KIND (Beck
+    composability), asserting the id ABSENT from the fired list."""
+    caps = taxonomy.caps()
+    # fraction at firesAt 1.00: just under the cap refuses.
+    assert caps["lps_tightness"] > 0
+    assert "tight_lps" not in _fired_ids(
+        _row(sub={"lps_tightness": caps["lps_tightness"] - 0.01}))
+    # fraction at firesAt 0.80: just under fraction × cap refuses.
+    assert "tight_box" not in _fired_ids(
+        _row(sub={"box_tightness": 0.80 * caps["box_tightness"] - 0.01}))
+    # gt_setting: a fact AT the threshold exactly refuses (strict >)...
+    assert "heavy_resistance" not in _fired_ids(
+        _row(r_touch_vol_z=float(settings.TOUCH_VOL_Z_HEAVY_R)))
+    # ...and one clearly below.
+    assert "demand_at_s" not in _fired_ids(
+        _row(s_touch_vol_z=float(settings.TOUCH_VOL_Z_SPRING) - 0.5))
+    # lt_setting: a fact above the threshold refuses.
+    assert "no_supply" not in _fired_ids(
+        _row(r_touch_vol_z=float(settings.TOUCH_VOL_Z_NO_SUPPLY) + 0.5))
+    # ge_setting (derived density): just under the setting refuses.
+    need = float(settings.TRAVERSAL_QUALITY_DENSITY_FULL)
+    assert "worked_equilibrium" not in _fired_ids(
+        _row(trav_n_full_traversals=(need - 0.05) * 10, trav_n_swings=10))
+    # eq: a present, different label refuses.
+    assert "weak_monthly" not in _fired_ids(_row(htf_m_trend_state="range"))
+    # flag: a present falsy fact refuses.
+    assert "phase_d" not in _fired_ids(_row(phase_d_inner=0))
+    # any_gt0: present zeros refuse.
+    assert "last_supper" not in _fired_ids(
+        _row(lps_stretch_box=0.0, lps_stretch_atr=0.0))
+
+
 def test_zero_cap_fraction_chips_are_dead_by_design():
     """The demoted rs/uptrend chips can NEVER fire while their caps are 0 —
     by rule (cap > 0 required), not by the stale-JS-cap accident. Even an

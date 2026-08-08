@@ -93,10 +93,20 @@ def test_chapter_taxonomy_is_the_ruled_story_partition():
     assert populated == set(taxonomy.CHAPTER_ORDER)
 
 
-def test_chapter_map_covers_exactly_the_ta_layer():
+def test_chapter_map_is_the_one_projection_the_manifest_hashes():
+    """chapter_map() covers the WHOLE registry (regime terms as None — their
+    None is hashed coverage, not absence) and the manifest consumes IT —
+    one projection, one meaning (2026-08-08 review: the old ta-only helper
+    was production-dead and disagreed with the manifest's inline twin)."""
     cm = taxonomy.chapter_map()
-    assert set(cm) == {t.key for t in taxonomy.REGISTRY if t.layer == "ta"}
-    assert all(ch in taxonomy.CHAPTER_ORDER for ch in cm.values())
+    assert set(cm) == {t.key for t in taxonomy.REGISTRY}
+    for t in taxonomy.REGISTRY:
+        if t.layer == "ta":
+            assert cm[t.key] in taxonomy.CHAPTER_ORDER
+        else:
+            assert cm[t.key] is None
+    from engine_alpha.freeze.manifest import collect_manifest
+    assert collect_manifest()["TA_GRADE_CHAPTER_MAP"] == cm
 
 
 def test_structural_cap_sum_is_the_machine_pinned_divisor():

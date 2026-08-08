@@ -526,8 +526,8 @@ def sub_score_archive_values(sub, *, exclude: frozenset = frozenset()) -> dict:
         sub = {}
     from engine_alpha.scoring import taxonomy
     return {t.column: sub.get(t.key)
-            for t in taxonomy.REGISTRY
-            if t.present_when is None and t.column not in exclude}
+            for t in taxonomy.always_emitted_terms()
+            if t.column not in exclude}
 
 
 def ta_grade_archive_values(get, *, prefixed: bool) -> dict:

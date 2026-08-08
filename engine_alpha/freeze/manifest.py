@@ -404,7 +404,9 @@ def collect_manifest() -> Dict[str, Any]:
     from engine_alpha.scoring import taxonomy
 
     manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
-    manifest["TA_GRADE_CHAPTER_MAP"] = {t.key: t.chapter for t in taxonomy.REGISTRY}
+    # The ONE chapter-map projection (whole registry, regime terms as None —
+    # taxonomy.chapter_map's docstring carries the coverage contract).
+    manifest["TA_GRADE_CHAPTER_MAP"] = taxonomy.chapter_map()
     # The tag fire-rules are judgments (which chips fire): a rule change must
     # rotate the version exactly like a weight change (task 10).
     manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
