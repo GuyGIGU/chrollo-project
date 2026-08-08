@@ -252,6 +252,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Wave-1 charter measurements (task-7 batch — fourth declared seam)
     "LPS_SHRINK_MIN_TESTS",
     "STORY_RICHNESS_FULL",
+    # Wave-2 charter measurement (task-8 batch — fifth declared seam)
+    "TREND_BASE_COUNT_CAP",
+    "TREND_BASE_WALK_MAX_ROOTS",
     # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
     # default-off + byte-identical off, read via _flag()/getattr on the advisory
     # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires

@@ -765,6 +765,11 @@ TA_GRADE_WARNING_FLOOR = 0.5       # the warning product never discounts below t
 # RAW (measure-first: never gating, never weighted until the operator's A/B).
 LPS_SHRINK_MIN_TESTS = 3           # fewer usable support tests -> the shrink fraction is ABSENT (1 step quantizes to 0-or-1)
 STORY_RICHNESS_FULL = 0.15         # story events per bar at saturation (den floored at MIN_BASE_DAYS)
+# Wave-2 charter measurement (task-8 batch — fifth declared seam): ONE bounded
+# box-walk on the up-segment-restricted sub-frame producing the Minervini base
+# count AND the inter-base width ratio together. Fires-only inside TA_SCORE_V2.
+TREND_BASE_COUNT_CAP = 4           # count saturates where grading value does (Minervini counts bases 1-4)
+TREND_BASE_WALK_MAX_ROOTS = 12     # root attempts on the sub-frame (the full HTF walk allows 40 on a whole frame)
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

@@ -349,6 +349,11 @@ class SetupArchive(Base):
     lps_shrink_frac = Column(Float, nullable=True)           # [0,1] tests shrink test-over-test
     lps_window_classification = Column(String, nullable=True)  # the elected window's descent read
     story_richness_rate = Column(Float, nullable=True)       # [0,1] story events per bar, bounded
+    # Wave-2 (task 8): the bounded box-walk pair. count NULL = labelling
+    # refused (the elected base itself counts as 1, never 0); ratio NULL =
+    # no predecessor base in the covering up-segment (never 1, never inf).
+    trend_base_count = Column(Integer, nullable=True)        # Minervini base # in the current up-segment, capped
+    inter_base_width_ratio = Column(Float, nullable=True)    # elected width / most-recent predecessor width
 
     # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
     # Owning declaration in core/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);

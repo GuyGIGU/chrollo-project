@@ -667,10 +667,20 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             _em_scalars.get("event_map_alternations"),
             structure_ctx["base_len"],
         )
+        # Wave-2 (task 8): the ONE bounded box-walk — base count + inter-base
+        # width ratio together, on the up-segment-restricted sub-frame.
+        from engine_alpha.structure.market_structure import measure_trend_bases
+        _bases = measure_trend_bases(
+            df, structure_ctx["atr_for_zone"],
+            int(structure_ctx["structure"].box.start_bar),
+            float(structure_ctx["box_width"]),
+        )
         ta_grade_fields.update({
             "_lps_shrink_frac": _contr["lps_shrink_frac"],
             "_lps_window_classification": _contr["lps_window_classification"],
             "_story_richness_rate": _rich,
+            "_trend_base_count": _bases["trend_base_count"],
+            "_inter_base_width_ratio": _bases["inter_base_width_ratio"],
         })
 
     # Election stability (measure-only, flag-dark): does the elected reading

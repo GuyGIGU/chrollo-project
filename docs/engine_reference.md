@@ -1063,7 +1063,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `36d4c787288f22452738f057093c6ffa40347b209e6ecad217310e554f218e20`_
+_engine_config_version: `9230060f8b0d20e9f26bb04a6fc4660eaed54d1c717d92479572301ca124c38b`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1220,6 +1220,8 @@ TA_WARN_TERMINAL_DRIFT = 1.0
 TA_GRADE_WARNING_FLOOR = 0.5
 LPS_SHRINK_MIN_TESTS = 3
 STORY_RICHNESS_FULL = 0.15
+TREND_BASE_COUNT_CAP = 4
+TREND_BASE_WALK_MAX_ROOTS = 12
 FUNDAMENTALS_ENABLED = False
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75

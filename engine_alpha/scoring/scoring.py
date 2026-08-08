@@ -471,6 +471,12 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "lps_shrink_frac": "REAL",
     "lps_window_classification": "TEXT",
     "story_richness_rate": "REAL",
+    # Wave-2 charter measurement (task 8) — the ONE bounded box-walk's pair.
+    # count: the elected base counts as one (never zero); NULL = the
+    # labelling refused. ratio: elected / most-recent predecessor width in
+    # the SAME raw units; NULL = no predecessor (never 1, never inf).
+    "trend_base_count": "INTEGER",
+    "inter_base_width_ratio": "REAL",
 }
 
 PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})

@@ -750,7 +750,8 @@ def test_ta_grade_archive_values_null_through_when_dark():
                         "score_story_r_rejections", "score_story_alternations",
                         "score_story_terminal_posture",
                         "lps_shrink_frac", "lps_window_classification",
-                        "story_richness_rate"}
+                        "story_richness_rate",
+                        "trend_base_count", "inter_base_width_ratio"}
     assert all(v is None for v in out.values())
 
 

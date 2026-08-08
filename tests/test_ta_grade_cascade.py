@@ -65,7 +65,8 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     # Wave-1 charter measurements ride the same flag-on result (task 7) —
     # keys always present; a None VALUE is a legal ABSENT reading.
     for key in ("_lps_shrink_frac", "_lps_window_classification",
-                "_story_richness_rate"):
+                "_story_richness_rate", "_trend_base_count",
+                "_inter_base_width_ratio"):
         assert key in row, f"charter measurement {key!r} missing flag-on"
 
     # 2. The v1 face is intact — the flag adds, never mutates.

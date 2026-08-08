@@ -130,3 +130,144 @@ def test_richness_is_always_bounded():
     # A pathologically dense tape cannot blow past 1.0 (McKinney: unbounded
     # rate measures archive outliers that dominate any later calibration).
     assert measure_story_richness(4, 99, 99, 99, 21) == 1.0
+
+
+# ── measure_trend_bases — the ONE bounded box-walk (task 8) ──────────────────
+# The walk's CONTRACT (ordering, dedup, cap, ratio units, absence rules) is
+# pinned with scripted brick sequences — the detector geometry is the
+# injected expensive component here (its own correctness lives in the bricks
+# suites), so every expectation below stays hand-computable. The absence
+# cases run the REAL labelling on pure synthetics; the EC-17 cascade runs
+# the REAL walk end-to-end on the shadow fixture.
+
+import pandas as pd
+
+from engine_alpha.structure import market_structure as ms_mod
+
+
+def _frame(closes):
+    return pd.DataFrame({
+        "Open": closes, "High": [c * 1.01 for c in closes],
+        "Low": [c * 0.99 for c in closes], "Close": closes,
+        "Volume": [1000.0] * len(closes),
+    })
+
+
+class _FakeRoot:
+    def __init__(self, climax_bar):
+        self.climax_bar = climax_bar
+
+
+class _FakeBox:
+    def __init__(self, R, S, start_bar):
+        self.R, self.S, self.start_bar = R, S, start_bar
+
+
+def _scripted_bricks(monkeypatch, roots, boxes_by_climax):
+    """Script the walk's brick calls: find_root_swing pops chronological
+    roots >= search_from; validate_equilibrium returns the box scripted for
+    that climax (or None)."""
+    import engine_alpha.structure.bricks as bricks_mod
+
+    def fake_find_root(sub, search_from, atr):
+        for r in roots:
+            if r >= search_from:
+                return _FakeRoot(r)
+        return None
+
+    def fake_validate(sub, root, atr):
+        return boxes_by_climax.get(root.climax_bar)
+
+    monkeypatch.setattr(bricks_mod, "find_root_swing", fake_find_root)
+    monkeypatch.setattr(bricks_mod, "validate_equilibrium", fake_validate)
+
+
+def _covering_up_segment(monkeypatch, seg_start=0, seg_end=None):
+    monkeypatch.setattr(ms_mod, "read_market_structure",
+                        lambda df, **kw: {"points": [{"stub": 1}]})
+    monkeypatch.setattr(ms_mod, "segment_trends", lambda pts: [{
+        "direction": 1, "start_bar": seg_start, "end_bar": seg_end,
+        "terminal_bar": 999, "terminal_price": 0.0}])
+
+
+def test_trend_bases_counts_and_ratio_hand_computed(monkeypatch):
+    # Two predecessors: widths (11-10)/10 = 0.10 then (10.5-10)/10 = 0.05.
+    # Elected width 0.03 -> count = 3, ratio = 0.03/0.05 = 0.6 (hand).
+    _covering_up_segment(monkeypatch)
+    _scripted_bricks(monkeypatch, roots=[5, 25],
+                     boxes_by_climax={5: _FakeBox(11.0, 10.0, 8),
+                                      25: _FakeBox(10.5, 10.0, 30)})
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 120), 1.0,
+                                     elected_start_bar=100,
+                                     elected_width=0.03)
+    assert out["trend_base_count"] == 3
+    assert out["inter_base_width_ratio"] == pytest.approx(0.6)
+
+
+def test_trend_bases_dedup_rule_skips_non_chronological_starts(monkeypatch):
+    # The second box starts AT/BEFORE the first admitted start -> skipped by
+    # the stated dedup rule; count = 2, ratio vs the ONE admitted width.
+    _covering_up_segment(monkeypatch)
+    _scripted_bricks(monkeypatch, roots=[5, 25],
+                     boxes_by_climax={5: _FakeBox(11.0, 10.0, 8),
+                                      25: _FakeBox(10.4, 10.0, 8)})
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 120), 1.0,
+                                     elected_start_bar=100,
+                                     elected_width=0.05)
+    assert out["trend_base_count"] == 2
+    assert out["inter_base_width_ratio"] == pytest.approx(0.05 / 0.10)
+
+
+def test_trend_bases_count_saturates_at_the_cap(monkeypatch):
+    # Five walkable predecessors, cap 4: the walk STOPS once 1+len == cap —
+    # count = TREND_BASE_COUNT_CAP, and the ratio uses the last ADMITTED
+    # width (the walk never pays past saturation).
+    _covering_up_segment(monkeypatch)
+    roots = [5, 15, 25, 35, 45]
+    boxes = {r: _FakeBox(10.0 + (i + 1) * 0.1, 10.0, r + 2)
+             for i, r in enumerate(roots)}
+    _scripted_bricks(monkeypatch, roots, boxes)
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 120), 1.0,
+                                     elected_start_bar=100,
+                                     elected_width=0.01)
+    assert out["trend_base_count"] == settings.TREND_BASE_COUNT_CAP
+    admitted = settings.TREND_BASE_COUNT_CAP - 1
+    last_width = ((10.0 + admitted * 0.1) - 10.0) / 10.0
+    assert out["inter_base_width_ratio"] == pytest.approx(0.01 / last_width)
+
+
+def test_trend_bases_no_predecessor_ratio_is_null_never_one(monkeypatch):
+    _covering_up_segment(monkeypatch)
+    _scripted_bricks(monkeypatch, roots=[], boxes_by_climax={})
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 120), 1.0,
+                                     elected_start_bar=100,
+                                     elected_width=0.05)
+    assert out["trend_base_count"] == 1        # the elected base, never zero
+    assert out["inter_base_width_ratio"] is None
+
+
+def test_trend_bases_no_covering_up_segment_counts_one_measured(monkeypatch):
+    # Only a DOWN segment covers the elected start (anchor polarity): no walk
+    # runs, the count is the elected base alone — measured 1, never absent,
+    # never a root sought inside the opposite-direction trend.
+    monkeypatch.setattr(ms_mod, "read_market_structure",
+                        lambda df, **kw: {"points": [{"stub": 1}]})
+    monkeypatch.setattr(ms_mod, "segment_trends", lambda pts: [{
+        "direction": -1, "start_bar": 0, "end_bar": None,
+        "terminal_bar": 10, "terminal_price": 0.0}])
+    out = ms_mod.measure_trend_bases(_frame([10.0] * 120), 1.0,
+                                     elected_start_bar=100,
+                                     elected_width=0.05)
+    assert out["trend_base_count"] == 1
+    assert out["inter_base_width_ratio"] is None
+
+
+def test_trend_bases_absent_when_the_labelling_refuses():
+    # A 2-bar frame yields no swing points: the WHOLE measurement is absent
+    # (a fabricated count never archives). Same for a missing frame.
+    out = ms_mod.measure_trend_bases(_frame([10.0, 10.1]), 1.0,
+                                     elected_start_bar=1, elected_width=0.05)
+    assert out["trend_base_count"] is None
+    assert out["inter_base_width_ratio"] is None
+    empty = ms_mod.measure_trend_bases(None, 1.0, 5, 0.05)
+    assert empty["trend_base_count"] is None
