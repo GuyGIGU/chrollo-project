@@ -636,11 +636,12 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         # family keeps its own names (_ta_grade*); per-term v2 points take
         # their registry column names (_score_<key>) so every writer maps
         # them by the same per-term literal route as their v1 siblings.
-        _grade_family = ("ta_grade", "ta_grade_raw",
-                         "ta_grade_chapters", "ta_grade_chapter_fractions",
-                         "ta_grade_warnings")
+        # Family membership is DERIVED from the settled vocabulary — a
+        # hand-typed twin tuple routed a future sixth compose output to a
+        # lying _score_* name (2026-08-08 review, finding 4).
+        from engine_alpha.scoring import taxonomy as _taxonomy
         ta_grade_fields = {
-            ("_" + k) if k in _grade_family else ("_score_" + k): v
+            ("_" + k) if k in _taxonomy.V2_RESULT_KEYS else ("_score_" + k): v
             for k, v in _grade.items()
         }
         # Wave-1 charter measurements (task 7) — pure folds over data already

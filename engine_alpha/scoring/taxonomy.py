@@ -98,6 +98,20 @@ V2_RESULT_KEYS: tuple[str, ...] = (
     "structure_tier", "fired_tags", "regime_label",
 )
 
+# The FULL flag-gated row vocabulary: everything the TA_SCORE_V2 eval block
+# may stamp on the canonical result — the reserved keys above PLUS the four
+# charter measurements' five raw fields (tasks 7/8). The flag-off row
+# tripwire derives from THIS tuple, and the archive-side absence proof
+# derives from ta_grade_archive_values itself (2026-08-08 review, finding 4:
+# the hand-maintained two-prefix filter was blind to six of these, and the
+# writers' unconditional family splat would have LANDED a leak in dark-epoch
+# rows). A new flag-gated row field registers here or the tripwire coverage
+# test refuses it.
+V2_ROW_FIELDS: tuple[str, ...] = V2_RESULT_KEYS + (
+    "lps_shrink_frac", "lps_window_classification", "story_richness_rate",
+    "trend_base_count", "inter_base_width_ratio",
+)
+
 # Ordered to match the score_setup result-dict emission order (scoring.py).
 REGISTRY: tuple[TermSpec, ...] = (
     TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural", chapter="cause"),

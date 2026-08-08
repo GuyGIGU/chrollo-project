@@ -367,6 +367,14 @@ def test_manual_route_score_coverage_with_declared_exclusions():
                    else getattr(c.func, "attr", "?") for c in splat_calls}
     assert "sub_score_archive_values" in splat_names, (
         "the manual route no longer splats the ONE sub-score producer")
+    # BOTH family producers, not one (council review 2026-08-08, finding 1:
+    # the route shipped with only the sub-score splat, so fired_tags reached
+    # the model pass as a raw Python list — a guaranteed flag-on bind error —
+    # and the EC-19 closed-set refusals never ran on this writer).
+    assert "ta_grade_archive_values" in splat_names, (
+        "the manual route no longer splats the TA-grade family producer — "
+        "fired_tags would bind as a raw list and the closed-set refusals "
+        "would not guard this writer (2026-08-08 review, finding 1)")
     # The declared exclusion, read from the route's own source.
     declared_excl: set = set()
     for call in splat_calls:
@@ -385,8 +393,8 @@ def test_manual_route_score_coverage_with_declared_exclusions():
         "the route's exclusion and the mapper's frozen _MANUAL_UNMAPPED_COLUMNS "
         "disagree — the two declarations of the same deliberate NULL must match")
     # Full score_* coverage on this path: the sub producer (minus the declared
-    # exclusion) + the flag-gated flat columns (auto-filled by the model pass
-    # unless deliberately unmapped) + any literal keys.
+    # exclusion) + the TA-grade family splat's score_* columns (produced, no
+    # longer left to the model pass) + any literal keys.
     score_cols = {c for c in _model_columns() if c.startswith("score_")}
     ta_flat = {c for c in _ta_grade_cols(prefixed=False) if c.startswith("score_")}
     covered = ((_sub_score_cols() - declared_excl)
