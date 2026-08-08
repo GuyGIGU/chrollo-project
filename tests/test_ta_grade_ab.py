@@ -167,41 +167,41 @@ def test_identity_survives_float_noise_ties():
     assert raw_ranks == prewarn_ranks == {"NTES": 1, "OHI": 2}
 
 
-def test_epoch_basis_banner_names_the_missing_puzzle(monkeypatch, tmp_path,
+def test_epoch_basis_banner_names_the_missing_setup_quality(monkeypatch, tmp_path,
                                                      capsys):
-    """Rows archived before the grade columns existed carry score_puzzle_quality
-    NULL: the replay grades puzzle absence-neutral 0 while the stored v1 score
-    still contains its points, so their rank Δ is the missing-puzzle
+    """Rows archived before the grade columns existed carry score_setup_quality
+    NULL: the replay grades setup_quality absence-neutral 0 while the stored v1 score
+    still contains its points, so their rank Δ is the missing setup-quality
     differential (first live A/B 2026-08-08: the whole ±31 movers list was
     exactly this). The banner names that basis on BOTH output modes and stays
-    silent when every row carries puzzle."""
+    silent when every row carries setup_quality."""
     import database
 
     session = _mem_session()
     session.add_all([
         _fire("AAA", 50.0, "C", score_box_tightness=20.0),
         _fire("BBB", 90.0, "B", score_box_tightness=15.0,
-              score_puzzle_quality=2.0),
+              score_setup_quality=2.0),
     ])
     session.commit()
     report = build_report(session, None)
-    assert report["puzzle_absent_rows"] == 1
+    assert report["setup_quality_absent_rows"] == 1
 
     monkeypatch.setattr(database, "SessionLocal", lambda: session)
     assert main([]) == 0
     human = capsys.readouterr().out
-    assert "1 of 2 rows carry no archived puzzle_quality" in human
+    assert "1 of 2 rows carry no archived setup_quality" in human
     assert main(["--json", str(tmp_path / "ab.json")]) == 0
-    assert "1 of 2 rows carry no archived puzzle_quality" in capsys.readouterr().out
+    assert "1 of 2 rows carry no archived setup_quality" in capsys.readouterr().out
 
     merged = _mem_session()
     merged.add(_fire("CCC", 50.0, "C", score_box_tightness=20.0,
-                     score_puzzle_quality=0.0))
+                     score_setup_quality=0.0))
     merged.commit()
-    assert build_report(merged, None)["puzzle_absent_rows"] == 0
+    assert build_report(merged, None)["setup_quality_absent_rows"] == 0
     monkeypatch.setattr(database, "SessionLocal", lambda: merged)
     assert main([]) == 0
-    assert "puzzle_quality" not in capsys.readouterr().out
+    assert "setup_quality" not in capsys.readouterr().out
 
 
 def test_empty_state_is_affirmative():

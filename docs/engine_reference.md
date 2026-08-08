@@ -697,7 +697,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **VCP contraction** | `contraction_quality × 12`, where quality ∈ [0,1] from `measure_contractions()` (see below) = `0.40·count + 0.35·progressive_tightening + 0.25·final_tightness`. Captures the Minervini VCP *process* (each pullback tighter than the last), distinct from box-tightness/ATR-squeeze which only see *static* tightness. | `SCORE_CONTRACTION = 12`, `CONTRACTION_IDEAL_MIN/MAX = 2/6`, `CONTRACTION_FINAL_TIGHT_PCT = 0.03`, `CONTRACTION_FINAL_LOOSE_PCT = 0.12` |
 | **Ascending support** | `support_quality × 8`, where quality ∈ [0,1] from `measure_support_slope()` (see below) = `0.6·slope_score + 0.4·higher_low_frac`. Rewards a base whose swing lows stair-step *up* (rising support / tennis-ball action). Bonus-only — a flat or sagging floor earns 0, never penalized. | `SCORE_ASCENDING_SUPPORT = 8`, `ASCENDING_SUPPORT_FULL_SLOPE = 0.10` |
 | **ADR% absolute volatility** | `adr_quality × 8`, where `adr_quality = min(ADR% / 5.0, 1.0)`. Rewards Qullamaggie-style volatile movers: stocks that travel enough each day to be worth trading. Bonus-only — low-ADR names earn 0, never a penalty. | `SCORE_ADR = 8`, `ADR_WINDOW = 20`, `ADR_FULL_PCT = 5.0` |
-| **Puzzle quality** (E3, live) | `puzzle_quality × 8` — the L2 assembled-Wyckoff-puzzle completeness/chronology grade from `assemble_box_narrative()` (see [The L2 event reader](#the-l2-event-reader--wyckoff-puzzle-from-rail-events-to-a-scored-narrative)). Additive, bonus-only, clamped `[0, cap]`; grades-not-vetoes (≥ 0, can only raise a score). | `SCORE_PUZZLE_QUALITY = 8`, `PUZZLE_SCORE_ENABLED` (folded 2026-07-18) |
+| **Setup quality** (E3, live; renamed from *puzzle quality* 2026-08-09, operator ruling) | `setup_quality × 8` — the L2 assembled-Wyckoff-story completeness/chronology grade from `assemble_box_narrative()` (see [The L2 event reader](#the-l2-event-reader--wyckoff-story-from-rail-events-to-a-scored-narrative)). Additive, bonus-only, clamped `[0, cap]`; grades-not-vetoes (≥ 0, can only raise a score). | `SCORE_SETUP_QUALITY = 8`, `PUZZLE_SCORE_ENABLED` (folded 2026-07-18) |
 
 **Tier mapping** — `calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
 
@@ -1063,7 +1063,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `a97f2aa5fdbad47987a3a9bb22bef40dcb2176b8930e4fefe01d76b8102a8393`_
+_engine_config_version: `186a18651d4a4a252ce59024823d9fb220cc2ff32d0fe41fe6b1f14f672c5801`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1234,10 +1234,10 @@ RS_LINE_NEW_HIGH_LOOKBACK = 252
 SECTOR_RANKING_ENABLED = False
 SECTOR_RANKING_LOOKBACKS = (21, 63, 126)
 RS_RATING_LOOKBACK = 252
-SCORE_PUZZLE_QUALITY = 8.0
-PUZZLE_W_COMPLETENESS = 0.7
-PUZZLE_W_CHRONOLOGY = 0.3
-PUZZLE_CHRONO_PARTIAL = 0.5
+SCORE_SETUP_QUALITY = 8.0
+SETUP_QUALITY_W_COMPLETENESS = 0.7
+SETUP_QUALITY_W_CHRONOLOGY = 0.3
+SETUP_QUALITY_CHRONO_PARTIAL = 0.5
 EVENT_MAP_ENABLED = True
 ELECTION_STABILITY_ENABLED = False
 ELECTION_STABILITY_LOOKBACK = 3

@@ -244,10 +244,10 @@ class SetupOut(BaseModel):
     # pins that every registry term column + family column stays covered here.
     ta_grade: Optional[float] = None
     ta_grade_raw: Optional[float] = None
-    puzzle_completeness: Optional[int] = None
-    puzzle_chronology: Optional[str] = None
-    puzzle_upthrust_terminal: Optional[int] = None
-    score_puzzle_quality: Optional[float] = None
+    setup_completeness: Optional[int] = None
+    setup_chronology: Optional[str] = None
+    setup_upthrust_terminal: Optional[int] = None
+    score_setup_quality: Optional[float] = None
     score_spring: Optional[float] = None
     score_story_s_tests: Optional[float] = None
     score_story_r_rejections: Optional[float] = None

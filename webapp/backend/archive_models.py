@@ -321,20 +321,20 @@ class SetupArchive(Base):
     # both floats are FULL precision — rounding is display-only.
     ta_grade = Column(Float, nullable=True)       # the 0-100 (post-warnings)
     ta_grade_raw = Column(Float, nullable=True)   # the raw affine sum
-    # The three puzzle grades — closing the puzzle_quality scored-but-invisible
+    # The three setup grades — closing the setup_quality scored-but-invisible
     # breach (on the wire since 2026-07-18, never archived). Populated on every
     # fire whose narrative produced a read; NULL = the narrative abstained.
-    # puzzle_chronology is a closed set {intact, partial, absent}: refused at
+    # setup_chronology is a closed set {intact, partial, absent}: refused at
     # write in ta_grade_archive_values (the live DB's operative constraint) +
     # the fresh-DB CHECK below.
-    puzzle_completeness = Column(Integer, nullable=True)       # 0..4 canonical pieces
-    puzzle_chronology = Column(String, nullable=True)          # intact | partial | absent
-    puzzle_upthrust_terminal = Column(Integer, nullable=True)  # 0/1 terminal upthrust
+    setup_completeness = Column(Integer, nullable=True)       # 0..4 canonical pieces
+    setup_chronology = Column(String, nullable=True)          # intact | partial | absent
+    setup_upthrust_terminal = Column(Integer, nullable=True)  # 0/1 terminal upthrust
     # Per-term points (registry column = score_ + key, the house convention).
-    # score_puzzle_quality is a v1 term scored on EVERY row (NULL = pre-add
+    # score_setup_quality is a v1 term scored on EVERY row (NULL = pre-add
     # history only); the five below are flag-gated (NULL = flag-off/pre-flip;
     # caps start 0 shape-only, so flag-on values are 0.0 until the A/B).
-    score_puzzle_quality = Column(Float, nullable=True)
+    score_setup_quality = Column(Float, nullable=True)
     score_spring = Column(Float, nullable=True)
     score_story_s_tests = Column(Float, nullable=True)
     score_story_r_rejections = Column(Float, nullable=True)
@@ -436,13 +436,13 @@ class SetupArchive(Base):
             "elected_pool IN ('strict', 'rescued', 'band', 'story')",
             name="ck_setup_archive_elected_pool",
         ),
-        # Same precedent for the puzzle chronology grade: fresh-DB defence
+        # Same precedent for the setup chronology grade: fresh-DB defence
         # only (the ADD COLUMN path strips CHECKs); the live DB's operative
         # constraint is the write-time refusal in ta_grade_archive_values.
         CheckConstraint(
-            "puzzle_chronology IS NULL OR "
-            "puzzle_chronology IN ('intact', 'partial', 'absent')",
-            name="ck_setup_archive_puzzle_chronology",
+            "setup_chronology IS NULL OR "
+            "setup_chronology IN ('intact', 'partial', 'absent')",
+            name="ck_setup_archive_setup_chronology",
         ),
         CheckConstraint(
             "lps_window_classification IS NULL OR "

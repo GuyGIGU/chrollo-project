@@ -4,11 +4,11 @@ One ordered registry of every scoring sub-score term. For each term it records:
   - ``key``          the ``score_setup`` result-dict key,
   - ``column``       the ``setup_archive`` column (MANDATORY since task 5:
                      every registered term persists — a term without a column
-                     is the puzzle_quality breach again, refused by test),
+                     is the setup_quality breach again, refused by test),
   - ``cap_setting``  the ``config.settings`` attribute holding its point cap,
   - ``layer``        ``'ta'``  = part of the 0-100 Technical Analysis Grade / tier,
                      ``'regime'`` = market-state, EXCLUDED from the grade (label only),
-  - ``kind``         structural | context | puzzle | tag | warning | new_term,
+  - ``kind``         structural | context | story | tag | warning | new_term,
   - ``present_when`` a settings BOOL flag gating emission (``None`` = always emitted),
   - ``chapter``      the story chapter this term grades inside (``CHAPTER_ORDER``;
                      ``None`` on the regime layer — no chapter, no grade membership).
@@ -38,7 +38,7 @@ class TermSpec:
     column: Optional[str]             # setup_archive column (mandatory — see docstring)
     cap_setting: str                  # config.settings attribute holding the point cap
     layer: str                        # 'ta' (in the TA Grade + tier) | 'regime' (label only)
-    kind: str                         # structural | context | puzzle | tag | warning | new_term
+    kind: str                         # structural | context | story | tag | warning | new_term
     present_when: Optional[str] = None  # settings BOOL flag gating emission (None = always)
     chapter: Optional[str] = None     # story chapter (CHAPTER_ORDER); None on the regime layer
 
@@ -131,9 +131,9 @@ REGISTRY: tuple[TermSpec, ...] = (
     TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="phase_c"),
     TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend"),
     # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
-    # archived since task 5 (the measure-first breach closed). Chapter: the puzzle grades
+    # archived since task 5 (the measure-first breach closed). Chapter: setup_quality grades
     # the completeness of the told story — the work the range did.
-    TermSpec("puzzle_quality",    "score_puzzle_quality",    "SCORE_PUZZLE_QUALITY",     "ta",     "puzzle",     chapter="phase_b"),
+    TermSpec("setup_quality",    "score_setup_quality",    "SCORE_SETUP_QUALITY",     "ta",     "story",     chapter="phase_b"),
     # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
     # appends it after the always-on terms, so it sits last here to keep the
     # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's

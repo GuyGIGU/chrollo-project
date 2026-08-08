@@ -13,7 +13,7 @@ Discipline:
   retroactively (the bin_a seam lesson). Forward persistence may exist as an
   offline research view but is never archived as scan-time knowledge.
 * ELECTION stage only: one prep + one ``read_structure`` per shift — nothing
-  after the election (LPS resolution, bins, HTF, puzzle, scoring) informs
+  after the election (LPS resolution, bins, HTF, story read, scoring) informs
   "did the same structure elect", so none of it is re-run.
 * Identity via the ONE cross-frame predicate
   (``engine_alpha.election_identity.same_election``): calendar dates +

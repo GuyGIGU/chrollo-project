@@ -101,7 +101,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert fam_live["score_spring"] == row["_score_spring"]
     subs_live = sub_score_archive_values(row.get("_sub_scores"))
     assert subs_live["score_box_tightness"] == row["_sub_scores"]["box_tightness"]
-    assert subs_live["score_puzzle_quality"] == row["_sub_scores"]["puzzle_quality"]
+    assert subs_live["score_setup_quality"] == row["_sub_scores"]["setup_quality"]
 
     # 4. Seed-twin basis: the adapter strips prefixes; the SAME producers on
     #    the adapted result must be byte-identical to the live basis.
@@ -128,7 +128,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert kwargs["ta_grade"] == pytest.approx(row["_ta_grade"])
     assert kwargs["ta_grade_raw"] == pytest.approx(row["_ta_grade_raw"])
     assert kwargs["score_spring"] == pytest.approx(row["_score_spring"])
-    assert kwargs["puzzle_completeness"] == fam_live["puzzle_completeness"]
+    assert kwargs["setup_completeness"] == fam_live["setup_completeness"]
 
     # 6. The wire leg (task 9): the REAL payload builder serializes the v2
     #    block from the same fired row — resolved, display-rounded verdicts
@@ -190,7 +190,7 @@ def test_flag_off_cascade_emits_no_v2_fields(monkeypatch):
     assert not v2_fields, f"v2 field(s) {v2_fields} leaked from the flag-off cascade"
     # The writers' own view — every FLAG-GATED column the archive family
     # extraction would stamp must read None on the flag-off row (the family
-    # also carries the three always-on puzzle grades — narrative outputs,
+    # also carries the three always-on setup grades — narrative outputs,
     # legitimately non-NULL flag-off). The gated subset derives from the
     # vocabulary + the score_ prefix, so a leak lands red at the exact
     # boundary the writers splat.
@@ -283,7 +283,7 @@ def test_fresh_db_checks_refuse_illegal_closed_set_labels():
                 box_width=0.1, touches=4, atr_ratio=0.5, lps_length=3,
                 breach_days=0, vol_contraction=0.4, tightness_ratio=0.4,
                 engine_config_version="hashX", source="screener")
-    for col, bad in (("puzzle_chronology", "sideways"),
+    for col, bad in (("setup_chronology", "sideways"),
                      ("lps_window_classification", "diagonal_march")):
         session = _fresh_archive_session()
         session.add(SetupArchive(**base, **{col: bad}))

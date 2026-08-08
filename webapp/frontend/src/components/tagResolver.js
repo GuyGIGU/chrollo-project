@@ -4,7 +4,7 @@
 // whose `fired_tags` key is PRESENT — even as [] — was resolved by the
 // backend; the entries are VERDICTS and this module only projects
 // presentation onto them (label/group from the frozen catalog; an unknown
-// id renders VISIBLY as its raw slug — the puzzle_quality lesson, never a
+// id renders VISIBLY as its raw slug — the setup_quality lesson, never a
 // silent drop). A payload WITHOUT the key (flag-off scan, pre-v2 archive
 // row) routes to the legacy derive path unchanged, so a flag rollback
 // restores legacy chips with no frontend redeploy.

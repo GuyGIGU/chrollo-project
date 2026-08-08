@@ -123,22 +123,22 @@ def build_report(session, scan_date: str | None) -> dict:
         scan_date = dates[0] if dates else None
     if scan_date is None:
         return {"scan_date": None, "universe_type": universe, "rows": [],
-                "recent_dates": [], "puzzle_absent_rows": 0,
+                "recent_dates": [], "setup_quality_absent_rows": 0,
                 "engine_config_version": manifest_hash(), "identity_ok": True}
 
     rows = (session.query(SetupArchive)
             .filter(SetupArchive.scan_date == scan_date,
                     SetupArchive.universe_type == universe).all())
 
-    # puzzle_quality is the ONE replay input younger than the archive: rows
+    # setup_quality is the ONE replay input younger than the archive: rows
     # archived before the grade columns existed carry it NULL, the replay
     # grades it absence-neutral 0, and the stored v1 score still contains its
-    # points — so on such rows the v1→v2 rank movement is the missing-puzzle
+    # points — so on such rows the v1→v2 rank movement is the missing setup-quality
     # differential, not the grade's opinion (first live A/B, 2026-08-08: the
     # entire ±31 movers list was exactly this). Counted here, bannered on
     # every output mode below.
-    puzzle_absent = sum(
-        1 for r in rows if getattr(r, "score_puzzle_quality", None) is None)
+    setup_quality_absent = sum(
+        1 for r in rows if getattr(r, "score_setup_quality", None) is None)
 
     # In-process only, restored after the read (nothing persists; the flag
     # must be ON so the registry emits the flag-gated terms for the
@@ -216,7 +216,7 @@ def build_report(session, scan_date: str | None) -> dict:
         "universe_type": universe,
         "recent_dates": dates,
         "rows": graded,
-        "puzzle_absent_rows": puzzle_absent,
+        "setup_quality_absent_rows": setup_quality_absent,
         "population": {"n": len(graded), "by_source": by_source,
                        "fingerprint": fingerprint},
         "engine_config_version": ecv,
@@ -252,15 +252,15 @@ def _warn_cell(warnings: dict) -> str:
 def _basis_banner_lines(report: dict) -> list[str]:
     """The epoch-basis note, spoken on EVERY output mode (the finding-2 rule:
     an operator reads words, not exit codes or JSON fields)."""
-    n = report.get("puzzle_absent_rows", 0)
+    n = report.get("setup_quality_absent_rows", 0)
     if not n or not report["rows"]:
         return []
     total = len(report["rows"])
     which = f"ALL {total}" if n == total else f"{n} of {total}"
-    return [f"note: {which} rows carry no archived puzzle_quality (they "
-            "predate the grade columns) — the replay grades puzzle as "
+    return [f"note: {which} rows carry no archived setup_quality (they "
+            "predate the grade columns) — the replay grades setup_quality as "
             "neutral 0 there while the stored v1 score still contains its "
-            "points, so the rank Δ column includes the missing-puzzle "
+            "points, so the rank Δ column includes the missing setup-quality "
             "differential. Judge movement on a scan archived by the merged "
             "code."]
 

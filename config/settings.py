@@ -281,7 +281,7 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # election are untouched — but every read anchored to the box start re-measures
 # over the extended span (the base-window suite: base-age, traversal,
 # contractions, support slope, dwell, touch-volume, bar compression; plus the
-# spring / inner-box / LPS windows, bin evidence and the event-puzzle read).
+# spring / inner-box / LPS windows, bin evidence and the event-story read).
 # Implemented in box_primitives.backext_shared_rail; applied post-election in
 # BOTH bricks.validate_equilibrium (live) and phase_b_zigzag (diagnostics).
 # FLIPPED ON 2026-07-03 after the operator eyeballed the A/B renders
@@ -692,22 +692,22 @@ CANDLE_TIGHTBAR_MESSY = 0.30    # tight-bar % <= this -> zero on this measure
 # Both are box fractions so they scale across the universe; operator-eyeball-tuned.
 SOS_NEAR_R_MAX_BOX = 1.5        # wave-top box_pos ceiling for an SOS (1.0 = R; > this box-frac above R = markup)
 SOS_HOLD_MAX_RANGE_BOX = 0.55   # post-top hold-window High-Low span as box fraction to count as a consolidation
-# E3 puzzle-quality graded sub-score — wires the L2 assembled Wyckoff puzzle (assemble_box_narrative,
+# E3 setup-quality graded sub-score — wires the L2 assembled Wyckoff story (assemble_box_narrative,
 # read on the engine's OWN elected box) into the score as ONE additive, BONUS-ONLY term: a single
 # [0,1] composite * cap. Grades-not-vetoes: it can only RAISE a score, never gate /
 # reject / touch firing (a missing/None narrative grades neutral 0.0). completeness and
 # chronology are CORRELATED (intact => full spine), so they combine into ONE composite
 # (not two terms). LIVE 2026-07-04 (operator A/B eyeball: 128/128 fires lifted, mean +4.5,
 # 22 tier flips); the forward-return validation stays a revisit (~07-15+ data).
-SCORE_PUZZLE_QUALITY = 8.0      # cap for the puzzle sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
-PUZZLE_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
-PUZZLE_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
-PUZZLE_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
+SCORE_SETUP_QUALITY = 8.0      # cap for the setup-quality sub-score (~half a tier gap; sibling of SCORE_ADR/BREADTH)
+SETUP_QUALITY_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..4 distinct pieces present)
+SETUP_QUALITY_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
+SETUP_QUALITY_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
 
 # ── Event Map — whole-chart event read (PLAN-event-tape.md, stage 1) ────────────
 # Fire-path staging of the Event Map (core/structure/event_map.py): compute the
 # stamped mechanical swing map + the narrative-role labels for FIRING setups only,
-# reusing the elected bricks (spring/lps) — the puzzle-read placement, dozens of
+# reusing the elected bricks (spring/lps) — the story-read placement, dozens of
 # tickers a night. MEASURE-ONLY and additive: gates nothing, scores nothing, moves
 # no rail; emits only underscore-prefixed diagnostic fields (never canonical).
 # Flag-off is byte-identical with ZERO new compute (import + computation live only

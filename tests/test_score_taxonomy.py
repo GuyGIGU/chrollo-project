@@ -29,7 +29,7 @@ def test_analyze_sub_scores_are_registry_sourced():
 
 def test_every_term_persists_and_follows_the_score_prefix_convention():
     # THE MANDATE (task 5): a registry term cannot exist without a persisted
-    # archive column — puzzle_quality scored invisibly for weeks because its
+    # archive column — setup_quality scored invisibly for weeks because its
     # column was "a later add"; that class of breach is refused here. And every
     # column is 'score_' + its result key, tying the registry's columns back to
     # real score_setup / compose output, not just to itself.
@@ -38,7 +38,7 @@ def test_every_term_persists_and_follows_the_score_prefix_convention():
     for term in taxonomy.REGISTRY:
         assert term.column is not None, (
             f"term {term.key!r} has no archive column — a registered term "
-            "persists at add time (the puzzle_quality breach, refused)")
+            "persists at add time (the setup_quality breach, refused)")
         assert term.column == f"score_{term.key}"
         assert term.column in model_cols, (
             f"term {term.key!r} declares column {term.column!r} which does "
@@ -52,11 +52,11 @@ def test_every_cap_setting_resolves_to_a_number():
         assert isinstance(term.cap(), float)
 
 
-def test_puzzle_quality_always_emitted():
-    # The puzzle term is unconditional (folded 2026-07-18; formerly gated by
+def test_setup_quality_always_emitted():
+    # The setup_quality term is unconditional (folded 2026-07-18; formerly gated by
     # PUZZLE_SCORE_ENABLED via TermSpec.present_when) — all 15 terms emit.
     keys = taxonomy.emitted_keys()
-    assert "puzzle_quality" in keys and len(keys) == 15
+    assert "setup_quality" in keys and len(keys) == 15
 
 
 def test_only_breadth_is_regime_layer():

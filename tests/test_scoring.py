@@ -505,38 +505,38 @@ def test_candle_spread_discounts_messy_preserves_clean():
     assert messy == pytest.approx(neutral * settings.CANDLE_GRADE_FLOOR, rel=0.02)
 
 
-# --- E3: puzzle-quality graded sub-score (flag-gated) ---------------------------
+# --- E3: setup-quality graded sub-score (flag-gated) ---------------------------
 
 def _nar(completeness, chronology, upthrust_terminal=False):
     return {"completeness": completeness, "chronology": chronology,
             "upthrust_terminal": upthrust_terminal}
 
 
-def test_puzzle_quality_neutral_on_missing():
-    from engine_alpha.scoring.scoring import _puzzle_quality
-    assert _puzzle_quality(None) == 0.0           # a missing narrative passes None
-    assert _puzzle_quality({}) == 0.0             # malformed dict -> neutral
-    assert _puzzle_quality("nope") == 0.0         # non-dict -> neutral
-    assert _puzzle_quality(_nar(0, "absent")) == 0.0   # well-formed empty narrative
+def test_setup_quality_neutral_on_missing():
+    from engine_alpha.scoring.scoring import _setup_quality
+    assert _setup_quality(None) == 0.0           # a missing narrative passes None
+    assert _setup_quality({}) == 0.0             # malformed dict -> neutral
+    assert _setup_quality("nope") == 0.0         # non-dict -> neutral
+    assert _setup_quality(_nar(0, "absent")) == 0.0   # well-formed empty narrative
 
 
-def test_puzzle_quality_monotonic_and_bounded():
-    from engine_alpha.scoring.scoring import _puzzle_quality
+def test_setup_quality_monotonic_and_bounded():
+    from engine_alpha.scoring.scoring import _setup_quality
     chronos = ["absent", "partial", "intact"]
     # Bounded [0,1] over the whole completeness x chronology domain.
     for c in range(0, 5):
         for ch in chronos:
-            q = _puzzle_quality(_nar(c, ch))
+            q = _setup_quality(_nar(c, ch))
             assert 0.0 <= q <= 1.0
     # Non-decreasing in completeness at fixed chronology.
     for ch in chronos:
-        seq = [_puzzle_quality(_nar(c, ch)) for c in range(0, 5)]
+        seq = [_setup_quality(_nar(c, ch)) for c in range(0, 5)]
         assert seq == sorted(seq) and seq[0] < seq[-1]
     # intact >= partial >= absent at fixed completeness.
     for c in range(0, 5):
-        a = _puzzle_quality(_nar(c, "absent"))
-        p = _puzzle_quality(_nar(c, "partial"))
-        i = _puzzle_quality(_nar(c, "intact"))
+        a = _setup_quality(_nar(c, "absent"))
+        p = _setup_quality(_nar(c, "partial"))
+        i = _setup_quality(_nar(c, "intact"))
         assert a <= p <= i
 
 
@@ -591,7 +591,7 @@ def _sub(overrides=None):
             "atr_squeeze": 4.0, "lps_tightness": 12.0, "vol_contraction": 10.0,
             "base_age": 14.0, "uptrend_bonus": 0.0, "rs_bonus": 0.0,
             "high_proximity": 5.0, "breadth_bonus": 6.0, "contraction": 8.0,
-            "ascending_support": 4.0, "adr": 5.0, "puzzle_quality": 6.0}
+            "ascending_support": 4.0, "adr": 5.0, "setup_quality": 6.0}
     base.update(overrides or {})
     return base
 
@@ -747,12 +747,12 @@ def test_compose_never_reads_the_tape(v2_on):
 # --- Task 5: the TA-grade archive family extraction -----------------------------
 
 def test_ta_grade_archive_values_null_through_when_dark():
-    """A flag-dark row (no _ta_grade / _puzzle_* fields) archives the whole
+    """A flag-dark row (no _ta_grade / _setup_* fields) archives the whole
     family as NULL — never zero (NULL = not measured, the pre-flip contract)."""
     from engine_alpha.scoring.scoring import ta_grade_archive_values
     out = ta_grade_archive_values((lambda _k: None), prefixed=True)
-    assert set(out) == {"ta_grade", "ta_grade_raw", "puzzle_completeness",
-                        "puzzle_chronology", "puzzle_upthrust_terminal",
+    assert set(out) == {"ta_grade", "ta_grade_raw", "setup_completeness",
+                        "setup_chronology", "setup_upthrust_terminal",
                         "score_spring", "score_story_s_tests",
                         "score_story_r_rejections", "score_story_alternations",
                         "score_story_terminal_posture",
@@ -768,15 +768,15 @@ def test_ta_grade_archive_values_scrubs_and_coerces():
     plain ints (bools on the 0/1 convention); floats pass at full precision."""
     from engine_alpha.scoring.scoring import ta_grade_archive_values
     row = {"_ta_grade": 61.5, "_ta_grade_raw": float("nan"),
-           "_puzzle_completeness": 3.0, "_puzzle_chronology": "partial",
-           "_puzzle_upthrust_terminal": True}
+           "_setup_completeness": 3.0, "_setup_chronology": "partial",
+           "_setup_upthrust_terminal": True}
     out = ta_grade_archive_values(row.get, prefixed=True)
     assert out["ta_grade"] == 61.5
     assert out["ta_grade_raw"] is None
-    assert out["puzzle_completeness"] == 3
-    assert isinstance(out["puzzle_completeness"], int)
-    assert out["puzzle_upthrust_terminal"] == 1
-    assert out["puzzle_chronology"] == "partial"
+    assert out["setup_completeness"] == 3
+    assert isinstance(out["setup_completeness"], int)
+    assert out["setup_upthrust_terminal"] == 1
+    assert out["setup_chronology"] == "partial"
 
 
 def test_ta_grade_archive_values_refuses_illegal_chronology():
@@ -784,11 +784,11 @@ def test_ta_grade_archive_values_refuses_illegal_chronology():
     passes through; an illegal label fails loudly and never lands."""
     from engine_alpha.scoring.scoring import ta_grade_archive_values
     for legal in ("intact", "partial", "absent"):
-        out = ta_grade_archive_values({"puzzle_chronology": legal}.get,
+        out = ta_grade_archive_values({"setup_chronology": legal}.get,
                                       prefixed=False)
-        assert out["puzzle_chronology"] == legal
+        assert out["setup_chronology"] == legal
     with pytest.raises(ValueError, match="closed set"):
-        ta_grade_archive_values({"puzzle_chronology": "Intact"}.get,
+        ta_grade_archive_values({"setup_chronology": "Intact"}.get,
                                 prefixed=False)
     # Same discipline for the LPS window classification (task 7).
     for legal in ("rising_march", "turned", "clean_dip", "mixed"):
@@ -823,37 +823,37 @@ def test_taxonomy_emitted_keys_match_score_setup_output():
     assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
 
 
-def test_puzzle_awards_bonus_and_adds_key():
-    # The puzzle term is unconditional engine behavior (folded 2026-07-18;
+def test_setup_quality_awards_bonus_and_adds_key():
+    # The setup_quality term is unconditional engine behavior (folded 2026-07-18;
     # formerly behind PUZZLE_SCORE_ENABLED, live since 2026-07-04).
     from engine_alpha.scoring.scoring import score_setup
     none_on = score_setup(**_score_common(narrative=None))   # no narrative -> 0 bonus
     rich = score_setup(**_score_common(narrative=_nar(4, "intact")))
     poor = score_setup(**_score_common(narrative=_nar(1, "absent")))
-    assert none_on["puzzle_quality"] == 0.0 and "puzzle_quality" in rich
-    assert rich["puzzle_quality"] == settings.SCORE_PUZZLE_QUALITY   # full puzzle -> the cap
-    assert rich["puzzle_quality"] > poor["puzzle_quality"] > 0.0
+    assert none_on["setup_quality"] == 0.0 and "setup_quality" in rich
+    assert rich["setup_quality"] == settings.SCORE_SETUP_QUALITY   # full story -> the cap
+    assert rich["setup_quality"] > poor["setup_quality"] > 0.0
     # the bonus is exactly the total lift over the no-narrative (0-bonus) baseline.
-    assert rich["total"] == pytest.approx(none_on["total"] + rich["puzzle_quality"], abs=0.05)
+    assert rich["total"] == pytest.approx(none_on["total"] + rich["setup_quality"], abs=0.05)
     assert rich["total"] > poor["total"]
 
 
-def test_puzzle_term_is_bonus_only_and_capped():
+def test_setup_quality_term_is_bonus_only_and_capped():
     from engine_alpha.scoring.scoring import score_setup
     off = score_setup(**_score_common(narrative=None))["total"]
     for c in range(0, 5):
         for ch in ("absent", "partial", "intact"):
             r = score_setup(**_score_common(narrative=_nar(c, ch)))
-            assert 0.0 <= r["puzzle_quality"] <= settings.SCORE_PUZZLE_QUALITY  # bounded bonus
+            assert 0.0 <= r["setup_quality"] <= settings.SCORE_SETUP_QUALITY  # bounded bonus
             assert r["total"] >= off                                           # never demotes
 
 
 def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
-    # The puzzle is read on the engine's OWN elected PARENT box object (object
+    # The story is read on the engine's OWN elected PARENT box object (object
     # identity), with the EXACT same df + atr read_structure used — never a
     # reconstruction — AND it REUSES the engine's elected spring/LPS bricks
     # (structure.spring / structure.lps) rather than re-detecting on the parent
-    # box. This is the faithfulness fix: on an inner-LPS fire, the puzzle must
+    # box. This is the faithfulness fix: on an inner-LPS fire, the story must
     # describe the LPS that actually fired (the inner election), never a fresh
     # parent-box re-detection, and it must never SILENTLY drop the elected LPS.
     from tools.shadow_diff import _load_fixture
@@ -917,9 +917,9 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     assert lps_represented > 0                       # the elected LPS is normally represented
 
 
-def test_e3_eval_twins_agree_on_puzzle():
+def test_e3_eval_twins_agree_on_setup_quality():
     # Both eval-twins (live + seed) route through the single score_setup call, so
-    # they compute the identical puzzle bonus (EC-3 fold).
+    # they compute the identical setup-quality bonus (EC-3 fold).
     from tools.shadow_diff import _load_fixture
     from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
@@ -937,9 +937,9 @@ def test_e3_eval_twins_agree_on_puzzle():
         if live is None or seed is None:
             continue
         alive = seed_row_from_result(live)           # adapt live to the same shape
-        # Both twins compute the identical puzzle bonus (and the adapter re-keys it).
-        assert (alive["sub_scores"].get("puzzle_quality")
-                == seed["sub_scores"].get("puzzle_quality"))
-        assert alive["puzzle_completeness"] == seed["puzzle_completeness"]
+        # Both twins compute the identical setup-quality bonus (and the adapter re-keys it).
+        assert (alive["sub_scores"].get("setup_quality")
+                == seed["sub_scores"].get("setup_quality"))
+        assert alive["setup_completeness"] == seed["setup_completeness"]
         return
     pytest.skip("no firing ticker in fixture")

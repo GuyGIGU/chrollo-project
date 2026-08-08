@@ -40,11 +40,11 @@ ZERO until you set their `TA_WARN_*` factors. Optionally
 identity verdict still prints). Judge here; nothing changes until step 1.
 
 **Judge movement only on a scan archived by the merged code.** Rows from
-before the grade columns carry `score_puzzle_quality` NULL: the replay grades
-puzzle absence-neutral 0 while the stored v1 score still contains its points,
-so their rank Δ is the missing-puzzle differential, not the grade's opinion
+before the grade columns carry `score_setup_quality` NULL: the replay grades
+setup_quality absence-neutral 0 while the stored v1 score still contains its points,
+so their rank Δ is the missing setup-quality differential, not the grade's opinion
 (first live A/B 2026-08-08: the entire ±31 movers list — LKFN/ELS/CATO −31/−28/−26,
-ABBV +26 — decomposed to exactly the wire's puzzle points, 6/6). The tool
+ABBV +26 — decomposed to exactly the wire's setup-quality points, 6/6). The tool
 banners this basis on both output modes when such rows are present.
 
 ## 1 — The flip commit (ONE atomic change)

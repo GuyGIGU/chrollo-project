@@ -83,8 +83,8 @@ def _candle_readability(bar_compression: Optional[dict]) -> float:
     return floor + (1.0 - floor) * composite
 
 
-def _puzzle_quality(narrative: Optional[dict]) -> float:
-    """The L2 assembled Wyckoff puzzle as a single ``[0, 1]`` composite — the more
+def _setup_quality(narrative: Optional[dict]) -> float:
+    """The L2 assembled Wyckoff story as a single ``[0, 1]`` composite — the more
     high-quality pieces present in bullish order, the higher it reads.
 
     Built from the E2 ``assemble_box_narrative`` DESCRIPTIVE grades only:
@@ -92,7 +92,7 @@ def _puzzle_quality(narrative: Optional[dict]) -> float:
     and ``chronology`` (intact / partial / absent). These are CORRELATED — an
     ``intact`` chronology is structurally impossible without the full spine — so they
     fold into ONE composite, never two independent terms (which would double-count the
-    full-puzzle case). Neutral ``0.0`` on a missing/``None`` (flag-off) or malformed
+    full-story case). Neutral ``0.0`` on a missing/``None`` (flag-off) or malformed
     narrative (absence never demotes a setup below its geometry merits). Monotonic:
     non-decreasing in completeness, and intact >= partial >= absent at equal
     completeness. A pure bonus grade — the caller clamps it into ``[0, cap]``."""
@@ -106,11 +106,11 @@ def _puzzle_quality(narrative: Optional[dict]) -> float:
     #                                               not only via the caller's clamp
     chrono_factor = {
         "intact": 1.0,
-        "partial": settings.PUZZLE_CHRONO_PARTIAL,
+        "partial": settings.SETUP_QUALITY_CHRONO_PARTIAL,
         "absent": 0.0,
     }.get(narrative.get("chronology", "absent"), 0.0)
-    return (settings.PUZZLE_W_COMPLETENESS * (completeness / 4.0)
-            + settings.PUZZLE_W_CHRONOLOGY * chrono_factor)
+    return (settings.SETUP_QUALITY_W_COMPLETENESS * (completeness / 4.0)
+            + settings.SETUP_QUALITY_W_CHRONOLOGY * chrono_factor)
 
 
 def score_setup(box_width: float, r_touches: int, s_touches: int,
@@ -261,16 +261,16 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # be worth trading. Bonus-only; quiet names simply earn zero here.
     s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
 
-    # Puzzle-quality bonus (E3) — the L2 assembled Wyckoff puzzle as an additive,
+    # Setup-quality bonus (E3) — the L2 assembled Wyckoff story as an additive,
     # bonus-only term. A missing/None/malformed narrative grades a neutral 0.0
-    # (the containment lives in _puzzle_quality). Grades-not-vetoes: >=0 and
+    # (the containment lives in _setup_quality). Grades-not-vetoes: >=0 and
     # clamped to the cap, it can only raise a score.
-    s_puzzle = _clamp(_puzzle_quality(narrative) * settings.SCORE_PUZZLE_QUALITY,
-                      settings.SCORE_PUZZLE_QUALITY)
+    s_setup_quality = _clamp(_setup_quality(narrative) * settings.SCORE_SETUP_QUALITY,
+                      settings.SCORE_SETUP_QUALITY)
 
     total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
                   + s_uptrend + s_rs + s_high + s_breadth + s_contraction
-                  + s_ascending + s_adr + s_puzzle, 1)
+                  + s_ascending + s_adr + s_setup_quality, 1)
 
     result = {
         'total': total,
@@ -288,7 +288,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
         'contraction': round(s_contraction, 2),
         'ascending_support': round(s_ascending, 2),
         'adr': round(s_adr, 2),
-        'puzzle_quality': round(s_puzzle, 2),
+        'setup_quality': round(s_setup_quality, 2),
     }
     return result
 
@@ -450,10 +450,10 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
 
 
 # ── TA-grade archive family (build task 5) ───────────────────────────────────
-# The grade pair + the three puzzle grades, archived by ONE extraction both
+# The grade pair + the three setup grades, archived by ONE extraction both
 # writers splat (the event_map_archive_values precedent — never a re-declared
 # field list). The per-term score_* columns (score_spring, score_story_*,
-# score_puzzle_quality) deliberately take the established per-term LITERAL
+# score_setup_quality) deliberately take the established per-term LITERAL
 # route in the three writers instead: the seed pinning guard
 # (tests/test_archive_column_parity.py) requires every score_* column as an
 # explicit overrides key, and double-providing a key from both a literal and
@@ -463,18 +463,18 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
 # CHECK/NOT NULL, so the operative constraint lives HERE and in the tests):
 #   ta_grade / ta_grade_raw   NULL = flag-off / pre-flip row (never zero);
 #                             FULL-precision floats, rounding is display-only.
-#   puzzle_completeness       NULL = narrative abstained; explicit 0 = a read
+#   setup_completeness       NULL = narrative abstained; explicit 0 = a read
 #                             that found no pieces (evidence).
-#   puzzle_chronology         closed set {intact, partial, absent} or NULL —
+#   setup_chronology         closed set {intact, partial, absent} or NULL —
 #                             refused at write below (fresh-DB CHECK in the
 #                             model is documentation + defence only).
-#   puzzle_upthrust_terminal  0/1 or NULL (narrative abstained).
+#   setup_upthrust_terminal  0/1 or NULL (narrative abstained).
 TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "ta_grade": "REAL",
     "ta_grade_raw": "REAL",
-    "puzzle_completeness": "INTEGER",
-    "puzzle_chronology": "TEXT",
-    "puzzle_upthrust_terminal": "INTEGER",
+    "setup_completeness": "INTEGER",
+    "setup_chronology": "TEXT",
+    "setup_upthrust_terminal": "INTEGER",
     # Flag-gated v2 term points — FLAT on the result row under their registry
     # column names (the eval chain's one deliberate mapping), so the same
     # extraction carries them; NULL while TA_SCORE_V2 is dark.
@@ -505,7 +505,7 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "fired_tags": "TEXT",
 }
 
-PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
+SETUP_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
 LPS_WINDOW_CLASSIFICATION_VALUES = frozenset(
     {"rising_march", "turned", "clean_dip", "mixed"})
 
@@ -535,7 +535,7 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
     is the row's ``.get``; the LIVE result carries ``_``-prefixed keys
     (``prefixed=True``), the SEED result does not. Cells are NaN-scrubbed at
     the pandas boundary (EC-2), INTEGER cells coerced to plain int, and the
-    ``puzzle_chronology`` closed set is refused at write (EC-19 adapted: the
+    ``setup_chronology`` closed set is refused at write (EC-19 adapted: the
     live DB's operative constraint is this assertion — a typo'd label must
     fail loudly, never land). A missing/scrubbed cell stays None (NULL =
     "not measured")."""
@@ -550,11 +550,11 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
                 pass
         if value is not None and sql_type == "INTEGER":
             value = int(value)
-        if col == "puzzle_chronology" and value is not None \
-                and value not in PUZZLE_CHRONOLOGY_VALUES:
+        if col == "setup_chronology" and value is not None \
+                and value not in SETUP_CHRONOLOGY_VALUES:
             raise ValueError(
-                f"puzzle_chronology {value!r} is outside the closed set "
-                f"{sorted(PUZZLE_CHRONOLOGY_VALUES)} — refusing the write "
+                f"setup_chronology {value!r} is outside the closed set "
+                f"{sorted(SETUP_CHRONOLOGY_VALUES)} — refusing the write "
                 "(EC-19: an illegal label must never land)")
         if col == "lps_window_classification" and value is not None \
                 and value not in LPS_WINDOW_CLASSIFICATION_VALUES:

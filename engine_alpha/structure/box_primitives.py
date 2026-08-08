@@ -736,7 +736,7 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     so every read anchored to it re-measures: the base-window suite
     (base-age, traversal, contractions, support slope, dwell, touch-volume,
     bar compression), the spring / inner-box / LPS windows, bin evidence,
-    the event puzzle. Returns the (possibly unchanged) window-relative start.
+    the event story. Returns the (possibly unchanged) window-relative start.
     """
     if cand_start <= 0:
         return cand_start

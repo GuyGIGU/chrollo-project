@@ -228,7 +228,7 @@ _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
 from engine_alpha.structure.event_map import event_map_archive_values
-# TA-grade family (grade pair + puzzle grades + flag-gated term points) and
+# TA-grade family (grade pair + setup grades + flag-gated term points) and
 # the per-term sub-score fold — single source in engine_alpha.scoring.scoring
 # (same model-only convention).
 from engine_alpha.scoring.scoring import (
@@ -640,7 +640,7 @@ def archive_scan_results(
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(row.get, prefixed=True),
             # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
-            # + the three puzzle grades (NULL when the narrative abstained)
+            # + the three setup grades (NULL when the narrative abstained)
             **ta_grade_archive_values(row.get, prefixed=True),
             # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED
             # is off; never backfilled (the archived cell is what was shown)

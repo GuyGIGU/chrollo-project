@@ -51,7 +51,7 @@ def _payload(monkeypatch, *, v2_overlay=None, flag=False):
         "atr_squeeze": 3.0, "lps_tightness": 11.0, "vol_contraction": 9.0,
         "base_age": 8.0, "uptrend_bonus": 0.0, "rs_bonus": 0.0,
         "high_proximity": 4.0, "breadth_bonus": 5.0, "contraction": 6.0,
-        "ascending_support": 3.0, "adr": 4.0, "puzzle_quality": 5.0,
+        "ascending_support": 3.0, "adr": 4.0, "setup_quality": 5.0,
     }
     row = {
         "Ticker": "AAA",
@@ -230,8 +230,8 @@ def test_wire_covers_every_registry_term_and_family_column(monkeypatch):
             assert t.column in chart, (
                 f"flag-gated term column {t.column!r} missing from the v2 block")
     for col in TA_GRADE_COLUMN_SQL:
-        if col.startswith("puzzle_"):
-            continue        # the puzzle grades ride the archive, not this wire block
+        if col.startswith("setup_"):
+            continue        # the setup grades ride the archive, not this wire block
         assert col in chart, f"family column {col!r} missing from the v2 block"
 
 

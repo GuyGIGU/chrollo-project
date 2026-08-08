@@ -1,11 +1,11 @@
-"""Archive-wide TA-grade replay — measure puzzle quality (and the full
+"""Archive-wide TA-grade replay — measure setup quality (and the full
 would-be 0-100) for archived fires whose rows predate the grade columns.
 
-The archive's score_puzzle_quality column was born 2026-08-08; every earlier
+The archive's score_setup_quality column was born 2026-08-08; every earlier
 row carries it NULL while its stored v1 score contains the points. This
 instrument re-reads each archived fire POINT-IN-TIME from the price cache
 (the replay-seam basis: slice to scan_date, run the ONE live eval chain) and
-reports the measured puzzle + the flag-on would-be grade.
+reports the measured setup quality + the flag-on would-be grade.
 
 Honesty gates, in order:
   * READ-ONLY. Nothing is ever written to the archive — pre-flip rows keep
@@ -84,30 +84,30 @@ def summarize(records: list) -> dict:
             e["concordant"] += 1
 
     conc = [r for r in records if r["outcome"] == "concordant"]
-    puzzles = sorted(r["puzzle"]["quality"] for r in conc
-                     if r["puzzle"] and r["puzzle"]["quality"] is not None)
-    cap = float(settings.SCORE_PUZZLE_QUALITY)
+    qualities = sorted(r["setup"]["quality"] for r in conc
+                     if r["setup"] and r["setup"]["quality"] is not None)
+    cap = float(settings.SCORE_SETUP_QUALITY)
     pz = None
-    if puzzles:
+    if qualities:
         pz = {
-            "n": len(puzzles),
-            "mean": sum(puzzles) / len(puzzles),
-            "median": puzzles[len(puzzles) // 2],
-            "at_zero": sum(1 for p in puzzles if p == 0.0),
-            "at_cap": sum(1 for p in puzzles if p >= cap - 1e-9),
+            "n": len(qualities),
+            "mean": sum(qualities) / len(qualities),
+            "median": qualities[len(qualities) // 2],
+            "at_zero": sum(1 for p in qualities if p == 0.0),
+            "at_cap": sum(1 for p in qualities if p >= cap - 1e-9),
             "cap": cap,
         }
 
     months: dict = {}
     for r in conc:
-        if r["puzzle"] and r["puzzle"]["quality"] is not None:
+        if r["setup"] and r["setup"]["quality"] is not None:
             m = months.setdefault(r["scan_date"][:7], [0, 0.0])
             m[0] += 1
-            m[1] += r["puzzle"]["quality"]
-    monthly = {k: {"n": n, "mean_puzzle": s / n}
+            m[1] += r["setup"]["quality"]
+    monthly = {k: {"n": n, "mean_setup_quality": s / n}
                for k, (n, s) in sorted(months.items())}
 
-    # Movement on the newest replayed date, puzzle now included: old-score
+    # Movement on the newest replayed date, setup_quality now included: old-score
     # ranking vs would-be-grade ranking over that date's CONCORDANT rows.
     movement = None
     if conc:
@@ -123,12 +123,12 @@ def summarize(records: list) -> dict:
                         "median_abs_rank_delta": deltas[len(deltas) // 2],
                         "max_abs_rank_delta": deltas[-1]}
 
-    return {"funnel": funnel, "epochs": epochs, "puzzle": pz,
+    return {"funnel": funnel, "epochs": epochs, "setup_quality": pz,
             "monthly": monthly, "latest_date_movement": movement}
 
 
 def _render(summary: dict, meta: dict) -> list[str]:
-    lines = ["TA-grade archive replay — puzzle measured point-in-time, "
+    lines = ["TA-grade archive replay — setup quality measured point-in-time, "
              "would-be grades, READ-ONLY (nothing written to the archive)"]
     lines.append(f"engine_config_version (flag-on replay): {meta['ecv']}")
     lines.append(f"population: {meta['n_rows']} archived fires "
@@ -148,22 +148,22 @@ def _render(summary: dict, meta: dict) -> list[str]:
                        key=lambda kv: -kv[1]["n"]):
         lines.append(f"  {e:<10} n={d['n']:>5}  concordant "
                      f"{100.0 * d['concordant'] / d['n']:.1f}%")
-    pz = summary["puzzle"]
+    pz = summary["setup_quality"]
     if pz:
         lines.append("")
         lines.append(
-            f"puzzle_quality over {pz['n']} concordant reads: "
+            f"setup_quality over {pz['n']} concordant reads: "
             f"mean {pz['mean']:.2f} / median {pz['median']:.2f} "
             f"(cap {pz['cap']:.0f}); at-zero {pz['at_zero']} "
             f"({100.0 * pz['at_zero'] / pz['n']:.0f}%), at-cap {pz['at_cap']} "
             f"({100.0 * pz['at_cap'] / pz['n']:.0f}%)")
         for m, d in summary["monthly"].items():
-            lines.append(f"  {m}  n={d['n']:>5}  mean {d['mean_puzzle']:.2f}")
+            lines.append(f"  {m}  n={d['n']:>5}  mean {d['mean_setup_quality']:.2f}")
     mv = summary["latest_date_movement"]
     if mv:
         lines.append("")
         lines.append(
-            f"v1->v2 rank movement on {mv['scan_date']} with puzzle measured "
+            f"v1->v2 rank movement on {mv['scan_date']} with setup_quality measured "
             f"({mv['n']} concordant rows, current weights): median |dRank| "
             f"{mv['median_abs_rank_delta']}, max {mv['max_abs_rank_delta']}")
     return lines
@@ -204,7 +204,7 @@ def build_records(session, panel, *, source: str, since: str | None,
                    "scan_date": row.scan_date,
                    "epoch": (row.engine_config_version or "?")[:8],
                    "old": {"score": row.score, "tier": row.tier},
-                   "puzzle": None, "ta_grade": None, "ta_grade_raw": None,
+                   "setup": None, "ta_grade": None, "ta_grade_raw": None,
                    "rails": None}
             if row.ticker not in cached:
                 rec["outcome"] = "cache_missing"
@@ -229,11 +229,11 @@ def build_records(session, panel, *, source: str, since: str | None,
                     "arc_base_len": row.base_length,
                 }
                 sub = result.get("_sub_scores") or {}
-                rec["puzzle"] = {
-                    "quality": sub.get("puzzle_quality"),
-                    "completeness": result.get("_puzzle_completeness"),
-                    "chronology": result.get("_puzzle_chronology"),
-                    "upthrust_terminal": result.get("_puzzle_upthrust_terminal"),
+                rec["setup"] = {
+                    "quality": sub.get("setup_quality"),
+                    "completeness": result.get("_setup_completeness"),
+                    "chronology": result.get("_setup_chronology"),
+                    "upthrust_terminal": result.get("_setup_upthrust_terminal"),
                 }
                 rec["ta_grade"] = result.get("_ta_grade")
                 rec["ta_grade_raw"] = result.get("_ta_grade_raw")

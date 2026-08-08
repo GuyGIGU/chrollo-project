@@ -246,7 +246,7 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
     / ``structure.lps``) and are REQUIRED: an injected ``None`` means "the
     engine elected no such piece" and is honored — this layer never re-detects
     (the EC-3 cycle-escape trap). The event zones come from the same
-    ``_box_events_with_meta`` chokepoint the puzzle read uses, so the roles can
+    ``_box_events_with_meta`` chokepoint the story read uses, so the roles can
     never desync from the L2 story.
 
     Every label carries the contract stamps (§1–§2):

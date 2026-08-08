@@ -439,7 +439,7 @@ def seed_archive(
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
             # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
-            # + the three puzzle grades (NULL when the narrative abstained)
+            # + the three setup grades (NULL when the narrative abstained)
             **ta_grade_archive_values(best_result.get, prefixed=False),
             # Election-trace evidence — NULL when the export flag is off
             **election_trace_archive_values(best_result.get, prefixed=False),

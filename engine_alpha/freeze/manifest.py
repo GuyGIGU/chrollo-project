@@ -109,7 +109,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SOS_TRIM_MIN_RUN",
     "SOS_TRIM_MIN_PREFIX_FRAC",
     # Box-start shared-rail back-extension (Phase B)
-    # SOS event detection (box_events.read_box_events -> puzzle completeness)
+    # SOS event detection (box_events.read_box_events -> story completeness)
     "SOS_NEAR_R_MAX_BOX",
     "SOS_HOLD_MAX_RANGE_BOX",
     # Markup-leg qualification (Phase A)
@@ -277,11 +277,11 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SECTOR_RANKING_ENABLED",
     "SECTOR_RANKING_LOOKBACKS",
     "RS_RATING_LOOKBACK",
-    # E3 puzzle-quality graded sub-score (additive bonus term, flag-gated)
-    "SCORE_PUZZLE_QUALITY",
-    "PUZZLE_W_COMPLETENESS",
-    "PUZZLE_W_CHRONOLOGY",
-    "PUZZLE_CHRONO_PARTIAL",
+    # E3 setup-quality graded sub-score (additive bonus term, flag-gated)
+    "SCORE_SETUP_QUALITY",
+    "SETUP_QUALITY_W_COMPLETENESS",
+    "SETUP_QUALITY_W_CHRONOLOGY",
+    "SETUP_QUALITY_CHRONO_PARTIAL",
     # Event Map fire-path staging (measure-only diagnostics, flag-gated dark)
     "EVENT_MAP_ENABLED",
     # Election stability probe (measure-only diagnostics, flag-gated dark)

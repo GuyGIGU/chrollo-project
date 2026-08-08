@@ -403,7 +403,7 @@ def _extract_chart_data(data, results_df, tickers):
                 'rs_line_latest': row.get('_rs_line_latest'),
                 'rs_line_new_high': row.get('_rs_line_new_high'),
                 # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT
-                # while TA_SCORE_V2 is off (the puzzle presence pattern; the
+                # while TA_SCORE_V2 is off (the setup_quality presence pattern; the
                 # flag-off wire snapshot pins the absence). The wire carries
                 # VERDICTS (EC-28): everything arrives resolved and
                 # display-rounded here, once — the archive keeps the full

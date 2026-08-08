@@ -4,7 +4,7 @@ Relocated verbatim out of ``engine_alpha.structure.metrics`` (a pure module peel
 behavior change). Reads an already-detected equilibrium box and reports the
 in-box structure as FACTS — the labeled HH/HL/LH/LL staircase, the independent
 R-rail / S-rail event zones (SOS / markup / upthrust / range / rejection / test /
-spring / lps), and their chronological assembly into the Wyckoff puzzle. Every
+spring / lps), and their chronological assembly into the Wyckoff story. Every
 function here is MEASURE-ONLY: it moves no rail, gates nothing, scores nothing;
 the Scoring Engine decides what the reads are worth.
 
@@ -425,7 +425,7 @@ def measure_support_tests(base_df, R, S, atr_val, *,
 
 
 # ---------------------------------------------------------------------------
-# L2 — unified independent event view (the pieces E2 assembles into the puzzle)
+# L2 — unified independent event view (the pieces E2 assembles into the story)
 # ---------------------------------------------------------------------------
 
 # Sentinel distinguishing "not provided -> detect the piece" (the measure-only
@@ -564,13 +564,13 @@ def read_box_events(df, box, atr_val, *, v_bar=None):
 
 
 # ---------------------------------------------------------------------------
-# L2 — E2: chronological assembly of the independent pieces into the PUZZLE
+# L2 — E2: chronological assembly of the independent pieces into the STORY
 # ---------------------------------------------------------------------------
 
 def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
                            spring=_DETECT, lps=_DETECT):
     """Assemble the independent L2 event ZONES (``read_box_events``) into the
-    Wyckoff puzzle + an explainable trace. MEASURE-ONLY — the assembled read E3
+    Wyckoff story + an explainable trace. MEASURE-ONLY — the assembled read E3
     will later score; this gates/scores nothing and encodes no veto.
 
     Consumes ONLY the pieces ``_box_events_with_meta`` returns (one staircase

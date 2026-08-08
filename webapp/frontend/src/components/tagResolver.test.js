@@ -44,7 +44,7 @@ test('v2 entries project label/group from the catalog, verdicts untouched', () =
 });
 
 test('unknown registry ids render VISIBLY, never vanish', () => {
-  // The puzzle_quality lesson: a backend id without a signed label renders
+  // The setup_quality lesson: a backend id without a signed label renders
   // as its raw slug with a real group (so the chip tones resolve).
   const tags = resolveTags({ fired_tags: [{ id: 'brand_new_signal' }] });
   assert.equal(tags.length, 1);

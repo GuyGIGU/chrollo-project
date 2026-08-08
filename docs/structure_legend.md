@@ -34,7 +34,7 @@ task. The general reading we play toward is one clean layered layout:
 
 — *not* a template forced onto every chart (many setups, especially young ones,
 show only part of it), but the spine of how price action is read here. This is a
-system that **solves price-action puzzles** from boring OHLC + volume: no flash,
+system that **reads price-action stories** from boring OHLC + volume: no flash,
 just disciplined reading, followed to the letter.
 
 ---

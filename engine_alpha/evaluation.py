@@ -515,7 +515,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # (_ramp); the unrounded [0,1] quality flows to eval-context and the wire.
     adr_quality = _ramp(adr_value, 0.0, settings.ADR_FULL_PCT, 1.0)
 
-    # E3 puzzle-quality: read the L2 Wyckoff puzzle by REUSING the bricks the engine
+    # E3 setup-quality: read the L2 Wyckoff story by REUSING the bricks the engine
     # already elected onto the Structure. read_structure ran find_spring / find_lps
     # once and parked the winners on structure.spring / structure.lps (the LPS may be
     # the tighter INNER-box election). Injecting those makes the scored narrative
@@ -565,20 +565,20 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         htf_ctx.update(read_htf_context(full_df, "weekly", daily_box=daily_box))
         htf_ctx.update(read_htf_context(full_df, "monthly", daily_box=daily_box))
 
-    # Puzzle grades for surfacing (the A/B + a future "why ranked" chip) — present
+    # Setup grades for surfacing (the A/B + a future "why ranked" chip) — present
     # only when the narrative produced a read; an abstaining narrative spreads {}
     # into the result dict and adds nothing.
-    puzzle_fields = (
+    setup_fields = (
         {
-            "_puzzle_completeness": int(narrative["completeness"]),
-            "_puzzle_chronology": narrative["chronology"],
-            "_puzzle_upthrust_terminal": bool(narrative["upthrust_terminal"]),
+            "_setup_completeness": int(narrative["completeness"]),
+            "_setup_chronology": narrative["chronology"],
+            "_setup_upthrust_terminal": bool(narrative["upthrust_terminal"]),
         }
         if narrative is not None else {}
     )
 
     # Event Map stage-1 (measure-only): the stamped whole-frame swing map + role
-    # labels for FIRES, reusing the elected bricks — the puzzle-read placement.
+    # labels for FIRES, reusing the elected bricks — the story-read placement.
     # No scan-time consumer yet (archive columns / overlay payload are later
     # Event Map stages); this stages the compute so its cost is measurable and
     # emits only underscore diagnostics. Import + computation live strictly
@@ -664,7 +664,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             structure_ctx["atr_for_zone"],
         )
         _rich = measure_story_richness(
-            puzzle_fields.get("_puzzle_completeness"),
+            setup_fields.get("_setup_completeness"),
             _em_scalars.get("event_map_completed_s"),
             _em_scalars.get("event_map_completed_r"),
             _em_scalars.get("event_map_alternations"),
@@ -735,7 +735,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "score": score,
         "tier": calculate_tier(score, structure_ctx["box_width"]),
         "htf_ctx": htf_ctx,
-        "puzzle_fields": puzzle_fields,
+        "setup_fields": setup_fields,
         "event_map_fields": event_map_fields,
         "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
@@ -962,7 +962,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_base_date_start': str(base_df.index[0])[:10],
         '_base_date_end': str(base_df.index[-1])[:10],
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
-        **score_ctx.get("puzzle_fields", {}),   # E3: {} when the narrative abstained
+        **score_ctx.get("setup_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
         **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: empty flag-off -> byte-identical
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical

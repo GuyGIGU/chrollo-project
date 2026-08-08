@@ -32,25 +32,25 @@ def test_rails_concordant_is_the_same_shelf_within_tol():
     assert not rails_concordant(100.0, 50.0, 0.0, 50.0)
 
 
-def _rec(ticker, scan_date, outcome, epoch="aaaaaaaa", puzzle=None,
+def _rec(ticker, scan_date, outcome, epoch="aaaaaaaa", quality=None,
          grade=None, old_score=None):
     return {"ticker": ticker, "scan_date": scan_date, "outcome": outcome,
             "epoch": epoch,
-            "puzzle": ({"quality": puzzle} if puzzle is not None else None),
+            "setup": ({"quality": quality} if quality is not None else None),
             "ta_grade": grade, "old": {"score": old_score, "tier": "A"}}
 
 
-def test_summarize_funnel_epochs_puzzle_and_movement():
+def test_summarize_funnel_epochs_setup_quality_and_movement():
     records = [
-        _rec("AAA", "2026-08-08", "concordant", puzzle=8.0, grade=60.0,
+        _rec("AAA", "2026-08-08", "concordant", quality=8.0, grade=60.0,
              old_score=120.0),
-        _rec("BBB", "2026-08-08", "concordant", puzzle=0.0, grade=55.0,
+        _rec("BBB", "2026-08-08", "concordant", quality=0.0, grade=55.0,
              old_score=100.0),
         # Inverted pair on the latest date: CCC out-scores BBB on v1 but
         # under-grades it on v2 -> both move one rank.
-        _rec("CCC", "2026-08-08", "concordant", puzzle=4.0, grade=50.0,
+        _rec("CCC", "2026-08-08", "concordant", quality=4.0, grade=50.0,
              old_score=110.0),
-        _rec("DDD", "2026-07-01", "concordant", epoch="bbbbbbbb", puzzle=2.0,
+        _rec("DDD", "2026-07-01", "concordant", epoch="bbbbbbbb", quality=2.0,
              grade=40.0, old_score=90.0),
         _rec("EEE", "2026-07-01", "discordant", epoch="bbbbbbbb"),
         _rec("FFF", "2026-06-01", "no_fire", epoch="cccccccc"),
@@ -62,12 +62,12 @@ def test_summarize_funnel_epochs_puzzle_and_movement():
     assert s["epochs"]["aaaaaaaa"] == {"n": 3, "concordant": 3}
     assert s["epochs"]["bbbbbbbb"] == {"n": 2, "concordant": 1}
     assert s["epochs"]["cccccccc"] == {"n": 2, "concordant": 0}
-    pz = s["puzzle"]
+    pz = s["setup_quality"]
     assert pz["n"] == 4 and pz["at_zero"] == 1 and pz["at_cap"] == 1
     assert pz["mean"] == (8.0 + 0.0 + 4.0 + 2.0) / 4
-    # Monthly means cover only concordant reads with a measured puzzle.
+    # Monthly means cover only concordant reads with a measured setup_quality.
     assert s["monthly"]["2026-08"]["n"] == 3
-    assert s["monthly"]["2026-07"] == {"n": 1, "mean_puzzle": 2.0}
+    assert s["monthly"]["2026-07"] == {"n": 1, "mean_setup_quality": 2.0}
     # Latest-date movement: old order AAA>CCC>BBB, grade order AAA>BBB>CCC.
     mv = s["latest_date_movement"]
     assert mv["scan_date"] == "2026-08-08" and mv["n"] == 3
@@ -77,6 +77,6 @@ def test_summarize_funnel_epochs_puzzle_and_movement():
 def test_summarize_is_affirmative_when_nothing_joins():
     s = summarize([_rec("AAA", "2026-08-08", "no_fire")])
     assert s["funnel"] == {"no_fire": 1}
-    assert s["puzzle"] is None
+    assert s["setup_quality"] is None
     assert s["monthly"] == {}
     assert s["latest_date_movement"] is None
