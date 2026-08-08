@@ -457,9 +457,37 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "puzzle_completeness": "INTEGER",
     "puzzle_chronology": "TEXT",
     "puzzle_upthrust_terminal": "INTEGER",
+    # Flag-gated v2 term points — FLAT on the result row under their registry
+    # column names (the eval chain's one deliberate mapping), so the same
+    # extraction carries them; NULL while TA_SCORE_V2 is dark.
+    "score_spring": "REAL",
+    "score_story_s_tests": "REAL",
+    "score_story_r_rejections": "REAL",
+    "score_story_alternations": "REAL",
+    "score_story_terminal_posture": "REAL",
 }
 
 PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
+
+
+def sub_score_archive_values(sub, *, exclude: frozenset = frozenset()) -> dict:
+    """{column: value} for every ALWAYS-EMITTED registry term, read from the
+    nested sub-scores dict — the ONE producer for the per-term score_* columns
+    all three writers splat (build task 6; kills the 15-literal triplication
+    that let score_traversal_quality silently NULL for a whole population).
+    Flag-gated term points are NOT here: they ride the result row FLAT under
+    their column names and ``ta_grade_archive_values`` carries them.
+
+    ``exclude`` is a path's DECLARED deliberate-NULL set (the manual route's
+    ``score_traversal_quality``): excluded columns are dropped from the dict —
+    never silently hand-omitted at a call site. Values pass through exactly as
+    scored (``sub.get`` — byte-identical to the folded literals)."""
+    if not isinstance(sub, dict):
+        sub = {}
+    from engine_alpha.scoring import taxonomy
+    return {t.column: sub.get(t.key)
+            for t in taxonomy.REGISTRY
+            if t.present_when is None and t.column not in exclude}
 
 
 def ta_grade_archive_values(get, *, prefixed: bool) -> dict:

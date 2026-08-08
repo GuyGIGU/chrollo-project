@@ -745,7 +745,10 @@ def test_ta_grade_archive_values_null_through_when_dark():
     from engine_alpha.scoring.scoring import ta_grade_archive_values
     out = ta_grade_archive_values((lambda _k: None), prefixed=True)
     assert set(out) == {"ta_grade", "ta_grade_raw", "puzzle_completeness",
-                        "puzzle_chronology", "puzzle_upthrust_terminal"}
+                        "puzzle_chronology", "puzzle_upthrust_terminal",
+                        "score_spring", "score_story_s_tests",
+                        "score_story_r_rejections", "score_story_alternations",
+                        "score_story_terminal_posture"}
     assert all(v is None for v in out.values())
 
 

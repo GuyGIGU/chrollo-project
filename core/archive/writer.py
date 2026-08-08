@@ -228,9 +228,13 @@ _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
 from engine_alpha.structure.event_map import event_map_archive_values
-# TA-grade family (grade pair + puzzle grades) — single source in
-# engine_alpha.scoring.scoring (same model-only convention).
-from engine_alpha.scoring.scoring import ta_grade_archive_values
+# TA-grade family (grade pair + puzzle grades + flag-gated term points) and
+# the per-term sub-score fold — single source in engine_alpha.scoring.scoring
+# (same model-only convention).
+from engine_alpha.scoring.scoring import (
+    sub_score_archive_values,
+    ta_grade_archive_values,
+)
 # Election-trace evidence cell — single source in engine_alpha.structure.trace_export
 # (same model-only convention as the event_map family).
 from engine_alpha.structure.trace_export import election_trace_archive_values
@@ -479,27 +483,10 @@ def archive_scan_results(
             breach_days=int(row.get("Breach Days", 0)),
             vol_contraction=float(row.get("_vol_contraction", 0)),
             tightness_ratio=float(row.get("_tightness_ratio", 0)),
-            # Sub-scores
-            score_box_tightness=sub.get("box_tightness"),
-            score_touch_density=sub.get("touch_density"),
-            score_traversal_quality=sub.get("traversal_quality"),
-            score_atr_squeeze=sub.get("atr_squeeze"),
-            score_lps_tightness=sub.get("lps_tightness"),
-            score_vol_contraction=sub.get("vol_contraction"),
-            score_base_age=sub.get("base_age"),
-            score_uptrend_bonus=sub.get("uptrend_bonus"),
-            score_rs_bonus=sub.get("rs_bonus"),
-            score_high_proximity=sub.get("high_proximity"),
-            score_breadth_bonus=sub.get("breadth_bonus"),
-            # E3 puzzle term points (v1, scored on every row since 2026-07-18;
-            # archived since the task-5 breach close)
-            score_puzzle_quality=sub.get("puzzle_quality"),
-            # Flag-gated v2 term points — NULL while TA_SCORE_V2 is dark
-            score_spring=row.get("_score_spring"),
-            score_story_s_tests=row.get("_score_story_s_tests"),
-            score_story_r_rejections=row.get("_score_story_r_rejections"),
-            score_story_alternations=row.get("_score_story_alternations"),
-            score_story_terminal_posture=row.get("_score_story_terminal_posture"),
+            # Per-term sub-score columns — ONE registry-driven producer (task
+            # 6 fold; byte-identical to the former 15 literals). Flag-gated
+            # term points ride the ta_grade family splat below.
+            **sub_score_archive_values(sub),
             # Volume-around-touches signature + LPS shape/zone detail
             r_touch_vol_z=row.get("_r_touch_vol_z"),
             s_touch_vol_z=row.get("_s_touch_vol_z"),
@@ -510,7 +497,6 @@ def archive_scan_results(
             contraction_quality=row.get("_contraction_quality"),
             final_contraction_depth=row.get("_final_contraction_depth"),
             contraction_vol_trend=row.get("_contraction_vol_trend"),
-            score_contraction=sub.get("contraction"),
             # Base bar-compression texture
             base_median_spread_atr=row.get("_base_median_spread_atr"),
             base_p80_spread_atr=row.get("_base_p80_spread_atr"),
@@ -519,7 +505,6 @@ def archive_scan_results(
             # Ascending-support / higher-lows footprint
             support_slope_atr=row.get("_support_slope_atr"),
             ascending_support_quality=row.get("_ascending_support_quality"),
-            score_ascending_support=sub.get("ascending_support"),
             # Worked-equilibrium occupancy metrics (raw, measure-first)
             eq_r_touches=row.get("_eq_r_touches"),
             eq_s_touches=row.get("_eq_s_touches"),
@@ -550,7 +535,6 @@ def archive_scan_results(
             trav_coil_floor_pos=row.get("_trav_coil_floor_pos"),
             # ADR% absolute-volatility character
             adr_pct=row.get("_adr_pct"),
-            score_adr=sub.get("adr"),
             # Market context
             spy_trend=market_ctx.get("spy_trend"),
             vix_level=market_ctx.get("vix_level"),

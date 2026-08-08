@@ -34,7 +34,10 @@ from engine_alpha.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
-from engine_alpha.scoring.scoring import ta_grade_archive_values
+from engine_alpha.scoring.scoring import (
+    sub_score_archive_values,
+    ta_grade_archive_values,
+)
 from engine_alpha.structure.event_map import event_map_archive_values
 from engine_alpha.structure.htf import htf_archive_values
 from engine_alpha.structure.strategy_read import strategy_archive_values
@@ -387,31 +390,12 @@ def seed_archive(
             breach_days=best_result["breach_days"],
             vol_contraction=best_result["vol_contraction"],
             tightness_ratio=best_result["tightness_ratio"],
-            # Sub-scores (column score_X <- sub["X"], the score_ prefix dropped)
-            score_box_tightness=sub.get("box_tightness"),
-            score_touch_density=sub.get("touch_density"),
-            score_traversal_quality=sub.get("traversal_quality"),
-            score_atr_squeeze=sub.get("atr_squeeze"),
-            score_lps_tightness=sub.get("lps_tightness"),
-            score_vol_contraction=sub.get("vol_contraction"),
-            score_base_age=sub.get("base_age"),
-            score_uptrend_bonus=sub.get("uptrend_bonus"),
-            score_rs_bonus=sub.get("rs_bonus"),
-            score_high_proximity=sub.get("high_proximity"),
-            score_breadth_bonus=sub.get("breadth_bonus"),
-            score_contraction=sub.get("contraction"),
-            score_ascending_support=sub.get("ascending_support"),
-            score_adr=sub.get("adr"),
-            # E3 puzzle term points (v1, scored on every row; archived since
-            # the task-5 breach close)
-            score_puzzle_quality=sub.get("puzzle_quality"),
-            # Flag-gated v2 term points — flat on the adapted result (the
-            # eval chain emits archive-ready _score_* names); NULL while dark
-            score_spring=best_result.get("score_spring"),
-            score_story_s_tests=best_result.get("score_story_s_tests"),
-            score_story_r_rejections=best_result.get("score_story_r_rejections"),
-            score_story_alternations=best_result.get("score_story_alternations"),
-            score_story_terminal_posture=best_result.get("score_story_terminal_posture"),
+            # Per-term sub-score columns — ONE registry-driven producer (task
+            # 6 fold; byte-identical to the former literals; reads the NESTED
+            # sub dict directly, so the auto-mapper's silent-None failure mode
+            # is structurally dead). Flag-gated term points ride the ta_grade
+            # family splat below (flat archive-ready names on the result).
+            **sub_score_archive_values(sub),
             # int(bool(...)) coercions (nullable 0/1)
             bin_c_present=(int(bool(best_result.get("bin_c_present")))
                            if best_result.get("bin_c_present") is not None else None),
