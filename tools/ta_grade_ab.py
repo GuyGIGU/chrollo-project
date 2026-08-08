@@ -123,12 +123,22 @@ def build_report(session, scan_date: str | None) -> dict:
         scan_date = dates[0] if dates else None
     if scan_date is None:
         return {"scan_date": None, "universe_type": universe, "rows": [],
-                "recent_dates": [],
+                "recent_dates": [], "puzzle_absent_rows": 0,
                 "engine_config_version": manifest_hash(), "identity_ok": True}
 
     rows = (session.query(SetupArchive)
             .filter(SetupArchive.scan_date == scan_date,
                     SetupArchive.universe_type == universe).all())
+
+    # puzzle_quality is the ONE replay input younger than the archive: rows
+    # archived before the grade columns existed carry it NULL, the replay
+    # grades it absence-neutral 0, and the stored v1 score still contains its
+    # points — so on such rows the v1→v2 rank movement is the missing-puzzle
+    # differential, not the grade's opinion (first live A/B, 2026-08-08: the
+    # entire ±31 movers list was exactly this). Counted here, bannered on
+    # every output mode below.
+    puzzle_absent = sum(
+        1 for r in rows if getattr(r, "score_puzzle_quality", None) is None)
 
     # In-process only, restored after the read (nothing persists; the flag
     # must be ON so the registry emits the flag-gated terms for the
@@ -206,6 +216,7 @@ def build_report(session, scan_date: str | None) -> dict:
         "universe_type": universe,
         "recent_dates": dates,
         "rows": graded,
+        "puzzle_absent_rows": puzzle_absent,
         "population": {"n": len(graded), "by_source": by_source,
                        "fingerprint": fingerprint},
         "engine_config_version": ecv,
@@ -238,6 +249,22 @@ def _warn_cell(warnings: dict) -> str:
     return ",".join(parts)
 
 
+def _basis_banner_lines(report: dict) -> list[str]:
+    """The epoch-basis note, spoken on EVERY output mode (the finding-2 rule:
+    an operator reads words, not exit codes or JSON fields)."""
+    n = report.get("puzzle_absent_rows", 0)
+    if not n or not report["rows"]:
+        return []
+    total = len(report["rows"])
+    which = f"ALL {total}" if n == total else f"{n} of {total}"
+    return [f"note: {which} rows carry no archived puzzle_quality (they "
+            "predate the grade columns) — the replay grades puzzle as "
+            "neutral 0 there while the stored v1 score still contains its "
+            "points, so the rank Δ column includes the missing-puzzle "
+            "differential. Judge movement on a scan archived by the merged "
+            "code."]
+
+
 def _identity_verdict_lines(report: dict) -> list[str]:
     """The identity verdict, spoken on EVERY output mode — --json runs used
     to file the violation silently into the evidence record (finding 2)."""
@@ -264,6 +291,8 @@ def _print_report(report: dict, top: int) -> None:
           f"{pop['n']} fires "
           f"({', '.join(f'{k}:{v}' for k, v in sorted(pop['by_source'].items()))}, "
           f"fingerprint {pop['fingerprint']}); basis: {report['basis']}")
+    for line in _basis_banner_lines(report):
+        print("\n" + line)
     for line in _identity_verdict_lines(report):
         print("\n" + line)
     print("rank Δ legend: + = climbed under v2, − = fell under v2")
@@ -304,9 +333,11 @@ def main(argv=None) -> int:
         path = refuse_sealed_output(args.json)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        # The verdict speaks on this path too — the flip checklist routes
-        # the evidence through --json, and an operator reads words, not
-        # exit codes (2026-08-08 review, finding 2).
+        # The verdict AND the basis banner speak on this path too — the flip
+        # checklist routes the evidence through --json, and an operator reads
+        # words, not exit codes (2026-08-08 review, finding 2).
+        for line in _basis_banner_lines(report):
+            print(line)
         for line in _identity_verdict_lines(report):
             print(line)
         print(f"wrote {path} ({len(report['rows'])} rows)")
