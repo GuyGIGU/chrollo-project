@@ -111,6 +111,76 @@ def _non_rising_fraction(seq):
     return non_rising / (len(seq) - 1)
 
 
+def measure_lps_contraction(tests, window_highs, window_lows, atr_val) -> dict:
+    """The charter's "contracting LPS" read (TA-grade build task 7) — pure
+    folds over data already in hand (the support-test staircase dicts and the
+    elected LPS window's bars), never a fresh enumeration. Measure-only.
+
+    Two halves, each with its own ABSENT rule (three-state discipline):
+      ``lps_shrink_frac``  [0,1] | None — ``_non_rising_fraction`` over the
+          successive support-tests' window ranges (box fractions,
+          chronological): do the tests SHRINK test-over-test? ABSENT (None)
+          with fewer than ``LPS_SHRINK_MIN_TESTS`` usable tests — over one
+          step the fraction quantizes to 0-or-1, noise wearing the costume of
+          a grade. An empty/short series is absent, never zero and never one.
+      ``lps_window_classification``  TEXT | None — the dark
+          ``classify_window_descent`` read on the ELECTED LPS window (its
+          intra-window home): rising_march / turned / clean_dip / mixed.
+          ABSENT on a <2-bar window ("insufficient" never archives).
+    """
+    from engine_alpha.structure.market_structure import classify_window_descent
+
+    ranges = []
+    for test in tests or []:
+        try:
+            value = float(test.get("window_range_pct_box"))
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(value):
+            ranges.append(value)
+    shrink = (_non_rising_fraction(ranges)
+              if len(ranges) >= int(settings.LPS_SHRINK_MIN_TESTS) else None)
+
+    classification = None
+    if (window_highs is not None and window_lows is not None
+            and len(window_highs) >= 2
+            and len(window_highs) == len(window_lows)):
+        read = classify_window_descent(list(window_highs), list(window_lows),
+                                       atr=atr_val)
+        if read["classification"] != "insufficient":
+            classification = read["classification"]
+    return {"lps_shrink_frac": shrink,
+            "lps_window_classification": classification}
+
+
+def measure_story_richness(completeness, completed_s, completed_r,
+                           alternations, base_len):
+    """Richness-vs-youth (TA-grade build task 7): events-per-bar of the told
+    story, bounded [0,1]. Pure arithmetic over row values — nothing re-reads a
+    chart. ABSENT (None) when EVERY ingredient is absent; absent or non-finite
+    ingredients contribute 0 among present ones (evidence counts, absence
+    never fabricates). The denominator is floored at MIN_BASE_DAYS and the
+    rate saturates at STORY_RICHNESS_FULL — a short dense base cannot win on
+    denominator luck, and an unbounded rate would archive outliers that later
+    dominate the A/B calibration."""
+    events = 0.0
+    any_present = False
+    for value in (completeness, completed_s, completed_r, alternations):
+        if value is None:
+            continue
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(f):
+            events += max(0.0, f)
+            any_present = True
+    if not any_present:
+        return None
+    den = max(float(base_len or 0), float(settings.MIN_BASE_DAYS))
+    return min((events / den) / float(settings.STORY_RICHNESS_FULL), 1.0)
+
+
 def _vol_trend_from_contractions(contraction_vols):
     """Score volume drying up ACROSS a contraction sequence (the Minervini VCP
     nuance: each pullback should trade lighter, the final coil the quietest).

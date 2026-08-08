@@ -641,6 +641,37 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             ("_" + k) if k in _grade_family else ("_score_" + k): v
             for k, v in _grade.items()
         }
+        # Wave-1 charter measurements (task 7) — pure folds over data already
+        # in hand: the support-test staircase (lps_ctx carries the full
+        # enumeration), the elected LPS window's bars, and row scalars.
+        # Fires-only inside the flag; measure-first — archived RAW, never
+        # gating, never weighted until the operator's A/B.
+        from engine_alpha.structure.metrics import (
+            measure_lps_contraction,
+            measure_story_richness,
+        )
+        _n = len(df)
+        _lps_len = int(lps_ctx["lps_length"])
+        _lps_off = int(lps_ctx["lps_offset"])
+        _win = (df.iloc[max(0, _n - _lps_off - _lps_len): _n - _lps_off]
+                if _lps_len > 0 else df.iloc[0:0])
+        _contr = measure_lps_contraction(
+            lps_ctx.get("lps_tests"),
+            _win["High"].tolist(), _win["Low"].tolist(),
+            structure_ctx["atr_for_zone"],
+        )
+        _rich = measure_story_richness(
+            puzzle_fields.get("_puzzle_completeness"),
+            _em_scalars.get("event_map_completed_s"),
+            _em_scalars.get("event_map_completed_r"),
+            _em_scalars.get("event_map_alternations"),
+            structure_ctx["base_len"],
+        )
+        ta_grade_fields.update({
+            "_lps_shrink_frac": _contr["lps_shrink_frac"],
+            "_lps_window_classification": _contr["lps_window_classification"],
+            "_story_richness_rate": _rich,
+        })
 
     # Election stability (measure-only, flag-dark): does the elected reading
     # survive backward eval-day shifts? Real structures persist, junk flickers

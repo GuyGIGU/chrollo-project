@@ -465,9 +465,17 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "score_story_r_rejections": "REAL",
     "score_story_alternations": "REAL",
     "score_story_terminal_posture": "REAL",
+    # Wave-1 charter measurements (task 7) — RAW, measure-first, fires-only
+    # inside the flag; NULL = absent (below the minimum-step floor, an
+    # insufficient window, or an all-absent ingredient row) — never zero.
+    "lps_shrink_frac": "REAL",
+    "lps_window_classification": "TEXT",
+    "story_richness_rate": "REAL",
 }
 
 PUZZLE_CHRONOLOGY_VALUES = frozenset({"intact", "partial", "absent"})
+LPS_WINDOW_CLASSIFICATION_VALUES = frozenset(
+    {"rising_march", "turned", "clean_dip", "mixed"})
 
 
 def sub_score_archive_values(sub, *, exclude: frozenset = frozenset()) -> dict:
@@ -516,6 +524,12 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
                 f"puzzle_chronology {value!r} is outside the closed set "
                 f"{sorted(PUZZLE_CHRONOLOGY_VALUES)} — refusing the write "
                 "(EC-19: an illegal label must never land)")
+        if col == "lps_window_classification" and value is not None \
+                and value not in LPS_WINDOW_CLASSIFICATION_VALUES:
+            raise ValueError(
+                f"lps_window_classification {value!r} is outside the closed "
+                f"set {sorted(LPS_WINDOW_CLASSIFICATION_VALUES)} — refusing "
+                "the write (EC-19: an illegal label must never land)")
         out[col] = value
     return out
 

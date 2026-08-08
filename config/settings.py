@@ -760,6 +760,11 @@ STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars 
 # terminal_drift is the first registered warning — neutral 1.0 until the A/B.
 TA_WARN_TERMINAL_DRIFT = 1.0       # discount when the window ends in an open S-drift episode
 TA_GRADE_WARNING_FLOOR = 0.5       # the warning product never discounts below this factor
+# Wave-1 charter measurements (task-7 batch — fourth declared seam). Pure
+# folds over data already in hand, fires-only inside TA_SCORE_V2, archived
+# RAW (measure-first: never gating, never weighted until the operator's A/B).
+LPS_SHRINK_MIN_TESTS = 3           # fewer usable support tests -> the shrink fraction is ABSENT (1 step quantizes to 0-or-1)
+STORY_RICHNESS_FULL = 0.15         # story events per bar at saturation (den floored at MIN_BASE_DAYS)
 # Traversal quality — the 2-sidedness the validity gate only screens for, now a
 # graded REWARD: a box whose limbs genuinely run rail-to-rail (high nFull/nSwings
 # density) scores up; a dead-space framing that hangs off one rail (dwell asymmetry)

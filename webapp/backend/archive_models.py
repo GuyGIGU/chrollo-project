@@ -340,6 +340,15 @@ class SetupArchive(Base):
     score_story_r_rejections = Column(Float, nullable=True)
     score_story_alternations = Column(Float, nullable=True)
     score_story_terminal_posture = Column(Float, nullable=True)
+    # Wave-1 charter measurements (task 7) — RAW measure-first columns,
+    # fires-only inside TA_SCORE_V2. NULL = absent (below the minimum-step
+    # floor / insufficient window / all-absent ingredients) — never zero.
+    # lps_window_classification is a closed set {rising_march, turned,
+    # clean_dip, mixed}: refused at write in ta_grade_archive_values + the
+    # fresh-DB CHECK below.
+    lps_shrink_frac = Column(Float, nullable=True)           # [0,1] tests shrink test-over-test
+    lps_window_classification = Column(String, nullable=True)  # the elected window's descent read
+    story_richness_rate = Column(Float, nullable=True)       # [0,1] story events per bar, bounded
 
     # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
     # Owning declaration in core/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);
@@ -424,6 +433,12 @@ class SetupArchive(Base):
             "puzzle_chronology IS NULL OR "
             "puzzle_chronology IN ('intact', 'partial', 'absent')",
             name="ck_setup_archive_puzzle_chronology",
+        ),
+        CheckConstraint(
+            "lps_window_classification IS NULL OR "
+            "lps_window_classification IN "
+            "('rising_march', 'turned', 'clean_dip', 'mixed')",
+            name="ck_setup_archive_lps_window_classification",
         ),
         Index("ix_setup_archive_universe_type", "universe_type"),
     )

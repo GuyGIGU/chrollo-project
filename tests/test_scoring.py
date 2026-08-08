@@ -748,7 +748,9 @@ def test_ta_grade_archive_values_null_through_when_dark():
                         "puzzle_chronology", "puzzle_upthrust_terminal",
                         "score_spring", "score_story_s_tests",
                         "score_story_r_rejections", "score_story_alternations",
-                        "score_story_terminal_posture"}
+                        "score_story_terminal_posture",
+                        "lps_shrink_frac", "lps_window_classification",
+                        "story_richness_rate"}
     assert all(v is None for v in out.values())
 
 
@@ -779,6 +781,14 @@ def test_ta_grade_archive_values_refuses_illegal_chronology():
     with pytest.raises(ValueError, match="closed set"):
         ta_grade_archive_values({"puzzle_chronology": "Intact"}.get,
                                 prefixed=False)
+    # Same discipline for the LPS window classification (task 7).
+    for legal in ("rising_march", "turned", "clean_dip", "mixed"):
+        out = ta_grade_archive_values(
+            {"lps_window_classification": legal}.get, prefixed=False)
+        assert out["lps_window_classification"] == legal
+    with pytest.raises(ValueError, match="closed"):
+        ta_grade_archive_values(
+            {"lps_window_classification": "insufficient"}.get, prefixed=False)
 
 
 def test_compose_spring_term_is_present_mask_neutral(v2_on):

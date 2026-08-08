@@ -249,6 +249,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "STORY_UNREADABLE_NAN_BARS",
     "TA_WARN_TERMINAL_DRIFT",
     "TA_GRADE_WARNING_FLOOR",
+    # Wave-1 charter measurements (task-7 batch — fourth declared seam)
+    "LPS_SHRINK_MIN_TESTS",
+    "STORY_RICHNESS_FULL",
     # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
     # default-off + byte-identical off, read via _flag()/getattr on the advisory
     # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires

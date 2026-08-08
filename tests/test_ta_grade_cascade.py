@@ -62,6 +62,11 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
         if term.present_when == "TA_SCORE_V2":
             assert ("_" + term.column) in row, (
                 f"promoted term {term.key!r} missing from the flag-on result")
+    # Wave-1 charter measurements ride the same flag-on result (task 7) —
+    # keys always present; a None VALUE is a legal ABSENT reading.
+    for key in ("_lps_shrink_frac", "_lps_window_classification",
+                "_story_richness_rate"):
+        assert key in row, f"charter measurement {key!r} missing flag-on"
 
     # 2. The v1 face is intact — the flag adds, never mutates.
     assert "Score" in row and "Tier" in row and "_sub_scores" in row
