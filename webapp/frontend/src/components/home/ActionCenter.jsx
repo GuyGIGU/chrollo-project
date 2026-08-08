@@ -4,6 +4,7 @@ import ScreenerModal from '../ScreenerModal';
 import BridgeOut from './BridgeOut';
 import useWatchlist from '../../hooks/useWatchlist';
 import { tierColor } from '../../theme';
+import { formatScore } from '../../utils/scoreFormat';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
 // urgent items out of the three zones below into one strip, ordered by urgency:
@@ -118,7 +119,7 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
               <span className="ac-glabel" style={{ color: tierColor('S') }}>✦ Fresh S-tier</span>
               {freshS.map((t) => (
                 <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: `${tierColor('S')}55`, color: tierColor('S') }}>
-                  {t}<span className="ac-chip-sub">{Math.round(Number(chartData[t]?.score) || 0)}</span>
+                  {t}<span className="ac-chip-sub">{formatScore(chartData[t]?.score)}</span>
                 </button>
               ))}
               <Link to="/screener" className="ac-more">grid →</Link>

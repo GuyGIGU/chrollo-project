@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deriveScoreBreakdown } from '../components/setupScoreMath';
-import { deriveTags } from '../components/setupTagsData';
-import { tagFlagsFromWire } from '../components/wireVocabulary';
+import { resolveTags } from '../components/tagResolver';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -84,7 +83,9 @@ function buildTagMap(screenerData) {
   const map = {};
   if (!screenerData?.chart_data) return map;
   for (const [ticker, data] of Object.entries(screenerData.chart_data)) {
-    const tags = deriveTags(data.sub_scores, tagFlagsFromWire(data));
+    // The SAME resolver the cards render from (task 11) — the filter bar is
+    // structurally incapable of disagreeing with the chips the grid shows.
+    const tags = resolveTags(data);
     map[ticker] = new Set(tags.map(tag => tag.id));
   }
   return map;

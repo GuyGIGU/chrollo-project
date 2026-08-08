@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatScore } from '../utils/scoreFormat';
 
 import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
@@ -18,16 +19,13 @@ import {
   TRACE_STAGE_LABELS,
   TREND_STATE_LABELS,
   displayLabel,
-  tagFlagsFromWire,
 } from './wireVocabulary';
 import { tierColor, signColor } from '../theme';
 import { API_BASE } from '../api';
 import { fx, fmtSignedPctFrac, fmtDateShort } from '../utils/format';
 import { dailyChangeFrac, htfStateLabel } from '../utils/screenerCardData';
 
-const scoreLabel = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
-);
+const scoreLabel = (value) => formatScore(value);
 
 const money = (value) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `$${Number(value).toFixed(2)}`
@@ -549,8 +547,7 @@ function TagsPanel({ data }) {
         <small>{read}</small>
       </div>
       <TagRow
-        subScores={data.sub_scores}
-        flags={tagFlagsFromWire(data)}
+        data={data}
         maxTags={null}
         style={{ padding: 0 }}
       />
