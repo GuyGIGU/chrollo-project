@@ -12,11 +12,18 @@ sees that v1 didn't, and vice versa (breadth leaving the number is the one
 structural subtraction).
 
 McKinney's two rank diffs stay STRICTLY apart:
-  * the AFFINE IDENTITY — ordering by the computed 0-100 must equal ordering
-    by the computed raw sum, exactly; a violation is a BUG (exit 2, loud
-    banner), never "movement";
+  * the AFFINE IDENTITY — ordering by the PRE-WARNING normalized grade (the
+    chapter subtotals' sum — the affine image of raw) must equal ordering by
+    the computed raw sum, exactly; a violation is a BUG (exit 2, verdict
+    printed on BOTH output modes), never "movement". The post-warning
+    headline is raw × per-row warning factors — NOT affine — so
+    warning-driven reordering reports as movement, never as a bug;
   * the v1→v2 MOVEMENT — expected to be nonzero (story terms, warnings,
     breadth's exit); it is the thing the operator judges, reported per row.
+
+Population discipline (EC-13): ONE universe (the equities default), the
+scored row set fingerprinted, the config hash stamped INSIDE the forced-flag
+window so it names the configuration that produced the numbers.
 
 Integrity: read-only against the archive (EC-9 one-way stays intact);
 stamps engine_config_version + the EXACT population scored (EC-13);
@@ -81,18 +88,30 @@ def _ranks(keyed: list) -> dict:
 
 
 def build_report(session, scan_date: str | None) -> dict:
-    from archive_models import SetupArchive
+    import hashlib
 
+    from archive_models import SetupArchive
+    from core.pipeline.universe import default_universe_type
+
+    # The population is ONE universe — the equities default (EC-1 one
+    # source). Without the scope, ETF/sector rows sharing the scan_date
+    # pooled into the rank list and a cross-universe ticker collision could
+    # silently collapse two rows onto one rank entry (2026-08-08 review,
+    # finding 7); every sibling decision surface already scopes this way.
+    universe = default_universe_type()
     dates = [d for (d,) in session.query(SetupArchive.scan_date)
+             .filter(SetupArchive.universe_type == universe)
              .distinct().order_by(SetupArchive.scan_date.desc()).limit(10)]
     if scan_date is None:
         scan_date = dates[0] if dates else None
     if scan_date is None:
-        return {"scan_date": None, "rows": [], "recent_dates": [],
+        return {"scan_date": None, "universe_type": universe, "rows": [],
+                "recent_dates": [],
                 "engine_config_version": manifest_hash(), "identity_ok": True}
 
     rows = (session.query(SetupArchive)
-            .filter(SetupArchive.scan_date == scan_date).all())
+            .filter(SetupArchive.scan_date == scan_date,
+                    SetupArchive.universe_type == universe).all())
 
     # In-process only, restored after the read (nothing persists; the flag
     # must be ON so the registry emits the flag-gated terms for the
@@ -110,37 +129,72 @@ def build_report(session, scan_date: str | None) -> dict:
                 "old_tier": row.tier,
                 "ta_grade": grade["ta_grade"],
                 "ta_grade_raw": grade["ta_grade_raw"],
+                # Pre-warning normalized grade — the chapters sum to it
+                # exactly; this is the affine image of raw, so THIS is the
+                # identity check's operand (the post-warning headline may
+                # legitimately reorder once TA_WARN_* costs land).
+                "ta_grade_prewarn": sum(
+                    grade["ta_grade_chapters"].values()),
                 "chapters": grade["ta_grade_chapters"],
                 "warnings": grade["ta_grade_warnings"],
                 "promoted": {t.key: grade.get(t.key) for t in taxonomy.REGISTRY
                              if t.present_when == "TA_SCORE_V2"},
                 "breadth_excluded": sub_breadth(row),
             })
+        # Stamped INSIDE the forced-flag window so the hash names the
+        # configuration that actually produced these numbers (the would-be
+        # flag-on config — pre-flip, hashing after the restore stamped the
+        # flag-OFF config; 2026-08-08 review, finding 7).
+        ecv = manifest_hash()
     finally:
         settings.TA_SCORE_V2 = prev_flag
+
+    # Identity within one universe+date is unique by the archive's index;
+    # keep it loud rather than assumed (bare-ticker rank keys collapse on
+    # a collision and would mask the identity tripwire).
+    tickers = [g["ticker"] for g in graded]
+    if len(set(tickers)) != len(tickers):
+        raise RuntimeError(
+            f"duplicate ticker(s) in the {universe} {scan_date} population — "
+            "rank keys would collide; the archive identity index is broken")
 
     old_ranks = _ranks([(g["ticker"], g["old_score"] or 0.0) for g in graded])
     new_ranks = _ranks([(g["ticker"], g["ta_grade"]) for g in graded])
     raw_ranks = _ranks([(g["ticker"], g["ta_grade_raw"]) for g in graded])
+    prewarn_ranks = _ranks([(g["ticker"], g["ta_grade_prewarn"])
+                            for g in graded])
     for g in graded:
         g["rank_old"] = old_ranks[g["ticker"]]
         g["rank_new"] = new_ranks[g["ticker"]]
         g["rank_delta"] = g["rank_old"] - g["rank_new"]   # + = climbed under v2
 
-    # The affine identity: the normalized ordering must equal the raw
-    # ordering EXACTLY. A violation is a bug in the map, never "movement".
-    identity_ok = all(new_ranks[t] == raw_ranks[t] for t in new_ranks)
+    # The affine identity: the PRE-WARNING normalized ordering must equal the
+    # raw ordering EXACTLY — that pair is the affine map. A violation is a
+    # bug in the map, never "movement". (The post-warning headline is raw ×
+    # per-row warning factors — NOT affine — so warning-driven reordering
+    # reports as movement, where the operator judges it; 2026-08-08 review,
+    # finding 2: checking the headline here false-alarmed the day a
+    # TA_WARN_* cost landed.)
+    identity_ok = all(prewarn_ranks[t] == raw_ranks[t] for t in prewarn_ranks)
 
     graded.sort(key=lambda g: g["rank_new"])
     by_source: dict = {}
     for g in graded:
         by_source[g["source"] or "?"] = by_source.get(g["source"] or "?", 0) + 1
+    # EC-13: fingerprint EXACTLY the row set scored — the archive population
+    # for a date is mutable after the fact (manual adds, seed overwrites),
+    # and two runs must be distinguishable by their stamps alone.
+    fingerprint = hashlib.sha256("|".join(
+        sorted(f"{r.id}:{r.ticker}" for r in rows)).encode()).hexdigest()[:16]
     return {
         "scan_date": scan_date,
+        "universe_type": universe,
         "recent_dates": dates,
         "rows": graded,
-        "population": {"n": len(graded), "by_source": by_source},
-        "engine_config_version": manifest_hash(),
+        "population": {"n": len(graded), "by_source": by_source,
+                       "fingerprint": fingerprint},
+        "engine_config_version": ecv,
+        "config_basis": "TA_SCORE_V2 forced ON in-process for the would-be replay",
         "identity_ok": identity_ok,
         "basis": "computed from archived facts (read-only would-be replay)",
     }
@@ -151,9 +205,38 @@ def sub_breadth(row):
     return float(value) if value is not None else None
 
 
+def _warn_cell(warnings: dict) -> str:
+    """Warnings with their COST visible — a fired-but-neutral warning (factor
+    1.0, costs nothing until the operator's A/B) must never impersonate a
+    costed discount on the decision surface (2026-08-08 review, finding 11)."""
+    if not warnings:
+        return "-"
+    parts = []
+    for wid, factor in warnings.items():
+        try:
+            f = float(factor)
+        except (TypeError, ValueError):
+            parts.append(f"{wid}:?")
+            continue
+        parts.append(f"{wid}:neutral" if f >= 1.0
+                     else f"{wid}:-{round((1.0 - f) * 100)}%")
+    return ",".join(parts)
+
+
+def _identity_verdict_lines(report: dict) -> list[str]:
+    """The identity verdict, spoken on EVERY output mode — --json runs used
+    to file the violation silently into the evidence record (finding 2)."""
+    if report["identity_ok"]:
+        return ["affine identity: OK (pre-warning ordering == raw ordering)"]
+    return ["*** AFFINE IDENTITY VIOLATED — the pre-warning ordering differs "
+            "from the raw ordering. This is a BUG in the map, not movement. "
+            "(exit code 2) ***"]
+
+
 def _print_report(report: dict, top: int) -> None:
     print("TA-grade A/B — old score/tier vs the would-be 0-100 per archived fire")
-    print(f"engine_config_version: {report['engine_config_version']}")
+    print(f"engine_config_version: {report['engine_config_version']} "
+          f"({report.get('config_basis', '')})")
     if not report["rows"]:
         print(f"\n0 fires for scan_date={report['scan_date']!r} — an affirmative empty:")
         print("  recent archived scan dates:",
@@ -162,22 +245,23 @@ def _print_report(report: dict, top: int) -> None:
               "to target one of the dates above.")
         return
     pop = report["population"]
-    print(f"scan_date {report['scan_date']} — {pop['n']} fires "
-          f"({', '.join(f'{k}:{v}' for k, v in sorted(pop['by_source'].items()))}); "
-          f"basis: {report['basis']}")
-    if not report["identity_ok"]:
-        print("\n*** AFFINE IDENTITY VIOLATED — the 0-100 ordering differs from "
-              "the raw ordering. This is a BUG in the map, not movement. ***")
+    print(f"scan_date {report['scan_date']} ({report['universe_type']}) — "
+          f"{pop['n']} fires "
+          f"({', '.join(f'{k}:{v}' for k, v in sorted(pop['by_source'].items()))}, "
+          f"fingerprint {pop['fingerprint']}); basis: {report['basis']}")
+    for line in _identity_verdict_lines(report):
+        print("\n" + line)
+    print("rank Δ legend: + = climbed under v2, − = fell under v2")
     print(f"\n{'ticker':<8}{'old':>8}{'tier':>6}{'ta_grade':>10}{'rank Δ':>8}  warnings")
     for g in report["rows"]:
-        warn = ",".join(g["warnings"]) if g["warnings"] else "-"
         print(f"{g['ticker']:<8}{g['old_score'] or 0:>8.1f}{g['old_tier'] or '?':>6}"
-              f"{g['ta_grade']:>10.1f}{g['rank_delta']:>+8d}  {warn}")
+              f"{g['ta_grade']:>10.1f}{g['rank_delta']:>+8d}  "
+              f"{_warn_cell(g['warnings'])}")
     movers = sorted(report["rows"], key=lambda g: -abs(g["rank_delta"]))[:top]
     if movers and top > 0:
         print(f"\ntop {len(movers)} movers — per-chapter points (the drill):")
         for g in movers:
-            ch = " ".join(f"{k[:2]}:{v:.1f}" for k, v in g["chapters"].items())
+            ch = " ".join(f"{k}:{v:.1f}" for k, v in g["chapters"].items())
             promoted = " ".join(f"{k}:{v:.1f}" for k, v in g["promoted"].items()
                                 if v not in (None, 0.0))
             extra = f" | promoted {promoted}" if promoted else ""
@@ -205,6 +289,11 @@ def main(argv=None) -> int:
         path = refuse_sealed_output(args.json)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
+        # The verdict speaks on this path too — the flip checklist routes
+        # the evidence through --json, and an operator reads words, not
+        # exit codes (2026-08-08 review, finding 2).
+        for line in _identity_verdict_lines(report):
+            print(line)
         print(f"wrote {path} ({len(report['rows'])} rows)")
     else:
         _print_report(report, args.top)

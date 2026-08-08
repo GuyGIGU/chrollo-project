@@ -82,11 +82,68 @@ def test_report_grades_ranks_and_stamps_hand_computed():
     # weak_monthly rides BBB visibly; its neutral 1.0 factor costs nothing.
     assert "weak_monthly" in b["warnings"]
     assert b["ta_grade"] == pytest.approx(30.0 * 100.0 / cap_sum)
-    # EC-13 stamps: the manifest hash + the EXACT population scored.
-    assert report["engine_config_version"] == manifest_hash()
-    assert report["population"] == {"n": 2, "by_source": {"screener": 2}}
-    # In-process hygiene: the tool restored the flag.
-    assert settings.TA_SCORE_V2 is False
+    # EC-13 stamps: the manifest hash of the config that PRODUCED the numbers
+    # (stamped inside the forced-flag window — 2026-08-08 review, finding 7),
+    # discriminably different from the ambient flag-off hash pre-flip.
+    prev = settings.TA_SCORE_V2
+    settings.TA_SCORE_V2 = True
+    try:
+        flag_on_hash = manifest_hash()
+    finally:
+        settings.TA_SCORE_V2 = prev
+    assert report["engine_config_version"] == flag_on_hash
+    if prev is False:
+        assert report["engine_config_version"] != manifest_hash()
+    # ... plus the EXACT population scored, fingerprinted (EC-13).
+    assert report["population"]["n"] == 2
+    assert report["population"]["by_source"] == {"screener": 2}
+    assert len(report["population"]["fingerprint"]) == 16
+    assert report["universe_type"] == "us_equities"
+
+
+def test_flag_is_restored_to_its_prior_value():
+    """In-process hygiene: build_report restores the flag to whatever it WAS
+    — asserted against the captured prior value, not the repo default (the
+    old `is False` pin was a guaranteed unexplained red inside the atomic
+    flip commit; 2026-08-08 review, finding 10)."""
+    session = _mem_session()
+    session.add(_fire("AAA", 50.0, "C", score_box_tightness=20.0))
+    session.commit()
+    prev = settings.TA_SCORE_V2
+    build_report(session, None)
+    assert settings.TA_SCORE_V2 is prev
+
+
+def test_identity_checks_the_prewarning_operand_not_the_headline(monkeypatch):
+    """The affine identity must NOT false-alarm the day a warning cost lands
+    (2026-08-08 review, finding 2): with a sub-1.0 factor the post-warning
+    headline legitimately reorders against raw — that is MOVEMENT — while
+    the pre-warning ordering stays the affine image of raw."""
+    monkeypatch.setattr(settings, "TA_WARN_WEAK_MONTHLY", 0.8)
+    session = _mem_session()
+    session.add_all([
+        # BBB out-raws AAA (40 > 39) but fires weak_monthly: at factor 0.8
+        # its HEADLINE falls below AAA's — the post-warning ordering differs
+        # from raw, which the old headline-based check called a BUG.
+        _fire("AAA", 50.0, "C",
+              score_box_tightness=20.0, score_touch_density=19.0),
+        _fire("BBB", 90.0, "B",
+              score_box_tightness=20.0, score_touch_density=20.0,
+              htf_m_trend_state="down"),
+    ])
+    session.commit()
+    report = build_report(session, None)
+    a = next(g for g in report["rows"] if g["ticker"] == "AAA")
+    b = next(g for g in report["rows"] if g["ticker"] == "BBB")
+    cap_sum = _cap_sum_flag_on()
+    assert b["ta_grade_raw"] > a["ta_grade_raw"]
+    assert b["warnings"] == {"weak_monthly": 0.8}
+    assert b["ta_grade"] == pytest.approx(40.0 * 100.0 / cap_sum * 0.8)
+    assert b["ta_grade"] < a["ta_grade"]          # the headline reordered...
+    assert report["identity_ok"] is True          # ...and that is MOVEMENT
+    assert a["rank_new"] == 1 and b["rank_new"] == 2
+    # The pre-warning operand is what the identity ranked.
+    assert b["ta_grade_prewarn"] > a["ta_grade_prewarn"]
 
 
 def test_empty_state_is_affirmative():
@@ -101,7 +158,7 @@ def test_empty_state_is_affirmative():
     assert later["recent_dates"] == ["2026-08-07"]   # the affirmative pointer
 
 
-def test_json_output_is_sealed_output_guarded(monkeypatch, tmp_path):
+def test_json_output_is_sealed_output_guarded(monkeypatch, tmp_path, capsys):
     import database
 
     monkeypatch.setattr(database, "SessionLocal", _mem_session)
@@ -112,3 +169,7 @@ def test_json_output_is_sealed_output_guarded(monkeypatch, tmp_path):
     out = tmp_path / "ab.json"
     assert main(["--json", str(out)]) == 0
     assert out.exists()
+    # The identity verdict speaks on the --json path too (finding 2: the
+    # violation banner used to exist only in the human print path, silent on
+    # exactly the mode the flip checklist routes the evidence through).
+    assert "affine identity: OK" in capsys.readouterr().out
