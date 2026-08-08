@@ -36,6 +36,9 @@ class SetupOut(BaseModel):
     # Sub-scores
     score_box_tightness: Optional[float] = None
     score_touch_density: Optional[float] = None
+    # (was missing until the task-9 drift-tripwire's first run — the archive
+    # API silently never served it; the tripwire exists to catch exactly this)
+    score_traversal_quality: Optional[float] = None
     score_atr_squeeze: Optional[float] = None
     score_lps_tightness: Optional[float] = None
     score_vol_contraction: Optional[float] = None
@@ -236,6 +239,26 @@ class SetupOut(BaseModel):
     event_map_episode_profile: Optional[str] = None
     event_map_episodes: Optional[list] = None
     election_trace: Optional[dict] = None
+    # ── Technical Analysis Grade v2 family (task 9) — NULL on every pre-flip
+    # row FOREVER (no backfill). The drift-tripwire in tests/test_dashboard_wire
+    # pins that every registry term column + family column stays covered here.
+    ta_grade: Optional[float] = None
+    ta_grade_raw: Optional[float] = None
+    puzzle_completeness: Optional[int] = None
+    puzzle_chronology: Optional[str] = None
+    puzzle_upthrust_terminal: Optional[int] = None
+    score_puzzle_quality: Optional[float] = None
+    score_spring: Optional[float] = None
+    score_story_s_tests: Optional[float] = None
+    score_story_r_rejections: Optional[float] = None
+    score_story_alternations: Optional[float] = None
+    score_story_terminal_posture: Optional[float] = None
+    lps_shrink_frac: Optional[float] = None
+    lps_window_classification: Optional[str] = None
+    story_richness_rate: Optional[float] = None
+    trend_base_count: Optional[int] = None
+    inter_base_width_ratio: Optional[float] = None
+    fired_tags: Optional[list] = None
 
     # The two deep JSON cells degrade PER ROW — parse failure AND wrong
     # container shape both land None (council review 2026-08-05, finding 8:
@@ -244,12 +267,13 @@ class SetupOut(BaseModel):
     # degrade logs, so corruption is visible without breaking the serve —
     # never confusable with the legitimate tape-unreadable state, which is
     # NULL in the cell itself.
-    @field_validator("event_map_episodes", "election_trace", mode="before")
+    @field_validator("event_map_episodes", "election_trace", "fired_tags",
+                     mode="before")
     @classmethod
     def _parse_json_cell(cls, value, info: ValidationInfo):
         if value is None:
             return None
-        expected = list if info.field_name == "event_map_episodes" else dict
+        expected = dict if info.field_name == "election_trace" else list
         if isinstance(value, str):
             try:
                 value = json.loads(value)
@@ -276,6 +300,10 @@ class EpisodeOut(SetupOut):
     scan_count: int       # number of daily scans that flagged this base
     first_seen: str       # == canonical scan_date (the entry anchor)
     last_seen: str        # latest scan that still flagged the same base
+    # The episode's CURRENT grade — the LATEST member's ta_grade (the value
+    # min_ta_grade floors on; the inherited ta_grade above is the canonical
+    # first-seen row's, NULL forever on flip-straddling episodes).
+    latest_ta_grade: Optional[float] = None
     passed: bool = False  # operator reviewed this setup and skipped it
     review_note: Optional[str] = None
 
@@ -320,4 +348,7 @@ class ReadVerdictIn(BaseModel):
     # Evidence provenance from the payload's scan_identity (manifest hash).
     engine_config_version: Optional[str] = Field(default=None, max_length=64)
     verdict: Optional[str] = None   # 'agree' | 'disagree' | None (clear)
+    # The GRADE channel (task 14): 'read right, grade wrong' separable from a
+    # reading error. None = not judged (and clears any prior grade verdict).
+    grade_verdict: Optional[str] = None  # 'agree' | 'too_high' | 'too_low' | None
     note: Optional[str] = Field(default=None, max_length=500)

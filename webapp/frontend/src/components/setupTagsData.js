@@ -1,6 +1,9 @@
-import { SUB_SCORE_CAPS } from './setupScoreMath';
-import { explainTip } from './tooltipText';
-import { displayLabel } from './wireVocabulary';
+// (.js extensions added 2026-08-08 for the node --test resolver suite —
+// a zero-semantics change; the FREEZE on this file's caps and fire rules
+// stands until its deletion at the flip.)
+import { SUB_SCORE_CAPS } from './setupScoreMath.js';
+import { explainTip } from './tooltipText.js';
+import { displayLabel } from './wireVocabulary.js';
 
 // Tag backgrounds sit quiet (0.12 alpha) so a row of chips reads calm on a dense
 // grid; the meaningful foreground hue is kept, and the warning tag keeps a little

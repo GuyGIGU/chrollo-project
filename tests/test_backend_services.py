@@ -319,65 +319,59 @@ def test_archive_outcome_columns_are_modeled_and_migrated():
 # review. Regenerate with:
 #   python -c "import routers.archive_schemas as s; print(tuple(s.SetupOut.model_fields))"
 _SETUP_OUT_FIELDS = (
-    "id", "ticker", "scan_date", "setup_type", "tier", "score", "current_price",
-    "r_level", "s_level", "trigger_price", "base_length", "box_width", "touches",
-    "r_touches", "s_touches", "r_anchor", "s_anchor", "atr_ratio", "lps_length",
-    "breach_days", "vol_contraction", "tightness_ratio", "score_box_tightness",
-    "score_touch_density", "score_atr_squeeze", "score_lps_tightness",
-    "score_vol_contraction", "score_base_age", "score_uptrend_bonus", "triggered",
-    "trigger_date", "fwd_return_1d", "fwd_return_5d", "fwd_return_10d",
-    "fwd_return_20d", "fwd_return_60d", "mfe_20d", "mae_20d", "mfe_60d", "mae_60d",
-    "mfe_20d_date", "mae_20d_date", "r_multiple_20d", "r_multiple_60d",
-    "trigger_volume_ratio", "days_to_trigger", "days_to_2_5r", "days_to_15pct",
-    "days_to_stop", "barrier_label", "win_barrier", "mfe_to_date", "mae_to_date",
-    "ret_to_date", "bars_to_date", "abnormal_ret_to_date", "spy_trend", "vix_level",
-    "sector_etf", "sector_trend", "rs_vs_sector_pct", "dist_52w_high_pct",
-    "regime_state", "regime_breadth_50_pct", "regime_breadth_200_pct",
-    "regime_distribution_days", "regime_spy_above_50", "regime_spy_above_200",
-    "regime_spy_50d_slope_pct", "regime_qqq_above_50", "regime_qqq_above_200",
-    "regime_qqq_50d_slope_pct", "phase_d_inner", "lps_in_inner", "inner_source",
-    "inner_search_start_bar", "inner_climax_bar", "inner_reaction_bar",
-    "inner_reaction_pct", "inner_reaction_bars", "htf_w_stage2", "htf_w_trend_state",
-    "htf_w_in_consol", "htf_w_phase", "htf_w_box_r", "htf_w_box_s", "htf_w_box_width",
-    "htf_w_reaccum", "htf_w_daily_nested", "htf_m_stage2", "htf_m_trend_state",
-    "htf_m_in_consol", "htf_m_phase", "htf_m_box_r", "htf_m_box_s", "htf_m_box_width",
-    "htf_m_reaccum", "htf_m_daily_nested", "r_touch_vol_z", "s_touch_vol_z",
-    "lps_descent_frac", "lps_zone_type", "score_high_proximity", "score_breadth_bonus",
-    "score_rs_bonus", "contraction_count", "contraction_quality",
-    "final_contraction_depth", "contraction_vol_trend", "score_contraction",
-    "base_median_spread_atr", "base_p80_spread_atr", "base_median_spread_pct_box",
-    "base_tight_bar_pct", "support_slope_atr", "ascending_support_quality",
-    "score_ascending_support", "eq_r_touches", "eq_s_touches", "eq_r_touch_thirds",
-    "eq_s_touch_thirds", "eq_lower_dwell", "eq_mid_dwell", "eq_upper_dwell",
-    "eq_coverage", "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio", "bin_b_bars",
-    "bin_b_range_pct", "bin_b_volume_ratio", "bin_b_cog_end", "bin_b_cog_crossings",
-    "bin_b_cog_rng", "bin_b_cog_corr", "bin_c_present", "bin_c_type", "bin_c_event_date",
-    "bin_c_event_bar", "bin_c_undercut_atr", "bin_c_recovery_bars", "bin_c_recovery_bar",
-    "bin_c_time_loc", "bin_c_spring_vol_z", "bin_d_bars", "bin_d_start_bar",
-    "bin_d_range_pct", "bin_d_volume_ratio", "bin_d_support_slope_atr",
-    "bin_d_higher_low_frac", "bin_d_ascending_support_quality", "bin_d_boundary_source",
-    "phase_d_evidence_json", "bin_lps_bars", "lps_position_in_box",
-    "bin_d_vs_b_range_ratio", "bin_d_vs_b_volume_ratio",
-    "bin_d_vs_b_support_quality_delta", "lps_stretch_atr", "lps_stretch_box",
-    "lps_swing_type", "lps_anchor_bar", "lps_anchor_date", "lps_low_bar", "lps_low_date",
-    "lps_swing_depth_pct", "lps_swing_depth_atr", "lps_swing_depth_box",
-    "last_supper_pullback_from_extension_pct", "last_supper_source_box_age",
-    "last_supper_reclaim_quality", "adr_pct", "score_adr", "quality_label", "notes",
-    "source",
-    # Archive identity + evidence provenance (council review 2026-08-05,
-    # findings 4+6): the verdict loop binds to the triple and stamps the
-    # version the operator saw.
-    "universe_type", "engine_config_version",
-    # The narrative fact block (Surface the Read, 2026-08-04): the event_map
-    # family + electing-pool provenance + the parsed election trace, exposed
-    # deliberately for the concordance/grading loop.
-    "elected_pool", "story_admission_profile",
-    "event_map_n_swings", "event_map_pre_box_trend", "event_map_n_labels",
-    "event_map_n_committed", "event_map_completed_s", "event_map_completed_r",
-    "event_map_alternations", "event_map_terminal_posture",
-    "event_map_terminal_drift", "event_map_story_admitted",
-    "event_map_episode_nan_bars", "event_map_episode_profile",
-    "event_map_episodes", "election_trace",
+    'id', 'ticker', 'scan_date', 'setup_type',
+    'tier', 'score', 'current_price', 'r_level',
+    's_level', 'trigger_price', 'base_length', 'box_width',
+    'touches', 'r_touches', 's_touches', 'r_anchor',
+    's_anchor', 'atr_ratio', 'lps_length', 'breach_days',
+    'vol_contraction', 'tightness_ratio', 'score_box_tightness', 'score_touch_density',
+    'score_traversal_quality', 'score_atr_squeeze', 'score_lps_tightness', 'score_vol_contraction',
+    'score_base_age', 'score_uptrend_bonus', 'triggered', 'trigger_date',
+    'fwd_return_1d', 'fwd_return_5d', 'fwd_return_10d', 'fwd_return_20d',
+    'fwd_return_60d', 'mfe_20d', 'mae_20d', 'mfe_60d',
+    'mae_60d', 'mfe_20d_date', 'mae_20d_date', 'r_multiple_20d',
+    'r_multiple_60d', 'trigger_volume_ratio', 'days_to_trigger', 'days_to_2_5r',
+    'days_to_15pct', 'days_to_stop', 'barrier_label', 'win_barrier',
+    'mfe_to_date', 'mae_to_date', 'ret_to_date', 'bars_to_date',
+    'abnormal_ret_to_date', 'spy_trend', 'vix_level', 'sector_etf',
+    'sector_trend', 'rs_vs_sector_pct', 'dist_52w_high_pct', 'regime_state',
+    'regime_breadth_50_pct', 'regime_breadth_200_pct', 'regime_distribution_days', 'regime_spy_above_50',
+    'regime_spy_above_200', 'regime_spy_50d_slope_pct', 'regime_qqq_above_50', 'regime_qqq_above_200',
+    'regime_qqq_50d_slope_pct', 'phase_d_inner', 'lps_in_inner', 'inner_source',
+    'inner_search_start_bar', 'inner_climax_bar', 'inner_reaction_bar', 'inner_reaction_pct',
+    'inner_reaction_bars', 'htf_w_stage2', 'htf_w_trend_state', 'htf_w_in_consol',
+    'htf_w_phase', 'htf_w_box_r', 'htf_w_box_s', 'htf_w_box_width',
+    'htf_w_reaccum', 'htf_w_daily_nested', 'htf_m_stage2', 'htf_m_trend_state',
+    'htf_m_in_consol', 'htf_m_phase', 'htf_m_box_r', 'htf_m_box_s',
+    'htf_m_box_width', 'htf_m_reaccum', 'htf_m_daily_nested', 'r_touch_vol_z',
+    's_touch_vol_z', 'lps_descent_frac', 'lps_zone_type', 'score_high_proximity',
+    'score_breadth_bonus', 'score_rs_bonus', 'contraction_count', 'contraction_quality',
+    'final_contraction_depth', 'contraction_vol_trend', 'score_contraction', 'base_median_spread_atr',
+    'base_p80_spread_atr', 'base_median_spread_pct_box', 'base_tight_bar_pct', 'support_slope_atr',
+    'ascending_support_quality', 'score_ascending_support', 'eq_r_touches', 'eq_s_touches',
+    'eq_r_touch_thirds', 'eq_s_touch_thirds', 'eq_lower_dwell', 'eq_mid_dwell',
+    'eq_upper_dwell', 'eq_coverage', 'bin_a_bars', 'bin_a_range_pct',
+    'bin_a_volume_ratio', 'bin_b_bars', 'bin_b_range_pct', 'bin_b_volume_ratio',
+    'bin_b_cog_end', 'bin_b_cog_crossings', 'bin_b_cog_rng', 'bin_b_cog_corr',
+    'bin_c_present', 'bin_c_type', 'bin_c_event_date', 'bin_c_event_bar',
+    'bin_c_undercut_atr', 'bin_c_recovery_bars', 'bin_c_recovery_bar', 'bin_c_time_loc',
+    'bin_c_spring_vol_z', 'bin_d_bars', 'bin_d_start_bar', 'bin_d_range_pct',
+    'bin_d_volume_ratio', 'bin_d_support_slope_atr', 'bin_d_higher_low_frac', 'bin_d_ascending_support_quality',
+    'bin_d_boundary_source', 'phase_d_evidence_json', 'bin_lps_bars', 'lps_position_in_box',
+    'bin_d_vs_b_range_ratio', 'bin_d_vs_b_volume_ratio', 'bin_d_vs_b_support_quality_delta', 'lps_stretch_atr',
+    'lps_stretch_box', 'lps_swing_type', 'lps_anchor_bar', 'lps_anchor_date',
+    'lps_low_bar', 'lps_low_date', 'lps_swing_depth_pct', 'lps_swing_depth_atr',
+    'lps_swing_depth_box', 'last_supper_pullback_from_extension_pct', 'last_supper_source_box_age', 'last_supper_reclaim_quality',
+    'adr_pct', 'score_adr', 'quality_label', 'notes',
+    'source', 'universe_type', 'engine_config_version', 'elected_pool',
+    'story_admission_profile', 'event_map_n_swings', 'event_map_pre_box_trend', 'event_map_n_labels',
+    'event_map_n_committed', 'event_map_completed_s', 'event_map_completed_r', 'event_map_alternations',
+    'event_map_terminal_posture', 'event_map_terminal_drift', 'event_map_story_admitted', 'event_map_episode_nan_bars',
+    'event_map_episode_profile', 'event_map_episodes', 'election_trace', 'ta_grade',
+    'ta_grade_raw', 'puzzle_completeness', 'puzzle_chronology', 'puzzle_upthrust_terminal',
+    'score_puzzle_quality', 'score_spring', 'score_story_s_tests', 'score_story_r_rejections',
+    'score_story_alternations', 'score_story_terminal_posture', 'lps_shrink_frac', 'lps_window_classification',
+    'story_richness_rate', 'trend_base_count', 'inter_base_width_ratio', 'fired_tags',
 )
 
 
@@ -1523,7 +1517,10 @@ def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
         assert out["verdict"] == "agree" and out["note"] == "rails"
         got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
                                universe_type=None, db=db)
-        assert got == {"verdict": "agree", "note": "rails"}
+        # grade_verdict serves alongside — the GET's old two-key shape WAS
+        # review finding 6 (a stored grade verdict was unreadable).
+        assert got == {"verdict": "agree", "grade_verdict": None,
+                       "note": "rails"}
     finally:
         db.close()
 
@@ -1637,7 +1634,7 @@ def test_read_verdict_get_serves_nulls_when_absent(tmp_path):
     try:
         got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
                                universe_type=None, db=db)
-        assert got == {"verdict": None, "note": None}
+        assert got == {"verdict": None, "grade_verdict": None, "note": None}
     finally:
         db.close()
 

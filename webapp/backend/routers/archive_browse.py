@@ -15,6 +15,7 @@ from services.archive_queries import (
     _apply_setup_filters,
     _episode_context,
     _episode_key,
+    _ta_grades_by_ids,
 )
 
 router = APIRouter(tags=["archive"])
@@ -44,6 +45,9 @@ def list_setups(
     source: Optional[str] = Query(None),
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
+    min_ta_grade: Optional[float] = Query(
+        None, ge=0, le=100,
+        description="0-100 grade floor; pre-v2 (NULL-grade) rows are excluded."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(
@@ -58,6 +62,7 @@ def list_setups(
         db.query(SetupArchive),
         tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
+        min_ta_grade=min_ta_grade,
         date_from=date_from, date_to=date_to,
         universe_type=_resolve_universe_type(universe_type),
     )
@@ -76,6 +81,14 @@ def list_episodes(
     source: Optional[str] = Query(None),
     quality_label: Optional[str] = Query(None),
     min_score: Optional[float] = Query(None),
+    min_ta_grade: Optional[float] = Query(
+        None, ge=0, le=100,
+        description="0-100 floor on the episode's CURRENT grade — its LATEST "
+                    "scan's ta_grade (ruled 2026-08-08, operator-delegated: "
+                    "the grade ranks what the setup is NOW). The episode keeps "
+                    "its true first-seen anchor, scan count, and review marker "
+                    "— grouping is grade-independent; episodes whose latest "
+                    "scan is ungraded (pre-v2) can never satisfy a floor."),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     universe_type: Optional[str] = Query(
@@ -93,12 +106,24 @@ def list_episodes(
     table shows one row per real setup and stats aren't inflated. Grouping runs
     over the full filtered set, then the result is sorted and paginated.
     """
+    # min_ta_grade is deliberately NOT a row filter here: grouping runs
+    # grade-independent (the cache is shared across grade floors), and the
+    # floor applies per EPISODE on its latest member's grade below — so a
+    # flip-straddling episode never re-anchors first_seen or sheds its
+    # saw-and-passed marker in the filtered view (2026-08-08 review, the
+    # R4 semantic fork, operator-delegated).
     eps, row_by_id, passed_notes = _episode_context(
         db, tier=tier, setup_type=setup_type, source=source,
         quality_label=quality_label, min_score=min_score,
         date_from=date_from, date_to=date_to,
         universe_type=_resolve_universe_type(universe_type),
     )
+    grade_by_id = {}
+    if min_ta_grade is not None:
+        grade_by_id = _ta_grades_by_ids(db, [ep.member_ids[-1] for ep in eps])
+        eps = [ep for ep in eps
+               if grade_by_id.get(ep.member_ids[-1]) is not None
+               and grade_by_id[ep.member_ids[-1]] >= min_ta_grade]
 
     # Sort on raw values, then model_validate ONLY the paginated page (council
     # review 2026-08-05, finding 8): per-row validation now parses the two deep
@@ -125,6 +150,13 @@ def list_episodes(
     non_null.sort(key=_sort_value, reverse=(sort_dir != "asc"))
     page = (non_null + nulls)[skip: skip + limit]
 
+    # The page's CURRENT grades (latest member per episode) — already in
+    # hand when the floor ran; fetched page-only otherwise.
+    page_latest = [ep.member_ids[-1] for ep in page]
+    missing = [i for i in page_latest if i not in grade_by_id]
+    if missing:
+        grade_by_id.update(_ta_grades_by_ids(db, missing))
+
     out: List[EpisodeOut] = []
     for ep in page:
         canonical = SetupOut.model_validate(row_by_id[ep.canonical_id])
@@ -135,6 +167,7 @@ def list_episodes(
             scan_count=ep.scan_count,
             first_seen=ep.first_seen,
             last_seen=ep.last_seen,
+            latest_ta_grade=grade_by_id.get(ep.member_ids[-1]),
             passed=review_key in passed_notes,
             review_note=passed_notes.get(review_key),
         ))

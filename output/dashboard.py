@@ -37,6 +37,7 @@ import sys
 from config import settings
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
+from engine_alpha.scoring import taxonomy
 from engine_alpha.structure.event_map import narrative_chart_fields
 from engine_alpha.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
 from engine_alpha.structure.trace_export import election_trace_chart_fields
@@ -95,6 +96,12 @@ def _sector_etf_for_ticker(ticker, sector_etf_cache):
         sector_etf_cache[normalized] = _resolve_sector_etf(normalized)
         _save_sector_etf_cache(sector_etf_cache)
     return sector_etf_cache.get(normalized) or None
+
+
+def _round_opt(value, digits):
+    """Display-round a nullable scalar: None passes through (NULL = not
+    measured — never coerced to a number at the wire)."""
+    return None if value is None else round(float(value), digits)
 
 
 def _json_safe(obj):
@@ -228,26 +235,17 @@ def _extract_chart_data(data, results_df, tickers):
             )
             
             # Sub-scores power the "why ranked" tag chips on the frontend
-            # card. Emit the raw point values; the JS helper compares each
-            # against its cap (config.settings.SCORE_*) to decide which
-            # tags fire.
+            # card. Emit the raw point values for every ALWAYS-EMITTED
+            # registry term via the ONE named projection (task 9; the
+            # hand-listed tuple was the 6th copy of the scoring vocabulary).
+            # Flag-gated v2 term points ride the v2 block below instead —
+            # see always_emitted_terms' docstring for why emitted_keys()
+            # must never be substituted here.
             sub = row.get('_sub_scores') or {}
             sub_payload = {
-                k: round(float(sub.get(k, 0) or 0), 2)
-                for k in (
-                    'box_tightness', 'touch_density', 'traversal_quality',
-                    'atr_squeeze', 'lps_tightness', 'vol_contraction',
-                    'base_age', 'uptrend_bonus', 'rs_bonus',
-                    'high_proximity', 'breadth_bonus', 'contraction',
-                    'ascending_support', 'adr',
-                )
+                t.key: round(float(sub.get(t.key, 0) or 0), 2)
+                for t in taxonomy.always_emitted_terms()
             }
-            # E3 puzzle-quality chip — surfaced when the scorer emitted it
-            # (always, since the 2026-07-18 fold; the presence guard also keeps
-            # older flag-era payloads readable).
-            if 'puzzle_quality' in sub:
-                sub_payload['puzzle_quality'] = round(
-                    float(sub.get('puzzle_quality', 0) or 0), 2)
 
             sector_etf = _sector_etf_for_ticker(ticker, sector_etf_cache)
 
@@ -404,6 +402,43 @@ def _extract_chart_data(data, results_df, tickers):
                 'rs_rating': row.get('_rs_rating'),
                 'rs_line_latest': row.get('_rs_line_latest'),
                 'rs_line_new_high': row.get('_rs_line_new_high'),
+                # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT
+                # while TA_SCORE_V2 is off (the puzzle presence pattern; the
+                # flag-off wire snapshot pins the absence). The wire carries
+                # VERDICTS (EC-28): everything arrives resolved and
+                # display-rounded here, once — the archive keeps the full
+                # precision. Fixed arity only: chapters are five named
+                # scalars, warnings a small id→factor dict — never a
+                # per-bar/per-term unbounded structure (the election-trace
+                # payload hazard class). Wire names == archive column names
+                # (the event_map family precedent).
+                **({} if row.get('_ta_grade') is None else {
+                    'ta_grade': round(float(row['_ta_grade']), 1),
+                    'ta_grade_raw': round(float(row['_ta_grade_raw']), 2),
+                    'ta_grade_chapters': {
+                        ch: round(float(v), 2)
+                        for ch, v in (row.get('_ta_grade_chapters') or {}).items()
+                    },
+                    'ta_grade_chapter_fractions': {
+                        ch: round(float(v), 4)
+                        for ch, v in (row.get('_ta_grade_chapter_fractions') or {}).items()
+                    },
+                    'ta_grade_warnings': row.get('_ta_grade_warnings') or {},
+                    'score_spring': _round_opt(row.get('_score_spring'), 2),
+                    'score_story_s_tests': _round_opt(row.get('_score_story_s_tests'), 2),
+                    'score_story_r_rejections': _round_opt(row.get('_score_story_r_rejections'), 2),
+                    'score_story_alternations': _round_opt(row.get('_score_story_alternations'), 2),
+                    'score_story_terminal_posture': _round_opt(row.get('_score_story_terminal_posture'), 2),
+                    'lps_shrink_frac': _round_opt(row.get('_lps_shrink_frac'), 4),
+                    'lps_window_classification': row.get('_lps_window_classification'),
+                    'story_richness_rate': _round_opt(row.get('_story_richness_rate'), 4),
+                    'trend_base_count': row.get('_trend_base_count'),
+                    'inter_base_width_ratio': _round_opt(row.get('_inter_base_width_ratio'), 4),
+                    # The resolved chip verdicts (task 10) — the wire carries
+                    # the parsed list; [] = resolved-nothing-fired, distinct
+                    # from the key being absent flag-off.
+                    'fired_tags': row.get('_fired_tags') or [],
+                }),
             }
         except Exception as e:
             print(f"  Chart data error on {ticker}: {e}")

@@ -59,6 +59,10 @@ import pytest  # noqa: E402
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
+from engine_alpha.scoring.scoring import (  # noqa: E402
+    sub_score_archive_values,
+    ta_grade_archive_values,
+)
 from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
 from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
@@ -171,6 +175,15 @@ def _event_map_cols(*, prefixed: bool) -> frozenset[str]:
         event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _ta_grade_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
+def _sub_score_cols() -> frozenset[str]:
+    return frozenset(sub_score_archive_values({}).keys())
+
+
 def _election_trace_cols(*, prefixed: bool) -> frozenset[str]:
     return frozenset(
         election_trace_archive_values((lambda _k: None), prefixed=prefixed).keys())
@@ -214,12 +227,15 @@ def _scan_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (literal | _htf_cols(prefixed=True)
             | _event_map_cols(prefixed=True)
+            | _ta_grade_cols(prefixed=True)
+            | _sub_score_cols()
             | _election_trace_cols(prefixed=True)
             | _strategy_cols(prefixed=True) | _sector_rank_cols())
 
@@ -231,12 +247,15 @@ def _seed_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
             | _event_map_cols(prefixed=False)
+            | _ta_grade_cols(prefixed=False)
+            | _sub_score_cols()
             | _election_trace_cols(prefixed=False)
             | _strategy_cols(prefixed=False) | _fwd_return_cols())
 
@@ -275,50 +294,116 @@ def test_traversal_quality_now_populated_by_both_paths():
     manual route leaves it NULL), so the seed path must re-add it explicitly in
     its ``overrides`` — assert it is present there so a future edit can't drop it
     back to NULL for the seed population."""
-    scan_keys = _literal_kwargs(writer_mod.archive_scan_results, "values")
-    seed_overrides = _literal_kwargs(seed_mod.seed_archive, "overrides")
-    assert "score_traversal_quality" in scan_keys
-    assert "score_traversal_quality" in seed_overrides
-    # And it is in the seed path's effective column set overall.
+    # Task-6 fold: BOTH batch writers now populate it through the ONE nested-
+    # dict producer (sub_score_archive_values), so the original drift class —
+    # a literal dropped from one path — is structurally dead. The pin survives
+    # as: the producer covers the column, and both effective sets carry it.
+    assert "score_traversal_quality" in _sub_score_cols()
+    assert "score_traversal_quality" in _scan_effective_cols()
     assert "score_traversal_quality" in _seed_effective_cols()
 
 
-def test_all_score_subscores_pinned_in_seed_overrides():
-    """The WHOLE ``score_*`` sub-score family must be listed explicitly in the
-    seed writer's ``overrides`` literal — not left to the auto-mapper.
+def test_all_score_subscores_covered_by_exactly_one_producer():
+    """The WHOLE ``score_*`` family must be VALUE-mapped by exactly one of the
+    two registry-driven producers — never left to the auto-mapper.
 
-    The name-set parity guard above is blind to this class of drift: the seed
-    path's effective column set includes ``_mapper_auto_cols()`` (every model
-    column not in ``_MANUAL_UNMAPPED_COLUMNS``), so a ``score_*`` column's NAME is
-    "populated" by the seed path whether or not seed.py maps its VALUE. But the
-    seed sub-scores arrive NESTED under ``best_result["sub_scores"][...]``, while
-    the auto-mapper only tries ``best_result.get("score_box_tightness")`` — which
-    is ``None`` for the flat ``score_*`` key. So dropping e.g.
-    ``score_box_tightness=sub.get("box_tightness")`` from the overrides leaves
-    every parity/name-set test green while NULLing that column for the whole
-    seeded population (exactly the ``score_traversal_quality`` bug, generalized).
-
-    Pin it by VALUE-mapping: every ``score_*`` model column must appear as a key
-    in the seed ``overrides`` literal so the mapper never silently resolves it to
-    None."""
+    History: the sub-scores arrive NESTED under ``best_result["sub_scores"]``,
+    while the auto-mapper only tries the flat ``best_result.get("score_X")`` —
+    which silently resolved to None when a hand literal was dropped (the
+    score_traversal_quality bug, then generalized). The task-6 fold cures the
+    class structurally: ``sub_score_archive_values`` reads the NESTED dict
+    directly for every always-emitted term, and ``ta_grade_archive_values``
+    carries the flag-gated term points (flat, archive-ready names). This guard
+    keeps the cure honest: every ``score_*`` model column is covered by
+    exactly ONE producer (disjoint, no gaps) — a new registry term whose
+    column neither producer emits fails here at add time."""
     score_cols = frozenset(c for c in _model_columns() if c.startswith("score_"))
-    assert len(score_cols) >= 10, (
-        f"expected the full score_* sub-score family (~14 columns); found only "
+    assert len(score_cols) >= 15, (
+        f"expected the full score_* family (~20 columns); found only "
         f"{sorted(score_cols)} — the model changed shape or the guard is stale."
     )
-    seed_overrides = _literal_kwargs(seed_mod.seed_archive, "overrides")
-    missing = score_cols - seed_overrides
-    assert not missing, (
-        f"score_* sub-score column(s) {sorted(missing)} are NOT explicitly mapped "
-        "in core/archive/seed.py's `overrides` dict. These sub-scores arrive "
-        'nested under best_result["sub_scores"][...], but the model-driven mapper '
-        "(archive_row_from_result) only tries best_result.get('score_<name>') for "
-        "unlisted columns — which resolves to None. So an omitted score_* override "
-        "silently NULLs that column for the ENTIRE seeded population (the "
-        "score_traversal_quality bug, generalized to the whole family). The name-"
-        "set parity guard cannot catch this because the auto-mapper still 'owns' "
-        "the column NAME. Re-add `score_<name>=sub.get('<name>')` to the overrides."
+    sub_covered = _sub_score_cols()
+    ta_covered = frozenset(c for c in _ta_grade_cols(prefixed=False)
+                           if c.startswith("score_"))
+    assert not (sub_covered & ta_covered), (
+        f"columns claimed by BOTH producers: {sorted(sub_covered & ta_covered)}"
+        " — a dict() with a key from two splats raises TypeError in the writer."
     )
+    uncovered = score_cols - sub_covered - ta_covered
+    assert not uncovered, (
+        f"score_* column(s) {sorted(uncovered)} are covered by NEITHER "
+        "sub_score_archive_values NOR ta_grade_archive_values — the column "
+        "would silently NULL for every population. Add the term's column to "
+        "the producer that owns its data shape."
+    )
+
+
+def _manual_overrides_dict():
+    """The ``overrides = {...}`` ast.Dict inside the manual-add route."""
+    from routers import archive_actions
+    src = inspect.getsource(archive_actions.add_setup_manually)
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", None) == "overrides" for t in node.targets):
+            if isinstance(node.value, ast.Dict):
+                return node.value
+    raise AssertionError("manual route `overrides = {...}` literal not found")
+
+
+def test_manual_route_score_coverage_with_declared_exclusions():
+    """Closes the unguarded-manual-route gap (task 6): the THIRD writer's
+    score_* coverage is registry-driven, and its deliberate NULLs are DECLARED
+    twice-coherently — in the route's ``exclude`` and in the mapper's frozen
+    ``_MANUAL_UNMAPPED_COLUMNS`` — never hand-omitted. A new score_* column
+    neither producer covers on this path fails here at add time."""
+    from services.archive_queries import _MANUAL_UNMAPPED_COLUMNS
+    d = _manual_overrides_dict()
+    literal_keys = {k.value for k in d.keys
+                    if k is not None and isinstance(k, ast.Constant)}
+    splat_calls = [v for k, v in zip(d.keys, d.values)
+                   if k is None and isinstance(v, ast.Call)]
+    splat_names = {c.func.id if isinstance(c.func, ast.Name)
+                   else getattr(c.func, "attr", "?") for c in splat_calls}
+    assert "sub_score_archive_values" in splat_names, (
+        "the manual route no longer splats the ONE sub-score producer")
+    # BOTH family producers, not one (council review 2026-08-08, finding 1:
+    # the route shipped with only the sub-score splat, so fired_tags reached
+    # the model pass as a raw Python list — a guaranteed flag-on bind error —
+    # and the EC-19 closed-set refusals never ran on this writer).
+    assert "ta_grade_archive_values" in splat_names, (
+        "the manual route no longer splats the TA-grade family producer — "
+        "fired_tags would bind as a raw list and the closed-set refusals "
+        "would not guard this writer (2026-08-08 review, finding 1)")
+    # The declared exclusion, read from the route's own source.
+    declared_excl: set = set()
+    for call in splat_calls:
+        name = call.func.id if isinstance(call.func, ast.Name) \
+            else getattr(call.func, "attr", "?")
+        if name != "sub_score_archive_values":
+            continue
+        for kw in call.keywords:
+            if kw.arg == "exclude":
+                for node in ast.walk(kw.value):
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                        declared_excl.add(node.value)
+    assert declared_excl == {"score_traversal_quality"}, (
+        f"manual route's declared exclusion drifted: {sorted(declared_excl)}")
+    assert declared_excl <= _MANUAL_UNMAPPED_COLUMNS, (
+        "the route's exclusion and the mapper's frozen _MANUAL_UNMAPPED_COLUMNS "
+        "disagree — the two declarations of the same deliberate NULL must match")
+    # Full score_* coverage on this path: the sub producer (minus the declared
+    # exclusion) + the TA-grade family splat's score_* columns (produced, no
+    # longer left to the model pass) + any literal keys.
+    score_cols = {c for c in _model_columns() if c.startswith("score_")}
+    ta_flat = {c for c in _ta_grade_cols(prefixed=False) if c.startswith("score_")}
+    covered = ((_sub_score_cols() - declared_excl)
+               | (ta_flat - _MANUAL_UNMAPPED_COLUMNS)
+               | (literal_keys & score_cols))
+    missing = score_cols - covered - _MANUAL_UNMAPPED_COLUMNS
+    assert not missing, (
+        f"score_* column(s) {sorted(missing)} are neither produced nor "
+        "declared-unmapped on the manual route — a silent NULL population.")
 
 
 def test_allowlist_has_no_dead_entries():

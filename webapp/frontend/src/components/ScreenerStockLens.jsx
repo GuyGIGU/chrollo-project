@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatScore } from '../utils/scoreFormat';
 
 import { ScoreBreakdownPills } from './ScoreBreakdown';
+import { TaGradePanel } from './TaGradePanel';
 import { TagRow } from './SetupTags';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import {
@@ -18,16 +20,13 @@ import {
   TRACE_STAGE_LABELS,
   TREND_STATE_LABELS,
   displayLabel,
-  tagFlagsFromWire,
 } from './wireVocabulary';
 import { tierColor, signColor } from '../theme';
 import { API_BASE } from '../api';
 import { fx, fmtSignedPctFrac, fmtDateShort } from '../utils/format';
 import { dailyChangeFrac, htfStateLabel } from '../utils/screenerCardData';
 
-const scoreLabel = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `${Math.round(Number(value))}`
-);
+const scoreLabel = (value) => formatScore(value);
 
 const money = (value) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `$${Number(value).toFixed(2)}`
@@ -540,7 +539,7 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   );
 }
 
-function TagsPanel({ data }) {
+function TagsPanel({ activeRegion, data, onRegionChange }) {
   const read = triggerRead(distanceToTriggerPct(data));
   return (
     <section className="stock-lens-section">
@@ -549,12 +548,18 @@ function TagsPanel({ data }) {
         <small>{read}</small>
       </div>
       <TagRow
-        subScores={data.sub_scores}
-        flags={tagFlagsFromWire(data)}
+        data={data}
         maxTags={null}
         style={{ padding: 0 }}
       />
-      <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
+      {/* Dual-epoch (task 12): a graded payload shows the 0-100 + chapter
+          strip; a pre-v2 payload keeps the legacy Visual/Market pills. The
+          pills' JSX+CSS delete as one unit at the flag's retirement. */}
+      {data.ta_grade != null ? (
+        <TaGradePanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
+      ) : (
+        <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
+      )}
     </section>
   );
 }
@@ -577,7 +582,7 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
             ticker={ticker}
           />
         ) : null}
-        <TagsPanel data={data} />
+        <TagsPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
       </div>
     </div>
   );

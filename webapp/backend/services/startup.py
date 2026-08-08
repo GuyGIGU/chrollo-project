@@ -415,6 +415,9 @@ def migrate_universe_type(bind) -> bool:
 _MIGRATED_ARCHIVE_MODELS = (
     ("setup_archive", lambda: archive_models.SetupArchive),
     ("near_miss_archive", lambda: archive_models.NearMissArchive),
+    # Registered when it gained its first model-only column (grade_verdict,
+    # TA-grade build task 14).
+    ("read_verdicts", lambda: models.ReadVerdict),
 )
 
 

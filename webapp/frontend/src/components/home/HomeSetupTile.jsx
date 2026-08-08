@@ -1,7 +1,9 @@
 import ScreenerMiniChart from '../ScreenerMiniChart';
 import { tierColor } from '../../theme';
 
-const scoreLabel = (v) => (v == null || !Number.isFinite(Number(v)) ? '-' : `${Math.round(Number(v))}`);
+import { formatScore } from '../../utils/scoreFormat';
+
+const scoreLabel = (v) => formatScore(v);
 
 // A compact, chart-bearing setup tile for the Fresh Setups zone. Reuses the
 // screener's mini-chart but drops the toggles/tags/score-pills so the Home tile

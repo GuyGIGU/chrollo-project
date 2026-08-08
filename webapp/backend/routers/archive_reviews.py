@@ -93,6 +93,9 @@ def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[st
 
 
 _READ_VERDICTS = {"agree", "disagree"}
+# The grade channel's closed vocabulary (task 14) — write-time refusal is the
+# live DB's operative constraint (the ALTER path strips model CHECKs).
+_GRADE_VERDICTS = {"agree", "too_high", "too_low"}
 
 
 def _read_verdict_key(payload_universe: str | None) -> str:
@@ -136,6 +139,22 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         if verdict not in _READ_VERDICTS:
             raise HTTPException(status_code=422,
                                 detail=f"verdict must be one of {sorted(_READ_VERDICTS)} or null")
+    grade_verdict = payload.grade_verdict
+    if grade_verdict is not None:
+        grade_verdict = grade_verdict.strip().lower()
+        if grade_verdict not in _GRADE_VERDICTS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"grade_verdict must be one of {sorted(_GRADE_VERDICTS)} or null")
+        if verdict is None:
+            # The schema makes grade-without-read unrepresentable (verdict is
+            # NOT NULL) — refuse the combination loudly instead of accepting
+            # the payload and silently discarding a validated judgment with
+            # the deleted row (2026-08-08 review, finding 6).
+            raise HTTPException(
+                status_code=422,
+                detail="a grade verdict requires a read verdict — clearing "
+                       "the read verdict clears the grade verdict with it")
     note = (payload.note or "").strip() or None
     ecv = (payload.engine_config_version or "").strip() or None
 
@@ -154,16 +173,21 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         if existing:
             db.delete(existing)
             db.commit()
-        return {**identity, "verdict": None, "note": None}
+        # Same keys on every branch (finding 6: the clear branch's shape
+        # disagreed with its two siblings).
+        return {**identity, "verdict": None, "grade_verdict": None, "note": None}
     if existing:
         existing.verdict = verdict
+        existing.grade_verdict = grade_verdict
         existing.note = note
         existing.engine_config_version = ecv
         db.commit()
-        return {**identity, "verdict": verdict, "note": note}
+        return {**identity, "verdict": verdict,
+                "grade_verdict": grade_verdict, "note": note}
     try:
         db.add(ReadVerdict(ticker=ticker, scan_date=scan_date,
                            universe_type=universe_type, verdict=verdict,
+                           grade_verdict=grade_verdict,
                            note=note, engine_config_version=ecv,
                            created_at=datetime.utcnow()))
         db.commit()
@@ -176,10 +200,12 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
         if existing is None:
             raise
         existing.verdict = verdict
+        existing.grade_verdict = grade_verdict
         existing.note = note
         existing.engine_config_version = ecv
         db.commit()
-    return {**identity, "verdict": verdict, "note": note}
+    return {**identity, "verdict": verdict,
+            "grade_verdict": grade_verdict, "note": note}
 
 
 @router.get("/reviews/read-verdict")
@@ -191,7 +217,9 @@ def get_read_verdict(
 ) -> Dict[str, Any]:
     """The current read verdict for one identity triple, nulls when none.
     ``universe_type`` omitted resolves to the equities-default scope, matching
-    the POST's resolution."""
+    the POST's resolution. Serves the FULL stored judgment — grade_verdict
+    included; a persisted value the read path refused to serve was a
+    write-only, self-erasing channel (2026-08-08 review, finding 6)."""
     from models import ReadVerdict
 
     row = (
@@ -201,7 +229,9 @@ def get_read_verdict(
                 ReadVerdict.universe_type == _read_verdict_key(universe_type))
         .first()
     )
-    return {"verdict": row.verdict if row else None, "note": row.note if row else None}
+    return {"verdict": row.verdict if row else None,
+            "grade_verdict": row.grade_verdict if row else None,
+            "note": row.note if row else None}
 
 
 @router.get("/reviews/passed")

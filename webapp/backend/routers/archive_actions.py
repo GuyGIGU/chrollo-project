@@ -45,6 +45,10 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.downloads import _batched_download, price_auto_adjust
     from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.scoring.scoring import (
+        sub_score_archive_values,
+        ta_grade_archive_values,
+    )
     from engine_alpha.structure.htf import htf_archive_values
     from archive_models import (
         SetupArchive,
@@ -178,20 +182,17 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "breach_days": result["breach_days"],
         "vol_contraction": result["vol_contraction"],
         "tightness_ratio": result["tightness_ratio"],
-        # Sub-scores — column score_X maps to sub["X"] (the score_ prefix dropped)
-        "score_box_tightness": sub.get("box_tightness"),
-        "score_touch_density": sub.get("touch_density"),
-        "score_atr_squeeze": sub.get("atr_squeeze"),
-        "score_lps_tightness": sub.get("lps_tightness"),
-        "score_vol_contraction": sub.get("vol_contraction"),
-        "score_base_age": sub.get("base_age"),
-        "score_uptrend_bonus": sub.get("uptrend_bonus"),
-        "score_rs_bonus": sub.get("rs_bonus"),
-        "score_high_proximity": sub.get("high_proximity"),
-        "score_breadth_bonus": sub.get("breadth_bonus"),
-        "score_contraction": sub.get("contraction"),
-        "score_ascending_support": sub.get("ascending_support"),
-        "score_adr": sub.get("adr"),
+        # Per-term sub-score columns — the ONE registry-driven producer (task
+        # 6 fold). The manual path's deliberate NULL (score_traversal_quality,
+        # also frozen in _MANUAL_UNMAPPED_COLUMNS) is a DECLARED exclusion,
+        # never a hand-omission.
+        **sub_score_archive_values(
+            sub, exclude=frozenset({"score_traversal_quality"})),
+        # TA-grade family — the SAME single stamping point the live and seed
+        # writers use (council review 2026-08-08, finding 1: the raw model
+        # pass would bind resolve_fired_tags' Python LIST into the TEXT
+        # column and skip every EC-19 closed-set refusal + the EC-2 scrub).
+        **ta_grade_archive_values(result.get, prefixed=False),
         # Coercions (nullable 0/1)
         "bin_c_present": (int(bool(result.get("bin_c_present")))
                           if result.get("bin_c_present") is not None else None),

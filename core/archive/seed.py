@@ -34,6 +34,10 @@ from engine_alpha.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from engine_alpha.scoring.scoring import (
+    sub_score_archive_values,
+    ta_grade_archive_values,
+)
 from engine_alpha.structure.event_map import event_map_archive_values
 from engine_alpha.structure.htf import htf_archive_values
 from engine_alpha.structure.strategy_read import strategy_archive_values
@@ -386,21 +390,12 @@ def seed_archive(
             breach_days=best_result["breach_days"],
             vol_contraction=best_result["vol_contraction"],
             tightness_ratio=best_result["tightness_ratio"],
-            # Sub-scores (column score_X <- sub["X"], the score_ prefix dropped)
-            score_box_tightness=sub.get("box_tightness"),
-            score_touch_density=sub.get("touch_density"),
-            score_traversal_quality=sub.get("traversal_quality"),
-            score_atr_squeeze=sub.get("atr_squeeze"),
-            score_lps_tightness=sub.get("lps_tightness"),
-            score_vol_contraction=sub.get("vol_contraction"),
-            score_base_age=sub.get("base_age"),
-            score_uptrend_bonus=sub.get("uptrend_bonus"),
-            score_rs_bonus=sub.get("rs_bonus"),
-            score_high_proximity=sub.get("high_proximity"),
-            score_breadth_bonus=sub.get("breadth_bonus"),
-            score_contraction=sub.get("contraction"),
-            score_ascending_support=sub.get("ascending_support"),
-            score_adr=sub.get("adr"),
+            # Per-term sub-score columns — ONE registry-driven producer (task
+            # 6 fold; byte-identical to the former literals; reads the NESTED
+            # sub dict directly, so the auto-mapper's silent-None failure mode
+            # is structurally dead). Flag-gated term points ride the ta_grade
+            # family splat below (flat archive-ready names on the result).
+            **sub_score_archive_values(sub),
             # int(bool(...)) coercions (nullable 0/1)
             bin_c_present=(int(bool(best_result.get("bin_c_present")))
                            if best_result.get("bin_c_present") is not None else None),
@@ -443,6 +438,9 @@ def seed_archive(
             **htf_archive_values(best_result.get, prefixed=False),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
+            # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
+            # + the three puzzle grades (NULL when the narrative abstained)
+            **ta_grade_archive_values(best_result.get, prefixed=False),
             # Election-trace evidence — NULL when the export flag is off
             **election_trace_archive_values(best_result.get, prefixed=False),
             # Strategy read (held-through-correction) — NULL when dark

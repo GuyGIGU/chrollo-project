@@ -91,6 +91,27 @@ export const TREND_STATE_LABELS = {
   range: 'range',
 };
 
+// Story chapters (TA-grade build task 12): the grade's breakdown vocabulary.
+// Wire ids mirror taxonomy.CHAPTER_ORDER (ruled 2026-08-06; vocabulary
+// re-ruled 2026-08-08 to the operator's phase-overlay words — the same
+// vocabulary as PHASE_NAMES below); the order mirrors the ruling —
+// left→right like the chart, NEVER points-sorted.
+export const CHAPTER_ORDER = ['cause', 'phase_b', 'phase_c', 'phase_d', 'trend'];
+
+export const CHAPTER_LABELS = {
+  cause: { label: 'Cause', short: 'Cause' },
+  phase_b: { label: 'Phase B', short: 'B' },
+  phase_c: { label: 'Phase C', short: 'C' },
+  phase_d: { label: 'Phase D', short: 'D' },
+  trend: { label: 'Trend', short: 'Trend' },
+};
+
+// Grade warning labels (unknown ids fall through verbatim — never blank).
+export const WARNING_LABELS = {
+  terminal_drift: 'Terminal drift',
+  weak_monthly: 'Weak monthly',
+};
+
 // Phase overlay names — the one source for A/B/C/D naming (chartPhaseOverlay
 // keys its colors/details off these).
 export const PHASE_NAMES = {

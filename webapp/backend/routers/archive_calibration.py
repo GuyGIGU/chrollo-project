@@ -286,6 +286,10 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "avg_r_multiple_20d": round(float(np.mean(r_mults)), 3) if r_mults else None,
             "expectancy_r": expectancy_r,
             "r_sample_size": len(r_mults),
+            # Epoch honesty (task 14): stored tier/score mean different things
+            # across an engine_config_version seam — post-flip this counts >1
+            # and the tier card badges the blend instead of hiding it.
+            "epochs": len({s.engine_config_version or "?" for s in group}),
         }
 
     # ── Sub-Score Correlations (20d + 60d) ──────────────────

@@ -3,7 +3,6 @@ import { TagRow } from './SetupTags';
 import ScreenerMiniChart from './ScreenerMiniChart';
 import { explainTip } from './tooltipText';
 import { healthStateMeta } from './healthStateData';
-import { tagFlagsFromWire } from './wireVocabulary';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from '../utils/screenerCardData';
@@ -251,8 +250,7 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
     <TagRow
-      subScores={data.sub_scores}
-      flags={tagFlagsFromWire(data)}
+      data={data}
       compact
       maxTags="auto"
       rows={2}

@@ -693,10 +693,6 @@ td {
   font-variant-numeric: tabular-nums;
 }
 
-.score-breakdown-compact {
-  flex-wrap: nowrap;
-}
-
 .score-pill-visual {
   border-color: rgba(88, 166, 255, 0.48);
   background: rgba(88, 166, 255, 0.09);
@@ -709,15 +705,130 @@ td {
   color: var(--success);
 }
 
-/* On the screener card the sub-score pills are secondary to the hero score,
-   so they recede to neutral — their "Visual" / "Market" labels still tell them
-   apart without each carrying its own hue. The detail modal (non-compact) keeps
-   the color coding, where there's room for it and less competing color. */
-.score-breakdown-compact .score-pill-visual,
-.score-breakdown-compact .score-pill-market {
-  border-color: var(--border-color);
-  background: rgba(255, 255, 255, 0.04);
+/* ── Technical Analysis Grade panel (task 12) ─────────────────────────────
+   The 0-100 is the lens's dominant datum (mono/tabular, permanent /100 so it
+   can never be misread as the raw score); the chapter strip beneath it keeps
+   equal-width segments in the RULED story order — fill is the engine-resolved
+   earned fraction, so an A/B reweight moves fills, never the layout. No
+   chapter element wears a tier hue; warnings keep the only hot treatment. */
+.ta-grade-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ta-grade-headline {
+  align-items: baseline;
+  display: flex;
+  gap: 4px;
+}
+
+.ta-grade-value {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ta-grade-scale {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ta-grade-strip {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* Chapter cells drive the chart's activeRegion channel on hover — they
+   speak the house control grammar their two lens siblings speak
+   (.phase-bin-control, .narrative-glyph): cursor, hover wash, and the
+   mythril is-active border when their region is lit (2026-08-08 review,
+   finding 13c — an invisible control is an unfound feature). */
+.ta-grade-chapter {
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: help;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 2px 3px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.ta-grade-chapter:hover {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+}
+
+.ta-grade-chapter.is-active {
+  border-color: var(--accent-active);
+}
+
+.ta-grade-chapter-label {
   color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ta-grade-chapter-bar {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  display: block;
+  height: 5px;
+  overflow: hidden;
+}
+
+.ta-grade-chapter-fill {
+  background: var(--accent-blue);
+  border-radius: 2px;
+  display: block;
+  height: 100%;
+}
+
+.ta-grade-chapter-points {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ta-grade-chapter-caveat {
+  color: var(--text-faint);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.ta-grade-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ta-grade-warning {
+  /* The panel's ONLY hot element wears the WARNING channel — never a raw
+     copy of the tier-S hex (the Tier-Reserve rule; 2026-08-08 review,
+     finding 13a). Tint + hairline mirror the sibling warning chips. */
+  background: var(--warning-bg);
+  border: 1px solid rgba(var(--warning-rgb), 0.30);
+  border-radius: var(--radius-xs);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
 }
 
 .phase-bin-panel {

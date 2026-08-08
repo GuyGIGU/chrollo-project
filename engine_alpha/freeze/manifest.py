@@ -7,7 +7,10 @@ detector decision (which setups fire, how they score/rank, where the phase
 boundaries land), gathered into a sorted dict whose sha256 is the engine config
 version. An archived signal stamped with that hash can later be traced to the
 exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted.
+hasn't silently drifted. One non-settings block rides along: the TA-grade
+story-chapter taxonomy (term→chapter membership + order, derived from the
+scoring registry) — re-chaptering changes what the grade's breakdown means, so
+it rotates the version like any weight.
 
 Design rules (deliberate, audited):
 
@@ -225,6 +228,39 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # only forces names once a read lands, which would have left a window where
     # flipping it changed output without rotating the hash.
     "TA_SCORE_V2",
+    # TA-grade v2 vocabulary (batched registration seam, 2026-08-08, build task
+    # 1): the spring term's cap + the three named slopes the v2 term expressions
+    # consume (promoting the scorer's last hidden literals). Listed at
+    # registration — before any read — so ONE seam covers the whole batch
+    # instead of sprinkling phantom epochs across the build.
+    "SCORE_SPRING",
+    "TOUCH_POINT_RATE",
+    "LPS_TIGHTNESS_SLOPE",
+    "VOL_CONTRACTION_SLOPE",
+    # Story terms + warning knobs (task-4 batch — third declared seam): the
+    # Event-Map substrate graded inside the chapters, shape-only caps + the
+    # provisional anchors, plus the floored warning-discount knobs.
+    "SCORE_STORY_S_TESTS",
+    "SCORE_STORY_R_REJECTIONS",
+    "SCORE_STORY_ALTERNATIONS",
+    "SCORE_STORY_TERMINAL_POSTURE",
+    "STORY_COMPLETED_TESTS_FULL",
+    "STORY_ALTERNATIONS_FULL",
+    "STORY_UNREADABLE_NAN_BARS",
+    "TA_WARN_TERMINAL_DRIFT",
+    "TA_GRADE_WARNING_FLOOR",
+    # Wave-1 charter measurements (task-7 batch — fourth declared seam)
+    "LPS_SHRINK_MIN_TESTS",
+    "STORY_RICHNESS_FULL",
+    # Wave-2 charter measurement (task-8 batch — fifth declared seam)
+    "TREND_BASE_COUNT_CAP",
+    "TREND_BASE_WALK_MAX_ROOTS",
+    # Tag fire-rule thresholds + the weak_monthly warning knob (task-10
+    # batch — sixth declared seam)
+    "TOUCH_VOL_Z_NO_SUPPLY",
+    "TOUCH_VOL_Z_SPRING",
+    "TOUCH_VOL_Z_HEAVY_R",
+    "TA_WARN_WEAK_MONTHLY",
     # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
     # default-off + byte-identical off, read via _flag()/getattr on the advisory
     # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires
@@ -359,6 +395,21 @@ def collect_manifest() -> Dict[str, Any]:
             + " — update core/freeze/manifest.ENGINE_SETTINGS_KEYS deliberately "
             "(a rename/removal changes the engine contract)."
         )
+
+    # The TA-grade story-chapter taxonomy is engine identity: which terms belong
+    # to which chapter (and the ruled left→right order) changes what the grade's
+    # breakdown MEANS, so a re-chaptering must rotate engine_config_version like
+    # any weight. Derived lazily FROM the one registry (never a second map) —
+    # the only non-settings block in the manifest, on the same lazy-import rule.
+    from engine_alpha.scoring import taxonomy
+
+    manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
+    # The ONE chapter-map projection (whole registry, regime terms as None —
+    # taxonomy.chapter_map's docstring carries the coverage contract).
+    manifest["TA_GRADE_CHAPTER_MAP"] = taxonomy.chapter_map()
+    # The tag fire-rules are judgments (which chips fire): a rule change must
+    # rotate the version exactly like a weight change (task 10).
+    manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
     return manifest
 
 

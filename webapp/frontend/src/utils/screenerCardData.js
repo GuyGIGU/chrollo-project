@@ -21,8 +21,12 @@ export const asOfDate = (candles) => fmtDateShort(candles?.[candles.length - 1]?
 // htf_{w,m}_* fields. Re-accumulation is the premium case (S-tier amber); a
 // worked box in progress is context blue; a bare Stage-2 uptrend is green.
 export function htfStateLabel({ stage2, trendState, inConsol, phase, reaccum }) {
-  if (reaccum) return { label: `Re-accum${phase ? ` ${phase}` : ''}`, tone: 'var(--tier-s)' };
-  if (inConsol) return { label: `Consol${phase ? ` ${phase}` : ''}`, tone: 'var(--tier-b)' };
+  // Tier-Reserve (task 12): tier hues belong to tier badges ONLY. Re-accum
+  // wears the registered Categorical Gold token — the raw #e3b341 was the
+  // LPS/trigger gold (already meaning four other things) a hair from the
+  // warning amber (2026-08-08 review, finding 13b).
+  if (reaccum) return { label: `Re-accum${phase ? ` ${phase}` : ''}`, tone: 'var(--accent-yellow)' };
+  if (inConsol) return { label: `Consol${phase ? ` ${phase}` : ''}`, tone: 'var(--accent-blue)' };
   if (stage2) return { label: 'Uptrend', tone: 'var(--success)' };
   if (trendState == null || trendState === 'unknown') return { label: 'no data', tone: 'var(--text-faint)' };
   if (trendState === 'down') return { label: 'downtrend', tone: 'var(--danger)' };

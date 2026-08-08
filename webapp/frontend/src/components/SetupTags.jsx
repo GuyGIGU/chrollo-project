@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { deriveTags, GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsData';
+import { GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsData';
+import { resolveTags } from './tagResolver';
 
 const chipBase = {
   padding: '3px 7px',
@@ -80,8 +81,12 @@ export function TagLegend({ style }) {
   );
 }
 
-export function TagRow({ subScores, flags, maxTags, compact = false, rows = 1, style }) {
-  const tags = deriveTags(subScores, flags);
+// Contract change (task 11): TagRow takes the WIRE PAYLOAD, not
+// subScores-plus-flags — the ONE resolver decides the epoch (backend
+// verdicts vs the legacy derive fallback), so the card, the lens, and the
+// filter bar can never disagree about which chips a row carries.
+export function TagRow({ data, maxTags, compact = false, rows = 1, style }) {
+  const tags = resolveTags(data);
   const containerRef = useRef(null);
   const measureRef = useRef(null);
   const [fitCount, setFitCount] = useState(maxTags === 'auto' ? tags.length : maxTags);

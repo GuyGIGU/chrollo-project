@@ -23,7 +23,17 @@ function TierCard({ data, tier }) {
     }}>
       <div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
         <span style={{ color: tierColor(tier), fontSize: '18px', fontWeight: '700' }}>{tier} Tier</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{data.count} setups</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+          {data.count} setups
+          {data.epochs > 1 && (
+            <span
+              title="These rows span more than one engine epoch — tier and score mean different things across the seam; read the stats per-epoch."
+              style={{ color: 'var(--warning)', fontWeight: 700, marginLeft: 6 }}
+            >
+              ⚠ {data.epochs} epochs
+            </span>
+          )}
+        </span>
       </div>
       <div style={{ display: 'grid', fontSize: '12px', gap: '8px', gridTemplateColumns: '1fr 1fr 1fr' }}>
         <Metric label="Expectancy" value={rValue(data.expectancy_r)} color={signColor(data.expectancy_r)} sub={`n=${data.r_sample_size || 0}`} />

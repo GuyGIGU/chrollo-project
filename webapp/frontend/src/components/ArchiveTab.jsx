@@ -131,6 +131,16 @@ function ChartViewer({ chart }) {
     NARRATIVE_WIRE_FIELDS.forEach((field) => {
       if (field in setup) merged[field] = setup[field];
     });
+    // The grade epoch rides too (2026-08-08 review, finding 9): a v2-epoch
+    // archived row must show the 0-100 it was ranked by and its resolved
+    // chips on the surface where the operator judges it — pre-fix the lens
+    // rendered every archived row in legacy dress. The archive serves the
+    // grade + chips but NOT resolved chapters/warnings, so the panel
+    // renders headline-only there (the strip needs the wire's chapters —
+    // fabricating one was finding 12). Pre-flip rows stay NULL → legacy.
+    ['ta_grade', 'ta_grade_raw', 'fired_tags'].forEach((field) => {
+      if (field in setup) merged[field] = setup[field];
+    });
   }
   const scanIdentity = setup?.scan_date ? {
     scan_date: setup.scan_date,

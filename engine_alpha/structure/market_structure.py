@@ -533,6 +533,105 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     return floor
 
 
+def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
+    """Charter measurement (TA-grade build task 8): the Minervini base COUNT
+    within the current confirmed up-segment + the inter-base width ratio —
+    ONE bounded box-walk producing both numbers (a second enumeration would
+    silently double the only expensive new measurement). Measure-only; the
+    caller gates on TA_SCORE_V2 (fires-only).
+
+    Pinned semantics (pinned before code; the battery asserts each):
+      * the elected base counts as ONE — the count is never zero;
+      * predecessors count only INSIDE the covering confirmed up-segment; the
+        walk runs on the segment-restricted sub-frame BEFORE enumeration, so
+        the anchor-polarity rule holds by construction (no root is ever
+        sought inside an opposite-direction trend);
+      * deterministic: roots advance chronologically (search_from = climax+1)
+        and a predecessor is admitted only when its start_bar is strictly
+        after the previously admitted box's start_bar — the stated dedup rule
+        for overlapping/nested candidates;
+      * the count saturates at TREND_BASE_COUNT_CAP (Minervini counts bases
+        1-4; nobody grades base 9 differently from base 12), and the walk is
+        bounded by TREND_BASE_WALK_MAX_ROOTS root attempts;
+      * widths compare in the SAME units — raw (R-S)/S fractions on BOTH
+        sides — and the ratio is elected / most-recent-predecessor (a
+        tighter current base reads < 1). The walk runs its full root budget
+        even after the count saturates, so the last admission truly IS the
+        most recent predecessor; a walk the budget truncated emits NO ratio
+        (the real predecessor may lie beyond the truncation);
+      * no predecessor → ratio None — never 1.0, never infinity;
+      * the labelling refusing entirely → the WHOLE measurement is absent
+        (None, None) — a fabricated count never archives.
+    """
+    from config import settings
+
+    out = {"trend_base_count": None, "inter_base_width_ratio": None}
+    if df is None or len(df) == 0 or elected_start_bar is None:
+        return out
+    try:
+        points = read_market_structure(df).get("points", [])
+    except Exception:
+        return out
+    if not points:
+        return out                      # the labelling refused: absent
+    start = int(elected_start_bar)
+    covering = None
+    for seg in segment_trends(points):
+        if int(seg["direction"]) != 1:
+            continue
+        seg_start = int(seg["start_bar"])
+        seg_end = seg["end_bar"]
+        if seg_start <= start and (seg_end is None or start <= int(seg_end)):
+            covering = seg              # the LATEST covering up-segment wins
+    widths: list = []
+    cap = int(settings.TREND_BASE_COUNT_CAP)
+    # True only when the enumeration genuinely reached the segment's right
+    # edge (find_root_swing returned None). The walk runs the FULL root
+    # budget even after the count saturates — the ratio's contract is
+    # "elected / MOST-RECENT predecessor", and the old cap break truncated
+    # the RIGHT end of the enumeration, exactly where the most recent
+    # predecessor lives, so saturated rows (the strongest names) archived a
+    # ratio against the wrong base (2026-08-08 review, finding 8). A walk
+    # the root BUDGET truncated never emits a ratio: absent, not a guess.
+    # Cost: bounded by the same TREND_BASE_WALK_MAX_ROOTS the task-8 timing
+    # certified (0.54 ms max/fire IS the full-budget case).
+    walk_reached_right_edge = False
+    if covering is not None:
+        sub = df.iloc[int(covering["start_bar"]):start]
+        if len(sub) >= int(settings.MIN_BASE_DAYS):
+            from engine_alpha.structure import bricks  # lazy: the htf precedent
+            last_admitted_start = -1
+            search_from = 0
+            for _ in range(int(settings.TREND_BASE_WALK_MAX_ROOTS)):
+                root = bricks.find_root_swing(sub, search_from, atr_val)
+                if root is None:
+                    walk_reached_right_edge = True
+                    break
+                search_from = int(root.climax_bar) + 1
+                box = bricks.validate_equilibrium(sub, root, atr_val)
+                if box is None:
+                    continue
+                box_start = int(box.start_bar)
+                s_rail = float(box.S)
+                if box_start <= last_admitted_start \
+                        or not np.isfinite(s_rail) or s_rail <= 0:
+                    continue
+                width = (float(box.R) - s_rail) / s_rail
+                if not np.isfinite(width) or width <= 0:
+                    continue
+                widths.append(width)
+                last_admitted_start = box_start
+    out["trend_base_count"] = min(cap, 1 + len(widths))
+    if widths and walk_reached_right_edge:
+        try:
+            ew = float(elected_width)
+        except (TypeError, ValueError):
+            ew = float("nan")
+        if np.isfinite(ew) and ew > 0:
+            out["inter_base_width_ratio"] = ew / widths[-1]
+    return out
+
+
 def elected_trend_leg_base(df, terminal_bar, direction, *, tol: int = 3,
                            order: Optional[int] = None):
     """The base of the FULL trend leg that tops at ``terminal_bar``.

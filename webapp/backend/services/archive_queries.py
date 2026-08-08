@@ -22,6 +22,7 @@ def _apply_setup_filters(
     source: Optional[str] = None,
     quality_label: Optional[str] = None,
     min_score: Optional[float] = None,
+    min_ta_grade: Optional[float] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE,
@@ -50,6 +51,12 @@ def _apply_setup_filters(
         q = q.filter(SetupArchive.quality_label == quality_label)
     if min_score is not None:
         q = q.filter(SetupArchive.score >= min_score)
+    # The grade's OWN filter (task 9): min_score keeps raw-sum semantics
+    # FOREVER (the two scales are incommensurable); a ta_grade threshold
+    # excludes pre-v2 NULL rows by SQL three-valued logic — deliberately
+    # (an ungraded row can never satisfy a grade floor).
+    if min_ta_grade is not None:
+        q = q.filter(SetupArchive.ta_grade >= min_ta_grade)
     if date_from:
         q = q.filter(SetupArchive.scan_date >= date_from)
     if date_to:
@@ -97,6 +104,19 @@ def _rows_by_ids(db, ids) -> dict:
     return out
 
 
+def _ta_grades_by_ids(db, ids) -> dict:
+    """{row id: ta_grade} for the given ids (two columns only, chunked) —
+    the episode view's CURRENT-grade lookup (each episode's latest member)."""
+    ids = list(ids)
+    out: dict = {}
+    for start in range(0, len(ids), 900):
+        chunk = ids[start:start + 900]
+        for row_id, grade in (db.query(SetupArchive.id, SetupArchive.ta_grade)
+                              .filter(SetupArchive.id.in_(chunk)).all()):
+            out[row_id] = grade
+    return out
+
+
 def _grouped_episodes(db, filters: dict):
     """Episodes for the filtered archive, cached per (filter, archive-version).
 
@@ -107,8 +127,11 @@ def _grouped_episodes(db, filters: dict):
 
     ``quality_label`` is the one filter that's mutable after insert (PATCH
     ``/setups/{id}/label``), so a grouping *selected by it* can go stale without
-    ``(max_id, count)`` moving. Bypass the cache when it's in play; every other
-    filter keys on immutable identity columns and is safe to cache.
+    ``(max_id, count)`` moving. Bypass the cache when it's in play. (A same-day
+    upsert can also rewrite ``score``/``ta_grade`` in place, but it always
+    REPLACES the day's row through the same writer — the stale window is one
+    re-scan of the same day, accepted.) Every other filter keys on immutable
+    identity columns and is safe to cache.
     """
     # Default the equities scope EXPLICITLY here (not only via _apply_setup_filters'
     # param default) so it lands in the cache key — otherwise the default

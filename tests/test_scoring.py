@@ -541,14 +541,277 @@ def test_puzzle_quality_monotonic_and_bounded():
 
 
 def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
-    """Phase-0 tripwire for the hybrid Technical Analysis Score rework
-    (specs/ta-score-rework.md): flag-OFF, score_setup emits NONE of the v2-only keys
-    and stays the frozen composite. Guards that flag-off never drifts as v2 lands."""
+    """Flag-off tripwire at the SCORER boundary (TA-grade build task 2): with
+    TA_SCORE_V2 off, score_setup emits NONE of the reserved v2 vocabulary and
+    stays the frozen composite. The key list derives from the ONE settled
+    vocabulary (taxonomy.V2_RESULT_KEYS, build task 1) so every key added there
+    is guarded here automatically; the anchor assertions pin the core names so
+    an emptied or renamed vocabulary can never quietly green this test. The
+    wire-boundary twin lives in tests/test_dashboard_wire.py."""
     from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
+    for core in ("ta_grade", "ta_grade_raw", "ta_grade_chapters",
+                 "structure_tier", "fired_tags"):
+        assert core in taxonomy.V2_RESULT_KEYS, (
+            f"core v2 name {core!r} missing from the settled vocabulary")
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     out = score_setup(**_score_common())
-    for k in ("ta_structure_score", "structure_tier", "context_score", "ta_score_v2"):
-        assert k not in out, f"v2 key {k!r} leaked with the flag off"
+    for k in taxonomy.V2_RESULT_KEYS:
+        assert k not in out, f"v2 key {k!r} leaked from score_setup with the flag off"
+    assert "spring" not in out, "the flag-gated spring term leaked with the flag off"
+
+
+def test_score_setup_emits_no_v2_keys_under_either_flag(monkeypatch):
+    """score_setup is v1-only FOREVER: the v2 grade lives in compose_ta_grade,
+    called from the shared eval chain where the story scalars exist. Under
+    either flag state the scorer's own dict carries no v2 vocabulary."""
+    from engine_alpha.scoring.scoring import score_setup
+    from engine_alpha.scoring import taxonomy
+    for flag in (False, True):
+        monkeypatch.setattr(settings, "TA_SCORE_V2", flag)
+        out = score_setup(**_score_common())
+        for k in (*taxonomy.V2_RESULT_KEYS, "spring", "story_s_tests"):
+            assert k not in out, f"{k!r} leaked from score_setup (flag={flag})"
+
+
+# --- Task 4: the chapter composite (compose_ta_grade) ---------------------------
+# compose_ta_grade is flag-ON-only by contract: the eval chain gates the call,
+# and the registry loop drops not-emitted (flag-gated) terms — so the battery
+# runs with the flag on, exactly as the one production call site does.
+
+@pytest.fixture
+def v2_on(monkeypatch):
+    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+
+
+def _sub(overrides=None):
+    """A realistic v1 sub_scores dict (registry keys, values within caps).
+    Hand-set so the ta-layer sum is exactly 107.0 (breadth's 6.0 excluded)."""
+    base = {"box_tightness": 15.0, "touch_density": 18.0, "traversal_quality": 6.0,
+            "atr_squeeze": 4.0, "lps_tightness": 12.0, "vol_contraction": 10.0,
+            "base_age": 14.0, "uptrend_bonus": 0.0, "rs_bonus": 0.0,
+            "high_proximity": 5.0, "breadth_bonus": 6.0, "contraction": 8.0,
+            "ascending_support": 4.0, "adr": 5.0, "puzzle_quality": 6.0}
+    base.update(overrides or {})
+    return base
+
+
+def _em(**overrides):
+    """A measured story substrate (the archived as-of scalars)."""
+    base = {"event_map_completed_s": 3, "event_map_completed_r": 2,
+            "event_map_alternations": 2, "event_map_terminal_posture": 1,
+            "event_map_terminal_drift": 0, "event_map_episode_nan_bars": 0}
+    base.update(overrides)
+    return base
+
+
+def test_compose_grade_chapters_partition_the_one_sum(v2_on):
+    """Chapters are a display partition of ONE fixed-divisor affine sum: fixed
+    arity in the ruled order, subtotals summing EXACTLY to the pre-warning
+    grade, bounded [0,100], breadth (regime) excluded from the sum."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    from engine_alpha.scoring import taxonomy
+    grid = [
+        compose_ta_grade(_sub()),
+        compose_ta_grade(_sub(), event_map=_em()),
+        compose_ta_grade(_sub({"box_tightness": 0.0}), has_spring=True),
+        compose_ta_grade({}, event_map=None),                     # all-absent row
+        compose_ta_grade(_sub({"adr": None}),
+                         event_map=_em(event_map_completed_s=0)),
+    ]
+    cap_sum = taxonomy.structural_cap_sum()
+    for out in grid:
+        assert 0.0 <= out["ta_grade"] <= 100.0
+        assert tuple(out["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
+        assert sum(out["ta_grade_chapters"].values()) == pytest.approx(
+            out["ta_grade_raw"] * 100.0 / cap_sum, abs=1e-9)
+    # Hand-computed anchor (Beck P1 — never copied from the implementation):
+    # the _sub ta-layer values sum to 107.0; breadth's 6.0 is excluded; story
+    # terms absent contribute 0 against the FIXED divisor.
+    assert grid[0]["ta_grade_raw"] == pytest.approx(107.0)
+    # Per-chapter earned fractions (task 12): bounded, fixed arity, and the
+    # cause anchor by hand — cause points 15+14=29 of its 44-cap = 29/44.
+    for out in grid:
+        fr = out["ta_grade_chapter_fractions"]
+        assert tuple(fr) == taxonomy.CHAPTER_ORDER
+        assert all(0.0 <= v <= 1.0 for v in fr.values())
+    assert grid[0]["ta_grade_chapter_fractions"]["cause"] == pytest.approx(29.0 / 44.0)
+    assert grid[0]["ta_grade"] == pytest.approx(107.0 * 100.0 / cap_sum)
+    # The all-absent row is a finite geometry-only baseline, not NaN.
+    assert grid[3]["ta_grade"] == 0.0 and grid[3]["ta_grade_raw"] == 0.0
+
+
+def test_compose_grade_absence_is_neutral_against_the_fixed_divisor(v2_on):
+    """A row missing an input grades against the SAME denominator as a full
+    row — absence is neutral-zero, never a per-row divisor shrink (the
+    present-cap denominator is tested-DEAD backend-side)."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    from engine_alpha.scoring import taxonomy
+    missing = compose_ta_grade(_sub({"adr": None}))
+    zeroed = compose_ta_grade(_sub({"adr": 0.0}))
+    assert missing["ta_grade"] == pytest.approx(zeroed["ta_grade"])
+    assert missing["ta_grade"] == pytest.approx(
+        missing["ta_grade_raw"] * 100.0 / taxonomy.structural_cap_sum())
+
+
+def test_compose_grade_quarantines_nan_before_summing(v2_on):
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    out = compose_ta_grade(
+        _sub({"lps_tightness": float("nan"), "adr": float("inf")}),
+        event_map=_em(event_map_completed_s=float("nan")))
+    assert math.isfinite(out["ta_grade"]) and math.isfinite(out["ta_grade_raw"])
+    assert all(math.isfinite(v) for v in out["ta_grade_chapters"].values())
+
+
+def test_compose_grade_warnings_discount_floored_missing_is_exactly_one(v2_on, monkeypatch):
+    """Warnings multiply on the bounded 0-100: a firing warning discounts by
+    its factor, the product never breaches the floor, a missing warning input
+    is factor 1.0 EXACTLY, and chapters stay pre-warning (the discount lives
+    on the headline only)."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    clean = compose_ta_grade(_sub(), event_map=_em())          # drift 0 -> none
+    assert clean["ta_grade_warnings"] == {}
+    monkeypatch.setattr(settings, "TA_WARN_TERMINAL_DRIFT", 0.8)
+    warned = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_drift=1))
+    assert warned["ta_grade_warnings"] == {"terminal_drift": 0.8}
+    assert warned["ta_grade"] == pytest.approx(clean["ta_grade"] * 0.8)
+    assert sum(warned["ta_grade_chapters"].values()) == pytest.approx(
+        sum(clean["ta_grade_chapters"].values()))
+    monkeypatch.setattr(settings, "TA_WARN_TERMINAL_DRIFT", 0.05)
+    floored = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_drift=1))
+    assert floored["ta_grade"] == pytest.approx(
+        clean["ta_grade"] * settings.TA_GRADE_WARNING_FLOOR)
+    absent = compose_ta_grade(_sub(), event_map=None)          # missing family
+    assert absent["ta_grade_warnings"] == {}
+
+
+def test_compose_grade_rank_preservation_is_exact_the_affine_identity(v2_on):
+    """The normalized ordering equals the raw ordering EXACTLY — a mathematical
+    identity of the fixed-divisor affine map; any violation is a bug. (Kept
+    strictly apart from the EXPECTED v1→v2 rank movement, which is the task-13
+    A/B instrument's artifact, not a test.)"""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    a = compose_ta_grade(_sub({"box_tightness": 15.000001}))
+    b = compose_ta_grade(_sub({"box_tightness": 15.0}))
+    assert a["ta_grade_raw"] > b["ta_grade_raw"]
+    assert a["ta_grade"] > b["ta_grade"]        # strictly monotone even at 1e-6
+
+
+def test_compose_story_terms_distinguish_absent_zero_and_unreadable(v2_on, monkeypatch):
+    """Three-state story inputs: absent family = neutral; measured counts =
+    evidence that grades; all-zero counts with a high unreadable companion =
+    ABSENT (the stance term proves the branch: posture 1 earns nothing when
+    the window's zeros are unreadable). Caps monkeypatched non-zero to make
+    the states observable — production caps stay 0 until the A/B."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    monkeypatch.setattr(settings, "SCORE_STORY_S_TESTS", 10)
+    monkeypatch.setattr(settings, "SCORE_STORY_TERMINAL_POSTURE", 8)
+    absent = compose_ta_grade(_sub(), event_map=None)
+    measured = compose_ta_grade(_sub(), event_map=_em())
+    zeros = dict(event_map_completed_s=0, event_map_completed_r=0,
+                 event_map_alternations=0)
+    honest_zero = compose_ta_grade(_sub(), event_map=_em(**zeros))
+    unreadable = compose_ta_grade(_sub(), event_map=_em(
+        **zeros, event_map_episode_nan_bars=settings.STORY_UNREADABLE_NAN_BARS))
+    assert measured["story_s_tests"] == pytest.approx(10.0)   # saturates at FULL
+    assert absent["story_s_tests"] == 0.0
+    assert honest_zero["story_s_tests"] == 0.0                # evidence: reads 0
+    assert honest_zero["story_terminal_posture"] == pytest.approx(8.0)
+    assert unreadable["story_terminal_posture"] == 0.0        # the whole row is absent
+    assert measured["ta_grade"] > absent["ta_grade"]          # the evidence grades
+
+
+def test_compose_stance_enters_its_own_term_never_the_facts(v2_on, monkeypatch):
+    """Right-edge stance (terminal posture) may only move its own Phase-D term —
+    never a completed-event count, never the Phase-B chapter."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    monkeypatch.setattr(settings, "SCORE_STORY_TERMINAL_POSTURE", 8)
+    up = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=1))
+    down = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=0))
+    for k in ("story_s_tests", "story_r_rejections", "story_alternations"):
+        assert up[k] == down[k]
+    assert up["ta_grade_chapters"]["phase_b"] == pytest.approx(
+        down["ta_grade_chapters"]["phase_b"])
+    assert up["ta_grade_chapters"]["phase_d"] > down["ta_grade_chapters"]["phase_d"]
+
+
+def test_compose_never_reads_the_tape(v2_on):
+    """The composite consumes named as-of scalars only — a corrupt tape or
+    profile sentence changes nothing (nothing re-derives counts downstream)."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    garbage = _em(event_map_episodes="TOTALLY [ BROKEN", event_map_episode_profile="??")
+    assert compose_ta_grade(_sub(), event_map=garbage) == \
+        compose_ta_grade(_sub(), event_map=_em())
+
+
+# --- Task 5: the TA-grade archive family extraction -----------------------------
+
+def test_ta_grade_archive_values_null_through_when_dark():
+    """A flag-dark row (no _ta_grade / _puzzle_* fields) archives the whole
+    family as NULL — never zero (NULL = not measured, the pre-flip contract)."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    out = ta_grade_archive_values((lambda _k: None), prefixed=True)
+    assert set(out) == {"ta_grade", "ta_grade_raw", "puzzle_completeness",
+                        "puzzle_chronology", "puzzle_upthrust_terminal",
+                        "score_spring", "score_story_s_tests",
+                        "score_story_r_rejections", "score_story_alternations",
+                        "score_story_terminal_posture",
+                        "lps_shrink_frac", "lps_window_classification",
+                        "story_richness_rate",
+                        "trend_base_count", "inter_base_width_ratio",
+                        "fired_tags"}
+    assert all(v is None for v in out.values())
+
+
+def test_ta_grade_archive_values_scrubs_and_coerces():
+    """EC-2 at the pandas boundary: NaN scrubs to NULL; INTEGER cells land as
+    plain ints (bools on the 0/1 convention); floats pass at full precision."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    row = {"_ta_grade": 61.5, "_ta_grade_raw": float("nan"),
+           "_puzzle_completeness": 3.0, "_puzzle_chronology": "partial",
+           "_puzzle_upthrust_terminal": True}
+    out = ta_grade_archive_values(row.get, prefixed=True)
+    assert out["ta_grade"] == 61.5
+    assert out["ta_grade_raw"] is None
+    assert out["puzzle_completeness"] == 3
+    assert isinstance(out["puzzle_completeness"], int)
+    assert out["puzzle_upthrust_terminal"] == 1
+    assert out["puzzle_chronology"] == "partial"
+
+
+def test_ta_grade_archive_values_refuses_illegal_chronology():
+    """EC-19/22 adapted for the write producer: every legal chronology value
+    passes through; an illegal label fails loudly and never lands."""
+    from engine_alpha.scoring.scoring import ta_grade_archive_values
+    for legal in ("intact", "partial", "absent"):
+        out = ta_grade_archive_values({"puzzle_chronology": legal}.get,
+                                      prefixed=False)
+        assert out["puzzle_chronology"] == legal
+    with pytest.raises(ValueError, match="closed set"):
+        ta_grade_archive_values({"puzzle_chronology": "Intact"}.get,
+                                prefixed=False)
+    # Same discipline for the LPS window classification (task 7).
+    for legal in ("rising_march", "turned", "clean_dip", "mixed"):
+        out = ta_grade_archive_values(
+            {"lps_window_classification": legal}.get, prefixed=False)
+        assert out["lps_window_classification"] == legal
+    with pytest.raises(ValueError, match="closed"):
+        ta_grade_archive_values(
+            {"lps_window_classification": "insufficient"}.get, prefixed=False)
+
+
+def test_compose_spring_term_is_present_mask_neutral(v2_on):
+    """The spring term reads its registered cap when present, exactly 0.0 when
+    absent — never negative, never demoting. Weight-agnostic: holds at the
+    shape-only cap of 0 and any future A/B value."""
+    from engine_alpha.scoring.scoring import compose_ta_grade
+    sprung = compose_ta_grade(_sub(), has_spring=True)
+    flat = compose_ta_grade(_sub(), has_spring=False)
+    assert sprung["spring"] == pytest.approx(float(settings.SCORE_SPRING))
+    assert flat["spring"] == 0.0
+    assert sprung["ta_grade_raw"] - flat["ta_grade_raw"] == pytest.approx(
+        float(settings.SCORE_SPRING), abs=1e-9)
+    assert sprung["ta_grade"] >= flat["ta_grade"] - 1e-9
 
 
 def test_taxonomy_emitted_keys_match_score_setup_output():

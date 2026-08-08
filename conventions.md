@@ -384,6 +384,112 @@ operator-delegated 2026-08-04
 
 ---
 
+### EC-28: The wire carries verdicts, never rules
+**Convention:** No scoring cap, threshold, fire-rule, or chapter-membership may be re-declared in
+frontend JS. Every judgment (which chips fired, the grade, chapter subtotals, tier) crosses the
+wire already resolved by the engine; the frontend keeps only presentational lookups (labels,
+tones, ordering, copy). If a surface needs a number that isn't on the wire, the fix is a backend
+serialization addition — never a client computation. Operator's framing: "rules are carried by
+the engine itself; the purpose of this layer is to grade the passing stocks."
+**Origin:** Council Plan 2026-08-06-1038 (TA grade — the seven-copies disease: caps/fire-rules/
+vol-z thresholds duplicated across setupScoreMath.js and friends, rs/uptrend caps already
+drifted stale); operator-confirmed 2026-08-08
+**Principle:** `conventions.md` EC-3/EC-5 (one source of truth, server-side derivation);
+`references/refactoring.md` → P5 (twin code paths)
+
+### EC-29: Baselines recapture only at a flip/seam commit
+**Convention:** Shadow-pipeline, seed-recall, marks-corpus, and fold-parity baselines may be
+recaptured ONLY in an explicit flip/seam task with committed evidence (EC-15/EC-16); a baseline
+recapture appearing in any other diff is treated as masking a regression and rejected. The
+regression ground truth is the operator's two signals — a stock he deems high quality
+disappearing or getting demoted, and calibrated-list (Guided List) stocks no longer firing — and
+a mid-build reseal silently destroys the second signal's meaning.
+**Origin:** Council Plan 2026-08-06-1038 (TA grade — Carmack watchpoint: mid-build baseline
+recapture is one of the two cheat temptations); operator-confirmed 2026-08-08
+**Principle:** `conventions.md` EC-7/EC-15; `references/quality-testing.md` → P10 (the test spec
+is the constraint)
+
+---
+
+### EC-30: A column-family producer rides EVERY writer, enforced by a guard that names each writer
+**Convention:** When a family of archive columns gets a producer extraction (the `*_archive_values`
+splats), EVERY writer of that table — live, seed, manual, and any future route — takes the splat in
+the same change, and the guard suite asserts the producer's presence PER WRITER (the AST-guard
+pattern), never "at least somewhere." A writer left to a raw model pass bypasses the family's
+serialization, scrubbing, and closed-set refusals — the exact half-conversion that shipped a
+guaranteed flag-on crash on the manual route with the whole suite green. Sharpens EC-4 from
+"columns thread through every writer" to "the PRODUCER threads through every writer."
+**Origin:** Leach / Fowler / Ramírez / Hunt — Council Review 2026-08-08-1808 (TA-grade build,
+finding 1: four seats independently; reproduced `sqlite3.ProgrammingError` binding a raw list);
+operator-delegated 2026-08-08
+**Principle:** `references/quality-postgres.md` → P1; `conventions.md` EC-4/EC-19
+
+### EC-31: A bug-tripwire asserts the operand the pipeline guarantees, and speaks on every output mode
+**Convention:** An instrument's "this is a BUG" check (exit codes, violation banners) must compare
+the quantity the pipeline actually promises invariant — never a downstream transform that may
+legitimately reorder (the A/B ranked the post-warning headline; per-row multiplicative factors are
+not affine, so the tripwire was one weight-setting away from crying bug on correct behavior). And
+its verdict prints on EVERY output mode, `--json` included — an operator reads words, not exit
+codes, and a silent alarm on the evidence path is no alarm.
+**Origin:** McKinney / Friedman — Council Review 2026-08-08-1808 (finding 2);
+operator-delegated 2026-08-08
+**Principle:** `references/quality-llm.md` → P7; `references/quality-ux.md` → P9
+
+### EC-32: An EC-17 cascade carries at least one input-tied assertion, mutation-checked once
+**Convention:** A dark feature's EC-17 acceptance test must include ≥1 assertion that derives the
+feature's outcome from the row's OWN inputs (e.g. the grade equals the sum of the row's term
+points) — bounds, key-presence, and self-consistency identities all pass trivially on an
+input-blind implementation (chapters summing to raw×k holds at zero). Prove the assertion's teeth
+ONCE with a mutation probe (feed the seam an empty/wrong input; the suite must go red) before
+trusting the cascade. Extends EC-17.
+**Origin:** Beck — Council Review 2026-08-08-1808 (finding 3, mutation-proven);
+operator-delegated 2026-08-08
+**Principle:** `references/quality-testing.md` → P1/P6; `conventions.md` EC-17
+
+### EC-33: Reserved vocabularies are derived from ONE tuple; flag-off leak checks derive from the archive extraction
+**Convention:** A settled result/wire vocabulary lives in exactly one registry tuple; every
+consumer (routing maps, tripwire filters, serializers) DERIVES membership from it — a hand-re-typed
+subset silently mis-routes the next addition. A flag's OFF-state leak check additionally asserts
+through the writers' own extraction (`*_archive_values(...)` all-None on the gated subset), because
+the archive splats unconditionally: that form covers every current AND future family field by
+construction, where a prefix filter goes stale the day a field family is added. Extends EC-8.
+**Origin:** Beck / Fowler — Council Review 2026-08-08-1808 (finding 4: the two-prefix filter was
+blind to six field families; `_grade_family` re-typed five names); operator-delegated 2026-08-08
+**Principle:** `references/refactoring.md` → P4/P5; `conventions.md` EC-8
+
+### EC-34: Every rule KIND in a declarative rule engine ships one wrong-side refusal case
+**Convention:** A declarative rule interpreter (tag fire-rules today) is tested with one PRESENT,
+FINITE, wrong-side case per rule KIND — just-under for fraction thresholds, at-threshold for
+strict comparisons, wrong-label for eq, falsy for flags — asserting the id ABSENT. Producible-only
+batteries (EC-22) prove every rule CAN fire; without the refusing side, "fire whenever the fact is
+present" mutations stay green and the judgment surface degrades to noise. One case per KIND, not
+per rule (Beck composability). Extends EC-22/EC-27 to rule engines.
+**Origin:** Beck — Council Review 2026-08-08-1808 (finding 14: no committed row ever sat on the
+refusing side of gt/lt or a non-demoted fraction); operator-delegated 2026-08-08
+**Principle:** `references/quality-testing.md` → P5; `conventions.md` EC-22/EC-27
+
+### EC-35: Path guards normalize before comparing — Windows ignores case
+**Convention:** Any guard comparing filesystem paths (the sealed-output refusal, future
+allow/deny-lists) normalizes BOTH sides with `os.path.normcase` + `os.path.realpath` before the
+prefix check. Chrollo deploys on NTFS: a case-sensitive `startswith` let `docs/Marks/…` open the
+real sealed directory — the exact mistyped-path scenario the guard exists for.
+**Origin:** Hunt — Council Review 2026-08-08-1808 (finding 15); operator-delegated 2026-08-08
+**Principle:** `references/security.md` → P7; `conventions.md` EC-14
+
+### EC-36: Operator playbooks are executable from the doc alone
+**Convention:** A committed operator playbook (flip checklists, runbooks) names the exact
+interpreter ONCE at the top (this machine's bare `python` is a documented trap) and gives every
+step a copy-runnable committed command — prose like "re-run the capture" is not a step. Every
+pointer resolves in the repo (EC-16), including the instruments: a cost bound cited by a checklist
+must be reproducible by a COMMITTED tool, not a machine-local harness. Promises about signal
+surfaces (badges, banners) state when they light in reality, not aspiration — a signal already lit
+before the event it claims to announce is a cry-wolf.
+**Origin:** Friedman / Hunt / Beck — Council Review 2026-08-08-1808 (finding 10);
+operator-delegated 2026-08-08
+**Principle:** `references/quality-ux.md` → P2/P9; `conventions.md` EC-16
+
+---
+
 ### AP-9: `can_archive=False` is THE archive block — the evaluate/archive split is load-bearing
 **Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
 `can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the

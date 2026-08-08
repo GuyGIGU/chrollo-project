@@ -615,6 +615,77 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
                                        structure_ctx["atr_for_zone"]),
         }
 
+    # Technical Analysis Grade v2 (flag-dark): the chapter composite over the
+    # SAME scored terms plus the story scalars measured just above — computed
+    # HERE, in the one shared eval chain, so live, seed, and the manual route
+    # produce byte-identical grades by construction (never a second
+    # implementation). Consumes the archived as-of scalars only (the event-map
+    # fields), never the tape. Import + compute strictly inside the flag:
+    # flag-off pays zero cost and spreads {} -> byte-identical.
+    ta_grade_fields = {}
+    if settings.TA_SCORE_V2:
+        from engine_alpha.scoring.scoring import compose_ta_grade
+        _em_scalars = {k[1:]: v for k, v in event_map_fields.items()}
+        _grade = compose_ta_grade(
+            score_result,
+            has_spring=bool(bins.get("bin_c_present")),
+            event_map=_em_scalars or None,
+            htf=htf_ctx or None,
+        )
+        # Archive-ready field names, mapped in this ONE place: the grade
+        # family keeps its own names (_ta_grade*); per-term v2 points take
+        # their registry column names (_score_<key>) so every writer maps
+        # them by the same per-term literal route as their v1 siblings.
+        # Family membership is DERIVED from the settled vocabulary — a
+        # hand-typed twin tuple routed a future sixth compose output to a
+        # lying _score_* name (2026-08-08 review, finding 4).
+        from engine_alpha.scoring import taxonomy as _taxonomy
+        ta_grade_fields = {
+            ("_" + k) if k in _taxonomy.V2_RESULT_KEYS else ("_score_" + k): v
+            for k, v in _grade.items()
+        }
+        # Wave-1 charter measurements (task 7) — pure folds over data already
+        # in hand: the support-test staircase (lps_ctx carries the full
+        # enumeration), the elected LPS window's bars, and row scalars.
+        # Fires-only inside the flag; measure-first — archived RAW, never
+        # gating, never weighted until the operator's A/B.
+        from engine_alpha.structure.metrics import (
+            measure_lps_contraction,
+            measure_story_richness,
+        )
+        _n = len(df)
+        _lps_len = int(lps_ctx["lps_length"])
+        _lps_off = int(lps_ctx["lps_offset"])
+        _win = (df.iloc[max(0, _n - _lps_off - _lps_len): _n - _lps_off]
+                if _lps_len > 0 else df.iloc[0:0])
+        _contr = measure_lps_contraction(
+            lps_ctx.get("lps_tests"),
+            _win["High"].tolist(), _win["Low"].tolist(),
+            structure_ctx["atr_for_zone"],
+        )
+        _rich = measure_story_richness(
+            puzzle_fields.get("_puzzle_completeness"),
+            _em_scalars.get("event_map_completed_s"),
+            _em_scalars.get("event_map_completed_r"),
+            _em_scalars.get("event_map_alternations"),
+            structure_ctx["base_len"],
+        )
+        # Wave-2 (task 8): the ONE bounded box-walk — base count + inter-base
+        # width ratio together, on the up-segment-restricted sub-frame.
+        from engine_alpha.structure.market_structure import measure_trend_bases
+        _bases = measure_trend_bases(
+            df, structure_ctx["atr_for_zone"],
+            int(structure_ctx["structure"].box.start_bar),
+            float(structure_ctx["box_width"]),
+        )
+        ta_grade_fields.update({
+            "_lps_shrink_frac": _contr["lps_shrink_frac"],
+            "_lps_window_classification": _contr["lps_window_classification"],
+            "_story_richness_rate": _rich,
+            "_trend_base_count": _bases["trend_base_count"],
+            "_inter_base_width_ratio": _bases["inter_base_width_ratio"],
+        })
+
     # Election stability (measure-only, flag-dark): does the elected reading
     # survive backward eval-day shifts? Real structures persist, junk flickers
     # (BODI 04-15 vs 04-16). Fires only; election stage only; raw diagnostics,
@@ -666,6 +737,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "htf_ctx": htf_ctx,
         "puzzle_fields": puzzle_fields,
         "event_map_fields": event_map_fields,
+        "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
         "trace_fields": trace_fields,
         "strategy_fields": strategy_fields,
@@ -690,7 +762,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
     scope = phase_ctx["scope"]
     trend = score_ctx["trend"]
 
-    return {
+    result = {
         'Ticker': ticker,
         'Tier': score_ctx["tier"],
         'Setup': lps_ctx["setup_state"],
@@ -892,10 +964,19 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("puzzle_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
+        **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: empty flag-off -> byte-identical
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
     }
+    # Fired tags (task 10, flag-dark): the chip verdicts resolved ONCE over
+    # the finished canonical row — the SAME row both twins and all three
+    # writers consume, so live/seed/manual chips can never diverge. Import +
+    # compute strictly inside the flag: flag-off adds no key, zero compute.
+    if settings.TA_SCORE_V2 and result.get("_ta_grade") is not None:
+        from engine_alpha.scoring.tags import resolve_fired_tags
+        result["_fired_tags"] = resolve_fired_tags(result, prefixed=True)
+    return result
 
 
 def _run_eval_chain(ticker: str, df: pd.DataFrame,
