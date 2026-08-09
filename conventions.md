@@ -490,6 +490,27 @@ operator-delegated 2026-08-08
 
 ---
 
+### EC-37: A stored pin is copied verbatim from the displayed artifact's identity — never clock-derived
+**Convention:** When a UI action persists a reference to something the operator was looking at (a
+watchlist save's pinned setup today; any future "what I saw when I acted" record), the identity
+columns are copied VERBATIM from the displayed payload's own identity — never recomputed from any
+clock at write time. Chrollo runs three clocks that disagree by design: `scan_date` is the scan
+machine's LOCAL civil date (`core/pipeline/scan_job.py`), the scheduler fires on
+`America/New_York`, and server stamps are UTC — so "match today's date to the scan row" is provably
+wrong in definable windows (UTC trails local 00:00–03:00 local; a post-close run at ~22:30 local can
+stamp the following day; the ET↔Israel offset moves twice a year). Artifact-sourced identity is
+deterministic and DST-proof by construction, and it answers the calendar edges for free: a weekend
+save pins Friday's scan because Friday's scan is what is on screen. Timestamps may be stored for
+display/audit, but never as a join or grouping key. Generalizes the ReadVerdict precedent
+(`scan_identity` keyed verbatim to the payload).
+**Origin:** McKinney / Ramírez / Leach / Hunt — Council Plan 2026-08-09-2257 (Finviz UI/UX program,
+watchlist date-tagging: four seats independently refused clock-derived pinning);
+operator-confirmed 2026-08-09
+**Principle:** `references/quality-llm.md` → P4 (pin the inputs, record the identity);
+`references/quality-backend.md` → P3; `conventions.md` EC-26 (derived at the publisher, never echoed)
+
+---
+
 ### AP-9: `can_archive=False` is THE archive block — the evaluate/archive split is load-bearing
 **Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
 `can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the
