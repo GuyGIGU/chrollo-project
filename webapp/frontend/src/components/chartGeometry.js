@@ -74,10 +74,25 @@ export const CHART_FRAMING = {
     volumeScaleTop: 0.84,
   },
   market: {
-    visibleBars: 130,
-    scaleMargins: { top: 0.08, bottom: 0.26 },
+    visibleBars: 100,
+    smaWarmupBars: 200,
+    scaleMargins: { top: 0.08, bottom: 0.22 },
     volumeScaleTop: 0.82,
   },
+};
+
+// ~252 trading sessions per 365 calendar days. Used only to size a fetch window.
+const TRADING_DAYS_PER_CALENDAR_DAY = 252 / 365;
+
+// Calendar days to request so that `visibleBars` bars are ALL covered by a
+// `warmupBars`-period average. SMA200 consumes 199 bars before its first point,
+// so a fetch sized to the visible window alone leaves the overlay starting
+// mid-pane — which reads as a data bug, not a warm-up. Derived, never guessed:
+// the two constants can no longer drift apart in separate edits.
+export const marketFetchDays = (visibleBars, warmupBars) => {
+  const bars = (barCount(visibleBars) ?? 0) + (barCount(warmupBars) ?? 0);
+  if (bars <= 0) return 0;
+  return Math.ceil((bars / TRADING_DAYS_PER_CALENDAR_DAY) / 10) * 10;
 };
 
 // A horizontal level line: same value repeated from startIndex to endIndex
@@ -130,15 +145,6 @@ export const setupIndexes = (data) => {
   return { baseEnd, baseStart, candles, forwardBars };
 };
 
-// The focused logical range for the mini-chart (pure computation; the caller
-// applies it via chart.timeScale().setVisibleLogicalRange).
-//
-// Faithful-density window (Finviz-style): show the base WITH real pre-base
-// trend context so it occupies a true FRACTION of the pane, never sprawling
-// edge-to-edge (which flattens a tight base into looking even tighter). The
-// window width is clamped to [minVisibleBars .. maxVisibleBars]: maxFrom caps
-// huge bases to the budget; minFrom pads a tiny base out to the floor. With the
-// default minVisibleBars=0 the floor is inert (old single-arg behavior).
 // Trim the OLDEST context bars until the box owns at least minBaseHeightFrac of
 // the visible price range. This is the ONLY legal lever for the vertical ratio:
 // bars are never widened past the faithful-density band and the price scale is
@@ -177,6 +183,17 @@ export const proportionTrimmedFrom = (candles, from, to, boxHeight, trimFloor, m
   return best;
 };
 
+// The focused logical range for the mini-chart (pure computation; the caller
+// applies it via chart.timeScale().setVisibleLogicalRange).
+//
+// Show the base WITH real pre-base trend context so it occupies a true FRACTION
+// of the pane and never sprawls edge-to-edge (which flattens a tight base into
+// looking even tighter). The window is nominally clamped to
+// [minVisibleBars .. maxVisibleBars], but BOTH bounds yield to the structure:
+// neither may crop the box or its approach leg, so a base wider than the budget
+// stretches the window instead of losing its left edge. The proportion trim then
+// removes old context until the box owns its share of the visible price range.
+//
 // TOTAL by contract: the only null is "no candles". A payload with no finite
 // base_len (a boxless candle array — the hover popover and the index panes reuse
 // this same math) falls back to the last maxVisibleBars bars rather than

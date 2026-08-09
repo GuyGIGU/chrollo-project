@@ -11,6 +11,7 @@ import {
   miniFocusLogicalRange,
   modalFocusLogicalRange,
   marketFocusLogicalRange,
+  marketFetchDays,
   CHART_FRAMING,
   colorMiniCandles,
   colorTimeframeCandles,
@@ -264,6 +265,20 @@ test('marketFocusLogicalRange: last N bars, or null when history is shorter than
   assert.equal(marketFocusLogicalRange(makeCandles(50), 130), null);
   assert.equal(marketFocusLogicalRange([], 130), null);
   assert.equal(marketFocusLogicalRange(makeCandles(300), 0), null);
+});
+
+test('marketFetchDays: the strip fetches deep enough to fund SMA200 across the WHOLE visible window', () => {
+  // The bug this exists to prevent: a hand-picked 400-day fetch (~275 sessions)
+  // under a 130-bar window left SMA200 starting ~54 bars into the pane.
+  const { visibleBars, smaWarmupBars } = CHART_FRAMING.market;
+  const days = marketFetchDays(visibleBars, smaWarmupBars);
+  const sessions = days * (252 / 365);
+  assert.ok(
+    sessions >= visibleBars + smaWarmupBars - 1,
+    `fetch of ${days}d ≈ ${sessions.toFixed(0)} sessions must cover ${visibleBars} visible + ${smaWarmupBars - 1} warm-up`,
+  );
+  assert.equal(marketFetchDays(0, 0), 0);
+  assert.equal(marketFetchDays(null, undefined), 0);
 });
 
 test('CHART_FRAMING: every surface profile is complete and internally consistent', () => {

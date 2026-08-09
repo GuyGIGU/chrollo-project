@@ -2702,19 +2702,28 @@ td.cell-editable { overflow: hidden; }
 .mp-quote-chg { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums; }
 .mp-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 
-.mp-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.mp-tab {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-  padding: 4px 10px; cursor: pointer; font: inherit;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+/* The three-index strip. SPY/QQQ/IWM side by side in ONE row: the panes are
+   dimensionally identical by construction (equal grid tracks, one pane class),
+   because side-by-side charts invite comparison and unequal geometry would
+   misrepresent relative behavior. Sized to sit SHORTER than the single tabbed
+   chart it replaced — this row has to pay for itself in vertical space. */
+.mp-strip-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.mp-panes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; min-width: 0; }
+.mp-pane { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mp-pane-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.mp-pane-sym { font-size: 11px; font-weight: 800; color: var(--text-main); letter-spacing: 0.02em; }
+.mp-pane-px,
+.mp-pane-chg { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
+.mp-pane-px { color: var(--text-muted); }
+.mp-pane-chg { margin-left: auto; }
+.mp-pane-chart { flex: 1; position: relative; min-height: 168px; min-width: 0; }
+
+/* Below ~900px three panes stop being readable — stack to one column. */
+@media (max-width: 900px) {
+  .mp-panes { grid-template-columns: 1fr; }
+  .mp-pane-chart { min-height: 190px; }
 }
-.mp-tab:hover { border-color: rgba(255, 255, 255, 0.18); }
-.mp-tab.active { background: var(--myth-soft); border-color: rgba(79, 207, 196, 0.42); }
-.mp-tab-sym { font-size: 11px; font-weight: 800; color: var(--text-main); letter-spacing: 0.02em; }
-.mp-tab-chg { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
 
 .mp-chart { flex: 1; position: relative; min-height: 240px; min-width: 0; }
 .mp-chart-msg { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 12px; }
