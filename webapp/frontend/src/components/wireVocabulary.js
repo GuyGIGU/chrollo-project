@@ -84,6 +84,14 @@ export const ROOT_OUTCOME_LABELS = {
   complete: 'complete story',
 };
 
+// The letter ladder — the closed set the engine can emit for `tier`
+// (engine_alpha.scoring._apply_tier_ladder). Defined ONCE here at the
+// 2026-08-09 flip: D was already first-class in the archive and watchlist
+// vocabulary, but the screener command band and both home zones each carried
+// their own S-A-B-C literal, so a D-tier row was simply invisible on those
+// three surfaces. Consumers spread this rather than forking it a fourth time.
+export const TIER_LETTERS = ['S', 'A', 'B', 'C', 'D'];
+
 // Pre-box trend states (event_map_pre_box_trend).
 export const TREND_STATE_LABELS = {
   up: 'uptrend',

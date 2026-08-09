@@ -1,11 +1,12 @@
 import { fixed, pct, signColor, tierColor } from '../../utils/archiveTabUtils';
 import { EMPTY, finiteOrNull } from '../../utils/format';
+import { TIER_LETTERS } from '../wireVocabulary';
 
 export default function ArchiveTierCards({ performance }) {
   if (!performance || Object.keys(performance).length === 0) return null;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-      {['S', 'A', 'B', 'C', 'D'].map(tier =>
+      {TIER_LETTERS.map(tier =>
         performance[tier] ? <TierCard key={tier} data={performance[tier]} tier={tier} /> : null)}
     </div>
   );

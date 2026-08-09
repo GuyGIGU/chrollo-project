@@ -44,7 +44,7 @@ Phase 2  Chronological structure read          core.structure           (read_st
 Phase 2b Crash / extension filters             core.pipeline.evaluation (_evaluate_ticker)
 Phase 3  Active LPS/Test election              core.structure           (detect_lps; latest actionable setup LPS)
 Phase 3b Phase scoping + bin evidence          core.structure           (phase_d / scope_consolidation / measure_phases)
-Phase 4  Scoring & tier assignment             core.scoring             (score_setup, calculate_tier)
+Phase 4  Scoring, grade & tier assignment      core.scoring             (score_setup, compose_ta_grade, calculate_structure_tier)
 Archive  Persist + forward-return backfill     core.archive             (writer / forward_returns / seed)
 ```
 
@@ -680,7 +680,9 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)). Total score is the sum of **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive). Maximum possible total ≈ **209**.
+`score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)) sums **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive).
+
+> **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the 5 promoted v2 terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the five story chapters (Cause → Phase B → Phase C → Phase D → Trend), applies the floored warning discounts, and derives the tier from the result. The raw sum survives as `Score` and as the legacy tier ladder's input until the legacy path retires. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -700,7 +702,21 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **ADR% absolute volatility** | `adr_quality × 8`, where `adr_quality = min(ADR% / 5.0, 1.0)`. Rewards Qullamaggie-style volatile movers: stocks that travel enough each day to be worth trading. Bonus-only — low-ADR names earn 0, never a penalty. | `SCORE_ADR = 8`, `ADR_WINDOW = 20`, `ADR_FULL_PCT = 5.0` |
 | **Setup quality** (E3, live; renamed from *puzzle quality* 2026-08-09, operator ruling) | `setup_quality × 8` — the L2 assembled-Wyckoff-story completeness/chronology grade from `assemble_box_narrative()` (see [The L2 event reader](#the-l2-event-reader--wyckoff-story-from-rail-events-to-a-scored-narrative)). Additive, bonus-only, clamped `[0, cap]`; grades-not-vetoes (≥ 0, can only raise a score). | `SCORE_SETUP_QUALITY = 8`, `PUZZLE_SCORE_ENABLED` (folded 2026-07-18) |
 
-**Tier mapping** — `calculate_tier()`. Calibrated against the live archive distribution (mean ~95, max ~126 under the prior weights; with the new bonuses added, S now sits at roughly the top quartile rather than catching 75% of all setups):
+**Tier mapping — LIVE ladder (`calculate_structure_tier()`, flipped 2026-08-09).** The tier's SOURCE is the 0-100 **TA grade**, not the raw component sum. Resolved once inside `compose_ta_grade()` and carried as `structure_tier`, so the wire, the archive and the lens cannot disagree about the letter.
+
+| Tier | Threshold | Setting |
+|------|-----------|---------|
+| **S** | `ta_grade ≥ 62` | `TIER_S_STRUCT = 62` |
+| **A** | `ta_grade ≥ 52` | `TIER_A_STRUCT = 52` |
+| **B** | `ta_grade ≥ 42` | `TIER_B_STRUCT = 42` |
+| **C** | `ta_grade ≥ 32` | `TIER_C_STRUCT = 32` |
+| **D** | else | — |
+
+Operator-chosen from the A/B on the 2026-08-09 scan (256 fires, grades 35.5–76.3, median 59.0), which reads S=85 / A=118 / B=41 / C+D=12 under this ladder. The count-preserving alternative (61.5) was rejected as a knife edge — it sat 0.19 points above the next grade. Evidence: [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md).
+
+> **S-tier width cap — unchanged by the re-base.** A base wider than `S_MAX_BOX_WIDTH = 0.15` cannot be S no matter how high it grades; it takes A on merit. This is the operator's own rule ("wide … getting an S, this is bad") and it applies on top of whichever ladder is live. On the flip A/B it held **22 of 111** A-tier names out of S on width alone — AAP among them, the 4th-highest grade on the scan at 0.151 box width against the 0.15 cap.
+
+**Legacy ladder** — `calculate_tier()` over the raw sum, calibrated against the pre-grade archive distribution. It serves only the `TA_SCORE_V2`-off path and its remaining callers until they retire (checklist §2); both ladders share one implementation (`_apply_tier_ladder`) so they cannot drift in shape, only in where their cuts sit.
 
 | Tier | Threshold | Setting |
 |------|-----------|---------|
@@ -709,8 +725,6 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | **B** | `score ≥ 75` | `TIER_B = 75` |
 | **C** | `score ≥ 55` | `TIER_C = 55` |
 | **D** | else | — |
-
-> **S-tier width cap.** A base wider than `S_MAX_BOX_WIDTH = 0.15` cannot be S no matter how high it scores — a wide range, however long or well-touched, is not an elite setup; `calculate_tier(score, box_width)` demotes it to A on merit.
 
 ---
 
@@ -1072,7 +1086,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `e32bc834d7342fc1aafeff7535dad3eecd0af74e5d70df6f71d9357a02e3f1cb`_
+_engine_config_version: `424fbfa119aac9a09f17d0f6a21149aa3390aa452e6267933dfb34a91cb4c108`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1196,6 +1210,10 @@ TIER_S = 110
 TIER_A = 95
 TIER_B = 75
 TIER_C = 55
+TIER_S_STRUCT = 62
+TIER_A_STRUCT = 52
+TIER_B_STRUCT = 42
+TIER_C_STRUCT = 32
 S_MAX_BOX_WIDTH = 0.15
 SCORE_BASE_AGE = 22
 BASE_AGE_CAP_DAYS = 120
@@ -1214,7 +1232,7 @@ CANDLE_SPREAD_ATR_CLEAN = 0.9
 CANDLE_SPREAD_ATR_MESSY = 1.4
 CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
-TA_SCORE_V2 = False
+TA_SCORE_V2 = True
 SCORE_SPRING = 0
 TOUCH_POINT_RATE = 2.0
 LPS_TIGHTNESS_SLOPE = 2.0

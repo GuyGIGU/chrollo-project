@@ -1,9 +1,9 @@
 {
   "basis": "fresh",
-  "captured_at": "2026-07-10T13:29:49+00:00",
-  "recall": 0.5692307692307692,
-  "fired": 37,
-  "missed": 28,
+  "captured_at": "2026-08-09T20:31:14+00:00",
+  "recall": 0.6615384615384615,
+  "fired": 43,
+  "missed": 22,
   "total": 65,
   "raw_total": 67,
   "ignored": 2,
@@ -31,10 +31,6 @@
     {
       "ticker": "BWA",
       "trigger_date": "2026-01-26"
-    },
-    {
-      "ticker": "LECO",
-      "trigger_date": "2026-01-29"
     },
     {
       "ticker": "IBP",
@@ -65,12 +61,12 @@
       "trigger_date": "2026-02-24"
     },
     {
-      "ticker": "VIST",
-      "trigger_date": "2026-03-05"
-    },
-    {
       "ticker": "SNDX",
       "trigger_date": "2026-03-06"
+    },
+    {
+      "ticker": "KALV",
+      "trigger_date": "2026-03-09"
     },
     {
       "ticker": "PUMP",
@@ -79,10 +75,6 @@
     {
       "ticker": "NE",
       "trigger_date": "2026-03-13"
-    },
-    {
-      "ticker": "NTCT",
-      "trigger_date": "2026-03-16"
     },
     {
       "ticker": "XWIN",
@@ -115,22 +107,6 @@
     {
       "ticker": "CAPR",
       "trigger_date": "2026-04-13"
-    },
-    {
-      "ticker": "NKTR",
-      "trigger_date": "2026-04-13"
-    },
-    {
-      "ticker": "BODI",
-      "trigger_date": "2026-04-16"
-    },
-    {
-      "ticker": "PBT",
-      "trigger_date": "2026-05-04"
-    },
-    {
-      "ticker": "WTS",
-      "trigger_date": "2026-06-09"
     }
   ]
 }

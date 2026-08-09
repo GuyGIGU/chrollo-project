@@ -91,7 +91,7 @@
     "FOF": {
       "Setup": "LPS",
       "Score": 93.3,
-      "Tier": "B",
+      "Tier": "A",
       "Base Len": 61,
       "Box Width": 0.084053,
       "LPS Length": 2,
@@ -124,7 +124,7 @@
     "HVT": {
       "Setup": "LPS",
       "Score": 93.3,
-      "Tier": "B",
+      "Tier": "A",
       "Base Len": 55,
       "Box Width": 0.169709,
       "LPS Length": 2,
@@ -387,5 +387,5 @@
     "TKO",
     "TRS"
   ],
-  "captured_at": "2026-07-24T20:03:23+00:00"
+  "captured_at": "2026-08-09T20:16:01+00:00"
 }

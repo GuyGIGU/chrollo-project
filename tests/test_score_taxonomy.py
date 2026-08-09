@@ -54,9 +54,17 @@ def test_every_cap_setting_resolves_to_a_number():
 
 def test_setup_quality_always_emitted():
     # The setup_quality term is unconditional (folded 2026-07-18; formerly gated by
-    # PUZZLE_SCORE_ENABLED via TermSpec.present_when) — all 15 terms emit.
+    # PUZZLE_SCORE_ENABLED via TermSpec.present_when) — it emits under any flags.
+    # The registry's SIZE is flag-dependent and deliberately not pinned to a
+    # literal here: the 5 promoted v2 terms (spring + story) began emitting at
+    # the 2026-08-09 TA_SCORE_V2 flip, so the count is derived, and the
+    # ungated terms are the invariant.
     keys = taxonomy.emitted_keys()
-    assert "setup_quality" in keys and len(keys) == 15
+    assert "setup_quality" in keys
+    ungated = [t.key for t in taxonomy.REGISTRY if t.present_when is None]
+    assert len(ungated) == 15
+    assert set(ungated) <= set(keys)
+    assert len(keys) == len([t for t in taxonomy.REGISTRY if t.is_emitted()])
 
 
 def test_only_breadth_is_regime_layer():

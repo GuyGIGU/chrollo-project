@@ -366,7 +366,21 @@ def test_event_map_flag_on_is_additive_only(monkeypatch):
     monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", True)
     on = _evaluate_ticker(ticker, df, spy, breadth)
 
-    assert {k: on[k] for k in off} == off, "a pre-existing field moved flag-on"
+    # ONE declared exception, and it is the map's entire purpose: the v2 charter
+    # measurement `_story_richness_rate` CONSUMES the map's completed-S/R and
+    # alternation counts, so it necessarily reads differently without them. It
+    # is measure-only (never scored — every SCORE_STORY_* is 0), it exists only
+    # inside TA_SCORE_V2, and before the 2026-08-09 flip it was simply absent
+    # from this comparison, which is why the blanket equality held then.
+    map_consumers = {"_story_richness_rate"}
+    assert ({k: on[k] for k in off if k not in map_consumers}
+            == {k: v for k, v in off.items() if k not in map_consumers}), (
+        "a pre-existing field moved flag-on")
+    # The canonical outputs specifically — the contract's teeth, checked against
+    # the same frozen list the shadow guard uses rather than a hand-typed twin.
+    from tools.shadow_diff import CANONICAL_FIELDS
+    for key in CANONICAL_FIELDS:
+        assert on[key] == off[key], f"canonical field {key} moved flag-on"
     assert set(on) - set(off) == {
         "_event_map_n_swings", "_event_map_pre_box_trend",
         "_event_map_n_labels", "_event_map_n_committed",

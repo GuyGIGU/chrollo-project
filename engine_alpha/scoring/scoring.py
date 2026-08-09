@@ -389,7 +389,8 @@ def _ta_grade_warnings(event_map: Optional[dict],
 
 def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
                      event_map: Optional[dict] = None,
-                     htf: Optional[dict] = None) -> dict:
+                     htf: Optional[dict] = None,
+                     box_width: Optional[float] = None) -> dict:
     """The Technical Analysis Grade — ONE fixed-divisor affine sum, displayed
     as story chapters (operator rulings 2026-08-06; build task 4).
 
@@ -435,9 +436,16 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
     chapter_caps = {ch: 0.0 for ch in taxonomy.CHAPTER_ORDER}
     for term in taxonomy.ta_layer_terms():
         chapter_caps[term.chapter] += term.cap()
+    grade = pre * factor
     out = {
         'ta_grade_raw': raw,
-        'ta_grade': pre * factor,
+        'ta_grade': grade,
+        # The letter, resolved HERE and once — the wire, the archive and the
+        # lens all read this field rather than each re-deriving a ladder
+        # (the EC-28 rule that the display never re-computes what the engine
+        # already decided). Derived from the POST-warning grade: the letter
+        # must agree with the number shown beside it.
+        'structure_tier': calculate_structure_tier(grade, box_width),
         'ta_grade_chapters': {ch: chapters[ch] * scale
                               for ch in taxonomy.CHAPTER_ORDER},
         'ta_grade_chapter_fractions': {
@@ -584,21 +592,19 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
     return out
 
 
-def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
-    """Map a numeric score to a letter tier grade.
-
-    ``box_width`` (optional) applies the S-tier width cap: a base wider than
-    ``S_MAX_BOX_WIDTH`` cannot be S no matter how high it scores — a wide range,
-    however long or well-touched, is not an elite setup. It still earns A on
-    merit. Callers that don't have a width on hand omit it (no cap applied).
-    """
-    if score >= settings.TIER_S:
+def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) -> str:
+    """Map a value to S/A/B/C/D against a 4-cut descending ladder, then apply
+    the S width cap. ONE implementation for both ladders (the legacy raw-sum
+    cuts and the 0-100 grade cuts) so the two can never drift apart in shape —
+    only in where their cuts sit."""
+    tier_s, tier_a, tier_b, tier_c = cuts
+    if value >= tier_s:
         tier = 'S'
-    elif score >= settings.TIER_A:
+    elif value >= tier_a:
         tier = 'A'
-    elif score >= settings.TIER_B:
+    elif value >= tier_b:
         tier = 'B'
-    elif score >= settings.TIER_C:
+    elif value >= tier_c:
         tier = 'C'
     else:
         tier = 'D'
@@ -606,3 +612,38 @@ def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
     if tier == 'S' and box_width is not None and box_width > settings.S_MAX_BOX_WIDTH:
         tier = 'A'
     return tier
+
+
+def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
+    """Map a numeric score to a letter tier grade.
+
+    ``box_width`` (optional) applies the S-tier width cap: a base wider than
+    ``S_MAX_BOX_WIDTH`` cannot be S no matter how high it scores — a wide range,
+    however long or well-touched, is not an elite setup. It still earns A on
+    merit. Callers that don't have a width on hand omit it (no cap applied).
+
+    This is the LEGACY ladder over the raw ~122-point sum. With TA_SCORE_V2
+    live the serialized tier comes from ``calculate_structure_tier`` instead;
+    this stays for the flag-off path and its callers until they retire.
+    """
+    return _apply_tier_ladder(
+        score,
+        (settings.TIER_S, settings.TIER_A, settings.TIER_B, settings.TIER_C),
+        box_width,
+    )
+
+
+def calculate_structure_tier(ta_grade: float,
+                             box_width: Optional[float] = None) -> str:
+    """The same letter, re-based onto the TA-grade's 0-100 scale (flip
+    2026-08-09). Identical shape to ``calculate_tier`` — including the
+    ``S_MAX_BOX_WIDTH`` cap, which is the operator's rule that a wide base is
+    never elite and is unaffected by the scale change: on the flip A/B it held
+    22 of 111 A-tier names out of S on width alone.
+    """
+    return _apply_tier_ladder(
+        ta_grade,
+        (settings.TIER_S_STRUCT, settings.TIER_A_STRUCT,
+         settings.TIER_B_STRUCT, settings.TIER_C_STRUCT),
+        box_width,
+    )

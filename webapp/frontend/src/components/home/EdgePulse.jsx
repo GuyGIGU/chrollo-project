@@ -3,13 +3,14 @@ import HomeZone from './HomeZone';
 import { PulseIcon } from '../NavIcons';
 import { pct, signedPct } from './homeFormat';
 import { tierColor } from '../../theme';
+import { TIER_LETTERS } from '../wireVocabulary';
 
 // Display floors: a median MFE over very few rows is noise; a win-rate over few
 // LABELLED (resolved) rows is worse. Below the floor we show the n, never a
 // precise-looking number that would read as a real edge.
 const MFE_MIN_N = 10;
 const WIN_MIN_N = 15;
-const TIERS = ['S', 'A', 'B', 'C'];
+const TIERS = TIER_LETTERS;
 
 function Figure({ value, label }) {
   return (

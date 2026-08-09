@@ -207,6 +207,13 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "TIER_A",
     "TIER_B",
     "TIER_C",
+    # The same ladder on the TA-grade 0-100 scale — live at the 2026-08-09 flip
+    # (the tier's source swapped from the raw sum to ta_grade). These decide a
+    # serialized field, so they ride the manifest exactly as their siblings do.
+    "TIER_S_STRUCT",
+    "TIER_A_STRUCT",
+    "TIER_B_STRUCT",
+    "TIER_C_STRUCT",
     "S_MAX_BOX_WIDTH",
     # Scoring component caps + calibration
     "SCORE_BASE_AGE",

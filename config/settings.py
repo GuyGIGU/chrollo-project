@@ -645,6 +645,27 @@ TIER_B = 75
 TIER_C = 55
 # Below TIER_C = Tier D
 
+# The SAME ladder on the TA-grade's 0-100 scale (flip 2026-08-09). Live when
+# TA_SCORE_V2 is on: `Tier` is derived from `ta_grade`, not from the raw
+# ~122-point sum, and the four cuts above serve only the legacy path until it
+# retires. Operator-chosen from the A/B on the 2026-08-09 scan (256 fires,
+# grades 35.5-76.3, median 59.0): "lets do 62 /52 /42".
+# Why 62 and not the count-preserving 61.5 — 61.5 reproduced the old S
+# population exactly (92 names) but sat 0.19 points above the next grade, a
+# knife edge that reshuffles on any scan; 62 is stable and costs 7 S names.
+# On that scan the ladder reads S=85 / A=118 / B=41 / C+D=12.
+# TIER_C_STRUCT continues the operator's own 10-point spacing (D was empty on
+# the A/B scan under any candidate cut, so nothing rode on it).
+# The S_MAX_BOX_WIDTH cap still applies ON TOP: it is the operator's rule that
+# a wide base is never elite, and the A/B showed it is what holds 22 of 111
+# A-tier names out of S — including AAP, the 4th-highest grade on the scan at
+# 0.151 box width against the 0.15 cap.
+TIER_S_STRUCT = 62
+TIER_A_STRUCT = 52
+TIER_B_STRUCT = 42
+TIER_C_STRUCT = 32
+# Below TIER_C_STRUCT = Tier D
+
 # S-tier width cap — a wide base, however long or well-touched, is NOT an elite
 # setup. Additive scoring can't enforce this (a wide range compensates with
 # length/touches), so cap S by box width directly: only a genuinely tight,
@@ -750,7 +771,17 @@ EVENT_MAP_ENABLED = True
 # flag-OFF the entire v2 formula and any new keys are inert (byte-identical, zero new
 # compute); the ON behavior lands incrementally behind
 # this flag. The live flip is an operator A/B-eyeball decision.
-TA_SCORE_V2 = False
+# FLIPPED LIVE 2026-08-09 on the operator's A/B eyeball of the 2026-08-09 scan
+# (256 fires, the first archived under the merged code so setup_quality was
+# measured on every row — the 2026-08-08 read's ±31 movers were entirely the
+# missing-term artifact and are gone). Movement at these weights is median 0 /
+# max ±2 ranks BY DESIGN: the story caps stay 0 and the warnings stay 1.0, so
+# the flip re-expresses the existing read on a 0-100 scale with chapters and
+# re-bases the tier ladder — it does not change the judgment. Those caps are
+# deliberately NOT set here: their sub-scores are flag-gated, so the archive
+# holds no live values to calibrate against yet; the flip starts that archive
+# and the operator sets real costs later against it (measure-first).
+TA_SCORE_V2 = True
 # TA-grade v2 vocabulary pre-registrations (2026-08-08, build task 1 — ONE
 # batched engine_config_version seam; registration only, scores byte-identical):
 #  - SCORE_SPRING: the spring term's point cap. The term itself lands with the
