@@ -546,6 +546,29 @@ LPS_TERMINAL_LOW_TOL_PROFILE = 0.10    # Last Low may sit this many profile unit
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25     # Any LPS bar spread must stay within this profile multiple
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35 # Last spread may widen over prior by this many profile units
 
+# ── Cause before effect, Phase C -> Phase D: the LPS may not open before the
+# spring (LIVE from birth 2026-08-09; doctrine-gate repair, invariant C6) ──
+# The LAST point of support cannot predate the shakeout that conducts the turn.
+# The narrative already floors the Phase-D REGION at the spring recovery
+# (phase_d.resolve_phase_d_boundary) — only the elected LPS brick, the
+# mandatory Phase-D evidence, was unfloored. When set, read_structure passes the
+# spring TIP as the LPS window floor (the tip, not the recovery: an LPS window
+# may legally OPEN on the spring low — that is the sanctioned undercut_rebound
+# form — it just may not open left of it).
+# The defect this repairs (KYMR, live payload 2026-08-08/09): the elector picks
+# the latest window whose trigger is still overhead, with no chronology floor, so
+# when the true post-spring LPS is already triggered it reaches BACK past the
+# spring for a stale window. KYMR's "LPS" rested at 104.32 on 07-30; price then
+# fell to 99.52 on 08-03 (the elected spring, 1.06 ATR under S) — support that
+# broke, elected as the last point of support, 8 bars before its own cause.
+# Blast radius is provably the C6 violator set: the floor only REMOVES
+# candidates, and the elected window is the argmax, so an election that already
+# satisfies tip <= lps.start cannot move. Fleet census 2026-08-09 (256 setups /
+# 69 with a spring): lps.start - spring.tip is positive on 68, minimum +2, median
+# +21 — KYMR at -8 is the sole violator and sits 10 bars clear of the nearest
+# legal read, so the floor clips no sanctioned form.
+LPS_AFTER_SPRING_ENABLED = True
+
 # ── Holding-shelf LPS completion form (Event Map Task 8) — DARK, default OFF ──
 # The SECOND completion form of the two-form LPS doctrine (Wyckoff: the back-up
 # is "a simple pullback or a new TR at a higher level"; see
@@ -575,17 +598,17 @@ LPS_SHELF_MIN_LOW_POS_BOX = 0.5   # shelf low at/above the box midpoint — the 
                                   # and the broken resistance; IBD: handle midpoint above the base midpoint).
                                   # Flat-and-LOW is the named failure geometry, never sanctioned.
 
-# Drawn LPS/Test staircase filter (DISPLAY-ONLY, recall-safe). The screener's
-# `_lps_tests` staircase is measure-only — it does NOT elect the active LPS or
-# gate firing — but it is what paints the gold support-test bands on the chart.
-# Unlike the active election it had no direction/right-side filter, so the
-# rising_support_shelf rescue + the descent gates above (deliberately 0.0) leaked
-# up-march footprints onto the chart (e.g. NCV Jun 9-15: an 80%-rising shelf
-# spanning 83% of the box, starting pre-Phase-D). Draw only footprints whose
-# low-descent fraction is at least this (a pure reaction is 1.0, sideways ~0.5,
-# an up-swing <0.3) AND that start at/after the right-side floor (spring recovery,
-# else V-tip). Separate knob from LPS_MIN_DESCENT_FRAC so the recall-sensitive
-# election is untouched. The raw staircase still feeds the Phase-D evidence.
+# Drawn-LPS trim (DISPLAY-ONLY, recall-safe): the offset into the elected LPS
+# window where its DRAWN zone starts (phase_d.drawn_lps_zone_start via
+# scope_consolidation) — a rising shelf's window includes the climb INTO the
+# shelf, so the drawn gold box is trimmed forward to the longest down/sideways
+# suffix (low-descent fraction >= this; a pure reaction is 1.0, sideways ~0.5,
+# an up-swing <0.3). Separate knob from LPS_MIN_DESCENT_FRAC so the
+# recall-sensitive election is untouched.
+# The drawn prior-test STAIRCASE this knob also filtered was RETIRED 2026-08-09
+# (operator ruling: ONE drawn LPS per setup — the chronological terminal one in
+# Phase D). The raw staircase (detect_lps_tests) still feeds the Phase-D
+# boundary evidence and the LPS-shrink measurement; it is just never drawn.
 LPS_DRAW_MIN_DESCENT_FRAC = 0.40
 
 # Zone gate — LPS low must sit in one of 3 zones relative to the box:

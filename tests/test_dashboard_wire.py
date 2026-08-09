@@ -154,7 +154,7 @@ FLAG_OFF_WIRE_KEYS = (
     "lps_profile_unit_pct", "lps_pullback_profile",
     "lps_spread_expansion_profile", "lps_stretch_atr", "lps_stretch_box",
     "lps_swing_depth_atr", "lps_swing_depth_box", "lps_swing_depth_pct",
-    "lps_swing_type", "lps_terminal_low_tolerance", "lps_tests",
+    "lps_swing_type", "lps_terminal_low_tolerance",
     "lps_window_high", "lps_window_low", "lps_window_range_pct_box",
     "lps_zone_type",
     "monthly_box", "monthly_candles", "monthly_volumes",

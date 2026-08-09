@@ -20,46 +20,18 @@ sys.path.insert(1, str(BACKEND_DIR))
 from engine_alpha.structure.scope import _resolve_phase_d_start, scope_consolidation
 
 
-def test_drawn_support_tests_keeps_right_side_down_or_sideways_only():
-    # Display-only staircase filter: keep right-side down/sideways footprints,
-    # drop pre-floor and up-swing (rising_support_shelf) ones. Recall-safe — it
-    # never touches the active election (this is exactly the NCV Jun 9-15 case).
-    from engine_alpha.structure.phase_d import drawn_support_tests
-
-    tests = [
-        {"start_index": 5, "descent_frac": 1.00, "swing_type": "terminal_valley"},        # pre-floor -> drop
-        {"start_index": 12, "descent_frac": 0.20, "swing_type": "rising_support_shelf"},  # up-swing -> drop
-        {"start_index": 14, "descent_frac": 0.55, "swing_type": "terminal_valley"},        # sideways, right-side -> keep
-        {"start_index": 18, "descent_frac": 1.00, "swing_type": "terminal_valley"},        # down, right-side -> keep
-    ]
-
-    drawn = drawn_support_tests(tests, right_floor_bar=10, min_descent_frac=0.40)
-    assert [t["start_index"] for t in drawn] == [14, 18]
-
-    # No right-side floor known -> only the direction filter applies.
-    drawn_no_floor = drawn_support_tests(tests, right_floor_bar=None, min_descent_frac=0.40)
-    assert [t["start_index"] for t in drawn_no_floor] == [5, 14, 18]
-
-    # Empty / malformed entries are skipped, never raise. A missing descent_frac
-    # defaults to a clean reaction (1.0); a missing start_index is dropped.
-    assert drawn_support_tests([], right_floor_bar=10, min_descent_frac=0.40) == []
-    salvaged = drawn_support_tests(
-        [{"descent_frac": 1.0}, {"start_index": 99}],
-        right_floor_bar=10,
-        min_descent_frac=0.40,
-    )
-    assert [t["start_index"] for t in salvaged] == [99]
-
-
-def test_drawn_support_tests_does_not_hide_raw_phase_d_evidence():
-    from engine_alpha.structure.phase_d import drawn_support_tests, support_test_evidence_starts
+def test_support_test_evidence_reads_the_raw_staircase():
+    # The raw staircase feeds Phase-D boundary evidence unfiltered — up-swing
+    # footprints legitimately count toward rising-support runs. (The DRAWN
+    # staircase this once contrasted against was retired 2026-08-09 — operator
+    # ruling: one drawn LPS per setup — but the evidence read is unchanged.)
+    from engine_alpha.structure.phase_d import support_test_evidence_starts
 
     raw_tests = [
         {"start_index": 20, "end_index": 21, "low": 100.0, "descent_frac": 0.20, "zone_type": "INSIDE"},
         {"start_index": 23, "end_index": 24, "low": 101.0, "descent_frac": 0.20, "zone_type": "OVERSHOOT_R"},
     ]
 
-    assert drawn_support_tests(raw_tests, right_floor_bar=10, min_descent_frac=0.40) == []
     assert support_test_evidence_starts(raw_tests, box_start=0, base_len=20) == {
         "support_tests": 20,
         "sos_reclaim": 23,

@@ -331,6 +331,24 @@ label, the phase read, and the archive can never drift — a calibrated `SPRING`
 re-typed. Downstream reads **inject** the elected spring rather than re-detecting. Most
 bases have no Phase C and that is normal (see "The Phase D Model").
 
+**Cause before effect, Phase C → Phase D (operator ruling 2026-08-09, KYMR): the LPS
+may not predate the spring.** "By chronological order the actual LPS comes in Phase D
+— the right side of the stock's V — after either a dedicated Phase C or just natural
+price-action progression." When a spring is elected, it conducts the turn, and the
+last point of support is the rest that follows it; a support test that completed
+BEFORE the shakeout is a prior test, never the terminal evidence. The elected LPS
+window therefore may not OPEN left of the spring tip — opening ON the tip bar stays
+legal (the sanctioned undercut-rebound form: the window resting on the spring low
+itself). The failure class this closes (KYMR, live payload 2026-08): the LPS elector
+takes the latest window whose trigger is still overhead, so once the true post-spring
+LPS has triggered it reached BACK past the spring and painted support that had
+already broken — the "last point of support" read 8 bars before its own cause,
+tripping doctrine invariant C6 (`spring.tip <= lps.start`, the same ordering law the
+gate asserts from the other side). A story whose only Phase-D evidence predates its
+spring is refused on ORDER (a doctrinal non-election, like a cause-absent veto), not
+on missing evidence. No-spring bases are untouched — natural progression needs no
+floor.
+
 **LPS envelope calibration — answered NO MOVES (2026-07-24, gap-breach Task
 6).** The shelf-harness (`tools.shelf_harness` — the ONE detector graded over
 all 34 marked shelves at the drawn basis) plus the terminal-turn envelope
@@ -386,6 +404,15 @@ forms inside it**, never sibling detectors (wire enums frozen forever):
 The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): a window
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
 LPS Detection".
+
+**One LPS per setup (operator ruling 2026-08-09).** A setup has a SINGLE last point of
+support — the chronological terminal one, in Phase D, right of the V (see the spring
+entry's cause-before-effect rule). The earlier support-test staircase the chart used to
+paint ("prior LPS/TEST behavior checks", requested while the engine's multi-test read
+was being proven) is retired from the DRAWN chart: the engine is judged strong enough
+that only the elected LPS is marked, alongside the other events that may appear. The
+staircase itself survives as measurement — it feeds the Phase-D boundary evidence and
+the LPS-shrink read — it is just never drawn as an LPS.
 
 #### Cross-event measures — graded context, never events
 

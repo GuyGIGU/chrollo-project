@@ -315,7 +315,6 @@ def _extract_chart_data(data, results_df, tickers):
                 'lps_swing_depth_pct': row.get('_lps_swing_depth_pct'),
                 'lps_swing_depth_atr': row.get('_lps_swing_depth_atr'),
                 'lps_swing_depth_box': row.get('_lps_swing_depth_box'),
-                'lps_tests': row.get('_lps_tests') or [],
                 'lps_zone_type': row.get('_lps_zone_type'),
                 # VCP contraction footprint (for tooltips / tag)
                 'contraction_count': row.get('_contraction_count'),

@@ -141,6 +141,11 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_TERMINAL_LOW_TOL_PROFILE",
     "LPS_SPREAD_MAX_PROFILE_MULT",
     "LPS_SPREAD_EXPANSION_MAX_PROFILE",
+    # Cause before effect, Phase C -> Phase D (doctrine-gate repair 2026-08-09):
+    # the elected LPS may not open before the spring tip. Live from birth — the
+    # key rides the manifest so the repair is a declared archive seam, not a
+    # silent reading move.
+    "LPS_AFTER_SPRING_ENABLED",
     # Holding-shelf completion form (Event Map Task 8, flag-gated dark)
     "LPS_HOLDING_SHELF_ENABLED",
     "LPS_SHELF_LENGTH_MIN",

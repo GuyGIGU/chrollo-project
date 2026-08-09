@@ -655,6 +655,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 | 2 | **Length** | `LPS_LENGTH_MIN ≤ length ≤ LPS_LENGTH_MAX` | 2 to 7 bars |
 | 3 | **Window bound** | `offset + length ≤ base_len + AR_MAX_BARS` | redundant outer guard; never lets the LPS pre-date the box |
 | 4 | **Swing-complete** | `eval_idx > swing_complete_idx` where `swing_complete_idx = (len(df) - base_len) + max(r_anchor, s_anchor)` | LPS must sit *after* the swing pivots that defined R and S |
+| 4b | **Chronology floor** (only when the caller passes one) | `start >= start_floor_bar`. The narrative walk passes the elected **spring's tip** (`LPS_AFTER_SPRING_ENABLED`, live from birth 2026-08-09 — cause before effect, Phase C → D): the LPS may not OPEN left of the spring that conducts the turn; opening ON the tip is legal (the undercut-rebound form rests on the spring low). No floor → no behavior change; the measure-only staircase (`detect_lps_tests`) never passes one. Repairs the KYMR C6 violation (a triggered post-spring LPS let the elector reach back to a pre-spring window whose support had already broken); a spring story whose only LPS predates the tip is refused with trace outcome `lps_before_spring` — a doctrinal non-election the doctrine gate reads like `cause_absent`. Fleet census 2026-08-09 (256 payload setups, 69 with springs): `lps.start − spring.tip` min +2 / median +21 on the 68 legal reads — KYMR at −8 was the sole violator, 10 bars clear of the nearest legal read, so the floor clips no sanctioned form. | `LPS_AFTER_SPRING_ENABLED = True`; `start_floor_bar` (detector arg) |
 | 5 | **Pullback shape (graded)** | `descent_frac >= LPS_MIN_DESCENT_FRAC` and `high_descent_frac >= LPS_MIN_HIGH_DESCENT_FRAC`; both are pair-wise non-rising fractions over lows/highs. A fully clean downswing may span more vertical box range because it is one peak-to-valley swing, not broad chop. | shape gates + quality multipliers |
 | 6 | **Zone gate** | elected LPS low lands in one of three buffered zones. Normally this is the last-bar `Low`; for a compact rising support shelf it can be the early window low. | `LPS_ZONE_ATR_MULT = 0.5` |
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
@@ -965,6 +966,14 @@ Important structure payloads:
 
 The read-only scoping payload is also underscore-prefixed: `_phase_a_start_date`, `_phase_a_end_date`, `_phase_b_start_date`, `_phase_d_start_date`, optional `_phase_c_event_date`, `_lps_zone_low`, `_lps_zone_high`, `_lps_zone_start_date`, `_lps_zone_end_date`, `_has_mini_consolidation`, `_scope_confidence`, and `_phase_d_evidence_json`. These fields are visualization/diagnostic facts only; no downstream filtering or scoring consumes them.
 
+The `_lps_zone_*` quad is the **single drawn LPS** (operator ruling 2026-08-09: one LPS
+per setup — the chronological terminal one in Phase D). The prior-test staircase the
+payload used to carry (`lps_tests`, filtered by `phase_d.drawn_support_tests`) was
+retired from the wire and the chart in the same ruling; the RAW staircase
+(`detect_lps_tests`) still runs inside evaluation, feeding the Phase-D boundary
+evidence (`support_test_evidence_starts`) and the LPS-shrink charter measurement —
+measurement kept, marking dropped.
+
 Pipeline returns `(results_df, market_data, tickers, market_context)` — `results_df` is sorted by `Score` descending.
 
 ### The narrative fact block (Surface the Read)
@@ -1063,7 +1072,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `186a18651d4a4a252ce59024823d9fb220cc2ff32d0fe41fe6b1f14f672c5801`_
+_engine_config_version: `e32bc834d7342fc1aafeff7535dad3eecd0af74e5d70df6f71d9357a02e3f1cb`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1140,6 +1149,7 @@ LPS_PULLBACK_PROFILE_MAX = 4.5
 LPS_TERMINAL_LOW_TOL_PROFILE = 0.1
 LPS_SPREAD_MAX_PROFILE_MULT = 1.25
 LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
+LPS_AFTER_SPRING_ENABLED = True
 LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
