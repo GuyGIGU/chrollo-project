@@ -7,9 +7,10 @@ import ScreenerModal from '../ScreenerModal';
 import { ScreenerIcon } from '../NavIcons';
 import { tierColor } from '../../theme';
 import { fmtScanTime } from '../../utils/appFormat';
+import { TIER_LETTERS } from '../wireVocabulary';
 
 const TOP_N = 4;
-const TIERS = ['S', 'A', 'B', 'C'];
+const TIERS = TIER_LETTERS;
 const ICON = <ScreenerIcon className="home-zone-iconsvg" />;
 
 function selectTodaysScan(screenerData) {

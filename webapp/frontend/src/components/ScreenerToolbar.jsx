@@ -2,6 +2,7 @@ import { TagLegend } from './SetupTags';
 import { TAG_CATALOG } from './setupTagsData';
 import UniverseSwitcher from './UniverseSwitcher';
 import Popover from './ui/Popover';
+import { TIER_LETTERS } from './wireVocabulary';
 
 // The screener command band: the three control rows the toolbar used to stack
 // (universe / count + data-ops / filter panel) folded into ONE horizontal
@@ -54,7 +55,7 @@ function ScreenerToolbar({
       {showFilters && (
         <>
           <span className="screener-command-seam" />
-          {['ALL', 'S', 'A', 'B', 'C', 'WATCHLIST'].map(tier => (
+          {['ALL', ...TIER_LETTERS, 'WATCHLIST'].map(tier => (
             <button
               key={tier}
               onClick={() => {

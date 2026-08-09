@@ -426,6 +426,33 @@ worth merging (event-domain audit C14). Bar spread likewise carries TWO statisti
 design — the readability texture and the LPS yardstick — pinned apart. All of these are
 graded confidence or archived measures; **geometry is the only veto**.
 
+#### Where the graded reads land — the one number (live 2026-08-09)
+
+Every graded read above rolls up into **ONE 0-100 Technical Analysis grade**, and that
+grade — not the raw sum of components — **is the read's number**. It is a single affine
+sum over a FIXED divisor, so absence is neutral: a chart missing an input grades against
+the same denominator as a complete one, and no read is punished for a measurement the
+engine could not take.
+
+The grade is read as five **story chapters** in the operator's own phase-overlay words —
+**Cause → Phase B → Phase C → Phase D → Trend** — left→right like the chart. The chapters
+are a *display partition* of the one sum: their subtotals add up exactly to the grade,
+with no per-chapter divisor, floor, or clamp (any of those would recreate the
+tested-DEAD present-cap denominator one level down).
+
+Two rules keep it honest against the model above:
+
+- **The letter follows the number.** The tier is derived from the grade, so what the
+  operator reads as "S" and the number beside it can never disagree. The one thing that
+  overrides the grade is the operator's own width rule: a base wider than the S cap is
+  never elite, however well it grades.
+- **Warnings discount, never veto.** A warning multiplies the bounded grade against a
+  floor; a missing warning input reads exactly neutral. Geometry remains the only veto —
+  a warning can dim a read, never refuse it.
+
+Market regime (breadth, the index trend) sits **outside** the grade entirely, as an
+informational label: the tape is context for the operator, not evidence about this chart.
+
 ### The measure-only reader layers
 
 Above the event catalog sit reader layers that move no rail, gate nothing, and score

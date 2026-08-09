@@ -1,4 +1,5 @@
 import { fmtPctFrac, fx } from './format.js';
+import { TIER_LETTERS } from '../components/wireVocabulary';
 
 // Sort keys mirror the archive table columns (see ArchiveTable COLUMNS) so the
 // header-click sort and the filter dropdown stay in sync. 'scan_date' is the
@@ -27,7 +28,7 @@ export const REVIEW_REASONS = [
   ['illiquid', 'Illiquid'],
   ['other', 'Other'],
 ];
-export const TIERS = ['ALL', 'S', 'A', 'B', 'C', 'D'];
+export const TIERS = ['ALL', ...TIER_LETTERS];
 export const SETUP_TYPES = ['ALL', 'LPS', 'REBOUND', 'BREAKOUT'];
 
 export const SOURCE_FILTERS = [

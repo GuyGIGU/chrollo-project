@@ -617,6 +617,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             has_spring=bool(bins.get("bin_c_present")),
             event_map=_em_scalars or None,
             htf=htf_ctx or None,
+            box_width=structure_ctx["box_width"],
         )
         # Archive-ready field names, mapped in this ONE place: the grade
         # family keeps its own names (_ta_grade*); per-term v2 points take
@@ -719,7 +720,13 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "adr_quality": adr_quality,
         "score_result": score_result,
         "score": score,
-        "tier": calculate_tier(score, structure_ctx["box_width"]),
+        # The tier's SOURCE swaps at the flip seam (2026-08-09): with the grade
+        # live the letter is derived from ta_grade against the TIER_*_STRUCT
+        # ladder, resolved once inside compose_ta_grade so the wire, the archive
+        # and the lens cannot disagree about it. Flag-off keeps the legacy
+        # raw-sum ladder byte-identically.
+        "tier": (ta_grade_fields["_structure_tier"] if settings.TA_SCORE_V2
+                 else calculate_tier(score, structure_ctx["box_width"])),
         "htf_ctx": htf_ctx,
         "setup_fields": setup_fields,
         "event_map_fields": event_map_fields,

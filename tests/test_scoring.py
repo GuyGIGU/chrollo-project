@@ -814,13 +814,26 @@ def test_compose_spring_term_is_present_mask_neutral(v2_on):
     assert sprung["ta_grade"] >= flat["ta_grade"] - 1e-9
 
 
-def test_taxonomy_emitted_keys_match_score_setup_output():
-    """The registry's emitted keys must exactly equal score_setup's sub-score keys
-    (default flags) — the score-dict coupling that keeps the taxonomy authoritative."""
-    from engine_alpha.scoring.scoring import score_setup
+def test_taxonomy_emitted_keys_are_partitioned_between_the_two_producers():
+    """Every emitted term must be produced by exactly one producer, and the two
+    together must cover the registry — the score-dict coupling that keeps the
+    taxonomy authoritative.
+
+    There are two producers: ``score_setup`` emits the v1 terms, and
+    ``compose_ta_grade`` emits the promoted v2 terms (spring + story) that feed
+    the grade only and never the legacy total. Before the 2026-08-09 flip the
+    promoted set was un-emitted, so the registry equalled score_setup's keys
+    outright; asserting that equality again would silently re-fail the moment
+    any future term is promoted, so the invariant is stated as the partition."""
+    from engine_alpha.scoring.scoring import score_setup, _ta_v2_terms
     from engine_alpha.scoring import taxonomy
     out = score_setup(**_score_common())
-    assert set(taxonomy.emitted_keys()) == set(out) - {"total"}
+    v1_keys = set(out) - {"total"}
+    promoted = set(_ta_v2_terms())
+    emitted = set(taxonomy.emitted_keys())
+    assert not (v1_keys & promoted), "a term is claimed by BOTH producers"
+    assert emitted == v1_keys | (promoted & emitted)
+    assert v1_keys <= emitted
 
 
 def test_setup_quality_awards_bonus_and_adds_key():
