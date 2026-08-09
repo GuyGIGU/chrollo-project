@@ -9,6 +9,9 @@ import {
   indexOnOrAfter,
   setupIndexes,
   miniFocusLogicalRange,
+  modalFocusLogicalRange,
+  marketFocusLogicalRange,
+  CHART_FRAMING,
   colorMiniCandles,
   colorTimeframeCandles,
   boxRailSpecs,
@@ -130,9 +133,45 @@ test('miniFocusLogicalRange: window adds real pre-base context (leftPadding >= 4
 
 test('miniFocusLogicalRange: maxVisibleBars caps a wide window', () => {
   const candles = makeCandles(300);
-  const range = miniFocusLogicalRange({ candles, base_len: 200, forward_bars: 0 }, 72);
-  // rightEdge near 299; from must be rightEdge - 72 because the base is huge
+  // base 40 + the 18-bar approach leg both fit inside the 72-bar budget, so the
+  // budget is what binds here (a base+leg that does NOT fit is the next test).
+  const range = miniFocusLogicalRange({ candles, base_len: 40, forward_bars: 0 }, 72);
   assert.equal(range.to - range.from, 72);
+});
+
+test('miniFocusLogicalRange: a base WIDER than the budget stretches the window, never crops the box', () => {
+  const candles = makeCandles(300);
+  // RULING 2026-08-09 (crop vs stretch, McKinney's open question): the box is the
+  // datum — a base whose left edge sits off-pane misreports where it began, so the
+  // budget yields rather than cropping. base_len 200 with a 72-bar budget:
+  // baseStart 100, minus the 18-bar approach leg -> from 82, i.e. 217 bars, well
+  // past the nominal cap. Dense, but honest about an unusually long base.
+  const range = miniFocusLogicalRange({ candles, base_len: 200, forward_bars: 0 }, 72);
+  assert.equal(range.from, 82);
+  assert.equal(range.to, 299);
+  assert.ok(range.to - range.from > 72, 'the cap yields to the box, it does not crop it');
+});
+
+test('miniFocusLogicalRange: the proportion trim drops old context but always keeps the approach leg', () => {
+  // A tall pre-base advance then a tight box: the un-trimmed window would give
+  // the box a sliver of the price range, so the oldest bars are dropped — but the
+  // trim stops minContextBars before the box opens, never eating the leg.
+  const candles = makeCandles(200).map((c, i) => {
+    // A steep run-up into a flat 30-bar box at the right edge.
+    const inBox = i >= 170;
+    const level = inBox ? 200 : 10 + i;
+    return { ...c, open: level, close: level, high: level + (inBox ? 1 : 1.5), low: level - (inBox ? 1 : 1.5) };
+  });
+  const data = { candles, base_len: 30, forward_bars: 0, R: 201, S: 199 };
+  const trimmed = miniFocusLogicalRange(data, 130, 90);
+  // Two floors bound the trim and the LESS aggressive one wins: the 18-bar leg
+  // rule would allow from=152, but the 55-bar window floor stops it at 144 —
+  // so 26 context bars survive, comfortably more than the leg minimum.
+  assert.equal(trimmed.from, 144);
+  assert.equal(trimmed.to, 199);
+  // Without a box height there is nothing to trim toward — the untrimmed window stands.
+  const untrimmed = miniFocusLogicalRange({ ...data, R: null, S: null }, 130, 90);
+  assert.ok(untrimmed.from < trimmed.from, 'no box height -> no proportion trim');
 });
 
 test('miniFocusLogicalRange: minVisibleBars pads a tiny base out to the floor', () => {
@@ -143,6 +182,99 @@ test('miniFocusLogicalRange: minVisibleBars pads a tiny base out to the floor', 
   const range = miniFocusLogicalRange({ candles, base_len: 10, forward_bars: 0 }, 130, 90);
   assert.equal(range.to, 199);
   assert.equal(range.to - range.from, 90);
+});
+
+// --- window totality + the extremes table (the cases nobody spot-checks) ---
+//
+// These pin the invariants that must survive ANY density retune: the range is
+// always integer and ordered inside the candle array, a tiny base is padded to
+// the floor, a huge base is capped at the budget, and no input shape yields NaN.
+
+test('miniFocusLogicalRange: a boxless payload falls back to the last budget bars, never NaN', () => {
+  const candles = makeCandles(200);
+  // No base_len at all — the market panes and hover previews reuse this math on
+  // plain candle arrays. Before totality this returned {from: NaN}.
+  for (const boxless of [{}, { base_len: null }, { base_len: 0 }, { base_len: 'x' }, { base_len: NaN }]) {
+    const range = miniFocusLogicalRange({ candles, ...boxless }, 130, 90);
+    assert.equal(range.to, 199);
+    assert.equal(range.from, 69); // 199 - 130, the same to-from width the boxed path uses
+    assert.ok(Number.isInteger(range.from) && Number.isInteger(range.to));
+  }
+});
+
+test('miniFocusLogicalRange: a non-finite forward_bars degrades to zero, not NaN', () => {
+  const candles = makeCandles(120);
+  const range = miniFocusLogicalRange({ candles, base_len: 10, forward_bars: undefined }, 130, 90);
+  assert.equal(range.to, 119); // forwardBars 0 -> baseEnd 119, rightPadding 5, clamped to last index
+  assert.equal(range.to - range.from, 90); // floor still applies
+});
+
+test('miniFocusLogicalRange: an inverted min/max pair cannot exceed the budget', () => {
+  const candles = makeCandles(300);
+  // floor(120) > budget(60): the floor must be clamped DOWN to the budget, or the
+  // window silently blows the max it was given.
+  const range = miniFocusLogicalRange({ candles, base_len: 8, forward_bars: 0 }, 60, 120);
+  assert.equal(range.to - range.from, 60);
+});
+
+test('miniFocusLogicalRange: history shorter than the floor yields the whole history', () => {
+  const candles = makeCandles(30);
+  const range = miniFocusLogicalRange({ candles, base_len: 5, forward_bars: 0 }, 130, 90);
+  assert.equal(range.from, 0); // clamped left — never negative
+  assert.equal(range.to, 29);
+});
+
+test('miniFocusLogicalRange: forward_bars exceeding history clamps, never negative', () => {
+  const candles = makeCandles(20);
+  const range = miniFocusLogicalRange({ candles, base_len: 4, forward_bars: 999 }, 130, 90);
+  assert.equal(range.from, 0);
+  assert.ok(range.to >= range.from && range.to <= 19);
+});
+
+test('miniFocusLogicalRange: single candle is a degenerate but valid range', () => {
+  const range = miniFocusLogicalRange({ candles: makeCandles(1), base_len: 1, forward_bars: 0 }, 130, 90);
+  assert.deepEqual(range, { from: 0, to: 0 });
+});
+
+test('modalFocusLogicalRange: base plus context bars, running to the last candle', () => {
+  const candles = makeCandles(400);
+  // base_len 30, fwd 2 -> baseEnd 397; context = max(30+90, 120) = 120 -> from 277
+  const range = modalFocusLogicalRange({ candles, base_len: 30, forward_bars: 2 });
+  assert.deepEqual(range, { from: 277, to: 399 });
+});
+
+test('modalFocusLogicalRange: the minimum window floors a tiny base; short history clamps at 0', () => {
+  const candles = makeCandles(400);
+  // base_len 5 -> context = max(95, 120) = 120 (the floor wins)
+  assert.equal(modalFocusLogicalRange({ candles, base_len: 5, forward_bars: 0 }).from, 279);
+  // history shorter than the context -> from 0, never negative
+  assert.equal(modalFocusLogicalRange({ candles: makeCandles(40), base_len: 5, forward_bars: 0 }).from, 0);
+  assert.equal(modalFocusLogicalRange({ candles: [], base_len: 5, forward_bars: 0 }), null);
+});
+
+test('modalFocusLogicalRange: a boxless payload still resolves a window', () => {
+  const candles = makeCandles(300);
+  const range = modalFocusLogicalRange({ candles }); // no base_len, no forward_bars
+  assert.deepEqual(range, { from: 179, to: 299 }); // context = max(0+90, 120) = 120
+});
+
+test('marketFocusLogicalRange: last N bars, or null when history is shorter than the budget', () => {
+  assert.deepEqual(marketFocusLogicalRange(makeCandles(300), 130), { from: 170, to: 299 });
+  assert.equal(marketFocusLogicalRange(makeCandles(130), 130), null); // exactly the budget -> fitContent
+  assert.equal(marketFocusLogicalRange(makeCandles(50), 130), null);
+  assert.equal(marketFocusLogicalRange([], 130), null);
+  assert.equal(marketFocusLogicalRange(makeCandles(300), 0), null);
+});
+
+test('CHART_FRAMING: every surface profile is complete and internally consistent', () => {
+  // The profile table is the ONE place proportion is retuned — a missing or
+  // inverted field there silently mis-frames a whole surface.
+  for (const [name, profile] of Object.entries(CHART_FRAMING)) {
+    assert.ok(profile.scaleMargins.top >= 0 && profile.scaleMargins.bottom >= 0, `${name} margins`);
+    assert.ok(profile.scaleMargins.top + profile.scaleMargins.bottom < 1, `${name} margins leave price room`);
+    assert.ok(profile.volumeScaleTop > 0 && profile.volumeScaleTop < 1, `${name} volume band`);
+  }
+  assert.ok(CHART_FRAMING.mini.minVisibleBars <= CHART_FRAMING.mini.maxVisibleBars);
 });
 
 test('colorMiniCandles: greys the r/s anchor pair — the limbs R and S are drawn from', () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
 import { buildCloseSma } from './chartIndicators';
+import { CHART_FRAMING, marketFocusLogicalRange } from './chartGeometry';
 import { baseChartOptions } from './chartTheme';
 import { API_BASE } from '../api';
 import { STATE_META } from './marketRegimeFormat';
@@ -17,7 +18,7 @@ const INDICES = [
   { sym: 'IWM', label: 'Russell 2000' },
 ];
 const DAYS = 400;
-const VISIBLE_BARS = 130;
+const VISIBLE_BARS = CHART_FRAMING.market.visibleBars;
 const SMA50 = { color: '#f0a35e', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
 const SMA200 = { color: '#7c8cf8', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
 
@@ -30,7 +31,7 @@ const chartOptions = (container) => {
     ...base,
     autoSize: true,
     crosshair: { mode: 1 },
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.26 } },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: CHART_FRAMING.market.scaleMargins },
     timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
     handleScroll: false,
     handleScale: false,
@@ -96,8 +97,8 @@ export default function MarketPulse({ marketContext }) {
     const s200 = buildCloseSma(candles, 200);
     if (s50.length) chart.addSeries(LineSeries, SMA50).setData(s50);
     if (s200.length) chart.addSeries(LineSeries, SMA200).setData(s200);
-    const n = candles.length;
-    if (n > VISIBLE_BARS) chart.timeScale().setVisibleLogicalRange({ from: n - VISIBLE_BARS, to: n - 1 });
+    const range = marketFocusLogicalRange(candles, VISIBLE_BARS);
+    if (range) chart.timeScale().setVisibleLogicalRange(range);
     else chart.timeScale().fitContent();
   };
 
