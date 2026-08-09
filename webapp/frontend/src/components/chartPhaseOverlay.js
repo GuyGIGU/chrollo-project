@@ -22,8 +22,7 @@ const REGION_DEFS = {
 };
 
 const PHASE_A_MAX_BARS = 16;
-const LPS_OLDEST_COLOR = '#8A6A22';
-const LPS_LATEST_COLOR = '#F6D86B';
+const LPS_COLOR = '#F6D86B';
 
 const dateKey = (value) => (typeof value === 'string' ? value.slice(0, 10) : null);
 
@@ -250,24 +249,16 @@ const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
   };
 };
 
-// LPS regions dedupe by TIME OVERLAP, not exact bounds. The live screener's
-// "active" LPS zone is almost always the most-recent support test re-emitted
-// with very slightly different rounded prices, so an exact-key check let the
-// same physical zone draw twice ("LPS shows twice on one zone"). Any LPS whose
-// bar-span intersects one already added is the same zone — skip it.
-const addLpsRegion = (regions, candles, spans, startDate, endDate, lowValue, highValue, extra = {}) => {
+// The ONE drawn LPS zone (operator ruling 2026-08-09: a setup has a single
+// LPS — the chronological terminal one in Phase D — so the historical
+// support-test staircase is no longer drawn; the overlap-dedupe machinery it
+// needed retired with it).
+const addLpsRegion = (regions, candles, startDate, endDate, lowValue, highValue, extra = {}) => {
   const startIndex = indexOnOrAfter(candles, startDate);
   const endIndex = indexOnOrAfter(candles, endDate);
   const low = finiteNumber(lowValue);
   const high = finiteNumber(highValue);
   if (startIndex == null || endIndex == null || low == null || high == null) return;
-
-  const lo = Math.min(startIndex, endIndex);
-  const hi = Math.max(startIndex, endIndex);
-  for (const [spanLo, spanHi] of spans) {
-    if (lo <= spanHi && hi >= spanLo) return;
-  }
-  spans.push([lo, hi]);
 
   const region = buildRegion('lps', candles, startIndex, endIndex, {
     high,
@@ -325,47 +316,30 @@ export const buildPhaseRegions = (data) => {
     });
     if (region) regions.push(region);
   }
-  // One chip per physical LPS zone. Historical support tests carry the richer
-  // labels, so add them first; the active zone is then skipped whenever it
-  // overlaps one (it almost always does — it IS the most recent test).
-  const lpsSpans = [];
-  for (const [testIndex, test] of (data?.lps_tests || []).entries()) {
-    addLpsRegion(
-      regions,
-      candles,
-      lpsSpans,
-      test.start_date,
-      test.end_date,
-      test.low,
-      test.high,
-      {
-        detail: test.zone_type === 'UNDERCUT_S' ? 'Support undercut and test' : 'Support test',
-        id: `lps:${test.start_date || test.start_index}:${test.end_date || test.end_index}:${testIndex}`,
-      },
-    );
-  }
+  // The single LPS chip — the ACTIVE elected zone only (operator ruling
+  // 2026-08-09): one LPS per setup, the chronological terminal support test
+  // in Phase D. The prior-test staircase still exists as measurement (it
+  // feeds Phase-D boundary evidence) but is no longer drawn.
   addLpsRegion(
     regions,
     candles,
-    lpsSpans,
     data?._lps_zone_start_date,
     data?._lps_zone_end_date,
     data?._lps_zone_low,
     data?._lps_zone_high,
-    { detail: 'Active support-test zone', id: 'lps:active' },
+    { color: LPS_COLOR, detail: 'Active support-test zone', id: 'lps:active' },
   );
-  applyLpsSequenceColors(regions);
 
   return regions;
 };
 
 // Paint LPS candles from the SAME phase-region read the overlay uses, so every
-// surface (screener mini card + modal) colors LPS zones with the identical
-// chronological gradient (oldest brown -> latest gold) instead of one flat tone.
-// `fallbackColor` is the flat tint used ONLY when no LPS *region* resolves (dense
-// mini cards pass a muted gold, the modal passes full gold): it then falls back to
-// the lps_offset window, preserving the pre-unification behavior. Mutates the
-// passed candle array in place (callers pass a clone).
+// surface (screener mini card + modal) colors the single active LPS zone the
+// identical gold. `fallbackColor` is the flat tint used ONLY when no LPS
+// *region* resolves (dense mini cards pass a muted gold, the modal passes full
+// gold): it then falls back to the lps_offset window, preserving the
+// pre-unification behavior. Mutates the passed candle array in place (callers
+// pass a clone).
 export const colorLpsCandles = (candles, data, fallbackColor) => {
   let colored = false;
   const lpsRegions = buildPhaseRegions(data).filter((region) => region.key === 'lps');
@@ -406,33 +380,6 @@ const colorToRgba = (color, alpha) => {
   const rgb = color.trim().match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
   if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`;
   return color;
-};
-
-const interpolateHexColor = (from, to, ratio) => {
-  const fromHex = from.replace('#', '');
-  const toHex = to.replace('#', '');
-  const t = clamp(ratio, 0, 1);
-  const channel = (offset) => {
-    const start = parseInt(fromHex.slice(offset, offset + 2), 16);
-    const end = parseInt(toHex.slice(offset, offset + 2), 16);
-    return Math.round(start + (end - start) * t).toString(16).padStart(2, '0');
-  };
-  return `#${channel(0)}${channel(2)}${channel(4)}`;
-};
-
-const applyLpsSequenceColors = (regions) => {
-  const lpsRegions = regions
-    .filter((region) => region.key === 'lps')
-    .sort((a, b) => a.startIndex - b.startIndex || a.endIndex - b.endIndex);
-
-  const last = lpsRegions.length - 1;
-  lpsRegions.forEach((region, index) => {
-    const ratio = last <= 0 ? 1 : index / last;
-    region.color = interpolateHexColor(LPS_OLDEST_COLOR, LPS_LATEST_COLOR, ratio);
-    region.detail = index === last ? 'Latest support-test zone' : `Earlier support-test zone ${index + 1}`;
-    region.lpsSequenceIndex = index;
-    region.lpsSequenceCount = lpsRegions.length;
-  });
 };
 
 // Rail-episode spans (Surface the Read): date-anchored highlight targets for

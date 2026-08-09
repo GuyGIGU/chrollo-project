@@ -52,7 +52,11 @@ class _Bricks:
     def find_spring(self, df, box, atr):
         return self._springs.get(box.start_bar)
 
-    def find_lps(self, df, box, atr, *, diagnose=False):
+    def find_lps(self, df, box, atr, *, diagnose=False, start_floor_bar=None):
+        # ``start_floor_bar`` mirrors the real brick's chronology floor (the
+        # spine passes the spring tip when one exists); the scripted fake
+        # accepts it like ``diagnose`` and lets the scripted answer stand —
+        # floor SEMANTICS are exercised by _FloorBricks below.
         lps = self._lpss.get(box.start_bar)
         if diagnose:
             from collections import Counter
@@ -200,10 +204,11 @@ class _InnerBricks(_Bricks):
     def find_inner_box(self, df, box, atr):
         return self._inner
 
-    def find_lps(self, df, box, atr, *, diagnose=False):
+    def find_lps(self, df, box, atr, *, diagnose=False, start_floor_bar=None):
         if self._inner is not None and box is self._inner:
             return self._inner_lps
-        return super().find_lps(df, box, atr, diagnose=diagnose)
+        return super().find_lps(df, box, atr, diagnose=diagnose,
+                                start_floor_bar=start_floor_bar)
 
 
 def test_narrative_prefers_inner_lps_then_parent():
@@ -231,6 +236,75 @@ def test_narrative_prefers_inner_lps_then_parent():
                           {20: _lps(85)}, inner=None, inner_lps=None)
     s = read_structure(None, 1.0, bricks=bricks)
     assert s.lps_in_inner is False and s.lps.start_bar == 85
+
+
+class _FloorBricks(_Bricks):
+    """find_lps honors the chronology floor like the real detector — windows
+    opening left of the floor are refused — and records every floor received,
+    so the flag-off leg can assert the kwarg is truly ABSENT (the injected-
+    fakes compatibility rule), never passed as an explicit None."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.floors_seen = []
+
+    def find_lps(self, df, box, atr, *, diagnose=False, **kw):
+        self.floors_seen.append(kw.get("start_floor_bar", "ABSENT"))
+        lps = self._lpss.get(box.start_bar)
+        floor = kw.get("start_floor_bar")
+        if lps is not None and floor is not None and lps.start_bar < floor:
+            lps = None
+        if diagnose:
+            from collections import Counter
+            return lps, (Counter() if lps is not None
+                         else Counter({"window opens before the spring": 1}))
+        return lps
+
+
+def test_lps_floor_refuses_a_pre_spring_lps(monkeypatch):
+    # Flag ON + spring tip 80 + the only LPS opens at 70 (left of the tip): the
+    # walk must refuse the story rather than elect Phase-D evidence predating
+    # its own Phase C (KYMR 2026-08, doctrine invariant C6), and the trace must
+    # name the ORDER refusal apart from missing evidence.
+    monkeypatch.setattr(settings, "LPS_AFTER_SPRING_ENABLED", True)
+    bricks = _FloorBricks([_root(10, 20)], {10: _box(20)},
+                          {20: _spring(80, 83)}, {20: _lps(70)})
+    trace: list = []
+    assert read_structure(None, 1.0, bricks=bricks, trace=trace) is None
+    assert trace[0]["outcome"] == "lps_before_spring"
+    assert trace[0]["lps_floor_bar"] == 80
+    assert trace[0]["lps_rejects"]["parent"]
+
+
+def test_lps_floor_allows_opening_on_the_tip(monkeypatch):
+    # Opening ON the spring low is the sanctioned undercut_rebound form: the
+    # floor is strict-left exclusion (start < tip), never start <= tip.
+    monkeypatch.setattr(settings, "LPS_AFTER_SPRING_ENABLED", True)
+    bricks = _FloorBricks([_root(10, 20)], {10: _box(20)},
+                          {20: _spring(80, 83)}, {20: _lps(80)})
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s is not None and s.lps.start_bar == 80
+    assert bricks.floors_seen == [80]
+
+
+def test_lps_floor_off_or_no_spring_passes_no_kwarg(monkeypatch):
+    # Flag OFF: the kwarg is ABSENT (not an explicit None) — injected fakes
+    # without the parameter keep working, and the election is byte-identical
+    # to the pre-floor walk (the pre-spring LPS elects exactly as before).
+    monkeypatch.setattr(settings, "LPS_AFTER_SPRING_ENABLED", False)
+    bricks = _FloorBricks([_root(10, 20)], {10: _box(20)},
+                          {20: _spring(80, 83)}, {20: _lps(70)})
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s is not None and s.lps.start_bar == 70
+    assert bricks.floors_seen == ["ABSENT"]
+
+    # No spring: nothing to floor — the kwarg stays absent with the flag ON.
+    monkeypatch.setattr(settings, "LPS_AFTER_SPRING_ENABLED", True)
+    bricks = _FloorBricks([_root(10, 20)], {10: _box(20)},
+                          {20: None}, {20: _lps(70)})
+    s = read_structure(None, 1.0, bricks=bricks)
+    assert s is not None and s.lps.start_bar == 70
+    assert bricks.floors_seen == ["ABSENT"]
 
 
 def _full_structure(*, inner, spring):

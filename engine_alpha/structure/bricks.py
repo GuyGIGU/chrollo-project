@@ -454,12 +454,17 @@ def find_lps(
     atr,
     *,
     diagnose: bool = False,
+    start_floor_bar: int | None = None,
 ):
     """Find the calibrated Phase-D LPS that completes the structure.
 
     With ``diagnose=True`` returns ``(lps_or_None, rejects)`` — the detector's
     reject counter — so the narrative trace can report WHY no LPS completed.
     Without it, returns ``lps_or_None`` (unchanged signature for the live path).
+
+    ``start_floor_bar`` is the chronology floor for the LPS window: the spine
+    passes the elected spring's tip so the Phase-D evidence can never open
+    before the Phase-C turn that caused it. ``None`` = no floor.
     """
     def _out(lps, rejects=None):
         return (lps, rejects) if diagnose else lps
@@ -494,6 +499,7 @@ def find_lps(
         box.base_len,
         swing_complete_idx,
         diagnose=diagnose,
+        start_floor_bar=start_floor_bar,
     )
     result, rejects = detected if diagnose else (detected, None)
     if not result:

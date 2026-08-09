@@ -97,16 +97,21 @@ def _complete_narrative(df, box, atr):
     """Mirror the spine's Phase-D resolution: inner-box LPS first, else parent.
 
     Returns (lps, lps_in_inner, inner, spring) — lps is None when no Phase-D
-    minimum completes the story."""
+    minimum completes the story. Mirrors the spine's chronology floor too (the
+    LPS may not open before the spring tip), or the audit would report an LPS
+    the live walk refuses."""
     spring = bricks.find_spring(df, box, atr)
     inner = bricks.find_inner_box(df, box, atr)
+    lps_floor = (int(spring.tip_bar)
+                 if (spring is not None and settings.LPS_AFTER_SPRING_ENABLED)
+                 else None)
     lps = None
     lps_in_inner = False
     if inner is not None:
-        lps = bricks.find_lps(df, inner, atr)
+        lps = bricks.find_lps(df, inner, atr, start_floor_bar=lps_floor)
         lps_in_inner = lps is not None
     if lps is None:
-        lps = bricks.find_lps(df, box, atr)
+        lps = bricks.find_lps(df, box, atr, start_floor_bar=lps_floor)
     return lps, lps_in_inner, inner, spring
 
 

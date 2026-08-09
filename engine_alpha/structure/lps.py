@@ -287,6 +287,7 @@ def detect_lps_candidates(
     swing_complete_idx: int,
     offset_max: Optional[int] = None,
     diagnose: bool = False,
+    start_floor_bar: Optional[int] = None,
 ) -> tuple[list[dict], Counter]:
     """Collect every valid LPS/Test footprint before active-setup election.
 
@@ -295,6 +296,11 @@ def detect_lps_candidates(
     The candidate dicts keep ``_quality`` as the selector weight; consumers should
     use ``select_active_lps_candidate`` (or the compatibility wrapper
     ``detect_lps``) rather than scoring/archive this private field directly.
+
+    ``start_floor_bar`` is the chronology floor the caller already resolved (the
+    narrative passes the spring tip — cause before effect, Phase C -> Phase D).
+    ``None`` = no floor, the measure-only default; the staircase
+    (``detect_lps_tests``) keeps its own right-half rule and never passes one.
     """
     candidates: list[dict] = []
     rejects: Counter = Counter()
@@ -337,6 +343,14 @@ def detect_lps_candidates(
             if start < 0:
                 if diagnose:
                     rejects["window starts before the frame"] += 1
+                continue
+            # Cause before effect: the LAST point of support cannot predate the
+            # spring that conducts the turn. Opening ON the floor bar is legal —
+            # that is the sanctioned undercut_rebound form, the window resting on
+            # the spring low itself.
+            if start_floor_bar is not None and start < int(start_floor_bar):
+                if diagnose:
+                    rejects["window opens before the spring"] += 1
                 continue
             if offset + length > max_window:
                 if diagnose:
@@ -718,12 +732,15 @@ def detect_lps(
     base_len: int,
     swing_complete_idx: int,
     diagnose: bool = False,
+    start_floor_bar: Optional[int] = None,
 ) -> Union[Optional[dict], tuple[Optional[dict], Counter]]:
     """Elect the single active setup LPS/Test.
 
     Public signature remains compatible. Internally this first collects every
     valid LPS/Test footprint, then elects the latest actionable terminal-low
     candidate. ``diagnose=True`` returns rejection counters for audit harnesses.
+    ``start_floor_bar`` is the caller's chronology floor (see
+    ``detect_lps_candidates``); ``None`` keeps the pre-floor election exactly.
     """
     candidates, rejects = detect_lps_candidates(
         df,
@@ -735,6 +752,7 @@ def detect_lps(
         base_len,
         swing_complete_idx,
         diagnose=diagnose,
+        start_floor_bar=start_floor_bar,
     )
     if not candidates:
         return (None, rejects) if diagnose else None

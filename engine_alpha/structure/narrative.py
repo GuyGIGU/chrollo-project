@@ -295,19 +295,38 @@ def _roles_brief(df, box, atr, spring, lps) -> Optional[dict]:
     }
 
 
-def _lps_reject_brief(bricks, df, box, inner, atr) -> dict:
+def _lps_reject_brief(bricks, df, box, inner, atr, start_floor_bar=None) -> dict:
     """Why did Phase D fail? Re-run the LPS detector in diagnose mode on each
     candidate box and report the reject counters. Trace-only (never on the live
-    path), so it can afford the extra detector passes."""
+    path), so it can afford the extra detector passes. Runs under the SAME
+    chronology floor the live election used, so a story refused for opening
+    before its spring says so ("window opens before the spring") instead of
+    narrating the pre-floor rejects the walk never saw. No floor -> no kwarg
+    (the injected-fakes compatibility rule the spine already follows)."""
+    floor_kw = ({"start_floor_bar": start_floor_bar}
+                if start_floor_bar is not None else {})
     out: dict = {}
     if inner is not None:
-        res = bricks.find_lps(df, inner, atr, diagnose=True)
+        res = bricks.find_lps(df, inner, atr, diagnose=True, **floor_kw)
         rej = res[1] if isinstance(res, tuple) else None
         out["inner"] = dict(rej) if rej else {}
-    res = bricks.find_lps(df, box, atr, diagnose=True)
+    res = bricks.find_lps(df, box, atr, diagnose=True, **floor_kw)
     rej = res[1] if isinstance(res, tuple) else None
     out["parent"] = dict(rej) if rej else {}
     return out
+
+
+def _lps_floor_blocked(bricks, df, box, inner, atr) -> bool:
+    """Did the chronology floor alone cost this root its Phase D?
+
+    True when an LPS completes with NO floor — i.e. the only Phase-D evidence
+    on offer opens before the spring that caused it, so the story is refused on
+    ORDER rather than on missing evidence. Trace-only (two extra detector
+    passes), and asked only once the floored election has already come back
+    empty: the live path never pays for it."""
+    if inner is not None and bricks.find_lps(df, inner, atr) is not None:
+        return True
+    return bricks.find_lps(df, box, atr) is not None
 
 
 def read_structure(df, atr, *, bricks=None, trace=None,
@@ -321,7 +340,9 @@ def read_structure(df, atr, *, bricks=None, trace=None,
 
     ``trace``: pass a list to record the story the spine builds — one entry per
     root attempted, with each brick's verdict + (on failure) the reject reasons,
-    and the outcome ("no_box" / "no_lps" / "complete"). Each entry also carries
+    and the outcome ("no_box" / "no_lps" / "lps_before_spring" / "cause_absent"
+    / "complete"; the two middle ones are DOCTRINAL non-elections — evidence
+    that arrived out of order, and a box with no matured cause). Each entry also carries
     ``box_cascade``: the pair election narrating itself — every candidate R/S
     pair examined inside ``validate_equilibrium`` with the stage that rejected
     it (width / window / respect / occupancy / traversal / rescue_unused), or
@@ -404,20 +425,44 @@ def read_structure(df, atr, *, bricks=None, trace=None,
             rec["spring"] = _spring_brief(spring)
             rec["inner"] = _box_brief(inner)
 
+        # Cause before effect, Phase C -> Phase D: the LAST point of support may
+        # not open before the spring that conducts the turn. Without this floor
+        # the elector — which takes the latest window whose trigger is still
+        # overhead — reaches BACK past the spring whenever the true post-spring
+        # LPS has already been triggered, and paints support that later broke as
+        # the terminal evidence (KYMR 2026-08, doctrine invariant C6). The floor
+        # is the spring TIP, not its recovery: a window may legally rest ON the
+        # spring low (the undercut_rebound form). Flag-off = no kwarg =
+        # byte-identical — and, as with ``near_miss``, a no-floor call passes no
+        # kwarg at all so injected fakes without the parameter keep working.
+        lps_floor = (int(spring.tip_bar)
+                     if (spring is not None and settings.LPS_AFTER_SPRING_ENABLED)
+                     else None)
+        floor_kw = {"start_floor_bar": lps_floor} if lps_floor is not None else {}
+
         # Phase D (required): prefer the tighter inner-box LPS (closer trigger /
         # stop), else the parent. Reject only when NEITHER yields one — the same
         # inner-first-then-parent selection legacy does.
         lps_in_inner = False
         lps = None
         if inner is not None:
-            lps = bricks.find_lps(df, inner, atr)
+            lps = bricks.find_lps(df, inner, atr, **floor_kw)
             lps_in_inner = lps is not None
         if lps is None:
-            lps = bricks.find_lps(df, box, atr)
+            lps = bricks.find_lps(df, box, atr, **floor_kw)
         if lps is None:
             if rec is not None:
                 rec["outcome"] = "no_lps"
-                rec["lps_rejects"] = _lps_reject_brief(bricks, df, box, inner, atr)
+                rec["lps_rejects"] = _lps_reject_brief(bricks, df, box, inner,
+                                                       atr, lps_floor)
+                # Name the ORDER refusal apart from a missing-evidence one: an
+                # LPS that exists but predates its own spring is a doctrinal
+                # non-election, not a coverage hole (the doctrine gate reads
+                # this outcome exactly as it reads ``cause_absent``).
+                if lps_floor is not None and _lps_floor_blocked(bricks, df, box,
+                                                                inner, atr):
+                    rec["outcome"] = "lps_before_spring"
+                    rec["lps_floor_bar"] = int(lps_floor)
             continue                                      # no Phase-D minimum -> not a setup
         if rec is not None:
             rec["lps"] = _lps_brief(lps, lps_in_inner)

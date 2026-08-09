@@ -159,7 +159,6 @@ test('colorMiniCandles: greys the r/s anchor pair — the limbs R and S are draw
     _phase_a_start_date: '2024-01-05',
     _phase_a_end_date: '2024-01-08',
     _phase_b_start_date: '2024-01-15',
-    lps_tests: [],
     lps_len: 0,
   };
   const out = colorMiniCandles(data);
@@ -178,7 +177,7 @@ test('colorMiniCandles: greys the r/s anchor pair — the limbs R and S are draw
 
 test('colorMiniCandles: anchor order does not matter; missing anchors paint no root swing', () => {
   const candles = makeCandles(20);
-  const base = { candles, base_len: 6, forward_bars: 0, lps_tests: [], lps_len: 0 };
+  const base = { candles, base_len: 6, forward_bars: 0, lps_len: 0 };
   // s_anchor before r_anchor -> still spans min..max, never inverted.
   const flipped = colorMiniCandles({ ...base, r_anchor: 4, s_anchor: 1 });
   assert.equal(flipped[15].color, CHART_COLORS.baseLimb);
@@ -197,7 +196,6 @@ test('colorMiniCandles: lps_offset path paints gold', () => {
     forward_bars: 0,
     r_anchor: 0,
     s_anchor: 1,
-    lps_tests: [],
     lps_len: 3,
     lps_offset: 0,
   });
@@ -206,7 +204,7 @@ test('colorMiniCandles: lps_offset path paints gold', () => {
   assert.equal(out[17].color, CHART_COLORS.goldMuted);
 });
 
-test('colorMiniCandles: lps zones paint the shared chronological gradient (oldest != latest); out-of-range skipped', () => {
+test('colorMiniCandles: the single active LPS zone paints gold; out-of-range resolves nothing', () => {
   const candles = makeCandles(20); // 2024-01-01 .. 2024-01-20
   const out = colorMiniCandles({
     candles,
@@ -215,22 +213,32 @@ test('colorMiniCandles: lps zones paint the shared chronological gradient (oldes
     r_anchor: 0,
     s_anchor: 1,
     lps_len: 0,
-    // The shared colorer sources LPS from buildPhaseRegions, so each test needs a
-    // price box (low/high). Two in-range zones must render distinct gradient tones.
-    lps_tests: [
-      { start_date: '2024-01-03', end_date: '2024-01-04', low: 10, high: 20 }, // indices 2..3 (older)
-      { start_date: '2024-01-07', end_date: '2024-01-08', low: 10, high: 20 }, // indices 6..7 (latest)
-      { start_date: '2099-01-01', end_date: '2099-02-01', low: 1, high: 2 },   // out of range -> skipped
-    ],
+    // ONE drawn LPS per setup (operator ruling 2026-08-09): the shared colorer
+    // sources only the active elected zone from buildPhaseRegions — the
+    // prior-test staircase is measurement, never drawn. The zone needs a
+    // price box (low/high) to resolve.
+    _lps_zone_start_date: '2024-01-07',
+    _lps_zone_end_date: '2024-01-08',
+    _lps_zone_low: 10,
+    _lps_zone_high: 20,
   });
-  const older = out[2].color;
-  const latest = out[7].color;
-  assert.equal(out[3].color, older);   // the whole older span shares one tone
-  assert.equal(out[6].color, latest);  // the whole latest span shares one tone
-  assert.notEqual(older, latest);      // chronological gradient: distinct tones
-  assert.equal(latest, '#f6d86b');     // the most-recent zone is the gradient's LATEST color
-  assert.equal(out[4].color, undefined); // gap between zones stays unpainted
-  assert.equal(out[5].color, undefined);
+  assert.equal(out[6].color, '#F6D86B'); // indices 6..7 paint the LPS gold
+  assert.equal(out[7].color, '#F6D86B');
+  assert.equal(out[5].color, undefined); // outside the zone stays unpainted
+  assert.equal(out[8].color, undefined);
+
+  // Out-of-range zone -> no region resolves; with lps_len 0 nothing paints.
+  const none = colorMiniCandles({
+    candles,
+    base_len: 4,
+    forward_bars: 0,
+    lps_len: 0,
+    _lps_zone_start_date: '2099-01-01',
+    _lps_zone_end_date: '2099-02-01',
+    _lps_zone_low: 1,
+    _lps_zone_high: 2,
+  });
+  assert.ok(none.every((candle) => candle.color === undefined));
 });
 
 test('colorMiniCandles: base_len <= 0 returns an uncolored clone', () => {

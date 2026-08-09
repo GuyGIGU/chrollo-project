@@ -19,9 +19,10 @@ Each payload ticker is replayed on its own frame (cache trimmed to its last
 payload candle) through the SAME eval-twin prep the live scan used, so the
 asserted Structure is the one the operator sees. A ticker that refuses to
 re-measure is a coverage hole and fails the gate - UNLESS the engine's own
-trace shows a cause-before-effect veto (``cause_absent``): a name that fired
-into a pre-veto payload but now legitimately abstains is an EXPECTED
-non-election, reported separately and never a failure.
+trace shows a cause-before-effect abstention (``cause_absent`` or
+``lps_before_spring``): a name that fired into a pre-rule payload but now
+legitimately abstains is an EXPECTED non-election, reported separately and
+never a failure.
 
 Usage:
     python -m tools.doctrine_audit --check    # exit 1 on any violation/refusal
@@ -223,14 +224,20 @@ def run_audit() -> int:
             except Exception as e:
                 refused.append((tk, f"read {type(e).__name__}")); continue
             if s is None:
-                # A cause-before-effect veto-drop is an EXPECTED non-election,
-                # not a coverage hole: the name fired into a pre-veto payload but
+                # A cause-before-effect abstention is an EXPECTED non-election,
+                # not a coverage hole: the name fired into a pre-rule payload but
                 # read_structure now abstains it. Re-run once with a trace to read
                 # the engine's OWN terminal outcome (never a re-run of the veto
                 # predicate) and separate it from a genuine no-structure refusal.
+                # TWO outcomes carry that meaning, both cause-before-effect at
+                # different seams: ``cause_absent`` (Phase B over a live trend
+                # that never matured a cause) and ``lps_before_spring`` (the only
+                # Phase-D evidence opens left of the Phase-C turn — invariant C6
+                # asserted from the other side, 2026-08-09).
                 vtrace: list = []
                 read_structure(daily, atr, trace=vtrace)
-                if any(r.get("outcome") == "cause_absent" for r in vtrace):
+                outcomes = {r.get("outcome") for r in vtrace}
+                if outcomes & {"cause_absent", "lps_before_spring"}:
                     vetoed.append(tk); continue
                 refused.append((tk, "no structure")); continue
             measured += 1

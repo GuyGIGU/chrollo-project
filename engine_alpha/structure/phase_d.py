@@ -140,47 +140,6 @@ def support_test_evidence_starts(lps_tests, box_start: int, base_len: int) -> di
     return out
 
 
-def drawn_support_tests(
-    lps_tests,
-    *,
-    right_floor_bar: Optional[int],
-    min_descent_frac: float,
-) -> list:
-    """Filter the support-test staircase down to what should be DRAWN on the chart.
-
-    The staircase (``detect_lps_tests``) is measure-only — it does not elect the
-    active LPS or gate firing — so this presentation filter is recall-safe by
-    construction. It keeps only footprints that read as a genuine support test:
-
-      * down or sideways into support — ``descent_frac >= min_descent_frac`` (a
-        pure reaction is 1.0, sideways ~0.5; an up-swing / rising shelf is low and
-        is dropped), and
-      * on the right side — starting at/after ``right_floor_bar`` (the Phase-C
-        spring recovery if a spring exists, else the final V-tip, else the
-        inner-box Phase-D start). ``None`` means no right-side floor is known, so
-        only the direction filter applies.
-
-    The unfiltered ``lps_tests`` still feed the Phase-D boundary evidence
-    (``support_test_evidence_starts``), which has its own right-half rule and
-    legitimately uses rising-support runs — so that path is unchanged.
-    """
-    floor = None if right_floor_bar is None else int(right_floor_bar)
-    threshold = float(min_descent_frac)
-    out = []
-    for test in lps_tests or []:
-        try:
-            start = int(test["start_index"])
-            descent = float(test.get("descent_frac", 1.0))
-        except (KeyError, TypeError, ValueError):
-            continue
-        if floor is not None and start < floor:
-            continue
-        if descent < threshold:
-            continue
-        out.append(test)
-    return out
-
-
 def drawn_lps_zone_start(low_values, *, min_descent_frac: float) -> int:
     """Offset into the elected LPS window where its DRAWN zone should start.
 
