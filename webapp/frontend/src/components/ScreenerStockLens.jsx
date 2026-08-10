@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatScore } from '../utils/scoreFormat';
 
 import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TaGradePanel } from './TaGradePanel';
@@ -21,16 +20,8 @@ import {
   TREND_STATE_LABELS,
   displayLabel,
 } from './wireVocabulary';
-import { tierColor, signColor } from '../theme';
 import { API_BASE } from '../api';
-import { fx, fmtSignedPctFrac, fmtDateShort } from '../utils/format';
-import { dailyChangeFrac, htfStateLabel } from '../utils/screenerCardData';
-
-const scoreLabel = (value) => formatScore(value);
-
-const money = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `$${Number(value).toFixed(2)}`
-);
+import { fx, fmtDateShort } from '../utils/format';
 
 const pct = (value, digits = 1) => (
   value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(digits)}%`
@@ -77,13 +68,6 @@ const boxWidthPct = (data) => {
   return ((resistance - support) / support) * 100;
 };
 
-const triggerTone = (value) => {
-  if (value == null) return 'var(--text-main)';
-  if (value < -0.25) return 'var(--warning)';
-  if (value <= 2) return 'var(--success)';
-  return 'var(--accent-blue)';
-};
-
 const triggerRead = (value) => {
   if (value == null) return 'No trigger read yet';
   if (value < -0.25) return 'Already above trigger';
@@ -92,12 +76,7 @@ const triggerRead = (value) => {
   return 'Needs more room';
 };
 
-const sectorLabel = (data) => {
-  if (data?.sector_name && data?.sector_etf) return `${data.sector_name} (${data.sector_etf})`;
-  if (data?.sector_name) return data.sector_name;
-  if (data?.sector_etf) return data.sector_etf;
-  return '-';
-};
+const sectorLabel = (data) => data?.sector_etf || data?.sector_name || '-';
 
 const phaseRegionTip = (region) => {
   if (region.key === 'd' && region.evidenceSummary) {
@@ -136,40 +115,20 @@ const earningsDisplay = (earnings) => {
 
 // The Finviz-style dense read: one tight grid of the engine's technical facts.
 // Finviz fills this with fundamentals (P/E, EPS); Chrollo has none, so every cell
-// is a measured structural / trend fact from the scan payload — no invented data.
+// is a measured structural fact from the scan payload — no invented data.
 function TechnicalReadGrid({ data, earnings }) {
-  const price = finiteNumber(data?.price ?? latestCandle(data)?.close);
-  const distance = distanceToTriggerPct(data);
-  const changePct = dailyChangeFrac(data?.candles);
-  const weekly = htfStateLabel({
-    stage2: data.htf_w_stage2, trendState: data.htf_w_trend_state,
-    inConsol: data.htf_w_in_consol, phase: data.htf_w_phase, reaccum: data.htf_w_reaccum,
-  });
-  const monthly = htfStateLabel({
-    stage2: data.htf_m_stage2, trendState: data.htf_m_trend_state,
-    inConsol: data.htf_m_in_consol, phase: data.htf_m_phase, reaccum: data.htf_m_reaccum,
-  });
   const contractions = finiteNumber(data.contraction_count);
   const earn = earningsDisplay(earnings);
 
   const cells = [
-    { k: 'Price', v: money(price) },
-    { k: 'Change', v: changePct == null ? '-' : fmtSignedPctFrac(changePct, 1), tone: signColor(changePct) },
-    { k: 'Trigger', v: money(data.trigger), tone: '#e3b341' },
-    { k: 'To trigger', v: pct(distance), tone: triggerTone(distance) },
-    { k: 'Resistance', v: money(data.R) },
-    { k: 'Support', v: money(data.S) },
     { k: 'Box width', v: pct(boxWidthPct(data)) },
     { k: 'ADR', v: pct(data.adr_pct) },
     { k: 'Base length', v: bars(data.base_len) },
     { k: 'LPS pullback', v: bars(data.lps_len) },
     { k: 'Contractions', v: contractions == null ? '-' : String(contractions) },
     { k: displayLabel('traversal_density'), v: fx(data.traversal_density, 2, '-') },
-    { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)' },
+    { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)', title: data?.sector_name || undefined },
     { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title },
-    { k: 'Weekly', v: weekly.label, tone: weekly.tone },
-    { k: 'Monthly', v: monthly.label, tone: monthly.tone },
-    { k: 'Score', v: scoreLabel(data.score), tone: tierColor(data.tier) },
   ];
 
   return (
