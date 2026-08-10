@@ -10,7 +10,7 @@ import {
   ABSENCE_COPY,
   NARRATIVE_STATUS,
   narrativeStatus,
-  readabilityCaveat,
+  readCaveats,
 } from './narrativeRead.js';
 import { CHAPTER_LABELS, CHAPTER_ORDER, WARNING_LABELS } from './wireVocabulary.js';
 
@@ -42,7 +42,10 @@ export function chapterCells(data) {
   if (!points || typeof points !== 'object') return [];
   const fractions = data.ta_grade_chapter_fractions || {};
   const status = narrativeStatus(data);
-  const caveat = readabilityCaveat(data);
+  // Both read-honesty caveats (unreadable bars + starved geometry), composed
+  // once in narrativeRead — the story chapters' subtext says exactly what
+  // the Engine's Read panel says.
+  const caveat = readCaveats(data);
   return Object.keys(points).map((key) => {
     const value = Number(points[key]);
     const cell = {

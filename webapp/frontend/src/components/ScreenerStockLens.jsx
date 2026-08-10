@@ -9,7 +9,7 @@ import {
   ABSENCE_COPY,
   NARRATIVE_STATUS,
   narrativeStatus,
-  readabilityCaveat,
+  readCaveats,
   shapeTrace,
   tapeGlyphs,
 } from './narrativeRead';
@@ -476,7 +476,11 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   const poolLabel = pool != null ? displayLabel(pool) : null;
   const glyphs = tapeGlyphs(data);
   const traceAvailable = data?.election_trace != null;
-  const caveat = readabilityCaveat(data);
+  // Both read-honesty caveats ride the one channel (narrativeRead owns the
+  // composition): unreadable bars (NaN) and starved geometry (the zones
+  // consume the box) each keep their zero from masquerading as the
+  // junk-separator zero.
+  const caveat = readCaveats(data);
   const counts = narrativeCountsLine(data);
 
   return (

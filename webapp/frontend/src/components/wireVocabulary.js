@@ -115,8 +115,11 @@ export const CHAPTER_LABELS = {
 };
 
 // Grade warning labels (unknown ids fall through verbatim — never blank).
+// terminal_drift renamed 2026-08-10 (operator: the term was never approved;
+// naming doctrine = describe the event plainly, the narrative panel's own
+// words). The wire id is frozen — vocabulary changes here, never on the wire.
 export const WARNING_LABELS = {
-  terminal_drift: 'Terminal drift',
+  terminal_drift: 'Ends drifting on support',
   weak_monthly: 'Weak monthly',
 };
 

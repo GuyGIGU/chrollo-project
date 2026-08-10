@@ -102,9 +102,10 @@ def test_wire_sub_scores_are_exactly_the_always_emitted_projection(monkeypatch):
             t.key for t in taxonomy.always_emitted_terms()}
 
 
-# The exact flag-off per-ticker key set (149 keys, captured 2026-08-08 at the
-# task-2 baseline). Sorted. Changing the wire contract flag-off means editing
-# this tuple deliberately in the same change — never drifting past it.
+# The exact flag-off per-ticker key set (150 keys: 149 captured 2026-08-08 at
+# the task-2 baseline, + zone_coverage 2026-08-10). Sorted. Changing the wire
+# contract flag-off means editing this tuple deliberately in the same change —
+# never drifting past it.
 FLAG_OFF_WIRE_KEYS = (
     "R", "S",
     "_has_mini_consolidation",
@@ -131,6 +132,8 @@ FLAG_OFF_WIRE_KEYS = (
     "event_map_n_swings", "event_map_pre_box_trend",
     "event_map_story_admitted", "event_map_terminal_drift",
     "event_map_terminal_posture",
+    # + zone_coverage 2026-08-10 (the geometry companion — deliberate edit)
+    "event_map_zone_coverage",
     "final_contraction_depth",
     "fund_earnings_surprise", "fund_eps_growth_accel", "fund_eps_growth_yoy",
     "fund_sales_growth_yoy",

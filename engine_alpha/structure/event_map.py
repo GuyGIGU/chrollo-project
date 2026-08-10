@@ -651,6 +651,15 @@ EVENT_MAP_COLUMN_SQL: dict[str, str] = {
     "event_map_terminal_drift": "INTEGER",    # 0/1 open S episode at the edge >= drift floor
     "event_map_story_admitted": "INTEGER",    # 0/1 the RULED form's read (ruling 2026-07-25)
     "event_map_episode_nan_bars": "INTEGER",  # readability companion for the zeros
+    # The GEOMETRY companion (2026-08-10, the nan-bars sibling): the fraction
+    # of box height the two ATR-fixed touch zones consume, 2*tol/(R-S). Above
+    # ~0.5 the neutral middle is thinner than an average bar and distinct
+    # tests merge into one unresolved visit (LEVI: 0.69 coverage, one R
+    # episode spanning the whole base, all-zero counts on a clean base) — so
+    # zero-by-geometry can never masquerade as zero-by-drift. Raw and
+    # unclamped (>1.0 = the zones overlap); the floor lives in
+    # settings.STORY_UNREADABLE_ZONE_COVERAGE, never here.
+    "event_map_zone_coverage": "REAL",
     "event_map_episode_profile": "TEXT",      # the sentence, e.g. "S+ S+ S+ R^"
     "event_map_episodes": "TEXT",             # compact JSON tape (rail/outcome/span/knowable dates)
 }
@@ -678,6 +687,16 @@ def episode_substrate_fields(win_df, R, S, atr_val) -> dict:
     evidence; NULL only ever means the producer never ran."""
     epi = read_rail_episodes(win_df, float(R), float(S), atr_val)
     stats = episode_sequence_stats(epi, as_of_bar=len(win_df) - 1)
+    # The geometry companion: how much of the box the two touch zones consume.
+    # Computable exactly when the reader's own preconditions held (positive
+    # rail height, usable ATR) — on a refused read NULL is the only honest
+    # value, matching the family's "NULL = not measured" law.
+    height = float(R) - float(S)
+    readable_geometry = (np.isfinite(height) and height > 0
+                         and atr_val is not None and np.isfinite(atr_val)
+                         and atr_val > 0)
+    coverage = (2.0 * settings.TOUCH_TOLERANCE_ATR * float(atr_val) / height
+                if readable_geometry else None)
     dates = win_df.index
     tape = json.dumps([
         {"rail": e["rail"], "outcome": e["outcome"],
@@ -695,6 +714,7 @@ def episode_substrate_fields(win_df, R, S, atr_val) -> dict:
         "_event_map_terminal_drift": int(stats["terminal_s_drift"]),
         "_event_map_story_admitted": int(story_admission(stats)),
         "_event_map_episode_nan_bars": int(epi["nan_bars"]),
+        "_event_map_zone_coverage": coverage,
         "_event_map_episode_profile": stats["profile"],
         "_event_map_episodes": tape,
     }

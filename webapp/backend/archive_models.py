@@ -309,6 +309,7 @@ class SetupArchive(Base):
     event_map_terminal_drift = Column(Integer, nullable=True)    # 0/1 open S drift at the edge
     event_map_story_admitted = Column(Integer, nullable=True)    # 0/1 ruled form (2026-07-25)
     event_map_episode_nan_bars = Column(Integer, nullable=True)  # readability companion
+    event_map_zone_coverage = Column(Float, nullable=True)       # geometry companion: 2*tol/(R-S) (2026-08-10)
     event_map_episode_profile = Column(String, nullable=True)    # the sentence "S+ S+ S+ R^"
     event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 

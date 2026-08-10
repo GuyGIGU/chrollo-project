@@ -719,6 +719,25 @@ def test_compose_story_terms_distinguish_absent_zero_and_unreadable(v2_on, monke
     assert honest_zero["story_terminal_posture"] == pytest.approx(8.0)
     assert unreadable["story_terminal_posture"] == 0.0        # the whole row is absent
     assert measured["ta_grade"] > absent["ta_grade"]          # the evidence grades
+    # Fourth state (2026-08-10, the NaN leg's sibling): all-zero counts on
+    # STARVED GEOMETRY — the ATR-fixed zones consumed the box (LEVI: 0.69
+    # coverage, one merged episode, zeros on a clean base) — route the whole
+    # row to ABSENT exactly like zero-by-unreadable.
+    starved = compose_ta_grade(_sub(), event_map=_em(
+        **zeros,
+        event_map_zone_coverage=settings.STORY_UNREADABLE_ZONE_COVERAGE))
+    assert starved["story_terminal_posture"] == 0.0           # stance included
+    assert starved["story_s_tests"] == 0.0
+    # Nonzero counts stay EVIDENCE at any coverage (FXNC: 5 completed at
+    # 0.66 coverage) — starvation may explain silence, never erase a story.
+    loud_tight = compose_ta_grade(_sub(), event_map=_em(
+        event_map_zone_coverage=0.9))
+    assert loud_tight["story_s_tests"] == pytest.approx(10.0)
+    assert loud_tight["story_terminal_posture"] == pytest.approx(8.0)
+    # Below the floor the zeros remain the junk separator (evidence).
+    roomy_zero = compose_ta_grade(_sub(), event_map=_em(
+        **zeros, event_map_zone_coverage=0.3))
+    assert roomy_zero["story_terminal_posture"] == pytest.approx(8.0)
 
 
 def test_compose_stance_enters_its_own_term_never_the_facts(v2_on, monkeypatch):

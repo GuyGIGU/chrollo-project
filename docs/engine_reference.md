@@ -1003,6 +1003,17 @@ what the frontend narrative surface renders and the operator grades concordance 
   engine-side), so the wire carries structure. An unparseable tape degrades that one field to
   `None` while the scalars stay measured — "tape unreadable" (scalars present, tape `None`) is
   distinguishable from "not measured" (whole family `None`, i.e. pre-flip rows / flag off).
+  Since 2026-08-10 the family also carries **`event_map_zone_coverage`** — the geometry
+  companion (`2 × TOUCH_TOLERANCE_ATR × ATR / (R−S)`, raw, unclamped; NULL when the read was
+  refused): the episode zones are ATR-fixed, so on the screener's tightest boxes they consume
+  most of the box height and distinct tests merge into one unresolved visit (the LEVI case —
+  strategy_alpha "the stated geometric limit"). Consumed in two places, both mirroring the
+  NaN-bars law: `_story_points` routes all-zero counts at coverage ≥
+  `STORY_UNREADABLE_ZONE_COVERAGE` to ABSENT (zero-by-geometry never masquerades as
+  zero-by-drift; nonzero counts stay evidence at any coverage), and the lens/chapter-strip
+  caveat channel (`narrativeRead.readCaveats`) says the same thing in the operator's words.
+  The zones themselves are deliberately untouched — re-basing them is a census re-pin program,
+  not a cleanup (the pinned-yardsticks warning in `read_rail_episodes`).
 - **Electing-pool provenance**: `elected_pool` (closed set) and `story_admission_profile`
   (the sentence that admitted a story fire — AP-8: a different basis from the substrate's
   `event_map_story_admitted`, and the two may legally disagree).
@@ -1086,7 +1097,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `424fbfa119aac9a09f17d0f6a21149aa3390aa452e6267933dfb34a91cb4c108`_
+_engine_config_version: `f1680dd82764284efdef1c31690c59da70268668000cca65f0db3dcc84cfe331`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1244,6 +1255,7 @@ SCORE_STORY_TERMINAL_POSTURE = 0
 STORY_COMPLETED_TESTS_FULL = 3
 STORY_ALTERNATIONS_FULL = 2
 STORY_UNREADABLE_NAN_BARS = 5
+STORY_UNREADABLE_ZONE_COVERAGE = 0.5
 TA_WARN_TERMINAL_DRIFT = 1.0
 TA_GRADE_WARNING_FLOOR = 0.5
 LPS_SHRINK_MIN_TESTS = 3

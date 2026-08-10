@@ -111,7 +111,7 @@ test('warnings render with their cost — neutral factors visibly costless', () 
   });
   assert.deepEqual(items.map(i => [i.label, i.cost]), [
     ['Weak monthly', null],
-    ['Terminal drift', '−20%'],
+    ['Ends drifting on support', '−20%'],   // renamed 2026-08-10 (plain words)
     ['mystery', '−50%'],                    // unknown id falls through visibly
   ]);
   assert.deepEqual(warningItems({}), []);

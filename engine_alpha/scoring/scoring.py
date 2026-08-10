@@ -307,7 +307,7 @@ def _finite(value, fallback: float = 0.0) -> float:
 def _story_points(event_map: Optional[dict]) -> dict:
     """The story terms' points from the archived as-of Event-Map scalars.
 
-    Three-state input discipline (the grade's law for story inputs):
+    Four-state input discipline (the grade's law for story inputs):
       * missing family (map never ran / pre-flip rows)      -> ABSENT: every
         story term contributes neutral 0.0 against the FIXED divisor.
       * explicit zeros (measured-and-empty)                 -> EVIDENCE: the
@@ -315,6 +315,12 @@ def _story_points(event_map: Optional[dict]) -> dict:
       * all-zero counts with >= STORY_UNREADABLE_NAN_BARS unreadable bars
         -> ABSENT: zero-by-unreadable must never masquerade as zero-by-drift
         (the whole row routes to absent, stance included).
+      * all-zero counts with zone coverage >= STORY_UNREADABLE_ZONE_COVERAGE
+        -> ABSENT: zero-by-GEOMETRY is the NaN leg's sibling (LEVI
+        2026-08-10) — on a box the ATR-fixed touch zones mostly consume,
+        distinct tests merge into one unresolved visit, so the zeros say
+        "the read was starved", not "no story". Nonzero counts stay
+        evidence at any coverage.
     Consumes the named scalars ONLY — never the episode tape, never the
     profile sentence (the archived counts already exclude in-progress and
     identity-unfixed episodes on the one as-of basis; a recount downstream
@@ -332,8 +338,13 @@ def _story_points(event_map: Optional[dict]) -> dict:
         return absent
     s, r, alt = _finite(s), _finite(r), _finite(alt)
     nan_bars = _finite(event_map.get("event_map_episode_nan_bars"))
+    # An unmeasured coverage reads 0.0 and can never cross the floor — the
+    # fail-safe direction (an old row without the companion keeps its zeros
+    # as evidence rather than silently going absent).
+    coverage = _finite(event_map.get("event_map_zone_coverage"))
     if (s == 0 and r == 0 and alt == 0
-            and nan_bars >= settings.STORY_UNREADABLE_NAN_BARS):
+            and (nan_bars >= settings.STORY_UNREADABLE_NAN_BARS
+                 or coverage >= settings.STORY_UNREADABLE_ZONE_COVERAGE)):
         return absent
     tests_full = float(settings.STORY_COMPLETED_TESTS_FULL)
     return {
