@@ -11,19 +11,22 @@ import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 // plain-language structural read. Styled to match the daily chart
 // (useScreenerModalChart) so switching timeframes feels like one TradingView pane.
 
-const chartOptions = (width, height) => {
+const chartOptions = (width, height, interactive) => {
   const base = baseChartOptions('modal', width, height);
   return {
     ...base,
-    crosshair: { mode: 1 },
+    crosshair: interactive ? { mode: 1 } : { horzLine: { visible: false }, vertLine: { visible: false } },
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
-    handleScroll: true,
-    handleScale: true,
+    handleScroll: interactive,
+    handleScale: interactive,
   };
 };
 
-export default function TimeframeMainChart({ candles, volumes, box, label }) {
+// interactive=false is the mini-widget mode (TimeframeMiniRow): same read, same
+// rails, same bounded window — scroll/scale/crosshair off so the pane is a
+// static preview the wrapping control can own clicks for.
+export default function TimeframeMainChart({ candles, volumes, box, label, interactive = true }) {
   const boxR = box?.r;
   const boxS = box?.s;
   const boxStart = box?.start_date;
@@ -81,11 +84,11 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
   }
 
   return (
-    <div className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }}>
+    <div className={interactive ? 'screener-modal-chart' : undefined} style={{ height: '100%', minHeight: 0, position: 'relative' }}>
       <CandleChart
         spec={{
           chartOptions: (container) =>
-            chartOptions(container.clientWidth || 600, container.clientHeight || 360),
+            chartOptions(container.clientWidth || 600, container.clientHeight || 360, interactive),
           candles: coloredCandles,
           volumes,
           showVolume: !!volumes?.length,
@@ -96,7 +99,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label }) {
             chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }),
           resizeDelayMs: 100,
           onError: (err) => console.error('[TimeframeMainChart] init failed:', err),
-          deps: [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd],
+          deps: [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd, interactive],
         }}
         candles={candles}
         style={{ height: '100%', position: 'relative' }}

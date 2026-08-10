@@ -940,6 +940,68 @@ td {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* W/M mini-chart widgets under the daily chart. Whole row stays ≤ ~150px so
+   the modal still fits the operator's 1536x864 lens; the panes speak the
+   .phase-bin-control hover/focus grammar (they are controls, not decor). */
+.timeframe-mini-row {
+  background: #171922;
+  border-bottom: 1px solid var(--border-color);
+  display: grid;
+  flex: 0 0 auto;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  padding: 6px 14px 8px;
+}
+
+.timeframe-mini-pane {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px 6px 5px;
+}
+
+.timeframe-mini-pane:hover,
+.timeframe-mini-pane:focus-visible {
+  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.timeframe-mini-caption {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.timeframe-mini-name {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.timeframe-mini-state {
+  font-size: 10px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeframe-mini-chart {
+  height: 110px;
+  overflow: hidden;
+  pointer-events: none;
+  position: relative;
+}
+
 .stock-lens {
   background: #1d202b;
   display: grid;
