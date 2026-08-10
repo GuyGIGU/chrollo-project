@@ -20,7 +20,7 @@ any merge/flip that touches the episode reader): the headline evidence the
 program was approved on (EGBN's three completed support tests + terminal
 resistance posture; the drift-junk zeros DGII 0/11, CHCT 0/7, COLM 0/10,
 FLG 0/2; 15/33 marks under v1; 17 parse-passing junk of 95) must reproduce
-exactly, AND the marks fingerprint must equal the promotion-time pin — the
+exactly, AND the marks fingerprint must equal the recorded pin — the
 outcome pins alone cannot see the drawn windows being re-drawn under them
 (the calibration DB is editable ground truth by design, EC-9; a legitimate
 re-draw moves the fingerprint and the pin fails LOUDLY, which is the point:
@@ -466,8 +466,14 @@ def _drill(mark_asof_rows, ticker: str) -> None:
 # outcome pins were computed on. The calibration DB is editable by design
 # (EC-9): a re-drawn window moves the fingerprint and fails this check BY
 # NAME, so evidence is re-pinned deliberately, never re-based silently.
+# Re-pinned 2026-08-10 (docs/event_map_program_2026-07.md §6): the fingerprint
+# covers EVERY box-verdict mark in the editable DB, and ONE new mark
+# (UNF@2026-07-10 'classic', drawn 2026-07-27) rotated it. The 33 Guided List
+# marks are graduation-identical — their subset still hashes the promotion-time
+# b671e056… — and every outcome pin reproduced unchanged: bookkeeping, not
+# evidence drift.
 _PINNED_MARKS_FINGERPRINT = (
-    "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523")
+    "3cee17e01aaf1bc310047f00965b92a22534a152eb2b411727cc623a2ae947d4")
 _PINNED_MARKS_PARSE_V1 = 15
 _PINNED_MARKS_TOTAL = 33
 _PINNED_JUNK_TOTAL = 95
