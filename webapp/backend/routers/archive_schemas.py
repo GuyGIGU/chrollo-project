@@ -236,6 +236,7 @@ class SetupOut(BaseModel):
     event_map_terminal_drift: Optional[int] = None
     event_map_story_admitted: Optional[int] = None
     event_map_episode_nan_bars: Optional[int] = None
+    event_map_zone_coverage: Optional[float] = None
     event_map_episode_profile: Optional[str] = None
     event_map_episodes: Optional[list] = None
     election_trace: Optional[dict] = None

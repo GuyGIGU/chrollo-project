@@ -367,6 +367,7 @@ _SETUP_OUT_FIELDS = (
     'story_admission_profile', 'event_map_n_swings', 'event_map_pre_box_trend', 'event_map_n_labels',
     'event_map_n_committed', 'event_map_completed_s', 'event_map_completed_r', 'event_map_alternations',
     'event_map_terminal_posture', 'event_map_terminal_drift', 'event_map_story_admitted', 'event_map_episode_nan_bars',
+    'event_map_zone_coverage',
     'event_map_episode_profile', 'event_map_episodes', 'election_trace', 'ta_grade',
     'ta_grade_raw', 'setup_completeness', 'setup_chronology', 'setup_upthrust_terminal',
     'score_setup_quality', 'score_spring', 'score_story_s_tests', 'score_story_r_rejections',

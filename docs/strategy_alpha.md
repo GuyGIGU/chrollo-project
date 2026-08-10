@@ -538,6 +538,27 @@ live in the code) are the story-rescue last-resort pool (a thin, separately name
 predicate — the operator-ruled form, never baked into this reader) and the archived
 sequence substrate.
 
+**The stated geometric limit (2026-08-10) — and the zone-coverage companion.** The zones
+are ATR-fixed while the boxes this screener elects are the market's tightest, so the two
+yardsticks collide at the bottom of the width range: the S and R touch zones together
+consume `2 × TOUCH_TOLERANCE_ATR` ATRs of box height, and on a box shorter than ~2 ATR the
+neutral middle left between them is thinner than one average bar — price cannot stay out
+of both zones long enough for the merge horizon to print clean, distinct tests fuse into
+ONE unresolved visit, and the read prints all-zero counts on a chart that consolidated
+cleanly (LEVI, the discovering case: a 1.45-ATR box read as one R episode spanning the
+whole base; scan-wide, the sub-2-ATR cohort averages 2.57 completed events vs 4.72+
+above — monotone in coverage). The read is therefore honest only WITH its geometry
+companion: every substrate row carries **zone coverage** (`2·tol/(R−S)`, raw, unclamped,
+NULL only when the read itself was refused), and the story-input law carries a fourth
+state — **all-zero counts at coverage ≥ the unreadable floor read ABSENT, never zero**
+(the NaN-bars leg's sibling; the display caveats the same rows in the same words). Nonzero
+counts stay evidence at any coverage — a story loud enough to print through starved
+geometry is real (FXNC: 5 completed at 0.66). Re-basing the zones themselves
+(box-relative tolerance) is deliberately NOT done: the promotion counts and the ruled
+admission form are pinned on these exact bases, so that change is a re-measurement — a
+new archive seam plus a census re-run and re-pin — reserved for its own program if story
+pricing ever needs it.
+
 **The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
 menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**
 a candidate window is story-admissible when its as-of episode read shows **at least 2

@@ -7,9 +7,11 @@ import {
   NARRATIVE_WIRE_FIELDS,
   episodeSpans,
   narrativeStatus,
+  readCaveats,
   readabilityCaveat,
   shapeTrace,
   tapeGlyphs,
+  zoneCoverageCaveat,
 } from './narrativeRead.js';
 
 // ── the status enum: NULL ≠ 0 is the load-bearing distinction ───────────────
@@ -110,10 +112,43 @@ test('readabilityCaveat surfaces the nan-bars companion — zero-by-unreadable n
   assert.equal(readabilityCaveat(null), null);
 });
 
+test('zoneCoverageCaveat fires on starved geometry — the nan-bars sibling', () => {
+  // LEVI 2026-08-10: 0.69 coverage, one merged episode, all-zero counts on a
+  // base that consolidated cleanly. At/above the mirrored floor the caveat
+  // names the geometry; below it (and on absent/rubbish input) it says
+  // nothing.
+  assert.equal(
+    zoneCoverageCaveat({ event_map_zone_coverage: 0.69 }),
+    'touch zones cover 69% of this box — a quiet read here is geometry, not evidence',
+  );
+  assert.ok(zoneCoverageCaveat({ event_map_zone_coverage: 0.5 }));   // the floor itself
+  assert.equal(zoneCoverageCaveat({ event_map_zone_coverage: 0.49 }), null);
+  assert.equal(zoneCoverageCaveat({ event_map_zone_coverage: null }), null);
+  assert.equal(zoneCoverageCaveat({ event_map_zone_coverage: NaN }), null);
+  assert.equal(zoneCoverageCaveat({}), null);
+  assert.equal(zoneCoverageCaveat(null), null);
+});
+
+test('readCaveats composes both honesty caveats in one channel', () => {
+  // The join rule lives ONCE (narrative panel + chapter strip both render
+  // this): nan bars first, geometry second, dot-separated; null when quiet.
+  assert.equal(readCaveats({}), null);
+  assert.equal(
+    readCaveats({ event_map_episode_nan_bars: 2, event_map_zone_coverage: 0.8 }),
+    '2 bars unreadable · touch zones cover 80% of this box — a quiet read here is geometry, not evidence',
+  );
+  assert.equal(readCaveats({ event_map_episode_nan_bars: 2 }), '2 bars unreadable');
+  assert.equal(
+    readCaveats({ event_map_zone_coverage: 0.3, event_map_episode_nan_bars: 0 }),
+    null,
+  );
+});
+
 test('the wire-fields list carries every family key a SetupOut row serves', () => {
   // The archive chart merge copies exactly these (council F4); the family
   // scalars the status enum reads must all be on the list.
   for (const key of ['event_map_completed_s', 'event_map_episode_nan_bars',
+    'event_map_zone_coverage',
     'event_map_episodes', 'event_map_episode_profile', 'elected_pool',
     'story_admission_profile', 'election_trace']) {
     assert.ok(NARRATIVE_WIRE_FIELDS.includes(key), key);

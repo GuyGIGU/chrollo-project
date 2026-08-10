@@ -387,8 +387,8 @@ def test_event_map_flag_on_is_additive_only(monkeypatch):
         "_event_map_completed_s", "_event_map_completed_r",
         "_event_map_alternations", "_event_map_terminal_posture",
         "_event_map_terminal_drift", "_event_map_story_admitted",
-        "_event_map_episode_nan_bars", "_event_map_episode_profile",
-        "_event_map_episodes",
+        "_event_map_episode_nan_bars", "_event_map_zone_coverage",
+        "_event_map_episode_profile", "_event_map_episodes",
     }
     assert on["_event_map_n_swings"] > 0
     assert on["_event_map_n_labels"] >= on["_event_map_n_committed"] >= 0
@@ -761,3 +761,35 @@ def test_episode_substrate_producer_is_as_of_at_the_window_edge():
     full = episode_sequence_stats(
         read_rail_episodes(df, 14.0, 10.0, 1.0))
     assert full["n_completed_s"] == 2
+
+
+def test_episode_substrate_zone_coverage_companion():
+    """The geometry companion (2026-08-10, the nan-bars sibling): the
+    substrate reports what fraction of the box the two ATR-fixed touch zones
+    consume — 2*tol/(R-S), raw and unclamped — so zero-by-geometry can never
+    masquerade as zero-by-drift downstream. NULL exactly when the reader's
+    own preconditions failed (the family's "NULL = not measured" law)."""
+    from config import settings
+    from engine_alpha.structure.event_map import episode_substrate_fields
+
+    bars = [(12.5, 11.5, 12.0)] * 6
+    df = _episode_frame(bars)
+    df.index = pd.date_range("2026-01-05", periods=len(bars), freq="B")
+
+    # R-S = 4 box units, ATR 1.0, tol 0.5 each side -> coverage = 1.0/4 = 0.25
+    fields = episode_substrate_fields(df, 14.0, 10.0, 1.0)
+    expected = 2.0 * settings.TOUCH_TOLERANCE_ATR * 1.0 / 4.0
+    assert fields["_event_map_zone_coverage"] == pytest.approx(expected)
+
+    # A LEVI-shaped box (1.45 ATR tall) reads past the unreadable floor.
+    tight = episode_substrate_fields(df, 11.45, 10.0, 1.0)
+    assert (tight["_event_map_zone_coverage"]
+            >= settings.STORY_UNREADABLE_ZONE_COVERAGE)
+
+    # Refused-read geometry -> NULL, never a fabricated number.
+    assert episode_substrate_fields(df, 10.0, 14.0, 1.0)[
+        "_event_map_zone_coverage"] is None            # R <= S
+    assert episode_substrate_fields(df, 14.0, 10.0, None)[
+        "_event_map_zone_coverage"] is None            # no usable ATR
+    assert episode_substrate_fields(df, 14.0, 10.0, float("nan"))[
+        "_event_map_zone_coverage"] is None

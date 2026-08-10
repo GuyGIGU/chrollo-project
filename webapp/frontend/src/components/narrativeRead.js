@@ -33,7 +33,8 @@ export const NARRATIVE_WIRE_FIELDS = [
   'event_map_n_committed', 'event_map_completed_s', 'event_map_completed_r',
   'event_map_alternations', 'event_map_terminal_posture',
   'event_map_terminal_drift', 'event_map_story_admitted',
-  'event_map_episode_nan_bars', 'event_map_episode_profile',
+  'event_map_episode_nan_bars', 'event_map_zone_coverage',
+  'event_map_episode_profile',
   'event_map_episodes', 'elected_pool', 'story_admission_profile',
   'election_trace',
 ];
@@ -85,6 +86,31 @@ export function readabilityCaveat(data) {
   const nan = data?.event_map_episode_nan_bars;
   if (typeof nan !== 'number' || !Number.isFinite(nan) || nan <= 0) return null;
   return `${nan} bar${nan === 1 ? '' : 's'} unreadable`;
+}
+
+// The GEOMETRY caveat, the nan-bars sibling (LEVI 2026-08-10): the episode
+// zones are ATR-fixed, so on the screener's tightest boxes they consume most
+// of the box height and distinct tests merge into one unresolved visit — the
+// read goes quiet exactly when the setup is good. The floor MIRRORS
+// settings.STORY_UNREADABLE_ZONE_COVERAGE (the setupScoreMath pattern: wire
+// caps/floors live in config, the display mirrors them in ONE place) — the
+// same floor at which the grade's story inputs route all-zero counts to
+// absent. Display of an engine-measured fact; no re-derivation from R/S.
+const ZONE_COVERAGE_UNREADABLE = 0.5; // mirrors STORY_UNREADABLE_ZONE_COVERAGE
+
+export function zoneCoverageCaveat(data) {
+  const coverage = data?.event_map_zone_coverage;
+  if (typeof coverage !== 'number' || !Number.isFinite(coverage)) return null;
+  if (coverage < ZONE_COVERAGE_UNREADABLE) return null;
+  return `touch zones cover ${Math.round(coverage * 100)}% of this box — a quiet read here is geometry, not evidence`;
+}
+
+// The ONE composition of the read-honesty caveats (narrative panel + chapter
+// strip both render this channel — the join rule lives once). Null when
+// nothing needs saying.
+export function readCaveats(data) {
+  return [readabilityCaveat(data), zoneCoverageCaveat(data)]
+    .filter(Boolean).join(' · ') || null;
 }
 
 // The glyph strip: zip the engine-built profile tokens (authoritative — they

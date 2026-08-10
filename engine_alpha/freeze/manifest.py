@@ -259,6 +259,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "STORY_COMPLETED_TESTS_FULL",
     "STORY_ALTERNATIONS_FULL",
     "STORY_UNREADABLE_NAN_BARS",
+    # Zero-by-geometry leg of the story-input law (2026-08-10 declared seam):
+    # the coverage floor below which all-zero episode counts read ABSENT.
+    "STORY_UNREADABLE_ZONE_COVERAGE",
     "TA_WARN_TERMINAL_DRIFT",
     "TA_GRADE_WARNING_FLOOR",
     # Wave-1 charter measurements (task-7 batch — fourth declared seam)

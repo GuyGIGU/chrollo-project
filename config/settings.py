@@ -809,6 +809,16 @@ SCORE_STORY_TERMINAL_POSTURE = 0   # right-edge R-engagement stance (Phase-D cha
 STORY_COMPLETED_TESTS_FULL = 3     # rail-test count at saturation (EGBN separator: 3 completed S-tests vs drift junk 0)
 STORY_ALTERNATIONS_FULL = 2        # alternation count at full credit
 STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars read ABSENT, never zero
+# Zero-by-GEOMETRY is the NaN leg's sibling (LEVI 2026-08-10): the episode
+# zones are ATR-fixed (2 x TOUCH_TOLERANCE_ATR of box height between them),
+# so on a box tighter than ~2 ATR they swallow the neutral middle and distinct
+# tests merge into one unresolved visit — all-zero counts on a chart that
+# consolidated cleanly. Coverage >= this floor (zones eat half the box; the
+# neutral strip is thinner than one average bar) with all-zero counts reads
+# ABSENT, never zero. Scan evidence 2026-08-10: sub-2-ATR boxes average 2.57
+# completed events vs 4.72+ above — monotone in coverage. NONZERO counts stay
+# evidence at any coverage (FXNC read 5 completed at 0.66).
+STORY_UNREADABLE_ZONE_COVERAGE = 0.5  # touch-zone fraction of box height at which all-zero counts read ABSENT
 # Warnings are floored multiplicative discounts applied to the bounded 0-100
 # (never the raw sum); a missing warning input is factor 1.0 EXACTLY.
 # terminal_drift is the first registered warning — neutral 1.0 until the A/B.
