@@ -161,3 +161,35 @@ exercise it as a routine tweak.
   - The flip rotates `engine_config_version` `e3b000e9… → 53c208dc…` — the story pool's
     archive seam; story fires archive `elected_pool='story'` +
     `story_admission_profile` from here forward.
+
+## 6. Marks-fingerprint re-pin — 2026-08-10 (bookkeeping; the evidence did not move)
+
+`--check` fails on exactly one pin — `marks fingerprint (ground-truth identity)`: got
+`3cee17e01aaf1bc310047f00965b92a22534a152eb2b411727cc623a2ae947d4`, pinned `b671e056…`
+(verified pre-existing on a clean main tree). Diagnosis, read-only against the live DB:
+
+- The fingerprint deliberately covers EVERY box-verdict mark in the editable calibration
+  DB (`load_box_marks` hashes exactly the rows it returns), not only the 33 Guided List
+  marks the census reads. On 2026-07-27 18:09 UTC the operator drew ONE new box mark —
+  `UNF@2026-07-10` (label `classic`) — and the whole-DB identity rotated. Timing is
+  corroborated by the near-miss lane's flip re-pin earlier that same day, whose fresh
+  walk still recorded `b671e056…`.
+- The 33 Guided List marks are graduation-identical: the same fingerprint recipe
+  recomputed over only the corpus-keyed rows still yields `b671e056…` exactly; every
+  corpus-covered field (rails, LPS spans, frame digests, knowable_from, notes) matches
+  the sealed corpus; no Guided List mark was edited after 2026-07-24. In particular the
+  mover was NOT the 2026-07-26 Guided List reseal — the 26→28 reseal moved the
+  `marks_corpus` BASELINE (two status conversions, §5), never the calibration DB, which
+  is why `marks_corpus --check` kept passing while this gate tripped: the corpus gate
+  re-prints its graduation-time provenance fingerprint, the census recomputes the live
+  DB identity.
+- Admission outcomes reproduce unchanged (re-run 2026-08-10, engine `f1680dd8…`): every
+  other `--check` pin green (15/33 v1, 17/95 junk, EGBN `S+ S+ S+ R^`, drift-junk
+  zeros), and the full census holds §2's Form-A headline — **22/33 marks admitted at
+  drawn rails, zero live junk exposure** (every parsing junk candidate pool-unreachable
+  or traversal-killed in-pool; RLGT admitted by no form; 69 occupancy deaths, 30
+  traversal kills in-pool).
+- Re-pin: `_PINNED_MARKS_FINGERPRINT` → `3cee17e0…`, copied from the check's own output
+  (EC-37). `tools.near_miss_census` pins the same axis and drifted the same way (plus
+  `engine_manifest`, rotated by the 2026-08-09/10 flips; its distribution pins all still
+  reproduce) — its re-pin is a separate deliberate act, not folded into this one.
