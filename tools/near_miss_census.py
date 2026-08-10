@@ -393,8 +393,16 @@ def _report(doc) -> None:
 # re-bases; re-pin deliberately in the same change); counts = the instrument
 # or the cascade changed shape.
 _PINNED = {
+    # Re-pinned 2026-08-10 (b671e056… → 3cee17e0…): the operator drew ONE
+    # new DB mark — UNF@2026-07-10 'classic', created 2026-07-27 18:09 UTC,
+    # after that day's flip re-pin. The fingerprint covers EVERY box-verdict
+    # mark in the editable DB; the 33 Guided List marks are graduation-
+    # identical (their subset fingerprint still hashes b671e056…), so the
+    # drawn evidence never moved. Diagnosis + provenance:
+    # docs/event_map_program_2026-07.md §6 (the event-map census pinned the
+    # same axis and drifted the same way).
     "marks_fingerprint":
-        "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523",
+        "3cee17e01aaf1bc310047f00965b92a22534a152eb2b411727cc623a2ae947d4",
     "junk_captured_at": "2026-07-03T12:20:14+00:00",
     # Re-pinned 2026-07-26 three times, each axis named: the Task-6 ruling's
     # constants rotated 53c208dc… → 5516256f…; the Task-7 collector flag
@@ -404,8 +412,13 @@ _PINNED = {
     # → c1a5cca0…. The distributions themselves did not move at any seam
     # (nothing here touches a gate) — counts unchanged, re-verified on fresh
     # walks; the flip walk drifted on engine_manifest ALONE.
+    # Re-pinned 2026-08-10: TA_SCORE_V2 LIVE (9923e60) + episode-zone-
+    # coverage (b048ff0) → f1680dd8…, one walk with the marks re-pin above.
+    # Every count pin re-verified unchanged on that same fresh walk BEFORE
+    # re-pinning — nothing moved a gate; the two drifted axes were identity
+    # axes alone.
     "engine_manifest":
-        "c1a5cca0bfa3023979d311076aab2687e3b1e64a27ccfd224f6c8fd0c041e90a",
+        "f1680dd82764284efdef1c31690c59da70268668000cca65f0db3dcc84cfe331",
     "n_drawn": 33,
     "n_examined": 33,
     "n_junk": 1805,
