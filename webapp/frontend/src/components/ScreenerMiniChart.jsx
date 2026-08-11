@@ -1,14 +1,15 @@
 import CandleChart from './CandleChart';
 import { addBoxRails } from './chartRails';
 import { baseChartOptions, CHART_COLORS } from './chartTheme';
-import { colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
+import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
 
 // Faithful daily density: ~90-130 bars in a ~480px screener card ≈ 3.7-5.3px/bar
 // (Finviz-like), vs the old ~48 bars ≈ 10px/bar that let a tight base sprawl
-// edge-to-edge and read tighter than it is. Overridable so the small Home tiles
-// (~165px) can pass a lower budget instead of cramming 90 bars into a sliver.
-const DEFAULT_MAX_BARS = 130;
-const DEFAULT_MIN_BARS = 90;
+// edge-to-edge and read tighter than it is. The budget + margins live in the
+// shared CHART_FRAMING profile so proportion is retuned in ONE place; the props
+// stay overridable so the small Home tiles (~165px) can pass a lower budget
+// instead of cramming 90 bars into a sliver.
+const MINI = CHART_FRAMING.mini;
 
 const chartOptions = (width, height) => {
   const base = baseChartOptions('mini', width, height);
@@ -21,14 +22,14 @@ const chartOptions = (width, height) => {
     crosshair: { mode: 0 },
     // Tight vertical fit (Finviz pillar #2): small margins so the visible high-low
     // fills the pane and a real consolidation reads at its true height, not flattened.
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.14 }, autoScale: true },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: MINI.scaleMargins, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
     handleScroll: false,
     handleScale: false,
   };
 };
 
-const ScreenerMiniChart = ({ ticker, data, maxBars = DEFAULT_MAX_BARS, minBars = DEFAULT_MIN_BARS }) => {
+const ScreenerMiniChart = ({ ticker, data, maxBars = MINI.maxVisibleBars, minBars = MINI.minVisibleBars }) => {
   const candles = data.candles;
   const coloredCandles = colorMiniCandles(data);
 
@@ -59,7 +60,7 @@ const ScreenerMiniChart = ({ ticker, data, maxBars = DEFAULT_MAX_BARS, minBars =
         },
         volumes: data.volumes,
         showVolume: true,
-        volumeScaleTop: 0.86,
+        volumeScaleTop: MINI.volumeScaleTop,
         onReady,
         onError: (err) => console.error(`[ScreenerMiniChart] Chart init failed for ${ticker}:`, err),
         deps: [ticker, data],

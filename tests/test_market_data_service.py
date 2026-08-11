@@ -128,19 +128,25 @@ def test_chart_candles_matches_archive_route_shape():
 # ── daily_candle_frame / latest_prices route through the provider ──────────
 def test_daily_candle_frame_delegates_to_provider(monkeypatch):
     captured = {}
+    # A real frame, not a sentinel string: the service reads `.empty`/`.copy()` to
+    # decide what is cacheable, so the stand-in has to be the shape the provider
+    # actually returns. The delegation assertion below is unchanged.
+    frame = pd.DataFrame({"Close": [1.0]}, index=pd.to_datetime(["2026-05-01"]))
 
     def fake_get_provider():
         def daily_candles(symbol, days, *, start=None, end=None, auto_adjust=False):
             captured.update(symbol=symbol, days=days, start=start, end=end, auto_adjust=auto_adjust)
-            return "FRAME"
+            return frame
         return SimpleNamespace(daily_candles=daily_candles)
 
+    md_service.clear_candle_cache()  # the read is cached; start from a known state
     monkeypatch.setattr(md_service, "get_provider", fake_get_provider)
     out = md_service.daily_candle_frame("AAA", 200, start="2026-01-01", end="2026-06-01", auto_adjust=True)
 
-    assert out == "FRAME"
+    pd.testing.assert_frame_equal(out, frame)
     assert captured == {"symbol": "AAA", "days": 200, "start": "2026-01-01",
                         "end": "2026-06-01", "auto_adjust": True}
+    md_service.clear_candle_cache()
 
 
 def test_latest_prices_delegates_to_provider(monkeypatch):

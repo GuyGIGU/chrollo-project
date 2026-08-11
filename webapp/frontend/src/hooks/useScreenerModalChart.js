@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 import useLightweightChart from './useLightweightChart';
 import { attachPhaseOverlay, colorLpsCandles, rootSwingRange } from '../components/chartPhaseOverlay';
-import { finiteNumber } from '../components/chartGeometry';
+import { CHART_FRAMING, finiteNumber, modalFocusLogicalRange } from '../components/chartGeometry';
 import { addBoxRails } from '../components/chartRails';
 import { baseChartOptions, CHART_COLORS } from '../components/chartTheme';
 
@@ -13,7 +13,7 @@ const chartOptions = (width, height) => {
     crosshair: { mode: 1 },
     // Tight vertical fit so amplitude isn't flattened; bottom band sized to the
     // (now smaller) volume footprint so price/volume don't overlap.
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: CHART_FRAMING.modal.scaleMargins, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
     handleScroll: true,
     handleScale: true,
@@ -78,15 +78,14 @@ const buildMarkers = (annotations) => {
   return markers;
 };
 
-const setFocusedRange = (chart, data, baseEnd) => {
-  if (!data.candles?.length) return;
-  // Show the base with substantial pre-base trend context (~120-160 bars) so it
-  // renders at a faithful daily density (~9-12px/bar in the wide modal pane)
-  // instead of ~52 bars stretched to ~20-28px/bar, which flattened the base.
-  const displayStart = Math.max(0, baseEnd - Math.max(data.base_len + 90, 120));
+// The window itself is pure math shared with the mini card (chartGeometry); this
+// only maps the resolved logical range onto the time axis the modal scrolls in.
+const setFocusedRange = (chart, data) => {
+  const range = modalFocusLogicalRange(data);
+  if (!range) return;
   chart.timeScale().setVisibleRange({
-    from: data.candles[displayStart].time,
-    to: data.candles[data.candles.length - 1].time,
+    from: data.candles[range.from].time,
+    to: data.candles[range.to].time,
   });
 };
 
@@ -103,8 +102,6 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
   // weekly/monthly tabs render TimeframeMainChart instead. Guarding on interval
   // (via candles passed to the hook) keeps returning to Daily re-init cleanly.
   const dailyCandles = interval === 'D' ? data?.candles : null;
-  const forwardBars = data?.forward_bars || 0;
-  const baseEnd = (data?.candles?.length || 0) - 1 - forwardBars;
   // Memoized on the chart's own deps: the glyph-tape hover re-renders the
   // whole modal per mouse transition, and unmemoized this deep-cloned the
   // full candle array every time just to throw it away (council review
@@ -120,7 +117,7 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
     barOptions: { upColor: CHART_COLORS.candle, downColor: CHART_COLORS.candle, thinBars: false },
     volumes: data?.volumes,
     showVolume: true,
-    volumeScaleTop: 0.84,
+    volumeScaleTop: CHART_FRAMING.modal.volumeScaleTop,
     showSma: true,
     onReady: (chart, candleSeries) => {
       const phaseOverlay = attachPhaseOverlay({
@@ -134,7 +131,7 @@ export default function useScreenerModalChart(containerRef, ticker, data, active
       // The SAME rail drawer the mini card uses — card and modal cannot diverge.
       addBoxRails(chart, data);
       addAnnotations(candleSeries, data.annotations || {});
-      setFocusedRange(chart, data, baseEnd);
+      setFocusedRange(chart, data);
 
       return () => {
         phaseOverlay.remove();
