@@ -1019,9 +1019,14 @@ what the frontend narrative surface renders and the operator grades concordance 
   `event_map_story_admitted`, and the two may legally disagree).
 - **`scan_identity`** (payload top level): `scan_date` — the SAME string
   `archive_scan_results` stamps (scan_job computes it once and threads it to both writers, so
-  payload and archive can never straddle midnight into different identities) — plus
-  `universe_type` and `engine_config_version`. A review verdict recorded from the frontend binds
-  to the archive row via this key verbatim, never a client-derived date.
+  payload and archive can never straddle midnight into different identities). The value is the
+  panel's own last completed session, copied from the fetched artifact rather than the wall
+  clock (EC-37); clock fallback only for an empty panel. The prior local-`today()` stamp on an
+  ET+7 box filed weekend and post-midnight re-scans of Friday's data under new Saturday/Sunday
+  identities — the archive's ~28% duplicate-episode defect (fixed 2026-08-11; a weekend re-scan
+  now re-upserts Friday's rows idempotently). Plus `universe_type` and
+  `engine_config_version`. A review verdict recorded from the frontend binds to the archive row
+  via this key verbatim, never a client-derived date.
 
 - **The election trace** (`election_trace`, flag `ELECTION_TRACE_EXPORT_ENABLED`, dark):
   `read_structure`'s own narration captured during the SAME election that fired (evaluation

@@ -83,7 +83,9 @@ def _stub_scan_job(monkeypatch, calls, fresh: bool):
         assert near_miss_sink is not None, "the gate condition dropped the sink"
         near_miss_sink["rows"].append({"ticker": "EGBN"})
         near_miss_sink["stats"]["records"] = 3
-        return pd.DataFrame(), {}, [], {}
+        # An empty DataFrame, not {}: the panel slot is typed pd.DataFrame and
+        # scan_job now reads its last bar for the session stamp.
+        return pd.DataFrame(), pd.DataFrame(), [], {}
 
     def _fake_writer(rows, *, universe_type, enable=False):
         calls.append(("writer", len(rows), universe_type, enable))
