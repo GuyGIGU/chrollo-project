@@ -132,6 +132,10 @@ happens until the operator declares the flip good.
   derivation.
 - Migrate the rich explainTip tooltip copy onto the v2 chips (the resolver
   currently shows label-only titles in the v2 epoch, by design).
+  **DONE — pulled forward 2026-08-11** (operator flagged the missing hovers at the
+  eyeball pass): `components/tagTooltips.js` carries the copy + rebuilds the measured
+  suffixes from each fired entry's `detail` facts; the retirement wave should delete
+  the legacy copy in `setupTagsData.js`, not this module.
 - Retire `TA_SCORE_V2` (flag → Retired in the ledger; the legacy scorer
   path and the dual-epoch switches go with it).
 

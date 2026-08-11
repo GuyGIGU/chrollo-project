@@ -145,6 +145,11 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, passed, onTo
           {ticker}
         </span>
         <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
+        {data.sector_etf ? (
+          <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}>
+            {data.sector_etf}
+          </span>
+        ) : null}
         <span style={{ color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
           {asOfDate(data.candles)}
         </span>

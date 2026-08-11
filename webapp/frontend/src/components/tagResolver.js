@@ -18,6 +18,7 @@
 // Vite (the wireVocabulary/narrativeRead node-suite convention).
 import { deriveTags, TAG_CATALOG } from './setupTagsData.js';
 import { tagFlagsFromWire } from './wireVocabulary.js';
+import { tooltipForTag } from './tagTooltips.js';
 
 const CATALOG_BY_ID = new Map(TAG_CATALOG.map(def => [def.id, def]));
 const ORDER_BY_ID = new Map(TAG_CATALOG.map((def, index) => [def.id, index]));
@@ -45,16 +46,16 @@ export function resolveTags(data) {
           detail: entry.detail || {},
         };
       }
-      // Presentation only: label/group from the frozen catalog. The rich
-      // explainTip copy migrates at the STAGED-RETIREMENT wave, post-flip
-      // (docs/ta_grade_flip_checklist_2026-08.md, "Migrate the rich
-      // explainTip tooltip copy") — label-only v2 titles until then are BY
-      // DESIGN. Which chips FIRE was decided engine-side.
+      // Presentation only: label/group from the frozen catalog; the rich
+      // explainTip copy comes from tagTooltips (the checklist's "Migrate the
+      // rich explainTip tooltip copy" item, pulled forward), with the fired
+      // entry's detail facts folded into the dynamic tags' suffixes. Which
+      // chips FIRE was decided engine-side.
       return {
         id: def.id,
         label: def.label,
         group: def.group,
-        title: def.label,
+        title: tooltipForTag(def.id, entry.detail) ?? def.label,
         detail: entry.detail || {},
       };
     })

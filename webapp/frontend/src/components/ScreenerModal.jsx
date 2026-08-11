@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import TimeframeMainChart from './TimeframeMainChart';
+import TimeframeMiniRow from './TimeframeMiniRow';
 import useScreenerModalChart from '../hooks/useScreenerModalChart';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
@@ -221,6 +222,9 @@ const ScreenerModal = ({ ticker, data, earnings, scanIdentity = null, onClose, o
               />
             )}
           </div>
+          {interval === 'D' && (
+            <TimeframeMiniRow data={data} onSelectInterval={selectInterval} />
+          )}
           <ScreenerStockLens
             activeRegion={activeRegion}
             data={data}
