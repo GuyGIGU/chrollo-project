@@ -329,8 +329,12 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # ONE scan_date for every store this export writes (the payload's
     # scan_identity and the archive's upsert key), computed once so the two
     # can never straddle midnight into different identities for one scan.
-    # Same local-date convention archive_scan_results has always defaulted to.
-    scan_date = date.today().strftime("%Y-%m-%d")
+    # Stamped from the panel's own last bar, never the wall clock (EC-37): on
+    # this ET+7 box the local-date stamp filed every weekend/post-midnight
+    # re-scan of Friday's data under a NEW Saturday/Sunday identity instead of
+    # re-upserting Friday's rows (~28% duplicate episode-pairs by 2026-08).
+    # Clock fallback only for an empty panel, where there is no artifact to copy.
+    scan_date = _last_bar_date(data, tickers) or date.today().strftime("%Y-%m-%d")
 
     if results_df.empty:
         print("\nNo setups found today. Filters are running tight, wait for the right pitch!")

@@ -9,7 +9,6 @@ project_archive_silent_stall):
   #5 an orphaned status='running' scan_runs row is reconciled to failed at boot
 """
 import json
-import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -232,11 +231,33 @@ def test_download_degraded_coverage_archives_fresh_subset(tmp_path, monkeypatch)
     result = scan_job_module.run_scan_and_export(mode="download")
 
     assert archived["tickers"] == ["AAA"]   # only the per-ticker-fresh setup archived
-    # The one threaded scan_date reached the writer AND is the payload's own
-    # date shape (council F2: bare truthiness let a broken thread pass).
-    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", archived["scan_date_str"] or "")
+    # The one threaded scan_date reached the writer AND is the PANEL's own
+    # session, not the wall clock — the ET+7 box's date.today() stamp was the
+    # weekend-duplicate factory (council F2: bare truthiness let a broken
+    # thread pass; equality against the panel session subsumes the shape check).
+    assert archived["scan_date_str"] == expected
     assert result.n_archived == 1
     assert result.n_setups == 2             # both still counted as fired
+
+
+def test_empty_day_dashboard_carries_panel_session_date(tmp_path, monkeypatch):
+    """The empty-branch artifact carries the panel's own session too — one
+    identity convention for 'scanned, matched nothing' and for fires alike
+    (a weekend re-scan of Friday's panel must present as Friday, not as a
+    new Saturday artifact)."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "SPY", "QQQ"], expected)
+    _wire_scan_io(monkeypatch, pd.DataFrame(), panel, ["AAA"])
+    # The lane is not under test; keep the empty branch off the writer.
+    monkeypatch.setattr(scan_job_module.settings, "NEAR_MISS_LANE_ENABLED", False)
+    seen = {}
+    monkeypatch.setattr(scan_job_module, "generate_dashboard",
+                        lambda *a, **k: seen.update(k))
+
+    result = scan_job_module.run_scan_and_export(mode="download")
+
+    assert seen["scan_date"] == expected
+    assert result.n_setups == 0
 
 
 def test_download_fresh_archives_full_cohort(tmp_path, monkeypatch):
