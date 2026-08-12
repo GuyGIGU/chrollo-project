@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { ScoreBreakdownPills } from './ScoreBreakdown';
-import { TaGradePanel } from './TaGradePanel';
-import { TagRow } from './SetupTags';
+import SetupStoryPanel from './SetupStoryPanel';
 import { buildPhaseRegions } from './chartPhaseOverlay';
 import {
   ABSENCE_COPY,
@@ -13,7 +11,6 @@ import {
   tapeGlyphs,
 } from './narrativeRead';
 import { toast } from './ui/feedback';
-import { explainTip } from './tooltipText';
 import {
   ROOT_OUTCOME_LABELS,
   TRACE_STAGE_LABELS,
@@ -42,18 +39,6 @@ const bars = (value) => {
 
 const latestCandle = (data) => data?.candles?.[data.candles.length - 1] || null;
 
-const latestLpsRegion = (regions) => (
-  regions
-    .filter((region) => region.key === 'lps')
-    .sort((a, b) => b.endIndex - a.endIndex || b.startIndex - a.startIndex)[0] || null
-);
-
-const structurePanelRegions = (regions) => {
-  const latestLps = latestLpsRegion(regions);
-  const nonLps = regions.filter((region) => region.key !== 'lps');
-  return latestLps ? [...nonLps, { ...latestLps, activeTarget: 'lps' }] : nonLps;
-};
-
 const distanceToTriggerPct = (data) => {
   const currentPrice = finiteNumber(data?.price ?? latestCandle(data)?.close);
   const trigger = finiteNumber(data?.trigger);
@@ -77,21 +62,6 @@ const triggerRead = (value) => {
 };
 
 const sectorLabel = (data) => data?.sector_etf || data?.sector_name || '-';
-
-const phaseRegionTip = (region) => {
-  if (region.key === 'd' && region.evidenceSummary) {
-    return explainTip({
-      what: `${region.name} starts at the selected right-side evidence: ${region.detail.toLowerCase()}.`,
-      why: `The evidence vocabulary is ${region.evidenceSummary}; the earliest credible signal after the Phase-C floor anchors the Phase-D band, with LPS as the fallback.`,
-      use: 'Hover or focus it to highlight Phase D, then confirm that the selected evidence matches the tightening support behavior by eye.',
-    });
-  }
-  return explainTip({
-    what: `${region.name} marks ${region.detail.toLowerCase()} in the detected base.`,
-    why: 'It shows which part of the Wyckoff-style structure the engine is reading on the chart.',
-    use: 'Hover or focus it to highlight the matching region, then verify the support, resistance, and recovery behavior by eye.',
-  });
-};
 
 // Next-earnings cell for the detail grid. Shows the actual DATE (never the
 // cryptic "ER"), tinted by proximity — caution amber inside ~10 days, danger
@@ -144,48 +114,6 @@ function TechnicalReadGrid({ data, earnings }) {
             <span className="lens-v" style={{ color: cell.tone || 'var(--text-main)' }}>{cell.v}</span>
           </div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-function PhaseBinPanel({ activeRegion, data, onRegionChange }) {
-  const regions = structurePanelRegions(buildPhaseRegions(data));
-  if (regions.length === 0) return null;
-
-  return (
-    <section className="stock-lens-section stock-lens-structure">
-      <div className="stock-lens-section-header">
-        <span>Technical Structure Analysis</span>
-      </div>
-      <div className="stock-lens-phase-list">
-        {regions.map(region => {
-          const activeTarget = region.activeTarget || region.id;
-          const isActive = activeRegion === activeTarget || activeRegion === region.id;
-          const tokenStyle = region.color ? {
-            borderColor: `${region.color}aa`,
-            color: region.color,
-          } : undefined;
-          return (
-            <button
-              key={region.id}
-              type="button"
-              className={`phase-bin-control phase-bin-${region.key}${isActive ? ' is-active' : ''}`}
-              onBlur={() => onRegionChange(null)}
-              onFocus={() => onRegionChange(activeTarget)}
-              onMouseEnter={() => onRegionChange(activeTarget)}
-              onMouseLeave={() => onRegionChange(null)}
-              aria-label={`${region.name} - ${region.detail}`}
-              title={phaseRegionTip(region)}
-            >
-              <span className="phase-bin-token" style={tokenStyle}>{region.label}</span>
-              <span className="phase-bin-copy">
-                <span className="phase-bin-name">{region.name}</span>
-                <span className="phase-bin-detail">{region.detail}</span>
-              </span>
-            </button>
-          );
-        })}
       </div>
     </section>
   );
@@ -502,40 +430,26 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   );
 }
 
-function TagsPanel({ activeRegion, data, onRegionChange }) {
-  const read = triggerRead(distanceToTriggerPct(data));
-  return (
-    <section className="stock-lens-section">
-      <div className="stock-lens-section-header">
-        <span>Why It Stands Out</span>
-        <small>{read}</small>
-      </div>
-      <TagRow
-        data={data}
-        maxTags={null}
-        style={{ padding: 0 }}
-      />
-      {/* Dual-epoch (task 12): a graded payload shows the 0-100 + chapter
-          strip; a pre-v2 payload keeps the legacy Visual/Market pills. The
-          pills' JSX+CSS delete as one unit at the flag's retirement. */}
-      {data.ta_grade != null ? (
-        <TaGradePanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
-      ) : (
-        <ScoreBreakdownPills subScores={data.sub_scores} style={{ marginTop: 10 }} />
-      )}
-    </section>
-  );
-}
-
 export default function ScreenerStockLens({ activeRegion, data, earnings, interval = 'D', onRegionChange, scanIdentity = null, ticker = null }) {
   const showDailyStructure = interval === 'D';
+  // The phase spans belong to the DAILY read — on a weekly/monthly pane there is
+  // nothing on screen for them to point at, so the story rows keep their grades
+  // and drop their highlights rather than lighting bars that aren't there.
+  const regions = showDailyStructure ? buildPhaseRegions(data) : [];
   return (
     <div className="stock-lens">
-      <TechnicalReadGrid data={data} earnings={earnings} />
+      {/* The protagonist leads (operator 2026-08-12): the fused read is the
+          first and widest thing in the panel; the measured grid and the
+          narrative sit under it. */}
+      <SetupStoryPanel
+        activeRegion={activeRegion}
+        data={data}
+        note={triggerRead(distanceToTriggerPct(data))}
+        onRegionChange={onRegionChange}
+        regions={regions}
+      />
       <div className="stock-lens-bottom">
-        {showDailyStructure ? (
-          <PhaseBinPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
-        ) : null}
+        <TechnicalReadGrid data={data} earnings={earnings} />
         {showDailyStructure ? (
           <NarrativePanel
             activeRegion={activeRegion}
@@ -545,7 +459,6 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
             ticker={ticker}
           />
         ) : null}
-        <TagsPanel activeRegion={activeRegion} data={data} onRegionChange={onRegionChange} />
       </div>
     </div>
   );

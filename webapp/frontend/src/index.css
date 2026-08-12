@@ -711,13 +711,6 @@ td {
    equal-width segments in the RULED story order — fill is the engine-resolved
    earned fraction, so an A/B reweight moves fills, never the layout. No
    chapter element wears a tier hue; warnings keep the only hot treatment. */
-.ta-grade-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-
 .ta-grade-headline {
   align-items: baseline;
   display: flex;
@@ -740,50 +733,91 @@ td {
   font-weight: 600;
 }
 
-.ta-grade-strip {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(5, 1fr);
+/* ── The fused setup story (operator fold 2026-08-12) ────────────────────────
+   "Why It Stands Out" and "Technical Structure Analysis" were the same panel
+   twice — both listed Phase B/C/D, one as hoverable spans, the other as graded
+   chapters. Now each phase is ONE row: token, words, graded bar, number, read
+   top to bottom the way the chart reads left to right. Rows that own a chart
+   region are buttons and speak the house control grammar their lens siblings
+   speak (.narrative-glyph, the retired .phase-bin-control): cursor, hover wash,
+   and the mythril is-active border when their region is lit. A row with nothing
+   to light is flat and inert — an affordance that does nothing is worse than
+   none (2026-08-08 review, finding 13c, in reverse). */
+.story-topline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-/* Chapter cells drive the chart's activeRegion channel on hover — they
-   speak the house control grammar their two lens siblings speak
-   (.phase-bin-control, .narrative-glyph): cursor, hover wash, and the
-   mythril is-active border when their region is lit (2026-08-08 review,
-   finding 13c — an invisible control is an unfound feature). */
-.ta-grade-chapter {
-  border: 1px solid transparent;
+.story-rows {
+  display: grid;
+  gap: 2px;
+  margin-top: 9px;
+}
+
+.story-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-xs);
+  color: var(--text-main);
   cursor: help;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  padding: 2px 3px;
+  display: grid;
+  font-family: inherit;
+  gap: 10px;
+  grid-template-columns: 42px minmax(0, 1fr) 130px 46px;
+  min-height: 28px;
+  padding: 2px 8px;
+  text-align: left;
   transition: background 120ms ease, border-color 120ms ease;
 }
 
-.ta-grade-chapter:hover {
+.story-row:hover,
+.story-row:focus-visible,
+.story-row.is-active {
   background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
   border-color: var(--border-strong);
+  outline: none;
 }
 
-.ta-grade-chapter.is-active {
+.story-row.is-active {
   border-color: var(--accent-active);
 }
 
-.ta-grade-chapter-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+/* Nothing on the chart to point at (the trend chapter; every row on a
+   weekly/monthly pane): still a row, no promise of a highlight. */
+.story-row.is-static,
+.story-row.is-static:hover {
+  background: transparent;
+  border-color: var(--border-color);
+  cursor: default;
 }
 
-.ta-grade-chapter-bar {
+/* The LPS is a COMPONENT of Phase D, not a sibling of it — its points are
+   already counted there, which is why it shows a percentage and sits indented. */
+.story-row.is-nested {
+  margin-left: 22px;
+}
+
+.story-row .phase-bin-token {
+  padding: 0 3px;
+  width: 100%;
+}
+
+.story-copy {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.story-copy .phase-bin-name {
+  flex-shrink: 0;
+}
+
+.story-bar {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 2px;
   display: block;
@@ -791,25 +825,20 @@ td {
   overflow: hidden;
 }
 
-.ta-grade-chapter-fill {
+.story-fill {
   background: var(--accent-blue);
   border-radius: 2px;
   display: block;
   height: 100%;
 }
 
-.ta-grade-chapter-points {
+.story-grade {
   color: var(--text-main);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-}
-
-.ta-grade-chapter-caveat {
-  color: var(--text-faint);
-  font-size: 9px;
-  line-height: 1.2;
+  text-align: right;
 }
 
 .ta-grade-warnings {
@@ -849,30 +878,10 @@ td {
   margin-top: 8px;
 }
 
-.phase-bin-control {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-main);
-  cursor: help;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 34px 1fr;
-  min-height: 38px;
-  padding: 6px 8px;
-  text-align: left;
-  width: 100%;
-}
-
-.phase-bin-control:hover,
-.phase-bin-control:focus-visible,
-.phase-bin-control.is-active {
-  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
-  border-color: var(--border-strong);
-  outline: none;
-}
-
+/* The phase vocabulary — token chip, name, detail, and the per-phase token
+   colors that mirror the chart's own region tints. The .phase-bin-control
+   button they used to sit inside retired with the panel fold (2026-08-12);
+   the story rows wear them now. */
 .phase-bin-token {
   align-items: center;
   border: 1px solid var(--border-strong);
@@ -885,13 +894,6 @@ td {
   justify-content: center;
   letter-spacing: 0;
   line-height: 1;
-}
-
-.phase-bin-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
 }
 
 .phase-bin-name {
@@ -1016,15 +1018,16 @@ td {
 }
 
 /* The read panel is capped and scrolls; the charts above it are not, so this
-   cap IS the chart band's height budget. Kept deliberately tight (operator
-   2026-08-12: "more space to render them") — nothing is lost, the panel just
-   scrolls sooner. */
+   cap IS the chart band's height budget. Kept tight (operator 2026-08-12:
+   "more space to render them"), then given back the ~35px the fused story
+   panel needs to land whole — it is the first thing read, and a protagonist
+   that opens mid-scroll is not one. Nothing below it is lost; it scrolls. */
 .stock-lens {
   background: #1d202b;
   display: grid;
   flex: 0 0 auto;
   gap: 10px;
-  max-height: min(30vh, 280px);
+  max-height: min(34vh, 320px);
   overflow-y: auto;
   padding: 12px 14px;
 }
@@ -1100,27 +1103,12 @@ td {
   white-space: nowrap;
 }
 
-.stock-lens-phase-list {
-  display: grid;
-  gap: 7px;
-  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
-}
+/* (The third-section full-row rule retired with the 2026-08-12 fold: the
+   bottom grid holds exactly two sections now — the measured grid and the
+   Engine's Read — because the fused story panel sits above it, full width.) */
 
-.stock-lens-phase-list .phase-bin-control {
-  min-height: 42px;
-}
-
-/* The Engine's Read panel (Surface the Read). A third lens section made the
-   fixed two-column bottom grid orphan "Why It Stands Out" into the narrow
-   track with an empty wide cell beside it — with three sections, the third
-   (the tags) spans its own full row; the two-section weekly/monthly and
-   no-narrative cases keep the original layout (council review 2026-08-05,
-   finding 12). */
-.stock-lens-bottom .stock-lens-section:nth-child(3) {
-  grid-column: 1 / -1;
-}
-
-/* The panel's controls speak the house interaction grammar — the same
+/* The Engine's Read panel (Surface the Read).
+   The panel's controls speak the house interaction grammar — the same
    hover wash + border strengthening as .phase-bin-control beside them, the
    app's accent focus ring, one shared padding and type size. A SELECTED
    verdict wears the modal's selection grammar (the IntervalTabs myth-soft
