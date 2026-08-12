@@ -94,21 +94,32 @@ components:
     rounded: "4px"
     height: "18px"
     padding: "0 6px"
-  # TA-grade panel (build task 12; supersedes the Visual/Market pill pair at
-  # the flip — the pills survive only for pre-v2 payloads until retirement).
-  # The 0-100 is the lens's single dominant datum: mono/tabular, permanent
-  # "/100" scale marker (it must never be misread as the legacy raw score).
-  # The chapter strip beneath it keeps EQUAL-width segments in the ruled
-  # story order (cause→work→turn→finish→trend, never points-sorted); fill =
-  # the engine-resolved earned fraction, so an A/B reweight moves fills,
-  # never the layout. Chromatically neutral (accent-blue fills, muted
-  # labels); NO chapter or HTF element may wear a tier hue (Tier-Reserve);
-  # warnings keep the only hot treatment, as labeled line items with cost.
-  ta-grade-panel:
-    headline: "{typography.mono} 26px/800 + /100 marker in text-faint 12px"
-    strip: "5 equal columns, 5px bars, fill {colors.accent-blue}"
-    caveats: "narrativeRead three-state wording, text-faint 9px"
-    warnings: "warning tint chips, the panel's only hot hue"
+  # The setup story panel — "Why It Stands Out", the lens's protagonist
+  # (supersedes the Visual/Market pill pair at the TA-grade flip; the pills
+  # survive only for pre-v2 payloads until retirement). Rebuilt 2026-08-12 as
+  # THE CONTINUED AXIS: the chart's time axis carried on below it, phases
+  # marching ACROSS the width as vertical typographic stacks in chart order,
+  # never points-sorted. The 0-100 anchors the left behind the panel's one
+  # strong rule, with a permanent "/100" marker (it must never be misread as
+  # the legacy raw score). No card, border, radius or shadow on a phase —
+  # stacks are separated by rhythm, one gutter hairline, and a shared number
+  # line. Lock-on is a column wash + a mythril bracket promoted out of the
+  # gutters that are already drawn; no card appears on hover.
+  # The 6px rule capping each stack does three jobs at once: separator,
+  # earned-fraction gauge, and the phase's own chart-overlay hue laid flat.
+  # That hue is the ONE sanctioned colour here and it is categorical, not
+  # decorative — it means "this lights a band of that colour on the chart", so
+  # chapters that light nothing (Cause, Trend) stay neutral steel. NO element
+  # may wear a tier hue (Tier-Reserve). Warnings keep the only hot treatment,
+  # beside the grade they discount.
+  setup-story-panel:
+    total: "{typography.mono} 32px/800 + /100 marker in text-faint 12px, right-ruled in border-strong"
+    column: "6px hue gauge (fill = engine-resolved fraction) · 20px mono figure · chip + 12.5px name · 3-line 10.5px detail"
+    hues: "a text-faint · b accent-purple · c accent-pink · d accent-blue · lps accent-yellow · chapters with no band, muted"
+    absence: "ungraded shows a 1px hairline and the word 'span only' — never an empty track, never 0.0"
+    nested-lps: "recessed instrument-well inside Phase D's column, gold rail, percent not points"
+    caveats: "narrativeRead three-state wording; a caveat shared by 2+ columns hoists to one daggered footnote"
+    warnings: "warning tint chips beside the grade, the panel's only hot hue"
   status-pill:
     textColor: "{colors.text-main}"
     rounded: "{rounded.pill}"

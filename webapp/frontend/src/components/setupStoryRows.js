@@ -19,18 +19,29 @@ import { CHAPTER_REGION, chapterCells } from './chapterStrip.js';
 import { SUB_SCORE_CAPS } from './setupScoreMath.js';
 import { PHASE_NAMES } from './wireVocabulary.js';
 
-// What each chapter grades, in the words taxonomy.py's chapter block uses. A
-// chapter with a phase span of its own prefers the SPAN's detail (it is the
-// measured one — "Undercut and recovery" for a real spring, the resolved
-// Phase-D evidence source); these are the fallback, and the only text the two
-// span-less chapters ever show.
-const CHAPTER_DETAIL = {
+// WHAT EACH CHAPTER GRADES, in the words taxonomy.py's own chapter block uses.
+//
+// These describe the QUESTION the chapter scores, never an event on the chart.
+// That distinction is the whole point: the first cut used the phase SPAN's
+// vocabulary here as a fallback, so a chapter whose span did not resolve printed
+// the event anyway — `phase_c` read "Support shakeout or test" on 212 of 302
+// live setups where the engine had detected no Phase C at all, in the same words
+// the 16 real ones used (review 2026-08-12). A chapter's grade is real whether
+// or not its span resolved; what must never happen is the panel asserting the
+// event that produced it.
+const CHAPTER_GRADES = {
   cause: 'The base itself — proper, tight, mature',
-  phase_b: 'Two-sided range work',
-  phase_c: 'Support shakeout or test',
-  phase_d: 'Right-side tightening range',
+  phase_b: 'The work inside the range — touches, traversal, contraction',
+  phase_c: 'The bullish tell — a spring below support, or rising support',
+  phase_d: 'The right side into the pivot — LPS, volume dry-up, the squeeze',
   trend: 'The chart around the base — trend, RS, 52-week, ADR',
 };
+
+// Said plainly when a chapter owns a phase band and that band did not resolve.
+// "No X on this chart" is a measured absence and reads as one; it is NOT the
+// three-state "not measured", because the chapter's own grade is right there
+// beside it.
+const absentSpan = (name) => `No ${name} on this chart`;
 
 // The LPS's own grade: the engine's lps_tightness term as a fraction of its cap.
 //
@@ -54,11 +65,29 @@ export function lpsGrade(data) {
   return { fraction, percent: Math.round(fraction * 100) };
 }
 
+// A row exists in one of three relationships with a band on the chart:
+//   'measured' — the band resolved and this row can light it
+//   'absent'   — this chapter owns a band and the engine found none here
+//   'none'     — the chapter never had a band to own (Cause, Trend)
+// The panel renders these differently on purpose. Collapsing 'absent' into
+// 'measured' is what produced the Phase-C lie.
+export const SPAN_STATES = ['measured', 'absent', 'none'];
+
 const spanRow = (region, extra = {}) => ({
   key: region.key,
+  // The PHASE this row belongs to (a|b|c|d|lps), or null for a chapter that is
+  // not a phase. It is what the token chip is coloured by, so it must not be
+  // the chapter key: the panel keyed the colour class off `key` and emitted
+  // `phase-bin-phase_b` against a stylesheet that only defines `.phase-bin-b`,
+  // so B, C and D lost the tint that ties them to their band on the chart while
+  // A and LPS kept theirs (review 2026-08-12). It is also deliberately NOT the
+  // resolved region: Phase C is pink whether or not a band was found.
+  phase: region.key,
   token: region.label,
   name: region.name,
   detail: region.detail,
+  grades: null,
+  spanState: 'measured',
   region: region.key,
   color: region.color ?? null,
   points: null,
@@ -75,22 +104,41 @@ const spanRow = (region, extra = {}) => ({
 // would print the same sentence twice under two different names.
 const CHAPTER_OWN_SPAN = { phase_b: 'b', phase_c: 'c', phase_d: 'd' };
 
-const chapterRow = (cell, span, region) => ({
-  key: cell.key,
-  token: cell.short,
-  // A chapter that owns a phase wears the PHASE's name (the same words by
-  // construction — CHAPTER_LABELS.phase_b.label === PHASE_NAMES.b); an unknown
-  // wire chapter falls through with its own label, never dropped.
-  name: cell.label,
-  detail: span?.detail ?? CHAPTER_DETAIL[cell.key] ?? '',
-  region: region ? region.key : null,
-  color: region?.color ?? null,
-  points: cell.points,
-  fraction: cell.fraction,
-  percent: null,
-  subtext: cell.subtext,
-  nested: false,
-});
+const chapterRow = (cell, span, region, hasBands) => {
+  // `hasBands` false = nobody looked (a weekly/monthly pane, where the daily
+  // bands do not apply; an archive row with no candles). Absence of a band can
+  // only be REPORTED where bands were read — saying "no Phase B on this chart"
+  // over a weekly pane would be the same lie in the other direction.
+  const ownsSpan = hasBands && CHAPTER_OWN_SPAN[cell.key] != null;
+  const spanState = ownsSpan ? (span ? 'measured' : 'absent') : 'none';
+  return {
+    key: cell.key,
+    phase: CHAPTER_OWN_SPAN[cell.key] ?? null,
+    token: cell.short,
+    // A chapter that owns a phase wears the PHASE's name (the same words by
+    // construction — CHAPTER_LABELS.phase_b.label === PHASE_NAMES.b); an unknown
+    // wire chapter falls through with its own label, never dropped.
+    name: cell.label,
+    // Measured: the band's own words. Absent: said plainly. No band to own: what
+    // the chapter grades. Never the event sentence on a chart without the event.
+    detail: spanState === 'measured'
+      ? span.detail
+      : spanState === 'absent'
+        ? absentSpan(cell.label)
+        : (CHAPTER_GRADES[cell.key] ?? ''),
+    // What this chapter grades, always available for the tooltip — so a row
+    // whose band is absent can still say what earned its points.
+    grades: CHAPTER_GRADES[cell.key] ?? null,
+    spanState,
+    region: region ? region.key : null,
+    color: region?.color ?? null,
+    points: cell.points,
+    fraction: cell.fraction,
+    percent: null,
+    subtext: cell.subtext,
+    nested: false,
+  };
+};
 
 // The rows, in chart order. `regions` is buildPhaseRegions' output (empty on a
 // higher-timeframe pane, where the daily phases mean nothing) — with none, the
@@ -122,6 +170,7 @@ export function storyRows(data, regions = []) {
       cell,
       find(CHAPTER_OWN_SPAN[cell.key]),
       find(CHAPTER_REGION[cell.key]),
+      regions.length > 0,
     ));
     // The LPS sits UNDER Phase D — it is a component of that chapter, not a
     // sibling of it.
