@@ -79,6 +79,17 @@ export const CHART_FRAMING = {
     scaleMargins: { top: 0.08, bottom: 0.22 },
     volumeScaleTop: 0.82,
   },
+  // The W/M preview cubes beside the modal's daily chart. The full-pane W/M
+  // tabs keep their deep windows (160/120 bars); a ~360px preview showing that
+  // many bars is ~2.3px/bar — indecipherable (operator 2026-08-12). The preview
+  // exists to show the RECENT higher-timeframe posture, so it gets its own
+  // shallow budget at a readable per-bar width.
+  htfPreview: {
+    weeklyBars: 64,
+    monthlyBars: 48,
+    scaleMargins: { top: 0.06, bottom: 0.16 },
+    volumeScaleTop: 0.84,
+  },
 };
 
 // ~252 trading sessions per 365 calendar days. Used only to size a fetch window.

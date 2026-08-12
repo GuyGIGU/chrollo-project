@@ -940,17 +940,22 @@ td {
   border-bottom: 1px solid var(--border-color);
 }
 
-/* W/M mini-chart widgets under the daily chart. Whole row stays ≤ ~150px so
-   the modal still fits the operator's 1536x864 lens; the panes speak the
+/* W/M preview cubes in a SIDE column next to the daily chart. The old
+   full-width strip under the daily made each preview a ~700x110 brick; the
+   column splits the chart band's full height between two medium cubes and
+   gives the daily pane its width back. The panes keep the
    .phase-bin-control hover/focus grammar (they are controls, not decor). */
-.timeframe-mini-row {
+.timeframe-mini-col {
   background: #171922;
   border-bottom: 1px solid var(--border-color);
-  display: grid;
-  flex: 0 0 auto;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex: 0 0 clamp(280px, 25vw, 400px);
+  flex-direction: column;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  padding: 6px 14px 8px;
+  min-height: 0;
+  padding: 8px 10px;
+  width: clamp(280px, 25vw, 400px);
 }
 
 .timeframe-mini-pane {
@@ -959,8 +964,10 @@ td {
   border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 3px;
+  min-height: 0;
   min-width: 0;
   padding: 4px 6px 5px;
 }
@@ -996,7 +1003,8 @@ td {
 }
 
 .timeframe-mini-chart {
-  height: 110px;
+  flex: 1 1 auto;
+  min-height: 90px;
   overflow: hidden;
   pointer-events: none;
   position: relative;
@@ -2520,28 +2528,29 @@ td.cell-editable { overflow: hidden; }
   .home-grid {
     grid-template-columns: repeat(2, 1fr);
     grid-template-areas:
-      "pulse  pulse"
-      "regime regime"
-      "fresh  watch"
-      "book   journal"
-      "edge   edge";
+      "pulse   pulse"
+      "watch   watch"
+      "regime  book"
+      "journal edge";
   }
   .ga-pulse { grid-area: pulse; }
   .ga-regime { grid-area: regime; }
-  .ga-fresh { grid-area: fresh; }
   .ga-watch { grid-area: watch; }
   .ga-book { grid-area: book; }
   .ga-journal { grid-area: journal; }
   .ga-edge { grid-area: edge; }
 }
 
+/* Task 13 recomposition: the market strip owns the full first row (three real
+   panes, no third-column squeeze), the promoted Watchlist takes a double cell
+   beside the regime panel, performance sits below. */
 @media (min-width: 1200px) {
   .home-grid {
     grid-template-columns: repeat(3, 1fr);
     grid-template-areas:
-      "pulse   pulse   regime"
-      "fresh   watch   book"
-      "journal journal edge";
+      "pulse pulse   pulse"
+      "watch watch   regime"
+      "book  journal edge";
   }
 }
 
@@ -2611,65 +2620,12 @@ td.cell-editable { overflow: hidden; }
   .scan-pulse-dot { animation: none; }
 }
 
-/* Fresh Setups — card rhythm */
-.home-fresh-counts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.home-count-chip {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid;
-  border-radius: var(--radius-xs);
-  padding: 1px 6px;
-  font-variant-numeric: tabular-nums;
-}
-.home-count-total { color: var(--text-faint); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
-.home-fresh-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+/* Watchlist — promoted to the shared InstrumentTable idiom (Task 13); the
+   dense-row chrome lives in the INSTRUMENT TABLE block above. The ticker cell's
+   ident + tier chip are the only zone-local pieces. */
+.home-wlt-ident { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 13px; }
+.home-wlt-tier { font-size: 9px; font-weight: 800; border: 1px solid; border-radius: var(--radius-xs); padding: 0 3px; flex-shrink: 0; }
 
-.home-tile {
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  transition: border-color 0.15s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.home-tile:hover { border-color: rgba(79, 207, 196, 0.5); }
-.home-tile:focus-visible { outline: none; box-shadow: var(--glow-active); }
-.home-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 7px; }
-.home-tile-ident { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.home-tile-ticker { font-size: 14px; font-weight: 850; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.home-tile-tier { font-size: 9px; font-weight: 800; border: 1px solid; border-radius: var(--radius-xs); padding: 0 3px; flex-shrink: 0; }
-.home-tile-score { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
-.home-tile-chart { height: 120px; display: flex; position: relative; }
-
-/* Watchlist — tight status-row rhythm */
-.home-wl { display: flex; flex-direction: column; }
-.home-wl-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto auto;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-color);
-  font-variant-numeric: tabular-nums;
-}
-.home-wl-row:last-child { border-bottom: none; }
-.home-wl-name {
-  background: none; border: none; padding: 0;
-  font-family: inherit; font-weight: 800; font-size: 13px; text-align: left;
-  display: flex; align-items: center; gap: 5px; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.home-wl-name:disabled { cursor: default; }
-.home-wl-tier { font-size: 9px; font-weight: 800; }
-.home-wl-px { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: right; }
-.home-wl-chg { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: right; }
-.home-wl-flag { font-size: 10px; font-weight: 700; min-width: 56px; text-align: right; }
-.home-wl-flag.near { color: var(--warning); }
-.home-wl-flag.triggered { color: var(--success); }
-.home-wl-stale { color: var(--text-faint); font-size: 10px; }
 .home-bridge { color: var(--myth); text-decoration: none; font-size: 12px; font-weight: 700; padding: 0 2px; }
 .home-bridge:hover { text-decoration: underline; }
 
@@ -2779,12 +2735,15 @@ td.cell-editable { overflow: hidden; }
 .mp-pane-chg { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
 .mp-pane-px { color: var(--text-muted); }
 .mp-pane-chg { margin-left: auto; }
-.mp-pane-chart { flex: 1; position: relative; min-height: 168px; min-width: 0; }
+/* Full-row strip (Task 13): with the regime panel out of row 1 each pane owns a
+   real third of the content width, so the chart earns real height too — 168px
+   read as postage stamps once the row went full-width (operator 2026-08-12). */
+.mp-pane-chart { flex: 1; position: relative; min-height: 280px; min-width: 0; }
 
 /* Below ~900px three panes stop being readable — stack to one column. */
 @media (max-width: 900px) {
   .mp-panes { grid-template-columns: 1fr; }
-  .mp-pane-chart { min-height: 190px; }
+  .mp-pane-chart { min-height: 230px; }
 }
 
 .mp-chart { flex: 1; position: relative; min-height: 240px; min-width: 0; }
@@ -2855,6 +2814,9 @@ td.cell-editable { overflow: hidden; }
 .ac-head { display: flex; align-items: baseline; gap: 10px; }
 .ac-title { font-size: 15px; font-weight: 850; color: var(--text-main); line-height: 1; }
 .ac-count { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* The scan-freshness statement (re-homed from the deleted Fresh Setups zone):
+   right-aligned so the header reads title · count ......... freshness. */
+.ac-fresh { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ac-clear { color: var(--text-muted); font-size: 13px; }
 .ac-groups { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
 .ac-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }

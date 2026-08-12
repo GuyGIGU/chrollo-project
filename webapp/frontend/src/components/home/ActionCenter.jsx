@@ -5,6 +5,7 @@ import BridgeOut from './BridgeOut';
 import useWatchlist from '../../hooks/useWatchlist';
 import { tierColor } from '../../theme';
 import { formatScore } from '../../utils/scoreFormat';
+import { fmtScanTime } from '../../utils/appFormat';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
 // urgent items out of the three zones below into one strip, ordered by urgency:
@@ -21,7 +22,34 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-export default function ActionCenter({ screenerData, trades, riskFor, prices = {} }) {
+// "stale" = the last successful scan ran on a PRIOR calendar day, so every claim
+// below reflects yesterday, not today. A distinct fact from "no scan" / "0 matched".
+// (Re-homed from the deleted FreshSetupsZone — this header is the surface making
+// claims from that scan, so it carries the freshness statement in ALL its states.)
+function ranOnPriorDay(scanStatus) {
+  const when = scanStatus?.finished_at;
+  if (!when) return false;
+  const dt = new Date(when);
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt.toDateString() !== new Date().toDateString();
+}
+
+// The five freshness states: never-ran / running / scanned-time / stale /
+// 0-matched. null while scan status is still loading — claim nothing over guess.
+function scanFreshness(scanStatus, screenerData, ordered) {
+  const status = scanStatus?.status;
+  if (status === 'never') return { text: 'no scan has run yet', color: 'var(--text-faint)' };
+  if (status === 'running') return { text: 'scanning…', color: 'var(--accent-blue)' };
+  if (!scanStatus) return null;
+  const stale = ranOnPriorDay(scanStatus);
+  const zero = screenerData && ordered.length === 0;
+  return {
+    text: `scanned ${fmtScanTime(scanStatus.finished_at)}${stale ? ' · stale' : ''}${zero ? ' · 0 matched' : ''}`,
+    color: stale ? 'var(--warning)' : 'var(--text-faint)',
+  };
+}
+
+export default function ActionCenter({ screenerData, trades, riskFor, prices = {}, scanStatus }) {
   const { watchlist } = useWatchlist();
   const [peek, setPeek] = useState(null);
 
@@ -66,12 +94,16 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
   const total = atRisk.length + triggered.length + near.length + freshS.length;
 
   const openPeek = (t) => { if (chartData[t]) setPeek(t); };
+  const freshness = scanFreshness(scanStatus, screenerData, ordered);
 
   return (
     <section className="home-action">
       <div className="ac-head">
         <span className="ac-title">Action Center</span>
         <span className="ac-count">{total ? `${total} need${total === 1 ? 's' : ''} a look` : 'all clear'}</span>
+        {freshness && (
+          <span className="ac-fresh" style={{ color: freshness.color }}>{freshness.text}</span>
+        )}
       </div>
 
       {total === 0 ? (

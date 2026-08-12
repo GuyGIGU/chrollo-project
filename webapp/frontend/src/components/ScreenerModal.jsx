@@ -209,22 +209,29 @@ const ScreenerModal = ({ ticker, data, earnings, scanIdentity = null, onClose, o
           ticker={ticker}
         />
         <div className="screener-modal-body" style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0 }}>
-          <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
-            {interval === 'D' ? (
-              <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
-            ) : (
-              <TimeframeMainChart
-                key={interval}
-                box={interval === 'W' ? data.weekly_box : data.monthly_box}
-                candles={interval === 'W' ? data.weekly_candles : data.monthly_candles}
-                label={interval === 'W' ? 'WEEKLY' : 'MONTHLY'}
-                volumes={interval === 'W' ? data.weekly_volumes : data.monthly_volumes}
-              />
+          {/* Chart band: daily pane + the W/M preview cubes as a SIDE column.
+              The old full-width strip under the daily gave each preview a
+              ~700x110 brick (indecipherable) while stretching the daily across
+              the whole shell; the side column makes the previews medium cubes
+              and narrows the daily back toward the card's faithful density. */}
+          <div className="screener-modal-chart-row" style={{ display: 'flex', flex: '1 1 auto', minHeight: 0 }}>
+            <div className="screener-modal-chart-shell" style={{ flex: '1 1 auto', minHeight: 0, minWidth: 0, position: 'relative' }}>
+              {interval === 'D' ? (
+                <div ref={chartContainerRef} className="screener-modal-chart" style={{ height: '100%', minHeight: 0, position: 'relative' }} />
+              ) : (
+                <TimeframeMainChart
+                  key={interval}
+                  box={interval === 'W' ? data.weekly_box : data.monthly_box}
+                  candles={interval === 'W' ? data.weekly_candles : data.monthly_candles}
+                  label={interval === 'W' ? 'WEEKLY' : 'MONTHLY'}
+                  volumes={interval === 'W' ? data.weekly_volumes : data.monthly_volumes}
+                />
+              )}
+            </div>
+            {interval === 'D' && (
+              <TimeframeMiniRow data={data} onSelectInterval={selectInterval} />
             )}
           </div>
-          {interval === 'D' && (
-            <TimeframeMiniRow data={data} onSelectInterval={selectInterval} />
-          )}
           <ScreenerStockLens
             activeRegion={activeRegion}
             data={data}

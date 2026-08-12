@@ -1,12 +1,13 @@
 import TimeframeMainChart from './TimeframeMainChart';
 import { htfStateLabel } from '../utils/screenerCardData';
 
-// The W/M widget row under the daily chart: two small non-interactive previews
-// of the SAME higher-timeframe read the D/W/M tabs open full-pane (same rails,
-// coloring and bounded window — TimeframeMainChart in interactive=false mode).
-// Each pane's caption is the timeframe's structural state (htfStateLabel), and
+// The W/M preview column beside the daily chart: two medium non-interactive
+// cubes of the SAME higher-timeframe read the D/W/M tabs open full-pane (same
+// rails, coloring — TimeframeMainChart in interactive=false mode, which takes
+// the shallow htfPreview window so bars stay readable at cube width). Each
+// pane's caption is the timeframe's structural state (htfStateLabel), and
 // clicking a pane switches the modal to that interval. A pane with no resampled
-// candles renders nothing; with neither, the row disappears.
+// candles renders nothing; with neither, the column disappears.
 
 function MiniPane({ tf, name, candles, volumes, box, state, onSelect }) {
   return (
@@ -72,7 +73,7 @@ export default function TimeframeMiniRow({ data, onSelectInterval }) {
   if (!panes.length) return null;
 
   return (
-    <div className="timeframe-mini-row">
+    <div className="timeframe-mini-col">
       {panes.map((pane) => (
         <MiniPane key={pane.tf} {...pane} onSelect={() => onSelectInterval(pane.tf)} />
       ))}
