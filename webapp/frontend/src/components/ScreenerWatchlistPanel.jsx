@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import InstrumentTable from './ui/InstrumentTable';
 import WeeklyReview from './WeeklyReview';
+import HoverGlass from './ui/HoverGlass';
+import useHoverGlance from '../hooks/useHoverGlance';
+import { artifactGlance } from './glanceResolvers';
 import { buildWatchlistRows, sortWatchlistRows } from '../utils/watchlistTable';
 import { fixed } from '../utils/archiveTabUtils';
 import { tierColor } from '../theme';
@@ -22,6 +25,16 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
     () => sortWatchlistRows(buildWatchlistRows(watchlist, screenerData), sort.by, sort.dir),
     [watchlist, screenerData, sort],
   );
+
+  // Glance only — this panel's rows have no click verb (the cards above are
+  // where a setup is opened), and hover must not invent one.
+  const chartData = useMemo(() => screenerData?.chart_data || {}, [screenerData]);
+  const scanStamp = screenerData?.scan_identity?.scan_date || screenerData?.scanned_at || null;
+  const resolveGlance = useCallback(
+    (ticker) => artifactGlance(chartData, ticker, scanStamp),
+    [chartData, scanStamp],
+  );
+  const { glassProps, anchorProps } = useHoverGlance(resolveGlance, { suspended: reviewOpen });
 
   if (isScanning) return null;
 
@@ -81,7 +94,10 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
       label: 'Ticker',
       align: 'left',
       render: (row) => (
-        <span style={{ color: row.in_scan ? tierColor(row.tier) : 'var(--text-muted)', fontWeight: 700 }}>
+        <span
+          style={{ color: row.in_scan ? tierColor(row.tier) : 'var(--text-muted)', fontWeight: 700 }}
+          {...anchorProps(row.ticker, row.ticker)}
+        >
           {row.ticker}
         </span>
       ),
@@ -155,6 +171,7 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
         rowClassName={(row) => (row.in_scan ? '' : 'muted')}
         ariaLabel="Watchlist"
       />
+      <HoverGlass {...glassProps} />
     </div>
   );
 }

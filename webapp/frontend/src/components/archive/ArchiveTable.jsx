@@ -1,4 +1,7 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
+import HoverGlass from '../ui/HoverGlass';
+import useHoverGlance from '../../hooks/useHoverGlance';
+import { archiveGlance } from '../glanceResolvers';
 import {
   ITEMS_PER_PAGE,
   QUALITY_LABELS,
@@ -42,6 +45,13 @@ function ArchiveTable({
   sortDir,
   totalPages,
 }) {
+  // The archive is the ONE surface whose glance must leave the page — its rows
+  // predate the in-memory scan. The resolver caches per setup and shares one
+  // in-flight request, because a hover sweep down 24 rows otherwise becomes 24
+  // vendor pulls against the bucket the nightly scans depend on.
+  const resolveGlance = useCallback((setup) => archiveGlance(setup.id, setup.ticker), []);
+  const { glassProps, anchorProps } = useHoverGlance(resolveGlance);
+
   if (filteredSetups.length === 0) {
     return (
       <div style={{ color: 'var(--text-muted)', padding: '2rem', textAlign: 'center' }}>
@@ -79,11 +89,13 @@ function ArchiveTable({
                 onReviewReasonChange={onReviewReasonChange}
                 onTogglePassed={onTogglePassed}
                 setup={setup}
+                tickerHover={anchorProps(String(setup.id), setup)}
               />
             ))}
           </tbody>
         </table>
       </div>
+      <HoverGlass {...glassProps} />
       <ArchivePager currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} />
     </>
   );
@@ -112,7 +124,7 @@ function HeaderCell({ active, col, onSort, sortDir }) {
   );
 }
 
-const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTogglePassed, setup }) => {
+const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTogglePassed, setup, tickerHover }) => {
   const persisted = setup.scan_count > 1;
   return (
     <tr
@@ -122,7 +134,7 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
       style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
     >
       <Cell align="left">
-        <span style={{ color: tierColor(setup.tier), fontWeight: 700 }}>{setup.ticker}</span>
+        <span style={{ color: tierColor(setup.tier), fontWeight: 700 }} {...tickerHover}>{setup.ticker}</span>
       </Cell>
       <Cell align="left" muted>{setup.first_seen || setup.scan_date}</Cell>
       <Cell align="left">

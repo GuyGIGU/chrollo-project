@@ -183,9 +183,32 @@ def get_setup(setup_id: int, db: Session = Depends(get_db)):
     return setup
 
 
+def glance_bar_budget(base_length, lps_length) -> int:
+    """How many trailing bars the hover glance needs to frame this setup.
+
+    DERIVED, never fixed: the payload's r_anchor/s_anchor are offsets from the
+    box start, and the box start is reconstructed downstream as
+    len(candles) - 1 - forward_bars - base_len + 1. Hand a window shorter than
+    the box and that arithmetic clamps to zero — the rails and the grey root
+    swing then paint on the wrong bars, which is a lie rather than a degrade.
+    Live archive base lengths run to 433 bars (median 37, p99 196), so any
+    constant cap mis-frames the tail. Context beyond the box comes on top.
+    """
+    base = int(base_length or 0)
+    lps = int(lps_length or 0)
+    return max(130, base + lps + 25)
+
+
 @router.get("/setups/{setup_id}/chart")
-def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
-    """Fetch historical data for a specific setup and format it for ScreenerModal."""
+def get_setup_chart(setup_id: int, glance: bool = False, db: Session = Depends(get_db)):
+    """Fetch historical data for a specific setup and format it for ScreenerModal.
+
+    `glance=1` trims the RESPONSE to the bars a hover-size chart can actually
+    show. The provider window is deliberately identical either way so both calls
+    share one market-data cache key — a hover followed by a click must not cost
+    two vendor pulls for the same name. Everything else about the envelope is
+    unchanged; the un-parameterized call is byte-identical to before.
+    """
     setup = db.query(SetupArchive).filter(SetupArchive.id == setup_id).first()
     if not setup:
         raise HTTPException(status_code=404, detail="Setup not found")
@@ -221,6 +244,16 @@ def get_setup_chart(setup_id: int, db: Session = Depends(get_db)):
         volume_as_int=True,
     )
     forward_bars = int((raw.index > target_date).sum())
+
+    if glance:
+        # Trim the OLDEST bars only. forward_bars counts bars after the scan, so
+        # it is measured from the right edge and survives the cut untouched;
+        # base_len is likewise anchored to the right, so dropping leading
+        # context cannot move the box.
+        keep = glance_bar_budget(setup.base_length, setup.lps_length) + forward_bars
+        if keep < len(candles):
+            candles = candles[-keep:]
+            volumes = volumes[-keep:]
 
     return {
         "candles": candles,
