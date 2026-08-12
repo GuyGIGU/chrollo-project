@@ -50,7 +50,10 @@ function ArchiveTable({
   // in-flight request, because a hover sweep down 24 rows otherwise becomes 24
   // vendor pulls against the bucket the nightly scans depend on.
   const resolveGlance = useCallback((setup) => archiveGlance(setup.id, setup.ticker), []);
-  const { glassProps, anchorProps } = useHoverGlance(resolveGlance);
+  // The ONE surface that pays for a swap: its resolver leaves the page. Without
+  // the dwell, one flick down the table retargets 24 times and issues 24
+  // requests for charts the pointer only passed over.
+  const { glassProps, anchorProps } = useHoverGlance(resolveGlance, { swapDwellMs: 90 });
 
   if (filteredSetups.length === 0) {
     return (

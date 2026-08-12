@@ -442,7 +442,6 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
           first and widest thing in the panel; the measured grid and the
           narrative sit under it. */}
       <SetupStoryPanel
-        activeRegion={activeRegion}
         data={data}
         note={triggerRead(distanceToTriggerPct(data))}
         onRegionChange={onRegionChange}

@@ -99,6 +99,79 @@ test('an unknown wire chapter falls through verbatim instead of vanishing', () =
   assert.equal(mystery.region, null);
 });
 
+// The 2026-08-12 review's P1: on 212 of 302 live setups the engine detects NO
+// Phase C, and the row printed "Support shakeout or test" anyway — the same
+// words the 16 real ones use, with a full bar and a real grade beside them.
+test('a chapter whose band is absent says so, and never prints the event', () => {
+  const noSpring = REGIONS.filter((region) => region.key !== 'c');
+  const c = storyRows(GRADED, noSpring).find((row) => row.key === 'phase_c');
+  assert.equal(c.spanState, 'absent');
+  assert.equal(c.detail, 'No Phase C on this chart');
+  assert.ok(!/shakeout|undercut|spring below/i.test(c.detail));
+  // The grade is still real and still shown — absence of the BAND is not
+  // absence of the chapter's points.
+  assert.equal(c.points, 0.94);
+  assert.equal(c.fraction, 0.2);
+  assert.equal(c.region, null);
+  // ...and the row can still say what earned those points, without an event.
+  assert.match(c.grades, /spring below support, or rising support/);
+});
+
+// The token chip is coloured by this, and the colour is what ties a row to its
+// band on the chart. Keyed off the chapter key it emitted `phase-bin-phase_b`
+// against a stylesheet defining only `.phase-bin-b`, so the three middle phases
+// rendered uncoloured (review 2026-08-12).
+test('every phase row carries the phase key the token colours are defined on', () => {
+  const rows = storyRows(GRADED, REGIONS);
+  const phase = (key) => rows.find((row) => row.key === key).phase;
+  assert.equal(phase('a'), 'a');
+  assert.equal(phase('phase_b'), 'b');
+  assert.equal(phase('phase_c'), 'c');
+  assert.equal(phase('phase_d'), 'd');
+  assert.equal(phase('lps'), 'lps');
+  // Not phases, so no phase tint — Cause and Trend are chapters only.
+  assert.equal(phase('cause'), null);
+  assert.equal(phase('trend'), null);
+});
+
+test('a phase keeps its colour even when its band is absent', () => {
+  const c = storyRows(GRADED, REGIONS.filter((r) => r.key !== 'c'))
+    .find((row) => row.key === 'phase_c');
+  assert.equal(c.phase, 'c');   // pink is Phase C's identity, not the band's
+  assert.equal(c.region, null); // ...but there is still nothing to light
+});
+
+test('a measured band keeps its own measured words', () => {
+  const c = storyRows(GRADED, REGIONS).find((row) => row.key === 'phase_c');
+  assert.equal(c.spanState, 'measured');
+  assert.equal(c.detail, 'Undercut and recovery');
+  assert.equal(c.region, 'c');
+});
+
+test('where no band was READ, absence is not reported either', () => {
+  // A weekly pane passes no regions. "No Phase B on this chart" would be the
+  // same lie pointing the other way — nobody looked for a daily band there.
+  for (const row of storyRows(GRADED, [])) {
+    assert.equal(row.spanState, 'none');
+    assert.ok(!/^No /.test(row.detail), `${row.key} reported an absence nobody measured`);
+  }
+  const b = storyRows(GRADED, []).find((row) => row.key === 'phase_b');
+  assert.match(b.detail, /touches, traversal, contraction/);
+});
+
+test('the two span-less chapters are "none", never "absent"', () => {
+  const rows = storyRows(GRADED, REGIONS);
+  assert.equal(rows.find((r) => r.key === 'cause').spanState, 'none');
+  assert.equal(rows.find((r) => r.key === 'trend').spanState, 'none');
+  // An unknown wire chapter owns no band either.
+  const odd = storyRows({
+    ta_grade: 50,
+    ta_grade_chapters: { mystery: 4 },
+    ta_grade_chapter_fractions: { mystery: 0.5 },
+  }, REGIONS).find((r) => r.key === 'mystery');
+  assert.equal(odd.spanState, 'none');
+});
+
 test('an unmeasured LPS term is absent, a measured loose one is a real zero', () => {
   assert.equal(lpsGrade({}), null);
   assert.equal(lpsGrade({ sub_scores: {} }), null);

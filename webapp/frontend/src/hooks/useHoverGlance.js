@@ -41,7 +41,15 @@ const LEAVE_GRACE_MS = 90;
 // After a scroll, look again at what is under the cursor. See onScroll.
 const SCROLL_SETTLE_MS = 140;
 
-export default function useHoverGlance(resolve, { suspended = false } = {}) {
+// `swapDwellMs` — how long the pointer must settle on a NEW row before the glass
+// retargets, once it is already open. Zero on the surfaces whose resolver reads
+// the artifact already in memory: a swap there costs nothing, so it should be
+// instant. The archive sets it, because its resolver goes to the SERVER, and an
+// instant swap turns one downward flick across 24 rows into 24 bounded-chart
+// requests against the bucket the nightly scans share (review 2026-08-12) — the
+// exact sweep glanceCache's header says the design exists to prevent. During the
+// dwell the glass keeps showing the row it was already on; it never blanks.
+export default function useHoverGlance(resolve, { suspended = false, swapDwellMs = 0 } = {}) {
   const [glance, setGlance] = useState(null);
 
   const openTimerRef = useRef(null);
@@ -57,6 +65,8 @@ export default function useHoverGlance(resolve, { suspended = false } = {}) {
   resolveRef.current = resolve;
   const suspendedRef = useRef(suspended);
   suspendedRef.current = suspended;
+  const swapDwellRef = useRef(swapDwellMs);
+  swapDwellRef.current = swapDwellMs;
   const anchorsRef = useRef(new Map());  // key -> { arg, label }
   const propsRef = useRef(new Map());    // key -> stable { data-glance-key }
 
@@ -155,7 +165,18 @@ export default function useHoverGlance(resolve, { suspended = false } = {}) {
         return;
       case 'swap':
         stopTimer(closeTimerRef);
+        stopTimer(openTimerRef);
         keyRef.current = next;
+        // Instant when the answer is free; a short settle when it costs a
+        // request. The open glass stays on its current row meanwhile, so a
+        // traversal never blanks it and never fetches what it passed over.
+        if (swapDwellRef.current > 0) {
+          openTimerRef.current = window.setTimeout(() => {
+            openTimerRef.current = null;
+            show(next, element);
+          }, swapDwellRef.current);
+          return;
+        }
         show(next, element);
         return;
       default: // 'arm'
@@ -195,6 +216,18 @@ export default function useHoverGlance(resolve, { suspended = false } = {}) {
       pointerRef.current = { x: event.clientX, y: event.clientY };
       sample(event.target);
     };
+    // The pointer left the WINDOW. Sampling alone cannot see this: the browser
+    // stops sending mousemove at the edge, so the last sample is still the row
+    // and the glass would sit there over the table until the pointer came back
+    // and crossed something that is not a row. A null relatedTarget is the
+    // reliable "gone" signal. The stale point dies with it — otherwise the
+    // scroll-settle below could re-open the glass at a coordinate the cursor
+    // left minutes ago (review 2026-08-12).
+    const onMouseOut = (event) => {
+      if (event.relatedTarget) return;
+      pointerRef.current = null;
+      close();
+    };
     const onScroll = () => {
       // A fixed glass would hang in place while its anchor slid away, so drop it
       // now — then look again once the scroll settles. That second look is the
@@ -215,12 +248,14 @@ export default function useHoverGlance(resolve, { suspended = false } = {}) {
     const onResize = () => close();
 
     document.addEventListener('mousemove', onMove, { capture: true, passive: true });
+    document.addEventListener('mouseout', onMouseOut, { capture: true, passive: true });
     document.addEventListener('scroll', onScroll, true);
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('mousemove', onMove, { capture: true });
+      document.removeEventListener('mouseout', onMouseOut, { capture: true });
       document.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown, true);
