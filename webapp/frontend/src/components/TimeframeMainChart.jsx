@@ -1,6 +1,6 @@
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
-import { buildFullLevelData, colorTimeframeCandles, finiteNumber } from './chartGeometry';
+import { buildFullLevelData, CHART_FRAMING, colorTimeframeCandles, finiteNumber } from './chartGeometry';
 import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 
 // The big, interactive weekly/monthly chart behind the modal's D/W/M interval
@@ -13,10 +13,13 @@ import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 
 const chartOptions = (width, height, interactive) => {
   const base = baseChartOptions('modal', width, height);
+  const margins = interactive
+    ? { top: 0.06, bottom: 0.16 }
+    : CHART_FRAMING.htfPreview.scaleMargins;
   return {
     ...base,
     crosshair: interactive ? { mode: 1 } : { horzLine: { visible: false }, vertLine: { visible: false } },
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: margins, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
     handleScroll: interactive,
     handleScale: interactive,
@@ -62,10 +65,16 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
     // width (fitContent on a long resampled series stretches few bars across the
     // wide pane — the most distorted path). Fall back to fitContent when the box
     // origin predates the recent window, so the rails never start off-screen-left.
+    // The preview cubes take a much shallower budget (CHART_FRAMING.htfPreview)
+    // and NEVER fitContent — in a ~360px pane that fallback smears the whole
+    // history into unreadable slivers; a rail whose origin predates the preview
+    // window just spans it edge-to-edge, and the full-pane tab tells the rest.
     const n = cand.length;
-    const show = label === 'WEEKLY' ? 160 : 120;
+    const show = interactive
+      ? (label === 'WEEKLY' ? 160 : 120)
+      : (label === 'WEEKLY' ? CHART_FRAMING.htfPreview.weeklyBars : CHART_FRAMING.htfPreview.monthlyBars);
     const viewFrom = Math.max(0, n - show);
-    if (boxStart) {
+    if (interactive && boxStart) {
       const anchor = cand.findIndex((candle) => candle.time >= boxStart);
       if (anchor >= 0 && anchor < viewFrom) {
         chart.timeScale().fitContent();
@@ -92,7 +101,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
           candles: coloredCandles,
           volumes,
           showVolume: !!volumes?.length,
-          volumeScaleTop: 0.84,
+          volumeScaleTop: interactive ? 0.84 : CHART_FRAMING.htfPreview.volumeScaleTop,
           showSma: true,
           onReady,
           onResize: (chart, container) =>

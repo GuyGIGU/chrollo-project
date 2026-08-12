@@ -5,6 +5,7 @@ import BridgeOut from './BridgeOut';
 import useWatchlist from '../../hooks/useWatchlist';
 import { tierColor } from '../../theme';
 import { formatScore } from '../../utils/scoreFormat';
+import { fmtScanTime } from '../../utils/appFormat';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
 // urgent items out of the three zones below into one strip, ordered by urgency:
@@ -21,7 +22,50 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-export default function ActionCenter({ screenerData, trades, riskFor, prices = {} }) {
+// "stale" = the data these claims are made from was produced on a PRIOR
+// calendar day. Keyed off the ARTIFACT's own timestamp, never the latest run's:
+// a failed run stamps a fresh finished_at while the chips below still read
+// yesterday's artifact, which would read as maximum freshness.
+// (Re-homed from the deleted FreshSetupsZone — this header is the surface making
+// claims from that scan, so it carries the freshness statement in ALL its states.)
+function ranOnPriorDay(timestamp) {
+  if (!timestamp) return false;
+  const dt = new Date(timestamp);
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt.toDateString() !== new Date().toDateString();
+}
+
+// A terminal run that did NOT produce a good artifact. The chips below are then
+// computed from an OLDER scan, so the header says so in danger tone.
+const RUN_FAILED = {
+  failed: 'last scan failed',
+  aborted: 'last scan aborted',
+  stale_data: 'last scan hit stale data',
+};
+
+// The freshness states: never-ran / running / failed·aborted·stale-data /
+// scanned-time / stale / 0-matched. null while scan status is still loading —
+// claim nothing rather than guess.
+function scanFreshness(scanStatus, screenerData, ordered) {
+  const status = scanStatus?.status;
+  if (status === 'never') return { text: 'no scan has run yet', color: 'var(--text-faint)' };
+  if (status === 'running') return { text: 'scanning…', color: 'var(--accent-blue)' };
+  if (!scanStatus) return null;
+  if (RUN_FAILED[status]) {
+    return {
+      text: `${RUN_FAILED[status]} ${fmtScanTime(scanStatus.finished_at)}`,
+      color: 'var(--danger)',
+    };
+  }
+  const stale = ranOnPriorDay(screenerData?.scanned_at);
+  const zero = screenerData && ordered.length === 0;
+  return {
+    text: `scanned ${fmtScanTime(scanStatus.finished_at)}${stale ? ' · stale' : ''}${zero ? ' · 0 matched' : ''}`,
+    color: stale ? 'var(--warning)' : 'var(--text-faint)',
+  };
+}
+
+export default function ActionCenter({ screenerData, trades, riskFor, prices = {}, scanStatus }) {
   const { watchlist } = useWatchlist();
   const [peek, setPeek] = useState(null);
 
@@ -66,12 +110,16 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
   const total = atRisk.length + triggered.length + near.length + freshS.length;
 
   const openPeek = (t) => { if (chartData[t]) setPeek(t); };
+  const freshness = scanFreshness(scanStatus, screenerData, ordered);
 
   return (
     <section className="home-action">
       <div className="ac-head">
         <span className="ac-title">Action Center</span>
         <span className="ac-count">{total ? `${total} need${total === 1 ? 's' : ''} a look` : 'all clear'}</span>
+        {freshness && (
+          <span className="ac-fresh" style={{ color: freshness.color }}>{freshness.text}</span>
+        )}
       </div>
 
       {total === 0 ? (

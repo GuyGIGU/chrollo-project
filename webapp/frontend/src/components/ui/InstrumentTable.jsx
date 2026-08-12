@@ -12,7 +12,11 @@
 //   align 'right' also switches the cell to tabular-nums (numbers line up).
 //   sortable defaults to true; a column with no natural order sets sortable:false.
 // rowKey(row): stable React key. rowClassName(row): extra <tr> class (e.g. 'muted').
-// onRowClick(row): optional — makes rows clickable + hover-cursored.
+// onRowClick(row): optional — makes rows clickable + hover-cursored, and gives
+//   each clickable row a keyboard path (tab stop + Enter/Space).
+// rowClickable(row): optional predicate — when a caller has DEAD rows (no target
+//   to open), this keeps the pointer cursor, the mythril lock-on and the handler
+//   off them. Without it every row is clickable, as before.
 
 // Active column shows the direction; a sortable-but-inactive column shows a faint
 // hint so "this sorts" is discoverable before the first click.
@@ -30,6 +34,7 @@ export default function InstrumentTable({
   sortDir,
   onSort,
   onRowClick,
+  rowClickable,
   rowClassName,
   ariaLabel,
   maxHeight,
@@ -43,7 +48,10 @@ export default function InstrumentTable({
       className={`instrument-well${scroll ? ' it-scroll' : ''}`}
       style={{
         border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)',
-        overflow: 'hidden', ...(scroll ? { maxHeight, overflowY: 'auto' } : null),
+        // Cells never wrap, so a well narrower than the table's min-content
+        // would silently cut the rightmost columns — scroll instead of lying.
+        overflow: 'hidden', overflowX: 'auto',
+        ...(scroll ? { maxHeight, overflowY: 'auto' } : null),
       }}
     >
       <table className="instrument-table" aria-label={ariaLabel}>
@@ -78,12 +86,20 @@ export default function InstrumentTable({
         <tbody>
           {rows.map((row) => {
             const extra = rowClassName ? rowClassName(row) : '';
-            const cls = [clickable ? 'clickable' : '', extra].filter(Boolean).join(' ');
+            const canClick = clickable && (!rowClickable || rowClickable(row));
+            const cls = [canClick ? 'clickable' : '', extra].filter(Boolean).join(' ');
             return (
               <tr
                 key={rowKey(row)}
                 className={cls || undefined}
-                onClick={clickable ? () => onRowClick(row) : undefined}
+                onClick={canClick ? () => onRowClick(row) : undefined}
+                tabIndex={canClick ? 0 : undefined}
+                onKeyDown={canClick ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onRowClick(row);
+                  }
+                } : undefined}
               >
                 {columns.map((col) => (
                   <td

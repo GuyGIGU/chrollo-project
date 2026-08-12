@@ -2,7 +2,6 @@ import ErrorBoundary from '../ErrorBoundary';
 import MarketPulse from '../MarketPulse';
 import RegimePanel from '../RegimePanel';
 import ActionCenter from './ActionCenter';
-import FreshSetupsZone from './FreshSetupsZone';
 import WatchlistZone from './WatchlistZone';
 import OpenBookZone from './OpenBookZone';
 import JournalPulseZone from './JournalPulseZone';
@@ -13,11 +12,13 @@ import useLivePrices from '../../hooks/useLivePrices';
 import { revalidateScreenerUniverse } from '../../hooks/screenerStore';
 
 // The orient surface as one aligned dashboard: a single grid carries every
-// panel so their column edges line up (chart+regime over the tile row over the
+// panel so their column edges line up (strip over watch/regime over the
 // performance row) — the fix for the "scattered/draggable" look. Reading order
-// top→bottom: market context → ideas/watch/open risk → performance/edge.
-// Regime + Fresh Setups read ONE scan source so they can't desync; each panel
-// owns its own status + ErrorBoundary so one dead source degrades only itself.
+// top→bottom: market context → watchlist/regime → book/performance/edge.
+// (Finviz plan Task 13: Fresh Setups deleted — the Action Center's Fresh S-tier
+// group and the Screener grid carry that job; the scan-freshness statement
+// moved into the Action Center header.) Each panel owns its own status +
+// ErrorBoundary so one dead source degrades only itself.
 export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatus }) {
   const { screenerData } = useScreenerData();
   // Cheap 5-minute freshness tick: polls the slim /screener-summary and only
@@ -31,14 +32,13 @@ export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatu
   return (
     <div className="home-view">
       <ErrorBoundary>
-        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} prices={prices} />
+        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} prices={prices} scanStatus={scanStatus} />
       </ErrorBoundary>
 
       <div className="home-grid">
         <div className="ga-pulse"><ErrorBoundary><MarketPulse marketContext={marketContext} /></ErrorBoundary></div>
-        <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>
-        <div className="ga-fresh"><FreshSetupsZone screenerData={screenerData} scanStatus={scanStatus} /></div>
         <div className="ga-watch"><WatchlistZone screenerData={screenerData} prices={prices} priceErr={priceErr} /></div>
+        <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-book"><OpenBookZone trades={trades} riskFor={riskFor} status={riskStatus} /></div>
         <div className="ga-journal"><JournalPulseZone stats={stats} trades={trades} /></div>
         <div className="ga-edge"><EdgePulse /></div>

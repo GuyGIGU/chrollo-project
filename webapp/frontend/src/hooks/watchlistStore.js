@@ -39,6 +39,13 @@ export function getWatchlistActiveSet() {
   return store.activeSet;
 }
 
+// The dated records themselves (active saves, newest write first) for surfaces
+// that render MORE than membership — the Home watchlist table reads save_date
+// for its saved-age column. Same stable-reference discipline as activeSet.
+export function getWatchlistRecords() {
+  return store.records;
+}
+
 export function fetchWatchlist() {
   if (store.inflight) return store.inflight;
   const epochAtIssue = mutationEpoch;

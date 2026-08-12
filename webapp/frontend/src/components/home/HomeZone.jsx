@@ -21,12 +21,12 @@ export function ZoneMessage({ tone = 'muted', children }) {
 }
 
 /**
- * Shared chrome for a Home zone: a confident title (+ optional meta line), an
- * always-visible handoff link (shown even in the error state so the trader can
- * route around a dead zone), and a status-driven body. Wrapped in its OWN
- * ErrorBoundary so a render throw in one zone never blanks the page.
+ * Shared chrome for a Home zone: a confident title, an always-visible handoff
+ * link (shown even in the error state so the trader can route around a dead
+ * zone), and a status-driven body. Wrapped in its OWN ErrorBoundary so a render
+ * throw in one zone never blanks the page.
  */
-export default function HomeZone({ title, icon, meta, link, status = 'ready', error, empty, skeletonRows, children }) {
+export default function HomeZone({ title, icon, link, status = 'ready', error, empty, skeletonRows, children }) {
   return (
     <ErrorBoundary>
       <section className="home-zone instrument-tile">
@@ -34,7 +34,6 @@ export default function HomeZone({ title, icon, meta, link, status = 'ready', er
           <div className="home-zone-headl">
             {icon ? <span className="home-zone-icon">{icon}</span> : null}
             <h2 className="home-zone-title">{title}</h2>
-            {meta}
           </div>
           {link}
         </div>
