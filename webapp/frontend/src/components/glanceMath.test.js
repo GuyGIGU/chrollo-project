@@ -4,6 +4,7 @@ import {
   GLANCE_HEIGHT,
   GLANCE_STATUSES,
   GLANCE_WIDTH,
+  glanceAction,
   glanceChartKey,
   glancePlacement,
   isGlanceStatus,
@@ -87,4 +88,36 @@ test('the chart key tracks the SCAN, not the payload object', () => {
   assert.equal(glanceChartKey('NVDA', '2026-08-11'), glanceChartKey('NVDA', '2026-08-11'));
   assert.notEqual(glanceChartKey('NVDA', '2026-08-11'), glanceChartKey('NVDA', '2026-08-12'));
   assert.equal(glanceChartKey(null, null), '?|none');
+});
+
+test('a stationary pointer decides nothing — the same anchor never re-arms', () => {
+  // A resting cursor sends a move event per frame. If this said 'arm' the timer
+  // would restart forever and the glass would never open at all.
+  assert.equal(glanceAction({ current: 'NVDA', next: 'NVDA', open: false }), 'none');
+  assert.equal(glanceAction({ current: 'NVDA', next: 'NVDA', open: true }), 'none');
+  assert.equal(glanceAction({ current: null, next: null, open: false }), 'none');
+});
+
+test('a new anchor arms when nothing is up and swaps instantly when it is', () => {
+  assert.equal(glanceAction({ current: null, next: 'NVDA', open: false }), 'arm');
+  assert.equal(glanceAction({ current: 'AMD', next: 'NVDA', open: false }), 'arm');
+  // Already reading: retarget with no delay, or every row would blank and
+  // rebuild its chart on the way down the table.
+  assert.equal(glanceAction({ current: 'AMD', next: 'NVDA', open: true }), 'swap');
+});
+
+test('leaving every anchor closes, and coming back to the same one re-opens', () => {
+  assert.equal(glanceAction({ current: 'NVDA', next: null, open: true }), 'close');
+  assert.equal(glanceAction({ current: 'NVDA', next: null, open: false }), 'close');
+  // After a hard dismissal (scroll, click, Escape) the hook forgets its key
+  // while the glass is still up during the grace — the very next sample over
+  // the SAME row must be a swap, not silence. This is the wedge the operator
+  // hit: an event-driven glass had nothing left to fire.
+  assert.equal(glanceAction({ current: null, next: 'NVDA', open: true }), 'swap');
+});
+
+test('undefined reads as empty space, never as an anchor named undefined', () => {
+  assert.equal(glanceAction({}), 'none');
+  assert.equal(glanceAction({ current: 'NVDA' }), 'close');
+  assert.equal(glanceAction({ next: 'NVDA' }), 'arm');
 });

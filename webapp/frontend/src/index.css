@@ -940,7 +940,8 @@ td {
   border-bottom: 1px solid var(--border-color);
 }
 
-/* W/M preview cubes in a SIDE column next to the daily chart. The old
+/* W/M preview cubes in a side column to the LEFT of the daily chart (operator
+   2026-08-12: the higher timeframe is the context you read first). The old
    full-width strip under the daily made each preview a ~700x110 brick; the
    column splits the chart band's full height between two medium cubes and
    gives the daily pane its width back. The panes keep the
@@ -948,14 +949,14 @@ td {
 .timeframe-mini-col {
   background: #171922;
   border-bottom: 1px solid var(--border-color);
-  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
   display: flex;
-  flex: 0 0 clamp(280px, 25vw, 400px);
+  flex: 0 0 clamp(300px, 26vw, 440px);
   flex-direction: column;
   gap: 10px;
   min-height: 0;
   padding: 8px 10px;
-  width: clamp(280px, 25vw, 400px);
+  width: clamp(300px, 26vw, 440px);
 }
 
 .timeframe-mini-pane {
@@ -1014,12 +1015,16 @@ td {
   position: relative;
 }
 
+/* The read panel is capped and scrolls; the charts above it are not, so this
+   cap IS the chart band's height budget. Kept deliberately tight (operator
+   2026-08-12: "more space to render them") — nothing is lost, the panel just
+   scrolls sooner. */
 .stock-lens {
   background: #1d202b;
   display: grid;
   flex: 0 0 auto;
   gap: 10px;
-  max-height: min(36vh, 330px);
+  max-height: min(30vh, 280px);
   overflow-y: auto;
   padding: 12px 14px;
 }
@@ -1754,14 +1759,20 @@ td {
   /* Stack the chart band so the shell's 430px basis below means HEIGHT again
      (it did before the preview cubes became a side column — left as a row here,
      the !important basis would pin the daily pane's WIDTH and push the
-     unshrinkable cube column off the modal's right edge). */
+     unshrinkable cube column off the modal's edge). The band also stops
+     flexing: at 430px + two cubes it is taller than the shell can give, and a
+     shrinkable band let its children paint straight over the read panel. Sized
+     by content, the body's own overflow-y scrolls to them instead. */
   .screener-modal-chart-row {
+    /* !important for the same reason as the shell below: the band's flex is an
+       inline style, and a stylesheet rule loses to it. */
+    flex: 0 0 auto !important;
     flex-direction: column;
   }
 
   .timeframe-mini-col {
-    border-left: none;
-    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    border-right: none;
     flex: 0 0 auto;
     flex-direction: row;
     width: auto;

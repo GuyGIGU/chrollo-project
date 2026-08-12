@@ -89,7 +89,7 @@ function ArchiveTable({
                 onReviewReasonChange={onReviewReasonChange}
                 onTogglePassed={onTogglePassed}
                 setup={setup}
-                tickerHover={anchorProps(String(setup.id), setup, setup.ticker)}
+                rowHover={anchorProps(String(setup.id), setup, setup.ticker)}
               />
             ))}
           </tbody>
@@ -124,17 +124,18 @@ function HeaderCell({ active, col, onSort, sortDir }) {
   );
 }
 
-const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTogglePassed, setup, tickerHover }) => {
+const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTogglePassed, setup, rowHover }) => {
   const persisted = setup.scan_count > 1;
   return (
     <tr
+      {...rowHover}
       onClick={() => onOpenChart(setup)}
       onMouseEnter={event => { event.currentTarget.style.background = 'var(--bg-main)'; }}
       onMouseLeave={event => { event.currentTarget.style.background = 'transparent'; }}
       style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
     >
       <Cell align="left">
-        <span style={{ color: tierColor(setup.tier), fontWeight: 700 }} {...tickerHover}>{setup.ticker}</span>
+        <span data-glance-anchor="" style={{ color: tierColor(setup.tier), fontWeight: 700 }}>{setup.ticker}</span>
       </Cell>
       <Cell align="left" muted>{setup.first_seen || setup.scan_date}</Cell>
       <Cell align="left">

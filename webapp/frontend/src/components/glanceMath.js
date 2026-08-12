@@ -12,6 +12,25 @@ export const GLANCE_STATUSES = ['closed', 'pending', 'ready', 'empty', 'error'];
 
 export const isGlanceStatus = (value) => GLANCE_STATUSES.includes(value);
 
+// What one pointer sample means, given what the glass is already doing. The
+// hover is driven by WHERE THE CURSOR IS rather than by enter/leave events (see
+// useHoverGlance's header for why), which makes this the whole decision — so it
+// lives here, pure and tested, instead of as branches inside a listener.
+//   'none'  — the cursor is still on whatever we already answered for
+//   'arm'   — a new anchor and nothing up yet: wait out the intent delay
+//   'swap'  — a new anchor while the glass is up: retarget with no delay
+//   'close' — no anchor under the cursor
+// `current` is deliberately compared to `next` FIRST: a stationary pointer
+// sends a move event per frame, and re-arming on each one would mean the glass
+// never opens at all.
+export function glanceAction({ current = null, next = null, open = false } = {}) {
+  const from = current ?? null;
+  const to = next ?? null;
+  if (to === from) return 'none';
+  if (!to) return 'close';
+  return open ? 'swap' : 'arm';
+}
+
 // The glass, in INTERNAL css px (the app's own coordinate system, see below).
 export const GLANCE_WIDTH = 380;
 export const GLANCE_HEIGHT = 250;

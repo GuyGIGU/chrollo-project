@@ -161,8 +161,8 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       render: (row) => (
         <span
           className="home-wlt-ident"
+          data-glance-anchor=""
           title={row.data ? undefined : `${row.t} — not in the latest scan; opens the chart saved with it`}
-          {...anchorProps(row.t, row, row.t)}
         >
           {/* No color of its own when the name isn't in the scan — the row's
               `muted` class dims it, which an inline color would defeat. */}
@@ -241,6 +241,9 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
           // behind it, and that row alone declines the affordance.
           rowClickable={(row) => Boolean(row.data) || row.watchId != null}
           rowClassName={(row) => (row.data ? '' : 'muted')}
+          // The whole row summons the chart — the ticker cell is 40px of a
+          // 500px row, and hovering a row and getting nothing reads as broken.
+          rowProps={(row) => anchorProps(row.t, row, row.t)}
           maxHeight={368}
         />
       </HomeZone>

@@ -17,6 +17,9 @@
 // rowClickable(row): optional predicate — when a caller has DEAD rows (no target
 //   to open), this keeps the pointer cursor, the mythril lock-on and the handler
 //   off them. Without it every row is clickable, as before.
+// rowProps(row): optional extra attributes for the <tr> (the hover-glance marks
+//   its rows this way). Spread FIRST, so a caller can never shadow the table's
+//   own click/keyboard wiring.
 
 // Active column shows the direction; a sortable-but-inactive column shows a faint
 // hint so "this sorts" is discoverable before the first click.
@@ -36,6 +39,7 @@ export default function InstrumentTable({
   onRowClick,
   rowClickable,
   rowClassName,
+  rowProps,
   ariaLabel,
   maxHeight,
 }) {
@@ -91,6 +95,7 @@ export default function InstrumentTable({
             return (
               <tr
                 key={rowKey(row)}
+                {...(rowProps ? rowProps(row) : null)}
                 className={cls || undefined}
                 onClick={canClick ? () => onRowClick(row) : undefined}
                 tabIndex={canClick ? 0 : undefined}
