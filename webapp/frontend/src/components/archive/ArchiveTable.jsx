@@ -89,7 +89,7 @@ function ArchiveTable({
                 onReviewReasonChange={onReviewReasonChange}
                 onTogglePassed={onTogglePassed}
                 setup={setup}
-                tickerHover={anchorProps(String(setup.id), setup)}
+                tickerHover={anchorProps(String(setup.id), setup, setup.ticker)}
               />
             ))}
           </tbody>

@@ -96,7 +96,7 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
       render: (row) => (
         <span
           style={{ color: row.in_scan ? tierColor(row.tier) : 'var(--text-muted)', fontWeight: 700 }}
-          {...anchorProps(row.ticker, row.ticker)}
+          {...anchorProps(row.ticker, row.ticker, row.ticker)}
         >
           {row.ticker}
         </span>

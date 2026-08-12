@@ -162,7 +162,7 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
         <span
           className="home-wlt-ident"
           title={row.data ? undefined : `${row.t} — not in the latest scan; opens the chart saved with it`}
-          {...anchorProps(row.t, row)}
+          {...anchorProps(row.t, row, row.t)}
         >
           {/* No color of its own when the name isn't in the scan — the row's
               `muted` class dims it, which an inline color would defeat. */}
@@ -269,27 +269,34 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
   );
 }
 
-// The as-saved frame: what you are looking at, when it was seen, and what
-// became of the archive row behind it — all resolved server-side (EC-28).
+// The as-saved frame. Deliberately the SAME sentence the weekly review already
+// speaks over the identical envelope — same words, same faint mono stamp, no
+// color: the chart's palette is spoken for, and two different phrasings for one
+// fact would read as two different facts.
 function ReplayFooter({ replay }) {
   const { provenance, ticker } = replay;
   return (
     <div style={{
       alignItems: 'center',
       borderTop: '1px solid var(--border-color)',
-      color: 'var(--text-muted)',
       display: 'flex',
-      fontFamily: "'JetBrains Mono', monospace",
-      fontSize: 11,
+      flexWrap: 'wrap',
       gap: 12,
-      padding: '7px 14px',
+      padding: '8px 14px',
     }}>
-      <span style={{ color: 'var(--warning)', fontWeight: 700 }}>AS SAVED</span>
-      <span>
-        {provenance?.asScanned ? `scanned ${provenance.asScanned}` : 'no scan pinned'}
-        {provenance?.savedOn ? ` · saved ${provenance.savedOn}` : ''}
+      <span style={{
+        color: 'var(--text-faint)',
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.08em',
+      }}>
+        {`AS SCANNED ${provenance?.asScanned || '—'} · saved ${provenance?.savedOn || '—'}`}
+        {provenance?.unstarred ? ' · unstarred' : ''}
       </span>
-      {provenance?.archiveNote ? <span style={{ color: 'var(--text-faint)' }}>{provenance.archiveNote}</span> : null}
+      {provenance?.archiveNote ? (
+        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{provenance.archiveNote}</span>
+      ) : null}
       <span style={{ marginLeft: 'auto' }}><BridgeOut ticker={ticker} /></span>
     </div>
   );

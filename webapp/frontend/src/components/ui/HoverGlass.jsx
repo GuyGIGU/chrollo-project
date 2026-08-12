@@ -22,10 +22,13 @@ import { tierColor } from '../../theme';
 // --ui-scale zoom correction). z 400 sits in the empty band above sticky table
 // headers (1) and the appearance popover (60), and below every scrim and modal
 // (1000+), so the glass can never paint over a dialog.
-export default function HoverGlass({ glance, scale = 1, viewport }) {
+export default function HoverGlass({ glance }) {
+  // The frame (anchor rect, zoom factor, viewport) is measured by the hook when
+  // the glass opens and travels WITH the glance, so the placement can never be
+  // computed from a scale sampled at some earlier moment.
   const place = useMemo(
-    () => glancePlacement({ anchor: glance?.rect, viewport, scale }),
-    [glance?.rect, viewport, scale],
+    () => glancePlacement({ anchor: glance?.rect, viewport: glance?.viewport, scale: glance?.scale }),
+    [glance?.rect, glance?.viewport, glance?.scale],
   );
   if (!glance || !place || glance.status === 'closed') return null;
 
