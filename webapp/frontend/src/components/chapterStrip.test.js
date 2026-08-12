@@ -117,8 +117,15 @@ test('warnings render with their cost — neutral factors visibly costless', () 
   assert.deepEqual(warningItems({}), []);
 });
 
-test('chapter hover targets map onto the existing chart regions', () => {
-  assert.equal(CHAPTER_REGION.phase_d, 'lps');
-  assert.equal(CHAPTER_REGION.phase_c, 'd');
+test('every chapter lights its OWN phase (identity since the 2026-08-12 fold)', () => {
+  // A row labelled Phase C that lights Phase D contradicts its own words now
+  // that the fused panel shows each phase's span and grade on one row.
+  assert.equal(CHAPTER_REGION.phase_c, 'c');
+  assert.equal(CHAPTER_REGION.phase_d, 'd');
+  // Cause grades the base as a whole — it lights Phase B's box, deliberately
+  // the same target, and keeps its own words (see setupStoryRows).
+  assert.equal(CHAPTER_REGION.cause, 'b');
+  assert.equal(CHAPTER_REGION.phase_b, 'b');
+  // The trend chapter reads the chart AROUND the base — nothing to light.
   assert.equal(CHAPTER_REGION.trend, null);
 });

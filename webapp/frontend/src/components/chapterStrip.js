@@ -18,14 +18,18 @@ import { CHAPTER_LABELS, CHAPTER_ORDER, WARNING_LABELS } from './wireVocabulary.
 // keys off the narrative family's own three-state read.
 const STORY_CHAPTERS = new Set(['phase_b', 'phase_d']);
 
-// Chapter → chart-region hover target (the lens's activeRegion channel):
-// cause/phase_b light the base, phase_c lights Phase D (its terms — spring,
-// rising support — mark the right side), phase_d lights the LPS.
+// Chapter → chart-region hover target (the lens's activeRegion channel).
+// IDENTITY since the fold (2026-08-12): each chapter lights its OWN phase.
+// The old routing sent phase_c to Phase D and phase_d to the LPS — defensible
+// when the strip stood alone (it pointed each chapter at where its terms live,
+// and nothing else claimed the LPS), but the fused panel now shows each phase's
+// SPAN and its grade on one row, so a row labelled Phase C that lights Phase D
+// contradicts its own words. The LPS has its own row now (see setupStoryRows).
 export const CHAPTER_REGION = {
   cause: 'b',
   phase_b: 'b',
-  phase_c: 'd',
-  phase_d: 'lps',
+  phase_c: 'c',
+  phase_d: 'd',
   trend: null,
 };
 

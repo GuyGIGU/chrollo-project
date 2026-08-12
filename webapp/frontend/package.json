@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/utils/tradeTableUtils.test.js src/utils/portfolioPlanUtils.test.js src/utils/format.test.js src/components/chartGeometry.test.js src/utils/uiScale.test.js src/utils/watchlistTable.test.js src/utils/calibrationChartUtils.test.js src/utils/calibrationMarking.test.js src/utils/calibrationMarking.remark.test.js src/utils/calibrationTables.test.js src/utils/frameThumb.test.js src/components/healthBoardSort.test.js src/components/narrativeRead.test.js src/components/wireVocabulary.test.js src/components/tagResolver.test.js src/utils/scoreFormat.test.js src/components/chapterStrip.test.js src/components/replayAdapter.test.js src/components/glanceMath.test.js src/components/glanceCache.test.js",
+    "test": "node --test src/utils/tradeTableUtils.test.js src/utils/portfolioPlanUtils.test.js src/utils/format.test.js src/components/chartGeometry.test.js src/utils/uiScale.test.js src/utils/watchlistTable.test.js src/utils/calibrationChartUtils.test.js src/utils/calibrationMarking.test.js src/utils/calibrationMarking.remark.test.js src/utils/calibrationTables.test.js src/utils/frameThumb.test.js src/components/healthBoardSort.test.js src/components/narrativeRead.test.js src/components/wireVocabulary.test.js src/components/tagResolver.test.js src/utils/scoreFormat.test.js src/components/chapterStrip.test.js src/components/setupStoryRows.test.js src/components/replayAdapter.test.js src/components/glanceMath.test.js src/components/glanceCache.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
