@@ -39,8 +39,7 @@ const chartOptions = (container) => {
     autoSize: true,
     crosshair: { mode: 1 },
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: MARKET.scaleMargins },
-    // No time axis in the strip: at a glance the dates add nothing, and the row
-    // has to stay shorter than the single chart it replaces.
+    // No time axis in the strip: at a glance the dates add nothing.
     timeScale: { ...base.timeScale, visible: false, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
     handleScroll: false,
     handleScale: false,

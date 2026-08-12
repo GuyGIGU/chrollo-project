@@ -22,26 +22,42 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-// "stale" = the last successful scan ran on a PRIOR calendar day, so every claim
-// below reflects yesterday, not today. A distinct fact from "no scan" / "0 matched".
+// "stale" = the data these claims are made from was produced on a PRIOR
+// calendar day. Keyed off the ARTIFACT's own timestamp, never the latest run's:
+// a failed run stamps a fresh finished_at while the chips below still read
+// yesterday's artifact, which would read as maximum freshness.
 // (Re-homed from the deleted FreshSetupsZone — this header is the surface making
 // claims from that scan, so it carries the freshness statement in ALL its states.)
-function ranOnPriorDay(scanStatus) {
-  const when = scanStatus?.finished_at;
-  if (!when) return false;
-  const dt = new Date(when);
+function ranOnPriorDay(timestamp) {
+  if (!timestamp) return false;
+  const dt = new Date(timestamp);
   if (Number.isNaN(dt.getTime())) return false;
   return dt.toDateString() !== new Date().toDateString();
 }
 
-// The five freshness states: never-ran / running / scanned-time / stale /
-// 0-matched. null while scan status is still loading — claim nothing over guess.
+// A terminal run that did NOT produce a good artifact. The chips below are then
+// computed from an OLDER scan, so the header says so in danger tone.
+const RUN_FAILED = {
+  failed: 'last scan failed',
+  aborted: 'last scan aborted',
+  stale_data: 'last scan hit stale data',
+};
+
+// The freshness states: never-ran / running / failed·aborted·stale-data /
+// scanned-time / stale / 0-matched. null while scan status is still loading —
+// claim nothing rather than guess.
 function scanFreshness(scanStatus, screenerData, ordered) {
   const status = scanStatus?.status;
   if (status === 'never') return { text: 'no scan has run yet', color: 'var(--text-faint)' };
   if (status === 'running') return { text: 'scanning…', color: 'var(--accent-blue)' };
   if (!scanStatus) return null;
-  const stale = ranOnPriorDay(scanStatus);
+  if (RUN_FAILED[status]) {
+    return {
+      text: `${RUN_FAILED[status]} ${fmtScanTime(scanStatus.finished_at)}`,
+      color: 'var(--danger)',
+    };
+  }
+  const stale = ranOnPriorDay(screenerData?.scanned_at);
   const zero = screenerData && ordered.length === 0;
   return {
     text: `scanned ${fmtScanTime(scanStatus.finished_at)}${stale ? ' · stale' : ''}${zero ? ' · 0 matched' : ''}`,

@@ -20,13 +20,15 @@ function lastClose(data) {
 }
 
 // Whole days since the save event's dated key (the ledger's save_date, a
-// YYYY-MM-DD stamped by the server). null = an optimistic row still in flight.
+// YYYY-MM-DD the server stamps from the UTC date). Both endpoints are taken in
+// THAT calendar — read against local midnights, a save made after local
+// midnight but before UTC midnight (the operator's post-scan review window)
+// would read "1d" the instant it was clicked. null = optimistic row in flight.
 function savedAgeDays(saveDate) {
   if (!saveDate) return null;
-  const saved = new Date(`${saveDate}T00:00:00`);
-  if (Number.isNaN(saved.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const saved = Date.parse(`${saveDate}T00:00:00Z`);
+  if (Number.isNaN(saved)) return null;
+  const today = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
   return Math.max(0, Math.round((today - saved) / 86400000));
 }
 
@@ -104,7 +106,9 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       label: 'Ticker',
       render: (row) => (
         <span className="home-wlt-ident" title={row.data ? undefined : `${row.t} — not in the latest scan`}>
-          <span style={{ color: row.data ? tierColor(row.data.tier) : 'var(--text-main)', fontWeight: 800 }}>{row.t}</span>
+          {/* No color of its own when the name isn't in the scan — the row's
+              `muted` class dims it, which an inline color would defeat. */}
+          <span style={{ color: row.data ? tierColor(row.data.tier) : undefined, fontWeight: 800 }}>{row.t}</span>
           {row.data?.tier ? (
             <span className="home-wlt-tier" style={{ borderColor: `${tierColor(row.data.tier)}55`, color: tierColor(row.data.tier) }}>
               {row.data.tier}
@@ -172,7 +176,11 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
           sortBy={sort.by}
           sortDir={sort.dir}
           onSort={onSort}
-          onRowClick={(row) => { if (row.data) setPeek(row.t); }}
+          onRowClick={(row) => setPeek(row.t)}
+          // A name that fell out of the latest scan has nothing to peek at, so
+          // it must not wear the click affordance (the old surface disabled its
+          // button; the row would otherwise glow and then do nothing).
+          rowClickable={(row) => Boolean(row.data)}
           rowClassName={(row) => (row.data ? '' : 'muted')}
           maxHeight={368}
         />

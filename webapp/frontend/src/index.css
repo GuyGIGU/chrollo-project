@@ -969,6 +969,10 @@ td {
   gap: 3px;
   min-height: 0;
   min-width: 0;
+  /* On a short viewport the flex basis can fall under the chart's own
+     min-height; clip at the pane so a squeezed cube never bleeds over its
+     neighbour's border. */
+  overflow: hidden;
   padding: 4px 6px 5px;
 }
 
@@ -1460,10 +1464,10 @@ td {
 }
 .instrument-table thead th.sortable { cursor: pointer; }
 .instrument-table thead th.active { color: var(--text-main); font-weight: 700; }
-/* Sticky header ONLY when the well scrolls (the calibration ledgers set a
-   maxHeight → .it-scroll); the column labels then stay visible as the operator
-   scrolls dozens of rows. A non-scrolling table (watchlist) keeps its header
-   inert, so this never changes that surface. */
+/* Sticky header ONLY when the well scrolls (a caller that sets a maxHeight →
+   .it-scroll: the calibration ledgers, the Home watchlist); the column labels
+   then stay visible as the operator scrolls dozens of rows. A non-scrolling
+   table keeps its header inert, so this never changes that surface. */
 .instrument-well.it-scroll .instrument-table thead th { position: sticky; top: 0; z-index: 1; }
 /* Sortable header trigger — a bare button so it's keyboard-operable, inheriting
    the th's color/weight; the faint hint marks unsorted-but-sortable columns. */
@@ -1496,6 +1500,15 @@ td {
    state response (Glow-On-State), so mythril stays scarce and load-bearing. */
 .instrument-table tbody tr.clickable:hover { background: var(--myth-wash); }
 .instrument-table tbody tr.clickable:hover td:first-child { box-shadow: inset 3px 0 0 var(--myth); }
+/* A clickable row is a tab stop (Enter/Space opens it), so keyboard focus wears
+   the SAME lock-on the mouse gets — plus a ring, since there is no cursor to
+   say where focus sits. */
+.instrument-table tbody tr.clickable:focus-visible {
+  background: var(--myth-wash);
+  outline: 1px solid var(--myth);
+  outline-offset: -1px;
+}
+.instrument-table tbody tr.clickable:focus-visible td:first-child { box-shadow: inset 3px 0 0 var(--myth); }
 /* The selected row (edited mark / active ticker) holds the lock-on at rest —
    cell-level background so it wins over both zebra and neutral hover. */
 .instrument-table tbody tr.active-row td { background: var(--myth-soft); }
@@ -1736,6 +1749,22 @@ td {
   .screener-modal-body {
     flex-direction: column;
     overflow-y: auto;
+  }
+
+  /* Stack the chart band so the shell's 430px basis below means HEIGHT again
+     (it did before the preview cubes became a side column — left as a row here,
+     the !important basis would pin the daily pane's WIDTH and push the
+     unshrinkable cube column off the modal's right edge). */
+  .screener-modal-chart-row {
+    flex-direction: column;
+  }
+
+  .timeframe-mini-col {
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    flex: 0 0 auto;
+    flex-direction: row;
+    width: auto;
   }
 
   .screener-modal-chart-shell {
@@ -2511,8 +2540,9 @@ td.cell-editable { overflow: hidden; }
 
 /* ONE aligned grid carries every panel, so column edges line up into clean
    rows instead of reading as scattered/draggable cards. Three logical rows:
-   market context (chart+regime) → ideas/watch/open → performance/edge. The
-   chart and Journal each span 2 columns; the whole grid collapses 3→2→1. */
+   the market strip (full width) → watchlist (double cell) + regime →
+   book/journal/edge. The whole grid collapses 3→2→1; per-breakpoint area maps
+   below. */
 .home-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -2590,7 +2620,6 @@ td.cell-editable { overflow: hidden; }
 }
 .home-zone-iconsvg { width: 16px; height: 16px; }
 .home-zone-title { font-size: 17px; font-weight: 850; color: var(--text-main); line-height: 1; }
-.home-zone-sub { font-size: 11px; white-space: nowrap; }
 .home-zone-link {
   font-size: 12px;
   font-weight: 600;
