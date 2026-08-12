@@ -682,7 +682,14 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 `score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)) sums **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive).
 
-> **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the 5 promoted v2 terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the five story chapters (Cause → Phase B → Phase C → Phase D → Trend), applies the floored warning discounts, and derives the tier from the result. The raw sum survives as `Score` and as the legacy tier ladder's input until the legacy path retires. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
+> **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the promoted v2 story terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the story chapters, applies the floored warning discounts, and derives the tier from the result. The raw sum survives as `Score` and as the legacy tier ladder's input until the legacy path retires. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
+
+> **The chapters are three since the 2026-08-12 re-partition: Consolidation → Phase D → Trend** (`taxonomy.CHAPTER_ORDER`). `cause` and `phase_b` were fused into `consolidation` — they graded one object from two sides — and `phase_c` was retired as a chapter on the operator's ruling that a spring is *marked, not graded*. Two mechanical consequences worth knowing at the point of use:
+>
+> - **`ascending_support` moved to `consolidation`, it was not demoted.** It grades the whole base's valley lows stair-stepping up (`measure_support_slope` over the box), never the shakeout; it sat under `phase_c` only because that chapter's blurb mentioned "the rising support", and it was the *only* reason a Phase C column ever showed points. Its 8-point cap is untouched.
+> - **`spring` left the `ta` layer for a third layer, `marker`.** A marker term is measured, archived (`score_spring`) and drawn, and is excluded from `ta_layer_terms()` — so it cannot reach a chapter, the divisor, or the tier even if its cap were raised. This is the ruling encoded as arithmetic rather than as a comment; `tests/test_score_taxonomy.py::test_a_marker_event_is_found_and_never_graded` is the gate.
+>
+> **The grade itself did not move**: same terms, same caps, same fixed divisor of 171 (spring's cap was already 0). Only the partition changed — plus `engine_config_version`, which rotates because chapter membership is hashed engine identity.
 
 | Component | Formula | Cap (setting) |
 |-----------|---------|---------------|
@@ -1102,7 +1109,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `f1680dd82764284efdef1c31690c59da70268668000cca65f0db3dcc84cfe331`_
+_engine_config_version: `824f44c9ed2c7ecd3a44e599c677ec57ac777442a60a968384ed934edee4450d`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False

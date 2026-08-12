@@ -15,8 +15,10 @@ import {
 import { CHAPTER_LABELS, CHAPTER_ORDER, WARNING_LABELS } from './wireVocabulary.js';
 
 // The chapters whose terms read the Event-Map story — their honesty subtext
-// keys off the narrative family's own three-state read.
-const STORY_CHAPTERS = new Set(['phase_b', 'phase_d']);
+// keys off the narrative family's own three-state read. Pinned against the
+// engine by tests/test_score_taxonomy.py (a story-term re-chaptering reds here
+// by name).
+const STORY_CHAPTERS = new Set(['consolidation', 'phase_d']);
 
 // Chapter → chart-region hover target (the lens's activeRegion channel).
 // IDENTITY since the fold (2026-08-12): each chapter lights its OWN phase.
@@ -25,10 +27,12 @@ const STORY_CHAPTERS = new Set(['phase_b', 'phase_d']);
 // and nothing else claimed the LPS), but the fused panel now shows each phase's
 // SPAN and its grade on one row, so a row labelled Phase C that lights Phase D
 // contradicts its own words. The LPS has its own row now (see setupStoryRows).
+//
+// Consolidation lights the box: it is Cause and Phase B fused, and the box IS
+// that object. Phase C is absent by design — it is no longer a chapter, and its
+// band is marked directly from the region list.
 export const CHAPTER_REGION = {
-  cause: 'b',
-  phase_b: 'b',
-  phase_c: 'c',
+  consolidation: 'b',
   phase_d: 'd',
   trend: null,
 };

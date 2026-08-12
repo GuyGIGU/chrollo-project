@@ -8,10 +8,13 @@ One ordered registry of every scoring sub-score term. For each term it records:
   - ``cap_setting``  the ``config.settings`` attribute holding its point cap,
   - ``layer``        ``'ta'``  = part of the 0-100 Technical Analysis Grade / tier,
                      ``'regime'`` = market-state, EXCLUDED from the grade (label only),
+                     ``'marker'`` = an event the engine FINDS and marks but never
+                     grades — measured, archived and drawn, worth zero points
+                     (operator ruling 2026-08-12; see ``CHAPTER_ORDER``),
   - ``kind``         structural | context | story | tag | warning | new_term,
   - ``present_when`` a settings BOOL flag gating emission (``None`` = always emitted),
   - ``chapter``      the story chapter this term grades inside (``CHAPTER_ORDER``;
-                     ``None`` on the regime layer — no chapter, no grade membership).
+                     ``None`` off the ta layer — no chapter, no grade membership).
 
 Consumers (the ``score_setup`` result dict, the archive writers, ``analyze.py``,
 the ``/calibration`` endpoint, the frontend chips, and — later — the 0-100
@@ -54,24 +57,40 @@ class TermSpec:
 
 
 # ── Story chapters — the grade's frame (operator-ruled 2026-08-06; vocabulary
-# re-ruled 2026-08-08: the operator's own phase-overlay words — "Work/Turn/
-# Finish" were invented labels he never used, retired per the naming doctrine) ─
+# re-ruled 2026-08-08 to the operator's phase-overlay words; RE-PARTITIONED
+# 2026-08-12, the ruling below) ──────────────────────────────────────────────
 # The 0-100 Technical Analysis Grade decomposes into story chapters that read
 # left→right like the chart, the way the operator narrates it:
-#   cause    the consolidation itself — the re/accumulation process, Wyckoff's
-#            cause: is there a proper, tight, mature base?
-#   phase_b  what happened inside the range — touches, genuine traversal,
-#            progressive contraction, the completeness of the told story
-#   phase_c  the bullish tell — the spring below S, the rising support
-#   phase_d  the right side into the pivot — LPS tightness, its volume
-#            dry-up, the terminal ATR squeeze
-#   trend    the chart around the base — trend, RS, 52w proximity, ADR:
-#            hopefully the RESULT of said cause
+#   consolidation  the base itself — Wyckoff's cause AND the work inside the
+#                  range: tight, mature, two-sided, contracting, with a floor
+#                  that stair-steps up and a story that completed
+#   phase_d        the right side into the pivot — LPS tightness, its volume
+#                  dry-up, the terminal ATR squeeze
+#   trend          the chart around the base — trend, RS, 52w proximity, ADR:
+#                  hopefully the RESULT of said cause
+#
+# **Operator ruling 2026-08-12, two moves.** (1) `cause` and `phase_b` graded
+# the same object twice and were FUSED: "I just want to fuse Phase B grading
+# into Cause and call it Consolidation Grade, since a two-sided zigzag price
+# action can be folded into one of the quality traits we look for in a
+# consolidation as a whole." (2) **Phase C is no longer a chapter — it is a
+# MARK.** "Phase C also shouldn't be graded because there is no telling whether
+# a setup that has one will win or not… it's more important for the engine to
+# find Phase C (spring) or the 'V' tip structure just to put a mark on where the
+# right-most side of the consolidation is, to understand the order of how the
+# setup played out. Same with shakeouts." So the spring left the ta layer for
+# `marker` (worth zero points forever, still detected, archived and drawn), and
+# `ascending_support` — which measures the WHOLE base's valley lows, not the
+# shakeout — moved to `consolidation`, the trait it actually reads.
+#
+# The grade's ARITHMETIC did not move: same terms, same caps, same fixed
+# divisor (spring's cap was already 0). What moved is how the number is told.
+#
 # Chapters are a DISPLAY PARTITION of the single fixed-divisor affine sum —
 # never per-chapter normalization (the present-cap denominator is tested-DEAD).
 # Membership is hashed into engine_config_version (freeze/manifest.py), so a
 # re-chaptering is a visible archive seam, never a silent relabel.
-CHAPTER_ORDER: tuple[str, ...] = ("cause", "phase_b", "phase_c", "phase_d", "trend")
+CHAPTER_ORDER: tuple[str, ...] = ("consolidation", "phase_d", "trend")
 
 # Reserved result-dict / wire keys for the flag-gated v2 grade — settled BEFORE
 # anything serializes so no rename ever crosses a frozen surface. NOTHING may
@@ -114,40 +133,55 @@ V2_ROW_FIELDS: tuple[str, ...] = V2_RESULT_KEYS + (
 
 # Ordered to match the score_setup result-dict emission order (scoring.py).
 REGISTRY: tuple[TermSpec, ...] = (
-    TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural", chapter="cause"),
-    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural", chapter="phase_b"),
-    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural", chapter="phase_b"),
+    TermSpec("box_tightness",     "score_box_tightness",     "SCORE_BOX_TIGHTNESS",      "ta",     "structural", chapter="consolidation"),
+    TermSpec("touch_density",     "score_touch_density",     "SCORE_TOUCH_DENSITY",      "ta",     "structural", chapter="consolidation"),
+    TermSpec("traversal_quality", "score_traversal_quality", "SCORE_TRAVERSAL_QUALITY",  "ta",     "structural", chapter="consolidation"),
     # atr_squeeze is ATR_10/ATR_50 at the right edge — the TERMINAL volatility
     # squeeze into the pivot, not a whole-base trait; it finishes the story.
     TermSpec("atr_squeeze",       "score_atr_squeeze",       "SCORE_ATR_SQUEEZE",        "ta",     "structural", chapter="phase_d"),
     TermSpec("lps_tightness",     "score_lps_tightness",     "SCORE_LPS_TIGHTNESS",      "ta",     "structural", chapter="phase_d"),
     TermSpec("vol_contraction",   "score_vol_contraction",   "SCORE_VOL_CONTRACTION",    "ta",     "structural", chapter="phase_d"),
-    TermSpec("base_age",          "score_base_age",          "SCORE_BASE_AGE",           "ta",     "structural", chapter="cause"),
+    TermSpec("base_age",          "score_base_age",          "SCORE_BASE_AGE",           "ta",     "structural", chapter="consolidation"),
     TermSpec("uptrend_bonus",     "score_uptrend_bonus",     "SCORE_UPTREND_BONUS",      "ta",     "context",    chapter="trend"),
     TermSpec("rs_bonus",          "score_rs_bonus",          "SCORE_RS_BONUS",           "ta",     "context",    chapter="trend"),
     TermSpec("high_proximity",    "score_high_proximity",    "SCORE_52W_HIGH_PROXIMITY", "ta",     "context",    chapter="trend"),
     TermSpec("breadth_bonus",     "score_breadth_bonus",     "SCORE_BREADTH_BONUS",      "regime", "context"),
-    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural", chapter="phase_b"),
-    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="phase_c"),
+    TermSpec("contraction",       "score_contraction",       "SCORE_CONTRACTION",        "ta",     "structural", chapter="consolidation"),
+    # Rising support is a CONSOLIDATION trait, not a Phase-C one: it grades the
+    # whole base's valley lows stair-stepping up (measure_support_slope over the
+    # box), never the shakeout. It sat under `phase_c` only because that chapter
+    # was blurbed "the spring below S, the rising support" — and it was the sole
+    # reason a Phase C column ever showed points (2026-08-12 ruling).
+    TermSpec("ascending_support", "score_ascending_support", "SCORE_ASCENDING_SUPPORT",  "ta",     "structural", chapter="consolidation"),
     TermSpec("adr",               "score_adr",               "SCORE_ADR",                "ta",     "context",    chapter="trend"),
     # Always emitted (folded 2026-07-18; formerly behind PUZZLE_SCORE_ENABLED);
     # archived since task 5 (the measure-first breach closed). Chapter: setup_quality grades
     # the completeness of the told story — the work the range did.
-    TermSpec("setup_quality",    "score_setup_quality",    "SCORE_SETUP_QUALITY",     "ta",     "story",     chapter="phase_b"),
+    TermSpec("setup_quality",    "score_setup_quality",    "SCORE_SETUP_QUALITY",     "ta",     "story",     chapter="consolidation"),
     # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
     # appends it after the always-on terms, so it sits last here to keep the
-    # emission-order mirror). Shape-only: SCORE_SPRING=0 until the operator's
-    # A/B assigns weights; its archive column is a task-5 add.
-    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "ta",     "tag",        "TA_SCORE_V2", chapter="phase_c"),
+    # emission-order mirror).
+    #
+    # LAYER 'marker' (operator ruling 2026-08-12): a spring is FOUND, typed,
+    # archived and drawn — and never graded. "There is no telling whether a
+    # setup that has one will win or not… it's more important for the engine to
+    # find Phase C just to put a mark on where the right-most side of the
+    # consolidation is." Off the ta layer it cannot reach a chapter, the
+    # divisor, or the tier, so the ruling is machine-enforced rather than
+    # remembered — and the "shape-only until the A/B" door it used to sit behind
+    # is closed: there is no A/B coming for this term. Behaviour-identical at
+    # the move (SCORE_SPRING was already 0). The completeness a spring DOES buy
+    # is graded where completeness belongs — setup_quality, in consolidation.
+    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "marker", "tag",        "TA_SCORE_V2"),
     # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
     # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
     # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
     # columns are a task-5 add. They consume the archived as-of scalars ONLY
     # (completed counts + right-edge stance) — never the tape, never the
     # profile sentence (AP-8; nothing re-derives counts downstream).
-    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
-    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
-    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="phase_b"),
+    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
+    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
+    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
     TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="phase_d"),
 )
 
@@ -181,9 +215,9 @@ def caps() -> dict[str, float]:
 
 def chapter_map() -> dict[str, Optional[str]]:
     """{key: chapter} over the WHOLE registry — the projection the freeze
-    manifest hashes. Regime terms carry ``None``, and that None IS part of
-    the hashed contract: a re-layering that gives a regime term a chapter
-    must rotate ``engine_config_version``. Never narrow this to the ta layer
+    manifest hashes. Regime and marker terms carry ``None``, and that None IS
+    part of the hashed contract: a re-layering that gives an off-ta term a
+    chapter must rotate ``engine_config_version``. Never narrow this to the ta layer
     (2026-08-08 review: the old ta-only helper was production-dead and
     subtly disagreed with the manifest's inline projection — a tidy-up that
     substituted it would have silently dropped the regime terms from the
@@ -284,7 +318,11 @@ def tag_rules_manifest() -> dict:
 
 def ta_layer_terms() -> tuple[TermSpec, ...]:
     """The terms that make up the Technical Analysis Grade (layer 'ta') and are
-    emitted under the CURRENT flags — everything except the regime label."""
+    emitted under the CURRENT flags — everything except the regime label and
+    the marker events (a marker is found and drawn, never graded).
+
+    This is the ONE gate between measuring something and grading it: a term
+    absent from here cannot reach a chapter, the divisor, or the tier."""
     return tuple(t for t in REGISTRY if t.layer == "ta" and t.is_emitted())
 
 

@@ -101,15 +101,22 @@ export const TREND_STATE_LABELS = {
 
 // Story chapters (TA-grade build task 12): the grade's breakdown vocabulary.
 // Wire ids mirror taxonomy.CHAPTER_ORDER (ruled 2026-08-06; vocabulary
-// re-ruled 2026-08-08 to the operator's phase-overlay words — the same
-// vocabulary as PHASE_NAMES below); the order mirrors the ruling —
-// left→right like the chart, NEVER points-sorted.
-export const CHAPTER_ORDER = ['cause', 'phase_b', 'phase_c', 'phase_d', 'trend'];
+// re-ruled 2026-08-08 to the operator's phase-overlay words); the order mirrors
+// the ruling — left→right like the chart, NEVER points-sorted.
+//
+// RE-PARTITIONED 2026-08-12 (operator): Cause and Phase B graded the same
+// object from two sides and are fused as `consolidation` — "call it
+// Consolidation Grade, since a two-sided zigzag price action can be folded into
+// one of the quality traits we look for in a consolidation as a whole". Phase C
+// is no longer a chapter at all: it is a MARK on the chart (see setupStoryRows).
+// Unknown wire chapters still fall through verbatim, so a stale build renders a
+// server-side re-chaptering rather than dropping it.
+export const CHAPTER_ORDER = ['consolidation', 'phase_d', 'trend'];
 
 export const CHAPTER_LABELS = {
-  cause: { label: 'Cause', short: 'Cause' },
-  phase_b: { label: 'Phase B', short: 'B' },
-  phase_c: { label: 'Phase C', short: 'C' },
+  // short === label: the panel prints the chip alone when they match, so
+  // Consolidation renders as one wide chip rather than "Cons.  Consolidation".
+  consolidation: { label: 'Consolidation', short: 'Consolidation' },
   phase_d: { label: 'Phase D', short: 'D' },
   trend: { label: 'Trend', short: 'Trend' },
 };

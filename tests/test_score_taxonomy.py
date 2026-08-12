@@ -74,18 +74,45 @@ def test_only_breadth_is_regime_layer():
     assert regime == ["breadth_bonus"]
 
 
-def test_layers_are_only_ta_or_regime():
-    assert {t.layer for t in taxonomy.REGISTRY} == {"ta", "regime"}
+def test_layers_are_only_ta_regime_or_marker():
+    assert {t.layer for t in taxonomy.REGISTRY} == {"ta", "regime", "marker"}
+
+
+def test_a_marker_event_is_found_and_never_graded():
+    """Operator ruling 2026-08-12: Phase C is a MARK, not a grade. "There is no
+    telling whether a setup that has one will win or not… it's more important
+    for the engine to find Phase C just to put a mark on where the right-most
+    side of the consolidation is." Encoded as a LAYER rather than a comment, so
+    the ruling is enforced by arithmetic: a marker term is outside
+    ta_layer_terms(), hence outside every chapter, the divisor and the tier.
+
+    The cap pin is the second half — a marker whose cap drifted off 0 would be
+    a term someone intended to grade, and that intent belongs in a new ruling,
+    not in a settings edit."""
+    markers = [t for t in taxonomy.REGISTRY if t.layer == "marker"]
+    assert [t.key for t in markers] == ["spring"]
+    graded = {t.key for t in taxonomy.ta_layer_terms()}
+    for t in markers:
+        assert t.key not in graded
+        assert t.chapter is None
+        assert t.cap() == 0.0, (
+            f"marker term {t.key!r} carries a nonzero cap — a marker is found "
+            "and drawn, never graded (docs/decisions.md 2026-08-12)")
+        # Still measured, still archived: a mark that vanished from the row
+        # would be a detection loss, which the ruling never asked for.
+        assert t.column is not None
 
 
 def test_chapter_taxonomy_is_the_ruled_story_partition():
     # Operator-ruled 2026-08-06 (docs/decisions.md): the grade's breakdown reads
     # left→right like the chart; vocabulary RE-RULED 2026-08-08 to the operator's
-    # own phase-overlay words — Cause → Phase B → Phase C → Phase D → Trend
-    # ("Work/Turn/Finish" were invented labels, retired per the naming doctrine).
+    # own phase-overlay words. RE-PARTITIONED 2026-08-12: cause+phase_b fused to
+    # `consolidation` ("fuse Phase B grading into Cause and call it Consolidation
+    # Grade"), and phase_c retired as a chapter (its only scoring term,
+    # ascending_support, grades the whole base's floor and moved to
+    # consolidation; the spring became a marker).
     # This order is a RULING; changing it is a re-chaptering seam, not a tidy-up.
-    assert taxonomy.CHAPTER_ORDER == (
-        "cause", "phase_b", "phase_c", "phase_d", "trend")
+    assert taxonomy.CHAPTER_ORDER == ("consolidation", "phase_d", "trend")
     for t in taxonomy.REGISTRY:
         if t.layer == "ta":
             assert t.chapter in taxonomy.CHAPTER_ORDER, (
@@ -93,8 +120,8 @@ def test_chapter_taxonomy_is_the_ruled_story_partition():
                 "term belongs to exactly one story chapter")
         else:
             assert t.chapter is None, (
-                f"regime term {t.key!r} carries a chapter — the regime layer "
-                "is outside the grade and has no story membership")
+                f"{t.layer} term {t.key!r} carries a chapter — only the ta "
+                "layer has story membership")
     # No orphan chapters: every ruled chapter has at least one term (an empty
     # chapter would render an empty breakdown segment).
     populated = {t.chapter for t in taxonomy.REGISTRY if t.chapter is not None}
@@ -109,14 +136,14 @@ def test_story_chapter_membership_mirrors_the_frontend_set():
     pointed at stale chapters)."""
     story_chapters = {t.chapter for t in taxonomy.REGISTRY
                       if t.key.startswith("story_")}
-    assert story_chapters == {"phase_b", "phase_d"}, (
+    assert story_chapters == {"consolidation", "phase_d"}, (
         "story terms re-chaptered — update STORY_CHAPTERS in "
         "webapp/frontend/src/components/chapterStrip.js in the SAME change")
 
 
 def test_chapter_map_is_the_one_projection_the_manifest_hashes():
-    """chapter_map() covers the WHOLE registry (regime terms as None — their
-    None is hashed coverage, not absence) and the manifest consumes IT —
+    """chapter_map() covers the WHOLE registry (regime + marker terms as None —
+    their None is hashed coverage, not absence) and the manifest consumes IT —
     one projection, one meaning (2026-08-08 review: the old ta-only helper
     was production-dead and disagreed with the manifest's inline twin)."""
     cm = taxonomy.chapter_map()
@@ -145,21 +172,23 @@ def test_structural_cap_sum_is_the_machine_pinned_divisor():
 
 
 def test_structural_cap_sum_tracks_the_flag_gated_v2_terms(monkeypatch):
-    # Flag-off the v2 terms (spring + story) are not emitted and stay out of
+    # Flag-off the four graded v2 story terms are not emitted and stay out of
     # the divisor; flag-on they join at their registered caps (all 0 today —
     # shape-only until the A/B; the arithmetic stays valid at any future
-    # operator-assigned weights).
+    # operator-assigned weights). `spring` is flag-gated too but rides the
+    # MARKER layer since 2026-08-12, so it never enters the divisor in either
+    # state — that is the point of the layer.
+    story = {"story_s_tests", "story_r_rejections",
+             "story_alternations", "story_terminal_posture"}
     monkeypatch.setattr(settings, "TA_SCORE_V2", False)
     base = taxonomy.structural_cap_sum()
     off_keys = {t.key for t in taxonomy.ta_layer_terms()}
-    assert not off_keys & {"spring", "story_s_tests", "story_r_rejections",
-                           "story_alternations", "story_terminal_posture"}
+    assert not off_keys & (story | {"spring"})
     monkeypatch.setattr(settings, "TA_SCORE_V2", True)
     on_keys = {t.key for t in taxonomy.ta_layer_terms()}
-    assert {"spring", "story_s_tests", "story_r_rejections",
-            "story_alternations", "story_terminal_posture"} <= on_keys
-    v2_caps = (float(settings.SCORE_SPRING)
-               + float(settings.SCORE_STORY_S_TESTS)
+    assert story <= on_keys
+    assert "spring" not in on_keys
+    v2_caps = (float(settings.SCORE_STORY_S_TESTS)
                + float(settings.SCORE_STORY_R_REJECTIONS)
                + float(settings.SCORE_STORY_ALTERNATIONS)
                + float(settings.SCORE_STORY_TERMINAL_POSTURE))
