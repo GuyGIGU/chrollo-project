@@ -1,0 +1,80 @@
+{
+  "snapshot_version": 1,
+  "scan_identity": {
+    "scan_date": "2026-08-11",
+    "universe_type": "us_equities",
+    "engine_config_version": "manifest-abc"
+  },
+  "entry": {
+    "tier": "S",
+    "score": 61.5,
+    "setup": "LPS",
+    "price": 24.18,
+    "trigger": 24.6,
+    "sector_etf": "XLK",
+    "sector_name": "Technology",
+    "ta_grade": "A",
+    "R": 24.5,
+    "S": 22.1,
+    "base_len": 34,
+    "lps_len": 5,
+    "lps_offset": 2,
+    "r_anchor": 471,
+    "s_anchor": 489,
+    "sub_scores": {
+      "box_tightness": 2.0,
+      "base_age": 1.0,
+      "atr_squeeze": 1.5
+    },
+    "candles": [
+      {"time": "2026-08-04", "open": 23.4, "high": 23.9, "low": 23.2, "close": 23.8},
+      {"time": "2026-08-05", "open": 23.8, "high": 24.1, "low": 23.6, "close": 24.0},
+      {"time": "2026-08-06", "open": 24.0, "high": 24.3, "low": 23.8, "close": 24.1},
+      {"time": "2026-08-07", "open": 24.1, "high": 24.4, "low": 23.9, "close": 24.2},
+      {"time": "2026-08-10", "open": 24.2, "high": 24.4, "low": 24.0, "close": 24.1},
+      {"time": "2026-08-11", "open": 24.1, "high": 24.3, "low": 24.0, "close": 24.18}
+    ],
+    "volumes": [
+      {"time": "2026-08-04", "value": 1200000, "color": "rgba(38,166,154,0.5)"},
+      {"time": "2026-08-05", "value": 980000, "color": "rgba(38,166,154,0.5)"},
+      {"time": "2026-08-06", "value": 870000, "color": "rgba(38,166,154,0.5)"},
+      {"time": "2026-08-07", "value": 640000, "color": "rgba(38,166,154,0.5)"},
+      {"time": "2026-08-10", "value": 520000, "color": "rgba(239,83,80,0.5)"},
+      {"time": "2026-08-11", "value": 610000, "color": "rgba(38,166,154,0.5)"}
+    ],
+    "weekly_candles": [
+      {"time": "2026-08-03", "open": 23.4, "high": 24.4, "low": 23.2, "close": 24.2},
+      {"time": "2026-08-10", "open": 24.2, "high": 24.4, "low": 24.0, "close": 24.18}
+    ],
+    "weekly_volumes": [
+      {"time": "2026-08-03", "value": 3690000, "color": "rgba(38,166,154,0.5)"},
+      {"time": "2026-08-10", "value": 1130000, "color": "rgba(38,166,154,0.5)"}
+    ],
+    "monthly_candles": [
+      {"time": "2026-08-01", "open": 23.4, "high": 24.4, "low": 23.2, "close": 24.18}
+    ],
+    "monthly_volumes": [
+      {"time": "2026-08-01", "value": 4820000, "color": "rgba(38,166,154,0.5)"}
+    ],
+    "weekly_box": null,
+    "monthly_box": null,
+    "_phase_a_start_date": "2026-06-02",
+    "_phase_a_end_date": "2026-06-18",
+    "_phase_b_start_date": "2026-06-18",
+    "_phase_d_start_date": "2026-07-28",
+    "_phase_c_event_date": "2026-07-21",
+    "_lps_zone_low": 23.9,
+    "_lps_zone_high": 24.5,
+    "_lps_zone_start_date": "2026-08-05",
+    "_lps_zone_end_date": "2026-08-11",
+    "_has_mini_consolidation": false,
+    "_scope_confidence": 0.8,
+    "lps_anchor_date": "2026-08-05",
+    "lps_low_date": "2026-08-07",
+    "event_map_episodes": [
+      {"rail": "S", "outcome": "completed", "posture": true,
+       "span": ["2026-06-24", "2026-07-02"], "knowable": "2026-07-06"}
+    ],
+    "elected_pool": "strict"
+  }
+}

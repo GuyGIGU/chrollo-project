@@ -37,6 +37,22 @@ const ScreenerGrid = () => {
   const healthBoard = screenerData?.health_board;
   const showHealthBoard = etfUniverse && Array.isArray(healthBoard?.members);
 
+  // A star carries the DISPLAYED scan identity so the backend can pin the
+  // artifact the operator is actually looking at (EC-37) — and refuse to pin
+  // a page the on-disk artifact has moved past. The drill-down shows
+  // US-Stocks setups regardless of the page universe, so its stars carry the
+  // drill-down payload's own identity.
+  const scanDate = screenerData?.scan_identity?.scan_date ?? null;
+  const handleToggleWatchlist = useCallback(
+    (ticker) => toggleWatchlist(ticker, { universe, scanDate }),
+    [toggleWatchlist, universe, scanDate],
+  );
+  const drilldownScanDate = drilldown?.scan_identity?.scan_date ?? null;
+  const handleToggleWatchlistDrilldown = useCallback(
+    (ticker) => toggleWatchlist(ticker, { universe: 'us_stocks', scanDate: drilldownScanDate }),
+    [toggleWatchlist, drilldownScanDate],
+  );
+
   // Patch individual params without clobbering the others. Opens PUSH (so the
   // browser Back closes the modal/drill-down); closes and in-modal cycling
   // REPLACE (Back shouldn't walk through every viewed ticker).
@@ -183,7 +199,7 @@ const ScreenerGrid = () => {
           watchlist={watchlist}
           screenerData={screenerData}
           isScanning={scan.isEvaluating}
-          onToggleWatchlist={toggleWatchlist}
+          onToggleWatchlist={handleToggleWatchlist}
         />
       )}
 
@@ -204,7 +220,7 @@ const ScreenerGrid = () => {
           onBack={backToGrid}
           onCardClick={openModal}
           watchlist={watchlist}
-          toggleWatchlist={toggleWatchlist}
+          toggleWatchlist={handleToggleWatchlistDrilldown}
           passed={passed}
           togglePassed={togglePassed}
         />
@@ -245,7 +261,7 @@ const ScreenerGrid = () => {
                     ticker={ticker}
                     data={screenerData.chart_data[ticker]}
                     watchlisted={watchlist.has(ticker)}
-                    onToggleWatchlist={toggleWatchlist}
+                    onToggleWatchlist={handleToggleWatchlist}
                     passed={passed.has(ticker)}
                     onTogglePassed={togglePassed}
                     onClick={openModal}

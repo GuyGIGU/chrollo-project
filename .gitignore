@@ -61,6 +61,7 @@ config/tickers.csv
 *.db
 *.db.pre-*
 *.db.premigration.bak
+*.db.prewatchlistledger.bak
 *.db-wal
 *.db-shm
 *.db.bak*
