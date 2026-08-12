@@ -1,10 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import HomeZone from './HomeZone';
 import ScreenerModal from '../ScreenerModal';
 import BridgeOut from './BridgeOut';
 import InstrumentTable from '../ui/InstrumentTable';
+import HoverGlass from '../ui/HoverGlass';
 import { EyeIcon } from '../NavIcons';
 import useWatchlistRecords from '../../hooks/useWatchlistRecords';
+import useHoverGlance from '../../hooks/useHoverGlance';
+import { artifactGlance, snapshotGlance } from '../glanceResolvers';
+import { adaptReplaySnapshot, replayProvenance } from '../replayAdapter';
+import { toast } from '../ui/feedback';
+import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 import { signedPct } from './homeFormat';
 
@@ -42,6 +48,7 @@ const fmtAge = (days) => (days == null ? '—' : days === 0 ? 'today' : `${days}
 export default function WatchlistZone({ screenerData, prices = {}, priceErr = false }) {
   const records = useWatchlistRecords();
   const [peek, setPeek] = useState(null);
+  const [replay, setReplay] = useState(null);
   const [sort, setSort] = useState({ by: 'ticker', dir: 'asc' });
 
   const chartData = useMemo(() => screenerData?.chart_data || {}, [screenerData]);
@@ -49,6 +56,50 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
   // Live prices + the stale flag come from HomeView's single shared poller
   // (useLivePrices), so the Home surface issues one /live-prices/ request per
   // cycle rather than one per zone.
+
+  const scanStamp = screenerData?.scan_identity?.scan_date || screenerData?.scanned_at || null;
+
+  // Hover reads the scan already in memory; a name that fell out of it falls
+  // back to the chart stored when it was saved, so the glance answers for every
+  // row rather than only today's.
+  const resolveGlance = useCallback((row) => (
+    chartData[row.t]
+      ? artifactGlance(chartData, row.t, scanStamp)
+      : snapshotGlance(row.watchId, row.t)
+  ), [chartData, scanStamp]);
+
+  const { glassProps, anchorProps, closeGlance } = useHoverGlance(
+    resolveGlance,
+    { suspended: Boolean(peek) || Boolean(replay) },
+  );
+
+  // Click is commit: a name in the latest scan opens its live chart; a name
+  // that fell out opens the chart stored with its most recent save, clearly
+  // framed as as-saved. The dead disabled row is retired — but a save made
+  // before charts were stored (every legacy row) still has nothing to show, so
+  // it says so rather than opening an empty modal.
+  const openRow = useCallback((row) => {
+    closeGlance();
+    if (row.data) { setPeek(row.t); return; }
+    if (row.watchId == null) return;
+    fetch(`${API_BASE}/watchlist/${row.watchId}/replay`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`replay ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => {
+        const adapted = adaptReplaySnapshot(payload?.snapshot);
+        if (!adapted) {
+          toast(`${row.t} was saved before charts were stored — nothing to replay.`);
+          return;
+        }
+        setReplay({ ticker: row.t, entry: adapted.entry, provenance: replayProvenance(payload) });
+      })
+      .catch((error) => {
+        console.error('Watchlist replay failed', error);
+        toast(`Could not load the saved chart for ${row.t}.`, { tone: 'danger' });
+      });
+  }, [closeGlance]);
 
   const rows = useMemo(() => records.map((record) => {
     const t = record.ticker;
@@ -67,6 +118,9 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       near: nearPct != null && nearPct <= NEAR_TRIGGER_PCT ? nearPct : null,
       stale,
       age: savedAgeDays(record.save_date),
+      // The active save event's id — the row's own most recent save, which is
+      // what a name absent from today's scan replays.
+      watchId: record.id ?? null,
     };
   }), [records, chartData, prices, priceErr]);
 
@@ -105,7 +159,11 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       key: 'ticker',
       label: 'Ticker',
       render: (row) => (
-        <span className="home-wlt-ident" title={row.data ? undefined : `${row.t} — not in the latest scan`}>
+        <span
+          className="home-wlt-ident"
+          title={row.data ? undefined : `${row.t} — not in the latest scan; opens the chart saved with it`}
+          {...anchorProps(row.t, row, row.t)}
+        >
           {/* No color of its own when the name isn't in the scan — the row's
               `muted` class dims it, which an inline color would defeat. */}
           <span style={{ color: row.data ? tierColor(row.data.tier) : undefined, fontWeight: 800 }}>{row.t}</span>
@@ -176,15 +234,17 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
           sortBy={sort.by}
           sortDir={sort.dir}
           onSort={onSort}
-          onRowClick={(row) => setPeek(row.t)}
-          // A name that fell out of the latest scan has nothing to peek at, so
-          // it must not wear the click affordance (the old surface disabled its
-          // button; the row would otherwise glow and then do nothing).
-          rowClickable={(row) => Boolean(row.data)}
+          onRowClick={openRow}
+          // Every row opens SOMETHING now: a name in the latest scan opens its
+          // live chart, and one that fell out opens the chart stored when it
+          // was saved. Only a name saved before charts were stored has nothing
+          // behind it, and that row alone declines the affordance.
+          rowClickable={(row) => Boolean(row.data) || row.watchId != null}
           rowClassName={(row) => (row.data ? '' : 'muted')}
           maxHeight={368}
         />
       </HomeZone>
+      <HoverGlass {...glassProps} />
       {peek && chartData[peek] && (
         <ScreenerModal
           ticker={peek}
@@ -194,6 +254,50 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
           footer={<BridgeOut ticker={peek} />}
         />
       )}
+      {replay?.entry && (
+        <ScreenerModal
+          ticker={replay.ticker}
+          data={replay.entry}
+          // As-saved, not live: the verdict control stays inert because this is
+          // not the current scan (the same contract the weekly review uses).
+          scanIdentity={null}
+          onClose={() => setReplay(null)}
+          footer={<ReplayFooter replay={replay} />}
+        />
+      )}
     </>
+  );
+}
+
+// The as-saved frame. Deliberately the SAME sentence the weekly review already
+// speaks over the identical envelope — same words, same faint mono stamp, no
+// color: the chart's palette is spoken for, and two different phrasings for one
+// fact would read as two different facts.
+function ReplayFooter({ replay }) {
+  const { provenance, ticker } = replay;
+  return (
+    <div style={{
+      alignItems: 'center',
+      borderTop: '1px solid var(--border-color)',
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 12,
+      padding: '8px 14px',
+    }}>
+      <span style={{
+        color: 'var(--text-faint)',
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.08em',
+      }}>
+        {`AS SCANNED ${provenance?.asScanned || '—'} · saved ${provenance?.savedOn || '—'}`}
+        {provenance?.unstarred ? ' · unstarred' : ''}
+      </span>
+      {provenance?.archiveNote ? (
+        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{provenance.archiveNote}</span>
+      ) : null}
+      <span style={{ marginLeft: 'auto' }}><BridgeOut ticker={ticker} /></span>
+    </div>
   );
 }

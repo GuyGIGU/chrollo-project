@@ -102,7 +102,9 @@ export function toggleWatchlist(ticker, saveContext = null) {
   }
 
   const optimistic = {
-    ticker, created_at: null, save_date: null, pinned: false, pin_scan_date: null,
+    // No id until the server answers — the row's shape must still match a real
+    // one, so surfaces keying off `id` see "not yet" instead of undefined.
+    id: null, ticker, created_at: null, save_date: null, pinned: false, pin_scan_date: null,
   };
   setRecords([optimistic, ...store.records]);
   const hasContext = Boolean(saveContext && saveContext.universe);

@@ -79,6 +79,19 @@ export const CHART_FRAMING = {
     scaleMargins: { top: 0.08, bottom: 0.22 },
     volumeScaleTop: 0.82,
   },
+  // The hover-glance glass (~380x250). The card's 90-130 bar budget in a 380px
+  // pane is ~2.5-3.8 px/bar — under the faithful band, which would make every
+  // base read TIGHTER than it is (the exact 2026-07 failure CHART_FRAMING was
+  // built to end). A shallower budget restores ~4.2-6.3 px/bar at glance size.
+  popover: {
+    maxVisibleBars: 85,
+    minVisibleBars: 60,
+    trimFloorBars: 45,
+    minContextBars: 14,
+    minBaseHeightFrac: 0.4,
+    scaleMargins: { top: 0.07, bottom: 0.16 },
+    volumeScaleTop: 0.88,
+  },
   // The W/M preview cubes beside the modal's daily chart. The full-pane W/M
   // tabs keep their deep windows (160/120 bars); a ~360px preview showing that
   // many bars is ~2.3px/bar — indecipherable (operator 2026-08-12). The preview

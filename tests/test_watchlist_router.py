@@ -256,6 +256,26 @@ def test_get_lists_active_only_newest_first(db, artifact):
     assert [i.ticker for i in items] == ["BBB", "AAA"]  # unstarred OLD absent
 
 
+def test_get_carries_the_active_save_id_for_a_one_hop_replay(db, artifact):
+    """The active row IS the ticker's most recent save (save_watch returns it
+    before creating anything, and the partial unique index allows only one), so
+    a surface wanting that save's stored chart can go straight to
+    /watchlist/{id}/replay instead of paging the weekly review to find it."""
+    _watch(db, ticker="OLD", save_date="2026-08-01",
+           saved_at=datetime(2026, 8, 1, 6, 0),
+           unstarred_at=datetime(2026, 8, 2, 6, 0))
+    row = _watch(db, ticker="AAA", save_date="2026-08-10",
+                 saved_at=datetime(2026, 8, 10, 6, 0))
+
+    (item,) = watchlist.list_watchlist(db)
+    assert item.ticker == "AAA"
+    assert item.id == row.id
+
+    # And that id addresses the replay route for real, not just by shape.
+    replay = watchlist.watchlist_replay(item.id, db)
+    assert replay.watch.ticker == "AAA"
+
+
 def test_bad_ticker_refused_with_named_class(db, artifact):
     for bad in ("", "  ", "BAD!!", "TOO-LONG-TICKER-NAME"):
         with pytest.raises(HTTPException) as err:

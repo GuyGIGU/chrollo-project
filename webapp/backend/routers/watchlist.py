@@ -27,8 +27,16 @@ logger = logging.getLogger("chrollo.watchlist")
 
 class WatchlistItem(BaseModel):
     """The toggle contract: ``ticker`` + ``created_at`` (now the save's audit
-    stamp) survive from the pre-ledger shape; the pin fields are additive."""
+    stamp) survive from the pre-ledger shape; the pin fields are additive.
 
+    ``id`` is the ACTIVE save event's row id. The active row is by construction
+    the ticker's most recent save (``save_watch`` returns the active row before
+    creating anything, and a partial unique index allows only one), so a surface
+    that wants that save's stored chart can hop straight to
+    ``/watchlist/{id}/replay`` instead of paging the weekly review to find it.
+    Nullable because an optimistic row has not been assigned one yet."""
+
+    id: int | None = None
     ticker: str
     created_at: datetime | None = None
     save_date: str | None = None
@@ -91,6 +99,7 @@ class ReplayResponse(BaseModel):
 
 def _item(row: models.Watchlist) -> WatchlistItem:
     return WatchlistItem(
+        id=row.id,
         ticker=row.ticker,
         created_at=row.saved_at,
         save_date=row.save_date,

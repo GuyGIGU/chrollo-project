@@ -11,7 +11,7 @@ import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartG
 // instead of cramming 90 bars into a sliver.
 const MINI = CHART_FRAMING.mini;
 
-const chartOptions = (width, height) => {
+const chartOptions = (width, height, profile) => {
   const base = baseChartOptions('mini', width, height);
   return {
     ...base,
@@ -22,14 +22,24 @@ const chartOptions = (width, height) => {
     crosshair: { mode: 0 },
     // Tight vertical fit (Finviz pillar #2): small margins so the visible high-low
     // fills the pane and a real consolidation reads at its true height, not flattened.
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: MINI.scaleMargins, autoScale: true },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: profile.scaleMargins, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
     handleScroll: false,
     handleScale: false,
   };
 };
 
-const ScreenerMiniChart = ({ ticker, data, maxBars = MINI.maxVisibleBars, minBars = MINI.minVisibleBars }) => {
+// `profile` is the whole CHART_FRAMING entry this surface frames by — the card
+// keeps `mini`, the hover glance passes `popover`. Before it existed, the bar
+// budget was overridable but the margins, volume band and TRIM floor were not,
+// so a smaller surface silently framed itself with card proportions.
+const ScreenerMiniChart = ({
+  ticker,
+  data,
+  profile = MINI,
+  maxBars = profile.maxVisibleBars,
+  minBars = profile.minVisibleBars,
+}) => {
   const candles = data.candles;
   const coloredCandles = colorMiniCandles(data);
 
@@ -38,7 +48,7 @@ const ScreenerMiniChart = ({ ticker, data, maxBars = MINI.maxVisibleBars, minBar
     addBoxRails(chart, data);
 
     if (data.base_len > 0 && data.candles?.length > 0) {
-      const range = miniFocusLogicalRange(data, maxBars, minBars);
+      const range = miniFocusLogicalRange(data, maxBars, minBars, profile);
       if (range) chart.timeScale().setVisibleLogicalRange(range);
     } else {
       chart.timeScale().fitContent();
@@ -49,7 +59,7 @@ const ScreenerMiniChart = ({ ticker, data, maxBars = MINI.maxVisibleBars, minBar
     <CandleChart
       spec={{
         chartOptions: (container) =>
-          chartOptions(container.clientWidth || 380, container.clientHeight || 240),
+          chartOptions(container.clientWidth || 380, container.clientHeight || 240, profile),
         candles: coloredCandles,
         barOptions: {
           upColor: CHART_COLORS.candle,
@@ -60,7 +70,7 @@ const ScreenerMiniChart = ({ ticker, data, maxBars = MINI.maxVisibleBars, minBar
         },
         volumes: data.volumes,
         showVolume: true,
-        volumeScaleTop: MINI.volumeScaleTop,
+        volumeScaleTop: profile.volumeScaleTop,
         onReady,
         onError: (err) => console.error(`[ScreenerMiniChart] Chart init failed for ${ticker}:`, err),
         deps: [ticker, data],
