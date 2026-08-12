@@ -90,7 +90,9 @@ export default function FeedbackHost() {
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            zIndex: 3000,
+            // Above every overlay layer (modals sit at 5000): a toast fired
+            // from inside the weekly review must not paint behind its backdrop.
+            zIndex: 6000,
           }}
         >
           {toasts.map((item) => <Toast key={item.id} item={item} />)}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import InstrumentTable from './ui/InstrumentTable';
+import WeeklyReview from './WeeklyReview';
 import { buildWatchlistRows, sortWatchlistRows } from '../utils/watchlistTable';
 import { fixed } from '../utils/archiveTabUtils';
 import { tierColor } from '../theme';
@@ -13,6 +14,7 @@ import { confirmDialog } from './ui/feedback';
 function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleWatchlist }) {
   // Sort lives in the caller (controlled), not inside the table primitive.
   const [sort, setSort] = useState({ by: 'tier', dir: 'asc' });
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   // Derive the rows every render — never store them, or a star toggle / rescan
   // leaves a stale grid.
@@ -23,10 +25,26 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
 
   if (isScanning) return null;
 
+  // The review entry point rides both states — un-starred HISTORY exists even
+  // when the active watchlist is empty.
+  const review = (
+    <>
+      <button type="button" className="focus-ring" style={reviewButtonStyle}
+              onClick={() => setReviewOpen(true)}>
+        Review
+      </button>
+      <WeeklyReview open={reviewOpen} onClose={() => setReviewOpen(false)}
+                    screenerData={screenerData} />
+    </>
+  );
+
   if (!watchlist || watchlist.size === 0) {
     return (
-      <div style={emptyStyle}>
-        No names on your watchlist yet. Star a setup (the ☆ on a screener card) to add it here.
+      <div style={{ ...emptyStyle, alignItems: 'center', display: 'flex', gap: 12, justifyContent: 'space-between' }}>
+        <span>
+          No names on your watchlist yet. Star a setup (the ☆ on a screener card) to add it here.
+        </span>
+        {review}
       </div>
     );
   }
@@ -40,13 +58,14 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
   const inScanCount = rows.filter((row) => row.in_scan).length;
 
   // In-scan names can be re-starred from their card, so removal is frictionless;
-  // an off-scan name has no card to re-add it from, so guard that (irreversible)
-  // removal with a confirm.
+  // an off-scan name has no card, so a confirm guards against an accidental
+  // de-listing — though with the ledger it is no longer irreversible: its
+  // history stays in Review, where any name can be re-starred.
   const removeName = async (ticker, inScan) => {
     if (!inScan) {
       const ok = await confirmDialog({
         title: 'Remove from watchlist?',
-        message: `${ticker} has no setup in today's scan, so it can only be re-added when it next appears in the screener. Remove it anyway?`,
+        message: `${ticker} has no setup in today's scan. Its saved history stays in Review, where you can re-star it any time. Remove it from the watchlist?`,
         confirmLabel: 'Remove',
         cancelLabel: 'Keep',
         danger: true,
@@ -120,8 +139,11 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={captionStyle}>
-        Watchlist — {watchlist.size} {watchlist.size === 1 ? 'name' : 'names'} · {inScanCount} with a live setup
+      <div style={{ alignItems: 'center', display: 'flex', gap: 12 }}>
+        <div style={captionStyle}>
+          Watchlist — {watchlist.size} {watchlist.size === 1 ? 'name' : 'names'} · {inScanCount} with a live setup
+        </div>
+        {review}
       </div>
       <InstrumentTable
         columns={columns}
@@ -141,6 +163,19 @@ const captionStyle = {
   color: 'var(--text-muted)',
   fontSize: '12px',
   fontWeight: 500,
+};
+
+const reviewButtonStyle = {
+  background: 'transparent',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--radius-lg)',
+  color: 'var(--text-main)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: 12,
+  marginLeft: 'auto',
+  padding: '3px 12px',
+  whiteSpace: 'nowrap',
 };
 
 const emptyStyle = {

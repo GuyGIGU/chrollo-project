@@ -1,46 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
-import { API_BASE } from '../api';
+import { useEffect, useSyncExternalStore } from 'react';
+import {
+  fetchWatchlist,
+  getWatchlistActiveSet,
+  subscribeWatchlistStore,
+  toggleWatchlist,
+} from './watchlistStore';
 
+// Contract unchanged: { watchlist: Set<ticker>, toggleWatchlist(ticker,
+// saveContext?) }. Now store-backed (Finviz plan Task 8): the four mounts
+// (ScreenerGrid, WatchlistZone, ActionCenter, useLivePrices) share one records
+// list, so a star on the Screener is instantly visible on Home. The optional
+// saveContext = { universe, scanDate } carries the DISPLAYED scan identity so
+// the server pins the artifact the operator was actually looking at (EC-37).
 function useWatchlist() {
-  const [watchlist, setWatchlist] = useState(() => new Set());
+  const watchlist = useSyncExternalStore(subscribeWatchlistStore, getWatchlistActiveSet);
 
   useEffect(() => {
-    fetch(`${API_BASE}/watchlist/`)
-      .then(response => response.ok ? response.json() : [])
-      .then(items => setWatchlist(new Set(items.map(item => item.ticker))))
-      .catch(() => {});
-  }, []);
-
-  const toggleWatchlist = useCallback((ticker) => {
-    setWatchlist(previous => {
-      const next = new Set(previous);
-      const isOn = next.has(ticker);
-      if (isOn) next.delete(ticker);
-      else next.add(ticker);
-
-      fetch(`${API_BASE}/watchlist/${encodeURIComponent(ticker)}`, {
-        method: isOn ? 'DELETE' : 'POST',
-      })
-        .then(response => {
-          if (!response.ok) throw new Error('watchlist write failed');
-        })
-        .catch(error => {
-          console.error('Watchlist toggle failed, reverting', error);
-          setWatchlist(current => rollbackWatchlist(current, ticker, isOn));
-        });
-
-      return next;
-    });
+    fetchWatchlist(); // in-flight dedup'd across the four mounts
   }, []);
 
   return { watchlist, toggleWatchlist };
-}
-
-function rollbackWatchlist(current, ticker, wasOn) {
-  const rolled = new Set(current);
-  if (wasOn) rolled.add(ticker);
-  else rolled.delete(ticker);
-  return rolled;
 }
 
 export default useWatchlist;
