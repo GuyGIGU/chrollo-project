@@ -200,7 +200,7 @@ _V2_OVERLAY = {
 
 def test_wire_flag_on_v2_block_serializes_rounded_fixed_arity(monkeypatch):
     """Flag-ON the v2 block rides the payload: display-rounded ONCE here,
-    chapters exactly the ruled five, warnings a small dict — fixed arity
+    chapters exactly the ruled set, warnings a small dict — fixed arity
     only, nothing that grows with the chart."""
     chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY, flag=True)
     assert chart["ta_grade"] == 61.2                    # 1dp headline

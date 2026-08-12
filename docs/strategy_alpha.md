@@ -331,6 +331,26 @@ label, the phase read, and the archive can never drift — a calibrated `SPRING`
 re-typed. Downstream reads **inject** the elected spring rather than re-detecting. Most
 bases have no Phase C and that is normal (see "The Phase D Model").
 
+**A spring is MARKED, never graded (operator ruling 2026-08-12).** "There is no telling
+whether a setup that has one will win or not. A setup is more complete if a clear Phase C
+occurs and then recovers nicely into a Phase D, but that's about it — it's more important
+for the engine to *find* Phase C (spring) or the 'V' tip structure, just to put a mark on
+where the right-most side of the consolidation is, to understand the order of how the
+setup played out." So Phase C is not a chapter of the grade and carries no points; the
+spring term rides a `marker` layer that is outside the grade's arithmetic entirely, so the
+ruling holds by construction rather than by a weight anyone could raise. The *completeness*
+a clean turn buys is graded where completeness is graded — inside the consolidation's story
+terms — not as a bonus for the event itself.
+
+**Shakeouts read the same way, and the LPS that follows one is its own shape.** A shakeout
+is a later, deeper correction whose purpose is literally to shake buyers out; it is typed
+at the same Phase-C seam and marked, not scored. The operator's read: the smaller,
+contracting seller pullback that forms *after* a shakeout is often a very good setup, and
+it is **not** the same shape as a Last Supper (the over-extended right side the warning
+chip flags — a pullback from a run that already left the base behind). The two are
+distinguished today only by the Last-Supper stretch measures; nothing grades the
+after-shakeout LPS as its own form. Recorded as theory, unmeasured.
+
 **Cause before effect, Phase C → Phase D (operator ruling 2026-08-09, KYMR): the LPS
 may not predate the spring.** "By chronological order the actual LPS comes in Phase D
 — the right side of the stock's V — after either a dedicated Phase C or just natural
@@ -434,11 +454,29 @@ sum over a FIXED divisor, so absence is neutral: a chart missing an input grades
 the same denominator as a complete one, and no read is punished for a measurement the
 engine could not take.
 
-The grade is read as five **story chapters** in the operator's own phase-overlay words —
-**Cause → Phase B → Phase C → Phase D → Trend** — left→right like the chart. The chapters
-are a *display partition* of the one sum: their subtotals add up exactly to the grade,
-with no per-chapter divisor, floor, or clamp (any of those would recreate the
-tested-DEAD present-cap denominator one level down).
+The grade is read as three **story chapters** — **Consolidation → Phase D → Trend** —
+left→right like the chart. The chapters are a *display partition* of the one sum: their
+subtotals add up exactly to the grade, with no per-chapter divisor, floor, or clamp (any
+of those would recreate the tested-DEAD present-cap denominator one level down).
+
+- **Consolidation** — the base itself: is it tight, mature, two-sided, contracting, on a
+  floor that stair-steps up, and did its story complete? Wyckoff's *cause* and the work
+  inside the range are ONE question about ONE object, and were fused as such (operator
+  ruling 2026-08-12: "a two-sided zigzag price action can be folded into one of the
+  quality traits we look for in a consolidation as a whole").
+- **Phase D** — the right side into the pivot: the LPS's tightness, its volume dry-up, the
+  terminal squeeze.
+- **Trend** — the chart around the base: trend, RS, 52-week proximity, ADR. Hopefully the
+  *result* of said cause.
+
+**Some events are marked, not graded.** Phase A and Phase C carry no points at all. The
+engine finds them, types them, archives them and draws them — and stops there, because
+locating them is the whole job: a mark says *where* the base's right side begins and in
+*what order* the setup played out, not how good it is. Grading them would claim an edge
+nobody has measured (see the Spring entry). A read is never punished for lacking a mark,
+and never rewarded for having one. What a clean shakeout-and-recovery genuinely buys is
+already graded where it belongs — in the consolidation's *completeness*, which reads the
+whole story rather than the presence of one event in it.
 
 Two rules keep it honest against the model above:
 

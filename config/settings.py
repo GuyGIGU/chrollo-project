@@ -792,7 +792,11 @@ TA_SCORE_V2 = True
 #    lps_tightness / vol_contraction). Consumed by the v2 term expressions; the
 #    frozen v1 path keeps its literals until retirement so flag-off stays
 #    byte-identical by construction.
-SCORE_SPRING = 0                  # spring term cap — shape-only until the A/B
+# FROZEN AT 0 by the 2026-08-12 ruling — a spring is a MARK, not a grade. The
+# term moved to taxonomy layer 'marker', so it is off the ta layer entirely and
+# this cap can no longer reach the grade even if it were raised. There is no A/B
+# coming for it; raising it does nothing.
+SCORE_SPRING = 0                  # spring term cap — marker layer, never graded
 TOUCH_POINT_RATE = 2.0            # points per rail touch (v1 literal: touches * 2.0)
 LPS_TIGHTNESS_SLOPE = 2.0         # saturation slope: full credit at tightness_ratio <= 0.5
 VOL_CONTRACTION_SLOPE = 2.0       # saturation slope: full credit at vol_contraction >= 0.5
@@ -802,9 +806,9 @@ VOL_CONTRACTION_SLOPE = 2.0       # saturation slope: full credit at vol_contrac
 # shape-only (weights move LAST, at the operator's A/B eyeball); the anchors
 # are provisional calibration references recalibrated against the live archive
 # at the A/B — the measure-first pattern, never gates, never penalties.
-SCORE_STORY_S_TESTS = 0            # completed support tests (Phase-B chapter)
-SCORE_STORY_R_REJECTIONS = 0       # completed resistance rejections (Phase-B chapter)
-SCORE_STORY_ALTERNATIONS = 0       # rail alternations across completed episodes (Phase-B chapter)
+SCORE_STORY_S_TESTS = 0            # completed support tests (Consolidation chapter)
+SCORE_STORY_R_REJECTIONS = 0       # completed resistance rejections (Consolidation chapter)
+SCORE_STORY_ALTERNATIONS = 0       # rail alternations across completed episodes (Consolidation chapter)
 SCORE_STORY_TERMINAL_POSTURE = 0   # right-edge R-engagement stance (Phase-D chapter)
 STORY_COMPLETED_TESTS_FULL = 3     # rail-test count at saturation (EGBN separator: 3 completed S-tests vs drift junk 0)
 STORY_ALTERNATIONS_FULL = 2        # alternation count at full credit

@@ -406,7 +406,7 @@ def _extract_chart_data(data, results_df, tickers):
                 # flag-off wire snapshot pins the absence). The wire carries
                 # VERDICTS (EC-28): everything arrives resolved and
                 # display-rounded here, once — the archive keeps the full
-                # precision. Fixed arity only: chapters are five named
+                # precision. Fixed arity only: chapters are the ruled named
                 # scalars, warnings a small id→factor dict — never a
                 # per-bar/per-term unbounded structure (the election-trace
                 # payload hazard class). Wire names == archive column names

@@ -630,12 +630,14 @@ def test_compose_grade_chapters_partition_the_one_sum(v2_on):
     # terms absent contribute 0 against the FIXED divisor.
     assert grid[0]["ta_grade_raw"] == pytest.approx(107.0)
     # Per-chapter earned fractions (task 12): bounded, fixed arity, and the
-    # cause anchor by hand — cause points 15+14=29 of its 44-cap = 29/44.
+    # consolidation anchor by hand — box 15 + touches 18 + traversal 6 + age 14
+    # + contraction 8 + rising support 4 + setup quality 6 = 71, against its
+    # 22+25+10+22+12+8+8 = 107 cap (the story terms cap 0 either side).
     for out in grid:
         fr = out["ta_grade_chapter_fractions"]
         assert tuple(fr) == taxonomy.CHAPTER_ORDER
         assert all(0.0 <= v <= 1.0 for v in fr.values())
-    assert grid[0]["ta_grade_chapter_fractions"]["cause"] == pytest.approx(29.0 / 44.0)
+    assert grid[0]["ta_grade_chapter_fractions"]["consolidation"] == pytest.approx(71.0 / 107.0)
     assert grid[0]["ta_grade"] == pytest.approx(107.0 * 100.0 / cap_sum)
     # The all-absent row is a finite geometry-only baseline, not NaN.
     assert grid[3]["ta_grade"] == 0.0 and grid[3]["ta_grade_raw"] == 0.0
@@ -742,15 +744,15 @@ def test_compose_story_terms_distinguish_absent_zero_and_unreadable(v2_on, monke
 
 def test_compose_stance_enters_its_own_term_never_the_facts(v2_on, monkeypatch):
     """Right-edge stance (terminal posture) may only move its own Phase-D term —
-    never a completed-event count, never the Phase-B chapter."""
+    never a completed-event count, never the consolidation chapter."""
     from engine_alpha.scoring.scoring import compose_ta_grade
     monkeypatch.setattr(settings, "SCORE_STORY_TERMINAL_POSTURE", 8)
     up = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=1))
     down = compose_ta_grade(_sub(), event_map=_em(event_map_terminal_posture=0))
     for k in ("story_s_tests", "story_r_rejections", "story_alternations"):
         assert up[k] == down[k]
-    assert up["ta_grade_chapters"]["phase_b"] == pytest.approx(
-        down["ta_grade_chapters"]["phase_b"])
+    assert up["ta_grade_chapters"]["consolidation"] == pytest.approx(
+        down["ta_grade_chapters"]["consolidation"])
     assert up["ta_grade_chapters"]["phase_d"] > down["ta_grade_chapters"]["phase_d"]
 
 

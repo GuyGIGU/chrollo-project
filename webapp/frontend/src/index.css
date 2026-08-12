@@ -716,41 +716,51 @@ td {
    earned-fraction gauge, and the phase's chart-overlay hue laid flat: with no
    column gap and a bled margin the segments touch, so the bank's top edge is
    ONE continuous multi-hued track and the chrome IS the measurement. The LPS is
-   not a seventh stack — it is a readout recessed into Phase D's own column,
-   because its points are already counted there. */
+   not a fourth stack — it is a readout recessed into Phase D's own column,
+   because its points are already counted there.
+
+   MARKS ARE NOT COLUMNS (operator ruling 2026-08-12, second sitting). Phase A
+   and Phase C carry no points — they exist "just to put a mark on where the
+   right-most side of the consolidation is, to understand the order of how the
+   setup played out". They take a fixed narrow rail; the three graded chapters
+   share everything left. The track list is built in the JSX because only it
+   knows which columns are marks. */
 .story-bank {
+  --story-mark-w: 128px;
+  /* Three chapters must not stretch to 500px each on a wide modal; below the
+     cap they share the space evenly, which is the normal case. */
+  --story-col-max: 420px;
   align-items: stretch;
   column-gap: 0;
   display: grid;
-  grid-template-columns: minmax(104px, 0.62fr) repeat(var(--story-cols, 6), minmax(0, 1fr));
+  grid-template-columns: minmax(104px, 0.62fr) var(--story-track);
+  justify-content: start;
   margin-top: 8px;
 }
 
-/* Two or three stacks must not stretch across 1300px: a wide column would
-   claim a weight the payload never measured. */
-.story-bank.is-sparse {
-  grid-template-columns: minmax(104px, 0.62fr) repeat(var(--story-cols, 1), minmax(0, 260px));
-  justify-content: start;
-}
-
-/* The one strong rule in the panel: total | terms. */
+/* The one strong rule in the panel: total | terms.
+   Measured against the live font rather than eyeballed (operator 2026-08-12:
+   "some of the text clips into each other" — the word GRADE sat ABOVE the
+   figure and a 32px glyph in a 22px line box drove its ink 7px through it):
+   with JetBrains Mono at 32/22, the digits' baseline lands 28px below the
+   figure box's top and their ink bottom IS that baseline. So the box is 28px
+   tall, the block's 8px top pad drops that baseline onto the chapter figures'
+   own baseline beside it, and the label sits below with 6px of air — enough
+   that the Consolas fallback path cannot close it either. */
 .story-total {
   border-right: 1px solid var(--border-strong);
   display: flex;
   flex-direction: column;
-  padding: 0 14px 0 2px;
+  padding: 8px 14px 0 2px;
 }
 
-/* 13px = the gauge (6) + its margin (7), so the grade's digits land on the
-   same band as the chapter figures beside it. */
 .story-total-label {
-  align-items: flex-end;
   color: var(--text-muted);
-  display: flex;
   font-size: 10px;
   font-weight: 800;
-  height: 13px;
   letter-spacing: 0.08em;
+  line-height: 13px;
+  margin-top: 6px;
   text-transform: uppercase;
 }
 
@@ -758,7 +768,7 @@ td {
   align-items: baseline;
   display: flex;
   gap: 4px;
-  height: 22px;
+  height: 28px;
 }
 
 .story-total-value {
@@ -768,12 +778,9 @@ td {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   letter-spacing: -0.02em;
+  /* Short on purpose: it puts the baseline on the chapters' number line. The
+     ink above it lands in the block's top pad, which is empty. */
   line-height: 22px;
-  /* Metric nudge so a 32px figure and a 20px figure share one band. Eyeballed
-     at 1536x864; JetBrains Mono has a Consolas fallback path, and nothing
-     structural depends on this — the strong rule does the separating. */
-  position: relative;
-  top: -3px;
 }
 
 .story-total-scale {
@@ -884,13 +891,24 @@ td {
   height: 100%;
 }
 
-/* UNGRADED (Phase A): no track at all — a hairline, which is a different
-   object. An empty track would read as a measured zero, the one thing this
-   lens never fakes. */
-.story-gauge.is-ungraded {
+/* UNGRADED: no track at all — a hairline, which is a different object. An empty
+   track would read as a measured zero, the one thing this lens never fakes. The
+   5px top margin keeps the 6px band, so the number line below still lands on one
+   row across the whole bank (at 2px it sat 3px high and pulled Phase A's stack
+   up with it). */
+.story-gauge.is-ungraded,
+.story-gauge.is-mark {
   background: color-mix(in srgb, var(--text-faint) 45%, transparent);
   height: 1px;
-  margin-top: 2px;
+  margin-top: 5px;
+}
+
+/* A MARK wears its phase hue on that hairline: the tick under the "A" is the
+   same grey the Phase-A band is drawn in, the tick under "C" the same pink. It
+   is a rule, never a fill — a filled bar is the gauge, and the gauge means
+   points, which a mark does not have. */
+.story-gauge.is-mark {
+  background: color-mix(in srgb, var(--story-hue) 70%, transparent);
 }
 
 /* The number line: one band across the bank, so the chapter figures still read
@@ -900,19 +918,27 @@ td {
   color: var(--text-main);
   display: flex;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
+  font-size: 24px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 22px;
   margin-top: 7px;
 }
 
+/* A mark prints its chip where its neighbours print a number, so the number
+   line reads 73 | ▪A | 42.2 | ▪C | 23.4 | 6.4 and the ungraded events are
+   visibly outside the addition. */
+.story-value.is-mark {
+  align-items: center;
+  font-size: 0;
+}
+
 /* The de-emphasised decimal keeps six figures from shouting without dropping
-   precision, and holds grade:figure at 32:20. */
+   precision, and holds grade:figure at 32:24. */
 .story-dec {
   color: var(--text-muted);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
@@ -948,7 +974,7 @@ td {
 
 .story-name-text {
   color: var(--text-main);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.005em;
   line-height: 15px;
@@ -960,17 +986,27 @@ td {
 
 /* FIXED height, not max-height: a long caveat can never push one column taller
    than its neighbours, so the bank never jitters between tickers. The full
-   sentence stays in the row's title. */
+   sentence stays in the row's title. Two lines now, not three — the chapters
+   are ~340px wide instead of 220px, so the same sentence needs fewer of them. */
 .story-detail {
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   color: var(--text-faint);
   display: -webkit-box;
-  font-size: 10.5px;
-  height: 39px;
-  line-height: 13px;
+  font-size: 11.5px;
+  height: 28px;
+  line-height: 14px;
   margin-top: 4px;
   overflow: hidden;
+}
+
+/* A mark's rail is 128px, so its own detail wraps sooner and stays smaller —
+   and stays SHORTER than a chapter's, so a mark can never drive the bank's
+   height. */
+.story-detail.is-mark {
+  font-size: 10px;
+  height: 24px;
+  line-height: 12px;
 }
 
 .story-dagger {
@@ -1011,6 +1047,17 @@ td {
 
 .story-face.is-static:hover .story-name-text { color: var(--text-main); }
 .story-face.is-static:hover .story-gauge { box-shadow: none; }
+
+/* ── a MARK: a found event, no grade ───────────────────────────────────────
+   Quieter than a chapter in every channel it can be quieter in — narrower,
+   smaller name, no figure — because the operator's ruling is precisely that a
+   Phase C tells you WHERE and in what ORDER, not how good. It stays fully
+   hoverable: locating the shakeout on the chart is the whole job. */
+.story-col-mark .story-name-text {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
 
 /* ── the LPS: a readout recessed INTO Phase D ─────────────────────────────
    Its points are already inside Phase D, so it is not a sibling stack. Four
@@ -1098,13 +1145,14 @@ td {
 }
 
 /* Narrower than the operator's monitor. No !important anywhere — the JSX sets
-   only --story-cols. */
+   only --story-track, and this rule replaces the property that consumes it. */
 @media (max-width: 1100px) {
   /* The total takes the whole first row rather than keeping its narrow track:
      wrapped into a 4-track grid, the fourth phase landed IN that track and
-     rendered 160px wide beside its 266px siblings. */
-  .story-bank,
-  .story-bank.is-sparse {
+     rendered 160px wide beside its 266px siblings. Marks lose their narrow rail
+     here and share a track like everything else — at this width there is no
+     spare room to spend on the distinction. */
+  .story-bank {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-content: stretch;
     row-gap: 10px;
@@ -1114,7 +1162,7 @@ td {
     border-bottom: 1px solid var(--border-color);
     border-right: 0;
     grid-column: 1 / -1;
-    padding: 0 0 8px;
+    padding: 8px 0 8px;
   }
 
   .story-total .ta-grade-warnings { flex-direction: row; flex-wrap: wrap; }
