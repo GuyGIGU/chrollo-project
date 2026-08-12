@@ -58,13 +58,22 @@ function WeeklyReview({ open, onClose, screenerData }) {
 
   const onToggleStar = (save) => {
     const wasOn = watchlist.has(save.ticker);
-    Promise.resolve(toggleWatchlist(save.ticker)).finally(reload);
+    // EC-37: the review DISPLAYS a historical identity — a re-star sends
+    // exactly that. The server re-pins only when its artifact still IS that
+    // scan (a same-day re-star); any later re-star lands honestly unpinned
+    // (stale_display) instead of pinning a chart nobody was looking at.
+    const context = {
+      universe: save.pin_universe_key || 'us_stocks',
+      scanDate: save.pin_scan_date || save.save_date || null,
+    };
+    Promise.resolve(toggleWatchlist(save.ticker, context)).finally(reload);
     if (wasOn) {
       toast('Removed from watchlist — its saved weeks stay in review', { tone: 'info' });
     }
   };
 
   return (
+    <>
     <div style={overlayStyle} onClick={onClose}>
       <div style={panelStyle} onClick={(event) => event.stopPropagation()}>
         <div style={headerStyle}>
@@ -106,19 +115,23 @@ function WeeklyReview({ open, onClose, screenerData }) {
           </div>
         ))}
       </div>
-
-      {replay && (
-        <ReplayViewer
-          replay={replay}
-          screenerData={screenerData}
-          showCurrent={showCurrent}
-          onFlip={() => setShowCurrent((value) => !value)}
-          onClose={() => setReplay(null)}
-          onPrev={() => step(-1)}
-          onNext={() => step(1)}
-        />
-      )}
     </div>
+
+    {/* Sibling of the overlay, NOT a child: a backdrop click inside the
+        replay must close the replay alone, never bubble into the review's
+        own onClose (review finding 2026-08-12). */}
+    {replay && (
+      <ReplayViewer
+        replay={replay}
+        screenerData={screenerData}
+        showCurrent={showCurrent}
+        onFlip={() => setShowCurrent((value) => !value)}
+        onClose={() => setReplay(null)}
+        onPrev={() => step(-1)}
+        onNext={() => step(1)}
+      />
+    )}
+    </>
   );
 }
 
@@ -175,6 +188,22 @@ function ReplayViewer({ replay, screenerData, showCurrent, onFlip, onClose, onPr
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [mode, onClose]);
+
+  // The trained modal-pager rhythm: arrow keys walk the week's saves.
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        onNext();
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        onPrev();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onPrev, onNext]);
 
   if (mode === 'none') {
     // Nothing stored to draw: state it in place instead of a broken chart.

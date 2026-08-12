@@ -202,6 +202,9 @@ class Watchlist(Base):
 
     __table_args__ = (
         UniqueConstraint("ticker", "save_date", name="uq_watchlist_save_event"),
+        # EC-19: the closed origin vocabulary is enforced, not just documented.
+        CheckConstraint("origin IN ('user', 'legacy')",
+                        name="ck_watchlist_origin"),
         CheckConstraint(
             "(pin_scan_date IS NULL AND pin_universe_type IS NULL "
             "AND pin_setup_type IS NULL AND pin_engine_config_version IS NULL) "

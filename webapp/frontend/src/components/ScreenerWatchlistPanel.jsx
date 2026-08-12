@@ -58,13 +58,14 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
   const inScanCount = rows.filter((row) => row.in_scan).length;
 
   // In-scan names can be re-starred from their card, so removal is frictionless;
-  // an off-scan name has no card to re-add it from, so guard that (irreversible)
-  // removal with a confirm.
+  // an off-scan name has no card, so a confirm guards against an accidental
+  // de-listing — though with the ledger it is no longer irreversible: its
+  // history stays in Review, where any name can be re-starred.
   const removeName = async (ticker, inScan) => {
     if (!inScan) {
       const ok = await confirmDialog({
         title: 'Remove from watchlist?',
-        message: `${ticker} has no setup in today's scan, so it can only be re-added when it next appears in the screener. Remove it anyway?`,
+        message: `${ticker} has no setup in today's scan. Its saved history stays in Review, where you can re-star it any time. Remove it from the watchlist?`,
         confirmLabel: 'Remove',
         cancelLabel: 'Keep',
         danger: true,

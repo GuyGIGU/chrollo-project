@@ -12,10 +12,13 @@ const CLIENT_HEADER = { 'X-Chrollo-Client': 'chrollo-dashboard' };
 const store = {
   records: [],          // [{ticker, created_at, save_date, pinned, pin_scan_date}]
   activeSet: new Set(), // derived from records at every write — one truth
-  failed: false,
   inflight: null,
   listeners: new Set(),
 };
+
+// Bumped by every toggle; a GET response issued before the bump is stale and
+// must not clobber the optimistic state (review finding 2026-08-12).
+let mutationEpoch = 0;
 
 function emit() {
   for (const listener of store.listeners) listener();
@@ -32,34 +35,25 @@ export function subscribeWatchlistStore(listener) {
   return () => store.listeners.delete(listener);
 }
 
-export function getWatchlistRecords() {
-  return store.records;
-}
-
 export function getWatchlistActiveSet() {
   return store.activeSet;
 }
 
-export function fetchWatchlist({ fresh = false } = {}) {
-  if (store.inflight) {
-    // A dedup'd in-flight response can predate a write; `fresh` awaits it and
-    // then re-fetches (the screenerStore fresh semantic).
-    if (!fresh) return store.inflight;
-    return store.inflight.catch(() => {}).then(() => fetchWatchlist());
-  }
+export function fetchWatchlist() {
+  if (store.inflight) return store.inflight;
+  const epochAtIssue = mutationEpoch;
   const request = fetch(`${API_BASE}/watchlist/`)
     .then((response) => {
       if (!response.ok) throw new Error(`watchlist ${response.status}`);
       return response.json();
     })
     .then((items) => {
-      store.failed = false;
-      setRecords(items);
+      // A toggle happened while this GET was in flight: its read-time
+      // snapshot predates the write — drop it, the toggle path reconciles.
+      if (epochAtIssue === mutationEpoch) setRecords(items);
     })
     .catch((error) => {
-      store.failed = true;
       console.error('Watchlist load failed', error);
-      emit();
     })
     .finally(() => {
       if (store.inflight === request) store.inflight = null;
@@ -74,6 +68,7 @@ export function fetchWatchlist({ fresh = false } = {}) {
 // page (EC-26: the server still resolves pin + snapshot from its own
 // artifact; this is what-the-operator-clicked, never chart content).
 export function toggleWatchlist(ticker, saveContext = null) {
+  mutationEpoch += 1;
   const wasOn = store.activeSet.has(ticker);
   if (wasOn) {
     const removed = store.records.find((r) => r.ticker === ticker);
@@ -83,7 +78,13 @@ export function toggleWatchlist(ticker, saveContext = null) {
       headers: CLIENT_HEADER,
     })
       .then((response) => {
+        // 404 = the server already agrees the star is off — success, never
+        // a rollback (a rollback here wedges the star un-removable).
+        if (response.status === 404) return;
         if (!response.ok) throw new Error(`watchlist delete ${response.status}`);
+        // Reconcile from our own outcome, never assume the optimistic
+        // removal survived intermediate writes.
+        setRecords(store.records.filter((r) => r.ticker !== ticker));
       })
       .catch((error) => {
         console.error('Watchlist toggle failed, reverting', error);
@@ -115,7 +116,9 @@ export function toggleWatchlist(ticker, saveContext = null) {
       return response.json();
     })
     .then((item) => {
-      setRecords(store.records.map((r) => (r.ticker === ticker ? item : r)));
+      // Upsert: replace the optimistic row, or prepend if it was clobbered.
+      const rest = store.records.filter((r) => r.ticker !== ticker);
+      setRecords([item, ...rest]);
     })
     .catch((error) => {
       console.error('Watchlist toggle failed, reverting', error);

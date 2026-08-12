@@ -168,6 +168,12 @@ def test_resolver_legs_are_distinguishable(artifact):
         "NVDA", "us_stocks", "2026-08-08")  # page shows an older scan
     assert reason == "stale_display"
 
+    # Staleness trumps absence: a ticker missing from a NEWER artifact says
+    # nothing about the page the operator saw (review finding 2026-08-12).
+    _, _, reason = watchlist_ledger.resolve_pin_and_snapshot(
+        "ZZZT", "us_stocks", "2026-08-08")
+    assert reason == "stale_display"
+
     artifact(_artifact(identity=False))
     _, _, reason = watchlist_ledger.resolve_pin_and_snapshot(
         "NVDA", "us_stocks", None)
@@ -266,6 +272,36 @@ def test_bad_universe_refused_with_named_class(db, artifact):
     assert err.value.detail["class"] == "bad_universe"
 
 
+def test_calendar_impossible_scan_date_refused(db, artifact):
+    """Shape-valid but calendar-impossible dates are refused at the boundary —
+    they would otherwise silently degrade every save to unpinned."""
+    with pytest.raises(HTTPException) as err:
+        watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(
+            universe="us_stocks", scan_date="2026-02-31"), db)
+    assert err.value.status_code == 400
+    assert err.value.detail["class"] == "bad_date"
+    assert db.query(models.Watchlist).count() == 0
+
+
+def test_concurrent_double_post_converges_via_integrity_error(db, artifact, monkeypatch):
+    """The uniqueness-violation = idempotent-success branch, actually driven
+    (EC-22): a competing writer lands between the ladder queries and the
+    INSERT; save_watch must converge on the winner, never 500."""
+    real = watchlist_ledger.resolve_pin_and_snapshot
+
+    def racing(ticker, universe_key, displayed):
+        _watch(db, ticker=ticker,
+               save_date=datetime.now(timezone.utc).date().isoformat(),
+               saved_at=datetime(2026, 8, 12, 5, 0))
+        return real(ticker, universe_key, displayed)
+
+    monkeypatch.setattr(watchlist_ledger, "resolve_pin_and_snapshot", racing)
+    row, outcome = watchlist_ledger.save_watch(db, "NVDA", "us_stocks", None)
+    assert outcome == "already_active"
+    assert row is not None
+    assert db.query(models.Watchlist).count() == 1
+
+
 def test_write_routes_declare_the_cross_app_guard():
     """Hunt's containment: every mutating watchlist route carries
     require_same_app (CORS stays a read-gate; the allowlist is not widened)."""
@@ -303,11 +339,15 @@ def test_review_groups_by_pinned_scan_date_not_save_date(db, artifact):
     this_week = resp.weeks[0].saves
     assert [s.ticker for s in this_week] == ["AAA"]
     # EC-28: the review row quotes the STORED snapshot, not a live lookup.
+    # ta_grade is the producer's NUMERIC grade — a string here would mean the
+    # fixture certifies a payload shape the dashboard never writes (the P1
+    # this guard exists for, review 2026-08-12).
     assert this_week[0].tier == "S"
     assert this_week[0].score == 61.5
     assert this_week[0].setup == "LPS"
-    assert this_week[0].ta_grade == "A"
+    assert this_week[0].ta_grade == 74.1
     assert this_week[0].active is True
+    assert this_week[0].pin_universe_key == "us_stocks"
 
     last_week = resp.weeks[1].saves
     assert [s.ticker for s in last_week] == ["CCC", "BBB"]  # newest day first

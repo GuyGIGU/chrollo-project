@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import get_db
-from marks_validity import TICKER_RE
+from marks_validity import TICKER_RE, parse_iso_date
 from routers.calibration import require_same_app
 from services import watchlist_ledger
 
@@ -57,15 +57,18 @@ class ReviewSaveOut(BaseModel):
     pinned: bool
     pin_scan_date: str | None
     pin_universe_type: str | None
+    # The registry KEY a re-star POSTs back as its displayed universe.
+    pin_universe_key: str | None
     pin_setup_type: str | None
     pin_engine_config_version: str | None
     has_snapshot: bool
     # Display fields quoted from the STORED snapshot (EC-28): the row and its
-    # replay read the same bytes, so they cannot disagree.
+    # replay read the same bytes, so they cannot disagree. ta_grade is the
+    # producer's NUMERIC 0-100 grade (dashboard writes round(float, 1)).
     tier: str | None
     score: float | None
     setup: str | None
-    ta_grade: str | None
+    ta_grade: float | None
     price: float | None
 
 
@@ -118,6 +121,14 @@ def add_to_watchlist(ticker: str, payload: SaveIn | None = None,
                      db: Session = Depends(get_db)):
     sym = _valid_symbol(ticker)
     body = payload or SaveIn()
+    # The Field pattern is shape-only; a calendar-impossible date would slip
+    # through to the artifact equality check and silently degrade the pin —
+    # refuse it at the boundary instead (Hunt: strings match nothing quietly).
+    if body.scan_date is not None and parse_iso_date(body.scan_date) is None:
+        raise HTTPException(status_code=400, detail={
+            "class": "bad_date",
+            "message": "scan_date must be a real YYYY-MM-DD date",
+        })
     try:
         row, outcome = watchlist_ledger.save_watch(
             db, sym, body.universe, body.scan_date)

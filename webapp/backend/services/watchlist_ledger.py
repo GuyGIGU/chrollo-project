@@ -71,11 +71,14 @@ def resolve_pin_and_snapshot(
         resolve_universe(universe_key).artifact_path()
     )
     identity = payload.get("scan_identity") or {}
+    # Staleness first: once the artifact has moved past the displayed scan, it
+    # can say NOTHING about what the operator saw — 'not_in_scan' would blame
+    # the name for a page that is simply old (review finding 2026-08-12).
+    if displayed_scan_date and identity.get("scan_date") != displayed_scan_date:
+        return None, None, "stale_display"
     entry = (payload.get("chart_data") or {}).get(ticker)
     if entry is None:
         return None, None, "not_in_scan"
-    if displayed_scan_date and identity.get("scan_date") != displayed_scan_date:
-        return None, None, "stale_display"
 
     pin = {
         "pin_scan_date": identity.get("scan_date"),
@@ -272,6 +275,20 @@ def weekly_review(db: Session, limit_weeks: int) -> list[dict]:
     return out
 
 
+def _universe_key_for_type(universe_type: str | None) -> str | None:
+    """The registry KEY for a stored universe TYPE ('us_equities' ->
+    'us_stocks') — what a review re-star must POST back as its displayed
+    universe; the type alone cannot drive resolve_universe."""
+    if universe_type is None:
+        return None
+    from core.pipeline.universe import all_universes
+
+    for u in all_universes():
+        if u.universe_type == universe_type:
+            return u.key
+    return None
+
+
 def _review_row(row: models.Watchlist) -> dict:
     display = _snapshot_display_fields(row.snapshot_json)
     return {
@@ -285,6 +302,7 @@ def _review_row(row: models.Watchlist) -> dict:
         "pinned": row.pin_scan_date is not None,
         "pin_scan_date": row.pin_scan_date,
         "pin_universe_type": row.pin_universe_type,
+        "pin_universe_key": _universe_key_for_type(row.pin_universe_type),
         "pin_setup_type": row.pin_setup_type,
         "pin_engine_config_version": row.pin_engine_config_version,
         "has_snapshot": row.snapshot_json is not None,

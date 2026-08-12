@@ -518,10 +518,15 @@ def migrate_watchlist_ledger(bind) -> bool:
             "ledger, legacy rows active); backup at %s", post, backup)
         return True
     except Exception:
-        raw.execute("ROLLBACK")
+        # Log FIRST: on SQLITE_FULL/IOERR sqlite already auto-rolled-back and
+        # the explicit ROLLBACK below raises 'no transaction is active', which
+        # would otherwise eat the only line naming the backup file.
         _log.exception(
-            "watchlist ledger migration failed; rolled back. Restore from %s if needed.",
+            "watchlist ledger migration failed; rolling back. Restore from %s if needed.",
             backup)
+        import contextlib
+        with contextlib.suppress(sqlite3.OperationalError):
+            raw.execute("ROLLBACK")
         raise
     finally:
         raw.execute("PRAGMA foreign_keys=ON")

@@ -173,3 +173,11 @@ def test_snapshot_must_be_valid_bounded_json(ledger_db):
     with pytest.raises(sqlite3.IntegrityError):
         _insert(ledger_db, snapshot_json='{"pad": "' + "x" * 262145 + '"}')
     _insert(ledger_db, snapshot_json='{"snapshot_version": 1}')
+
+
+def test_origin_vocabulary_is_enforced(ledger_db):
+    """EC-19: the closed origin set is a CHECK, not a comment."""
+    with pytest.raises(sqlite3.IntegrityError):
+        _insert(ledger_db, origin="imported")
+    _insert(ledger_db, origin="legacy")
+    _insert(ledger_db, ticker="OTHR", origin="user")

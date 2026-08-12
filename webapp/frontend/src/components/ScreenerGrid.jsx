@@ -115,7 +115,10 @@ const ScreenerGrid = () => {
 
   // The modal + arrow-key cycling read the drill-down members when one is open,
   // otherwise the active universe's filtered list.
-  const modalChart = drilldown ? (drilldown.chart_data || {}) : (screenerData?.chart_data || {});
+  const modalChart = useMemo(
+    () => (drilldown ? (drilldown.chart_data || {}) : (screenerData?.chart_data || {})),
+    [drilldown, screenerData],
+  );
   const modalTickers = useMemo(
     () => (drilldown ? (drilldown.ordered_tickers || []) : filters.filteredTickers),
     [drilldown, filters.filteredTickers],
@@ -144,7 +147,10 @@ const ScreenerGrid = () => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (!activeModalTicker) return;
+      // Gate exactly like the render: a stale ?t= naming a ticker absent from
+      // the current chart_data must not keep arrow/Escape armed with no modal
+      // on screen (it would hijack keys inside the weekly-review replay).
+      if (!activeModalTicker || !modalChart[activeModalTicker]) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         handleNextModal();
@@ -160,7 +166,7 @@ const ScreenerGrid = () => {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeModalTicker, handleNextModal, handlePrevModal, closeModal]);
+  }, [activeModalTicker, modalChart, handleNextModal, handlePrevModal, closeModal]);
 
   return (
     // Screener-only full-bleed: negative margins cancel the content area's 2rem
