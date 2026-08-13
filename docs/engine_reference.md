@@ -972,6 +972,26 @@ action is a flag flip plus a shadow re-capture.
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 
+### The Phase-A anchor family is partitioned, not pooled (2026-08-13)
+
+`bin_a_bars` / `bin_a_range_pct` / `bin_a_volume_ratio` / `bars_since_bc` /
+`descent_length` all measure the **climax→AR span**, so their value is a function
+of where the reader puts the automatic reaction — not only of what the chart did.
+Two mechanisms move that anchor with no chart changing: the always-on
+climax-terminality repair, and the dark `AR_FIRST_REACTION_ENABLED` tighten
+(19/140 overlays re-anchor). Pooled across an `engine_config_version` seam they
+are an average of two different measurements of the same word.
+
+`analyze.py` now takes that partition (`PHASE_A_ANCHOR_FEATURES`): on a
+multi-epoch population the family is **withheld** from the pooled fingerprint and
+from the outcome correlations, and reported separately scoped to the **current**
+epoch — the one holding the latest `scan_date`, since config hashes carry no
+ordering and the largest epoch here is the oldest. On a single-epoch population
+nothing changes. This is the precondition [`flag_ledger.md`](flag_ledger.md)
+names for flipping `AR_FIRST_REACTION_ENABLED`: without it, a flip silently pools
+two AR-mode populations into one fingerprint and the blend reads as a signal.
+Gate: `tests/test_analyze_anchor_seam.py`.
+
 ---
 
 ## Outputs

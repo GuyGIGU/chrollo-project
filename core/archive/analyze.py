@@ -164,6 +164,57 @@ TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
                       "bin_d_ascending_support_quality",
                       "trav_n_full_traversals", "trav_top_dead_space"]
 
+# ── The Phase-A anchor family — measurements that move with the READER ───────
+# These describe the climax->AR span, so their value is a function of where the
+# engine puts the automatic reaction, not only of what the chart did. Two
+# mechanisms move that anchor with no chart changing: the always-on
+# climax-terminality repair (a "climax" price out-ran re-anchors to the box's own
+# run-up extreme) and the dark AR_FIRST_REACTION_ENABLED tighten, whose entire
+# flip IS a re-anchor — 100 of 291 firing overlays, measured 2026-08-13.
+#
+# strategy_alpha.md states the consequence — "the engine_config_version rotation
+# partitions the bin_a_*/bars_since_bc/descent_length archive seam" — and
+# flag_ledger.md names taking that partition HERE as the AR flip's blocking
+# precondition. Nothing was taking it: the family sat in STRUCTURAL_FEATURES and
+# was pooled over every epoch in the archive, so the blend read as a measurement
+# rather than as an artifact of when each row was written.
+#
+# Within one epoch they are a variable. Across two they are an average of two
+# different questions. So across a seam they are withheld from the pooled tables
+# and reported on the CURRENT epoch alone, named.
+PHASE_A_ANCHOR_FEATURES = ("bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
+                           "bars_since_bc", "descent_length")
+
+
+def engine_epochs(df: pd.DataFrame) -> list:
+    """The distinct engine epochs present. Unversioned rows (the pre-versioning
+    archive) count as their own epoch "?" — they were written by an engine too,
+    just one that did not stamp itself, and folding them into a versioned pool
+    is the same blend by a quieter route. Mirrors section_composition's fillna."""
+    if "engine_config_version" not in df.columns:
+        return []
+    return sorted(df["engine_config_version"].fillna("?").astype(str).unique())
+
+
+def current_epoch(df: pd.DataFrame):
+    """The epoch that produced the MOST RECENT rows — the one whose numbers
+    describe today's reader. Config hashes carry no ordering, so recency comes
+    from the data: the epoch holding the latest scan_date. Deliberately NOT the
+    largest epoch, which on this archive is an old pre-versioning one."""
+    if "engine_config_version" not in df.columns or "scan_date" not in df.columns:
+        return None
+    known = df[df["engine_config_version"].notna()]
+    if known.empty:
+        return None
+    latest = known.groupby("engine_config_version")["scan_date"].max()
+    return None if latest.empty else str(latest.idxmax())
+
+
+def anchor_seam(df: pd.DataFrame) -> bool:
+    """True when the population spans an engine seam, so the Phase-A anchor
+    family may not be pooled."""
+    return len(engine_epochs(df)) > 1
+
 
 def load_archive(source: Optional[str] = None,
                  universe_type: Optional[str] = "us_equities") -> pd.DataFrame:
@@ -421,6 +472,32 @@ def _fingerprint_table(df: pd.DataFrame, features: list[str]) -> None:
              f"{fmt(d['q75']):>10}{fmt(d['min']):>10}{fmt(d['max']):>10}")
 
 
+def _anchor_family(df: pd.DataFrame) -> None:
+    """The Phase-A anchor family, reported on the current epoch alone.
+
+    Withholding it from the pooled table would delete a measurement the operator
+    has; reporting it pooled would state a blend as a fact. Reporting it scoped,
+    and saying which scope, is the only honest third option."""
+    epoch = current_epoch(df)
+    subhdr("Phase-A anchor family - NOT pooled (measures the climax->AR span)")
+    emit("These move when the ENGINE re-anchors, not only when the chart does:")
+    emit("the climax-terminality repair, and the dark AR_FIRST_REACTION_ENABLED")
+    emit("tighten. This archive spans more than one engine epoch, so pooling them")
+    emit("would average two different measurements of the same word.")
+    if epoch is None:
+        emit("No versioned rows here - the family is withheld with nothing to scope")
+        emit("it to. Re-run once the archive carries engine_config_version.")
+        return
+    sub = df[df["engine_config_version"] == epoch]
+    emit(f"Scoped to the CURRENT epoch {epoch[:12]} (n={len(sub)}, "
+         f"{sub['scan_date'].min()} -> {sub['scan_date'].max()}):")
+    if len(sub) < EDGE_MIN_N:
+        emit(f"!  n < {EDGE_MIN_N}: read this as a shape, not a distribution. An "
+             "epoch rotates on")
+        emit("   every weight change, so a fresh one is thin until scans accrue.")
+    _fingerprint_table(sub, list(PHASE_A_ANCHOR_FEATURES))
+
+
 def section_fingerprint(df: pd.DataFrame) -> None:
     """Structural profile of the archived setups - valid even on winners-only data."""
     header("2. WINNER STRUCTURAL FINGERPRINT")
@@ -428,7 +505,11 @@ def section_fingerprint(df: pd.DataFrame) -> None:
     emit("is the 'what a clean tight setup looks like' template to bias toward.")
 
     subhdr("All setups")
-    _fingerprint_table(df, STRUCTURAL_FEATURES)
+    seam = anchor_seam(df)
+    _fingerprint_table(df, [f for f in STRUCTURAL_FEATURES
+                            if not (seam and f in PHASE_A_ANCHOR_FEATURES)])
+    if seam:
+        _anchor_family(df)
 
     # The two-axis read (mirrors Structure.horizontal / .vertical): split the
     # fingerprint into time-axis structure vs price-axis magnitude, so the edge
@@ -563,6 +644,12 @@ def section_correlations(df: pd.DataFrame, valid: bool) -> None:
         emit("   Shown for plumbing-verification; revisit once live losers accrue.")
 
     candidates = SUB_SCORES + STRUCTURAL_FEATURES
+    if anchor_seam(df):
+        # Correlating a two-population blend against outcomes reports the seam,
+        # not the chart — and it would report it as a predictor.
+        candidates = [f for f in candidates if f not in PHASE_A_ANCHOR_FEATURES]
+        emit(f"!  Withheld across an engine seam: {', '.join(PHASE_A_ANCHOR_FEATURES)}")
+        emit("   (the Phase-A anchor family - see section 2 for its scoped read)")
     for target in OUTCOME_TARGETS:
         if target not in df.columns or df[target].notna().sum() < 8:
             continue

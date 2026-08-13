@@ -1,5 +1,25 @@
 # Trend-terminal box gate — the 39 boxes the flag removes
 
+> ## ⚠ SUPERSEDED 2026-08-13 — do not rule from this sheet
+>
+> Re-measured on the 2026-08-12 payload: **21 losses, and not one of them is on
+> this page.** The rule is a MATURITY rule, so its loss set rolls forward with
+> the calendar — every name below was refused for having 5–19 bars since its
+> climax, and 14 sessions have printed since. They matured; a different cohort
+> took their place. Ruling from this page would be ruling on charts that no
+> longer lose.
+>
+> Two corrections this sheet's numbers no longer support:
+> * **"The gate never re-frames a box — it keeps it or refuses it."** Falsified.
+>   The 2026-08-12 run has a `moved` case (APH), and it is by construction:
+>   filtering candidates lets a later legal framing win the root.
+> * The A/B was hand-run with no committed instrument, which is why this page
+>   could not be refreshed. There is one now: `python -m tools.trend_terminal_ab`.
+>
+> **Current sheet: [`../trend_terminal_2026-08-13/LOSSES.md`](../trend_terminal_2026-08-13/LOSSES.md).**
+> Kept verbatim below as the record of what was measured on 2026-07-27 — the
+> class analysis and the PXS/MIDD/LIVN reasoning still hold.
+
 `TREND_TERMINAL_BOX_GATE_ENABLED` (`c1c8432`, dark). Eyeball sheet for the flip ruling. Every PNG in this folder is one of the 39 — rendered **flag OFF**, i.e. the box as it exists today, the one the gate would refuse.
 
 ## A/B, re-run 2026-07-27 against the live payload (332 rows, cache through 2026-07-23)
