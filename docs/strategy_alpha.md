@@ -105,6 +105,22 @@ lows:
 
 **The automatic reaction derives from this model.** Once the trend has topped at its climax, the **AR is the low of the first *continuous* reaction after the terminal swing** — the running counter-move that retraces a meaningful fraction of the *full leg* and is closed at the first **big confirmed bounce** off that low (`first_reaction_after()`). That is exactly what the drawn Phase-A overlay tightens to under `AR_FIRST_REACTION_ENABLED` (see [Phase A — First-reaction AR anchor](#phase-a--first-reaction-ar-anchor-flag-gated-default-off)).
 
+> **Known gap between this model and the operator's eye (measured 2026-08-14).**
+> Definition (2) above — the climax is the segment's *extreme pivot* — is not what
+> the operator marks as a trend end, and the disagreement is directional rather
+> than noisy. Against nine dated marks, `segment_trends` holds a terminal within
+> 3 bars of his trend end on **2 of 9**, and the resolved `climax_bar` sits
+> *earlier* than his trend end on **6 of 6** measurable names, never once later
+> (median −50.5 bars). The mechanism follows from the definition: inside a
+> consolidation, a later upthrust to the box's own R is still a higher high, so it
+> becomes the segment's extreme and swallows the true trend end. The operator also
+> reads the pair as one **transition zone** rather than two events — the last trend
+> peak, then the low 1–5 bars later where the base opens, the AR low being the root
+> swing being the consolidation start (his nine spans are 1,2,2,2,3,4,5,5,5 bars).
+> Bounded honestly: nine marks, on a cohort he himself called ugly and declined to
+> certify. It is a direction of travel, not a specification. See
+> [anchor_marks_ruling_2026-08-14.md](anchor_marks_ruling_2026-08-14.md).
+
 This is **measure-only**: the trend model reads the labels the skeleton already assigns and assigns no points, moves no rails, and gates nothing. It is the geometric substrate the roadmap's richer market-structure reads (CHoCH = Phase A start, BOS = Phase D continuation, liquidity sweeps) grow from — always as graded confidence, never a veto.
 
 #### Climax → Automatic Reaction (Phase A)

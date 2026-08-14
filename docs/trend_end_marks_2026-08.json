@@ -1,0 +1,323 @@
+{
+  "_readme": [
+    "Operator TREND-END + AUTOMATIC-REACTION marks, provided 2026-08-14 (chat,",
+    "three hand-drawn charts + a written ruling per render of the",
+    "AR_FIRST_REACTION_ENABLED eyeball set).",
+    "",
+    "Deliberately OUTSIDE docs/marks/ (the sealed must-fire corpus): these are",
+    "CALIBRATION ground truth for the Phase-A anchor and for segment_trends'",
+    "terminal_bar, not must-fire specs. Same immutability discipline as",
+    "docs/phase_c_marks_2026-07.json: APPEND-ONLY, operator corrections only. A",
+    "failing case is fixed in the ENGINE, never by editing a mark.",
+    "",
+    "WHAT THE OPERATOR IS MARKING (his words, 2026-08-14): 'The point of this is",
+    "finding the Last Trending Before the Consolidation starts and that's why they",
+    "go hand in hand.' He marks a transition ZONE, not two independent events: the",
+    "last trend peak, and the low 1-5 bars later where the base opens. On three",
+    "charts he states the identity outright - the AR low IS the root swing IS where",
+    "the consolidation starts. Whether he calls a given engine dot 'the climax' or",
+    "'the AR' depends on which end of that short zone it landed on.",
+    "",
+    "HIS OWN CAVEAT, recorded because it bounds how hard these may be leaned on:",
+    "'this exercise gets confusing quickly since the Engine Finds the end of one",
+    "Trend but then another counter trend starts ... and only then the true",
+    "consolidation starts. I find it to be quite hard to rule on all of these since",
+    "there isn't one concrete answer Im 100% sure is correct, their just very ugly",
+    "structures (most of them) so i cant be sure.' Treat these as a direction of",
+    "travel with 9 dated points, NOT as a sealed acceptance set.",
+    "",
+    "Dates were given in European DD/MM form and are resolved here to ISO. The year",
+    "is inferred from the rendered window (the last ~260 bars of the faithful 2y",
+    "frame, i.e. 2025-08..2026-08); every resolved pair yields a 1-5 bar span,",
+    "which is the consistency check that the inference is right.",
+    "",
+    "trend_end_source=derived marks a trend_end the operator did NOT type: on AMH,",
+    "INVH and LMNR he pointed at an engine dot and named what that point IS, and",
+    "the date was read back off that dot (ar_off, which equals box.start_bar).",
+    "Those three are legitimate marks but CIRCULAR as a test of the engine - they",
+    "are derived from the engine's own output, so scoring segment_trends or the",
+    "climax against them measures the engine against itself. tools.operator_marks_diff",
+    "excludes them from the anchor statistics for exactly that reason. Absence of",
+    "the field means the operator typed the date.",
+    "",
+    "engine_2026_08_14 blocks are source=extraction - measured, not operator truth.",
+    "They are the faithful live read (apply_baseline_filters -> _trim_to_period ->",
+    "read_structure) on the 2026-08-13 cache, captured with",
+    "AR_FIRST_REACTION_ENABLED off and on. Where read_structure no longer fires,",
+    "the values are carried from the 2026-08-13 capture the operator actually",
+    "looked at (tools/fidelity/ar_first_reaction_2026-08-13/scan_2026-08-13.txt),",
+    "re-resolved to dates; that capture's bar indices are uniformly today's + 1,",
+    "verified on the six names that still fire."
+  ],
+
+  "marks": [
+    {
+      "ticker": "IRMD",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "hand-drawn chart",
+      "trend_end": "2026-06-10",
+      "ar": "2026-06-17",
+      "ar_is_root_swing": true,
+      "ruling": "Up trend ends 10/06; AR at 17/06, which also serves as the root swing for the consolidation.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "note": "baseline gate 'sma50' (close 87.16 < SMA_50 94.14) - out of universe today; read on the ungated frame for its trend structure only.",
+        "segment_terminal_within_3_bars_of_trend_end": false,
+        "segment_terminals_bracketing_his_mark": ["2026-05-01 (down)", "2026-07-07 (up)"]
+      }
+    },
+    {
+      "ticker": "IART",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "hand-drawn chart",
+      "trend_end": "2026-06-15",
+      "ar": "2026-06-17",
+      "ar_is_root_swing": true,
+      "ruling": "Trend ends at 15/06, AR at 17/06 which is also the root swing.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "segment_terminal_within_3_bars_of_trend_end": false,
+        "segment_terminals_bracketing_his_mark": ["2026-03-20 (down)", "2026-06-29 (up)"]
+      }
+    },
+    {
+      "ticker": "CYRX",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "hand-drawn chart",
+      "trend_end": "2026-06-04",
+      "ar": "2026-06-11",
+      "ar_is_root_swing": true,
+      "ruling": "Trend ends at 04/06, AR at 11/06 which is also the root swing for that consolidation.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "note": "baseline gate 'sma50' (close 15.13 < SMA_50 15.44) - out of universe today.",
+        "segment_terminal_within_3_bars_of_trend_end": false,
+        "segment_terminals_bracketing_his_mark": ["2026-04-29 (down)", "2026-07-17 (up)"]
+      }
+    },
+
+    {
+      "ticker": "BCPC",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-02-17",
+      "ar": "2026-02-20",
+      "ruling": "Trend ends 17/02, AR at 20/02. Terrible consolidation overall, really bad structure, extremely volatile.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2025-10-17",
+        "ar_off": "2026-01-14",
+        "ar_on": "2025-10-21",
+        "box_start": "2026-01-14",
+        "segment_terminal_within_3_bars_of_trend_end": true,
+        "note": "segment_trends holds his EXACT pair (2026-02-17 up terminal, 2026-02-20 down terminal) and Phase A still anchors four months earlier - the elected box opens 2026-01-14, BEFORE his trend end, and the chronological invariant ar_bar <= box.start_bar forbids Phase A from reaching his pair at all."
+      }
+    },
+    {
+      "ticker": "CATO",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2025-11-24",
+      "ar": "2025-11-26",
+      "ruling": "Trend ends on 24/11, AR at 26/11 - so the image is wrong.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2025-10-29",
+        "ar_off": "2026-01-27",
+        "ar_on": "2025-10-31",
+        "box_start": "2026-01-27",
+        "segment_terminal_within_3_bars_of_trend_end": false
+      }
+    },
+    {
+      "ticker": "CNI",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-07-17",
+      "ar": "2026-07-21",
+      "ruling": "Trend ends at 17/07 and AR 21/07.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "carried_from": "2026-08-13 capture",
+        "climax": "2026-04-29",
+        "ar_off": "2026-07-21",
+        "ar_on": "2026-04-30",
+        "segment_terminal_within_3_bars_of_trend_end": false,
+        "note": "ar_off lands on his AR to the bar; the first-reaction retarget pulls it 54 bars away."
+      }
+    },
+    {
+      "ticker": "EC",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-06-01",
+      "ar": "2026-06-08",
+      "ruling": "Trend ends at 01/06, AR at 08/06.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-03-04",
+        "ar_off": "2026-05-29",
+        "ar_on": "2026-03-05",
+        "box_start": "2026-05-29",
+        "segment_terminal_within_3_bars_of_trend_end": false
+      }
+    },
+    {
+      "ticker": "HTH",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-04-09",
+      "ar": "2026-04-15",
+      "ruling": "Trend ended on 09/04, AR at the 15/04. The green circle is correct, but not for the AR.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-03-31",
+        "ar_off": "2026-06-26",
+        "ar_on": "2026-04-09",
+        "box_start": "2026-06-26",
+        "segment_terminal_within_3_bars_of_trend_end": false,
+        "note": "ar_on lands on 2026-04-09 - his TREND END to the bar, which is exactly what he said: the green circle is right, but not as the AR."
+      }
+    },
+    {
+      "ticker": "LZB",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-06-17",
+      "ar": "2026-06-18",
+      "root_swing_span": ["2026-06-18", "2026-06-24"],
+      "ruling": "Trend ends at 17/06, AR at 18/06, but the root swing is 18/06 till 24/06.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "carried_from": "2026-08-13 capture",
+        "climax": "2026-04-10",
+        "ar_off": "2026-07-08",
+        "ar_on": "2026-04-21",
+        "segment_terminal_within_3_bars_of_trend_end": true,
+        "note": "segment_trends has an up terminal on 2026-06-17 exactly - his trend end is IN the pivot set, and Phase A anchors to April anyway."
+      }
+    },
+
+    {
+      "ticker": "AMH",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-07-07",
+      "trend_end_source": "derived",
+      "ar": null,
+      "ruling": "The hollow purple circle is correct - not for the AR, but for the Climax itself, which is also the point where the consolidation starts.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": false,
+        "carried_from": "2026-08-13 capture",
+        "climax": "2026-04-09",
+        "ar_off": "2026-07-07",
+        "ar_on": "2026-04-20",
+        "note": "trend_end above is DERIVED: the purple circle he endorsed is ar_off, which resolves to 2026-07-07. Recorded as a mark because he named what that point IS, not because he typed the date."
+      }
+    },
+    {
+      "ticker": "INVH",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-07-07",
+      "trend_end_source": "derived",
+      "ar": null,
+      "ruling": "The hollow purple circle wins for dictating the trend's end, and then the consolidation starts.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-04-09",
+        "ar_off": "2026-07-07",
+        "ar_on": "2026-04-20",
+        "box_start": "2026-07-07",
+        "note": "trend_end above is DERIVED from the endorsed purple circle (ar_off == box_start == 2026-07-07). The engine's whole Phase A sits three months before the trend end he sees."
+      }
+    },
+    {
+      "ticker": "LMNR",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "trend_end": "2026-03-13",
+      "trend_end_source": "derived",
+      "ar": null,
+      "ruling": "The purple hollow circle wins at choosing the trend's end (climax), but not the AR.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2025-12-17",
+        "ar_off": "2026-03-13",
+        "ar_on": "2025-12-23",
+        "box_start": "2026-03-13",
+        "note": "trend_end above is DERIVED from the endorsed purple circle. segment_trends does hold a down terminal on 2026-03-13."
+      }
+    },
+
+    {
+      "ticker": "NRIM",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "ruling": "NOT RULED - the operator did not comment on this render.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-01-22",
+        "ar_off": "2026-04-17",
+        "ar_on": "2026-01-23",
+        "box_start": "2026-04-17"
+      }
+    },
+    {
+      "ticker": "SFL",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "ruling": "NOT RULED - the operator did not comment on this render.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-03-19",
+        "ar_off": "2026-06-12",
+        "ar_on": "2026-03-23",
+        "box_start": "2026-06-12"
+      }
+    },
+    {
+      "ticker": "OXY",
+      "source": "operator",
+      "as_of": "2026-08-14",
+      "origin": "AR eyeball render",
+      "ruling": "NOT RULED - the operator did not comment on this render.",
+      "engine_2026_08_14": {
+        "source": "extraction",
+        "structure_fires": true,
+        "climax": "2026-01-22",
+        "ar_off": "2026-04-17",
+        "ar_on": "2026-01-29",
+        "box_start": "2026-04-17"
+      }
+    }
+  ]
+}
