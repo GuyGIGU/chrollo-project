@@ -1362,7 +1362,24 @@ the "DELIBERATELY EXCLUDED" block in
 
 ## Acceptable Misses
 
-Per the user's standing guidance: setups on **young bases that break out fast** (KEYS, BRZU, NE, CGON-style) will not be caught by this engine and that is **by design** — the base-age requirement (`MIN_BASE_DAYS = 20`, plus the sqrt-scaled scoring up to 120 days) explicitly trades early-stage breakouts for higher-cause Wyckoff setups. These should not be treated as bugs to fix.
+**RE-RULED 2026-08-14 — operator: "Power Plays are wanted setups, amend acceptable
+misses."** The young-fast-breakout class **contains the Power Play (Minervini)** — his
+named examples: MAN, FTNT (*"a powerplay that the engine finds today! and we should model
+after it"*), MRVL, ARM — and is **no longer an acceptable miss**: it is a wanted species
+with an open, measure-first program. Nothing flips in this change — `MIN_BASE_DAYS`, the
+occupancy floors, the story form and the baseline gate are all untouched today; see the
+`decisions.md` row of the same date for the four-specimen diagnosis (the 25-bar reading
+clock from the AR; the drift-up shelf dying at occupancy + story admission when
+counterfactually seeded; the `sma50` baseline leg hiding a mid-correction Power Play;
+FTNT as the model specimen the engine already reads — root 25+ bars old, two-sided
+26-bar shelf).
+
+*Superseded record (standing guidance until 2026-08-14, kept as the history of the
+trade-off):* setups on **young bases that break out fast** (KEYS, BRZU, NE, CGON-style)
+will not be caught by this engine and that is **by design** — the base-age requirement
+(`MIN_BASE_DAYS = 20`, plus the sqrt-scaled scoring up to 120 days) explicitly trades
+early-stage breakouts for higher-cause Wyckoff setups. These should not be treated as
+bugs to fix.
 
 ---
 
