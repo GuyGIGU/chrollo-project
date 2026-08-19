@@ -321,11 +321,22 @@ export const marketFocusLogicalRange = (candles, visibleBars) => {
 export const boxRailSpecs = (data) => {
   const candles = data.candles || [];
   const { baseStart } = setupIndexes(data);
-  const specs = [
-    { kind: 'rail', startIndex: baseStart, value: data.R },
-    { kind: 'rail', startIndex: baseStart, value: data.S },
-    { kind: 'mid', startIndex: baseStart, value: (Number(data.R) + Number(data.S)) / 2 },
-  ];
+  // A candles-only payload (the Watchlist page's clean chart) carries no box:
+  // without this guard the parent trio ships value=undefined and mid=NaN into
+  // the rail drawer — the never-exercised degrade path every scan row masked.
+  const specs = [];
+  // Ship the COERCED values the guard validated (the inner-box branch's
+  // discipline) — guarding on finiteNumber but pushing the raw field would
+  // send a numeric-string R/S into the rail drawer beside a numeric mid.
+  const parentR = finiteNumber(data.R);
+  const parentS = finiteNumber(data.S);
+  if (parentR != null && parentS != null) {
+    specs.push(
+      { kind: 'rail', startIndex: baseStart, value: parentR },
+      { kind: 'rail', startIndex: baseStart, value: parentS },
+      { kind: 'mid', startIndex: baseStart, value: (parentR + parentS) / 2 },
+    );
+  }
 
   const innerR = finiteNumber(data.inner_R);
   const innerS = finiteNumber(data.inner_S);

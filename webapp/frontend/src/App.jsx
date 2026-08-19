@@ -5,6 +5,7 @@ import DashboardRoute from './routes/DashboardRoute';
 import OptionsRoute from './routes/OptionsRoute';
 import PortfolioRoute from './routes/PortfolioRoute';
 import ScreenerRoute from './routes/ScreenerRoute';
+import WatchlistRoute from './routes/WatchlistRoute';
 import ArchiveRoute from './routes/ArchiveRoute';
 import CalibrationRoute from './routes/CalibrationRoute';
 
@@ -18,6 +19,7 @@ function App() {
         <Route index element={<HomeRoute />} />
         <Route path="home" element={<HomeRoute />} />
         <Route path="screener" element={<ScreenerRoute />} />
+        <Route path="watchlist" element={<WatchlistRoute />} />
         <Route path="dashboard" element={<DashboardRoute />} />
         <Route path="options" element={<OptionsRoute />} />
         <Route path="portfolio" element={<PortfolioRoute />} />

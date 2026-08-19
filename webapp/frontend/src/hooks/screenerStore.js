@@ -31,6 +31,11 @@ export const subscribeScreenerStore = (listener) => {
 
 export const getScreenerPayload = (universe) => store.byUniverse[universe] || null;
 
+// The whole universe->payload map (replaced immutably on every write, so the
+// reference is a stable useSyncExternalStore snapshot). For surfaces that
+// look a ticker up across ALL universes — the Watchlist page's overlay lookup.
+export const getScreenerPayloads = () => store.byUniverse;
+
 export const getScreenerEarnings = () => store.earnings;
 
 // Map a payload to one explicit status the grid switches on. 'never_scanned'

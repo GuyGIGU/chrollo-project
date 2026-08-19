@@ -27,7 +27,7 @@ test('the v1 fixture adapts to a renderable modal payload', () => {
 });
 
 test('the fixture entry carries every key the chart surfaces render from', () => {
-  // The modal/mini chart contract (useScreenerModalChart + chartGeometry):
+  // The modal/mini chart contract (useDailyStructureChart + chartGeometry):
   // absence of one of these in a v1 save means the replay draws wrong or not
   // at all — keep the fixture honest to the minimum render set.
   for (const key of ['candles', 'volumes', 'base_len', 'R', 'S',

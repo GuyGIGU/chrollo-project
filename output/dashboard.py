@@ -35,11 +35,12 @@ import math
 import sys
 
 from config import settings
+from core.pipeline.candles import chart_candles, clean_daily_frame, daily_candles
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
 from engine_alpha.scoring import taxonomy
 from engine_alpha.structure.event_map import narrative_chart_fields
-from engine_alpha.structure.htf import HTF_COLUMNS, chart_box, resample_ohlc
+from engine_alpha.structure.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.trace_export import election_trace_chart_fields
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -115,66 +116,6 @@ def _json_safe(obj):
     """
     return to_json_safe(obj)
 
-def _tf_candles(df, tf, cap):
-    """Resample the daily frame to weekly/monthly and return (candles, volumes)
-    for the higher-timeframe charts, capped to the last ``cap`` bars."""
-    resampled = resample_ohlc(df, tf)
-    if resampled is None or resampled.empty:
-        return [], []
-    resampled = resampled.tail(cap)
-    dates = [str(idx)[:10] for idx in resampled.index]
-    opens = resampled['Open'].round(2).values
-    highs = resampled['High'].round(2).values
-    lows = resampled['Low'].round(2).values
-    closes = resampled['Close'].round(2).values
-    vols = resampled['Volume'].round(0).values
-    candles = [
-        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
-        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
-    ]
-    volumes = [
-        {'time': d, 'value': float(v),
-         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
-        for d, o, c, v in zip(dates, opens, closes, vols)
-    ]
-    return candles, volumes
-
-
-def _daily_candles(df):
-    """Daily (candles, volumes, show_days) for a ticker frame, capped to the last
-    DASHBOARD_CHART_DAYS bars — the shared OHLCV->wire-dict extraction (EC-3: fold
-    shared logic, never copy). Used by the firing chart writer (_extract_chart_data)
-    and the health board (build_health_payload); it folds only the PURE candle
-    shape (which the two paths genuinely share), NOT _extract_chart_data's
-    firing-only results_df fields, so the diverging payloads stay decoupled.
-    ``show_days`` is returned because the caller needs it for window-bar math."""
-    show_days = min(settings.DASHBOARD_CHART_DAYS, len(df))
-    plot_df = df.tail(show_days).copy().reset_index()
-
-    # Vectorized extraction — avoid per-row iloc overhead
-    if 'Date' in plot_df.columns:
-        dates = plot_df['Date'].dt.strftime('%Y-%m-%d').values
-    else:
-        dates = [str(idx)[:10] for idx in plot_df.index]
-
-    opens = plot_df['Open'].round(2).values
-    highs = plot_df['High'].round(2).values
-    lows = plot_df['Low'].round(2).values
-    closes = plot_df['Close'].round(2).values
-    vols = plot_df['Volume'].round(0).values
-
-    candles = [
-        {'time': d, 'open': float(o), 'high': float(h), 'low': float(l), 'close': float(c)}
-        for d, o, h, l, c in zip(dates, opens, highs, lows, closes)
-    ]
-    volumes = [
-        {'time': d, 'value': float(v),
-         'color': 'rgba(38,166,154,0.5)' if c >= o else 'rgba(239,83,80,0.5)'}
-        for d, o, c, v in zip(dates, opens, closes, vols)
-    ]
-    return candles, volumes, show_days
-
-
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
     # Lazy: keeps output/ off core.pipeline.downloads at module load. Used to
@@ -188,16 +129,24 @@ def _extract_chart_data(data, results_df, tickers):
     for _, row in chart_candidates.iterrows():
         ticker = row['Ticker']
         try:
-            if len(tickers) > 1:
-                df = data[ticker].dropna()
-            else:
-                df = data.dropna()
-            
-            candles, volumes, show_days = _daily_candles(df)
-            # Weekly + monthly candles for the higher-timeframe charts, resampled
-            # from the FULL daily history (not the 300-bar daily window).
-            weekly_candles, weekly_volumes = _tf_candles(df, "weekly", 110)
-            monthly_candles, monthly_volumes = _tf_candles(df, "monthly", 60)
+            # Multi-panel detection by column shape (the health board's
+            # predicate) — a one-name MultiIndex panel still slices, and a
+            # plain dict-of-frames (the cascade harness) slices too.
+            columns = getattr(data, "columns", None)
+            is_multi = columns is None or getattr(columns, "nlevels", 1) > 1
+            df = clean_daily_frame(data[ticker] if is_multi else data)
+
+            # The complete D/W/M candle set from the ONE shared builder
+            # (core.pipeline.candles — the EC-3 fold with the watchlist candle
+            # endpoint); weekly/monthly resample from the FULL daily history,
+            # caps live in settings only.
+            tf_set = chart_candles(df)
+            candles, volumes, show_days = (
+                tf_set['candles'], tf_set['volumes'], tf_set['show_days'])
+            weekly_candles, weekly_volumes = (
+                tf_set['weekly_candles'], tf_set['weekly_volumes'])
+            monthly_candles, monthly_volumes = (
+                tf_set['monthly_candles'], tf_set['monthly_volumes'])
             # Worked box geometry (R/S + start date) so the chart can anchor the
             # rails to the bars the box is born from, like the daily chart.
             weekly_box = chart_box(df, "weekly")
@@ -466,8 +415,11 @@ def build_health_payload(members, unreadable, data, universe=None):
     member_rows = []
     for ticker, health in members.items():
         try:
-            frame = data[ticker].dropna() if is_multi else data.dropna()
-            candles, volumes, _ = _daily_candles(frame)
+            # The fold's shared prep — a documented consumer must never
+            # re-type it (a bare dropna here silently diverges the day the
+            # prep gains a step).
+            frame = clean_daily_frame(data[ticker] if is_multi else data)
+            candles, volumes, _ = daily_candles(frame)
         except Exception as exc:  # a member that can't render degrades honestly
             print(f"  Health chart error on {ticker}: {exc}")
             degraded.append({"ticker": ticker, "reason": "error"})

@@ -89,7 +89,15 @@ const setFocusedRange = (chart, data) => {
   });
 };
 
-export default function useScreenerModalChart(containerRef, ticker, data, activePhaseRegion = null, interval = 'D') {
+// The big interactive DAILY structure chart — rails, phase regions, LPS
+// coloring, focus window — consumed by BOTH the Screener modal and the
+// Watchlist page's Daily pane (renamed from useScreenerModalChart when it
+// gained its second surface). `data` is consumed atomically: a full scan-row
+// payload draws the whole read; a candles-only payload (the Watchlist clean
+// chart) renders bare price/volume because every overlay helper no-ops on
+// absent fields. The 'modal' theme-profile key below is a styling profile
+// name, not a surface claim.
+export default function useDailyStructureChart(containerRef, ticker, data, activePhaseRegion = null, interval = 'D') {
   const activeRegionRef = useRef(activePhaseRegion);
   const phaseOverlayRef = useRef(null);
 

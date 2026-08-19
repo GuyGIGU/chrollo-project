@@ -21,9 +21,11 @@ export const subscribeFeedback = (listener) => {
 export const getFeedbackState = () => state;
 
 // Show a transient toast. tone: 'info' | 'success' | 'danger' | 'warning'.
-export function toast(message, { tone = 'info', duration = 6000 } = {}) {
+// Optional `action` = { label, run }: one inline action button (e.g. Undo) —
+// clicking it runs the callback and dismisses the toast.
+export function toast(message, { tone = 'info', duration = 6000, action = null } = {}) {
   const id = nextToastId++;
-  setState({ ...state, toasts: [...state.toasts, { id, message, tone, duration }] });
+  setState({ ...state, toasts: [...state.toasts, { id, message, tone, duration, action }] });
   return id;
 }
 

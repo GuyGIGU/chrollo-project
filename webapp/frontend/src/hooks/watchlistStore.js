@@ -12,6 +12,11 @@ const CLIENT_HEADER = { 'X-Chrollo-Client': 'chrollo-dashboard' };
 const store = {
   records: [],          // [{ticker, created_at, save_date, pinned, pin_scan_date}]
   activeSet: new Set(), // derived from records at every write — one truth
+  // Load state so an empty records list is never ambiguous: 'idle' (never
+  // asked) / 'loading' (first ask in flight) / 'ready' (a GET landed — an
+  // empty list is CONFIRMED empty) / 'error' (failed with nothing to show).
+  // A surface that renders "your watchlist is empty" must key on 'ready'.
+  status: 'idle',
   inflight: null,
   listeners: new Set(),
 };
@@ -46,9 +51,20 @@ export function getWatchlistRecords() {
   return store.records;
 }
 
+export function getWatchlistStatus() {
+  return store.status;
+}
+
+function setStatus(status) {
+  if (store.status === status) return;
+  store.status = status;
+  emit();
+}
+
 export function fetchWatchlist() {
   if (store.inflight) return store.inflight;
   const epochAtIssue = mutationEpoch;
+  if (store.status !== 'ready') setStatus('loading');
   const request = fetch(`${API_BASE}/watchlist/`)
     .then((response) => {
       if (!response.ok) throw new Error(`watchlist ${response.status}`);
@@ -58,9 +74,13 @@ export function fetchWatchlist() {
       // A toggle happened while this GET was in flight: its read-time
       // snapshot predates the write — drop it, the toggle path reconciles.
       if (epochAtIssue === mutationEpoch) setRecords(items);
+      setStatus('ready');
     })
     .catch((error) => {
       console.error('Watchlist load failed', error);
+      // A failed refresh keeps showing what we have; 'error' only with
+      // nothing to show (the screenerStore rule).
+      setStatus(store.records.length ? 'ready' : 'error');
     })
     .finally(() => {
       if (store.inflight === request) store.inflight = null;

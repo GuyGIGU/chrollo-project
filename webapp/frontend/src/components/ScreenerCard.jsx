@@ -7,7 +7,7 @@ import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from '../utils/screenerCardData';
 
-function WatchlistButton({ active, onToggle }) {
+export function WatchlistButton({ active, onToggle }) {
   return (
     <button
       onClick={(event) => {
@@ -204,7 +204,7 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
     className="screener-card"
     role="button"
     tabIndex={0}
-    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to save to watchlist, C to mark considered.`}
+    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, C to mark considered.`}
     onClick={() => onClick(ticker)}
     onKeyDown={(event) => {
       // Only act on keys aimed at the card itself, not ones bubbling up from the

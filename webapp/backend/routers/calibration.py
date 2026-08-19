@@ -39,7 +39,13 @@ _CLIENT_HEADER_VALUE = "chrollo-dashboard"
 
 
 def require_same_app(x_chrollo_client: str = Header(default="")):
-    """Mutating calibration requests only from our own frontend."""
+    """Only our own frontend passes. THE POSTURE RULE (stated once, here):
+    every MUTATING route carries this guard, and so does any route BUILT
+    with it from day one (the candle reads) — but retrofitting it onto a
+    pre-existing open GET is a breaking change for that route's callers and
+    is done deliberately, not by drift. When adding a route, default to
+    guarded. The DNS-rebinding vector this header alone cannot stop is
+    closed by the TrustedHost allowlist in main.py."""
     if x_chrollo_client != _CLIENT_HEADER_VALUE:
         raise HTTPException(status_code=403, detail={
             "class": "cross_app_write",

@@ -3,13 +3,15 @@ import CandleChart from './CandleChart';
 import { buildFullLevelData, CHART_FRAMING, colorTimeframeCandles, finiteNumber } from './chartGeometry';
 import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 
-// The big, interactive weekly/monthly chart behind the modal's D/W/M interval
-// tabs. It's the SAME Trend+Box read the daily engine does, one and two
-// timeframes up ("all relative and derivative"): candles are resampled on the
-// backend (output/dashboard.py) from the full daily history; the blue rails are
-// the higher-timeframe consolidation box when one is in view; the caption is the
-// plain-language structural read. Styled to match the daily chart
-// (useScreenerModalChart) so switching timeframes feels like one TradingView pane.
+// The big, interactive weekly/monthly chart — behind the Screener modal's
+// D/W/M interval tabs AND the Watchlist page's stacked M/W panes. It's the
+// SAME Trend+Box read the daily engine does, one and two timeframes up ("all
+// relative and derivative"): candles are resampled on the backend (the shared
+// core/pipeline/candles builders) from the full daily history; the blue rails
+// are the higher-timeframe consolidation box when one is in view (absent on a
+// clean candles-only payload); the caption is the plain-language structural
+// read. Styled to match the daily chart (useDailyStructureChart) so switching
+// timeframes feels like one TradingView pane.
 
 const chartOptions = (width, height, interactive) => {
   const base = baseChartOptions('modal', width, height);
