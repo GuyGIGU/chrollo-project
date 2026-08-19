@@ -30,14 +30,20 @@ from core.pipeline.scan_job import (
 from core.pipeline.universe import DEFAULT_UNIVERSE_KEY
 
 
-def _print_result_json(n_setups: int, n_archived: int, n_errored: int = 0) -> None:
-    print(
-        "SCAN_RESULT_JSON:"
-        + json.dumps(
-            {"n_setups": n_setups, "n_archived": n_archived, "n_errored": n_errored}
-        ),
-        flush=True,
-    )
+def _print_result_json(n_setups: int, n_archived: int, n_errored: int = 0,
+                       power_play: dict | None = None,
+                       fundamentals: dict | None = None) -> None:
+    payload = {"n_setups": n_setups, "n_archived": n_archived, "n_errored": n_errored}
+    # Species-lane counters ride as OPTIONAL keys (Power-Play program Task 8):
+    # absent when the lane is dark, so the flag-off line stays byte-identical.
+    # The gate is None-ness, NEVER truthiness — a lane that ran and watched
+    # nothing publishes an EMPTY block, distinguishable from "lane dark"
+    # (2026-08-17 review, Ramírez).
+    if power_play is not None:
+        payload["power_play"] = power_play
+    if fundamentals is not None:
+        payload["fundamentals"] = fundamentals
+    print("SCAN_RESULT_JSON:" + json.dumps(payload), flush=True)
 
 
 def _print_download_json(result) -> None:
@@ -93,13 +99,16 @@ def main() -> None:
             primary = results.get(DEFAULT_UNIVERSE_KEY)
             _print_result_json(primary.n_setups if primary else 0,
                                primary.n_archived if primary else 0,
-                               primary.n_errored if primary else 0)
+                               primary.n_errored if primary else 0,
+                               primary.power_play_counts if primary else None,
+                               primary.fundamentals_counts if primary else None)
             return
         result = run_scan_and_export(mode=mode, universe=args.universe)
     except StaleMarketDataError as exc:
         _print_result_json(exc.n_setups or 0, 0)
         raise
-    _print_result_json(result.n_setups, result.n_archived, result.n_errored)
+    _print_result_json(result.n_setups, result.n_archived, result.n_errored,
+                       result.power_play_counts, result.fundamentals_counts)
 
 
 if __name__ == '__main__':

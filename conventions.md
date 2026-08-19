@@ -523,3 +523,99 @@ keys on `can_archive`.
 2026-08-04
 **Rationale:** Readable-but-never-archivable is the entire safety contract of `session_lag`;
 merging the flags or duplicating the gate both destroy it silently.
+
+---
+
+<!-- NUMBERING NOTE (2026-08-17): EC-38..EC-41 are staged on the main checkout with the
+watchlist-page branch (chart-surface/batch-route/client-cache contracts). The entries
+below continue AFTER them so the two branches merge without a numbering collision. -->
+
+### EC-42: Ledger rows are trued up at BUILD END, not task time
+**Convention:** In a multi-task change, every earlier task's flag-ledger row, program-doc
+claim, and forward promise ("lands with Task N", "nothing consults this yet") is
+RE-VERIFIED against the later tasks before the change is offered for commit; a snapshot a
+sibling task already falsified is treated exactly as EC-15 treats an executed A/B's stale
+pre-registration. The species build shipped its preset row claiming "nothing consults the
+flag yet" while Task 8 in the same change-set wired the lane, and citing the clock-10 MAN
+diagnosis that Task 10's executed capture had already corrected — the flip's primary
+decision surface, falsified twice in one diff.
+**Origin:** Friedman — Council Review 2026-08-17-2120 (power-play species build,
+finding 1, P1); operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-15/EC-16; `references/quality-ux.md` → P9
+
+### EC-43: An evidence instrument enters a shared read through the SAME mechanism and a DERIVED key set
+**Convention:** When an instrument (census, harness, A/B) replays a read the live lane
+also runs, both enter through the same override/save-restore core, and any preset/key-set
+the lane consumes as a declared dict is DERIVED by the instrument from that dict — never
+re-typed. Extends EC-18 from the ruled predicate to the run harness: the census entered
+the species election through `flag_capture` while the lane used `window_override`, with a
+hand-typed two-key copy of the preset — three drift channels on the exact evidence the
+clock ruling reads (`flag_capture` now delegates to `window_override`).
+**Origin:** Fowler — Council Review 2026-08-17-2120 (finding 9);
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-3/EC-18/EC-33; `references/refactoring.md` → P5
+
+### EC-44: A new operator ground-truth corpus joins the sealed set in the commit that CREATES it
+**Convention:** Any new hand-curated operator artifact (marks corpus, ruling record) is
+added to `tools._bootstrap`'s sealed set — as a directory or an explicit file entry —
+in the same commit that creates the artifact, with the EC-35 case-variant refusal test
+alongside. A committed readme promising "no tool has a write path into this file" is not
+enforcement: the power-play corpus (and its two docs-root siblings) sat outside the guard
+while every guarded tool's `--out` could truncate them during the ruling loop that feeds
+them.
+**Origin:** Hunt — Council Review 2026-08-17-2120 (finding 10);
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-7/EC-14/EC-35; `references/security.md` → P7
+
+### EC-45: Replay arithmetic derives from the AS-OF state; a hindsight value needs a stamped divergence
+**Convention:** Any instrument that dates or evaluates historical decisions ("when could
+the engine first have seen this") derives every input from the state the pipeline held ON
+that day — never from a frame-final value — or, where the hindsight form is deliberately
+kept, stamps each affected row so downstream analysis can partition. The census dated
+first-legal-looks from the hindsight-final AR (the full reaction window's argmin) while
+the live walk sees the running argmin; the bias was arithmetically zero at the default
+clock and opened at exactly the short clocks under study — the cross-clock comparison the
+ruling reads. Extends EC-10's frozen-basis discipline from grading frames to instrument
+arithmetic.
+**Origin:** McKinney — Council Review 2026-08-17-2120 (finding 4);
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-10; `references/quality-llm.md` → P3
+
+### EC-46: Census/evidence instruments write sidecars only — never the archive
+**Convention:** A research/evidence instrument (`tools/` census, harness, sheet builder)
+has NO write path into `setup_archive` or any books-of-record table: its output is a
+sidecar file routed through `refuse_sealed_output`, stamped with the engine manifest hash
+and the exact population fingerprint it scored. Backfilling instrument output into the
+archive is the "archive stays pure" red line — replay evidence rides sidecars, always.
+**Origin:** species program Tasks 3/10 design, ratified at Council Review 2026-08-17-2120;
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-9/EC-13/EC-14; the TA-grade "no backfill EVER" ruling
+
+### EC-47: Every half of an advisory lane carries its OWN attempted-vs-populated pair
+**Convention:** A measure-only lane's counter block distinguishes "never attempted" from
+"attempted, none populated" SEPARATELY for each independent half the lane runs (each flag,
+each provider surface) — one pair for the whole lane lets a 0-of-N silence hide on the
+uncounted half, which is the exact class the counters exist to alarm on (the post-pass
+shipped with fundamentals counted and the RS-line half entirely dark). Failures inside a
+half print a per-item stderr line. Sharpens EC-20's "loud dedicated counter" to per-half
+pairs.
+**Origin:** Ramírez — Council Review 2026-08-17-2120 (finding R3, below-cap);
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-20/EC-26; `references/quality-backend.md` → P7
+
+---
+
+### AP-10: Declared window presets through the ONE scoped override
+**Pattern:** A differently-clocked or differently-flagged read enters the engine through
+`htf.window_override` with a DECLARED settings dict (`HTF_WEEKLY_WINDOWS`,
+`HTF_MONTHLY_WINDOWS`, `POWER_PLAY_WINDOWS`) — never a forked collector, a hand-threaded
+parameter, or a per-call setattr patch. `tools.replay.flag_capture` is a thin
+validate-first wrapper delegating to the same core. Do NOT flag the setattr save/restore
+mechanism as a smell, propose threading window parameters through call signatures, or
+re-introduce a second save/restore core.
+**Origin:** species program Task 1 §D + Council Review 2026-08-17-2120 (finding 9's fold);
+operator-delegated 2026-08-17
+**Rationale:** The detectors read settings lazily at call time by design (the cwd-shadowing
+constraint, AP-3); one scoped override is the only mechanism that moves every consulting
+site coherently, and the declared dict is what keeps multi-name clocks (the import-time
+copy trap) moving together.

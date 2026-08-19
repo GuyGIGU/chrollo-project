@@ -211,18 +211,20 @@ def flag_capture(**overrides):
 
     ALL names are validated before ANY flag is set — a typo in the second
     name of a multi-flag override must not leave the first one flipped with
-    the restoring finally never entered."""
+    the restoring finally never entered.
+
+    The save/restore core DELEGATES to the engine's one scoped override
+    (``htf.window_override``) — the instrument and the live lane enter a
+    shared read through the SAME mechanism, so a behavioral change to it can
+    never diverge the census's measured read from the lane's live read
+    (2026-08-17 review, Fowler; EC-3 — this wrapper keeps only its
+    validate-all-names-first loudness)."""
     for name in overrides:
         if not hasattr(settings, name):
             raise AttributeError(f"flag_capture: settings.{name} does not exist")
-    prior = {name: getattr(settings, name) for name in overrides}
-    try:
-        for name, value in overrides.items():
-            setattr(settings, name, value)
+    from engine_alpha.structure.htf import window_override
+    with window_override(dict(overrides)):
         yield
-    finally:
-        for name, value in prior.items():
-            setattr(settings, name, value)
 
 
 def read_structure_under(df: pd.DataFrame, atr: float, overrides: dict):

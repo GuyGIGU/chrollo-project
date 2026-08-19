@@ -198,7 +198,19 @@ def test_json_output_refuses_the_sealed_dirs(tmp_path):
                   os.path.join(str(ROOT), "Tests", "BASELINES", "report.json")):
         with pytest.raises(ValueError):
             _refuse_sealed_output(cased)
+    # The docs-root corpus FILES seal too — the append-only ruling artifacts
+    # a mistyped --out would truncate (2026-08-17 review, Hunt), incl. the
+    # EC-35 case variant.
+    for corpus in (os.path.join(str(ROOT), "docs", "power_play_marks_2026-08.json"),
+                   os.path.join(str(ROOT), "docs", "Power_Play_Marks_2026-08.JSON"),
+                   os.path.join(str(ROOT), "docs", "trend_end_marks_2026-08.json"),
+                   os.path.join(str(ROOT), "docs", "phase_c_marks_2026-07.json"),
+                   # The operator's 40 sheet verdicts, sealed at landing (EC-44).
+                   os.path.join(str(ROOT), "docs", "power_play_verdicts_2026-08-18.json")):
+        with pytest.raises(ValueError):
+            _refuse_sealed_output(corpus)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
+    _refuse_sealed_output(os.path.join(str(ROOT), "docs", "some_note.json"))
 
 
 def test_fingerprint_is_order_free_and_content_bound(session):

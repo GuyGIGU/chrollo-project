@@ -375,6 +375,25 @@ class SetupArchive(Base):
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
+    # ── Power-Play species family — flag-gated (dark), measure-first ──
+    # Owning declaration in engine_alpha/structure/power_play.py
+    # (POWER_PLAY_COLUMN_SQL); MODEL-ONLY adds (AP-7). NULL = never evaluated;
+    # "watched but refused" is the closed-set pp_state (fresh-DB CHECK below;
+    # the live DB's operative constraint is the write-time refusal in
+    # power_play_archive_values). Anchor-family from birth: the pp_* numerics
+    # join the PHASE_A_ANCHOR_FEATURES epoch partition in core/archive/analyze.
+    pp_state = Column(String, nullable=True)
+    pp_clock = Column(Integer, nullable=True)
+    pp_climax_date = Column(String, nullable=True)
+    pp_ar_date = Column(String, nullable=True)
+    pp_pole_gain = Column(Float, nullable=True)
+    pp_shelf_start_date = Column(String, nullable=True)
+    pp_shelf_end_date = Column(String, nullable=True)
+    pp_shelf_bars = Column(Integer, nullable=True)
+    pp_lower_third_bars = Column(Integer, nullable=True)
+    pp_zone_coverage = Column(Float, nullable=True)
+    pp_zone_collided = Column(Integer, nullable=True)
+
     # ── Advisory metadata (Lane E) — GRADED context, NOT a veto, NOT scored ──
     # Flag-gated (FUNDAMENTALS_ENABLED / RS_LINE_ENABLED / SECTOR_RANKING_ENABLED),
     # all default OFF -> these stay NULL and the engine output is byte-identical.
@@ -450,6 +469,15 @@ class SetupArchive(Base):
             "lps_window_classification IN "
             "('rising_march', 'turned', 'clean_dip', 'mixed')",
             name="ck_setup_archive_lps_window_classification",
+        ),
+        # Power-Play species state (program Task 7): fresh-DB defence only
+        # (the ADD COLUMN path strips CHECKs); the live DB's operative
+        # constraint is the write-time refusal in power_play_archive_values.
+        CheckConstraint(
+            "pp_state IS NULL OR "
+            "pp_state IN ('refused_clock', 'refused_occupancy', "
+            "'refused_story', 'admitted_dark')",
+            name="ck_setup_archive_pp_state",
         ),
         Index("ix_setup_archive_universe_type", "universe_type"),
     )

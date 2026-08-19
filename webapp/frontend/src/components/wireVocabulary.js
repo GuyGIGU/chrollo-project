@@ -92,12 +92,37 @@ export const ROOT_OUTCOME_LABELS = {
 // three surfaces. Consumers spread this rather than forking it a fourth time.
 export const TIER_LETTERS = ['S', 'A', 'B', 'C', 'D'];
 
-// Pre-box trend states (event_map_pre_box_trend).
+// Pre-box trend states (event_map_pre_box_trend) + the DAILY trend-state
+// vocabulary (market_structure.TREND_STATES, Power-Play program Task 11) in
+// the SAME registry — one home for trend words, keys disjoint by design.
 export const TREND_STATE_LABELS = {
   up: 'uptrend',
   down: 'downtrend',
   range: 'range',
+  trending: 'trending',
+  correcting: 'correcting',
+  consolidating: 'consolidating',
+  choppy: 'choppy',
 };
+
+// Power-Play species candidacy (the server-derived closed set —
+// evaluation.PP_WIRE_STATUS; program Task 14). The wire carries the VERDICT,
+// never the rule (EC-28): no client code may reconstruct these from null
+// patterns, and unknown slugs render verbatim until they earn a signed label.
+// "watched, ungraded" is deliberately MARK-register language: a candidacy is
+// a note in the margin, never a chip, never a tier color, until the operator's
+// flip promotes it.
+export const POWER_PLAY_STATUS_LABELS = {
+  fired: 'Power Play — fired',
+  watched_ungraded: 'Power Play — watched, ungraded',
+  not_watched_clock: 'Power Play — missed by the clock',
+  refused_occupancy: 'Power Play — refused (occupancy)',
+  refused_story: 'Power Play — refused (story)',
+};
+
+export function powerPlayStatusLabel(id) {
+  return POWER_PLAY_STATUS_LABELS[id] ?? id;
+}
 
 // Story chapters (TA-grade build task 12): the grade's breakdown vocabulary.
 // Wire ids mirror taxonomy.CHAPTER_ORDER (ruled 2026-08-06; vocabulary

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import pandas as pd
@@ -28,6 +29,7 @@ from engine_alpha.evaluation import (
     _evaluate_ticker,
     apply_baseline_filters,
     evaluate_ticker_with_near_miss,
+    evaluate_ticker_with_power_play,
 )
 from core.pipeline.market_data_health import (
     compute_market_data_health,
@@ -72,7 +74,8 @@ def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
 def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
-                     near_miss_sink: dict | None = None) -> tuple[list[dict], int]:
+                     near_miss_sink: dict | None = None,
+                     power_play_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
     ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector for
@@ -92,7 +95,16 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
     lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-    worker_fn = evaluate_ticker_with_near_miss if lane_on else _evaluate_ticker
+    # The species lane COMPOSES with the near-miss lane: its twin wraps the
+    # near-miss-aware submission (which re-checks its own flag in-worker), so
+    # the selection stays a single ladder and flag-off is byte-identical.
+    pp_on = power_play_sink is not None and settings.POWER_PLAY_PRESET_ENABLED
+    if pp_on:
+        worker_fn = evaluate_ticker_with_power_play
+    elif lane_on:
+        worker_fn = evaluate_ticker_with_near_miss
+    else:
+        worker_fn = _evaluate_ticker
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {
@@ -111,7 +123,25 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
-            if lane_on:
+            if pp_on:
+                result, pp_row, pp_stats = result
+                if pp_row is not None:
+                    power_play_sink["rows"].append(pp_row)
+                pstats = power_play_sink.setdefault("stats", {})
+                for k, v in pp_stats.items():
+                    pstats[k] = pstats.get(k, 0) + v
+                if isinstance(result, tuple):
+                    # The composed near-miss triple (the nm flag was on
+                    # in-worker). Rows flow to the sink when one rides;
+                    # without one they drop with the same no-sink semantics
+                    # as the legacy ladder (archive off = no lane rows).
+                    result, lane_rows, lane_stats = result
+                    if lane_on:
+                        near_miss_sink["rows"].extend(lane_rows)
+                        stats = near_miss_sink.setdefault("stats", {})
+                        for k, v in lane_stats.items():
+                            stats[k] = stats.get(k, 0) + v
+            elif lane_on:
                 result, lane_rows, lane_stats = result
                 near_miss_sink["rows"].extend(lane_rows)
                 stats = near_miss_sink.setdefault("stats", {})
@@ -236,13 +266,52 @@ def run_screener(mode: str = "download",
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
 
+    # The species lane's sink is created HERE (not scan_job): its rows ride the
+    # payload through market_context, never the archive writer — the archive
+    # half of the family travels on firing result rows via the Task 7 producer.
+    power_play_sink = ({"rows": [], "stats": {}}
+                       if settings.POWER_PLAY_PRESET_ENABLED else None)
     with timer.phase("evaluation"):
         # Number of tickers whose eval chain THREW and was swallowed (distinct from
         # a structural reject) is returned in-band alongside the results, so there
         # is no cross-call stale-read hazard.
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
-                                                    near_miss_sink=near_miss_sink)
+                                                    near_miss_sink=near_miss_sink,
+                                                    power_play_sink=power_play_sink)
+    if power_play_sink is not None:
+        pp_stats = dict(power_play_sink.get("stats") or {})
+        # The lane's OWN cost attribution (EC-8's bound cites this production
+        # instrument): summed in-worker time, recorded as its own phase entry —
+        # an aggregate across workers, not wall clock, and named so.
+        timer.phases["power_play_lane_worker_s"] = round(
+            float(pp_stats.pop("pp_eval_ms", 0.0)) / 1000.0, 2)
+        market_context["power_play"] = {
+            "candidates": sorted(power_play_sink["rows"],
+                                 key=lambda r: r["ticker"]),
+            "counts": {k: int(v) for k, v in sorted(pp_stats.items())},
+        }
+
+    # Conductor-level fundamentals/RS-line post-pass (species program Task 12):
+    # ONE process, the provider's one throttle, the FIRING set only — the
+    # in-worker attach point is retired. None when every advisory flag is off
+    # (byte-identical scans); else the attempted-vs-populated counters ride the
+    # scan metrics (the health surface) and the structured result line. The
+    # phase records ONLY when the pass ran — a dark scan's persisted metrics
+    # stay byte-identical (EC-8; 2026-08-17 review, Ramírez) — and the
+    # passenger gets its own narrow seam catch (EC-20/21): a pass-level crash
+    # surfaces as a counter on the health surface, never as the scan night.
+    from core.fundamentals.post_pass import attach_fundamentals_post_pass
+    t0_fund = time.perf_counter()
+    try:
+        fundamentals_counts = attach_fundamentals_post_pass(results, ticker_frames)
+    except Exception as e:  # noqa: BLE001 — the passenger never owns the job
+        print(f"  [fundamentals post-pass errored] {type(e).__name__}: {e}",
+              file=sys.stderr)
+        fundamentals_counts = {"pass_errored": 1}
+    if fundamentals_counts is not None:
+        timer.phases["fundamentals"] = round(time.perf_counter() - t0_fund, 2)
+        market_context["fundamentals"] = fundamentals_counts
 
     # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
     # into a universe-relative in-house RS rating (percentile across the firing
@@ -272,6 +341,10 @@ def run_screener(mode: str = "download",
     )
     if errored_tickers:
         finish_counts["errored_tickers"] = errored_tickers
+    if fundamentals_counts is not None:
+        # The attempted-vs-populated alarm rides the health surface: "flag
+        # off" = key absent; "attempted, all failed" = populated 0, visibly.
+        finish_counts["fundamentals"] = fundamentals_counts
     metrics = timer.finish(**finish_counts)
     market_context["_scan_metrics"] = metrics
     persist_scan_metrics(metrics, universe=uni)

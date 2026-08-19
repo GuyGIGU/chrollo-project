@@ -972,6 +972,26 @@ action is a flag flip plus a shadow re-capture.
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 
+### The Phase-A anchor family is partitioned, not pooled (2026-08-13)
+
+`bin_a_bars` / `bin_a_range_pct` / `bin_a_volume_ratio` / `bars_since_bc` /
+`descent_length` all measure the **climax→AR span**, so their value is a function
+of where the reader puts the automatic reaction — not only of what the chart did.
+Two mechanisms move that anchor with no chart changing: the always-on
+climax-terminality repair, and the dark `AR_FIRST_REACTION_ENABLED` tighten
+(19/140 overlays re-anchor). Pooled across an `engine_config_version` seam they
+are an average of two different measurements of the same word.
+
+`analyze.py` now takes that partition (`PHASE_A_ANCHOR_FEATURES`): on a
+multi-epoch population the family is **withheld** from the pooled fingerprint and
+from the outcome correlations, and reported separately scoped to the **current**
+epoch — the one holding the latest `scan_date`, since config hashes carry no
+ordering and the largest epoch here is the oldest. On a single-epoch population
+nothing changes. This is the precondition [`flag_ledger.md`](flag_ledger.md)
+names for flipping `AR_FIRST_REACTION_ENABLED`: without it, a flip silently pools
+two AR-mode populations into one fingerprint and the blend reads as a signal.
+Gate: `tests/test_analyze_anchor_seam.py`.
+
 ---
 
 ## Outputs
@@ -1109,7 +1129,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `824f44c9ed2c7ecd3a44e599c677ec57ac777442a60a968384ed934edee4450d`_
+_engine_config_version: `db0daa8b6ac1ceed6f459619858d1e85d03b1842c62b9c344bf43461b506c53f`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1330,6 +1350,12 @@ HTF_STAGE_MA = 30
 HTF_STAGE_MA_SLOPE_BARS = 4
 HTF_WEEKLY_WINDOWS = {'MIN_BASE_DAYS': 6, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 5, 'TREND_PRIOR_LOOKBACK': 26, 'LOCAL_PEAK_BARS': 8, 'ROOT_TREND_SMA': 30, 'PHASE_B_ATR_WINDOW': 8, 'AR_MAX_BARS': 4, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 3, 'PIVOT_ORDER_THRESHOLD': 12, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 2, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 4, 'BIN_C_RECOVERY_BARS_MAX': 3, 'BIN_C_LINGER_BARS_MAX': 4, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 2}
 HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 3, 'TREND_PRIOR_LOOKBACK': 12, 'LOCAL_PEAK_BARS': 4, 'ROOT_TREND_SMA': 10, 'PHASE_B_ATR_WINDOW': 6, 'AR_MAX_BARS': 3, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 2, 'PIVOT_ORDER_THRESHOLD': 8, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 1, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 2, 'BIN_C_RECOVERY_BARS_MAX': 2, 'BIN_C_LINGER_BARS_MAX': 3, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 1}
+POWER_PLAY_PRESET_ENABLED = False
+POWER_PLAY_STORY_FORM_ENABLED = False
+POWER_PLAY_WINDOWS = {'MIN_BASE_DAYS': 8, 'PIP_MACRO_MIN_BASE_BARS': 8}
+POWER_PLAY_POLE_MIN_GAIN = 0.9
+POWER_PLAY_POLE_WINDOW_BARS = 40
+POWER_PLAY_BREAKOUT_DEPARTURE_ATR = 1.0
 ```
 
 _Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,
@@ -1342,7 +1368,24 @@ the "DELIBERATELY EXCLUDED" block in
 
 ## Acceptable Misses
 
-Per the user's standing guidance: setups on **young bases that break out fast** (KEYS, BRZU, NE, CGON-style) will not be caught by this engine and that is **by design** — the base-age requirement (`MIN_BASE_DAYS = 20`, plus the sqrt-scaled scoring up to 120 days) explicitly trades early-stage breakouts for higher-cause Wyckoff setups. These should not be treated as bugs to fix.
+**RE-RULED 2026-08-14 — operator: "Power Plays are wanted setups, amend acceptable
+misses."** The young-fast-breakout class **contains the Power Play (Minervini)** — his
+named examples: MAN, FTNT (*"a powerplay that the engine finds today! and we should model
+after it"*), MRVL, ARM — and is **no longer an acceptable miss**: it is a wanted species
+with an open, measure-first program. Nothing flips in this change — `MIN_BASE_DAYS`, the
+occupancy floors, the story form and the baseline gate are all untouched today; see the
+`decisions.md` row of the same date for the four-specimen diagnosis (the 25-bar reading
+clock from the AR; the drift-up shelf dying at occupancy + story admission when
+counterfactually seeded; the `sma50` baseline leg hiding a mid-correction Power Play;
+FTNT as the model specimen the engine already reads — root 25+ bars old, two-sided
+26-bar shelf).
+
+*Superseded record (standing guidance until 2026-08-14, kept as the history of the
+trade-off):* setups on **young bases that break out fast** (KEYS, BRZU, NE, CGON-style)
+will not be caught by this engine and that is **by design** — the base-age requirement
+(`MIN_BASE_DAYS = 20`, plus the sqrt-scaled scoring up to 120 days) explicitly trades
+early-stage breakouts for higher-cause Wyckoff setups. These should not be treated as
+bugs to fix.
 
 ---
 

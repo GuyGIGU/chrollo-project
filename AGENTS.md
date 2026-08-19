@@ -37,7 +37,10 @@ books — it never places trades.**
   graveyard — overshoot-magnitude tests, `root.kind` keying, shelf-R, HTF scoring — and re-proposing a dead
   lever costs a full A/B cycle. Measured 2026-07-27: four designs falsified in one session, two of them
   already documented and still missed.
-- **Wyckoff is a source of ideas, not a specification.** Before arguing any change from Wyckoff
+- **Wyckoff is a source of ideas, not a specification** — and so are Minervini and O'Neil: before
+  arguing from *their* books (Power Play, VCP, CANSLIM, trend template, RS), read
+  [`docs/minervini_oneil_canon.md`](docs/minervini_oneil_canon.md), the growth-canon concordance.
+  Before arguing any change from Wyckoff
   doctrine, read [`docs/wyckoff_canon.md`](docs/wyckoff_canon.md) — it records what Chrollo took,
   adapted, and *deliberately left* (PS, ST, the distribution mirror, effort-vs-result), the words
   he uses differently here (LPS, upthrust, markup, `sos_reclaim`, Phase C/D), the jargon
@@ -112,8 +115,9 @@ npm --prefix webapp\frontend run lint    # eslint
 ## Frontend rules
 - One main component per file; keep components focused. Split large UI into smaller pieces.
 - **Null-safety is mandatory** for any rendered number — never call `.toFixed()` on possibly-null data.
-  Reuse the established guard: `const fx = (v, d) => (v == null || !Number.isFinite(Number(v))) ? '—' :
-  Number(v).toFixed(d);`.
+  Reuse the established guard: `import { fx } from 'utils/format.js'` — the app's ONE null guard
+  (null/NaN → em-dash). Never re-declare it inline; the old inline one-liner this rule used to quote
+  minted drifting copies (council review 2026-08-17).
 - Every `EventSource`/SSE stream must be stored in a ref and `close()`d on unmount (see `hooks/useSSE.js`).
 - Every `fetch` needs a `.catch` / try-catch so a backend hiccup logs instead of hanging the UI.
 - Tag-chip / score-pill caps mirror `config/settings.py` and live in one place

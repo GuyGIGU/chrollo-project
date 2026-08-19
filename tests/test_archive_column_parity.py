@@ -65,6 +65,7 @@ from engine_alpha.scoring.scoring import (  # noqa: E402
 )
 from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
 from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
+from engine_alpha.structure.power_play import power_play_archive_values
 from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
 from engine_alpha.structure.trace_export import election_trace_archive_values  # noqa: E402
 
@@ -194,6 +195,11 @@ def _strategy_cols(*, prefixed: bool) -> frozenset[str]:
         strategy_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _power_play_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        power_play_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _sector_rank_cols() -> frozenset[str]:
     ranking = {"composite": {"XLK": 92.0}, "ranked": ["XLK", "XLF"]}
     fields = sector_rank_fields("XLK", ranking)
@@ -229,7 +235,8 @@ def _scan_effective_cols() -> frozenset[str]:
     assert splats == {"htf_archive_values", "event_map_archive_values",
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
-                      "strategy_archive_values", "sector_rank_columns"}, (
+                      "strategy_archive_values", "power_play_archive_values",
+                      "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (literal | _htf_cols(prefixed=True)
@@ -237,7 +244,8 @@ def _scan_effective_cols() -> frozenset[str]:
             | _ta_grade_cols(prefixed=True)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=True)
-            | _strategy_cols(prefixed=True) | _sector_rank_cols())
+            | _strategy_cols(prefixed=True)
+            | _power_play_cols(prefixed=True) | _sector_rank_cols())
 
 
 def _seed_effective_cols() -> frozenset[str]:
@@ -249,7 +257,8 @@ def _seed_effective_cols() -> frozenset[str]:
     assert splats == {"htf_archive_values", "event_map_archive_values",
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
-                      "strategy_archive_values", "fwd_returns"}, (
+                      "strategy_archive_values", "power_play_archive_values",
+                      "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
     return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
@@ -257,7 +266,8 @@ def _seed_effective_cols() -> frozenset[str]:
             | _ta_grade_cols(prefixed=False)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=False)
-            | _strategy_cols(prefixed=False) | _fwd_return_cols())
+            | _strategy_cols(prefixed=False)
+            | _power_play_cols(prefixed=False) | _fwd_return_cols())
 
 
 def test_scan_and_seed_only_diverge_on_allowlist():
@@ -375,6 +385,14 @@ def test_manual_route_score_coverage_with_declared_exclusions():
         "the manual route no longer splats the TA-grade family producer — "
         "fired_tags would bind as a raw list and the closed-set refusals "
         "would not guard this writer (2026-08-08 review, finding 1)")
+    # EC-30 names the producer PER WRITER: the pp_* family's scrub, INTEGER
+    # coercions, and pp_state closed-set refusal must ride the manual route
+    # too (2026-08-17 review, finding 8 — the same class, third occurrence).
+    assert "power_play_archive_values" in splat_names, (
+        "the manual route no longer splats the Power-Play family producer — "
+        "a species key would bind through the raw model pass with no scrub, "
+        "no INTEGER coercion, and no pp_state refusal (2026-08-17 review, "
+        "finding 8)")
     # The declared exclusion, read from the route's own source.
     declared_excl: set = set()
     for call in splat_calls:

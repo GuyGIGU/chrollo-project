@@ -51,7 +51,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
+        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
     )
     saved = {}
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: saved.update(metrics))
@@ -95,7 +95,7 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
+        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
 

@@ -105,6 +105,22 @@ lows:
 
 **The automatic reaction derives from this model.** Once the trend has topped at its climax, the **AR is the low of the first *continuous* reaction after the terminal swing** — the running counter-move that retraces a meaningful fraction of the *full leg* and is closed at the first **big confirmed bounce** off that low (`first_reaction_after()`). That is exactly what the drawn Phase-A overlay tightens to under `AR_FIRST_REACTION_ENABLED` (see [Phase A — First-reaction AR anchor](#phase-a--first-reaction-ar-anchor-flag-gated-default-off)).
 
+> **Known gap between this model and the operator's eye (measured 2026-08-14).**
+> Definition (2) above — the climax is the segment's *extreme pivot* — is not what
+> the operator marks as a trend end, and the disagreement is directional rather
+> than noisy. Against nine dated marks, `segment_trends` holds a terminal within
+> 3 bars of his trend end on **2 of 9**, and the resolved `climax_bar` sits
+> *earlier* than his trend end on **6 of 6** measurable names, never once later
+> (median −50.5 bars). The mechanism follows from the definition: inside a
+> consolidation, a later upthrust to the box's own R is still a higher high, so it
+> becomes the segment's extreme and swallows the true trend end. The operator also
+> reads the pair as one **transition zone** rather than two events — the last trend
+> peak, then the low 1–5 bars later where the base opens, the AR low being the root
+> swing being the consolidation start (his nine spans are 1,2,2,2,3,4,5,5,5 bars).
+> Bounded honestly: nine marks, on a cohort he himself called ugly and declined to
+> certify. It is a direction of travel, not a specification. See
+> [anchor_marks_ruling_2026-08-14.md](anchor_marks_ruling_2026-08-14.md).
+
 This is **measure-only**: the trend model reads the labels the skeleton already assigns and assigns no points, moves no rails, and gates nothing. It is the geometric substrate the roadmap's richer market-structure reads (CHoCH = Phase A start, BOS = Phase D continuation, liquidity sweeps) grow from — always as graded confidence, never a veto.
 
 #### Climax → Automatic Reaction (Phase A)
@@ -596,6 +612,31 @@ geometry is real (FXNC: 5 completed at 0.66). Re-basing the zones themselves
 admission form are pinned on these exact bases, so that change is a re-measurement — a
 new archive seam plus a census re-run and re-pin — reserved for its own program if story
 pricing ever needs it.
+
+**The two named ruled forms of the story admission (2026-08-17, Power-Play species
+program; renamed by operator ruling 2026-08-18 — the record says the BEHAVIOR it saw,
+never an invented umbrella word).** The admission stays a thin predicate OUTSIDE this
+reader, and it now carries TWO named forms, each an operator-ruled judgment with exactly
+one implementation: the **S-test form** (the 2026-07-25 ruling: ≥ 2 completed support
+tests + terminal resistance posture + no terminal support drift) and — dark, consulted
+only inside the species lane's own election — the **resistance contraction** (the
+Power-Play species; ruling `c029555`, theory in `minervini_oneil_canon.md` §2). A young
+continuation base after an explosive leg contracts at or above resistance: its story is
+the HOLD, not completed support tests — it is S-poor **by virtue**, so the S-test form
+can structurally never read it. The form asks the same episode vocabulary the question
+that fits the species: the floor never FAILED, the frame is not bleeding on the floor (no
+terminal support drift), and the right edge is ENGAGED at the ceiling — an open
+resistance episode (a terminal `R^` bar produces the same open episode, so the
+post-breakout stance is covered by construction). The admission record names the behavior
+it measured, derived from the terminal posture: **`contracting above resistance`** (the
+last bar closes above the rail — the post-breakout stance) or **`contracting at
+resistance`** (engaged at the rail's zone, close still below it), stamped
+`<behavior> | <profile>` as the admitting sentence; the S-test form's record is
+unchanged. The support-side sibling — price contracting ON support after a shakeout
+recovery — is the LPS, which keeps its own name and its own detection path. The
+contraction form is PROVISIONAL until the operator's species ruling sheets calibrate it;
+the species' trend-side theory (the transition zone — trend end and base open as one
+short zone) enters with the trend-state layer, not here.
 
 **The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
 menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**
