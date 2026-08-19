@@ -37,11 +37,13 @@ def _read_meta(meta_path: str) -> dict:
         return {}
 
 
-def _replace_with_retry(tmp: str, path: str, attempts: int = 5, wait_s: float = 0.2) -> None:
-    """``os.replace`` with a short bounded retry. On Windows, replacing a file a
-    concurrent reader has open (an unlocked cache-status ``read_parquet``) raises
-    PermissionError — a multi-minute download must not die at its final step over
-    a transient read, so wait the reader out briefly before giving up."""
+def _replace_with_retry(tmp: str, path: str, attempts: int = 25, wait_s: float = 0.2) -> None:
+    """``os.replace`` with a bounded retry (~5s). On Windows, replacing a file a
+    concurrent reader has open (an unlocked cache-status ``read_parquet``, or the
+    watchlist candle endpoint's ~0.4s pruned panel reads — several can interleave
+    while a page loads) raises PermissionError — a multi-minute download must not
+    die at its final step over transient reads, so wait the readers out before
+    giving up. Bounded: a genuinely wedged handle still raises."""
     for attempt in range(1, attempts + 1):
         try:
             os.replace(tmp, path)

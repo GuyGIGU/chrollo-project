@@ -4,8 +4,8 @@ import { scanStatusColor } from '../utils/appFormat';
 import IbkrModeControls from './IbkrModeControls';
 import AppearanceControl from './AppearanceControl';
 import {
-  HomeIcon, PortfolioIcon, JournalIcon, OptionsIcon,
-  ScreenerIcon, ArchiveIcon, CalibrationIcon, PlusIcon, UploadIcon, CalcIcon,
+  HomeIcon, PortfolioIcon, JournalIcon, OptionsIcon, ScreenerIcon,
+  WatchlistIcon, ArchiveIcon, CalibrationIcon, PlusIcon, UploadIcon, CalcIcon,
 } from './NavIcons';
 
 // The one global bar: brand + horizontal nav on the left, live status + IBKR +
@@ -23,6 +23,7 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/screener', label: 'Screener', Icon: ScreenerIcon },
+    { to: '/watchlist', label: 'Watchlist', Icon: WatchlistIcon },
     { to: '/archive', label: 'Archive', Icon: ArchiveIcon },
     { to: '/calibration', label: 'Calibration', Icon: CalibrationIcon },
   ],

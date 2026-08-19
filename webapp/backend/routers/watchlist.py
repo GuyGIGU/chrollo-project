@@ -42,6 +42,10 @@ class WatchlistItem(BaseModel):
     save_date: str | None = None
     pinned: bool = False
     pin_scan_date: str | None = None
+    # The pin's registry KEY (EC-37): what the candle endpoint's `universe`
+    # parameter wants, so a pinned name always draws from the panel its saved
+    # setup came from. None on unpinned rows.
+    pin_universe_key: str | None = None
 
 
 class SaveIn(BaseModel):
@@ -105,13 +109,19 @@ def _item(row: models.Watchlist) -> WatchlistItem:
         save_date=row.save_date,
         pinned=row.pin_scan_date is not None,
         pin_scan_date=row.pin_scan_date,
+        pin_universe_key=watchlist_ledger.universe_key_for_type(
+            row.pin_universe_type),
     )
 
 
-def _valid_symbol(ticker: str) -> str:
+def valid_symbol(ticker: str) -> str:
+    """Normalize + validate a path ticker against the ONE strict grammar
+    (marks_validity.TICKER_RE) or 400. Shared with the candle router — a
+    ticker the watchlist accepted must never be one the candle wire rejects
+    (one folded judgment, never a twin)."""
     sym = ticker.strip().upper()
     if not sym or not TICKER_RE.match(sym):
-        logger.info("watchlist bad_ticker %r", ticker)
+        logger.info("bad_ticker %r", ticker)
         raise HTTPException(status_code=400, detail={
             "class": "bad_ticker",
             "message": "Ticker must match the symbol pattern",
@@ -128,7 +138,7 @@ def list_watchlist(db: Session = Depends(get_db)):
              dependencies=[Depends(require_same_app)])
 def add_to_watchlist(ticker: str, payload: SaveIn | None = None,
                      db: Session = Depends(get_db)):
-    sym = _valid_symbol(ticker)
+    sym = valid_symbol(ticker)
     body = payload or SaveIn()
     # The Field pattern is shape-only; a calendar-impossible date would slip
     # through to the artifact equality check and silently degrade the pin —
@@ -138,23 +148,29 @@ def add_to_watchlist(ticker: str, payload: SaveIn | None = None,
             "class": "bad_date",
             "message": "scan_date must be a real YYYY-MM-DD date",
         })
+    # Validate the universe key AT THE BOUNDARY, before the save runs — this
+    # 422 may only ever name the registry's refusal, so the resolve is the
+    # only call inside the try. Wrapping the whole save would relabel any
+    # future ValueError in snapshot/JSON/DB work as "unknown universe"
+    # (council review 2026-08-17, finding 14).
+    from core.pipeline.universe import resolve_universe
     try:
-        row, outcome = watchlist_ledger.save_watch(
-            db, sym, body.universe, body.scan_date)
+        resolve_universe(body.universe)
     except ValueError:
-        # resolve_universe's closed registry refused the key.
         logger.info("watchlist bad_universe %r", body.universe)
         raise HTTPException(status_code=422, detail={
             "class": "bad_universe",
             "message": f"Unknown universe key: {body.universe!r}",
         })
+    row, outcome = watchlist_ledger.save_watch(
+        db, sym, body.universe, body.scan_date)
     logger.info("watchlist save %s -> %s", sym, outcome)
     return _item(row)
 
 
 @router.delete("/{ticker}", dependencies=[Depends(require_same_app)])
 def remove_from_watchlist(ticker: str, db: Session = Depends(get_db)):
-    sym = _valid_symbol(ticker)
+    sym = valid_symbol(ticker)
     row = watchlist_ledger.unstar_watch(db, sym)
     if row is None:
         raise HTTPException(status_code=404, detail={

@@ -141,3 +141,11 @@ export function PulseIcon(props) {
     </svg>
   );
 }
+
+export function WatchlistIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3.5l2.63 5.33 5.87.85-4.25 4.14 1 5.85L12 16.9l-5.25 2.77 1-5.85-4.25-4.14 5.87-.85z" />
+    </svg>
+  );
+}

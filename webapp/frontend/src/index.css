@@ -3260,3 +3260,310 @@ td.cell-editable { overflow: hidden; }
 .calibration-page button:focus-visible {
   border-color: var(--accent-active);
 }
+
+/* ===================================================================
+   WATCHLIST PAGE — chart surface + card grid
+   One selected ticker in three panes (M/W stacked left, big Daily
+   right) with the ticker rail on the right edge, filling one viewport;
+   below the fold, a full screener-style card grid of every starred
+   name. The PAGE scrolls vertically; the top block's height is a
+   CONSTANT (one viewport minus the grid head's peek), so starring,
+   swapping the selected name, or toggling the overlay never moves a
+   pane edge — the operator's spatial memory of where the rails sit is
+   part of the read.
+   =================================================================== */
+.watchlist-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;   /* the calibration-page precedent: fits content-scroll exactly */
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Sized against the page's definite height (NOT vh — vh lies under the
+   --ui-scale zoom): one viewport minus ~the grid head, so the card grid's
+   top edge peeks above the fold as the scroll affordance. */
+.wl-top {
+  display: grid;
+  flex-shrink: 0;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  height: calc(100% - 40px);
+  min-height: 480px;
+}
+
+.watchlist-page-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wl-empty-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.wl-empty-retry {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  color: var(--text-main);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  margin-left: 6px;
+  padding: 3px 10px;
+}
+
+.wl-empty-retry:hover {
+  border-color: var(--myth-dim);
+  color: var(--myth);
+}
+
+.wl-chart-zone {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wl-chart-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+/* The design system's Title style (17px/850 — ticker identifiers): the
+   page's anchor name must carry the same weight as every other ticker. */
+.wl-chart-ticker {
+  color: var(--text-main);
+  font-size: 17px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.wl-overlay-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+/* Branded focus for the page's keyboard controls — every custom control in
+   this app answers focus with the accent ring, never the UA default. */
+.wl-overlay-toggle:focus-visible,
+.wl-rail-row:focus-visible,
+.wl-empty-retry:focus-visible {
+  outline: 2px solid var(--accent-active);
+  outline-offset: -2px;
+}
+
+.wl-overlay-toggle[aria-pressed="true"] {
+  background: var(--myth-soft);
+  border-color: var(--myth-dim);
+  color: var(--myth);
+}
+
+/* The toggle's third honest state: ON but this name has no engine read —
+   visible, muted, never disappearing or silently inert (the words beside it
+   carry the reason). */
+.wl-overlay-toggle.inert {
+  background: transparent;
+  border-color: var(--border-color);
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.wl-toggle-note {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.wl-chart-stamp {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.wl-cluster-void {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  flex: 1;
+  font-size: 13px;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* The three panes are recessed wells inside ONE framed chart zone, told apart
+   by hairline seams — never three individually chromed boxes. */
+.wl-chart-cluster {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 27%) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wl-htf-col {
+  border-right: 1px solid var(--border-color);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.wl-htf-pane {
+  min-height: 0;
+  position: relative;
+}
+
+.wl-htf-pane + .wl-htf-pane {
+  border-top: 1px solid var(--border-color);
+}
+
+.wl-pane-mark {
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 700;
+  left: 8px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  position: absolute;
+  top: 6px;
+  z-index: 3;
+}
+
+.wl-daily-pane {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wl-daily-canvas {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.wl-rail {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* ONE selection language, ONE mythril step: the rail row's full-strength
+   myth edge and the card wrapper's ring below use the SAME token; tier hues
+   stay identity-only on the ticker text — a tier-colored highlight would
+   misread as rank. */
+.wl-rail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+
+.wl-rail-row:hover {
+  background: var(--bg-hover);
+}
+
+.wl-rail-row.selected {
+  background: var(--myth-soft);
+  border-left-color: var(--myth);
+}
+
+.wl-rail-ticker {
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wl-rail-price {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+/* Staleness must stay READABLE: the last-known prices are still good data,
+   so mark the state without fading the digits below legibility. */
+.wl-rail-price.stale {
+  opacity: 0.7;
+}
+
+/* The card-grid zone below the fold: a quiet mono head line (its peek above
+   the fold is the scroll affordance) over the SAME responsive grid the
+   screener uses — as many ~480px cards per row as fit, stretched. */
+.wl-grid-zone {
+  flex-shrink: 0;
+}
+
+.wl-grid-head {
+  align-items: baseline;
+  color: var(--text-faint);
+  display: flex;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  gap: 8px;
+  letter-spacing: 0.08em;
+  padding: 10px 2px 8px;
+}
+
+.wl-grid-count {
+  color: var(--text-muted);
+}
+
+.wl-card-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  padding-bottom: 8px;
+}
+
+/* Selection ring — the SAME full-strength mythril step as the rail row's
+   edge (one token, one meaning), worn by a wrapper so the screener card
+   itself stays untouched. The wrapper is a flex parent stretching its card,
+   so mixed scan/clean rows stay equal-height. */
+.wl-card {
+  border-radius: var(--radius-sm);
+  display: flex;
+  min-width: 0;
+}
+
+.wl-card > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.wl-card.selected {
+  box-shadow: 0 0 0 2px var(--myth);
+}
+
+/* Reason copy is a MESSAGE, not chrome: the muted ink both voids use (the
+   cluster void sizes up with its context; the tone never changes). */
+.wl-card-void {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  flex: 1;
+  font-size: 12px;
+  justify-content: center;
+}

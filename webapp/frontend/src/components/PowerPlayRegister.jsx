@@ -7,11 +7,11 @@
 // meta line uses the app's JetBrains Mono numeric standard (2026-08-17
 // review, Saarinen).
 //
-// NOT MOUNTED YET, by design: the screener surfaces are mid-flight on the
-// operator's watchlist branch, so the one-line mount
-// (`<PowerPlayRegister marketContext={payload.market_context} />`) lands at
-// merge time. The projection it renders is node-tested independently
-// (powerPlayRegister.test.js), and the data already rides the one screener
+// MOUNTED 2026-08-19 at the watchlist merge (the deferral's stated landing
+// point): HomeView's regime cell, reading the same market_context the regime
+// panel does. It returns null when the projection is empty, so it costs that
+// cell no height while the species flags are dark. The projection is node-tested
+// independently (powerPlayRegister.test.js), and the data rides the one screener
 // payload through market_context — no second store, no second fetch.
 
 import { powerPlayCounts, powerPlayRows } from './powerPlayRegister.js';

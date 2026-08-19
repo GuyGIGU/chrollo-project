@@ -14,6 +14,7 @@ if _ROOT_DIR not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from broker_config import settings
 from ibkr import get_ibkr_service
@@ -21,6 +22,7 @@ from middleware.request_id import RequestIDMiddleware
 from routers import analytics as analytics_router
 from routers import archive as archive_router
 from routers import calibration as calibration_router
+from routers import candles as candles_router
 from routers import engine_edge as engine_edge_router
 from routers import ibkr as ibkr_router
 from routers import journal as journal_router
@@ -87,6 +89,17 @@ def _stop_services(svc) -> None:
 app = FastAPI(title="Chrollo API", lifespan=lifespan)
 
 app.add_middleware(RequestIDMiddleware)
+# Host allowlist BEFORE the browser-enforced defenses: CORS and the same-app
+# header only bind cross-origin pages, so a DNS-rebound page (its domain
+# re-pointed at 127.0.0.1) would be SAME-origin with this always-on service
+# and could read/write every route. A rebound page's requests carry the
+# attacker's own hostname in Host — refused here. "testserver" is the
+# FastAPI TestClient's default host; a browser can never send it.
+# (Council review 2026-08-17, finding 7 — Hunt.)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "testserver"],
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -112,6 +125,7 @@ app.include_router(trades_router.router)
 app.include_router(trade_risk_router.router)
 app.include_router(screener_router.router)
 app.include_router(prices_router.router)
+app.include_router(candles_router.router)
 
 mount_frontend_assets(app, _FRONTEND_ASSETS)
 

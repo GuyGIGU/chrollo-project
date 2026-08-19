@@ -1251,7 +1251,9 @@ REGIME_BREADTH_200_WEAK = 0.35
 # DASHBOARD
 # ============================================================
 DASHBOARD_CHART_TIERS = ['S', 'A', 'B', 'C', 'D']   # Default: generate chart data for all setups
-DASHBOARD_CHART_DAYS = 300           # Max candles shown per chart
+DASHBOARD_CHART_DAYS = 300           # Max daily candles shown per chart
+DASHBOARD_CHART_WEEKS = 110          # Max weekly candles per higher-timeframe chart
+DASHBOARD_CHART_MONTHS = 60          # Max monthly candles per higher-timeframe chart
 
 # ============================================================
 # SCHEDULED WEBAPP SCANS

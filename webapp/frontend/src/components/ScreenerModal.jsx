@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ScreenerStockLens from './ScreenerStockLens';
 import TimeframeMainChart from './TimeframeMainChart';
 import TimeframeMiniRow from './TimeframeMiniRow';
-import useScreenerModalChart from '../hooks/useScreenerModalChart';
+import useDailyStructureChart from '../hooks/useDailyStructureChart';
 import { tierColor, signColor } from '../theme';
 import { fx, fmtSignedPctFrac } from '../utils/format';
 import { dailyChangeFrac } from '../utils/screenerCardData';
@@ -160,7 +160,7 @@ const ScreenerModal = ({ ticker, data, earnings, scanIdentity = null, onClose, o
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useScreenerModalChart(chartContainerRef, ticker, data, activeRegion, interval);
+  useDailyStructureChart(chartContainerRef, ticker, data, activeRegion, interval);
 
   return (
     <div

@@ -720,10 +720,11 @@ then the classification above deliberately consumes the reader AS IS.
   null-guard (null = em-dash, never 0, never red); NO thresholds, NO color ramps.
 - `components/PowerPlayRegister.jsx`: the MARK-register chrome (muted, narrow, plain
   words — never chip/pill chrome, never tier color; promotion to chip chrome is the
-  flip's visible record). **Deliberately NOT mounted:** the screener surfaces are
-  mid-flight on the operator's watchlist branch, so the one-line mount
-  (`<PowerPlayRegister marketContext={payload.market_context} />`) lands at merge
-  time — recorded here so it is not lost. The data already rides the ONE screener
+  flip's visible record). Deliberately not mounted at build time (the screener
+  surfaces were mid-flight on the operator's watchlist branch); **MOUNTED
+  2026-08-19 at that merge**, in `HomeView`'s regime cell beside `RegimePanel`,
+  reading the same `marketContext`. It returns null on an empty projection, so it
+  costs the cell no height while both species flags are dark. The data rides the ONE screener
   payload (`market_context` travels wholesale) — no second store, no second fetch,
   no census React route (frozen sheets stay the census surface).
 - Battery `components/powerPlayRegister.test.js` (6, in the node --test list):

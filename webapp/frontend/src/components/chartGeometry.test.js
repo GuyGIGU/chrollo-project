@@ -444,6 +444,22 @@ test('boxRailSpecs: R/S/mid anchored at the box start', () => {
   assert.deepEqual(specs[2], { kind: 'mid', startIndex: 14, value: 15 }); // (R+S)/2
 });
 
+test('boxRailSpecs: string-typed R/S ship as the COERCED numbers', () => {
+  // The exact input class finiteNumber exists to absorb: the guard and the
+  // shipped values must be the same coerced pair, never guard-on-coerced /
+  // ship-raw (two string rails beside a numeric mid).
+  const specs = boxRailSpecs({ candles: makeCandles(20), base_len: 6, R: '20', S: '10' });
+  assert.deepEqual(specs.map((s) => s.value), [20, 10, 15]);
+  for (const spec of specs) assert.equal(typeof spec.value, 'number');
+});
+
+test('boxRailSpecs: a candles-only payload draws NO rails', () => {
+  // The Watchlist page's clean chart: no R/S -> no parent trio, no NaN mid.
+  assert.deepEqual(boxRailSpecs({ candles: makeCandles(20) }), []);
+  assert.deepEqual(
+    boxRailSpecs({ candles: makeCandles(20), R: 20 }), []); // half a box is no box
+});
+
 test('boxRailSpecs: forward bars shift the anchor left, clamped at 0', () => {
   const candles = makeCandles(20);
   const specs = boxRailSpecs({ candles, base_len: 6, forward_bars: 5, R: 20, S: 10 });

@@ -226,10 +226,25 @@ def iso_week_monday(date_str: str) -> str:
     return (d - timedelta(days=d.weekday())).isoformat()
 
 
+def _coerce_str(value) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _coerce_number(value) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number == number else None  # NaN -> None
+
+
 def _snapshot_display_fields(snapshot_json: str | None) -> dict:
     """Extract the review row's display fields from the STORED payload (EC-28:
     the row and its replay quote the same bytes, so they cannot disagree).
-    Degrades to all-None on any parse surprise — never 500s a list."""
+    Degrades to all-None on any parse surprise — never 500s a list. Each
+    quoted value is COERCED per field: the wire models type-pin these, and
+    one drifted stored value must degrade its own cell, never fail response
+    validation for the whole review (council review 2026-08-17, sweep-i)."""
     fields = {"tier": None, "score": None, "setup": None, "ta_grade": None,
               "price": None}
     if not snapshot_json:
@@ -239,8 +254,11 @@ def _snapshot_display_fields(snapshot_json: str | None) -> dict:
     except (ValueError, AttributeError) as exc:
         log.warning("unreadable watchlist snapshot skipped: %s", exc)
         return fields
-    for key in fields:
-        fields[key] = entry.get(key)
+    fields["tier"] = _coerce_str(entry.get("tier"))
+    fields["setup"] = _coerce_str(entry.get("setup"))
+    fields["score"] = _coerce_number(entry.get("score"))
+    fields["ta_grade"] = _coerce_number(entry.get("ta_grade"))
+    fields["price"] = _coerce_number(entry.get("price"))
     return fields
 
 
@@ -275,10 +293,11 @@ def weekly_review(db: Session, limit_weeks: int) -> list[dict]:
     return out
 
 
-def _universe_key_for_type(universe_type: str | None) -> str | None:
+def universe_key_for_type(universe_type: str | None) -> str | None:
     """The registry KEY for a stored universe TYPE ('us_equities' ->
     'us_stocks') — what a review re-star must POST back as its displayed
-    universe; the type alone cannot drive resolve_universe."""
+    universe; the type alone cannot drive resolve_universe. Public API: the
+    watchlist router builds its wire item with this mapping."""
     if universe_type is None:
         return None
     from core.pipeline.universe import all_universes
@@ -302,7 +321,7 @@ def _review_row(row: models.Watchlist) -> dict:
         "pinned": row.pin_scan_date is not None,
         "pin_scan_date": row.pin_scan_date,
         "pin_universe_type": row.pin_universe_type,
-        "pin_universe_key": _universe_key_for_type(row.pin_universe_type),
+        "pin_universe_key": universe_key_for_type(row.pin_universe_type),
         "pin_setup_type": row.pin_setup_type,
         "pin_engine_config_version": row.pin_engine_config_version,
         "has_snapshot": row.snapshot_json is not None,

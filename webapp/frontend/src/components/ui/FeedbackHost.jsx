@@ -43,6 +43,30 @@ function Toast({ item }) {
     >
       <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, marginTop: 5, background: TONE_COLOR[item.tone] || TONE_COLOR.info }} />
       <span>{item.message}</span>
+      {item.action && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            item.action.run();
+            dismissToast(item.id);
+          }}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-xs)',
+            color: 'var(--myth)',
+            cursor: 'pointer',
+            flexShrink: 0,
+            fontFamily: 'inherit',
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: '3px 9px',
+          }}
+        >
+          {item.action.label}
+        </button>
+      )}
     </div>
   );
 }

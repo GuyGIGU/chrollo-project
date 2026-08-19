@@ -1,6 +1,10 @@
 import ErrorBoundary from '../ErrorBoundary';
 import MarketPulse from '../MarketPulse';
 import RegimePanel from '../RegimePanel';
+// Extension is REQUIRED here: the component's case-twin `powerPlayRegister.js`
+// (its pure projection) wins extensionless resolution on a case-insensitive
+// filesystem, and .js is tried before .jsx — the build fails on a missing default.
+import PowerPlayRegister from '../PowerPlayRegister.jsx';
 import ActionCenter from './ActionCenter';
 import WatchlistZone from './WatchlistZone';
 import OpenBookZone from './OpenBookZone';
@@ -38,7 +42,12 @@ export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatu
       <div className="home-grid">
         <div className="ga-pulse"><ErrorBoundary><MarketPulse marketContext={marketContext} /></ErrorBoundary></div>
         <div className="ga-watch"><WatchlistZone screenerData={screenerData} prices={prices} priceErr={priceErr} /></div>
-        <div className="ga-regime"><ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary></div>
+        <div className="ga-regime">
+          <ErrorBoundary><RegimePanel marketContext={marketContext} /></ErrorBoundary>
+          {/* Reads the same market_context — renders nothing at all while the
+              species flags are dark, so it costs the regime cell no height. */}
+          <ErrorBoundary><PowerPlayRegister marketContext={marketContext} /></ErrorBoundary>
+        </div>
         <div className="ga-book"><OpenBookZone trades={trades} riskFor={riskFor} status={riskStatus} /></div>
         <div className="ga-journal"><JournalPulseZone stats={stats} trades={trades} /></div>
         <div className="ga-edge"><EdgePulse /></div>

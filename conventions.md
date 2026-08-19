@@ -526,9 +526,57 @@ merging the flags or duplicating the gate both destroy it silently.
 
 ---
 
-<!-- NUMBERING NOTE (2026-08-17): EC-38..EC-41 are staged on the main checkout with the
-watchlist-page branch (chart-surface/batch-route/client-cache contracts). The entries
-below continue AFTER them so the two branches merge without a numbering collision. -->
+### EC-38: A chart surface renders ONE artifact — overlay fields and candles never cross sources
+**Convention:** Any surface that draws engine-read material (rails, LPS spans, structure
+coloring, boxes) renders it ONLY against the exact candle arrays that shipped in the SAME
+artifact — the scan row wholesale, or nothing. Fresh-cache candles are always a CLEAN chart; no
+code path may merge overlay fields from one source onto candles from another, because overlay
+geometry is index-arithmetic against the candle array it was computed with (a one-bar window
+difference silently draws every rail and span on the wrong bars). The pane/card data contract is
+atomic: one source per surface, chosen before render, never field-level mixing
+(`resolvePaneData` / `cardPlan` are the reference implementations, node-pinned).
+**Origin:** Watchlist-page build + Council Review 2026-08-17-1435; operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-28 (the wire carries verdicts); `references/quality-llm.md` →
+P4 (pin the inputs)
+
+### EC-39: A batched wire route resolves through its single-item sibling's exact function
+**Convention:** When a resource has both a single-item route and a batched route (the candle
+envelope + the card-grid batch today), BOTH resolve each item through the SAME shared function —
+batching may group the reads, never re-implement the walk. A re-typed batch loop is a twin that
+silently diverges on the degrade legs: the shipped one broke at first membership while the
+single walk continued past failed reads, so one ticker got two different verdicts on one page.
+Parameters that shape resolution (the EC-37 pin) must reach the batch too, or the batch is
+resolving on half the identity. Sharpens EC-3/EC-18 for wire routes.
+**Origin:** Council Review 2026-08-17-1435, finding 5 (four seats independently) + finding 6;
+operator-delegated 2026-08-17
+**Principle:** `conventions.md` EC-3/EC-18/EC-37; `references/quality-backend.md` → P6
+
+### EC-40: Every asked-for item gets a recorded outcome, and retry copy is wired
+**Convention:** A client batch handler stamps a terminal cell for EVERY name it asked about —
+including names the server declined to echo — in the same merge that lands the response; an
+unanswered name must terminate in a rendered verdict, never re-join the fetch plan (the shipped
+gap was an unbounded request loop armed by any legacy-cased stored row). Error-status entries
+always have a real retry trigger (mount revalidate, selection), and any UI copy naming a
+recovery gesture ("reselect to retry") is backed by a code path that actually re-issues the
+request — copy and mechanism are verified together, not written separately.
+**Origin:** Council Review 2026-08-17-1435, findings 1+3 (Friedman/Dodds/Hunt independently);
+operator-delegated 2026-08-17
+**Principle:** `references/quality-frontend.md` → P6 (errors are structural);
+`references/quality-ux.md` → P9 (misleading copy is a trust event)
+
+### EC-41: Client caches of server artifacts serve-stale-then-revalidate, keyed by generation
+**Convention:** A module-level client store caching a server artifact (scan payloads, candle
+envelopes, batch cells) is never write-once: ready entries keep serving while calls issue
+background revalidates (a route mount and a selection are revalidation triggers), and the cache
+key records every parameter the value was derived from (the pin universe). The arrival path
+compares a cheap GENERATION stamp (cache_last_modified / last bar / verdict) and keeps the OLD
+object reference when nothing moved — reference identity is the frontend's rebuild currency, so
+a no-change revalidate must rebuild zero charts, and a real change must replace the reference so
+everything downstream rebuilds deliberately.
+**Origin:** Council Review 2026-08-17-1435, findings 4+11 (Dodds + Performance);
+operator-delegated 2026-08-17
+**Principle:** `references/quality-frontend.md` → P2 (managed cache contract);
+`references/quality-performance.md` → P6 (allocate deliberately)
 
 ### EC-42: Ledger rows are trued up at BUILD END, not task time
 **Convention:** In a multi-task change, every earlier task's flag-ledger row, program-doc
