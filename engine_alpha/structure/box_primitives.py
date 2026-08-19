@@ -41,6 +41,7 @@ _story_log = logging.getLogger("chrollo.engine.story_pool")
 
 __all__ = [
     "EMPTY_BOX",
+    "SEEDING_LEGS",
     "backext_shared_rail",
     "collect_root_anchors",
     "collect_zigzag_candidates",
@@ -50,9 +51,33 @@ __all__ = [
 ]
 
 
-def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[str, int, int, float, float]]:
-    """Return qualifying Phase-A climax -> reaction anchors, most-recent first."""
+# The seeding-refusal vocabulary (program Task 9) — the anchor seam's OWN
+# closed set, never an overload of the near-miss ``failing_leg`` set. An
+# age-walled pair always records ``ar_age``: the AR sits AFTER its climax, so
+# a climax inside the young zone forces its AR inside it too — the AR wall is
+# the one that clears LAST and the one the first-legal-look arithmetic turns
+# on. (A separate ``climax_age`` leg was advertised at build time and proven
+# UNREACHABLE by that same ordering — narrowed out 2026-08-17 review, Beck:
+# every leg in this tuple has a committed producing case.)
+SEEDING_LEGS = ("frame_short", "below_trend_sma", "ar_age")
+
+
+def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int,
+                         seeding_trace: list | None = None,
+                         ) -> list[tuple[str, int, int, float, float]]:
+    """Return qualifying Phase-A climax -> reaction anchors, most-recent first.
+
+    ``seeding_trace``: the optional refusal recorder at THIS seam (the
+    near-miss recorder attaches one seam later, at pair election — seeding
+    refusals were structurally invisible to it). ``None`` (the live default)
+    records nothing and is byte-identical: the young zone beyond ``scan_hi``
+    is only walked when a trace rides. Records are dicts with a ``leg`` from
+    ``SEEDING_LEGS`` (+ ``kind``/``climax_bar``/``ar_bar`` for pair-level
+    refusals), so the census and the live product answer "why didn't it
+    seed" with the same words."""
     if len(eval_df) < min_days + 15:
+        if seeding_trace is not None:
+            seeding_trace.append({"leg": "frame_short"})
         return []
 
     closes = eval_df['Close'].values
@@ -62,6 +87,8 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
     end = len(eval_df) - 1
 
     if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
+        if seeding_trace is not None:
+            seeding_trace.append({"leg": "below_trend_sma"})
         return []
 
     min_move = settings.TREND_MIN_GAIN_PCT
@@ -72,11 +99,22 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
     scan_lo = min_move_bars + 5
     scan_hi = end - min_days
     if scan_hi <= scan_lo:
+        # Defensive band guard — UNREACHABLE under current settings (the
+        # 200-bar ROOT_TREND_SMA gate above refuses every frame short enough
+        # to land here), but if a future settings combination ever arms it,
+        # a riding trace must not go silent (2026-08-17 review, McKinney):
+        # the frame cannot host a legal walk, which is what frame_short says.
+        if seeding_trace is not None:
+            seeding_trace.append({"leg": "frame_short"})
         return []
 
     anchors: list[tuple[str, int, int, float, float]] = []
 
-    for i in range(scan_hi, scan_lo - 1, -1):
+    # With a trace riding, the walk ALSO covers the young zone (scan_hi, end)
+    # so age-walled pairs become records instead of silence; without one the
+    # range is exactly the legacy walk.
+    walk_hi = (end - 1) if seeding_trace is not None else scan_hi
+    for i in range(walk_hi, scan_lo - 1, -1):
         prior_start = max(0, i - prior_lookback)
         local_start = max(0, i - local_peak_bars)
 
@@ -100,9 +138,20 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
                         if lows[j] < ar_low_val:
                             ar_low_val = lows[j]
                             ar_low_bar = j
-                    if ar_completed and ar_low_bar != -1 \
-                            and (len(eval_df) - ar_low_bar) >= min_days:
-                        anchors.append(('BC', i, ar_low_bar, float(highs[i]), float(ar_low_val)))
+                    if ar_completed and ar_low_bar != -1:
+                        ar_young = (len(eval_df) - ar_low_bar) < min_days
+                        if i > scan_hi or ar_young:
+                            # A young climax forces a younger AR, so the AR
+                            # wall is ALWAYS the binding one (SEEDING_LEGS
+                            # note; 2026-08-17 review, Beck).
+                            if seeding_trace is not None:
+                                seeding_trace.append({
+                                    "leg": "ar_age",
+                                    "kind": "BC", "climax_bar": int(i),
+                                    "ar_bar": int(ar_low_bar)})
+                        else:
+                            anchors.append(('BC', i, ar_low_bar,
+                                            float(highs[i]), float(ar_low_val)))
 
         if lows[i] <= np.min(lows[local_start:i + 1]):
             prior_highs = highs[prior_start:i]
@@ -124,9 +173,18 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int) -> list[tuple[s
                         if highs[j] > bounce_high_val:
                             bounce_high_val = highs[j]
                             bounce_high_bar = j
-                    if bounce_completed and bounce_high_bar != -1 \
-                            and (len(eval_df) - bounce_high_bar) >= min_days:
-                        anchors.append(('SC', i, bounce_high_bar, float(bounce_high_val), float(lows[i])))
+                    if bounce_completed and bounce_high_bar != -1:
+                        ar_young = (len(eval_df) - bounce_high_bar) < min_days
+                        if i > scan_hi or ar_young:
+                            # Same both-walls rule as the BC branch above.
+                            if seeding_trace is not None:
+                                seeding_trace.append({
+                                    "leg": "ar_age",
+                                    "kind": "SC", "climax_bar": int(i),
+                                    "ar_bar": int(bounce_high_bar)})
+                        else:
+                            anchors.append(('SC', i, bounce_high_bar,
+                                            float(bounce_high_val), float(lows[i])))
 
     return anchors
 
@@ -623,8 +681,9 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     already narrated by the strict pass over the identical windows.
     """
     from engine_alpha.structure.event_map import (
-        episode_sequence_stats, frame_terminal_posture,
-        read_rail_episodes_arrays, story_admission)
+        episode_sequence_stats, frame_r_engaged, frame_terminal_posture,
+        read_rail_episodes_arrays, resistance_contraction_admission,
+        resistance_contraction_label, story_admission)
 
     # Cost shape (Task 12 profile, reordered per Council Review 2026-07-26):
     # the branch is reached by MOST windows in a scan (38/55 fixture tickers;
@@ -640,17 +699,25 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     last_high = eq_highs[-1] if len(eq_highs) else float("nan")
     _closes = eq_df['Close'].values
     _last_close = float(_closes[-1]) if len(_closes) else float("nan")
+    # The species story form (program Task 6, dark): the species lane toggles
+    # it under the ONE scoped override (htf.window_override) around its OWN
+    # election — the paying read never sees it on, so flag-off below is
+    # byte-identical by construction.
+    species_form = bool(getattr(settings, "POWER_PLAY_STORY_FORM_ENABLED", False))
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
             continue
-        # O(1) EXACT necessary condition of the ruled form's posture leg —
-        # THE shared predicate (event_map.frame_terminal_posture), so the
-        # prefilter and the reader's terminal-posture read cannot drift
-        # apart. Refusing here (silently, like width) skips everything
-        # below for most pairs; NaN fails closed.
-        if not frame_terminal_posture(last_high, _last_close, R_val, tol):
+        # O(1) EXACT necessary condition of an enabled form's terminal leg —
+        # BOTH legs are shared event_map predicates (the S-test form's posture
+        # via frame_terminal_posture; the species contraction form's
+        # engagement half via frame_r_engaged), so the prefilter and the
+        # reader's terminal reads cannot drift apart. Refusing here
+        # (silently, like width) skips everything below for most pairs; NaN
+        # fails closed.
+        if not frame_terminal_posture(last_high, _last_close, R_val, tol) \
+                and not (species_form and frame_r_engaged(last_high, R_val, tol)):
             continue
         cand_start = min(r_anchor_bar, s_anchor_bar)
         judged_len = n_win - cand_start
@@ -666,7 +733,18 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                          _closes[cand_start:],
                                          R_val, S_val, atr_val)
         stats = episode_sequence_stats(read, as_of_bar=judged_len - 1)
-        if not story_admission(stats):
+        # WHICH named ruled form admitted (EC-18: each form has ONE
+        # implementation, both in event_map). S-tests first — the settled
+        # live form always wins the record when both read.
+        if story_admission(stats):
+            admitted_form = "ruled form"          # the S-test form's frozen label
+        elif species_form and resistance_contraction_admission(stats):
+            # The record names the BEHAVIOR seen, from the measured posture
+            # (operator naming ruling 2026-08-18): "contracting above
+            # resistance" (close above the rail — the post-breakout stance)
+            # or "contracting at resistance" (pressing from below).
+            admitted_form = resistance_contraction_label(stats)
+        else:
             _story_log.debug(
                 "story pool refused pair R=%.4f S=%.4f start=%d: %s",
                 R_val, S_val, cand_start, stats["profile"] or "no episodes")
@@ -683,15 +761,21 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                     r_anchor_bar, s_anchor_bar, cand_start, rescued=True)
         # The judged window is the full candidate window (strict-style — no
         # trim, no excision); the admitting sentence rides the Candidate so
-        # the archive records the evidence that ACTUALLY admitted the fire.
+        # the archive records the evidence that ACTUALLY admitted the fire —
+        # the shelf form NAMES itself in the profile (flag-off byte-identical:
+        # the S-test form's record is the bare profile, exactly as before).
+        profile = stats["profile"]
+        if admitted_form != "ruled form":
+            profile = f"{admitted_form} | {profile or 'no episodes'}"
         tup = _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
                               total_outside, R_val, S_val, r_anchor_bar,
                               s_anchor_bar, cand_start, judged_len,
-                              "story", stats["profile"])
+                              "story", profile)
         if trace is not None:
             rec = _trace_find(trace, tup)
             if rec is not None:
-                rec["detail"] = f"story-admitted (ruled form): {stats['profile']}"
+                rec["detail"] = (f"story-admitted ({admitted_form}): "
+                                 f"{stats['profile']}")
         _story_log.debug(
             "story pool admitted pair R=%.4f S=%.4f start=%d profile=%r",
             R_val, S_val, cand_start, stats["profile"])

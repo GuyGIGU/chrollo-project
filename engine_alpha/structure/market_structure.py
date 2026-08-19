@@ -533,6 +533,48 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     return floor
 
 
+# The daily trend-state vocabulary (Power-Play program Task 11) — a PURE
+# classification over segment_trends' own segments, never a third daily trend
+# reader (HTF's `trend_state` is the declared second labeled form; this is the
+# daily projection of the SAME segment substrate). Closed set; the wire copy
+# lives in the frontend's TREND_STATE_LABELS registry.
+TREND_STATES = ("trending", "correcting", "consolidating", "choppy")
+
+
+def classify_trend_state(segments, n_bars: int) -> str:
+    """One word for where the chart's right edge sits — the operator's mandate
+    ("understand Trends, Chops, Corrections... and its relation to the current
+    state of the graph"). PROVISIONAL rules, measure-only, no live consumer
+    yet; the operator's trend-end labels (the species ruling loop) calibrate
+    or re-rule them. Reads ONLY the segment dicts — no price re-read:
+
+      * a segment RUNNING at the right edge names the state directly:
+        up → ``trending``, down → ``correcting``;
+      * no running segment, and the latest confirmed terminal printed within
+        ``MIN_BASE_DAYS`` bars of the edge → the transition zone (the
+        operator's "trend end + base open = one short zone"): after an UP
+        terminal → ``correcting`` (the reaction is still forming), after a
+        DOWN terminal → ``consolidating`` (the base has opened);
+      * an older terminal (≥ the clock) → ``consolidating`` — the pause has
+        had time to become a base;
+      * no confirmed segment at all → ``choppy`` (the labeller found no
+        structure to stand on).
+    """
+    from config import settings
+
+    segs = list(segments or [])
+    if not segs:
+        return "choppy"
+    running = [s for s in segs if s.get("end_bar") is None]
+    if running:
+        return "trending" if int(running[-1]["direction"]) == 1 else "correcting"
+    last = max(segs, key=lambda s: int(s["terminal_bar"]))
+    bars_since = int(n_bars) - int(last["terminal_bar"])
+    if bars_since < int(settings.MIN_BASE_DAYS):
+        return "correcting" if int(last["direction"]) == 1 else "consolidating"
+    return "consolidating"
+
+
 def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
     """Charter measurement (TA-grade build task 8): the Minervini base COUNT
     within the current confirmed up-segment + the inter-base width ratio —

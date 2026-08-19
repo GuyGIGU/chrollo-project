@@ -123,22 +123,37 @@ def resample_ohlc(df: pd.DataFrame, tf: str) -> Optional[pd.DataFrame]:
 
 
 @contextlib.contextmanager
-def timeframe_windows(tf: str):
-    """Temporarily rescale ONLY the bar-count window settings to the timeframe
-    preset, restoring every value (even on exception). Safe because the detectors
-    read ``settings.X`` lazily at call-time and the HTF read is synchronous within
-    a worker. The scale-invariant ratio thresholds are deliberately untouched."""
-    preset = (settings.HTF_WEEKLY_WINDOWS if tf == "weekly"
-              else settings.HTF_MONTHLY_WINDOWS)
+def window_override(preset: dict):
+    """Temporarily set the given settings overrides (bar-count windows and,
+    for the species preset, its in-read form flag), restoring every value
+    (even on exception) — the ONE scoped override mechanism inside the
+    engine. ``timeframe_windows`` (HTF weekly/monthly) and the Power-Play
+    species preset (``settings.POWER_PLAY_WINDOWS``, dark) are its declared
+    presets; a differently-clocked read enters HERE, never through a forked
+    collector or a hand-threaded parameter, and the evidence instruments'
+    ``tools.replay.flag_capture`` delegates to this same core (EC-3). Safe
+    because the detectors read ``settings.X`` lazily at call-time and each
+    read is synchronous within a worker. AttributeError on a typo'd key ->
+    fail fast."""
     saved: dict = {}
     try:
         for key, value in preset.items():
-            saved[key] = getattr(settings, key)   # AttributeError on a typo'd key -> fail fast
+            saved[key] = getattr(settings, key)
             setattr(settings, key, value)
         yield
     finally:
         for key, value in saved.items():
             setattr(settings, key, value)
+
+
+@contextlib.contextmanager
+def timeframe_windows(tf: str):
+    """The HTF window preset, through the one override mechanism. The
+    scale-invariant ratio thresholds are deliberately untouched."""
+    preset = (settings.HTF_WEEKLY_WINDOWS if tf == "weekly"
+              else settings.HTF_MONTHLY_WINDOWS)
+    with window_override(preset):
+        yield
 
 
 def htf_stage2(df: pd.DataFrame) -> dict:

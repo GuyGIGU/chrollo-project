@@ -46,7 +46,9 @@ from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.market_structure import (
     read_market_structure, segment_trends)
 from engine_alpha.structure.narrative import read_structure
+from tools._bootstrap import refuse_sealed_output
 from tools.ar_first_reaction_diff import _load_cache, _prep_live
+from tools.marks_json import load_marks_json, marks_json_fingerprint
 
 _DEFAULT_MARKS = os.path.join(_ROOT, "docs", "trend_end_marks_2026-08.json")
 _TERMINAL_TOL = 3          # bars: "segment_trends found his trend end"
@@ -199,12 +201,12 @@ def main():
     ap.add_argument("--json", metavar="PATH", help="also dump the rows as JSON")
     a = ap.parse_args()
 
-    with open(a.marks, encoding="utf-8") as fh:
-        corpus = json.load(fh)
+    marks = load_marks_json(a.marks)
     d, level0 = _load_cache()
 
     rows = []
-    for mark in corpus["marks"]:
+    scored = []
+    for mark in marks:
         t = mark["ticker"]
         if t not in level0:
             print(f"  [skip {t}] not in cache")
@@ -216,11 +218,22 @@ def main():
             continue
         if row:
             rows.append(row)
+            scored.append(mark)
 
+    # EC-13: every marks-consuming report stamps its population name and the
+    # fingerprint of EXACTLY the set it scored — this tool FILTERS (cache
+    # absences and failed frames skip), so the stamp binds the post-filter
+    # set, on the stdout report AND the JSON dump (2026-08-17 review, Hunt).
+    population = os.path.basename(a.marks)
+    fp = marks_json_fingerprint(scored)
+    print(f"\n  population {population} · scored {len(scored)}/{len(marks)} "
+          f"marks · fingerprint {fp[:12]}")
     report(rows)
     if a.json:
-        with open(a.json, "w", encoding="utf-8") as fh:
-            json.dump(rows, fh, indent=2)
+        with open(refuse_sealed_output(a.json), "w", encoding="utf-8") as fh:
+            json.dump({"population": population, "marks_fingerprint": fp,
+                       "scored": len(scored), "loaded": len(marks),
+                       "rows": rows}, fh, indent=2)
         print(f"\n  wrote {a.json}")
 
 

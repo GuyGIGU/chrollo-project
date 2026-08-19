@@ -1,0 +1,50 @@
+{
+ "manifest": "db0daa8b6ac1ceed6f459619858d1e85d03b1842c62b9c344bf43461b506c53f",
+ "tickers": {
+  "FTNT": {
+   "as_of": "2026-08-13",
+   "bars": 1254,
+   "default_read": {
+    "box_open": "2026-07-09",
+    "elects": true
+   },
+   "frame_digest": "2891068fe6455e633b5df8a2ff4f3f8c4bba5785e8b406ae4347ddc54150865f",
+   "species": {
+    "clock": null,
+    "fields": null,
+    "state": null,
+    "stats": {
+     "pp_shelf_unframed": 1,
+     "pp_watched": 1
+    }
+   }
+  },
+  "MAN": {
+   "as_of": "2026-08-12",
+   "bars": 1253,
+   "default_read": {
+    "elects": false
+   },
+   "frame_digest": "b66918c60d12cf1b96d833a7e9eab90f7075162b312d150ab179da69b5caa808",
+   "species": {
+    "clock": 8,
+    "fields": {
+     "ar_date": "2026-07-24",
+     "climax_date": "2026-07-17",
+     "lower_third_bars": 1,
+     "pole_gain": 1.119,
+     "shelf_bars": 19,
+     "shelf_end_date": "2026-08-12",
+     "shelf_start_date": "2026-07-17",
+     "zone_collided": 0,
+     "zone_coverage": 0.3994
+    },
+    "state": "admitted_dark",
+    "stats": {
+     "pp_admitted_dark": 1,
+     "pp_watched": 1
+    }
+   }
+  }
+ }
+}

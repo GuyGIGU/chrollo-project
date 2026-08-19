@@ -91,8 +91,13 @@ def test_the_family_is_reported_ONCE_and_scoped_across_a_seam():
     df = _rows([("vOLD", "2026-01-05", 20), ("vNEW", "2026-08-12", 20)])
     report = _report(analyze.section_fingerprint, df)
     assert "Phase-A anchor family - NOT pooled" in report
-    # Exactly once = it left the pooled table and appears only in the scoped one.
+    # Exactly once = it left the pooled table and appears only in the scoped
+    # one. Family members the frame does not carry (the dark pp_* names) can
+    # appear in neither — the report only speaks about columns it was given.
     for feature in analyze.PHASE_A_ANCHOR_FEATURES:
+        if feature.startswith("pp_"):
+            assert report.count(feature) == 0
+            continue
         assert report.count(feature) == 1, f"{feature} appears in two tables"
     assert "CURRENT epoch vNEW" in report
     # A feature that does NOT move with the anchor stays pooled.
@@ -104,6 +109,8 @@ def test_the_family_stays_pooled_on_a_single_epoch():
     report = _report(analyze.section_fingerprint, df)
     assert "NOT pooled" not in report
     for feature in analyze.PHASE_A_ANCHOR_FEATURES:
+        if feature.startswith("pp_"):
+            continue                 # dark columns: absent from the fixture
         assert feature in report
 
 
@@ -134,7 +141,10 @@ def test_the_family_is_exactly_the_documented_seam():
     the seam silently — which is the whole defect."""
     assert set(analyze.PHASE_A_ANCHOR_FEATURES) == {
         "bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
-        "bars_since_bc", "descent_length"}
+        "bars_since_bc", "descent_length",
+        # Power-Play species numerics — anchor-family from birth (species
+        # program Task 7); dark columns, partition-declared before any row.
+        "pp_clock", "pp_pole_gain"}
     bin_a = {f for f in analyze.STRUCTURAL_FEATURES if f.startswith("bin_a_")}
     assert bin_a <= set(analyze.PHASE_A_ANCHOR_FEATURES), (
         "a new bin_a_* feature registered without joining PHASE_A_ANCHOR_FEATURES")

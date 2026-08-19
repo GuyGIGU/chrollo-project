@@ -38,6 +38,22 @@ _SEALED_DIRS = (
     os.path.join(_PROJECT_ROOT, "tests", "baselines"),
 )
 
+# Hand-curated operator ground-truth CORPUS FILES living in the docs root —
+# append-only ruling artifacts a guarded tool's --out must never truncate.
+# A new corpus joins this tuple in the SAME commit that creates it
+# (2026-08-17 review, Hunt: the power-play corpus shipped with a committed
+# "no tool has a write path into this file" promise the guard did not keep;
+# its two siblings had the same exposure).
+_SEALED_FILES = tuple(
+    os.path.join(_PROJECT_ROOT, "docs", name) for name in (
+        "power_play_marks_2026-08.json",
+        "trend_end_marks_2026-08.json",
+        "phase_c_marks_2026-07.json",
+        # The operator's 40 ruling-sheet verdicts (2026-08-18) — the clock/form
+        # ruling evidence, sealed in the change that landed it (EC-44).
+        "power_play_verdicts_2026-08-18.json",
+    ))
+
 
 def refuse_sealed_output(path: str) -> str:
     """Raise if ``path`` sits under a sealed directory; return it otherwise.
@@ -53,4 +69,10 @@ def refuse_sealed_output(path: str) -> str:
             raise ValueError(
                 f"refusing to write under the sealed directory ({sealed}) — "
                 "tool reports belong under output/ or a scratch area")
+    for sealed in _SEALED_FILES:
+        if target == os.path.normcase(os.path.realpath(sealed)):
+            raise ValueError(
+                f"refusing to overwrite the sealed corpus file ({sealed}) — "
+                "it is append-only operator ground truth; tool reports "
+                "belong under output/ or a scratch area")
     return path

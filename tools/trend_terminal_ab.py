@@ -53,9 +53,9 @@ import os
 import sys
 
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:                                  # invoked as a script
-    from _bootstrap import configure_path            # type: ignore
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path()
 
 import pandas as pd                                          # noqa: E402
@@ -347,6 +347,7 @@ def _md_table(rows):
 
 def write_sheet(rows, basis, out_dir):
     """Write LOSSES.md + index.html for the render folder."""
+    refuse_sealed_output(os.path.join(out_dir, "LOSSES.md"))
     os.makedirs(out_dir, exist_ok=True)
     counts = {}
     for row in rows:
@@ -498,7 +499,7 @@ def main():
         rows, basis = run(args.universe, args.jobs)
     losses = report(rows, basis)
     if args.json_out:
-        with open(args.json_out, "w", encoding="utf-8") as fh:
+        with open(refuse_sealed_output(args.json_out), "w", encoding="utf-8") as fh:
             json.dump({
                 "basis": basis,
                 "flag": _FLAG,

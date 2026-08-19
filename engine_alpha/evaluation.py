@@ -1036,28 +1036,6 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     )
 
 
-def _attach_advisory_metadata(ticker: str, df: pd.DataFrame, result: dict) -> None:
-    """Attach flag-gated ADVISORY (fundamentals / RS-line / days-to-earnings)
-    metadata onto an ALREADY-BUILT firing result, in place.
-
-    Deliberately OUTSIDE ``_run_eval_chain``: the canonical numeric chain (shared
-    with the seed/shadow path) must stay byte-identical, so this runs only on the
-    live wrapper, only after a setup has fired, and only when an advisory flag is
-    ON. With all flags OFF ``per_ticker_advisory`` returns ``{}`` and makes zero
-    provider calls — so flags-OFF output is unchanged (shadow guard). The fields
-    it adds are ``_``-prefixed advisory metadata the writer/dashboard surface as
-    tag-chip data; they NEVER feed Score/Tier or any geometric veto. Any failure
-    is swallowed so the advisory layer can never drop or break a real setup."""
-    try:
-        from core.fundamentals.advisory import per_ticker_advisory
-
-        extra = per_ticker_advisory(ticker, df)
-        if extra:
-            result.update(extra)
-    except Exception as e:  # advisory must never fail a firing setup
-        print(f"  [advisory skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
-
-
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
                      breadth_pct: Optional[float] = None) -> Optional[dict]:
@@ -1083,8 +1061,11 @@ def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
         # Return the error sentinel — NOT None — so the caller can distinguish a
         # swallowed eval crash from a genuine structural reject and count it.
         return EVAL_ERROR
-    if result is not None:
-        _attach_advisory_metadata(ticker, df, result)
+    # The advisory (fundamentals/RS-line) attach moved to the CONDUCTOR
+    # (core.fundamentals.post_pass, species program Task 12): the in-worker
+    # call point multiplied outbound provider rate by worker count and
+    # fragmented 429-cooldowns across processes. Flags-off output here was
+    # already byte-identical, so the move changes nothing dark.
     return result
 
 
@@ -1124,3 +1105,229 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
         row["ticker"] = ticker
         row["scan_date"] = scan_date
     return result, rows, stats
+
+
+# ── The live species watch (the lane's core — Power-Play program Task 8) ────
+# Lives HERE, beside the composed twin that is its only caller: structure
+# measures (engine_alpha.structure.power_play owns the family + episode
+# mechanics), the lane coordinates (2026-08-17 review, Fowler — the old
+# structure-layer home forced a two-way lazy-import cycle).
+
+# The publisher's closed-set status vocabulary — derived SERVER-SIDE in the
+# lane twin; no client code may reconstruct it from null patterns (EC-28/33).
+# The client label mirror (webapp/frontend/src/components/wireVocabulary.js
+# POWER_PLAY_STATUS_LABELS) moves in the SAME change as this tuple.
+PP_WIRE_STATUS = ("fired", "watched_ungraded", "not_watched_clock",
+                  "refused_occupancy", "refused_story")
+
+# How far back the LIVE lane looks for a watchable episode: the AR must sit
+# inside this trailing window or the shelf is old news (the census, sweeping
+# history, deliberately has no such bound).
+LIVE_EPISODE_MAX_AR_AGE_BARS = 90
+
+
+def wire_status(state: str, fired: bool) -> str:
+    """One status token per watched ticker, resolved at the publisher side.
+    Validates its own output: a ``PP_STATES`` widening that forgets this map
+    must die HERE, loudly — the frontend renders unknown slugs verbatim by
+    design, so a silent fall-through would never surface (2026-08-17 review,
+    Fowler)."""
+    if fired:
+        token = "fired"
+    elif state == "admitted_dark":
+        token = "watched_ungraded"
+    elif state == "refused_clock":
+        token = "not_watched_clock"
+    else:
+        token = state                # refused_occupancy | refused_story
+    if token not in PP_WIRE_STATUS:
+        raise ValueError(
+            f"pp_state {state!r} has no wire mapping — PP_WIRE_STATUS is the "
+            f"closed publisher set ({'/'.join(PP_WIRE_STATUS)})")
+    return token
+
+
+def species_watch(df):
+    """The per-ticker species watch — bounded to AT MOST ONE episode (the
+    most recent with a live-window AR). Returns ``(watch, stats)``: ``watch``
+    is ``None`` when there is nothing to record (no episode, not yet
+    watchable, universe prep refused, or the read never framed the episode's
+    shelf), else ``{"state", "clock", "fields", "payload"}`` where ``fields``
+    feed ``power_play_fields`` and ``payload`` is the publisher row.
+    Consulted ONLY by the lane twin under ``POWER_PLAY_PRESET_ENABLED``; the
+    species election runs under the ONE window override + the shelf-form
+    flag, scoped to this read.
+
+    Refusal ATTRIBUTION is scoped to the episode (2026-08-17 review,
+    McKinney): the trace is ROOT-level records (one per examined climax→AR
+    root, the pair cascade nested under ``box_cascade``), and a refusal
+    state is typed ONLY from the cascades of roots whose ``ar_bar`` is the
+    episode's AR — "the cascade watched THIS shelf and said no, naming the
+    leg." (The old flat any-record scan read the root level, which carries
+    no verdicts, so ``refused_story`` was unreachable and every non-elected
+    read typed ``refused_occupancy`` regardless of what killed it.) A
+    cascade that elected a DIFFERENT base is not a refusal of the episode:
+    the foreign election rides the payload as ``elected_other`` and the
+    episode's own record is typed from its own roots' cascades. If the
+    episode's shelf was never framed at all, nothing is recorded
+    (``pp_shelf_unframed`` counts it) — never a fabricated refusal."""
+    from engine_alpha.structure.htf import window_override  # noqa: PLC0415 — species-only
+    from engine_alpha.structure.power_play import (  # noqa: PLC0415 — species-only
+        first_legal_look, ticker_episodes)
+
+    pole_gain = float(settings.POWER_PLAY_POLE_MIN_GAIN)
+    pole_window = int(settings.POWER_PLAY_POLE_WINDOW_BARS)
+    clock = int(settings.POWER_PLAY_WINDOWS["MIN_BASE_DAYS"])
+
+    episodes = ticker_episodes("", df, pole_gain, pole_window)
+    recent = [ep for ep in episodes
+              if len(df) - ep["ar"] <= LIVE_EPISODE_MAX_AR_AGE_BARS]
+    if not recent:
+        return None, {}
+    ep = recent[-1]                              # the bounded emission: one
+    stats = {"pp_watched": 1}
+    n = len(df)
+    p_first = first_legal_look(ep, clock, df)
+    fields = {"climax_date": ep["climax_date"], "ar_date": ep["ar_date"],
+              "pole_gain": ep["gain"]}
+    payload = {"climax": ep["climax_date"], "ar": ep["ar_date"],
+               "breakout": ep["breakout_date"], "pole_gain": ep["gain"],
+               "depth": ep["depth"], "clock": clock,
+               "first_legal_look": (str(df.index[p_first].date())
+                                    if p_first < n else None)}
+    if p_first >= n:
+        stats["pp_pending"] = 1                  # not yet watchable: no record
+        return None, stats
+    if ep["breakout"] is not None and p_first >= ep["breakout"]:
+        stats["pp_refused_clock"] = 1            # even the species clock missed it
+        return {"state": "refused_clock", "clock": clock,
+                "fields": fields, "payload": payload}, stats
+
+    prep, _reason = _prepare_eval_frame_with_reason(df)
+    if prep is None:
+        stats["pp_prep_refused"] = 1             # universe wall: out of scope
+        return None, stats
+    pdf = prep["df"]
+    atr = float(pdf.iloc[-int(settings.STRUCTURE_ATR_SAMPLE_OFFSET)]["ATR_10"])
+    trace: list = []
+    override = dict(settings.POWER_PLAY_WINDOWS)
+    override["POWER_PLAY_STORY_FORM_ENABLED"] = True
+    with window_override(override):
+        structure = read_structure(pdf, atr, trace=trace)
+
+    def _raw_pos(pos_pdf: int):
+        # Match in DATES — the prepared frame is 2y-trimmed, so positions
+        # never compare across frames.
+        if not (0 <= pos_pdf < len(pdf)):
+            return None
+        return int(df.index.searchsorted(pdf.index[pos_pdf]))
+
+    if structure is not None and structure.box is not None:
+        start = int(structure.box.start_bar)
+        start_raw = _raw_pos(start)
+        if start_raw is not None and abs(start_raw - ep["ar"]) <= 5:
+            stats["pp_admitted_dark"] = 1
+            R, S = float(structure.box.R), float(structure.box.S)
+            shelf = pdf.iloc[start:]
+            height = R - S
+            tol = float(settings.TOUCH_TOLERANCE_ATR) * atr
+            coverage = round(2.0 * tol / height, 4) if height > 0 else None
+            fields.update(
+                shelf_start_date=str(pdf.index[start].date()),
+                shelf_end_date=str(pdf.index[-1].date()),
+                shelf_bars=(int(len(shelf)) if height > 0 else None),
+                lower_third_bars=(int((shelf["Close"] <= S + height / 3.0).sum())
+                                  if height > 0 else None),
+                zone_coverage=coverage,
+                zone_collided=(int(coverage >= 1.0)
+                               if coverage is not None else None))
+            payload["elected"] = {"R": round(R, 4), "S": round(S, 4),
+                                  "open": str(pdf.index[start].date())}
+            return {"state": "admitted_dark", "clock": clock,
+                    "fields": fields, "payload": payload}, stats
+        # A foreign election is a FACT for the register, never a refusal of
+        # the episode — the episode's own verdict comes from its own records.
+        payload["elected_other"] = {"R": round(float(structure.box.R), 4),
+                                    "S": round(float(structure.box.S), 4),
+                                    "open": str(pdf.index[start].date())}
+
+    if not trace:
+        stats["pp_no_seed"] = 1                  # nothing seeded: Task 9's seam
+        return None, stats
+    # Scope by ROOT identity: the episode's roots name their AR explicitly
+    # (±5 sessions covers the walk's own anchor jitter, the admission
+    # match's tolerance).
+    ep_recs = []
+    for rec in trace:
+        ar_pdf = rec.get("ar_bar")
+        if ar_pdf is None:
+            continue
+        ar_raw = _raw_pos(int(ar_pdf))
+        if ar_raw is None or abs(ar_raw - ep["ar"]) > 5:
+            continue
+        ep_recs.extend(c for c in (rec.get("box_cascade") or [])
+                       if c.get("verdict") == "rejected")
+    if not ep_recs:
+        # The cascade ran but never framed the episode's shelf — an absent
+        # examination, not a refusal; fabricating one is false attribution.
+        stats["pp_shelf_unframed"] = 1
+        return None, stats
+    story = any(rec.get("stage") == "story" for rec in ep_recs)
+    state = "refused_story" if story else "refused_occupancy"
+    stats[f"pp_{state}"] = 1
+    return {"state": state, "clock": clock,
+            "fields": fields, "payload": payload}, stats
+
+
+def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
+                                    spy_6m_return: float = 0.0,
+                                    breadth_pct: Optional[float] = None):
+    """The species-lane twin (Power-Play program Task 8): COMPOSES with the
+    near-miss twin instead of replacing it — the base submission is exactly
+    what the near-miss-aware path would have returned, and the species watch
+    rides behind it. Returns ``(base, pp_row, pp_stats)`` where ``base`` is
+    the near-miss triple (lane on) or the plain result (lane off);
+    ``pp_row`` is the publisher's candidate row or ``None``; ``pp_stats``
+    are the lane's counters (incl. ``pp_eval_ms``, the summed in-worker cost
+    the ScanTimer pseudo-phase aggregates). Flag-off degrades to the base
+    with empty lane output. A watched FIRE carries the archive family on its
+    result row (the Task 7 producer picks it up); every lane failure is
+    swallowed at this seam and counted — never converting a firing result
+    into a drop (EC-20), and the error path keeps the counters already
+    earned plus the elapsed time, so the EC-8 cost instrument stays honest
+    on exactly the failing tickers (2026-08-17 review, Performance/Ramírez).
+    Top-level for pickling."""
+    import time  # noqa: PLC0415 — only the lane pays for it
+
+    if settings.NEAR_MISS_LANE_ENABLED:
+        base = evaluate_ticker_with_near_miss(ticker, df, spy_6m_return,
+                                              breadth_pct)
+        result = base[0]
+    else:
+        base = _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct)
+        result = base
+    if not settings.POWER_PLAY_PRESET_ENABLED:
+        return base, None, {}
+    t0 = time.perf_counter()
+    stats: dict = {}
+    row = None
+    try:
+        from engine_alpha.structure.power_play import power_play_fields  # noqa: PLC0415
+        watch, w_stats = species_watch(df)
+        stats.update(w_stats)
+        if watch is not None:
+            fired = isinstance(result, dict)
+            row = dict(watch["payload"])
+            row["ticker"] = ticker
+            row["status"] = wire_status(watch["state"], fired)
+            fields = power_play_fields(watch["state"], watch["clock"],
+                                       **watch["fields"])
+            if fired:
+                result.update(fields)   # the fire row carries the family
+    except Exception as e:  # noqa: BLE001 — the lane never touches the scan
+        print(f"  [power-play skip {ticker}] {type(e).__name__}: {e}",
+              file=sys.stderr)
+        stats["pp_errored"] = 1
+        row = None                      # a half-built row must not publish
+    stats["pp_eval_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return base, row, stats

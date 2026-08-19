@@ -396,14 +396,24 @@ def _zone_visit_runs(mask, max_gap=EPISODE_MAX_GAP_BARS):
     return runs
 
 
+def frame_r_engaged(last_high, R, tol) -> bool:
+    """The ENGAGEMENT half of the terminal read as a frame-level fact: the
+    frame's last bar inside the R touch zone (the extreme-proximity "hang",
+    close anywhere). THE single expression of that leg — the resistance-
+    contraction form's O(1) prefilter and the posture predicate below both resolve here,
+    so a re-ruled engagement zone moves every consumer at once (NaN fails
+    closed)."""
+    return bool(last_high >= R - tol)
+
+
 def frame_terminal_posture(last_high, last_close, R, tol) -> bool:
     """The ruled form's POSTURE leg as a frame-level fact: the frame's last
     bar engages the R touch zone AND closes above R (the pre-breakout stance,
-    profile ``R^``). This is THE single expression of the posture leg — the
-    episode reader's terminal-R assignment and the story pool's O(1)
-    prefilter both resolve here, so they cannot drift apart (NaN fails
-    closed on both comparisons)."""
-    return bool(last_high >= R - tol and last_close > R)
+    profile ``R^``). Composes ``frame_r_engaged`` — this is THE single
+    expression of the posture leg: the episode reader's terminal-R assignment
+    and the story pool's O(1) prefilter both resolve here, so they cannot
+    drift apart (NaN fails closed on both comparisons)."""
+    return frame_r_engaged(last_high, R, tol) and bool(last_close > R)
 
 
 def read_rail_episodes(df, R, S, atr_val) -> dict:
@@ -556,6 +566,48 @@ def story_admission(stats) -> bool:
             and not stats["terminal_s_drift"])
 
 
+def resistance_contraction_admission(stats) -> bool:
+    """The SECOND named ruled form — the Power-Play species' contraction at
+    resistance (program docs/power_play_program_2026-08.md Task 6; species
+    ruling `c029555`; NAMED by operator ruling 2026-08-18 — the record says
+    the behavior it saw, never an invented umbrella word: "is it price
+    action that contracts above Resistance after breaking out? then say
+    that"; the support-side sibling — contracting ON support after a
+    shakeout recovery — is the LPS and keeps its own name/path).
+
+    A young continuation base after an explosive leg contracts at or above
+    resistance: its story is the HOLD, not completed support tests — S-poor
+    BY VIRTUE, so the S-test form above can never read it. The form asks
+    the same episode vocabulary three questions: the floor never FAILED,
+    the frame is not bleeding on the floor, and the right edge is ENGAGED
+    at the ceiling (an open R episode; a terminal ``R^`` posture bar
+    produces the same open episode, so the post-breakout stance is covered
+    by construction). WHICH behavior admitted is spoken by
+    ``resistance_contraction_label`` below.
+
+    PROVISIONAL until the operator's ruling sheets calibrate it (program
+    Task 4). Dark: consulted only under ``POWER_PLAY_STORY_FORM_ENABLED``,
+    which the species lane toggles around its own election — never the
+    paying read. One implementation (EC-18): instruments delegate here.
+    Rail comparisons upstream are the episode reader's ATR zones (never
+    float equality), and same-bar ties keep the pinned (end_bar, start_bar,
+    S-before-R) order — on an 8-bar window, a spring, an S-test and a
+    reclaim can legally share a session."""
+    return (stats["n_failed_s"] == 0
+            and not stats["terminal_s_drift"]
+            and stats["terminal_r_engagement"])
+
+
+def resistance_contraction_label(stats) -> str:
+    """The admitted behavior's NAME, derived from the measured posture —
+    the ONE naming implementation (the admission's EC-18 sibling; operator
+    ruling 2026-08-18). ``terminal_r_posture`` (last bar closes ABOVE the
+    rail) = the post-breakout stance; engagement without posture = pressing
+    the rail from below."""
+    return ("contracting above resistance" if stats["terminal_r_posture"]
+            else "contracting at resistance")
+
+
 _EPISODE_MARK = {"completed": "+", "failed": "x", "open": "0",
                  "unreadable": "?"}
 
@@ -588,6 +640,8 @@ def episode_sequence_stats(read, *, as_of_bar=None) -> dict:
     eps = read["episodes"]
     if as_of_bar is None:
         completed = [e for e in eps if e["outcome"] == "completed"]
+        failed_s = [e for e in eps
+                    if e["outcome"] == "failed" and e["rail"] == "S"]
     else:
         if as_of_bar < read["n_bars"] - 1:
             raise ValueError(
@@ -599,6 +653,10 @@ def episode_sequence_stats(read, *, as_of_bar=None) -> dict:
                      if e["outcome"] == "completed"
                      and e["knowable_bar"] is not None
                      and e["knowable_bar"] <= as_of_bar]
+        failed_s = [e for e in eps
+                    if e["outcome"] == "failed" and e["rail"] == "S"
+                    and e["knowable_bar"] is not None
+                    and e["knowable_bar"] <= as_of_bar]
     n_s = sum(1 for e in completed if e["rail"] == "S")
     n_r = sum(1 for e in completed if e["rail"] == "R")
     alternations = sum(1 for x, y in zip(completed, completed[1:])
@@ -612,6 +670,13 @@ def episode_sequence_stats(read, *, as_of_bar=None) -> dict:
     return {
         "n_completed_s": n_s,
         "n_completed_r": n_r,
+        # The shelf form's legs (program Task 6; additive keys, measure-only):
+        # knowable failed-S count under the same as-of discipline as completed,
+        # and the right-edge engagement read ("open" is assigned ONLY to
+        # terminal episodes, so any open R episode IS the frame-edge hang).
+        "n_failed_s": len(failed_s),
+        "terminal_r_engagement": any(
+            e["rail"] == "R" and e["outcome"] == "open" for e in eps),
         "alternations": alternations,
         "terminal_s_drift": drift,
         "terminal_r_posture": posture,

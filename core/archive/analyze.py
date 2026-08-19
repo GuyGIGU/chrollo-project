@@ -183,7 +183,13 @@ TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
 # different questions. So across a seam they are withheld from the pooled tables
 # and reported on the CURRENT epoch alone, named.
 PHASE_A_ANCHOR_FEATURES = ("bin_a_bars", "bin_a_range_pct", "bin_a_volume_ratio",
-                           "bars_since_bc", "descent_length")
+                           "bars_since_bc", "descent_length",
+                           # Power-Play species numerics (program Task 7):
+                           # anchor-family FROM BIRTH — the clock and the pole
+                           # measurement are anchor-identity-derived, so they
+                           # join the epoch partition in the same change that
+                           # created the columns, never retroactively.
+                           "pp_clock", "pp_pole_gain")
 
 
 def engine_epochs(df: pd.DataFrame) -> list:
@@ -495,7 +501,10 @@ def _anchor_family(df: pd.DataFrame) -> None:
         emit(f"!  n < {EDGE_MIN_N}: read this as a shape, not a distribution. An "
              "epoch rotates on")
         emit("   every weight change, so a fresh one is thin until scans accrue.")
-    _fingerprint_table(sub, list(PHASE_A_ANCHOR_FEATURES))
+    # Only the family members the frame actually carries: the pp_* names are
+    # dark (species program) and absent until the lane populates rows.
+    _fingerprint_table(sub, [f for f in PHASE_A_ANCHOR_FEATURES
+                             if f in sub.columns])
 
 
 def section_fingerprint(df: pd.DataFrame) -> None:

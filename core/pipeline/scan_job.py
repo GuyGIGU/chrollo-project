@@ -46,6 +46,13 @@ class ScanExportResult:
     # tripwire; 0 on a clean scan. Sourced from the run's own scan metrics so the
     # PRIMARY universe carries its OWN count.
     n_errored: int = 0
+    # Species-lane counters (Power-Play program Task 8): None when the lane is
+    # dark — the SCAN_RESULT_JSON line carries them as OPTIONAL keys, so the
+    # flag-off line stays byte-identical and nothing new is stdout-scraped.
+    power_play_counts: dict | None = None
+    # Fundamentals attempted-vs-populated counters (program Task 12); same
+    # optional-key contract.
+    fundamentals_counts: dict | None = None
 
 
 @dataclass
@@ -326,6 +333,12 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # the ETF universes usually fire zero setups and take the empty branch.
     health_board = _maybe_build_health_board(data, uni)
 
+    # Species-lane + fundamentals counters (None when dark) — threaded onto
+    # every ScanExportResult below so SCAN_RESULT_JSON carries them as
+    # optional keys.
+    pp_counts = ((market_context or {}).get("power_play") or {}).get("counts")
+    fund_counts = (market_context or {}).get("fundamentals")
+
     # ONE scan_date for every store this export writes (the payload's
     # scan_identity and the archive's upsert key), computed once so the two
     # can never straddle midnight into different identities for one scan.
@@ -370,7 +383,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
             # AFTER the dashboard write so even an unforeseen lane escape can
             # never cost the empty artifact (review 2026-07-26 finding 5).
             _archive_near_misses(near_miss_sink, uni)
-        return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored)
+        return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored,
+                                power_play_counts=pp_counts,
+                                fundamentals_counts=fund_counts)
 
     print_results(results_df)
 
@@ -426,7 +441,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                     print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
                           "row(s) skipped (degraded universe coverage).", flush=True)
                 return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
-                                        n_errored=n_errored)
+                                        n_errored=n_errored,
+                                power_play_counts=pp_counts,
+                                fundamentals_counts=fund_counts)
             # status == "fresh" → archive the whole cohort.
             n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
                                               enable=True, universe=uni)
@@ -434,7 +451,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                   f"(source='screener', universe_type='{uni.universe_type}').")
             _archive_near_misses(near_miss_sink, uni)
             return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
-                                    n_errored=n_errored)
+                                    n_errored=n_errored,
+                                power_play_counts=pp_counts,
+                                fundamentals_counts=fund_counts)
 
         # Cache mode: unchanged all-or-nothing gate (tolerates a partial-coverage
         # cached eval by skipping the archive write; genuine staleness raises).
@@ -448,7 +467,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                 print(f"Near-miss lane: {len(near_miss_sink.get('rows') or [])} "
                       "row(s) skipped (cache-mode partial coverage).", flush=True)
             return ScanExportResult(n_setups=len(results_df), n_archived=0,
-                                    n_errored=n_errored)
+                                    n_errored=n_errored,
+                                power_play_counts=pp_counts,
+                                fundamentals_counts=fund_counts)
         n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
                                           enable=True, universe=uni)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
@@ -456,7 +477,9 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         _archive_near_misses(near_miss_sink, uni)
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
-                            n_errored=n_errored)
+                            n_errored=n_errored,
+                                power_play_counts=pp_counts,
+                                fundamentals_counts=fund_counts)
 
 
 def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResult | None"]:

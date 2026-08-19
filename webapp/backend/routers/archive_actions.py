@@ -45,6 +45,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.downloads import _batched_download, price_auto_adjust
     from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.structure.power_play import power_play_archive_values
     from engine_alpha.scoring.scoring import (
         sub_score_archive_values,
         ta_grade_archive_values,
@@ -193,6 +194,12 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         # pass would bind resolve_fired_tags' Python LIST into the TEXT
         # column and skip every EC-19 closed-set refusal + the EC-2 scrub).
         **ta_grade_archive_values(result.get, prefixed=False),
+        # Power-Play family — EC-30: the producer rides EVERY writer of the
+        # table; the raw model pass would skip the NaN scrub, the INTEGER
+        # coercions, and the pp_state closed-set refusal on exactly this
+        # route (council review 2026-08-17, finding 8 — the same class the
+        # TA-grade splat above was added for).
+        **power_play_archive_values(result.get, prefixed=False),
         # Coercions (nullable 0/1)
         "bin_c_present": (int(bool(result.get("bin_c_present")))
                           if result.get("bin_c_present") is not None else None),

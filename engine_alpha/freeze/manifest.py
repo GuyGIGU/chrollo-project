@@ -344,6 +344,19 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "HTF_STAGE_MA_SLOPE_BARS",
     "HTF_WEEKLY_WINDOWS",
     "HTF_MONTHLY_WINDOWS",
+    # Power-Play species preset (docs/power_play_program_2026-08.md Task 5 —
+    # ONE dark-add rotation, the program's declared EC-29 seam: flag + window
+    # dict + pole knobs land together so a later read can never slip the hash;
+    # the two epochs are output-identical, so pooled analytics may bridge them)
+    "POWER_PLAY_PRESET_ENABLED",
+    "POWER_PLAY_STORY_FORM_ENABLED",
+    "POWER_PLAY_WINDOWS",
+    "POWER_PLAY_POLE_MIN_GAIN",
+    "POWER_PLAY_POLE_WINDOW_BARS",
+    # The breakout wall's departure yardstick (dark-add 2026-08-18, ruling
+    # loop: 0.0 = the close-above-peak wall byte-identically; the S1
+    # misfile evidence is the flip's decision surface)
+    "POWER_PLAY_BREAKOUT_DEPARTURE_ATR",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
