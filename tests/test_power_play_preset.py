@@ -8,8 +8,13 @@ from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS, collect_manifest
 from engine_alpha.structure.htf import timeframe_windows, window_override
 
 
-def test_flag_is_dark_and_the_dict_moves_exactly_two_names():
-    assert settings.POWER_PLAY_PRESET_ENABLED is False
+def test_flag_is_live_and_the_dict_moves_exactly_two_names():
+    # FLIPPED LIVE 2026-08-19 (operator; decisions.md). The lane is the paying
+    # scan's passenger now, so this pin tracks the live value — the contract it
+    # actually guards is the DICT below, which a flip must not disturb.
+    # POWER_PLAY_STORY_FORM_ENABLED stays dark pending the operator's EGBN/PKE
+    # ruling (it converts two sealed expected-misses; see test below).
+    assert settings.POWER_PLAY_PRESET_ENABLED is True
     # The clock and its import-time copy move TOGETHER, and nothing else —
     # program Task 1's audit verdict. A third key here is a design change.
     assert set(settings.POWER_PLAY_WINDOWS) == {
@@ -60,6 +65,10 @@ def test_manifest_carries_the_species_batch():
              "POWER_PLAY_POLE_MIN_GAIN", "POWER_PLAY_POLE_WINDOW_BARS"}
     assert batch <= set(ENGINE_SETTINGS_KEYS)
     manifest = collect_manifest()
-    assert manifest["POWER_PLAY_PRESET_ENABLED"] is False
+    # The manifest must REPORT the live value, not a frozen expectation — that is
+    # the point of the freeze seam (the flip rotates engine_config_version).
+    assert manifest["POWER_PLAY_PRESET_ENABLED"] is settings.POWER_PLAY_PRESET_ENABLED
+    assert manifest["POWER_PLAY_STORY_FORM_ENABLED"] is \
+        settings.POWER_PLAY_STORY_FORM_ENABLED
     assert manifest["POWER_PLAY_WINDOWS"]["MIN_BASE_DAYS"] == \
         settings.POWER_PLAY_WINDOWS["MIN_BASE_DAYS"]

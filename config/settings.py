@@ -1012,9 +1012,14 @@ HTF_MONTHLY_WINDOWS = {
 # evidence (clock 8's elected cohort the only forward-positive: median fwd_20
 # +2.8%, 54% winners, n=79) + his 40 sheet rulings (S2: 8/10 of the 8-day
 # wait's marginal catch KEPT). Species lane only; everything else stays the
-# same, and both species flags stay DARK until the ScanTimer cost bound at
-# this clock + his flip. See the flag-ledger row before touching it.
-POWER_PLAY_PRESET_ENABLED = False  # the lane consults this (program Task 8); dark until the flip
+# same. FLIPPED LIVE 2026-08-19 on the operator's word ("flip the power play
+# thing... as long as everything works like I asked"), TOGETHER with
+# POWER_PLAY_STORY_FORM_ENABLED as the flag-ledger requires — gated on the
+# Guided-List ratchet holding 28/33 with both flags ON (it does) rather than on
+# the ScanTimer bound, which cannot be measured while the lane is dark: the cost
+# instrument only reports when this flag is on. The bound arrives with the first
+# nightly scan; if it is too dear, this line is the one-word revert.
+POWER_PLAY_PRESET_ENABLED = True   # the lane consults this (program Task 8); LIVE 2026-08-19
 POWER_PLAY_WINDOWS = {
     "MIN_BASE_DAYS": 8,
     "PIP_MACRO_MIN_BASE_BARS": 8,
@@ -1030,6 +1035,11 @@ POWER_PLAY_WINDOWS = {
 # shelf form even after the lane flag flips (a passenger never touches the
 # paying read). Provisional form; calibrated by the operator's ruling sheets
 # (program Task 4).
+# FLIPPED LIVE 2026-08-19 with the preset above (the ledger's "the two flags flip
+# together or not at all"). This is the half that reaches the PAYING read's
+# admission, so it is the one the ratchet had to clear: Guided List 28/33 held,
+# same marks fingerprint, with it ON. The form stays PROVISIONAL — the ruling
+# sheets calibrate or re-rule it.
 POWER_PLAY_STORY_FORM_ENABLED = False
 # The breakout wall's departure yardstick (RULED 1.0, operator 2026-08-18 —
 # decisions.md): an episode counts RESOLVED only when a close clears the

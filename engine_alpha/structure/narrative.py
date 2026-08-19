@@ -366,7 +366,10 @@ def read_structure(df, atr, *, bricks=None, trace=None,
 
     # Trend-terminal box gate: read the trend ONCE for the whole cascade (the
     # walk below visits up to _MAX_ANCHORS roots, each electing over the same
-    # frame). None when the flag is off — every call stays byte-identical.
+    # frame). None when the flag is off — the gate itself stays byte-identical.
+    # Phase A's climax polarity ALSO reads this floor (2026-08-19); when the
+    # gate is dark it is computed lazily inside the guard instead, so only the
+    # reads that actually complete a story pay for it rather than all of them.
     terminal_floor = None
     if settings.TREND_TERMINAL_BOX_GATE_ENABLED:
         from engine_alpha.structure.market_structure import (  # noqa: PLC0415
@@ -473,7 +476,7 @@ def read_structure(df, atr, *, bricks=None, trace=None,
         # whose reaction low lands at the box start, not the distant trend anchor
         # that merely seeded the search. Legacy patched this after the fact with
         # _resolve_phase_a_swing; in the narrative it's part of the story.
-        climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr)
+        climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr, terminal_floor)
         if rec is not None:
             # The trace's fired root carries BOTH pairs: the seed swing (the
             # walk's honest history, kept in climax_bar/ar_bar above) and the

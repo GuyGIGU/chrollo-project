@@ -319,10 +319,29 @@ while price ran +38.5% past the claimed climax. `_enforce_climax_terminality()` 
 in `resolve_phase_a()` after the BC-down enforcement, before the AR tighten) applies
 the macro bridge's True-Root rule to every calibrated path: post-climax price up to the
 box open may exceed the climax by at most `PHASE_A_CLIMAX_TERMINALITY_EXCESS` (0.25) ×
-bridge height (ATR floor guards degenerate heights; mirror-symmetric for SC roots;
-unknown root kinds pass through). A violating pair re-anchors to the `_SEG_LEAD_IN`
-run-up extreme → the box open, the same local synthesis the ancient-origin fallback
-uses — terminal by construction.
+bridge height (ATR floor guards degenerate heights; mirror-symmetric for down causes;
+an undecidable direction passes through). A violating pair re-anchors to the
+`_SEG_LEAD_IN` run-up extreme → the box open, the same local synthesis the
+ancient-origin fallback uses — terminal by construction.
+
+**Polarity re-keyed 2026-08-19 (`_cause_is_up`).** Which end of the lead-in the repair
+takes was decided by `root.kind` — the seed's BC/SC label. That is the keying
+`decisions.md` ruled **Tested-DEAD** on 2026-07-27 ("the root is only a scan origin, not
+the box's cause"), and the same row prescribes the remedy the fix takes: the direction
+now comes from the **confirmed segment covering the box-open bar**, read off
+`market_structure.trend_terminal_floor`'s `direction` array (cause-wins overlap
+resolution — previously carried for diagnostics only, now load-bearing). The floor is
+threaded from `read_structure` when the trend-terminal gate is on and computed lazily
+inside the guard otherwise, so only reads that complete a story pay for it. The seed
+label survives **only** where no confirmed segment covers the open, so a frame with no
+readable trend keeps its previous repair. Evidence: the seed label contradicted the
+drawn pair on 4 of 4 live marked names (seeds 255–417 bars away); CNI's raw resolver had
+returned the operator's exact pair and the mis-polarised branch overwrote it, and now
+resolves to his date. Aggregate against the nine marks: earlier-than-his-end 5 of 6 → **3
+of 6**, median −36 → **−9** bars; **HTH regresses** −6 → +54 (its old closeness was two
+large errors cancelling). Pinned by `test_climax_terminality_polarity_follows_the_
+covering_segment_not_the_seed` + the no-cover fallback twin. Full diagnosis:
+[climax_anchor_diagnosis_2026-08-19.md](climax_anchor_diagnosis_2026-08-19.md).
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
@@ -1129,7 +1148,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `db0daa8b6ac1ceed6f459619858d1e85d03b1842c62b9c344bf43461b506c53f`_
+_engine_config_version: `c26961bfc31ed4dcefde83f8857b69ea3d33a642bfaa4533e6ec5ef7dd8ba656`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1350,7 +1369,7 @@ HTF_STAGE_MA = 30
 HTF_STAGE_MA_SLOPE_BARS = 4
 HTF_WEEKLY_WINDOWS = {'MIN_BASE_DAYS': 6, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 5, 'TREND_PRIOR_LOOKBACK': 26, 'LOCAL_PEAK_BARS': 8, 'ROOT_TREND_SMA': 30, 'PHASE_B_ATR_WINDOW': 8, 'AR_MAX_BARS': 4, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 3, 'PIVOT_ORDER_THRESHOLD': 12, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 2, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 4, 'BIN_C_RECOVERY_BARS_MAX': 3, 'BIN_C_LINGER_BARS_MAX': 4, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 2}
 HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 3, 'TREND_PRIOR_LOOKBACK': 12, 'LOCAL_PEAK_BARS': 4, 'ROOT_TREND_SMA': 10, 'PHASE_B_ATR_WINDOW': 6, 'AR_MAX_BARS': 3, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 2, 'PIVOT_ORDER_THRESHOLD': 8, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 1, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 2, 'BIN_C_RECOVERY_BARS_MAX': 2, 'BIN_C_LINGER_BARS_MAX': 3, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 1}
-POWER_PLAY_PRESET_ENABLED = False
+POWER_PLAY_PRESET_ENABLED = True
 POWER_PLAY_STORY_FORM_ENABLED = False
 POWER_PLAY_WINDOWS = {'MIN_BASE_DAYS': 8, 'PIP_MACRO_MIN_BASE_BARS': 8}
 POWER_PLAY_POLE_MIN_GAIN = 0.9

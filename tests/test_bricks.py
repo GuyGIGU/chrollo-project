@@ -614,6 +614,63 @@ def test_enforce_climax_terminality_collapses_to_box_open_extreme():
     assert (climax, ar) == (120, 120)
 
 
+def _floor(n, *, direction, terminal_bar=0):
+    """A TrendFloor covering every bar with one confirmed segment."""
+    from engine_alpha.structure.market_structure import TrendFloor
+    return TrendFloor(np.full(n, terminal_bar, dtype=int),
+                      np.full(n, np.nan, dtype=float),
+                      np.full(n, direction, dtype=int))
+
+
+def test_climax_terminality_polarity_follows_the_covering_segment_not_the_seed():
+    # Re-keyed 2026-08-19. Polarity comes from the CONFIRMED segment covering the
+    # box open, never the seed's BC/SC label — keying a box's cause on root.kind
+    # is Tested-DEAD (decisions.md 2026-07-27, "the root is only a scan origin"),
+    # and the same row prescribes this remedy. Measured live: the seed label
+    # contradicted the drawn pair 4 of 4, and on CNI the mis-polarised branch
+    # overwrote the operator's own pair after the raw resolver had found it.
+    #
+    # Price RISES into the box, so the honest repair is the run-up high at 115.
+    # The seed is mislabelled SC; under the old keying that elected the lowest
+    # LOW of the lead-in window (bar 70) — naming the START of the advance.
+    closes = [100.0] * 160
+    closes[70] = 80.0     # the low the mis-polarised SC branch would have grabbed
+    closes[90] = 108.0    # claimed "climax" (mid-trend pause)
+    closes[100] = 103.0   # its claimed AR
+    closes[115] = 140.0   # the REAL run-up extreme feeding the box
+    df = _ohlc_from_closes(closes, band=0.0)
+    root = RootSwing("SC", 90, 100, 108.0, 103.0, 0.05, 10)   # contradicts the frame
+    box = _box(start_bar=120, base_len=40)
+
+    up = _floor(len(df), direction=1)
+    assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0, up) == (115, 120)
+
+    # Mutation probe: the seed label alone must NOT be able to move the answer
+    # while a covering segment exists.
+    bc_root = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    assert _enforce_climax_terminality(df, bc_root, box, 90, 100, 1.0, up) == (115, 120)
+
+
+def test_climax_terminality_falls_back_to_the_seed_when_no_segment_covers():
+    # A frame with no readable trend keeps its PREVIOUS repair rather than
+    # silently losing it: bar = -1 means no confirmed segment covers the box
+    # open, so the seed's kind still decides (the conservative half of the
+    # 2026-08-19 re-key).
+    closes = [100.0] * 160
+    closes[70] = 80.0
+    closes[90] = 108.0
+    closes[100] = 103.0
+    closes[115] = 140.0
+    df = _ohlc_from_closes(closes, band=0.0)
+    box = _box(start_bar=120, base_len=40)
+    uncovered = _floor(len(df), direction=0, terminal_bar=-1)
+
+    bc = RootSwing("BC", 90, 100, 108.0, 103.0, 0.05, 10)
+    assert _enforce_climax_terminality(df, bc, box, 90, 100, 1.0, uncovered) == (115, 120)
+    sc = RootSwing("SC", 90, 100, 108.0, 103.0, 0.05, 10)
+    assert _enforce_climax_terminality(df, sc, box, 90, 100, 1.0, uncovered) == (70, 120)
+
+
 def test_enforce_climax_terminality_leaves_terminal_bc():
     # An honest trend end: nothing between the climax and the box open exceeds
     # the climax (small pokes inside 0.25 x height are tolerated) -> untouched.

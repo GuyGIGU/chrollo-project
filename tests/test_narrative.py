@@ -73,9 +73,11 @@ class _Bricks:
                                pre_box_trend="", box_trend="",
                                lps_tightness_ratio=0.0)
 
-    def resolve_phase_a(self, df, root, box, atr):
+    def resolve_phase_a(self, df, root, box, atr, terminal_floor=None):
         # Identity passthrough: these tests exercise the spine's control flow /
         # backtracking, not Phase-A locality (that is covered in test_bricks).
+        # `terminal_floor` is threaded by the spine (2026-08-19: Phase A's climax
+        # polarity reads the covering segment) — accepted and ignored here.
         return root.climax_bar, root.ar_bar
 
     def find_inner_box(self, df, box, atr):

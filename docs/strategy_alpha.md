@@ -154,6 +154,33 @@ collapses to the sanctioned one-bar boundary form (climax == AR == box open). Ov
 `engine_config_version` rotation partitions the `bin_a_*`/`bars_since_bc`/
 `descent_length` archive seam.
 
+**Which end of the leg the repair takes — the polarity — comes from the trend
+covering the box open, never from the seed** (re-keyed 2026-08-19). A buying
+climax is the run-up's highest high; a selling climax is the run-down's lowest
+low; so the repair must first know which trend ran into this box. That is the
+CAUSE trend — the confirmed segment covering the box-open bar, cause-wins on the
+shared handover leg — the same object the trend-terminal floor already defines.
+It is **not** the scan origin the walk happened to start from: keying a box's
+cause on the root's BC/SC label is Tested-DEAD (2026-07-27), the root sitting a
+median ~394 bars away, and the same ruling prescribes this remedy. Measured
+2026-08-19: the seed label contradicted the drawn pair on 4 of 4 live marked
+names, and on CNI the mis-polarised branch took the lowest low of a lead-in that
+*rose* into the box — naming the START of the advance as its climax — after the
+raw resolver had already returned the operator's own pair. Re-keyed, CNI resolves
+to his date exactly. Where no confirmed segment covers the box open there is no
+cause to read, and the seed label remains the fallback so an unreadable frame
+keeps its repair rather than losing it.
+
+> **What the re-key did and did not fix (measured, 2026-08-19).** Against the nine
+> dated marks the directional bias largely closes — the resolved climax is earlier
+> than his trend end on **3 of 6** (was 5 of 6), median **−9** bars (was −36) — and
+> CNI lands on his date to the bar. It is not uniform: **HTH moves the wrong way**
+> (−6 → +54), and its former closeness was never agreement but two large errors
+> cancelling (a −60 window term against a +54 box term). The anchor remains a
+> function of where the box opens; the re-key fixes which END of the lead-in is
+> taken, not the window itself. See
+> [climax_anchor_diagnosis_2026-08-19.md](climax_anchor_diagnosis_2026-08-19.md).
+
 **The one-bar climax+AR form is sanctioned (operator ruling, 2026-07-20).** A single
 bar can serve as BOTH the climax and the AR — for the trend end or a root swing —
 when it travels enough and carries enough spread to cover both boundaries: the bar

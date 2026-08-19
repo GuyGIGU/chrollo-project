@@ -580,7 +580,44 @@ def _enforce_bc_downswing(df, root, box, climax_bar, ar_bar):
     return lo + int(np.argmax(window)), pbs
 
 
-def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
+def _cause_is_up(df, root, pbs, terminal_floor=None):
+    """Direction of the trend running INTO the box: True up, False down, None
+    undecidable.
+
+    Keyed on the COVERING confirmed segment (``trend_terminal_floor``, whose
+    cause-trend-wins overlap resolution already defines exactly this), never on
+    the seed's BC/SC label. Keying a box's cause on ``root.kind`` is
+    **Tested-DEAD** (decisions.md 2026-07-27: "the root is only a scan origin,
+    not the box's cause"), and the same row prescribes this remedy — derive the
+    cause from the segment covering the bar. Measured 2026-08-19: the seed label
+    contradicted the drawn pair on 4 of 4 live marked names (seeds 255-417 bars
+    away), and on CNI the mis-polarised branch overwrote the operator's own pair
+    after the raw resolver had already found it.
+
+    The seed label survives ONLY as the fallback where no confirmed segment
+    covers the box open — a frame with no readable trend keeps its previous
+    repair instead of silently losing it.
+    """
+    if terminal_floor is None:
+        from engine_alpha.structure.market_structure import (  # noqa: PLC0415
+            trend_terminal_floor,
+        )
+        terminal_floor = trend_terminal_floor(df)
+    bars = getattr(terminal_floor, "bar", None)
+    dirs = getattr(terminal_floor, "direction", None)
+    if bars is not None and dirs is not None and 0 <= pbs < len(bars):
+        if int(bars[pbs]) >= 0 and int(dirs[pbs]):
+            return int(dirs[pbs]) > 0
+    kind = getattr(root, "kind", None)
+    if kind == "BC":
+        return True
+    if kind == "SC":
+        return False
+    return None
+
+
+def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
+                                terminal_floor=None):
     """Reject a resolved climax the trend visibly out-ran before the box.
 
     The trend model defines the climax as the trend's EXTREME pivot, and the
@@ -604,26 +641,29 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr):
     ruling 2026-07-20), which makes the repair terminal by construction —
     the doctrine gate caught 27 setups leaking past a pbs-exclusive window.
 
-    Unknown root kinds pass through untouched (no direction to test). Overlay
-    + Phase-A diagnostics only (bars_since_BC / descent_length / bin_a — the
-    engine_config_version rotation partitions the archive seam): no rail,
+    An undecidable direction passes through untouched (nothing to test).
+    Overlay + Phase-A diagnostics only (bars_since_BC / descent_length / bin_a —
+    the engine_config_version rotation partitions the archive seam): no rail,
     gate, score, or tier reads these anchors.
+
+    The POLARITY of the repair comes from the covering confirmed segment, not
+    the seed's kind — see ``_cause_is_up`` (re-keyed 2026-08-19).
     """
-    kind = getattr(root, "kind", None)
-    if kind not in ("BC", "SC"):
-        return climax_bar, ar_bar
     n = len(df)
     pbs = int(box.start_bar)
     if not (0 <= climax_bar < n and 0 <= ar_bar < n and 0 < pbs < n):
         return climax_bar, ar_bar
     if climax_bar + 1 > pbs:
         return climax_bar, ar_bar
+    cause_up = _cause_is_up(df, root, pbs, terminal_floor)
+    if cause_up is None:
+        return climax_bar, ar_bar
     highs = df["High"].values
     lows = df["Low"].values
     atr_floor = float(atr) if (_finite(atr) and float(atr) > 0) else 0.0
     excess = settings.PHASE_A_CLIMAX_TERMINALITY_EXCESS
     lo = max(0, pbs - _SEG_LEAD_IN)
-    if kind == "BC":
+    if cause_up:
         height = max(float(highs[climax_bar]) - float(lows[ar_bar]), atr_floor)
         span = highs[climax_bar + 1:pbs + 1]
         if not len(span) or float(np.max(span)) <= float(highs[climax_bar]) + excess * height:
@@ -702,6 +742,7 @@ def resolve_phase_a(
     root: RootSwing,
     box: EquilibriumBox,
     atr,
+    terminal_floor=None,
 ) -> tuple[int, int]:
     """Return the local Phase-A root swing for an already-validated box.
 
@@ -713,7 +754,8 @@ def resolve_phase_a(
     _first_impulse_ar_end; flag-gated, no-op when off)."""
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
     climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
-    climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr)
+    climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
+                                                     terminal_floor)
     ar_bar = _first_impulse_ar_end(df, climax_bar, ar_bar, atr)
     return climax_bar, ar_bar
 
