@@ -155,7 +155,7 @@ PHASE_B_ATR_WINDOW = 30
 # Shared structural-frame constants.
 # --- FROZEN-CONFIG MANIFEST (Lane A) ---
 # The four constants below define the engine's daily VOLATILITY/EDGE FRAME and
-# are part of the frozen-config contract (core/freeze/manifest.py). DECISION:
+# are part of the frozen-config contract (engine_alpha/freeze/manifest.py). DECISION:
 # the ATR window is FROZEN as-is (no EWMA switch). Changing any value here is a
 # new engine_config_version => the shadow baseline must be re-captured and the
 # archive re-baselined. Do NOT tweak these casually. (PHASE_B_ATR_WINDOW and
@@ -403,7 +403,7 @@ ELECTION_DETHRONE_ENABLED = True
 ELECTION_DETHRONE_SESSIONS = 10   # matches the respect gate's own outside-run cap
 
 # ── Election stability — persistence under backward eval-day shifts ─────────────
-# Measure-only probe on FIRING setups (core/pipeline/stability.py): re-run the
+# Measure-only probe on FIRING setups (engine_alpha/stability.py): re-run the
 # eval-twin prep + the structure election alone at D-1..D-k on the same raw frame
 # and ask, via the one cross-frame identity predicate, whether the SAME reading
 # elects. Real structures persist; junk flickers (BODI's band pair exists 04-15,
@@ -506,7 +506,7 @@ LPS_MAX_WINDOW_BOX_RANGE = 0.85   # LPS should be a support test, not span most/
 LPS_OVERSHOOT_WINDOW_ATR_ENABLED = True
 LPS_OVERSHOOT_WINDOW_ATR_MULT = 2.0   # k*ATR floor: k >= 1.67 admits CTOS; 2.0 = margin
 # "Reaction not markup" gate for the rising_support_shelf rescue (default OFF =
-# None). The rescue (core/structure/lps.py) re-admits a non-terminal-low window
+# None). The rescue (engine_alpha/structure/lps.py) re-admits a non-terminal-low window
 # whose LOW sits near support, but checks only the low's LOCATION, never the
 # window's CHARACTER. A vertical markup that merely LAUNCHED from support (OHI
 # 2026-06: +6.6% close-to-close, 0 down-bars, closes at R, elected S-Tier "LPS")
@@ -749,7 +749,7 @@ SETUP_QUALITY_W_CHRONOLOGY = 0.30      # composite weight on the chronology fact
 SETUP_QUALITY_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
 
 # ── Event Map — whole-chart event read (docs/archive/PLAN-event-tape.md, stage 1) ─
-# Fire-path staging of the Event Map (core/structure/event_map.py): compute the
+# Fire-path staging of the Event Map (engine_alpha/structure/event_map.py): compute the
 # stamped mechanical swing map + the narrative-role labels for FIRING setups only,
 # reusing the elected bricks (spring/lps) — the story-read placement, dozens of
 # tickers a night. MEASURE-ONLY and additive: gates nothing, scores nothing, moves
@@ -789,9 +789,14 @@ TA_SCORE_V2 = True
 #    until the operator's A/B eyeball assigns weights (weights move LAST).
 #  - The three named slopes promote the scorer's last hidden in-code literals
 #    (touches * 2.0 at scoring.py touch density; the * 2 saturation slopes on
-#    lps_tightness / vol_contraction). Consumed by the v2 term expressions; the
-#    frozen v1 path keeps its literals until retirement so flag-off stays
-#    byte-identical by construction.
+#    lps_tightness / vol_contraction). WIRED 2026-08-20 — until then they were
+#    inert and the literals were authoritative. There is only ONE site per
+#    slope: the shared score_setup term, which the v2 grade re-reads out of
+#    sub_scores, so the promotion covers both paths at once. It was
+#    byte-identical because every declared value equalled the literal it
+#    replaced (2.0 vs 2.0, 2.0 vs 2, 2.0 vs 2), which is also what keeps
+#    flag-off byte-identical. Turning one now MOVES the reading on both
+#    paths — treat it as a weight (operator A/B, engine_config_version).
 # FROZEN AT 0 by the 2026-08-12 ruling — a spring is a MARK, not a grade. The
 # term moved to taxonomy layer 'marker', so it is off the ta layer entirely and
 # this cap can no longer reach the grade even if it were raised. There is no A/B
