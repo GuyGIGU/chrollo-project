@@ -21,16 +21,19 @@ def calculate_journal_stats(trades: list[models.TradeLog]) -> dict:
         return EMPTY_STATS.copy()
 
     # A break-even trade (pnl == 0) is neither a win nor a loss.
-    winners = [trade for trade in trades if trade.pnl is not None and trade.pnl > 0]
-    losers = [trade for trade in trades if trade.pnl is not None and trade.pnl < 0]
+    closed = [trade for trade in trades if trade.pnl is not None]
+    winners = [trade for trade in closed if trade.pnl > 0]
+    losers = [trade for trade in closed if trade.pnl < 0]
 
     total_wins = sum(trade.pnl for trade in winners)
     total_losses = abs(sum(trade.pnl for trade in losers))
     profit_factor = _profit_factor(total_wins, total_losses)
 
     return {
-        "total_pnl": sum(trade.pnl for trade in trades if trade.pnl is not None),
-        "win_rate": round(len(winners) / len(trades) * 100, 2),
+        "total_pnl": sum(trade.pnl for trade in closed),
+        # Open rows (pnl NULL) are unjudged, not losses: the win rate reads
+        # closed trades only, while total_trades keeps the full count.
+        "win_rate": round(len(winners) / len(closed) * 100, 2) if closed else 0,
         "profit_factor": round(profit_factor, 2),
         "r_multiple_total": round(_r_multiple_total(trades), 2),
         "avg_win": round(total_wins / len(winners), 2) if winners else 0,
@@ -59,9 +62,8 @@ def _r_multiple_total(trades: list[models.TradeLog]) -> float:
 
 
 def _has_risk_fields(trade: models.TradeLog) -> bool:
-    return (
-        trade.pnl is not None
-        and trade.entry_price > 0
-        and trade.stop_loss > 0
-        and trade.quantity > 0
-    )
+    # Every column here is nullable — ``None > 0`` raises, and one nulled row
+    # would 500 the stats endpoint on every call after it (EC-6).
+    if None in (trade.pnl, trade.entry_price, trade.stop_loss, trade.quantity):
+        return False
+    return trade.entry_price > 0 and trade.stop_loss > 0 and trade.quantity > 0

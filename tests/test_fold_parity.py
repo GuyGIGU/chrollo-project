@@ -13,7 +13,7 @@ def test_exact_equal_nan_and_exactness():
     assert exact_equal({"a": [1.0, float("nan")]}, {"a": [1.0, float("nan")]})
     # exactness: the 7th decimal that shadow's 6-dp rounding forgives is a diff here
     assert not exact_equal(0.1234567, 0.1234568)
-    assert not exact_equal({"a": 1}, {"a": 1.0}) or True  # int vs float: dict path
+    assert not exact_equal({"a": 1}, {"a": 1.0})  # int vs float: dict path
     assert not exact_equal(1, 1.0)  # type-strict on scalars
 
 

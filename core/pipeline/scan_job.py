@@ -10,11 +10,13 @@ import pandas as pd
 from config import settings
 from core.archive.writer import archive_scan_results
 from core.pipeline import run_screener
-from core.pipeline.cache import _cache_paths, _read_meta, _write_meta
+from core.pipeline.cache import _cache_paths, _read_meta, _weekly_refresh_due, _write_meta
 from core.pipeline.data import get_provider, get_tickers
 from core.pipeline.downloads import repair_latest_session_cache
 from core.pipeline.file_lock import cache_lock
 from core.pipeline.market_data_health import (
+    DEGRADED_COVERAGE_STATES,
+    REFRESH_FAILURE_STATES,
     clear_repair_state,
     compute_market_data_health,
     record_repair_attempt,
@@ -156,7 +158,7 @@ def _archive_freshness(data: pd.DataFrame, tickers: list[str], universe=None) ->
     # A CURRENT-session coverage shortfall (repairable / lagging / provider-limited)
     # is per-ticker archivable; a shallow/NaN-wiped panel or a genuinely stale
     # session is not — treat those as stale_session so they still abort.
-    if health["health_state"] in {"needs_repair", "symbol_lagging", "provider_cooldown"}:
+    if health["health_state"] in DEGRADED_COVERAGE_STATES:
         return "degraded_coverage", msg
     return "stale_session", msg
 
@@ -649,8 +651,7 @@ def _refresh_market_data_cache_locked(
     # the run exits 0 / status "ok" and raises no degraded-fetch alert on a day the
     # cache never advanced — and it composes with the cold-retry cooldown, which can
     # return in seconds.
-    if after_health["health_state"] in ("stale_session", "shallow_history",
-                                        "regime_mismatch", "session_lag"):
+    if after_health["health_state"] in REFRESH_FAILURE_STATES:
         msg = f"stale market data: {after_health['diagnosis']}"
         log.warning("Download-only cache refresh did not reach current data: %s", msg)
         raise StaleMarketDataError(msg, n_setups=None)
@@ -676,18 +677,6 @@ def _cached_health(cache_file: str, meta_file: str, tickers: list[str],
         index_symbols=index_symbols,
         weekly_refresh_due=_weekly_refresh_due(_read_meta(meta_file)),
     )
-
-
-def _weekly_refresh_due(meta: dict) -> bool:
-    value = meta.get("last_full_refresh")
-    if not value:
-        return True
-    try:
-        ts = datetime.fromisoformat(value)
-    except ValueError:
-        return True
-    age_days = (datetime.now(ts.tzinfo) - ts).days if ts.tzinfo else (datetime.now() - ts).days
-    return age_days >= int(getattr(settings, "FULL_REFRESH_INTERVAL_DAYS", 7))
 
 
 def _download_result(tickers: list[str], health: dict) -> DownloadOnlyResult:

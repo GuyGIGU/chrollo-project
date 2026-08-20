@@ -1,6 +1,6 @@
 # Anchor-bar study — the operator's eye, measured (2026-07-25)
 
-Instrument: `tools/anchor_bar_study.py` (read-only; sealed fixture +
+Instrument: `docs/archive/tools/anchor_bar_study.py` (read-only; sealed fixture +
 calibration DB; fingerprint `b671e056…`, engine `aaf853bd…`). Population: all
 33 Guided List marks — every one carries declared `r_anchor_date` /
 `s_anchor_date` and `first_rail`.

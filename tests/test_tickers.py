@@ -1,4 +1,6 @@
+import os
 import sys
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -46,3 +48,23 @@ def test_get_tickers_filters_cached_csv_before_returning(tmp_path, monkeypatch):
     monkeypatch.setattr(tickers_module, "_load_skiplist", lambda: {"SKIPME"})
 
     assert tickers_module.get_tickers(str(csv_path)) == ["AAPL", "GOOGL"]
+
+
+def test_get_tickers_uses_stale_csv_when_ftp_refresh_fails(tmp_path, monkeypatch):
+    csv_path = tmp_path / "tickers.csv"
+    pd.DataFrame({"Ticker": ["AAPL", "GOOGL", "MSFT"]}).to_csv(csv_path, index=False)
+    stale = time.time() - 30 * 24 * 3600
+    os.utime(csv_path, (stale, stale))
+    monkeypatch.setattr(settings, "TICKER_CACHE_MAX_AGE_DAYS", 1, raising=False)
+    monkeypatch.setattr(tickers_module, "_load_skiplist", lambda: set())
+
+    real_read_csv = pd.read_csv
+
+    def fail_ftp_read_csv(path, *args, **kwargs):
+        if isinstance(path, str) and path.startswith("ftp://"):
+            raise OSError("FTP unreachable")
+        return real_read_csv(path, *args, **kwargs)
+
+    monkeypatch.setattr(tickers_module.pd, "read_csv", fail_ftp_read_csv)
+
+    assert tickers_module.get_tickers(str(csv_path)) == ["AAPL", "GOOGL", "MSFT"]

@@ -20,7 +20,7 @@ All are stale-based and will **not** merge clean — each needs a re-port onto t
   Deflated-Sharpe + event-study + exit-sim modules, a 247-line DSR/CAR harness, **92 tests**, and the 2026-07-07 edge read. Commit body literally says *"parked."* Its one flagged analytical gap (a null model) has since shipped on `main` (`core/backtest/null_model.py`), so the blocker is cleared.
   **Next:** review the 3 core modules → rebase (conflicts on `tools/backtest_engine.py`) → rewire to consume `null_model.py` → merge or formally discard.
 - [ ] **TA Score v2 — the 0-100 Technical Analysis Score** — `engine/ta-score-v2` (tip 47d6ade, 2026-07-02; 2 ahead / 224 behind).
-  The locked-design "ONE visual grade" rework; ~2 of ~11 phases built. **Stranded on the pre-extraction layout** (edits `core/scoring/` which is now `engine_alpha/scoring/`). Design specs are on `main` (`specs/ta-score-*.md`).
+  The locked-design "ONE visual grade" rework; ~2 of ~11 phases built. **Stranded on the pre-extraction layout** (edits `core/scoring/` which is now `engine_alpha/scoring/`). Design specs are on `main` (`docs/archive/specs/ta-score-*.md`).
   **Next:** rebuild from a fresh branch off `main`; finish P1/P3/P3.5 tag-folds, tier-invariance tests (P4), `TIER_*_STRUCT` recalibration (P5), A/B harness (P6), FE single-source cutover (P6.5), then an operator A/B-eyeball flip.
 - [ ] **Council P2 follow-up fixes** — `worktree-council-p2-followups` (20fe178, 2026-06-30; pushed, never merged; 1 ahead / 253 behind).
   Bundles 6 "Fix Soon" findings + pinning tests. **Two are confirmed still-live defects on `main`:**
@@ -60,7 +60,10 @@ All are stale-based and will **not** merge clean — each needs a re-port onto t
 - [ ] **Calibration footguns held for your call** — (a) `frame_digest NOT NULL` DDL rebuild on the non-regenerable marks DB (`webapp/backend/models.py:245`); (b) `agreement.py` `span_overlap` symmetric-Jaccard deflation (likely already resolved by the concordance reframe `a5a0e63` — confirm); (c) three marking-page footguns: Edit re-stamps a mark's provenance across sessions, a parse-failed successful POST reported as failure, auto-enter-edit makes drawing box B mutate box A.
 
 ## Cleanup
-- [ ] **Stray untracked file** `tools/fidelity/full_package/BBVA.png` — a leftover 196 KB diagnostic render (from `tools/full_package_render.py`). Delete or gitignore.
+- [x] **Stray untracked render files** — CLOSED 2026-08-20. Every eyeball render is now covered by
+  one `.gitignore` rule (`tools/fidelity/**/*.png`), which also carries the operator's 2026-08-04
+  DO-NOT-COMMIT ruling out of the machine-local `.git/info/exclude` where it could not protect a
+  clone. No render can volunteer itself for commit again.
 
 ---
 

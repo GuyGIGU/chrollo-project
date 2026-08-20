@@ -47,6 +47,7 @@ import numpy as np
 import pandas as pd
 
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
+from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring import taxonomy
 
 # ------------------------------------------------------------------
@@ -223,7 +224,7 @@ def anchor_seam(df: pd.DataFrame) -> bool:
 
 
 def load_archive(source: Optional[str] = None,
-                 universe_type: Optional[str] = "us_equities") -> pd.DataFrame:
+                 universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE) -> pd.DataFrame:
     """Read the setup_archive table into a DataFrame (read-only).
 
     universe_type: scope to one universe ('us_equities' / 'us_sectors' /
@@ -271,9 +272,9 @@ def dedup_to_episodes(df: pd.DataFrame) -> pd.DataFrame:
     needed = {"id", "ticker", "scan_date", "setup_type"}
     if df.empty or not needed.issubset(df.columns):
         return df
-    universe = (df["universe_type"].fillna("us_equities")
+    universe = (df["universe_type"].fillna(DEFAULT_UNIVERSE_TYPE)
                 if "universe_type" in df.columns
-                else pd.Series("us_equities", index=df.index))
+                else pd.Series(DEFAULT_UNIVERSE_TYPE, index=df.index))
     rows = [
         SetupRow(id=int(i), ticker=str(t), scan_date=str(d),
                  setup_type=str(s), universe_type=str(u))

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { API_BASE } from '../api';
 
 export default function useArchiveChart() {
@@ -7,31 +7,43 @@ export default function useArchiveChart() {
   const [chartTicker, setChartTicker] = useState(null);
   const [chartSetup, setChartSetup] = useState(null);
   const [linkedTrades, setLinkedTrades] = useState([]);
+  // Request token (the useDrilldown mold): a stale resolution — success OR
+  // failure — must never repaint or close a newer view.
+  const requestRef = useRef(0);
 
   const openChart = async (setup) => {
+    const token = ++requestRef.current;
     setChartTicker(setup.ticker);
     setChartSetup(setup);
     setLinkedTrades([]);
-    fetchLinkedTrades(setup.id, setLinkedTrades);
+    fetchLinkedTrades(setup.id, (linked) => {
+      if (token === requestRef.current) setLinkedTrades(linked);
+    });
 
     setChartLoading(true);
     try {
       const response = await fetch(`${API_BASE}/archive/setups/${setup.id}/chart`);
-      if (!response.ok) {
+      const data = response.ok ? await response.json() : null;
+      if (token !== requestRef.current) return;
+      if (data == null) {
         closeChart();
         return;
       }
-      setChartData(await response.json());
+      setChartData(data);
     } catch (error) {
+      if (token !== requestRef.current) return;
       console.error('Error fetching chart data:', error);
       closeChart();
     } finally {
-      setChartLoading(false);
+      if (token === requestRef.current) setChartLoading(false);
     }
   };
 
+  // Invalidate any in-flight request so a late response can't reopen the view.
   const closeChart = () => {
+    requestRef.current += 1;
     setChartData(null);
+    setChartLoading(false);
     setChartTicker(null);
     setChartSetup(null);
   };

@@ -125,6 +125,25 @@ def test_chart_candles_matches_archive_route_shape():
     assert isinstance(volumes[0]["value"], int)  # archive route cast volume to int
 
 
+def test_chart_candles_archive_skips_nonfinite_rows():
+    """The archive leg's own failure case: the provider never drops NaN rows,
+    and this path used to crash on int(NaN volume) / 500 NaN OHLC at
+    Starlette's allow_nan=False boundary. Non-finite rows are skipped; the
+    finite rows' payload is unchanged."""
+    raw = _flat_ohlcv([
+        {"time": "2026-06-01", "open": 10.0, "high": 11.0, "low": 9.5, "close": 10.8, "volume": 1000},
+        {"time": "2026-06-02", "open": np.nan, "high": 11.2, "low": 10.1, "close": 10.2, "volume": 1500},
+        {"time": "2026-06-03", "open": 10.2, "high": 10.9, "low": 10.0, "close": 10.5, "volume": np.nan},
+    ])
+    candles, volumes = md_service.chart_candles(
+        raw, up_color="g", down_color="r", require_finite=False, volume_as_int=True,
+    )
+    # NaN-open row fully dropped; NaN-volume row keeps its candle, drops its bar.
+    assert [c["time"] for c in candles] == ["2026-06-01", "2026-06-03"]
+    assert [v["time"] for v in volumes] == ["2026-06-01"]
+    assert volumes[0]["value"] == 1000
+
+
 # ── daily_candle_frame / latest_prices route through the provider ──────────
 def test_daily_candle_frame_delegates_to_provider(monkeypatch):
     captured = {}

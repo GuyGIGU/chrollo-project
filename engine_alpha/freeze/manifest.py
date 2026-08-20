@@ -234,7 +234,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "CANDLE_SPREAD_ATR_MESSY",
     "CANDLE_TIGHTBAR_CLEAN",
     "CANDLE_TIGHTBAR_MESSY",
-    # Technical Analysis Score v2 master flag (specs/ta-score-rework.md).
+    # Technical Analysis Score v2 master flag (docs/archive/specs/ta-score-rework.md).
     # Listed BEFORE the scorer reads it: it is a committed engine flag whose
     # flip must bump engine_config_version from day one — the completeness scan
     # only forces names once a read lands, which would have left a window where
@@ -420,7 +420,7 @@ def collect_manifest() -> Dict[str, Any]:
         raise KeyError(
             "frozen-config manifest references settings that no longer exist: "
             + ", ".join(sorted(missing))
-            + " — update core/freeze/manifest.ENGINE_SETTINGS_KEYS deliberately "
+            + " — update engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS deliberately "
             "(a rename/removal changes the engine contract)."
         )
 

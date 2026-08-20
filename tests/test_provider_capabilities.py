@@ -315,6 +315,12 @@ def test_earnings_date_failure_is_none(fake_yf):
 
 
 # ── index_context / sector_trend ──────────────────────────────────────────
+# Both the provider and its archive_models twin fetch these through
+# ``yf.Ticker(symbol).history`` — NOT ``yf.download``, whose module-global result
+# stash collides across FastAPI's threadpool. Mock the TICKER surface: a
+# download-only mock would leave the real code path unfed, and the "no data"
+# assertions below would pass on an unmocked-surface exception rather than on
+# the behavior they name.
 def _trend_frame(closes, day0="2026-01-01"):
     idx = pd.date_range(day0, periods=len(closes), freq="D")
     return pd.DataFrame({"Close": closes}, index=idx)
@@ -325,10 +331,8 @@ def test_index_context_bullish_spy_and_vix(fake_yf):
     spy = _trend_frame([100.0 + i for i in range(300)])
     vix = _trend_frame([18.0, 19.0, 20.0])
 
-    def _dl(symbol, **k):
-        return spy if symbol == "SPY" else vix
-
-    fake_yf(download=_dl)
+    fake_yf(ticker=_history_ticker(
+        lambda symbol, **k: spy if symbol == "SPY" else vix))
     ctx = YahooProvider().index_context("2026-09-30")
     assert ctx["spy_trend"] == "BULLISH"
     assert ctx["vix_level"] == 20.0
@@ -337,11 +341,11 @@ def test_index_context_bullish_spy_and_vix(fake_yf):
 def test_index_context_hang_returns_neutral_default(fake_yf, monkeypatch):
     monkeypatch.setattr(providers_module, "_DOWNLOAD_TIMEOUT_S", 0.05)
 
-    def _hang(*a, **k):
+    def _hang(symbol, **k):
         time.sleep(5)
         return _trend_frame([1.0])
 
-    fake_yf(download=_hang)
+    fake_yf(ticker=_history_ticker(_hang))
     ctx = YahooProvider().index_context("2026-09-30")
     assert ctx == {"spy_trend": None, "vix_level": None}
 
@@ -349,12 +353,12 @@ def test_index_context_hang_returns_neutral_default(fake_yf, monkeypatch):
 def test_sector_trend_bearish_below_sma(fake_yf):
     # 80 sessions falling; last bar below the 50-SMA → BEARISH.
     data = _trend_frame([200.0 - i for i in range(80)])
-    fake_yf(download=lambda *a, **k: data)
+    fake_yf(ticker=_history_ticker(lambda symbol, **k: data))
     assert YahooProvider().sector_trend("XLK", "2026-03-21") == "BEARISH"
 
 
 def test_sector_trend_empty_returns_none(fake_yf):
-    fake_yf(download=lambda *a, **k: pd.DataFrame())
+    fake_yf(ticker=_history_ticker(lambda symbol, **k: pd.DataFrame()))
     assert YahooProvider().sector_trend("XLK", "2026-03-21") is None
 
 
@@ -377,10 +381,8 @@ def test_provider_index_context_matches_archive_get_market_context(fake_yf):
     spy = _trend_frame([100.0 + i for i in range(300)])
     vix = _trend_frame([18.0, 19.0, 20.0])
 
-    def _dl(symbol, **k):
-        return spy if symbol == "SPY" else vix
-
-    fake_yf(download=_dl)
+    fake_yf(ticker=_history_ticker(
+        lambda symbol, **k: spy if symbol == "SPY" else vix))
     as_of = "2026-09-30"
     assert (
         YahooProvider().index_context(as_of)
@@ -391,7 +393,7 @@ def test_provider_index_context_matches_archive_get_market_context(fake_yf):
 def test_provider_sector_trend_matches_archive_get_sector_trend(fake_yf):
     # 80 sessions falling → BEARISH; both impls read the same mocked frame.
     data = _trend_frame([200.0 - i for i in range(80)])
-    fake_yf(download=lambda *a, **k: data)
+    fake_yf(ticker=_history_ticker(lambda symbol, **k: data))
     etf, as_of = "XLK", "2026-03-21"
     result = YahooProvider().sector_trend(etf, as_of)
     assert result == archive_models.get_sector_trend(etf, as_of)

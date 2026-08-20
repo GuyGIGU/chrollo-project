@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { fx, fmtNum } from '../utils/format';
 
 const PositionCalculator = () => {
   const [riskAmount, setRiskAmount] = useState(50);
@@ -93,14 +94,8 @@ const PositionCalculator = () => {
   );
 };
 
-const fixed = (value, digits = 2) => (
-  value == null || !Number.isFinite(Number(value)) ? '0.00' : Number(value).toFixed(digits)
-);
+const fixed = (value, digits = 2) => fx(value, digits, '0.00');
 
-const money = (value) => (
-  value == null || !Number.isFinite(Number(value))
-    ? '0.00'
-    : Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-);
+const money = (value) => fmtNum(value, 2, '0.00');
 
 export default PositionCalculator;

@@ -32,9 +32,9 @@ import numpy as np
 import pandas as pd
 
 try:  # works under both `python -m tools.fold_parity` and `python tools/fold_parity.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
 
 configure_path()
 
@@ -164,6 +164,7 @@ def main() -> None:
     a = ap.parse_args()
 
     if a.capture:
+        refuse_sealed_output(a.capture)
         results = run_full()
         with open(a.capture, "w", encoding="utf-8") as f:
             json.dump(results, f, sort_keys=True, indent=1)

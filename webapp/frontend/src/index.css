@@ -32,7 +32,7 @@
      to a structural/context + state role (open/draft/target/phase, severity). The
      One-Accent Rule now reads: mythril = "act on this / live", blue = context.
      Steered teal-cyan (not leaf-green) to stay distinct from --success / tier-c.
-     See docs/frontend_audit_2026-07-07.md. */
+     See docs/archive/frontend_audit_2026-07-07.md. */
   --myth: #4FCFC4;
   --myth-bright: #8CEAE0;
   --myth-dim: #39A79E;
@@ -352,90 +352,6 @@ body {
   color: var(--text-faint);
 }
 
-.brand {
-  font-size: 1.2rem;
-  font-weight: 700;
-  padding: 0 1.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Solid wordmark. The gradient-text + glow was a decorative tell against the
-   "over-designed" anti-reference; weight (700, from .brand) carries the emphasis. */
-.brand-text {
-  color: var(--text-main);
-}
-
-.account-info {
-  padding: 0 1.5rem 1.5rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 1rem;
-}
-
-.nav-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0 0.75rem;
-}
-
-.nav-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.nav-section-label {
-  padding: 0.35rem 0.85rem 0.25rem;
-  color: var(--text-faint);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.nav-link {
-  width: 100%;
-  padding: 0.5rem 0.85rem;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  font-weight: 500;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  /* nav-link is used on both <button> (Calculator) and <NavLink>/<a> (routes);
-     strip the anchor default so both render identically. */
-  text-decoration: none;
-}
-
-.nav-link:hover {
-  color: var(--text-main);
-  background-color: rgba(255, 255, 255, 0.03);
-}
-
-.nav-link.active {
-  color: #FFFFFF;
-  background-color: var(--myth-soft);
-  border-color: rgba(79, 207, 196, 0.42);
-  box-shadow: 0 0 0 1px rgba(79, 207, 196, 0.14), 0 4px 16px -4px var(--myth-glow);
-}
-
-.action-buttons {
-  margin-top: 2rem;
-  padding: 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
 /* MAIN CONTENT */
 .main-content {
   flex: 1;
@@ -443,9 +359,6 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
-
-.date-filter { cursor: pointer; }
-.date-filter:hover, .date-filter.active { color: #fff; }
 
 /* SCROLLABLE AREA */
 .content-scroll {
@@ -613,53 +526,6 @@ th {
 td {
   padding: 0.8rem 0.5rem;
   border-bottom: 1px solid var(--border-color);
-}
-
-.badge {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.badge-win { background: var(--success-bg); color: var(--success); }
-.badge-loss { background: var(--danger-bg); color: var(--danger); }
-
-.row-blur {
-  opacity: 0.6;
-  border-bottom: 1px solid var(--border-color);
-}
-
-/* Setup row */
-.setup-group-header {
-  font-size: 11px;
-  color: var(--text-muted);
-  padding: 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  border-bottom: 1px dashed var(--border-color);
-}
-.setup-group-header span {
-  display: inline-block;
-}
-
-.setup-line {
-  flex: 1;
-  height: 1px;
-  background-color: var(--danger);
-  position: relative;
-}
-
-.screener-card-score-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-  min-width: 0;
 }
 
 .score-breakdown {
@@ -1191,25 +1057,7 @@ td {
   padding: 3px 7px;
 }
 
-.phase-bin-panel {
-  border-block: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 10px 0;
-}
-
-.phase-bin-panel-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.phase-bin-list {
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-/* The phase vocabulary — token chip, name, detail, and the per-phase token
+/* The phase vocabulary — the token chip and the per-phase token
    colors that mirror the chart's own region tints. The .phase-bin-control
    button they used to sit inside retired with the panel fold (2026-08-12);
    the story rows wear them now. */
@@ -1225,22 +1073,6 @@ td {
   justify-content: center;
   letter-spacing: 0;
   line-height: 1;
-}
-
-.phase-bin-name {
-  color: var(--text-main);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.phase-bin-detail {
-  color: var(--text-faint);
-  font-size: 10px;
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .phase-bin-a .phase-bin-token {
@@ -1686,10 +1518,6 @@ td {
      own instrument, not a floating rectangle in a crowd.
    • .instrument-well  — a readout (chart / table / pre) recessed into
      its panel; a dark seam under the top lip sinks the data below chrome.
-   • .instrument-lockon — an interactive tile that locks on (mythril
-     corner reticle + lift + glow) on hover/focus. Reserve for a real
-     grid of clickable tiles; the reticle is invisible at rest so density
-     is untouched.
    =================================================================== */
 .instrument-tile {
   position: relative;
@@ -1708,53 +1536,6 @@ td {
   pointer-events: none;
   border-radius: inherit;
   box-shadow: inset 0 3px 7px -4px rgba(0, 0, 0, 0.7);
-}
-
-.instrument-lockon {
-  position: relative;
-  transition:
-    border-color 0.16s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.instrument-lockon::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  pointer-events: none;
-  border-radius: 3px;
-  opacity: 0;
-  transition: opacity 0.16s ease;
-  background:
-    linear-gradient(var(--myth), var(--myth)) left top / 11px 1.5px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) left top / 1.5px 11px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) right top / 11px 1.5px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) right top / 1.5px 11px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) left bottom / 11px 1.5px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) left bottom / 1.5px 11px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) right bottom / 11px 1.5px no-repeat,
-    linear-gradient(var(--myth), var(--myth)) right bottom / 1.5px 11px no-repeat;
-}
-.instrument-lockon:hover,
-.instrument-lockon:focus-visible,
-.instrument-lockon:focus-within {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 8px 20px -6px rgba(0, 0, 0, 0.6),
-    0 0 16px var(--myth-glow);
-  z-index: 1;
-}
-.instrument-lockon:hover::after,
-.instrument-lockon:focus-visible::after,
-.instrument-lockon:focus-within::after {
-  opacity: 0.9;
-}
-@media (prefers-reduced-motion: reduce) {
-  .instrument-lockon { transition: box-shadow 0.16s ease; }
-  .instrument-lockon:hover,
-  .instrument-lockon:focus-visible,
-  .instrument-lockon:focus-within { transform: none; }
 }
 
 /* ===================================================================
@@ -1914,37 +1695,6 @@ td {
   color: var(--text-faint);
 }
 .inst-chip.untested::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
-
-/* Coverage meter — how much real ground truth a ticker carries: the box
-   share in the operator hue over a neutral track. */
-.inst-cov { align-items: center; display: flex; gap: 8px; }
-.inst-bar {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-  display: flex;
-  height: 7px;
-  overflow: hidden;
-  width: 56px;
-}
-.inst-bar i { display: block; height: 100%; }
-.inst-bar .b { background: var(--operator); }
-.inst-bar .g { background: rgba(255, 255, 255, 0.10); }
-.inst-cov .lbl { color: var(--text-muted); font-size: 10.5px; }
-.inst-cov .lbl b { color: var(--operator); font-weight: 700; }
-
-/* Completeness dot — the operator's latest mark here is fully specified
-   (events + a knowable-from). Operator-domain state, so operator hue (NOT
-   mythril: interactivity stays scarce; NOT green: that's engine agreement). */
-.inst-dot {
-  background: var(--operator);
-  border-radius: 50%;
-  display: inline-block;
-  height: 6px;
-  margin-left: 6px;
-  vertical-align: middle;
-  width: 6px;
-}
-.inst-dot.off { background: transparent; box-shadow: inset 0 0 0 1px var(--border-color); }
 
 /* Frame thumbnail — a fixed static-SVG mini of the frozen frame (Add-2);
    never a per-row lightweight-charts canvas (the fidelity trap). */
@@ -2185,8 +1935,6 @@ td {
 
 /* FORM GRID LAYOUTS */
 .grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.grid-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-.grid-cols-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; }
 
 .form-group {
   display: flex;
@@ -2243,13 +1991,6 @@ td {
 ::selection {
   background: var(--myth-soft);
   color: #FFFFFF;
-}
-
-.stat-card {
-  padding: 1rem;
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
 }
 
 /* TRADE TABLE — calm dark journal style */
@@ -2718,61 +2459,6 @@ td.cell-editable { overflow: hidden; }
   cursor: default;
 }
 
-/* Hold-time pill (small, faint blue chip) — for date columns */
-.hold-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  background: rgba(74, 122, 255, 0.08);
-  color: #8CADFF;
-  font-weight: 500;
-}
-
-/* Status pill with embedded dot — Lucien style */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-.status-pill .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.status-pill.open  { background: var(--accent-blue-soft); color: #DCE6FF;        border-color: rgba(74, 122, 255, 0.30); }
-.status-pill.open  .dot { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
-.status-pill.win   { background: var(--success-bg);       color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
-.status-pill.win   .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
-.status-pill.loss  { background: var(--danger-bg);        color: var(--danger);  border-color: rgba(var(--danger-rgb), 0.30); }
-.status-pill.loss  .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-.status-pill.wash  { background: var(--pill-medium-bg);   color: var(--pill-medium-fg); border-color: rgba(212, 184, 90, 0.25); }
-.status-pill.wash  .dot { background: var(--pill-medium-fg); }
-
-/* Direction pill (LONG / SHORT) */
-.type-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-.type-pill.long  { background: var(--success-bg); color: var(--success); border-color: rgba(var(--success-rgb), 0.30); }
-.type-pill.short { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(var(--danger-rgb), 0.30); }
-
 /* Two-line cell — top number bold, "→ value" muted below */
 .cell-stack { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
 .cell-stack .secondary {
@@ -2787,58 +2473,6 @@ td.cell-editable { overflow: hidden; }
 .trade-stop-stack .secondary.risk-warning { color: var(--warning); }
 .trade-stop-stack .secondary.risk-danger,
 .trade-stop-stack .secondary.risk-breached { color: var(--danger); }
-
-/* Inline R-multiplier chip on T1/T2 cells (clickable to edit) */
-.r-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 7px;
-  margin-top: 2px;
-  border-radius: var(--radius-pill);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  background: var(--myth-soft);
-  color: var(--myth-bright);
-  border: 1px solid rgba(79, 207, 196, 0.32);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.r-chip:hover { background: rgba(79, 207, 196, 0.22); border-color: rgba(79, 207, 196, 0.50); }
-.r-chip-input {
-  width: 42px;
-  padding: 1px 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--myth);
-  border-radius: var(--radius-pill);
-  color: #FFFFFF;
-  font-family: inherit;
-  font-size: 9px;
-  font-weight: 700;
-  text-align: center;
-  outline: none;
-  box-shadow: 0 0 0 3px var(--myth-soft);
-}
-
-/* Asset-class pill (STK / OPT) shown beside ticker */
-.asset-pill {
-  display: inline-flex;
-  align-items: center;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 1px 6px;
-  margin-left: 6px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-color);
-  color: var(--text-faint);
-  background: rgba(255, 255, 255, 0.02);
-}
-.asset-pill.opt {
-  color: var(--accent-purple);
-  border-color: rgba(139, 92, 246, 0.40);
-  background: rgba(139, 92, 246, 0.10);
-}
 
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 6px; }

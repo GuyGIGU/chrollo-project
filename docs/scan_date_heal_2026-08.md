@@ -194,7 +194,7 @@ mid-session); `match_P2` = scan_close equals the close two sessions back
 
 ---
 
-## Executed 2026-08-12 00:2x IL (tools/heal_scan_dates_2026_08.py --defer-ambiguous --apply)
+## Executed 2026-08-12 00:2x IL (docs/archive/tools/heal_scan_dates_2026_08.py --defer-ambiguous --apply)
 
 Operator ruling 2026-08-11: "purge & heal". Root fix merged same day (306c34c —
 scan_date now copies the panel's last bar, EC-37). This surgery healed the legacy rows:

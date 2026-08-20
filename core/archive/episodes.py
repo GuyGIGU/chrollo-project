@@ -73,7 +73,7 @@ def _trading_day_gap(earlier: str, later: str) -> int:
     /archive/missed-winners request, for all filters.
     """
     try:
-        return int(np.busday_count(earlier, later))
+        return int(np.busday_count(np.datetime64(earlier, "D"), np.datetime64(later, "D")))
     except (ValueError, TypeError):
         return 10 ** 6
 

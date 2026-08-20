@@ -1,5 +1,6 @@
 import React from 'react';
 import { fmtTime } from './portfolioFormat';
+import { finiteOrNull, fmtInt } from '../utils/format';
 
 const pillStyle = (background, color, border = color) => ({
   padding: '4px 10px',
@@ -64,9 +65,9 @@ const buttonStyle = (primary = false) => ({
 });
 
 const fmtSignedMoney = (value) => {
-  if (value == null || !Number.isFinite(Number(value))) return null;
-  const n = Number(value);
-  return `${n >= 0 ? '+' : '−'}$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const n = finiteOrNull(value);
+  if (n == null) return null;
+  return `${n >= 0 ? '+' : '−'}$${fmtInt(Math.abs(n))}`;
 };
 
 // Ambient open-risk readout: glanceable from the cockpit chrome, deliberately

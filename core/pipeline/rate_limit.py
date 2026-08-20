@@ -10,10 +10,12 @@ concurrent download workers (the screener's ThreadPoolExecutor) collectively
 respect a single request-rate ceiling instead of each throttling independently
 and bursting Yahoo into 429s — the root cause of the 2%-coverage stale-data days.
 
-Pure stdlib (threading + time) — no new dependency. In-process is sufficient: the
-scan runs in ONE subprocess under SCAN_LOCK, so all its downloads share this
-module's bucket; there is no second concurrent fetcher to coordinate with across
-processes.
+Pure stdlib (threading + time) — no new dependency. The bucket is PER-PROCESS,
+not machine-global: the scan subprocess and the backend service each build their
+own, so a UI/enrichment fetch during a scan is throttled only within its own
+process and the two processes' outbound rates can overlap. The 429 cooldown
+below (also per-process) is the cross-process safety net — whichever process
+Yahoo throttles backs itself off.
 
 Settings are read LAZILY (the backend's cwd shadows the repo-root ``config``
 package, so a module-level settings read would crash the service at boot).

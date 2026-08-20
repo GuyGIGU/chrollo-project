@@ -15,29 +15,30 @@ function useReviews() {
       .catch(() => {});
   }, []);
 
+  // The POST fires OUTSIDE the updater — React updaters must stay pure (a
+  // strict-mode double invocation would double-toggle the server state).
   const togglePassed = useCallback((ticker) => {
+    const wasOn = passed.has(ticker);
     setPassed(previous => {
       const next = new Set(previous);
-      const wasOn = next.has(ticker);
       if (wasOn) next.delete(ticker);
       else next.add(ticker);
-
-      fetch(`${API_BASE}/archive/reviews/toggle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker }),
-      })
-        .then(response => {
-          if (!response.ok) throw new Error('review toggle failed');
-        })
-        .catch(error => {
-          console.error('Pass toggle failed, reverting', error);
-          setPassed(current => rollback(current, ticker, wasOn));
-        });
-
       return next;
     });
-  }, []);
+
+    fetch(`${API_BASE}/archive/reviews/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker }),
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('review toggle failed');
+      })
+      .catch(error => {
+        console.error('Pass toggle failed, reverting', error);
+        setPassed(current => rollback(current, ticker, wasOn));
+      });
+  }, [passed]);
 
   return { passed, togglePassed };
 }

@@ -290,7 +290,7 @@ class SetupArchive(Base):
 
     # ── Event Map tape summary — measure-only, flag-gated (EVENT_MAP_ENABLED) ──
     # Owning declaration (names / SQL types / row extraction) lives in
-    # core/structure/event_map.py (EVENT_MAP_COLUMN_SQL); a test keeps this model
+    # engine_alpha/structure/event_map.py (EVENT_MAP_COLUMN_SQL); a test keeps this model
     # in sync. MODEL-ONLY adds (the engine_config_version precedent): deliberately
     # NOT in the writer's _NEW_COLUMNS or startup._MIGRATIONS — the Track B
     # model-diff auto-migration and the writer's model-derived pass ADD them.
@@ -362,7 +362,7 @@ class SetupArchive(Base):
     fired_tags = Column(String, nullable=True)
 
     # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
-    # Owning declaration in core/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);
+    # Owning declaration in engine_alpha/structure/trace_export.py (ELECTION_TRACE_COLUMN_SQL);
     # same MODEL-ONLY convention as the event_map family above. The compact
     # date-anchored export the operator was shown, as JSON text — NULL means
     # never captured, and pre-flip NULLs are never backfilled (a trace
@@ -370,7 +370,7 @@ class SetupArchive(Base):
     election_trace = Column(String, nullable=True)
 
     # ── Strategy read — flag-gated (STRATEGY_READ_ENABLED), measure-first ──
-    # Owning declaration in core/structure/strategy_read.py; raw campaign
+    # Owning declaration in engine_alpha/structure/strategy_read.py; raw campaign
     # context, never gated, never scored; NULL = never measured.
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
@@ -412,7 +412,7 @@ class SetupArchive(Base):
     sector_rank_pos = Column(Integer, nullable=True)        # setup's sector rank position (1 = strongest sector this scan)
 
     # ── Engine provenance (frozen-config reproducibility) ────────
-    # sha256 of the frozen engine-config manifest (core/freeze/manifest.py) that
+    # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that
     # produced this row. Lets a freeze + backtest trace any signal to the exact
     # config version and detect silent drift. Nullable: pre-existing rows have
     # no stamp. Pure provenance — never a computed engine field.
@@ -615,7 +615,20 @@ _SECTOR_INFO_TIMEOUT_S = 12  # hard wall-clock bound for the (untimed) .info scr
 def get_sector_etf(ticker: str) -> str | None:
     """Resolve a ticker to its SPDR sector ETF using yfinance.
 
-    Returns the ETF symbol (e.g. 'XLK') or None on failure.
+    Returns the ETF symbol (e.g. 'XLK') or None on failure OR an unmapped
+    sector — callers that must tell those apart (the writer's persistent
+    cache) use resolve_sector_etf instead.
+    """
+    _ok, etf = resolve_sector_etf(ticker)
+    return etf or None
+
+
+def resolve_sector_etf(ticker: str) -> tuple[bool, str]:
+    """Failure-distinguishing sector-ETF lookup: (ok, etf).
+
+    ok=False on exception/timeout (transient — retry later, never cache);
+    ok=True with etf == "" means the lookup COMPLETED and the sector simply
+    has no SPDR mapping (safe to cache forever).
 
     Hard-bounded with a daemon thread: yfinance's ``.info`` makes an untimed
     page scrape that routinely hangs for tens of seconds or wedges entirely.
@@ -632,15 +645,19 @@ def get_sector_etf(ticker: str) -> str | None:
     t = threading.Thread(target=_run, daemon=True)
     t.start()
     t.join(timeout=_SECTOR_INFO_TIMEOUT_S)
-    return holder.get("r")
+    r = holder.get("r")  # missing key = timeout
+    if r is None:
+        return False, ""
+    return True, r
 
 
 def _sector_etf_impl(ticker: str) -> str | None:
+    # "" = completed lookup, sector unmapped; None = exception (retryable).
     try:
         import yfinance as yf
         info = yf.Ticker(ticker).info
         sector = info.get("sector", "")
-        return _SECTOR_TO_ETF.get(sector)
+        return _SECTOR_TO_ETF.get(sector, "")
     except Exception:
         return None
 
@@ -670,10 +687,40 @@ def get_market_context(scan_date: str) -> dict:
     return holder.get("r", {"spy_trend": None, "vix_level": None})
 
 
+def _history_window(symbol: str, start, end):
+    """One ``Ticker.history`` fetch over ``[start, end)``.
+
+    NOT ``yf.download``: its results round-trip through module-level globals
+    (``yfinance.shared._DFS``) that collide when two FastAPI threadpool requests
+    fetch at once, returning one symbol's frame under another's label. These
+    readers are reachable from the manual-add route, so they take the same
+    per-instance surface ``providers.daily_candles`` was migrated to. The twin
+    in ``core/pipeline/providers.py`` mirrors this helper; the pair is pinned by
+    tests/test_provider_capabilities.py. ``auto_adjust=True`` preserves
+    ``download``'s adjusted-close default the SMA readers were calibrated
+    against, and the tz-aware index ``history`` returns is stripped so the
+    tz-naive ``scan_date`` masks below keep working.
+    """
+    import pandas as pd
+    import yfinance as yf
+
+    frame = yf.Ticker(symbol).history(
+        start=pd.Timestamp(start).strftime("%Y-%m-%d"),
+        end=pd.Timestamp(end).strftime("%Y-%m-%d"),
+        interval="1d", auto_adjust=True, actions=False,
+    )
+    if frame is None:
+        return pd.DataFrame()
+    if hasattr(frame.columns, "nlevels") and frame.columns.nlevels > 1:
+        frame.columns = frame.columns.get_level_values(-1)
+    if getattr(frame.index, "tz", None) is not None:
+        frame.index = frame.index.tz_localize(None)
+    return frame
+
+
 def _market_context_impl(scan_date: str) -> dict:
     """Actual SPY-trend + VIX fetch. Returns {'spy_trend', 'vix_level'}."""
     import pandas as pd
-    import yfinance as yf
 
     result = {"spy_trend": None, "vix_level": None}
     try:
@@ -683,8 +730,7 @@ def _market_context_impl(scan_date: str) -> dict:
         # silently stayed None. 400 calendar days (~275 trading bars) clears it.
         start = pd.Timestamp(scan_date) - pd.Timedelta(days=400)
 
-        spy = yf.download("SPY", start=start.strftime("%Y-%m-%d"),
-                          end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        spy = _history_window("SPY", start, end)
         if not spy.empty:
             spy_close = spy["Close"]
             if hasattr(spy_close, "columns"):
@@ -704,8 +750,7 @@ def _market_context_impl(scan_date: str) -> dict:
                     else:
                         result["spy_trend"] = "NEUTRAL"
 
-        vix = yf.download("^VIX", start=(pd.Timestamp(scan_date) - pd.Timedelta(days=5)).strftime("%Y-%m-%d"),
-                          end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        vix = _history_window("^VIX", pd.Timestamp(scan_date) - pd.Timedelta(days=5), end)
         if not vix.empty:
             vix_close = vix["Close"]
             if hasattr(vix_close, "columns"):
@@ -722,14 +767,12 @@ def _market_context_impl(scan_date: str) -> dict:
 def get_sector_trend(sector_etf: str, scan_date: str) -> str | None:
     """Determine if a sector ETF is in a bullish/bearish/neutral trend on scan_date."""
     import pandas as pd
-    import yfinance as yf
 
     try:
         end = pd.Timestamp(scan_date) + pd.Timedelta(days=5)
         start = pd.Timestamp(scan_date) - pd.Timedelta(days=120)
 
-        data = yf.download(sector_etf, start=start.strftime("%Y-%m-%d"),
-                           end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        data = _history_window(sector_etf, start, end)
         if data.empty:
             return None
 

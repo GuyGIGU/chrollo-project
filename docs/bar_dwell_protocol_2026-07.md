@@ -93,7 +93,7 @@ rewritten to bar-basis + full battery — ONE commit (one lever = one reseal).
 - 2026-07-25 EXECUTED — verdict NO (§8). Flag removed same day (manifest
   returns to the pre-build key set); `_dwell_bar_basis` retained measure-only.
 
-## §8 Results (EXECUTED 2026-07-25, tools/bar_dwell_ab.py, variant manifest 0ede06ed…)
+## §8 Results (EXECUTED 2026-07-25, docs/archive/tools/bar_dwell_ab.py, variant manifest 0ede06ed…)
 
 **VERDICT: NO — every hard condition failed.**
 

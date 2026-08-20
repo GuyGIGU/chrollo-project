@@ -35,6 +35,7 @@ import math
 import sys
 
 from config import settings
+from core.archive.writer import load_sector_etf_cache, save_sector_etf_cache
 from core.pipeline.candles import chart_candles, clean_daily_frame, daily_candles
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe import resolve_universe
@@ -63,22 +64,14 @@ SECTOR_ETF_NAMES = {
 }
 
 
+# Same on-disk cache the archive writer keeps; ONE implementation lives there
+# (conventions.md EC-3) — these thin wrappers only bind this module's path.
 def _load_sector_etf_cache():
-    try:
-        with open(SECTOR_ETF_CACHE_PATH, "r", encoding="utf-8") as handle:
-            cache = json.load(handle)
-            return cache if isinstance(cache, dict) else {}
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {}
+    return load_sector_etf_cache(SECTOR_ETF_CACHE_PATH)
 
 
 def _save_sector_etf_cache(cache):
-    try:
-        os.makedirs(os.path.dirname(SECTOR_ETF_CACHE_PATH), exist_ok=True)
-        with open(SECTOR_ETF_CACHE_PATH, "w", encoding="utf-8") as handle:
-            json.dump(cache, handle)
-    except OSError:
-        pass
+    save_sector_etf_cache(cache, SECTOR_ETF_CACHE_PATH)
 
 
 def _resolve_sector_etf(ticker):

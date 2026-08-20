@@ -11,9 +11,13 @@ TWS / TradingView. Chrollo is an **idea-generation and bookkeeping tool — it d
 > classifier. When in doubt, it favors structural correctness over catching more names.
 
 New here? Read this file top-to-bottom, then:
-- [`core/MAP.md`](core/MAP.md) — plain-English tour of how `core/` is organized.
-- [`docs/strategy_alpha.md`](docs/strategy_alpha.md) — the **single source of truth** for the screener
-  algorithm: every gate, formula, and `config/settings.py` value, citing the function it lives in.
+- [`core/MAP.md`](core/MAP.md) — plain-English tour of how the engine is organized.
+- The engine docs are split by lifecycle, and each has one job:
+  [`docs/strategy_alpha.md`](docs/strategy_alpha.md) = the **theory** (what a good setup IS;
+  deliberately names no files or functions so it cannot rot) ·
+  [`docs/engine_reference.md`](docs/engine_reference.md) = how it is built and why it took that
+  shape · [`docs/decisions.md`](docs/decisions.md) = operator rulings + the **Tested-DEAD**
+  registry, append-only.
 - [`docs/deploy.md`](docs/deploy.md) — how the app runs unattended as a local service.
 
 ---
@@ -40,19 +44,19 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
 ## Architecture
 
 ```
-                          ┌─────────────────────────────────────────────┐
-   yfinance ──▶ parquet ──▶│  core/  — the screener engine               │
-                          │   structure/  Visual Structure Engine        │
-                          │              (pure geometry: boxes, LPS,      │
-                          │               contractions, ADR) — no opinion │
-                          │   scoring/    Scoring Engine                  │
-                          │              (facts → points → tier; all      │
-                          │               knobs in config/settings.py)    │
-                          │   pipeline/   the conductor (data + per-ticker │
-                          │               orchestration, ProcessPool)     │
-                          │   archive/    the measuring stick (record,    │
-                          │               forward-returns, analyze)       │
-                          └───────────────┬─────────────────────────────┘
+                          ┌───────────────────────────────────────────────────┐
+   yfinance ──▶ parquet ──▶│  the screener engine                              │
+                          │   engine_alpha/structure/  Visual Structure Engine │
+                          │               (pure geometry: boxes, LPS,          │
+                          │                contractions, ADR) — no opinion     │
+                          │   engine_alpha/scoring/    Scoring Engine          │
+                          │               (facts → points → tier; all          │
+                          │                knobs in config/settings.py)        │
+                          │   core/pipeline/  the conductor (data + per-ticker │
+                          │                orchestration, ProcessPool)         │
+                          │   core/archive/   the measuring stick (record,     │
+                          │                forward-returns, analyze)           │
+                          └───────────────┬───────────────────────────────────┘
                                           │ writes
                     output/screener_data.json   +   SQLite setup_archive
                                           │
@@ -67,10 +71,12 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
                           webapp/frontend  — React + Vite (lightweight-charts)
 ```
 
-**Two engines + a conductor** is the core design principle: `structure/` *measures* (it has no
-opinion and never assigns points), `scoring/` *judges* (every weight is a tunable in
-`config/settings.py`), and `pipeline/` wires them together. `archive/` exists so the opinions in
-`scoring/` can eventually be validated against real forward outcomes rather than intuition.
+**Two engines + a conductor** is the core design principle: `engine_alpha/structure/` *measures*
+(it has no opinion and never assigns points), `engine_alpha/scoring/` *judges* (every weight is a
+tunable in `config/settings.py`), and `core/pipeline/` wires them together. `core/archive/` exists
+so the opinions in `scoring/` can eventually be validated against real forward outcomes rather
+than intuition. (The reading engine was extracted from `core/` into `engine_alpha/` in the
+2026-07-18/20 engine-α freeze.)
 
 ### Measure-first philosophy
 
@@ -85,23 +91,27 @@ absolute volatility) were all added this way.
 ## Repository layout
 
 ```
-core/                  The screener engine (see core/MAP.md)
-  structure/           Visual Structure Engine — consolidation.py, box_primitives.py,
-                         lps.py, indicators.py
-  scoring/             Scoring Engine — scoring.py (score_setup, calculate_tier)
+engine_alpha/          The frozen reading engine (see core/MAP.md)
+  structure/           Visual Structure Engine — geometry: box/LPS detection, contractions,
+                         ADR (no opinion)
+  scoring/             Scoring Engine — score_setup, calculate_tier (opinion; weights live
+                         in config/settings.py)
+  evaluation.py        Per-ticker evaluation: baseline filter → structure → LPS → scoring
+core/
   pipeline/            Conductor — data.py public API; tickers.py, downloads.py,
-                         market_context.py, cache.py; evaluation.py (_evaluate_ticker);
-                         screener.py (run_screener); scan_job.py (scan → dashboard → archive)
-  archive/             writer.py, forward_returns.py, seed.py, analyze.py, purge.py
+                         market_context.py, cache.py; screener.py (run_screener);
+                         scan_job.py (scan → dashboard → archive)
+  archive/             writer.py, forward_returns.py, analyze.py, seed.py, purge.py
 config/                settings.py (all tunables), tickers.csv (cached universe)
 output/                Generated screener_data.json, watchlists, logs (data files gitignored)
 webapp/
   backend/             FastAPI app — main.py, routers/, services/ (scan_runner, scheduler,
-                         scan_status), ibkr/, archive_models.py, models.py, database.py
-  frontend/            React + Vite — src/components/ (ScreenerGrid, ArchiveTab,
-                         SetupTags, ScoreBreakdown, TradeTable, charts),
+                         scan_status, scan_watchdog, health), ibkr/, broker_config.py,
+                         database.py
+  frontend/            React + Vite — src/components/, src/hooks/, api.js, App.jsx,
                          dist/ (built, gitignored)
-docs/                  strategy_alpha.md (algorithm), structure_legend.md (vocab), deploy.md (go-live)
+docs/                  strategy_alpha.md (theory), engine_reference.md (how built),
+                         decisions.md (rulings), structure_legend.md (vocab), deploy.md (go-live)
 tools/                 Dev/backtest and fidelity harnesses
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend
@@ -125,9 +135,10 @@ A single FastAPI process serves both the JSON API and the **built** React app fr
 - **Trade journal** — manual + IBKR-imported trades with P&L / R stats (paginated table).
 - **IBKR panel** — connection status and a manual **Reconnect** button for portfolio snapshots.
 
-Tag chips and score pills are derived on the frontend from the engine's sub-score decomposition;
-the sub-score caps mirror `config/settings.py` and live in one place
-(`webapp/frontend/src/components/setupScoreMath.js`).
+Tag chips and score pills render verdicts the engine already resolved on the wire — no scoring
+cap, threshold, or fire-rule is re-declared in frontend JS (conventions.md EC-28);
+`webapp/frontend/src/components/setupScoreMath.js` survives only as the frozen legacy remnant,
+test-pinned by `tests/test_frontend_score_caps.py`, retiring with the legacy path.
 
 ---
 
@@ -148,6 +159,10 @@ trading session, so unattended scans never archive setups computed on stale data
 
 ## Running it
 
+**Interpreter:** every Python command below names the repo venv explicitly —
+`.\.venv\Scripts\python.exe`. On this machine bare `python` is a documented trap (two colliding
+3.14 installs; see [`docs/deploy.md`](docs/deploy.md) §2).
+
 ### One-time setup
 ```powershell
 .\setup.bat          # installs Python + frontend deps, builds the React app into webapp/frontend/dist
@@ -155,7 +170,7 @@ trading session, so unattended scans never archive setups computed on stale data
 
 ### A single CLI scan (no web app)
 ```powershell
-python run_screener.py     # scan → writes output/screener_data.json → archives the run
+.\.venv\Scripts\python.exe run_screener.py     # scan → writes output/screener_data.json → archives the run
 ```
 
 ### The app, manually (one terminal)
@@ -171,17 +186,17 @@ Full runbook: [`docs/deploy.md`](docs/deploy.md).
 
 ### Archive maintenance (CLI)
 ```powershell
-python -m core.archive.seed              # bootstrap known-winner setups (--force to overwrite)
-python -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
+.\.venv\Scripts\python.exe -m core.archive.seed              # bootstrap known-winner setups (--force to overwrite)
+.\.venv\Scripts\python.exe -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
 ```
 
 ### Verification guard stack
 
 Use the smallest guard that proves the change, then widen only when the touched surface warrants it:
 
-- Local edits: run focused tests for the touched module, then `python -m pytest -q` before merge.
-- Detector or market-data intake changes: run `python -m tools.shadow_diff --check` to catch canonical drift.
-- Structure-reader, fetch, or seed-recall-sensitive changes: run `python -m core.archive.seed_recall --check`.
+- Local edits: run focused tests for the touched module, then `.\.venv\Scripts\python.exe -m pytest -q` before merge.
+- Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.shadow_diff --check` to catch canonical drift.
+- Structure-reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
   The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
   and `npm --prefix webapp\frontend run build`.

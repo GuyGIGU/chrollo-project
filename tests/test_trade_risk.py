@@ -14,6 +14,7 @@ nulls are asserted with identity.
 """
 import importlib.util
 import math
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ _spec.loader.exec_module(trade_risk)
 derive_trade_risk = trade_risk.derive_trade_risk
 build_open_risk_summary = trade_risk.build_open_risk_summary
 is_option_symbol = trade_risk.is_option_symbol
+option_expiry = trade_risk.option_expiry
 
 
 BASE_TRADE = {
@@ -174,6 +176,16 @@ def test_option_symbol_detection_three_formats():
     assert is_option_symbol("AAPL") is False
     assert is_option_symbol("") is False
     assert is_option_symbol(None) is False
+
+
+def test_option_expiry_three_formats_and_non_options():
+    assert option_expiry("UNG 17JUL26 11 C") == date(2026, 7, 17)        # human
+    assert option_expiry("AAPL  260116C00150000") == date(2026, 1, 16)   # IBKR local
+    assert option_expiry("AAPL260116C00150000") == date(2026, 1, 16)     # OCC compact
+    assert option_expiry("AAPL 32JAN26 150 C") is None                   # impossible day
+    assert option_expiry("AAPL") is None
+    assert option_expiry("") is None
+    assert option_expiry(None) is None
 
 
 # --- aggregate summary ---------------------------------------------------------

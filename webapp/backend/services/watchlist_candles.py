@@ -344,6 +344,14 @@ def _resolve_frames(tickers: list[str], pins: dict | None = None):
                     break
                 members, flat, readable = _panel_tickers(universe, identity)
                 facts["saw_readable"] = facts["saw_readable"] or readable
+                if not readable:
+                    # A failed schema read can never certify absence: without
+                    # the retryable fact this universe would count as a clean
+                    # membership denial and the ticker could aggregate to the
+                    # terminal "unknown_ticker" (_aggregate_status's contract).
+                    facts["read_failed"] = True
+                    facts["tried"].add(universe.key)
+                    continue
                 if flat:
                     frame, member, flat_readable = _read_flat_frame(
                         universe, ticker, identity)

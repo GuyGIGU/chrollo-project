@@ -31,6 +31,10 @@ _MIGRATIONS = [
     "ALTER TABLE trade_logs ADD COLUMN planned_stop FLOAT",
     "ALTER TABLE trade_logs ADD COLUMN conviction INTEGER",
     "ALTER TABLE trade_logs ADD COLUMN exit_reason TEXT",
+    # Folded in from the retired standalone webapp/backend/migrate.py (2026-08-20):
+    # models.py declares target_r, so create_all covers a FRESH db but never an
+    # existing one. Idempotent here like every other ADD ("duplicate column").
+    "ALTER TABLE trade_logs ADD COLUMN target_r FLOAT DEFAULT 3.0",
     "ALTER TABLE setup_archive ADD COLUMN r_anchor INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN s_anchor INTEGER",
     "ALTER TABLE setup_archive ADD COLUMN score_uptrend_bonus FLOAT",

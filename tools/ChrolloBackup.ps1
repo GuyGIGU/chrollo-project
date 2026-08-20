@@ -126,7 +126,20 @@ try {
         Write-Log "  note: no uploads directory yet, skipped"
     }
 
-    # 3) Small state files, all universes. The market_data_cache_5y*.parquet price
+    # 3) Frozen calibration frames (calibration_frames\<digest>.parquet). NOT a
+    #    cache: a mark binds to the exact bars it was drawn on by frame_digest,
+    #    and a lost frame can never be re-derived (a live re-fetch is different
+    #    bars). Small - ~3 MB - so it rides every snapshot whole.
+    $frames = Join-Path $Repo "calibration_frames"
+    if (Test-Path $frames) {
+        Copy-Item $frames (Join-Path $dest "calibration_frames") -Recurse
+        $n = (Get-ChildItem $frames -File).Count
+        Write-Log "  calibration frames: $n copied"
+    } else {
+        Write-Log "  note: no calibration_frames directory yet, skipped"
+    }
+
+    # 4) Small state files, all universes. The market_data_cache_5y*.parquet price
     #    caches are deliberately NOT backed up: they are re-downloadable (deleting
     #    one triggers a clean cold rebuild) and would bloat every snapshot.
     $stateFiles = @(Get-ChildItem -Path $Repo -File |
@@ -143,7 +156,7 @@ try {
         Select-Object -Skip 14 |
         Remove-Item -Recurse -Force
 
-    # 4) Off-disk mirror leg.
+    # 5) Off-disk mirror leg.
     if ($Mirror) {
         New-Item -ItemType Directory -Force -Path $Mirror | Out-Null
         Copy-Item $dest (Join-Path $Mirror $stamp) -Recurse -Force

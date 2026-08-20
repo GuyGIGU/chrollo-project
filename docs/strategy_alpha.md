@@ -462,7 +462,21 @@ forms inside it**, never sibling detectors (wire enums frozen forever):
 |---|---|---|
 | `terminal_valley` | LPS | the classic pullback that rests on its low |
 | `holding_shelf` | LPS — flat hold | the two-form doctrine's flat shelf, sanctioned only high in the structure |
-| `buec_shelf` | LPS above R | the `OVERSHOOT_R` window class — an LPS that forms ABOVE the old resistance, after price broke out and came back to rest on it; matured-cause bounded (the BBVA defense). The wire key is frozen; read it as "LPS above R" |
+| `buec_shelf` | LPS above R | the shallow-shelf form of the `OVERSHOOT_R` window class — an LPS that forms ABOVE the old resistance, after price broke out and came back to rest on it; matured-cause bounded (the BBVA defense). The wire key is frozen; read it as "LPS above R" |
+
+**Which R is "the old resistance"? The one belonging to the range the LPS rests on**
+(2026-08-13). An LPS is located INSIDE / above R / below S — its **zone class** — and that
+class is read against the rails of *the range that owns it*. When the right side tightens
+into a nested mini-range and the LPS is elected there, the nested range is a range in its
+own right: its own resistance is the level price broke out over and came back to rest on,
+so its rails are the ones the zone class means. The parent's rails are a different fact
+about a different object. This is a corollary of nesting being **temporal, not
+price-bounded** — a nested range may sit above the parent's R (treating it as its new
+support) or entirely inside the parent, and in the second case an LPS that is genuinely
+above the nested resistance sits *below* the parent's. Reading the class against the
+parent's rails there is a category error, not a violation: the two levels answer different
+questions, and only the owning range's answer types the event. The zone class is therefore
+never comparable to a rail the read was not taken against.
 
 The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): a window
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
@@ -557,7 +571,7 @@ The **only live consumer** is a bonus-only score term. Always on (folded 2026-07
 
 The Event Map ([engine_alpha/structure/event_map.py](../engine_alpha/structure/event_map.py), `read_swing_map`) widens the L2 staircase's calibrated swing skeleton from the elected box's window to the **whole evaluation frame**, so the pre-box trend and the box story are read on one substrate. It stands up no second skeleton: **one** order-1 pivot walk runs per frame, and each windowed view — the pre-box segment, the in-box staircase — is that walk's pivots filtered to its window and fed through the *same* staircase machinery (`_staircase_from_pivots`). The in-box view is **byte-identical** to `read_box_staircase` by construction; the widening only *adds* pre-box swings (including a pivot at the box-start bar itself, which the windowed walk's order margin masked). The two views are stitched, not re-collapsed: alternation and HH/HL/LH/LL labelling reset at the box-start seam — the price of keeping the in-box slice identical to the elected staircase — and the seam is a stated boundary, never an implicit one.
 
-Every swing carries the **causality stamps** the Event Map contract requires ([specs/event-map-causality-contract.md](../specs/event-map-causality-contract.md), binding for all Event Map work): `describes_bar` (the pivot bar) and `knowable_bar` — the first bar at whose close the swing was *irreversibly committed*, i.e. the bar that pivot-confirms the first opposite extreme whose counter-move reaches the collapse threshold. A swing whose committing reversal has not printed is `in_progress` and satisfies nothing downstream; the frame's first swing is `edge_uncertain` (its extremity depends on bars left of the live two-year trim). The label set "as of date D" is exactly the swings with `knowable_bar ≤ D` — what makes replay honest instead of quietly clairvoyant. One stated caveat: a *view* younger than three raw pivots emits nothing yet (the staircase's own degenerate-window guard), so a swing's first appearance can lag its `knowable_bar` at view birth — labels may appear late, but never change or vanish retroactively.
+Every swing carries the **causality stamps** the Event Map contract requires ([archive/specs/event-map-causality-contract.md](archive/specs/event-map-causality-contract.md), binding for all Event Map work): `describes_bar` (the pivot bar) and `knowable_bar` — the first bar at whose close the swing was *irreversibly committed*, i.e. the bar that pivot-confirms the first opposite extreme whose counter-move reaches the collapse threshold. A swing whose committing reversal has not printed is `in_progress` and satisfies nothing downstream; the frame's first swing is `edge_uncertain` (its extremity depends on bars left of the live two-year trim). The label set "as of date D" is exactly the swings with `knowable_bar ≤ D` — what makes replay honest instead of quietly clairvoyant. One stated caveat: a *view* younger than three raw pivots emits nothing yet (the staircase's own degenerate-window guard), so a swing's first appearance can lag its `knowable_bar` at view birth — labels may appear late, but never change or vanish retroactively.
 
 Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the story read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
 
@@ -689,7 +703,7 @@ RGR, SKYT, SYRE (S-poor profiles / respect-killed / universe classes).
 > election moves even though no *window* preferred the last-resort candidate. Measured
 > over the 332-setup payload: exactly **1 of 332** moves under the story pool (AMCX,
 > strict→story). This is **pre-existing design shared with the rescued pool** (same
-> per-root scope, not even flag-gated) and with `BAND_RAILS` (live since 2026-07-21 —
+> per-root scope, not even flag-gated) and with `BAND_RAILS` (live since 2026-07-16 —
 > CMPR band-elects this way *inside the payload* and passes the doctrine gate). **Do not
 > "fix" it with a two-pass walk:** simulated over the 12 live last-resort elections, that
 > reverses 2 of them — including CMPR's operator-accepted band election — so the
@@ -760,7 +774,8 @@ The reader walks the chart left to right and anchors by descent:
    > (live, bonus-only) event-story read. Applied post-election in BOTH the live reader
    > (`bricks.validate_equilibrium`) and the diagnostic mirror (`phase_b_zigzag` →
    > `detect_boxes`), so every path frames the same box. The operator eyeballed the
-   > A/B renders (`tools/fidelity/box_backext/`, `tools/box_backext_ab.py`) and the
+   > A/B renders (`tools/fidelity/box_backext/`, `tools/box_backext_ab.py` — tool
+   > retired 2026-07-18, 44f8293) and the
    > flag went LIVE 2026-07-03; the shadow baseline was re-captured at the flip; a
    > seeded backtest over cherry-picked setups remains the planned deeper validation.
    > The trace annotates the elected pair with

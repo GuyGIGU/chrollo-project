@@ -107,7 +107,8 @@ def test_compute_returns_caps_trigger_detection_at_60_forward_bars():
     )
 
     assert res["triggered"] == 0
-    assert "days_to_trigger" not in res
+    assert res["days_to_trigger"] is None
+    assert res["trigger_volume_ratio"] is None
     assert res["fwd_return_60d"] == 0
     assert res["barrier_label"] == "timeout"
 
@@ -233,6 +234,50 @@ def test_forward_returns_never_read_a_bar_at_or_before_scan(monkeypatch):
     assert saved.mae_20d == pytest.approx(-0.01)  # (99 - 100) / 100
     assert saved.triggered == 0                   # 120 trigger never hit by the 101 cap
     assert saved.barrier_label == "timeout"       # neither target nor stop reached forward
+    out_session.close()
+
+
+def test_trigger_flip_to_zero_clears_stale_pair(monkeypatch):
+    # A row stored as triggered with days_to_trigger / trigger_volume_ratio,
+    # recomputed against a tape that never reaches the trigger (e.g. after a
+    # price-scale repair), must clear ALL four trigger columns — not just the
+    # triggered/trigger_date half of the pair (EC-23).
+    import core.pipeline.downloads as downloads
+    from sqlalchemy.orm import sessionmaker
+
+    import archive_models
+    import database
+
+    ticker = "FLIPZ"
+    scan_date = "2026-03-02"
+    panel, _ = _planted_spike_panel(ticker, scan_date)
+
+    engine = database.make_sqlite_engine(":memory:")
+    archive_models.SetupArchive.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    session = Session()
+    row = archive_models.SetupArchive(
+        ticker=ticker, scan_date=scan_date, setup_type="LPS",
+        tier="A", score=100.0, s_level=95.0, trigger_price=120.0,
+        triggered=1, trigger_date="2026-03-05",
+        days_to_trigger=3, trigger_volume_ratio=1.5,
+    )
+    session.add(row)
+    session.commit()
+    session.close()
+
+    monkeypatch.setattr(database, "make_sqlite_engine", lambda _db_path: engine)
+    monkeypatch.setattr(downloads, "_batched_download", lambda *a, **k: panel)
+
+    updated = update_forward_returns(min_age_days=0, force=True)
+    assert updated == 1
+
+    out_session = sessionmaker(bind=engine, autoflush=False)()
+    saved = out_session.query(archive_models.SetupArchive).filter_by(ticker=ticker).one()
+    assert saved.triggered == 0
+    assert saved.trigger_date is None
+    assert saved.days_to_trigger is None
+    assert saved.trigger_volume_ratio is None
     out_session.close()
 
 

@@ -1,8 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { API_BASE } from '../api';
+import usePollingInterval from './usePollingInterval';
 
 /**
- * Polls /ibkr/status with adaptive interval:
+ * Polls /ibkr/status on the shared visibility-gated primitive, with adaptive
+ * interval:
  * - Normal (connected): pollMs (default 10s)
  * - Disconnected:       3s (detect reconnection faster)
  *
@@ -16,40 +18,16 @@ export default function useIBKRStatus(pollMs = 10000) {
     stale: false,
     daily_restart: false,
   });
-  const statusRef = useRef(status);
-  statusRef.current = status;
 
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId = null;
+  const fetchOnce = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/ibkr/status`);
+      if (!r.ok) return;
+      setStatus(await r.json());
+    } catch { /* ignore */ }
+  }, []);
 
-    const fetchOnce = async () => {
-      try {
-        const r = await fetch(`${API_BASE}/ibkr/status`);
-        if (!r.ok) return;
-        const j = await r.json();
-        if (!cancelled) {
-          setStatus(j);
-          // Reschedule with adaptive interval
-          reschedule(j.connected);
-        }
-      } catch { /* ignore */ }
-    };
-
-    const reschedule = (isConnected) => {
-      if (intervalId) clearInterval(intervalId);
-      const interval = isConnected ? pollMs : Math.min(pollMs, 3000);
-      intervalId = setInterval(fetchOnce, interval);
-    };
-
-    // Kick off the first fetch; reschedule() inside will set up the interval
-    fetchOnce();
-
-    return () => {
-      cancelled = true;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [pollMs]);
+  usePollingInterval(fetchOnce, status.connected ? pollMs : Math.min(pollMs, 3000));
 
   return status;
 }

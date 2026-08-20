@@ -38,9 +38,9 @@ import numpy as np
 import pandas as pd
 
 try:  # works under both `python -m tools.backtest_engine` and bare-script
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
 
 _PROJECT_ROOT = configure_path()
 
@@ -458,6 +458,10 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         json_path: Optional[str] = None,
         universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE) -> dict:
     _LINES.clear()
+    out = None
+    if json_path:
+        out = json_path if os.path.isabs(json_path) else os.path.join(_PROJECT_ROOT, json_path)
+        refuse_sealed_output(out)   # pre-flight: fail before the expensive pass (EC-14)
     # Stock-only standalone-edge population by default: the ETF universes now
     # archive under source='screener' too, so pin universe_type to keep this
     # calibration ground truth uncontaminated (mirrors services/engine_edge.py).
@@ -499,7 +503,6 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         "haircut": haircut, "missed_winners": missed,
     }
     if json_path:
-        out = json_path if os.path.isabs(json_path) else os.path.join(_PROJECT_ROOT, json_path)
         with open(out, "w", encoding="utf-8") as f:
             json.dump(structured, f, indent=2, default=str)
         print(f"\n[structured report written to {out}]")

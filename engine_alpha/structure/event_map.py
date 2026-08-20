@@ -21,7 +21,7 @@ the elected staircase), and each view's HH/HL/LH/LL labels start fresh at its
 own first swing. Consumers reading across the seam treat it as a boundary
 (causality contract §4: interval/seam conventions are stated, never implicit).
 
-Causality (specs/event-map-causality-contract.md — binding):
+Causality (docs/archive/specs/event-map-causality-contract.md — binding):
   * every swing carries ``describes_bar`` (its pivot bar) and ``knowable_bar`` —
     the first bar at whose close the swing was irreversibly committed: the bar
     that pivot-confirms the first opposite extreme whose counter-move off this

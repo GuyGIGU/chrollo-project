@@ -748,7 +748,7 @@ SETUP_QUALITY_W_COMPLETENESS = 0.70    # composite weight on completeness/4 (0..
 SETUP_QUALITY_W_CHRONOLOGY = 0.30      # composite weight on the chronology factor (weights sum to 1.0 -> composite in [0,1])
 SETUP_QUALITY_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=this, absent=0.0
 
-# ── Event Map — whole-chart event read (PLAN-event-tape.md, stage 1) ────────────
+# ── Event Map — whole-chart event read (docs/archive/PLAN-event-tape.md, stage 1) ─
 # Fire-path staging of the Event Map (core/structure/event_map.py): compute the
 # stamped mechanical swing map + the narrative-role labels for FIRING setups only,
 # reusing the elected bricks (spring/lps) — the story-read placement, dozens of
@@ -764,7 +764,7 @@ SETUP_QUALITY_CHRONO_PARTIAL = 0.50    # chronology factor: intact=1.0, partial=
 EVENT_MAP_ENABLED = True
 
 # ── Technical Analysis Score v2 (hybrid / dynamic, 0-100) ───────────────────────
-# Master flag for the Visual "Technical Analysis Score" rework (specs/ta-score-rework.md):
+# Master flag for the Visual "Technical Analysis Score" rework (docs/archive/specs/ta-score-rework.md):
 # folds the sub-scores AND the setup-tags into one hybrid 0-100 grade with the tier derived
 # from it, and demotes market regime (breadth + SPY) to an informational label. Same flag-OFF
 # discipline as the retired PUZZLE_SCORE_ENABLED / CANDLE_SPREAD_AWARE keys (folded 2026-07-18):
@@ -1289,7 +1289,7 @@ ALERT_ON_DEGRADED_FETCH = True    # also alert when a scan succeeds but its fetc
 # us_equities firing chain, assigns no score/tier/trigger, and writes nothing to
 # the archive. Read LAZILY inside functions (never at module import) to respect
 # the backend config-vs-cwd shadowing trap. See core/pipeline/health_board.py,
-# specs/market-sector-health-board.md, docs/health_board_state_audit.md.
+# docs/archive/specs/market-sector-health-board.md, docs/health_board_state_audit.md.
 #
 # Flipped live per operator request (commit "flip HEALTH_BOARD_ENABLED live"); the
 # board still only materializes once an ETF-universe scan regenerates its artifact with

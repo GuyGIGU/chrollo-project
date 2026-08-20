@@ -16,7 +16,6 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.routers.position_calculator import calculate_position
 from webapp.backend.routers import ibkr as ibkr_router
 from webapp.backend.routers import portfolio, portfolio_streams
 from webapp.backend.routers.archive_schemas import SetupOut
@@ -103,32 +102,30 @@ def test_calculate_journal_stats_summarizes_wins_losses_and_r_multiple():
     ])
 
     assert stats["total_pnl"] == 150
-    assert stats["win_rate"] == pytest.approx(33.33)
+    # Win rate reads CLOSED trades only (1 of 2) — the open pnl-NULL row is
+    # unjudged, not a loss; total_trades still counts it.
+    assert stats["win_rate"] == pytest.approx(50.0)
     assert stats["profit_factor"] == 4
     assert stats["r_multiple_total"] == 1
     assert stats["avg_win"] == 200
     assert stats["avg_loss"] == -50
     assert stats["winning_trades"] == 1
     assert stats["losing_trades"] == 1
+    assert stats["total_trades"] == 3
 
 
-def test_calculate_position_returns_size_from_risk_distance():
-    result = calculate_position(risk_amount=100, entry_price=20, stop_price=18)
+def test_calculate_journal_stats_survives_nulled_risk_fields():
+    # One row with pnl set but entry/stop/quantity NULL used to TypeError
+    # (None > 0) and 500 the stats endpoint forever after (EC-6).
+    stats = calculate_journal_stats([
+        trade(200, entry_price=None, stop_loss=None, quantity=None),
+        trade(-50, entry_price=20, stop_loss=19, quantity=50),
+        trade(None),
+    ])
 
-    assert result == {
-        "shares": 50,
-        "stop_distance": 2,
-        "position_size": 1000,
-    }
-
-
-@pytest.mark.parametrize(
-    ("risk_amount", "entry_price", "stop_price"),
-    [(0, 20, 18), (100, 0, 18), (100, 20, 20)],
-)
-def test_calculate_position_rejects_invalid_inputs(risk_amount, entry_price, stop_price):
-    with pytest.raises(HTTPException):
-        calculate_position(risk_amount=risk_amount, entry_price=entry_price, stop_price=stop_price)
+    assert stats["win_rate"] == pytest.approx(50.0)
+    assert stats["r_multiple_total"] == -1  # only the fully-specified row counts
+    assert stats["total_trades"] == 3
 
 
 def test_portfolio_routes_are_registered_after_split():

@@ -7,7 +7,7 @@ const TOKEN_FALLBACKS = {
   '--accent-purple': '#9B70F7',
   '--accent-yellow': '#D4B85A',
   '--border-strong': '#3B4159',
-  '--text-faint': '#6C7488',
+  '--text-faint': '#8A93A8',
 };
 
 const REGION_DEFS = {

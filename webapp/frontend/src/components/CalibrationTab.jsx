@@ -30,6 +30,7 @@ import {
   snapTrigger,
   trimDraftForAsOf,
 } from '../utils/calibrationMarking';
+import { fx } from '../utils/format';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -40,7 +41,6 @@ import {
 // (click-to-place rails, the per-setup rail, one-click engine test) sits on
 // this shell; this page deliberately owns all its state — nothing in
 // AppShell, no app-level context.
-const fx = (v, d) => ((v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d));
 
 const FAILURE_HINTS = {
   bad_ticker: 'Tickers are 1-10 chars: A-Z, 0-9, dot or dash.',

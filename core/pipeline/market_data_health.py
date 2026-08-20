@@ -12,7 +12,7 @@ from email.utils import parsedate_to_datetime
 import pandas as pd
 
 from config import settings
-from core.pipeline.cache import _cache_paths, _read_meta, _write_meta
+from core.pipeline.cache import _cache_paths, _read_meta, _weekly_refresh_due, _write_meta
 from core.pipeline.data_freshness import (
     CloseCoverage,
     close_coverage_on,
@@ -28,6 +28,41 @@ REPAIR_STATE_KEY = "repair_state"
 PROVIDER_RATE_LIMITED = "provider_rate_limited"
 SPARSE_SYMBOLS = "sparse_symbols"
 SYMBOL_LAGGING = "symbol_lagging"
+
+# The classifier's CLOSED health_state vocabulary (EC-33). Every consumer routes
+# through the derived groups below — never a re-typed subset — so adding a state
+# here forces a conscious grouping decision instead of a silent fail-open filter.
+HEALTH_STATES = (
+    "healthy",
+    "market_wait",
+    "session_lag",
+    "needs_repair",
+    "provider_cooldown",
+    "symbol_lagging",
+    "stale_session",
+    "shallow_history",
+    "regime_mismatch",
+)
+
+
+def _state_group(*names: str) -> frozenset:
+    unregistered = set(names) - set(HEALTH_STATES)
+    if unregistered:
+        raise ValueError(f"unregistered health_state(s): {sorted(unregistered)}")
+    return frozenset(names)
+
+
+# CURRENT-session coverage shortfalls: per-ticker archivable, so scan_job routes
+# them to degraded_coverage instead of aborting the archive outright.
+DEGRADED_COVERAGE_STATES = _state_group(
+    "needs_repair", "symbol_lagging", "provider_cooldown"
+)
+# A download-only refresh finishing in one of these never reached usable current
+# data, so the job must raise rather than exit "ok" (session_lag included: the
+# panel is readable, but this job exists to REACH the expected session).
+REFRESH_FAILURE_STATES = _state_group(
+    "stale_session", "shallow_history", "regime_mismatch", "session_lag"
+)
 
 
 @dataclass(frozen=True)
@@ -124,7 +159,6 @@ def compute_market_data_health(
     # this key was added to fix. The parameter stays for tests and for a caller that has
     # already computed it.
     if weekly_refresh_due is None:
-        from core.pipeline.downloads import _weekly_refresh_due  # noqa: PLC0415 — lazy, yfinance-heavy module
         weekly_refresh_due = _weekly_refresh_due(meta)
 
     # Price-regime guard — the SAME test fetch_data / _read_cached_market_data
@@ -218,6 +252,9 @@ def compute_market_data_health(
         cache_last_coverage=cache_last_coverage,
         lag_sessions=lag_sessions,
     )
+    # Registry tripwire (EC-33): a state _classify emits without joining
+    # HEALTH_STATES would silently fail open through every derived-group filter.
+    assert health_state in HEALTH_STATES, f"unregistered health_state: {health_state!r}"
 
     diagnosis = _diagnosis(
         health_state=health_state,

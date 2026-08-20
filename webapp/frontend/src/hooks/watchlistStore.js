@@ -10,7 +10,7 @@ import { API_BASE } from '../api';
 const CLIENT_HEADER = { 'X-Chrollo-Client': 'chrollo-dashboard' };
 
 const store = {
-  records: [],          // [{ticker, created_at, save_date, pinned, pin_scan_date}]
+  records: [],          // [{id, ticker, created_at, save_date, pinned, pin_scan_date, pin_universe_key}]
   activeSet: new Set(), // derived from records at every write — one truth
   // Load state so an empty records list is never ambiguous: 'idle' (never
   // asked) / 'loading' (first ask in flight) / 'ready' (a GET landed — an
@@ -96,6 +96,10 @@ export function fetchWatchlist() {
 // artifact; this is what-the-operator-clicked, never chart content).
 export function toggleWatchlist(ticker, saveContext = null) {
   mutationEpoch += 1;
+  // A newer toggle supersedes this one's SUCCESS reconcile (it would clobber
+  // the newer optimistic state); rollbacks always run — they only undo our
+  // own optimistic row.
+  const epochAtIssue = mutationEpoch;
   const wasOn = store.activeSet.has(ticker);
   if (wasOn) {
     const removed = store.records.find((r) => r.ticker === ticker);
@@ -111,6 +115,7 @@ export function toggleWatchlist(ticker, saveContext = null) {
         if (!response.ok) throw new Error(`watchlist delete ${response.status}`);
         // Reconcile from our own outcome, never assume the optimistic
         // removal survived intermediate writes.
+        if (epochAtIssue !== mutationEpoch) return;
         setRecords(store.records.filter((r) => r.ticker !== ticker));
       })
       .catch((error) => {
@@ -125,6 +130,7 @@ export function toggleWatchlist(ticker, saveContext = null) {
     // No id until the server answers — the row's shape must still match a real
     // one, so surfaces keying off `id` see "not yet" instead of undefined.
     id: null, ticker, created_at: null, save_date: null, pinned: false, pin_scan_date: null,
+    pin_universe_key: null,
   };
   setRecords([optimistic, ...store.records]);
   const hasContext = Boolean(saveContext && saveContext.universe);
@@ -145,6 +151,7 @@ export function toggleWatchlist(ticker, saveContext = null) {
       return response.json();
     })
     .then((item) => {
+      if (epochAtIssue !== mutationEpoch) return;
       // Upsert: replace the optimistic row, or prepend if it was clobbered.
       const rest = store.records.filter((r) => r.ticker !== ticker);
       setRecords([item, ...rest]);

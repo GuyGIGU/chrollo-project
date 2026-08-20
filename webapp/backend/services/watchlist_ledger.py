@@ -269,22 +269,34 @@ def weekly_review(db: Session, limit_weeks: int) -> list[dict]:
     every save has a home; ``saved_at`` is audit-only and never a grouping key
     (EC-37). Includes un-starred history — that is the point of the ledger.
     """
-    rows = db.query(models.Watchlist).all()
+    # Group on the light identity columns only: snapshot_json runs up to 256KB
+    # a row, and the week cap drops most rows — hydrating every snapshot to
+    # serve limit_weeks of grouping is the exact cost this two-phase read avoids.
+    keys = db.query(models.Watchlist.id, models.Watchlist.pin_scan_date,
+                    models.Watchlist.save_date).all()
+
+    weeks: dict[str, list[int]] = {}
+    for row_id, pin_scan_date, save_date in keys:
+        date = pin_scan_date or save_date
+        try:
+            key = iso_week_monday(date)
+        except ValueError:
+            key = date  # degrade: the raw string is its own bucket
+        weeks.setdefault(key, []).append(row_id)
+
+    served_weeks = sorted(weeks, reverse=True)[:limit_weeks]
+    wanted = [row_id for week in served_weeks for row_id in weeks[week]]
+    rows = {row.id: row for row in db.query(models.Watchlist)
+            .filter(models.Watchlist.id.in_(wanted)).all()} if wanted else {}
 
     def group_date(row: models.Watchlist) -> str:
         return row.pin_scan_date or row.save_date
 
-    weeks: dict[str, list] = {}
-    for row in rows:
-        try:
-            key = iso_week_monday(group_date(row))
-        except ValueError:
-            key = group_date(row)  # degrade: the raw string is its own bucket
-        weeks.setdefault(key, []).append(row)
-
     out = []
-    for week_start in sorted(weeks, reverse=True)[:limit_weeks]:
-        members = sorted(weeks[week_start], key=lambda r: r.ticker)
+    for week_start in served_weeks:
+        # A row hard-deleted between the two reads simply drops out.
+        members = [rows[i] for i in weeks[week_start] if i in rows]
+        members.sort(key=lambda r: r.ticker)
         members.sort(key=group_date, reverse=True)  # newest day first, A-Z within
         out.append({
             "week_start": week_start,
