@@ -3,17 +3,20 @@ import { Link } from 'react-router-dom';
 import HomeZone from './HomeZone';
 import { JournalIcon } from '../NavIcons';
 import EquityCurve from '../EquityCurve';
+import { finiteOrNull, fmtInt } from '../../utils/format';
 
 // Journal Pulse — a live read of the realized book: the equity curve plus the
 // four figures that frame it. Reuses EquityCurve (self-fetching) and the
 // shell-owned /stats payload; this tile never recomputes outcomes, it formats.
 const money = (v) => {
-  if (v == null || !Number.isFinite(Number(v))) return '—';
-  const n = Number(v);
-  const sign = n < 0 ? '−' : '';
-  return `${sign}$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const n = finiteOrNull(v);
+  if (n == null) return '—';
+  return `${n < 0 ? '−' : ''}$${fmtInt(Math.abs(n))}`;
 };
-const pct1 = (v) => (Number.isFinite(Number(v)) ? `${Number(v).toFixed(1)}%` : '—');
+const pct1 = (v) => {
+  const n = finiteOrNull(v);
+  return n == null ? '—' : `${n.toFixed(1)}%`;
+};
 
 export default function JournalPulseZone({ stats, trades }) {
   const link = <Link className="home-zone-link" to="/dashboard">Open Journal →</Link>;

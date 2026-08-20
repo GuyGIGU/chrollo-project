@@ -13,7 +13,7 @@ export const CHART_FONT = "'JetBrains Mono', monospace";
 
 export const CHART_COLORS = {
   success: '#3DD37A', // DESIGN.md --success
-  danger: '#F26770', // DESIGN.md --danger
+  danger: '#DE6E78', // DESIGN.md --danger
   accent: '#5b8aff', // DESIGN.md --accent-blue
   rail: '#2457b8', // R/S box rails (card + modal, by construction)
   innerRail: '#5f8fe6', // inner-box rails
@@ -27,6 +27,10 @@ export const CHART_COLORS = {
   operator: '#9B70F7', // COMMITTED operator marks — canvas mirror of CSS --operator (calibration ground truth; never an engine-read color)
   trigger: '#E8863C', // operator BUY glyph: the LPS-high breakout entry — canvas mirror of CSS --trigger; warm, distinct from LPS gold
   asOfLine: 'rgba(148, 158, 178, 0.55)', // faint vertical divider at the as-of session (observed <= as-of | forward > as-of); neutral, never a rail color
+  indexUp: '#5fb882', // market-strip index bars, green/red by direction (Finviz convention)
+  indexDown: '#ee6352',
+  sma50: '#f0a35e', // 50-day moving-average overlay
+  sma200: '#7c8cf8', // 200-day moving-average overlay
 };
 
 // Per-surface skins: background/text/grid/border/fontSize. Four deliberate

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE } from '../api';
+import { toast } from '../components/ui/feedback';
 import { SOURCE_FILTERS } from '../utils/archiveTabUtils';
 
 export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilter, typeFilter }) {
@@ -67,15 +68,20 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
 
   const updateSetupLabel = useCallback(async (id, label) => {
     try {
-      await fetch(`${API_BASE}/archive/setups/${id}/label`, {
+      const response = await fetch(`${API_BASE}/archive/setups/${id}/label`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quality_label: label }),
       });
+      if (!response.ok) {
+        toast(`Label save failed (HTTP ${response.status})`, { tone: 'danger' });
+        return;
+      }
       setSetups(previous => previous.map(setup =>
         setup.id === id ? { ...setup, quality_label: label } : setup));
     } catch (error) {
       console.error('Failed to update label:', error);
+      toast('Label save failed — network error.', { tone: 'danger' });
     }
   }, []);
 

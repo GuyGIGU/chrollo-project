@@ -4,6 +4,7 @@ import {
   statusText,
 } from '../utils/calibrationMarking';
 import { CHART_FONT } from './chartTheme';
+import { fx } from '../utils/format';
 
 // The marking drawer for the calibration page (Task 11): placement tools, the
 // live draft readout, and the one status line that says what the next click
@@ -11,7 +12,6 @@ import { CHART_FONT } from './chartTheme';
 // tool never shifts the chart pane. All state lives in the parent's
 // markingReducer — this is a dumb strip. Every setup is a box (the operator
 // only pulls up real structure), so there is no verdict selector.
-const fx = (v, d) => ((v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(d));
 
 // Individual R and S tools (operator ask 2026-07-11): each click records the
 // rail price AND the swing bar it was placed on (the anchor), and the box

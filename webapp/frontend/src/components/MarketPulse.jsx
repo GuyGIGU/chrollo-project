@@ -3,8 +3,9 @@ import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
 import { buildCloseSma } from './chartIndicators';
 import { CHART_FRAMING, marketFetchDays, marketFocusLogicalRange } from './chartGeometry';
-import { baseChartOptions } from './chartTheme';
+import { CHART_COLORS, baseChartOptions } from './chartTheme';
 import { API_BASE } from '../api';
+import { finiteOrNull } from '../utils/format';
 import { STATE_META } from './marketRegimeFormat';
 
 // The market read as three side-by-side index panes (Finviz's strip), not one
@@ -26,10 +27,13 @@ const VISIBLE_BARS = MARKET.visibleBars;
 // overlay read as a data bug. chartGeometry.test.js pins the relationship.
 const DAYS = marketFetchDays(VISIBLE_BARS, MARKET.smaWarmupBars);
 
-const SMA50 = { color: '#f0a35e', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
-const SMA200 = { color: '#7c8cf8', lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
+const SMA50 = { color: CHART_COLORS.sma50, lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
+const SMA200 = { color: CHART_COLORS.sma200, lineWidth: 1, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
 
-const signed = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}%`);
+const signed = (v) => {
+  const n = finiteOrNull(v);
+  return n == null ? '—' : `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`;
+};
 const chgColor = (v) => (v == null ? 'var(--text-faint)' : v >= 0 ? 'var(--success)' : 'var(--danger)');
 
 const chartOptions = (container) => {
@@ -48,7 +52,7 @@ const chartOptions = (container) => {
 
 // Bars colored green/red by direction (Finviz convention), matching the
 // backend's green/red volume tint already returned by /market-data/chart.
-const barOptions = { upColor: '#5fb882', downColor: '#ee6352', thinBars: false, lastValueVisible: true, priceLineVisible: false };
+const barOptions = { upColor: CHART_COLORS.indexUp, downColor: CHART_COLORS.indexDown, thinBars: false, lastValueVisible: true, priceLineVisible: false };
 
 // ONE sequential orchestrator for the whole strip. The provider's candle path is
 // not thread-safe across concurrent symbol downloads, so panes must NEVER fetch

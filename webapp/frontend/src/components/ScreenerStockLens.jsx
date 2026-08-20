@@ -20,9 +20,10 @@ import {
 import { API_BASE } from '../api';
 import { fx, fmtDateShort } from '../utils/format';
 
-const pct = (value, digits = 1) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `${Number(value).toFixed(digits)}%`
-);
+const pct = (value, digits = 1) => {
+  const fixed = fx(value, digits, null);
+  return fixed == null ? '-' : `${fixed}%`;
+};
 
 const finiteNumber = (value) => {
   if (value == null || value === '') return null;
@@ -261,7 +262,7 @@ function ReadVerdictControl({ ticker, scanIdentity }) {
       .then((response) => { if (!response.ok) throw new Error(`read-verdict POST ${response.status}`); })
       .catch((error) => {
         console.error(`Read verdict failed for ${ticker}, reverting`, error);
-        toast(`Read verdict for ${ticker} didn't save — reverted`, { tone: 'error' });
+        toast(`Read verdict for ${ticker} didn't save — reverted`, { tone: 'danger' });
         if (identityRef.current !== identity) return;   // paged away: never paint the old ticker's state here
         setVerdict(previous);
         setNote(previousNote);

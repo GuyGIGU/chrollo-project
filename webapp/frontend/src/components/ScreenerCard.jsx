@@ -19,7 +19,7 @@ export function WatchlistButton({ active, onToggle }) {
         background: 'rgba(20,23,33,0.7)',
         border: '1px solid var(--border-color)',
         borderRadius: 5,
-        color: active ? '#e3b341' : '#6b6b7a',
+        color: active ? 'var(--accent-yellow)' : 'var(--text-faint)',
         cursor: 'pointer',
         fontFamily: 'inherit',
         fontSize: 11,
@@ -85,7 +85,7 @@ const tierBadgeStyle = (tier) => ({
 // One timeframe's read: trend arrow (color = up/down/neutral), the structural
 // state (re-accum / consol+phase / stage-2 / —), and a nesting mark when the
 // daily base sits inside this timeframe's box. Re-accumulation is the premium
-// case, so it takes the S-tier amber. Rendered compact on the card's meta row.
+// case, so it takes the categorical gold. Rendered compact on the card's meta row.
 function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
   const trend = htfTrendArrow(trendState);
   const { label: state, tone: stateCol } = htfStateLabel({ stage2, trendState, inConsol, phase, reaccum });
@@ -106,7 +106,7 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
       <span style={{ color: 'var(--text-faint)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>
       <span style={{ color: trend.col, fontSize: 13, lineHeight: 1 }}>{trend.sym}</span>
       <span style={{ color: stateCol, fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{state}</span>
-      {nested ? <span style={{ color: '#ff9f43', fontSize: 13, lineHeight: 1 }}>⊂</span> : null}
+      {nested ? <span style={{ color: 'var(--accent-yellow)', fontSize: 13, lineHeight: 1 }}>⊂</span> : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { API_BASE } from '../api';
+import { toast } from '../components/ui/feedback';
 import { inferDirection } from '../utils/tradeUtils';
 import { parseActions, summarizeFillLedger, todayIso } from '../utils/tradeTableUtils';
 
@@ -8,17 +9,16 @@ export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }
   const [fillsBuffer, setFillsBuffer] = useState({});
 
   const toggleExpand = (tradeId) => {
+    // Seed outside the updater — React updaters must stay pure (a strict-mode
+    // double invocation would seed twice).
+    const opening = !expandedFills.has(tradeId);
     setExpandedFills(previous => {
       const next = new Set(previous);
-      if (next.has(tradeId)) {
-        next.delete(tradeId);
-        return next;
-      }
-
-      next.add(tradeId);
-      seedFills(tradeId);
+      if (opening) next.add(tradeId);
+      else next.delete(tradeId);
       return next;
     });
+    if (opening) seedFills(tradeId);
   };
 
   const seedFills = (tradeId) => {
@@ -106,9 +106,14 @@ export default function useTradeFills({ commitTradeCell, onTradeUpdate, trades }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (response.ok) onTradeUpdate?.();
+      if (response.ok) {
+        onTradeUpdate?.();
+      } else {
+        toast(`Fills save failed (HTTP ${response.status})`, { tone: 'danger' });
+      }
     } catch (error) {
       console.error('Fills save failed:', error);
+      toast('Fills save failed — network error.', { tone: 'danger' });
     }
   };
 

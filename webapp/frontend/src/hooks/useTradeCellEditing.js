@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { API_BASE } from '../api';
+import { toast } from '../components/ui/feedback';
 import { inferDirection } from '../utils/tradeUtils';
 import { EDITABLE_FIELDS, emptyDraft } from '../utils/tradeTableUtils';
 
@@ -21,7 +22,7 @@ export default function useTradeCellEditing({ draftRow, onTradeUpdate, setDraftR
     const next = { ...(draftRow || emptyDraft()), [field]: raw };
     setDraftRow(next);
     const ready = next.ticker && next.entry_price && next.stop_loss && next.quantity && next.opening_date;
-    if (!ready) return;
+    if (!ready) return true;
 
     try {
       const quantity = parseInt(next.quantity, 10);
@@ -42,15 +43,19 @@ export default function useTradeCellEditing({ draftRow, onTradeUpdate, setDraftR
       if (response.ok) {
         setDraftRow(null);
         onTradeUpdate?.();
+        return true;
       }
+      toast(`Trade save failed (HTTP ${response.status})`, { tone: 'danger' });
     } catch (error) {
       console.error('Draft save failed:', error);
+      toast('Trade save failed — network error.', { tone: 'danger' });
     }
+    return false;
   }, [draftRow, onTradeUpdate, setDraftRow]);
 
   const commitTradeCell = useCallback(async (trade, field, raw) => {
     const value = coerceTradeValue(field, raw);
-    if (value == null || trade[field] === value) return;
+    if (value == null || trade[field] === value) return true;
 
     try {
       const body = { [field]: value };
@@ -64,24 +69,34 @@ export default function useTradeCellEditing({ draftRow, onTradeUpdate, setDraftR
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (response.ok) onTradeUpdate?.();
+      if (response.ok) {
+        onTradeUpdate?.();
+        return true;
+      }
+      toast(`Cell save failed (HTTP ${response.status})`, { tone: 'danger' });
     } catch (error) {
       console.error('Cell save failed:', error);
+      toast('Cell save failed — network error.', { tone: 'danger' });
     }
+    return false;
   }, [onTradeUpdate]);
 
+  // Optimistic close: the cell exits edit mode immediately, but a failed write
+  // restores the draft so the operator's keystrokes are never silently lost.
   const handleCellCommit = async () => {
-    if (!editingCell) return;
+    if (!editingCell) return true;
     const { rowId, field } = editingCell;
     const raw = cellDraft;
     cancelEdit();
+    let committed = true;
     if (rowId === 'draft') {
-      await commitDraftCell(field, raw);
-      return;
+      committed = await commitDraftCell(field, raw);
+    } else {
+      const trade = trades.find(item => item.id === rowId);
+      if (trade) committed = await commitTradeCell(trade, field, raw);
     }
-
-    const trade = trades.find(item => item.id === rowId);
-    if (trade) await commitTradeCell(trade, field, raw);
+    if (!committed) beginEdit(rowId, field, raw);
+    return committed;
   };
 
   const handleCellKey = (event) => {
@@ -103,8 +118,8 @@ export default function useTradeCellEditing({ draftRow, onTradeUpdate, setDraftR
     const nextField = event.shiftKey
       ? EDITABLE_FIELDS[Math.max(0, index - 1)]
       : EDITABLE_FIELDS[Math.min(EDITABLE_FIELDS.length - 1, index + 1)];
-    handleCellCommit().then(() => {
-      if (nextField && nextField !== field) beginEdit(rowId, nextField, getCellValue(rowId, nextField, draftRow, trades));
+    handleCellCommit().then((committed) => {
+      if (committed && nextField && nextField !== field) beginEdit(rowId, nextField, getCellValue(rowId, nextField, draftRow, trades));
     });
   };
 

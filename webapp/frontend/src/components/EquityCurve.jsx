@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 import { API_BASE } from '../api';
+import { fx } from '../utils/format';
 
-const fmt$ = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '-' : `$${Number(value).toFixed(2)}`
-);
+const fmt$ = (value) => {
+  const fixed = fx(value, 2, null);
+  return fixed == null ? '-' : `$${fixed}`;
+};
 
 export default function EquityCurve() {
   const [data, setData] = useState([]);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE } from '../api';
+import usePollingInterval from './usePollingInterval';
 
 function useDashboardData() {
   const [trades, setTrades] = useState([]);
@@ -50,15 +51,11 @@ function useDashboardData() {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchScanStatus();
-    fetchHealth();
-    const scanStatusTimer = window.setInterval(fetchScanStatus, 60000);
-    const healthTimer = window.setInterval(fetchHealth, 60000);
-    return () => {
-      window.clearInterval(scanStatusTimer);
-      window.clearInterval(healthTimer);
-    };
-  }, [fetchDashboardData, fetchHealth, fetchScanStatus]);
+  }, [fetchDashboardData]);
+
+  // Visibility-gated pollers (immediate first tick covers the mount fetch).
+  usePollingInterval(fetchScanStatus, 60000);
+  usePollingInterval(fetchHealth, 60000);
 
   return {
     trades,

@@ -18,7 +18,7 @@ export const dailyChangeFrac = (candles) => {
 export const asOfDate = (candles) => fmtDateShort(candles?.[candles.length - 1]?.time, EMPTY);
 
 // One timeframe's structural state → { label, tone }, from the engine's
-// htf_{w,m}_* fields. Re-accumulation is the premium case (S-tier amber); a
+// htf_{w,m}_* fields. Re-accumulation is the premium case (categorical gold); a
 // worked box in progress is context blue; a bare Stage-2 uptrend is green.
 export function htfStateLabel({ stage2, trendState, inConsol, phase, reaccum }) {
   // Tier-Reserve (task 12): tier hues belong to tier badges ONLY. Re-accum

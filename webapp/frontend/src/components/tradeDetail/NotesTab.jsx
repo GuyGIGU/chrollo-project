@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '../../api';
+import { toast } from '../ui/feedback';
 import { btnPrimary, inputStyle, labelStyle, textareaStyle } from './styles';
 
 export default function NotesTab({ tradeId }) {
@@ -30,8 +31,15 @@ export default function NotesTab({ tradeId }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(note),
       });
-      if (res.ok) setSavedAt(new Date());
-    } catch { /* no-op */ }
+      if (res.ok) {
+        setSavedAt(new Date());
+      } else {
+        toast(`Notes save failed (HTTP ${res.status})`, { tone: 'danger' });
+      }
+    } catch (error) {
+      console.error('Notes save failed:', error);
+      toast('Notes save failed — network error.', { tone: 'danger' });
+    }
     setSaving(false);
   };
 

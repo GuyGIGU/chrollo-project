@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '../../api';
-import { fmtInt, fmtMoney } from '../../utils/tradeTableUtils';
+import { fmtInt } from '../../utils/tradeTableUtils';
+import { fmtNum } from '../../utils/format';
 
 export default function ExecutionsTab({ tradeId }) {
   const [rows, setRows] = useState([]);
@@ -88,9 +89,10 @@ export default function ExecutionsTab({ tradeId }) {
   );
 }
 
-const money = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '—' : `$${fmtMoney(value)}`
-);
+const money = (value) => {
+  const grouped = fmtNum(value, 2, null);
+  return grouped == null ? '—' : `$${grouped}`;
+};
 
 const finiteNumber = (value) => {
   if (value == null || value === '') return null;

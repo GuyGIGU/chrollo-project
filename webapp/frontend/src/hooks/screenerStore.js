@@ -1,4 +1,4 @@
-import { API_BASE } from '../api';
+import { API_BASE } from '../api.js';
 
 export const DEFAULT_UNIVERSE = 'us_stocks';
 
@@ -80,12 +80,19 @@ export function fetchScreenerUniverse(universe = DEFAULT_UNIVERSE, { fresh = fal
         return;
       }
       const data = await response.json();
+      const cached = store.byUniverse[u];
+      const sameGeneration = (cached?.scanned_at || null) === (data.scanned_at || null);
       // A new scan invalidates the earnings negative cache, so visible tickers
       // re-ask (the values stay on screen while they refresh).
-      if ((store.byUniverse[u]?.scanned_at || null) !== (data.scanned_at || null)) {
+      if (!sameGeneration) {
         store.requestedEarnings = new Set();
       }
-      store.byUniverse = { ...store.byUniverse, [u]: data };
+      // Reference identity is the frontend's rebuild currency (EC-41): a
+      // same-generation arrival keeps the OLD payload object so a no-change
+      // revalidate rebuilds zero charts.
+      if (!cached || !sameGeneration) {
+        store.byUniverse = { ...store.byUniverse, [u]: data };
+      }
       store.failed = { ...store.failed, [u]: false };
     } catch (error) {
       console.error('Failed to load screener data', error);
@@ -130,8 +137,16 @@ export function fetchScreenerEarnings(visibleTickers) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tickers: missing }),
   })
-    .then((response) => (response.ok ? response.json() : {}))
+    .then((response) => {
+      if (!response.ok) {
+        // A non-ok answer must not stick in the negative cache — re-ask later.
+        missing.forEach((ticker) => store.requestedEarnings.delete(ticker));
+        return null;
+      }
+      return response.json();
+    })
     .then((data) => {
+      if (!data) return;
       store.earnings = { ...store.earnings, ...data };
       emit();
     })

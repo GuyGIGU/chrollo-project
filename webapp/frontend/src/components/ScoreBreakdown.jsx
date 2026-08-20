@@ -1,9 +1,8 @@
 import { deriveScoreBreakdown } from './setupScoreMath';
 import { explainTip } from './tooltipText';
+import { fmtRound } from '../utils/format';
 
-const formatScore = (value) => (
-  value == null || !Number.isFinite(Number(value)) ? '--' : `${Math.round(Number(value))}`
-);
+const formatScore = (value) => fmtRound(value, '--');
 
 export function ScoreBreakdownPills({ subScores, className = '', style }) {
   const breakdown = deriveScoreBreakdown(subScores);

@@ -33,7 +33,7 @@ export const rMultipleColor = (value) => (
 // success token (not the tier-C green — different ladder).
 export const labelColor = (label) => ({
   perfect: 'var(--success)',
-  good: '#58a6ff',
+  good: 'var(--accent-blue)',
   noise: '#8b949e',
-  miss: '#c76b73',
+  miss: 'var(--danger)',
 }[label] || 'var(--text-muted)');
