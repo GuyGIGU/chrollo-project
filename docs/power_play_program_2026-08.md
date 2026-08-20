@@ -836,3 +836,73 @@ change-set. The load-bearing outcomes, each already recorded in its task section
 **Full gates after the fix program:** the entire suite + frontend trio green (the
 count is in the session's final gate log; the ratchet baseline was NOT recaptured —
 the frozen facts survived every arithmetic fix, verified, EC-29).
+
+---
+
+## The first-legal-look reserve correction (2026-08-20, MEASURED — operator-gated)
+
+The 2026-08-17 finding 4 above fixed half of the as-of consistency. The 2026-08-20
+council review (finding 3) found the other half: `first_legal_look` modelled the
+5-bar edge reserve correctly in its age WALLS (`+ skip` throughout) but then read the
+reaction's prefix state — has a confirming close printed, where does the reaction low
+stand — at bar `p`, the as-of the walk is STANDING on, instead of bar `p - skip`, the
+last bar the walk is allowed to ANCHOR on. It graded the walk on evidence the walk
+could not yet have seen.
+
+**The corrected invariant** (now stated in the function's own docstring): a walk
+standing on session `p` reads the reaction only through bar `p - skip`, clamped to the
+reaction window's last bar. Two consequences follow, and a third fell out of stating
+it: the terminal bound must also wait for the whole reaction window to clear the
+reserve (`j1 - 1 + skip`), because the old closed form could return a session on which
+the reaction had not confirmed at all.
+
+**Measured against the cache through 2026-08-19** (read-only; 5,548 frames, 13,882
+pole-qualified episodes; arithmetic-only, no elections):
+
+| clock | looks that move | direction | shift (sessions) | wall-state flips |
+|---|---|---|---|---|
+| 20 | 0 | — | — | 0 |
+| 15 | 0 | — | — | 0 |
+| 10 | 761 (5.5%) | all earlier | −10 … −14, median −12 | 36 |
+| **8** | **1,678 (12.1%)** | **all earlier** | **−8 … −14, median −11** | **106** |
+
+The default read is untouched — the divergence is a species-clock phenomenon exactly
+as the original note claimed, but larger than "identical at the default clock" implied
+for the short clocks. **The bias is one-directional on this corpus:** the late-watching
+direction (a low deepening inside the reserve) fires 1,678 times at clock 8; the
+early-watching direction (a confirming close inside the reserve) fires zero times, and
+the new terminal bound never binds. Both directions are pinned as tests anyway —
+`tests/test_first_legal_look.py`, whose oracle case adjudicates the answer against
+`collect_root_anchors` itself rather than against a restatement of its walls.
+
+**Adjudicated against the real seeder** (150 moved rows sampled, 75 adjudicable — the
+rest are blocked in the window by gates the model deliberately does not carry, the
+200-SMA trend gate above all): corrected **65/75 exact, 0 later than the seeder**;
+legacy **1/75 exact, 66 later than the seeder**. The old arithmetic was systematically
+telling the census the episode became watchable a fortnight after it actually did.
+
+**Census consequence at clock 8, complete (not sampled):** unmoved rows re-elect
+identically by construction, so the whole delta is the moved cohort — all 1,678 rows
+re-elected on both legs (268 s). 259 of 1,678 change verdict. `not_watched_clock`
+**107 → 12** (96 rows regain their looks). And the finding the ruling has to weigh:
+**`elected_episode` 5 → 0** — SIFY (2023-07-18), TSHA (2025-10-15), HERE (2024-10-07),
+OCUL (2023-02-15), LEE (2026-03-03) all lose their episode election at the corrected,
+earlier look, and **no row gains one**. Their fwd_20 was −17.7% / +39.9% / −12.3% /
++14.8% / −4.6% (2 of 5 winners, median −4.6%), so against the 2026-08-18 clock-8
+cohort (88 elected @ +2.7% median / 56% winners) the correction removes five names
+whose record was worse than the cohort's. It re-derives the evidence the clock-8
+ruling was made on; the ruling is the operator's to re-affirm.
+
+**Species register consequence today:** of 1,128 tickers carrying a filed episode,
+129 move their printed first-legal-look date and **12 change classification** — 9 that
+read `pending` (no record) now reach the universe gate and are refused there (still no
+record, different counter), and three filed rows move: **MGNX** `refused_clock` → no
+record, **QLYS** `refused_clock` → `refused_story` (2026-08-13 → 2026-07-27), **STRZ**
+`refused_clock` → `refused_occupancy` (2026-07-14 → 2026-06-25). None becomes
+`admitted_dark`.
+
+**The named specimens are immune, at every clock.** MAN: first legal look 2026-08-11,
+before its 2026-08-13 breakout, unchanged — the frozen `admitted_dark` fact stands.
+FTNT: 2026-06-26 at clock 8, unchanged. Gates green: 1,599 tests, doctrine audit PASS,
+`shadow_diff` no canonical drift, marks ratchet 28/33 held on the same fingerprint —
+the paying read does not move, this is species-lane and instrument arithmetic only.
