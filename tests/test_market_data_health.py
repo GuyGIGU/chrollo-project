@@ -9,9 +9,25 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from core.pipeline.market_data_health import (
+    DEGRADED_COVERAGE_STATES,
+    HEALTH_STATES,
+    REFRESH_FAILURE_STATES,
     compute_market_data_health,
     record_repair_attempt,
 )
+
+
+def test_health_state_groups_derive_from_the_registry():
+    """EC-33: the closed health_state vocabulary lives in ONE tuple; the routing
+    groups scan_job consumes are derived members, byte-identical to the hand-typed
+    sets they replaced. _state_group raises at import on an unregistered name, and
+    compute_market_data_health asserts every emitted state is a registry member."""
+    assert DEGRADED_COVERAGE_STATES <= set(HEALTH_STATES)
+    assert REFRESH_FAILURE_STATES <= set(HEALTH_STATES)
+    assert DEGRADED_COVERAGE_STATES == {"needs_repair", "symbol_lagging", "provider_cooldown"}
+    assert REFRESH_FAILURE_STATES == {
+        "stale_session", "shallow_history", "regime_mismatch", "session_lag"
+    }
 
 
 def _write_tagged_meta(meta_file, last_full_refresh="recent"):

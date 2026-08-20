@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 EPS = 1e-9
@@ -119,9 +120,15 @@ def _stop_value(raw: Any) -> Optional[float]:
 
 # --- symbol + direction --------------------------------------------------------
 
-_HUMAN_OPTION_RE = re.compile(r"^([A-Z.]+) \d{1,2}[A-Z]{3}\d{2} [\d.]+ [CP]$")
-_IBKR_LOCAL_OPTION_RE = re.compile(r"^([A-Z.]+) \d{6}[CP]\d{8}$")
-_OCC_OPTION_RE = re.compile(r"^([A-Z.]{1,6})\d{6}[CP]\d{8}$")
+_HUMAN_OPTION_RE = re.compile(r"^([A-Z.]+) (\d{1,2})([A-Z]{3})(\d{2}) [\d.]+ [CP]$")
+_IBKR_LOCAL_OPTION_RE = re.compile(r"^([A-Z.]+) (\d{6})[CP]\d{8}$")
+_OCC_OPTION_RE = re.compile(r"^([A-Z.]{1,6})(\d{6})[CP]\d{8}$")
+
+# Explicit month map (not strptime %b, which is locale-dependent).
+_OPTION_MONTHS = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+    "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
 
 
 def is_option_symbol(symbol: Any) -> bool:
@@ -136,6 +143,31 @@ def is_option_symbol(symbol: Any) -> bool:
         or _IBKR_LOCAL_OPTION_RE.fullmatch(value)
         or _OCC_OPTION_RE.fullmatch(compact)
     )
+
+
+def option_expiry(symbol: Any) -> Optional[date]:
+    """Expiry date parsed from an option symbol, or ``None`` (non-options too).
+
+    Recognizes the same three forms as ``is_option_symbol`` ("UNG 17JUL26 11 C",
+    IBKR local "UNG 260717C00011000", OCC compact); an impossible calendar date
+    degrades to ``None`` (unknown), never an exception.
+    """
+    if not symbol:
+        return None
+    value = re.sub(r"\s+", " ", str(symbol).strip().upper())
+    compact = re.sub(r"\s+", "", value)
+    try:
+        m = _HUMAN_OPTION_RE.fullmatch(value)
+        if m:
+            month = _OPTION_MONTHS.get(m.group(3))
+            return date(2000 + int(m.group(4)), month, int(m.group(2))) if month else None
+        m = _IBKR_LOCAL_OPTION_RE.fullmatch(value) or _OCC_OPTION_RE.fullmatch(compact)
+        if m:
+            digits = m.group(2)
+            return date(2000 + int(digits[:2]), int(digits[2:4]), int(digits[4:6]))
+    except ValueError:
+        return None
+    return None
 
 
 def infer_direction(trade: Dict[str, Any]) -> str:

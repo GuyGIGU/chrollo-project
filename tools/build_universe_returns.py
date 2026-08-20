@@ -34,9 +34,9 @@ import os
 import pandas as pd
 
 try:  # works under `python -m tools.build_universe_returns` and bare-script
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
 
 _PROJECT_ROOT = configure_path()
 
@@ -55,8 +55,9 @@ METRIC_COL = "mfe_20d"
 
 def _validate_out(out_path: str) -> str:
     """Refuse to clobber the live DB, the price cache, or anything under
-    webapp/backend; require .parquet."""
-    ap = os.path.abspath(out_path)
+    webapp/backend; require .parquet. Sealed-dir/corpus knowledge lives in
+    the ONE shared guard (EC-3/EC-14) — this adds only this tool's inputs."""
+    ap = os.path.abspath(refuse_sealed_output(out_path))
     base = os.path.basename(ap).lower()
     if base == "trading_journal.db":
         raise SystemExit("refusing: output must not be named trading_journal.db")

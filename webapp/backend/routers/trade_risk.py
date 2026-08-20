@@ -46,6 +46,15 @@ _PROVIDER_TTL_SECONDS = 10.0
 _provider_lock = threading.Lock()
 _provider_cache: Dict[str, Any] = {"at": 0.0, "key": None, "value": None}
 
+# Negative-result quarantine: a symbol the provider answered with NO quote
+# (delisted/unknown) is not re-asked on every ~20s poll — each miss costs two
+# yfinance ERROR log lines and multi-second latency, forever, for a symbol that
+# will never price. A miss re-qualifies after the TTL so a transient Yahoo
+# failure can't mute a live ticker for the whole session; options past their
+# expiry are skipped outright (they can never price again).
+_MISS_QUARANTINE_SECONDS = 3600.0
+_miss_cache: Dict[str, float] = {}  # SYMBOL -> monotonic time of the last miss
+
 # Mirror read_trades' implicit bound — a personal journal, not an unbounded table.
 _OPEN_TRADE_LIMIT = 500
 
@@ -206,9 +215,13 @@ def _ibkr_price_map() -> tuple[Dict[str, tuple], bool]:
 
 def _provider_price_map(missing: List[str]) -> Dict[str, tuple]:
     """TTL-coalesced yfinance fallback for tickers the snapshot didn't price.
-    Skipped while a scan holds the provider. Returns a COPY so callers can't
+    Skipped while a scan holds the provider; expired-option and quarantined
+    symbols are filtered out before the fetch. Returns a COPY so callers can't
     mutate the shared cache."""
-    if not missing or _scan_is_running():
+    if _scan_is_running():
+        return {}
+    missing = [symbol for symbol in missing if _provider_askable(symbol)]
+    if not missing:
         return {}
     key = ",".join(missing)
     now = time.monotonic()
@@ -225,6 +238,17 @@ def _provider_price_map(missing: List[str]) -> Dict[str, tuple]:
     return dict(value)
 
 
+def _provider_askable(symbol: str) -> bool:
+    """False for symbols the provider must not be asked: an option past its
+    expiry can never price again; a recent no-quote miss waits out the TTL."""
+    expiry = risk_math.option_expiry(symbol)
+    if expiry is not None and expiry < datetime.now(timezone.utc).date():
+        return False
+    with _provider_lock:
+        missed_at = _miss_cache.get(symbol)
+    return missed_at is None or (time.monotonic() - missed_at) >= _MISS_QUARANTINE_SECONDS
+
+
 def _fetch_provider_prices(missing: List[str]) -> Dict[str, tuple]:
     result: Dict[str, tuple] = {}
     try:
@@ -232,12 +256,23 @@ def _fetch_provider_prices(missing: List[str]) -> Dict[str, tuple]:
 
         quotes = get_provider().latest_price(missing) or {}
     except Exception:
+        # Whole-call failure = transient (network/import); don't quarantine.
         _log.warning("trade-risk: provider latest_price failed for %d ticker(s)", len(missing), exc_info=True)
         return result
     for ticker in missing:
         price = _positive_finite(quotes.get(ticker))
         if price is not None:
             result[ticker] = (price, "yf")
+    misses = [ticker for ticker in missing if ticker not in result]
+    if misses:
+        now = time.monotonic()
+        with _provider_lock:
+            for ticker in misses:
+                _miss_cache[ticker] = now
+        _log.info(
+            "trade-risk: no provider quote for %s; quarantined for %.0f min",
+            ",".join(misses), _MISS_QUARANTINE_SECONDS / 60,
+        )
     return result
 
 

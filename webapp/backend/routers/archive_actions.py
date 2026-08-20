@@ -13,6 +13,7 @@ from archive_models import SetupArchive
 from database import get_db
 from routers.archive_schemas import ManualSetupIn, SetupOut
 from services.archive_queries import archive_row_from_result
+from services.scan_runner import SCAN_LOCK
 
 router = APIRouter(tags=["archive"])
 
@@ -44,6 +45,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.downloads import _batched_download, price_auto_adjust
+    from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
     from engine_alpha.freeze.manifest import manifest_hash
     from engine_alpha.structure.power_play import power_play_archive_values
     from engine_alpha.scoring.scoring import (
@@ -51,6 +53,9 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         ta_grade_archive_values,
     )
     from engine_alpha.structure.htf import htf_archive_values
+    from engine_alpha.structure.event_map import event_map_archive_values
+    from engine_alpha.structure.strategy_read import strategy_archive_values
+    from engine_alpha.structure.trace_export import election_trace_archive_values
     from archive_models import (
         SetupArchive,
         get_market_context,
@@ -85,9 +90,12 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail=f"invalid scan_date: {scan_dt}")
 
+    # Manual adds run the single-ticker equities pipeline, so the existence
+    # check must match the widened 3-col identity key (conventions.md EC-4) —
+    # a same-day ETF/sector screener row is a different identity, not a dup.
     existing = (
         db.query(SetupArchive)
-        .filter_by(ticker=ticker, scan_date=scan_dt)
+        .filter_by(ticker=ticker, scan_date=scan_dt, universe_type=DEFAULT_UNIVERSE_TYPE)
         .first()
     )
     if existing:
@@ -166,6 +174,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     overrides = {
         "ticker": ticker,
         "scan_date": scan_dt,
+        "universe_type": DEFAULT_UNIVERSE_TYPE,  # single-ticker manual add = equities scope (EC-4)
         "setup_type": result["setup_type"],
         "tier": result["tier"],
         "score": result["score"],
@@ -220,6 +229,13 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "notes": payload.notes,
         # HTF (higher-timeframe) context splat — seed result, unprefixed keys
         **htf_archive_values(result.get, prefixed=False),
+        # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off (EC-30:
+        # the family producer rides EVERY writer, same shape as the seed path)
+        **event_map_archive_values(result.get, prefixed=False),
+        # Election-trace evidence — NULL when the export flag is off
+        **election_trace_archive_values(result.get, prefixed=False),
+        # Strategy read (held-through-correction) — NULL when dark
+        **strategy_archive_values(result.get, prefixed=False),
         # Forward-return / triple-barrier outcomes computed above
         **fwd_returns,
     }
@@ -285,22 +301,37 @@ def get_archive_analysis(
 @router.post("/update-returns")
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""
+    # forward_returns writes the archive DB — same one-child-at-a-time
+    # guarantee as the scan jobs (services/scan_runner.py).
+    if not SCAN_LOCK.acquire(blocking=False):
+        raise HTTPException(
+            status_code=409,
+            detail="another scan or data job is already running",
+        )
     try:
         script = os.path.join(_ROOT_DIR, "core", "archive", "forward_returns.py")
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
             [sys.executable, script],
             cwd=_ROOT_DIR,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=300,
             creationflags=flags,
+            env=env,
         )
         return {
-            "status": "ok",
+            "status": "ok" if result.returncode == 0 else "error",
             "stdout": result.stdout[-2000:] if result.stdout else "",
             "stderr": result.stderr[-500:] if result.stderr else "",
             "returncode": result.returncode,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        SCAN_LOCK.release()

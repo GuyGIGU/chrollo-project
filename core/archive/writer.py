@@ -32,18 +32,23 @@ log = logging.getLogger("chrollo.archive")
 _SECTOR_ETF_CACHE_PATH = os.path.join(_PROJECT_ROOT, "output", "sector_etf_cache.json")
 
 
-def _load_sector_etf_cache() -> dict:
+def load_sector_etf_cache(path: str = _SECTOR_ETF_CACHE_PATH) -> dict:
+    """Read the ticker -> sector-ETF map. Any unreadable/garbage file reads as
+    empty (the cache is regenerable). Shared with output/dashboard.py, which
+    passes its own path constant."""
     try:
-        with open(_SECTOR_ETF_CACHE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        with open(path, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+        return cache if isinstance(cache, dict) else {}
     except Exception:
         return {}
 
 
-def _save_sector_etf_cache(cache: dict) -> None:
+def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> None:
+    """Persist the map best-effort; a failed write only costs a re-lookup."""
     try:
-        os.makedirs(os.path.dirname(_SECTOR_ETF_CACHE_PATH), exist_ok=True)
-        with open(_SECTOR_ETF_CACHE_PATH, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(cache, f)
     except Exception:
         pass
@@ -300,7 +305,7 @@ def archive_scan_results(
     from sqlalchemy.orm import sessionmaker
 
     import yfinance as yf
-    from archive_models import SetupArchive, get_market_context, get_sector_etf, get_sector_trend
+    from archive_models import SetupArchive, get_market_context, get_sector_trend, resolve_sector_etf
     from core.pipeline.universe import resolve_universe
     from database import make_sqlite_engine
 
@@ -378,15 +383,17 @@ def archive_scan_results(
     rows = [r for _, r in results_df.iterrows() if r.get("Ticker")]
 
     print("  Resolving sector ETFs...", flush=True)
-    sector_etf_cache = _load_sector_etf_cache()       # ticker -> "XLK" | "" (persisted)
+    sector_etf_cache = load_sector_etf_cache()        # ticker -> "XLK" | "" (persisted)
     newly_resolved = False
     for r in rows:
         tk = str(r.get("Ticker"))
         if tk not in sector_etf_cache:
-            sector_etf_cache[tk] = get_sector_etf(tk) or ""
-            newly_resolved = True
+            ok, etf = resolve_sector_etf(tk)
+            if ok:  # cache ONLY completed lookups ("" = unmapped); a failure retries next scan
+                sector_etf_cache[tk] = etf
+                newly_resolved = True
     if newly_resolved:
-        _save_sector_etf_cache(sector_etf_cache)
+        save_sector_etf_cache(sector_etf_cache)
 
     unique_etfs: set[str] = set()
     starts: list[str] = []

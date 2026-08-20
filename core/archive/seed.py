@@ -55,7 +55,7 @@ log = logging.getLogger("chrollo.seed")
 # ──────────────────────────────────────────────────────────────────
 
 SEED_SETUPS: list[tuple[str, str]] = [
-    # ─── Batch 1: From backtest_watchlist (watchlist added dates) ───
+    # ─── Batch 1: From the operator's watchlist (watchlist added dates) ───
     ("DIBS", "2026-04-14"),
     ("ALB",  "2026-04-13"),
     ("DLX",  "2026-04-13"),

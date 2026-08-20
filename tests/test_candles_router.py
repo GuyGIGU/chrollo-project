@@ -160,6 +160,21 @@ def test_torn_panel_degrades_no_cache(panels):
     assert env["status"] == "no_cache"
 
 
+def test_torn_panel_beside_readable_panel_stays_retryable(panels):
+    # ONE universe torn mid-rewrite while another is readable and denies
+    # membership: the failed schema read can never certify absence, so the
+    # RETRYABLE verdict must win — never the terminal "unknown_ticker"
+    # (_aggregate_status's precedence contract).
+    _seed_default(panels)  # us_stocks readable, holds only TAA
+    for universe in universe_mod.all_universes():
+        if universe.key == "us_stocks":
+            continue
+        panel, _meta = _paths(panels, universe.key)
+        panel.write_bytes(b"this is not a parquet file")
+    env = wc.ticker_candles("ZZZ")
+    assert env["status"] == "no_cache"
+
+
 def test_all_nan_history_degrades_no_drawable_bars(panels):
     dead = _ohlcv() * np.nan
     _seed_default(panels, frames={"TAA": _ohlcv(), "TDD": dead})

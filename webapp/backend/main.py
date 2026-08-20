@@ -29,7 +29,6 @@ from routers import journal as journal_router
 from routers import market_data as market_data_router
 from routers import portfolio as portfolio_router
 from routers import portfolio_streams as portfolio_streams_router
-from routers import position_calculator as position_calculator_router
 from routers import prices as prices_router
 from routers import screener as screener_router
 from routers import tags as tags_router
@@ -120,7 +119,6 @@ app.include_router(archive_router.router)
 app.include_router(watchlist_router.router)
 app.include_router(calibration_router.router)
 app.include_router(ibkr_router.router)
-app.include_router(position_calculator_router.router)
 app.include_router(trades_router.router)
 app.include_router(trade_risk_router.router)
 app.include_router(screener_router.router)

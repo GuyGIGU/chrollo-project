@@ -52,6 +52,7 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
+from tools._bootstrap import refuse_sealed_output
 from engine_alpha.structure.market_structure import (
     elected_trend_leg_base,
     read_market_structure,
@@ -483,6 +484,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
 
 
 def render(tickers, *, window, out_dir, show_events, show_macro, cache):
+    refuse_sealed_output(out_dir)   # pre-flight: fail before the cache load (EC-14)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

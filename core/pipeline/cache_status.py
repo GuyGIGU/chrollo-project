@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from config import settings
-from core.pipeline.cache import _cache_paths, _read_meta
+from core.pipeline.cache import _cache_paths, _read_meta, _weekly_refresh_due
 from core.pipeline.market_calendar import (
     MARKET_TZ,
     is_early_close_session,
@@ -78,20 +78,6 @@ def _load_cached_tickers_for_status() -> tuple[list[str], str | None]:
         return get_cached_tickers(), None
     except Exception as exc:
         return [], f"Cached ticker universe is unavailable: {exc}"
-
-
-def _weekly_refresh_due(meta: dict) -> bool:
-    value = meta.get("last_full_refresh")
-    if not value:
-        return True
-    try:
-        ts = datetime.fromisoformat(value)
-    except ValueError:
-        return True
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    age_days = (datetime.now(timezone.utc) - ts).days
-    return age_days >= int(getattr(settings, "FULL_REFRESH_INTERVAL_DAYS", 7))
 
 
 def _as_market_time(value: datetime | None) -> datetime:

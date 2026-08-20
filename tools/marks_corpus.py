@@ -3,7 +3,8 @@ Operator-marks acceptance gate (Event Map) - proves operator-marked MUST-fire
 setups fire while their marked entry windows are live, and ratchets progress.
 
 This is the must-FIRE sibling of ``tools.negative_corpus`` (must-NOT-fire) and
-the acceptance harness for the Event Map plan (PLAN-event-tape.md, Task 1): the
+the acceptance harness for the Event Map plan (docs/archive/PLAN-event-tape.md,
+Task 1): the
 corpus files under ``docs/marks/`` are the operator's ground-truth dissections
 (EC-7: immutable test specs - a failing case is fixed in the ENGINE, never by
 editing a mark, widening a window, or reinterpreting trigger rules), and each
@@ -99,7 +100,7 @@ CORPUS_FILES: tuple[str, ...] = (
 # setups are graded on the replay seam's fired-policy window. Frozen (EC-7).
 NULL_TRIGGER_GRACE_SESSIONS = 2
 
-# Build-order stage expected to convert each known miss (PLAN-event-tape.md
+# Build-order stage expected to convert each known miss (docs/archive/PLAN-event-tape.md
 # ratchet). Verified at freeze time: the replayed miss-set must equal this key
 # set exactly, so the baseline can never freeze an unexplained miss.
 STAGE_TAGS: dict[str, str] = {

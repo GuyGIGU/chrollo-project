@@ -31,11 +31,11 @@ A "source" is one of:
 Usage:
     # Freeze today's incumbent as the reference side (non-disruptive read of the cache)
     python -m tools.provider_parity --snapshot --source cache \
-        --tickers AAPL MSFT NVDA --out tests/baselines/parity_ref.parquet
+        --tickers AAPL MSFT NVDA --out output/parity_ref.parquet
 
     # Compare a candidate vendor against that frozen reference
     python -m tools.provider_parity --compare \
-        --left tests/baselines/parity_ref.parquet --right eodhd \
+        --left output/parity_ref.parquet --right eodhd \
         --tickers AAPL MSFT NVDA
 
     # Smoke-test the harness end-to-end with only Yahoo wired (both sides identical)
@@ -54,9 +54,9 @@ import numpy as np
 import pandas as pd
 
 try:  # works under both `python -m tools.provider_parity` and `python tools/provider_parity.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path
+    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
 
 _PROJECT_ROOT = configure_path()
 
@@ -420,6 +420,7 @@ def run_compare(left_spec: str, right_spec: str, tickers: list[str] | None) -> b
 
 
 def run_snapshot(source: str, tickers: list[str] | None, out: str) -> None:
+    refuse_sealed_output(out)   # pre-flight: fail before any fetch (EC-14)
     panel = resolve_source(source, tickers)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     panel.to_parquet(out, engine=settings.PARQUET_ENGINE, compression=settings.PARQUET_COMPRESSION)

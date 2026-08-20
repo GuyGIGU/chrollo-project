@@ -85,9 +85,21 @@ class MarketDataProvider(Protocol):
         and writing the cache for ``universe`` (``None`` = US-Stocks)."""
         ...
 
-    def daily_candles(self, symbol: str, days: int) -> pd.DataFrame:
-        """Return a single-level-column daily OHLCV frame for ``symbol`` over the
-        trailing ``days`` window (UI chart panels, not the engine read)."""
+    def daily_candles(
+        self,
+        symbol: str,
+        days: int,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+        auto_adjust: bool = False,
+    ) -> pd.DataFrame:
+        """Return a single-level-column daily OHLCV frame for ``symbol`` over
+        the trailing ``days`` window — or ``start``/``end`` (ISO strings) when
+        given (UI chart panels, not the engine read). ``auto_adjust`` picks the
+        adjustment convention: ``False`` = as-traded prices (chart panels),
+        ``True`` = split/dividend-adjusted (the archive overlay, which rescales
+        its stored levels itself)."""
         ...
 
     def latest_price(self, symbols: list[str]) -> dict[str, float]:
@@ -153,9 +165,10 @@ class YahooProvider:
     # These wrap the hang-prone single-symbol yfinance surfaces the web layer
     # used to call raw. They are deliberately separate from ``fetch``: the
     # incumbent engine panel above stays byte-identical.
-    # Every Yahoo hit below passes through ``rate_limit.throttle`` — the SAME
-    # token bucket the download pool shares — so UI/enrichment calls can't
-    # bypass the outbound ceiling and compound a 429 storm mid-scan. The
+    # Every Yahoo hit below passes through ``rate_limit.throttle`` — the same
+    # PER-PROCESS token bucket this process's download pool shares. The scan
+    # subprocess runs its own bucket, so scan + backend fetches can overlap
+    # across processes; the per-process 429 cooldown is the safety net. The
     # throttle runs inside the ``_run_bounded`` wall: if the bucket is drained,
     # the call degrades to its miss default instead of stalling a worker.
 
@@ -362,15 +375,36 @@ class YahooProvider:
         return result if result is not None else {"spy_trend": None, "vix_level": None}
 
     @staticmethod
-    def _index_context_impl(as_of: str) -> dict:
+    def _history_window(symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """One throttled ``Ticker.history`` fetch over ``[start, end)`` — the same
+        thread-safe surface ``daily_candles`` uses (NOT ``yf.download``, whose
+        module-global ``yfinance.shared._DFS`` stash races across the FastAPI
+        threadpool; see the ``daily_candles`` docstring for the full decision).
+        ``auto_adjust=True`` preserves ``download``'s adjusted-close default the
+        SMA readers below were calibrated against; the tz-aware index ``history``
+        returns is stripped so the callers' tz-naive ``as_of`` masks keep working.
+        """
         import yfinance as yf
 
+        rate_limit.throttle()
+        frame = yf.Ticker(symbol).history(
+            start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"),
+            interval="1d", auto_adjust=True, actions=False,
+        )
+        if frame is None:
+            return pd.DataFrame()
+        if hasattr(frame.columns, "nlevels") and frame.columns.nlevels > 1:
+            frame.columns = frame.columns.get_level_values(-1)
+        if getattr(frame.index, "tz", None) is not None:
+            frame.index = frame.index.tz_localize(None)
+        return frame
+
+    @staticmethod
+    def _index_context_impl(as_of: str) -> dict:
         result = {"spy_trend": None, "vix_level": None}
         end = pd.Timestamp(as_of) + pd.Timedelta(days=5)
         start = pd.Timestamp(as_of) - pd.Timedelta(days=400)
-        rate_limit.throttle()
-        spy = yf.download("SPY", start=start.strftime("%Y-%m-%d"),
-                          end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        spy = YahooProvider._history_window("SPY", start, end)
         if not spy.empty:
             spy_close = spy["Close"]
             if hasattr(spy_close, "columns"):
@@ -388,10 +422,8 @@ class YahooProvider:
                         result["spy_trend"] = "BEARISH"
                     else:
                         result["spy_trend"] = "NEUTRAL"
-        rate_limit.throttle()
-        vix = yf.download("^VIX",
-                          start=(pd.Timestamp(as_of) - pd.Timedelta(days=5)).strftime("%Y-%m-%d"),
-                          end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        vix = YahooProvider._history_window(
+            "^VIX", pd.Timestamp(as_of) - pd.Timedelta(days=5), end)
         if not vix.empty:
             vix_close = vix["Close"]
             if hasattr(vix_close, "columns"):
@@ -407,13 +439,9 @@ class YahooProvider:
 
     @staticmethod
     def _sector_trend_impl(etf: str, as_of: str) -> Optional[str]:
-        import yfinance as yf
-
         end = pd.Timestamp(as_of) + pd.Timedelta(days=5)
         start = pd.Timestamp(as_of) - pd.Timedelta(days=120)
-        rate_limit.throttle()
-        data = yf.download(etf, start=start.strftime("%Y-%m-%d"),
-                           end=end.strftime("%Y-%m-%d"), progress=False, timeout=30)
+        data = YahooProvider._history_window(etf, start, end)
         if data.empty:
             return None
         close = data["Close"]

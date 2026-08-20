@@ -76,6 +76,15 @@ def _format_filter_stats(stats: dict[str, int]) -> str:
     return f" (filtered {', '.join(parts)})" if parts else ""
 
 
+def _raw_tickers_from_csv(df: pd.DataFrame) -> list[str]:
+    """Resolve the ticker column: 'Ticker', then 'Symbol', then the first column."""
+    if 'Ticker' in df.columns:
+        return df['Ticker'].dropna().tolist()
+    if 'Symbol' in df.columns:
+        return df['Symbol'].dropna().tolist()
+    return df.iloc[:, 0].dropna().tolist()
+
+
 def get_cached_tickers(csv_path: str | None = None) -> list[str]:
     """Load the cached ticker universe without refreshing it from the network."""
     if csv_path is None:
@@ -83,13 +92,7 @@ def get_cached_tickers(csv_path: str | None = None) -> list[str]:
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"cached ticker universe not found: {csv_path}")
 
-    df = pd.read_csv(csv_path)
-    if 'Ticker' in df.columns:
-        raw_tickers = df['Ticker'].dropna().tolist()
-    elif 'Symbol' in df.columns:
-        raw_tickers = df['Symbol'].dropna().tolist()
-    else:
-        raw_tickers = df.iloc[:, 0].dropna().tolist()
+    raw_tickers = _raw_tickers_from_csv(pd.read_csv(csv_path))
 
     tickers, stats = screen_symbols(raw_tickers, _load_skiplist())
     print(f"Loaded {len(tickers)} cached tickers from {csv_path}"
@@ -114,14 +117,7 @@ def get_tickers(csv_path: str | None = None) -> list[str]:
         file_age_days = (time.time() - os.path.getmtime(csv_path)) / (24 * 3600)
         if file_age_days < settings.TICKER_CACHE_MAX_AGE_DAYS:
             try:
-                df = pd.read_csv(csv_path)
-                if 'Ticker' in df.columns:
-                    raw_tickers = df['Ticker'].dropna().tolist()
-                elif 'Symbol' in df.columns:
-                    raw_tickers = df['Symbol'].dropna().tolist()
-                else:
-                    raw_tickers = df.iloc[:, 0].dropna().tolist()
-    
+                raw_tickers = _raw_tickers_from_csv(pd.read_csv(csv_path))
                 tickers, stats = screen_symbols(raw_tickers, skiplist)
                 print(f"Loaded {len(tickers)} tickers from {csv_path} "
                       f"(Age: {file_age_days:.1f} days)"
@@ -160,8 +156,24 @@ def get_tickers(csv_path: str | None = None) -> list[str]:
         print(f"Saved primary universe to '{csv_path}'. It will be cached for {settings.TICKER_CACHE_MAX_AGE_DAYS} day(s).")
         return tickers
     except Exception as e:
-        print(f"Could not fetch from NASDAQ FTP: {e}.")
-        print("Falling back to the 15-stock sample list.")
+        print(f"Could not fetch from NASDAQ FTP: {e}.", flush=True)
+        # A stale-but-real universe beats the sample list: never let a failed
+        # refresh collapse a scheduled scan to 15 names.
+        if os.path.exists(csv_path):
+            try:
+                raw_tickers = _raw_tickers_from_csv(pd.read_csv(csv_path))
+                tickers, stats = screen_symbols(raw_tickers, skiplist)
+                if tickers:
+                    file_age_days = (time.time() - os.path.getmtime(csv_path)) / (24 * 3600)
+                    print(f"WARNING: NASDAQ FTP refresh failed — using STALE ticker cache "
+                          f"{csv_path} ({file_age_days:.1f} days old, {len(tickers)} tickers)"
+                          f"{_format_filter_stats(stats)}.",
+                          flush=True)
+                    return tickers
+            except Exception as read_err:
+                print(f"Error reading stale cache {csv_path}: {read_err}", flush=True)
+        print("WARNING: no usable ticker universe CSV on disk — "
+              "falling back to the 15-stock SAMPLE list.", flush=True)
         return [
             'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMD', 'META', 'AMZN', 'GOOGL',
             'PLTR', 'SNOW', 'CRWD', 'UBER', 'NFLX', 'SMCI', 'ARM'

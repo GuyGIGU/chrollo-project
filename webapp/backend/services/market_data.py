@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -39,33 +40,40 @@ logger = logging.getLogger("chrollo.market_data")
 _CANDLE_TTL_SECONDS = 300
 _CANDLE_CACHE_MAX = 64
 _candle_cache: Dict[Tuple[Any, ...], Tuple[float, Any]] = {}
+# Routes run in FastAPI's threadpool: _cache_put iterates the dict while
+# another request may mutate it, so every compound cache operation takes the
+# lock (the earnings/candle_cache/episode sibling discipline).
+_CANDLE_LOCK = threading.Lock()
 
 
 def _cache_get(key: Tuple[Any, ...], now: float):
-    entry = _candle_cache.get(key)
-    if entry is None:
-        return None
-    stamped_at, frame = entry
-    if now - stamped_at > _CANDLE_TTL_SECONDS:
-        _candle_cache.pop(key, None)
-        return None
-    return frame
+    with _CANDLE_LOCK:
+        entry = _candle_cache.get(key)
+        if entry is None:
+            return None
+        stamped_at, frame = entry
+        if now - stamped_at > _CANDLE_TTL_SECONDS:
+            _candle_cache.pop(key, None)
+            return None
+        return frame
 
 
 def _cache_put(key: Tuple[Any, ...], frame, now: float) -> None:
-    if len(_candle_cache) >= _CANDLE_CACHE_MAX:
-        # Drop what has already expired; if the whole set is live, start over
-        # rather than growing without bound (a hover sweep can touch many names).
-        for stale in [k for k, (at, _) in _candle_cache.items() if now - at > _CANDLE_TTL_SECONDS]:
-            _candle_cache.pop(stale, None)
+    with _CANDLE_LOCK:
         if len(_candle_cache) >= _CANDLE_CACHE_MAX:
-            _candle_cache.clear()
-    _candle_cache[key] = (now, frame)
+            # Drop what has already expired; if the whole set is live, start over
+            # rather than growing without bound (a hover sweep can touch many names).
+            for stale in [k for k, (at, _) in _candle_cache.items() if now - at > _CANDLE_TTL_SECONDS]:
+                _candle_cache.pop(stale, None)
+            if len(_candle_cache) >= _CANDLE_CACHE_MAX:
+                _candle_cache.clear()
+        _candle_cache[key] = (now, frame)
 
 
 def clear_candle_cache() -> None:
     """Drop every cached frame (tests, and any deliberate operator refresh)."""
-    _candle_cache.clear()
+    with _CANDLE_LOCK:
+        _candle_cache.clear()
 
 
 def _is_number(value: Any) -> bool:
@@ -121,11 +129,13 @@ def chart_candles(
     """Shape a flattened OHLCV frame into ``(candles, volumes)`` payload lists.
 
     Centralizes the per-row candle/volume building the two chart routes shared.
-    The two routes differ only in cosmetics, expressed as parameters so each
-    keeps its EXACT prior payload:
+    Non-finite rows are ALWAYS skipped — the provider never drops NaN rows, so
+    ``int(NaN)`` raised on the archive path and NaN OHLC 500'd at Starlette's
+    allow_nan=False JSON boundary (EC-6). On finite rows each route's payload
+    is byte-identical to before:
 
-      * ``require_finite`` — skip rows with a non-finite O/H/L/C (the UI chart
-        route did this; the archive route did not).
+      * ``require_finite`` — retained for the routes' keyword calls; the
+        finite skip no longer varies by route.
       * ``volume_as_int`` — cast volume to ``int`` (archive route) vs ``float``
         (UI chart route).
       * ``up_color`` / ``down_color`` — per-route volume bar colors.
@@ -134,7 +144,7 @@ def chart_candles(
     volumes: List[Dict[str, Any]] = []
     for timestamp, row in raw.iterrows():
         ohlc = {name: row.get(name) for name in ("Open", "High", "Low", "Close")}
-        if require_finite and not all(_is_number(v) for v in ohlc.values()):
+        if not all(_is_number(v) for v in ohlc.values()):
             continue
         date = timestamp.strftime("%Y-%m-%d")
         close = float(ohlc["Close"])
@@ -147,7 +157,7 @@ def chart_candles(
             "close": close,
         })
         volume = row.get("Volume")
-        if require_finite and not _is_number(volume):
+        if not _is_number(volume):
             continue
         value = int(volume) if volume_as_int else float(volume)
         volumes.append({

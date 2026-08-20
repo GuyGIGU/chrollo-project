@@ -68,6 +68,25 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _weekly_refresh_due(meta: dict) -> bool:
+    """True when the last full cold refetch is older than the refresh interval.
+
+    ``last_full_refresh`` is stamped by this codebase in UTC (``_now_iso``), so a
+    tz-naive stamp — a legacy or hand-edited meta — is treated as UTC; a malformed
+    stamp counts as due. The interval is read lazily at call time (AP-3)."""
+    value = meta.get('last_full_refresh')
+    if not value:
+        return True
+    try:
+        ts = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return True
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    age_days = (datetime.now(timezone.utc) - ts).days
+    return age_days >= int(getattr(settings, 'FULL_REFRESH_INTERVAL_DAYS', 7))
+
+
 def _optimize_market_data_for_cache(data: pd.DataFrame) -> pd.DataFrame:
     optimized = data.copy()
     for column in optimized.columns:

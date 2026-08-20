@@ -393,6 +393,25 @@ def test_manual_route_score_coverage_with_declared_exclusions():
         "a species key would bind through the raw model pass with no scrub, "
         "no INTEGER coercion, and no pp_state refusal (2026-08-17 review, "
         "finding 8)")
+    # EC-30, per-writer: ALL SEVEN family producers the live and seed writers
+    # splat must ride the manual route too — a writer left to a raw model pass
+    # bypasses the family's serialization, scrubbing, and closed-set refusals
+    # (2026-08-19 review: event_map / election_trace / strategy were missing,
+    # the fourth occurrence of the same class).
+    required_producers = {
+        "sub_score_archive_values",
+        "ta_grade_archive_values",
+        "power_play_archive_values",
+        "htf_archive_values",
+        "event_map_archive_values",
+        "election_trace_archive_values",
+        "strategy_archive_values",
+    }
+    missing_producers = required_producers - splat_names
+    assert not missing_producers, (
+        f"manual route is missing family-producer splat(s) "
+        f"{sorted(missing_producers)} — EC-30 requires the producer on EVERY "
+        "writer of the table, guarded per writer.")
     # The declared exclusion, read from the route's own source.
     declared_excl: set = set()
     for call in splat_calls:

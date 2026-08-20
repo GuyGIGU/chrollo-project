@@ -212,11 +212,15 @@ def _compute_returns(
                 trigger_date = str(fwd_df.index[i])[:10]
                 trigger_idx = i
                 break
+        # All four trigger columns state one fact — write them in every branch
+        # (None on the negative side) so a 1->0 recompute can't leave stale
+        # days_to_trigger / trigger_volume_ratio behind (EC-23).
         result["triggered"] = 1 if triggered else 0
         result["trigger_date"] = trigger_date
-        if triggered and trigger_idx >= 0:
-            result["days_to_trigger"] = trigger_idx + 1  # 1-based bar count
-
+        result["days_to_trigger"] = (
+            trigger_idx + 1 if triggered and trigger_idx >= 0 else None  # 1-based bar count
+        )
+        result["trigger_volume_ratio"] = None
         if (triggered and trigger_idx >= 0 and volumes is not None
                 and vol_50_at_scan and vol_50_at_scan > 0):
             v = float(volumes[trigger_idx])

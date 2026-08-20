@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,7 +25,7 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     Lets the missed-winners report tell 'reviewed but skipped' apart from
     'never engaged'.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from models import SetupReview
 
@@ -49,7 +49,8 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
         return {"ticker": ticker, "scan_date": scan_date, "passed": False}
 
     db.add(SetupReview(
-        ticker=ticker, scan_date=scan_date, verdict="passed", created_at=datetime.utcnow(),
+        ticker=ticker, scan_date=scan_date, verdict="passed",
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
     db.commit()
     return {"ticker": ticker, "scan_date": scan_date, "passed": True}
@@ -58,7 +59,7 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
 @router.post("/reviews/mark")
 def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Mark an episode as reviewed/passed and store the skip reason in note."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from models import SetupReview
 
@@ -86,7 +87,7 @@ def mark_review(payload: ReviewMarkIn, db: Session = Depends(get_db)) -> Dict[st
             scan_date=scan_date,
             verdict="passed",
             note=note,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
     db.commit()
     return {"ticker": ticker, "scan_date": scan_date, "passed": True, "review_note": note}
@@ -189,7 +190,7 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
                            universe_type=universe_type, verdict=verdict,
                            grade_verdict=grade_verdict,
                            note=note, engine_config_version=ecv,
-                           created_at=datetime.utcnow()))
+                           created_at=datetime.now(timezone.utc).replace(tzinfo=None)))
         db.commit()
     except IntegrityError:
         # Concurrent double-POST of the same key (routers run in a threadpool):

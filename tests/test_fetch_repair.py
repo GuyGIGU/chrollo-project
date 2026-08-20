@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.pipeline.cache import _atomic_write_parquet, _write_meta
+from core.pipeline.cache import _atomic_write_parquet, _weekly_refresh_due, _write_meta
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.market_context import get_market_context
 import core.pipeline.downloads as downloads_module
@@ -699,6 +699,74 @@ def test_patch_market_data_tolerates_duplicate_base_columns():
     assert out.loc[dates[0], ("AAA", "Close")] == 10.0   # history preserved
     assert out.loc[dates[-1], ("AAA", "Close")] == 11.0  # latest patched in
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
+
+
+def test_patch_market_data_whole_frame_combine_matches_loop_semantics():
+    """The per-column merge loop was replaced by ONE whole-frame combine_first
+    (measured 75s -> 29s at the full-universe call site). Pin the loop's exact
+    semantics: patch wins on overlap, a NaN patch cell keeps the base value (NaN
+    in BOTH stays NaN), base-only tickers survive with NaN on new rows, a new
+    ticker's columns are APPENDED after base's (a bare combine_first would
+    alphabetize the column union), and the row index is the sorted date union."""
+    base_dates = pd.to_datetime(["2026-06-17", "2026-06-18"])
+    patch_dates = pd.to_datetime(["2026-06-18", "2026-06-19"])
+    # "ZZT" before "SPY" so alphabetized output would betray a reorder.
+    base = pd.concat(
+        {
+            "ZZT": pd.DataFrame({"Close": [10.0, 10.5], "Volume": [1000.0, None]}, index=base_dates),
+            "SPY": pd.DataFrame({"Close": [100.0, 101.0], "Volume": [5000.0, 5100.0]}, index=base_dates),
+        },
+        axis=1,
+    )
+    patch = pd.concat(
+        {
+            "ZZT": pd.DataFrame({"Close": [11.0, 12.0], "Volume": [None, 1300.0]}, index=patch_dates),
+            "AAA": pd.DataFrame({"Close": [50.0, 51.0], "Volume": [700.0, 800.0]}, index=patch_dates),
+        },
+        axis=1,
+    )
+
+    out = downloads_module._patch_market_data(base, patch)
+
+    all_dates = pd.to_datetime(["2026-06-17", "2026-06-18", "2026-06-19"])
+    expected = pd.DataFrame(
+        {
+            ("ZZT", "Close"): [10.0, 11.0, 12.0],        # patch overwrote 06-18
+            ("ZZT", "Volume"): [1000.0, None, 1300.0],   # NaN in both frames stays NaN
+            ("SPY", "Close"): [100.0, 101.0, None],      # base-only ticker: NaN on the new row
+            ("SPY", "Volume"): [5000.0, 5100.0, None],
+            ("AAA", "Close"): [None, 50.0, 51.0],        # new ticker appended last
+            ("AAA", "Volume"): [None, 700.0, 800.0],
+        },
+        index=all_dates,
+    )
+    expected.columns = pd.MultiIndex.from_tuples(expected.columns)
+    # check_freq=False: the merged index comes from base.index.union(patch.index)
+    # (unchanged from the loop), and pandas INFERS freq='D' on a consecutive
+    # union while the hand-built expected index carries none. Values, order and
+    # dtypes are compared in full; only that inferred metadata is waived.
+    pd.testing.assert_frame_equal(out, expected, check_freq=False)
+
+
+def test_weekly_refresh_due_shared_judgment():
+    """EC-3 fold: the ONE _weekly_refresh_due (core.pipeline.cache) replaces the
+    three drifted copies. The stamp is written by this codebase in UTC (_now_iso),
+    so a tz-naive stamp is treated as UTC — never compared against a local wall
+    clock — and a missing or malformed stamp counts as due."""
+    interval = int(getattr(settings, "FULL_REFRESH_INTERVAL_DAYS", 7))
+    now = datetime.now(timezone.utc)
+    fresh_aware = (now - pd.Timedelta(days=1)).isoformat()
+    stale_naive = (now - pd.Timedelta(days=interval + 1)).replace(tzinfo=None).isoformat()
+    fresh_naive = (now - pd.Timedelta(days=1)).replace(tzinfo=None).isoformat()
+
+    assert _weekly_refresh_due({}) is True                                    # never refreshed
+    assert _weekly_refresh_due({"last_full_refresh": "not-a-date"}) is True   # malformed -> due
+    assert _weekly_refresh_due({"last_full_refresh": fresh_aware}) is False
+    assert _weekly_refresh_due({"last_full_refresh": fresh_naive}) is False   # naive == UTC
+    assert _weekly_refresh_due({"last_full_refresh": stale_naive}) is True
+    # The three call sites all resolve to the one shared implementation.
+    assert downloads_module._weekly_refresh_due is _weekly_refresh_due
+    assert scan_job_module._weekly_refresh_due is _weekly_refresh_due
 
 
 def test_archive_freshness_rejects_low_latest_coverage(tmp_path, monkeypatch):
