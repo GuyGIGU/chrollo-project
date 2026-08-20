@@ -77,8 +77,8 @@ the true climax→AR and the thief never enters the skeleton; mirrored for SC
   reference; macro wins precedence if both flags are on.~~ **Update 2026-07-03:
   the flat wire was DELETED** (eyeball-rejected as a wash, d43e7fd; see
   `docs/flag_ledger.md`). `pip_pivots` itself stays — it is the substrate the
-  macro read refines. `tools/phase_a_pip_diff.py` is now the 2-way off-vs-macro
-  eyeball.
+  macro read refines. `tools/phase_a_pip_diff.py` was then the 2-way
+  off-vs-macro eyeball (tool retired 2026-07-18, 44f8293).
 - The macro settings are in the freeze manifest.
 
 ## Guards (all green at build time)
@@ -93,7 +93,9 @@ the true climax→AR and the thief never enters the skeleton; mirrored for SC
 ## The flip gate (operator decision, not a build step)
 
 `tools/phase_a_pip_diff.py` (restored from `d43e7fd`'s pruned 2-way and extended
-to 3-way: **OFF / FLAT / MACRO** on the faithful live 2y frame) is the judge:
+to 3-way: **OFF / FLAT / MACRO** on the faithful live 2y frame) was the judge —
+the flag flipped live 2026-07-04 and the tool was retired 2026-07-18, 44f8293,
+so the commands below are the historical record, not a runnable step:
 
     python -m tools.phase_a_pip_diff              # scan + render top movers
     python -m tools.phase_a_pip_diff --scan --no-render
@@ -141,7 +143,8 @@ over `tools/fidelity/pip_phase_a/` before flipping
 The operator asked the bigger question: which SKELETON should the engine read
 charts with, judged by "tighter = better for Box, LPS, Bar Spread, Uptrend"?
 Answered with a three-front evidence campaign (multi-agent chart juries +
-code analysis + a full-stack substrate A/B, `tools/substrate_ab.py`).
+code analysis + a full-stack substrate A/B, `tools/substrate_ab.py` — tool
+retired 2026-07-18, 44f8293).
 
 ## Scope fact first: what each criterion actually depends on
 

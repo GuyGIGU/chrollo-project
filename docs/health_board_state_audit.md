@@ -5,14 +5,14 @@ Grounding for `docs/archive/specs/market-sector-health-board.md`. Produced by an
 ## The core constraint
 
 The health read must be a **separate caller** into the box detector + standalone metrics, NOT `read_structure` with gates removed:
-- `read_structure` (`core/structure/narrative.py`) only returns a `Structure` when a full A→B→(C?)→D narrative **with a completed LPS** exists → it collapses a good LPS-less base to `None` (would mislabel real consolidations as no-structure).
-- Build on `find_outer_box`/`detect_boxes` (`core/structure/consolidation.py`) for R/S, plus the standalone, gate-free, no-lookahead metrics: `measure_equilibrium` (formerly `measure_traversal`), `measure_dwell_balance` (formerly `measure_equilibrium`), `read_box_staircase` (`core/structure/metrics.py`), and freshly recomputed `trend_template`/`adr_pct` (`core/structure/indicators.py`) + `dist_52w_high_pct` (`core/pipeline/evaluation.py:300-305`).
+- `read_structure` (`engine_alpha/structure/narrative.py`) only returns a `Structure` when a full A→B→(C?)→D narrative **with a completed LPS** exists → it collapses a good LPS-less base to `None` (would mislabel real consolidations as no-structure).
+- Build on `find_outer_box`/`detect_boxes` (`engine_alpha/structure/consolidation.py`) for R/S, plus the standalone, gate-free, no-lookahead metrics: `measure_equilibrium` (formerly `measure_traversal`), `measure_dwell_balance` (formerly `measure_equilibrium`), `read_box_staircase` (defined in `engine_alpha/structure/box_events.py`, re-exported by `engine_alpha/structure/metrics.py`), and freshly recomputed `trend_template`/`adr_pct` (`engine_alpha/structure/indicators.py`) + `dist_52w_high_pct` (`engine_alpha/evaluation.py :: _relative_strength_context`).
 - **Recompute per member.** The box fields and enrichment measures are surfaced today only for *firing* rows (prefixed `_`). Reading them off firing output blanks the exact non-firing cohort the board exists to show.
 - **Byte-parity:** never touch `_run_eval_chain` / `_resolve_structure_context` / the baseline+crash+extension gates; never mutate shared constants/flags. `us_equities` output stays byte-identical.
 
 ## Hidden gate (shapes the whole taxonomy)
 
-The box substrate is **not gate-free**: `collect_root_anchors` (`core/structure/box_primitives.py:52-53`) hard-returns `[]` when `Close <= SMA200`, and `find_outer_box` carries a bullish-context macro gate. So **all box-derived states are unavailable for below-SMA200 members** — they fall to `deep_correction` / `trending` / `no_structure`. Therefore **classify drawdown first** (from the pure `dist_52w_high_pct`), then attempt the box read for the above-SMA200 cohort. Relaxing this refusal for the health path is an engine change to shared primitives → Ask-first / future enhancement.
+The box substrate is **not gate-free**: `collect_root_anchors` (`engine_alpha/structure/box_primitives.py:89-92`) hard-returns `[]` when `Close <= SMA200`, and `find_outer_box` carries a bullish-context macro gate. So **all box-derived states are unavailable for below-SMA200 members** — they fall to `deep_correction` / `trending` / `no_structure`. Therefore **classify drawdown first** (from the pure `dist_52w_high_pct`), then attempt the box read for the above-SMA200 cohort. Relaxing this refusal for the health path is an engine change to shared primitives → Ask-first / future enhancement.
 
 ## State taxonomy (v1)
 

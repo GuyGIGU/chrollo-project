@@ -24,7 +24,8 @@ for a score to exploit.
 
 ## Why it's redundant by construction
 
-The Phase-1 baseline gate (`core/pipeline/evaluation.py:92-96`, `config/settings.py:9-11`) admits a
+The Phase-1 baseline gate (`engine_alpha/evaluation.py :: apply_baseline_filters_with_reason`,
+`config/settings.py:9-11`) admits a
 name only if `Close ≥ MIN_PRICE` **and** `Close > SMA_50` **and** `Close > SMA_200` **and**
 `yearly_return > −0.20`. Requiring price above *both* the rising 50- and 200-day averages is nearly
 the daily equivalent of a Weinstein weekly Stage-2. So the universe we score is *already* the
@@ -63,8 +64,8 @@ win 65 % vs 47 %). It is a confounded, single-cohort artifact:
 
 ## Evidence map
 
-- Population / definition: `core/structure/htf.py:203,248-251`; `config/settings.py:562`;
-  `webapp/backend/archive_models.py:249-267`; `core/archive/result_adapter.py:19`.
-- Universe gate: `core/pipeline/evaluation.py:92-96`; `config/settings.py:9-11`.
+- Population / definition: `engine_alpha/structure/htf.py :: _read_htf_structure`, `:: read_htf_context`;
+  `config/settings.py:562`; `webapp/backend/archive_models.py:249-267`; `core/archive/result_adapter.py:19`.
+- Universe gate: `engine_alpha/evaluation.py :: apply_baseline_filters_with_reason`; `config/settings.py:9-11`.
 - Audit tool (measures only, no edge stat): `tools/htf_audit.py:65-93`.
 - Prior single-cohort read: `docs/archive/edge_read_2026-06-30.md:17,37,175-181`.

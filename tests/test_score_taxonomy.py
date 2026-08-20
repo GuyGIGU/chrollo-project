@@ -1,4 +1,4 @@
-"""Coupling guards for the sub-score taxonomy registry (core/scoring/taxonomy.py).
+"""Coupling guards for the sub-score taxonomy registry (engine_alpha/scoring/taxonomy.py).
 
 These are the tripwires that make the registry the single source of truth: if a
 sub-score is added / renamed / dropped without updating the registry, or a cap

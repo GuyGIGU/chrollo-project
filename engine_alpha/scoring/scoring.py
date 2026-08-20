@@ -170,7 +170,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
 
     # Touch density
     base_touch_max = settings.SCORE_TOUCH_DENSITY - settings.TOUCH_BONUS_POINTS
-    touch_score = _clamp(touches * 2.0, base_touch_max)
+    touch_score = _clamp(touches * settings.TOUCH_POINT_RATE, base_touch_max)
     if (r_touches >= settings.TOUCH_BONUS_INDIVIDUAL and s_touches >= settings.TOUCH_BONUS_INDIVIDUAL) \
        or (touches >= settings.TOUCH_BONUS_TOTAL):
         touch_score += settings.TOUCH_BONUS_POINTS
@@ -203,11 +203,13 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                     settings.SCORE_ATR_SQUEEZE)
 
     # LPS candle tightness
-    s_lps = _clamp((1 - tightness_ratio) * (settings.SCORE_LPS_TIGHTNESS * 2),
+    s_lps = _clamp((1 - tightness_ratio) * (settings.SCORE_LPS_TIGHTNESS
+                                            * settings.LPS_TIGHTNESS_SLOPE),
                     settings.SCORE_LPS_TIGHTNESS)
 
     # Volume contraction
-    s_vol = _clamp(vol_contraction * (settings.SCORE_VOL_CONTRACTION * 2),
+    s_vol = _clamp(vol_contraction * (settings.SCORE_VOL_CONTRACTION
+                                      * settings.VOL_CONTRACTION_SLOPE),
                     settings.SCORE_VOL_CONTRACTION)
 
     # Base age — Wyckoff "cause" reward. Sqrt-scaled so very long bases still

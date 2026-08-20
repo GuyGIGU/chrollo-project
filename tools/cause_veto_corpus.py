@@ -19,7 +19,7 @@ veto reds the ON direction; a change that makes MIDD reject for an unrelated
 reason (so this corpus would guard nothing) reds the OFF direction.
 
 Self-contained negative fixture placed under ``tests/baselines/``
-(PLAN-cause-before-effect.md Task 9, option b - EC-9 forbids the agent writing
+(docs/archive/PLAN-cause-before-effect.md Task 9, option b - EC-9 forbids the agent writing
 a ``calibration_marks`` verdict, and the sealed ``docs/marks`` corpus is never
 edited to manufacture a rejection). Hermetic on ``--check``: reads the frozen
 parquet, never the network or the live cache.
@@ -67,7 +67,7 @@ CASES: tuple[dict, ...] = (
     {"ticker": "MIDD", "as_of": "2026-07-17",
      "label": "cause-absent (MIDD class): box floats up through its own rails, "
               "loose shelf (tightness_ratio 0.957 = census min)",
-     "evidence": "PLAN-cause-before-effect.md; project_cause_before_effect_veto.md; "
+     "evidence": "docs/archive/PLAN-cause-before-effect.md; project_cause_before_effect_veto.md; "
                  "flipped live 2026-07-20 (ed87029)"},
 )
 

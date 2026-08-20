@@ -9,7 +9,7 @@ never force a particular fire) while still catching a geometry regression
 (support above resistance, phases out of order, a NaN level, a broken zigzag).
 
 Plus a focused contract test for the frozen-config manifest
-(core/freeze/manifest.py): determinism, ops-knob exclusion, and the
+(engine_alpha/freeze/manifest.py): determinism, ops-knob exclusion, and the
 "a listed key vanished" guard.
 
 All offline. Reuses the shadow fixture + conftest fixtures; touches no DB.

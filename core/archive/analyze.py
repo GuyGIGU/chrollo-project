@@ -132,7 +132,7 @@ VERTICAL_FEATURES = [
 ]
 
 # Sub-scores (the Scoring Engine decomposition) — sourced from the ONE registry
-# (core/scoring/taxonomy.py) so a new/renamed/dropped sub-score can't silently
+# (engine_alpha/scoring/taxonomy.py) so a new/renamed/dropped sub-score can't silently
 # drift out of the correlation + signal-edge analysis. Same 14 columns, same order.
 SUB_SCORES = taxonomy.archive_columns()
 
