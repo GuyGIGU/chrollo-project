@@ -462,7 +462,21 @@ forms inside it**, never sibling detectors (wire enums frozen forever):
 |---|---|---|
 | `terminal_valley` | LPS | the classic pullback that rests on its low |
 | `holding_shelf` | LPS — flat hold | the two-form doctrine's flat shelf, sanctioned only high in the structure |
-| `buec_shelf` | LPS above R | the `OVERSHOOT_R` window class — an LPS that forms ABOVE the old resistance, after price broke out and came back to rest on it; matured-cause bounded (the BBVA defense). The wire key is frozen; read it as "LPS above R" |
+| `buec_shelf` | LPS above R | the shallow-shelf form of the `OVERSHOOT_R` window class — an LPS that forms ABOVE the old resistance, after price broke out and came back to rest on it; matured-cause bounded (the BBVA defense). The wire key is frozen; read it as "LPS above R" |
+
+**Which R is "the old resistance"? The one belonging to the range the LPS rests on**
+(2026-08-13). An LPS is located INSIDE / above R / below S — its **zone class** — and that
+class is read against the rails of *the range that owns it*. When the right side tightens
+into a nested mini-range and the LPS is elected there, the nested range is a range in its
+own right: its own resistance is the level price broke out over and came back to rest on,
+so its rails are the ones the zone class means. The parent's rails are a different fact
+about a different object. This is a corollary of nesting being **temporal, not
+price-bounded** — a nested range may sit above the parent's R (treating it as its new
+support) or entirely inside the parent, and in the second case an LPS that is genuinely
+above the nested resistance sits *below* the parent's. Reading the class against the
+parent's rails there is a category error, not a violation: the two levels answer different
+questions, and only the owning range's answer types the event. The zone class is therefore
+never comparable to a rail the read was not taken against.
 
 The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): a window
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
@@ -689,7 +703,7 @@ RGR, SKYT, SYRE (S-poor profiles / respect-killed / universe classes).
 > election moves even though no *window* preferred the last-resort candidate. Measured
 > over the 332-setup payload: exactly **1 of 332** moves under the story pool (AMCX,
 > strict→story). This is **pre-existing design shared with the rescued pool** (same
-> per-root scope, not even flag-gated) and with `BAND_RAILS` (live since 2026-07-21 —
+> per-root scope, not even flag-gated) and with `BAND_RAILS` (live since 2026-07-16 —
 > CMPR band-elects this way *inside the payload* and passes the doctrine gate). **Do not
 > "fix" it with a two-pass walk:** simulated over the 12 live last-resort elections, that
 > reverses 2 of them — including CMPR's operator-accepted band election — so the

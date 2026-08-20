@@ -12,8 +12,12 @@ Sanctioned forms the checks encode (operator rulings, 2026-07-19/20): one-bar
 climax+AR pairs (climax_bar == ar_bar); pokes past the climax within
 PHASE_A_CLIMAX_TERMINALITY_EXCESS x height; one-bar wick springs (tip ==
 reclaim); TERMINAL_SHAKEOUT's buffered-band reclaim (looser than close-above-S);
-inner boxes above parent R (nesting is temporal, not price-bounded); LPS
-end_bar is exclusive. SC roots mirror every climax check on LOWS.
+inner boxes anywhere against parent R, above or below (nesting is temporal, not
+price-bounded), and an inner-elected LPS reading its zone class against the
+INNER rails; LPS end_bar is exclusive; climax terminality (A3) keys its
+polarity on the engine's OWN cause read (covering confirmed segment,
+_cause_is_up — re-keyed e4471e0), never the seed's BC/SC label. Down-causes
+mirror every climax check on LOWS.
 
 Each payload ticker is replayed on its own frame (cache trimmed to its last
 payload candle) through the SAME eval-twin prep the live scan used, so the
@@ -74,7 +78,7 @@ def _same_price(engine_val, payload_val) -> bool:
     return abs(round(float(engine_val), _PAYLOAD_PRICE_DP) - float(payload_val)) < 1e-9
 
 
-def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
+def _audit_setup(tk, daily, atr, s, cause_up, payload_fields, check):
     H = daily["High"].values.astype(float)
     L = daily["Low"].values.astype(float)
     C = daily["Close"].values.astype(float)
@@ -87,12 +91,17 @@ def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
     # -- Phase A: the trend-end pair (one-bar climax+AR form sanctioned) --
     check("A1 climax<=ar", tk, cx <= ar, f"cx={cx} ar={ar}")
     check("A2 ar<=box_start", tk, ar <= pbs, f"ar={ar} pbs={pbs}")
-    # Climax terminality is law on every resolution path (guard's own formula,
-    # by the elected root's kind; kinds beyond BC/SC carry no terminality claim)
-    if 0 <= cx <= ar <= pbs < n and root_kind in ("BC", "SC"):
+    # Climax terminality is law wherever the ENGINE could key a direction for
+    # its repair (the covering confirmed segment, seed label only as fallback —
+    # _cause_is_up, re-keyed e4471e0). Keying this assertion on root.kind is
+    # the Tested-DEAD keying the repair removed: the seed is a scan origin, not
+    # the box's cause, and asserting by it measured 91 false violations on the
+    # first post-repair run. cause_up None = the engine made no terminality
+    # claim on this frame, so neither may the gate.
+    if 0 <= cx <= ar <= pbs < n and cause_up is not None:
         atr_floor = float(atr) if (np.isfinite(atr) and atr > 0) else 0.0
         excess = settings.PHASE_A_CLIMAX_TERMINALITY_EXCESS
-        if root_kind == "BC":
+        if cause_up:
             height = max(H[cx] - L[ar], atr_floor)
             post = H[cx + 1:pbs + 1]
             ok = (not len(post)) or float(np.max(post)) <= H[cx] + excess * height
@@ -155,9 +164,27 @@ def _audit_setup(tk, daily, atr, s, root_kind, payload_fields, check):
         check("D3 lps-in-box", tk, pbs <= lst, f"lps.start={lst} pbs={pbs}")
         check("D4 lps-price-order", tk, float(lps.low) <= float(lps.high),
               f"low={lps.low} high={lps.high}")
-        if getattr(lps, "swing_type", "terminal_valley") == "buec_shelf":
-            check("D5 lps-above-R", tk, float(lps.low) >= R - 1e-6 * R,
-                  f"low={lps.low} R={R}")
+        # The zone class is a property of the box that OWNS the LPS. The
+        # narrative elects inner-first-then-parent, so an inner-elected LPS was
+        # typed against the INNER rails, while the published Structure.R/S are
+        # always the PARENT's (B2/B3/B6 assert exactly that). Asserting the
+        # class against ``s.R`` compared it to a rail the detector never saw.
+        # Latent since the gate was authored; first tripped 2026-08-13 by TTC —
+        # an OVERSHOOT_R LPS on an inner box sitting entirely BELOW the parent's
+        # R (low 97.02 >= inner R 96.90, but < parent R 101.08). Census at the
+        # fix, 271 payload setups: 48 OVERSHOOT_R, of which 2 are inner-elected
+        # with inner R < parent R (TTC, HUBB) — both correct against their own
+        # rail, 0 violations of any zone class against its active rails.
+        active_R = (float(s.inner.R)
+                    if (s.lps_in_inner and s.inner is not None) else R)
+        # Asserted on the ZONE class, not the buec_shelf swing form: the zone is
+        # what "LPS above R" names in doctrine, and the four other swing forms
+        # outrank buec_shelf in the label cascade, so keying on the form left 37
+        # of the 48 above-R reads unasserted (HUBB among them).
+        if getattr(lps, "zone_type", None) == "OVERSHOOT_R":
+            check("D5 lps-above-R", tk, float(lps.low) >= active_R - 1e-6 * active_R,
+                  f"low={lps.low} R={active_R}"
+                  f"{' (inner)' if s.lps_in_inner else ''}")
     if s.terminator == "spring":
         check("D6 terminator", tk, sp is not None and pbe == int(sp.tip_bar),
               f"pbe={pbe} tip={sp.tip_bar if sp else None}")
@@ -191,17 +218,28 @@ def run_audit() -> int:
         if not ok:
             violations[inv].append((tk, detail))
 
-    # spy: the elected root's kind, per read (resolve_phase_a runs once per
-    # completed Structure, so the last call before return is the elected one)
-    kind_seen = {"kind": None}
-    orig_resolve = bricks.resolve_phase_a
+    # spy: the polarity the ENGINE's terminality repair actually used, per read
+    # (EC-43 — the gate derives its key from the engine's own resolution, never
+    # a re-typed twin). _cause_is_up runs inside _enforce_climax_terminality
+    # once per resolve_phase_a call, so the last value before return belongs to
+    # the elected Structure. Never called = the engine made NO terminality
+    # claim on this frame (degenerate window) — A3 skips, exactly like an
+    # undecidable direction. This replaced the root.kind spy when the climax
+    # repair re-keyed polarity to the covering confirmed segment (e4471e0):
+    # asserting terminality by the seed label measured 91 false violations on
+    # the first post-repair run. Signature-transparent on purpose — pinning a
+    # spied function's old arity broke the whole gate (250/250 read TypeError)
+    # when terminal_floor was added.
+    cause_seen = {"up": None}
+    orig_cause = bricks._cause_is_up
 
-    def resolve_spy(df, root, box, atr):
-        kind_seen["kind"] = getattr(root, "kind", None)
-        return orig_resolve(df, root, box, atr)
+    def cause_spy(*args, **kwargs):
+        result = orig_cause(*args, **kwargs)
+        cause_seen["up"] = result
+        return result
 
     measured, refused, vetoed = 0, [], []
-    bricks.resolve_phase_a = resolve_spy
+    bricks._cause_is_up = cause_spy
     try:
         for tk in tickers:
             if tk not in cached:
@@ -217,7 +255,7 @@ def run_audit() -> int:
             if prep is None:
                 refused.append((tk, "baseline refused")); continue
             daily = prep["df"]
-            kind_seen["kind"] = None
+            cause_seen["up"] = None
             try:
                 atr = float(daily.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
                 s = read_structure(daily, atr)
@@ -241,9 +279,9 @@ def run_audit() -> int:
                     vetoed.append(tk); continue
                 refused.append((tk, "no structure")); continue
             measured += 1
-            _audit_setup(tk, daily, atr, s, kind_seen["kind"], cd[tk], check)
+            _audit_setup(tk, daily, atr, s, cause_seen["up"], cd[tk], check)
     finally:
-        bricks.resolve_phase_a = orig_resolve
+        bricks._cause_is_up = orig_cause
 
     n_viol = sum(len(v) for v in violations.values())
     print("=" * 64)
