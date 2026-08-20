@@ -73,11 +73,16 @@ documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
 .\.venv\Scripts\python.exe -m core.archive.analyze           # winner-fingerprint report card
 npm --prefix webapp\frontend run build                       # build the React app
 npm --prefix webapp\frontend run lint                        # eslint
+.\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
   backend files; `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to
   confirm routes register.
+- **After MOVING, ARCHIVING or DELETING any file, run `tools.pointer_audit --check`.** A citation
+  rots when some *other* file moves, so the commit that breaks it never touches the file that
+  carries it — no diff review can catch this. It is also in pytest, so a normal run covers it; the
+  explicit call is for when you are mid-sweep and want the answer before committing.
 - **Loading code changes is the user's job** — tell them to run `update_dashboard.bat`; do not start the
   service yourself.
 
