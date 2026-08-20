@@ -32,7 +32,7 @@ from engine_alpha.structure.segmentation import segment_swings
 _SEG_LEAD_IN = 60
 _SEG_AR_TOL = 10
 # Inner sub-box tunables (the INNER_* settings) are read lazily at the use
-# sites, never cached at import time — see core/structure/consolidation.py.
+# sites, never cached at import time — see engine_alpha/structure/consolidation.py.
 
 
 @dataclass

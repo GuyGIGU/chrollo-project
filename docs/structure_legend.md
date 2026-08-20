@@ -367,7 +367,7 @@ never thrown away:
   tests stay in the LPS/support-test layer. It remains descriptive, never a gate.
 
 **Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
-`_detect_inner_phase_b_start` (core/structure/inner_box.py, formerly in `box_primitives.py`) finds the
+`_detect_inner_phase_b_start` (engine_alpha/structure/inner_box.py, formerly in `box_primitives.py`) finds the
 most-recent qualifying inner climax — a ≥ `AR_MIN_DROP_PCT` reaction leaving
 ≥ `INNER_MIN_DAYS` bars. But on the 197-ticker fixture a *pure* climax anchor
 regressed inner detections 32 → 12 (it grabs late minor peaks on long bases). So

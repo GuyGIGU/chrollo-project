@@ -13,7 +13,7 @@ skips the doc fails the suite - the read-before-engine-work house rule,
 enforced.
 
 Ops/data-fetch knobs are deliberately absent - they are not engine identity
-(see the DELIBERATELY EXCLUDED block in core/freeze/manifest.py).
+(see the DELIBERATELY EXCLUDED block in engine_alpha/freeze/manifest.py).
 
 Usage:
     python -m tools.settings_reference --write   # regenerate the doc block in place

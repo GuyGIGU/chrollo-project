@@ -1484,8 +1484,9 @@ excursion below `window_low` (ATR units) and, for OVERSHOOT_R, whether R was
 re-lost; calibrate any threshold from the archive + marks (the vol-0.87
 method). The frozen corpus case `BBVA@2026-06-05` guards this exact frame
 meanwhile.
-`tools/lps_gate_audit.py --matrix lps-core` is the current scoreboard for this:
-it can soften descent, volume, spread, terminal-low, and pullback-profile gates
-individually and report which tickers would recover/drop. Volume contraction,
+`tools/lps_gate_audit.py --matrix lps-core` was the scoreboard for this (tool
+retired 2026-07-18, 44f8293): it could soften descent, volume, spread,
+terminal-low, and pullback-profile gates individually and report which tickers
+would recover/drop. Volume contraction,
 descent cleanliness, and zone/range tolerances are the next places to test
 against forward outcomes before loosening or hardening anything.

@@ -104,7 +104,7 @@ Once segments are first-class objects, the rest of the legend falls out:
 ## Build path (measure-first; protects the 95%)
 
 **Phase 1 — measure only, zero behavior change** *(this is what we're building)*.
-`core/structure/segmentation.py :: segment_swings()` walks the existing zigzag and
+`engine_alpha/structure/segmentation.py :: segment_swings()` walks the existing zigzag and
 emits, per scan, raw descriptive numbers:
 - each swing's ATR-normalized signed displacement,
 - window swing-efficiency (net ÷ path),
@@ -137,7 +137,8 @@ rooting to respect **segment ownership**.
     fire (1 drop, SMFG — a quality-tied case whose truer range presents no
     LPS), **0 tier changes**, 25 scores up / 11 down, bases longer almost
     everywhere. Visually verified on CGEM/NMM/VIK/YOU/SKT/SMFG
-    (`tools/phaseb_render.py`); A/B driver is `tools/phaseb_ab.py`.
+    (`tools/phaseb_render.py`); A/B driver was `tools/phaseb_ab.py` (both tools
+    retired 2026-07-18, 44f8293).
 - **Change C — worked-equilibrium validity (shipped).** Change B fixed *which
   valid framing* to pick but left validity loose, so the only framing that ever
   passed was the widest BC→AR box (every tighter sub-range got "broken" by later
