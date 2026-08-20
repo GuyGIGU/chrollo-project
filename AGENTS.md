@@ -64,17 +64,20 @@ books — it never places trades.**
 - **Runtime:** local, Windows, localhost-only; production = always-on NSSM service `ChrolloDashboard`.
 
 ## Setup, run, verify (exact commands)
+Interpreter: the repo venv, `.\.venv\Scripts\python.exe` — this machine's bare `python` is a
+documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
 ```powershell
-.\setup.bat                              # one-time: install deps + build frontend
-python run_screener.py                   # one CLI scan → output/screener_data.json → archive
-python -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
-python -m core.archive.analyze           # winner-fingerprint report card
-npm --prefix webapp\frontend run build   # build the React app
-npm --prefix webapp\frontend run lint    # eslint
-.\update_dashboard.bat                   # USER runs this: rebuild frontend + restart service (1 UAC)
+.\setup.bat                                                  # one-time: install deps + build frontend
+.\.venv\Scripts\python.exe run_screener.py                   # one CLI scan → output/screener_data.json → archive
+.\.venv\Scripts\python.exe -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
+.\.venv\Scripts\python.exe -m core.archive.analyze           # winner-fingerprint report card
+npm --prefix webapp\frontend run build                       # build the React app
+npm --prefix webapp\frontend run lint                        # eslint
+.\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
 ```
-- **Verification an agent may run:** `python -m py_compile <file>` on touched backend files;
-  `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to confirm routes register.
+- **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
+  backend files; `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to
+  confirm routes register.
 - **Loading code changes is the user's job** — tell them to run `update_dashboard.bat`; do not start the
   service yourself.
 
@@ -84,7 +87,7 @@ npm --prefix webapp\frontend run lint    # eslint
 - `core/pipeline/` — conductor: `data.py`, `screener.py`, `scan_job.py`.
 - `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py`, `seed.py`, `purge.py`.
 - `webapp/backend/` — `main.py`, `routers/`, `services/` (`scan_runner`, `scheduler`, `scan_status`,
-  `scan_watchdog`, `health`), `ibkr/`, `config.py`, `database.py`.
+  `scan_watchdog`, `health`), `ibkr/`, `broker_config.py`, `database.py`.
 - `webapp/frontend/src/` — `components/`, `hooks/`, `api.js`, `App.jsx`.
 
 ## Coding style
@@ -120,8 +123,11 @@ npm --prefix webapp\frontend run lint    # eslint
   minted drifting copies (council review 2026-08-17).
 - Every `EventSource`/SSE stream must be stored in a ref and `close()`d on unmount (see `hooks/useSSE.js`).
 - Every `fetch` needs a `.catch` / try-catch so a backend hiccup logs instead of hanging the UI.
-- Tag-chip / score-pill caps mirror `config/settings.py` and live in one place
-  (`components/setupScoreMath.js`) — keep them in sync, don't duplicate.
+- **The wire carries verdicts, never rules (conventions.md EC-28):** no scoring cap, threshold,
+  fire-rule, or chapter-membership may be re-declared in frontend JS — every judgment crosses the
+  wire already resolved by the engine; the frontend keeps only presentational lookups (labels,
+  tones, ordering, copy). `components/setupScoreMath.js` is the frozen legacy remnant (test-pinned
+  by `tests/test_frontend_score_caps.py`) — never extend it; it retires with the legacy path.
 
 ## Libraries
 - Introduce a library only when it makes the code meaningfully faster, cleaner, or improves UX. Before

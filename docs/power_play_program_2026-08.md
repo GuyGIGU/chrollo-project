@@ -88,7 +88,8 @@ moves both names together. A naive `MIN_BASE_DAYS`-only patch would silently lie
 why the preset is a declared dict, never a hand-threaded parameter.
 
 **E. Instruments** (`tools/trend_terminal_ab.py`, `tools/calibration_stat_card.py`,
-`tools/structure_case_audit.py`, `tools/backtest_watchlist.py`): all read settings lazily
+`tools/structure_case_audit.py`, `tools/backtest_watchlist.py` — the latter deleted
+2026-08-20, superseded by `core.archive.seed_recall`): all read settings lazily
 and therefore describe whatever law is in force; the census (Task 3) applies the species
 preset through the same one mechanism and stamps the clock value on every row.
 

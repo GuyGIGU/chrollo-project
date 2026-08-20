@@ -120,10 +120,6 @@ components:
     nested-lps: "recessed instrument-well inside Phase D's column, gold rail, percent not points"
     caveats: "narrativeRead three-state wording; a caveat shared by 2+ columns hoists to one daggered footnote"
     warnings: "warning tint chips beside the grade, the panel's only hot hue"
-  status-pill:
-    textColor: "{colors.text-main}"
-    rounded: "{rounded.pill}"
-    padding: "3px 10px"
   input-field:
     backgroundColor: "{colors.bg-panel}"
     textColor: "{colors.text-main}"
@@ -360,9 +356,10 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Score pill:** Monospace, 18px tall, elevated-surface background, hairline border;
   semantic color variants (visual=sky, market=green) — these are *data* hues, not
   interactivity.
-- **Status pill:** Pill-radius, 14%-tint background of its status hue with a matching
-  6px dot; open=blue (a *state*, kept in the demoted structural blue), win=green,
-  loss=red, wash=gold.
+- **Status pill:** RETIRED 2026-08-20 — `.status-pill` (and the `.type-pill` /
+  `.hold-pill` / `.asset-pill` / `.r-chip` family beside it) had no emitters left and
+  was deleted from `index.css`. The trade table styles status inline. Don't revive the
+  vocabulary; if a status indicator is needed again, specify it here first.
 - **Filter / toggle / tab / pager (selected):** The active state carries **mythril**
   (`--myth-soft` fill, mythril text) — these are controls the trader operates, so
   they follow the action color, not a status hue.

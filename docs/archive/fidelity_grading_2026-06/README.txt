@@ -1,0 +1,39 @@
+FIDELITY LABELS — verdict key
+=============================
+
+ARCHIVED 2026-08-20. This is the legend for the operator's completed grading pass
+(labels.csv beside it), kept so those verdict codes stay readable. It is NOT a live
+workflow: the grading harness (tools/fidelity_harness.py) was deleted 2026-07-18 in
+commit 44f8293, its --grade flag no longer exists anywhere, and the twelve charts it
+describes (tools/fidelity/charts/) were deleted 2026-08-20 — the verdicts they
+produced survive in full in labels.csv, which is the record that mattered.
+
+The original instructions follow, verbatim, as the key to those columns.
+
+Open each chart, compare the engine's drawn bands to where YOUR eye places the
+right-most region, then fill two columns in labels.csv.
+
+What the chart shows:
+  - grey band   = Phase A (climax / lead-in)
+  - purple band = Phase B (equilibrium body)
+  - blue band   = Phase D (the right-most region)      <-- the one that matters
+  - yellow box  = the exact LPS candidate bars (tight in time AND price)
+  - pink dashed = Phase C spring (only on undercut-support setups)
+  - dashed lines = R (resistance) and S (support)
+
+phase_d_verdict  -> is the BLUE band's LEFT edge where Phase D begins?
+    ok     the blue band starts about where you'd start the right-most region
+    early  the blue band starts too far LEFT (it grabbed body that isn't Phase D)
+    late   the blue band starts too far RIGHT (it missed the start of Phase D)
+
+lps_zone_verdict -> does the YELLOW box wrap the bars you'd call the LPS?
+    ok     the box sits on the right bars / the support price is holding
+    high   the box sits above the real LPS
+    low    the box sits below the real LPS
+    wrong  not the LPS bars at all / no LPS here / unusable
+
+Optional:
+    your_phase_d_date  YYYY-MM-DD where YOU would start Phase D (for day-error stats)
+    notes              anything worth remembering about this chart
+
+Leave a row's verdict columns blank to skip it; --grade ignores unscored rows.

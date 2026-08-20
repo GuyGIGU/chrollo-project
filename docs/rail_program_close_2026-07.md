@@ -65,7 +65,7 @@ rebuild was needed.
 - `tools/rail_margin_ab.py` — the variant grid driver (per-variant manifest
   stamps, elections+rails diff).
 - `engine_alpha/structure/rail_qualification.py::cluster_rails` +
-  `tools/cluster_rail_validation.py` — the tested-DEAD statistic and its
+  `docs/archive/tools/cluster_rail_validation.py` — the tested-DEAD statistic and its
   sealed-acceptance validator (measure-only, no live caller).
 - Records: `strategy_alpha.md` (margin campaign + cluster statistic
   tested-DEAD), `tools/marks_corpus.py` STAGE_TAGS comment (tags now mark

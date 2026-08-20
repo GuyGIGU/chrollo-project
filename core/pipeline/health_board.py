@@ -8,7 +8,7 @@ SEPARATE, looser read that classifies EVERY member of those universes — includ
 SPY/QQQ as first-class members — into exactly one position-in-cycle **state**, so
 those tabs become a useful "where is this in its cycle" board.
 
-Boundaries this module lives inside (see specs/market-sector-health-board.md and
+Boundaries this module lives inside (see docs/archive/specs/market-sector-health-board.md and
 docs/health_board_state_audit.md):
 
 * It reads ONLY the PUBLIC ``engine_alpha.structure`` API — the same box detector and

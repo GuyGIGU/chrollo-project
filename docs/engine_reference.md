@@ -254,7 +254,7 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** by the live screener — only `backtest_watchlist.py` references it.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
 

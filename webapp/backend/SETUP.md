@@ -39,10 +39,7 @@ Visit [http://localhost:8000/ibkr/status](http://localhost:8000/ibkr/status) —
 
 ## Database migrations
 
-`trade_logs` schema evolves additively. Two migration paths exist:
-
-- **Automatic**: on startup, `main.py` runs a list of `ALTER TABLE … ADD COLUMN` statements wrapped in try/except so existing databases upgrade in place (see `_MIGRATIONS` in [main.py](main.py)).
-- **One-off**: [migrate.py](migrate.py) for standalone scripts (currently adds `target_r`).
+`trade_logs` schema evolves additively, and every migration is automatic: on startup the backend runs a list of `ALTER TABLE … ADD COLUMN` statements wrapped in try/except so existing databases upgrade in place (see `_MIGRATIONS` in [services/startup.py](services/startup.py)). There is no standalone migration script — add the statement to that list instead.
 
 New tables (`Execution`, `Tag`, `TradeTag`, `TradePlan`, `TradeNote`, `TradeAttachment`) are created via `models.Base.metadata.create_all(...)` on first run.
 

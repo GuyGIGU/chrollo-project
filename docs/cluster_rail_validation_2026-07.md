@@ -17,7 +17,7 @@ everywhere, not by fixing NKTR.
 
 ## 2. Pre-registered acceptance — SEALED BEFORE THE FIRST RUN
 
-Written and committed before `tools.cluster_rail_validation` ever executed;
+Written and committed before `docs/archive/tools/cluster_rail_validation.py` ever executed;
 amending any value after a run requires an operator ruling in the changelog
 below (protocol amendment rule).
 
@@ -38,11 +38,12 @@ fixture basis (fingerprint `b671e056…`):
   matched only NKTR — the answer is NO (protocol §8).
 
 Verdict is computed by the tool, never eyeballed; the constants are mirrored
-in `tools/cluster_rail_validation.py` (`ACCEPT_*`).
+in `docs/archive/tools/cluster_rail_validation.py` (`ACCEPT_*`).
 
 ## 3. Results — VERDICT: NO (2026-07-25, first run after sealing)
 
-Run: `python -m tools.cluster_rail_validation` at engine `aaf853bd…`,
+Run: `python -m tools.cluster_rail_validation` (instrument archived 2026-08-20 to
+`docs/archive/tools/cluster_rail_validation.py`) at engine `aaf853bd…`,
 fingerprint `b671e056…`, 33/33 boxes measured, 0 rails returned None.
 
 - **Coverage 20/66** rails within 0.5 ATR (needed ≥ 60). Median |delta|
@@ -67,7 +68,7 @@ ATR tolerance) cannot reproduce the operator's drawn rails. Do not re-propose
 a cluster/order-statistic LEVEL rule for rail placement; any future
 rail-placement statistic must model the operator's ANCHOR-BAR CHOICE (which
 bar answers for the rail), not an outermost level. This file plus
-`tools.cluster_rail_validation` (sealed acceptance, computed verdict) is the
+`docs/archive/tools/cluster_rail_validation.py` (sealed acceptance, computed verdict) is the
 mechanical tripwire: a re-proposal must beat §2 as written, and the sweep
 above shows the whole family cannot.
 

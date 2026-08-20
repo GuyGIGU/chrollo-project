@@ -6,7 +6,7 @@ Are two elected structures THE SAME reading? Both the agreement harness
 definitions would let an epsilon wobble count as flicker in one place and
 as persistence in the other.
 
-Determinism convention (specs/event-map-causality-contract.md): identity
+Determinism convention (docs/archive/specs/event-map-causality-contract.md): identity
 settles on CALENDAR DATES and integer/categorical keys — never df-positional
 bar indices (two frames of different trim start make positions
 incomparable) — and floats compare only within an explicit tolerance in

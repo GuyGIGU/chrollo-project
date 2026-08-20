@@ -4,7 +4,7 @@ For every operator-marked setup (``docs/marks/*.json``), step the evaluation cut
 session by session through the marked LPS window and trigger (±margin), run the
 REAL election at each cut (``_prepare_eval_frame`` → ``_resolve_structure_context``),
 and label each cut's frame with the Event Map role layer fed that cut's elected
-bricks. The causality contract (specs/event-map-causality-contract.md §7) is then
+bricks. The causality contract (docs/archive/specs/event-map-causality-contract.md §7) is then
 asserted on EMITTED labels only:
 
   * within a run of consecutive cuts that elect the SAME box (identical rounded

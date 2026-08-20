@@ -39,7 +39,7 @@ win 65 % vs 47 %). It is a confounded, single-cohort artifact:
 - **One overlapping week, one regime.** All 784 matured HTF rows fall on scan dates 2026-06-21…06-27,
   every one `regime_state = UNDER_PRESSURE` (HTF context began being computed ~06-21; only that first
   week has crossed the 20-bar forward horizon; `fwd_return_20d` non-null for just 32 rows). This is
-  the same single-cohort trap flagged in `docs/edge_read_2026-06-30.md:175-181`.
+  the same single-cohort trap flagged in `docs/archive/edge_read_2026-06-30.md:175-181`.
 - **The lift is NOT from the HTF uptrend.** Decomposing `reaccum` (= `in_consol AND stage2`):
   `in_consol=1 & stage2=1` → +1.38 %; `in_consol=1 & stage2=0` → **+1.36 %** (the uptrend flag is
   inert); `in_consol=0 & stage2=1` → −0.73 %. 100 % of the separation is "a weekly box exists"
@@ -67,4 +67,4 @@ win 65 % vs 47 %). It is a confounded, single-cohort artifact:
   `webapp/backend/archive_models.py:249-267`; `core/archive/result_adapter.py:19`.
 - Universe gate: `core/pipeline/evaluation.py:92-96`; `config/settings.py:9-11`.
 - Audit tool (measures only, no edge stat): `tools/htf_audit.py:65-93`.
-- Prior single-cohort read: `docs/edge_read_2026-06-30.md:17,37,175-181`.
+- Prior single-cohort read: `docs/archive/edge_read_2026-06-30.md:17,37,175-181`.

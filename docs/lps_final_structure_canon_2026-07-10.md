@@ -4,8 +4,8 @@
 published methodology instead of ad-hoc fitting. Deep-research run 2026-07-10 (19 sources
 fetched, 89 claims extracted, 25 adversarially verified by 3-vote panels: 19 confirmed /
 6 refuted / 0 unverified). Volume-based criteria were excluded by scope (operator doctrine:
-volume is unreliable). Companion to `specs/event-map-causality-contract.md` and
-`PLAN-event-tape.md` Task 8.
+volume is unreliable). Companion to `docs/archive/specs/event-map-causality-contract.md` and
+`docs/archive/PLAN-event-tape.md` Task 8.
 
 ---
 
