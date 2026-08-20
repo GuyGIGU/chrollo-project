@@ -51,6 +51,56 @@ def test_a_broken_link_is_detected(tmp_path, monkeypatch):
     )
 
 
+def test_a_link_into_an_untracked_file_is_dangling(tmp_path, monkeypatch):
+    """Clone safety: the basis is what git CARRIES, not what sits on this disk.
+
+    Found 2026-08-20, in this gate's own first day: four links in
+    flag_ledger.md pointed at root PLAN-*.md files that .gitignore excludes.
+    They opened fine on the author's machine and were dead in a fresh clone -
+    precisely the breakage the gate exists to catch, passed by the gate itself
+    because it asked the filesystem instead of git.
+    """
+    repo = tmp_path
+    (repo / "docs").mkdir()
+    (repo / "scratch.md").write_text("here but untracked", encoding="utf-8")
+    (repo / "docs" / "c.md").write_text("[local](../scratch.md)",
+                                        encoding="utf-8")
+    monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
+    monkeypatch.setattr(pointer_audit, "_tracked", lambda *p: ["docs/c.md"])
+
+    assert pointer_audit.dangling_links() == [("docs/c.md", "../scratch.md")], (
+        "a link into a file git does not carry must be reported: it resolves "
+        "on this disk and not in a clone")
+
+
+def test_a_link_to_a_tracked_directory_resolves(tmp_path, monkeypatch):
+    """`[the archive](archive/)` is a legitimate pointer at a real place."""
+    repo = tmp_path
+    (repo / "docs" / "archive").mkdir(parents=True)
+    (repo / "docs" / "archive" / "old.md").write_text("archived",
+                                                      encoding="utf-8")
+    (repo / "docs" / "c.md").write_text(
+        "[archive](archive/) and [nowhere](ghost/)", encoding="utf-8")
+    monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
+    monkeypatch.setattr(pointer_audit, "_tracked",
+                        lambda *p: ["docs/c.md", "docs/archive/old.md"])
+
+    assert pointer_audit.dangling_links() == [("docs/c.md", "ghost/")]
+
+
+def test_a_link_that_escapes_the_repo_is_dangling(tmp_path, monkeypatch):
+    """`../../elsewhere` is never something a clone can open."""
+    repo = tmp_path / "repo"
+    (repo / "docs").mkdir(parents=True)
+    (repo / "docs" / "c.md").write_text("[out](../../outside.md)",
+                                        encoding="utf-8")
+    (tmp_path / "outside.md").write_text("real, but not ours", encoding="utf-8")
+    monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
+    monkeypatch.setattr(pointer_audit, "_tracked", lambda *p: ["docs/c.md"])
+
+    assert pointer_audit.dangling_links() == [("docs/c.md", "../../outside.md")]
+
+
 def test_external_and_anchor_only_links_are_skipped(tmp_path, monkeypatch):
     """A URL is not ours to resolve, and a bare #anchor points inside itself."""
     repo = tmp_path

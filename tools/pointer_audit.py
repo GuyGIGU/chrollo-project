@@ -73,8 +73,36 @@ def _read(rel: str) -> str:
         return f.read()
 
 
+def _tracked_paths() -> tuple[set[str], set[str]]:
+    """(files, dirs) git tracks, repo-relative and slash-separated.
+
+    A committed link must resolve for someone who CLONES this repo, so the
+    basis is what git carries - not what happens to sit on this disk. Checking
+    the filesystem instead passes a link into a gitignored file, which is the
+    exact clone-only breakage this gate exists to catch (found 2026-08-20:
+    four links in flag_ledger.md into root PLAN-*.md files that .gitignore
+    excludes, green locally and dead on a fresh checkout).
+    """
+    files = set(_tracked())
+    dirs = set()
+    for path in files:
+        parts = path.split("/")
+        for i in range(1, len(parts)):
+            dirs.add("/".join(parts[:i]))
+    return files, dirs
+
+
+def _repo_rel(abs_path: str) -> str | None:
+    """Repo-relative slash path, or None when it escapes the repo."""
+    rel = os.path.relpath(abs_path, _REPO_ROOT)
+    if rel == ".." or rel.startswith(".." + os.sep):
+        return None
+    return rel.replace(os.sep, "/")
+
+
 def dangling_links() -> list[tuple[str, str]]:
     """(file, target) for every markdown link in a tracked .md that misses."""
+    files, dirs = _tracked_paths()
     bad = []
     for rel in _tracked("*.md"):
         carrier_dir = os.path.dirname(os.path.join(_REPO_ROOT, rel))
@@ -85,14 +113,23 @@ def dangling_links() -> list[tuple[str, str]]:
             clean = target.split("#")[0].strip()
             if not clean:
                 continue
-            if not os.path.exists(os.path.normpath(
-                    os.path.join(carrier_dir, clean))):
+            resolved = _repo_rel(os.path.normpath(
+                os.path.join(carrier_dir, clean)))
+            if resolved is None or (resolved not in files
+                                    and resolved not in dirs):
                 bad.append((rel, target))
     return bad
 
 
 def dangling_paths() -> list[tuple[str, str]]:
-    """(file, path) for repo-rooted bare mentions that miss. ADVISORY."""
+    """(file, path) for repo-rooted bare mentions that miss. ADVISORY.
+
+    Deliberately filesystem-based, unlike the gate above: this asks the weaker
+    question "does this thing exist at all", and a prose mention of a
+    gitignored-but-real directory (``calibration_frames/``) is not a rotted
+    reference. The gate is about what a clone can open; this is about what has
+    moved or been deleted.
+    """
     bad = set()
     for rel in _tracked("*.md", "*.py"):
         for hit in _BARE_PATH.findall(_read(rel)):
