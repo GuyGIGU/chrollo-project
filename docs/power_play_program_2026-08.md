@@ -906,3 +906,29 @@ before its 2026-08-13 breakout, unchanged — the frozen `admitted_dark` fact st
 FTNT: 2026-06-26 at clock 8, unchanged. Gates green: 1,599 tests, doctrine audit PASS,
 `shadow_diff` no canonical drift, marks ratchet 28/33 held on the same fingerprint —
 the paying read does not move, this is species-lane and instrument arithmetic only.
+
+---
+
+## The first-legal-look correction LANDED, and the evidence re-derived under it (2026-08-23)
+
+The proposal branch merged as `2b03d0b` (council 2026-08-22 verdict MERGE — an independent
+175-case oracle read the corrected walk 175/175 exact against the real seeder, main 169/175 with
+both bias directions; operator-delegated). The Correction lane's evidence half ran the same day:
+the census re-executed at clocks 8 and 10 on the corrected arithmetic (clocks 15/20 are proven
+untouched — zero looks move), sidecar `output/power_play_census_postfix_2026-08-22.json`
+(13,878 episodes / 5,511 tickers, cache through 2026-08-21, manifest `c26961bf…`).
+
+**The clock-8 ruling's own acceptance condition — "clock 8's elected cohort is the only
+forward-positive one" — HOLDS on the corrected arithmetic, and sharpens:**
+
+| clock | elected cohort | median fwd_20 | winners |
+|---|---|---|---|
+| 8 | n=85 | **+3.8%** | **58%** |
+| 10 | n=83 | −1.7% | 46% |
+
+(The ruling's pre-fix basis read +2.8% / 54% / n=79 on the cache through 2026-08-18; three newer
+sessions ride this re-run, so the delta is arithmetic + tape jointly — the HEADLINE is the
+acceptance condition, and it survives under both.) The live register was verified untouched
+before the merge: NNBR / QTTB / BRKR byte-identical under both arithmetics; MAN and FTNT immune
+at every clock. The 2026-08-18 clock-8 ruling therefore STANDS un-re-litigated, now on evidence
+the corrected walk derived.
