@@ -37,15 +37,25 @@ def _row_labels_for_date(data: pd.DataFrame, day: pd.Timestamp) -> pd.Index:
     return data.index[index_dates == day]
 
 
-def _has_symbol_close(data: pd.DataFrame, symbol: str, row_label) -> bool:
-    try:
-        value = data.loc[row_label, (symbol, 'Close')]
-    except KeyError:
-        return False
+def _close_presence_on(data: pd.DataFrame, symbols: list[str], row_label) -> pd.Series:
+    """Boolean Series indexed by ``symbols`` — True where the symbol has a non-NaN
+    Close on ``row_label``.
 
-    if isinstance(value, pd.Series):
-        return bool(value.notna().any())
-    return not pd.isna(value)
+    Vectorised (one ``xs`` + a single-row slice) instead of a per-symbol scalar
+    ``.loc`` over the ~5.5k-column panel — and ``close_coverage_on`` runs on the
+    fresh/current fast path AND after every repair/cold/incremental fetch, so the
+    old loop cost tens of thousands of MultiIndex lookups per run. Preserves the
+    prior scalar semantics: a duplicate ``(ticker,'Close')`` torn-merge column and
+    a duplicated session row both collapse via *any-non-NaN* across the matches.
+    """
+    try:
+        closes = data.xs("Close", axis=1, level=1)
+    except KeyError:
+        return pd.Series(False, index=symbols)
+    row = closes.loc[[row_label]].notna().any(axis=0)   # per-column any-non-NaN
+    if row.index.has_duplicates:
+        row = row.groupby(level=0).any()                # OR across duplicate columns
+    return row.reindex(symbols, fill_value=False)
 
 
 def close_coverage_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp) -> CloseCoverage:
@@ -58,8 +68,7 @@ def close_coverage_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp)
     if len(labels) == 0:
         return CloseCoverage(day=day, present=0, total=len(symbols))
 
-    row_label = labels[-1]
-    present = sum(1 for symbol in symbols if _has_symbol_close(data, symbol, row_label))
+    present = int(_close_presence_on(data, symbols, labels[-1]).sum())
     return CloseCoverage(day=day, present=present, total=len(symbols))
 
 
@@ -72,8 +81,8 @@ def symbols_missing_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Ti
     if len(labels) == 0:
         return symbols
 
-    row_label = labels[-1]
-    return [symbol for symbol in symbols if not _has_symbol_close(data, symbol, row_label)]
+    presence = _close_presence_on(data, symbols, labels[-1])
+    return [symbol for symbol in symbols if not bool(presence.get(symbol, False))]
 
 
 def has_all_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp) -> bool:

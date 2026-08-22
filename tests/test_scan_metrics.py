@@ -1,5 +1,6 @@
 import json
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import pandas as pd
@@ -27,6 +28,31 @@ def test_persist_scan_metrics_updates_meta_and_appends_history(tmp_path, monkeyp
     assert json.loads(history) == metrics
 
 
+def test_persist_scan_metrics_routes_to_the_scanned_universe(tmp_path, monkeypatch):
+    """Council #11: an ETF scan must write ITS OWN universe's cache_meta, not the
+    default US-Stocks one — the per-universe routing the universe arg exists for.
+    _cache_paths actually branches on the universe here (the prior test swallowed
+    it), so a regression that drops the arg would leave the ETF metrics in the
+    default meta and fail this."""
+    default_meta = tmp_path / "cache_meta.json"
+    etf_meta = tmp_path / "cache_meta_us_sectors.json"
+
+    def fake_cache_paths(universe=None):
+        if universe == "us_sectors":
+            return (str(tmp_path / "cache_us_sectors.parquet"), str(etf_meta))
+        return (str(tmp_path / "cache.parquet"), str(default_meta))
+
+    monkeypatch.setattr(scan_metrics, "_cache_paths", fake_cache_paths)
+    monkeypatch.setattr(scan_metrics, "cache_lock", lambda *a, **k: nullcontext())
+    monkeypatch.setattr(scan_metrics, "_project_root", lambda: str(tmp_path))
+
+    metrics = {"total_s": 2.0, "phases_s": {}, "counts": {"setups": 1}}
+    scan_metrics.persist_scan_metrics(metrics, universe="us_sectors")
+
+    assert json.loads(etf_meta.read_text(encoding="utf-8"))["scan_metrics"] == metrics
+    assert not default_meta.exists()  # the US-Stocks meta is untouched
+
+
 def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     dates = pd.date_range("2026-01-01", periods=3, freq="B")
     panel = pd.concat(
@@ -51,7 +77,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
+        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     saved = {}
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: saved.update(metrics))
@@ -95,7 +121,7 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10}], 0),
+        lambda frames, spy, breadth, near_miss_sink=None, power_play_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
 
