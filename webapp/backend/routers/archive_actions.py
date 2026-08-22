@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from archive_models import SetupArchive
 from database import get_db
 from routers.archive_schemas import ManualSetupIn, SetupOut
+from routers.calibration import require_same_app
 from services.archive_queries import archive_row_from_result
 from services.scan_runner import SCAN_LOCK
 
@@ -249,7 +250,12 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
 _ANALYSIS_CACHE: Dict[str, Any] = {"report": None, "ts": 0.0}
 
 
-@router.get("/analysis")
+# Deliberate guard retrofit (the calibration.py posture rule): both routes below
+# are reachable as CORS "simple requests" (a GET, a body-less POST) which no
+# preflight stops — /analysis spawns a 120s subprocess per request and
+# /update-returns holds SCAN_LOCK, whose contention makes the 18:00 scheduled
+# scan skip its night's run. Only our own frontend passes the header.
+@router.get("/analysis", dependencies=[Depends(require_same_app)])
 def get_archive_analysis(
     source: Optional[str] = Query(None, description="Restrict to a source: screener / seed / manual"),
     refresh: bool = Query(False, description="Bypass the ~5min cache and re-run"),
@@ -298,7 +304,7 @@ def get_archive_analysis(
     return {"report": report, "cached": False}
 
 
-@router.post("/update-returns")
+@router.post("/update-returns", dependencies=[Depends(require_same_app)])
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""
     # forward_returns writes the archive DB — same one-child-at-a-time

@@ -114,11 +114,6 @@ def _parse_scan_result(output: str) -> tuple[int | None, int]:
     return None, 0
 
 
-def _parse_n_setups(output: str) -> int | None:
-    """Back-compat thin wrapper: the setup count from the structured payload."""
-    return _parse_scan_result(output)[0]
-
-
 def _result_status(result: ScanProcessResult) -> str:
     if result.ok:
         return "ok"

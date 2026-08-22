@@ -32,7 +32,7 @@ from webapp.backend.services.portfolio_snapshot import (
     has_portfolio_data,
     with_cached_snapshot,
 )
-from webapp.backend.services.scan_runner import _parse_n_setups, _tail_error
+from webapp.backend.services.scan_runner import _parse_scan_result, _tail_error
 
 
 def test_cache_writer_optimizes_market_panel_roundtrip(tmp_path):
@@ -798,7 +798,7 @@ def test_archive_freshness_rejects_low_latest_coverage(tmp_path, monkeypatch):
         scan_job_module._assert_fresh_for_archive(panel, ["AAA", "BBB"])
 
 
-def test_parse_n_setups_reads_json_before_stale_traceback():
+def test_parse_scan_result_reads_json_before_stale_traceback():
     output = "\n".join([
         "Aborting archive write: stale market data: latest-session close coverage 3/4",
         'SCAN_RESULT_JSON:{"n_setups": 140, "n_archived": 0}',
@@ -806,7 +806,7 @@ def test_parse_n_setups_reads_json_before_stale_traceback():
         "core.pipeline.scan_job.StaleMarketDataError: stale market data",
     ])
 
-    assert _parse_n_setups(output) == 140
+    assert _parse_scan_result(output) == (140, 0)
 
 
 def test_scan_tail_error_prefers_stale_market_data_line():

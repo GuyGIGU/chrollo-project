@@ -14,22 +14,21 @@ class Broadcaster:
 
     Subscribers are per-(channel, Queue). A slow subscriber drops its oldest message rather
     than blocking the publisher (bounded queue).
+
+    Loop ownership: queues live where their consumers live. The publish loop is
+    the SERVER's, captured lazily from the first subscriber's running loop —
+    never the IBKR worker thread's (asyncio queues are not thread-safe, and the
+    old bind-to-IB-loop scheme both orphaned every stream open at Connect click
+    and woke server-loop queues cross-thread).
     """
 
     def __init__(self, maxsize: int = 256) -> None:
         self._maxsize = maxsize
         self._lock = threading.Lock()
         self._subs: Dict[str, Set[asyncio.Queue]] = {}
-        # Event loop on which the subscriber queues were created. We use this loop for
-        # thread-safe puts from the IBKR worker thread.
+        # Event loop the subscriber queues live on (the server's), captured from
+        # the first subscriber. publish_threadsafe hops onto it from any thread.
         self._loop: asyncio.AbstractEventLoop | None = None
-
-    def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
-        # When rebinding to a new loop (after IBKR reconnect), clear stale subscriber
-        # queues that were created on the old loop — they can never receive messages.
-        with self._lock:
-            self._subs.clear()
-        self._loop = loop
 
     def _get_or_create(self, channel: str) -> Set[asyncio.Queue]:
         subs = self._subs.get(channel)
@@ -40,7 +39,11 @@ class Broadcaster:
 
     async def subscribe(self, channel: str) -> AsyncIterator[Any]:
         queue: asyncio.Queue = asyncio.Queue(maxsize=self._maxsize)
+        loop = asyncio.get_running_loop()
         with self._lock:
+            # Latest subscriber's loop wins — in production every subscriber
+            # runs on the one uvicorn loop, so this is a stable capture.
+            self._loop = loop
             self._get_or_create(channel).add(queue)
         try:
             while True:
@@ -55,6 +58,7 @@ class Broadcaster:
     def publish(self, channel: str, payload: Any) -> None:
         with self._lock:
             subs = list(self._subs.get(channel, ()))
+        dead = []
         for q in subs:
             try:
                 q.put_nowait(payload)
@@ -64,12 +68,26 @@ class Broadcaster:
                     q.put_nowait(payload)
                 except Exception:
                     pass
+            except Exception:
+                # A queue whose consumer's loop is gone can never drain — drop
+                # just that queue, never the whole subscriber set.
+                dead.append(q)
+        if dead:
+            with self._lock:
+                live = self._subs.get(channel)
+                if live is not None:
+                    for q in dead:
+                        live.discard(q)
 
     def publish_threadsafe(self, channel: str, payload: Any) -> None:
         loop = self._loop
         if loop is None or loop.is_closed():
             return
-        loop.call_soon_threadsafe(self.publish, channel, payload)
+        try:
+            loop.call_soon_threadsafe(self.publish, channel, payload)
+        except RuntimeError:
+            # Loop shut down between the check and the call — nothing to wake.
+            pass
 
 
 broadcaster = Broadcaster()

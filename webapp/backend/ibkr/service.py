@@ -322,7 +322,9 @@ class IBKRService:
         loop = asyncio.new_event_loop()
         self._loop = loop
         asyncio.set_event_loop(loop)
-        broadcaster.bind_loop(loop)
+        # NOTE: the broadcaster is deliberately NOT bound to this loop — its
+        # queues live on the server loop (captured from the first subscriber),
+        # and publish_threadsafe hops onto that loop from this thread.
         self._ready_event.set()
         try:
             loop.run_until_complete(self._supervisor(stop_event))

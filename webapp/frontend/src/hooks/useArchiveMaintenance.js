@@ -30,7 +30,9 @@ export default function useArchiveMaintenance() {
     setAnalysisLoading(true);
     setAnalysisError(null);
     try {
-      const response = await fetch(`${API_BASE}/archive/analysis${refresh ? '?refresh=true' : ''}`);
+      const response = await fetch(`${API_BASE}/archive/analysis${refresh ? '?refresh=true' : ''}`, {
+        headers: { 'X-Chrollo-Client': 'chrollo-dashboard' },
+      });
       const data = await response.json().catch(() => ({}));
       if (response.ok) setAnalysisText(data.report || '(empty report)');
       else setAnalysisError((data.detail || `HTTP ${response.status}`).toString());

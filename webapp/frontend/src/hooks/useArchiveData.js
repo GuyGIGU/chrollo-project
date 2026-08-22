@@ -49,7 +49,10 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
     setUpdating(true);
     setUpdateMsg(null);
     try {
-      const response = await fetch(`${API_BASE}/archive/update-returns`, { method: 'POST' });
+      const response = await fetch(`${API_BASE}/archive/update-returns`, {
+        method: 'POST',
+        headers: { 'X-Chrollo-Client': 'chrollo-dashboard' },
+      });
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.returncode === 0) {
         setUpdateMsg({ ok: true, text: extractUpdateSummary(data) });

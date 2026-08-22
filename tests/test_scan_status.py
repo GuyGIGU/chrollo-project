@@ -1,0 +1,68 @@
+"""scan_runs status helpers run on the boot-migrated schema only (council
+2026-08-22, Ramirez F7): the per-call PRAGMA sniff and the no-kind SQL twins
+are deleted — services/startup.py creates scan_runs WITH the kind column and
+carries the idempotent ALTER, so these tests pin the helpers against exactly
+that boot schema (built from startup's own CREATE statement)."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine, text
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "webapp" / "backend"
+sys.path.insert(0, str(ROOT))
+sys.path.insert(1, str(BACKEND_DIR))
+
+import services.scan_status as scan_status_mod  # noqa: E402
+from services.startup import _MIGRATIONS  # noqa: E402
+
+
+@pytest.fixture()
+def status_engine(tmp_path, monkeypatch):
+    eng = create_engine(f"sqlite:///{tmp_path / 'status.db'}")
+    create_scan_runs = next(
+        s for s in _MIGRATIONS if "CREATE TABLE IF NOT EXISTS scan_runs" in s
+    )
+    with eng.begin() as conn:
+        conn.execute(text(create_scan_runs))
+    monkeypatch.setattr(scan_status_mod, "engine", eng)
+    return eng
+
+
+def test_start_finish_latest_round_trip_with_kind(status_engine):
+    run_id = scan_status_mod.start_run("manual", kind="maturation")
+    scan_status_mod.finish_run(run_id, "ok", n_setups=3)
+
+    latest = scan_status_mod.latest_run(kind="maturation")
+    assert latest["id"] == run_id
+    assert latest["kind"] == "maturation"
+    assert latest["status"] == "ok"
+    assert latest["n_setups"] == 3
+    # The kind filter still filters: no scan-kind run exists yet.
+    assert scan_status_mod.latest_run(kind="scan") is None
+
+
+def test_recent_runs_filters_by_kind_and_none_means_all(status_engine):
+    scan_status_mod.start_run("scheduled")  # default kind='scan'
+    scan_status_mod.start_run("os", kind="maturation")
+
+    assert [r["kind"] for r in scan_status_mod.recent_runs(kind="scan")] == ["scan"]
+    assert len(scan_status_mod.recent_runs(kind=None)) == 2
+    assert scan_status_mod.latest_run(kind=None)["kind"] == "maturation"
+
+
+def test_explicit_null_kind_row_still_reads_as_scan(status_engine):
+    # The COALESCE belt survives the simplification: a row with kind
+    # explicitly NULL (never produced by these helpers) reads as 'scan'.
+    with status_engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO scan_runs (started_at, status, trigger, kind) "
+            "VALUES ('2026-08-22T00:00:00+00:00', 'ok', 'manual', NULL)"
+        ))
+
+    latest = scan_status_mod.latest_run(kind="scan")
+    assert latest is not None
+    assert latest["kind"] == "scan"
