@@ -52,6 +52,14 @@ _SEALED_FILES = tuple(
         # The operator's 40 ruling-sheet verdicts (2026-08-18) — the clock/form
         # ruling evidence, sealed in the change that landed it (EC-44).
         "power_play_verdicts_2026-08-18.json",
+        # Ruling RECORDS join the sealed set too (EC-44's own words; 2026-08-22
+        # review, Hunt): the append-only operator rulings + Tested-DEAD registry
+        # — the single most load-bearing hand-curated file in the repo — the
+        # interpretation record for the sealed trend-end marks, and the HTF edge
+        # verdict. A mistyped --out must never truncate decision law in place.
+        "decisions.md",
+        "anchor_marks_ruling_2026-08-14.md",
+        "htf_edge_verdict_2026-07-04.md",
     ))
 
 

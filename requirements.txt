@@ -1,4 +1,5 @@
 # Wyckoff VCP/LPS Screener — Python Dependencies
+# Known-good exact versions are RECORDED in constraints.txt (disaster recovery; upgrades stay deliberate, AP-4).
 pandas
 numpy
 yfinance==1.2.1   # pinned: unattended scans break if a yfinance release changes Yahoo's scraper — upgrade deliberately

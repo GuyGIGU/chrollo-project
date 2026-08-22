@@ -334,6 +334,49 @@ def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
     return {**out, "status": "miss"}
 
 
+def _graduation_drift_advisory(sealed_count: int) -> None:
+    """ADVISORY, never a failure (council 2026-08-22, Friedman F2): the one
+    legal graduation channel (``tools.guided_list_export``, EC-9) refuses by
+    design when the live calibration-marks DB drifts past the operator-approved
+    pin — but that refusal was discoverable only by running the export, so the
+    channel can sit sealed shut invisibly for weeks. Report the drift where
+    eyes already are. The live DB is read via sqlite3 URI ``mode=ro`` only; an
+    absent DB (hermetic checkout, CI) prints nothing, and no failure in here
+    may ever touch the gate's verdict."""
+    try:
+        import sqlite3
+        from urllib.request import pathname2url
+
+        import database  # backend module: the ONE __file__-anchored DB path
+        if not os.path.exists(database._DB_PATH):
+            return
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        # EC-13: the ONE validated loader + fingerprint recipe (the export's
+        # own), and the export's own pin — never a re-typed twin of either.
+        from tools.calibration_harness import load_box_marks
+        from tools.guided_list_export import OPERATOR_APPROVED_FINGERPRINT
+
+        uri = "file:" + pathname2url(database._DB_PATH) + "?mode=ro"
+        ro_engine = create_engine(
+            "sqlite://", creator=lambda: sqlite3.connect(uri, uri=True))
+        session = sessionmaker(bind=ro_engine)()
+        try:
+            rows, fingerprint = load_box_marks(session)
+        finally:
+            session.close()
+            ro_engine.dispose()
+        if fingerprint == OPERATOR_APPROVED_FINGERPRINT:
+            return
+        print(f"\nADVISORY: the live calibration-marks DB ({len(rows)} box marks, "
+              f"{len(rows) - sealed_count:+d} vs the {sealed_count} sealed) has "
+              "drifted past the graduation pin - a graduation event is owed "
+              "(tools.guided_list_export refuses until the operator re-pins).")
+    except Exception:
+        return  # advisory only: the graduation report never fails the gate
+
+
 def check_corpus() -> bool:
     """Full ratchet check: corpus seal, pinned hits still hit, expected misses
     still miss. ANY deviation fails - improvements included, until the baseline
@@ -427,6 +470,7 @@ def check_corpus() -> bool:
             print(line)
         print()
         print("FAIL - the marks ratchet broke (see above).")
+    _graduation_drift_advisory(len(setups))
     return ok
 
 

@@ -209,6 +209,17 @@ def test_json_output_refuses_the_sealed_dirs(tmp_path):
                    os.path.join(str(ROOT), "docs", "power_play_verdicts_2026-08-18.json")):
         with pytest.raises(ValueError):
             _refuse_sealed_output(corpus)
+    # Ruling RECORDS seal too (EC-44's own words — 2026-08-22 review, Hunt):
+    # the append-only decision law, the trend-end marks' interpretation
+    # record, and the HTF edge verdict, incl. the EC-35 case variants.
+    for ruling in (os.path.join(str(ROOT), "docs", "decisions.md"),
+                   os.path.join(str(ROOT), "docs", "Decisions.MD"),
+                   os.path.join(str(ROOT), "docs", "anchor_marks_ruling_2026-08-14.md"),
+                   os.path.join(str(ROOT), "docs", "Anchor_Marks_Ruling_2026-08-14.md"),
+                   os.path.join(str(ROOT), "docs", "htf_edge_verdict_2026-07-04.md"),
+                   os.path.join(str(ROOT), "docs", "HTF_Edge_Verdict_2026-07-04.MD")):
+        with pytest.raises(ValueError):
+            _refuse_sealed_output(ruling)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
     _refuse_sealed_output(os.path.join(str(ROOT), "docs", "some_note.json"))
 
