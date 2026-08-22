@@ -667,3 +667,70 @@ operator-delegated 2026-08-17
 constraint, AP-3); one scoped override is the only mechanism that moves every consulting
 site coherently, and the declared dict is what keeps multi-name clocks (the import-time
 copy trap) moving together.
+
+### EC-48: A correction to a ruled mechanism lands whole — fix + re-derived evidence + trued rulings in ONE change
+**Convention:** A CORRECTION (a change making an existing ruled mechanism compute what its ruling
+already says it should — a bug fix, an as-of repair, an EC-45 violation) is never parked as a
+branch: it lands in ONE change carrying (1) the fix with a regression battery pinning the corrected
+behavior, (2) re-derivation of every evidence artifact the affected rulings cite (old headline vs
+new headline stated side by side), (3) EC-15 true-up of every ruling row and program-doc claim the
+re-derivation touches, and (4) a decisions.md "evidence re-derivation" row. **The presumption of
+continuity:** the ruling STANDS by default; the operator re-rules BEFORE merge only when the
+re-derived evidence crosses the ruling's own recorded acceptance condition. A correction lands or
+dies within seven days of its confirming review — "proposal branch" is abolished as a resting
+state. Distinct from a NEW LEVER (which changes what the engine believes and keeps the full EC-8
+A/B road).
+**Origin:** Friedman / McKinney — Council Review 2026-08-22-2250 (the first_legal_look fix parked
+as `proposal/first-legal-look-fix` because no lane existed for its case); operator-delegated
+2026-08-22 ("Take the lead on this one, if you think its good then push and flip")
+**Principle:** `conventions.md` EC-15/EC-45; `references/quality-ux.md` → P9
+
+### EC-49: A live-only cost bound is measured by ONE named trial scan with pre-agreed revert
+**Convention:** When EC-8's pre-flip cost bound cannot be measured while a lane is dark (the cost
+instrument only reports with the flag on), the bound is obtained by a TRIAL FLIP: one named nightly
+scan with the flag on, the cost recorded to a committed sidecar, and one-word revert semantics
+agreed in the flag-ledger row beforehand. Codifies the species preset's ad-hoc exception
+(2026-08-19) so each future lane stops re-negotiating it or stalling dark on an unmeetable gate
+(the trace-export flag's state since 2026-08-04).
+**Origin:** Friedman — Council Review 2026-08-22-2250 (finding 10: the chicken-and-egg documented
+twice, codified nowhere); operator-delegated 2026-08-22
+**Principle:** `conventions.md` EC-8
+
+### EC-50: Parked work and open questions exist only WITH a register/queue row in the same change
+**Convention:** A park is legal only when the same change lands its `docs/pattern_register.md` row
+(owner-or-kill-by); an open question owed to the operator lands its `docs/asks.md` line in the
+change that creates it; a ruling received in chat lands its decisions.md row AND closes its ask row
+in the same session. A branch, stash, or question older than its row's kill-by is a red condition,
+not a parking space — the flag ledger's "flipped, deleted, or re-dated with a written reason, never
+silently carried" applied to everything parked.
+**Origin:** Friedman / Hunt — Council Review 2026-08-22-2250 (findings 4/7/12: the three
+first_legal_look questions lived only in an unmerged branch's commit message; a chat ruling took
+three weeks of forensics to reconstruct; a park named an owner that does not exist);
+operator-delegated 2026-08-22
+**Principle:** `conventions.md` EC-15/EC-16/EC-42
+
+---
+
+### AP-11: The species story-form dark lane is the protocol working — not a version smell
+**Pattern:** `POWER_PLAY_STORY_FORM_ENABLED` sits dark with banked EGBN/PKE acceptance evidence
+while its graduation into the paying read waits for its own A/B program (Pattern Register row 5).
+Do NOT flag the dark flag, the scoped species election, or the two named ruled forms consulted in
+priority order as parallel versions or EC-3 twins: McKinney's census verified ONE admission seam,
+ONE implementation per ruled form (EC-18), the O(1) prefilter deriving from the same predicates,
+and a test pinning the paying read's blindness to the form by name.
+**Origin:** McKinney — Council Review 2026-08-22-2250 (finding 4); operator-delegated 2026-08-22
+**Rationale:** The refused flip (a3397a5) removed a graduation, not code; measure-first dark lanes
+with banked evidence are the intake design's normal state, not debt.
+
+### AP-12: The archive serializers speak both verdict vocabularies forever
+**Pattern:** `SetupOut`, the watchlist snapshot readers, and the concordance surface serve BOTH the
+legacy `score`/`tier` family and the `ta_grade` family, and the live writers keep stamping
+`score` (NOT NULL model contract; computationally free) after the 2026-08-23 legacy-path
+retirement. Do NOT propose removing the legacy columns/fields from archive-facing serializers or
+writers: pre-flip rows are NULL-graded forever (no backfill EVER), so the books of record must
+speak both vocabularies for the life of the archive; `min_score` keeps raw-sum semantics forever
+beside `min_ta_grade` (two filters over two populations, ruled).
+**Origin:** Ramírez / Leach — Council Review 2026-08-22-2250 (the wire map + the archive ruling);
+operator-delegated 2026-08-22
+**Rationale:** Display retired; history did not. The one system READS with one verdict and
+REMEMBERS with both.

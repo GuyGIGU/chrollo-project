@@ -1,4 +1,16 @@
-# Backlog — started-but-unfinished work (survey 2026-07-21)
+# Backlog — started-but-unfinished work (survey 2026-07-21) — **SUPERSEDED 2026-08-23**
+
+> **This file is a historical snapshot, no longer the tracking surface.** The 2026-08-22
+> "One System" council found it carrying falsified guidance (the TA-v2 item below instructed
+> rebuilding a feature that FLIPPED LIVE 2026-08-09 — committed instructions to mint a forbidden
+> parallel version) and unticked items already done. Its still-live items migrated to
+> [`pattern_register.md`](pattern_register.md) (owned work with kill-bys) and
+> [`asks.md`](asks.md) (operator decisions). Item-level dispositions, trued 2026-08-23:
+> **signal-edge** → register row 6 (operator go/no-go); **TA Score v2** → SHIPPED by another
+> route, flipped live 2026-08-09, legacy path retired 2026-08-23 — do NOT rebuild;
+> **council-P2 follow-ups** → the three genuinely-stranded pieces re-landed 2026-08-23, branch
+> retiring; the slope-knob item landed 2026-08-20 (d495e4b). Nothing else here may be treated
+> as standing instruction without checking the register first.
 
 Living checklist of work that **was started and then stalled/forgotten**, produced by a full
 sweep of every unmerged branch, the PLAN/spec docs, the tracking docs (flag ledger, quality
