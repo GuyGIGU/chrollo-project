@@ -47,6 +47,7 @@ import numpy as np
 import pandas as pd
 
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
+from core.archive.outcomes import HORIZON_BARS
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring import taxonomy
 
@@ -235,7 +236,10 @@ def load_archive(source: Optional[str] = None,
     """
     if not os.path.exists(_DB_PATH):
         raise FileNotFoundError(f"Archive DB not found at {_DB_PATH}")
-    con = sqlite3.connect(_DB_PATH)
+    # mode=ro URI: the tool's read-only contract enforced by the connection
+    # itself (same pattern as seed_recall.load_seed_rows) — a future write
+    # attempt errors loudly instead of holding by discipline alone.
+    con = sqlite3.connect(f"file:{_DB_PATH}?mode=ro", uri=True)
     try:
         df = pd.read_sql_query("SELECT * FROM setup_archive", con)
     finally:
@@ -554,7 +558,20 @@ def _perf_row(sub: pd.DataFrame) -> dict:
     ret20 = pd.to_numeric(sub["fwd_return_20d"], errors="coerce").dropna()
     ret60 = pd.to_numeric(sub["fwd_return_60d"], errors="coerce").dropna()
     rmult = pd.to_numeric(sub["r_multiple_20d"], errors="coerce").dropna()
-    trig = pd.to_numeric(sub["triggered"], errors="coerce").dropna()
+    # Trigger-rate maturity gate: the fires' updater stamps triggered=0 from the
+    # FIRST forward bar and lets the nightly recompute converge it, so 0 means
+    # "not YET (as of last maturation)", not "never". Averaging those
+    # still-maturing zeros deflates every recent segment's trigger rate. A row
+    # counts here only once its verdict is final: triggered=1 (a touch is final
+    # the moment it happens) or triggered=0 with the full horizon elapsed
+    # (bars_to_date >= HORIZON_BARS). Reporter-side predicate only — the stored
+    # column keeps its two-state write semantics untouched.
+    trig = pd.to_numeric(sub["triggered"], errors="coerce")
+    if "bars_to_date" in sub.columns:
+        bars = pd.to_numeric(sub["bars_to_date"], errors="coerce")
+        trig = trig[(trig == 1) | (bars >= HORIZON_BARS)]
+    else:  # pre-migration DB: no maturity info — the ungated legacy mean
+        trig = trig.dropna()
     win_rate = (ret20 > 0).mean() if len(ret20) else None
     # Expectancy in R: win_rate*avg_win + (1-wr)*avg_loss
     exp_r = None

@@ -120,7 +120,6 @@ def test_writer_episode_upsert_and_counters(lane_db):
     assert row.last_seen == "2026-01-16" and row.nights_seen == 2
     assert row.fired_first_night == 0 and row.fired_any_night == 1
     assert row.nm_lower_dwell == -1                # first refusal's evidence, untouched
-    assert row.would_be_score is None and row.would_be_tier is None
     assert row.lane_ruleset == "2026-07-26.A"
     assert row.engine_config_version
     db.close()
@@ -197,6 +196,52 @@ def test_writer_enable_passthrough_writes_nothing(lane_db):
     assert counters["inserted"] == 0
     insp = inspect(database.engine)
     assert "near_miss_archive" not in insp.get_table_names()
+
+
+_WOULD_BE_DROPS = (
+    "ALTER TABLE near_miss_archive DROP COLUMN would_be_score",
+    "ALTER TABLE near_miss_archive DROP COLUMN would_be_tier",
+)
+
+# The runner's idempotency predicate (see startup._apply_migrations) — the
+# same contract test_startup_migrations pins for the ADD side.
+_SKIP_MARKERS = ("duplicate column", "already exists", "no such column")
+
+
+def test_would_be_pair_is_retired_model_and_migration():
+    """would_be_score/would_be_tier were declared, rendered, and unwritable —
+    no writer ever existed, and a refused framing has no election context to
+    score (council review 2026-08-22). The model must not re-grow the pair,
+    and the one-off DROP must be registered so a DB restored from a pre-drop
+    backup converges instead of resurrecting the columns permanently."""
+    cols = {c.name for c in archive_models.NearMissArchive.__table__.columns}
+    assert "would_be_score" not in cols and "would_be_tier" not in cols
+    for stmt in _WOULD_BE_DROPS:
+        assert stmt in startup._MIGRATIONS, f"missing migration: {stmt}"
+
+
+def test_would_be_drop_converges_a_predrop_db_and_rerun_is_idempotent(tmp_path):
+    """A pre-drop DB (columns present) converges on one application; a re-run
+    on the already-clean DB raises exactly a skip-marker error — the runner's
+    already-applied contract, so a boot on a migrated DB is a no-op."""
+    db = tmp_path / "predrop.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE near_miss_archive "
+                "(id INTEGER PRIMARY KEY, ticker VARCHAR, "
+                "would_be_score FLOAT, would_be_tier VARCHAR)")
+    con.commit()
+
+    for stmt in _WOULD_BE_DROPS:
+        con.execute(stmt)
+    con.commit()
+    cols = {r[1] for r in con.execute("PRAGMA table_info(near_miss_archive)")}
+    assert "would_be_score" not in cols and "would_be_tier" not in cols
+
+    for stmt in _WOULD_BE_DROPS:
+        with pytest.raises(sqlite3.OperationalError) as exc:
+            con.execute(stmt)
+        assert any(m in str(exc.value).lower() for m in _SKIP_MARKERS), str(exc.value)
+    con.close()
 
 
 def test_model_diff_migrator_covers_the_new_table_at_birth(tmp_path):

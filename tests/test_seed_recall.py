@@ -1,5 +1,9 @@
+import json
 import sys
 from pathlib import Path
+
+import pandas as pd
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -174,3 +178,72 @@ def test_summarize_empty():
     s = summarize_recall([], [])
     assert s["total"] == 0 and s["raw_total"] == 0
     assert s["recall"] == 0.0 and s["score_median"] is None
+
+
+# ------------------------------------------------------------------
+# Hermetic-fixture rebuild guard (council review 2026-08-22, Leach F7):
+# --build-fixture is a one-command baseline recapture, so an EXISTING
+# fixture refuses to be overwritten without the explicit --reseal-fixture
+# seam flag (EC-29), and every build stamps a population sidecar.
+# ------------------------------------------------------------------
+def _tiny_frames():
+    idx = pd.date_range("2026-01-02", periods=5, freq="B")
+    frame = pd.DataFrame({"Open": 1.0, "High": 1.1, "Low": 0.9,
+                          "Close": 1.0, "Volume": 100.0}, index=idx)
+    spy = pd.Series(1.0, index=idx)
+    return {"AAA": frame}, spy
+
+
+def test_build_fixture_refuses_to_overwrite_without_reseal(tmp_path, monkeypatch):
+    import core.archive.seed as seed_mod
+
+    fixture = tmp_path / "fixture.parquet"
+    fixture.write_bytes(b"frozen")
+
+    def _no_network(active):
+        raise AssertionError("the refusal must fire BEFORE any download")
+
+    monkeypatch.setattr(seed_mod, "_download_seed_data", _no_network)
+    with pytest.raises(RuntimeError, match="EC-29"):
+        seed_recall.build_hermetic_fixture(fixture_path=str(fixture))
+    assert fixture.read_bytes() == b"frozen"   # ground truth untouched
+
+
+def test_build_fixture_reseal_rebuilds_and_stamps_population(tmp_path, monkeypatch):
+    import core.archive.seed as seed_mod
+
+    fixture = tmp_path / "fixture.parquet"
+    fixture.write_bytes(b"old")
+    frames, spy = _tiny_frames()
+    monkeypatch.setattr(seed_mod, "_download_seed_data",
+                        lambda active: (frames, spy))
+
+    frozen = seed_recall.build_hermetic_fixture(fixture_path=str(fixture),
+                                                reseal=True)
+    assert set(frozen) == {"AAA", "SPY"}
+    assert fixture.read_bytes() != b"old"      # the deliberate reseal landed
+
+    meta = json.loads((tmp_path / "fixture.parquet.meta.json")
+                      .read_text(encoding="utf-8"))
+    assert meta["seed_tickers"] == ["AAA"]     # the covered ticker set
+    assert meta["frozen_at"]                   # the freeze date
+    assert "missing_tickers" in meta
+
+
+def test_build_fixture_first_build_needs_no_flag(tmp_path, monkeypatch):
+    import core.archive.seed as seed_mod
+
+    fixture = tmp_path / "fresh" / "fixture.parquet"   # no fixture yet
+    frames, spy = _tiny_frames()
+    monkeypatch.setattr(seed_mod, "_download_seed_data",
+                        lambda active: (frames, spy))
+
+    seed_recall.build_hermetic_fixture(fixture_path=str(fixture))
+    assert fixture.exists()
+    assert (tmp_path / "fresh" / "fixture.parquet.meta.json").exists()
+
+
+def test_reseal_flag_alone_is_a_usage_error(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["seed_recall", "--reseal-fixture"])
+    with pytest.raises(SystemExit):
+        seed_recall.main()

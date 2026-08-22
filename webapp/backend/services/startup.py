@@ -239,6 +239,19 @@ _MIGRATIONS = [
     "ALTER TABLE setup_archive DROP COLUMN puzzle_chronology",
     "ALTER TABLE setup_archive DROP COLUMN puzzle_upthrust_terminal",
     "ALTER TABLE setup_archive DROP COLUMN score_puzzle_quality",
+    # Retired near-miss counterfactual pair (council review 2026-08-22) —
+    # declared, rendered, and unwritable: no writer ever existed, and the
+    # lane's own model docstring conceded a refused framing has no election
+    # context to score, so the pair was unfillable by design. Verified
+    # 2026-08-23 via mode=ro: the live cohort table (1,123 rows) never even
+    # materialized the columns, so the DROP destroys nothing and reads as
+    # already-applied there. Recorded anyway (not just model removal) because
+    # any DB where the model-diff migrators DID materialize the empty pair
+    # would otherwise carry it forever — the ADD-only auto-migrator can never
+    # remove a column.
+    # Idempotent: "no such column" on an already-clean DB reads as applied.
+    "ALTER TABLE near_miss_archive DROP COLUMN would_be_score",
+    "ALTER TABLE near_miss_archive DROP COLUMN would_be_tier",
 ]
 
 _log = logging.getLogger("chrollo.migrate")

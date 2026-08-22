@@ -82,8 +82,6 @@ def _print_row(row, latest_seen: str) -> None:
     is_new = row.first_seen == row.last_seen == latest_seen
     badge = "NEW " if is_new else f"seen {row.nights_seen}x"
     fired = "  [FIRED-TICKER]" if row.fired_any_night else ""
-    tier = (f"would-be: {row.would_be_tier}" if row.would_be_tier
-            else "would-be: — (unmeasured)")
     outcome = ""
     if row.bars_to_date:
         trig = ("touched " + row.trigger_date if row.triggered
@@ -94,7 +92,7 @@ def _print_row(row, latest_seen: str) -> None:
     print(f"  {row.ticker:6} {margin_disp:28} {badge:9}"
           f" pool={row.pool}{fired}\n"
           f"      sentence: {row.episode_profile or '(none)'}\n"
-          f"      {tier} — never elected, never fired\n"
+          f"      never elected, never fired\n"
           f"      R {row.r_level} / S {row.s_level}; window "
           f"{row.window_start_date}..{row.window_end_date}; first refusal "
           f"{row.first_seen} (close {row.scan_close}); anchors "

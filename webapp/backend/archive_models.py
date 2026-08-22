@@ -497,11 +497,12 @@ class NearMissArchive(Base):
     NULL discipline: margins are NOT NULL for every leg the completion
     measured (all fourteen on a completed vector); ``nm_window`` is NULL
     when the floor was never consulted (the outer seam pre-gates it).
-    Outcome columns are NULL until the Task-10 maturation pass fills them;
-    ``would_be_score``/``would_be_tier`` ship NULL-until-measured (a refused
-    framing has no election context to score — the ledger records this
-    fallback). A re-ruling PARTITIONS by (engine_config_version,
-    lane_ruleset); it never reinterprets old rows.
+    Outcome columns are NULL until the Task-10 maturation pass fills them.
+    (The ``would_be_score``/``would_be_tier`` pair was RETIRED 2026-08-22:
+    a refused framing has no election context to score, so the pair was
+    unfillable by design — never populated, dropped via the one-off
+    startup DROP migration.) A re-ruling PARTITIONS by
+    (engine_config_version, lane_ruleset); it never reinterprets old rows.
     """
     __tablename__ = "near_miss_archive"
 
@@ -553,8 +554,6 @@ class NearMissArchive(Base):
     episode_profile = Column(String, nullable=True)    # the rail sentence
     would_be_trigger = Column(Float, nullable=False)   # breakout over the box's R
     scan_close = Column(Float, nullable=False)         # scan-time price scale
-    would_be_score = Column(Float, nullable=True)      # NULL-until-measured
-    would_be_tier = Column(String, nullable=True)      # NULL-until-measured
 
     # ── Forward outcomes (Task-10 maturation pass; core/archive/outcomes.py) ──
     triggered = Column(Integer, nullable=True)

@@ -144,6 +144,21 @@ WINDOW_FWD = 3
 # enriches HTF only and does not change the daily root walk.
 SEED_HISTORY_DAYS = 365 * 5 + 30
 
+# Operator-curation columns are never writer-refreshable (EC-7 spirit): a
+# --force re-seed refreshes MEASUREMENTS on the existing row but must preserve
+# a hand-edited note or a re-graded label — the writer's 'perfect'/None
+# auto-fills apply only when the row is first created.
+_CURATION_COLUMNS = ("quality_label", "notes")
+
+
+def _overwrite_existing(existing, values: dict) -> None:
+    """Refresh every measured column on an existing archive row, preserving
+    the operator-curation columns (see _CURATION_COLUMNS)."""
+    for k, v in values.items():
+        if k in _CURATION_COLUMNS:
+            continue
+        setattr(existing, k, v)
+
 
 def _ticker_frame(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
     if raw is None or raw.empty:
@@ -183,6 +198,13 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
         return None
     return seed_row_from_result(result) if result is not None else None
 
+
+
+def _election_key(result: dict) -> tuple:
+    """The scan-back election's ordering: the live ranking basis (ta_grade)
+    first, the raw sum as tiebreak - ONE basis with the screener ranking
+    (re-keyed at the 2026-08-22 legacy-retirement seam, council ruling)."""
+    return (float(result.get("_ta_grade") or 0.0), float(result.get("score") or 0.0))
 
 def seed_archive(
     setups: list[tuple[str, str]] | None = None,
@@ -304,7 +326,10 @@ def seed_archive(
 
             result = _evaluate_at_date(df_slice, spy_6m_return=spy_6m)
             if result is not None:
-                if best_result is None or result["score"] > best_result["score"]:
+                # Elect on the LIVE ranking basis (the grade), raw sum as the
+                # tiebreak - re-keyed at the 2026-08-22 retirement seam so the
+                # seed gallery pins the same "best day" the live ranking would.
+                if best_result is None or _election_key(result) > _election_key(best_result):
                     best_result = result
                     best_eval_date = eval_date
 
@@ -454,8 +479,7 @@ def seed_archive(
         values = archive_row_from_result(best_result, overrides=overrides)
 
         if existing:
-            for k, v in values.items():
-                setattr(existing, k, v)
+            _overwrite_existing(existing, values)
         else:
             session.add(SetupArchive(**values))
 
@@ -548,7 +572,8 @@ def _scan_back_seeds(
             if len(df_slice) < 200:
                 continue
             result = _evaluate_at_date(df_slice, spy_6m_return=_spy6(eval_date))
-            if result is not None and (best is None or result["score"] > best["score"]):
+            if result is not None and (best is None
+                                       or _election_key(result) > _election_key(best)):
                 best = result
         out[(ticker, date_str)] = best
     return out

@@ -415,13 +415,29 @@ def capture_fresh_baseline(baseline_path: str = _BASELINE_PATH) -> dict:
 # but over the curated winners via the seed twin ``_evaluate_at_date``). The
 # frozen closes are a point-in-time adjusted snapshot; that is irrelevant to
 # regression detection — the guard measures engine drift on FIXED inputs.
-def build_hermetic_fixture(fixture_path: str = _HERMETIC_FIXTURE) -> list[str]:
+def build_hermetic_fixture(fixture_path: str = _HERMETIC_FIXTURE,
+                           reseal: bool = False) -> list[str]:
     """Freeze every active seed winner's download frame + SPY into a committed
-    parquet so the recall guard can replay them offline (network; one-time)."""
+    parquet so the recall guard can replay them offline (network; one-time).
+
+    Rebuilding an EXISTING fixture is a baseline recapture — allowed only at an
+    explicit flip/seam commit (EC-29), so it refuses unless ``reseal`` (the
+    ``--reseal-fixture`` flag) is passed. Every build stamps a ``.meta.json``
+    sidecar with the covered ticker set + freeze date, so the artifact records
+    which population it froze and when.
+    """
     import pandas as pd
 
     from config import settings
     from core.archive.seed import SEED_SETUPS, _download_seed_data
+
+    if os.path.exists(fixture_path) and not reseal:
+        raise RuntimeError(
+            f"Hermetic fixture already exists at {fixture_path} — rebuilding it "
+            "silently moves the recall guard's ground truth (EC-29: baselines "
+            "recapture only at a flip/seam commit). Pass --reseal-fixture with "
+            "--build-fixture if this IS a deliberate seam recapture."
+        )
 
     active, _ignored = filter_ignored_seeds(SEED_SETUPS)
     data, spy_close = _download_seed_data(active)
@@ -440,7 +456,20 @@ def build_hermetic_fixture(fixture_path: str = _HERMETIC_FIXTURE) -> list[str]:
     frozen = sorted(frames)
     covered = [t for t in frozen if t != _HERMETIC_SPY_KEY]
     missing = sorted({t for t, _ in active} - set(covered))
+
+    # Population stamp (EC-46 spirit): the sidecar records WHICH seed
+    # population the fixture froze and WHEN, alongside the parquet.
+    meta_path = fixture_path + ".meta.json"
+    meta = {
+        "frozen_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "seed_tickers": covered,
+        "missing_tickers": missing,
+    }
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+
     print(f"Built hermetic seed fixture: {len(covered)} seed tickers + SPY -> {fixture_path}")
+    print(f"  population stamp -> {meta_path}")
     if missing:
         print(f"  WARNING: {len(missing)} seed tickers had no data and will read as MISSES: {', '.join(missing)}")
     return frozen
@@ -655,14 +684,21 @@ def main() -> None:
                             "(network; slower; writes only the baseline JSON)")
     group.add_argument("--build-fixture", action="store_true",
                        help="Freeze each active seed winner's OHLCV + SPY into the committed "
-                            "hermetic fixture parquet (network; one-time)")
+                            "hermetic fixture parquet (network; one-time; refuses to overwrite "
+                            "an existing fixture without --reseal-fixture)")
     group.add_argument("--hermetic-capture", action="store_true",
                        help="Snapshot the OFFLINE fixture-replay recall + miss-set as the "
                             "hermetic baseline (no network; needs the fixture)")
     group.add_argument("--hermetic-check", action="store_true",
                        help="Replay the committed fixture OFFLINE and fail (exit 1) if a known "
                             "winner is newly missed — the hard, network-free CI gate")
+    ap.add_argument("--reseal-fixture", action="store_true",
+                    help="Allow --build-fixture to OVERWRITE the existing committed fixture — "
+                         "a baseline recapture, legal only at a flip/seam commit (EC-29)")
     args = ap.parse_args()
+
+    if args.reseal_fixture and not args.build_fixture:
+        ap.error("--reseal-fixture only modifies --build-fixture")
 
     try:
         if args.capture:
@@ -678,7 +714,7 @@ def main() -> None:
         elif args.fresh_capture:
             capture_fresh_baseline(baseline_path=args.baseline)
         elif args.build_fixture:
-            build_hermetic_fixture()
+            build_hermetic_fixture(reseal=args.reseal_fixture)
         elif args.hermetic_capture:
             capture_hermetic_baseline()
         elif args.hermetic_check:
