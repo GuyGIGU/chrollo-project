@@ -433,6 +433,25 @@ def test_ramp_zero_divisor_guard_returns_neutral():
     assert _ramp(0.45, 0.30, 0.60, 1.0) == pytest.approx(0.5)   # midpoint
 
 
+def test_clamp_and_ramp_read_non_finite_as_absent_never_as_maximum():
+    # Council 2026-08-22 (McKinney): NaN comparisons are False, so unguarded
+    # ``min(cap, nan)`` returns cap and ``min(1.0, nan)`` returns 1.0 — a NaN
+    # input scored a term's MAXIMUM. Absence-is-neutral demands 0.0, same as None.
+    from engine_alpha.scoring.scoring import _clamp, _ramp
+    nan, inf = float("nan"), float("inf")
+    assert _clamp(nan, 8.0) == 0.0
+    assert _clamp(inf, 8.0) == 0.0
+    assert _clamp(-inf, 8.0) == 0.0
+    assert _ramp(nan, 0.30, 0.60, 10.0) == 0.0
+    assert _ramp(inf, 0.30, 0.60, 10.0) == 0.0
+    assert _ramp(-inf, 0.30, 0.60, 10.0) == 0.0
+    # Every finite input is byte-identical to the pre-guard arithmetic.
+    assert _clamp(3.5, 8.0) == 3.5
+    assert _clamp(-1.0, 8.0) == 0.0
+    assert _clamp(9.0, 8.0) == 8.0
+    assert _ramp(0.45, 0.30, 0.60, 10.0) == pytest.approx(5.0)
+
+
 def test_touch_density_awards_bonus_only_when_touch_floors_met():
     from engine_alpha.scoring.scoring import score_setup
 

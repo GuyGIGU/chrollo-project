@@ -23,7 +23,14 @@ from config import settings
 
 
 def _clamp(value: float, cap: float) -> float:
-    """Clamp ``value`` into ``[0, cap]``. Used consistently across the scorer."""
+    """Clamp ``value`` into ``[0, cap]``. Used consistently across the scorer.
+
+    A non-finite value reads as an absent measurement → neutral 0.0. Without the
+    guard ``min(cap, nan)`` returns ``cap`` (NaN comparisons are False), so one
+    NaN input would award the term's MAXIMUM — absence-maximal, the exact
+    inversion of the absence-is-neutral law."""
+    if not math.isfinite(value):
+        return 0.0
     return max(0.0, min(cap, value))
 
 
@@ -40,7 +47,9 @@ def _ramp(value: Optional[float], zero_at: float, full_at: float, cap: float) ->
     # reach the divide. Dead code for every shipped anchor (all full_at > zero_at).
     if full_at <= zero_at:
         return 0.0
-    if value is None or value <= zero_at:
+    # Non-finite reads as absent, same as None: ``nan <= zero_at`` is False, so
+    # without this NaN would slip through to ``min(1.0, nan)`` → 1.0 → full cap.
+    if value is None or not math.isfinite(value) or value <= zero_at:
         return 0.0
     progress = min(1.0, (value - zero_at) / (full_at - zero_at))
     return progress * cap
