@@ -208,17 +208,31 @@ def ticker_episodes(ticker, df, pole_gain, pole_window):
 def first_legal_look(ep, clock, df):
     """The first as-of POSITION (raw frame) where the anchor is seedable —
     the collector's AR-age and climax-age walls solved for the as-of, against
-    the AR the walk would have seen ON that day.
+    the reaction the walk could actually SEE on that day.
+
+    THE INVARIANT: a walk standing on session ``p`` never reads the reaction
+    past bar ``p - skip``. The collector anchors on the edge-TRIMMED frame
+    (``eval_df = df[:-STRUCTURE_EDGE_SKIP_BARS]``), so the newest ``skip``
+    sessions are reserve — they exist, but no anchor may be built on them.
+    Every prefix fact tested at ``p`` is therefore read at ``p - skip``,
+    clamped to the reaction window's last bar: whether a confirming close has
+    printed, and where the reaction low stands.
 
     The episode's recorded AR is the hindsight-final argmin over the full
-    reaction window; a walk on an intermediate day sees the RUNNING argmin,
-    so when the reaction low deepens late the live lane clears the AR-age
+    reaction window; the walk sees the RUNNING argmin of the bars outside the
+    reserve, so when the reaction low deepens late the lane clears the AR-age
     wall at an earlier, shallower AR and watches sooner than the final-AR
-    closed form admits. Arithmetically identical at the default clock (the
-    wall always clears after the reaction window shuts); the divergence opens
-    at exactly the short species clocks — the cross-clock comparison the
-    census ruling reads (2026-08-17 review, McKinney). The answer may sit at
-    or past ``len(df)`` (pending: not yet watchable)."""
+    closed form admits (2026-08-17 review, McKinney). Reading that prefix at
+    ``p`` instead of ``p - skip`` biased both ways — a confirming close
+    printing inside the reserve watched up to ``skip`` sessions EARLY, a low
+    deepening inside the reserve watched LATE (2026-08-20 review, finding 3).
+
+    The terminal bound is the day the WHOLE reaction window has cleared the
+    reserve: there the visible reaction IS the episode's own AR and its
+    confirming close, so the final-AR closed form satisfies itself. That day
+    is part of the bound — a confirmation printing late in the reaction is
+    not walk-visible at the AR-age wall alone. The answer may sit at or past
+    ``len(df)`` (pending: not yet watchable)."""
     from config import settings
 
     skip = int(settings.STRUCTURE_EDGE_SKIP_BARS)
@@ -234,7 +248,8 @@ def first_legal_look(ep, clock, df):
     thr = float(ep["peak_high"]) * (1.0 - float(settings.AR_MIN_DROP_PCT))
 
     # Prefix state of the reaction window: the running argmin + whether a
-    # confirming close has printed yet, per visible bar.
+    # confirming close has printed yet, per bar — indexed by the bar the walk
+    # is READING (p - skip), never by the as-of it is standing on.
     run_ar = np.empty(len(lows), dtype=int)
     confirmed = np.empty(len(lows), dtype=bool)
     best_j, best_low, conf = j0, np.inf, False
@@ -245,12 +260,14 @@ def first_legal_look(ep, clock, df):
         run_ar[k] = best_j
         confirmed[k] = conf
 
-    # The final-AR closed form is an upper bound and always satisfies itself,
-    # so the walk terminates there at the latest.
-    final_wall = max(int(ep["ar"]) + clock + skip - 1, floor_p)
-    p = max(floor_p, j0)
+    # The walk terminates at the first day BOTH walls are satisfiable on
+    # walk-visible evidence: the reaction window fully out of the reserve
+    # (``j1 - 1 + skip``, where the visible AR is the episode's own and its
+    # confirming close has printed) and the two age walls cleared.
+    final_wall = max(int(ep["ar"]) + clock + skip - 1, floor_p, j1 - 1 + skip)
+    p = max(floor_p, j0 + skip)
     while p < final_wall:
-        k = min(p, j1 - 1) - j0
+        k = min(p - skip, j1 - 1) - j0
         if k >= 0 and confirmed[k] and p >= int(run_ar[k]) + clock + skip - 1:
             return p
         p += 1

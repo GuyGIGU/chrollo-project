@@ -27,9 +27,9 @@ AR = the argmin low within AR_MAX_BARS whose close confirmed >= AR_MIN_DROP_PCT)
 Per (episode, clock) the census records ONE verdict at the clock's first legal
 look — the session where the anchor first becomes seedable: the AR-age and
 climax-age walls of `collect_root_anchors` solved AS-OF-CONSISTENTLY
-(`power_play.first_legal_look` — against the running argmin the walk would
-have seen on each day, never the hindsight-final AR; skip =
-STRUCTURE_EDGE_SKIP_BARS). Honest absences are first-class rows: an episode
+(`power_play.first_legal_look` — against the reaction the walk could see
+OUTSIDE its own edge reserve, i.e. through bar `p - skip`, never the
+hindsight-final AR; skip = STRUCTURE_EDGE_SKIP_BARS). Honest absences are first-class rows: an episode
 whose breakout prints BEFORE the clock's first legal look is
 `not_watched_clock` (no election is run — the wall itself is the finding), and
 one whose first legal look lies beyond the cache is `pending`. Everything else
@@ -176,9 +176,10 @@ def _forward(raw_closes, p, horizon):
 
 def _election_row(frames, prep_cache, ep, clock, violations, extra_overrides=None):
     raw = frames[ep["ticker"]]
-    # As-of-consistent: solved against the AR the walk would have seen ON
-    # each day, never the hindsight-final one (2026-08-17 review, McKinney —
-    # the final-AR closed form biased exactly the short swept clocks).
+    # As-of-consistent: solved against the reaction the walk could SEE on each
+    # day — outside its own edge reserve — never the hindsight-final AR
+    # (2026-08-17 review, McKinney; reserve correction 2026-08-20, finding 3:
+    # both biases land on exactly the short swept clocks).
     p = first_legal_look(ep, clock, raw)
     row = {"ticker": ep["ticker"], "climax": ep["climax_date"],
            "ar": ep["ar_date"], "breakout": ep["breakout_date"],
