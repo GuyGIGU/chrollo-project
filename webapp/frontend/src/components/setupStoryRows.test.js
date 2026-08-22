@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lpsGrade, storyRows } from './setupStoryRows.js';
-import { SUB_SCORE_CAPS } from './setupScoreMath.js';
 
 // A graded payload as the wire serves it: chapters + engine-resolved fractions.
 // Three chapters since the 2026-08-12 re-partition — Cause and Phase B fused to
@@ -10,7 +9,9 @@ const GRADED = {
   ta_grade: 74.1,
   ta_grade_chapters: { consolidation: 43.05, phase_d: 23.29, trend: 7.73 },
   ta_grade_chapter_fractions: { consolidation: 0.7218, phase_d: 0.8296, trend: 0.8256 },
-  sub_scores: { lps_tightness: 15 },
+  // Resolved engine-side since the legacy retirement (EC-28): the wire carries
+  // the fraction itself, never the cap arithmetic. 15 of the cap's 20.
+  lps_grade_fraction: 0.75,
 };
 
 // buildPhaseRegions' shape, trimmed to what the rows read.
@@ -69,8 +70,8 @@ test('the LPS lands UNDER Phase D, never as a chapter', () => {
   // Its points are already inside Phase D's 23.29 — printing them again in the
   // points column would stop the column summing to the grade.
   assert.equal(lps.points, null);
-  assert.equal(lps.percent, 75);              // 15 of the cap's 20
-  assert.equal(lps.fraction, 15 / SUB_SCORE_CAPS.lps_tightness);
+  assert.equal(lps.percent, 75);              // the engine-resolved 0.75
+  assert.equal(lps.fraction, 0.75);
 });
 
 test('each chapter carries the hue of the band it lights', () => {
@@ -179,18 +180,17 @@ test('the span-less chapters are "none", never "absent"', () => {
 
 test('an unmeasured LPS term is absent, a measured loose one is a real zero', () => {
   assert.equal(lpsGrade({}), null);
-  assert.equal(lpsGrade({ sub_scores: {} }), null);
-  assert.equal(lpsGrade({ sub_scores: { lps_tightness: null } }), null);
-  assert.equal(lpsGrade({ sub_scores: { lps_tightness: 'n/a' } }), null);
-  assert.deepEqual(lpsGrade({ sub_scores: { lps_tightness: 0 } }), { fraction: 0, percent: 0 });
+  assert.equal(lpsGrade({ lps_grade_fraction: null }), null);
+  assert.equal(lpsGrade({ lps_grade_fraction: undefined }), null);
+  assert.equal(lpsGrade({ lps_grade_fraction: 'n/a' }), null);
+  assert.deepEqual(lpsGrade({ lps_grade_fraction: 0 }), { fraction: 0, percent: 0 });
 });
 
 test('the LPS grade is clamped to its own cap', () => {
-  const cap = SUB_SCORE_CAPS.lps_tightness;
-  assert.deepEqual(lpsGrade({ sub_scores: { lps_tightness: cap } }), { fraction: 1, percent: 100 });
+  assert.deepEqual(lpsGrade({ lps_grade_fraction: 1 }), { fraction: 1, percent: 100 });
   // A cap change that lands before the mirror is updated must not print 140%.
-  assert.deepEqual(lpsGrade({ sub_scores: { lps_tightness: cap * 1.4 } }), { fraction: 1, percent: 100 });
-  assert.deepEqual(lpsGrade({ sub_scores: { lps_tightness: -3 } }), { fraction: 0, percent: 0 });
+  assert.deepEqual(lpsGrade({ lps_grade_fraction: 1.4 }), { fraction: 1, percent: 100 });
+  assert.deepEqual(lpsGrade({ lps_grade_fraction: -0.3 }), { fraction: 0, percent: 0 });
 });
 
 test('a row with no LPS span still carries the marks and the chapters', () => {

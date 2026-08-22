@@ -184,9 +184,9 @@ def test_the_unparameterized_call_is_unchanged(db, provider):
 
     assert set(full) == {
         "candles", "volumes", "base_len", "R", "S", "lps_len", "lps_offset",
-        "r_anchor", "s_anchor", "tier", "setup", "score", "forward_bars",
+        "r_anchor", "s_anchor", "tier", "setup", "forward_bars",
         "annotations",
-    }
+    }  # the legacy raw score left this envelope at the 2026-08-23 retirement
 
 
 def test_glance_answers_with_the_same_keys_and_the_same_rescaled_levels(db, provider):
@@ -197,7 +197,7 @@ def test_glance_answers_with_the_same_keys_and_the_same_rescaled_levels(db, prov
     glance = _chart(db, row.id, glance=True)
 
     assert set(glance) == set(full)
-    for key in ("R", "S", "tier", "setup", "score", "r_anchor", "s_anchor", "annotations"):
+    for key in ("R", "S", "tier", "setup", "r_anchor", "s_anchor", "annotations"):
         assert glance[key] == full[key]
 
 

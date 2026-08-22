@@ -28,36 +28,60 @@ from engine_alpha.structure.segmentation import segment_swings
 
 
 # ── Shared fixture: real Structures over the committed shadow fixture ─────────
+# Frozen coverage baseline (measured 2026-08-22 over the committed fixture):
+# 37 tickers -> 33 structures, 0 dropped at prep/ATR. A committed deterministic
+# fixture can never legitimately produce a skip (the suite's own "fail LOUDLY,
+# never skip" doctrine — tests/test_regression_guards.py), so the module FAILS
+# below the floor instead of going green-by-skip, and any NEW prep/ATR drop is
+# a coverage erosion the shadow guard cannot see. Re-measure both numbers only
+# at a deliberate fixture recapture (EC-29 flip/seam commit), never mid-build.
+_MIN_FIXTURE_STRUCTURES = 30
+_FIXTURE_DROPPED_BASELINE = 0
+
+
 def _structures_from_fixture():
-    """Yield (ticker, df, Structure) for every fixture ticker that produces a
-    non-None Structure. Built once, module-scoped, so the parquet read + ATR
-    compute happen a single time.
+    """Return ``(structures, dropped)``: (ticker, df, Structure) triples for
+    every fixture ticker that produces a non-None Structure, plus the count of
+    tickers lost to a prep refusal or a missing/broken ATR sample. A None
+    Structure is NOT a drop — the engine is free not to fire. Built once,
+    module-scoped, so the parquet read + ATR compute happen a single time.
     """
     from tools.shadow_diff import _load_fixture
 
     frames, _scalars = _load_fixture()
     out = []
+    dropped = 0
     for ticker, df in frames.items():
         prep = _prepare_eval_frame(df)
         if prep is None:
+            dropped += 1
             continue
         daily = prep["df"]
         try:
             atr = float(daily.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
         except (KeyError, IndexError, ValueError):
+            dropped += 1
             continue
         structure = read_structure(daily, atr)
         if structure is None:
             continue
         out.append((ticker, daily, structure))
-    return out
+    return out, dropped
 
 
 @pytest.fixture(scope="module")
 def fixture_structures():
-    structures = _structures_from_fixture()
-    if not structures:
-        pytest.skip("shadow fixture produced no structures (no fixture data?)")
+    structures, dropped = _structures_from_fixture()
+    assert len(structures) >= _MIN_FIXTURE_STRUCTURES, (
+        f"shadow fixture yielded {len(structures)} structures "
+        f"(< {_MIN_FIXTURE_STRUCTURES}): the geometry battery lost its "
+        "subjects — a committed fixture can never legitimately skip"
+    )
+    assert dropped == _FIXTURE_DROPPED_BASELINE, (
+        f"{dropped} fixture ticker(s) silently dropped at prep/ATR "
+        f"(frozen baseline: {_FIXTURE_DROPPED_BASELINE}) — the geometry "
+        "module's coverage eroded without a deliberate fixture recapture"
+    )
     return structures
 
 
@@ -229,7 +253,7 @@ def test_manifest_includes_engine_excludes_ops():
 
     m = collect_manifest()
     # representative engine constants are present
-    for key in ("MAX_BOX_WIDTH", "STRUCTURE_ATR_SAMPLE_OFFSET", "TIER_S",
+    for key in ("MAX_BOX_WIDTH", "STRUCTURE_ATR_SAMPLE_OFFSET", "TIER_S_STRUCT",
                 "LPS_PULLBACK_PROFILE_MIN", "DAILY_STRUCTURE_PERIOD"):
         assert key in m, f"engine constant {key} missing from manifest"
     # ops / observability knobs are excluded
@@ -328,10 +352,10 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     scan (over the ``settings.NAME``, ``getattr(settings, "NAME")``, and
     ``_flag("NAME")`` advisory-helper read forms) PLUS a runtime introspection of
     the scoring taxonomy ``REGISTRY`` (each ``TermSpec``'s ``cap_setting`` /
-    ``present_when``, resolved by getattr at call time and invisible to any
+    ``producer`` partition, resolved at call time and invisible to any
     source regex) makes a future score-affecting flag/weight unable to silently
     escape provenance: add a read in any scanned module — or a registry term whose
-    cap/gate is read only via ``TermSpec.cap()`` / ``.is_emitted()`` — and this
+    cap is read only via ``TermSpec.cap()`` — and this
     fails until the name is either added to the allow-list or declared an ops
     exclusion. (Regression guard for the since-retired CANDLE_SPREAD_AWARE /
     PUZZLE_SCORE_ENABLED / SOS_*_BOX omissions, the Lane-C ``_flag()`` indirection
@@ -359,7 +383,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
         referenced |= set(pat_getattr.findall(src))
         referenced |= set(pat_flag.findall(src))
     # The scoring taxonomy resolves each term's point cap + gate flag by settings
-    # ATTRIBUTE NAME through getattr at call time (``TermSpec.cap`` / ``.is_emitted``).
+    # ATTRIBUTE NAME through getattr at call time (``TermSpec.cap``).
     # ``TermSpec`` is built positionally, so a source regex over the registry cannot
     # see those names; introspect the registry object itself so a term whose cap /
     # flag is read ONLY via the registry (e.g. a future 0-100 normalization divisor)
@@ -367,8 +391,6 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     from engine_alpha.scoring.taxonomy import REGISTRY as _score_registry
     for _term in _score_registry:
         referenced.add(_term.cap_setting)
-        if _term.present_when is not None:
-            referenced.add(_term.present_when)
     assert referenced, "scanner found no settings.<NAME> reads on the eval path"
 
     # Every read must be either provenance-hashed OR an explicit ops exclusion —

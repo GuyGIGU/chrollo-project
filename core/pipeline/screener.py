@@ -324,7 +324,15 @@ def run_screener(mode: str = "download",
 
     if results:
         with timer.phase("result_assembly"):
-            results_df = pd.DataFrame(results).sort_values(by='Score', ascending=False)
+            # RANK BY THE GRADE (council 2026-08-22, three seats independently):
+            # the tier badge and the lens number derive from ta_grade, so the
+            # ordering must come from the same verdict — ranking by the legacy
+            # raw sum survived the 2026-08-09 flip only because every
+            # divergence knob was still neutral. Tiebreak: the raw sum (still
+            # stamped as an archived fact), then ticker for determinism.
+            results_df = pd.DataFrame(results).sort_values(
+                by=['_ta_grade', 'Score', 'Ticker'],
+                ascending=[False, False, True])
             for key, value in _regime_archive_fields(market_context).items():
                 results_df[key] = value
     else:

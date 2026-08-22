@@ -44,6 +44,16 @@ def _detail_value(value):
     return value
 
 
+
+def traversal_density_from_counts(n_full, n_swings):
+    """THE one traversal-density derivation (rail-to-rail swings / significant
+    swings, rounded 3dp) — the chip rule and the wire serializer both call
+    this, so the verdict and the serialized fact cannot drift (EC-3; the
+    wire's literal folded here at the 2026-08-22 legacy retirement)."""
+    if n_full is None or not n_swings:
+        return None
+    return round(n_full / n_swings, 3)
+
 def resolve_fired_tags(row: dict, *, prefixed: bool = True) -> list[dict]:
     """Resolve the registry's fire-rules over one canonical result row.
 
@@ -61,15 +71,12 @@ def resolve_fired_tags(row: dict, *, prefixed: bool = True) -> list[dict]:
     def fact(name: str):
         value = row.get(("_" + name) if prefixed else name)
         if value is None and name == "traversal_density":
-            # Not a stored fact — derived from the trav counts exactly as the
-            # wire serializes it (round 3dp), so the chip verdict matches what
-            # the JS rule judged against. The wire's own literal folds onto
-            # this helper at the legacy-deletion wave (task 15).
-            n_full = _finite_or_none(fact("trav_n_full_traversals"))
-            n_swings = _finite_or_none(fact("trav_n_swings"))
-            if n_full is not None and n_swings:
-                return round(n_full / n_swings, 3)
-            return None
+            # Not a stored fact — derived from the trav counts through the ONE
+            # shared derivation the wire also serializes (EC-3; folded at the
+            # 2026-08-22 legacy retirement).
+            return traversal_density_from_counts(
+                _finite_or_none(fact("trav_n_full_traversals")),
+                _finite_or_none(fact("trav_n_swings")))
         return value
 
     caps = taxonomy.caps()

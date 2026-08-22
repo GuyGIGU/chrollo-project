@@ -639,15 +639,11 @@ LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Mov
 # (avg ~95, max ~126 under prior weights). With the 52w-high proximity
 # bonus added, S sits at roughly the top quartile rather than catching
 # 75% of all setups.
-TIER_S = 110
-TIER_A = 95
-TIER_B = 75
-TIER_C = 55
-# Below TIER_C = Tier D
+# (The legacy raw-sum cuts TIER_S/A/B/C retired with the legacy ladder at the
+# 2026-08-22 consolidation — decisions.md row of that date.)
 
-# The SAME ladder on the TA-grade's 0-100 scale (flip 2026-08-09). Live when
-# TA_SCORE_V2 is on: `Tier` is derived from `ta_grade`, not from the raw
-# ~122-point sum, and the four cuts above serve only the legacy path until it
+# The tier ladder on the TA-grade's 0-100 scale (flip 2026-08-09):
+# `Tier` is derived from `ta_grade`, not from the raw ~122-point sum. It
 # retires. Operator-chosen from the A/B on the 2026-08-09 scan (256 fires,
 # grades 35.5-76.3, median 59.0): "lets do 62 /52 /42".
 # Why 62 and not the count-preserving 61.5 — 61.5 reproduced the old S
@@ -781,7 +777,6 @@ EVENT_MAP_ENABLED = True
 # deliberately NOT set here: their sub-scores are flag-gated, so the archive
 # holds no live values to calibrate against yet; the flip starts that archive
 # and the operator sets real costs later against it (measure-first).
-TA_SCORE_V2 = True
 # TA-grade v2 vocabulary pre-registrations (2026-08-08, build task 1 — ONE
 # batched engine_config_version seam; registration only, scores byte-identical):
 #  - SCORE_SPRING: the spring term's point cap. The term itself lands with the

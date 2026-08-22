@@ -265,9 +265,11 @@ def get_setup_chart(setup_id: int, glance: bool = False, db: Session = Depends(g
         "lps_offset": 0,
         "r_anchor": setup.r_anchor,
         "s_anchor": setup.s_anchor,
+        # tier is a resolved verdict the modal spreads straight into its data
+        # (the archive lens badge); the legacy raw score retired from this
+        # envelope 2026-08-23 - the ta_grade family arrives via the row merge.
         "tier": setup.tier,
         "setup": setup.setup_type,
-        "score": setup.score,
         "forward_bars": forward_bars,
         "annotations": _build_annotations(setup, ratio),
     }

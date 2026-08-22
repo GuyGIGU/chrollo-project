@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import HomeZone from './HomeZone';
 import { PortfolioIcon } from '../NavIcons';
 import { fmtMoney } from '../../utils/tradeTableUtils';
+import { finiteOrNull } from '../../utils/format.js';
 
 const ICON = <PortfolioIcon className="home-zone-iconsvg" />;
 
@@ -31,8 +32,8 @@ const priceMeta = (source) => {
 };
 
 const signed = (value, suffix, digits) => {
-  if (value == null || !Number.isFinite(Number(value))) return null;
-  const n = Number(value);
+  const n = finiteOrNull(value);
+  if (n == null) return null;
   return `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}${suffix}`;
 };
 

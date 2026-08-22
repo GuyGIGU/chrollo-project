@@ -155,7 +155,7 @@ function ReviewRow({ save, starred, onOpen, onToggleStar }) {
           {save.ticker}
         </span>
         <span style={cellStyle}>{save.tier || '—'}</span>
-        <span style={{ ...cellStyle, ...monoCellStyle }}>{fixed(save.score, 0)}</span>
+        <span style={{ ...cellStyle, ...monoCellStyle }}>{fixed(save.ta_grade, 0)}</span>
         <span style={{ ...cellStyle, minWidth: 64 }}>{save.setup || '—'}</span>
         <span style={{ ...cellStyle, ...monoCellStyle, minWidth: 86 }}>
           {save.pin_scan_date || 'no setup'}

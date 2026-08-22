@@ -74,6 +74,7 @@ documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
 npm --prefix webapp\frontend run build                       # build the React app
 npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
+.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~35s; also prints the graduation-drift advisory)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
@@ -131,8 +132,9 @@ npm --prefix webapp\frontend run lint                        # eslint
 - **The wire carries verdicts, never rules (conventions.md EC-28):** no scoring cap, threshold,
   fire-rule, or chapter-membership may be re-declared in frontend JS — every judgment crosses the
   wire already resolved by the engine; the frontend keeps only presentational lookups (labels,
-  tones, ordering, copy). `components/setupScoreMath.js` is the frozen legacy remnant (test-pinned
-  by `tests/test_frontend_score_caps.py`) — never extend it; it retires with the legacy path.
+  tones, ordering, copy). The legacy score path RETIRED 2026-08-23 (`setupScoreMath.js` and the
+  client-side fire rules are gone); `components/tagCatalog.js` carries the presentational chip
+  catalog — labels/groups/tones only, never a threshold.
 
 ## Libraries
 - Introduce a library only when it makes the code meaningfully faster, cleaner, or improves UX. Before

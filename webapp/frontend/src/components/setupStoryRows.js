@@ -26,11 +26,10 @@
 // Pure and node-tested; the JSX stays a thin projection (chapterStrip's
 // precedent). Reads only RESOLVED wire values (EC-28) — chapter points and
 // earned fractions arrive computed engine-side, spans arrive from the same
-// buildPhaseRegions the chart overlay draws. The ONE arithmetic here is the LPS
-// grade (see lpsGrade), which divides by the cap mirror setupScoreMath.js has
-// always owned.
+// buildPhaseRegions the chart overlay draws. The LPS grade arrives resolved on
+// the wire too (lps_grade_fraction, EC-28 — legacy retirement 2026-08-22): this
+// module does no cap arithmetic at all.
 import { CHAPTER_REGION, chapterCells } from './chapterStrip.js';
-import { SUB_SCORE_CAPS } from './setupScoreMath.js';
 import { PHASE_NAMES } from './wireVocabulary.js';
 
 // WHAT EACH CHAPTER GRADES, in the words taxonomy.py's own chapter block uses.
@@ -63,17 +62,16 @@ const absentSpan = (name) => `No ${name} on this chart`;
 // column stop summing to the grade, which is exactly the kind of quiet
 // double-count this panel exists to prevent.
 //
-// Three-state: null when the term was never measured (an archive row without
-// sub-scores), a real 0 when the last support test was measured and graded
-// loose. Number(null) === 0 is finite, so absence is rejected BEFORE the finite
-// check — the same guard setupScoreMath's isMeasured has always used.
+// Three-state: null when the term was never measured (the engine wires null,
+// or the field predates the retirement seam — older archived payloads), a real
+// 0 when the last support test was measured and graded loose. Number(null) === 0
+// is finite, so absence is rejected BEFORE the finite check.
 export function lpsGrade(data) {
-  const earned = data?.sub_scores?.lps_tightness;
-  if (earned == null) return null;
-  const value = Number(earned);
-  const cap = Number(SUB_SCORE_CAPS.lps_tightness);
-  if (!Number.isFinite(value) || !(cap > 0)) return null;
-  const fraction = Math.max(0, Math.min(1, value / cap));
+  const wired = data?.lps_grade_fraction;
+  if (wired == null) return null;
+  const value = Number(wired);
+  if (!Number.isFinite(value)) return null;
+  const fraction = Math.max(0, Math.min(1, value));
   return { fraction, percent: Math.round(fraction * 100) };
 }
 

@@ -6,14 +6,15 @@ import useWatchlist from '../../hooks/useWatchlist';
 import { tierColor } from '../../theme';
 import { formatScore } from '../../utils/scoreFormat';
 import { fmtScanTime } from '../../utils/appFormat';
+import { nearTriggerFrac, triggerFired } from '../../utils/triggerProximity.js';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
 // urgent items out of the three zones below into one strip, ordered by urgency:
 // open risk → entry fired → entry approaching → fresh top-tier idea.
 //
 // Trigger = the engine's `data.trigger` (the breakout level = high of the last
-// LPS bar), NOT the resistance rail. "Near" = price within NEAR_PCT below it.
-const NEAR_PCT = 0.02;
+// LPS bar), NOT the resistance rail. "Near" = within the shared
+// triggerProximity band (the ONE client-side trigger judgment, EC-3).
 const STOP_RANK = { breached: 0, danger: 1, warning: 2 };
 const STOP_FLAG = {
   breached: { label: 'through stop', tone: 'var(--danger)' },
@@ -92,10 +93,12 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
     for (const t of wlTickers) {
       const data = chartData[t];
       const live = prices[t];
-      const trigger = data?.trigger;
-      if (live == null || !Number.isFinite(Number(trigger))) continue;
-      if (live >= trigger) trig.push({ t, data, live });
-      else if ((trigger - live) / trigger <= NEAR_PCT) nr.push({ t, data, live, pct: (trigger - live) / trigger });
+      if (live == null) continue;
+      if (triggerFired(data, live)) trig.push({ t, data, live });
+      else {
+        const pct = nearTriggerFrac(data, live);
+        if (pct != null) nr.push({ t, data, live, pct });
+      }
     }
     nr.sort((a, b) => a.pct - b.pct);
     return { triggered: trig, near: nr };
@@ -167,7 +170,7 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
               <span className="ac-glabel" style={{ color: tierColor('S') }}>✦ Fresh S-tier</span>
               {freshS.map((t) => (
                 <button key={t} type="button" className="ac-chip" onClick={() => openPeek(t)} style={{ borderColor: `${tierColor('S')}55`, color: tierColor('S') }}>
-                  {t}<span className="ac-chip-sub">{formatScore(chartData[t]?.score)}</span>
+                  {t}<span className="ac-chip-sub">{formatScore(chartData[t]?.ta_grade)}</span>
                 </button>
               ))}
               <Link to="/screener" className="ac-more">grid →</Link>

@@ -110,10 +110,10 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
         row.in_scan ? <span style={{ color: tierColor(row.tier), fontWeight: 600 }}>{row.tier}</span> : '—',
     },
     {
-      key: 'score',
-      label: 'Score',
+      key: 'grade',
+      label: 'Grade',
       align: 'right',
-      render: (row) => fixed(row.score, 0),
+      render: (row) => fixed(row.grade, 0),
     },
     {
       key: 'setup',

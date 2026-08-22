@@ -375,30 +375,37 @@ def _score_common(**overrides):
     return common
 
 
-def test_calculate_tier_maps_each_band_at_its_threshold():
-    from engine_alpha.scoring.scoring import calculate_tier
+def test_structure_tier_maps_each_band_at_its_threshold():
+    # The LIVE ladder (flip 2026-08-09): the serialized tier derives from the
+    # 0-100 TA grade against the TIER_*_STRUCT cuts. Until council 2026-08-22
+    # (Beck P2) band mapping was pinned only through the retiring legacy twin.
+    from engine_alpha.scoring.scoring import calculate_structure_tier
 
-    # Exactly at each threshold lands in that tier; one point below drops a band.
-    assert calculate_tier(settings.TIER_S) == "S"
-    assert calculate_tier(settings.TIER_A) == "A"
-    assert calculate_tier(settings.TIER_S - 1) == "A"
-    assert calculate_tier(settings.TIER_B) == "B"
-    assert calculate_tier(settings.TIER_A - 1) == "B"
-    assert calculate_tier(settings.TIER_C) == "C"
-    assert calculate_tier(settings.TIER_B - 1) == "C"
-    assert calculate_tier(settings.TIER_C - 1) == "D"
-    assert calculate_tier(0) == "D"
+    # Exactly at each cut lands in that tier; just below drops a band.
+    assert calculate_structure_tier(settings.TIER_S_STRUCT) == "S"
+    assert calculate_structure_tier(settings.TIER_A_STRUCT) == "A"
+    assert calculate_structure_tier(settings.TIER_S_STRUCT - 0.1) == "A"
+    assert calculate_structure_tier(settings.TIER_B_STRUCT) == "B"
+    assert calculate_structure_tier(settings.TIER_A_STRUCT - 0.1) == "B"
+    assert calculate_structure_tier(settings.TIER_C_STRUCT) == "C"
+    assert calculate_structure_tier(settings.TIER_B_STRUCT - 0.1) == "C"
+    assert calculate_structure_tier(settings.TIER_C_STRUCT - 0.1) == "D"
+    assert calculate_structure_tier(0) == "D"
+    # The cuts themselves are the operator's 2026-08-09 ruling - pin the values
+    # so a silent settings edit cannot re-band the live tier unnoticed.
+    assert (settings.TIER_S_STRUCT, settings.TIER_A_STRUCT,
+            settings.TIER_B_STRUCT, settings.TIER_C_STRUCT) == (62, 52, 42, 32)
 
 
-def test_calculate_tier_width_cap_demotes_wide_s_to_a():
-    from engine_alpha.scoring.scoring import calculate_tier
+def test_structure_tier_width_cap_demotes_wide_s_to_a():
+    from engine_alpha.scoring.scoring import calculate_structure_tier
 
-    high = settings.TIER_S + 10
+    high = settings.TIER_S_STRUCT + 10
     # A tight enough box keeps S; a box wider than the S cap is demoted to A,
-    # however high the score. No width supplied -> cap not applied.
-    assert calculate_tier(high, box_width=settings.S_MAX_BOX_WIDTH) == "S"
-    assert calculate_tier(high, box_width=settings.S_MAX_BOX_WIDTH + 0.01) == "A"
-    assert calculate_tier(high) == "S"
+    # however high the grade. No width supplied -> cap not applied.
+    assert calculate_structure_tier(high, box_width=settings.S_MAX_BOX_WIDTH) == "S"
+    assert calculate_structure_tier(high, box_width=settings.S_MAX_BOX_WIDTH + 0.01) == "A"
+    assert calculate_structure_tier(high) == "S"
 
 
 def test_breadth_bonus_ramps_between_zero_and_full_thresholds():
@@ -559,48 +566,26 @@ def test_setup_quality_monotonic_and_bounded():
         assert a <= p <= i
 
 
-def test_ta_score_v2_flag_off_leaks_no_v2_keys(monkeypatch):
-    """Flag-off tripwire at the SCORER boundary (TA-grade build task 2): with
-    TA_SCORE_V2 off, score_setup emits NONE of the reserved v2 vocabulary and
-    stays the frozen composite. The key list derives from the ONE settled
-    vocabulary (taxonomy.V2_RESULT_KEYS, build task 1) so every key added there
-    is guarded here automatically; the anchor assertions pin the core names so
-    an emptied or renamed vocabulary can never quietly green this test. The
-    wire-boundary twin lives in tests/test_dashboard_wire.py."""
-    from engine_alpha.scoring.scoring import score_setup
-    from engine_alpha.scoring import taxonomy
-    for core in ("ta_grade", "ta_grade_raw", "ta_grade_chapters",
-                 "structure_tier", "fired_tags"):
-        assert core in taxonomy.V2_RESULT_KEYS, (
-            f"core v2 name {core!r} missing from the settled vocabulary")
-    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
-    out = score_setup(**_score_common())
-    for k in taxonomy.V2_RESULT_KEYS:
-        assert k not in out, f"v2 key {k!r} leaked from score_setup with the flag off"
-    assert "spring" not in out, "the flag-gated spring term leaked with the flag off"
-
-
-def test_score_setup_emits_no_v2_keys_under_either_flag(monkeypatch):
+def test_score_setup_emits_no_v2_keys():
     """score_setup is v1-only FOREVER: the v2 grade lives in compose_ta_grade,
-    called from the shared eval chain where the story scalars exist. Under
-    either flag state the scorer's own dict carries no v2 vocabulary."""
+    called from the shared eval chain where the story scalars exist. The
+    producer partition is structural since the 2026-08-22 retirement (no flag
+    left to hide behind): the scorer's own dict carries no v2 vocabulary."""
     from engine_alpha.scoring.scoring import score_setup
     from engine_alpha.scoring import taxonomy
-    for flag in (False, True):
-        monkeypatch.setattr(settings, "TA_SCORE_V2", flag)
-        out = score_setup(**_score_common())
-        for k in (*taxonomy.V2_RESULT_KEYS, "spring", "story_s_tests"):
-            assert k not in out, f"{k!r} leaked from score_setup (flag={flag})"
+    out = score_setup(**_score_common())
+    for k in (*taxonomy.V2_RESULT_KEYS, "spring", "story_s_tests"):
+        assert k not in out, f"{k!r} leaked from score_setup"
 
 
 # --- Task 4: the chapter composite (compose_ta_grade) ---------------------------
-# compose_ta_grade is flag-ON-only by contract: the eval chain gates the call,
-# and the registry loop drops not-emitted (flag-gated) terms — so the battery
-# runs with the flag on, exactly as the one production call site does.
+# compose_ta_grade is the one grading path (always-on since the 2026-08-22
+# legacy retirement). The fixture keeps its historical name as documentation
+# that this battery once ran flag-gated; it now sets nothing.
 
 @pytest.fixture
-def v2_on(monkeypatch):
-    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+def v2_on():
+    yield
 
 
 def _sub(overrides=None):

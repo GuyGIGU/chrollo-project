@@ -117,10 +117,21 @@ banners this basis on both output modes when such rows are present.
   buttons (or gets its own named deferral here). Until then a grade
   judgment can only be recorded via the API.
 
-## 2 — Staged retirement (a later commit, only after the flip is blessed)
+## 2 — Staged retirement — **EXECUTED 2026-08-23** (operator-delegated 2026-08-22)
 
-While rollback is possible, the legacy path IS the rollback — nothing below
-happens until the operator declares the flip good.
+Executed as written EXCEPT where later builds had falsified the plan (EC-42),
+each falsification found by the 2026-08-22 council review: (a) the delete-unit
+no longer closed — the 2026-08-12 lens fusion wired the LIVE LPS grade to
+`setupScoreMath.js`'s cap mirror, so the fraction was first serialized
+engine-side (`lps_grade_fraction`, EC-28) and only then did the mirror delete
+clean; (b) `setupTagsData.js` could not delete whole — the presentational
+catalog/tones the RESOLVED path renders were extracted to `tagCatalog.js`
+first; (c) the live ladder (`calculate_structure_tier`) had zero direct tests —
+its band/width-cap battery was rewritten off the retiring twin BEFORE the
+deletion; (d) the ranking still keyed on the legacy raw sum — re-pointed to
+`ta_grade` (raw-sum, then ticker, tiebreak) as the wave's first task, and the
+seed scan-back election re-keyed to the same basis in the same seam.
+Historical plan below, kept verbatim:
 
 - Delete as ONE unit: `setupScoreMath.js`, `setupTagsData.js`'s fire rules
   + `deriveTags`, `tagFlagsFromWire`, `ScoreBreakdown.jsx` + the remaining

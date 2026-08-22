@@ -19,6 +19,7 @@ import {
 } from './wireVocabulary';
 import { API_BASE } from '../api';
 import { fx, fmtDateShort } from '../utils/format';
+import { triggerDistanceFrac } from '../utils/triggerProximity.js';
 
 const pct = (value, digits = 1) => {
   const fixed = fx(value, digits, null);
@@ -41,10 +42,9 @@ const bars = (value) => {
 const latestCandle = (data) => data?.candles?.[data.candles.length - 1] || null;
 
 const distanceToTriggerPct = (data) => {
-  const currentPrice = finiteNumber(data?.price ?? latestCandle(data)?.close);
-  const trigger = finiteNumber(data?.trigger);
-  if (currentPrice == null || trigger == null || currentPrice <= 0) return null;
-  return ((trigger - currentPrice) / currentPrice) * 100;
+  // The shared judgment (EC-3): % move price must make to reach the trigger.
+  const frac = triggerDistanceFrac(data, data?.price ?? latestCandle(data)?.close);
+  return frac == null ? null : frac * 100;
 };
 
 const boxWidthPct = (data) => {

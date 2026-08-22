@@ -2,7 +2,7 @@
 
 Drives a realistic full-featured setup — the frozen shadow fixture, the same
 frames the byte-parity guard replays — through the REAL chain with production
-values for every other flag and ONLY ``TA_SCORE_V2`` forced on: the shared
+values for every flag (the grade is always-on since 2026-08-22): the shared
 eval-twins scoring context, result assembly, and the archive row assembly on
 all three writer bases. Builder-in-isolation tests do not satisfy EC-17; this
 suite is what lets the dark feature's death show up red. It GROWS with each
@@ -28,10 +28,9 @@ from engine_alpha.scoring.scoring import (
 from tools import shadow_diff
 
 
-def _first_fired_result(monkeypatch):
-    """The first shadow-fixture ticker that fires, evaluated flag-ON through
-    the real per-ticker pipeline (production values for every other flag)."""
-    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
+def _first_fired_result():
+    """The first shadow-fixture ticker that fires, evaluated through the real
+    per-ticker pipeline (production values for every flag)."""
     frames, scalars = shadow_diff._load_fixture()
     spy = float(scalars.get("spy_6m_return", 0.0))
     breadth = scalars.get("breadth_pct")
@@ -47,7 +46,7 @@ def _first_fired_result(monkeypatch):
 
 
 def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
-    ticker, row = _first_fired_result(monkeypatch)
+    ticker, row = _first_fired_result()
 
     # 1. The grade family on the REAL result: bounded, chapter-coherent,
     #    every promoted term point emitted under its archive-ready name.
@@ -62,7 +61,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert tuple(fractions) == taxonomy.CHAPTER_ORDER
     assert all(0.0 <= v <= 1.0 for v in fractions.values())
     for term in taxonomy.ta_layer_terms():
-        if term.present_when == "TA_SCORE_V2":
+        if term.producer == "compose":
             assert ("_" + term.column) in row, (
                 f"promoted term {term.key!r} missing from the flag-on result")
     # Wave-1 charter measurements ride the same flag-on result (task 7) —
@@ -80,10 +79,10 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     #     sub-scores plus the flag-promoted points, breadth excluded.
     expected_raw = sum(
         (row["_sub_scores"].get(t.key) or 0.0)
-        for t in taxonomy.ta_layer_terms() if t.present_when is None
+        for t in taxonomy.ta_layer_terms() if t.producer == "scorer"
     ) + sum(
         (row["_" + t.column] or 0.0)
-        for t in taxonomy.ta_layer_terms() if t.present_when is not None
+        for t in taxonomy.ta_layer_terms() if t.producer == "compose"
     )
     assert row["_ta_grade_raw"] == pytest.approx(expected_raw, abs=1e-9)
     assert row["_ta_grade_raw"] > 0.0, (
@@ -147,7 +146,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     assert tuple(chart["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
     assert chart["trend_base_count"] == row["_trend_base_count"]
     assert set(chart["sub_scores"]) >= set(
-        t.key for t in taxonomy.REGISTRY if t.present_when is None)
+        t.key for t in taxonomy.REGISTRY if t.producer == "scorer")
 
     # 7. The fired_tags leg (task 10): verdicts resolved on the real fire,
     #    every id inside the closed set, identical on the wire, JSON in the
@@ -158,58 +157,6 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     import json as _json
     archived = ta_grade_archive_values(row.get, prefixed=True)["fired_tags"]
     assert _json.loads(archived) == row["_fired_tags"]
-
-
-def test_flag_off_cascade_emits_no_v2_fields(monkeypatch):
-    """The same real cascade flag-OFF: not one v2 field on the result — the
-    eval-chain boundary's own absence proof (the scorer and wire tripwires
-    guard their boundaries; this guards the canonical result row)."""
-    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
-    frames, scalars = shadow_diff._load_fixture()
-    spy = float(scalars.get("spy_6m_return", 0.0))
-    breadth = scalars.get("breadth_pct")
-    breadth = float(breadth) if breadth is not None else None
-    fired = None
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        result = shadow_diff._evaluate_ticker(ticker, df, spy, breadth)
-        if result is not None and result is not EVAL_ERROR:
-            fired = result
-            break
-    assert fired is not None, "no shadow-fixture ticker fires — the fixture rotted"
-    # The vocabulary-derived leak check (2026-08-08 review, finding 4): the
-    # old two-prefix filter was blind to _fired_tags and the five charter
-    # fields — six families the writers' unconditional splat would have
-    # LANDED in dark-epoch rows on a one-edit regression.
-    v2_names = {"_" + n for n in taxonomy.V2_ROW_FIELDS}
-    v2_fields = [k for k in fired
-                 if k.startswith("_ta_grade") or k.startswith("_score_")
-                 or k in v2_names]
-    assert not v2_fields, f"v2 field(s) {v2_fields} leaked from the flag-off cascade"
-    # The writers' own view — every FLAG-GATED column the archive family
-    # extraction would stamp must read None on the flag-off row (the family
-    # also carries the three always-on setup grades — narrative outputs,
-    # legitimately non-NULL flag-off). The gated subset derives from the
-    # vocabulary + the score_ prefix, so a leak lands red at the exact
-    # boundary the writers splat.
-    fam = ta_grade_archive_values(fired.get, prefixed=True)
-    gated = {c for c in fam
-             if c in taxonomy.V2_ROW_FIELDS or c.startswith("score_")}
-    leaked = {k: fam[k] for k in gated if fam[k] is not None}
-    assert not leaked, (
-        f"flag-off row carries non-NULL family cell(s) {leaked} — these "
-        "would land in dark-epoch archive rows and destroy the "
-        "NULL-means-pre-v2 epoch contract")
-    # Coverage tripwire: every flag-gated field the eval block stamps must be
-    # in the vocabulary this test derives from (a new charter measurement
-    # that skips V2_ROW_FIELDS re-opens the blind spot).
-    extraction_cols = set(fam)
-    for name in ("lps_shrink_frac", "lps_window_classification",
-                 "story_richness_rate", "trend_base_count",
-                 "inter_base_width_ratio", "fired_tags"):
-        assert name in extraction_cols and name in taxonomy.V2_ROW_FIELDS
 
 
 def _fresh_archive_session():
@@ -240,7 +187,7 @@ def test_manual_writer_shape_commits_a_flag_on_row_to_a_real_db(monkeypatch):
     from core.archive.result_adapter import seed_row_from_result
     from services.archive_queries import archive_row_from_result
 
-    ticker, row = _first_fired_result(monkeypatch)
+    ticker, row = _first_fired_result()
     seed_result = seed_row_from_result(row)
     kwargs = archive_row_from_result(seed_result, overrides={
         "ticker": ticker,

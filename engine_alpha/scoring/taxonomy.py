@@ -12,7 +12,9 @@ One ordered registry of every scoring sub-score term. For each term it records:
                      grades — measured, archived and drawn, worth zero points
                      (operator ruling 2026-08-12; see ``CHAPTER_ORDER``),
   - ``kind``         structural | context | story | tag | warning | new_term,
-  - ``present_when`` a settings BOOL flag gating emission (``None`` = always emitted),
+  - ``producer``     which producer emits it: ``'scorer'`` = score_setup's
+                     result dict; ``'compose'`` = computed inside
+                     compose_ta_grade (spring + the story terms),
   - ``chapter``      the story chapter this term grades inside (``CHAPTER_ORDER``;
                      ``None`` off the ta layer — no chapter, no grade membership).
 
@@ -42,18 +44,13 @@ class TermSpec:
     cap_setting: str                  # config.settings attribute holding the point cap
     layer: str                        # 'ta' (in the TA Grade + tier) | 'regime' (label only)
     kind: str                         # structural | context | story | tag | warning | new_term
-    present_when: Optional[str] = None  # settings BOOL flag gating emission (None = always)
+    producer: str = "scorer"          # 'scorer' = score_setup | 'compose' = compose_ta_grade
     chapter: Optional[str] = None     # story chapter (CHAPTER_ORDER); None on the regime layer
 
     def cap(self) -> float:
         """The term's point cap, resolved lazily from settings at call time."""
         return float(getattr(settings, self.cap_setting))
 
-    def is_emitted(self) -> bool:
-        """Whether this term is emitted under the CURRENT flags."""
-        if self.present_when is None:
-            return True
-        return bool(getattr(settings, self.present_when))
 
 
 # ── Story chapters — the grade's frame (operator-ruled 2026-08-06; vocabulary
@@ -92,10 +89,11 @@ class TermSpec:
 # re-chaptering is a visible archive seam, never a silent relabel.
 CHAPTER_ORDER: tuple[str, ...] = ("consolidation", "phase_d", "trend")
 
-# Reserved result-dict / wire keys for the flag-gated v2 grade — settled BEFORE
-# anything serializes so no rename ever crosses a frozen surface. NOTHING may
-# emit these while TA_SCORE_V2 is off (the flag-off tripwires derive from this
-# tuple); archive columns reuse the same names where they persist.
+# Reserved result-dict / wire keys for the TA grade (always-on since the
+# 2026-08-22 legacy retirement) — settled BEFORE
+# anything serializes so no rename ever crosses a frozen surface. The tripwires that
+# police vocabulary membership derive from this tuple; archive columns reuse
+# the same names where they persist.
 #   ta_grade           the 0-100 (post-normalization, post-warnings; full precision,
 #                      rounding is display-only). NOT ta_score — it must never be
 #                      confusable with the 0-100 rs_rating percentile beside it.
@@ -113,11 +111,17 @@ V2_RESULT_KEYS: tuple[str, ...] = (
     "ta_grade", "ta_grade_raw", "ta_grade_chapters",
     "ta_grade_chapter_fractions",   # per-chapter earned fraction (task 12) —
                                     # the strip's fill, resolved engine-side
+    "lps_grade_fraction",           # the lens's LPS grade (operator ruling
+                                    # 2026-08-12), resolved engine-side at the
+                                    # legacy retirement so the display never
+                                    # re-derives the cap (EC-28); None = the
+                                    # term was never measured. Wire-only —
+                                    # deliberately not archived.
     "ta_grade_warnings",
     "structure_tier", "fired_tags", "regime_label",
 )
 
-# The FULL flag-gated row vocabulary: everything the TA_SCORE_V2 eval block
+# The FULL v2 row vocabulary: everything the TA-grade eval block
 # may stamp on the canonical result — the reserved keys above PLUS the four
 # charter measurements' five raw fields (tasks 7/8). The flag-off row
 # tripwire derives from THIS tuple, and the archive-side absence proof
@@ -158,7 +162,7 @@ REGISTRY: tuple[TermSpec, ...] = (
     # archived since task 5 (the measure-first breach closed). Chapter: setup_quality grades
     # the completeness of the told story — the work the range did.
     TermSpec("setup_quality",    "score_setup_quality",    "SCORE_SETUP_QUALITY",     "ta",     "story",     chapter="consolidation"),
-    # Promoted v2 term — emitted only behind TA_SCORE_V2 (the v2 result block
+    # Promoted v2 term — always emitted since the 2026-08-22 retirement (the v2 result block
     # appends it after the always-on terms, so it sits last here to keep the
     # emission-order mirror).
     #
@@ -172,27 +176,27 @@ REGISTRY: tuple[TermSpec, ...] = (
     # is closed: there is no A/B coming for this term. Behaviour-identical at
     # the move (SCORE_SPRING was already 0). The completeness a spring DOES buy
     # is graded where completeness belongs — setup_quality, in consolidation.
-    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "marker", "tag",        "TA_SCORE_V2"),
+    TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "marker", "tag",        producer="compose"),
     # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
     # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
     # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
     # columns are a task-5 add. They consume the archived as-of scalars ONLY
     # (completed counts + right-edge stance) — never the tape, never the
     # profile sentence (AP-8; nothing re-derives counts downstream).
-    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
-    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
-    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", "TA_SCORE_V2", chapter="consolidation"),
-    TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", "TA_SCORE_V2", chapter="phase_d"),
+    TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", producer="compose", chapter="consolidation"),
+    TermSpec("story_r_rejections",     "score_story_r_rejections",     "SCORE_STORY_R_REJECTIONS",     "ta", "new_term", producer="compose", chapter="consolidation"),
+    TermSpec("story_alternations",     "score_story_alternations",     "SCORE_STORY_ALTERNATIONS",     "ta", "new_term", producer="compose", chapter="consolidation"),
+    TermSpec("story_terminal_posture", "score_story_terminal_posture", "SCORE_STORY_TERMINAL_POSTURE", "ta", "new_term", producer="compose", chapter="phase_d"),
 )
 
 
 def emitted_keys() -> list[str]:
     """Result-dict sub-score keys emitted under the CURRENT flags (order-preserving)."""
-    return [t.key for t in REGISTRY if t.is_emitted()]
+    return [t.key for t in REGISTRY]
 
 
 def always_emitted_terms() -> tuple[TermSpec, ...]:
-    """The flag-INDEPENDENT sub-score family (``present_when is None``) — the
+    """The SCORER-produced sub-score family (``producer == 'scorer'``) — the
     third named projection beside ``emitted_keys``/``ta_layer_terms``
     (2026-08-08 review: two production sites re-spelled this predicate inline
     with warning paragraphs each). The wire's ``sub_scores`` block and the
@@ -200,7 +204,7 @@ def always_emitted_terms() -> tuple[TermSpec, ...]:
     flag-on the two sets diverge (spring + the story terms join
     ``emitted_keys``), and coercing the v2 terms' absence to 0 at those
     sites would fabricate measured zeros."""
-    return tuple(t for t in REGISTRY if t.present_when is None)
+    return tuple(t for t in REGISTRY if t.producer == "scorer")
 
 
 def archive_columns() -> list[str]:
@@ -323,7 +327,7 @@ def ta_layer_terms() -> tuple[TermSpec, ...]:
 
     This is the ONE gate between measuring something and grading it: a term
     absent from here cannot reach a chapter, the divisor, or the tier."""
-    return tuple(t for t in REGISTRY if t.layer == "ta" and t.is_emitted())
+    return tuple(t for t in REGISTRY if t.layer == "ta")
 
 
 def structural_cap_sum() -> float:

@@ -13,8 +13,10 @@ import { toast } from '../ui/feedback';
 import { API_BASE } from '../../api';
 import { tierColor } from '../../theme';
 import { signedPct } from './homeFormat';
+import { nearTriggerFrac, triggerFired } from '../../utils/triggerProximity.js';
+import { finiteOrNull } from '../../utils/format.js';
 
-const NEAR_TRIGGER_PCT = 0.02; // within 2% below the trigger (high of the last LPS bar)
+// "Near" = the shared triggerProximity band (the ONE client-side trigger judgment, EC-3).
 const ICON = <EyeIcon className="home-zone-iconsvg" />;
 
 function lastClose(data) {
@@ -107,15 +109,12 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
     const live = prices[t];
     const close = lastClose(data);
     const chg = (live != null && close) ? (live - close) / close : null;
-    const trig = data?.trigger;
-    const triggered = (live != null && Number.isFinite(Number(trig))) ? live >= trig : false;
-    const nearPct = (live != null && Number.isFinite(Number(trig)) && !triggered)
-      ? (trig - live) / trig
-      : null;
+    const triggered = triggerFired(data, live);
+    const nearPct = triggered ? null : nearTriggerFrac(data, live);
     const stale = priceErr && live == null;
     return {
       t, data, live, chg, triggered,
-      near: nearPct != null && nearPct <= NEAR_TRIGGER_PCT ? nearPct : null,
+      near: nearPct,
       stale,
       age: savedAgeDays(record.save_date),
       // The active save event's id — the row's own most recent save, which is
@@ -181,7 +180,7 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       align: 'right',
       render: (row) => (
         <span style={{ color: row.stale ? 'var(--text-faint)' : 'var(--text-main)' }}>
-          {row.live != null ? Number(row.live).toFixed(2) : '—'}
+          {finiteOrNull(row.live) != null ? finiteOrNull(row.live).toFixed(2) : '—'}
         </span>
       ),
     },

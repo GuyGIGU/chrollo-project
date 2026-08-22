@@ -1,5 +1,5 @@
 import { TagLegend } from './SetupTags';
-import { TAG_CATALOG } from './setupTagsData';
+import { TAG_CATALOG } from './tagCatalog';
 import UniverseSwitcher from './UniverseSwitcher';
 import Popover from './ui/Popover';
 import { TIER_LETTERS } from './wireVocabulary';
@@ -214,12 +214,12 @@ function SortRow({ filters }) {
           filters.setCurrentPage(1);
         }}
         options={[
-          ['score', 'Score (high to low)'],
-          ['visual', 'Visual score (high to low)'],
-          ['market', 'Market score (high to low)'],
+          // The wire order IS the engine's ranking (the grade since the
+          // 2026-08-22 retirement); the passthrough keeps its 'score' key so
+          // stored operator preferences survive the seam.
+          ['score', 'Grade (high to low)'],
           ['base', 'Base age (old to new)'],
           ['trigger', 'Nearest to trigger'],
-          ['rs', 'Relative strength'],
         ]}
       />
     </div>

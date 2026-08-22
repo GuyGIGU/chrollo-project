@@ -25,7 +25,10 @@ const archiveCache = createGlanceCache();
 const artifactHeader = (ticker, entry, context) => ({
   ticker,
   tier: entry?.tier ?? null,
-  score: entry?.score == null ? null : Math.round(Number(entry.score)),
+  // The 0-100 grade - the number the tier beside it derives from. The legacy
+  // raw score retired from display 2026-08-22; the scales never coalesce, so
+  // an ungraded (pre-flip) entry shows nothing rather than the other scale.
+  grade: entry?.ta_grade == null ? null : Math.round(Number(entry.ta_grade)),
   context: context || entry?.setup || '',
 });
 

@@ -6,9 +6,9 @@ import { buildWatchlistRows, sortWatchlistRows } from './watchlistTable.js';
 // watchlist. `screenerData.chart_data` is keyed by ticker.
 const scan = {
   chart_data: {
-    GEV: { tier: 'A', score: 88, setup: 'LPS' },
-    CRNX: { tier: 'S', score: 92, setup: 'BREAKOUT' },
-    AGCO: { tier: 'A', score: 74, setup: 'REBOUND' },
+    GEV: { tier: 'A', ta_grade: 88, setup: 'LPS' },
+    CRNX: { tier: 'S', ta_grade: 92, setup: 'BREAKOUT' },
+    AGCO: { tier: 'A', ta_grade: 74, setup: 'REBOUND' },
   },
 };
 
@@ -19,14 +19,14 @@ test('buildWatchlistRows joins the scan and flags in-scan vs off-scan', () => {
 
   assert.equal(crnx.in_scan, true);
   assert.equal(crnx.tier, 'S');
-  assert.equal(crnx.score, 92);
+  assert.equal(crnx.grade, 92);
   assert.equal(crnx.setup, 'BREAKOUT');
   assert.equal(crnx.data, scan.chart_data.CRNX);
 
   // Off-scan: explicit nulls + a null data handle, never undefined.
   assert.equal(zzzz.in_scan, false);
   assert.equal(zzzz.tier, null);
-  assert.equal(zzzz.score, null);
+  assert.equal(zzzz.grade, null);
   assert.equal(zzzz.setup, null);
   assert.equal(zzzz.data, null);
 });
@@ -36,16 +36,16 @@ test('buildWatchlistRows tolerates an empty set and a null scan (before first sc
   const rows = buildWatchlistRows(new Set(['CRNX']), null);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].in_scan, false); // nothing scanned yet -> off-scan
-  assert.equal(rows[0].score, null);
+  assert.equal(rows[0].grade, null);
 });
 
-test('buildWatchlistRows coerces a NaN/missing score to null (fx-guard-safe)', () => {
-  const rows = buildWatchlistRows(new Set(['BAD']), { chart_data: { BAD: { tier: 'B', score: 'nope', setup: 'LPS' } } });
-  assert.equal(rows[0].score, null);
+test('buildWatchlistRows coerces a NaN/missing grade to null (fx-guard-safe)', () => {
+  const rows = buildWatchlistRows(new Set(['BAD']), { chart_data: { BAD: { tier: 'B', ta_grade: 'nope', setup: 'LPS' } } });
+  assert.equal(rows[0].grade, null);
   assert.equal(rows[0].in_scan, true); // it IS in the scan, just with a bad number
 });
 
-test('default sort: tier S>A>B>C, score-desc within a tier, off-scan last', () => {
+test('default sort: tier S>A>B>C, grade-desc within a tier, off-scan last', () => {
   const rows = buildWatchlistRows(new Set(['GEV', 'CRNX', 'AGCO', 'ZZZZ']), scan);
   const order = sortWatchlistRows(rows).map((r) => r.ticker);
   // CRNX (S) first; GEV (A/88) before AGCO (A/74); off-scan ZZZZ last.
@@ -60,10 +60,10 @@ test('off-scan rows sink last regardless of sort direction', () => {
   assert.deepEqual(desc, ['CRNX', 'ZZZZ', 'AAAA']);  // scanned still first; off-scan reversed
 });
 
-test('score column sorts numerically and is symmetric under direction', () => {
+test('grade column sorts numerically and is symmetric under direction', () => {
   const rows = buildWatchlistRows(new Set(['GEV', 'CRNX', 'AGCO']), scan);
-  assert.deepEqual(sortWatchlistRows(rows, 'score', 'desc').map((r) => r.ticker), ['CRNX', 'GEV', 'AGCO']);
-  assert.deepEqual(sortWatchlistRows(rows, 'score', 'asc').map((r) => r.ticker), ['AGCO', 'GEV', 'CRNX']);
+  assert.deepEqual(sortWatchlistRows(rows, 'grade', 'desc').map((r) => r.ticker), ['CRNX', 'GEV', 'AGCO']);
+  assert.deepEqual(sortWatchlistRows(rows, 'grade', 'asc').map((r) => r.ticker), ['AGCO', 'GEV', 'CRNX']);
 });
 
 test('tier ordinal beats alphabetical (S must rank above A)', () => {
@@ -91,24 +91,24 @@ test('setup column sorts alphabetically both ways; a null setup coalesces, never
   assert.deepEqual(sortWatchlistRows(rows, 'setup', 'desc').map((r) => r.setup), ['REBOUND', 'LPS', 'BREAKOUT']);
   // an in-scan row whose setup is null coalesces to '' (sorts first asc) rather than throwing
   const withNull = buildWatchlistRows(new Set(['CRNX', 'NUL']), {
-    chart_data: { ...scan.chart_data, NUL: { tier: 'B', score: 50, setup: null } },
+    chart_data: { ...scan.chart_data, NUL: { tier: 'B', ta_grade: 50, setup: null } },
   });
   assert.deepEqual(sortWatchlistRows(withNull, 'setup', 'asc').map((r) => r.ticker), ['NUL', 'CRNX']);
 });
 
-test('an in-scan row with a non-finite score orders deterministically (null = lowest)', () => {
+test('an in-scan row with a non-finite grade orders deterministically (null = lowest)', () => {
   const rows = buildWatchlistRows(new Set(['CRNX', 'BAD']), {
-    chart_data: { CRNX: { tier: 'S', score: 92, setup: 'X' }, BAD: { tier: 'S', score: 'nope', setup: 'Y' } },
+    chart_data: { CRNX: { tier: 'S', ta_grade: 92, setup: 'X' }, BAD: { tier: 'S', ta_grade: 'nope', setup: 'Y' } },
   });
-  // both in-scan; score desc sinks the null-score row last, asc floats it first — pinned so a
+  // both in-scan; score desc sinks the null-grade row last, asc floats it first — pinned so a
   // flip of the -Infinity coalescing would fail here rather than silently reshuffle.
-  assert.deepEqual(sortWatchlistRows(rows, 'score', 'desc').map((r) => r.ticker), ['CRNX', 'BAD']);
-  assert.deepEqual(sortWatchlistRows(rows, 'score', 'asc').map((r) => r.ticker), ['BAD', 'CRNX']);
+  assert.deepEqual(sortWatchlistRows(rows, 'grade', 'desc').map((r) => r.ticker), ['CRNX', 'BAD']);
+  assert.deepEqual(sortWatchlistRows(rows, 'grade', 'asc').map((r) => r.ticker), ['BAD', 'CRNX']);
 });
 
 test('an in-scan row with a null tier ranks below D but still above off-scan rows', () => {
   const rows = buildWatchlistRows(new Set(['CRNX', 'NOTIER', 'OFF']), {
-    chart_data: { CRNX: { tier: 'S', score: 90, setup: 'X' }, NOTIER: { tier: null, score: 60, setup: 'Y' } },
+    chart_data: { CRNX: { tier: 'S', ta_grade: 90, setup: 'X' }, NOTIER: { tier: null, ta_grade: 60, setup: 'Y' } },
   });
   // CRNX (S, rank 0) → NOTIER (in-scan, null tier → rank 99) → OFF (off-scan, gated last).
   assert.deepEqual(sortWatchlistRows(rows, 'tier', 'asc').map((r) => r.ticker), ['CRNX', 'NOTIER', 'OFF']);

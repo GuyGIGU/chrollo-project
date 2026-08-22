@@ -8,8 +8,9 @@ strategy means changing numbers there, not the measurement code.
 
 Public API:
     score_setup    -> total score + per-ingredient sub-scores
-    calculate_tier -> map a score to S / A / B / C / D
+    (the tier derives from the TA grade inside compose_ta_grade — the legacy
+    calculate_tier ladder retired at the 2026-08-22 consolidation)
 """
-from engine_alpha.scoring.scoring import calculate_tier, score_setup
+from engine_alpha.scoring.scoring import score_setup
 
-__all__ = ["score_setup", "calculate_tier"]
+__all__ = ["score_setup"]

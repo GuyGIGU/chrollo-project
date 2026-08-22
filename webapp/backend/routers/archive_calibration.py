@@ -318,7 +318,8 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
     # ── Suggested Re-weighting ──────────────────────────────
     # Average |corr| across 20d and 60d horizons → re-normalize to preserve
-    # the current total weight cap (128 pts across the 6 core sub-scores).
+    # the current total of the six caps (derived live from settings - never
+    # a hand-typed number; the old "128 pts" claim had drifted from a real 117).
     # Sub-scores with negative or near-zero correlation get floored at a
     # small positive (0.02) so they're not zeroed out by a single noisy
     # archive — re-weighting is a *suggestion*, not auto-apply.

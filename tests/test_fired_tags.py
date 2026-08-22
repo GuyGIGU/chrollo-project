@@ -184,7 +184,6 @@ def test_weak_monthly_is_both_chip_and_grade_warning(monkeypatch):
     mechanism (neutral 1.0 until the operator's A/B); a missing HTF read
     fires neither."""
     from engine_alpha.scoring.scoring import compose_ta_grade
-    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
     assert "weak_monthly" in _fired_ids(_row(htf_m_trend_state="down"))
     assert "weak_monthly" not in _fired_ids(_row(htf_m_trend_state="up"))
     down = compose_ta_grade({}, htf={"htf_m_trend_state": "down"})

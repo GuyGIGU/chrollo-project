@@ -202,14 +202,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "INNER_SEARCH_FRACTION",
     "INNER_TIGHTNESS_RATIO",
     "INNER_MIN_DAYS",
-    # Phase 4 — scoring & ranking: tiers
-    "TIER_S",
-    "TIER_A",
-    "TIER_B",
-    "TIER_C",
-    # The same ladder on the TA-grade 0-100 scale — live at the 2026-08-09 flip
-    # (the tier's source swapped from the raw sum to ta_grade). These decide a
-    # serialized field, so they ride the manifest exactly as their siblings do.
+    # Phase 4 — scoring & ranking: the tier ladder on the TA-grade 0-100
+    # scale, live at the 2026-08-09 flip (the tier's source swapped from the
+    # raw sum to ta_grade; the legacy TIER_S/A/B/C cuts retired with the
+    # legacy ladder at the 2026-08-22 consolidation — that removal is a
+    # deliberate engine_config_version rotation, THE declared seam). These
+    # decide a serialized field, so they ride the manifest as siblings do.
     "TIER_S_STRUCT",
     "TIER_A_STRUCT",
     "TIER_B_STRUCT",
@@ -235,11 +233,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "CANDLE_TIGHTBAR_CLEAN",
     "CANDLE_TIGHTBAR_MESSY",
     # Technical Analysis Score v2 master flag (docs/archive/specs/ta-score-rework.md).
-    # Listed BEFORE the scorer reads it: it is a committed engine flag whose
-    # flip must bump engine_config_version from day one — the completeness scan
-    # only forces names once a read lands, which would have left a window where
-    # flipping it changed output without rotating the hash.
-    "TA_SCORE_V2",
     # TA-grade v2 vocabulary (batched registration seam, 2026-08-08, build task
     # 1): the spring term's cap + the three named slopes the v2 term expressions
     # consume (promoting the scorer's last hidden literals). Listed at

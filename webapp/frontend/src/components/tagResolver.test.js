@@ -1,25 +1,37 @@
-// The one-resolver contract (TA-grade build task 11): dual-epoch by ONE
-// explicit switch; verdicts projected, never re-derived; unknown ids visible.
+// The one-resolver contract (TA-grade build task 11; legacy derive path
+// retired at the 2026-08-22 consolidation): verdicts projected, never
+// derived client-side; unresolved payloads render chipless; unknown ids
+// stay visible.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hasResolvedTags, resolveTags } from './tagResolver.js';
-import { TAG_CATALOG } from './setupTagsData.js';
+import { TAG_CATALOG } from './tagCatalog.js';
 
-test('absent fired_tags routes to the legacy derive path (the EC-8 rollback)', () => {
-  // No fired_tags key = pre-v2 / flag-off payload: the frozen legacy rules
-  // still decide (tight_lps fires at 1.00 x its JS cap of 20).
-  const legacyRow = { sub_scores: { lps_tightness: 20 } };
+test('absent fired_tags renders NO chips — the legacy derive path is retired', () => {
+  // A pre-flip payload (no fired_tags key) must not grow client-derived
+  // chips: the retired derive path's cap-mirror bug fired the two demoted
+  // trend chips on every such row (council 2026-08-22 P1). Chipless is the
+  // honest read of an unresolved payload.
+  const legacyRow = { sub_scores: { lps_tightness: 20, rs_bonus: 0, uptrend_bonus: 0 } };
   assert.equal(hasResolvedTags(legacyRow), false);
-  const tags = resolveTags(legacyRow);
-  assert.ok(tags.some(t => t.id === 'tight_lps'));
+  assert.deepEqual(resolveTags(legacyRow), []);
 });
 
-test('empty fired_tags is resolved-nothing-fired — never re-derived', () => {
-  // The key PRESENT as [] means the backend resolved this row and nothing
-  // fired. The legacy rules would fire tight_lps here — they must not run.
+test('empty fired_tags is resolved-nothing-fired', () => {
   const row = { fired_tags: [], sub_scores: { lps_tightness: 20 } };
   assert.equal(hasResolvedTags(row), true);
   assert.deepEqual(resolveTags(row), []);
+});
+
+test('the demoted trend chips are out of the catalog — they can never fire', () => {
+  // rs/uptrend are weight-0 (decisions.md 2026-07-25) and the engine's cap>0
+  // rule keeps them dead; the catalog lists no dead filter entries. If the
+  // engine ever re-emits them, the raw-slug fallback keeps them VISIBLE.
+  assert.equal(TAG_CATALOG.some(d => d.id === 'strong_rs'), false);
+  assert.equal(TAG_CATALOG.some(d => d.id === 'uptrend'), false);
+  const tags = resolveTags({ fired_tags: [{ id: 'strong_rs' }] });
+  assert.equal(tags.length, 1);
+  assert.equal(tags[0].label, 'strong_rs');
 });
 
 test('v2 entries project label/group from the catalog, verdicts untouched', () => {
@@ -28,8 +40,8 @@ test('v2 entries project label/group from the catalog, verdicts untouched', () =
       { id: 'tight_lps', detail: { foo: 1 } },
       { id: 'phase_d', detail: {} },
     ],
-    // Bait: these sub_scores would fire other chips under the legacy rules —
-    // the resolver must render exactly the two backend verdicts.
+    // Bait: sub_scores must be inert — which chips fired was decided
+    // engine-side and only the two verdicts may render.
     sub_scores: { vol_contraction: 20, box_tightness: 22 },
   };
   const tags = resolveTags(row);

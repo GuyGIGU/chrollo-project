@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deriveScoreBreakdown } from '../components/setupScoreMath';
 import { resolveTags } from '../components/tagResolver';
+import { triggerDistanceFrac } from '../utils/triggerProximity';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -137,19 +137,15 @@ function sortTickers(tickers, sortBy, chartData) {
   if (sortBy === 'score') return tickers;
   const sorted = [...tickers];
   const sorters = {
-    visual: (a, b) => visualScore(chartData[b]) - visualScore(chartData[a]),
-    market: (a, b) => marketScore(chartData[b]) - marketScore(chartData[a]),
     base: (a, b) => (chartData[b].base_len || 0) - (chartData[a].base_len || 0),
     trigger: (a, b) => distanceToTrigger(chartData[a]) - distanceToTrigger(chartData[b]),
-    rs: (a, b) => (chartData[b].sub_scores?.rs_bonus || 0) - (chartData[a].sub_scores?.rs_bonus || 0),
   };
   return sorted.sort(sorters[sortBy] || (() => 0));
 }
 
-const visualScore = data => deriveScoreBreakdown(data.sub_scores).visual.score || 0;
-const marketScore = data => deriveScoreBreakdown(data.sub_scores).market.score || 0;
-const distanceToTrigger = data => (
-  data?.trigger && data?.price ? (data.trigger - data.price) / data.price : Infinity
-);
+const distanceToTrigger = data => {
+  const frac = triggerDistanceFrac(data, data?.price);
+  return frac == null ? Infinity : frac;
+};
 
 export default useScreenerFilters;

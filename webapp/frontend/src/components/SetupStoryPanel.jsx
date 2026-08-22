@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ScoreBreakdownPills } from './ScoreBreakdown';
 import { TagRow } from './SetupTags';
 import { warningItems } from './chapterStrip.js';
 import { storyRows } from './setupStoryRows.js';
 import { explainTip } from './tooltipText';
 import { formatScore } from '../utils/scoreFormat.js';
+import { EMPTY, finiteOrNull } from '../utils/format.js';
 
 // "Why It Stands Out" — the lens's protagonist, and its only structure panel.
 //
@@ -35,7 +35,10 @@ import { formatScore } from '../utils/scoreFormat.js';
 // D, so it is a readout recessed INTO Phase D's column: gold-railed and
 // percent-suffixed where every chapter is flat and prints bare points.
 
-const fx1 = (value) => (value == null ? '—' : Number(value).toFixed(1));
+const fx1 = (value) => {
+  const n = finiteOrNull(value);
+  return n == null ? EMPTY : n.toFixed(1);
+};
 const lowerFirst = (text) => (text ? text.charAt(0).toLowerCase() + text.slice(1) : text);
 
 // Why a row can or cannot be hovered onto the chart. Keyed off the REGION
@@ -266,10 +269,19 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
               <small className="story-total-note">chapters sum to this</small>
             </>
           ) : (
-            /* Dual-epoch: a pre-v2 payload keeps the legacy pills, in this same
-               cell, so the grid never gets a hole. Deletes as one unit at the
-               flag's retirement. */
-            <ScoreBreakdownPills subScores={data.sub_scores} />
+            /* An ungraded payload (pre-grade archive row) shows an honest
+               absence in the same cell - the legacy pills retired with the
+               legacy score path (2026-08-22); the two scales never coalesce. */
+            <>
+              <span
+                className="story-total-fig"
+                title="This row predates the 0-100 grade (archived before the 2026-08-09 flip), so no grade exists for it"
+              >
+                <span className="story-total-value">{EMPTY}</span>
+              </span>
+              <span className="story-total-label">Grade</span>
+              <small className="story-total-note">pre-grade archive row</small>
+            </>
           )}
           {warnings.length > 0 && (
             <div className="ta-grade-warnings">

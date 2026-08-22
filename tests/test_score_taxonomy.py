@@ -55,16 +55,15 @@ def test_every_cap_setting_resolves_to_a_number():
 def test_setup_quality_always_emitted():
     # The setup_quality term is unconditional (folded 2026-07-18; formerly gated by
     # PUZZLE_SCORE_ENABLED via TermSpec.present_when) — it emits under any flags.
-    # The registry's SIZE is flag-dependent and deliberately not pinned to a
-    # literal here: the 5 promoted v2 terms (spring + story) began emitting at
-    # the 2026-08-09 TA_SCORE_V2 flip, so the count is derived, and the
-    # ungated terms are the invariant.
+    # The producer partition (structural since the 2026-08-22 retirement):
+    # the scorer's family is exactly 15 terms; the 5 promoted v2 terms
+    # (spring + story) are compose-produced and emit unconditionally.
     keys = taxonomy.emitted_keys()
     assert "setup_quality" in keys
-    ungated = [t.key for t in taxonomy.REGISTRY if t.present_when is None]
-    assert len(ungated) == 15
-    assert set(ungated) <= set(keys)
-    assert len(keys) == len([t for t in taxonomy.REGISTRY if t.is_emitted()])
+    scorer = [t.key for t in taxonomy.REGISTRY if t.producer == "scorer"]
+    assert len(scorer) == 15
+    assert set(scorer) <= set(keys)
+    assert len(keys) == len(taxonomy.REGISTRY)
 
 
 def test_only_breadth_is_regime_layer():
@@ -164,35 +163,26 @@ def test_structural_cap_sum_is_the_machine_pinned_divisor():
     # hand-copied total in this codebase has eventually lied ("~122" in
     # settings, "128 pts" in the calibration router against an actual 117).
     ta = taxonomy.ta_layer_terms()
-    assert all(t.layer == "ta" and t.is_emitted() for t in ta)
+    assert all(t.layer == "ta" for t in ta)
     assert "breadth_bonus" not in {t.key for t in ta}
     expected = sum(float(getattr(settings, t.cap_setting)) for t in ta)
     assert taxonomy.structural_cap_sum() == pytest.approx(expected)
     assert taxonomy.structural_cap_sum() > 0
 
 
-def test_structural_cap_sum_tracks_the_flag_gated_v2_terms(monkeypatch):
-    # Flag-off the four graded v2 story terms are not emitted and stay out of
-    # the divisor; flag-on they join at their registered caps (all 0 today —
-    # shape-only until the A/B; the arithmetic stays valid at any future
-    # operator-assigned weights). `spring` is flag-gated too but rides the
-    # MARKER layer since 2026-08-12, so it never enters the divisor in either
-    # state — that is the point of the layer.
+def test_structural_cap_sum_counts_story_terms_and_never_spring():
+    # The four graded story terms sit in the divisor at their registered caps
+    # (all 0 today — shape-only until the A/B; the arithmetic stays valid at
+    # any future operator-assigned weights). `spring` rides the MARKER layer
+    # (ruling 2026-08-12), so it never enters the divisor — that is the point
+    # of the layer, and it survived the 2026-08-22 flag retirement unchanged.
     story = {"story_s_tests", "story_r_rejections",
              "story_alternations", "story_terminal_posture"}
-    monkeypatch.setattr(settings, "TA_SCORE_V2", False)
-    base = taxonomy.structural_cap_sum()
-    off_keys = {t.key for t in taxonomy.ta_layer_terms()}
-    assert not off_keys & (story | {"spring"})
-    monkeypatch.setattr(settings, "TA_SCORE_V2", True)
-    on_keys = {t.key for t in taxonomy.ta_layer_terms()}
-    assert story <= on_keys
-    assert "spring" not in on_keys
-    v2_caps = (float(settings.SCORE_STORY_S_TESTS)
-               + float(settings.SCORE_STORY_R_REJECTIONS)
-               + float(settings.SCORE_STORY_ALTERNATIONS)
-               + float(settings.SCORE_STORY_TERMINAL_POSTURE))
-    assert taxonomy.structural_cap_sum() == pytest.approx(base + v2_caps)
+    keys = {t.key for t in taxonomy.ta_layer_terms()}
+    assert story <= keys
+    assert "spring" not in keys
+    assert taxonomy.structural_cap_sum() == pytest.approx(
+        sum(t.cap() for t in taxonomy.ta_layer_terms()))
 
 
 def test_manifest_hashes_the_chapter_taxonomy():

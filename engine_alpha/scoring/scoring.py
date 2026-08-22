@@ -437,10 +437,13 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
     v2 = _ta_v2_terms(has_spring=has_spring, event_map=event_map)
     chapters = {ch: 0.0 for ch in taxonomy.CHAPTER_ORDER}
     raw = 0.0
+    lps_pts, lps_cap = 0.0, 0.0
     for term in taxonomy.ta_layer_terms():
         pts = v2[term.key] if term.key in v2 else _finite(sub_scores.get(term.key))
         chapters[term.chapter] += pts
         raw += pts
+        if term.key == 'lps_tightness':
+            lps_pts, lps_cap = pts, term.cap()
     cap_sum = taxonomy.structural_cap_sum()
     scale = 0.0 if cap_sum <= 0 else 100.0 / cap_sum
     pre = max(0.0, min(100.0, raw * scale))
@@ -473,6 +476,15 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
         'ta_grade_chapter_fractions': {
             ch: (chapters[ch] / chapter_caps[ch] if chapter_caps[ch] > 0 else 0.0)
             for ch in taxonomy.CHAPTER_ORDER},
+        # The lens's LPS grade (operator ruling 2026-08-12: "the existing
+        # lps_tightness term as a fraction of SCORE_LPS_TIGHTNESS"), resolved
+        # HERE at the legacy retirement so the display stops dividing by the
+        # retired JS cap mirror (EC-28). None = the term was never measured
+        # (an absent sub-score), distinct from a measured-loose 0.0.
+        'lps_grade_fraction': (
+            max(0.0, min(1.0, lps_pts / lps_cap))
+            if lps_cap > 0 and sub_scores.get('lps_tightness') is not None
+            else None),
         'ta_grade_warnings': warnings,
     }
     out.update(v2)
@@ -616,9 +628,8 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
 
 def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) -> str:
     """Map a value to S/A/B/C/D against a 4-cut descending ladder, then apply
-    the S width cap. ONE implementation for both ladders (the legacy raw-sum
-    cuts and the 0-100 grade cuts) so the two can never drift apart in shape —
-    only in where their cuts sit."""
+    the S width cap. (Sole caller is the live 0-100 ladder since the legacy
+    raw-sum ladder retired at the 2026-08-22 consolidation.)"""
     tier_s, tier_a, tier_b, tier_c = cuts
     if value >= tier_s:
         tier = 'S'
@@ -636,31 +647,11 @@ def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) ->
     return tier
 
 
-def calculate_tier(score: float, box_width: Optional[float] = None) -> str:
-    """Map a numeric score to a letter tier grade.
-
-    ``box_width`` (optional) applies the S-tier width cap: a base wider than
-    ``S_MAX_BOX_WIDTH`` cannot be S no matter how high it scores — a wide range,
-    however long or well-touched, is not an elite setup. It still earns A on
-    merit. Callers that don't have a width on hand omit it (no cap applied).
-
-    This is the LEGACY ladder over the raw ~122-point sum. With TA_SCORE_V2
-    live the serialized tier comes from ``calculate_structure_tier`` instead;
-    this stays for the flag-off path and its callers until they retire.
-    """
-    return _apply_tier_ladder(
-        score,
-        (settings.TIER_S, settings.TIER_A, settings.TIER_B, settings.TIER_C),
-        box_width,
-    )
-
-
 def calculate_structure_tier(ta_grade: float,
                              box_width: Optional[float] = None) -> str:
-    """The same letter, re-based onto the TA-grade's 0-100 scale (flip
-    2026-08-09). Identical shape to ``calculate_tier`` — including the
-    ``S_MAX_BOX_WIDTH`` cap, which is the operator's rule that a wide base is
-    never elite and is unaffected by the scale change: on the flip A/B it held
+    """The letter on the TA-grade's 0-100 scale (flip 2026-08-09; the legacy
+    raw-sum ladder retired 2026-08-22). The ``S_MAX_BOX_WIDTH`` cap is the
+    operator's rule that a wide base is never elite: on the flip A/B it held
     22 of 111 A-tier names out of S on width alone.
     """
     return _apply_tier_ladder(

@@ -43,6 +43,7 @@ from engine_alpha.scoring import taxonomy
 from engine_alpha.structure.event_map import narrative_chart_fields
 from engine_alpha.structure.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.trace_export import election_trace_chart_fields
+from engine_alpha.scoring.tags import traversal_density_from_counts
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -276,11 +277,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'bin_b_cog_rng': row.get('_bin_b_cog_rng'),
                 'bin_b_cog_corr': row.get('_bin_b_cog_corr'),
                 # Limb-traversal density (rail-to-rail swings / significant swings) →
-                # drives the worked_equilibrium chip; the real two-sidedness signal.
-                'traversal_density': (
-                    round(row['_trav_n_full_traversals'] / row['_trav_n_swings'], 3)
-                    if row.get('_trav_n_swings') else None
-                ),
+                # drives the worked_equilibrium chip; the real two-sidedness
+                # signal. ONE derivation shared with the chip rule (EC-3).
+                'traversal_density': traversal_density_from_counts(
+                    row.get('_trav_n_full_traversals'), row.get('_trav_n_swings')),
                 # HTF (higher-timeframe) context — weekly/monthly Trend+Box read,
                 # surfaced to the Screener Grid. Bare keys (htf_w_* / htf_m_*).
                 **{c: row.get('_' + c) for c in HTF_COLUMNS},
@@ -365,6 +365,9 @@ def _extract_chart_data(data, results_df, tickers):
                         for ch, v in (row.get('_ta_grade_chapter_fractions') or {}).items()
                     },
                     'ta_grade_warnings': row.get('_ta_grade_warnings') or {},
+                    # The lens's LPS grade, resolved engine-side (EC-28; legacy
+                    # retirement 2026-08-22). None = never measured.
+                    'lps_grade_fraction': _round_opt(row.get('_lps_grade_fraction'), 4),
                     'score_spring': _round_opt(row.get('_score_spring'), 2),
                     'score_story_s_tests': _round_opt(row.get('_score_story_s_tests'), 2),
                     'score_story_r_rejections': _round_opt(row.get('_score_story_r_rejections'), 2),

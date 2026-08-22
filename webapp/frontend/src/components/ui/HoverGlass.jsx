@@ -105,14 +105,14 @@ function GlassHeader({ header }) {
           {tier}
         </span>
       ) : null}
-      {header?.score != null && (
+      {header?.grade != null && (
         <span style={{
           color: 'var(--text-main)',
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 11,
           fontVariantNumeric: 'tabular-nums',
         }}>
-          {header.score}
+          {header.grade}<span style={{ color: 'var(--text-faint)', fontSize: 9 }}>/100</span>
         </span>
       )}
       <span style={{

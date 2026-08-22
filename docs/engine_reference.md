@@ -701,7 +701,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 `score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)) sums **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive).
 
-> **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the promoted v2 story terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the story chapters, applies the floored warning discounts, and derives the tier from the result. The raw sum survives as `Score` and as the legacy tier ladder's input until the legacy path retires. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
+> **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the promoted story terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the story chapters, applies the floored warning discounts, and derives the tier from the result. **The legacy path RETIRED 2026-08-23** (operator-delegated; council 2026-08-22): `calculate_tier`, the `TIER_S/A/B/C` cuts and the `TA_SCORE_V2` flag are gone (a declared manifest seam), the **scan ranking is the grade** (raw-sum tiebreak, then ticker — council P1: rank and badge must come from ONE verdict), and the seed scan-back election keys on the same basis. The raw sum survives ONLY as the archived `score` fact and the ranking tiebreak — writers keep stamping it (NOT NULL contract, computationally free), no surface displays it. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
 
 > **The chapters are three since the 2026-08-12 re-partition: Consolidation → Phase D → Trend** (`taxonomy.CHAPTER_ORDER`). `cause` and `phase_b` were fused into `consolidation` — they graded one object from two sides — and `phase_c` was retired as a chapter on the operator's ruling that a spring is *marked, not graded*. Two mechanical consequences worth knowing at the point of use:
 >
@@ -742,15 +742,7 @@ Operator-chosen from the A/B on the 2026-08-09 scan (256 fires, grades 35.5–76
 
 > **S-tier width cap — unchanged by the re-base.** A base wider than `S_MAX_BOX_WIDTH = 0.15` cannot be S no matter how high it grades; it takes A on merit. This is the operator's own rule ("wide … getting an S, this is bad") and it applies on top of whichever ladder is live. On the flip A/B it held **22 of 111** A-tier names out of S on width alone — AAP among them, the 4th-highest grade on the scan at 0.151 box width against the 0.15 cap.
 
-**Legacy ladder** — `calculate_tier()` over the raw sum, calibrated against the pre-grade archive distribution. It serves only the `TA_SCORE_V2`-off path and its remaining callers until they retire (checklist §2); both ladders share one implementation (`_apply_tier_ladder`) so they cannot drift in shape, only in where their cuts sit.
-
-| Tier | Threshold | Setting |
-|------|-----------|---------|
-| **S** | `score ≥ 110` | `TIER_S = 110` |
-| **A** | `score ≥ 95` | `TIER_A = 95` |
-| **B** | `score ≥ 75` | `TIER_B = 75` |
-| **C** | `score ≥ 55` | `TIER_C = 55` |
-| **D** | else | — |
+**Legacy ladder — RETIRED 2026-08-23.** `calculate_tier()` over the raw sum (cuts 110/95/75/55) served the `TA_SCORE_V2`-off path from the 2026-08-09 flip until the retirement; the council's P1 found its rollback had silently stopped being faithful (the frontend cap mirror fired the demoted RS/Uptrend chips on every legacy-epoch row), which removed the last reason to keep it. `_apply_tier_ladder` survives as the one ladder shape under `calculate_structure_tier`. Resurrection is one git command away (checklist §2 records the executed wave).
 
 ---
 
@@ -1148,7 +1140,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `c26961bfc31ed4dcefde83f8857b69ea3d33a642bfaa4533e6ec5ef7dd8ba656`_
+_engine_config_version: `88ec252dc7f589c556638530475f44251dc5bcda3eca174cab3d98309beb8b81`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1268,10 +1260,6 @@ STRUCTURE_ATR_SAMPLE_OFFSET = 6
 INNER_SEARCH_FRACTION = 0.5
 INNER_TIGHTNESS_RATIO = 0.75
 INNER_MIN_DAYS = 15
-TIER_S = 110
-TIER_A = 95
-TIER_B = 75
-TIER_C = 55
 TIER_S_STRUCT = 62
 TIER_A_STRUCT = 52
 TIER_B_STRUCT = 42
@@ -1294,7 +1282,6 @@ CANDLE_SPREAD_ATR_CLEAN = 0.9
 CANDLE_SPREAD_ATR_MESSY = 1.4
 CANDLE_TIGHTBAR_CLEAN = 0.65
 CANDLE_TIGHTBAR_MESSY = 0.3
-TA_SCORE_V2 = True
 SCORE_SPRING = 0
 TOUCH_POINT_RATE = 2.0
 LPS_TIGHTNESS_SLOPE = 2.0

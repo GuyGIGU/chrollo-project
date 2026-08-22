@@ -1,17 +1,17 @@
-"""Flag-off tripwires + key-set snapshot at the WIRE boundary (TA-grade build
-task 2).
+"""Key-set snapshots at the WIRE boundary (TA-grade build task 2; re-based
+at the 2026-08-22 legacy retirement — the wire keys on ROW CONTENT, so the
+former flag-off leg survives as the UNGRADED-row contract).
 
-The scorer tripwire (tests/test_scoring.py::test_ta_score_v2_flag_off_leaks_no_v2_keys)
+The scorer tripwire (tests/test_scoring.py::test_score_setup_emits_no_v2_keys)
 guards score_setup's result dict; this file guards the second leak point — the
-serialized per-ticker dashboard payload (output/dashboard._extract_chart_data),
-which previously had no flag-off snapshot at all. It drives the REAL payload
+serialized per-ticker dashboard payload (output/dashboard._extract_chart_data). It drives the REAL payload
 builder on a synthetic frame (the established house pattern from
 tests/test_fetch_repair.py) — never a booted server. The sector-ETF lookup is
 the one monkeypatched boundary (external lookup + a disk cache write).
 
-The key-set snapshot is deliberately exact: adding or removing a wire key with
-TA_SCORE_V2 off must be a conscious edit here, never silent drift — that is
-EC-8's byte-identical promise expressed at the boundary the frontend consumes.
+The key-set snapshot is deliberately exact: adding or removing a wire key
+must be a conscious edit here, never silent drift — the boundary contract the
+frontend consumes.
 """
 import sys
 from pathlib import Path
@@ -29,15 +29,13 @@ from engine_alpha.scoring.scoring import TA_GRADE_COLUMN_SQL
 from output import dashboard as dashboard_module
 
 
-def _payload(monkeypatch, *, v2_overlay=None, flag=False):
+def _payload(monkeypatch, *, v2_overlay=None):
     """The per-ticker payload exactly as a scan would serialize it; an
-    optional overlay injects flag-on v2 result fields onto the row.
+    optional overlay injects the grade-family result fields onto the row.
 
-    NOTE (2026-08-08 review): the ``flag`` parameter mirrors the production
-    ambient state only — the wire itself is NOT flag-gated; its v2 block
-    keys on ROW CONTENT (``_ta_grade`` presence). The leak chain is: the
-    cascade guards the row, this file's snapshot guards the serialization.
-    Do not treat the wire as a second flag gate."""
+    The wire keys on ROW CONTENT (``_ta_grade`` presence): without the
+    overlay this builds the UNGRADED-row payload (a degenerate/pre-grade
+    row), the surviving shape of the retired flag-off leg."""
     dates = pd.date_range("2026-01-01", periods=10, freq="B", name="Date")
     data = pd.DataFrame({
         "Open": np.linspace(10, 11, len(dates)),
@@ -73,13 +71,12 @@ def _payload(monkeypatch, *, v2_overlay=None, flag=False):
     results = pd.DataFrame([row])
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker",
                         lambda *_args: None)
-    monkeypatch.setattr(settings, "TA_SCORE_V2", flag)
     return dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
 
 
-def test_wire_flag_off_leaks_no_v2_keys(monkeypatch):
-    """No reserved v2 key may reach the wire — top level or sub_scores — while
-    TA_SCORE_V2 is off. Derives from the ONE settled vocabulary (task 1)."""
+def test_wire_ungraded_row_carries_no_v2_keys(monkeypatch):
+    """No reserved v2 key may reach the wire — top level or sub_scores — for
+    a row without grade content. Derives from the ONE settled vocabulary."""
     chart = _payload(monkeypatch)
     for k in taxonomy.V2_RESULT_KEYS:
         assert k not in chart, (
@@ -88,25 +85,24 @@ def test_wire_flag_off_leaks_no_v2_keys(monkeypatch):
             f"v2 key {k!r} leaked into flag-off sub_scores")
 
 
-def test_wire_sub_scores_are_exactly_the_always_emitted_projection(monkeypatch):
-    """The served sub_scores key set equals the ALWAYS-EMITTED projection —
+def test_wire_sub_scores_are_exactly_the_scorer_projection(monkeypatch):
+    """The served sub_scores key set equals the SCORER-produced projection —
     the wire cannot silently drop a registered term or invent an
-    unregistered one. Pinned against always_emitted_terms(), NOT
-    emitted_keys(): flag-on the two diverge (spring + story join
-    emitted_keys), and the old pin held only because this test forces the
-    flag off (2026-08-08 review). Proven under BOTH flag states."""
-    for flag in (False, True):
-        chart = _payload(monkeypatch, flag=flag,
-                         v2_overlay=_V2_OVERLAY if flag else None)
+    unregistered one. Pinned against always_emitted_terms() (the producer
+    partition), never emitted_keys() (which spans both producers). Proven on
+    both row shapes (graded and ungraded)."""
+    for overlay in (None, _V2_OVERLAY):
+        chart = _payload(monkeypatch, v2_overlay=overlay)
         assert set(chart["sub_scores"]) == {
             t.key for t in taxonomy.always_emitted_terms()}
 
 
-# The exact flag-off per-ticker key set (150 keys: 149 captured 2026-08-08 at
-# the task-2 baseline, + zone_coverage 2026-08-10). Sorted. Changing the wire
-# contract flag-off means editing this tuple deliberately in the same change —
-# never drifting past it.
-FLAG_OFF_WIRE_KEYS = (
+# The exact UNGRADED-row per-ticker key set (150 keys: 149 captured
+# 2026-08-08 at the task-2 baseline, + zone_coverage 2026-08-10; re-titled at
+# the 2026-08-22 retirement — content-keyed, so the set itself is unchanged).
+# Sorted. Changing this wire contract means editing this tuple deliberately in
+# the same change — never drifting past it.
+BASE_WIRE_KEYS = (
     "R", "S",
     "_has_mini_consolidation",
     "_lps_zone_end_date", "_lps_zone_high", "_lps_zone_low",
@@ -174,12 +170,11 @@ FLAG_OFF_WIRE_KEYS = (
 )
 
 
-def test_wire_flag_off_key_set_snapshot(monkeypatch):
-    """The exact flag-off wire key set — the boundary snapshot EC-8's
-    byte-identical promise was missing. Any add/remove/rename fails here until
-    the snapshot is updated deliberately in the same change."""
+def test_wire_ungraded_key_set_snapshot(monkeypatch):
+    """The exact ungraded-row wire key set. Any add/remove/rename fails here
+    until the snapshot is updated deliberately in the same change."""
     chart = _payload(monkeypatch)
-    assert tuple(sorted(chart.keys())) == tuple(sorted(FLAG_OFF_WIRE_KEYS))
+    assert tuple(sorted(chart.keys())) == tuple(sorted(BASE_WIRE_KEYS))
 
 
 # ── Task 9: the flag-ON v2 block + coverage/drift tripwires ─────────────────
@@ -189,6 +184,7 @@ _V2_OVERLAY = {
     "_ta_grade_chapters": {ch: 12.345678 for ch in taxonomy.CHAPTER_ORDER},
     "_ta_grade_chapter_fractions": {ch: 0.654321 for ch in taxonomy.CHAPTER_ORDER},
     "_ta_grade_warnings": {"terminal_drift": 0.8},
+    "_lps_grade_fraction": 0.55,
     "_score_spring": 0.0, "_score_story_s_tests": 0.0,
     "_score_story_r_rejections": 0.0, "_score_story_alternations": 0.0,
     "_score_story_terminal_posture": 0.0,
@@ -202,8 +198,9 @@ def test_wire_flag_on_v2_block_serializes_rounded_fixed_arity(monkeypatch):
     """Flag-ON the v2 block rides the payload: display-rounded ONCE here,
     chapters exactly the ruled set, warnings a small dict — fixed arity
     only, nothing that grows with the chart."""
-    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY, flag=True)
+    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY)
     assert chart["ta_grade"] == 61.2                    # 1dp headline
+    assert chart["lps_grade_fraction"] == 0.55          # the lens's LPS grade (EC-28)
     assert chart["ta_grade_raw"] == 104.78              # 2dp raw
     assert tuple(chart["ta_grade_chapters"]) == taxonomy.CHAPTER_ORDER
     assert all(v == 12.35 for v in chart["ta_grade_chapters"].values())
@@ -224,14 +221,14 @@ def test_wire_covers_every_registry_term_and_family_column(monkeypatch):
     a hand tuple), and every flag-gated term column + family column reaches
     it through the v2 block. A TermSpec without wire coverage fails HERE at
     add time."""
-    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY, flag=True)
+    chart = _payload(monkeypatch, v2_overlay=_V2_OVERLAY)
     for t in taxonomy.REGISTRY:
-        if t.present_when is None:
+        if t.producer == "scorer":
             assert t.key in chart["sub_scores"], (
-                f"always-emitted term {t.key!r} missing from sub_scores")
+                f"scorer term {t.key!r} missing from sub_scores")
         else:
             assert t.column in chart, (
-                f"flag-gated term column {t.column!r} missing from the v2 block")
+                f"compose term column {t.column!r} missing from the v2 block")
     for col in TA_GRADE_COLUMN_SQL:
         if col.startswith("setup_"):
             continue        # the setup grades ride the archive, not this wire block

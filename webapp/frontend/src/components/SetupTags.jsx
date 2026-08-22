@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './setupTagsData';
+import { GROUP_LABELS, GROUP_ORDER, GROUP_TONES } from './tagCatalog';
 import { resolveTags } from './tagResolver';
 
 const chipBase = {

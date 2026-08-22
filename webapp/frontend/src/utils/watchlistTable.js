@@ -6,9 +6,11 @@
 // they get explicit null fields + in_scan:false rather than a bare undefined.
 
 import { finiteOrNull, numAsc } from './format.js';
+import { TIER_LETTERS } from '../components/wireVocabulary.js';
 
-// Tier rank for sorting: S is best (0). Unknown / off-scan tiers sink past D.
-export const TIER_RANK = { S: 0, A: 1, B: 2, C: 3, D: 4 };
+// Tier rank for sorting: S is best (0). DERIVED from the one ladder tuple
+// (EC-33) - a hand-typed copy here would sink a newly first-class letter to 99.
+export const TIER_RANK = Object.fromEntries(TIER_LETTERS.map((t, i) => [t, i]));
 const tierRank = (tier) => (tier in TIER_RANK ? TIER_RANK[tier] : 99);
 
 // One normalized row per watchlisted ticker. `data` is the raw chart_data entry
@@ -22,7 +24,10 @@ export function buildWatchlistRows(watchlist, screenerData) {
       ticker,
       in_scan: data != null,
       tier: data?.tier ?? null,
-      score: finiteOrNull(data?.score),
+      // The 0-100 grade (the tier's own source). The legacy raw score retired
+      // from display 2026-08-22; the scales never coalesce, so a pre-grade row
+      // is null here and renders as the dash.
+      grade: finiteOrNull(data?.ta_grade),
       setup: data?.setup ?? null,
       data,
     };
@@ -41,8 +46,8 @@ export function sortWatchlistRows(rows, sortBy = 'tier', sortDir = 'asc') {
     const primary = keyCompare(a, b, sortBy) * dir;
     if (primary !== 0) return primary;
     if (sortBy === 'tier') {
-      const byScore = compareDesc(a.score, b.score);
-      if (byScore !== 0) return byScore;
+      const byGrade = compareDesc(a.grade, b.grade);
+      if (byGrade !== 0) return byGrade;
     }
     return a.ticker.localeCompare(b.ticker);
   });
@@ -51,7 +56,7 @@ export function sortWatchlistRows(rows, sortBy = 'tier', sortDir = 'asc') {
 function keyCompare(a, b, key) {
   switch (key) {
     case 'tier': return tierRank(a.tier) - tierRank(b.tier);
-    case 'score': return numAsc(a.score, b.score);
+    case 'grade': return numAsc(a.grade, b.grade);
     case 'setup': return String(a.setup ?? '').localeCompare(String(b.setup ?? ''));
     case 'ticker': return a.ticker.localeCompare(b.ticker);
     default: return 0;
