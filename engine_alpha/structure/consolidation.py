@@ -190,5 +190,6 @@ def detect_boxes(df, min_days=None, select="earliest"):
         return {"parent": parent, "inner": None}
 
     n = len(df)
-    inner = select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n)
+    inner = select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n,
+                             parent_r=parent[1], parent_s=parent[2])
     return {"parent": parent, "inner": inner}

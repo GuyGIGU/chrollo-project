@@ -91,6 +91,11 @@ class InnerBox:
     reaction_bar: Optional[int]
     reaction_pct: Optional[float]
     reaction_bars: Optional[int]
+    # Rail-proximity band vs the parent's rails (the 2026-08-23 unification
+    # ruling: ONE mini-consolidation event, position acknowledged). Engine-
+    # internal, measure-only; serialization waits for the naming ruling
+    # (story-chain program Task 8).
+    position: Optional[str] = None
     # The full select_inner_box dict for THIS box (anchors box-relative), stored
     # at election; evaluation consumes it instead of a field-by-field inverse map.
     detection: Optional[dict] = None
@@ -387,7 +392,8 @@ def find_inner_box(
         return None
 
     n = len(df)
-    selected = select_inner_box(eval_df, parent_pbs, box.base_len, box.box_width, n)
+    selected = select_inner_box(eval_df, parent_pbs, box.base_len, box.box_width, n,
+                                parent_r=box.R, parent_s=box.S)
     if selected is None:
         return None
     start_bar = int(selected["start_bar"])
@@ -407,6 +413,7 @@ def find_inner_box(
         reaction_bar=selected["reaction_bar"],
         reaction_pct=selected["reaction_pct"],
         reaction_bars=selected["reaction_bars"],
+        position=selected.get("position"),
         detection=selected,
     )
 

@@ -585,6 +585,15 @@ def resistance_contraction_admission(stats) -> bool:
     by construction). WHICH behavior admitted is spoken by
     ``resistance_contraction_label`` below.
 
+    Unification (operator ruling 2026-08-23, decisions.md story-chain row):
+    the EVENT beneath this judgment is the ONE mini-consolidation event —
+    the shelf at the ceiling is the inner-box mechanism at
+    ``position="at_ceiling"`` (``inner_box.mini_consolidation_position``),
+    not a species of its own. This function stays exactly what it is: the
+    species lane's ruled ADMISSION over episode facts. It never elects
+    geometry (the WCC 2.2x-wider-box catch is why), and a re-ruling
+    replaces the judgment, never the measurement.
+
     PROVISIONAL until the operator's ruling sheets calibrate it (program
     Task 4). Dark: consulted only under ``POWER_PLAY_STORY_FORM_ENABLED``,
     which the species lane toggles around its own election — never the

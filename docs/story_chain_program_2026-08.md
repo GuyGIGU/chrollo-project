@@ -44,7 +44,7 @@ Task 8 lands:
 | 1 | Docs landing: theory into strategy_alpha, program record, name proposals | **DONE 2026-08-23** |
 | 2 | Specimen candidate sheets (keep/junk, mined from what the engine refuses) | **DONE 2026-08-23** — [the sheet](story_chain_candidates_2026-08.md) awaits verdicts |
 | 3 | Wall-freeze fixture: pin today's refusals of the ruled specimens | blocked: specimens |
-| 4 | Mini-consolidation fold — one detector, position attribute | open |
+| 4 | Mini-consolidation fold — one detector, position attribute | **DONE 2026-08-23** — position stamped at the ONE selection point; measure-only, unserialized |
 | 5 | Displacement seam — shared resolved/look gate (as-of true, running extremes) | open |
 | 6 | Chain coordinator — ONE reader re-consulted, parent frozen as recorded constants | open |
 | 7 | Recovery-character classifier — third windowed view over the one pivot walk | open |

@@ -13,6 +13,8 @@ structural move — every function verbatim.
 """
 from __future__ import annotations
 
+import math
+
 from config import settings
 from engine_alpha.structure.box_primitives import (
     EMPTY_BOX,
@@ -25,10 +27,52 @@ from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_ske
 __all__ = [
     "inner_box_at",
     "detect_inner_root_swing",
+    "mini_consolidation_position",
     "select_inner_box",
     "inner_zigzag",
     "_detect_inner_phase_b_start",
 ]
+
+# Position tolerance for the mini-consolidation's rail-proximity bands, in
+# candidate-ATR units. A module constant (not a settings knob) while the
+# attribute is measure-only and unserialized; it moves to config/settings.py +
+# the frozen manifest in the change that first archives or consults it
+# (story-chain program Task 8 — the EC-8 road).
+MINI_POSITION_TOL_ATR = 1.0
+
+
+def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
+    """The mini-consolidation's POSITION against its parent's rails.
+
+    Operator ruling 2026-08-23 (decisions.md story-chain row): the ceiling
+    shelf and the inner mini-consolidation are ONE event, one mechanism —
+    "no need to give it a new name just acknowledge its position which if the
+    mini consolidation is found at the top that's a slightly higher quality."
+    This is that acknowledgment: a pure measured attribute, no points, no
+    gating (measure-first; the quality nuance is graded later, if ever).
+
+    Closed set: ``"at_ceiling"`` / ``"mid_range"`` / ``"on_support"`` — names
+    PROPOSED pending the operator's naming ruling; nothing serializes them
+    until program Task 8 lands (they are engine-internal until then).
+
+    Stated conventions (never implicit): the tolerance is
+    ``MINI_POSITION_TOL_ATR`` candidate-ATRs; band comparisons are inclusive
+    (a rail-touching tie lands IN the band); the ceiling band is evaluated
+    FIRST, so a degenerate parent that satisfies both bands lands at the
+    ceiling — the ruled higher-quality position — deterministically. Returns
+    None when any input is unusable (refused, never fabricated).
+    """
+    vals = (inner_r, inner_s, parent_r, parent_s, atr_val)
+    if any(v is None for v in vals):
+        return None
+    if not all(math.isfinite(float(v)) for v in vals) or float(atr_val) <= 0:
+        return None
+    tol = MINI_POSITION_TOL_ATR * float(atr_val)
+    if float(inner_r) >= float(parent_r) - tol:
+        return "at_ceiling"
+    if float(inner_s) <= float(parent_s) + tol:
+        return "on_support"
+    return "mid_range"
 
 
 def inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
@@ -131,7 +175,8 @@ def detect_inner_root_swing(eq_df):
     return None
 
 
-def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n):
+def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n,
+                     parent_r=None, parent_s=None):
     """Select the tighter Phase-D inner box nested in a parent range.
 
     Builds the inner-box start candidates (the mechanical midpoint + the detected
@@ -141,6 +186,13 @@ def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n):
     diagnostic detector (``consolidation.detect_boxes``) so the inner-selection rule
     lives in one place; returns the raw inner-box dict from ``inner_box_at`` and each
     caller adapts it (a dataclass for the reader, the dict for diagnostics).
+
+    With the parent's rails given, the winner is stamped with its measured
+    ``position`` (``mini_consolidation_position`` — the 2026-08-23 unification
+    ruling's attribute) at this ONE point, on both consumer paths identically.
+    The tolerance ATR is derived here from the parent window via the same
+    ``_candidate_atr`` the election itself uses — never a caller-supplied ATR,
+    so the live reader and the diagnostic mirror can never band differently.
     """
     midpoint_start = parent_pbs + int(base_len * settings.INNER_SEARCH_FRACTION)
     starts = {
@@ -164,7 +216,18 @@ def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n):
         )
         if box is not None and box["box_width"] < bw_outer * settings.INNER_TIGHTNESS_RATIO:
             candidates.append(box)
-    return min(candidates, key=lambda b: b["box_width"]) if candidates else None
+    if not candidates:
+        return None
+    winner = min(candidates, key=lambda b: b["box_width"])
+    if parent_r is not None and parent_s is not None:
+        parent_win = eval_df.iloc[parent_pbs:]
+        atr_val = _candidate_atr(parent_win, parent_win['High'].values,
+                                 parent_win['Low'].values)
+        winner["position"] = mini_consolidation_position(
+            winner["R"], winner["S"], parent_r, parent_s, atr_val)
+    else:
+        winner["position"] = None
+    return winner
 
 
 def _detect_inner_phase_b_start(eq_df):
