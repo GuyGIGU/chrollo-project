@@ -38,6 +38,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from engine_alpha.structure.displacement import atr10_before, first_close_beyond
+
 __all__ = [
     "POWER_PLAY_COLUMN_SQL",
     "PP_STATES",
@@ -172,31 +174,20 @@ def ticker_episodes(ticker, df, pole_gain, pole_window):
     idx = df.index
     # The breakout wall: an episode is RESOLVED at the first close beyond
     # the pole peak — plus the departure yardstick when the dark knob is on
-    # (POWER_PLAY_BREAKOUT_DEPARTURE_ATR × ATR10 at the crossing bar): a
-    # close hugging the peak is base-building, not a resolution (the
-    # drift-up misfile; operator S1 rulings 2026-08-18). 0.0 keeps the
-    # close-above-peak arithmetic byte-identical.
+    # (POWER_PLAY_BREAKOUT_DEPARTURE_ATR × ATR10 over the ten bars BEFORE
+    # the crossing): a close hugging the peak is base-building, not a
+    # resolution (the drift-up misfile; operator S1 rulings 2026-08-18).
+    # 0.0 keeps the close-above-peak arithmetic byte-identical. The wall
+    # arithmetic itself now lives in the displacement seam (story-chain
+    # Task 5) — extracted verbatim, this call delegates; a NaN yardstick at
+    # the frame head fails closed there (unresolved), unreachable in
+    # practice because the pole screen needs >= pole_window bars.
     departure = float(getattr(settings, "POWER_PLAY_BREAKOUT_DEPARTURE_ATR", 0.0))
-    if departure > 0.0:
-        prev = np.roll(closes, 1)
-        prev[0] = closes[0]
-        tr = np.maximum(highs - lows,
-                        np.maximum(np.abs(highs - prev), np.abs(lows - prev)))
-        # The yardstick is the BASE's volatility: ATR10 over the ten bars
-        # BEFORE the crossing (shift 1) — an explosive breakout bar must
-        # never raise its own wall.
-        wall_lift = (pd.Series(tr).rolling(10).mean().shift(1).to_numpy()
-                     * departure)
+    wall_lift = (atr10_before(highs, lows, closes) * departure
+                 if departure > 0.0 else None)
     for ep in kept:
-        tail = closes[ep["ar"] + 1:]
-        if departure > 0.0:
-            # NaN ATR (frame head) compares False -> fails closed (unresolved);
-            # unreachable in practice: the pole screen needs >= pole_window bars.
-            after = np.flatnonzero(
-                tail > ep["peak_high"] + wall_lift[ep["ar"] + 1:])
-        else:
-            after = np.flatnonzero(tail > ep["peak_high"])
-        ep["breakout"] = int(ep["ar"] + 1 + after[0]) if len(after) else None
+        ep["breakout"] = first_close_beyond(
+            closes, ep["peak_high"], ep["ar"] + 1, lift=wall_lift)
         ep["ticker"] = ticker
         ep["climax_date"] = str(idx[ep["peak"]].date())
         ep["ar_date"] = str(idx[ep["ar"]].date())

@@ -932,3 +932,15 @@ acceptance condition, and it survives under both.) The live register was verifie
 before the merge: NNBR / QTTB / BRKR byte-identical under both arithmetics; MAN and FTNT immune
 at every clock. The 2026-08-18 clock-8 ruling therefore STANDS un-re-litigated, now on evidence
 the corrected walk derived.
+
+## The wall arithmetic moved to the displacement seam (2026-08-23, story-chain Task 5)
+
+The breakout-wall arithmetic inside `ticker_episodes` — the ATR10-before-the-crossing departure
+yardstick and the first-close-beyond scan — was extracted VERBATIM into
+`engine_alpha/structure/displacement.py` (the story-chain program's shared
+resolved-structure seam; `docs/story_chain_program_2026-08.md`), and `ticker_episodes` now
+delegates to it. Behavior is byte-identical (the full power-play battery pins it, 70/70);
+`first_legal_look` was deliberately left untouched — its corrected as-of arithmetic is sealed by
+its own hand-reasoned pins and the seam consumes nothing from inside it. The chain lanes are the
+seam's second and third clients (breakout-up and shakeout-down forms of the same question), so a
+future wall retune moves the species and the chains together, never one of them silently.
