@@ -73,6 +73,13 @@ and well respected. The term describes the rail-to-bars gap and nothing else; a 
 engine must refuse gets its own honest reason (mis-framed range, trend-continuation dip,
 run-up flag…), never "dead space" as a catch-all.
 
+**Sharpened 2026-08-23 (operator):** dead space is at root a **Root-Swing selection**
+diagnostic — the correct marking finds the pair of limbs (single bars up to full swings)
+whose rails wrap the consolidation's zigzag most tightly, so the boundaries display the
+REAL trading range where buyers and sellers actually touched, stopped and pivoted.
+Perfection is rare — always take the next-best wrap. It is a rail-selection rule only,
+never an argument for or against multi-structure (chain) reads.
+
 ### The event catalog — one entry per chart event
 
 The engine reads a chart as a chronological sequence of **events** — the same events the
@@ -791,6 +798,57 @@ The reader walks the chart left to right and anchors by descent:
 
    Either way the **LPS is the mandatory terminal evidence** — no LPS in the right-most
    region means no Phase D and no setup.
+
+### The chain grammar — stories with sequels (ruled 2026-08-23; program open, engine reads DARK)
+
+The linear cascade above tells ONE story and refuses whatever its box cannot contain. The
+operator's 2026-08-23 rulings extend the model: **a chart may be a chain of structures**, and
+the read does not end when a structure resolves. A resolution — breakout above R, shakeout
+below S — is a **displacement**, and after any displacement the reader's next job is always
+the same:
+
+1. **Freeze the parent.** The resolved structure's identity — rails, start, resolution day —
+   is captured at that moment and never re-framed by later bars. (Re-electing the parent on
+   the longer chart is the WCC defect: a wider frame elected a 2.2×-wider box.)
+2. **Read the re-stabilization.** After a shakeout: did it recover at all — in one sharp
+   swing, staircase-like with a couple of tests, or by building a new base altogether — and
+   where did it land: back inside the old range, sitting a little below, or stuck at the
+   bottom? After a breakout: did price run, then pause into a new smaller consolidation above
+   the old ceiling?
+3. **Hunt the contraction family** — SOS, LPS, contracting lower pullbacks,
+   mini-consolidation — positioned against the PARENT's levels. Every piece of a chain must
+   individually satisfy the same tightness laws as ever; what a chain relaxes is only the
+   demand that one box hold the whole story. Chains never loosen floors (occupancy
+   relaxation is Tested-DEAD).
+
+Two ruled chains open the grammar:
+
+- **Base on base** (the operator: a "mini consolidation that appeared after the bigger one
+  broke out"): a separated young base above a resolved box. Standalone it has no trend-end
+  and no cause of its own; in the chain it inherits the parent's cause through the breakout.
+- **After-shakeout recovery** (the operator: "a violent shake out maybe the spring and its
+  our key to mapping out the Phase C of that Setup. what happens next though is what's truly
+  important"): the shakeout's DEPTH never disqualifies it — it may be the spring; what forms
+  afterwards adjudicates. The terminal contracting pullback is the LPS — and it may legally
+  sit BELOW the old floor while above the shakeout's low: the **tactical long**, paying if
+  price recovers into the base and later breaches it. A true **Last Supper** is the
+  final-shakeout class — typically after the base is already breached plus a steep, deep
+  correction — separated from a valid chain by what does NOT form afterwards.
+
+The mini-consolidation unification rides the same rulings: the inner mini-consolidation and
+the tightening shelf at the ceiling are **one event, one mechanism** — "no need to give it a
+new name, just acknowledge its position" — with position a graded attribute (at the top =
+slightly higher quality). Its right-side power is VCP logic: tighter, smaller, less bar
+spread, developing later in the consolidation ("over time = right side").
+
+Setups carry a **type**: the same trait family everywhere, graded per type, with traits a
+type declares absent costing nothing. A grade is comparable only WITHIN its type. (Per-row
+"normalize by what's present" stays Tested-DEAD; a type's trait set is declared, never
+derived from the row.)
+
+*Status: theory ruled; the engine does not read chains yet. The program runs dark,
+measure-first — [story_chain_program_2026-08.md](story_chain_program_2026-08.md) is the
+program record.*
 
 ### The explainability rule
 
