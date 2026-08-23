@@ -60,6 +60,10 @@ _SEALED_FILES = tuple(
         "decisions.md",
         "anchor_marks_ruling_2026-08-14.md",
         "htf_edge_verdict_2026-07-04.md",
+        # The story-chain keep/junk sheet (program Task 2): candidate rows the
+        # OPERATOR's verdicts turn into specimen ground truth — sealed in the
+        # commit that creates it (EC-44).
+        "story_chain_candidates_2026-08.md",
     ))
 
 

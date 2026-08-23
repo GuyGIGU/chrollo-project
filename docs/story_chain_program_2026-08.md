@@ -42,7 +42,7 @@ Task 8 lands:
 | # | Task | State |
 |---|---|---|
 | 1 | Docs landing: theory into strategy_alpha, program record, name proposals | **DONE 2026-08-23** |
-| 2 | Specimen candidate sheets (keep/junk, mined from what the engine refuses) | next |
+| 2 | Specimen candidate sheets (keep/junk, mined from what the engine refuses) | **DONE 2026-08-23** — [the sheet](story_chain_candidates_2026-08.md) awaits verdicts |
 | 3 | Wall-freeze fixture: pin today's refusals of the ruled specimens | blocked: specimens |
 | 4 | Mini-consolidation fold — one detector, position attribute | open |
 | 5 | Displacement seam — shared resolved/look gate (as-of true, running extremes) | open |
@@ -81,3 +81,7 @@ Task 8 lands:
   CLOSED; build opened (run `.council/implement-output/2026-08-23-1420/`). Task 1 executed:
   theory landed in strategy_alpha (the chain grammar + the dead-space sharpening), this
   record created, name proposals tabled. OPEN asks: type names; 2–3 specimens per chain.
+  Task 2 executed same day: `tools/story_chain_candidates.py` (liquidity-floored shape
+  screen; first sweep's degenerate ranking — uncapped separation, saturated scores on
+  zero-range shells — tightened before the sheet was cut) → 20 candidates per chain on
+  [the keep/junk sheet](story_chain_candidates_2026-08.md), sealed at creation (EC-44).
