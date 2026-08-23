@@ -85,3 +85,12 @@ Task 8 lands:
   screen; first sweep's degenerate ranking — uncapped separation, saturated scores on
   zero-range shells — tightened before the sheet was cut) → 20 candidates per chain on
   [the keep/junk sheet](story_chain_candidates_2026-08.md), sealed at creation (EC-44).
+- **2026-08-23 (the build day)** — Tasks 4→7 executed and pushed (`fa41839..ba8f001`):
+  the mini-consolidation fold (position at the ONE selection point), the displacement
+  seam (species wall delegates byte-identically, 70/70), the chain coordinator
+  (FrozenParent + the injected displacement-root + inheritance-recorded cause), the
+  recovery view (his vocabulary as closed sets; Chain B wired through it). Gates at every
+  engine commit: full pytest (1,685/0 at the last), doctrine PASS, shadow ZERO drift —
+  the default read provably untouched. **The build now stands at the names/specimens
+  gate:** Tasks 3/8/12/13 (and everything after) wait on the two open asks — the type
+  names and the keep/junk verdicts.
