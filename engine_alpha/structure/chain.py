@@ -190,7 +190,11 @@ def shakeout_root(df, parent: FrozenParent, atr):
     operator's law — depth never disqualifies; what forms afterwards does),
     then the child roots on the recovery high -> pullback pair, the
     contracting seller pullback. No altitude guard: a pullback below the old
-    floor is legal by decree (the tactical long).
+    floor is a DESCRIBED scenario, not a definitive ruling (the tactical
+    long — operator clarification 2026-08-23: "a possible scenario that we
+    can favor when scanning", never a guarantee) — so the read measures it
+    and never blocks it; whether the band deserves favor is a calibration
+    question the census answers.
 
     Returns ``(root_or_None, recovery_dict)`` — the recovery read always
     travels, so a refusal states WHICH question refused (no recovery vs no

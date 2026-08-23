@@ -20,8 +20,11 @@ against the live archive. Chains never loosen floors; every link must individual
 **The two proving chains** (register rows 8–9): **base on base** — a separated young base
 above a resolved box, inheriting the parent's cause; **after-shakeout recovery** — the
 violent shakeout IS (or may be) the spring, the recovery character adjudicates, the terminal
-contracting pullback is the LPS (legally below the old floor and above the shakeout's low —
-the tactical long).
+contracting pullback is the LPS. The pullback may sit below the old floor while above the
+shakeout's low — the **tactical long**, which the operator clarified 2026-08-23 is a
+DESCRIBED scenario "that we can favor when scanning," not a definitive ruling or a
+guarantee: the engine measures the band and never blocks it; whether it earns favor is a
+calibration question for the census + his sheet verdicts.
 
 ## Names awaiting the operator's ruling (asks.md 2026-08-23 row — NOTHING serializes first)
 

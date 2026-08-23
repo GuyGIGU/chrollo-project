@@ -181,8 +181,8 @@ def test_read_chain_refusal_states_are_honest():
 def _chain_b_frame():
     """Undercut at bar 10, shakeout low 94 at bar 12, staircase recovery to a
     peak of 107 at bar 22, then a CONFIRMED contracting pullback (low 100 at
-    bar 25 — below the old floor is legal: the tactical long), a shelf, and
-    the reserve."""
+    bar 25 — below the old floor: the tactical-long scenario, measured and
+    never blocked), a shelf, and the reserve."""
     return _frame([105.0] * 10 + [97.0, 96.0, 95.0]
                   + [98.0, 100.0, 101.0, 102.0] + [100.0, 98.5, 100.0]
                   + [102.0, 104.0, 106.0, 106.0]          # peak 107 @ bar 22
@@ -201,7 +201,7 @@ def test_shakeout_chain_reads_through_the_recovery():
     assert out.displacement["run_peak_bar"] == 22          # roots on the recovery high
     assert out.displacement["reaction_low_bar"] == 25
     assert out.displacement["reaction_low"] == pytest.approx(100.0)
-    # below the old ceiling — the tactical geometry is legal by decree
+    # below the old ceiling — the tactical-long scenario is measured, not blocked
     assert out.displacement["separation"] < 0
 
 
