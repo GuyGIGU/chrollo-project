@@ -178,10 +178,47 @@ def test_read_chain_refusal_states_are_honest():
     assert missing.displacement is None and missing.child_cause_raw is None
 
 
-def test_read_chain_shakeout_form_is_a_loud_not_yet():
+def _chain_b_frame():
+    """Undercut at bar 10, shakeout low 94 at bar 12, staircase recovery to a
+    peak of 107 at bar 22, then a CONFIRMED contracting pullback (low 100 at
+    bar 25 — below the old floor is legal: the tactical long), a shelf, and
+    the reserve."""
+    return _frame([105.0] * 10 + [97.0, 96.0, 95.0]
+                  + [98.0, 100.0, 101.0, 102.0] + [100.0, 98.5, 100.0]
+                  + [102.0, 104.0, 106.0, 106.0]          # peak 107 @ bar 22
+                  + [103.0, 101.0, 102.0, 103.0]          # the pullback
+                  + [103.0] * 3 + [103.0] * 5)
+
+
+def test_shakeout_chain_reads_through_the_recovery():
+    df = _chain_b_frame()
+    parent = _parent(kind="shakeout_down", S=100.0,
+                     resolution_date=str(df.index[10].date()))
+    out = read_chain(df, 2.0, parent, bricks=_elected_fakes())
+    assert out.state == "child_elected"
+    assert out.recovery is not None
+    assert out.recovery["character"] == "staircase"
+    assert out.displacement["run_peak_bar"] == 22          # roots on the recovery high
+    assert out.displacement["reaction_low_bar"] == 25
+    assert out.displacement["reaction_low"] == pytest.approx(100.0)
+    # below the old ceiling — the tactical geometry is legal by decree
+    assert out.displacement["separation"] < 0
+
+
+def test_shakeout_with_no_recovery_states_it():
+    df = _frame([105.0] * 10 + [95.0, 93.0, 92.0] + [92.5] * 8 + [92.5] * 5)
+    parent = _parent(kind="shakeout_down", S=100.0,
+                     resolution_date=str(df.index[10].date()))
+    out = read_chain(df, 2.0, parent, bricks=_FakeBricks())
+    assert out.state == "no_recovery"
+    assert out.recovery["character"] == "none"
+    assert out.child is None and out.displacement is None
+
+
+def test_read_chain_refuses_an_unknown_kind_loudly():
     df = _chain_a_frame()
     with pytest.raises(ValueError):
-        read_chain(df, 1.0, _parent(kind="shakeout_down"))
+        read_chain(df, 1.0, _parent(kind="sideways_drift"))
 
 
 def test_window_preset_enters_through_the_one_override_and_restores():

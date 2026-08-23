@@ -47,7 +47,7 @@ Task 8 lands:
 | 4 | Mini-consolidation fold — one detector, position attribute | **DONE 2026-08-23** — position stamped at the ONE selection point; measure-only, unserialized |
 | 5 | Displacement seam — shared resolved/look gate (as-of true, running extremes) | **DONE 2026-08-23** — `displacement.py`; species wall delegates byte-identically (70/70 pins) |
 | 6 | Chain coordinator — ONE reader re-consulted, parent frozen as recorded constants | **DONE 2026-08-23** — `chain.py`: FrozenParent (dates+prices), displacement-root via the spine's injection seam, raw cause recorded under the inheritance law; breakout_up form only (shakeout waits for Task 7) |
-| 7 | Recovery-character classifier — third windowed view over the one pivot walk | open |
+| 7 | Recovery-character classifier — third windowed view over the one pivot walk | **DONE 2026-08-23** — `read_recovery_view` (his vocabulary as closed sets, raw operands ride for offline re-banding); Chain B wired through it in the coordinator |
 | 8 | Archive family: same row grain, date-anchored parent provenance, closed sets | blocked: names |
 | 9 | Dark lane rung: prefilter, in-worker reuse, EC-20/47 containment, flag-off parity | after 8 |
 | 10 | Guard battery: EC-17/32 cascades, junk classes, non-interference, vocabulary teeth | after 9 |

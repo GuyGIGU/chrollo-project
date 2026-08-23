@@ -205,6 +205,147 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# The recovery view — the post-shakeout chapter (story-chain program Task 7)
+# ---------------------------------------------------------------------------
+
+# Provisional yardsticks (module constants while the lane is dark and the
+# attribute unserialized; they move to config/settings.py + the frozen
+# manifest with the archive family — program Task 8). The BANDS are the
+# operator's own vocabulary (decisions.md 2026-08-23 story-chain row); the
+# numeric edges are v1 first-cuts the census re-bands OFFLINE against the
+# archived raw values — which is why every raw operand rides the result.
+RECOVERY_MIN_FRAC = 0.5       # regained less of the undercut than this = "none"
+RECOVERY_TOL_ATR = 1.0        # the destination band seam, in ATRs
+RECOVERY_STAIRCASE_MAX_TESTS = 3   # more committed tests than this reads new_base
+
+# The closed sets — engine-internal, provisional pending the naming ruling.
+RECOVERY_CHARACTERS = ("one_swing", "staircase", "new_base", "none")
+RECOVERY_DESTINATIONS = ("back_inside", "sitting_below", "at_the_bottom")
+
+
+def _empty_recovery() -> dict:
+    return {"character": None, "destination": None, "shakeout_low": None,
+            "shakeout_low_bar": None, "recovery_high": None,
+            "recovery_high_bar": None, "recovery_frac": None,
+            "n_intervening_valleys": None, "last_close": None,
+            "window": None, "nan_bars": 0}
+
+
+def read_recovery_view(df, parent_r, parent_s, undercut_bar, atr_val, *,
+                       noise_frac=None, pivots=None) -> dict:
+    """The post-shakeout recovery read against a FROZEN parent's rails.
+
+    The operator's law (2026-08-23): the shakeout's depth never disqualifies —
+    "what happens next though is what's truly important, how does it recover?
+    if at all" — and THAT is the cue to hunt for tightening. This view answers
+    the two closed-set questions on his own vocabulary:
+
+      character    one_swing / staircase / new_base / none — how it recovered
+                   off the shakeout low: directly, ladder-with-tests, by
+                   building a fresh range, or not at all.
+      destination  back_inside / sitting_below / at_the_bottom — where the
+                   read edge stands relative to the old floor.
+
+    Stated conventions (contract §4 — never implicit): the shakeout low is
+    the PREFIX minimum of the skip-trimmed window after ``undercut_bar``
+    (as-of true; a low deepening inside the edge reserve does not exist yet —
+    EC-45); intervening tests are COMMITTED valleys only (the causality
+    stamps; in-progress never counts) strictly between the low and the
+    recovery high; band edges are inclusive at the lower seam
+    (``close == shakeout_low + tol`` is still at_the_bottom, ``close ==
+    parent_s`` is back inside). Swings come from THE one pivot walk
+    (``_find_pivots`` order 1; pass ``pivots=(peaks, valleys)`` to reuse a
+    walk the caller already ran — never a second skeleton) with the swing
+    map's own amplitude yardstick (``noise_frac`` × parent height).
+
+    Pure measurement over the frame — a pure function of the truncated frame,
+    so replay-at-T equals live-at-T by construction. Returns the empty shape
+    (all-None) on degenerate inputs — refused, never fabricated.
+    """
+    if df is None or len(df) == 0:
+        return _empty_recovery()
+    height = float(parent_r) - float(parent_s)
+    if (height <= 0 or atr_val is None or atr_val <= 0
+            or not np.isfinite(atr_val)):
+        return _empty_recovery()
+    n = len(df)
+    skip = int(settings.STRUCTURE_EDGE_SKIP_BARS)
+    eval_end = n - skip if n > skip else n
+    u = int(undercut_bar)
+    if u < 0 or u + 3 >= eval_end:
+        return _empty_recovery()
+
+    highs = df["High"].values.astype(float)
+    lows = df["Low"].values.astype(float)
+    closes = df["Close"].values.astype(float)
+    nan_bars = int((~(np.isfinite(highs[u:eval_end])
+                      & np.isfinite(lows[u:eval_end]))).sum())
+
+    low_rel = int(np.argmin(lows[u:eval_end]))
+    low_bar = u + low_rel
+    shakeout_low = float(lows[low_bar])
+    depth = float(parent_s) - shakeout_low
+    if depth <= 0 or not np.isfinite(depth):
+        return _empty_recovery()               # never undercut the floor
+
+    seg0 = low_bar + 1
+    if seg0 >= eval_end:
+        return _empty_recovery()               # the low IS the read edge
+    peak_rel = int(np.argmax(highs[seg0:eval_end]))
+    peak_bar = seg0 + peak_rel
+    recovery_high = float(highs[peak_bar])
+    recovery_frac = (recovery_high - shakeout_low) / depth
+    last_close = float(closes[eval_end - 1])
+
+    # Committed tests between the low and the recovery high, from THE walk.
+    if pivots is None:
+        pivots = _find_pivots(highs, lows, 1) if n >= 3 else ([], [])
+    peaks, valleys = pivots
+    min_amp = (noise_frac if noise_frac is not None
+               else settings.TRAVERSAL_NOISE_FRAC) * height
+    swings = sorted(
+        [{"bar": int(p), "kind": "peak"} for p in peaks
+         if low_bar < int(p) < peak_bar]
+        + [{"bar": int(v), "kind": "valley"} for v in valleys
+           if low_bar < int(v) < peak_bar],
+        key=lambda s: s["bar"])
+    _stamp_causality(swings, highs, lows, min_amp)
+    n_tests = sum(1 for s in swings
+                  if s["kind"] == "valley" and not s["in_progress"])
+
+    if recovery_frac < RECOVERY_MIN_FRAC:
+        character = "none"
+    elif n_tests == 0:
+        character = "one_swing"
+    elif n_tests <= RECOVERY_STAIRCASE_MAX_TESTS:
+        character = "staircase"
+    else:
+        character = "new_base"
+
+    tol = RECOVERY_TOL_ATR * float(atr_val)
+    if last_close >= float(parent_s):
+        destination = "back_inside"
+    elif last_close <= shakeout_low + tol:
+        destination = "at_the_bottom"
+    else:
+        destination = "sitting_below"
+
+    return {
+        "character": character,
+        "destination": destination,
+        "shakeout_low": shakeout_low,
+        "shakeout_low_bar": int(low_bar),
+        "recovery_high": recovery_high,
+        "recovery_high_bar": int(peak_bar),
+        "recovery_frac": round(float(recovery_frac), 4),
+        "n_intervening_valleys": int(n_tests),
+        "last_close": last_close,
+        "window": [int(u), int(eval_end)],
+        "nan_bars": nan_bars,
+    }
+
+
+# ---------------------------------------------------------------------------
 # The narrative-role layer — stamped role labels over the ELECTED bricks
 # ---------------------------------------------------------------------------
 

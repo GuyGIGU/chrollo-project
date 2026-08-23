@@ -35,11 +35,14 @@ break on (later resolution date, earlier start date) — a stated
 deterministic election, because in this engine election order-sensitivity IS
 behavior.
 
-Only the ``breakout_up`` form reads today; the ``shakeout_down`` form enters
-as the seam's next client once the recovery-character classifier lands
-(program Task 7). Everything here is measure-only and engine-internal:
-nothing serializes until the archive family lands (Task 8, blocked on the
-operator's naming ruling).
+Both displacement forms read: ``breakout_up`` (the child roots on the
+post-breakout run peak -> reaction) and ``shakeout_down`` (the recovery view
+— program Task 7 — adjudicates first, per the operator's law "what happens
+next though is what's truly important"; a recovering tape then roots the
+child on the recovery high -> pullback, the contracting seller pullback that
+may legally sit below the old floor). Everything here is measure-only and
+engine-internal: nothing serializes until the archive family lands (Task 8,
+blocked on the operator's naming ruling).
 """
 from __future__ import annotations
 
@@ -53,6 +56,7 @@ import pandas as pd
 
 from config import settings
 from engine_alpha.structure.bricks import RootSwing
+from engine_alpha.structure.event_map import read_recovery_view
 from engine_alpha.structure.htf import window_override
 from engine_alpha.structure.narrative import Structure, read_structure
 
@@ -69,7 +73,8 @@ __all__ = [
 # Closed sets — internal, provisional pending the operator's naming ruling;
 # they reach the archive/wire only through the Task-8 family.
 DISPLACEMENT_KINDS = ("breakout_up", "shakeout_down")
-CHAIN_STATES = ("child_elected", "child_refused", "no_displacement_root")
+CHAIN_STATES = ("child_elected", "child_refused", "no_displacement_root",
+                "no_recovery")
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,7 @@ class ChainRead:
     displacement: Optional[dict]
     child: Optional[Structure]
     child_cause_raw: Optional[dict]   # the REAL cause verdict, recorded
+    recovery: Optional[dict]          # the recovery view (shakeout_down form)
     state: str                        # CHAIN_STATES
 
 
@@ -116,38 +122,34 @@ def freeze_parent(df, structure, resolution_bar, kind) -> FrozenParent:
     )
 
 
-def displacement_root(df, parent: FrozenParent) -> Optional[RootSwing]:
-    """The injected brick: the post-breakout run peak -> reaction pair as a
-    ``RootSwing``, read AS-OF this frame under the collector's edge reserve.
-
-    The peak is the prefix argmax of the skip-trimmed window after the
-    parent's resolution (what the walk can see today — a peak still rising
-    means the child has not started, and the read honestly refuses). The
-    reaction follows the house AR law verbatim: the argmin low within
-    ``AR_MAX_BARS`` of the peak whose close confirmed ``AR_MIN_DROP_PCT``.
-    Returns None while no reaction has confirmed (no child to read yet)."""
+def _locate_resolution(df, parent: FrozenParent):
+    """(res, eval_end) — the parent's resolution day on THIS frame (by DATE;
+    positions never cross frames) and the skip-trimmed read edge. None when
+    the frame does not span the resolution or leaves no room after it."""
     pos = df.index.get_indexer([pd.Timestamp(parent.resolution_date)])
     res = int(pos[0])
     if res < 0:
-        return None                        # this frame does not span the parent
+        return None
     skip = int(settings.STRUCTURE_EDGE_SKIP_BARS)
     n = len(df)
     eval_end = n - skip if n > skip else n
     if res + 2 >= eval_end:
         return None
-    highs = df["High"].to_numpy(dtype=float)
+    return res, eval_end
+
+
+def _root_off_peak(df, peak, peak_high, eval_end) -> Optional[RootSwing]:
+    """The mini climax -> reaction pair off a given peak, under the house AR
+    law VERBATIM (the one reaction arithmetic both displacement forms
+    share): the argmin low within ``AR_MAX_BARS`` of the peak whose close
+    confirmed ``AR_MIN_DROP_PCT``. None while no reaction has confirmed."""
     lows = df["Low"].to_numpy(dtype=float)
     closes = df["Close"].to_numpy(dtype=float)
-
-    peak = res + int(np.argmax(highs[res:eval_end]))
-    peak_high = float(highs[peak])
-    if peak_high <= float(parent.R):
-        return None                        # the run never left the parent
-    j0 = peak + 1
-    j1 = min(eval_end, peak + 1 + int(settings.AR_MAX_BARS))
+    j0 = int(peak) + 1
+    j1 = min(int(eval_end), int(peak) + 1 + int(settings.AR_MAX_BARS))
     if j0 >= j1:
         return None
-    thr = peak_high * (1.0 - float(settings.AR_MIN_DROP_PCT))
+    thr = float(peak_high) * (1.0 - float(settings.AR_MIN_DROP_PCT))
     if float(closes[j0:j1].min()) > thr:
         return None                        # reaction never confirmed yet
     ar = j0 + int(np.argmin(lows[j0:j1]))
@@ -156,11 +158,53 @@ def displacement_root(df, parent: FrozenParent) -> Optional[RootSwing]:
         kind="BC",                         # a mini climax->reaction, up form
         climax_bar=int(peak),
         ar_bar=int(ar),
-        R=peak_high,
+        R=float(peak_high),
         S=low,
-        reaction_pct=round((peak_high - low) / peak_high, 4),
-        reaction_bars=int(ar - peak),
+        reaction_pct=round((float(peak_high) - low) / float(peak_high), 4),
+        reaction_bars=int(ar - int(peak)),
     )
+
+
+def displacement_root(df, parent: FrozenParent) -> Optional[RootSwing]:
+    """The breakout_up form's injected brick: the post-breakout run peak ->
+    reaction pair, read AS-OF this frame under the collector's edge reserve.
+
+    The peak is the prefix argmax of the skip-trimmed window after the
+    parent's resolution (what the walk can see today — a peak still rising
+    means the child has not started, and the read honestly refuses); the
+    reaction is ``_root_off_peak``'s house AR law."""
+    located = _locate_resolution(df, parent)
+    if located is None:
+        return None
+    res, eval_end = located
+    highs = df["High"].to_numpy(dtype=float)
+    peak = res + int(np.argmax(highs[res:eval_end]))
+    peak_high = float(highs[peak])
+    if peak_high <= float(parent.R):
+        return None                        # the run never left the parent
+    return _root_off_peak(df, peak, peak_high, eval_end)
+
+
+def shakeout_root(df, parent: FrozenParent, atr):
+    """The shakeout_down form: the recovery view adjudicates FIRST (the
+    operator's law — depth never disqualifies; what forms afterwards does),
+    then the child roots on the recovery high -> pullback pair, the
+    contracting seller pullback. No altitude guard: a pullback below the old
+    floor is legal by decree (the tactical long).
+
+    Returns ``(root_or_None, recovery_dict)`` — the recovery read always
+    travels, so a refusal states WHICH question refused (no recovery vs no
+    confirmed pullback yet)."""
+    located = _locate_resolution(df, parent)
+    if located is None:
+        return None, None
+    res, eval_end = located
+    recovery = read_recovery_view(df, parent.R, parent.S, res, atr)
+    if recovery["character"] in (None, "none"):
+        return None, recovery
+    root = _root_off_peak(df, recovery["recovery_high_bar"],
+                          recovery["recovery_high"], eval_end)
+    return root, recovery
 
 
 class _ChainBricks:
@@ -223,14 +267,23 @@ def read_chain(df, atr, parent: FrozenParent, *, bricks=None,
     live settings (a young child will usually refuse on the live floors —
     honest, and exactly what the wall fixture pins).
     """
-    if parent.kind != "breakout_up":
+    recovery = None
+    if parent.kind == "breakout_up":
+        root = displacement_root(df, parent)
+    elif parent.kind == "shakeout_down":
+        root, recovery = shakeout_root(df, parent, atr)
+        if root is None and recovery is not None and recovery["character"] == "none":
+            return ChainRead(parent=parent, displacement=None, child=None,
+                             child_cause_raw=None, recovery=recovery,
+                             state="no_recovery")
+    else:
         raise ValueError(
-            "only the breakout_up form reads today — the shakeout_down form "
-            "lands with the recovery-character classifier (program Task 7)")
-    root = displacement_root(df, parent)
+            f"unknown displacement kind {parent.kind!r} — the closed set is "
+            f"{'/'.join(DISPLACEMENT_KINDS)}")
     if root is None:
         return ChainRead(parent=parent, displacement=None, child=None,
-                         child_cause_raw=None, state="no_displacement_root")
+                         child_cause_raw=None, recovery=recovery,
+                         state="no_displacement_root")
     if bricks is None:
         from engine_alpha.structure import bricks as real_bricks
         bricks = real_bricks
@@ -260,5 +313,6 @@ def read_chain(df, atr, parent: FrozenParent, *, bricks=None,
         displacement=displacement,
         child=child,
         child_cause_raw=child_cause_raw,
+        recovery=recovery,
         state="child_elected" if child is not None else "child_refused",
     )
