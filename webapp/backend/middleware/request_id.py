@@ -8,10 +8,18 @@ import uuid
 _req_log = logging.getLogger("chrollo.request")
 
 # The frontend polls these endpoints forever (Home price zones, the 60s
-# scan-status/health tick, long-lived SSE streams). At INFO they dominate the
-# service log and — with no rotation cap — grow it unboundedly, burying the
-# lines that matter. Successful polls log at DEBUG; errors stay at INFO.
-_NOISY_PATH_PREFIXES = ("/live-prices", "/scan-status", "/health", "/stream/")
+# scan-status/health tick, long-lived SSE streams, the shell's broker-status
+# pill). At INFO they dominate the service log and — with no rotation cap —
+# grow it unboundedly, burying the lines that matter. Successful polls log at
+# DEBUG; errors stay at INFO.
+#
+# /ibkr/status earns its place the hard way: the shell polls it every 3s while
+# DISCONNECTED (useIBKRStatus drops to a 3s beat to catch a reconnect fast),
+# and disconnected is the permanent steady state because boot stays
+# broker-free by house rule. Omitting it from this list wrote 16,698 of the
+# last 16,850 log lines (99.1%) and grew chrollo-service-error.log to 167 MB.
+_NOISY_PATH_PREFIXES = ("/live-prices", "/scan-status", "/health", "/stream/",
+                        "/ibkr/status")
 
 
 class RequestIDMiddleware:

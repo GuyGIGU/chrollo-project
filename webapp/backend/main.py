@@ -40,9 +40,23 @@ from services.frontend import mount_frontend_assets, serve_frontend_index
 from services.health import build_health_report
 from services.startup import initialize_database
 
+# Split the streams so the NSSM *error* log actually means errors. A plain
+# basicConfig() sends every level to stderr, which is why routine INFO chatter
+# filled chrollo-service-error.log to 167 MB while the stdout log sat at
+# 1.2 MB — the file you open when something breaks was 99% noise. INFO and
+# below now go to stdout, WARNING and above to stderr.
+_LOG_FORMAT = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+
+_stdout_handler = logging.StreamHandler(sys.stdout)
+_stdout_handler.addFilter(lambda record: record.levelno < logging.WARNING)
+_stderr_handler = logging.StreamHandler(sys.stderr)
+_stderr_handler.setLevel(logging.WARNING)
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    format=_LOG_FORMAT,
+    handlers=[_stdout_handler, _stderr_handler],
+    force=True,
 )
 
 initialize_database()
