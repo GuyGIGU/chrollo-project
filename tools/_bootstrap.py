@@ -67,6 +67,21 @@ _SEALED_FILES = tuple(
     ))
 
 
+def _canonical_path(path: str) -> str:
+    """Absolute, symlink-resolved, separator- AND case-normalized.
+
+    ``os.path.normcase`` folds case on Windows only — on POSIX it is the
+    identity. That made the seal behave differently on the machine that CHECKS
+    it than on the machine it deploys to: ``docs/Marks/…`` was refused on
+    Windows and waved through on the Ubuntu CI runner, so the guard's own test
+    failed there (every CI run since 2026-08-12). Casefolding explicitly makes
+    the refusal identical on both, which is the stronger reading anyway — a
+    case-insensitive filesystem is not a Windows exclusive.
+    """
+    return os.path.normcase(
+        os.path.realpath(os.path.abspath(path))).casefold()
+
+
 def refuse_sealed_output(path: str) -> str:
     """Raise if ``path`` sits under a sealed directory; return it otherwise.
 
@@ -74,15 +89,15 @@ def refuse_sealed_output(path: str) -> str:
     NTFS, where paths are case-insensitive — a case-sensitive prefix check
     let ``docs/Marks/…`` sail into the real sealed directory (2026-08-08
     review, finding 15)."""
-    target = os.path.normcase(os.path.realpath(os.path.abspath(path)))
+    target = _canonical_path(path)
     for sealed in _SEALED_DIRS:
-        s = os.path.normcase(os.path.realpath(sealed))
+        s = _canonical_path(sealed)
         if target == s or target.startswith(s + os.sep):
             raise ValueError(
                 f"refusing to write under the sealed directory ({sealed}) — "
                 "tool reports belong under output/ or a scratch area")
     for sealed in _SEALED_FILES:
-        if target == os.path.normcase(os.path.realpath(sealed)):
+        if target == _canonical_path(sealed):
             raise ValueError(
                 f"refusing to overwrite the sealed corpus file ({sealed}) — "
                 "it is append-only operator ground truth; tool reports "

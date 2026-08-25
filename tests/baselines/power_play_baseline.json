@@ -8,7 +8,7 @@
     "box_open": "2026-07-09",
     "elects": true
    },
-   "frame_digest": "2891068fe6455e633b5df8a2ff4f3f8c4bba5785e8b406ae4347ddc54150865f",
+   "frame_digest": "7518f1fc4924235c3d8c2baec1f342e1ccd49d9b13ba409e2542f45fce37f3c5",
    "species": {
     "clock": null,
     "fields": null,
@@ -25,7 +25,7 @@
    "default_read": {
     "elects": false
    },
-   "frame_digest": "b66918c60d12cf1b96d833a7e9eab90f7075162b312d150ab179da69b5caa808",
+   "frame_digest": "e9f956198dd7c84191ce918120db442233917e316790123227e950e2be0541d1",
    "species": {
     "clock": 8,
     "fields": {

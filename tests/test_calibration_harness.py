@@ -182,6 +182,35 @@ def test_full_grading_pass_is_read_only(session):
     assert marks_fingerprint(load_marks(session)) == before
 
 
+def test_the_seal_folds_case_without_help_from_the_filesystem(monkeypatch):
+    """The seal must refuse identically on Windows and on the CI runner.
+
+    Two Windows-only mechanisms hide this gap from a dev machine:
+    ``os.path.normcase`` folds case on Windows and is the IDENTITY on POSIX,
+    and ``os.path.realpath`` canonicalizes the case of path components that
+    EXIST. Neither helps on Ubuntu, where ``docs/Marks/…`` is simply a
+    different path — so the seal's own test failed on every CI run from
+    2026-08-12 while passing here.
+
+    Reproducing that here needs both crutches removed: normcase neutered AND a
+    path whose components do not exist, so realpath cannot canonicalize them.
+    What remains is the explicit casefold, which is the whole fix."""
+    import os
+    import tools._bootstrap as bootstrap
+    monkeypatch.setattr(bootstrap.os.path, "normcase", lambda p: p)
+
+    upper = os.path.join(str(ROOT), "docs", "MaRkS_NoT_ReAl", "x.json")
+    lower = os.path.join(str(ROOT), "docs", "marks_not_real", "x.json")
+    assert not os.path.exists(os.path.dirname(upper)), (
+        "this test needs a non-existent path; realpath would otherwise fold "
+        "the case itself and mask exactly what is being checked"
+    )
+    assert bootstrap._canonical_path(upper) == bootstrap._canonical_path(lower), (
+        "the seal compares raw case on POSIX — docs/Marks/ sails past a guard "
+        "that refuses docs/marks/"
+    )
+
+
 def test_json_output_refuses_the_sealed_dirs(tmp_path):
     # ONE shared guard (tools._bootstrap.refuse_sealed_output) covers BOTH
     # sealed populations: the docs/marks corpus AND the ratchet baselines.
