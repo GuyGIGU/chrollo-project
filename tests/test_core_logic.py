@@ -97,6 +97,24 @@ def test_phase_b_select_earliest_never_empties_pool(_cand):
     assert select_phase_b_candidate([only], "earliest") is only
 
 
+def test_collapse_swings_absorbs_never_deletes_a_committed_swing():
+    """EC-48 correction (2026-08-25 sweep): a committed swing followed by a
+    sub-threshold counter-pivot is ABSORBED (the committed extreme stays),
+    never deleted — the old pop form erased it, permanently at the tail."""
+    from engine_alpha.structure.pivots import _collapse_swings
+
+    v0, p5, v8 = (0, "valley", 100.0), (5, "peak", 110.0), (8, "valley", 108.5)
+    # The tail case: the small pullback must not erase the committed peak.
+    assert _collapse_swings([v0, p5, v8], min_amp=5.0) == [v0, p5]
+    # Mid-sequence: absorb, then the running extreme extends through the
+    # same-type merge, and a genuine reversal commits off the extended peak.
+    p12, v20 = (12, "peak", 112.0), (20, "valley", 101.0)
+    out = _collapse_swings([v0, p5, v8, p12, v20], min_amp=5.0)
+    assert out == [v0, p12, v20]
+    kinds = [k for _b, k, _p in out]
+    assert kinds == ["valley", "peak", "valley"]     # alternation preserved
+
+
 _WORKED = [101, 103, 105, 107, 109, 107, 105, 103] * 3
 
 

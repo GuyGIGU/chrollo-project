@@ -139,14 +139,13 @@ def _collapse_swings(zigzag, min_amp):
                 out[-1] = piv
         elif abs(piv[2] - last[2]) >= min_amp:
             out.append(piv)                       # a genuine reversal — commit it
-        elif len(out) >= 2:
-            # Sub-threshold counter-swing: drop the small reversal's start and let
-            # the prior same-type extreme (out[-2]) absorb this pivot.
-            out.pop()
-            prev = out[-1]
-            if ((piv[1] == 'peak' and piv[2] >= prev[2]) or
-                    (piv[1] == 'valley' and piv[2] <= prev[2])):
-                out[-1] = piv
-        # else: a sub-threshold move off the very first pivot — skip it; the
-        # anchor stays until a real reversal arrives.
+        # else: a sub-threshold counter-swing — ABSORB it: the committed
+        # extreme stays and the small counter-pivot vanishes (a later deeper
+        # same-type extreme extends through the merge branch above). The old
+        # pop-and-reanchor form deleted the committed swing instead — its
+        # "absorb into out[-2]" leg was unreachable (a committed swing's
+        # amplitude guarantees the counter-pivot cannot be more extreme than
+        # the older anchor), so a committed swing followed by any small
+        # pullback was erased, permanently so at the window tail
+        # (2026-08-25 sweep, EC-48 correction).
     return out
