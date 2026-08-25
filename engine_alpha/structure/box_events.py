@@ -190,7 +190,7 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
       * ``markup``     a Phase-D advance that held FAR above R (``peak_box_pos >
                        SOS_NEAR_R_MAX_BOX``) — post-breakout markup, not a break-and-hold at R
                        test of the rail (this is what over-fired SOS in active boxes).
-      * ``upthrust``   a Phase-D advance that FAILED — it gave back to the support
+      * ``upthrust``   an advance that FAILED — it gave back to the support
                        low-zone before establishing a hold; the WHOLE run-up wave
                        is the upthrust (a false break; short side). One per wave.
       * ``range``      a held advance that is NOT a confirmed SOS — either left of
@@ -677,6 +677,10 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
         resolved_after = any(
             e.get("rail") == "R" and int(e["anchor_bar"]) >= last_up
             and (e["type"] in ("markup", "in_progress")
+                 # anchor_bar > v_bar IS the stamped phase-D rule (same
+                 # threaded v_bar; anchor == top bar at the one wrap site) —
+                 # kept in anchor form because the pinned battery's synthetic
+                 # events carry no phase stamp (the anchor is the contract)
                  or (e["type"] == "range" and int(e["anchor_bar"]) > v_bar))
             for e in events)
         upthrust_terminal = not resolved_after

@@ -171,26 +171,6 @@ def drawn_lps_zone_start(low_values, *, min_descent_frac: float) -> int:
     return 0
 
 
-def _coerce_evidence_items(items: Optional[list[PhaseDEvidence | dict]]) -> list[PhaseDEvidence]:
-    signals: list[PhaseDEvidence] = []
-    for item in items or []:
-        if isinstance(item, PhaseDEvidence):
-            signals.append(item)
-            continue
-        if not isinstance(item, dict):
-            continue
-        ev = _phase_d_evidence(
-            str(item.get("source")),
-            item.get("start_bar"),
-            end_bar=item.get("end_bar"),
-            quality=item.get("quality"),
-            **(item.get("meta") or {}),
-        )
-        if ev is not None:
-            signals.append(ev)
-    return signals
-
-
 def resolve_phase_d_boundary(
     *,
     last: int,
@@ -204,7 +184,6 @@ def resolve_phase_d_boundary(
     sos_reclaim_start_bar: Optional[int] = None,
     rising_support_start_bar: Optional[int] = None,
     search_start_bar: Optional[int] = None,
-    evidence_items: Optional[list[PhaseDEvidence | dict]] = None,
 ) -> PhaseDBoundary:
     """Resolve where Phase D begins, and on what evidence.
 
@@ -241,7 +220,7 @@ def resolve_phase_d_boundary(
         "selected": None,
     }
 
-    signals = _coerce_evidence_items(evidence_items)
+    signals: list[PhaseDEvidence] = []
     for source, bar in (
         ("support_tests", support_test_start_bar),
         ("sos_reclaim", sos_reclaim_start_bar),
@@ -250,10 +229,7 @@ def resolve_phase_d_boundary(
         ("v_tip", v_tip_bar),
     ):
         ev = _phase_d_evidence(source, bar)
-        if ev is not None and not any(
-            s.source == ev.source and int(s.start_bar) == int(ev.start_bar)
-            for s in signals
-        ):
+        if ev is not None:
             signals.append(ev)
     if has_lps_window:
         ev = _phase_d_evidence("lps", lps_start)

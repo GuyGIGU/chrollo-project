@@ -163,29 +163,33 @@ def _range_threshold(df, active_box, atr: float) -> Optional[float]:
     return lps_range_threshold(base_df, atr)
 
 
-def _support_evidence_starts(df, atr, box, active_box, *, inner_present: bool):
+def _support_evidence_starts(df, atr, box, *, inner_present: bool):
+    # One box parameter on purpose: when an inner box is present this read
+    # ABSTAINS (inner-box evidence takes over), so on every computing path
+    # the judged box IS the parent — a second "active box" parameter could
+    # only ever alias it.
     empty = {"support_tests": None, "sos_reclaim": None, "rising_support": None}
     if inner_present or df is None or len(df) == 0:
         return empty
     required = {"High", "Low", "Close", "Volume", "Vol_50"}
     if not (required <= set(df.columns)):
         return empty
-    threshold = _range_threshold(df, active_box, float(atr))
+    threshold = _range_threshold(df, box, float(atr))
     if threshold is None:
         return empty
     work_df = df if "Spread" in df.columns else df.assign(Spread=df["High"] - df["Low"])
     try:
-        swing_complete_idx = max(int(active_box.r_anchor_bar), int(active_box.s_anchor_bar))
+        swing_complete_idx = max(int(box.r_anchor_bar), int(box.s_anchor_bar))
     except (AttributeError, TypeError, ValueError):
         return empty
     lps_tests = detect_lps_tests(
         work_df,
         work_df.iloc[-1],
-        active_box.S,
-        active_box.R,
+        box.S,
+        box.R,
         float(atr),
         threshold,
-        _box_base_len(work_df, active_box),
+        _box_base_len(work_df, box),
         swing_complete_idx,
     )
     return support_test_evidence_starts(
@@ -195,22 +199,21 @@ def _support_evidence_starts(df, atr, box, active_box, *, inner_present: bool):
     )
 
 
-def _phase_d_boundary(df, atr, box, inner, spring, lps, lps_in_inner):
+def _phase_d_boundary(df, atr, box, inner, spring, lps):
+    evidence_starts = {"support_tests": None, "sos_reclaim": None,
+                      "rising_support": None}
     if df is None or len(df) == 0:
         last = max(int(lps.start_bar), int(getattr(box, "start_bar", 0)))
         v_tip = None
-        support_start = None
     else:
         last = len(df) - 1
         v_tip = (
             None if inner is not None
             else final_v_tip_bar(df, int(box.start_bar), _box_base_len(df, box))
         )
-        active_box = inner if lps_in_inner and inner is not None else box
         evidence_starts = _support_evidence_starts(
-            df, atr, box, active_box, inner_present=inner is not None,
+            df, atr, box, inner_present=inner is not None,
         )
-        support_start = evidence_starts["support_tests"]
 
     return resolve_phase_d_boundary(
         last=last,
@@ -220,9 +223,9 @@ def _phase_d_boundary(df, atr, box, inner, spring, lps, lps_in_inner):
         phase_c_recovery_bar=(int(spring.recovery_bar) if spring is not None else None),
         phase_d_start_bar=(int(inner.start_bar) if inner is not None else None),
         v_tip_bar=v_tip,
-        support_test_start_bar=support_start,
-        sos_reclaim_start_bar=(evidence_starts["sos_reclaim"] if df is not None and len(df) else None),
-        rising_support_start_bar=(evidence_starts["rising_support"] if df is not None and len(df) else None),
+        support_test_start_bar=evidence_starts["support_tests"],
+        sos_reclaim_start_bar=evidence_starts["sos_reclaim"],
+        rising_support_start_bar=evidence_starts["rising_support"],
         search_start_bar=(int(inner.search_start_bar) if inner is not None else None),
     )
 
@@ -521,7 +524,7 @@ def read_structure(df, atr, *, bricks=None, trace=None,
         else:
             phase_b_end = int(lps.start_bar)
             terminator = "lps"
-        phase_d = _phase_d_boundary(df, atr, box, inner, spring, lps, lps_in_inner)
+        phase_d = _phase_d_boundary(df, atr, box, inner, spring, lps)
         phase_d_start = int(phase_d.start_bar)
 
         return Structure(

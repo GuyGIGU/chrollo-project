@@ -334,8 +334,11 @@ def measure_support_slope(base_df, atr_val, order=None, skeleton=None):
     sequence (the swing lows) and fits a line through them. The slope is ATR-
     normalized so it's comparable across price levels and tickers.
 
-    Bonus-only / measure-first: a flat or descending floor returns quality 0 — it
-    is never penalized, only rewarded when genuinely ascending.
+    Bonus-only / measure-first: a flat or descending fitted slope zeroes the
+    SLOPE component only — the higher-low fraction can still earn partial
+    credit (its 0.4 share of quality), so a choppy floor with some rising
+    valleys scores small, never negative. It is never penalized, only
+    rewarded.
 
     Returns dict:
         n_valleys:       int     number of zigzag valley lows used in the fit
@@ -492,7 +495,9 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     gates, never penalizes; degenerate windows return None values.
 
     Returns dict: respect_frac, close_lower_dwell, close_mid_dwell,
-    close_upper_dwell (all nullable floats).
+    close_upper_dwell, engagement_respect_frac (raw, unrounded, same
+    masks/units as respect_frac), max_excursion_atr (deepest single-bar
+    excursion in ATRs; 0.0 when no bar is outside) — all nullable floats.
     """
     empty = {"respect_frac": None, "close_lower_dwell": None,
              "close_mid_dwell": None, "close_upper_dwell": None,

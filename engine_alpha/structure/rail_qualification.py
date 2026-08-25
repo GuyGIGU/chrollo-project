@@ -31,8 +31,12 @@ allowance exists ONLY when the event does, so it can never act as a general
 width loosening.
 
 Consumed by ``collect_zigzag_candidates`` as a LAST-RESORT candidate pool
-behind ``BAND_RAILS_ENABLED`` (dark): consulted only when the strict AND
-rescued pools are both empty, so an ordinary box's election can never move.
+behind ``BAND_RAILS_ENABLED`` (LIVE since 2026-07-16; last-resort semantics
+unchanged): consulted only when the strict AND rescued pools are both empty,
+so an ordinary box's election can never move. ``qualify_pair_events`` has two
+further consumers: ``phase_features._terminal_shakeout`` (the flag-dark
+terminal-shakeout Phase-C fallback) and the near-miss lane's deferred
+completion (``near_miss.py``).
 """
 from __future__ import annotations
 
@@ -185,8 +189,10 @@ def cluster_rails(highs, lows, atr_val, *, min_rest: Optional[int] = None,
     sharing one extreme value propose one identical level, so the tie-break is
     the value itself (fixed by construction). Suffix-precomputable: support is
     pairwise ``|x_i - x_j| <= tol`` counting, so every suffix window of an eq
-    window derives from one vectorized pass (the dark-build hot loop
-    precomputes exactly that; this pure form is its parity oracle).
+    window derives from one vectorized pass. (The rail-placement program this
+    statistic served closed 2026-07-25 with every lever ruled NO — the pure
+    form is retained as the measured reference; validation record at
+    docs/archive/tools/cluster_rail_validation.py.)
 
     Returns ``(R, S)``; either side is ``None`` when no level has enough
     support.

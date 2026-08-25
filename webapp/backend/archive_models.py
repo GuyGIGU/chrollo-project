@@ -313,12 +313,13 @@ class SetupArchive(Base):
     event_map_episode_profile = Column(String, nullable=True)    # the sentence "S+ S+ S+ R^"
     event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 
-    # ── Technical Analysis Grade v2 family — flag-gated (TA_SCORE_V2) ────────
+    # ── Technical Analysis Grade v2 family — always-on since the 2026-08-22
+    # legacy retirement (the TA_SCORE_V2 flag is gone) ───────────────────────
     # Owning declaration in engine_alpha/scoring/scoring.py (TA_GRADE_COLUMN_SQL
     # + ta_grade_archive_values — the ONE extraction both writers splat).
     # MODEL-ONLY schema adds (AP-7): the Track B auto-migration and the
     # writer's model-derived pass ADD them; never hand-list in _NEW_COLUMNS /
-    # _MIGRATIONS. NULL = flag-off / pre-flip rows FOREVER (no backfill, ever);
+    # _MIGRATIONS. NULL = pre-flip epoch rows FOREVER (no backfill, ever);
     # both floats are FULL precision — rounding is display-only.
     ta_grade = Column(Float, nullable=True)       # the 0-100 (post-warnings)
     ta_grade_raw = Column(Float, nullable=True)   # the raw affine sum
@@ -333,8 +334,9 @@ class SetupArchive(Base):
     setup_upthrust_terminal = Column(Integer, nullable=True)  # 0/1 terminal upthrust
     # Per-term points (registry column = score_ + key, the house convention).
     # score_setup_quality is a v1 term scored on EVERY row (NULL = pre-add
-    # history only); the five below are flag-gated (NULL = flag-off/pre-flip;
-    # caps start 0 shape-only, so flag-on values are 0.0 until the A/B).
+    # history only); the five below are always emitted since the 2026-08-22
+    # retirement (NULL = pre-flip epoch rows; caps start 0 shape-only, so
+    # the values are 0.0 until the A/B).
     score_setup_quality = Column(Float, nullable=True)
     score_spring = Column(Float, nullable=True)
     score_story_s_tests = Column(Float, nullable=True)
@@ -342,7 +344,8 @@ class SetupArchive(Base):
     score_story_alternations = Column(Float, nullable=True)
     score_story_terminal_posture = Column(Float, nullable=True)
     # Wave-1 charter measurements (task 7) — RAW measure-first columns,
-    # fires-only inside TA_SCORE_V2. NULL = absent (below the minimum-step
+    # fires-only in the shared eval chain (unconditional since the
+    # 2026-08-22 legacy retirement). NULL = absent (below the minimum-step
     # floor / insufficient window / all-absent ingredients) — never zero.
     # lps_window_classification is a closed set {rising_march, turned,
     # clean_dip, mixed}: refused at write in ta_grade_archive_values + the

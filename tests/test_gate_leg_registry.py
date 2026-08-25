@@ -127,7 +127,7 @@ def test_cascade_rejections_carry_structured_legs_with_derived_sentences():
     # the respect_run leg rides with its numerators and measured=None.
     closes = _boxy_closes(60) + [125.0] * 12
     trace_a: list = []
-    bp.collect_zigzag_candidates(_frame(closes), len(closes), atr_val=1.0,
+    bp.collect_zigzag_candidates(_frame(closes), atr_val=1.0,
                                  enforce_traversal=True, trace=trace_a)
     stages_a = _assert_leg_contract(trace_a)
     assert "respect" in stages_a
@@ -143,7 +143,7 @@ def test_cascade_rejections_carry_structured_legs_with_derived_sentences():
     # check rides as a structured leg.
     closes = _boxy_closes(16) + [105.0] * 24
     trace_b: list = []
-    bp.collect_zigzag_candidates(_frame(closes), len(closes), atr_val=1.0,
+    bp.collect_zigzag_candidates(_frame(closes), atr_val=1.0,
                                  enforce_traversal=True, trace=trace_b)
     stages_b = _assert_leg_contract(trace_b)
     assert "occupancy" in stages_b
@@ -154,7 +154,7 @@ def test_width_rejections_are_narrated_and_forced(monkeypatch):
     monkeypatch.setattr(settings, "MAX_BOX_WIDTH", 1e-6)
     df = _frame(_boxy_closes())
     trace: list = []
-    got = bp.collect_zigzag_candidates(df, len(df), atr_val=1.0,
+    got = bp.collect_zigzag_candidates(df, atr_val=1.0,
                                        enforce_traversal=True, trace=trace)
     assert got == []
     stages = {rec["stage"] for rec in trace if rec["verdict"] == "rejected"}
@@ -175,10 +175,10 @@ def test_trace_none_narration_sites_do_no_work(monkeypatch):
     df = _frame(_boxy_closes())
     # WINDOW site first, at the live width cap (review 2026-07-26 finding 10:
     # only the width site was proven boom-free): every pair window-rejects.
-    assert bp.collect_zigzag_candidates(df, len(df), atr_val=1.0,
+    assert bp.collect_zigzag_candidates(df, atr_val=1.0,
                                         enforce_traversal=True, trace=None,
                                         min_candidate_days=10_000) == []
     # Then the width site: every pair width-rejects before anything else.
     monkeypatch.setattr(settings, "MAX_BOX_WIDTH", 1e-6)
-    assert bp.collect_zigzag_candidates(df, len(df), atr_val=1.0,
+    assert bp.collect_zigzag_candidates(df, atr_val=1.0,
                                         enforce_traversal=True, trace=None) == []

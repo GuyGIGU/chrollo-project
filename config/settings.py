@@ -350,9 +350,12 @@ STORY_POOL_ENABLED = True
 # only — the overlay feeds no rails/LPS/score, so it could never fix the box).
 # Measured 2026-07-27: 142/332 live boxes (42.8%, incl. rank-0 XMAX) open before
 # their trend topped, vs the operator's own 33 marks at 31/33 = 93.9% obeying
-# the rule. Applies to every pool (strict / rescued / band / story) through the
-# one shared _oriented_pairs enumeration. Refused pairs are not candidates at
-# all, so the near-miss lane does not see them — flag ON is a census seam.
+# the rule. Applies to every pool (strict / rescued / band / story), enforced
+# as a POST-COLLECTION filter at the bricks election (validate_equilibrium,
+# judged on each candidate's back-extended open) — deliberately NOT inside the
+# pair enumeration, so every pool's judgment stays untouched. The near-miss
+# lane still does not see the refusals (its recorder attaches inside
+# collect_zigzag_candidates, one seam earlier) — flag ON is a census seam.
 TREND_TERMINAL_BOX_GATE_ENABLED = False
 
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
@@ -829,13 +832,15 @@ STORY_UNREADABLE_ZONE_COVERAGE = 0.5  # touch-zone fraction of box height at whi
 TA_WARN_TERMINAL_DRIFT = 1.0       # discount when the window ends in an open S-drift episode
 TA_GRADE_WARNING_FLOOR = 0.5       # the warning product never discounts below this factor
 # Wave-1 charter measurements (task-7 batch — fourth declared seam). Pure
-# folds over data already in hand, fires-only inside TA_SCORE_V2, archived
-# RAW (measure-first: never gating, never weighted until the operator's A/B).
+# folds over data already in hand, fires-only in the shared eval chain
+# (unconditional since the 2026-08-22 legacy retirement), archived RAW
+# (measure-first: never gating, never weighted until the operator's A/B).
 LPS_SHRINK_MIN_TESTS = 3           # fewer usable support tests -> the shrink fraction is ABSENT (1 step quantizes to 0-or-1)
 STORY_RICHNESS_FULL = 0.15         # story events per bar at saturation (den floored at MIN_BASE_DAYS)
 # Wave-2 charter measurement (task-8 batch — fifth declared seam): ONE bounded
 # box-walk on the up-segment-restricted sub-frame producing the Minervini base
-# count AND the inter-base width ratio together. Fires-only inside TA_SCORE_V2.
+# count AND the inter-base width ratio together. Fires-only in the shared eval
+# chain (unconditional since the 2026-08-22 legacy retirement).
 TREND_BASE_COUNT_CAP = 4           # count saturates where grading value does (Minervini counts bases 1-4)
 TREND_BASE_WALK_MAX_ROOTS = 12     # root attempts on the sub-frame (the full HTF walk allows 40 on a whole frame)
 # Tag fire-rule thresholds (task-10 batch — sixth declared seam): the

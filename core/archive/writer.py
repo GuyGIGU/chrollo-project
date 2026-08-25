@@ -647,7 +647,8 @@ def archive_scan_results(
             **htf_archive_values(row.get, prefixed=True),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(row.get, prefixed=True),
-            # TA-grade family: the grade pair (NULL while TA_SCORE_V2 is dark)
+            # TA-grade family: the grade pair (always emitted since the
+            # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
             # + the three setup grades (NULL when the narrative abstained)
             **ta_grade_archive_values(row.get, prefixed=True),
             # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED

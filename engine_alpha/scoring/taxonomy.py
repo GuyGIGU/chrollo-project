@@ -178,9 +178,9 @@ REGISTRY: tuple[TermSpec, ...] = (
     # is graded where completeness belongs — setup_quality, in consolidation.
     TermSpec("spring",            "score_spring",            "SCORE_SPRING",             "marker", "tag",        producer="compose"),
     # Story terms (task 4) — the Event-Map substrate graded INSIDE the chapters
-    # (the 2026-08-06 ruling: grade the setups by their story). Emitted only
-    # behind TA_SCORE_V2; caps start 0 = shape-only until the A/B; archive
-    # columns are a task-5 add. They consume the archived as-of scalars ONLY
+    # (the 2026-08-06 ruling: grade the setups by their story). Always emitted
+    # since the 2026-08-22 legacy retirement; caps start 0 = shape-only until
+    # the A/B; archive columns are a task-5 add. They consume the archived as-of scalars ONLY
     # (completed counts + right-edge stance) — never the tape, never the
     # profile sentence (AP-8; nothing re-derives counts downstream).
     TermSpec("story_s_tests",          "score_story_s_tests",          "SCORE_STORY_S_TESTS",          "ta", "new_term", producer="compose", chapter="consolidation"),
@@ -191,7 +191,8 @@ REGISTRY: tuple[TermSpec, ...] = (
 
 
 def emitted_keys() -> list[str]:
-    """Result-dict sub-score keys emitted under the CURRENT flags (order-preserving)."""
+    """Every registered sub-score key (order-preserving) — all emitted since
+    the 2026-08-22 legacy retirement."""
     return [t.key for t in REGISTRY]
 
 
@@ -201,9 +202,9 @@ def always_emitted_terms() -> tuple[TermSpec, ...]:
     (2026-08-08 review: two production sites re-spelled this predicate inline
     with warning paragraphs each). The wire's ``sub_scores`` block and the
     archive's sub-score producer consume THIS, never ``emitted_keys()``:
-    flag-on the two sets diverge (spring + the story terms join
-    ``emitted_keys``), and coercing the v2 terms' absence to 0 at those
-    sites would fabricate measured zeros."""
+    the two sets diverge PERMANENTLY (spring + the story terms are
+    compose-produced and live only in ``emitted_keys``), and coercing the
+    v2 terms' absence to 0 at those sites would fabricate measured zeros."""
     return tuple(t for t in REGISTRY if t.producer == "scorer")
 
 
@@ -321,9 +322,9 @@ def tag_rules_manifest() -> dict:
 
 
 def ta_layer_terms() -> tuple[TermSpec, ...]:
-    """The terms that make up the Technical Analysis Grade (layer 'ta') and are
-    emitted under the CURRENT flags — everything except the regime label and
-    the marker events (a marker is found and drawn, never graded).
+    """The terms that make up the Technical Analysis Grade (layer 'ta') —
+    everything except the regime label and the marker events (a marker is
+    found and drawn, never graded).
 
     This is the ONE gate between measuring something and grading it: a term
     absent from here cannot reach a chapter, the divisor, or the tier."""

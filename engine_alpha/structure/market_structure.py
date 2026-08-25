@@ -16,13 +16,14 @@ re-accumulation, or just the LPS pullback, and the operator's "CHoCH" is a
 higher-level CHANGE OF REGIME (trend->equilibrium, or equilibrium->breakout)
 that brackets the box. Those Wyckoff reads are derived in Layer 2 from these
 primitives + the box + the HTF trend / base count — never here. Layer 0 of the
-event reader (``~/.claude/plans/tingly-dazzling-gadget.md``).
+event reader (docs/strategy_alpha.md, the market-structure reader section).
 
 Measure-first / opinion-free: it reads the zigzag the engine already builds and
 adds labels — it never moves R/S, scores, or any canonical field. The pure
 ``label_market_structure(zigzag)`` is the testable core; ``read_market_structure
-(df)`` builds the skeleton with the same order/PIP convention as
-``segment_swings`` so the labels line up bar-for-bar with the rest of the engine.
+(df)`` builds the skeleton with the same ``_pivot_order`` convention as
+``segment_swings``'s fallback — the macro-PIP upgrade deliberately does NOT
+apply here (fine vs coarse skeleton; see the function's own docstring).
 """
 from __future__ import annotations
 
@@ -30,7 +31,6 @@ from typing import NamedTuple, Optional
 
 import numpy as np
 
-from config import settings
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
@@ -115,29 +115,21 @@ def label_market_structure(zigzag) -> dict:
     }
 
 
-def read_market_structure(df, *, lookback: Optional[int] = None,
-                          order: Optional[int] = None) -> dict:
+def read_market_structure(df, *, order: Optional[int] = None) -> dict:
     """Build the swing skeleton off ``df`` and label it. Bar indices in the
     result are df-positional. Mirrors ``segment_swings``' pivot order selection,
     so the labels line up with the swings the rest of the engine reads. The
     MACRO Phase-A read (``phase_a.macro_bridge_zigzag``) deliberately does NOT
     apply here: event labels want the fine skeleton, the Phase-A bridge wants
     the coarse one — same substrate, different zoom."""
-    n_all = len(df)
-    if n_all < 5:
+    n = len(df)
+    if n < 5:
         return _empty()
-    if lookback is not None and 0 < lookback < n_all:
-        win = df.iloc[n_all - lookback:]
-    else:
-        win = df
-    base_off = n_all - len(win)
-
     try:
-        highs = win["High"].values.astype(float)
-        lows = win["Low"].values.astype(float)
+        highs = df["High"].values.astype(float)
+        lows = df["Low"].values.astype(float)
     except (KeyError, TypeError, ValueError):
         return _empty()
-    n = len(highs)
 
     if order is None:
         order = _pivot_order(n)
@@ -145,8 +137,7 @@ def read_market_structure(df, *, lookback: Optional[int] = None,
     if not peaks or not valleys:
         return _empty()
 
-    # Re-base to df-positional bars before labelling.
-    zigzag = [(int(base_off + b), k, p) for (b, k, p) in zigzag]
+    zigzag = [(int(b), k, p) for (b, k, p) in zigzag]
     return label_market_structure(zigzag)
 
 
@@ -197,7 +188,9 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
     agnostic and so cannot tell a lone poke from a genuine up-turn).
 
     Per-bar ``kind``:
-      * ``dip``        — lower-high and lower-low: the test descending into support.
+      * ``dip``        — either extreme lower with neither higher (lower-high +
+                         lower-low, and also lower-high/flat-low or
+                         flat-high/lower-low): descending into support.
       * ``lift``       — low rises while the high holds/falls: bottoming.
       * ``noise_poke`` — the high pokes up but it is UNCONFIRMED (the low did not
                          make a higher low, or the next bar's high falls back) →
@@ -213,7 +206,10 @@ def classify_window_descent(highs, lows, *, base_spread: Optional[float] = None,
     (a genuine VALLEY-turn: the window descended to an INTERIOR low that sits
     at/before a confirmed up-turn preceding the last bar — an all-up window with
     no descent, or an early up-blip later overrun by a new low, is not a turn),
-    ``clean_dip`` (down steps dominate), else ``mixed``.
+    ``clean_dip`` (down steps >= up steps — a tie, and a window whose steps
+    are all lift/noise/flat, both file here), else ``mixed``. This is an
+    archived closed-set vocabulary: tightening the boundary is a measured
+    change with a seam note, never a drive-by.
     ``end_shape`` is ``descending`` / ``valley`` / ``flat`` / ``mixed``.
     ``big_dip`` is returned only when ``big_dip_depth_atr`` is supplied (deep AND
     bars not tighter than the base average); otherwise ``None`` (measure-first —
@@ -488,11 +484,13 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     terminal ``bar``, its ``price``, and its ``direction``. ``bar`` is ``-1``
     where no segment covers (no trend to still be inside of).
 
-    **Only ``bar`` is consulted.** ``price`` and ``direction`` are measurement,
-    carried for diagnostics; no live caller reads them. The legality test lives
-    in ``box_primitives.trend_terminal_legal_open`` and is **post-climax
-    MATURITY**: a box opening before this terminal survives iff
-    ``MIN_BASE_DAYS`` bars have printed since it.
+    **Only ``bar`` feeds the legality test.** ``direction`` is load-bearing
+    on the live path since the 2026-08-19 polarity re-key —
+    ``bricks._cause_is_up`` reads it to decide which end of the lead-in the
+    climax-terminality repair takes; ``price`` alone stays diagnostics-only.
+    The legality test lives in ``box_primitives.trend_terminal_legal_open``
+    and is **post-climax MATURITY**: a box opening before this terminal
+    survives iff ``MIN_BASE_DAYS`` bars have printed since it.
 
     **Do NOT rebuild a price test off these arrays — it is Tested-DEAD.**
     Refusing a box on how far the trend ran past its own rail (the removed
@@ -579,8 +577,9 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
     """Charter measurement (TA-grade build task 8): the Minervini base COUNT
     within the current confirmed up-segment + the inter-base width ratio —
     ONE bounded box-walk producing both numbers (a second enumeration would
-    silently double the only expensive new measurement). Measure-only; the
-    caller gates on TA_SCORE_V2 (fires-only).
+    silently double the only expensive new measurement). Measure-only; runs
+    fires-only in the shared eval chain (unconditional since the 2026-08-22
+    legacy retirement).
 
     Pinned semantics (pinned before code; the battery asserts each):
       * the elected base counts as ONE — the count is never zero;
@@ -674,12 +673,12 @@ def measure_trend_bases(df, atr_val, elected_start_bar, elected_width) -> dict:
     return out
 
 
-def elected_trend_leg_base(df, terminal_bar, direction, *, tol: int = 3,
+def elected_trend_leg_base(df, terminal_bar, direction, *,
                            order: Optional[int] = None):
     """The base of the FULL trend leg that tops at ``terminal_bar``.
 
     The START pivot of the elected HH/HL trend segment whose terminal (the
-    buying/selling climax) sits within ``tol`` bars of ``terminal_bar`` — i.e. the
+    buying/selling climax) sits within 3 bars of ``terminal_bar`` — i.e. the
     whole advance the climax ended: the valley a buying climax rallied from
     (``direction=+1``) / the peak a selling climax fell from (``-1``). This is the
     entire move the reaction reverses, NOT the terminal impulse sub-leg — so a
@@ -698,7 +697,7 @@ def elected_trend_leg_base(df, terminal_bar, direction, *, tol: int = 3,
         if int(s["direction"]) != int(direction):
             continue
         gap = abs(int(s["terminal_bar"]) - int(terminal_bar))
-        if gap <= tol and (best_gap is None or gap < best_gap):
+        if gap <= 3 and (best_gap is None or gap < best_gap):
             best, best_gap = s, gap
     if best is None:
         return None

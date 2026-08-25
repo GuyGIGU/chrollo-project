@@ -14,9 +14,12 @@ top-40 = the inner structure — nested resolutions of one skeleton, which is th
 It emits the SAME shape as ``pivots._build_zigzag`` — ``list[(bar, 'peak'|
 'valley', price)]`` — and reuses that helper for High/Low snapping and strict
 alternation, so PIP is a drop-in-comparable skeleton (and a clean future swap
-point). One wire feeds ONLY the Phase-A overlay via ``segment_swings`` (never
-R/S/score/tier), unconditional since the 2026-07-18 fold (formerly flag
-``PIP_MACRO_PHASE_A_ENABLED``, live 2026-07-04):
+point). TWO consumers read this module, both unconditional since the
+2026-07-18 fold (formerly flag ``PIP_MACRO_PHASE_A_ENABLED``, live
+2026-07-04): ``segment_swings`` feeds the Phase-A overlay, and
+``bricks.cause_maturity`` reads the macro bridge inside the LIVE
+cause-before-effect election veto (flipped 2026-07-20) — a guard change
+here moves a live veto, not just the overlay:
 
   * the MACRO read (``macro_bridge_zigzag``):
     coarse->fine over top-K prefixes, stopping at the SMALLEST skeleton that
@@ -47,8 +50,9 @@ from engine_alpha.structure.pivots import _build_zigzag
 
 def _series(highs: np.ndarray, lows: np.ndarray, mode: str) -> np.ndarray:
     """The 1-D series PIP ranks importance on. ``hl2`` (bar midpoint) is the
-    default — less jittery than close for turning points; turns then snap to the
-    actual High/Low. ``high``/``low``/``close`` available as knobs."""
+    default — less jittery than close for turning points; turns then snap to
+    the actual High/Low. ``high``/``low`` available as knobs; any other mode
+    falls through to hl2 (the function receives no closes)."""
     if mode == "high":
         return highs
     if mode == "low":

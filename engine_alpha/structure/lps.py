@@ -300,7 +300,9 @@ def detect_lps_candidates(
     ``start_floor_bar`` is the chronology floor the caller already resolved (the
     narrative passes the spring tip — cause before effect, Phase C -> Phase D).
     ``None`` = no floor, the measure-only default; the staircase
-    (``detect_lps_tests``) keeps its own right-half rule and never passes one.
+    (``detect_lps_tests``) enumerates the whole base and never passes one —
+    only the Phase-D evidence classifier applies a right-half filter to its
+    output (``phase_d.support_test_evidence_starts``).
     """
     candidates: list[dict] = []
     rejects: Counter = Counter()
@@ -713,9 +715,12 @@ def select_active_lps_candidate(candidates: list[dict], latest: pd.Series) -> Op
         ),
     )
 
-    # If the elected slice is part of a single clean reaction into the same
-    # terminal low, report the whole pullback instead of a shorter sub-slice.
-    # Same-form only: widening must never flip the elected completion form.
+    # The election key already prefers greater length within a same-(end,
+    # low, form) group, so this step can only keep `best` or replace it with
+    # a SHORTER fully-clean sub-slice: when the elected window is not itself
+    # a clean reaction but a clean sub-slice shares its terminal low and end
+    # bar, prefer the longest clean characterization of that same low.
+    # Same-form only: the swap must never flip the elected completion form.
     same_terminal_low = [
         c for c in actionable
         if c["low_index"] == best["low_index"]

@@ -28,6 +28,16 @@ __all__ = ["CASCADE_STAGES", "_trace_pair", "_trace_find"]
 CASCADE_STAGES = ("width", "window", "respect", "occupancy", "traversal",
                   "story", "rescue_unused", "dethroned", "selection")
 
+# Identity slots of the Candidate tuple (``box_primitives.Candidate`` owns
+# the ORDER; this leaf cannot import it without a cycle). Named here so the
+# framing-identity read below is loud instead of bare magic indices, and
+# PINNED against ``Candidate._fields`` in tests/test_framing_identity.py —
+# a slot insertion over there goes RED here instead of silently skewing
+# every trace annotation (2026-08-25 sweep; the recorded arity-trap class).
+_CAND_R_ANCHOR_BAR = 7
+_CAND_S_ANCHOR_BAR = 8
+_CAND_START = 9
+
 
 def _trace_pair(trace, verdict, stage, detail, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued=False,
@@ -65,7 +75,9 @@ def _trace_find(trace, cand):
     """The 'valid' cascade record belonging to candidate tuple ``cand`` —
     matched on the ONE in-window framing identity (Task 2: anchors + start;
     window-relative, so only valid against records from the same call)."""
-    key = framing_window_key(cand[7], cand[8], cand[9])
+    key = framing_window_key(cand[_CAND_R_ANCHOR_BAR],
+                             cand[_CAND_S_ANCHOR_BAR],
+                             cand[_CAND_START])
     for rec in trace:
         if rec["verdict"] == "valid" \
                 and framing_window_key(rec["r_anchor_bar"], rec["s_anchor_bar"],

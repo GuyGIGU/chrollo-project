@@ -411,7 +411,7 @@ def trend_terminal_legal_open(terminal_floor, floor_offset):
     return _legal
 
 
-def collect_zigzag_candidates(eq_df, base_length, atr_val, min_candidate_days=0,
+def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
                               recorder=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
@@ -881,7 +881,7 @@ def phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
 
     atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
     valid_candidates = collect_zigzag_candidates(
-        eq_df, base_length, atr_val, enforce_traversal=True)
+        eq_df, atr_val, enforce_traversal=True)
 
     if not valid_candidates:
         return [] if select == "debug" else EMPTY_BOX
@@ -890,10 +890,11 @@ def phase_b_zigzag(eval_df, start_idx, base_length, atr_override=None,
         return _debug_candidates(valid_candidates, base_length)
 
     selected = select_phase_b_candidate(valid_candidates, select)
-    # The diagnostic mirror applies the same flag-gated shared-rail
-    # back-extension as the live reader (bricks.validate_equilibrium), so
-    # detect_boxes-based tools frame the SAME box as production. No-op when
-    # the flag is off or nothing extends.
+    # The diagnostic mirror applies the same shared-rail back-extension as
+    # the live reader (bricks.validate_equilibrium — unconditional in both
+    # since the 2026-07-18 fold; the old flag was deleted in that rotation),
+    # so detect_boxes-based tools frame the SAME box as production. No-op
+    # when nothing extends.
     ext_start = backext_shared_rail(eq_df, selected[1], selected[2],
                                     int(selected[9]), atr_val)
     if ext_start != selected[9]:

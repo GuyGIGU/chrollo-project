@@ -529,6 +529,13 @@ def _apply_traversal_gate(eq_df, valid_candidates, atr_val, enforce_traversal,
     # traversal on the SAME window the framing was respect/occupancy-validated over
     # (its trimmed worked cause when SOS-rescued; the full window when strict, where
     # c[10] spans to the edge so this is byte-identical to the legacy full slice).
+    # BAND candidates are the third basis: c[10] is the excision-mask COUNT, so
+    # the slice is contiguous from cand_start, ends short of the right edge by
+    # the excised-bar count, and includes excised bars respect/occupancy never
+    # judged — the ratified contiguous law (review 2026-07-26 finding 4; the
+    # basis-drift counter in gate_margins/near_miss exists because the bases
+    # differ). "Fixing" band toward the masked window would silently move
+    # elections.
     def _passes(c):
         trav = measure_equilibrium(eq_df.iloc[c[9]:c[9] + c[10]], c[1], c[2], atr_val)
         nf, ns = trav["n_full_traversals"], trav["n_swings"]
