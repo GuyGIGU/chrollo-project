@@ -38,7 +38,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from engine_alpha.structure.displacement import atr10_before, first_close_beyond
+from engine_alpha.structure.displacement import (
+    atr10_before,
+    first_close_beyond,
+    running_argmin,
+)
 
 __all__ = [
     "POWER_PLAY_COLUMN_SQL",
@@ -240,16 +244,11 @@ def first_legal_look(ep, clock, df):
 
     # Prefix state of the reaction window: the running argmin + whether a
     # confirming close has printed yet, per bar — indexed by the bar the walk
-    # is READING (p - skip), never by the as-of it is standing on.
-    run_ar = np.empty(len(lows), dtype=int)
-    confirmed = np.empty(len(lows), dtype=bool)
-    best_j, best_low, conf = j0, np.inf, False
-    for k in range(len(lows)):
-        if lows[k] < best_low:
-            best_low, best_j = lows[k], j0 + k
-        conf = conf or closes[k] <= thr
-        run_ar[k] = best_j
-        confirmed[k] = conf
+    # is READING (p - skip), never by the as-of it is standing on. Through
+    # the displacement seam's own primitive (ONE prefix-argmin law, EC-3);
+    # run_ar carries df-absolute positions, hence the + j0 rebase.
+    run_ar = running_argmin(lows) + j0
+    confirmed = np.logical_or.accumulate(closes <= thr)
 
     # The walk terminates at the first day BOTH walls are satisfiable on
     # walk-visible evidence: the reaction window fully out of the reserve

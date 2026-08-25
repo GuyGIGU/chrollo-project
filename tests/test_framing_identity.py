@@ -24,6 +24,20 @@ from engine_alpha.structure.box_trace import _trace_find, _trace_pair
 pytestmark = pytest.mark.regression
 
 
+def test_trace_identity_slots_match_the_candidate_contract():
+    """The leaf module's named slot indices must track the Candidate tuple's
+    real field order (it cannot import the producer without a cycle) — a
+    slot insertion in box_primitives goes RED here instead of silently
+    skewing every trace annotation (2026-08-25 sweep)."""
+    from engine_alpha.structure import box_trace
+    from engine_alpha.structure.box_primitives import Candidate
+
+    fields = Candidate._fields
+    assert fields.index("r_anchor_bar") == box_trace._CAND_R_ANCHOR_BAR
+    assert fields.index("s_anchor_bar") == box_trace._CAND_S_ANCHOR_BAR
+    assert fields.index("cand_start") == box_trace._CAND_START
+
+
 def test_trace_find_derives_from_the_window_key():
     trace: list = []
     # Two records with the same anchors: one rejected, one valid — the match

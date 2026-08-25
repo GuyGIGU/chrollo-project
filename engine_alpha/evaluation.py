@@ -30,7 +30,15 @@ from engine_alpha.structure import (
     scope_consolidation,
     trend_template,
 )
-from engine_alpha.structure.metrics import base_rail_touches, base_swing_skeleton
+from engine_alpha.scoring import taxonomy as _taxonomy
+from engine_alpha.scoring.scoring import compose_ta_grade
+from engine_alpha.structure.market_structure import measure_trend_bases
+from engine_alpha.structure.metrics import (
+    base_rail_touches,
+    base_swing_skeleton,
+    measure_lps_contraction,
+    measure_story_richness,
+)
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.phase_d import (
     final_v_tip_bar,
@@ -118,9 +126,10 @@ def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, flo
     the scorer reuses the exact same value the gate used.
 
     Vol_50 sample timing: this gate samples Vol_50 at the latest bar, while
-    `detect_lps` re-samples at `eval_idx` (offset 0..3 bars back). The
-    values can diverge for low-liquidity tickers; that's intentional so
-    each gate has its own consistent denominator.
+    `detect_lps` re-samples at `eval_idx` (offsets 0 to
+    LPS_SCAN_OFFSET_MAX - 1 bars back). The values can diverge for
+    low-liquidity tickers; that's intentional so each gate has its own
+    consistent denominator.
     """
     result, _ = apply_baseline_filters_with_reason(df)
     return result
@@ -240,6 +249,15 @@ def _prepare_eval_frame(df: pd.DataFrame) -> Optional[dict]:
     return prep
 
 
+def structure_atr_row(df: pd.DataFrame):
+    """THE evaluation-time ATR sample row (STRUCTURE_ATR_SAMPLE_OFFSET back
+    from the right edge). One implementation for the live chain, the species
+    probe, and the stability probe (EC-3): the sampled bar must be the same
+    bar everywhere structurally — retyped twin expressions were the exact
+    class the frame_digest/ohlcv_digest split shipped."""
+    return df.iloc[-int(settings.STRUCTURE_ATR_SAMPLE_OFFSET)]
+
+
 def _resolve_structure_context(df: pd.DataFrame, latest,
                                near_miss=None) -> Optional[dict]:
     # Parent (outer) is the base of record; inner is the nested companion. One
@@ -247,7 +265,7 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     # ONE ATR sample serves the walk, atr_ratio, and atr_for_zone below — the
     # box-carried equilibrium read is coherent with eval-time measures because
     # they share this row, structurally, not by twin expressions.
-    atr_eval = df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]
+    atr_eval = structure_atr_row(df)
     # Election-trace capture (flag-dark): the trace rides the ONE walk that
     # elects the published box — same-run by construction, never a re-run.
     # None keeps the call byte-identical (the trace plumbing's no-op contract).
@@ -259,7 +277,7 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
 
     boxes = _structure_to_boxes(structure, len(df))
     base_len, res_avg, sup_avg, box_width, r_touches, s_touches, breach_days, \
-        r_anchor_bar, s_anchor_bar, bc_anchor_bar, phase_b_start_bar, \
+        r_anchor_bar, s_anchor_bar, _bc_anchor_bar, phase_b_start_bar, \
         is_inner_box = boxes["parent"]
     inner = boxes["inner"]
 
@@ -276,7 +294,10 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     base_df = df.iloc[-base_len:]
     atr_for_zone = float(atr_eval['ATR_10'])
     base_range_threshold = lps_range_threshold(base_df, atr_for_zone)
-    phase_b_start = len(df) - base_len
+    # phase_b_start_bar IS len(df) - base_len by construction (base_len =
+    # n - pbs in _structure_to_boxes): ONE derivation, two ctx names kept
+    # for the two consumer families.
+    phase_b_start = phase_b_start_bar
     swing_complete_idx = phase_b_start + max(r_anchor_bar, s_anchor_bar)
 
     return {
@@ -291,7 +312,6 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
         "breach_days": breach_days,
         "r_anchor_bar": r_anchor_bar,
         "s_anchor_bar": s_anchor_bar,
-        "bc_anchor_bar": bc_anchor_bar,
         "phase_b_start_bar": phase_b_start_bar,
         "is_inner_box": is_inner_box,
         "inner": inner,
@@ -522,9 +542,6 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         structure_ctx["box_width"],
         structure_ctx["r_touches"],
         structure_ctx["s_touches"],
-        structure_ctx["res_avg"],
-        structure_ctx["sup_avg"],
-        base_df,
         structure_ctx["atr_ratio"],
         lps_ctx["tightness_ratio"],
         lps_ctx["vol_contraction"],
@@ -607,7 +624,6 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # byte-identical grades by construction (never a second implementation).
     # Consumes the archived as-of scalars only (the event-map fields), never
     # the tape. Unconditional since the 2026-08-22 legacy retirement.
-    from engine_alpha.scoring.scoring import compose_ta_grade
     _em_scalars = {k[1:]: v for k, v in event_map_fields.items()}
     _grade = compose_ta_grade(
         score_result,
@@ -623,7 +639,6 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # Family membership is DERIVED from the settled vocabulary — a
     # hand-typed twin tuple routed a future sixth compose output to a
     # lying _score_* name (2026-08-08 review, finding 4).
-    from engine_alpha.scoring import taxonomy as _taxonomy
     ta_grade_fields = {
         ("_" + k) if k in _taxonomy.V2_RESULT_KEYS else ("_score_" + k): v
         for k, v in _grade.items()
@@ -631,12 +646,9 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # Wave-1 charter measurements (task 7) — pure folds over data already
     # in hand: the support-test staircase (lps_ctx carries the full
     # enumeration), the elected LPS window's bars, and row scalars.
-    # Fires-only inside the flag; measure-first — archived RAW, never
-    # gating, never weighted until the operator's A/B.
-    from engine_alpha.structure.metrics import (
-        measure_lps_contraction,
-        measure_story_richness,
-    )
+    # Fires-only in the shared chain (unconditional since the 2026-08-22
+    # retirement); measure-first — archived RAW, never gating, never
+    # weighted until the operator's A/B.
     _n = len(df)
     _lps_len = int(lps_ctx["lps_length"])
     _lps_off = int(lps_ctx["lps_offset"])
@@ -656,7 +668,6 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     )
     # Wave-2 (task 8): the ONE bounded box-walk — base count + inter-base
     # width ratio together, on the up-segment-restricted sub-frame.
-    from engine_alpha.structure.market_structure import measure_trend_bases
     _bases = measure_trend_bases(
         df, structure_ctx["atr_for_zone"],
         int(structure_ctx["structure"].box.start_bar),
@@ -952,7 +963,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("setup_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
-        **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: empty flag-off -> byte-identical
+        **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: always present since the 2026-08-22 retirement
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
@@ -1204,7 +1215,7 @@ def species_watch(df):
         stats["pp_prep_refused"] = 1             # universe wall: out of scope
         return None, stats
     pdf = prep["df"]
-    atr = float(pdf.iloc[-int(settings.STRUCTURE_ATR_SAMPLE_OFFSET)]["ATR_10"])
+    atr = float(structure_atr_row(pdf)["ATR_10"])
     trace: list = []
     override = dict(settings.POWER_PLAY_WINDOWS)
     override["POWER_PLAY_STORY_FORM_ENABLED"] = True

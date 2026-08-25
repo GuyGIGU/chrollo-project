@@ -45,7 +45,10 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
         calibration can tell gate-flicker from election-flicker afterward.
     A shift where a different/no structure elects also counts as not-same.
     """
-    from engine_alpha.evaluation import _prepare_eval_frame  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
+    from engine_alpha.evaluation import (  # noqa: PLC0415 — sibling seam, lazy to avoid an import cycle
+        _prepare_eval_frame,
+        structure_atr_row,
+    )
     from engine_alpha.structure.narrative import read_structure
 
     reference = projection(reference_structure, reference_df)
@@ -61,7 +64,7 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
             refused += 1
             continue
         df_j = prep["df"]
-        atr_j = float(df_j.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
+        atr_j = float(structure_atr_row(df_j)["ATR_10"])
         structure_j = read_structure(df_j, atr_j)
         if structure_j is None:
             same_flags.append(False)

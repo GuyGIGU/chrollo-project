@@ -386,9 +386,10 @@ re-derived from window net sign), and `resolve_phase_a()` passes box-relation co
 all — Phase A ends where Phase B opens, the chronological invariant `ar_bar <=
 phase_b_start_bar`; an earlier AR is allowed within the `_SEG_LEAD_IN` (60) lookback; AR
 price must reach the box level ± touch tolerance) so a macro story can never float away from
-the elected box or paint Phase A inside it. Affects the **Phase-A overlay only** — R/S selection,
-LPS, scoring, tiering are untouched; both flag states are byte-identical on the canonical
-shadow set. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
+the elected box or paint Phase A inside it. Affects the **Phase-A overlay and the
+cause-before-effect veto** — `bricks.cause_maturity` reads the macro bridge inside the LIVE
+election veto (flipped 2026-07-20), so a guard change here can move elections; R/S selection,
+LPS, scoring, tiering read nothing else from this wire. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
 `python -m tools.phase_a_pip_diff --jobs N`.
 
 ### Phase B — trend-terminal box gate (flag-gated, default off)
@@ -790,7 +791,7 @@ It reuses the same Phase B zigzag as the contraction metric, but reads the **val
 - **slope_score** — linear ramp of the ATR-normalized slope from 0 (flat/descending → 0) to `ASCENDING_SUPPORT_FULL_SLOPE` (0.10 ATR/bar → 1.0).
 - **higher_low_frac** — fraction of consecutive valley pairs that actually step up (consistency of the higher-lows).
 
-Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. The frontend 📈 **Ascending Support** tag chip currently fires when `score_ascending_support` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — a flat or descending floor earns 0 points and is never penalized.
+Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as `support_slope_atr`, `ascending_support_quality`, and the `score_ascending_support` sub-score. The frontend 📈 **Ascending Support** tag chip currently fires when `score_ascending_support` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — a flat or descending fitted slope zeroes the slope component, but the higher-low fraction can still earn partial credit (its 0.4 share of quality); nothing is ever penalized.
 
 ---
 
@@ -876,7 +877,12 @@ Per region: `_bin_{a,b,d}_bars`, `_bin_{a,b,d}_range_pct` ((maxHigh−minLow)/mi
 **Phase-D boundary is single-sourced.** The Phase-D start uses the *same* rule
 the narrative, bin measurement, and scoping overlay draw — all call
 `phase_d.resolve_phase_d_boundary()` through thin wrappers — so the measured
-Phase-D bin and the drawn Phase-D band can never drift apart. Any region the
+Phase-D bin and the drawn Phase-D band share one resolver. Their FLOOR
+policies deliberately differ (the C24 note on the resolver: the bin
+measurement floors on SPRING-type recoveries only, scope selects its floor
+caller-side), so on a TERMINAL_SHAKEOUT row the two boundaries can
+legitimately differ; the no-drift guarantee holds for the ordinary-SPRING
+case. Any region the
 engine can't place confidently (e.g. no LPS window) is emitted as `None`; young
 bases legitimately have fewer regions.
 

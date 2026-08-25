@@ -236,7 +236,9 @@ def _prep_htf_frame(daily_df: pd.DataFrame, tf: str):
         htf_df["Volume"] = 0.0
         htf_df["Vol_50"] = 0.0
     htf_df["Spread"] = htf_df["High"] - htf_df["Low"]
-    atr = float(htf_df["ATR_10"].iloc[-2 if len(htf_df) >= 2 else -1])
+    # -2 unconditionally: the len<8 refusal above guarantees a completed bar
+    # exists behind the forming right-edge bar (the right-edge reserve law).
+    atr = float(htf_df["ATR_10"].iloc[-2])
     if not np.isfinite(atr) or atr <= 0:
         return htf_df, atr, False
     return htf_df, atr, True

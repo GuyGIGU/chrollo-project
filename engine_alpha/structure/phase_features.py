@@ -15,9 +15,14 @@ placed is emitted as ``None`` so young bases degrade gracefully):
     Bin A   — the climax event: BC/SC -> AR (the trend-exhaustion lead-in).
     Bin B   — the working base: the validated box itself (``base_df``).
     Bin D   — the right-most Phase D region. Boundary comes from the SAME shared
-              rule the scoping overlay draws (``phase_d.resolve_phase_d_boundary``
-              via ``scope._resolve_phase_d_start``), so the drawn band and this
-              measured bin can never drift apart. Tagged ``bin_d_boundary_source``
+              resolver the scoping overlay draws (``phase_d.
+              resolve_phase_d_boundary`` via ``scope._resolve_phase_d_start``),
+              with floor policies that deliberately DIFFER per the C24 note on
+              the resolver (this measure floors on SPRING-type recoveries only;
+              scope selects its floor caller-side) — the no-drift guarantee
+              holds for the ordinary-SPRING case, and on a TERMINAL_SHAKEOUT
+              row the drawn and measured boundaries can legitimately differ.
+              Tagged ``bin_d_boundary_source``
               = the EARLIEST credible right-side evidence after the spring-recovery
               floor: "support_tests" (support / rising-support / SOS cluster),
               "inner_box" (a real mini-consolidation), or "v_tip" (final recovered
@@ -516,9 +521,9 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
         cand = _spring_at(idx)
         if cand is None:
             continue
-        # prefer the latest, then deepest qualifying spring (closest to launch)
-        if best is None or (cand["idx"], cand["undercut_atr"]) > (best["idx"], best["undercut_atr"]):
-            best = cand
+        # the latest qualifying spring wins (closest to launch) — idx strictly
+        # ascends through the loop, so each qualifying candidate supersedes
+        best = cand
 
     if best is None:
         # Flag-dark terminal-shakeout fallback (Event Map Task 11 tail): a

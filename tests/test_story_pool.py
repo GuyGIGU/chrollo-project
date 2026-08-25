@@ -132,7 +132,7 @@ def test_flag_off_is_compute_free(monkeypatch):
     monkeypatch.setattr(
         box_primitives, "_story_pool_candidates",
         lambda *a, **k: pytest.fail("story pool consulted flag-off"))
-    assert collect_zigzag_candidates(df, len(df), ATR,
+    assert collect_zigzag_candidates(df, ATR,
                                      enforce_traversal=True) == []
 
 
@@ -150,7 +150,7 @@ def test_rung_is_last_resort_after_the_band_pool(monkeypatch):
             "story pool consulted while the band pool held candidates"))
     monkeypatch.setattr(box_primitives, "_apply_traversal_gate",
                         lambda eq_df, pool, *a, **k: pool)
-    assert collect_zigzag_candidates(df, len(df), ATR,
+    assert collect_zigzag_candidates(df, ATR,
                                      enforce_traversal=True) == sentinel
 
 
@@ -192,5 +192,5 @@ def test_traversal_gate_judges_the_story_pool(monkeypatch):
     monkeypatch.setattr(box_primitives, "_story_pool_candidates",
                         lambda *a, **k: [tup])
     monkeypatch.setattr(settings, "TRAVERSAL_MIN", 99)
-    assert collect_zigzag_candidates(df, len(df), ATR,
+    assert collect_zigzag_candidates(df, ATR,
                                      enforce_traversal=True) == []

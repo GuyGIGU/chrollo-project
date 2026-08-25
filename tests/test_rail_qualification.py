@@ -57,7 +57,7 @@ def test_band_pool_flag_off_is_inert(monkeypatch):
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError(
                             "band pool consulted while the flag is off")))
     df = _frame(_boxy_closes())
-    bp.collect_zigzag_candidates(df, base_length=len(df), atr_val=1.0,
+    bp.collect_zigzag_candidates(df, atr_val=1.0,
                                  enforce_traversal=True)
 
 
@@ -69,7 +69,7 @@ def test_band_pool_is_last_resort_flag_on(monkeypatch):
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError(
                             "band pool consulted although strict candidates exist")))
     df = _frame(_boxy_closes())
-    got = bp.collect_zigzag_candidates(df, base_length=len(df), atr_val=1.0,
+    got = bp.collect_zigzag_candidates(df, atr_val=1.0,
                                        enforce_traversal=True)
     assert got, "fixture must yield strict candidates for the guard to bite"
 

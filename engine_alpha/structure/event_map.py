@@ -46,8 +46,9 @@ Measure-only: moves no rail, gates nothing, scores nothing. LIVE on the fire
 path since 2026-07-25 (``EVENT_MAP_ENABLED``, Event Map program Task 13):
 firing setups compute the tape + roles + the rail-episode substrate and
 archive them as the ``event_map_*`` column family; the story-rescue pool
-(``STORY_POOL_ENABLED``, dark) consults ``read_rail_episodes`` +
-``story_admission`` at the election cascade's last-resort rung.
+(``STORY_POOL_ENABLED``, LIVE since 2026-07-26 — the 26→28 ratchet reseal)
+consults ``read_rail_episodes`` + ``story_admission`` at the election
+cascade's last-resort rung.
 """
 from __future__ import annotations
 

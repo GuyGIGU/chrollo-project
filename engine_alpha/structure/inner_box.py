@@ -75,8 +75,12 @@ def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
     return "mid_range"
 
 
-def inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
-    """Inner-stage zigzag detector scored over each candidate's own bar range."""
+def inner_zigzag(eval_df, start_idx, base_length):
+    """Inner-stage zigzag detector scored over each candidate's own bar range.
+
+    The inner path deliberately does NOT share the outer ATR snapshot — it
+    reads its own window's volatility (`_candidate_atr` over the inner
+    slice), the same yardstick its candidates are judged with."""
     eq_df = eval_df.iloc[start_idx:]
     if len(eq_df) < settings.MIN_BASE_DAYS:
         return EMPTY_BOX
@@ -84,9 +88,9 @@ def inner_zigzag(eval_df, start_idx, base_length, atr_override=None):
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
-    atr_val = _candidate_atr(eq_df, eq_highs, eq_lows, atr_override)
+    atr_val = _candidate_atr(eq_df, eq_highs, eq_lows)
     valid_candidates = collect_zigzag_candidates(
-        eq_df, base_length, atr_val, min_candidate_days=settings.INNER_MIN_DAYS,
+        eq_df, atr_val, min_candidate_days=settings.INNER_MIN_DAYS,
     )
     if not valid_candidates:
         return EMPTY_BOX

@@ -81,8 +81,9 @@ def find_outer_box(df: "pd.DataFrame", min_days: int | None = None,
     falls through to a later anchor whose range is genuinely worked. If no anchor
     yields a valid box, the function returns EMPTY — the stock is rejected.
 
-    Macro gate: stock must be in a bullish context (above SMA200 OR has a
-    qualifying markup run somewhere in the window).
+    Macro gate: Close above SMA200 at the evaluation bar (refused otherwise —
+    the markup-run requirement in anchor qualification is an AND on top of
+    this, never an OR around it).
 
     Returns a 12-tuple:
         (base_length, R, S, box_width, r_touches, s_touches, breach_days,

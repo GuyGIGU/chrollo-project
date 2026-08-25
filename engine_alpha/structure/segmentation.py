@@ -151,12 +151,17 @@ def segment_swings(df, atr_val, *, lookback: Optional[int] = None,
             not this box's Phase A (the AXTA class) -> abstain.
 
     Returns a JSON-safe dict (see module docstring / _empty for the shape).
-    All measurement, no opinion — except the flag-gated MACRO branch, whose
+    All measurement, no opinion — except the always-on MACRO branch, whose
     ``root_swing`` and ``dominant_direction`` are the VALIDATED story (the
     guarded climax->AR bridge), not re-derived from the window's net sign:
     the story's trend direction is part of what was validated, and window-net
     re-derivation is exactly what mis-painted GOOD (window opens above a deep
-    AR -> net flips negative -> the story got lost downstream).
+    AR -> net flips negative -> the story got lost downstream). When the
+    macro story validates, the top-level window stats (``net_disp_atr``,
+    ``path_atr``, ``efficiency``, ``n_swings``) are computed over the
+    TRUNCATED story (lead-in up to the AR), not the full lookback window —
+    the same basis switch already documented for ``root_swing`` and
+    ``dominant_direction``.
     """
     if atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
         return _empty()

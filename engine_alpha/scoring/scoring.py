@@ -123,7 +123,6 @@ def _setup_quality(narrative: Optional[dict]) -> float:
 
 
 def score_setup(box_width: float, r_touches: int, s_touches: int,
-                res_avg: float, sup_avg: float, base_df: pd.DataFrame,
                 atr_ratio: float, tightness_ratio: float,
                 vol_contraction: float, base_len: int,
                 yearly_return: float, excess_return: float = 0.0,
@@ -374,14 +373,17 @@ def _story_points(event_map: Optional[dict]) -> dict:
 
 def _ta_v2_terms(*, has_spring: bool = False,
                  event_map: Optional[dict] = None) -> dict:
-    """Promoted graded terms that feed the v2 grade only (never the legacy
-    total). Each is bounded [0, cap], present-mask neutral (a missing/false
-    input contributes 0.0 and never demotes below the geometry merits),
-    grades-not-vetoes. FULL precision — nothing rounds before the sum."""
+    """Promoted graded terms that feed the grade (the legacy total they were
+    once contrasted against was retired 2026-08-22). Each is bounded
+    [0, cap], present-mask neutral (a missing/false input contributes 0.0
+    and never demotes below the geometry merits), grades-not-vetoes. FULL
+    precision — nothing rounds before the sum."""
     terms = {
         # Phase-C spring: the undercut+reclaim at the base floor. Binary
         # promotion (has_spring already flows through both eval twins);
-        # shape-only — SCORE_SPRING stays 0 until the operator's A/B.
+        # the cap is 0 PERMANENTLY (2026-08-12 marker ruling — no A/B is
+        # coming): the term rides the marker layer and cannot reach the
+        # grade; the arithmetic gate lives in ta_layer_terms.
         'spring': float(settings.SCORE_SPRING) if has_spring else 0.0,
     }
     terms.update(_story_points(event_map))
@@ -517,9 +519,10 @@ TA_GRADE_COLUMN_SQL: dict[str, str] = {
     "setup_completeness": "INTEGER",
     "setup_chronology": "TEXT",
     "setup_upthrust_terminal": "INTEGER",
-    # Flag-gated v2 term points — FLAT on the result row under their registry
-    # column names (the eval chain's one deliberate mapping), so the same
-    # extraction carries them; NULL while TA_SCORE_V2 is dark.
+    # v2 term points — FLAT on the result row under their registry column
+    # names (the eval chain's one deliberate mapping), so the same
+    # extraction carries them; always emitted since the 2026-08-22 legacy
+    # retirement (NULL now only ever means a pre-flip epoch row).
     "score_spring": "REAL",
     "score_story_s_tests": "REAL",
     "score_story_r_rejections": "REAL",

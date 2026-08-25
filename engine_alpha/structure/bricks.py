@@ -280,7 +280,6 @@ def validate_equilibrium(
     cascade = [] if trace is not None else None
     candidates = collect_zigzag_candidates(
         eq_df,
-        len(df) - root.ar_bar,   # base_length in full-df terms (matches legacy)
         float(atr),
         enforce_traversal=True,
         trace=cascade,
@@ -296,11 +295,30 @@ def validate_equilibrium(
     # later legal framing win this root instead of losing the whole story.
     if terminal_floor is not None and candidates:
         legal_open = trend_terminal_legal_open(terminal_floor, int(root.ar_bar))
-        candidates = [
-            c for c in candidates
-            if legal_open(backext_shared_rail(eq_df, float(c[1]), float(c[2]),
-                                              int(c[9]), float(atr)))
-        ]
+        kept = []
+        for c in candidates:
+            judged_open = backext_shared_rail(eq_df, float(c[1]), float(c[2]),
+                                              int(c[9]), float(atr))
+            if legal_open(judged_open):
+                kept.append(c)
+            elif cascade is not None:
+                # The trace must not keep calling a terminally-killed framing
+                # "valid" — n_valid, the elected record's "beat N" count and
+                # the earliest-of-valid claim all read the verdict stamps
+                # (EC-17: a dark flag's flip decision needs honest cascade
+                # evidence).
+                key = (int(c[7]), int(c[8]), int(c[9]))
+                for rec in cascade:
+                    if (rec["verdict"] == "valid"
+                            and (rec["r_anchor_bar"], rec["s_anchor_bar"],
+                                 rec["cand_start"]) == key):
+                        rec["verdict"] = "rejected"
+                        rec["stage"] = "trend_terminal"
+                        rec["detail"] = (
+                            f"back-extended open (bar {int(judged_open)}) "
+                            "predates the cause trend's climax")
+                        break
+        candidates = kept
 
     if not candidates:
         if trace is not None:
@@ -457,13 +475,18 @@ def find_spring(
 
 def find_lps(
     df: "pd.DataFrame",
-    box: EquilibriumBox,
+    box: "EquilibriumBox | InnerBox",
     atr,
     *,
     diagnose: bool = False,
     start_floor_bar: int | None = None,
 ):
     """Find the calibrated Phase-D LPS that completes the structure.
+
+    ``box`` is either dataclass — the narrative's inner-first election
+    passes the InnerBox before the parent (both carry S/R/base_len/
+    start_bar/r_anchor_bar/s_anchor_bar with the same df-positional
+    semantics; an inner-elected LPS is typed against the INNER rails).
 
     With ``diagnose=True`` returns ``(lps_or_None, rejects)`` — the detector's
     reject counter — so the narrative trace can report WHY no LPS completed.
@@ -777,16 +800,17 @@ def _resolve_phase_a_raw(
     phase_b_start_bar = box.start_bar
     base_len = box.base_len
     bc_anchor_bar = root.climax_bar
-    phase_b_start = len(df) - base_len
-    # bridge_* constraints: the macro Phase-A read (flag-gated) must tell THIS
+    # bridge_* constraints: the always-on macro Phase-A read must tell THIS
     # box's story — its AR may not land beyond the box birth (Phase A ends where
     # Phase B opens: the chronological invariant ar_bar <= phase_b_start_bar),
     # its climax type must match the canonical root kind, and its AR must
     # reach the box's level (a story floating above R / below S is a breakout
     # or other-leg tale) — else it abstains and the calibrated order-N read
-    # speaks. No-op with the flag off (bridge_end_max is read only by the macro
-    # branch). A macro bridge whose AR overruns the box start paints Phase A
-    # INSIDE the box (the LUV class) — the merge contract abstains on it.
+    # speaks (the wire is unconditional since the 2026-07-18 fold;
+    # bridge_end_max is read only by the macro branch, so "no-op" now only
+    # ever means "nothing bridged"). A macro bridge whose AR overruns the box
+    # start paints Phase A INSIDE the box (the LUV class) — the merge
+    # contract abstains on it.
     _lvl_tol = settings.TOUCH_TOLERANCE_ATR * atr
     seg = segment_swings(df, atr, lookback=base_len + _SEG_LEAD_IN,
                          bridge_end_max=phase_b_start_bar,

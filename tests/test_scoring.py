@@ -70,10 +70,8 @@ def test_score_traversal_quality_rewards_two_sided_over_dead_space():
     must rank a genuinely two-sided box above a dead-space one."""
     from engine_alpha.scoring.scoring import score_setup
 
-    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
-                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
-    common = dict(box_width=0.1, r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0,
-                  base_df=base, atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
+    common = dict(box_width=0.1, r_touches=4, s_touches=4, atr_ratio=0.5,
+                  tightness_ratio=0.5, vol_contraction=0.5,
                   base_len=40, yearly_return=0.0)
 
     clean = score_setup(**common, traversal_density=0.5, max_swing_frac=1.0, dwell_asymmetry=0.1)
@@ -91,9 +89,7 @@ def test_base_age_dead_space_dock_spares_tight_boxes():
     but NOT for ultra-tight ones (whose low density is a small-box / spring artifact)."""
     from engine_alpha.scoring.scoring import score_setup
 
-    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
-                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
-    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+    common = dict(r_touches=4, s_touches=4,
                   atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
                   base_len=90, yearly_return=0.0, traversal_density=0.15)
 
@@ -112,9 +108,7 @@ def test_adr_relative_box_tightness_demotes_flat_low_adr_drift(monkeypatch):
     the identical absolute tightness (the shadow-preserving default)."""
     from engine_alpha.scoring.scoring import score_setup
 
-    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
-                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
-    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+    common = dict(r_touches=4, s_touches=4,
                   atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
                   base_len=40, yearly_return=0.0, traversal_density=0.3)
     # Same 4% absolute box: the mover (5% ADR) is 0.8 ADR wide; the flat drift
@@ -143,9 +137,7 @@ def test_traversal_overshoot_exempt_for_tight_box_and_spring():
     is a bullish leg, not dead space)."""
     from engine_alpha.scoring.scoring import score_setup
 
-    base = pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
-                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
-    common = dict(r_touches=4, s_touches=4, res_avg=11.0, sup_avg=10.0, base_df=base,
+    common = dict(r_touches=4, s_touches=4,
                   atr_ratio=0.5, tightness_ratio=0.5, vol_contraction=0.5,
                   base_len=40, yearly_return=0.0, traversal_density=0.3,
                   max_swing_frac=2.5, dwell_asymmetry=0.1)
@@ -362,14 +354,9 @@ def test_durable_win_degrades_to_barrier_win_without_timing_columns():
 # sub-scores against the live settings thresholds, so a calibration
 # change shows up as an intentional test edit rather than silent drift.
 # ──────────────────────────────────────────────────────────────────
-def _score_base():
-    return pd.DataFrame({"High": [11.0, 11.0], "Low": [10.0, 10.0],
-                         "Close": [10.5, 10.5], "Volume": [1.0, 1.0]})
-
-
 def _score_common(**overrides):
-    common = dict(box_width=0.1, r_touches=0, s_touches=0, res_avg=11.0, sup_avg=10.0,
-                  base_df=_score_base(), atr_ratio=0.5, tightness_ratio=0.5,
+    common = dict(box_width=0.1, r_touches=0, s_touches=0, atr_ratio=0.5,
+                  tightness_ratio=0.5,
                   vol_contraction=0.5, base_len=40, yearly_return=0.0)
     common.update(overrides)
     return common

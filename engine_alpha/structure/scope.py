@@ -161,8 +161,11 @@ def scope_consolidation(
             bounding box, not a level stretched across Phase D)
         has_mini_consolidation                      -> bool
         scope_confidence                            -> float in [0, 1]
-        phase_a_start_bar, phase_b_start_bar, phase_d_start_bar -> int | None
+        phase_a_start_bar, phase_a_end_bar, phase_b_start_bar,
+        phase_d_start_bar                           -> int | None
             (raw df-positional anchors, for archive / fidelity grading)
+        phase_d_evidence_json -> JSON string | None (the shared resolver's
+            evidence record, sort_keys-stable)
     """
     n = len(df)
     empty = {

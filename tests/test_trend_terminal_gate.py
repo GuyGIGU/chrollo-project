@@ -236,7 +236,21 @@ def test_gate_refuses_a_box_that_opens_inside_a_still_young_correction():
                                 terminal_floor=_floor(len(df), terminal_bar=young)) is None
 
 
-def test_gate_keeps_a_box_whose_post_climax_base_has_matured():
+def test_gate_kill_is_stamped_in_the_trace_never_silent():
+    """A terminally-killed framing must stop reading 'valid' in the cascade
+    (2026-08-25 sweep): the flip decision reads this evidence (EC-17), and
+    an all-killed cascade used to render exactly like 'no candidates were
+    ever examined' while n_valid overcounted."""
+    df, root = _worked_frame(), _root()
+    young = len(df) - settings.MIN_BASE_DAYS + 1
+    trace = []
+    assert validate_equilibrium(
+        df, root, 1.0,
+        terminal_floor=_floor(len(df), terminal_bar=young),
+        trace=trace) is None
+    killed = [r for r in trace if r.get("stage") == "trend_terminal"]
+    assert killed and all(r["verdict"] == "rejected" for r in killed)
+    assert not any(r["verdict"] == "valid" for r in trace)
     # The PXS case: the climax also lands inside the box, but a real base has
     # printed since — MIN_BASE_DAYS bars exactly is enough, one fewer is not.
     df, root = _worked_frame(), _root()
@@ -278,7 +292,7 @@ def test_gate_judges_the_back_extended_open_not_the_raw_candidate_start():
         int(c[9]) + root.ar_bar:
             int(backext_shared_rail(eq_df, float(c[1]), float(c[2]), int(c[9]), 1.0))
             + root.ar_bar
-        for c in collect_zigzag_candidates(eq_df, len(df) - root.ar_bar, 1.0,
+        for c in collect_zigzag_candidates(eq_df, 1.0,
                                            enforce_traversal=True)
     }
     assert raw_to_ext == {6: 6, 10: 6}, "frame no longer carries the back-extending pair"
