@@ -59,6 +59,19 @@ logging.basicConfig(
     force=True,
 )
 
+# uvicorn's own access log is a TWIN of chrollo.request: the same event, with
+# LESS information (no request id, no duration) and no quiet list. Silencing
+# the stderr flood only moved it — measured right after the 2026-08-25
+# redeploy, 2,296 of the next 3,000 stdout lines were uvicorn logging
+# GET /ibkr/status, and every real request was being written twice. One access
+# log, and it is ours. Errors are unaffected: chrollo.request logs every
+# non-2xx at INFO and every exception with a traceback.
+#
+# uvicorn configures its loggers before importing this module, so this runs
+# after its dictConfig and sticks (the same ordering the handler swap above
+# relies on).
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 initialize_database()
 
 _SCREENER_JSON = os.path.join(_ROOT_DIR, "output", "screener_data.json")
