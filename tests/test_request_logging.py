@@ -114,3 +114,37 @@ def test_info_goes_to_stdout_and_warnings_to_stderr():
         f"log-stream split broken (exit {proc.returncode}):\n"
         f"{proc.stdout}\n{proc.stderr}"
     )
+
+
+def test_uvicorns_access_log_stays_silenced():
+    """One access log, and it is ours.
+
+    uvicorn's access logger records the same event as chrollo.request with less
+    information (no request id, no duration) and no quiet list, so it wrote
+    every request twice and kept logging the 3-second /ibkr/status poll after
+    the middleware stopped. Measured right after the 2026-08-25 redeploy: 2,296
+    of the next 3,000 stdout lines were uvicorn logging GET /ibkr/status.
+
+    Errors are untouched — chrollo.request logs every non-2xx at INFO and every
+    exception with a traceback, and uvicorn.access can still report at WARNING.
+    """
+    code = (
+        "import logging, sys\n"
+        "import main  # noqa: F401\n"
+        "access = logging.getLogger('uvicorn.access')\n"
+        "assert not access.isEnabledFor(logging.INFO),"
+        " 'uvicorn.access logs at INFO again - the access-log twin is back'\n"
+        "assert access.isEnabledFor(logging.WARNING),"
+        " 'uvicorn.access must still be able to report problems'\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=str(BACKEND_DIR),
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert proc.returncode == 0, (
+        f"uvicorn access-log twin returned (exit {proc.returncode}):\n"
+        f"{proc.stdout}\n{proc.stderr}"
+    )
