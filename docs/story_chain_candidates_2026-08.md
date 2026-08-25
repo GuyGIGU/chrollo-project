@@ -76,4 +76,15 @@ expected JUNK — your rulings are what teach the boundary.*
 
 ## Rulings received
 
-*(filled as verdicts land; KEEPs advance register rows 8–9 to SPECIMENED)*
+- **2026-08-25 — ALL 40 ROWS RULED JUNK (blanket).** The Verdict columns above stay blank
+  deliberately: this single ruling covers every row, and it is an ACTIVE ruling, not
+  junk-by-default. Operator, verbatim: *"all garbage, Most of these are Stocks are setups
+  that consist of extremely tiny spread after a significant gap, that look nothing like
+  regular Price action with almost no trading volume or price change for that matter these
+  examples you chose are almost entirely stocks that are being bought out and maybe leaving
+  the market soon I usually avoid stocks like these Because I haven't seen good trades
+  coming out of things like these."* Diagnosis: the crude tightness screen adversely
+  selected **deal-pinned/buyout stocks** — a significant gap, then near-zero spread and
+  volume, price pinned near the acquisition price. No chart advances to specimen; register
+  rows 8–9 stay DESCRIBED. A round-2 sheet requires the miner to exclude the deal-pinned
+  signature first (decisions.md 2026-08-25 row).

@@ -45,8 +45,8 @@ Task 8 lands:
 | # | Task | State |
 |---|---|---|
 | 1 | Docs landing: theory into strategy_alpha, program record, name proposals | **DONE 2026-08-23** |
-| 2 | Specimen candidate sheets (keep/junk, mined from what the engine refuses) | **DONE 2026-08-23** — [the sheet](story_chain_candidates_2026-08.md) awaits verdicts |
-| 3 | Wall-freeze fixture: pin today's refusals of the ruled specimens | blocked: specimens |
+| 2 | Specimen candidate sheets (keep/junk, mined from what the engine refuses) | **round 1 RULED ALL-JUNK 2026-08-25** (deal-pinned adverse selection) — round-2 mine owed, deal-pinned/aliveness exclusion first |
+| 3 | Wall-freeze fixture: pin today's refusals of the ruled specimens | blocked: specimens (round 2) |
 | 4 | Mini-consolidation fold — one detector, position attribute | **DONE 2026-08-23** — position stamped at the ONE selection point; measure-only, unserialized |
 | 5 | Displacement seam — shared resolved/look gate (as-of true, running extremes) | **DONE 2026-08-23** — `displacement.py`; species wall delegates byte-identically (70/70 pins) |
 | 6 | Chain coordinator — ONE reader re-consulted, parent frozen as recorded constants | **DONE 2026-08-23** — `chain.py`: FrozenParent (dates+prices), displacement-root via the spine's injection seam, raw cause recorded under the inheritance law; breakout_up form only (shakeout waits for Task 7) |
@@ -97,3 +97,12 @@ Task 8 lands:
   the default read provably untouched. **The build now stands at the names/specimens
   gate:** Tasks 3/8/12/13 (and everything after) wait on the two open asks — the type
   names and the keep/junk verdicts.
+- **2026-08-25** — Round-1 candidates RULED ALL-JUNK (blanket; decisions.md row + the
+  sheet's Rulings received). The crude tightness screen adversely selected
+  **deal-pinned/buyout stocks**: a significant gap, then near-zero spread and volume —
+  the tightest tape in the market for the worst reason. Two lessons land: deal-pinned is
+  a categorical operator AVOID (new negative class), and tightness floors alone cannot
+  separate quiet accumulation from arbitraged tape. Round 2 needs
+  `tools/story_chain_candidates.py` to grow a deal-pinned/aliveness exclusion (e.g. the
+  gap-then-flatline signature: collapse of realized range AND volume after a large gap)
+  before another sheet is cut. Specimens ask stays OPEN; rows 8–9 stay DESCRIBED.
