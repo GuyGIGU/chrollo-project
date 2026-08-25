@@ -137,8 +137,9 @@ A single FastAPI process serves both the JSON API and the **built** React app fr
 
 Tag chips and score pills render verdicts the engine already resolved on the wire — no scoring
 cap, threshold, or fire-rule is re-declared in frontend JS (conventions.md EC-28);
-`webapp/frontend/src/components/setupScoreMath.js` survives only as the frozen legacy remnant,
-test-pinned by `tests/test_frontend_score_caps.py`, retiring with the legacy path.
+the legacy client-side score path RETIRED 2026-08-23 — `setupScoreMath.js` and its fire rules
+are gone, and `webapp/frontend/src/components/tagCatalog.js` carries what remains: labels,
+groups and tones, never a threshold.
 
 ---
 

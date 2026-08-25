@@ -146,3 +146,24 @@ def test_the_tool_is_where_the_docs_say_it_is():
     """AGENTS.md hands an agent this exact command; keep the module path true."""
     assert os.path.exists(os.path.join(
         pointer_audit._REPO_ROOT, "tools", "pointer_audit.py"))
+
+
+def test_an_archived_carrier_is_exempt_from_the_advisory(tmp_path, monkeypatch):
+    """A sealed record names its own era's files, and those are SUPPOSED to be
+    gone. Counting them buried ~30 live-doc hits under 77 archived ones until
+    the advisory was split. The link gate above still covers archived docs."""
+    repo = tmp_path
+    (repo / "docs" / "archive").mkdir(parents=True)
+    (repo / "docs" / "archive" / "old.md").write_text(
+        "that program ran core/structure/gone.py", encoding="utf-8")
+    (repo / "docs" / "live.md").write_text(
+        "see tools/missing.py", encoding="utf-8")
+    monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
+    monkeypatch.setattr(pointer_audit, "_tracked",
+                        lambda *p: ["docs/archive/old.md", "docs/live.md"])
+
+    assert [h for _, h in pointer_audit.dangling_paths()] == [
+        "tools/missing.py"], "an archived carrier must not reach the advisory"
+    assert [h for _, h in pointer_audit.dangling_paths(include_archive=True)] == [
+        "core/structure/gone.py", "tools/missing.py"
+    ], "include_archive=True must still show everything - no silent cap"

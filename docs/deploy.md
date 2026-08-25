@@ -125,6 +125,10 @@ The nightly backup snapshots the **irreplaceable** local data:
   guaranteed restorable.
 - `webapp\backend\uploads\` — journal chart attachments (the directory appears with the
   first attachment).
+- `calibration_frames\` — the frozen bars each operator mark was drawn on, bound
+  by `frame_digest`. **The least replaceable thing here:** a live re-fetch returns
+  different bars, so a lost frame cannot be re-derived at any price. ~3 MB, rides every
+  snapshot whole.
 - `cache_meta*.json` and `market_context*.json` — small state files, all universes.
 
 Deliberately **not** backed up: the `market_data_cache_5y*.parquet` price caches. They
@@ -140,6 +144,21 @@ redeploy:
 Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ChrolloBackup.ps1" `
   "$env:USERPROFILE\ChrolloBackup.ps1" -Force
 ```
+
+**Then verify — an un-redeployed change is inert and SILENT.** It raises nothing: the
+deployed copy simply keeps doing what it always did, and the only trace is a log line
+that never appears. Measured 2026-08-25 — the `calibration_frames` leg was added to the
+repo copy on 2026-08-20 and recorded as done, but the redeploy never ran, so the 110
+irreplaceable frames went five more nights unbacked-up while every run logged `OK`.
+After redeploying, run it once by hand and read the log for the leg you just added:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\ChrolloBackup.ps1"
+Get-Content "$env:USERPROFILE\ChrolloBackups\backup.log" -Tail 8
+```
+
+A healthy run names every leg — `db_snapshot`, `calibration frames: <n> copied`, `state
+files`. **A leg missing from the log is a leg that is not running.**
 
 Behavior:
 

@@ -52,9 +52,17 @@ FIXTURE_AS_OF = {"MAN": "2026-08-12", "FTNT": "2026-08-13"}
 
 def frame_digest(df: pd.DataFrame) -> str:
     """Content digest over the frame's OHLCV values (EC-12): deterministic,
-    engine-independent, recomputed at check time by the battery."""
+    engine-independent, recomputed at check time by the battery.
+
+    ``lineterminator`` is pinned to LF because ``to_csv`` otherwise defaults to
+    ``os.linesep`` — the digest then hashed the OPERATING SYSTEM alongside the
+    data, so the same frame sealed as two different values on Windows and
+    Linux and this battery could never pass off-Windows (every CI run from
+    2026-08-12). ``frame_store.ohlcv_digest``, which binds the operator's
+    marks, always joined on an explicit "\n" and was never affected.
+    """
     canon = df[["Open", "High", "Low", "Close", "Volume"]].to_csv(
-        float_format="%.8f")
+        float_format="%.8f", lineterminator="\n")
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
 

@@ -35,6 +35,29 @@ def fixture():
 
 # ── EC-12: the committed basis is content-verified at check time ────────────
 
+def test_frame_digest_does_not_hash_the_line_ending():
+    """A content digest must seal the DATA, never the operating system.
+
+    ``to_csv`` defaults ``lineterminator`` to ``os.linesep``, so this digest
+    silently included CRLF on Windows and LF on Linux — the same frame sealed
+    as two different values, and this battery could not pass off-Windows (every
+    CI run from 2026-08-12 failed here). The constant below is pinned from an
+    LF encoding; drop the ``lineterminator`` argument and it breaks HERE, on
+    the Windows machine where that mistake is made, instead of only in a CI log.
+
+    ``frame_store.ohlcv_digest`` — the one that binds the operator's marks —
+    always joined on an explicit newline and was never affected.
+    """
+    df = pd.DataFrame(
+        {"Open": [1.0, 2.0], "High": [3.0, 4.0], "Low": [0.5, 1.5],
+         "Close": [2.5, 3.5], "Volume": [100, 200]},
+        index=pd.to_datetime(["2026-01-02", "2026-01-05"]))
+    assert frame_digest(df) == (
+        "c016d70b41f47420caaedadf8674c8f44bf6c0675c86213274826b95df6fbdaf"), (
+        "frame_digest changed encoding — if os.linesep crept back in, the seal "
+        "is platform-dependent again")
+
+
 def test_fixture_frames_match_their_sealed_digests(fixture):
     frames, baseline = fixture
     assert set(frames) == set(baseline["tickers"]) == {"MAN", "FTNT"}

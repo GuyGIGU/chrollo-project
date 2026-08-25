@@ -100,6 +100,12 @@ def _repo_rel(abs_path: str) -> str | None:
     return rel.replace(os.sep, "/")
 
 
+# An archived doc is a sealed record of a closed program; the files it names are
+# supposed to be gone. Exempt from the ADVISORY only - the link gate above still
+# holds archived docs to resolving every markdown link they carry (EC-16).
+_ARCHIVE_PREFIX = "docs/archive/"
+
+
 def dangling_links() -> list[tuple[str, str]]:
     """(file, target) for every markdown link in a tracked .md that misses."""
     files, dirs = _tracked_paths()
@@ -121,7 +127,7 @@ def dangling_links() -> list[tuple[str, str]]:
     return bad
 
 
-def dangling_paths() -> list[tuple[str, str]]:
+def dangling_paths(include_archive: bool = False) -> list[tuple[str, str]]:
     """(file, path) for repo-rooted bare mentions that miss. ADVISORY.
 
     Deliberately filesystem-based, unlike the gate above: this asks the weaker
@@ -129,9 +135,18 @@ def dangling_paths() -> list[tuple[str, str]]:
     gitignored-but-real directory (``calibration_frames/``) is not a rotted
     reference. The gate is about what a clone can open; this is about what has
     moved or been deleted.
+
+    Carriers under ``docs/archive/`` are excluded by default. An archived doc is
+    a sealed record of a closed program: it names the files that program had,
+    and those files SHOULD be gone. Counting them buried ~30 live-doc hits
+    under 77 known-historical ones, and an advisory nobody reads is not an
+    advisory. Pass ``include_archive=True`` for the unfiltered set - the report
+    always prints how many were held back, so the suppression is never silent.
     """
     bad = set()
     for rel in _tracked("*.md", "*.py"):
+        if not include_archive and rel.startswith(_ARCHIVE_PREFIX):
+            continue
         for hit in _BARE_PATH.findall(_read(rel)):
             if not os.path.exists(os.path.join(_REPO_ROOT, hit)):
                 bad.add((rel, hit))
@@ -158,10 +173,14 @@ def check(report: bool = False) -> bool:
         print("PASS - no dangling evidence pointer.")
 
     if report:
-        paths = dangling_paths()
+        every = dangling_paths(include_archive=True)
+        paths = [p for p in every if not p[0].startswith(_ARCHIVE_PREFIX)]
         print()
-        print(f"  advisory: {len(paths)} bare path mention(s) that do not exist")
+        print(f"  advisory: {len(paths)} bare path mention(s) in live files "
+              "that do not exist")
         print("  (historical-on-purpose is legitimate here - judge each one)")
+        print(f"  {len(every) - len(paths)} more under {_ARCHIVE_PREFIX} not "
+              "listed - a sealed record naming its own era's files is not rot")
         for rel, hit in paths:
             print(f"    {rel}: {hit}")
     return not links
