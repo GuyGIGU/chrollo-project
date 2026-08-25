@@ -149,6 +149,50 @@ def test_measure_phases_lps_stretch_can_use_active_inner_box(_flat_ohlc):
     assert bins["lps_stretch_atr"] == -1.0
 
 
+def test_cog_interior_nan_closes_route_to_excluded():
+    """A NaN close leaked raw into cog_end/cog_rng and its sign comparisons
+    counted phantom mid-line crossings (2026-08-25 sweep). NaN routes to
+    excluded; the emissions stay JSON-safe."""
+    from engine_alpha.structure.phase_features import _cog_interior
+
+    closes = [101, 103, 105, 107, 109, 107, 105, 103] * 3
+    seg = pd.DataFrame({"Close": [float(c) for c in closes]})
+    clean = _cog_interior(seg, 110.0, 100.0)
+    poisoned = seg.copy()
+    poisoned.loc[4, "Close"] = np.nan
+    out = _cog_interior(poisoned, 110.0, 100.0)
+    for key, value in out.items():
+        assert value is None or math.isfinite(value), key
+    assert out["bin_b_cog_crossings"] <= clean["bin_b_cog_crossings"] + 1
+    # all-NaN closes: the whole read refuses (all None), never fabricates
+    all_nan = seg.copy()
+    all_nan["Close"] = np.nan
+    assert all(v is None for v in _cog_interior(all_nan, 110.0, 100.0).values())
+
+
+def test_last_supper_reclaim_refuses_an_unreadable_final_close():
+    """The old fallback pinned an unreadable final close to lps_low (a
+    fabricated zero reclaim), and a NaN close sailed through the clamp into
+    a fabricated FULL reclaim. Both now refuse: quality stays None while the
+    pullback depth (which never read the close) still emits."""
+    from engine_alpha.structure.phase_features import _last_supper_measurements
+
+    closes = [100.0, 104.0, 108.0, 112.0, 106.0, 103.0, 104.0, 105.0]
+    df = pd.DataFrame({"High": [c + 1 for c in closes],
+                       "Low": [c - 1 for c in closes],
+                       "Close": closes})
+    kwargs = dict(anchor_bar=3, low_bar=5, lps_end=8, box_start=0,
+                  active_R=98.0)
+    baseline = _last_supper_measurements(df, **kwargs)
+    assert baseline["last_supper_reclaim_quality"] is not None
+    poisoned = df.copy()
+    poisoned.loc[7, "Close"] = np.nan
+    out = _last_supper_measurements(poisoned, **kwargs)
+    assert out["last_supper_reclaim_quality"] is None
+    assert out["last_supper_pullback_from_extension_pct"] == \
+        baseline["last_supper_pullback_from_extension_pct"]
+
+
 def test_measure_phases_no_lps_window_degrades_gracefully(_flat_ohlc):
     df = _flat_ohlc(120)
     bins = measure_phases(

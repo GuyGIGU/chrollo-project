@@ -112,6 +112,24 @@ def test_displacement_root_refuses_honestly():
     assert displacement_root(flat, parent2) is None
 
 
+def test_displacement_root_nan_fails_closed():
+    """Unreadable bars refuse the read (the seam's NaN law) — a root must
+    never anchor on a bar that could not actually be read."""
+    df = _chain_a_frame()
+    parent = _parent(resolution_date=str(df.index[10].date()))
+    # a NaN high inside the run window: argmax lands on it — refuse
+    df.iloc[15, df.columns.get_loc("High")] = np.nan
+    assert displacement_root(df, parent) is None
+    # a NaN close inside the reaction window: confirmation is unreadable
+    df = _chain_a_frame()
+    df.iloc[21, df.columns.get_loc("Close")] = np.nan
+    assert displacement_root(df, parent) is None
+    # a NaN low inside the reaction window: the anchor bar is unreadable
+    df = _chain_a_frame()
+    df.iloc[22, df.columns.get_loc("Low")] = np.nan
+    assert displacement_root(df, parent) is None
+
+
 # --- read_chain orchestration (fake bricks) ---------------------------------
 
 class _FakeBricks:

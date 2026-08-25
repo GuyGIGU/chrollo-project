@@ -793,3 +793,10 @@ def test_episode_substrate_zone_coverage_companion():
         "_event_map_zone_coverage"] is None            # no usable ATR
     assert episode_substrate_fields(df, 14.0, 10.0, float("nan"))[
         "_event_map_zone_coverage"] is None
+    # ...and the WHOLE family follows the coverage column's law (2026-08-25
+    # sweep): a refused read archives NULL everywhere — fabricated zeros
+    # must never masquerade as a measured-empty tape.
+    for refused in (episode_substrate_fields(df, 14.0, 10.0, None),
+                    episode_substrate_fields(df, 10.0, 14.0, 1.0),
+                    episode_substrate_fields(df.iloc[:0], 14.0, 10.0, 1.0)):
+        assert all(v is None for v in refused.values())

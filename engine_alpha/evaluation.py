@@ -1304,6 +1304,12 @@ def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
         result = base
     if not settings.POWER_PLAY_PRESET_ENABLED:
         return base, None, {}
+    if result is EVAL_ERROR:
+        # A crashed base evaluation is an UNKNOWN verdict, not a no-fire:
+        # publishing a watch row would stamp a definitive-looking status on
+        # a night the paying read never finished. The near-miss lane refuses
+        # the same way — an aborted walk is incomplete evidence.
+        return base, None, {"pp_base_errored": 1}
     t0 = time.perf_counter()
     stats: dict = {}
     row = None

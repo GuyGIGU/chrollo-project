@@ -168,6 +168,13 @@ def _cog_interior(seg: "pd.DataFrame", R: float, S: float) -> dict:
     if not (np.isfinite(box) and box > 0):
         return out
     closes = seg["Close"].values.astype(float)
+    # NaN closes route to EXCLUDED (keeping each survivor's time position for
+    # the trajectory corr): unmasked, NaN leaked raw into cog_end/cog_rng and
+    # its sign comparisons counted phantom mid-line crossings, against both
+    # the all-None degenerate contract and the JSON-safe promise.
+    t = np.arange(len(closes), dtype=float)
+    finite = np.isfinite(closes)
+    closes, t = closes[finite], t[finite]
     n = len(closes)
     if n < 8:
         return out
@@ -181,12 +188,12 @@ def _cog_interior(seg: "pd.DataFrame", R: float, S: float) -> dict:
     side = np.sign(cog - 0.5)
     side = side[side != 0]
     crossings = int(np.sum(side[1:] != side[:-1])) if len(side) > 1 else 0
-    corr = float(np.corrcoef(np.arange(n), pos)[0, 1]) if pos.std() > 1e-9 else 0.0
+    corr = float(np.corrcoef(t, pos)[0, 1]) if pos.std() > 1e-9 else 0.0
     if not np.isfinite(corr):
         corr = 0.0
-    out["bin_b_cog_end"] = round(float(cog[-2:].mean()), 4)
+    out["bin_b_cog_end"] = _round(float(cog[-2:].mean()))
     out["bin_b_cog_crossings"] = crossings
-    out["bin_b_cog_rng"] = round(float(cog.max() - cog.min()), 4)
+    out["bin_b_cog_rng"] = _round(float(cog.max() - cog.min()))
     out["bin_b_cog_corr"] = round(corr, 4)
     return out
 
@@ -321,15 +328,20 @@ def _last_supper_measurements(
         try:
             final_close = float(df["Close"].iloc[final_bar])
         except (KeyError, TypeError, ValueError):
-            final_close = lps_low
-        reclaim = _clamp01((final_close - lps_low) / swing)
-        final_spread = _spread_at(df, final_bar)
-        prev_spread = _spread_at(df, final_bar - 1) if final_bar > low_bar else final_spread
-        if final_spread is not None and prev_spread is not None and final_spread > prev_spread:
-            spread_quality = _clamp01(1.0 - ((final_spread - prev_spread) / max(final_spread, 1e-9)))
-        else:
-            spread_quality = 1.0
-        out["last_supper_reclaim_quality"] = _round((reclaim + spread_quality) / 2.0)
+            final_close = None
+        # An unreadable final close REFUSES the verdict (stays None) — the
+        # old fallback pinned it to lps_low (fabricated zero reclaim), and a
+        # NaN sailed through _clamp01's min/max into a fabricated FULL
+        # reclaim. Every sibling helper in this module refuses without Close.
+        if final_close is not None and _finite(final_close):
+            reclaim = _clamp01((final_close - lps_low) / swing)
+            final_spread = _spread_at(df, final_bar)
+            prev_spread = _spread_at(df, final_bar - 1) if final_bar > low_bar else final_spread
+            if final_spread is not None and prev_spread is not None and final_spread > prev_spread:
+                spread_quality = _clamp01(1.0 - ((final_spread - prev_spread) / max(final_spread, 1e-9)))
+            else:
+                spread_quality = 1.0
+            out["last_supper_reclaim_quality"] = _round((reclaim + spread_quality) / 2.0)
 
     if _finite(active_R) and lps_low > float(active_R):
         exit_bar = _source_box_exit_bar(df, box_start, low_bar, float(active_R))

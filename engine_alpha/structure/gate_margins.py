@@ -156,8 +156,10 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
     # preserved by the positive-S division) so an ulp at the threshold can
     # never split them and trip the self-check on legitimate data — the one
     # leg where the two forms could diverge (review 2026-07-26 finding 2).
+    # nanmin, NOT min: the live gate reads the pandas skipna min, and a
+    # plain np.min would NaN-poison this mirror where the gate skips.
     crash_mult = leg_threshold("crash")
-    min_low = float(np.min(lows))
+    min_low = float(np.nanmin(lows))
     crash_gap = min_low - S * float(crash_mult)
     rows["crash"] = _leg_row("crash", min_low / S, float(crash_mult),
                              crash_gap / S,

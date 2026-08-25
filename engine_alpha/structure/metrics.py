@@ -601,8 +601,13 @@ def measure_dwell_balance(base_df, R, S, atr_val, rail_touches=None):
 
     nb = settings.EQ_COVERAGE_BINS
     counts = np.zeros(nb, dtype=int)
-    start_bins = np.clip((lo * nb).astype(int), 0, nb - 1)
-    end_bins = np.clip(np.ceil(hi * nb).astype(int) - 1, 0, nb - 1)
+    # NaN routes to EXCLUDED, matching the dwell legs above (their NaN
+    # comparisons are False): unmasked, the int cast of NaN wraps and one
+    # NaN bar fabricates occupancy of EVERY bin. The min_count denominator
+    # deliberately stays n — conservative.
+    finite = np.isfinite(lo) & np.isfinite(hi)
+    start_bins = np.clip((lo[finite] * nb).astype(int), 0, nb - 1)
+    end_bins = np.clip(np.ceil(hi[finite] * nb).astype(int) - 1, 0, nb - 1)
     for start_bin, end_bin in zip(start_bins, end_bins):
         counts[start_bin:end_bin + 1] += 1
     min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)

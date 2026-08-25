@@ -134,6 +134,10 @@ def test_absent_or_nonfinite_facts_never_fire():
     row = _row(r_touch_vol_z=float("nan"), lps_stretch_box=None,
                sub={"base_age": float("nan")})
     assert _fired_ids(row) == []
+    # The flag kind's non-finite leg (EC-34 one-case-per-rule-KIND): a NaN
+    # flag fact must read as absent, never as truthy evidence.
+    assert "phase_d" not in _fired_ids(_row(phase_d_inner=float("nan")))
+    assert "phase_d" in _fired_ids(_row(phase_d_inner=1))
 
 
 def test_fired_entries_carry_their_detail_facts():
@@ -145,6 +149,22 @@ def test_fired_entries_carry_their_detail_facts():
                  if e["id"] == "phase_c_test")
     assert entry["detail"]["bin_c_undercut_atr"] == 0.42
     assert entry["detail"]["bin_c_type"] == "spring"
+
+
+def test_numpy_scalar_detail_facts_unwrap_to_natives():
+    """A leaked numpy scalar must land as a native value: the strict
+    allow_nan=False archive write crashes on int64/bool_, and a numpy NaN
+    must hit the same non-finite quarantine as a native one."""
+    np = pytest.importorskip("numpy")
+    row = _row(bin_c_present=np.bool_(True), bin_c_type="spring",
+               bin_c_undercut_atr=np.float64("nan"),
+               bin_c_recovery_bars=np.int64(3))
+    entry = next(e for e in resolve_fired_tags(row, prefixed=True)
+                 if e["id"] == "phase_c_test")
+    assert entry["detail"]["bin_c_recovery_bars"] == 3
+    assert type(entry["detail"]["bin_c_recovery_bars"]) is int
+    assert entry["detail"]["bin_c_undercut_atr"] is None
+    json.dumps(entry, allow_nan=False)  # the archive write's exact contract
 
 
 def test_resolver_order_is_registry_order_and_twin_stable():
