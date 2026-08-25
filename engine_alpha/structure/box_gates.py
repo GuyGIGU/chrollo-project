@@ -343,7 +343,11 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     upper_dwell = upper_count / n
 
     nb = settings.EQ_COVERAGE_BINS
-    bins = np.minimum((pos * nb).astype(int), nb - 1)
+    # A NaN close lands in NO coverage bin — the dwell counts' own NaN route
+    # (comparisons are False). Unmasked, NaN survives np.clip, the int cast
+    # turns it into a large negative index, and np.bincount raises.
+    finite_pos = pos[np.isfinite(pos)]
+    bins = np.minimum((finite_pos * nb).astype(int), nb - 1)
     counts = np.bincount(bins, minlength=nb)
     min_count = max(1.0, settings.EQ_COVERAGE_MIN_FRAC * n)
     occupied = int(np.sum(counts >= min_count))

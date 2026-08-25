@@ -98,6 +98,22 @@ def test_refusals_are_all_none_never_fabricated():
     assert too_late["character"] is None
 
 
+def test_nan_bars_refuse_instead_of_fabricating():
+    """Unreadable bars fail CLOSED (the depth guard's own direction): a NaN
+    recovery high or read-edge close refuses the view, and the readability
+    companion counts unreadable closes too."""
+    df = _staircase_frame()
+    df.iloc[22, df.columns.get_loc("High")] = np.nan    # argmax lands on it
+    assert read_recovery_view(df, R, S, 10, ATR)["character"] is None
+    df = _staircase_frame()
+    edge = len(df) - 6                                  # eval_end - 1 (skip 5)
+    df.iloc[edge, df.columns.get_loc("Close")] = np.nan
+    assert read_recovery_view(df, R, S, 10, ATR)["character"] is None
+    df = _staircase_frame()
+    df.iloc[15, df.columns.get_loc("Close")] = np.nan   # mid-window close
+    assert read_recovery_view(df, R, S, 10, ATR)["nan_bars"] == 1
+
+
 def test_pivots_reuse_seam_matches_the_internal_walk():
     df = _staircase_frame()
     highs = df["High"].values.astype(float)

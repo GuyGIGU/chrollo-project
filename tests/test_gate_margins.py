@@ -92,6 +92,27 @@ def test_close_residence_counts_are_the_ground_truth():
     assert eq["lower_count"] + eq["mid_count"] + eq["upper_count"] == n
 
 
+def test_nan_bars_never_crash_or_fabricate_the_residence_and_crash_legs():
+    """The cross-package dropna contract stops being load-bearing here
+    (2026-08-25 sweep): a NaN Close lands in NO coverage bin instead of
+    crashing np.bincount, and the crash mirror's min skips NaN lows the way
+    the live gate's pandas skipna min does."""
+    closes = _boxy_closes()
+    df = _frame(closes)
+    df.loc[5, "Close"] = np.nan
+    eq = _measure_close_residence(df, 110.4, 99.6, 1.0)   # used to raise
+    clean = _measure_close_residence(
+        _frame(closes).drop(index=5).reset_index(drop=True), 110.4, 99.6, 1.0)
+    assert eq["coverage_occupied"] == clean["coverage_occupied"]
+    # the dwell trio keeps its own NaN route: the bar counts in no third
+    assert (eq["lower_count"] + eq["mid_count"] + eq["upper_count"]
+            == eq["n"] - 1)
+    df2 = _frame(closes)
+    df2.loc[7, "Low"] = np.nan
+    rows = complete_leg_vector(df2, 110.4, 99.6, 1.0)
+    assert rows is not None and np.isfinite(rows["crash"]["measured"])
+
+
 def test_completion_vector_reproduces_the_real_gate_verdicts():
     for closes in (_boxy_closes(),                       # worked range
                    _boxy_closes(16) + [105.0] * 24,      # occupancy-starved

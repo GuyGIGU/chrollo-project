@@ -279,7 +279,8 @@ def read_recovery_view(df, parent_r, parent_s, undercut_bar, atr_val, *,
     lows = df["Low"].values.astype(float)
     closes = df["Close"].values.astype(float)
     nan_bars = int((~(np.isfinite(highs[u:eval_end])
-                      & np.isfinite(lows[u:eval_end]))).sum())
+                      & np.isfinite(lows[u:eval_end])
+                      & np.isfinite(closes[u:eval_end]))).sum())
 
     low_rel = int(np.argmin(lows[u:eval_end]))
     low_bar = u + low_rel
@@ -294,8 +295,12 @@ def read_recovery_view(df, parent_r, parent_s, undercut_bar, atr_val, *,
     peak_rel = int(np.argmax(highs[seg0:eval_end]))
     peak_bar = seg0 + peak_rel
     recovery_high = float(highs[peak_bar])
+    if not np.isfinite(recovery_high):
+        return _empty_recovery()               # unreadable recovery: refuse
     recovery_frac = (recovery_high - shakeout_low) / depth
     last_close = float(closes[eval_end - 1])
+    if not np.isfinite(last_close):
+        return _empty_recovery()               # unreadable read edge: refuse
 
     # Committed tests between the low and the recovery high, from THE walk.
     if pivots is None:
@@ -855,10 +860,11 @@ EVENT_MAP_COLUMN_SQL: dict[str, str] = {
     # statistics a later TA-score calibration may grade: typed scalars only,
     # one value per column, designed in ONE pass. The compact episode tape is
     # the single audit/display artifact (time anchors, never bar indexes).
-    # NULL = not measured (flag off / pre-flip rows); measured-and-empty
-    # stores explicit ZEROS — the junk separator IS zero — with the
-    # readability companion so zero-by-unreadable-bars can never masquerade
-    # as zero-by-drift.
+    # NULL = not measured (flag off / pre-flip rows) or refused (unreadable
+    # geometry — bad ATR / non-positive rails); measured-and-empty stores
+    # explicit ZEROS — the junk separator IS zero — with the readability
+    # companion so zero-by-unreadable-bars can never masquerade as
+    # zero-by-drift.
     "event_map_completed_s": "INTEGER",       # completed support tests (as-of)
     "event_map_completed_r": "INTEGER",       # completed resistance rejections (as-of)
     "event_map_alternations": "INTEGER",      # rail changes across completed episodes
@@ -899,19 +905,28 @@ def episode_substrate_fields(win_df, R, S, atr_val) -> dict:
     As-of discipline (contract §1): the read is taken at the window's own
     edge — episodes still inside their merge horizon are excluded from the
     completed counts (and marked ``~`` in the sentence). Explicit zeros are
-    evidence; NULL only ever means the producer never ran."""
-    epi = read_rail_episodes(win_df, float(R), float(S), atr_val)
-    stats = episode_sequence_stats(epi, as_of_bar=len(win_df) - 1)
-    # The geometry companion: how much of the box the two touch zones consume.
-    # Computable exactly when the reader's own preconditions held (positive
-    # rail height, usable ATR) — on a refused read NULL is the only honest
-    # value, matching the family's "NULL = not measured" law.
+    evidence; NULL means the producer never ran OR refused to read
+    (unreadable geometry — a refused read must not archive zeros that
+    masquerade as a measured-empty tape)."""
+    # The reader's own preconditions: positive rail height, usable ATR. On a
+    # refused read NULL is the only honest value for the WHOLE family — the
+    # coverage column always kept this law; the counts used to archive
+    # fabricated zeros beside it (2026-08-25 sweep).
     height = float(R) - float(S)
     readable_geometry = (np.isfinite(height) and height > 0
                          and atr_val is not None and np.isfinite(atr_val)
                          and atr_val > 0)
-    coverage = (2.0 * settings.TOUCH_TOLERANCE_ATR * float(atr_val) / height
-                if readable_geometry else None)
+    if not readable_geometry or win_df is None or len(win_df) == 0:
+        return {col: None for col in (
+            "_event_map_completed_s", "_event_map_completed_r",
+            "_event_map_alternations", "_event_map_terminal_posture",
+            "_event_map_terminal_drift", "_event_map_story_admitted",
+            "_event_map_episode_nan_bars", "_event_map_zone_coverage",
+            "_event_map_episode_profile", "_event_map_episodes")}
+    epi = read_rail_episodes(win_df, float(R), float(S), atr_val)
+    stats = episode_sequence_stats(epi, as_of_bar=len(win_df) - 1)
+    # The geometry companion: how much of the box the two touch zones consume.
+    coverage = 2.0 * settings.TOUCH_TOLERANCE_ATR * float(atr_val) / height
     dates = win_df.index
     tape = json.dumps([
         {"rail": e["rail"], "outcome": e["outcome"],

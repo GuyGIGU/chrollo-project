@@ -149,11 +149,18 @@ def _root_off_peak(df, peak, peak_high, eval_end) -> Optional[RootSwing]:
     j1 = min(int(eval_end), int(peak) + 1 + int(settings.AR_MAX_BARS))
     if j0 >= j1:
         return None
+    if not np.isfinite(peak_high):
+        return None                        # unreadable peak: refuse, never fabricate
     thr = float(peak_high) * (1.0 - float(settings.AR_MIN_DROP_PCT))
-    if float(closes[j0:j1].min()) > thr:
+    window_min = float(closes[j0:j1].min())  # NaN-poisons, so one check reads the window
+    if not np.isfinite(window_min):
+        return None                        # unreadable close inside the window: refuse
+    if window_min > thr:
         return None                        # reaction never confirmed yet
     ar = j0 + int(np.argmin(lows[j0:j1]))
     low = float(lows[ar])
+    if not np.isfinite(low):
+        return None                        # argmin landed on an unreadable low: refuse
     return RootSwing(
         kind="BC",                         # a mini climax->reaction, up form
         climax_bar=int(peak),
@@ -180,6 +187,8 @@ def displacement_root(df, parent: FrozenParent) -> Optional[RootSwing]:
     highs = df["High"].to_numpy(dtype=float)
     peak = res + int(np.argmax(highs[res:eval_end]))
     peak_high = float(highs[peak])
+    if not np.isfinite(peak_high):
+        return None                        # argmax landed on an unreadable high: refuse
     if peak_high <= float(parent.R):
         return None                        # the run never left the parent
     return _root_off_peak(df, peak, peak_high, eval_end)

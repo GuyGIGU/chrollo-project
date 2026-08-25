@@ -319,6 +319,15 @@ def detect_lps_candidates(
             rejects["profile unit invalid"] += 1
         return candidates, rejects
 
+    # The zone gate is built on the ATR yardstick: a NaN ATR made zone_tol
+    # NaN, both zone bounds NaN, and the hard zone gate then passed EVERY
+    # low (NaN comparisons are False) — typing arbitrarily deep undercuts
+    # as rebounds. Refuse loudly instead, mirroring the guards above.
+    if not _finite(atr_val) or float(atr_val) <= 0:
+        if diagnose:
+            rejects["atr invalid"] += 1
+        return candidates, rejects
+
     zone_tol = _zone_tolerance(sup_avg, res_avg, atr_val)
     r_ceiling = res_avg + zone_tol
     s_floor = sup_avg - zone_tol

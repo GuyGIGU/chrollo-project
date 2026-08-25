@@ -86,6 +86,21 @@ def test_twin_swallows_and_counts_a_lane_failure(monkeypatch):
     assert stats["pp_eval_ms"] >= 0
 
 
+def test_twin_refuses_to_publish_on_a_crashed_base_eval(monkeypatch):
+    """A crashed base evaluation is an UNKNOWN verdict, not a no-fire: the
+    watch row must not stamp a definitive-looking status on a night the
+    paying read never finished (2026-08-25 sweep — the near-miss lane's own
+    incomplete-evidence refusal, applied to the species register)."""
+    df = _drift_frame(60)
+    monkeypatch.setattr(evaluation, "_evaluate_ticker",
+                        lambda *a, **k: evaluation.EVAL_ERROR)
+    with flag_capture(NEAR_MISS_LANE_ENABLED=False,
+                      POWER_PLAY_PRESET_ENABLED=True):
+        base, row, stats = evaluation.evaluate_ticker_with_power_play("X", df)
+    assert base is evaluation.EVAL_ERROR
+    assert row is None and stats == {"pp_base_errored": 1}
+
+
 def test_twin_composes_with_the_near_miss_triple():
     df = _drift_frame(60)
     with flag_capture(NEAR_MISS_LANE_ENABLED=True,

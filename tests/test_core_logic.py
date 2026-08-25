@@ -120,6 +120,19 @@ def test_measure_dwell_balance_dead_space_starves_the_lower_half(_osc_frame):
     assert eq["upper_dwell"] > 0.45
 
 
+def test_measure_dwell_balance_nan_bar_occupies_nothing(_osc_frame):
+    """One NaN bar used to wrap through the int cast and stamp occupancy on
+    EVERY coverage bin (2026-08-25 sweep). NaN routes to EXCLUDED instead,
+    matching the dwell legs' own False comparisons."""
+    clean = measure_dwell_balance(_osc_frame(_DEAD_SPACE),
+                                  R=110.0, S=100.0, atr_val=1.0)
+    df = _osc_frame(_DEAD_SPACE)
+    df.iloc[3, df.columns.get_loc("Low")] = np.nan
+    eq = measure_dwell_balance(df, R=110.0, S=100.0, atr_val=1.0)
+    assert eq["coverage"] <= clean["coverage"]      # never fabricated upward
+    assert eq["lower_dwell"] < 0.15                 # the starved half stays starved
+
+
 def test_measure_dwell_balance_range_occupancy_uses_high_low_not_close():
     frame = pd.DataFrame([
         {"High": 110.0, "Low": 100.0, "Close": 105.0},

@@ -35,7 +35,13 @@ def _detail_value(value):
     the fire-rules run through _finite_or_none but the detail dict used to
     copy facts RAW, and a NaN inside the JSON cell is invisible to the
     column-level EC-2 scrub (2026-08-08 review, finding 5). Strings and
-    None pass through untouched (bin_c_type, htf_m_trend_state)."""
+    None pass through untouched (bin_c_type, htf_m_trend_state). Numpy
+    scalars unwrap to natives first — a leaked int64/bool_ would crash the
+    strict ``allow_nan=False`` archive write, and only float64 hides
+    inside the native float check."""
+    item = getattr(value, "item", None)
+    if callable(item):
+        value = value.item()
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
@@ -88,7 +94,10 @@ def resolve_fired_tags(row: dict, *, prefixed: bool = True) -> list[dict]:
             points = _finite_or_none(sub.get(tag.term))
             hit = cap > 0 and points is not None and points >= tag.fraction * cap
         elif tag.rule == "flag":
-            hit = bool(fact(tag.field))
+            # Through the ONE quarantine: bool(nan) is True, so a raw
+            # truthiness read fired on a non-finite fact — against this
+            # resolver's own law that absence is never evidence.
+            hit = bool(_detail_value(fact(tag.field)))
         elif tag.rule == "gt_setting":
             v = _finite_or_none(fact(tag.field))
             hit = v is not None and v > float(getattr(settings, tag.setting))

@@ -182,6 +182,25 @@ def test_lps_candidate_detector_and_selector_match_wrapper():
     assert "_quality" not in wrapper
 
 
+def test_lps_refuses_invalid_atr_loudly():
+    """A NaN ATR made zone_tol NaN, both zone bounds NaN, and the hard zone
+    gate then passed EVERY low (NaN comparisons are False) — typing
+    arbitrarily deep undercuts as rebounds. An unreadable yardstick now
+    refuses loudly with its own reject counter (2026-08-25 sweep)."""
+    df = pd.DataFrame([
+        {"High": 118, "Low": 115, "Close": 116, "Spread": 1, "Volume": 900, "Vol_50": 1000},
+        {"High": 110, "Low": 106, "Close": 107, "Spread": 2, "Volume": 500, "Vol_50": 1000},
+        {"High": 107, "Low": 103, "Close": 106, "Spread": 1, "Volume": 500, "Vol_50": 1000},
+    ])
+    kwargs = dict(df=df, latest=df.iloc[-1], sup_avg=100, res_avg=110,
+                  base_range_threshold=8, base_len=20, swing_complete_idx=0)
+    for bad in (float("nan"), None, 0.0, -1.0):
+        candidates, rejects = detect_lps_candidates(
+            diagnose=True, atr_val=bad, **kwargs)
+        assert candidates == []
+        assert rejects["atr invalid"] == 1
+
+
 def test_lps_accepts_compact_reaction_behavior(monkeypatch, _lps_behavior_frame):
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
