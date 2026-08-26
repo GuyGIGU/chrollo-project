@@ -410,7 +410,18 @@ class CalibrationMark(Base):
 
 
 class CalibrationMarkEvent(Base):
-    """One event mark inside a calibration mark (Phase C span/tip, LPS, spring test)."""
+    """One event mark inside a calibration mark — the vocabulary is
+    ``marks_validity.EVENT_TYPES`` (kept in sync by test_marks_validity).
+
+    Two shapes share this row. Most types are a SPAN (start/end, optional tip):
+    Phase C, LPS, spring test, and the SOS — whose span IS its measurement, the
+    launch low to the swing top, because "decisive" is ground covered over days
+    (operator ruling 2026-08-26). ``mini_consolidation`` is the exception: it is
+    a small BOX, so it also carries a price band the way the parent mark carries
+    its rails. Prices the span implies (the low of the start bar, the high of the
+    end bar) are NOT stored — they re-derive from the frozen frame, the same
+    contract the rail anchors already rely on.
+    """
 
     __tablename__ = "calibration_mark_events"
 
@@ -421,21 +432,38 @@ class CalibrationMarkEvent(Base):
         nullable=False,
         index=True,
     )
-    event_type = Column(String, nullable=False)  # "phase_c" | "lps" | "spring_test"
+    event_type = Column(String, nullable=False)  # see marks_validity.EVENT_TYPES
     start_date = Column(String, nullable=False)  # ISO
     end_date = Column(String, nullable=False)    # ISO
     tip_date = Column(String, nullable=True)     # the extreme's session (e.g. Phase C tip)
     tip_price = Column(Float, nullable=True)
+    # The price band — mini_consolidation only (a small box has a top and a
+    # bottom). Nullable: every other type is a span, not a band.
+    band_high = Column(Float, nullable=True)
+    band_low = Column(Float, nullable=True)
     source = Column(String, nullable=False, default="operator")  # "operator" | "extraction"
 
     mark = relationship("CalibrationMark", back_populates="events")
 
     __table_args__ = (
+        # Frozen defence-in-depth DDL; marks_validity.EVENT_TYPES is the
+        # authoritative list. Widening it rebuilds this table on the next boot
+        # (startup.migrate_calibration_event_types) — SQLite cannot ALTER a CHECK.
         CheckConstraint(
-            "event_type IN ('phase_c', 'lps', 'spring_test')",
+            "event_type IN ('phase_c', 'lps', 'spring_test', 'sos', "
+            "'mini_consolidation')",
             name="ck_calibration_event_type",
         ),
         CheckConstraint("start_date <= end_date", name="ck_calibration_event_span"),
+        CheckConstraint(
+            "(band_high IS NULL AND band_low IS NULL) OR "
+            "(band_high IS NOT NULL AND band_low IS NOT NULL AND band_high > band_low)",
+            name="ck_calibration_event_band_paired",
+        ),
+        CheckConstraint(
+            "event_type != 'mini_consolidation' OR band_high IS NOT NULL",
+            name="ck_calibration_event_mini_band",
+        ),
     )
 
 

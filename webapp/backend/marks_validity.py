@@ -25,7 +25,12 @@ from datetime import datetime
 TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 MARK_VERDICTS = ("box", "no_structure", "engine_wrong")
-EVENT_TYPES = ("phase_c", "lps", "spring_test")
+# The drawn-event vocabulary. sos + mini_consolidation added 2026-08-26 (the
+# operator draws the piece he wants measured — decisions.md ground-truth ruling).
+EVENT_TYPES = ("phase_c", "lps", "spring_test", "sos", "mini_consolidation")
+
+# A mini-consolidation is a small BOX, so it alone carries a price band.
+_BAND_TYPES = ("mini_consolidation",)
 SOURCES = ("operator", "extraction")
 
 _GEOMETRY_FIELDS = ("resistance", "support", "box_start_date", "box_end_date",
@@ -190,6 +195,27 @@ def _validate_event(event: dict, index: int, as_of) -> list[str]:
             problems.append(f"{tag} tip_date outside its span")
     if event.get("tip_price") is not None and not _positive_number(event.get("tip_price")):
         problems.append(f"{tag} tip_price {event.get('tip_price')!r} is not a positive number")
+    problems.extend(_validate_event_band(event, tag))
+    return problems
+
+
+def _validate_event_band(event: dict, tag: str) -> list[str]:
+    """The price band — required for a mini-consolidation (a box without a top
+    and a bottom is not a box), absent-or-well-formed for every other type."""
+    problems = []
+    high, low = event.get("band_high"), event.get("band_low")
+    if high is None and low is None:
+        if event.get("event_type") in _BAND_TYPES:
+            problems.append(f"{tag} {event.get('event_type')} needs a price band "
+                            "(band_high and band_low)")
+        return problems
+    if high is None or low is None:
+        problems.append(f"{tag} band needs BOTH band_high and band_low")
+        return problems
+    if not _positive_number(high) or not _positive_number(low):
+        problems.append(f"{tag} band prices must be positive numbers")
+    elif not high > low:
+        problems.append(f"{tag} band_high must be above band_low")
     return problems
 
 

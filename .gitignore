@@ -74,8 +74,12 @@ config/tickers.csv
 *.db.pre-*
 *.db.premigration.bak
 *.db.prewatchlistledger.bak
+*.db.precalibevents.bak
 *.db-wal
 *.db-shm
+# A read of any .bak can mint its own sidecars — same data, same rule.
+*.bak-wal
+*.bak-shm
 *.db.bak*
 *.sqlite
 *.sqlite3

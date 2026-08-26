@@ -54,6 +54,41 @@ def _mark(**overrides):
     return CalibrationMark(**fields)
 
 
+def test_mini_consolidation_band_constraints_bite(session):
+    """The mini-consolidation is a small BOX: the DDL refuses one with no band,
+    a half band, and an inverted band — the same rails-order discipline the
+    parent mark's own R/S carry."""
+    def _save(**event_fields):
+        mark = _mark(ticker="MINI", as_of_date=f"2026-04-{event_fields.pop('day')}")
+        mark.events.append(CalibrationMarkEvent(
+            event_type="mini_consolidation", start_date="2026-04-01",
+            end_date="2026-04-10", source="operator", **event_fields))
+        session.add(mark)
+        session.commit()
+
+    for day, fields in (("11", {}),                                   # no band
+                        ("12", {"band_high": 12.40}),                 # half a band
+                        ("13", {"band_high": 10.15, "band_low": 12.40})):  # inverted
+        with pytest.raises(IntegrityError):
+            _save(day=day, **fields)
+        session.rollback()
+
+    _save(day="14", band_high=12.40, band_low=10.15)
+    saved = session.query(CalibrationMarkEvent).one()
+    assert (saved.band_high, saved.band_low) == (12.40, 10.15)
+
+
+def test_a_span_event_saves_with_no_band(session):
+    """SOS and the other span types carry no band — the columns stay NULL."""
+    mark = _mark(ticker="SOSX")
+    mark.events.append(CalibrationMarkEvent(
+        event_type="sos", start_date="2026-03-02", end_date="2026-03-13"))
+    session.add(mark)
+    session.commit()
+    saved = session.query(CalibrationMarkEvent).one()
+    assert (saved.band_high, saved.band_low) == (None, None)
+
+
 def test_full_positive_mark_round_trips(session):
     mark = _mark()
     mark.events.append(CalibrationMarkEvent(
