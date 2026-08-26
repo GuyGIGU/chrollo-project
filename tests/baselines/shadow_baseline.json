@@ -101,7 +101,7 @@
     },
     "GF": {
       "Setup": "LPS",
-      "Score": 96.4,
+      "Score": 96.2,
       "Tier": "A",
       "Base Len": 91,
       "Box Width": 0.171103,
@@ -373,9 +373,9 @@
     "CHRW",
     "OPRA",
     "MEGI",
-    "GF",
     "CVI",
     "EC",
+    "GF",
     "FOF",
     "HVT",
     "SN",
@@ -387,5 +387,5 @@
     "TKO",
     "TRS"
   ],
-  "captured_at": "2026-08-09T20:16:01+00:00"
+  "captured_at": "2026-08-26T08:08:30+00:00"
 }
