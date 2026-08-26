@@ -444,11 +444,17 @@ deep breach-and-reclaim belongs to the Spring; the two never double-emit.
 #### Sign of Strength, Markup & Upthrust — the R-rail wave
 
 One wave machinery, `measure_resistance_events()`, owns every R-rail interaction and
-types each wave by its **terminal outcome**: an advance that held near R with a
-genuine mini-consolidation is an `SOS` — the held high test IS the strength, and an
-actual breach of R is not required (the wave-top may sit under the rail or poke past
-it; whether it decisively cleared R is recorded on the event as data — operator
-ruling 2026-08-26); an advance that held far above R is `markup`; a
+types each wave by its **terminal outcome**: an advance that held with a genuine
+mini-consolidation is an `SOS`, and an actual breach of R is not required (whether
+the top decisively cleared R is recorded on the event as data — operator ruling
+2026-08-26). The operator's full model (recorded 2026-08-26, decisions.md): an SOS
+is a **decisive Phase-D swing, not a shallow climb** — it need not end at R at all —
+and where the swing ends is a **graded quality, never a gate** (nearer R, above it,
+or back near the prior high after a shakeout reads higher). The current machinery
+implements the hold-confirmation form only (typed from high-zone waves, no
+decisiveness requirement, ending location split binary at the markup cap); the
+decisiveness and ending-quality dimensions are recorded rulings awaiting
+measurement. An advance that held far above R is `markup`; a
 run-up that failed back to support is a single `upthrust` (one false-break wave, never a
 string of SOS); the in-between cases stay descriptive (`range` / `rejection` /
 `in_progress`).
