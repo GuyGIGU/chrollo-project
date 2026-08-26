@@ -182,11 +182,14 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     nothing is gated on another event (an LPS is found separately by
     ``detect_lps`` and is NEVER a precondition).
 
-      * ``SOS``        a Phase-D break above R that HELD: the wave-top sits NEAR R
+      * ``SOS``        a Phase-D advance that HELD near R: the wave-top sits NEAR R
                        (``peak_box_pos <= SOS_NEAR_R_MAX_BOX``) AND the printed
                        post-top hold window is a genuine mini-consolidation (a tight
                        band, ``<= SOS_HOLD_MAX_RANGE_BOX`` of the box) — CONFIRMED BY
-                       A HOLD, not by continuation. One SOS per wave.
+                       A HOLD, not by continuation. An actual breach of R is NOT
+                       required (operator ruled 2026-08-26: the held high test IS
+                       the strength; ``breached`` is emitted per event as data).
+                       One SOS per wave.
       * ``markup``     a Phase-D advance that held FAR above R (``peak_box_pos >
                        SOS_NEAR_R_MAX_BOX``) — post-breakout markup, not a break-and-hold at R
                        test of the rail (this is what over-fired SOS in active boxes).
@@ -299,9 +302,11 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
                           if len(hold_hi) else None)
         consolidation = (hold_range_box is not None
                          and hold_range_box <= settings.SOS_HOLD_MAX_RANGE_BOX)
-        # A break above R TESTS the rail: the wave-top sits NEAR R (box-relative). A
-        # reach far above R (peak_box_pos > SOS_NEAR_R_MAX_BOX) is post-breakout
-        # MARKUP, not an SOS — this is what over-fired in active/extended boxes.
+        # The wave TESTS the rail from the high zone: the wave-top sits NEAR R
+        # (box-relative); an actual breach of R is NOT required (ruled 2026-08-26 —
+        # ``breached`` stays emitted as data, never consulted here). A reach far
+        # above R (peak_box_pos > SOS_NEAR_R_MAX_BOX) is post-breakout MARKUP, not
+        # an SOS — this is what over-fired in active/extended boxes.
         near_r = peak_box_pos <= settings.SOS_NEAR_R_MAX_BOX
 
         in_phase_d = top_bar > v_bar
@@ -645,8 +650,8 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
         elif t == "markup":
             has_phase_d_event = True
 
-    # First chronological SOS = the break above R that opens markup; later held
-    # reaches stay in events[] but are not the spine SOS. Full key is defensive —
+    # First chronological SOS = the strength wave that opens the right side; later
+    # held reaches stay in events[] but are not the spine SOS. Full key is defensive —
     # SOS waves are non-overlapping so anchor_bar is already unique.
     sos = (min(sos_events, key=lambda e: (int(e["anchor_bar"]),
                                           int(e["zone_start"]),
@@ -721,7 +726,7 @@ def assemble_box_narrative(df, box, atr_val, *, v_bar=None,
                       f"(undercut {spring['undercut_atr']} ATR)"))
     if sos is not None:
         steps.append((int(sos["anchor_bar"]),
-                      f"D[bar {int(sos['anchor_bar'])}]: SOS - break above R held "
+                      f"D[bar {int(sos['anchor_bar'])}]: SOS - advance held "
                       f"near R (hold {sos['hold_range_box']} box)"))
     if lps_event is not None:
         steps.append((int(lps_event["anchor_bar"]),

@@ -79,7 +79,8 @@ Phase C). One vocabulary is spoken end-to-end:
 > `phase_d.py` as the support tests whose window sits in the `OVERSHOOT_R` zone —
 > i.e. price *resting on* broken resistance — which is the same geometry
 > `detect_lps` calls `buec_shelf` and the UI shows as **LPS above R**. It is NOT a
-> Sign of Strength: an SOS is the advance *through* resistance, and
+> Sign of Strength: Chrollo's SOS is a typed R-rail *wave* (a held advance near R —
+> a breach of R is not required, ruled 2026-08-26), and
 > `resolve_phase_d_boundary` never even imports `measure_resistance_events`, the one
 > function that types an `SOS`. The key is a frozen wire/archive string, so this
 > sentence is the fix — do not rename it, and do not "repair" the resolver by

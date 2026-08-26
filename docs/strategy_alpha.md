@@ -444,8 +444,11 @@ deep breach-and-reclaim belongs to the Spring; the two never double-emit.
 #### Sign of Strength, Markup & Upthrust — the R-rail wave
 
 One wave machinery, `measure_resistance_events()`, owns every R-rail interaction and
-types each wave by its **terminal outcome**: a break above R that held near R with a
-genuine mini-consolidation is an `SOS`; an advance that held far above R is `markup`; a
+types each wave by its **terminal outcome**: an advance that held near R with a
+genuine mini-consolidation is an `SOS` — the held high test IS the strength, and an
+actual breach of R is not required (the wave-top may sit under the rail or poke past
+it; whether it decisively cleared R is recorded on the event as data — operator
+ruling 2026-08-26); an advance that held far above R is `markup`; a
 run-up that failed back to support is a single `upthrust` (one false-break wave, never a
 string of SOS); the in-between cases stay descriptive (`range` / `rejection` /
 `in_progress`).
