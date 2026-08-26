@@ -23,7 +23,17 @@ import { CHART_COLORS } from './chartTheme';
 // [start, end] (same convention as chartRails.buildLevelData); a rail placed
 // before its span exists yet — a lone draft rail mid-drawing — falls back to a
 // full-width price line so the operator still sees what they just clicked.
-const EVENT_TAG = { phase_c: 'C', lps: 'L', spring_test: 'T' };
+const EVENT_TAG = { phase_c: 'C', lps: 'L', spring_test: 'T',
+                    sos: 'S', mini_consolidation: 'M' };
+
+// An event carrying a price band (the mini-consolidation) draws as a small box:
+// its two levels, bounded to its own span — the same primitive the mark's own
+// rails use, so a nested box reads exactly like the box it sits inside.
+const eventBand = (drawRail, candles, ev, opts) => {
+  if (ev.band_high == null || ev.band_low == null) return;
+  drawRail(candles, ev.start_date, ev.end_date, ev.band_high, '', opts);
+  drawRail(candles, ev.start_date, ev.end_date, ev.band_low, '', opts);
+};
 
 const railOptions = (color, lineStyle = 0) => ({
   color, lineWidth: 1, lineStyle,
@@ -106,6 +116,7 @@ export function attachCalibrationDraw(chart, series) {
           marks.push({ time: ev.end_date, position: 'aboveBar',
                        shape: 'circle', color: CHART_COLORS.operator, text: tag });
         }
+        eventBand(rail, candles, ev, opts);
       }
       // The Trigger (buy) — a single 'B' flag in its warm token, never the
       // operator hue: it is the entry, not another ground-truth rail. Just the
@@ -169,6 +180,7 @@ export function attachCalibrationDraw(chart, series) {
         marks.push({ time: ev.end_date, position: 'aboveBar',
                      shape: 'circle', color: DRAWING, text: tag });
       }
+      eventBand(rail, candles, ev, railStyle);
     }
     // The draft Trigger — the same 'B' flag, warm token, above the bar pointing
     // down at it (no full-width buy line).

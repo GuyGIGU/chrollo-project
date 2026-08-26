@@ -11,6 +11,7 @@ import test from 'node:test';
 import {
   emptyDraft, markingReducer, initialMarkingState, draftComplete, saveNeeds,
   snapTrigger, draftFromMark, markPayloadFromDraft, draftStarted,
+  MARK_EVENT_TYPES,
 } from './calibrationMarking.js';
 
 const KEYS = Object.keys(emptyDraft());
@@ -304,8 +305,10 @@ function mulberry32(seed) {
 
 test('fuzz: arbitrary re-mark sequences never corrupt the draft (50 seeds x 60 steps)', () => {
   const dates = ['2026-01-02', '2026-01-05', '2026-01-08', '2026-01-10', '2026-01-14'];
-  const tools = ['rail-r', 'rail-s', 'span', 'event:phase_c', 'event:lps',
-                 'event:spring_test', 'trigger'];
+  // Derived, never hand-listed: a new event type must enter the fuzz the day it
+  // is added, or the tool nobody fuzzes is the one that corrupts a draft.
+  const tools = ['rail-r', 'rail-s', 'span',
+                 ...MARK_EVENT_TYPES.map((t) => `event:${t}`), 'trigger'];
   const verdicts = ['box', 'no_structure', 'engine_wrong'];
   for (let seed = 1; seed <= 50; seed += 1) {
     const rnd = mulberry32(seed);

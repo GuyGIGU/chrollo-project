@@ -302,3 +302,47 @@ test('markPayloadFromDraft derives the span from anchors and echoes them', () =>
   assert.deepEqual([p.r_anchor_date, p.s_anchor_date, p.first_rail],
                    ['2026-04-08', '2026-04-15', 'resistance']);
 });
+
+// The SOS and the mini-consolidation (operator rulings 2026-08-26). An SOS is a
+// DECISIVE swing, so its mark is the launch-low -> swing-top span and the prices
+// re-derive from the frame; a mini consolidation is a small BOX, so its two
+// clicks are opposite CORNERS and it alone carries a price band.
+test('sos: two clicks record the launch-low -> swing-top span, no band', () => {
+  let s = initialMarkingState(null, 'K');
+  s = markingReducer(s, { type: 'tool', tool: 'event:sos' });
+  s = markingReducer(s, click('2026-03-02', 10.10));
+  s = markingReducer(s, click('2026-03-13', 14.40));
+  const ev = s.draft.events.at(-1);
+  assert.equal(ev.event_type, 'sos');
+  assert.deepEqual([ev.start_date, ev.end_date], ['2026-03-02', '2026-03-13']);
+  assert.deepEqual([ev.band_high, ev.band_low], [null, null]);
+  assert.equal(s.spanAnchor, null);
+});
+
+test('mini consolidation: opposite corners become a normalized price band', () => {
+  const corners = (a, b) => {
+    let s = initialMarkingState(null, 'K');
+    s = markingReducer(s, { type: 'tool', tool: 'event:mini_consolidation' });
+    s = markingReducer(s, click(a.date, a.price));
+    s = markingReducer(s, click(b.date, b.price));
+    return s.draft.events.at(-1);
+  };
+  const hi = { date: '2026-04-01', price: 12.40 };
+  const lo = { date: '2026-04-10', price: 10.15 };
+  // Either click order draws the same box — the rails' own normalization.
+  for (const ev of [corners(hi, lo), corners(lo, hi)]) {
+    assert.equal(ev.event_type, 'mini_consolidation');
+    assert.deepEqual([ev.start_date, ev.end_date], ['2026-04-01', '2026-04-10']);
+    assert.deepEqual([ev.band_high, ev.band_low], [12.40, 10.15]);
+  }
+});
+
+test('a half-drawn band is dropped when the tool is switched', () => {
+  let s = initialMarkingState(null, 'K');
+  s = markingReducer(s, { type: 'tool', tool: 'event:mini_consolidation' });
+  s = markingReducer(s, click('2026-04-01', 12.40));
+  assert.equal(s.bandAnchorPrice, 12.40);
+  s = markingReducer(s, { type: 'tool', tool: 'event:lps' });
+  assert.deepEqual([s.spanAnchor, s.bandAnchorPrice], [null, null]);
+  assert.deepEqual(s.draft.events, []);   // the abandoned corner never lands
+});

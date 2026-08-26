@@ -22,9 +22,10 @@ const TOOL_LABELS = [
   ['span', 'Span'],
 ];
 
-const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test' };
+const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test',
+                       sos: '+SOS', mini_consolidation: '+Mini consol.' };
 
-const KEY_LEGEND = 'r/s rail · x span · c/l/t event · b buy · ⏎ save · e engine';
+const KEY_LEGEND = 'r/s rail · x span · c/l/t/o/m event · b buy · ⏎ save · e engine';
 
 function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession, onReMark }) {
   const { tool, draft } = state;
@@ -99,6 +100,8 @@ function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession, onReMar
                 style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
                          fontSize: 11, whiteSpace: 'nowrap' }}>
             {ev.event_type} {ev.start_date}→{ev.end_date}
+            {ev.band_high != null
+              ? ` [${fx(ev.band_low, 2)}–${fx(ev.band_high, 2)}]` : ''}
             <button type="button" aria-label={`remove ${ev.event_type}`}
                     onClick={() => dispatch({ type: 'remove-event', index: i })}
                     style={{ marginLeft: 2 }}>

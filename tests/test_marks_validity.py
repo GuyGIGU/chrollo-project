@@ -155,6 +155,55 @@ def test_event_rules():
     assert validate_mark(_payload(events=[{**base, "end_date": "2026-05-01"}]))
 
 
+def test_sos_is_a_plain_span_needing_no_band():
+    """The SOS mark stores only the launch-low -> swing-top span: "decisive" is
+    ground covered over days (operator ruling 2026-08-26), and the two prices
+    re-derive from the frozen frame, the way the rail anchors already do."""
+    assert validate_mark(_payload(events=[{
+        "event_type": "sos", "start_date": "2026-03-02", "end_date": "2026-03-13",
+    }])) == []
+
+
+def test_mini_consolidation_requires_a_well_formed_price_band():
+    base = {"event_type": "mini_consolidation",
+            "start_date": "2026-04-01", "end_date": "2026-04-10"}
+    # A box with no top and no bottom is not a box.
+    assert any("needs a price band" in p
+               for p in validate_mark(_payload(events=[base])))
+    # Half a band is a drawing bug, never a band.
+    assert any("BOTH" in p for p in
+               validate_mark(_payload(events=[{**base, "band_high": 12.40}])))
+    assert any("above band_low" in p for p in validate_mark(
+        _payload(events=[{**base, "band_high": 10.15, "band_low": 12.40}])))
+    assert any("positive" in p for p in validate_mark(
+        _payload(events=[{**base, "band_high": 12.40, "band_low": 0}])))
+    assert validate_mark(_payload(events=[
+        {**base, "band_high": 12.40, "band_low": 10.15}])) == []
+
+
+def test_a_band_drawn_on_a_span_type_is_still_shape_checked():
+    """Only the mini-consolidation REQUIRES a band, but a band that turns up on
+    any other type must still be well-formed — a half band is a UI defect."""
+    lps = {"event_type": "lps", "start_date": "2026-04-09", "end_date": "2026-04-15"}
+    assert any("BOTH" in p for p in
+               validate_mark(_payload(events=[{**lps, "band_low": 10.15}])))
+
+
+def test_the_marking_ui_offers_exactly_the_types_the_backend_accepts():
+    """EC-3 across the language boundary: the marking UI keeps its own copy of
+    the vocabulary (it builds the toolbar from it). A type the backend accepts
+    but the UI never offers is dead; a type the UI offers but the backend
+    refuses is a button that always fails to save. The Python-to-Python DDL pin
+    above cannot see this seam."""
+    import re
+
+    js = (ROOT / "webapp" / "frontend" / "src" / "utils"
+          / "calibrationMarking.js").read_text(encoding="utf-8")
+    m = re.search(r"MARK_EVENT_TYPES\s*=\s*\[(.*?)\]", js, re.DOTALL)
+    assert m, "MARK_EVENT_TYPES not found in calibrationMarking.js"
+    assert set(re.findall(r"'([^']*)'", m.group(1))) == set(EVENT_TYPES)
+
+
 def test_ddl_checks_pin_the_same_closed_sets():
     """The frozen CHECK constraints in models.py must name exactly the sets
     this module owns — set EQUALITY in both directions: a module set the DDL

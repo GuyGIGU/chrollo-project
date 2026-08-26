@@ -396,6 +396,11 @@ class EventIn(BaseModel):
     end_date: str
     tip_date: Optional[str] = None
     tip_price: Optional[float] = None
+    # The mini-consolidation's price band (a small box). Every field here must
+    # be a real CalibrationMarkEvent column — _apply_payload constructs the row
+    # with **model_dump().
+    band_high: Optional[float] = None
+    band_low: Optional[float] = None
     source: str = "operator"
 
 

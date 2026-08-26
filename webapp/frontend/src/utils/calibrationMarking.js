@@ -10,7 +10,12 @@
 // ticker|session|digest) so a draft can never bleed across frames — the same
 // corpus-integrity rule the backend enforces with frame_digest.
 
-export const MARK_EVENT_TYPES = ['phase_c', 'lps', 'spring_test'];
+export const MARK_EVENT_TYPES = ['phase_c', 'lps', 'spring_test', 'sos',
+                                 'mini_consolidation'];
+// A mini-consolidation is a small BOX, so its two clicks are CORNERS (bar AND
+// price) instead of a bare span. EC-3: this mirrors marks_validity._BAND_TYPES —
+// the write-side rule and the draw-side shape must never drift.
+export const BAND_EVENT_TYPES = ['mini_consolidation'];
 export const MARK_VERDICTS = ['box', 'no_structure', 'engine_wrong'];
 
 // The operator's BUY: the breakout above the High of the LPS's FINAL bar — a
@@ -43,7 +48,10 @@ export function emptyDraft() {
 }
 
 export function initialMarkingState(draft = null, frameKey = null, editingId = null) {
-  return { frameKey, tool: 'idle', spanAnchor: null,
+  // bandAnchorPrice rides ALONGSIDE spanAnchor (which stays a bare date for
+  // every tool) so a band's first corner keeps its price without making the
+  // anchor polymorphic for the draw layer.
+  return { frameKey, tool: 'idle', spanAnchor: null, bandAnchorPrice: null,
            draft: draft ?? emptyDraft(), editingId };
 }
 
@@ -258,12 +266,23 @@ function applyClick(state, { date, price, bar }) {
                       triggerSource: 'manual' } };
   }
   if (tool.startsWith('event:')) {
-    if (spanAnchor == null) return { ...state, spanAnchor: date };
     const eventType = tool.slice('event:'.length);
+    const isBand = BAND_EVENT_TYPES.includes(eventType);
+    if (spanAnchor == null) {
+      return { ...state, spanAnchor: date,
+               bandAnchorPrice: isBand ? railPrice : null };
+    }
     const [start, end] = orderedDates(spanAnchor, date);
     const event = { event_type: eventType, start_date: start, end_date: end,
-                    tip_date: null, tip_price: null, source: 'operator' };
-    return { ...state, tool: 'idle', spanAnchor: null,
+                    tip_date: null, tip_price: null,
+                    band_high: null, band_low: null, source: 'operator' };
+    if (isBand) {
+      // Corners may be clicked in either order, exactly like the rails.
+      const first = state.bandAnchorPrice;
+      event.band_high = Math.max(first, railPrice);
+      event.band_low = Math.min(first, railPrice);
+    }
+    return { ...state, tool: 'idle', spanAnchor: null, bandAnchorPrice: null,
              draft: { ...draft, events: [...draft.events, event] } };
   }
   return state;
@@ -283,12 +302,12 @@ export function markingReducer(state, action) {
       // structurally anchored to the LPS end-bar, so there is nothing to snap to
       // without one (the button/key stay no-ops, never a half-formed trigger).
       if (action.tool === 'trigger' && !hasLpsEvent(state.draft)) {
-        return { ...state, tool: 'idle', spanAnchor: null };
+        return { ...state, tool: 'idle', spanAnchor: null, bandAnchorPrice: null };
       }
       // Re-selecting the active tool disarms it (toggle); switching always
       // drops a half-placed span anchor.
       const tool = state.tool === action.tool ? 'idle' : action.tool;
-      return { ...state, tool, spanAnchor: null };
+      return { ...state, tool, spanAnchor: null, bandAnchorPrice: null };
     }
     case 'set-trigger': {
       // The assisted snap (or a clear). Trigger is box-only; a null date clears
@@ -307,7 +326,7 @@ export function markingReducer(state, action) {
       const draft = action.verdict === 'box'
         ? { ...state.draft, verdict: 'box' }
         : { ...emptyDraft(), verdict: action.verdict };
-      return { ...state, tool: 'idle', spanAnchor: null, draft };
+      return { ...state, tool: 'idle', spanAnchor: null, bandAnchorPrice: null, draft };
     }
     case 'remove-event': {
       const events = state.draft.events.filter((_, i) => i !== action.index);
@@ -329,6 +348,15 @@ const NEED_TEXT = {
   support: 'click the support swing bar',
 };
 
+// Per-type click prompts — presentational copy only (EC-28), naming what the
+// operator is actually pointing at. Types absent here use the generic
+// START/END bar wording.
+const EVENT_PROMPTS = {
+  sos: ['click the SOS launch low', 'click the SOS swing top'],
+  mini_consolidation: ['click one CORNER of the mini consolidation',
+                       'click the OPPOSITE corner'],
+};
+
 export function statusText(state) {
   const { tool, spanAnchor, draft } = state;
   if (draft.verdict !== 'box') return 'negative verdict — no geometry to draw';
@@ -344,7 +372,10 @@ export function statusText(state) {
       : 'no breakout above the LPS high in the forward window — click a bar to place the buy';
   }
   if (tool.startsWith('event:')) {
-    const name = tool.slice('event:'.length).replace('_', ' ');
+    const type = tool.slice('event:'.length);
+    const prompts = EVENT_PROMPTS[type];
+    if (prompts) return spanAnchor == null ? prompts[0] : prompts[1];
+    const name = type.replaceAll('_', ' ');
     return spanAnchor == null ? `click the ${name} START bar` : `click the ${name} END bar`;
   }
   return '';
@@ -366,6 +397,7 @@ export function draftFromMark(mark) {
     events: (mark.events ?? []).map((e) => ({
       event_type: e.event_type, start_date: e.start_date, end_date: e.end_date,
       tip_date: e.tip_date ?? null, tip_price: e.tip_price ?? null,
+      band_high: e.band_high ?? null, band_low: e.band_low ?? null,
       source: e.source ?? 'operator',
     })),
     // A loaded trigger is treated as MANUAL (fixed): editing an existing setup
