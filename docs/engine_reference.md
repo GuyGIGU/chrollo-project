@@ -896,6 +896,17 @@ more than one), and setups often break out *after* the Last Supper has run its
 course. The engine does **not** label the run-up as a timed event — it measures the
 over-extension *geometry* around the LPS (below).
 
+**It is NOT a warning (operator ruling 2026-08-26).** *"Last suppers aren't a bad
+thing. many stocks popped off after said event because its essentially just a deep
+correction."* The tag never cost a point — it is absent from `_ta_grade_warnings` —
+but it was grouped warning-side and rendered in the danger tone, which contradicted
+this section's own "setups often break out *after* the Last Supper has run its
+course" and trained the eye to read a present Last Supper as a defect. It now sits
+in the LPS group as a descriptive event chip. What the engine still does NOT do is
+label the run-up as a dated event; the operator's ask — *"I want the algorithm to
+know it exists as an event"* — is the event-typing program (`event_map` reserves the
+column family), not this measurement.
+
 **What the engine measures is the over-extension geometry.** Two raw families say
 how exposed *this* entry is to a Last Supper. A precise, well-positioned LPS (near
 support, off a rebound, after a Phase-C spring) survives a Last Supper; a stretched
@@ -1146,7 +1157,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `88ec252dc7f589c556638530475f44251dc5bcda3eca174cab3d98309beb8b81`_
+_engine_config_version: `0eef903a8ee3f58b4b86a3469d58d9a136e212f24f4af8e7d11a379d760839da`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False

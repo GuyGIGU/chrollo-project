@@ -451,7 +451,7 @@ class CalibrationMarkEvent(Base):
         # (startup.migrate_calibration_event_types) — SQLite cannot ALTER a CHECK.
         CheckConstraint(
             "event_type IN ('phase_c', 'lps', 'spring_test', 'sos', "
-            "'mini_consolidation')",
+            "'mini_consolidation', 'last_supper')",
             name="ck_calibration_event_type",
         ),
         CheckConstraint("start_date <= end_date", name="ck_calibration_event_span"),

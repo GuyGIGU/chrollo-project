@@ -24,7 +24,7 @@ import { CHART_COLORS } from './chartTheme';
 // before its span exists yet — a lone draft rail mid-drawing — falls back to a
 // full-width price line so the operator still sees what they just clicked.
 const EVENT_TAG = { phase_c: 'C', lps: 'L', spring_test: 'T',
-                    sos: 'S', mini_consolidation: 'M' };
+                    sos: 'S', mini_consolidation: 'M', last_supper: 'U' };
 
 // An event carrying a price band (the mini-consolidation) draws as a small box:
 // its two levels, bounded to its own span — the same primitive the mark's own

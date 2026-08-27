@@ -270,8 +270,15 @@ TAGS: tuple[TagSpec, ...] = (
     TagSpec("heavy_resistance",   "gt_setting", field="r_touch_vol_z",
             setting="TOUCH_VOL_Z_HEAVY_R", warning=True,
             detail=("r_touch_vol_z",)),
+    # NOT warning-side (operator ruling 2026-08-26): *"Last suppers aren't a bad
+    # thing. many stocks popped off after said event because its essentially just
+    # a deep correction."* It never cost a point (it is absent from
+    # _ta_grade_warnings), but dressed in the danger tone it READ as a defect and
+    # contradicted engine_reference's own "setups often break out AFTER the Last
+    # Supper has run its course". The chip states the event is present and how
+    # stretched this entry is — a description, not an alarm.
     TagSpec("last_supper",        "any_gt0",
-            fields=("lps_stretch_box", "lps_stretch_atr"), warning=True,
+            fields=("lps_stretch_box", "lps_stretch_atr"),
             detail=("lps_stretch_box", "lps_stretch_atr",
                     "last_supper_pullback_from_extension_pct",
                     "last_supper_reclaim_quality")),

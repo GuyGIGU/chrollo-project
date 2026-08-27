@@ -404,7 +404,7 @@ function CalibrationTab() {
   };
 
   // Keyboard loop (skipped while typing in any field): tools b/r/s/x,
-  // events c/l/t/o/m, Enter saves, Escape disarms, e toggles the engine peek.
+  // events c/l/t/o/m/u, Enter saves, Escape disarms, e toggles the engine peek.
   const keyDeps = useRef({});
   keyDeps.current = { save };
   useEffect(() => {
@@ -416,6 +416,7 @@ function CalibrationTab() {
       const tool = { r: 'rail-r', s: 'rail-s', x: 'span',
                      c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test',
                      o: 'event:sos', m: 'event:mini_consolidation',
+                     u: 'event:last_supper',
                      b: 'trigger' }[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }

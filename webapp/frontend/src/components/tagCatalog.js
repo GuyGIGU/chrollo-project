@@ -49,12 +49,12 @@ export const TAG_CATALOG = [
   { id: 'worked_equilibrium', label: `⚖️ ${displayLabel('traversal_density')}`, group: 'consolidation' },
   { id: 'phase_c_test', label: '🪝 Spring/Test', group: 'lps' },
   { id: 'tight_lps', label: '🪶 Tight LPS', group: 'lps' },
+  { id: 'last_supper', label: '🕯 Last Supper', group: 'lps' },
   { id: 'no_supply', label: '🤫 No Supply', group: 'volume' },
   { id: 'vol_dryup', label: '🌊 Vol Dry-up', group: 'volume' },
   { id: 'demand_at_s', label: '💪 Demand at S', group: 'volume' },
   { id: 'weekly_reaccum', label: '⬆ Weekly Re-accum', group: 'trend' },
   { id: 'high_adr', label: '⚡ High ADR', group: 'trend' },
   { id: 'heavy_resistance', label: '⚠️ Heavy Resistance', group: 'warning' },
-  { id: 'last_supper', label: 'Last Supper', group: 'warning' },
   { id: 'weak_monthly', label: '⬇ Weak monthly', group: 'warning' },
 ];

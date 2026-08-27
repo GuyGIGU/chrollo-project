@@ -11,7 +11,7 @@
 // corpus-integrity rule the backend enforces with frame_digest.
 
 export const MARK_EVENT_TYPES = ['phase_c', 'lps', 'spring_test', 'sos',
-                                 'mini_consolidation'];
+                                 'mini_consolidation', 'last_supper'];
 // A mini-consolidation is a small BOX, so its two clicks are CORNERS (bar AND
 // price) instead of a bare span. EC-3: this mirrors marks_validity._BAND_TYPES —
 // the write-side rule and the draw-side shape must never drift.

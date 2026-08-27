@@ -23,9 +23,10 @@ const TOOL_LABELS = [
 ];
 
 const EVENT_LABELS = { phase_c: '+Phase C', lps: '+LPS', spring_test: '+Spring test',
-                       sos: '+SOS', mini_consolidation: '+Mini consol.' };
+                       sos: '+SOS', mini_consolidation: '+Mini consol.',
+                       last_supper: '+Last Supper' };
 
-const KEY_LEGEND = 'r/s rail · x span · c/l/t/o/m event · b buy · ⏎ save · e engine';
+const KEY_LEGEND = 'r/s rail · x span · c/l/t/o/m/u event · b buy · ⏎ save · e engine';
 
 function CalibrationMarkingBar({ state, dispatch, disabled, asOfSession, onReMark }) {
   const { tool, draft } = state;

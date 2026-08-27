@@ -164,6 +164,15 @@ def test_sos_is_a_plain_span_needing_no_band():
     }])) == []
 
 
+def test_last_supper_is_a_plain_span():
+    """The Last Supper is a swing of one or more bars — the trapping run-up and
+    the deep correction that follows. A span; no band, no required tip."""
+    assert validate_mark(_payload(events=[{
+        "event_type": "last_supper", "start_date": "2026-02-02",
+        "end_date": "2026-02-06",
+    }])) == []
+
+
 def test_mini_consolidation_requires_a_well_formed_price_band():
     base = {"event_type": "mini_consolidation",
             "start_date": "2026-04-01", "end_date": "2026-04-10"}
@@ -202,6 +211,19 @@ def test_the_marking_ui_offers_exactly_the_types_the_backend_accepts():
     m = re.search(r"MARK_EVENT_TYPES\s*=\s*\[(.*?)\]", js, re.DOTALL)
     assert m, "MARK_EVENT_TYPES not found in calibrationMarking.js"
     assert set(re.findall(r"'([^']*)'", m.group(1))) == set(EVENT_TYPES)
+
+
+def test_last_supper_is_a_descriptive_chip_not_a_warning():
+    """Operator ruling 2026-08-26: a Last Supper is a deep correction stocks
+    often pop off AFTER — it must never READ as a defect. It costs no points
+    either way (it is not a registered grade warning); this pins the DISPLAY
+    side, which is what actually trained the eye."""
+    from engine_alpha.scoring import scoring, taxonomy
+
+    spec = next(t for t in taxonomy.TAGS if t.id == "last_supper")
+    assert spec.warning is False
+    # ...and it is absent from the two warnings that DO discount the grade.
+    assert "last_supper" not in scoring._ta_grade_warnings(None, None)
 
 
 def test_ddl_checks_pin_the_same_closed_sets():

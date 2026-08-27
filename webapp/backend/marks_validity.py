@@ -25,9 +25,11 @@ from datetime import datetime
 TICKER_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 MARK_VERDICTS = ("box", "no_structure", "engine_wrong")
-# The drawn-event vocabulary. sos + mini_consolidation added 2026-08-26 (the
-# operator draws the piece he wants measured — decisions.md ground-truth ruling).
-EVENT_TYPES = ("phase_c", "lps", "spring_test", "sos", "mini_consolidation")
+# The drawn-event vocabulary. sos + mini_consolidation + last_supper all added
+# 2026-08-26 (the operator draws the piece he wants measured — decisions.md
+# ground-truth ruling).
+EVENT_TYPES = ("phase_c", "lps", "spring_test", "sos", "mini_consolidation",
+               "last_supper")
 
 # A mini-consolidation is a small BOX, so it alone carries a price band.
 _BAND_TYPES = ("mini_consolidation",)
