@@ -396,10 +396,11 @@ terms — not as a bonus for the event itself.
 is a later, deeper correction whose purpose is literally to shake buyers out; it is typed
 at the same Phase-C seam and marked, not scored. The operator's read: the smaller,
 contracting seller pullback that forms *after* a shakeout is often a very good setup, and
-it is **not** the same shape as a Last Supper (the over-extended right side the warning
-chip flags — a pullback from a run that already left the base behind). The two are
-distinguished today only by the Last-Supper stretch measures; nothing grades the
-after-shakeout LPS as its own form. Recorded as theory, unmeasured.
+it is **not** the same shape as a Last Supper (the deep, fast giveback of a preceding
+up-move, described in the chain grammar below; descriptive, never a warning, per the
+2026-08-26 ruling). The two are distinguished today only by the Last-Supper stretch
+measures; nothing grades the after-shakeout LPS as its own form. Recorded as theory,
+unmeasured.
 
 **Cause before effect, Phase C → Phase D (operator ruling 2026-08-09, KYMR): the LPS
 may not predate the spring.** "By chronological order the actual LPS comes in Phase D
@@ -454,7 +455,15 @@ or back near the prior high after a shakeout reads higher). The current machiner
 implements the hold-confirmation form only (typed from high-zone waves, no
 decisiveness requirement, ending location split binary at the markup cap); the
 decisiveness and ending-quality dimensions are recorded rulings awaiting
-measurement. An advance that held far above R is `markup`; a
+measurement. **Decisiveness is SHAPE, not a number, and volume is not part of it**
+(ruling 2026-08-28, from the drawn corpus: "it's in the shape of the thing rather
+than the numbery measurement"): an SOS is an immediate up-surge of buyers — read in
+span, travel, speed, one-way-ness, launch position and the ground kept afterwards —
+that comes in many variations with one role, strong buyers before the breakout.
+Volume is recorded as data only; the measured shape envelope of the 22 drawn
+specimens lives in the Corpus Study record ([corpus_study_2026-08-28.md](corpus_study_2026-08-28.md)),
+whose fitted floors are proposal input for the operator's eyeball, never a
+classifier on their own — election and story context stay load-bearing. An advance that held far above R is `markup`; a
 run-up that failed back to support is a single `upthrust` (one false-break wave, never a
 string of SOS); the in-between cases stay descriptive (`range` / `rejection` /
 `in_progress`).
@@ -840,9 +849,16 @@ Two ruled chains open the grammar:
   important"): the shakeout's DEPTH never disqualifies it — it may be the spring; what forms
   afterwards adjudicates. The terminal contracting pullback is the LPS — and it may legally
   sit BELOW the old floor while above the shakeout's low: the **tactical long**, paying if
-  price recovers into the base and later breaches it. A true **Last Supper** is the
-  final-shakeout class — typically after the base is already breached plus a steep, deep
-  correction — separated from a valid chain by what does NOT form afterwards.
+  price recovers into the base and later breaches it. A **Last Supper** is the operator's
+  BU: a deep, fast seller reaction to a preceding up move — the SOS, the push off an LPS,
+  the breakout itself — "the last trap before buyers take over and the long continues"
+  (ruling 2026-08-28; the corpus's 10 drawn specimens all follow an SOS, but that is
+  sample fact, not definition). It is a normal chapter of a *winning* chain, descriptive
+  and never a warning (ruling 2026-08-26; Corpus Study 2026-08-28: all 10 drawn specimens
+  preceded +17% to +134%). The same what-forms-afterwards test adjudicates it: a rest at
+  a defended level — the conquered rail, or the tactical long's higher-low above the
+  shakeout — continues the chain; a giveback after which no constructive rest ever forms
+  is the failure branch, and only that branch is a defect.
 
 The mini-consolidation unification rides the same rulings: the inner mini-consolidation and
 the tightening shelf at the ceiling are **one event, one mechanism** — "no need to give it a

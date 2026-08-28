@@ -784,7 +784,8 @@ def _ns_mark(**overrides):
         box_end_date="2026-04-15", r_anchor_date=None, s_anchor_date=None,
         first_rail=None, rails_source="operator", knowable_from_date=None,
         note=None, data_regime="as_traded", engine_config_version="cfg",
-        anchor_close=11.02, frame_digest="d0", events=[],
+        anchor_close=11.02, frame_digest="d0",
+        trigger_date=None, trigger_price=None, events=[],
     )
     base.update(overrides)
     return SimpleNamespace(**base)

@@ -893,8 +893,13 @@ late buyers before the real pullback** — a last deceptive rally that lures in 
 longs, after which price gives back into the *real* pullback and only then resumes.
 It is a discrete **event**, can appear **before *or* after an LPS** (Phase D holds
 more than one), and setups often break out *after* the Last Supper has run its
-course. The engine does **not** label the run-up as a timed event — it measures the
-over-extension *geometry* around the LPS (below).
+course. **Which bars carry the name (ruling 2026-08-28, drawn corpus):** the run-up
+is the *anchor*; the event's own span is the **giveback** — the deep, fast seller
+reaction that follows it (all 10 drawn `last_supper` marks open on the extension top
+and travel down), and the anchoring up-move may be an SOS, the push off an LPS, or
+the breakout itself — never SOS-bound. Any future dated detection stamps the
+giveback span. The engine does **not** label it as a timed event today — it measures
+the over-extension *geometry* around the LPS (below).
 
 **It is NOT a warning (operator ruling 2026-08-26).** *"Last suppers aren't a bad
 thing. many stocks popped off after said event because its essentially just a deep

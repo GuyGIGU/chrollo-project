@@ -164,9 +164,11 @@ def test_malformed_row_aborts_naming_the_offender(session):
 
 
 def test_full_grading_pass_is_read_only(session):
-    # The pin covers EVERY mark column and the events rows (the fingerprint
-    # canonicalizes the whole mark dict, order-free): the path of least
-    # resistance to better numbers must never be to "correct" ground truth.
+    # The pin covers the FROZEN seal projection (_SEAL_MARK_KEYS +
+    # _SEAL_EVENT_KEYS — deliberately NOT every column: trigger and band
+    # fields are recorded omissions awaiting a graduation re-pin): the path
+    # of least resistance to better numbers must never be to "correct"
+    # ground truth.
     _add_mark(session)
     _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
               resistance=None, support=None,
@@ -666,3 +668,78 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     variant = report["variants"]["BAND_RAILS_ENABLED=false"]["rows"][0]
     assert base["fired"] is True and base["fire_date"] == "2026-04-02"
     assert variant["fired"] is False
+
+
+# ---------------------------------- complete dict / frozen seal (2026-08-28)
+def _mark_content_columns():
+    return {c.name for c in CalibrationMark.__table__.columns} - {
+        "id", "created_at", "updated_at", "revision"}
+
+
+def _event_content_columns():
+    return {c.name for c in CalibrationMarkEvent.__table__.columns} - {
+        "id", "mark_id"}
+
+
+def test_mark_dict_is_complete_and_the_seal_projection_is_frozen(session):
+    """The validation dict carries EVERY content column (EC-3: a dropped
+    column silently skips its rules — the band drop refused every
+    mini-consolidation batch; the trigger drop let the trigger rule-family
+    pass unexamined). A new model column added without a ``_mark_dict``
+    mirror fails HERE, loudly, instead of as a batch refusal on the
+    operator's next mark. The seal hashes only the FROZEN projection:
+    widening it is a graduation re-pin decision (decisions.md 2026-08-20),
+    never a fix commit's side effect."""
+    from tools.calibration_harness import (_SEAL_EVENT_KEYS, _SEAL_MARK_KEYS,
+                                           _mark_dict)
+    _add_mark(session)
+    _add_lps_event(session, "2026-02-02", "2026-02-05")
+    mark = session.query(CalibrationMark).one()
+    d = _mark_dict(mark)
+    assert set(d) - {"events"} == _mark_content_columns()
+    assert set(d["events"][0]) == _event_content_columns()
+    assert set(_SEAL_MARK_KEYS) == _mark_content_columns() - {
+        "trigger_date", "trigger_price"}
+    assert set(_SEAL_EVENT_KEYS) == _event_content_columns() - {
+        "band_high", "band_low"}
+
+
+def test_band_bearing_mark_loads_and_band_edits_never_move_the_seal(session):
+    """Regression: the band once dropped out of the read-side dict, so
+    marks_validity refused every batch carrying a mini-consolidation."""
+    _add_mark(session)
+    mark = session.query(CalibrationMark).one()
+    session.add(CalibrationMarkEvent(
+        mark_id=mark.id, event_type="mini_consolidation",
+        start_date="2026-02-02", end_date="2026-02-20",
+        band_high=11.8, band_low=11.2, source="operator"))
+    session.commit()
+    d = load_marks(session)[0]
+    ev = next(e for e in d["events"] if e["event_type"] == "mini_consolidation")
+    assert ev["band_high"] == 11.8 and ev["band_low"] == 11.2
+    # ...and the seal ignores band values: a band redraw is not ground-truth
+    # movement under the FROZEN recipe (the widening awaits graduation).
+    before = marks_fingerprint(load_marks(session))
+    session.query(CalibrationMarkEvent).filter_by(
+        event_type="mini_consolidation").update(
+        {"band_high": 11.9, "band_low": 11.1})
+    session.commit()
+    assert marks_fingerprint(load_marks(session)) == before
+
+
+def test_trigger_rules_now_bind_on_the_load_path(session):
+    """Regression: trigger_date/trigger_price used to be dropped from the
+    read-side dict, so ``_validate_trigger`` saw None/None and every trigger
+    rule passed unexamined (failed open)."""
+    _add_mark(session, trigger_date="2026-02-04", trigger_price=12.5)
+    _add_lps_event(session, "2026-02-02", "2026-02-05")
+    with pytest.raises(ValueError) as err:
+        load_marks(session)  # trigger INSIDE the LPS span -> refused, loudly
+    assert "after the last LPS bar" in str(err.value)
+    # A legal trigger loads, and its VALUE stays outside the frozen seal.
+    session.query(CalibrationMark).update({"trigger_date": "2026-02-06"})
+    session.commit()
+    before = marks_fingerprint(load_marks(session))
+    session.query(CalibrationMark).update({"trigger_price": 13.0})
+    session.commit()
+    assert marks_fingerprint(load_marks(session)) == before
