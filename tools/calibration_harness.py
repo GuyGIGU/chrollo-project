@@ -69,13 +69,22 @@ SNAP_BACK_SESSIONS = replay.SNAP_BACK_SESSIONS
 
 
 def _mark_dict(mark) -> dict:
-    """ORM row -> the model-shaped dict the shared judgment expects."""
+    """ORM row -> the COMPLETE model-shaped dict the shared judgment expects.
+
+    Complete by contract (EC-3): every content column of the mark and its
+    events rides through, so the read-side judgment sees exactly what the
+    write side validated — dropping a column here silently skips its rules
+    (the band omission refused every mini-consolidation batch; the trigger
+    omission let the whole trigger rule-family pass unexamined). The SEAL
+    does not hash this dict directly: ``marks_fingerprint`` projects it onto
+    the FROZEN recipe below, so completing this dict never rotates a pin.
+    """
     d = {c: getattr(mark, c) for c in (
         "ticker", "as_of_date", "label", "verdict", "resistance", "support",
         "box_start_date", "box_end_date", "r_anchor_date", "s_anchor_date",
         "first_rail", "rails_source", "knowable_from_date",
         "note", "data_regime", "engine_config_version", "anchor_close",
-        "frame_digest")}
+        "frame_digest", "trigger_date", "trigger_price")}
     # Events canonicalized by (type, start, end): the ORM returns children in
     # rowid order, and an edit delete-reinserts them in redraw order, so an
     # unsorted list would let a semantically-null redraw move the marks
@@ -84,16 +93,42 @@ def _mark_dict(mark) -> dict:
     d["events"] = [{
         "event_type": e.event_type, "start_date": e.start_date,
         "end_date": e.end_date, "tip_date": e.tip_date,
-        "tip_price": e.tip_price, "source": e.source,
+        "tip_price": e.tip_price, "band_high": e.band_high,
+        "band_low": e.band_low, "source": e.source,
     } for e in sorted(mark.events, key=lambda e: (
         e.event_type or "", e.start_date or "", e.end_date or ""))]
     return d
 
 
+# The seal's projection is FROZEN (EC-9). Widening it rotates every pinned
+# fingerprint (guided_list_export, event_map_census, near_miss_census), and
+# that is an operator re-pin decision made at a graduation sitting
+# (decisions.md 2026-08-20: "never let a re-pin ride in on a fix commit") —
+# never a side effect of completing the validation dict above. Recorded
+# omissions awaiting that sitting: trigger_date/trigger_price (2026-08-20)
+# and band_high/band_low (2026-08-28).
+_SEAL_MARK_KEYS = (
+    "ticker", "as_of_date", "label", "verdict", "resistance", "support",
+    "box_start_date", "box_end_date", "r_anchor_date", "s_anchor_date",
+    "first_rail", "rails_source", "knowable_from_date",
+    "note", "data_regime", "engine_config_version", "anchor_close",
+    "frame_digest")
+_SEAL_EVENT_KEYS = ("event_type", "start_date", "end_date",
+                    "tip_date", "tip_price", "source")
+
+
+def _seal_projection(d: dict) -> dict:
+    p = {k: d[k] for k in _SEAL_MARK_KEYS}
+    p["events"] = [{k: e[k] for k in _SEAL_EVENT_KEYS} for e in d["events"]]
+    return p
+
+
 def marks_fingerprint(mark_dicts: list[dict]) -> str:
-    """sha256 over the exact marks set scored — the DB analog of the corpus
-    seal. A changed fingerprint says 'the ground truth moved, not the engine'."""
-    canon = json.dumps(sorted(mark_dicts, key=lambda m: (
+    """sha256 over the FROZEN projection of the exact marks set scored — the
+    DB analog of the corpus seal. A changed fingerprint says 'the ground truth
+    moved, not the engine'."""
+    canon = json.dumps(sorted((_seal_projection(m) for m in mark_dicts),
+                              key=lambda m: (
         m["ticker"], m["as_of_date"], m["label"])), sort_keys=True, default=str)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 

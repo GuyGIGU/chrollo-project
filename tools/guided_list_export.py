@@ -39,12 +39,16 @@ from tools.calibration_harness import load_box_marks  # noqa: E402
 
 # Operator-approved seal for THIS graduation event (sign-off: "GO" 2026-07-24,
 # PLAN-guided-list-gap-breach Task 1). Any post-sign-off edit to a covered
-# field changes the fingerprint and the export refuses. KNOWN COVERAGE GAP
-# (council review 2026-07-24): the shared fingerprint recipe (_mark_dict)
-# does NOT include trigger_date/trigger_price, so a Trigger edited after
-# sign-off passes the pin unchanged — widening the recipe rotates EVERY
-# fingerprint, so it is an operator re-pin decision, recorded here until
-# made. A future graduation re-pins deliberately, never silently.
+# field changes the fingerprint and the export refuses. KNOWN COVERAGE GAPS
+# (council review 2026-07-24; harness review 2026-08-28): the frozen seal
+# recipe (calibration_harness._SEAL_MARK_KEYS/_SEAL_EVENT_KEYS) does NOT
+# include trigger_date/trigger_price or the mini-consolidation band columns
+# (band_high/band_low), so those fields edited after sign-off pass the pin
+# unchanged — widening the recipe rotates EVERY fingerprint, so it is an
+# operator re-pin decision, recorded here until made. A future graduation
+# re-pins deliberately, never silently. (Validation is NOT gapped: since
+# 2026-08-28 the shared judgment sees the complete dict, bands and trigger
+# included — only the seal's hash input is frozen.)
 OPERATOR_APPROVED_FINGERPRINT = (
     "b671e056a91fc14fea5b8a724b843c7321a26f4d7d7a6aa5b00741dc93df2523"
 )
