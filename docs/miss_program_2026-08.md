@@ -89,6 +89,15 @@ base** — admitting it is a species/scope ruling (does Chrollo read Stage-1
 accumulation at all?), not a threshold, and it must be ruled at BOTH layers.
 Deliberately NOT built into either lane; see the ask.
 
+**Behind the wall, the engine already reads his chart.** With both sma200 layers
+held open diagnostically, the 2026-07-22/23 sessions elect a COMPLETE strict-pool
+structure at **R 82.83 — the drawn resistance to the penny — box start
+2026-06-04, the drawn start to the day** (S 79.26 vs drawn 79.96). No species
+machinery involved. If bottoming bases are ruled in, the lane's shape is: an
+sma200-leg exception at the door plus the seeding gate's `below_trend_sma`
+refusal deferring to the same exception, one flag, junk-censused before any
+flip — and MDT is its first acceptance specimen.
+
 ## Lane 1 — the contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark)
 
 **Design.** When the whole root walk elects nothing, `read_structure` re-walks
