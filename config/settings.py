@@ -19,6 +19,24 @@ MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50_000          # 50-day average daily volume floor
 MIN_YEARLY_RETURN = -0.20        # Allows modest drawdowns (v1 used +0.30)
 
+# --- The 50-day dip exception (miss program 2026-08-28; DARK) ---------------
+# The universe door's sma50 leg refuses a chart whose own drawn story dragged
+# price under the 50-day — SKYT's deep spring held it below for ~4 weeks and
+# the engine elects a COMPLETE structure the day the door is held open; ST
+# lost 2 of its 10 candidate sessions the same way. The exception admits an
+# sma50 refusal into chart reading (geometry stays the only veto) when the
+# dip is a bounded, recent event that has already recovered to the rail of
+# the 50-day: the last close at/above SMA_50 printed within
+# SMA50_DIP_MAX_SESSIONS, and the close now sits within SMA50_DIP_MAX_ATR
+# ATR_10 below it. The SMA_200 and YoY legs still gate (a dip exception is
+# not a downtrend exception — MDT's bottoming base is deliberately out of
+# scope: its wall is the sma200 rule at BOTH the door and anchor seeding,
+# a species ruling for the operator). Flip = operator decision vs the
+# miss-program A/B (docs/miss_program_2026-08.md).
+SMA50_DIP_EXCEPTION_ENABLED = False
+SMA50_DIP_MAX_SESSIONS = 25      # the dip began at most this many sessions ago
+SMA50_DIP_MAX_ATR = 1.0          # close within this many ATR_10 under SMA_50
+
 MIN_BASE_DAYS = 20               # Minimum consolidation length (reject < 20 day chop)
 MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this is
                                  # not a tradeable tight equilibrium — it's the
@@ -335,6 +353,20 @@ BAND_EVENT_MAX_BARS = 20
 # 05-12..05-15, then broke out truly). Ratchet resealed 26 -> 28
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
+
+# --- Contraction-rescue lane (miss program 2026-08-28; DARK) ----------------
+# When the WHOLE root walk elects nothing (full refusal — never after a
+# cause-before-effect abstention), read_structure re-walks ONCE with the
+# species resistance-contraction form armed inside the story pool
+# (event_map.resistance_contraction_admission — the operator ruled its
+# EGBN/PKE conversions real, 2026-08-19). Scoped to full refusals by
+# construction: it can never displace an existing election or re-frame a box,
+# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip
+# (the WCC 2.2x-wider re-election). A rescued fire stamps
+# elected_pool='story' with the self-naming contraction profile. Flip =
+# operator decision vs the miss-program A/B (docs/miss_program_2026-08.md);
+# flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
+CONTRACTION_RESCUE_ENABLED = False
 
 # --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
 # Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the

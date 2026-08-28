@@ -1,0 +1,204 @@
+# The Miss Program — 2026-08-28
+
+The operator's ruling (2026-08-28, closing the Corpus Study): *"about the misses, we
+should tackle them. there is no reason at large for these to miss."* Six drawn
+calibration marks never fired live — MDT / SKYT / ST at the universe door,
+EGBN / PKE / NOK structural. This is the program record (EC-16): the per-miss
+diagnosis from the frozen frames, the two dark lanes built, the A/B evidence, and
+the asks the flips wait on. Nothing in this program moved live behavior: both lanes
+ship default-OFF, and no Tested-DEAD gate was loosened (respect untouched,
+occupancy floors untouched, no margin trades).
+
+## Baseline — the six refusals, reproduced from frozen frames
+
+`tools.calibration_harness --fired` over each mark's fair window (worktree replay,
+live marks DB seeded read-only via the sqlite3 backup API; engine at this branch):
+
+| Mark | Baseline outcome | The binding wall |
+|---|---|---|
+| MDT@2026-07-24 | REFUSED(universe) 10/10: `sma200` ×10 | The sma200 rule **twice**: the door AND anchor seeding (below) |
+| SKYT@2026-04-13 | REFUSED(universe) 9/10: `sma50` ×9; the 10th session reads nothing | The 50-day dip (the drawn spring's own drag) |
+| ST@2026-04-17 | REFUSED(universe) 2/10: `sma50` ×2; 8 sessions read nothing | The 50-day dip — its two door sessions are the fair window's only completing reads (post-SOS sessions are LPS-walled) |
+| EGBN@2026-01-15 | engine_no_read every session | Story-pool admission (the S-test form cannot read a one-sided upper hang) |
+| PKE@2026-02-24 | engine_no_read every session | Same admission wall as EGBN |
+| NOK@2026-02-17 | engine_no_read every session | The LPS ceiling-rest family (the box elects **at his exact rails**) |
+
+## Diagnosis (the load-bearing facts)
+
+**EGBN + PKE — the contraction form reads them, and the operator already ruled the
+conversions real.** Under `POWER_PLAY_STORY_FORM_ENABLED` the harness fires
+EGBN 2026-01-07 **tier A on his rails** and PKE 2026-02-18 tier B — the exact
+2026-08-19 record he ruled on (*"BOTH have setups on these days so yeah"*). The
+global flip stayed refused because it did MORE than convert them (WCC re-elected
+2.2× wider, three pinned hits fire earlier, the species passenger invariant breaks).
+Both admitting sentences read `contracting at resistance | S+ S+ R0` — two
+completed support tests + the frame-edge hang at the ceiling, which the live
+S-test form's `R^` posture leg (close above R) structurally cannot see.
+
+**NOK + ST — the box is NOT the problem; the LPS is.** On every candidate session
+the walk elects boxes at (NOK) or near (ST) his drawn rails on *every* root, and
+every root dies `no_lps`:
+
+- NOK (drawn R 6.94 / S 6.43; his LPS 02-11..02-13 after the 01-30..02-11 SOS):
+  the walk elects **R 6.94 / S 6.37** — his resistance to the penny — and
+  `detect_lps` refuses the window with `does not rest on its low` ×30-34 and
+  `window launched above resistance` ×9. The species form changes nothing
+  (the wall is downstream of admission).
+- ST (drawn R 36.14 / S 33.95; his LPS 04-15..04-16, 2 bars, after the
+  04-07..04-10 SOS): boxes elect at R 36.25 / S 32.83; rejects are
+  `does not rest on its low` ×37-38, plus `low outside the support zones` at the
+  drawn shelf itself (the shelf-harness row: `beyond_tol=above_R`,
+  `pos_box 1.94` — the LPS rests ~2 box-heights up, above R).
+
+This is the Corpus Study's "ceiling rest 30/36 — the most common terminal form and
+the least modeled" made concrete. The re-run shelf harness over the CURRENT 36
+drawn LPS at drawn basis: **10/36 blessed**; reject taxonomy: 8× window spans the
+box, 7× does not rest on its low, 5× window launched above resistance, 3× volume
+not drying up, 1× each markup-leg / low-outside-zones / pullback-depth. (Most of
+those marks still fire live through different elected windows — the taxonomy is
+the drawn-basis envelope, not a live miss count. NOK and ST are the two the wall
+actually kills.)
+
+**SKYT — the door was the wall, and one held-open day is a complete setup.** The
+drawn spring (phase_c 03-25..03-30) dragged the close under the 50-day for ~4
+weeks (margins −11.7% → −0.3%, recovering; sma200 +40..50% throughout). With the
+door held open, **2026-04-07 elects a COMPLETE strict-pool structure and fires
+tier S** end-to-end — no story machinery involved. (04-08..04-13 then read
+nothing again: the LPS window's rest/spread legs refuse, the same ceiling-family
+tail. The door exception converts the mark via 04-07 regardless — inside the fair
+window, early-but-in-window like 27/29 of the corpus.)
+
+**ST converts on the door alone — the harness corrected the first diagnosis.**
+Its two door sessions (04-06/07: −1.7% / −1.3% under the 50-day, 0.38 / 0.31 ATR
+deep, 6-7 sessions since above) qualify for the dip exception, and on
+**2026-04-06 — the session before his drawn SOS ignites — the walk completes a
+structure at R 36.25 / S 32.83 and FIRES tier S** (the pre-SOS mini-consolidation
+03-11..04-07 completes an LPS at that edge). The first diagnosis ("ST needs the
+LPS family") had only walked the post-SOS edge sessions 04-15..04-17, where the
+ceiling-rest wall is real — but the fair window's door sessions fire without any
+LPS change. Early-but-in-window, the 27/29 corpus norm; the operator's eyeball at
+flip decides whether the 04-06 read is his setup (rails ≈ his 36.14 / 33.95).
+
+**MDT — the sma200 rule is a two-layer scope wall, not a margin.** Close sits
+−8..−13% under the 200-day (89-98 sessions below, share of last 60 sessions above
+= 0.00) while the 50-day is reclaimed (+0.2..+5.6%). And even with the door held
+open the walk reads **zero roots**: `collect_root_anchors` refuses to seed ANY
+climax→AR on a frame whose last close is under `ROOT_TREND_SMA` (200)
+(`below_trend_sma`, `box_primitives.py`). MDT is the corpus's one **bottoming
+base** — admitting it is a species/scope ruling (does Chrollo read Stage-1
+accumulation at all?), not a threshold, and it must be ruled at BOTH layers.
+Deliberately NOT built into either lane; see the ask.
+
+## Lane 1 — the contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark)
+
+**Design.** When the whole root walk elects nothing, `read_structure` re-walks
+ONCE with the resistance-contraction form armed inside the story pool (the one
+scoped override, `htf.window_override`). Never after a cause-before-effect
+abstention (doctrinal, final). The scope answers each 2026-08-19 refusal ground
+by construction:
+
+- **WCC-class re-elections are unreachable** — a ticker that elects anything
+  keeps its election; the rescue never runs there.
+- **Pinned hits keep their fire dates on every session where they currently
+  elect.** (On sessions where a hit currently reads NOTHING, the rescue may read
+  something — whether any pinned hit gains an *earlier* first-fire is a flip-time
+  A/B question; over the sealed corpus fixture none of the spot-checked hits
+  moved, and the ratchet's pinned-hit legs hold flag-ON except the two
+  conversions themselves.)
+- **The species passenger invariant stands** — `POWER_PLAY_STORY_FORM_ENABLED`
+  still never reaches the paying read; the rescue is its own named flag, its own
+  scope, and skips itself inside the species lane's scoped read.
+
+**Evidence (frozen frames + sealed fixtures, this branch):**
+
+- EGBN@2026-01-15 → **FIRES 2026-01-07, tier A, his rails** (harness: `match`).
+- PKE@2026-02-24 → **FIRES 2026-02-18, tier B** (rails off-tol vs drawn — the
+  same framing he ruled real).
+- Both stamp `elected_pool='story'`, profile `contracting at resistance | S+ S+ R0`.
+- NOK, ST → do NOT convert (wall is the LPS family; honest).
+- Negative corpus, flag ON (both lanes): **all 18 junk cases still reject**.
+- Flag off: byte-identical single walk (guards in
+  `tests/test_miss_program_lanes.py`; shadow `--check` green at this commit).
+
+**Flip asks:** (1) the ratchet reseal — EGBN and PKE leave the expected-miss list
+(the same reseal shape as the 2026-07-26 story-pool flip); (2) the second-walk
+cost on refusing tickers, measured on a nightly scan (ScanTimer) — the rescue
+doubles the walk exactly on the tickers that elect nothing, which is most of the
+universe; if the wall hurts, the measured optimization is an exact
+convertibility precondition off the near-miss recorder (only occupancy/traversal
+refusals are ever story-admissible), reserved until the cost is real; (3) the
+live-payload flip-count census (how many current no-reads convert fleet-wide,
+eyeballable like NKTR/YPF were).
+
+## Lane 2 — the 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark)
+
+**Design.** An `sma50` refusal enters chart reading when the dip is a bounded,
+recent, already-recovered event: last close at/above SMA_50 within
+`SMA50_DIP_MAX_SESSIONS` (25), close within `SMA50_DIP_MAX_ATR` (1.0) ATR_10
+below it. The SMA_200 and YoY legs still gate behind it — a dip exception is not
+a downtrend exception. Geometry stays the only veto: the door only decides who
+gets READ. Thresholds sit where the drawn evidence sits (SKYT 04-07: 20 sessions,
+0.90 ATR; ST: 6-7 sessions, 0.31-0.38 ATR) with margin, not fitted to the last
+decimal.
+
+**Evidence:** SKYT fires tier S (strict pool) on 2026-04-07 end-to-end; **ST
+fires tier S on 2026-04-06** (the pre-SOS shelf completes; harness `--variant
+SMA50_DIP_EXCEPTION_ENABLED=True` grades both marks converted); negative corpus
+clean with the flag ON; synthetic-frame guards pin recency / depth /
+never-above / sma200-still-gates; flag off byte-identical.
+
+**Flip asks:** (1) the admission-cost census over the live cache — how many extra
+tickers per scan enter the detector through the exception, and do any FIRE (the
+fire count is the exposure; entering the detector is not a pick); (2) the ratchet
+reseal for SKYT.
+
+## Lane 3 — the LPS ceiling-rest family (FOUND, not built)
+
+NOK and ST (and SKYT's post-04-07 tail) die at the LPS two-form geometry: the
+after-SOS rest that holds HIGH — on the ceiling or above R — which
+`terminal_valley` refuses (`does not rest on its low`), `holding_shelf` partially
+refuses (`flat-hold form refused`), and `buec_shelf` bounds away
+(`window launched above resistance`). The Corpus Study measured the drawn
+envelope (LPS spans 2-5 bars; depth 0.9-2.7 ADR; ceiling rest 30/36;
+`lps_pullback_profile` fails exactly the 5 above-R shelf winners;
+`lps_vol_contraction` fails 9/35 of his winners). Extending the sanctioned forms
+is fire-affecting detection work in a family with a live junk defense (the 2-bar
+shelf must re-clear KWR/FLG; the July "no moves" envelope ruling was measured on
+the pre-re-mark corpus) — it needs its own program, run by the standing
+drawn-marks method: measure all 36 drawn LPS against the per-form gates, propose
+the minimal form/leg change, full A/B with the negative corpus and the ratchet.
+This program is the named prerequisite for NOK and ST (and it is the same family
+the corpus hunt map ranked #2).
+
+## What each miss needs, net
+
+| Miss | Lane 1 (rescue) | Lane 2 (door) | Lane 3 (LPS family) | Scope ruling |
+|---|---|---|---|---|
+| EGBN | **converts** (01-07, tier A, his rails) | — | — | — |
+| PKE | **converts** (02-18, tier B) | — | — | — |
+| SKYT | — | **converts** (04-07, tier S) | (would widen the window) | — |
+| ST | — | **converts** (04-06, tier S) | (would widen the window) | — |
+| NOK | — | — | **needed** | — |
+| MDT | — | — | — | **bottoming-base ruling** (door + seeding) |
+
+**Net: the two dark lanes convert 4 of the 6.** NOK waits on the LPS
+ceiling-rest program; MDT on the bottoming-base scope ruling.
+
+## Stamps
+
+- Engine manifest: this branch registers `CONTRACTION_RESCUE_ENABLED`,
+  `SMA50_DIP_EXCEPTION_ENABLED`, `SMA50_DIP_MAX_SESSIONS`, `SMA50_DIP_MAX_ATR` —
+  a declared key-addition rotation of `engine_config_version` (values all dark;
+  behavior identical).
+- `tools.near_miss_census --check` and `tools.event_map_census --check` refuse
+  on the live DB **before reaching any engine pin** — their sealed populations
+  reference `CTOS:2026-07-23`, which no longer exists in the marks DB (the
+  2026-08-28 re-mark pass; CTOS carries zero marks today). Pre-existing on
+  main, not this branch; both marks-axis re-pins belong to the owed graduation
+  sitting, where this branch's engine-axis rotation re-pins alongside them
+  (EC-37, both axes named).
+- Marks basis: live DB 35 box marks (the ratchet's sealed subset fingerprint
+  `b671e056…` unchanged; the graduation advisory stands).
+- Guards at this commit: ratchet 28/33 PASS (flag-off), negative corpus 18/18
+  PASS (both flag states), shadow `--check` green, full pytest green,
+  `tools.doctrine_audit` green.

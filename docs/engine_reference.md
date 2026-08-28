@@ -254,6 +254,18 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
+**The 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark — miss program
+2026-08-28).** An `sma50` refusal is admitted into chart reading when the dip
+under the 50-day is a bounded, recent, already-recovered event
+(`_sma50_dip_admits`): the last close at/above SMA_50 printed within
+`SMA50_DIP_MAX_SESSIONS` (25), and the close sits within `SMA50_DIP_MAX_ATR`
+(1.0) ATR_10 below it. The SMA_200 and YoY legs still gate behind it — a dip
+exception is never a downtrend exception — and geometry stays the only veto
+downstream. Built for the SKYT class (the drawn spring's own drag under the
+50-day; with the door held open its 2026-04-07 session elects a complete
+strict-pool structure): evidence + flip asks in
+[miss_program_2026-08.md](miss_program_2026-08.md). Flag off = byte-identical.
+
 `_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
@@ -279,6 +291,22 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 6. `resolve_phase_a()` — reconnects the local climax -> AR bridge whose reaction lands at the validated box start.
 
 If any required brick fails, the reader advances to the next root swing and tries again. If no complete A -> B -> (C?) -> D/LPS narrative holds, the ticker has no setup.
+
+**The contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark — miss program
+2026-08-28).** On a FULL refusal — every root refused; never after a
+cause-before-effect abstention, which is doctrinal and final —
+`read_structure` re-walks once under the one scoped override with
+`POWER_PLAY_STORY_FORM_ENABLED` armed, so the story pool may also admit
+through the resistance-contraction form (`event_map.resistance_contraction_admission`).
+Scoped to full refusals by construction, the rescue can never displace an
+existing election (the WCC wider-box re-election that refused the global form
+flip is unreachable), and it skips itself when the form is already armed (the
+species lane's scoped read). A rescued fire elects `elected_pool='story'` with
+the self-naming contraction profile. Trace records of the second pass carry
+`pass="contraction_rescue"`. Evidence (EGBN 01-07 tier A on his rails, PKE
+02-18 tier B; junk corpus clean) + flip asks in
+[miss_program_2026-08.md](miss_program_2026-08.md). Flag off = one walk,
+byte-identical.
 
 `consolidation.detect_boxes()` / `find_outer_box()` remain for diagnostics and low-level compatibility. The live pipeline consumes the `Structure` from `read_structure()` and adapts it into the legacy parent/inner shape internally so scoring, archive, and chart payloads stay stable.
 
@@ -1162,13 +1190,16 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `0eef903a8ee3f58b4b86a3469d58d9a136e212f24f4af8e7d11a379d760839da`_
+_engine_config_version: `654737cd5bf757d935c08521cdd41db4ba756e9c564f5888683e0a2233ae41e9`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
 MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
+SMA50_DIP_EXCEPTION_ENABLED = False
+SMA50_DIP_MAX_SESSIONS = 25
+SMA50_DIP_MAX_ATR = 1.0
 MIN_BASE_DAYS = 20
 MAX_BOX_WIDTH = 0.18
 CRASH_FILTER_MULT = 0.7
@@ -1250,6 +1281,7 @@ BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
 STORY_POOL_ENABLED = True
+CONTRACTION_RESCUE_ENABLED = False
 NEAR_MISS_MAX_QUANTA = 1
 NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083

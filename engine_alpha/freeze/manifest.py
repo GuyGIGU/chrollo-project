@@ -50,6 +50,10 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "MIN_PRICE",
     "MIN_VOLUME_50D",
     "MIN_YEARLY_RETURN",
+    # The 50-day dip exception (miss program 2026-08-28, dark)
+    "SMA50_DIP_EXCEPTION_ENABLED",
+    "SMA50_DIP_MAX_SESSIONS",
+    "SMA50_DIP_MAX_ATR",
     # Phase 2 — consolidation base parameters
     "MIN_BASE_DAYS",
     "MAX_BOX_WIDTH",
@@ -160,6 +164,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_EVENT_MAX_BARS",
     # Story-rescue last-resort pool (Event Map program Task 8, dark)
     "STORY_POOL_ENABLED",
+    # Contraction-rescue lane at full-refusal scope (miss program 2026-08-28, dark)
+    "CONTRACTION_RESCUE_ENABLED",
     # Near-miss lane ruled-form constants (Task 6 ruling 2026-07-26 —
     # measure-only telemetry; listed with the ruling so a re-ruling rotates
     # engine_config_version from day one) + the collector flag (Task 7, dark;

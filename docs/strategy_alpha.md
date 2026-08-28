@@ -704,6 +704,21 @@ contraction form is PROVISIONAL until the operator's species ruling sheets calib
 the species' trend-side theory (the transition zone — trend end and base open as one
 short zone) enters with the trend-state layer, not here.
 
+**The contraction rescue — the form's one sanctioned road into the paying read
+(dark; miss program 2026-08-28).** The 2026-08-19 refusal of the global form flip
+named its own successor: converting EGBN/PKE (both conversions operator-ruled
+real) "needs its own program with a real A/B", because the global flip also
+re-elected WCC into a 2.2×-wider box and moved pinned fire dates. That program's
+answer is a SCOPE, not a threshold: the form is consulted only when the whole
+walk has already refused everything — a second walk on full refusal, never after
+a cause-before-effect abstention. At that scope a rescued fire can only ever ADD
+a read where there was none; no existing election, framing, or fire date is
+reachable. The admission stays the same thin ruled judgment outside the reader,
+and a rescued fire records itself through the story pool with the
+behavior-naming profile. Dark until the operator's flip (which re-seals the
+must-fire ratchet for EGBN/PKE); the evidence record is
+[miss_program_2026-08.md](miss_program_2026-08.md).
+
 **The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
 menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**
 a candidate window is story-admissible when its as-of episode read shows **at least 2
