@@ -129,15 +129,22 @@ by construction:
 - Flag off: byte-identical single walk (guards in
   `tests/test_miss_program_lanes.py`; shadow `--check` green at this commit).
 
-**Flip asks:** (1) the ratchet reseal — EGBN and PKE leave the expected-miss list
-(the same reseal shape as the 2026-07-26 story-pool flip); (2) the second-walk
-cost on refusing tickers, measured on a nightly scan (ScanTimer) — the rescue
-doubles the walk exactly on the tickers that elect nothing, which is most of the
-universe; if the wall hurts, the measured optimization is an exact
-convertibility precondition off the near-miss recorder (only occupancy/traversal
-refusals are ever story-admissible), reserved until the cost is real; (3) the
-live-payload flip-count census (how many current no-reads convert fleet-wide,
-eyeballable like NKTR/YPF were).
+**The flip census ran (same run as the door's, below): of 1,241 tickers that
+reach chart reading and elect nothing, the rescue converts 32 (2.6%) — +10% on
+the 309 standing fires — every one `elected_pool='story'` with a self-naming
+contraction profile (12 tier S / 17 A / 2 B / 1 C; KFY 119.9 the top; BIIB,
+BMY, HUM, MA among them). A reviewable sheet, the NKTR/YPF eyeball shape at
+32 names: `output/miss_lane_census_2026-08-28.json`.**
+
+**Flip asks:** (1) the operator's eyeball of the 32-name conversion sheet (the
+same per-fire chart check the story-pool flip got); (2) the ratchet reseal —
+EGBN and PKE leave the expected-miss list (the same reseal shape as the
+2026-07-26 story-pool flip); (3) the second-walk cost on refusing tickers,
+measured on a nightly scan (ScanTimer) — the rescue doubles the walk exactly on
+the tickers that elect nothing; if the wall hurts, the measured optimization is
+an exact convertibility precondition off the near-miss recorder (only
+occupancy/traversal refusals are ever story-admissible), reserved until the
+cost is real.
 
 ## Lane 2 — the 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark)
 
@@ -156,10 +163,25 @@ SMA50_DIP_EXCEPTION_ENABLED=True` grades both marks converted); negative corpus
 clean with the flag ON; synthetic-frame guards pin recency / depth /
 never-above / sma200-still-gates; flag off byte-identical.
 
-**Flip asks:** (1) the admission-cost census over the live cache — how many extra
-tickers per scan enter the detector through the exception, and do any FIRE (the
-fire count is the exposure; entering the detector is not a pick); (2) the ratchet
-reseal for SKYT.
+**The flip census ran (`tools.miss_lane_census`, cache edge 2026-08-27, 5,532
+tickers, sidecar `output/miss_lane_census_2026-08-28.json`) — and it says the
+lane AS SHIPPED is wide.** Baseline standing fires: 309. The exception admits
+291 of 1,770 sma50 refusals and **157 of them fire (+51% standing fires;
+99 tier A / 58 S across both lanes' 189 total)**. The margin distribution of
+those 157: median **3 sessions** since above the 50-day, median gap **0.43
+ATR** — mostly shallow wobbles hugging the rail, NOT the drawn class. And the
+knob curve proves tightening cannot separate: SKYT (20 sessions, 0.90 ATR) sits
+at the DEEP end, so every knob setting that drops the wobbler mass drops SKYT
+first (≤10 sessions & ≤0.5 ATR keeps 93 of 157 and loses SKYT; the only cell
+that thins the mass to 29 loses ST too). **If the fleet exposure is unwanted,
+the honest narrowing is not a knob — it is coupling the exception to the
+STORY** (admit the dip only when the elected box's own below-S excursion — the
+drawn-spring shape — explains it), which is a follow-up design for the
+operator's go-ahead, not a threshold move.
+
+**Flip asks:** (1) rule the shape — flip as-is (+157 standing fires, eyeball
+sheet in the sidecar), narrow to the story-coupled form first, or hold dark;
+(2) the ratchet reseal for SKYT.
 
 ## Lane 3 — the LPS ceiling-rest family (FOUND, not built)
 
