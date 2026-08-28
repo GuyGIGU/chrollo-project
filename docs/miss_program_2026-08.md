@@ -211,3 +211,11 @@ ceiling-rest program; MDT on the bottoming-base scope ruling.
 - Guards at this commit: ratchet 28/33 PASS (flag-off), negative corpus 18/18
   PASS (both flag states), shadow `--check` green, full pytest green,
   `tools.doctrine_audit` green.
+- **The reseal shape, isolated (both lanes forced ON):** the sealed ratchet
+  breaks on exactly **EGBN (fires 01-07 tier A), PKE (02-18 tier B), SKYT
+  (04-07 tier S)** and nothing else — every one of the 28 pinned hits still
+  fires, no other expected miss converts. The flip reseal is therefore
+  28/33 → 31/33, pinned by name. (ST doesn't appear in this list because the
+  SEALED July-era ST mark is already a ratchet hit with a 03-26 baseline
+  fire; the LIVE re-marked ST@2026-04-17 is what the door lane converts, per
+  the harness A/B above.)
