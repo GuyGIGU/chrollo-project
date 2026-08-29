@@ -255,8 +255,27 @@ MDT fires **2026-07-14, tier S, at his drawn R 82.83**.
 **Guards at the second wave:** junk corpus 18/18 with ALL FOUR lanes armed;
 shadow NO DRIFT (ceiling-rest armed); flags-on ratchet breaks on exactly
 EGBN / NOK / PKE(old sealed mark) / SKYT — **the reseal is 28/33 → 32/33,
-pinned by name**; full pytest green flag-off. Fleet census legs for the two
-new lanes: queued on the same instrument (`tools.miss_lane_census`).
+pinned by name**; full pytest green flag-off.
+
+**The second-wave fleet census** (`tools.miss_lane_census`, cache edge
+2026-08-27, sidecar `output/miss_lane_census_2026-08-29.json`):
+
+- **Ceiling rest — surgical on conversions, but it re-points live triggers.**
+  8 conversions of 1,241 no-reads (0.6%: KFY/EQH/KNSL/PGR/IPI/IMO/VTOL/UGI) —
+  and the drift leg found what the 32-ticker shadow fixture could not:
+  **12 of the 309 currently-firing tickers drift with the flag armed**
+  (BSTZ CSX EC EOG LCUT MMI MTDR OVV PH WHWK XOM ZD). Characterized: rails,
+  box and tier hold on every sampled name — what moves is the ELECTED LPS
+  window (the elector prefers the latest legal window, and a newly-legal
+  ceiling rest later in the tape wins), so the trigger price re-points
+  (CSX 51.88 → 51.70; XOM 162.81 → 161.13; PH 1023.68 → 1012.16) and the
+  score shifts a few points either way. Arguably the more terminal read —
+  the elector's own preference — but moved buy levels on ~4% of live picks
+  are flip-decision material, per-chart eyeballable.
+- **Bottoming — moderate width.** 410 sma200 refusals; 194 admit under the
+  reclaimed-50-day condition (47%); **60 fire (+19% on 309 standing fires;
+  15 S / 32 A / 11 B / 2 C)**. A 60-name eyeball sheet — between the
+  rescue's 32 and the dip lane's 157.
 
 ## Stamps
 
