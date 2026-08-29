@@ -203,17 +203,60 @@ the corpus hunt map ranked #2).
 
 ## What each miss needs, net
 
-| Miss | Lane 1 (rescue) | Lane 2 (door) | Lane 3 (LPS family) | Scope ruling |
-|---|---|---|---|---|
-| EGBN | **converts** (01-07, tier A, his rails) | — | — | — |
-| PKE | **converts** (02-18, tier B) | — | — | — |
-| SKYT | — | **converts** (04-07, tier S) | (would widen the window) | — |
-| ST | — | **converts** (04-06, tier S) | (would widen the window) | — |
-| NOK | — | — | **needed** | — |
-| MDT | — | — | — | **bottoming-base ruling** (door + seeding) |
+| Miss | Converts via | Fire |
+|---|---|---|
+| EGBN | contraction rescue (`CONTRACTION_RESCUE_ENABLED`) | 2026-01-07, tier A |
+| PKE | **baseline** — the re-marked PKE@2026-04-07 fires with no flag at all | 2026-03-26, tier B, his rails |
+| SKYT | 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`) | 2026-04-07, tier S |
+| ST | 50-day dip exception | 2026-04-06, tier S |
+| NOK | ceiling-rest LPS exception (`LPS_CEILING_REST_ENABLED`) | 2026-02-13, tier B, his R to the penny |
+| MDT | bottoming-base lane (`BOTTOMING_BASE_LANE_ENABLED`) | 2026-07-14, tier S, his R to the penny |
 
-**Net: the two dark lanes convert 4 of the 6.** NOK waits on the LPS
-ceiling-rest program; MDT on the bottoming-base scope ruling.
+**Net after the 2026-08-29 second wave: ALL SIX have a conversion path** — one
+at baseline, five behind four dark flags whose flips are the operator's.
+
+## The second wave (2026-08-29) — the re-marks, NOK, MDT
+
+The operator re-marked the misses and ruled, verbatim: *"Okay I Remarked some
+of these I do would like you to take a look at Nok and MDT again, I don't want
+to miss them."* The re-marks themselves moved the board: **PKE was redrawn as
+a NEW later base (PKE@2026-04-07, the old 02-24 mark deleted) — and the engine
+fires it AT BASELINE** (2026-03-26, tier B, his rails, `match`); EGBN's rails
+nudged (R 21.64→21.96, S 20.49→20.92 — its rescue fire stands, now grading
+off-tol against the moved rails); NOK's LPS was re-drawn to the 2-bar
+02-12..02-13 rail rest with the box end pulled to 02-13.
+
+**NOK — the ceiling-rest exception (`LPS_CEILING_REST_ENABLED`, dark).** The
+one refusing leg was the LPS launch gate: NOK's drawn rest sits 0.241 ATR
+under R (pos_box 0.88) while the window's launch — the SOS top's own giveback
+— pokes 1.08 ATR above R, tripping "window launched above resistance". The
+exception sanctions the straddle only when the rest lands ON the ceiling
+(`support_low ≥ R − 0.3·ATR`). **The bar is drawn-evidence-placed:** the
+corpus's five launched-above shelves rest at 0.010 (DSGN), 0.087 (MATX),
+0.148 (MSGS), 0.241 (NOK) — and 0.772 (YPF, a mid-box shape that is not this
+form and already fires via the story pool) — while the nearest labeled junk,
+ENIC (must-not-fire), would rest at 0.314. At a first-guess bar of 0.5 the
+negative corpus went RED (ENIC fired tier A); at 0.3 all 18 junk cases
+reject. **A stated ~0.06-ATR razor on each side** (n=4 drawn vs n=1 junk) —
+the operator's eyeball at flip owns it. NOK fires 2026-02-13 tier B through
+the ordinary strict pool; the shadow panel shows **zero drift** with the flag
+armed (no existing election or LPS window moves).
+
+**MDT — the bottoming-base lane (`BOTTOMING_BASE_LANE_ENABLED`, dark).** The
+ruling resolves the scope ask in the catch direction. One flag opens the
+sma200 rule at BOTH its layers — the universe door's sma200 leg and
+`collect_root_anchors`' `below_trend_sma` seeding refusal — under ONE
+condition: the 50-day is reclaimed (a bottoming base is read only once its
+intermediate trend has turned). Price/volume/YoY still gate (MDT's YoY is
+−10% against the −20% floor), and the chained-door case is pinned: a frame
+under BOTH smas that dip-excepts past the sma50 leg is refused at sma200.
+MDT fires **2026-07-14, tier S, at his drawn R 82.83**.
+
+**Guards at the second wave:** junk corpus 18/18 with ALL FOUR lanes armed;
+shadow NO DRIFT (ceiling-rest armed); flags-on ratchet breaks on exactly
+EGBN / NOK / PKE(old sealed mark) / SKYT — **the reseal is 28/33 → 32/33,
+pinned by name**; full pytest green flag-off. Fleet census legs for the two
+new lanes: queued on the same instrument (`tools.miss_lane_census`).
 
 ## Stamps
 

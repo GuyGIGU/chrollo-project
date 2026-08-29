@@ -385,3 +385,110 @@ def test_dip_exception_lets_st_fire_end_to_end(monkeypatch):
     assert isinstance(on, dict), "ST's door conversion no longer fires"
     assert on["_elected_pool"] == "strict"
     assert on["Tier"] == "S"
+
+
+# ──────────────── lane 3: the ceiling-rest LPS exception (2026-08-29) ───────
+
+def test_ceiling_rest_lets_nok_fire_end_to_end(monkeypatch):
+    """NOK@2026-02-17 (sealed expected-miss): the walk elects his box at his
+    exact resistance and dies at ONE leg — the after-SOS rest that launched
+    above R. With the ceiling-rest exception on (rest 0.241 ATR under R,
+    drawn-cluster bar 0.3 — junk ENIC sits at 0.314 and is pinned rejecting
+    in test_negative_corpus), the 2026-02-13 session completes and fires
+    tier B through the ordinary strict pool."""
+    frames, baseline = _load_marks_fixture()
+    e = next(x for x in baseline["setups"] if x["key"] == "NOK:2026-02-17")
+    assert e["status"] == "miss"
+    sliced = fixture_frame(frames, e["key"], "NOK").loc[
+        :pd.Timestamp("2026-02-13")]
+
+    monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", False)
+    off = _evaluate_ticker("NOK", sliced, 0.0, _FROZEN_BREADTH)
+    assert not isinstance(off, dict)
+
+    monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", True)
+    on = _evaluate_ticker("NOK", sliced, 0.0, _FROZEN_BREADTH)
+    assert isinstance(on, dict), "NOK's ceiling-rest conversion no longer fires"
+    assert on["_elected_pool"] == "strict"
+    assert on["Tier"] == "B"
+
+
+# ──────────────── lane 4: the bottoming-base lane (2026-08-29) ──────────────
+
+def _v_recovery_frame():
+    """An MDT-shaped tape: a high plateau still inside the 200-day window, a
+    deep decline, then a young base whose close has reclaimed the 50-day but
+    still sits under the 200-day."""
+    n = 260
+    closes = np.empty(n)
+    closes[:160] = 13.0
+    closes[160:200] = np.linspace(13.0, 8.0, 40)
+    closes[200:] = np.linspace(8.2, 8.7, 60)
+    return _ohlcv(closes)
+
+
+def test_bottoming_lane_opens_the_sma200_leg_and_the_next_leg_still_gates(monkeypatch):
+    df = _v_recovery_frame()
+    close = df["Close"]
+    sma50 = float(close.rolling(50).mean().iloc[-1])
+    sma200 = float(close.rolling(200).mean().iloc[-1])
+    assert sma50 <= float(close.iloc[-1]) < sma200, "construction drifted"
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", False)
+    result, reason = apply_baseline_filters_with_reason(df)
+    assert result is None and reason[0] == "sma200"
+
+    # Flag on: the sma200 leg opens — and the frame's own deep-decline YoY
+    # then refuses, proving the legs BEHIND the exception still gate.
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    result, reason = apply_baseline_filters_with_reason(df)
+    assert result is None and reason[0] == "yoy", (
+        "the exception must open exactly the sma200 leg, nothing more")
+
+
+def test_bottoming_lane_requires_the_50d_reclaimed(monkeypatch):
+    """A frame under BOTH smas can only reach the sma200 leg through the dip
+    exception — and the bottoming condition (close >= SMA_50) must refuse it
+    there. The two door lanes can never chain into admitting a chart that is
+    under both rails."""
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    monkeypatch.setattr(settings, "SMA50_DIP_EXCEPTION_ENABLED", True)
+    df = _v_recovery_frame()
+    # A shallow, fresh dip under the 50-day: the dip exception admits it past
+    # the sma50 leg; the bottoming exception must then refuse at sma200.
+    sma50 = float(df["Close"].rolling(50).mean().iloc[-1])
+    df.iloc[-1, df.columns.get_loc("Close")] = sma50 - 0.05
+    df.iloc[-1, df.columns.get_loc("Low")] = sma50 - 0.15
+    since, gap, atr = _door_margins(df)
+    assert since is not None and 0 < since <= settings.SMA50_DIP_MAX_SESSIONS
+    assert 0 < gap <= settings.SMA50_DIP_MAX_ATR * atr, "construction drifted"
+    result, reason = apply_baseline_filters_with_reason(df)
+    assert result is None and reason[0] == "sma200"
+
+
+def test_bottoming_lane_opens_the_seeding_gate_under_the_same_condition(monkeypatch):
+    """The sma200 rule's SECOND layer: collect_root_anchors refuses to seed
+    any frame under its 200-bar SMA (`below_trend_sma`). The lane opens both
+    layers together — same flag, same reclaimed-50-day condition."""
+    from engine_alpha.structure.box_primitives import collect_root_anchors
+
+    df = _v_recovery_frame()
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", False)
+    trace: list = []
+    assert collect_root_anchors(df, settings.MIN_BASE_DAYS, trace) == []
+    assert any(r.get("leg") == "below_trend_sma" for r in trace)
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    trace = []
+    collect_root_anchors(df, settings.MIN_BASE_DAYS, trace)
+    assert not any(r.get("leg") == "below_trend_sma" for r in trace), (
+        "the seeding gate must defer to the lane when the 50-day is reclaimed")
+
+    # 50-day NOT reclaimed: the seeding gate stays shut even with the flag on.
+    df2 = _v_recovery_frame()
+    sma50 = float(df2["Close"].rolling(50).mean().iloc[-1])
+    df2.iloc[-1, df2.columns.get_loc("Close")] = sma50 - 0.5
+    trace = []
+    assert collect_root_anchors(df2, settings.MIN_BASE_DAYS, trace) == []
+    assert any(r.get("leg") == "below_trend_sma" for r in trace)

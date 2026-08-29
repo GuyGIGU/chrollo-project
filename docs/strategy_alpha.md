@@ -507,6 +507,18 @@ The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): 
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
 LPS Detection".
 
+**The ceiling rest — the drawn corpus's most common terminal shape, sanctioned dark
+(operator ruling 2026-08-29, NOK).** The Corpus Study measured what the catalog had
+under-modeled: 30 of 36 drawn LPS windows rest at the CEILING — the after-advance
+giveback landing ON the rail, wick pokes above R included. The detector's launch gate
+refused exactly this straddle (an INSIDE window that "launched above resistance"),
+reading it as a late off-structure pullback. The dark exception sanctions it ONLY when
+the rest itself sits on the rail (within 0.3 ATR under R — the bar placed by the drawn
+class: DSGN/MATX/MSGS/NOK rest at 0.010–0.241, the nearest labeled junk at 0.314); a
+launch-above window resting any deeper stays refused as before. This is a completion-
+form refinement inside the one LPS detector, never a sibling detector; flip and the
+razor's eyeball are the operator's.
+
 **One LPS per setup (operator ruling 2026-08-09).** A setup has a SINGLE last point of
 support — the chronological terminal one, in Phase D, right of the V (see the spring
 entry's cause-before-effect rule). The earlier support-test staircase the chart used to

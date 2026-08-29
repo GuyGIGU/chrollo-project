@@ -10,7 +10,13 @@ real per-ticker pipeline and answer the two questions each flip ask names:
   like (tier, rails, admitting sentence) for the operator's eyeball;
 * **the 50-day dip exception** — how many `sma50` universe refusals enter
   chart reading through the exception, and how many of those FIRE (entering
-  the detector is not a pick; the fire count is the exposure).
+  the detector is not a pick; the fire count is the exposure);
+* **the bottoming-base lane** (2026-08-29) — how many `sma200` refusals with
+  the 50-day reclaimed enter, and how many FIRE;
+* **the ceiling-rest LPS exception** (2026-08-29) — how many current
+  no-reads convert through the sanctioned straddle, and — the drift leg —
+  whether ANY currently-firing ticker's canonical read moves with it armed
+  (the completion-form analogue of the shadow guard, at fleet scale).
 
 Attribution is by construction: a ticker's baseline refusal reason routes it
 to exactly the lane(s) that could reach it (an `sma50` universe refusal to
@@ -86,10 +92,14 @@ def run(limit=None, json_out=None):
     counts = {
         "tickers": 0, "fires_off": 0, "eval_error": 0,
         "universe_refused_other": 0, "universe_refused_sma50": 0,
+        "universe_refused_sma200": 0,
         "door_admitted": 0, "door_fires": 0, "door_rescue_fires": 0,
-        "read_refused": 0, "rescue_fires": 0,
+        "bottoming_admitted": 0, "bottoming_fires": 0,
+        "read_refused": 0, "rescue_fires": 0, "ceiling_fires": 0,
+        "fires_ceiling_drift": 0,
     }
     conversions = []
+    drifted = []
     t0 = time.time()
     session = None
     for i, ticker in enumerate(tickers):
@@ -106,9 +116,32 @@ def run(limit=None, json_out=None):
             continue
         if isinstance(off, dict):
             counts["fires_off"] += 1
+            # The ceiling-rest DRIFT leg: a completion-form change is the one
+            # lane class that can move an EXISTING fire's read. Fleet-scale
+            # canonical comparison, the shadow guard's yardstick.
+            from tools import shadow_diff  # noqa: PLC0415
+            with flag_capture(LPS_CEILING_REST_ENABLED=True):
+                on = _evaluate_ticker(ticker, df, _SPY_6M, _BREADTH)
+            if (not isinstance(on, dict)
+                    or shadow_diff.canonical_fields(on)
+                    != shadow_diff.canonical_fields(off)):
+                counts["fires_ceiling_drift"] += 1
+                drifted.append(ticker)
             continue
 
         _, reason = apply_baseline_filters_with_reason(df)
+        if reason is not None and reason[0] == "sma200":
+            counts["universe_refused_sma200"] += 1
+            with flag_capture(BOTTOMING_BASE_LANE_ENABLED=True):
+                base2, _r2 = apply_baseline_filters_with_reason(df)
+                if base2 is None:
+                    continue                    # 50d not reclaimed / later leg
+                counts["bottoming_admitted"] += 1
+                bot = _evaluate_ticker(ticker, df, _SPY_6M, _BREADTH)
+            if isinstance(bot, dict):
+                counts["bottoming_fires"] += 1
+                conversions.append(_fire_row(ticker, bot, "bottoming"))
+            continue
         if reason is not None and reason[0] != "sma50":
             counts["universe_refused_other"] += 1
             continue
@@ -139,6 +172,13 @@ def run(limit=None, json_out=None):
         if isinstance(on, dict):
             counts["rescue_fires"] += 1
             conversions.append(_fire_row(ticker, on, "rescue"))
+        # The ceiling-rest leg, independent of the rescue: the sanctioned
+        # straddle can complete an LPS on a box that already elects.
+        with flag_capture(LPS_CEILING_REST_ENABLED=True):
+            ceil = _evaluate_ticker(ticker, df, _SPY_6M, _BREADTH)
+        if isinstance(ceil, dict):
+            counts["ceiling_fires"] += 1
+            conversions.append(_fire_row(ticker, ceil, "ceiling"))
 
         if (i + 1) % 250 == 0:
             print(f"  ... {i + 1}/{len(tickers)} "
@@ -149,6 +189,7 @@ def run(limit=None, json_out=None):
         "cache_last_session": str(session)[:10] if session is not None else None,
         "engine_manifest": manifest_hash()[:16],
         "counts": counts,
+        "fires_ceiling_drifted": drifted,
         "conversions": sorted(conversions,
                               key=lambda r: (-(r["score"] or 0), r["ticker"])),
     }
@@ -161,7 +202,11 @@ def run(limit=None, json_out=None):
         print(f"  {k:>24}: {v}")
     print(f"  conversions: {len(conversions)} "
           f"(rescue {counts['rescue_fires']}, door {counts['door_fires']}, "
-          f"door+rescue {counts['door_rescue_fires']})")
+          f"door+rescue {counts['door_rescue_fires']}, "
+          f"bottoming {counts['bottoming_fires']}, "
+          f"ceiling {counts['ceiling_fires']})")
+    if drifted:
+        print(f"  ceiling-rest drift on current fires: {drifted}")
     for r in report["conversions"]:
         print(f"    {r['ticker']:<6} [{r['lane']}] tier {r['tier']} "
               f"score {r['score']} pool {r['elected_pool']} "

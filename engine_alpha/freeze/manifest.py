@@ -54,6 +54,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SMA50_DIP_EXCEPTION_ENABLED",
     "SMA50_DIP_MAX_SESSIONS",
     "SMA50_DIP_MAX_ATR",
+    # The bottoming-base lane (miss program, operator ruling 2026-08-29, dark)
+    "BOTTOMING_BASE_LANE_ENABLED",
     # Phase 2 — consolidation base parameters
     "MIN_BASE_DAYS",
     "MAX_BOX_WIDTH",
@@ -154,6 +156,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_HOLDING_SHELF_ENABLED",
     "LPS_SHELF_LENGTH_MIN",
     "LPS_SHELF_MIN_LOW_POS_BOX",
+    # Ceiling-rest launch-gate exception (miss program, operator ruling 2026-08-29, dark)
+    "LPS_CEILING_REST_ENABLED",
+    "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     "TREND_TERMINAL_BOX_GATE_ENABLED",
     # Deep-excursion pair events (Event Map Task 11, dark)

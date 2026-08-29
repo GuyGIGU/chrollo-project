@@ -136,7 +136,15 @@ def apply_baseline_filters_with_reason(
     if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None, ("vol50", samples)
     if latest['Close'] < latest['SMA_50'] and not _sma50_dip_admits(df):
         return None, ("sma50", samples)
-    if latest['Close'] < latest['SMA_200']: return None, ("sma200", samples)
+    # The bottoming-base lane (BOTTOMING_BASE_LANE_ENABLED, dark — operator
+    # ruling 2026-08-29, MDT): an sma200 refusal enters chart reading when
+    # the 50-day is reclaimed. The lane's second half opens the anchor
+    # seeding gate under the same flag+condition (collect_root_anchors).
+    # NaN SMA_50 fails the >= closed — the exception never rides missing data.
+    if latest['Close'] < latest['SMA_200'] and not (
+            settings.BOTTOMING_BASE_LANE_ENABLED
+            and latest['Close'] >= latest['SMA_50']):
+        return None, ("sma200", samples)
     if yearly_return < settings.MIN_YEARLY_RETURN: return None, ("yoy", samples)
 
     return (df, float(yearly_return)), None

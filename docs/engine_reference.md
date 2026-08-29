@@ -266,6 +266,18 @@ downstream. Built for the SKYT class (the drawn spring's own drag under the
 strict-pool structure): evidence + flip asks in
 [miss_program_2026-08.md](miss_program_2026-08.md). Flag off = byte-identical.
 
+**The bottoming-base lane (`BOTTOMING_BASE_LANE_ENABLED`, dark — operator
+ruling 2026-08-29).** An `sma200` refusal is admitted when the 50-day is
+reclaimed (`Close >= SMA_50`) — a bottoming base is read only once its
+intermediate trend has turned. The lane's second half opens the sma200 rule's
+OTHER layer under the same flag+condition: `collect_root_anchors`' 
+`below_trend_sma` seeding refusal defers when the last close sits at/above the
+mean of its trailing 50 closes. The two door lanes can never chain a
+both-smas-under chart through (pinned): a dip-excepted frame under the 50-day
+is refused at the sma200 leg. Built for MDT (fires 2026-07-14 tier S at his
+drawn R 82.83); evidence in [miss_program_2026-08.md](miss_program_2026-08.md).
+Flag off = byte-identical.
+
 `_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
@@ -709,6 +721,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
+| 6b | **Launch gate (INSIDE only)** | an INSIDE window whose high extension above R exceeds BOTH caps (`> 0.35 × box_height` AND `> 0.75 × ATR`) is refused as "window launched above resistance" — a late/off-structure pullback, not LPS-above-R behavior. **The ceiling-rest exception (`LPS_CEILING_REST_ENABLED`, dark — operator ruling 2026-08-29, NOK):** the straddle passes when the REST lands ON the ceiling, `support_low ≥ R − LPS_CEILING_REST_MAX_BELOW_R_ATR (0.3) × ATR` — the launch above R is then the preceding advance's own top giving back to the rail (the drawn corpus's most common terminal form). The 0.3 bar is drawn-evidence-placed (DSGN 0.010 / MATX 0.087 / MSGS 0.148 / NOK 0.241 vs junk ENIC's 0.314 — a stated razor, pinned by the negative-corpus flag-on leg). A launch-above window resting deeper stays refused. Fail-closed on a bad ATR; flag off = byte-identical | `LPS_INSIDE_HIGH_EXTENSION_BOX_MAX`, `LPS_INSIDE_HIGH_EXTENSION_ATR_MAX`, `LPS_CEILING_REST_*` |
 | 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow above-R shelf may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50`. Flag-on, a window failing this gate may still complete as a **holding shelf** (see above) | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
 | 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
@@ -1190,7 +1203,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `654737cd5bf757d935c08521cdd41db4ba756e9c564f5888683e0a2233ae41e9`_
+_engine_config_version: `0ac88199221d77be6380f7288f569d08a089642c92be38c90cb33eb3d7b7d64a`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1200,6 +1213,7 @@ MIN_YEARLY_RETURN = -0.2
 SMA50_DIP_EXCEPTION_ENABLED = False
 SMA50_DIP_MAX_SESSIONS = 25
 SMA50_DIP_MAX_ATR = 1.0
+BOTTOMING_BASE_LANE_ENABLED = False
 MIN_BASE_DAYS = 20
 MAX_BOX_WIDTH = 0.18
 CRASH_FILTER_MULT = 0.7
@@ -1274,6 +1288,8 @@ LPS_AFTER_SPRING_ENABLED = True
 LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
+LPS_CEILING_REST_ENABLED = False
+LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 TREND_TERMINAL_BOX_GATE_ENABLED = False
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

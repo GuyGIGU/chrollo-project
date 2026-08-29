@@ -37,6 +37,37 @@ SMA50_DIP_EXCEPTION_ENABLED = False
 SMA50_DIP_MAX_SESSIONS = 25      # the dip began at most this many sessions ago
 SMA50_DIP_MAX_ATR = 1.0          # close within this many ATR_10 under SMA_50
 
+# --- The bottoming-base lane (miss program, operator ruling 2026-08-29; DARK)
+# MDT is the corpus's one bottoming base and the operator ruled it a wanted
+# catch ("I don't want to miss them"). Its wall is the sma200 rule at TWO
+# layers — the universe door AND anchor seeding (collect_root_anchors refuses
+# any frame under the 200-day) — while the engine, held open diagnostically,
+# elects his drawn box to the penny (R 82.83, start 2026-06-04). The lane
+# opens BOTH layers together, under ONE condition: the 50-day is reclaimed
+# (close >= SMA_50) — a bottoming base being read only once its intermediate
+# trend has turned. Price/volume/YoY legs still gate; geometry stays the only
+# veto. Flip = operator decision vs the miss-program A/B + fleet census.
+BOTTOMING_BASE_LANE_ENABLED = False
+
+# --- The ceiling-rest LPS exception (miss program, operator ruling 2026-08-29; DARK)
+# NOK elects his box at his exact rails and dies at ONE LPS leg: the INSIDE
+# window that "launched above resistance" (the after-SOS giveback opens on the
+# extension top) is refused as a late/off-structure pullback — even when the
+# REST itself lands ON the ceiling (NOK: support low 0.24 ATR under R,
+# pos_box 0.88 — the drawn corpus's most common terminal form, the rail
+# rest). The exception sanctions the straddle ONLY when the rest sits within
+# LPS_CEILING_REST_MAX_BELOW_R_ATR ATRs under R: a launch above R with a rest
+# ON the rail is the preceding advance giving back to resistance, not a dive
+# back into the box (which stays refused). The bar is DRAWN-evidence-placed:
+# the corpus's launched-above shelves rest at 0.010/0.087/0.148/0.241 ATR
+# under R (DSGN/MATX/MSGS/NOK; YPF at 0.77 is a mid-box shape, not this form)
+# while the nearest junk (ENIC, must-not-fire) rests at 0.314 — 0.3 splits
+# the drawn cluster from the junk with ~0.06 ATR on each side, a stated
+# razor for the operator's eyeball at flip. Flip = operator decision vs the
+# miss-program A/B (shadow drift + ratchet + junk corpus measured).
+LPS_CEILING_REST_ENABLED = False
+LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
+
 MIN_BASE_DAYS = 20               # Minimum consolidation length (reject < 20 day chop)
 MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this is
                                  # not a tradeable tight equilibrium — it's the

@@ -493,10 +493,26 @@ def detect_lps_candidates(
                 if atr_val is not None and float(atr_val) > 0
                 else 0.0
             )
+            # The ceiling-rest exception (LPS_CEILING_REST_ENABLED, dark —
+            # operator ruling 2026-08-29, NOK): a straddle whose REST lands ON
+            # the ceiling (support low within LPS_CEILING_REST_MAX_BELOW_R_ATR
+            # ATRs under R) is the preceding advance's own top giving back to
+            # the rail — the drawn corpus's most common terminal form — not a
+            # dive back into the box. A launch-above window resting any deeper
+            # stays refused exactly as before. Fail-closed on a bad ATR.
+            ceiling_rest = (
+                settings.LPS_CEILING_REST_ENABLED
+                and atr_val is not None
+                and np.isfinite(float(atr_val))
+                and float(atr_val) > 0
+                and support_low >= res_avg
+                - settings.LPS_CEILING_REST_MAX_BELOW_R_ATR * float(atr_val)
+            )
             if (
                 zone_type == "INSIDE"
                 and high_extension_box > settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
                 and high_extension_atr > settings.LPS_INSIDE_HIGH_EXTENSION_ATR_MAX
+                and not ceiling_rest
             ):
                 if diagnose:
                     rejects["window launched above resistance"] += 1

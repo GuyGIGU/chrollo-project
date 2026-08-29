@@ -90,20 +90,25 @@ def test_negative_corpus_still_rejects_every_case_story_pool_on(monkeypatch):
 
 
 def test_negative_corpus_still_rejects_every_case_miss_lanes_on(monkeypatch):
-    """Miss-program guard (2026-08-28): the contraction rescue widens BOX
-    acceptance on full-refusal frames and the 50-day dip exception widens the
-    universe DOOR, so replay the SAME committed junk corpus with BOTH lanes
-    forced ON — neither lane may make labeled junk fire. (Measured clean at
-    build time: all 18 cases reject; docs/miss_program_2026-08.md.)"""
+    """Miss-program guard (2026-08-28/29): replay the SAME committed junk
+    corpus with ALL FOUR miss-program lanes forced ON — the contraction
+    rescue (box acceptance on full refusals), the 50-day dip exception and
+    the bottoming-base lane (the universe door), and the ceiling-rest LPS
+    exception (the completion form). None may make labeled junk fire. This
+    is also the ENIC razor's pin: the ceiling-rest bar (0.3 ATR) sits
+    between the drawn cluster (NOK 0.241) and ENIC's would-be rest (0.314) —
+    at build time an 0.5 bar fired ENIC tier A, and this test went red."""
     from config import settings
 
     monkeypatch.setattr(settings, "CONTRACTION_RESCUE_ENABLED", True)
     monkeypatch.setattr(settings, "SMA50_DIP_EXCEPTION_ENABLED", True)
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", True)
     assert negative_corpus.check_corpus() is True, (
         "Negative-corpus guard failed with the miss-program lanes ON: a "
-        "labeled must-NOT-fire chart fires through the contraction rescue or "
-        "the dip exception. Run `python -m tools.negative_corpus --check` to "
-        "name the case; the lane must own it before any flip."
+        "labeled must-NOT-fire chart fires through one of the four lanes. "
+        "Run `python -m tools.negative_corpus --check` with the flag(s) "
+        "forced to name the case; the lane must own it before any flip."
     )
 
 
