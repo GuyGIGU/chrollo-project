@@ -854,6 +854,18 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_inner_reaction_bars': (int(inner['reaction_bars'])
                                  if inner is not None and inner.get('reaction_bars') is not None
                                  else None),
+        # The mini-consolidation POSITION (rails-are-areas ruling 2026-08-29/30:
+        # the ruled three-value closed set at the ±0.5-ATR tolerance) + the raw
+        # signed distances it was banded from (re-rulable offline, never by
+        # rescan). Measure-first: archived, consulted by nothing, off the wire
+        # until the operator signs the labels (ONE-Event-Map Task 10/11).
+        '_inner_position': inner.get('position') if inner is not None else None,
+        '_inner_position_r_atr': (
+            float(inner['position_distances']['r_atr'])
+            if inner is not None and inner.get('position_distances') else None),
+        '_inner_position_s_atr': (
+            float(inner['position_distances']['s_atr'])
+            if inner is not None and inner.get('position_distances') else None),
         '_dist_52w_high_pct': (float(rel_ctx["dist_52w_high_pct"])
                                if rel_ctx["dist_52w_high_pct"] is not None else None),
         '_excess_return_6m': float(rel_ctx["excess_return_6m"]),

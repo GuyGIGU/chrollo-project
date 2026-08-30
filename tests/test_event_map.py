@@ -24,9 +24,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from engine_alpha.structure.box_events import _EVENT_HOLD_MIN_BARS, read_box_staircase
+from config import settings
+from engine_alpha.structure.box_events import read_box_staircase
 from engine_alpha.structure.event_map import (
-    EPISODE_MAX_GAP_BARS,
     episode_sequence_stats,
     read_rail_episodes,
     read_role_labels,
@@ -229,7 +229,7 @@ def test_held_wave_knowable_covers_hold_window_and_closure():
     assert held, "demo frame must confirm at least one held wave"
     for lbl in held:
         top = lbl["anchor_bar"]
-        assert lbl["knowable_bar"] >= top + _EVENT_HOLD_MIN_BARS
+        assert lbl["knowable_bar"] >= top + settings.EVENT_HOLD_MIN_BARS
 
 
 def test_test_labels_stamped_off_valley_commitment():
@@ -247,7 +247,7 @@ def test_test_labels_stamped_off_valley_commitment():
         commit = commits.get(lbl["anchor_bar"])
         assert commit is not None and lbl["knowable_bar"] >= commit
         if lbl["resolution"] == "held":
-            assert lbl["knowable_bar"] >= lbl["anchor_bar"] + _EVENT_HOLD_MIN_BARS
+            assert lbl["knowable_bar"] >= lbl["anchor_bar"] + settings.EVENT_HOLD_MIN_BARS
 
 
 def test_injected_lps_is_frame_scoped():
@@ -528,7 +528,7 @@ def test_rail_episodes_type_outcomes_and_stamps():
     for e in eps:
         assert e["in_progress"] is (e["knowable_bar"] is None)
         if e["knowable_bar"] is not None:
-            assert e["knowable_bar"] == e["end_bar"] + EPISODE_MAX_GAP_BARS + 1
+            assert e["knowable_bar"] == e["end_bar"] + settings.EPISODE_MAX_GAP_BARS + 1
     assert read["nan_bars"] == 0
 
     st = episode_sequence_stats(read)
@@ -593,7 +593,7 @@ def test_rail_episode_tie_order_is_pinned_s_before_r():
 
 
 def test_rail_episode_gap_merge_and_drift():
-    """Visits separated by <= EPISODE_MAX_GAP_BARS inside bars merge into ONE
+    """Visits separated by <= settings.EPISODE_MAX_GAP_BARS inside bars merge into ONE
     episode; an open terminal S episode >= 3 bars reads as terminal drift."""
     bars = [
         (12.5, 11.5, 12.0),
@@ -654,7 +654,7 @@ def test_story_admission_pins_the_ruled_form_option_a():
 
 
 def test_rail_episode_split_side_of_the_merge_horizon():
-    """EXACTLY EPISODE_MAX_GAP_BARS + 1 inside bars between two same-rail
+    """EXACTLY settings.EPISODE_MAX_GAP_BARS + 1 inside bars between two same-rail
     visits do NOT merge — the split side of the horizon (the merging side is
     pinned above). An off-by-one that widens the merge collapses these two
     completed support tests into one and fails here: each episode keeps its

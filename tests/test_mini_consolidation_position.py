@@ -38,26 +38,31 @@ def _parent_box(**overrides):
     return EquilibriumBox(**values)
 
 
-# --- the pure banding convention (parent R=110, S=100, ATR=2 -> tol=2) ------
+# --- the pure banding convention (parent R=110, S=100, ATR=2 -> tol=1) ------
+# Band-edge values updated at the 2026-08-30 rail-area seam (decisions.md:
+# the area is +/-0.50 ATR, so MINI_POSITION_TOL_ATR 1.0 -> 0.5; tol here =
+# 0.5 * ATR 2.0 = 1.0). Every expectation below is derived from that ruled
+# arithmetic; the refusal tests further down are untouched — refusals never
+# move (EC-29 seam discipline).
 
 def test_ceiling_band_is_inclusive_at_the_tolerance_edge():
-    assert mini_consolidation_position(109.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
+    assert mini_consolidation_position(109.5, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
     # exactly parent_r - tol: the tie lands IN the band (stated convention)
-    assert mini_consolidation_position(108.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
+    assert mini_consolidation_position(109.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
     # one cent below the band edge: no longer the ceiling
-    assert mini_consolidation_position(107.99, 104.0, 110.0, 100.0, 2.0) != "at_ceiling"
+    assert mini_consolidation_position(108.99, 104.0, 110.0, 100.0, 2.0) != "at_ceiling"
 
 
 def test_support_band_is_inclusive_and_mid_range_is_the_remainder():
+    assert mini_consolidation_position(106.0, 100.5, 110.0, 100.0, 2.0) == "on_support"
     assert mini_consolidation_position(106.0, 101.0, 110.0, 100.0, 2.0) == "on_support"
-    assert mini_consolidation_position(106.0, 102.0, 110.0, 100.0, 2.0) == "on_support"
-    assert mini_consolidation_position(106.0, 102.01, 110.0, 100.0, 2.0) == "mid_range"
+    assert mini_consolidation_position(106.0, 101.01, 110.0, 100.0, 2.0) == "mid_range"
 
 
 def test_degenerate_parent_lands_at_the_ceiling_deterministically():
-    # tol=5 on a 4-point parent: BOTH bands hold; the ruled higher-quality
+    # tol=2.5 on a 4-point parent: BOTH bands hold; the ruled higher-quality
     # position (ceiling first) wins, every run.
-    assert mini_consolidation_position(100.0, 100.5, 104.0, 100.0, 5.0) == "at_ceiling"
+    assert mini_consolidation_position(102.0, 101.0, 104.0, 100.0, 5.0) == "at_ceiling"
 
 
 def test_unusable_inputs_refuse_to_none_never_fabricate():

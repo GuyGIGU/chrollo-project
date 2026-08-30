@@ -460,6 +460,18 @@ def check_corpus() -> bool:
     if pop:
         fp = baseline.get("marks_fingerprint") or ""
         print(f"population: {pop}   marks_fingerprint: {fp[:16]}{'…' if fp else ''}")
+    # Epoch advisory (Hunt, ONE-Event-Map Task 12): the baseline has always
+    # STAMPED the engine it was frozen against; recorded-but-unasserted
+    # provenance has no authority, so say when the current engine differs.
+    # An ADVISORY line, never a failure — the ratchet's verdict stays about
+    # fires, and a config-epoch boundary is where the operator most needs to
+    # know WHICH engine the PASS just graded.
+    frozen_engine = baseline.get("engine_config_version")
+    if frozen_engine and frozen_engine != manifest_hash():
+        print(f"ADVISORY: engine config epoch differs from the seal — baseline "
+              f"frozen at {frozen_engine[:16]}…, current {manifest_hash()[:16]}…; "
+              "the verdict below grades TODAY'S engine against the sealed fires "
+              "(re-freeze deliberately at the next flip/seam commit, EC-29).")
     if ok:
         hits = sum(1 for s in baseline["setups"] if s["status"] == "hit")
         print(f"ratchet held: {hits}/{len(baseline['setups'])} pinned hits still fire; "

@@ -576,6 +576,9 @@ def archive_scan_results(
             inner_reaction_bar=row.get("_inner_reaction_bar"),
             inner_reaction_pct=row.get("_inner_reaction_pct"),
             inner_reaction_bars=row.get("_inner_reaction_bars"),
+            inner_position=row.get("_inner_position"),
+            inner_position_r_atr=row.get("_inner_position_r_atr"),
+            inner_position_s_atr=row.get("_inner_position_s_atr"),
             # Phase-D scoping layer (descriptive right-most-region bands)
             scope_phase_a_date=row.get("_phase_a_start_date"),
             scope_phase_b_date=row.get("_phase_b_start_date"),

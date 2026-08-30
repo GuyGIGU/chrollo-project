@@ -99,10 +99,16 @@ def _clean_downswing(length: int, low_descent_frac: float, high_descent_frac: fl
 
 
 def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
-                clean_downswing: bool, holding_shelf: bool = False) -> str:
+                clean_downswing: bool, rest: bool = False) -> str:
     if zone_type == "UNDERCUT_S":
         return "undercut_rebound"
-    if holding_shelf:
+    if rest:
+        # The stored spelling "holding_shelf" is FROZEN archive/wire vocabulary
+        # (lps_swing_type rows + the signed frontend label; AP-12 - the fold
+        # renames code, never cells). The CODE name for the pattern is REST -
+        # the operator's word, 2026-08-30: the price "held like a shelf ...
+        # its just one of many behaviors the price does". This line is the ONE
+        # place the retired term and its stored spelling meet.
         return "holding_shelf"
     if rising_support_shelf:
         return "rising_support_shelf"
@@ -122,9 +128,9 @@ def _swing_type(zone_type: str, rising_support_shelf: bool, buec_shelf: bool,
 #   * pullback-and-rest — rests on its terminal low (or earns the
 #     rising-support-shelf rescue) with a zone-deep pullback and a volume
 #     dry-up (``_pullback_rest_low_verdict`` + ``_pullback_rest_depth_ok``);
-#   * holding shelf (``_holding_shelf_verdict``, flag-gated dark) — a
-#     geometry-only sibling judgment consulted at the same seams, never a
-#     second detector.
+#   * the rest form (``_rest_verdict``, flag-gated dark; stored/wire value
+#     stays "holding_shelf" forever) — a geometry-only sibling judgment
+#     consulted at the same seams, never a second detector.
 # ─────────────────────────────────────────────────────────────────────────────
 def _pullback_rest_low_verdict(
     last_low: float,
@@ -229,7 +235,7 @@ def _pullback_rest_depth_ok(
     return ok, buec_shelf
 
 
-def _holding_shelf_verdict(
+def _rest_verdict(
     length: int,
     low_descent_frac: float,
     support_low: float,
@@ -237,11 +243,15 @@ def _holding_shelf_verdict(
     box_height: float,
     pullback_profile: float,
 ) -> bool:
-    """The holding-shelf completion form — the SECOND of the two sanctioned LPS
-    shapes (Wyckoff: the back-up is "a simple pullback or a new TR at a higher
+    """The REST completion form — the SECOND of the two sanctioned LPS shapes
+    (Wyckoff: the back-up is "a simple pullback or a new TR at a higher
     level"; docs/lps_final_structure_canon_2026-07-10.md), judged on GEOMETRY
-    ONLY. Consulted where the pullback-and-rest form rejects at its depth or
-    volume-dry-up judgments; every machinery gate still binds.
+    ONLY. Formerly the "holding shelf"; the TERM was retired by the operator
+    2026-08-30 ("its just one of many behaviors the price does ... a pattern")
+    — the stored ``lps_swing_type`` value stays "holding_shelf" forever
+    (AP-12; the mapping lives at ``_swing_type``). Consulted where the
+    pullback-and-rest form rejects at its depth or volume-dry-up judgments;
+    every machinery gate still binds.
 
     A shelf is a short flat-or-descending rest holding HIGH in the structure:
     monotone non-rising lows (the operator's "LPS = peak that goes down"; any
@@ -534,13 +544,13 @@ def detect_lps_candidates(
             # When consulted-and-refused, the diagnose counters tag BOTH forms:
             # the pullback's keyed reason plus one flat-hold-form-refused tick.
             shelf_consulted = settings.LPS_HOLDING_SHELF_ENABLED
-            holding_shelf = shelf_consulted and _holding_shelf_verdict(
+            rest = shelf_consulted and _rest_verdict(
                 length, low_descent_frac, support_low, sup_avg,
                 box_height, pullback_profile,
             )
             shelf_saved = False
             if not depth_ok:
-                if not holding_shelf:
+                if not rest:
                     if diagnose:
                         rejects[f"pullback depth out of range ({pullback_profile:.2f})"] += 1
                         if shelf_consulted:
@@ -588,7 +598,7 @@ def detect_lps_candidates(
                                 settings.LPS_VOL_CONTRACTION_MAX):
                 # The dry-up is the pullback form's judgment; the shelf form is
                 # geometry-only (grades-not-vetoes: volume never gates it).
-                if not holding_shelf:
+                if not rest:
                     if diagnose:
                         rejects["volume not drying up"] += 1
                         if shelf_consulted:
@@ -618,7 +628,7 @@ def detect_lps_candidates(
             # Same gate at the hard ceiling: vol_contraction <= 0 is exactly
             # avg >= vol50 * 1.0 (vol50 > 0 is guaranteed by the refusal above).
             if _vol_dry_refused(avg_pullback_vol, vol_50_at_lps, 1.0):
-                if not holding_shelf:
+                if not rest:
                     if diagnose:
                         rejects["pullback volume above baseline"] += 1
                         if shelf_consulted:

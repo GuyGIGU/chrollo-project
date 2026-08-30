@@ -266,6 +266,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Zero-by-geometry leg of the story-input law (2026-08-10 declared seam):
     # the coverage floor below which all-zero episode counts read ABSENT.
     "STORY_UNREADABLE_ZONE_COVERAGE",
+    # The ONE-Event-Map Task-12 rotation (2026-08-30): reader-behavior
+    # constants that decide what an archived event/sentence IS.
+    "EPISODE_MAX_GAP_BARS",
+    "EPISODE_DRIFT_MIN_BARS",
+    "EVENT_HOLD_MIN_BARS",
+    "MINI_POSITION_TOL_ATR",
     "TA_WARN_TERMINAL_DRIFT",
     "TA_GRADE_WARNING_FLOOR",
     # Wave-1 charter measurements (task-7 batch — fourth declared seam)

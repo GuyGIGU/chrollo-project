@@ -889,6 +889,16 @@ STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars 
 # completed events vs 4.72+ above — monotone in coverage. NONZERO counts stay
 # evidence at any coverage (FXNC read 5 completed at 0.66).
 STORY_UNREADABLE_ZONE_COVERAGE = 0.5  # touch-zone fraction of box height at which all-zero counts read ABSENT
+# ── The ONE-Event-Map manifest rotation (Task 12, 2026-08-30) ────────────────
+# Four reader-behavior constants promoted from module level into the frozen
+# manifest in ONE declared epoch — VALUES UNCHANGED (a moved constant with a
+# changed value would be a behavior change wearing a refactoring label).
+# They decide what the archived sentences MEAN, so a future edit must rotate
+# engine_config_version; at module level it silently would not have.
+EPISODE_MAX_GAP_BARS = 2      # episode merge horizon: same-rail visits <= this many inside bars apart are ONE episode
+EPISODE_DRIFT_MIN_BARS = 3    # an open terminal S episode at least this long reads as drift
+EVENT_HOLD_MIN_BARS = 6       # the wave/test hold-confirmation window (was box_events._EVENT_HOLD_MIN_BARS)
+MINI_POSITION_TOL_ATR = 0.5   # the mini-consolidation position band, in candidate ATRs — the RULED ±0.5-ATR rail area (decisions.md 2026-08-30)
 # Warnings are floored multiplicative discounts applied to the bounded 0-100
 # (never the raw sum); a missing warning input is factor 1.0 EXACTLY.
 # terminal_drift is the first registered warning — neutral 1.0 until the A/B.

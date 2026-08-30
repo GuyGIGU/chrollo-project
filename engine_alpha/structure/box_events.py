@@ -154,7 +154,8 @@ def read_box_staircase(base_df, R, S, atr_val, *, noise_frac=None):
 # The printed-bars horizon that confirms a hold (R-rail waves and S-rail tests
 # share it). Named so the Event Map's role stamps derive knowability from the
 # SAME horizon the measurers actually used — never a re-declared literal.
-_EVENT_HOLD_MIN_BARS = 6
+# _EVENT_HOLD_MIN_BARS moved to settings.EVENT_HOLD_MIN_BARS + the frozen
+# manifest (ONE-Event-Map Task 12, 2026-08-30, value unchanged at 6).
 
 
 def _deepest_valley_bar(swings) -> int:
@@ -168,7 +169,7 @@ def _deepest_valley_bar(swings) -> int:
 
 
 def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
-                              hold_min_bars=_EVENT_HOLD_MIN_BARS, swings=None):
+                              hold_min_bars=None, swings=None):
     """Independent R-rail event ZONES anchored on the BOX-RELATIVE staircase.
 
     Anchoring on an ATR band (``R - k*ATR``) over-fires in tight boxes — 0.5 ATR
@@ -216,6 +217,8 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
     spring tip). Upthrusts stay stage-agnostic. Measure-only — gates/scores
     nothing. Returns one event per wave, in chronological order.
     """
+    if hold_min_bars is None:
+        hold_min_bars = settings.EVENT_HOLD_MIN_BARS
     box = float(R) - float(S)
     if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
         return []
@@ -361,7 +364,7 @@ def measure_resistance_events(base_df, R, S, atr_val, *, v_bar=None,
 # ---------------------------------------------------------------------------
 
 def measure_support_tests(base_df, R, S, atr_val, *,
-                          hold_min_bars=_EVENT_HOLD_MIN_BARS, swings=None):
+                          hold_min_bars=None, swings=None):
     """Independent S-rail TEST zones: a touch of S that HOLDS. Stage-agnostic.
 
     The S-rail sibling of ``measure_resistance_events`` — but deliberately NOT a
@@ -375,6 +378,8 @@ def measure_support_tests(base_df, R, S, atr_val, *,
     few printed bars after the valley to confirm (no right-edge lookahead).
     Measure-only — gates/scores nothing.
     """
+    if hold_min_bars is None:
+        hold_min_bars = settings.EVENT_HOLD_MIN_BARS
     box = float(R) - float(S)
     if box <= 0 or atr_val is None or atr_val <= 0 or not np.isfinite(atr_val):
         return []

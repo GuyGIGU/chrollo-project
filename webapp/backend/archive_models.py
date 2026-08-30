@@ -125,6 +125,13 @@ class SetupArchive(Base):
     inner_reaction_bar = Column(Integer, nullable=True)  # df bar of selected inner reaction low / mini-AR
     inner_reaction_pct = Column(Float, nullable=True)  # selected inner reaction depth from climax high to AR low
     inner_reaction_bars = Column(Integer, nullable=True)  # bars from selected inner climax to reaction low
+    # The mini-consolidation POSITION vs the parent rails (rails-are-areas
+    # ruling 2026-08-29/30; ±0.5-ATR bands) + the raw signed ATR distances the
+    # band was derived from. NULL = not measured / refused (never a fallthrough
+    # verdict). Measure-only; off the wire until the labels are signed.
+    inner_position = Column(String, nullable=True)         # at_ceiling | mid_range | on_support
+    inner_position_r_atr = Column(Float, nullable=True)    # (inner_R - parent_R) / ATR, signed
+    inner_position_s_atr = Column(Float, nullable=True)    # (inner_S - parent_S) / ATR, signed
 
     # ── Volume-around-touches signature (Wyckoff no-supply / spring test) ──
     r_touch_vol_z = Column(Float, nullable=True)      # z-score of avg volume at R-touches vs base volume distribution. Negative = no supply, positive = distribution warning.
@@ -458,6 +465,15 @@ class SetupArchive(Base):
             "elected_pool IS NULL OR "
             "elected_pool IN ('strict', 'rescued', 'band', 'story')",
             name="ck_setup_archive_elected_pool",
+        ),
+        # The ruled three-value position vocabulary (rails-are-areas
+        # 2026-08-29/30). Fresh-DB defence like its siblings; the live DB is
+        # guarded at the single producer — mini_consolidation_position can
+        # only return these three values or None by construction.
+        CheckConstraint(
+            "inner_position IS NULL OR "
+            "inner_position IN ('at_ceiling', 'mid_range', 'on_support')",
+            name="ck_setup_archive_inner_position",
         ),
         # Same precedent for the setup chronology grade: fresh-DB defence
         # only (the ADD COLUMN path strips CHECKs); the live DB's operative

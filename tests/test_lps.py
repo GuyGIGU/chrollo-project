@@ -692,7 +692,7 @@ def test_holding_shelf_flag_off_is_inert_and_never_consulted(monkeypatch, _lps_b
     monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
     monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
     monkeypatch.setattr(settings, "LPS_HOLDING_SHELF_ENABLED", False)
-    monkeypatch.setattr(lps_module, "_holding_shelf_verdict",
+    monkeypatch.setattr(lps_module, "_rest_verdict",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError(
                             "flag-off consulted the shelf form")))
     df = _hot_high_shelf(_lps_behavior_frame)
