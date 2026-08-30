@@ -160,11 +160,18 @@ def report(rows):
     on_e = [abs(r["d_ar_on"]) for r in both]
     print(f"\n  THE FLIP QUESTION — distance from the operator's own AR ({len(both)} names)")
     if both:
+        # Ties are their own column: on a name where the flag does not move the
+        # anchor both reads are identical, and folding those into either side
+        # reads as a win the flag never earned (they were counted for ON until
+        # 2026-08-31, printing "ON closer on 5 of 7" for a 2-2 head-to-head).
         wins_off = sum(1 for r in both if abs(r["d_ar_off"]) < abs(r["d_ar_on"]))
+        wins_on = sum(1 for r in both if abs(r["d_ar_on"]) < abs(r["d_ar_off"]))
+        ties = len(both) - wins_off - wins_on
         print(f"    flag OFF total |error| : {sum(off_e):>4} bars   "
               f"closer on {wins_off} of {len(both)}")
         print(f"    flag ON  total |error| : {sum(on_e):>4} bars   "
-              f"closer on {len(both) - wins_off} of {len(both)}")
+              f"closer on {wins_on} of {len(both)}")
+        print(f"    ties (flag moves nothing): {ties} of {len(both)}")
 
     # Derived trend ends were read back off an engine dot (ar_off == box.start_bar),
     # so scoring the engine against them measures the engine against itself. They
