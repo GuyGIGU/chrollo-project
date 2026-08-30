@@ -95,13 +95,20 @@ distance (measured 22.3% contradiction between the readers; junk actually pierce
 its rails 3.6× LESS than drawn boxes), so a 0.5-ATR allowance used as a gate,
 veto, rescue or junk filter is Tested-DEAD (twice).
 
-**Position is THREE values, not five** — `at_ceiling` / `mid_range` / `on_support`
-(`inner_box.mini_consolidation_position`, tolerance = the ruled area). At resistance,
-high in the range, semi above, resting on it: ONE position. Support mirrors it —
-slight pokes below and holds a little under are inside the support area and count
-as respect (“holding AT the support essentialy proving that this line is infact a
-support line”), with a graded preference — never a penalty — for all/most bars
-staying inside.
+**Position is FOUR values, not five** — `at_ceiling` / `mid_range` / `on_support` /
+`touching_both` (`inner_box.mini_consolidation_position`, tolerance = the ruled
+area; display words operator-signed 2026-08-30: “at resistance” / “middle of the
+base” / “on support” / touching both). At resistance, high in the range, semi
+above, resting on it: ONE position. Support mirrors it — slight pokes below and
+holds a little under are inside the support area and count as respect (“holding
+AT the support essentialy proving that this line is infact a support line”),
+with a graded preference — never a penalty — for all/most bars staying inside.
+The fourth value is the honesty valve (ruled 2026-08-30): when the rest engages
+BOTH rail areas at once — the base is about a bar’s worth of height, or the
+rest spans it rail-to-rail — the position carries no separating information, so
+it reads **touching both** rather than a fabricated “at resistance”; this is
+what separates a base that genuinely holds tight in the upper vicinity from one
+where that read is an artifact of the base’s own height.
 
 **The ceiling area has three visual STATES** — resting on (whole bar above, not
 part of a bigger swing upwards) · at (touch, pivot back) · semi dwelling

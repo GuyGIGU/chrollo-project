@@ -11,7 +11,7 @@
 // 2026-07-25) and the engine's cap>0 rule means they can never fire; listing
 // them would put two dead entries in the filter menu. If the engine ever
 // re-fires an unknown id, the resolver's raw-slug fallback keeps it visible.
-import { displayLabel } from './wireVocabulary.js';
+import { displayLabel, positionLabel } from './wireVocabulary.js';
 
 // Tag backgrounds sit quiet (0.12 alpha) so a row of chips reads calm on a dense
 // grid; the meaningful foreground hue is kept, and the warning tag keeps a little
@@ -47,6 +47,13 @@ export const TAG_CATALOG = [
   { id: 'tight_box', label: '🔒 Tight Box', group: 'consolidation' },
   { id: 'ascending_support', label: '📈 Ascending Support', group: 'consolidation' },
   { id: 'worked_equilibrium', label: `⚖️ ${displayLabel('traversal_density')}`, group: 'consolidation' },
+  // The mini-consolidation position family: at most one fires per row; the
+  // labels are the operator-signed POSITION_LABELS (wireVocabulary) so the
+  // chip and any other surface can never spell the position differently.
+  { id: 'position_at_ceiling', label: `📍 ${positionLabel('at_ceiling')}`, group: 'consolidation' },
+  { id: 'position_mid_range', label: `📍 ${positionLabel('mid_range')}`, group: 'consolidation' },
+  { id: 'position_on_support', label: `📍 ${positionLabel('on_support')}`, group: 'consolidation' },
+  { id: 'position_touching_both', label: `📍 ${positionLabel('touching_both')}`, group: 'consolidation' },
   { id: 'phase_c_test', label: '🪝 Spring/Test', group: 'lps' },
   { id: 'tight_lps', label: '🪶 Tight LPS', group: 'lps' },
   { id: 'last_supper', label: '🕯 Last Supper', group: 'lps' },

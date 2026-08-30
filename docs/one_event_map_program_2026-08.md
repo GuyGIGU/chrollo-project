@@ -56,7 +56,7 @@ NAMES-ONLY over two preserved geometries, with per-record basis provenance.
 | 12 | ONE declared manifest rotation | **DONE 2026-08-30** | Four reader-behavior constants promoted to `config/settings.py` + the frozen manifest, VALUES UNCHANGED: `EPISODE_MAX_GAP_BARS` 2 (what an episode IS) · `EPISODE_DRIFT_MIN_BARS` 3 · `EVENT_HOLD_MIN_BARS` 6 (was import-shared across the two readers) · `MINI_POSITION_TOL_ATR` 0.5 (the ruled knob). All use sites converted to LAZY settings reads (AP-3/AP-10 — an import-time default is a copy no flag override can move). `engine_config_version` rotated `0ac88199…`→`92863be0…` as the declared epoch. RECOVERY_* / `_PRIORITY` / `_TIGHT_BOX_WIDTH` stay module-internal per the narrow rule (dark or single-module). Plus Hunt's ratchet advisory: `marks_corpus --check` now prints an epoch-differs ADVISORY (never a failure) — its FIRST run revealed the sealed baseline was frozen at `424fbfa1…`, an epoch OLDER than this branch's start: the gap had been open for weeks. Gates: pin PASS (values unchanged), fold_parity byte-identical, doctrine PASS, manifest-completeness green. |
 | 13 | The "nothing moved" verdict + concordance + doc truth-up + pointer audit | **DONE 2026-08-30** | Concordance rows in `wyckoff_canon.md` §5 (holding shelf → REST; "freshness read" → the stale-support check, retired by operator order). `strategy_alpha.md` Reading Model gains **"The rails are AREAS"** (the ruled doctrine + the one-event-language principle). This program record. Pointer audit run (its one flag = this doc while untracked; resolves at commit). The composite "nothing moved" verdict: **fold_parity 37/37 byte-identical to the pre-fold capture (modulo the three DECLARED position keys) · reader_pin 88 charts zero drift (modulo the DECLARED grid seam) · ratchet 28/33 held · shadow byte-identical · doctrine green** — every "modulo" is a named, audited, deliberate seam. |
 
-## The word table (operator-SIGNED 2026-08-30 except the markup word)
+## The word table (operator-SIGNED IN FULL 2026-08-30)
 
 Declared in `event_vocabulary.py` (one dict per axis; re-wording = one-line
 edit; nothing serializes these): spring / sos / upthrust / lps / range
@@ -73,11 +73,12 @@ breach means is context's job, never the verdict's. He also ruled the three
 ceiling STATES fold into the words, never beside them: a rail-area engagement
 that pivots later is touch_and_pivot whichever state the bar stopped in — the
 states exist "not to invent phrases so we can label each individual bar"; judge
-the overall shape. Still open: the word for the held-far-above-R departure wave
-(emitted type `markup` — a term he does not use; his own ruled word
-**departure** is the standing proposal). The census instrument keeps its
-pre-signing "gave" internally by its frozen-conventions docstring (it must
-reproduce the sealed evidence byte-for-byte).
+the overall shape. The last word closed the same day: **markup stays** — once
+the term was explained in plain words (bars leaving the base upward and holding
+far above R, the post-breakout climb), he signed it verbatim: *"ahh I see then
+yes we can use markup."* The census instrument keeps its pre-signing "gave"
+internally by its frozen-conventions docstring (it must reproduce the sealed
+evidence byte-for-byte).
 
 ## Standing guard-rails
 

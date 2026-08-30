@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "webapp", "back
 
 from archive_models import Base, SetupArchive  # noqa: E402
 
-RULED_VALUES = ("at_ceiling", "mid_range", "on_support")
+RULED_VALUES = ("at_ceiling", "mid_range", "on_support", "touching_both")
 
 
 def _session():

@@ -129,7 +129,7 @@ class SetupArchive(Base):
     # ruling 2026-08-29/30; ±0.5-ATR bands) + the raw signed ATR distances the
     # band was derived from. NULL = not measured / refused (never a fallthrough
     # verdict). Measure-only; off the wire until the labels are signed.
-    inner_position = Column(String, nullable=True)         # at_ceiling | mid_range | on_support
+    inner_position = Column(String, nullable=True)         # at_ceiling | mid_range | on_support | touching_both
     inner_position_r_atr = Column(Float, nullable=True)    # (inner_R - parent_R) / ATR, signed
     inner_position_s_atr = Column(Float, nullable=True)    # (inner_S - parent_S) / ATR, signed
 
@@ -472,7 +472,8 @@ class SetupArchive(Base):
         # only return these three values or None by construction.
         CheckConstraint(
             "inner_position IS NULL OR "
-            "inner_position IN ('at_ceiling', 'mid_range', 'on_support')",
+            "inner_position IN ('at_ceiling', 'mid_range', 'on_support', "
+            "'touching_both')",
             name="ck_setup_archive_inner_position",
         ),
         # Same precedent for the setup chronology grade: fresh-DB defence

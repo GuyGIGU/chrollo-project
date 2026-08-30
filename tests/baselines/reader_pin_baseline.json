@@ -28689,6 +28689,16 @@
   },
   {
    "inputs": {
+    "inner_r": 9.8,
+    "inner_s": 5.2,
+    "parent_r": 10.0,
+    "parent_s": 5.0,
+    "atr_val": 1.0
+   },
+   "position": "touching_both"
+  },
+  {
+   "inputs": {
     "inner_r": 19.0,
     "inner_s": 17.5,
     "parent_r": 20.0,
@@ -28718,7 +28728,7 @@
    "position": null
   }
  ],
- "captured_at": "2026-08-30T10:36:18+00:00",
- "engine_config_version": "0ac88199221d77be6380f7288f569d08a089642c92be38c90cb33eb3d7b7d64a",
+ "captured_at": "2026-08-30T12:56:23+00:00",
+ "engine_config_version": "92863be0e9e59e4b1ba7a0a10320268d719d14bb262c3e912a109ccf954ee631",
  "pin_window_bars": 120
 }

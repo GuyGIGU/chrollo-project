@@ -24,6 +24,17 @@ const rTouchVolSentence = (detail) => {
   return z != null ? ` Measured resistance-touch volume z-score: ${z.toFixed(2)} vs the base.` : '';
 };
 
+// One measured suffix for the whole position family: the raw signed rail
+// distances (inner rail minus parent rail, in ATRs) that produced the band.
+const positionSentence = (detail) => {
+  let s = '';
+  const r = num(detail, 'inner_position_r_atr');
+  if (r != null) s += ` Top vs resistance: ${r >= 0 ? '+' : ''}${r.toFixed(2)} ATR.`;
+  const sd = num(detail, 'inner_position_s_atr');
+  if (sd != null) s += ` Bottom vs support: ${sd >= 0 ? '+' : ''}${sd.toFixed(2)} ATR.`;
+  return s;
+};
+
 const BASE_TIPS = {
   phase_d: explainTip({
     what: 'A tighter, newer consolidation has formed inside or near the right side of the larger base.',
@@ -115,6 +126,29 @@ const BASE_TIPS = {
     why: 'A daily base forming inside a falling monthly trend has a weaker backdrop than one inside a rising or neutral monthly.',
     use: 'Treat it as caution context only — it does not reject, score, or filter the setup. Weigh the monthly backdrop by eye alongside the daily structure.',
   }),
+  // The position family: descriptors of WHERE the inner mini-consolidation
+  // sits against the base rails (each rail is an area, ±0.5 ATR around the
+  // line). Never a ranking — the surrounding story gives a position meaning.
+  position_at_ceiling: explainTip({
+    what: 'The latest tight mini-consolidation sits in the resistance area — its top within half an ATR of the rail, touching it or poking through.',
+    why: 'A rest held up against resistance shows sellers failing to push price away from the breakout level.',
+    use: 'Read it with what follows: a pivot back is respect, clean continuation is the departure. The chip describes position, not quality.',
+  }),
+  position_mid_range: explainTip({
+    what: 'The latest tight mini-consolidation floats in the middle of the base — clear of both the resistance and support areas.',
+    why: 'A mid-base rest is cause still building; neither rail is being tested by it.',
+    use: 'Watch which rail it engages next; the position alone carries no verdict.',
+  }),
+  position_on_support: explainTip({
+    what: 'The latest tight mini-consolidation holds in the support area — its bottom within half an ATR of the rail, including slight pokes below.',
+    why: 'Holding at support — even slightly under it — is the line being proven as support.',
+    use: 'Treat pokes that hold as respect for the area; a collapse through it is a different event entirely.',
+  }),
+  position_touching_both: explainTip({
+    what: 'The mini-consolidation touches both rail areas at once — the base is about a bar’s worth of height, or the rest spans it rail-to-rail.',
+    why: 'When the whole base fits inside the two rail areas, position carries no separating information — calling it "at resistance" would be an artifact.',
+    use: 'Judge the base by its overall shape and story; this chip only says the position read does not apply here.',
+  }),
 };
 
 const DETAIL_SUFFIXES = {
@@ -165,6 +199,10 @@ const DETAIL_SUFFIXES = {
     const density = num(detail, 'traversal_density');
     return density != null ? ` Measured traversal density: ${density.toFixed(2)}.` : '';
   },
+  position_at_ceiling: positionSentence,
+  position_mid_range: positionSentence,
+  position_on_support: positionSentence,
+  position_touching_both: positionSentence,
 };
 
 export function tooltipForTag(id, detail) {

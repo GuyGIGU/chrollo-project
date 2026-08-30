@@ -97,9 +97,10 @@ def test_wire_sub_scores_are_exactly_the_scorer_projection(monkeypatch):
             t.key for t in taxonomy.always_emitted_terms()}
 
 
-# The exact UNGRADED-row per-ticker key set (150 keys: 149 captured
-# 2026-08-08 at the task-2 baseline, + zone_coverage 2026-08-10; re-titled at
-# the 2026-08-22 retirement — content-keyed, so the set itself is unchanged).
+# The exact UNGRADED-row per-ticker key set (151 keys: 149 captured
+# 2026-08-08 at the task-2 baseline, + zone_coverage 2026-08-10, +
+# inner_position 2026-08-30; re-titled at the 2026-08-22 retirement —
+# content-keyed, so the set itself is unchanged).
 # Sorted. Changing this wire contract means editing this tuple deliberately in
 # the same change — never drifting past it.
 BASE_WIRE_KEYS = (
@@ -141,7 +142,11 @@ BASE_WIRE_KEYS = (
     "htf_w_in_consol", "htf_w_phase", "htf_w_reaccum", "htf_w_stage2",
     "htf_w_trend_state",
     "inner_R", "inner_S", "inner_box_width", "inner_climax_bar",
-    "inner_end_bar", "inner_reaction_bar", "inner_reaction_bars",
+    "inner_end_bar",
+    # + inner_position 2026-08-30 (the signed position vocabulary reaching
+    # the wire — deliberate edit, operator labels signed the same day)
+    "inner_position",
+    "inner_reaction_bar", "inner_reaction_bars",
     "inner_reaction_pct", "inner_search_start_bar", "inner_source",
     "inner_start_bar",
     "last_supper_pullback_from_extension_pct", "last_supper_reclaim_quality",

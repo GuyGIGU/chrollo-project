@@ -113,6 +113,9 @@ POSITION_GRID: tuple[tuple[dict, object], ...] = (
      "mid_range"),       # 5.8 > 5.5: outside both 0.5-ATR bands
     ({"inner_r": 12.0, "inner_s": 10.0, "parent_r": 20.0, "parent_s": 5.0, "atr_val": 1.0},
      "mid_range"),       # tall box: neither band reaches the middle
+    ({"inner_r": 9.8, "inner_s": 5.2, "parent_r": 10.0, "parent_s": 5.0, "atr_val": 1.0},
+     "touching_both"),   # BOTH bands hold -> its own name (ruled 2026-08-30),
+                         # never a fabricated ceiling read
     ({"inner_r": 19.0, "inner_s": 17.5, "parent_r": 20.0, "parent_s": 5.0, "atr_val": 0.0},
      None),              # non-positive ATR -> refused, never fabricated
     ({"inner_r": float("nan"), "inner_s": 8.0, "parent_r": 10.0, "parent_s": 5.0,

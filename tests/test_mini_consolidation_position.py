@@ -59,10 +59,14 @@ def test_support_band_is_inclusive_and_mid_range_is_the_remainder():
     assert mini_consolidation_position(106.0, 101.01, 110.0, 100.0, 2.0) == "mid_range"
 
 
-def test_degenerate_parent_lands_at_the_ceiling_deterministically():
-    # tol=2.5 on a 4-point parent: BOTH bands hold; the ruled higher-quality
-    # position (ceiling first) wins, every run.
-    assert mini_consolidation_position(102.0, 101.0, 104.0, 100.0, 5.0) == "at_ceiling"
+def test_both_bands_read_touching_both_never_a_fabricated_ceiling():
+    # tol=2.5 on a 4-point parent: BOTH bands hold. Ruled 2026-08-30: this is
+    # its own value — the position carries no separating information when the
+    # base is about a bar's worth of height ("consider it as they were
+    # touching both"), so it must never read as a chosen ceiling position.
+    assert mini_consolidation_position(102.0, 101.0, 104.0, 100.0, 5.0) == "touching_both"
+    # A mini spanning a WIDE parent rail-to-rail is the same honest read.
+    assert mini_consolidation_position(109.5, 100.5, 110.0, 100.0, 2.0) == "touching_both"
 
 
 def test_unusable_inputs_refuse_to_none_never_fabricate():
@@ -84,8 +88,10 @@ def test_live_reader_stamps_position_from_the_parent_rails():
                          R=110.0, S=100.0)
     inner = find_inner_box(df, parent, 1.0)
     assert inner is not None
-    # The tight sub-range tops ~110 on a ~2-point candidate ATR: the ceiling.
-    assert inner.position == "at_ceiling"
+    # This inner spans the parent rail-to-rail (elected R/S = 110/100, both
+    # raw distances 0.0): under the 2026-08-30 ruling that is the honest
+    # touching-both read, not a chosen ceiling position.
+    assert inner.position == "touching_both"
     assert inner.detection.get("position") == inner.position
 
 

@@ -48,18 +48,24 @@ def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
     This is that acknowledgment: a pure measured attribute, no points, no
     gating (measure-first; the quality nuance is graded later, if ever).
 
-    Closed set: ``"at_ceiling"`` / ``"mid_range"`` / ``"on_support"`` — RULED
-    the position vocabulary 2026-08-29/30 (rails-are-areas: three values, not
-    five). Serialized to ``setup_archive.inner_position`` (+ the raw signed
-    distances) since the ONE-Event-Map Task-10 seam; display labels stay off
-    the wire until the operator signs them (docs/asks.md 2026-08-30).
+    Closed set: ``"at_ceiling"`` / ``"mid_range"`` / ``"on_support"`` /
+    ``"touching_both"`` — RULED the position vocabulary 2026-08-29/30
+    (rails-are-areas: three values, not five) + the touching-both ruling
+    2026-08-30. Serialized to ``setup_archive.inner_position`` (+ the raw
+    signed distances) since the ONE-Event-Map Task-10 seam; display labels
+    operator-signed 2026-08-30 (wireVocabulary.js POSITION_LABELS).
 
     Stated conventions (never implicit): the tolerance is
     ``MINI_POSITION_TOL_ATR`` candidate-ATRs; band comparisons are inclusive
-    (a rail-touching tie lands IN the band); the ceiling band is evaluated
-    FIRST, so a degenerate parent that satisfies both bands lands at the
-    ceiling — the ruled higher-quality position — deterministically. Returns
-    None when any input is unusable (refused, never fabricated).
+    (a rail-touching tie lands IN the band); a structure satisfying BOTH bands
+    reads ``touching_both`` — operator ruling 2026-08-30: differentiate a base
+    that genuinely holds tight in the upper vicinity from one where the read
+    is an artifact of the consolidation being about a bar's worth of height
+    ("consider it as they were touching both") — its position carries no
+    separating information, so it gets its own honest name, never a fabricated
+    ceiling read (this replaced the ceiling-first tiebreak the same day it was
+    documented). Returns None when any input is unusable (refused, never
+    fabricated).
     """
     vals = (inner_r, inner_s, parent_r, parent_s, atr_val)
     if any(v is None for v in vals):
@@ -67,9 +73,13 @@ def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
     if not all(math.isfinite(float(v)) for v in vals) or float(atr_val) <= 0:
         return None
     tol = settings.MINI_POSITION_TOL_ATR * float(atr_val)
-    if float(inner_r) >= float(parent_r) - tol:
+    at_r = float(inner_r) >= float(parent_r) - tol
+    at_s = float(inner_s) <= float(parent_s) + tol
+    if at_r and at_s:
+        return "touching_both"
+    if at_r:
         return "at_ceiling"
-    if float(inner_s) <= float(parent_s) + tol:
+    if at_s:
         return "on_support"
     return "mid_range"
 
