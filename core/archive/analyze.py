@@ -172,7 +172,8 @@ TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
 # mechanisms move that anchor with no chart changing: the always-on
 # climax-terminality repair (a "climax" price out-ran re-anchors to the box's own
 # run-up extreme) and the dark AR_FIRST_REACTION_ENABLED tighten, whose entire
-# flip IS a re-anchor — 100 of 291 firing overlays, measured 2026-08-13.
+# flip IS a re-anchor — 101 of 335 firing overlays, re-measured 2026-08-31
+# against the re-keyed climax (was 100 of 291 on 2026-08-13).
 #
 # strategy_alpha.md states the consequence — "the engine_config_version rotation
 # partitions the bin_a_*/bars_since_bc/descent_length archive seam" — and

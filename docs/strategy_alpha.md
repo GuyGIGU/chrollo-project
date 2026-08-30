@@ -172,9 +172,11 @@ lows:
 > Definition (2) above — the climax is the segment's *extreme pivot* — is not what
 > the operator marks as a trend end, and the disagreement is directional rather
 > than noisy. Against nine dated marks, `segment_trends` holds a terminal within
-> 3 bars of his trend end on **2 of 9**, and the resolved `climax_bar` sits
-> *earlier* than his trend end on **6 of 6** measurable names, never once later
-> (median −50.5 bars). The mechanism follows from the definition: inside a
+> 3 bars of his trend end on **2 of 9** (unchanged after the 2026-08-19 polarity
+> re-key), and the resolved `climax_bar` sits *earlier* than his trend end on
+> **5 of 7** measurable names, median −18 bars (re-measured 2026-08-31; it read
+> 6 of 6 at median −50.5 before the re-key, which improved the anchor without
+> rescuing the flag). The mechanism follows from the definition: inside a
 > consolidation, a later upthrust to the box's own R is still a higher high, so it
 > becomes the segment's extreme and swallows the true trend end. The operator also
 > reads the pair as one **transition zone** rather than two events — the last trend

@@ -75,7 +75,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # overlay + bin_a/bars_since_BC/descent_length diagnostics, never a rail)
     "PHASE_A_CLIMAX_TERMINALITY_EXCESS",
     # First-reaction AR anchor (Phase-A overlay; default-off flip must bump the
-    # version from day one — a flip re-anchors the drawn AR on 19/140 fires)
+    # version from day one — a flip re-anchors the drawn AR on 101 of 335 firing
+    # overlays, re-measured 2026-08-31 against the re-keyed climax; the 19/140
+    # figure this line used to quote was the 2026-07-05 raw-bar scan)
     "AR_FIRST_REACTION_ENABLED",
     "AR_RETRACE_FRAC",
     "AR_UP_LEG_LOOKBACK",

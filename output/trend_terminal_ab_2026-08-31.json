@@ -1,0 +1,5638 @@
+{
+ "basis": "payload 2026-08-27 (0eef903a8ee3)",
+ "flag": "TREND_TERMINAL_BOX_GATE_ENABLED",
+ "manifest": "08c981629923c30e5e475144193792f2f258bda0c3a2ddb5425ea152b7c194ce",
+ "min_base_days": 20,
+ "rows": [
+  {
+   "ticker": "AAPL",
+   "verdict": "identical",
+   "off_box": [
+    485,
+    316.29,
+    300.0
+   ],
+   "on_box": [
+    485,
+    316.29,
+    300.0
+   ],
+   "box_open": "2026-07-31",
+   "R": 316.29,
+   "S": 300.0,
+   "base_len": 20
+  },
+  {
+   "ticker": "ABBV",
+   "verdict": "identical",
+   "off_box": [
+    465,
+    261.64,
+    243.07
+   ],
+   "on_box": [
+    465,
+    261.64,
+    243.07
+   ],
+   "box_open": "2026-07-02",
+   "R": 261.64,
+   "S": 243.07,
+   "base_len": 39
+  },
+  {
+   "ticker": "ABM",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    48.89,
+    46.35
+   ],
+   "on_box": [
+    475,
+    48.89,
+    46.35
+   ],
+   "box_open": "2026-07-17",
+   "R": 48.89,
+   "S": 46.35,
+   "base_len": 30
+  },
+  {
+   "ticker": "ACA",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    145.54,
+    144.75
+   ],
+   "on_box": [
+    483,
+    145.54,
+    144.75
+   ],
+   "box_open": "2026-07-29",
+   "R": 145.54,
+   "S": 144.75,
+   "base_len": 21
+  },
+  {
+   "ticker": "ACAD",
+   "verdict": "identical",
+   "off_box": [
+    489,
+    29.85,
+    28.2
+   ],
+   "on_box": [
+    489,
+    29.85,
+    28.2
+   ],
+   "box_open": "2026-08-06",
+   "R": 29.85,
+   "S": 28.2,
+   "base_len": 16
+  },
+  {
+   "ticker": "ACCO",
+   "verdict": "identical",
+   "off_box": [
+    440,
+    4.15,
+    3.8
+   ],
+   "on_box": [
+    440,
+    4.15,
+    3.8
+   ],
+   "box_open": "2026-05-27",
+   "R": 4.15,
+   "S": 3.8,
+   "base_len": 65
+  },
+  {
+   "ticker": "ACT",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    48.79,
+    46.91
+   ],
+   "on_box": [
+    483,
+    48.79,
+    46.91
+   ],
+   "box_open": "2026-07-29",
+   "R": 48.79,
+   "S": 46.91,
+   "base_len": 21
+  },
+  {
+   "ticker": "ADAG",
+   "verdict": "identical",
+   "off_box": [
+    421,
+    3.805,
+    3.26
+   ],
+   "on_box": [
+    421,
+    3.805,
+    3.26
+   ],
+   "box_open": "2026-04-29",
+   "R": 3.805,
+   "S": 3.26,
+   "base_len": 83
+  },
+  {
+   "ticker": "ADAM",
+   "verdict": "identical",
+   "off_box": [
+    445,
+    9.52,
+    8.78
+   ],
+   "on_box": [
+    445,
+    9.52,
+    8.78
+   ],
+   "box_open": "2026-06-03",
+   "R": 9.52,
+   "S": 8.78,
+   "base_len": 60
+  },
+  {
+   "ticker": "ADX",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    26.49,
+    25.8
+   ],
+   "on_box": [
+    475,
+    26.49,
+    25.8
+   ],
+   "box_open": "2026-07-17",
+   "R": 26.49,
+   "S": 25.8,
+   "base_len": 30
+  },
+  {
+   "ticker": "AEF",
+   "verdict": "identical",
+   "off_box": [
+    420,
+    9.99,
+    8.87
+   ],
+   "on_box": [
+    420,
+    9.99,
+    8.87
+   ],
+   "box_open": "2026-04-28",
+   "R": 9.99,
+   "S": 8.87,
+   "base_len": 85
+  },
+  {
+   "ticker": "AES",
+   "verdict": "identical",
+   "off_box": [
+    449,
+    14.71,
+    14.62
+   ],
+   "on_box": [
+    449,
+    14.71,
+    14.62
+   ],
+   "box_open": "2026-06-09",
+   "R": 14.71,
+   "S": 14.62,
+   "base_len": 56
+  },
+  {
+   "ticker": "AGNC",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    11.1,
+    10.46
+   ],
+   "on_box": [
+    479,
+    11.1,
+    10.46
+   ],
+   "box_open": "2026-07-23",
+   "R": 11.1,
+   "S": 10.46,
+   "base_len": 26
+  },
+  {
+   "ticker": "AGRO",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    10.79,
+    9.29
+   ],
+   "on_box": [
+    464,
+    10.79,
+    9.29
+   ],
+   "box_open": "2026-07-01",
+   "R": 10.79,
+   "S": 9.29,
+   "base_len": 41
+  },
+  {
+   "ticker": "AHR",
+   "verdict": "identical",
+   "off_box": [
+    470,
+    58.02,
+    52.49
+   ],
+   "on_box": [
+    470,
+    58.02,
+    52.49
+   ],
+   "box_open": "2026-07-10",
+   "R": 58.02,
+   "S": 52.49,
+   "base_len": 34
+  },
+  {
+   "ticker": "AIZ",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    284.12,
+    271.75
+   ],
+   "on_box": [
+    467,
+    284.12,
+    271.75
+   ],
+   "box_open": "2026-07-07",
+   "R": 284.12,
+   "S": 271.75,
+   "base_len": 38
+  },
+  {
+   "ticker": "ALKT",
+   "verdict": "identical",
+   "off_box": [
+    465,
+    19.48,
+    17.03
+   ],
+   "on_box": [
+    465,
+    19.48,
+    17.03
+   ],
+   "box_open": "2026-07-02",
+   "R": 19.48,
+   "S": 17.03,
+   "base_len": 40
+  },
+  {
+   "ticker": "ALRM",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    57.91,
+    55.414
+   ],
+   "on_box": [
+    487,
+    57.91,
+    55.414
+   ],
+   "box_open": "2026-08-04",
+   "R": 57.91,
+   "S": 55.414,
+   "base_len": 17
+  },
+  {
+   "ticker": "ALSN",
+   "verdict": "identical",
+   "off_box": [
+    382,
+    128.85,
+    110.87
+   ],
+   "on_box": [
+    382,
+    128.85,
+    110.87
+   ],
+   "box_open": "2026-03-04",
+   "R": 128.85,
+   "S": 110.87,
+   "base_len": 123
+  },
+  {
+   "ticker": "AME",
+   "verdict": "identical",
+   "off_box": [
+    458,
+    244.71,
+    233.4
+   ],
+   "on_box": [
+    458,
+    244.71,
+    233.4
+   ],
+   "box_open": "2026-06-23",
+   "R": 244.71,
+   "S": 233.4,
+   "base_len": 47
+  },
+  {
+   "ticker": "AMN",
+   "verdict": "identical",
+   "off_box": [
+    458,
+    36.27,
+    30.85
+   ],
+   "on_box": [
+    458,
+    36.27,
+    30.85
+   ],
+   "box_open": "2026-06-23",
+   "R": 36.27,
+   "S": 30.85,
+   "base_len": 47
+  },
+  {
+   "ticker": "AMRX",
+   "verdict": "identical",
+   "off_box": [
+    461,
+    17.86,
+    16.725
+   ],
+   "on_box": [
+    461,
+    17.86,
+    16.725
+   ],
+   "box_open": "2026-06-26",
+   "R": 17.86,
+   "S": 16.725,
+   "base_len": 44
+  },
+  {
+   "ticker": "AOD",
+   "verdict": "identical",
+   "off_box": [
+    429,
+    10.59,
+    10.24
+   ],
+   "on_box": [
+    429,
+    10.59,
+    10.24
+   ],
+   "box_open": "2026-05-11",
+   "R": 10.59,
+   "S": 10.24,
+   "base_len": 76
+  },
+  {
+   "ticker": "APD",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    307.12,
+    292.94
+   ],
+   "on_box": [
+    469,
+    307.12,
+    292.94
+   ],
+   "box_open": "2026-07-09",
+   "R": 307.12,
+   "S": 292.94,
+   "base_len": 36
+  },
+  {
+   "ticker": "APO",
+   "verdict": "identical",
+   "off_box": [
+    422,
+    135.34,
+    120.0
+   ],
+   "on_box": [
+    422,
+    135.34,
+    120.0
+   ],
+   "box_open": "2026-04-30",
+   "R": 135.34,
+   "S": 120.0,
+   "base_len": 83
+  },
+  {
+   "ticker": "ARLP",
+   "verdict": "identical",
+   "off_box": [
+    476,
+    26.52,
+    24.17
+   ],
+   "on_box": [
+    476,
+    26.52,
+    24.17
+   ],
+   "box_open": "2026-07-20",
+   "R": 26.52,
+   "S": 24.17,
+   "base_len": 29
+  },
+  {
+   "ticker": "ATRO",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    73.68,
+    69.45
+   ],
+   "on_box": [
+    468,
+    73.68,
+    69.45
+   ],
+   "box_open": "2026-07-08",
+   "R": 73.68,
+   "S": 69.45,
+   "base_len": 37
+  },
+  {
+   "ticker": "AUPH",
+   "verdict": "identical",
+   "off_box": [
+    345,
+    16.189,
+    14.36
+   ],
+   "on_box": [
+    345,
+    16.189,
+    14.36
+   ],
+   "box_open": "2026-01-08",
+   "R": 16.189,
+   "S": 14.36,
+   "base_len": 159
+  },
+  {
+   "ticker": "AVTX",
+   "verdict": "identical",
+   "off_box": [
+    463,
+    20.45,
+    17.54
+   ],
+   "on_box": [
+    463,
+    20.45,
+    17.54
+   ],
+   "box_open": "2026-06-30",
+   "R": 20.45,
+   "S": 17.54,
+   "base_len": 41
+  },
+  {
+   "ticker": "AWR",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    90.11,
+    82.58
+   ],
+   "on_box": [
+    468,
+    90.11,
+    82.58
+   ],
+   "box_open": "2026-07-08",
+   "R": 90.11,
+   "S": 82.58,
+   "base_len": 37
+  },
+  {
+   "ticker": "AYI",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    340.94,
+    327.38
+   ],
+   "on_box": [
+    468,
+    340.94,
+    327.38
+   ],
+   "box_open": "2026-07-08",
+   "R": 340.94,
+   "S": 327.38,
+   "base_len": 37
+  },
+  {
+   "ticker": "BAM",
+   "verdict": "identical",
+   "off_box": [
+    432,
+    49.53,
+    45.15
+   ],
+   "on_box": [
+    432,
+    49.53,
+    45.15
+   ],
+   "box_open": "2026-05-14",
+   "R": 49.53,
+   "S": 45.15,
+   "base_len": 72
+  },
+  {
+   "ticker": "BAX",
+   "verdict": "identical",
+   "off_box": [
+    485,
+    28.38,
+    26.03
+   ],
+   "on_box": [
+    485,
+    28.38,
+    26.03
+   ],
+   "box_open": "2026-07-31",
+   "R": 28.38,
+   "S": 26.03,
+   "base_len": 20
+  },
+  {
+   "ticker": "BBT",
+   "verdict": "identical",
+   "off_box": [
+    356,
+    31.95,
+    27.71
+   ],
+   "on_box": [
+    356,
+    31.95,
+    27.71
+   ],
+   "box_open": "2026-01-26",
+   "R": 31.95,
+   "S": 27.71,
+   "base_len": 149
+  },
+  {
+   "ticker": "BCAL",
+   "verdict": "identical",
+   "off_box": [
+    481,
+    21.82,
+    21.16
+   ],
+   "on_box": [
+    481,
+    21.82,
+    21.16
+   ],
+   "box_open": "2026-07-27",
+   "R": 21.82,
+   "S": 21.16,
+   "base_len": 24
+  },
+  {
+   "ticker": "BCAT",
+   "verdict": "identical",
+   "off_box": [
+    443,
+    16.05,
+    15.455
+   ],
+   "on_box": [
+    443,
+    16.05,
+    15.455
+   ],
+   "box_open": "2026-06-01",
+   "R": 16.05,
+   "S": 15.455,
+   "base_len": 62
+  },
+  {
+   "ticker": "BCPC",
+   "verdict": "identical",
+   "off_box": [
+    349,
+    176.55,
+    157.85
+   ],
+   "on_box": [
+    349,
+    176.55,
+    157.85
+   ],
+   "box_open": "2026-01-14",
+   "R": 176.55,
+   "S": 157.85,
+   "base_len": 156
+  },
+  {
+   "ticker": "BCRX",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    9.91,
+    8.95
+   ],
+   "on_box": [
+    475,
+    9.91,
+    8.95
+   ],
+   "box_open": "2026-07-17",
+   "R": 9.91,
+   "S": 8.95,
+   "base_len": 30
+  },
+  {
+   "ticker": "BCX",
+   "verdict": "identical",
+   "off_box": [
+    345,
+    13.05,
+    11.25
+   ],
+   "on_box": [
+    345,
+    13.05,
+    11.25
+   ],
+   "box_open": "2026-01-08",
+   "R": 13.05,
+   "S": 11.25,
+   "base_len": 160
+  },
+  {
+   "ticker": "BFC",
+   "verdict": "identical",
+   "off_box": [
+    359,
+    153.0,
+    134.17
+   ],
+   "on_box": [
+    359,
+    153.0,
+    134.17
+   ],
+   "box_open": "2026-01-29",
+   "R": 153.0,
+   "S": 134.17,
+   "base_len": 146
+  },
+  {
+   "ticker": "BFST",
+   "verdict": "identical",
+   "off_box": [
+    399,
+    28.915,
+    26.43
+   ],
+   "on_box": [
+    399,
+    28.915,
+    26.43
+   ],
+   "box_open": "2026-03-27",
+   "R": 28.915,
+   "S": 26.43,
+   "base_len": 105
+  },
+  {
+   "ticker": "BGY",
+   "verdict": "identical",
+   "off_box": [
+    444,
+    5.84,
+    5.6
+   ],
+   "on_box": [
+    444,
+    5.84,
+    5.6
+   ],
+   "box_open": "2026-06-02",
+   "R": 5.84,
+   "S": 5.6,
+   "base_len": 61
+  },
+  {
+   "ticker": "BHB",
+   "verdict": "lost",
+   "off_box": [
+    482,
+    40.61,
+    38.91
+   ],
+   "on_box": null,
+   "box_open": "2026-07-28",
+   "R": 40.61,
+   "S": 38.91,
+   "base_len": 23,
+   "why": {
+    "terminal_bar": 487,
+    "terminal_date": "2026-08-04",
+    "bars_since": 18,
+    "climax_at_box_bar": 5,
+    "terminal_price": 41.08,
+    "terminal_vs_R_box_frac": 0.276
+   }
+  },
+  {
+   "ticker": "BHRB",
+   "verdict": "identical",
+   "off_box": [
+    378,
+    67.39,
+    61.1
+   ],
+   "on_box": [
+    378,
+    67.39,
+    61.1
+   ],
+   "box_open": "2026-02-26",
+   "R": 67.39,
+   "S": 61.1,
+   "base_len": 127
+  },
+  {
+   "ticker": "BIP",
+   "verdict": "identical",
+   "off_box": [
+    428,
+    38.95,
+    36.33
+   ],
+   "on_box": [
+    428,
+    38.95,
+    36.33
+   ],
+   "box_open": "2026-05-08",
+   "R": 38.95,
+   "S": 36.33,
+   "base_len": 77
+  },
+  {
+   "ticker": "BLCO",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    17.46,
+    15.91
+   ],
+   "on_box": [
+    467,
+    17.46,
+    15.91
+   ],
+   "box_open": "2026-07-07",
+   "R": 17.46,
+   "S": 15.91,
+   "base_len": 37
+  },
+  {
+   "ticker": "BNTC",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    13.84,
+    12.04
+   ],
+   "on_box": [
+    462,
+    13.84,
+    12.04
+   ],
+   "box_open": "2026-06-29",
+   "R": 13.84,
+   "S": 12.04,
+   "base_len": 42
+  },
+  {
+   "ticker": "BOE",
+   "verdict": "identical",
+   "off_box": [
+    471,
+    12.35,
+    11.91
+   ],
+   "on_box": [
+    471,
+    12.35,
+    11.91
+   ],
+   "box_open": "2026-07-13",
+   "R": 12.35,
+   "S": 11.91,
+   "base_len": 34
+  },
+  {
+   "ticker": "BP",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    44.45,
+    40.88
+   ],
+   "on_box": [
+    474,
+    44.45,
+    40.88
+   ],
+   "box_open": "2026-07-16",
+   "R": 44.45,
+   "S": 40.88,
+   "base_len": 31
+  },
+  {
+   "ticker": "BRC",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    99.25,
+    92.46
+   ],
+   "on_box": [
+    479,
+    99.25,
+    92.46
+   ],
+   "box_open": "2026-07-23",
+   "R": 99.25,
+   "S": 92.46,
+   "base_len": 26
+  },
+  {
+   "ticker": "BSM",
+   "verdict": "lost",
+   "off_box": [
+    477,
+    15.02,
+    14.22
+   ],
+   "on_box": null,
+   "box_open": "2026-07-21",
+   "R": 15.02,
+   "S": 14.22,
+   "base_len": 27,
+   "why": {
+    "terminal_bar": 487,
+    "terminal_date": "2026-08-04",
+    "bars_since": 17,
+    "climax_at_box_bar": 10,
+    "terminal_price": 15.1,
+    "terminal_vs_R_box_frac": 0.1
+   }
+  },
+  {
+   "ticker": "BSTZ",
+   "verdict": "identical",
+   "off_box": [
+    460,
+    30.66,
+    27.59
+   ],
+   "on_box": [
+    460,
+    30.66,
+    27.59
+   ],
+   "box_open": "2026-06-25",
+   "R": 30.66,
+   "S": 27.59,
+   "base_len": 44
+  },
+  {
+   "ticker": "BWB",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    22.59,
+    20.79
+   ],
+   "on_box": [
+    468,
+    22.59,
+    20.79
+   ],
+   "box_open": "2026-07-08",
+   "R": 22.59,
+   "S": 20.79,
+   "base_len": 36
+  },
+  {
+   "ticker": "BXP",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    71.41,
+    67.21
+   ],
+   "on_box": [
+    475,
+    71.41,
+    67.21
+   ],
+   "box_open": "2026-07-17",
+   "R": 71.41,
+   "S": 67.21,
+   "base_len": 30
+  },
+  {
+   "ticker": "CAG",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    15.7,
+    14.49
+   ],
+   "on_box": [
+    483,
+    15.7,
+    14.49
+   ],
+   "box_open": "2026-07-29",
+   "R": 15.7,
+   "S": 14.49,
+   "base_len": 22
+  },
+  {
+   "ticker": "CAH",
+   "verdict": "identical",
+   "off_box": [
+    420,
+    206.61,
+    185.8
+   ],
+   "on_box": [
+    420,
+    206.61,
+    185.8
+   ],
+   "box_open": "2026-04-28",
+   "R": 206.61,
+   "S": 185.8,
+   "base_len": 85
+  },
+  {
+   "ticker": "CARG",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    36.49,
+    32.47
+   ],
+   "on_box": [
+    467,
+    36.49,
+    32.47
+   ],
+   "box_open": "2026-07-07",
+   "R": 36.49,
+   "S": 32.47,
+   "base_len": 37
+  },
+  {
+   "ticker": "CART",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    49.21,
+    42.245
+   ],
+   "on_box": [
+    462,
+    49.21,
+    42.245
+   ],
+   "box_open": "2026-06-29",
+   "R": 49.21,
+   "S": 42.245,
+   "base_len": 42
+  },
+  {
+   "ticker": "CBAN",
+   "verdict": "identical",
+   "off_box": [
+    378,
+    21.04,
+    19.04
+   ],
+   "on_box": [
+    378,
+    21.04,
+    19.04
+   ],
+   "box_open": "2026-02-26",
+   "R": 21.04,
+   "S": 19.04,
+   "base_len": 127
+  },
+  {
+   "ticker": "CBRL",
+   "verdict": "identical",
+   "off_box": [
+    486,
+    59.67,
+    55.27
+   ],
+   "on_box": [
+    486,
+    59.67,
+    55.27
+   ],
+   "box_open": "2026-08-03",
+   "R": 59.67,
+   "S": 55.27,
+   "base_len": 19
+  },
+  {
+   "ticker": "CBZ",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    54.83,
+    54.33
+   ],
+   "on_box": [
+    490,
+    54.83,
+    54.33
+   ],
+   "box_open": "2026-08-07",
+   "R": 54.83,
+   "S": 54.33,
+   "base_len": 15
+  },
+  {
+   "ticker": "CCK",
+   "verdict": "moved",
+   "off_box": [
+    482,
+    121.9,
+    116.0
+   ],
+   "on_box": [
+    476,
+    121.76,
+    114.4
+   ],
+   "box_open": "2026-07-28",
+   "R": 121.9,
+   "S": 116.0,
+   "base_len": 23
+  },
+  {
+   "ticker": "CDP",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    38.06,
+    36.19
+   ],
+   "on_box": [
+    467,
+    38.06,
+    36.19
+   ],
+   "box_open": "2026-07-07",
+   "R": 38.06,
+   "S": 36.19,
+   "base_len": 38
+  },
+  {
+   "ticker": "CF",
+   "verdict": "identical",
+   "off_box": [
+    470,
+    130.05,
+    113.91
+   ],
+   "on_box": [
+    470,
+    130.05,
+    113.91
+   ],
+   "box_open": "2026-07-10",
+   "R": 130.05,
+   "S": 113.91,
+   "base_len": 35
+  },
+  {
+   "ticker": "CHRD",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    141.84,
+    128.1
+   ],
+   "on_box": [
+    479,
+    141.84,
+    128.1
+   ],
+   "box_open": "2026-07-23",
+   "R": 141.84,
+   "S": 128.1,
+   "base_len": 26
+  },
+  {
+   "ticker": "CLDT",
+   "verdict": "identical",
+   "off_box": [
+    458,
+    13.59,
+    12.41
+   ],
+   "on_box": [
+    458,
+    13.59,
+    12.41
+   ],
+   "box_open": "2026-06-23",
+   "R": 13.59,
+   "S": 12.41,
+   "base_len": 47
+  },
+  {
+   "ticker": "CLH",
+   "verdict": "identical",
+   "off_box": [
+    385,
+    316.98,
+    277.58
+   ],
+   "on_box": [
+    385,
+    316.98,
+    277.58
+   ],
+   "box_open": "2026-03-09",
+   "R": 316.98,
+   "S": 277.58,
+   "base_len": 120
+  },
+  {
+   "ticker": "CLMT",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    45.2,
+    40.26
+   ],
+   "on_box": [
+    479,
+    45.2,
+    40.26
+   ],
+   "box_open": "2026-07-23",
+   "R": 45.2,
+   "S": 40.26,
+   "base_len": 26
+  },
+  {
+   "ticker": "CMG",
+   "verdict": "identical",
+   "off_box": [
+    472,
+    37.09,
+    31.47
+   ],
+   "on_box": [
+    472,
+    37.09,
+    31.47
+   ],
+   "box_open": "2026-07-14",
+   "R": 37.09,
+   "S": 31.47,
+   "base_len": 33
+  },
+  {
+   "ticker": "CNC",
+   "verdict": "identical",
+   "off_box": [
+    463,
+    69.29,
+    63.71
+   ],
+   "on_box": [
+    463,
+    69.29,
+    63.71
+   ],
+   "box_open": "2026-06-30",
+   "R": 69.29,
+   "S": 63.71,
+   "base_len": 42
+  },
+  {
+   "ticker": "CNH",
+   "verdict": "identical",
+   "off_box": [
+    451,
+    11.05,
+    10.06
+   ],
+   "on_box": [
+    451,
+    11.05,
+    10.06
+   ],
+   "box_open": "2026-06-11",
+   "R": 11.05,
+   "S": 10.06,
+   "base_len": 53
+  },
+  {
+   "ticker": "CNI",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    129.53,
+    125.13
+   ],
+   "on_box": [
+    475,
+    129.53,
+    125.13
+   ],
+   "box_open": "2026-07-17",
+   "R": 129.53,
+   "S": 125.13,
+   "base_len": 30
+  },
+  {
+   "ticker": "CNK",
+   "verdict": "identical",
+   "off_box": [
+    491,
+    38.02,
+    36.28
+   ],
+   "on_box": [
+    491,
+    38.02,
+    36.28
+   ],
+   "box_open": "2026-08-10",
+   "R": 38.02,
+   "S": 36.28,
+   "base_len": 14
+  },
+  {
+   "ticker": "CODI",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    10.94,
+    9.89
+   ],
+   "on_box": [
+    468,
+    10.94,
+    9.89
+   ],
+   "box_open": "2026-07-08",
+   "R": 10.94,
+   "S": 9.89,
+   "base_len": 37
+  },
+  {
+   "ticker": "COF",
+   "verdict": "identical",
+   "off_box": [
+    458,
+    210.1,
+    196.47
+   ],
+   "on_box": [
+    458,
+    210.1,
+    196.47
+   ],
+   "box_open": "2026-06-23",
+   "R": 210.1,
+   "S": 196.47,
+   "base_len": 47
+  },
+  {
+   "ticker": "CORT",
+   "verdict": "identical",
+   "off_box": [
+    484,
+    122.21,
+    107.32
+   ],
+   "on_box": [
+    484,
+    122.21,
+    107.32
+   ],
+   "box_open": "2026-07-30",
+   "R": 122.21,
+   "S": 107.32,
+   "base_len": 21
+  },
+  {
+   "ticker": "COSO",
+   "verdict": "identical",
+   "off_box": [
+    278,
+    28.02,
+    26.05
+   ],
+   "on_box": [
+    278,
+    28.02,
+    26.05
+   ],
+   "box_open": "2026-06-17",
+   "R": 28.02,
+   "S": 26.05,
+   "base_len": 49
+  },
+  {
+   "ticker": "CP",
+   "verdict": "identical",
+   "off_box": [
+    430,
+    91.46,
+    84.78
+   ],
+   "on_box": [
+    430,
+    91.46,
+    84.78
+   ],
+   "box_open": "2026-05-12",
+   "R": 91.46,
+   "S": 84.78,
+   "base_len": 75
+  },
+  {
+   "ticker": "CQP",
+   "verdict": "identical",
+   "off_box": [
+    424,
+    67.73,
+    60.0
+   ],
+   "on_box": [
+    424,
+    67.73,
+    60.0
+   ],
+   "box_open": "2026-05-04",
+   "R": 67.73,
+   "S": 60.0,
+   "base_len": 81
+  },
+  {
+   "ticker": "CRSP",
+   "verdict": "identical",
+   "off_box": [
+    408,
+    59.39,
+    49.5
+   ],
+   "on_box": [
+    408,
+    59.39,
+    49.5
+   ],
+   "box_open": "2026-04-10",
+   "R": 59.39,
+   "S": 49.5,
+   "base_len": 97
+  },
+  {
+   "ticker": "CSL",
+   "verdict": "identical",
+   "off_box": [
+    394,
+    361.26,
+    324.95
+   ],
+   "on_box": [
+    394,
+    361.26,
+    324.95
+   ],
+   "box_open": "2026-03-20",
+   "R": 361.26,
+   "S": 324.95,
+   "base_len": 111
+  },
+  {
+   "ticker": "CSX",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    51.29,
+    49.36
+   ],
+   "on_box": [
+    475,
+    51.29,
+    49.36
+   ],
+   "box_open": "2026-07-17",
+   "R": 51.29,
+   "S": 49.36,
+   "base_len": 30
+  },
+  {
+   "ticker": "CVEO",
+   "verdict": "identical",
+   "off_box": [
+    423,
+    34.8,
+    29.88
+   ],
+   "on_box": [
+    423,
+    34.8,
+    29.88
+   ],
+   "box_open": "2026-05-01",
+   "R": 34.8,
+   "S": 29.88,
+   "base_len": 81
+  },
+  {
+   "ticker": "CVU",
+   "verdict": "identical",
+   "off_box": [
+    443,
+    5.38,
+    4.65
+   ],
+   "on_box": [
+    443,
+    5.38,
+    4.65
+   ],
+   "box_open": "2026-06-01",
+   "R": 5.38,
+   "S": 4.65,
+   "base_len": 62
+  },
+  {
+   "ticker": "CVX",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    197.69,
+    186.73
+   ],
+   "on_box": [
+    479,
+    197.69,
+    186.73
+   ],
+   "box_open": "2026-07-23",
+   "R": 197.69,
+   "S": 186.73,
+   "base_len": 26
+  },
+  {
+   "ticker": "CWST",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    93.13,
+    88.57
+   ],
+   "on_box": [
+    479,
+    93.13,
+    88.57
+   ],
+   "box_open": "2026-07-23",
+   "R": 93.13,
+   "S": 88.57,
+   "base_len": 26
+  },
+  {
+   "ticker": "CWT",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    52.51,
+    48.93
+   ],
+   "on_box": [
+    469,
+    52.51,
+    48.93
+   ],
+   "box_open": "2026-07-09",
+   "R": 52.51,
+   "S": 48.93,
+   "base_len": 36
+  },
+  {
+   "ticker": "CYRX",
+   "verdict": "identical",
+   "off_box": [
+    446,
+    16.73,
+    14.29
+   ],
+   "on_box": [
+    446,
+    16.73,
+    14.29
+   ],
+   "box_open": "2026-06-04",
+   "R": 16.73,
+   "S": 14.29,
+   "base_len": 59
+  },
+  {
+   "ticker": "DAR",
+   "verdict": "identical",
+   "off_box": [
+    405,
+    64.9,
+    55.83
+   ],
+   "on_box": [
+    405,
+    64.9,
+    55.83
+   ],
+   "box_open": "2026-04-07",
+   "R": 64.9,
+   "S": 55.83,
+   "base_len": 100
+  },
+  {
+   "ticker": "DCOM",
+   "verdict": "identical",
+   "off_box": [
+    453,
+    40.76,
+    38.47
+   ],
+   "on_box": [
+    453,
+    40.76,
+    38.47
+   ],
+   "box_open": "2026-06-15",
+   "R": 40.76,
+   "S": 38.47,
+   "base_len": 52
+  },
+  {
+   "ticker": "DCTH",
+   "verdict": "identical",
+   "off_box": [
+    492,
+    17.42,
+    16.51
+   ],
+   "on_box": [
+    492,
+    17.42,
+    16.51
+   ],
+   "box_open": "2026-08-11",
+   "R": 17.42,
+   "S": 16.51,
+   "base_len": 13
+  },
+  {
+   "ticker": "DE",
+   "verdict": "identical",
+   "off_box": [
+    394,
+    619.24,
+    549.68
+   ],
+   "on_box": [
+    394,
+    619.24,
+    549.68
+   ],
+   "box_open": "2026-03-20",
+   "R": 619.24,
+   "S": 549.68,
+   "base_len": 111
+  },
+  {
+   "ticker": "DFIN",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    50.95,
+    46.26
+   ],
+   "on_box": [
+    475,
+    50.95,
+    46.26
+   ],
+   "box_open": "2026-07-17",
+   "R": 50.95,
+   "S": 46.26,
+   "base_len": 29
+  },
+  {
+   "ticker": "DFTX",
+   "verdict": "identical",
+   "off_box": [
+    477,
+    45.42,
+    41.57
+   ],
+   "on_box": [
+    477,
+    45.42,
+    41.57
+   ],
+   "box_open": "2026-07-21",
+   "R": 45.42,
+   "S": 41.57,
+   "base_len": 28
+  },
+  {
+   "ticker": "DHT",
+   "verdict": "identical",
+   "off_box": [
+    385,
+    19.09,
+    16.65
+   ],
+   "on_box": [
+    385,
+    19.09,
+    16.65
+   ],
+   "box_open": "2026-03-09",
+   "R": 19.09,
+   "S": 16.65,
+   "base_len": 120
+  },
+  {
+   "ticker": "DLO",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    15.37,
+    13.895
+   ],
+   "on_box": [
+    467,
+    15.37,
+    13.895
+   ],
+   "box_open": "2026-07-07",
+   "R": 15.37,
+   "S": 13.895,
+   "base_len": 38
+  },
+  {
+   "ticker": "DMRA",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    30.9,
+    28.25
+   ],
+   "on_box": [
+    479,
+    30.9,
+    28.25
+   ],
+   "box_open": "2026-07-23",
+   "R": 30.9,
+   "S": 28.25,
+   "base_len": 25
+  },
+  {
+   "ticker": "DRI",
+   "verdict": "identical",
+   "off_box": [
+    424,
+    210.43,
+    189.97
+   ],
+   "on_box": [
+    424,
+    210.43,
+    189.97
+   ],
+   "box_open": "2026-05-04",
+   "R": 210.43,
+   "S": 189.97,
+   "base_len": 81
+  },
+  {
+   "ticker": "DVN",
+   "verdict": "identical",
+   "off_box": [
+    470,
+    46.21,
+    42.2
+   ],
+   "on_box": [
+    470,
+    46.21,
+    42.2
+   ],
+   "box_open": "2026-07-10",
+   "R": 46.21,
+   "S": 42.2,
+   "base_len": 35
+  },
+  {
+   "ticker": "EC",
+   "verdict": "identical",
+   "off_box": [
+    442,
+    16.45,
+    14.38
+   ],
+   "on_box": [
+    442,
+    16.45,
+    14.38
+   ],
+   "box_open": "2026-05-29",
+   "R": 16.45,
+   "S": 14.38,
+   "base_len": 63
+  },
+  {
+   "ticker": "EFC",
+   "verdict": "identical",
+   "off_box": [
+    428,
+    13.69,
+    13.21
+   ],
+   "on_box": [
+    428,
+    13.69,
+    13.21
+   ],
+   "box_open": "2026-05-08",
+   "R": 13.69,
+   "S": 13.21,
+   "base_len": 77
+  },
+  {
+   "ticker": "EGY",
+   "verdict": "identical",
+   "off_box": [
+    470,
+    5.79,
+    5.16
+   ],
+   "on_box": [
+    470,
+    5.79,
+    5.16
+   ],
+   "box_open": "2026-07-10",
+   "R": 5.79,
+   "S": 5.16,
+   "base_len": 35
+  },
+  {
+   "ticker": "ELV",
+   "verdict": "identical",
+   "off_box": [
+    434,
+    426.98,
+    387.23
+   ],
+   "on_box": [
+    434,
+    426.98,
+    387.23
+   ],
+   "box_open": "2026-05-18",
+   "R": 426.98,
+   "S": 387.23,
+   "base_len": 71
+  },
+  {
+   "ticker": "EMN",
+   "verdict": "identical",
+   "off_box": [
+    383,
+    75.34,
+    66.36
+   ],
+   "on_box": [
+    383,
+    75.34,
+    66.36
+   ],
+   "box_open": "2026-03-05",
+   "R": 75.34,
+   "S": 66.36,
+   "base_len": 122
+  },
+  {
+   "ticker": "EOD",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    6.65,
+    6.37
+   ],
+   "on_box": [
+    462,
+    6.65,
+    6.37
+   ],
+   "box_open": "2026-06-29",
+   "R": 6.65,
+   "S": 6.37,
+   "base_len": 43
+  },
+  {
+   "ticker": "EOG",
+   "verdict": "identical",
+   "off_box": [
+    425,
+    142.85,
+    128.83
+   ],
+   "on_box": [
+    425,
+    142.85,
+    128.83
+   ],
+   "box_open": "2026-05-05",
+   "R": 142.85,
+   "S": 128.83,
+   "base_len": 80
+  },
+  {
+   "ticker": "EPSN",
+   "verdict": "identical",
+   "off_box": [
+    476,
+    5.97,
+    5.41
+   ],
+   "on_box": [
+    476,
+    5.97,
+    5.41
+   ],
+   "box_open": "2026-07-20",
+   "R": 5.97,
+   "S": 5.41,
+   "base_len": 29
+  },
+  {
+   "ticker": "ESP",
+   "verdict": "identical",
+   "off_box": [
+    437,
+    61.12,
+    55.0
+   ],
+   "on_box": [
+    437,
+    61.12,
+    55.0
+   ],
+   "box_open": "2026-05-21",
+   "R": 61.12,
+   "S": 55.0,
+   "base_len": 68
+  },
+  {
+   "ticker": "EVTC",
+   "verdict": "lost",
+   "off_box": [
+    479,
+    32.04,
+    28.7
+   ],
+   "on_box": null,
+   "box_open": "2026-07-23",
+   "R": 32.04,
+   "S": 28.7,
+   "base_len": 25,
+   "why": {
+    "terminal_bar": 488,
+    "terminal_date": "2026-08-05",
+    "bars_since": 16,
+    "climax_at_box_bar": 9,
+    "terminal_price": 34.41,
+    "terminal_vs_R_box_frac": 0.71
+   }
+  },
+  {
+   "ticker": "EXEL",
+   "verdict": "identical",
+   "off_box": [
+    457,
+    55.91,
+    50.8
+   ],
+   "on_box": [
+    457,
+    55.91,
+    50.8
+   ],
+   "box_open": "2026-06-22",
+   "R": 55.91,
+   "S": 50.8,
+   "base_len": 48
+  },
+  {
+   "ticker": "FANG",
+   "verdict": "identical",
+   "off_box": [
+    424,
+    211.69,
+    180.44
+   ],
+   "on_box": [
+    424,
+    211.69,
+    180.44
+   ],
+   "box_open": "2026-05-04",
+   "R": 211.69,
+   "S": 180.44,
+   "base_len": 81
+  },
+  {
+   "ticker": "FAST",
+   "verdict": "identical",
+   "off_box": [
+    455,
+    48.83,
+    44.64
+   ],
+   "on_box": [
+    455,
+    48.83,
+    44.64
+   ],
+   "box_open": "2026-06-17",
+   "R": 48.83,
+   "S": 44.64,
+   "base_len": 50
+  },
+  {
+   "ticker": "FCBC",
+   "verdict": "identical",
+   "off_box": [
+    482,
+    48.94,
+    46.83
+   ],
+   "on_box": [
+    482,
+    48.94,
+    46.83
+   ],
+   "box_open": "2026-07-28",
+   "R": 48.94,
+   "S": 46.83,
+   "base_len": 23
+  },
+  {
+   "ticker": "FCCO",
+   "verdict": "identical",
+   "off_box": [
+    461,
+    33.78,
+    31.98
+   ],
+   "on_box": [
+    461,
+    33.78,
+    31.98
+   ],
+   "box_open": "2026-06-26",
+   "R": 33.78,
+   "S": 31.98,
+   "base_len": 44
+  },
+  {
+   "ticker": "FIRY",
+   "verdict": "identical",
+   "off_box": [
+    447,
+    9.33,
+    8.2
+   ],
+   "on_box": [
+    447,
+    9.33,
+    8.2
+   ],
+   "box_open": "2026-06-05",
+   "R": 9.33,
+   "S": 8.2,
+   "base_len": 57
+  },
+  {
+   "ticker": "FLR",
+   "verdict": "identical",
+   "off_box": [
+    461,
+    53.42,
+    47.87
+   ],
+   "on_box": [
+    461,
+    53.42,
+    47.87
+   ],
+   "box_open": "2026-06-26",
+   "R": 53.42,
+   "S": 47.87,
+   "base_len": 44
+  },
+  {
+   "ticker": "FSUN",
+   "verdict": "identical",
+   "off_box": [
+    401,
+    40.245,
+    34.75
+   ],
+   "on_box": [
+    401,
+    40.245,
+    34.75
+   ],
+   "box_open": "2026-03-31",
+   "R": 40.245,
+   "S": 34.75,
+   "base_len": 103
+  },
+  {
+   "ticker": "FTI",
+   "verdict": "identical",
+   "off_box": [
+    480,
+    77.92,
+    67.46
+   ],
+   "on_box": [
+    480,
+    77.92,
+    67.46
+   ],
+   "box_open": "2026-07-24",
+   "R": 77.92,
+   "S": 67.46,
+   "base_len": 25
+  },
+  {
+   "ticker": "FTRE",
+   "verdict": "identical",
+   "off_box": [
+    478,
+    20.19,
+    17.37
+   ],
+   "on_box": [
+    478,
+    20.19,
+    17.37
+   ],
+   "box_open": "2026-07-22",
+   "R": 20.19,
+   "S": 17.37,
+   "base_len": 26
+  },
+  {
+   "ticker": "FWONA",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    94.5,
+    87.0
+   ],
+   "on_box": [
+    469,
+    94.5,
+    87.0
+   ],
+   "box_open": "2026-07-09",
+   "R": 94.5,
+   "S": 87.0,
+   "base_len": 35
+  },
+  {
+   "ticker": "FWONK",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    103.22,
+    94.325
+   ],
+   "on_box": [
+    469,
+    103.22,
+    94.325
+   ],
+   "box_open": "2026-07-09",
+   "R": 103.22,
+   "S": 94.325,
+   "base_len": 35
+  },
+  {
+   "ticker": "GAIN",
+   "verdict": "identical",
+   "off_box": [
+    476,
+    16.71,
+    16.17
+   ],
+   "on_box": [
+    476,
+    16.71,
+    16.17
+   ],
+   "box_open": "2026-07-20",
+   "R": 16.71,
+   "S": 16.17,
+   "base_len": 29
+  },
+  {
+   "ticker": "GASS",
+   "verdict": "identical",
+   "off_box": [
+    471,
+    9.09,
+    8.41
+   ],
+   "on_box": [
+    471,
+    9.09,
+    8.41
+   ],
+   "box_open": "2026-07-13",
+   "R": 9.09,
+   "S": 8.41,
+   "base_len": 34
+  },
+  {
+   "ticker": "GCMG",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    13.795,
+    11.72
+   ],
+   "on_box": [
+    462,
+    13.795,
+    11.72
+   ],
+   "box_open": "2026-06-29",
+   "R": 13.795,
+   "S": 11.72,
+   "base_len": 42
+  },
+  {
+   "ticker": "GFF",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    108.57,
+    101.28
+   ],
+   "on_box": [
+    490,
+    108.57,
+    101.28
+   ],
+   "box_open": "2026-08-07",
+   "R": 108.57,
+   "S": 101.28,
+   "base_len": 15
+  },
+  {
+   "ticker": "GFR",
+   "verdict": "identical",
+   "off_box": [
+    427,
+    6.4,
+    5.54
+   ],
+   "on_box": [
+    427,
+    6.4,
+    5.54
+   ],
+   "box_open": "2026-05-07",
+   "R": 6.4,
+   "S": 5.54,
+   "base_len": 77
+  },
+  {
+   "ticker": "GHRS",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    31.0,
+    27.46
+   ],
+   "on_box": [
+    474,
+    31.0,
+    27.46
+   ],
+   "box_open": "2026-07-16",
+   "R": 31.0,
+   "S": 27.46,
+   "base_len": 30
+  },
+  {
+   "ticker": "GLNG",
+   "verdict": "identical",
+   "off_box": [
+    442,
+    52.41,
+    48.49
+   ],
+   "on_box": [
+    442,
+    52.41,
+    48.49
+   ],
+   "box_open": "2026-05-29",
+   "R": 52.41,
+   "S": 48.49,
+   "base_len": 63
+  },
+  {
+   "ticker": "GLP",
+   "verdict": "identical",
+   "off_box": [
+    430,
+    50.3,
+    47.0
+   ],
+   "on_box": [
+    430,
+    50.3,
+    47.0
+   ],
+   "box_open": "2026-05-12",
+   "R": 50.3,
+   "S": 47.0,
+   "base_len": 75
+  },
+  {
+   "ticker": "GNL",
+   "verdict": "identical",
+   "off_box": [
+    422,
+    9.62,
+    8.93
+   ],
+   "on_box": [
+    422,
+    9.62,
+    8.93
+   ],
+   "box_open": "2026-04-30",
+   "R": 9.62,
+   "S": 8.93,
+   "base_len": 82
+  },
+  {
+   "ticker": "GNW",
+   "verdict": "identical",
+   "off_box": [
+    476,
+    10.2,
+    9.74
+   ],
+   "on_box": [
+    476,
+    10.2,
+    9.74
+   ],
+   "box_open": "2026-07-20",
+   "R": 10.2,
+   "S": 9.74,
+   "base_len": 29
+  },
+  {
+   "ticker": "GOOD",
+   "verdict": "identical",
+   "off_box": [
+    418,
+    13.2,
+    12.3
+   ],
+   "on_box": [
+    418,
+    13.2,
+    12.3
+   ],
+   "box_open": "2026-04-24",
+   "R": 13.2,
+   "S": 12.3,
+   "base_len": 87
+  },
+  {
+   "ticker": "GPRK",
+   "verdict": "identical",
+   "off_box": [
+    393,
+    10.34,
+    9.19
+   ],
+   "on_box": [
+    393,
+    10.34,
+    9.19
+   ],
+   "box_open": "2026-03-19",
+   "R": 10.34,
+   "S": 9.19,
+   "base_len": 112
+  },
+  {
+   "ticker": "GSHD",
+   "verdict": "identical",
+   "off_box": [
+    485,
+    68.9,
+    63.04
+   ],
+   "on_box": [
+    485,
+    68.9,
+    63.04
+   ],
+   "box_open": "2026-07-31",
+   "R": 68.9,
+   "S": 63.04,
+   "base_len": 19
+  },
+  {
+   "ticker": "HAS",
+   "verdict": "identical",
+   "off_box": [
+    432,
+    97.48,
+    82.16
+   ],
+   "on_box": [
+    432,
+    97.48,
+    82.16
+   ],
+   "box_open": "2026-05-14",
+   "R": 97.48,
+   "S": 82.16,
+   "base_len": 73
+  },
+  {
+   "ticker": "HASI",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    39.0,
+    37.31
+   ],
+   "on_box": [
+    468,
+    39.0,
+    37.31
+   ],
+   "box_open": "2026-07-08",
+   "R": 39.0,
+   "S": 37.31,
+   "base_len": 36
+  },
+  {
+   "ticker": "HBT",
+   "verdict": "lost",
+   "off_box": [
+    483,
+    36.828,
+    35.33
+   ],
+   "on_box": null,
+   "box_open": "2026-07-29",
+   "R": 36.828,
+   "S": 35.33,
+   "base_len": 21,
+   "why": {
+    "terminal_bar": 494,
+    "terminal_date": "2026-08-14",
+    "bars_since": 10,
+    "climax_at_box_bar": 11,
+    "terminal_price": 37.51,
+    "terminal_vs_R_box_frac": 0.455
+   }
+  },
+  {
+   "ticker": "HCI",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    185.59,
+    177.81
+   ],
+   "on_box": [
+    467,
+    185.59,
+    177.81
+   ],
+   "box_open": "2026-07-07",
+   "R": 185.59,
+   "S": 177.81,
+   "base_len": 38
+  },
+  {
+   "ticker": "HELE",
+   "verdict": "identical",
+   "off_box": [
+    482,
+    29.65,
+    27.24
+   ],
+   "on_box": [
+    482,
+    29.65,
+    27.24
+   ],
+   "box_open": "2026-07-28",
+   "R": 29.65,
+   "S": 27.24,
+   "base_len": 23
+  },
+  {
+   "ticker": "HESM",
+   "verdict": "identical",
+   "off_box": [
+    377,
+    40.79,
+    37.202
+   ],
+   "on_box": [
+    377,
+    40.79,
+    37.202
+   ],
+   "box_open": "2026-02-25",
+   "R": 40.79,
+   "S": 37.202,
+   "base_len": 127
+  },
+  {
+   "ticker": "HG",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    35.2,
+    33.62
+   ],
+   "on_box": [
+    467,
+    35.2,
+    33.62
+   ],
+   "box_open": "2026-07-07",
+   "R": 35.2,
+   "S": 33.62,
+   "base_len": 37
+  },
+  {
+   "ticker": "HLN",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    10.245,
+    9.595
+   ],
+   "on_box": [
+    469,
+    10.245,
+    9.595
+   ],
+   "box_open": "2026-07-09",
+   "R": 10.245,
+   "S": 9.595,
+   "base_len": 35
+  },
+  {
+   "ticker": "HNI",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    50.36,
+    47.48
+   ],
+   "on_box": [
+    490,
+    50.36,
+    47.48
+   ],
+   "box_open": "2026-08-07",
+   "R": 50.36,
+   "S": 47.48,
+   "base_len": 15
+  },
+  {
+   "ticker": "HOPE",
+   "verdict": "identical",
+   "off_box": [
+    409,
+    12.81,
+    12.06
+   ],
+   "on_box": [
+    409,
+    12.81,
+    12.06
+   ],
+   "box_open": "2026-04-13",
+   "R": 12.81,
+   "S": 12.06,
+   "base_len": 96
+  },
+  {
+   "ticker": "HSHP",
+   "verdict": "identical",
+   "off_box": [
+    437,
+    16.02,
+    13.995
+   ],
+   "on_box": [
+    437,
+    16.02,
+    13.995
+   ],
+   "box_open": "2026-05-21",
+   "R": 16.02,
+   "S": 13.995,
+   "base_len": 68
+  },
+  {
+   "ticker": "HSTM",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    29.68,
+    27.66
+   ],
+   "on_box": [
+    483,
+    29.68,
+    27.66
+   ],
+   "box_open": "2026-07-29",
+   "R": 29.68,
+   "S": 27.66,
+   "base_len": 22
+  },
+  {
+   "ticker": "HTO",
+   "verdict": "identical",
+   "off_box": [
+    394,
+    61.87,
+    55.82
+   ],
+   "on_box": [
+    394,
+    61.87,
+    55.82
+   ],
+   "box_open": "2026-03-20",
+   "R": 61.87,
+   "S": 55.82,
+   "base_len": 111
+  },
+  {
+   "ticker": "HVT",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    26.5,
+    24.61
+   ],
+   "on_box": [
+    469,
+    26.5,
+    24.61
+   ],
+   "box_open": "2026-07-09",
+   "R": 26.5,
+   "S": 24.61,
+   "base_len": 36
+  },
+  {
+   "ticker": "IBTA",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    39.91,
+    35.14
+   ],
+   "on_box": [
+    490,
+    39.91,
+    35.14
+   ],
+   "box_open": "2026-08-07",
+   "R": 39.91,
+   "S": 35.14,
+   "base_len": 14
+  },
+  {
+   "ticker": "IHG",
+   "verdict": "identical",
+   "off_box": [
+    484,
+    163.35,
+    156.42
+   ],
+   "on_box": [
+    484,
+    163.35,
+    156.42
+   ],
+   "box_open": "2026-07-30",
+   "R": 163.35,
+   "S": 156.42,
+   "base_len": 21
+  },
+  {
+   "ticker": "IMCR",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    36.26,
+    32.84
+   ],
+   "on_box": [
+    475,
+    36.26,
+    32.84
+   ],
+   "box_open": "2026-07-17",
+   "R": 36.26,
+   "S": 32.84,
+   "base_len": 29
+  },
+  {
+   "ticker": "IMVT",
+   "verdict": "identical",
+   "off_box": [
+    461,
+    41.23,
+    37.51
+   ],
+   "on_box": [
+    461,
+    41.23,
+    37.51
+   ],
+   "box_open": "2026-06-26",
+   "R": 41.23,
+   "S": 37.51,
+   "base_len": 43
+  },
+  {
+   "ticker": "IPAR",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    129.29,
+    115.59
+   ],
+   "on_box": [
+    469,
+    129.29,
+    115.59
+   ],
+   "box_open": "2026-07-09",
+   "R": 129.29,
+   "S": 115.59,
+   "base_len": 36
+  },
+  {
+   "ticker": "IRON",
+   "verdict": "identical",
+   "off_box": [
+    489,
+    80.99,
+    75.791
+   ],
+   "on_box": [
+    489,
+    80.99,
+    75.791
+   ],
+   "box_open": "2026-08-06",
+   "R": 80.99,
+   "S": 75.791,
+   "base_len": 16
+  },
+  {
+   "ticker": "ISTR",
+   "verdict": "identical",
+   "off_box": [
+    453,
+    30.5,
+    29.01
+   ],
+   "on_box": [
+    453,
+    30.5,
+    29.01
+   ],
+   "box_open": "2026-06-15",
+   "R": 30.5,
+   "S": 29.01,
+   "base_len": 51
+  },
+  {
+   "ticker": "ITT",
+   "verdict": "identical",
+   "off_box": [
+    352,
+    207.98,
+    178.08
+   ],
+   "on_box": [
+    352,
+    207.98,
+    178.08
+   ],
+   "box_open": "2026-01-20",
+   "R": 207.98,
+   "S": 178.08,
+   "base_len": 153
+  },
+  {
+   "ticker": "ITW",
+   "verdict": "identical",
+   "off_box": [
+    188,
+    264.61,
+    239.56
+   ],
+   "on_box": [
+    188,
+    264.61,
+    239.56
+   ],
+   "box_open": "2025-05-23",
+   "R": 264.61,
+   "S": 239.56,
+   "base_len": 317
+  },
+  {
+   "ticker": "JACK",
+   "verdict": "identical",
+   "off_box": [
+    484,
+    18.5,
+    15.88
+   ],
+   "on_box": [
+    484,
+    18.5,
+    15.88
+   ],
+   "box_open": "2026-07-30",
+   "R": 18.5,
+   "S": 15.88,
+   "base_len": 21
+  },
+  {
+   "ticker": "JBIO",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    22.575,
+    19.76
+   ],
+   "on_box": [
+    464,
+    22.575,
+    19.76
+   ],
+   "box_open": "2026-07-01",
+   "R": 22.575,
+   "S": 19.76,
+   "base_len": 40
+  },
+  {
+   "ticker": "JOE",
+   "verdict": "identical",
+   "off_box": [
+    399,
+    68.65,
+    59.75
+   ],
+   "on_box": [
+    399,
+    68.65,
+    59.75
+   ],
+   "box_open": "2026-03-27",
+   "R": 68.65,
+   "S": 59.75,
+   "base_len": 106
+  },
+  {
+   "ticker": "JPM",
+   "verdict": "lost",
+   "off_box": [
+    487,
+    363.0,
+    353.33
+   ],
+   "on_box": null,
+   "box_open": "2026-08-04",
+   "R": 363.0,
+   "S": 353.33,
+   "base_len": 18,
+   "why": {
+    "terminal_bar": 494,
+    "terminal_date": "2026-08-13",
+    "bars_since": 11,
+    "climax_at_box_bar": 7,
+    "terminal_price": 366.5,
+    "terminal_vs_R_box_frac": 0.362
+   }
+  },
+  {
+   "ticker": "KDP",
+   "verdict": "identical",
+   "off_box": [
+    443,
+    32.31,
+    29.67
+   ],
+   "on_box": [
+    443,
+    32.31,
+    29.67
+   ],
+   "box_open": "2026-06-01",
+   "R": 32.31,
+   "S": 29.67,
+   "base_len": 62
+  },
+  {
+   "ticker": "KEX",
+   "verdict": "identical",
+   "off_box": [
+    445,
+    146.11,
+    128.58
+   ],
+   "on_box": [
+    445,
+    146.11,
+    128.58
+   ],
+   "box_open": "2026-06-03",
+   "R": 146.11,
+   "S": 128.58,
+   "base_len": 60
+  },
+  {
+   "ticker": "KINS",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    20.56,
+    19.26
+   ],
+   "on_box": [
+    467,
+    20.56,
+    19.26
+   ],
+   "box_open": "2026-07-07",
+   "R": 20.56,
+   "S": 19.26,
+   "base_len": 38
+  },
+  {
+   "ticker": "KMB",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    111.18,
+    106.52
+   ],
+   "on_box": [
+    473,
+    111.18,
+    106.52
+   ],
+   "box_open": "2026-07-15",
+   "R": 111.18,
+   "S": 106.52,
+   "base_len": 32
+  },
+  {
+   "ticker": "KNOP",
+   "verdict": "identical",
+   "off_box": [
+    311,
+    10.99,
+    9.84
+   ],
+   "on_box": [
+    311,
+    10.99,
+    9.84
+   ],
+   "box_open": "2025-11-18",
+   "R": 10.99,
+   "S": 9.84,
+   "base_len": 193
+  },
+  {
+   "ticker": "KYMR",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    120.9,
+    105.0
+   ],
+   "on_box": [
+    462,
+    120.9,
+    105.0
+   ],
+   "box_open": "2026-06-29",
+   "R": 120.9,
+   "S": 105.0,
+   "base_len": 42
+  },
+  {
+   "ticker": "LAUR",
+   "verdict": "identical",
+   "off_box": [
+    459,
+    40.75,
+    35.91
+   ],
+   "on_box": [
+    459,
+    40.75,
+    35.91
+   ],
+   "box_open": "2026-06-24",
+   "R": 40.75,
+   "S": 35.91,
+   "base_len": 45
+  },
+  {
+   "ticker": "LCUT",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    8.91,
+    8.3
+   ],
+   "on_box": [
+    475,
+    8.91,
+    8.3
+   ],
+   "box_open": "2026-07-17",
+   "R": 8.91,
+   "S": 8.3,
+   "base_len": 30
+  },
+  {
+   "ticker": "LILAK",
+   "verdict": "identical",
+   "off_box": [
+    491,
+    8.61,
+    8.12
+   ],
+   "on_box": [
+    491,
+    8.61,
+    8.12
+   ],
+   "box_open": "2026-08-10",
+   "R": 8.61,
+   "S": 8.12,
+   "base_len": 14
+  },
+  {
+   "ticker": "LMNR",
+   "verdict": "identical",
+   "off_box": [
+    428,
+    13.88,
+    12.71
+   ],
+   "on_box": [
+    428,
+    13.88,
+    12.71
+   ],
+   "box_open": "2026-05-08",
+   "R": 13.88,
+   "S": 12.71,
+   "base_len": 77
+  },
+  {
+   "ticker": "LNG",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    276.9,
+    254.04
+   ],
+   "on_box": [
+    473,
+    276.9,
+    254.04
+   ],
+   "box_open": "2026-07-15",
+   "R": 276.9,
+   "S": 254.04,
+   "base_len": 32
+  },
+  {
+   "ticker": "LRMR",
+   "verdict": "lost",
+   "off_box": [
+    489,
+    4.31,
+    4.005
+   ],
+   "on_box": null,
+   "box_open": "2026-08-06",
+   "R": 4.31,
+   "S": 4.005,
+   "base_len": 15,
+   "why": {
+    "terminal_bar": 493,
+    "terminal_date": "2026-08-13",
+    "bars_since": 11,
+    "climax_at_box_bar": 4,
+    "terminal_price": 4.465,
+    "terminal_vs_R_box_frac": 0.508
+   }
+  },
+  {
+   "ticker": "LTC",
+   "verdict": "identical",
+   "off_box": [
+    466,
+    42.74,
+    38.72
+   ],
+   "on_box": [
+    466,
+    42.74,
+    38.72
+   ],
+   "box_open": "2026-07-06",
+   "R": 42.74,
+   "S": 38.72,
+   "base_len": 39
+  },
+  {
+   "ticker": "LTH",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    45.93,
+    43.31
+   ],
+   "on_box": [
+    487,
+    45.93,
+    43.31
+   ],
+   "box_open": "2026-08-04",
+   "R": 45.93,
+   "S": 43.31,
+   "base_len": 18
+  },
+  {
+   "ticker": "LYB",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    64.98,
+    57.38
+   ],
+   "on_box": [
+    473,
+    64.98,
+    57.38
+   ],
+   "box_open": "2026-07-15",
+   "R": 64.98,
+   "S": 57.38,
+   "base_len": 32
+  },
+  {
+   "ticker": "MAIN",
+   "verdict": "identical",
+   "off_box": [
+    411,
+    57.8,
+    49.85
+   ],
+   "on_box": [
+    411,
+    57.8,
+    49.85
+   ],
+   "box_open": "2026-04-15",
+   "R": 57.8,
+   "S": 49.85,
+   "base_len": 94
+  },
+  {
+   "ticker": "MC",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    70.32,
+    64.06
+   ],
+   "on_box": [
+    473,
+    70.32,
+    64.06
+   ],
+   "box_open": "2026-07-15",
+   "R": 70.32,
+   "S": 64.06,
+   "base_len": 31
+  },
+  {
+   "ticker": "MD",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    26.82,
+    25.36
+   ],
+   "on_box": [
+    474,
+    26.82,
+    25.36
+   ],
+   "box_open": "2026-07-16",
+   "R": 26.82,
+   "S": 25.36,
+   "base_len": 31
+  },
+  {
+   "ticker": "MDLZ",
+   "verdict": "identical",
+   "off_box": [
+    425,
+    64.35,
+    59.95
+   ],
+   "on_box": [
+    425,
+    64.35,
+    59.95
+   ],
+   "box_open": "2026-05-05",
+   "R": 64.35,
+   "S": 59.95,
+   "base_len": 80
+  },
+  {
+   "ticker": "MEDP",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    604.89,
+    563.45
+   ],
+   "on_box": [
+    487,
+    604.89,
+    563.45
+   ],
+   "box_open": "2026-08-04",
+   "R": 604.89,
+   "S": 563.45,
+   "base_len": 17
+  },
+  {
+   "ticker": "MFC",
+   "verdict": "identical",
+   "off_box": [
+    477,
+    44.89,
+    42.35
+   ],
+   "on_box": [
+    477,
+    44.89,
+    42.35
+   ],
+   "box_open": "2026-07-21",
+   "R": 44.89,
+   "S": 42.35,
+   "base_len": 28
+  },
+  {
+   "ticker": "MFG",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    10.79,
+    10.06
+   ],
+   "on_box": [
+    468,
+    10.79,
+    10.06
+   ],
+   "box_open": "2026-07-08",
+   "R": 10.79,
+   "S": 10.06,
+   "base_len": 37
+  },
+  {
+   "ticker": "MGY",
+   "verdict": "identical",
+   "off_box": [
+    477,
+    26.456,
+    24.06
+   ],
+   "on_box": [
+    477,
+    26.456,
+    24.06
+   ],
+   "box_open": "2026-07-21",
+   "R": 26.456,
+   "S": 24.06,
+   "base_len": 27
+  },
+  {
+   "ticker": "MHK",
+   "verdict": "identical",
+   "off_box": [
+    488,
+    137.87,
+    131.74
+   ],
+   "on_box": [
+    488,
+    137.87,
+    131.74
+   ],
+   "box_open": "2026-08-05",
+   "R": 137.87,
+   "S": 131.74,
+   "base_len": 17
+  },
+  {
+   "ticker": "MMI",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    31.77,
+    29.56
+   ],
+   "on_box": [
+    474,
+    31.77,
+    29.56
+   ],
+   "box_open": "2026-07-16",
+   "R": 31.77,
+   "S": 29.56,
+   "base_len": 30
+  },
+  {
+   "ticker": "MMM",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    183.54,
+    179.17
+   ],
+   "on_box": [
+    490,
+    183.54,
+    179.17
+   ],
+   "box_open": "2026-08-07",
+   "R": 183.54,
+   "S": 179.17,
+   "base_len": 15
+  },
+  {
+   "ticker": "MPB",
+   "verdict": "identical",
+   "off_box": [
+    352,
+    35.15,
+    31.77
+   ],
+   "on_box": [
+    352,
+    35.15,
+    31.77
+   ],
+   "box_open": "2026-01-20",
+   "R": 35.15,
+   "S": 31.77,
+   "base_len": 153
+  },
+  {
+   "ticker": "MRP",
+   "verdict": "identical",
+   "off_box": [
+    287,
+    31.49,
+    27.1
+   ],
+   "on_box": [
+    287,
+    31.49,
+    27.1
+   ],
+   "box_open": "2026-03-30",
+   "R": 31.49,
+   "S": 27.1,
+   "base_len": 104
+  },
+  {
+   "ticker": "MSEX",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    58.18,
+    55.56
+   ],
+   "on_box": [
+    475,
+    58.18,
+    55.56
+   ],
+   "box_open": "2026-07-17",
+   "R": 58.18,
+   "S": 55.56,
+   "base_len": 30
+  },
+  {
+   "ticker": "MSGE",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    76.35,
+    73.0
+   ],
+   "on_box": [
+    468,
+    76.35,
+    73.0
+   ],
+   "box_open": "2026-07-08",
+   "R": 76.35,
+   "S": 73.0,
+   "base_len": 37
+  },
+  {
+   "ticker": "MT",
+   "verdict": "identical",
+   "off_box": [
+    488,
+    75.66,
+    72.21
+   ],
+   "on_box": [
+    488,
+    75.66,
+    72.21
+   ],
+   "box_open": "2026-08-05",
+   "R": 75.66,
+   "S": 72.21,
+   "base_len": 17
+  },
+  {
+   "ticker": "MTDR",
+   "verdict": "identical",
+   "off_box": [
+    445,
+    56.03,
+    48.79
+   ],
+   "on_box": [
+    445,
+    56.03,
+    48.79
+   ],
+   "box_open": "2026-06-03",
+   "R": 56.03,
+   "S": 48.79,
+   "base_len": 59
+  },
+  {
+   "ticker": "NATL",
+   "verdict": "identical",
+   "off_box": [
+    489,
+    47.3,
+    46.04
+   ],
+   "on_box": [
+    489,
+    47.3,
+    46.04
+   ],
+   "box_open": "2026-08-06",
+   "R": 47.3,
+   "S": 46.04,
+   "base_len": 15
+  },
+  {
+   "ticker": "NBBK",
+   "verdict": "identical",
+   "off_box": [
+    481,
+    23.275,
+    22.18
+   ],
+   "on_box": [
+    481,
+    23.275,
+    22.18
+   ],
+   "box_open": "2026-07-27",
+   "R": 23.275,
+   "S": 22.18,
+   "base_len": 23
+  },
+  {
+   "ticker": "NCZ",
+   "verdict": "identical",
+   "off_box": [
+    444,
+    15.99,
+    15.06
+   ],
+   "on_box": [
+    444,
+    15.99,
+    15.06
+   ],
+   "box_open": "2026-06-02",
+   "R": 15.99,
+   "S": 15.06,
+   "base_len": 61
+  },
+  {
+   "ticker": "NDAQ",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    96.87,
+    93.19
+   ],
+   "on_box": [
+    483,
+    96.87,
+    93.19
+   ],
+   "box_open": "2026-07-29",
+   "R": 96.87,
+   "S": 93.19,
+   "base_len": 22
+  },
+  {
+   "ticker": "NHC",
+   "verdict": "identical",
+   "off_box": [
+    472,
+    232.25,
+    204.2
+   ],
+   "on_box": [
+    472,
+    232.25,
+    204.2
+   ],
+   "box_open": "2026-07-14",
+   "R": 232.25,
+   "S": 204.2,
+   "base_len": 33
+  },
+  {
+   "ticker": "NLY",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    23.48,
+    22.39
+   ],
+   "on_box": [
+    468,
+    23.48,
+    22.39
+   ],
+   "box_open": "2026-07-08",
+   "R": 23.48,
+   "S": 22.39,
+   "base_len": 37
+  },
+  {
+   "ticker": "NMAI",
+   "verdict": "identical",
+   "off_box": [
+    425,
+    14.38,
+    13.71
+   ],
+   "on_box": [
+    425,
+    14.38,
+    13.71
+   ],
+   "box_open": "2026-05-05",
+   "R": 14.38,
+   "S": 13.71,
+   "base_len": 79
+  },
+  {
+   "ticker": "NML",
+   "verdict": "identical",
+   "off_box": [
+    376,
+    10.71,
+    9.69
+   ],
+   "on_box": [
+    376,
+    10.71,
+    9.69
+   ],
+   "box_open": "2026-02-24",
+   "R": 10.71,
+   "S": 9.69,
+   "base_len": 128
+  },
+  {
+   "ticker": "NREF",
+   "verdict": "lost",
+   "off_box": [
+    483,
+    17.44,
+    16.76
+   ],
+   "on_box": null,
+   "box_open": "2026-07-29",
+   "R": 17.44,
+   "S": 16.76,
+   "base_len": 21,
+   "why": {
+    "terminal_bar": 490,
+    "terminal_date": "2026-08-07",
+    "bars_since": 14,
+    "climax_at_box_bar": 7,
+    "terminal_price": 18.43,
+    "terminal_vs_R_box_frac": 1.456
+   }
+  },
+  {
+   "ticker": "NVST",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    28.7,
+    26.85
+   ],
+   "on_box": [
+    483,
+    28.7,
+    26.85
+   ],
+   "box_open": "2026-07-29",
+   "R": 28.7,
+   "S": 26.85,
+   "base_len": 21
+  },
+  {
+   "ticker": "NWL",
+   "verdict": "identical",
+   "off_box": [
+    491,
+    6.36,
+    5.79
+   ],
+   "on_box": [
+    491,
+    6.36,
+    5.79
+   ],
+   "box_open": "2026-08-10",
+   "R": 6.36,
+   "S": 5.79,
+   "base_len": 14
+  },
+  {
+   "ticker": "OBT",
+   "verdict": "identical",
+   "off_box": [
+    461,
+    38.83,
+    36.5
+   ],
+   "on_box": [
+    461,
+    38.83,
+    36.5
+   ],
+   "box_open": "2026-06-26",
+   "R": 38.83,
+   "S": 36.5,
+   "base_len": 44
+  },
+  {
+   "ticker": "OFG",
+   "verdict": "lost",
+   "off_box": [
+    483,
+    53.82,
+    51.89
+   ],
+   "on_box": null,
+   "box_open": "2026-07-29",
+   "R": 53.82,
+   "S": 51.89,
+   "base_len": 22,
+   "why": {
+    "terminal_bar": 488,
+    "terminal_date": "2026-08-05",
+    "bars_since": 17,
+    "climax_at_box_bar": 5,
+    "terminal_price": 53.82,
+    "terminal_vs_R_box_frac": 0.0
+   }
+  },
+  {
+   "ticker": "OMC",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    87.41,
+    77.89
+   ],
+   "on_box": [
+    469,
+    87.41,
+    77.89
+   ],
+   "box_open": "2026-07-09",
+   "R": 87.41,
+   "S": 77.89,
+   "base_len": 36
+  },
+  {
+   "ticker": "OPRA",
+   "verdict": "identical",
+   "off_box": [
+    460,
+    20.66,
+    17.82
+   ],
+   "on_box": [
+    460,
+    20.66,
+    17.82
+   ],
+   "box_open": "2026-06-25",
+   "R": 20.66,
+   "S": 17.82,
+   "base_len": 44
+  },
+  {
+   "ticker": "ORI",
+   "verdict": "identical",
+   "off_box": [
+    435,
+    40.22,
+    36.65
+   ],
+   "on_box": [
+    435,
+    40.22,
+    36.65
+   ],
+   "box_open": "2026-05-19",
+   "R": 40.22,
+   "S": 36.65,
+   "base_len": 70
+  },
+  {
+   "ticker": "ORIC",
+   "verdict": "identical",
+   "off_box": [
+    488,
+    14.05,
+    12.735
+   ],
+   "on_box": [
+    488,
+    14.05,
+    12.735
+   ],
+   "box_open": "2026-08-05",
+   "R": 14.05,
+   "S": 12.735,
+   "base_len": 17
+  },
+  {
+   "ticker": "ORRF",
+   "verdict": "lost",
+   "off_box": [
+    482,
+    43.78,
+    41.99
+   ],
+   "on_box": null,
+   "box_open": "2026-07-28",
+   "R": 43.78,
+   "S": 41.99,
+   "base_len": 23,
+   "why": {
+    "terminal_bar": 486,
+    "terminal_date": "2026-08-03",
+    "bars_since": 19,
+    "climax_at_box_bar": 4,
+    "terminal_price": 43.81,
+    "terminal_vs_R_box_frac": 0.017
+   }
+  },
+  {
+   "ticker": "OSBC",
+   "verdict": "lost",
+   "off_box": [
+    485,
+    26.04,
+    24.94
+   ],
+   "on_box": null,
+   "box_open": "2026-07-31",
+   "R": 26.04,
+   "S": 24.94,
+   "base_len": 20,
+   "why": {
+    "terminal_bar": 496,
+    "terminal_date": "2026-08-17",
+    "bars_since": 9,
+    "climax_at_box_bar": 11,
+    "terminal_price": 26.06,
+    "terminal_vs_R_box_frac": 0.018
+   }
+  },
+  {
+   "ticker": "OSK",
+   "verdict": "identical",
+   "off_box": [
+    455,
+    155.56,
+    138.14
+   ],
+   "on_box": [
+    455,
+    155.56,
+    138.14
+   ],
+   "box_open": "2026-06-17",
+   "R": 155.56,
+   "S": 138.14,
+   "base_len": 50
+  },
+  {
+   "ticker": "OTTR",
+   "verdict": "identical",
+   "off_box": [
+    401,
+    92.24,
+    85.33
+   ],
+   "on_box": [
+    401,
+    92.24,
+    85.33
+   ],
+   "box_open": "2026-03-31",
+   "R": 92.24,
+   "S": 85.33,
+   "base_len": 104
+  },
+  {
+   "ticker": "OVV",
+   "verdict": "identical",
+   "off_box": [
+    480,
+    64.61,
+    57.84
+   ],
+   "on_box": [
+    480,
+    64.61,
+    57.84
+   ],
+   "box_open": "2026-07-24",
+   "R": 64.61,
+   "S": 57.84,
+   "base_len": 25
+  },
+  {
+   "ticker": "OXY",
+   "verdict": "identical",
+   "off_box": [
+    413,
+    60.79,
+    51.96
+   ],
+   "on_box": [
+    413,
+    60.79,
+    51.96
+   ],
+   "box_open": "2026-04-17",
+   "R": 60.79,
+   "S": 51.96,
+   "base_len": 92
+  },
+  {
+   "ticker": "PACS",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    48.0,
+    43.94
+   ],
+   "on_box": [
+    475,
+    48.0,
+    43.94
+   ],
+   "box_open": "2026-07-17",
+   "R": 48.0,
+   "S": 43.94,
+   "base_len": 29
+  },
+  {
+   "ticker": "PBYI",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    8.75,
+    7.67
+   ],
+   "on_box": [
+    464,
+    8.75,
+    7.67
+   ],
+   "box_open": "2026-07-01",
+   "R": 8.75,
+   "S": 7.67,
+   "base_len": 40
+  },
+  {
+   "ticker": "PCVX",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    61.77,
+    54.59
+   ],
+   "on_box": [
+    464,
+    61.77,
+    54.59
+   ],
+   "box_open": "2026-07-01",
+   "R": 61.77,
+   "S": 54.59,
+   "base_len": 41
+  },
+  {
+   "ticker": "PCYO",
+   "verdict": "identical",
+   "off_box": [
+    453,
+    11.46,
+    10.38
+   ],
+   "on_box": [
+    453,
+    11.46,
+    10.38
+   ],
+   "box_open": "2026-06-15",
+   "R": 11.46,
+   "S": 10.38,
+   "base_len": 52
+  },
+  {
+   "ticker": "PDLB",
+   "verdict": "lost",
+   "off_box": [
+    482,
+    20.67,
+    19.91
+   ],
+   "on_box": null,
+   "box_open": "2026-07-28",
+   "R": 20.67,
+   "S": 19.91,
+   "base_len": 22,
+   "why": {
+    "terminal_bar": 488,
+    "terminal_date": "2026-08-05",
+    "bars_since": 16,
+    "climax_at_box_bar": 6,
+    "terminal_price": 20.79,
+    "terminal_vs_R_box_frac": 0.158
+   }
+  },
+  {
+   "ticker": "PDX",
+   "verdict": "identical",
+   "off_box": [
+    433,
+    21.9,
+    20.72
+   ],
+   "on_box": [
+    433,
+    21.9,
+    20.72
+   ],
+   "box_open": "2026-05-15",
+   "R": 21.9,
+   "S": 20.72,
+   "base_len": 71
+  },
+  {
+   "ticker": "PERI",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    9.87,
+    9.07
+   ],
+   "on_box": [
+    464,
+    9.87,
+    9.07
+   ],
+   "box_open": "2026-07-01",
+   "R": 9.87,
+   "S": 9.07,
+   "base_len": 41
+  },
+  {
+   "ticker": "PFG",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    114.9,
+    110.18
+   ],
+   "on_box": [
+    467,
+    114.9,
+    110.18
+   ],
+   "box_open": "2026-07-07",
+   "R": 114.9,
+   "S": 110.18,
+   "base_len": 38
+  },
+  {
+   "ticker": "PH",
+   "verdict": "identical",
+   "off_box": [
+    400,
+    997.42,
+    858.72
+   ],
+   "on_box": [
+    400,
+    997.42,
+    858.72
+   ],
+   "box_open": "2026-03-30",
+   "R": 997.42,
+   "S": 858.72,
+   "base_len": 105
+  },
+  {
+   "ticker": "PKG",
+   "verdict": "lost",
+   "off_box": [
+    488,
+    258.4,
+    248.66
+   ],
+   "on_box": null,
+   "box_open": "2026-08-05",
+   "R": 258.4,
+   "S": 248.66,
+   "base_len": 17,
+   "why": {
+    "terminal_bar": 494,
+    "terminal_date": "2026-08-13",
+    "bars_since": 11,
+    "climax_at_box_bar": 6,
+    "terminal_price": 259.98,
+    "terminal_vs_R_box_frac": 0.162
+   }
+  },
+  {
+   "ticker": "PLUS",
+   "verdict": "identical",
+   "off_box": [
+    412,
+    92.67,
+    79.79
+   ],
+   "on_box": [
+    412,
+    92.67,
+    79.79
+   ],
+   "box_open": "2026-04-16",
+   "R": 92.67,
+   "S": 79.79,
+   "base_len": 93
+  },
+  {
+   "ticker": "PM",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    191.54,
+    184.36
+   ],
+   "on_box": [
+    487,
+    191.54,
+    184.36
+   ],
+   "box_open": "2026-08-04",
+   "R": 191.54,
+   "S": 184.36,
+   "base_len": 18
+  },
+  {
+   "ticker": "PMN",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    15.0,
+    12.8
+   ],
+   "on_box": [
+    469,
+    15.0,
+    12.8
+   ],
+   "box_open": "2026-07-09",
+   "R": 15.0,
+   "S": 12.8,
+   "base_len": 36
+  },
+  {
+   "ticker": "PRAA",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    19.48,
+    17.12
+   ],
+   "on_box": [
+    464,
+    19.48,
+    17.12
+   ],
+   "box_open": "2026-07-01",
+   "R": 19.48,
+   "S": 17.12,
+   "base_len": 41
+  },
+  {
+   "ticker": "PYPD",
+   "verdict": "identical",
+   "off_box": [
+    345,
+    5.047,
+    4.22
+   ],
+   "on_box": [
+    345,
+    5.047,
+    4.22
+   ],
+   "box_open": "2026-01-08",
+   "R": 5.047,
+   "S": 4.22,
+   "base_len": 159
+  },
+  {
+   "ticker": "QSR",
+   "verdict": "identical",
+   "off_box": [
+    436,
+    76.75,
+    70.99
+   ],
+   "on_box": [
+    436,
+    76.75,
+    70.99
+   ],
+   "box_open": "2026-05-20",
+   "R": 76.75,
+   "S": 70.99,
+   "base_len": 68
+  },
+  {
+   "ticker": "QTTB",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    16.61,
+    14.93
+   ],
+   "on_box": [
+    479,
+    16.61,
+    14.93
+   ],
+   "box_open": "2026-07-23",
+   "R": 16.61,
+   "S": 14.93,
+   "base_len": 25
+  },
+  {
+   "ticker": "RBKB",
+   "verdict": "identical",
+   "off_box": [
+    409,
+    12.8776,
+    11.0236
+   ],
+   "on_box": [
+    409,
+    12.8776,
+    11.0236
+   ],
+   "box_open": "2026-04-13",
+   "R": 12.8776,
+   "S": 11.0236,
+   "base_len": 95
+  },
+  {
+   "ticker": "RCKY",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    50.73,
+    46.16
+   ],
+   "on_box": [
+    483,
+    50.73,
+    46.16
+   ],
+   "box_open": "2026-07-29",
+   "R": 50.73,
+   "S": 46.16,
+   "base_len": 22
+  },
+  {
+   "ticker": "RELY",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    25.75,
+    22.32
+   ],
+   "on_box": [
+    474,
+    25.75,
+    22.32
+   ],
+   "box_open": "2026-07-16",
+   "R": 25.75,
+   "S": 22.32,
+   "base_len": 31
+  },
+  {
+   "ticker": "REPX",
+   "verdict": "identical",
+   "off_box": [
+    390,
+    37.7,
+    32.37
+   ],
+   "on_box": [
+    390,
+    37.7,
+    32.37
+   ],
+   "box_open": "2026-03-16",
+   "R": 37.7,
+   "S": 32.37,
+   "base_len": 115
+  },
+  {
+   "ticker": "RGA",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    245.0,
+    232.03
+   ],
+   "on_box": [
+    473,
+    245.0,
+    232.03
+   ],
+   "box_open": "2026-07-15",
+   "R": 245.0,
+   "S": 232.03,
+   "base_len": 32
+  },
+  {
+   "ticker": "RIO",
+   "verdict": "identical",
+   "off_box": [
+    486,
+    102.84,
+    94.86
+   ],
+   "on_box": [
+    486,
+    102.84,
+    94.86
+   ],
+   "box_open": "2026-08-03",
+   "R": 102.84,
+   "S": 94.86,
+   "base_len": 19
+  },
+  {
+   "ticker": "RLAY",
+   "verdict": "identical",
+   "off_box": [
+    469,
+    20.39,
+    18.33
+   ],
+   "on_box": [
+    469,
+    20.39,
+    18.33
+   ],
+   "box_open": "2026-07-09",
+   "R": 20.39,
+   "S": 18.33,
+   "base_len": 35
+  },
+  {
+   "ticker": "RMBI",
+   "verdict": "identical",
+   "off_box": [
+    168,
+    14.68,
+    13.295
+   ],
+   "on_box": [
+    168,
+    14.68,
+    13.295
+   ],
+   "box_open": "2025-04-25",
+   "R": 14.68,
+   "S": 13.295,
+   "base_len": 336
+  },
+  {
+   "ticker": "RSG",
+   "verdict": "identical",
+   "off_box": [
+    284,
+    225.36,
+    203.31
+   ],
+   "on_box": [
+    284,
+    225.36,
+    203.31
+   ],
+   "box_open": "2025-10-10",
+   "R": 225.36,
+   "S": 203.31,
+   "base_len": 221
+  },
+  {
+   "ticker": "RUSHA",
+   "verdict": "identical",
+   "off_box": [
+    412,
+    76.99,
+    69.05
+   ],
+   "on_box": [
+    412,
+    76.99,
+    69.05
+   ],
+   "box_open": "2026-04-16",
+   "R": 76.99,
+   "S": 69.05,
+   "base_len": 91
+  },
+  {
+   "ticker": "RYAM",
+   "verdict": "identical",
+   "off_box": [
+    414,
+    9.99,
+    8.15
+   ],
+   "on_box": [
+    414,
+    9.99,
+    8.15
+   ],
+   "box_open": "2026-04-20",
+   "R": 9.99,
+   "S": 8.15,
+   "base_len": 90
+  },
+  {
+   "ticker": "SBRA",
+   "verdict": "identical",
+   "off_box": [
+    379,
+    21.06,
+    19.47
+   ],
+   "on_box": [
+    379,
+    21.06,
+    19.47
+   ],
+   "box_open": "2026-02-27",
+   "R": 21.06,
+   "S": 19.47,
+   "base_len": 126
+  },
+  {
+   "ticker": "SEG",
+   "verdict": "identical",
+   "off_box": [
+    465,
+    27.42,
+    25.375
+   ],
+   "on_box": [
+    465,
+    27.42,
+    25.375
+   ],
+   "box_open": "2026-07-02",
+   "R": 27.42,
+   "S": 25.375,
+   "base_len": 39
+  },
+  {
+   "ticker": "SHOO",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    49.7,
+    46.86
+   ],
+   "on_box": [
+    487,
+    49.7,
+    46.86
+   ],
+   "box_open": "2026-08-04",
+   "R": 49.7,
+   "S": 46.86,
+   "base_len": 18
+  },
+  {
+   "ticker": "SHW",
+   "verdict": "identical",
+   "off_box": [
+    386,
+    337.23,
+    301.58
+   ],
+   "on_box": [
+    386,
+    337.23,
+    301.58
+   ],
+   "box_open": "2026-03-10",
+   "R": 337.23,
+   "S": 301.58,
+   "base_len": 119
+  },
+  {
+   "ticker": "SI",
+   "verdict": "identical",
+   "off_box": [
+    227,
+    22.92,
+    19.88
+   ],
+   "on_box": [
+    227,
+    22.92,
+    19.88
+   ],
+   "box_open": "2026-06-26",
+   "R": 22.92,
+   "S": 19.88,
+   "base_len": 43
+  },
+  {
+   "ticker": "SKYH",
+   "verdict": "lost",
+   "off_box": [
+    480,
+    11.13,
+    10.32
+   ],
+   "on_box": null,
+   "box_open": "2026-07-24",
+   "R": 11.13,
+   "S": 10.32,
+   "base_len": 25,
+   "why": {
+    "terminal_bar": 492,
+    "terminal_date": "2026-08-11",
+    "bars_since": 13,
+    "climax_at_box_bar": 12,
+    "terminal_price": 11.696,
+    "terminal_vs_R_box_frac": 0.699
+   }
+  },
+  {
+   "ticker": "SMC",
+   "verdict": "identical",
+   "off_box": [
+    376,
+    32.76,
+    28.52
+   ],
+   "on_box": [
+    376,
+    32.76,
+    28.52
+   ],
+   "box_open": "2026-02-24",
+   "R": 32.76,
+   "S": 28.52,
+   "base_len": 128
+  },
+  {
+   "ticker": "SPB",
+   "verdict": "identical",
+   "off_box": [
+    475,
+    91.42,
+    87.22
+   ],
+   "on_box": [
+    475,
+    91.42,
+    87.22
+   ],
+   "box_open": "2026-07-17",
+   "R": 91.42,
+   "S": 87.22,
+   "base_len": 30
+  },
+  {
+   "ticker": "SPNT",
+   "verdict": "identical",
+   "off_box": [
+    456,
+    25.0,
+    22.59
+   ],
+   "on_box": [
+    456,
+    25.0,
+    22.59
+   ],
+   "box_open": "2026-06-18",
+   "R": 25.0,
+   "S": 22.59,
+   "base_len": 48
+  },
+  {
+   "ticker": "SRZN",
+   "verdict": "identical",
+   "off_box": [
+    446,
+    25.13,
+    20.5
+   ],
+   "on_box": [
+    446,
+    25.13,
+    20.5
+   ],
+   "box_open": "2026-06-04",
+   "R": 25.13,
+   "S": 20.5,
+   "base_len": 58
+  },
+  {
+   "ticker": "STC",
+   "verdict": "identical",
+   "off_box": [
+    427,
+    70.38,
+    65.44
+   ],
+   "on_box": [
+    427,
+    70.38,
+    65.44
+   ],
+   "box_open": "2026-05-07",
+   "R": 70.38,
+   "S": 65.44,
+   "base_len": 78
+  },
+  {
+   "ticker": "STNG",
+   "verdict": "identical",
+   "off_box": [
+    471,
+    80.75,
+    75.41
+   ],
+   "on_box": [
+    471,
+    80.75,
+    75.41
+   ],
+   "box_open": "2026-07-13",
+   "R": 80.75,
+   "S": 75.41,
+   "base_len": 34
+  },
+  {
+   "ticker": "STRA",
+   "verdict": "identical",
+   "off_box": [
+    164,
+    88.0,
+    77.01
+   ],
+   "on_box": [
+    164,
+    88.0,
+    77.01
+   ],
+   "box_open": "2025-04-21",
+   "R": 88.0,
+   "S": 77.01,
+   "base_len": 341
+  },
+  {
+   "ticker": "STRZ",
+   "verdict": "identical",
+   "off_box": [
+    271,
+    29.2,
+    24.83
+   ],
+   "on_box": [
+    271,
+    29.2,
+    24.83
+   ],
+   "box_open": "2026-06-05",
+   "R": 29.2,
+   "S": 24.83,
+   "base_len": 57
+  },
+  {
+   "ticker": "STTK",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    7.94,
+    7.05
+   ],
+   "on_box": [
+    487,
+    7.94,
+    7.05
+   ],
+   "box_open": "2026-08-04",
+   "R": 7.94,
+   "S": 7.05,
+   "base_len": 17
+  },
+  {
+   "ticker": "SU",
+   "verdict": "identical",
+   "off_box": [
+    473,
+    66.79,
+    59.83
+   ],
+   "on_box": [
+    473,
+    66.79,
+    59.83
+   ],
+   "box_open": "2026-07-15",
+   "R": 66.79,
+   "S": 59.83,
+   "base_len": 32
+  },
+  {
+   "ticker": "SUN",
+   "verdict": "identical",
+   "off_box": [
+    480,
+    77.03,
+    74.0
+   ],
+   "on_box": [
+    480,
+    77.03,
+    74.0
+   ],
+   "box_open": "2026-07-24",
+   "R": 77.03,
+   "S": 74.0,
+   "base_len": 24
+  },
+  {
+   "ticker": "SVV",
+   "verdict": "identical",
+   "off_box": [
+    460,
+    10.55,
+    9.68
+   ],
+   "on_box": [
+    460,
+    10.55,
+    9.68
+   ],
+   "box_open": "2026-06-25",
+   "R": 10.55,
+   "S": 9.68,
+   "base_len": 45
+  },
+  {
+   "ticker": "SW",
+   "verdict": "identical",
+   "off_box": [
+    490,
+    50.19,
+    46.655
+   ],
+   "on_box": [
+    490,
+    50.19,
+    46.655
+   ],
+   "box_open": "2026-08-07",
+   "R": 50.19,
+   "S": 46.655,
+   "base_len": 15
+  },
+  {
+   "ticker": "TAK",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    17.83,
+    16.69
+   ],
+   "on_box": [
+    479,
+    17.83,
+    16.69
+   ],
+   "box_open": "2026-07-23",
+   "R": 17.83,
+   "S": 16.69,
+   "base_len": 26
+  },
+  {
+   "ticker": "TAL",
+   "verdict": "lost",
+   "off_box": [
+    484,
+    12.57,
+    11.63
+   ],
+   "on_box": null,
+   "box_open": "2026-07-30",
+   "R": 12.57,
+   "S": 11.63,
+   "base_len": 21,
+   "why": {
+    "terminal_bar": 491,
+    "terminal_date": "2026-08-10",
+    "bars_since": 14,
+    "climax_at_box_bar": 7,
+    "terminal_price": 12.58,
+    "terminal_vs_R_box_frac": 0.011
+   }
+  },
+  {
+   "ticker": "TALO",
+   "verdict": "identical",
+   "off_box": [
+    445,
+    15.75,
+    13.355
+   ],
+   "on_box": [
+    445,
+    15.75,
+    13.355
+   ],
+   "box_open": "2026-06-03",
+   "R": 15.75,
+   "S": 13.355,
+   "base_len": 59
+  },
+  {
+   "ticker": "TECH",
+   "verdict": "identical",
+   "off_box": [
+    483,
+    72.37,
+    71.89
+   ],
+   "on_box": [
+    483,
+    72.37,
+    71.89
+   ],
+   "box_open": "2026-07-29",
+   "R": 72.37,
+   "S": 71.89,
+   "base_len": 22
+  },
+  {
+   "ticker": "TEN",
+   "verdict": "identical",
+   "off_box": [
+    456,
+    41.36,
+    36.7
+   ],
+   "on_box": [
+    456,
+    41.36,
+    36.7
+   ],
+   "box_open": "2026-06-18",
+   "R": 41.36,
+   "S": 36.7,
+   "base_len": 49
+  },
+  {
+   "ticker": "TFSL",
+   "verdict": "lost",
+   "off_box": [
+    468,
+    18.53,
+    17.28
+   ],
+   "on_box": null,
+   "box_open": "2026-07-08",
+   "R": 18.53,
+   "S": 17.28,
+   "base_len": 37,
+   "why": {
+    "terminal_bar": 486,
+    "terminal_date": "2026-08-03",
+    "bars_since": 19,
+    "climax_at_box_bar": 18,
+    "terminal_price": 19.49,
+    "terminal_vs_R_box_frac": 0.768
+   }
+  },
+  {
+   "ticker": "TFX",
+   "verdict": "identical",
+   "off_box": [
+    427,
+    135.69,
+    124.49
+   ],
+   "on_box": [
+    427,
+    135.69,
+    124.49
+   ],
+   "box_open": "2026-05-07",
+   "R": 135.69,
+   "S": 124.49,
+   "base_len": 78
+  },
+  {
+   "ticker": "THRM",
+   "verdict": "identical",
+   "off_box": [
+    485,
+    44.45,
+    40.07
+   ],
+   "on_box": [
+    485,
+    44.45,
+    40.07
+   ],
+   "box_open": "2026-07-31",
+   "R": 44.45,
+   "S": 40.07,
+   "base_len": 20
+  },
+  {
+   "ticker": "TOWN",
+   "verdict": "identical",
+   "off_box": [
+    413,
+    36.8,
+    34.15
+   ],
+   "on_box": [
+    413,
+    36.8,
+    34.15
+   ],
+   "box_open": "2026-04-17",
+   "R": 36.8,
+   "S": 34.15,
+   "base_len": 92
+  },
+  {
+   "ticker": "TR",
+   "verdict": "identical",
+   "off_box": [
+    438,
+    40.94,
+    36.92
+   ],
+   "on_box": [
+    438,
+    40.94,
+    36.92
+   ],
+   "box_open": "2026-05-22",
+   "R": 40.94,
+   "S": 36.92,
+   "base_len": 67
+  },
+  {
+   "ticker": "TRGP",
+   "verdict": "identical",
+   "off_box": [
+    436,
+    277.0,
+    252.97
+   ],
+   "on_box": [
+    436,
+    277.0,
+    252.97
+   ],
+   "box_open": "2026-05-20",
+   "R": 277.0,
+   "S": 252.97,
+   "base_len": 69
+  },
+  {
+   "ticker": "TRST",
+   "verdict": "identical",
+   "off_box": [
+    462,
+    56.67,
+    53.61
+   ],
+   "on_box": [
+    462,
+    56.67,
+    53.61
+   ],
+   "box_open": "2026-06-29",
+   "R": 56.67,
+   "S": 53.61,
+   "base_len": 43
+  },
+  {
+   "ticker": "TRV",
+   "verdict": "identical",
+   "off_box": [
+    484,
+    386.59,
+    369.7
+   ],
+   "on_box": [
+    484,
+    386.59,
+    369.7
+   ],
+   "box_open": "2026-07-30",
+   "R": 386.59,
+   "S": 369.7,
+   "base_len": 21
+  },
+  {
+   "ticker": "TTRX",
+   "verdict": "identical",
+   "off_box": [
+    208,
+    10.59,
+    9.57
+   ],
+   "on_box": [
+    208,
+    10.59,
+    9.57
+   ],
+   "box_open": "2026-08-07",
+   "R": 10.59,
+   "S": 9.57,
+   "base_len": 14
+  },
+  {
+   "ticker": "TWIN",
+   "verdict": "lost",
+   "off_box": [
+    470,
+    24.2,
+    21.87
+   ],
+   "on_box": null,
+   "box_open": "2026-07-10",
+   "R": 24.2,
+   "S": 21.87,
+   "base_len": 35,
+   "why": {
+    "terminal_bar": 498,
+    "terminal_date": "2026-08-19",
+    "bars_since": 7,
+    "climax_at_box_bar": 28,
+    "terminal_price": 25.5,
+    "terminal_vs_R_box_frac": 0.558
+   }
+  },
+  {
+   "ticker": "UBER",
+   "verdict": "identical",
+   "off_box": [
+    370,
+    78.25,
+    69.95
+   ],
+   "on_box": [
+    370,
+    78.25,
+    69.95
+   ],
+   "box_open": "2026-02-13",
+   "R": 78.25,
+   "S": 69.95,
+   "base_len": 135
+  },
+  {
+   "ticker": "UGP",
+   "verdict": "identical",
+   "off_box": [
+    479,
+    6.59,
+    5.84
+   ],
+   "on_box": [
+    479,
+    6.59,
+    5.84
+   ],
+   "box_open": "2026-07-23",
+   "R": 6.59,
+   "S": 5.84,
+   "base_len": 26
+  },
+  {
+   "ticker": "UMH",
+   "verdict": "identical",
+   "off_box": [
+    423,
+    16.14,
+    14.87
+   ],
+   "on_box": [
+    423,
+    16.14,
+    14.87
+   ],
+   "box_open": "2026-05-01",
+   "R": 16.14,
+   "S": 14.87,
+   "base_len": 82
+  },
+  {
+   "ticker": "USAC",
+   "verdict": "identical",
+   "off_box": [
+    466,
+    27.41,
+    25.5
+   ],
+   "on_box": [
+    466,
+    27.41,
+    25.5
+   ],
+   "box_open": "2026-07-06",
+   "R": 27.41,
+   "S": 25.5,
+   "base_len": 38
+  },
+  {
+   "ticker": "USCB",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    22.7,
+    22.035
+   ],
+   "on_box": [
+    487,
+    22.7,
+    22.035
+   ],
+   "box_open": "2026-08-04",
+   "R": 22.7,
+   "S": 22.035,
+   "base_len": 17
+  },
+  {
+   "ticker": "USLM",
+   "verdict": "identical",
+   "off_box": [
+    442,
+    115.21,
+    103.0
+   ],
+   "on_box": [
+    442,
+    115.21,
+    103.0
+   ],
+   "box_open": "2026-05-29",
+   "R": 115.21,
+   "S": 103.0,
+   "base_len": 63
+  },
+  {
+   "ticker": "USPH",
+   "verdict": "lost",
+   "off_box": [
+    483,
+    82.0,
+    77.02
+   ],
+   "on_box": null,
+   "box_open": "2026-07-29",
+   "R": 82.0,
+   "S": 77.02,
+   "base_len": 22,
+   "why": {
+    "terminal_bar": 486,
+    "terminal_date": "2026-08-03",
+    "bars_since": 19,
+    "climax_at_box_bar": 3,
+    "terminal_price": 82.0,
+    "terminal_vs_R_box_frac": 0.0
+   }
+  },
+  {
+   "ticker": "VIST",
+   "verdict": "identical",
+   "off_box": [
+    405,
+    73.59,
+    62.41
+   ],
+   "on_box": [
+    405,
+    73.59,
+    62.41
+   ],
+   "box_open": "2026-04-07",
+   "R": 73.59,
+   "S": 62.41,
+   "base_len": 99
+  },
+  {
+   "ticker": "VNOM",
+   "verdict": "identical",
+   "off_box": [
+    386,
+    49.08,
+    42.98
+   ],
+   "on_box": [
+    386,
+    49.08,
+    42.98
+   ],
+   "box_open": "2026-03-10",
+   "R": 49.08,
+   "S": 42.98,
+   "base_len": 118
+  },
+  {
+   "ticker": "VOD",
+   "verdict": "identical",
+   "off_box": [
+    472,
+    15.79,
+    15.04
+   ],
+   "on_box": [
+    472,
+    15.79,
+    15.04
+   ],
+   "box_open": "2026-07-14",
+   "R": 15.79,
+   "S": 15.04,
+   "base_len": 33
+  },
+  {
+   "ticker": "VRTX",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    533.67,
+    469.6
+   ],
+   "on_box": [
+    467,
+    533.67,
+    469.6
+   ],
+   "box_open": "2026-07-07",
+   "R": 533.67,
+   "S": 469.6,
+   "base_len": 38
+  },
+  {
+   "ticker": "VTMX",
+   "verdict": "identical",
+   "off_box": [
+    449,
+    34.86,
+    33.2
+   ],
+   "on_box": [
+    449,
+    34.86,
+    33.2
+   ],
+   "box_open": "2026-06-09",
+   "R": 34.86,
+   "S": 33.2,
+   "base_len": 55
+  },
+  {
+   "ticker": "VTRS",
+   "verdict": "identical",
+   "off_box": [
+    463,
+    17.68,
+    15.95
+   ],
+   "on_box": [
+    463,
+    17.68,
+    15.95
+   ],
+   "box_open": "2026-06-30",
+   "R": 17.68,
+   "S": 15.95,
+   "base_len": 42
+  },
+  {
+   "ticker": "VZ",
+   "verdict": "identical",
+   "off_box": [
+    419,
+    48.96,
+    45.81
+   ],
+   "on_box": [
+    419,
+    48.96,
+    45.81
+   ],
+   "box_open": "2026-04-27",
+   "R": 48.96,
+   "S": 45.81,
+   "base_len": 86
+  },
+  {
+   "ticker": "WAB",
+   "verdict": "identical",
+   "off_box": [
+    484,
+    301.18,
+    290.33
+   ],
+   "on_box": [
+    484,
+    301.18,
+    290.33
+   ],
+   "box_open": "2026-07-30",
+   "R": 301.18,
+   "S": 290.33,
+   "base_len": 21
+  },
+  {
+   "ticker": "WASH",
+   "verdict": "identical",
+   "off_box": [
+    485,
+    40.25,
+    38.51
+   ],
+   "on_box": [
+    485,
+    40.25,
+    38.51
+   ],
+   "box_open": "2026-07-31",
+   "R": 40.25,
+   "S": 38.51,
+   "base_len": 20
+  },
+  {
+   "ticker": "WCC",
+   "verdict": "identical",
+   "off_box": [
+    432,
+    374.0,
+    329.62
+   ],
+   "on_box": [
+    432,
+    374.0,
+    329.62
+   ],
+   "box_open": "2026-05-14",
+   "R": 374.0,
+   "S": 329.62,
+   "base_len": 73
+  },
+  {
+   "ticker": "WELL",
+   "verdict": "identical",
+   "off_box": [
+    487,
+    239.2,
+    226.48
+   ],
+   "on_box": [
+    487,
+    239.2,
+    226.48
+   ],
+   "box_open": "2026-08-04",
+   "R": 239.2,
+   "S": 226.48,
+   "base_len": 18
+  },
+  {
+   "ticker": "WFG",
+   "verdict": "identical",
+   "off_box": [
+    451,
+    72.23,
+    63.86
+   ],
+   "on_box": [
+    451,
+    72.23,
+    63.86
+   ],
+   "box_open": "2026-06-11",
+   "R": 72.23,
+   "S": 63.86,
+   "base_len": 54
+  },
+  {
+   "ticker": "WHWK",
+   "verdict": "identical",
+   "off_box": [
+    491,
+    4.89,
+    4.41
+   ],
+   "on_box": [
+    491,
+    4.89,
+    4.41
+   ],
+   "box_open": "2026-08-10",
+   "R": 4.89,
+   "S": 4.41,
+   "base_len": 13
+  },
+  {
+   "ticker": "WOR",
+   "verdict": "identical",
+   "off_box": [
+    412,
+    59.6,
+    52.94
+   ],
+   "on_box": [
+    412,
+    59.6,
+    52.94
+   ],
+   "box_open": "2026-04-16",
+   "R": 59.6,
+   "S": 52.94,
+   "base_len": 93
+  },
+  {
+   "ticker": "WSBF",
+   "verdict": "identical",
+   "off_box": [
+    455,
+    21.03,
+    18.89
+   ],
+   "on_box": [
+    455,
+    21.03,
+    18.89
+   ],
+   "box_open": "2026-06-17",
+   "R": 21.03,
+   "S": 18.89,
+   "base_len": 50
+  },
+  {
+   "ticker": "WTI",
+   "verdict": "identical",
+   "off_box": [
+    468,
+    3.75,
+    3.26
+   ],
+   "on_box": [
+    468,
+    3.75,
+    3.26
+   ],
+   "box_open": "2026-07-08",
+   "R": 3.75,
+   "S": 3.26,
+   "base_len": 37
+  },
+  {
+   "ticker": "WTTR",
+   "verdict": "identical",
+   "off_box": [
+    436,
+    20.48,
+    17.815
+   ],
+   "on_box": [
+    436,
+    20.48,
+    17.815
+   ],
+   "box_open": "2026-05-20",
+   "R": 20.48,
+   "S": 17.815,
+   "base_len": 68
+  },
+  {
+   "ticker": "XERS",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    9.02,
+    8.0
+   ],
+   "on_box": [
+    467,
+    9.02,
+    8.0
+   ],
+   "box_open": "2026-07-07",
+   "R": 9.02,
+   "S": 8.0,
+   "base_len": 38
+  },
+  {
+   "ticker": "XMAX",
+   "verdict": "identical",
+   "off_box": [
+    464,
+    9.31,
+    8.45
+   ],
+   "on_box": [
+    464,
+    9.31,
+    8.45
+   ],
+   "box_open": "2026-07-01",
+   "R": 9.31,
+   "S": 8.45,
+   "base_len": 41
+  },
+  {
+   "ticker": "XOM",
+   "verdict": "identical",
+   "off_box": [
+    480,
+    158.71,
+    151.88
+   ],
+   "on_box": [
+    480,
+    158.71,
+    151.88
+   ],
+   "box_open": "2026-07-24",
+   "R": 158.71,
+   "S": 151.88,
+   "base_len": 25
+  },
+  {
+   "ticker": "XRN",
+   "verdict": "identical",
+   "off_box": [
+    245,
+    37.85,
+    32.3
+   ],
+   "on_box": [
+    245,
+    37.85,
+    32.3
+   ],
+   "box_open": "2025-08-15",
+   "R": 37.85,
+   "S": 32.3,
+   "base_len": 259
+  },
+  {
+   "ticker": "YPF",
+   "verdict": "identical",
+   "off_box": [
+    474,
+    53.57,
+    48.38
+   ],
+   "on_box": [
+    474,
+    53.57,
+    48.38
+   ],
+   "box_open": "2026-07-16",
+   "R": 53.57,
+   "S": 48.38,
+   "base_len": 31
+  },
+  {
+   "ticker": "ZD",
+   "verdict": "identical",
+   "off_box": [
+    467,
+    54.97,
+    51.38
+   ],
+   "on_box": [
+    467,
+    54.97,
+    51.38
+   ],
+   "box_open": "2026-07-07",
+   "R": 54.97,
+   "S": 51.38,
+   "base_len": 38
+  },
+  {
+   "ticker": "ZIM",
+   "verdict": "identical",
+   "off_box": [
+    471,
+    27.87,
+    24.005
+   ],
+   "on_box": [
+    471,
+    27.87,
+    24.005
+   ],
+   "box_open": "2026-07-13",
+   "R": 27.87,
+   "S": 24.005,
+   "base_len": 34
+  }
+ ]
+}

@@ -709,6 +709,61 @@ three weeks of forensics to reconstruct; a park named an owner that does not exi
 operator-delegated 2026-08-22
 **Principle:** `conventions.md` EC-15/EC-16/EC-42
 
+### EC-51: A baseline is captured at the SAME tree the seam commit carries
+**Convention:** A commit that rotates a declared epoch (`engine_config_version`, a manifest hash, any
+sealed stamp) recaptures **in that same commit** every baseline whose stamp it invalidates. A capture
+taken at one tree and committed at another is not a baseline — its provenance stamp names a tree that
+was never committed, so every intermediate commit reports a drift that never happened and a bisect
+through the seam lands on the wrong culprit. If a capture must be taken early, the seam commit
+re-takes it before landing; the recapture's diff is stated in the commit message.
+**Origin:** Beck — Council Review 2026-08-30 (finding 5: the reader-pin baseline was stamped with the
+pre-rotation epoch and carried a bisect artifact); operator-delegated 2026-08-31
+**Principle:** `conventions.md` EC-29 — EC-29 rules WHEN a recapture is permitted; this rules that the
+recapture and the seam ship as one commit.
+
+### EC-52: A writer that feeds a seal pins its line terminator explicitly
+**Convention:** Every tool writing a sealed, pinned or hashed artifact passes an explicit
+`newline="\n"` (or its library equivalent), and any digest computed over serialized text pins the
+terminator in the same function. Never rely on the platform default, and never lean on a
+`.gitattributes` rule to normalize afterwards — the bytes are hashed before git ever sees them.
+**Origin:** Hunt — Council Review 2026-08-30 (P3 sweep, folded into finding 5's fix: the pin captures
+wrote CRLF against an LF `.gitattributes` pin); operator-delegated 2026-08-31
+**Rationale:** Second sighting of one defect class. On 2026-08-25 `frame_digest` sealed the OPERATING
+SYSTEM — `to_csv` defaults `lineterminator` to `os.linesep`, so identical frames hashed differently on
+Windows and Linux and CI could never pass off-Windows (decisions.md 2026-08-25). A platform default
+inside a seal is a portability bug that is invisible on the platform that wrote it.
+
+### EC-53: Cited evidence is tracked in the change that cites it — force-added if ignored
+**Convention:** When a ledger row, ruling or decision record cites an evidence file, that file becomes
+**tracked in the same change** — including `git add -f` when it lives under a broad ignore rule (an
+`output/` sidecar, a `*.parquet` fixture). Because `decisions.md` is append-only, a rotted pointer can
+never be repaired by editing the row: the evidence must come to the pointer, not the reverse.
+**Origin:** Friedman — Council Review 2026-08-30 (finding 2: three census sidecars cited by ruling rows
+existed only in the author's worktree); operator-delegated 2026-08-31
+**Principle:** `conventions.md` EC-16 — this names the mechanism EC-16 needs when the evidence path is
+ignored by default.
+
+### EC-54: A rescue lane's admission legs fail CLOSED on missing input
+**Convention:** When a default-off lane opens a door that a standing rule keeps shut, every leg of its
+admission test refuses on missing or non-finite input — a NaN moving average, an absent history
+window, a frame too short to compute the leg. The guard is written as *affirmatively qualified*
+(`admits = finite(x) and x >= floor`), never as *not disqualified*, and the refusal carries a named
+reason so a census can count it.
+**Origin:** McKinney — Council Review 2026-08-30 (sweep item 15: the bottoming-base lane's seeding half
+admitted a NaN-`sma200` frame); operator-delegated 2026-08-31
+**Rationale:** A rescue lane exists to admit charts the base rule refuses, which is precisely the code
+path where fail-open is invisible — it admits more, and admitting more is what the lane is *for*.
+
+### EC-55: A closed set asserts at its stamping point, not only at the column
+**Convention:** A closed-set label gets its write-time assertion in the **producing module, beside the
+tuple that declares the set** — not only in the archive column's CHECK. The CHECK is the last line of
+defence and fires at commit time, far from the code that minted the value; the producer's assertion
+names the offending value at the moment it is invented, in the stack frame that invented it.
+**Origin:** Leach — Council Review 2026-08-30 (finding 11: `inner_position` reached the archive CHECK
+with no assertion at the `select_inner_box` stamping point); operator-delegated 2026-08-31
+**Principle:** `conventions.md` EC-19/EC-22/EC-33 — those three assume a stamping point exists; this
+requires it.
+
 ---
 
 ### AP-11: The species story-form dark lane is the protocol working — not a version smell
@@ -734,3 +789,16 @@ beside `min_ta_grade` (two filters over two populations, ruled).
 operator-delegated 2026-08-22
 **Rationale:** Display retired; history did not. The one system READS with one verdict and
 REMEMBERS with both.
+
+### AP-13: A daily-clock ruling is scoped by pinning its flag in the window presets
+**Pattern:** A lane ruled on the daily clock is bounded by pinning its flag `False` inside
+`HTF_WEEKLY_WINDOWS` / `HTF_MONTHLY_WINDOWS` — the declared window presets, i.e. AP-10's one scoped
+override — rather than by inventing rescaled thresholds for clocks the operator never ruled on. Do
+NOT flag those `False` entries as dead config, as a missing weekly implementation, or as duplication
+of the settings default: they ARE the ruling's boundary, written where the override mechanism already
+lives. `BOTTOMING_BASE_LANE_ENABLED` is the first instance.
+**Origin:** McKinney — Council Review 2026-08-30 (finding 13's fix: the bottoming-base lane's 50-day
+reclaim is a daily-bar ruling); operator-delegated 2026-08-31
+**Rationale:** The alternative is worse in both directions — letting a daily-calibrated rescue run on
+weekly bars silently invents an unruled threshold, and hard-coding a weekly variant invents a second
+one. A preset pin says "not ruled here" in the only place that can enforce it.
