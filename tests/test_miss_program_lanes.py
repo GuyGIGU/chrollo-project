@@ -413,6 +413,64 @@ def test_ceiling_rest_lets_nok_fire_end_to_end(monkeypatch):
     assert on["Tier"] == "B"
 
 
+def _ceiling_rest_frame(rest_low: float):
+    """A launched-above-R window resting at ``rest_low``: 24 quiet bars just
+    above R, then a 3-bar giveback (highs 106/104/102 descending, lows
+    descending into the rest). Window low is always the LAST bar's low, so
+    every scanned window reaches the launch-above-resistance leg with
+    support_low = rest_low."""
+    n = 27
+    highs = [101.8] * (n - 3) + [106.0, 104.0, 102.0]
+    lows = [100.8] * (n - 3) + [101.0, 100.2, rest_low]
+    closes = [101.2] * (n - 3) + [103.0, 101.0, min(100.9, rest_low + 1.0)]
+    idx = pd.bdate_range("2026-01-05", periods=n)
+    return pd.DataFrame({"Open": closes, "High": highs, "Low": lows,
+                         "Close": closes, "Volume": [1e6] * n}, index=idx)
+
+
+def test_ceiling_rest_razor_sanctions_just_inside_and_refuses_just_outside(monkeypatch):
+    """The 0.3-ATR razor at unit grain (council review 2026-08-30, Beck): a
+    rest just INSIDE the band is sanctioned (the launch-refusal leg does not
+    fire) and a rest just OUTSIDE stays refused — each side construction-
+    verified from the frame + settings (the lane-2 self-verifying pattern),
+    so a drifted construction or a moved razor fails loudly. The corpus-wide
+    ENIC boolean cannot carry this alone: if ENIC ever refuses at an earlier
+    leg, the razor's refusing side would lose its only witness silently."""
+    from engine_alpha.structure.lps import detect_lps_candidates
+
+    sup_avg, res_avg, atr = 90.0, 100.0, 2.0
+    box_height = res_avg - sup_avg
+    razor = settings.LPS_CEILING_REST_MAX_BELOW_R_ATR * atr
+    inside_low = res_avg - 0.25 * atr          # 0.5 under R, inside the band
+    outside_low = res_avg - 0.65 * atr         # 1.3 under R, outside it
+
+    def _launch_rejects(rest_low, flag):
+        df = _ceiling_rest_frame(rest_low)
+        # Construction checks BEFORE the verdict (self-verifying):
+        whigh = float(df["High"].iloc[-3:].max())
+        assert (whigh - res_avg) / box_height > settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
+        assert (whigh - res_avg) / atr > settings.LPS_INSIDE_HIGH_EXTENSION_ATR_MAX
+        assert float(df["Low"].iloc[-1]) == rest_low
+        assert sup_avg < rest_low < res_avg     # the INSIDE zone
+        monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", flag)
+        _cands, rejects = detect_lps_candidates(
+            df, df.iloc[-1], sup_avg, res_avg, atr,
+            base_range_threshold=1.2 * atr, base_len=25,
+            swing_complete_idx=0, offset_max=1, diagnose=True)
+        return rejects["window launched above resistance"]
+
+    assert 0 < res_avg - inside_low < razor, "construction drifted"
+    assert res_avg - outside_low > razor, "construction drifted"
+
+    # Flag ON: the razor separates the pair.
+    assert _launch_rejects(inside_low, True) == 0, (
+        "a rest inside the razor must be sanctioned by the exception")
+    assert _launch_rejects(outside_low, True) >= 1, (
+        "a rest outside the razor must stay refused — the razor widened")
+    # Flag OFF: the inside rest is refused exactly as before (inert lane).
+    assert _launch_rejects(inside_low, False) >= 1
+
+
 # ──────────────── lane 4: the bottoming-base lane (2026-08-29) ──────────────
 
 def _v_recovery_frame():
@@ -492,3 +550,51 @@ def test_bottoming_lane_opens_the_seeding_gate_under_the_same_condition(monkeypa
     trace = []
     assert collect_root_anchors(df2, settings.MIN_BASE_DAYS, trace) == []
     assert any(r.get("leg") == "below_trend_sma" for r in trace)
+
+
+def test_bottoming_lane_never_seeds_a_nan_sma200_frame(monkeypatch):
+    """A frame whose 200-bar mean is uncomputable is trend-UNKNOWN, not a
+    bottoming base: the lane may open ONLY the known-below leg (council
+    review 2026-08-30, McKinney — NaN-fail-closed doctrine). 60 bars: the
+    50-bar mean is finite and reclaimed, the 200-bar mean is NaN."""
+    from engine_alpha.structure.box_primitives import collect_root_anchors
+
+    n = 60
+    closes = np.linspace(10.0, 12.0, n)
+    df = _ohlcv(closes)
+    assert np.isnan(float(df["Close"].rolling(200).mean().iloc[-1]))
+    sma50 = float(df["Close"].rolling(50).mean().iloc[-1])
+    assert np.isfinite(sma50) and float(df["Close"].iloc[-1]) >= sma50
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    trace: list = []
+    collect_root_anchors(df, settings.MIN_BASE_DAYS, trace)
+    assert any(r.get("leg") == "below_trend_sma" for r in trace), (
+        "a NaN-sma200 frame gained seeding rights through the lane")
+
+
+def test_bottoming_lane_lets_mdt_fire_end_to_end(monkeypatch):
+    """MDT@2026-07-14 — the ruled conversion itself, pinned through the real
+    cascade (EC-17; council review 2026-08-30, Beck: the lane's core promise
+    had no guard). The committed fixture is MDT's daily frame sliced to the
+    census fire day (worktree 5y cache, edge 2026-08-27; MDT is not one of
+    the sealed 33 marks, so the sealed corpus stays untouched — the
+    cause_veto/power_play dedicated-fixture precedent). Flag off the sma200
+    door refuses; flag on the frame elects R 82.83 — the operator's drawn
+    resistance to the penny — and fires tier S through the ordinary strict
+    pool."""
+    fixture = ROOT / "tests" / "baselines" / "bottoming_base_fixture.parquet"
+    df = pd.read_parquet(fixture, engine=settings.PARQUET_ENGINE)
+    assert len(df) == 1227, "fixture basis drifted — rebuild deliberately"
+    assert str(df.index[-1])[:10] == "2026-07-14"
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", False)
+    off = _evaluate_ticker("MDT", df, 0.0, _FROZEN_BREADTH)
+    assert not isinstance(off, dict)
+
+    monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
+    on = _evaluate_ticker("MDT", df, 0.0, _FROZEN_BREADTH)
+    assert isinstance(on, dict), "MDT's bottoming conversion no longer fires"
+    assert on["_elected_pool"] == "strict"
+    assert on["Tier"] == "S"
+    assert on["_R"] == pytest.approx(82.83, abs=0.005)

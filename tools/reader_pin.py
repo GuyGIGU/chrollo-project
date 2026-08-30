@@ -153,15 +153,21 @@ def pin_window(frame: pd.DataFrame):
     return window, r, s, float(atr)
 
 
-def read_chart(frame: pd.DataFrame) -> dict:
+def read_chart(frame: pd.DataFrame, basis=None) -> dict:
     """Every pinned reader surface on one chart's mechanical basis.
 
     The box handed to the readers is the duck-typed contract the bricks
     already accept (start_bar/base_len/R/S + the anchor bars find_lps reads);
     spring and lps are detected ONCE and INJECTED into the role labels so the
     label layer describes the same bricks the event list carries.
+
+    ``basis`` lets the caller hand in an already-derived ``pin_window`` result
+    so the window is derived ONCE per chart — the digest and the readers must
+    describe the same object, never two re-typed derivations (council review
+    2026-08-30, Fowler/Performance).
     """
-    basis = pin_window(frame)
+    if basis is None:
+        basis = pin_window(frame)
     if basis is None:
         return {"basis": None}
     window, r, s, atr = basis
@@ -265,15 +271,18 @@ def run_pin() -> dict:
     for pop, frames in load_populations().items():
         charts: dict = {}
         for key in sorted(frames):
-            reading = read_chart(frames[key])
+            mech = pin_window(frames[key])
+            reading = read_chart(frames[key], basis=mech)
             basis = reading.pop("basis")
             if basis is None:
                 charts[key] = {"window_digest": None, "reading": None,
                                "note": "basis underivable (too few bars / no ATR)"}
                 continue
-            window = enrich_marked_frame(frames[key]).iloc[-PIN_WINDOW_BARS:]
+            # Digest the SAME window object the readers just read — one
+            # derivation, so basis drift can never be misattributed as
+            # reading drift (or vice versa).
             charts[key] = {
-                "window_digest": ohlcv_digest(window),
+                "window_digest": ohlcv_digest(mech[0]),
                 "basis": jsonable(basis),
                 "reading": jsonable(reading),
             }
@@ -311,7 +320,11 @@ def capture_baseline() -> dict:
     snapshot["engine_config_version"] = manifest_hash()
     snapshot["pin_window_bars"] = PIN_WINDOW_BARS
     os.makedirs(_BASELINE_DIR, exist_ok=True)
-    with open(_BASELINE_PATH, "w", encoding="utf-8") as f:
+    # LF forced: tests/baselines/*.json is .gitattributes-pinned to LF so byte
+    # digests are checkout-independent; Windows text mode would silently write
+    # CRLF around that pin (the marks_corpus baseline writer documents the
+    # same trap).
+    with open(_BASELINE_PATH, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snapshot, f, indent=1, allow_nan=True)
     n = {p: len(c) for p, c in snapshot["populations"].items()}
     print(f"Captured reader pin -> {_BASELINE_PATH}")

@@ -14,6 +14,11 @@ import { explainTip } from './tooltipText.js';
 // changes which chips fire (the wire carries verdicts, never rules).
 const CONTRACTION_VOL_TREND_CONFIRM = 0.70;
 
+// Tooltip wording only, mirrors the ruled rail-area band (the engine's
+// MINI_POSITION_TOL_ATR; decisions.md 2026-08-30) — a re-ruled tolerance
+// updates the chip copy here, never a buried mid-sentence literal.
+const POSITION_RAIL_AREA_ATR = 0.5;
+
 const num = (detail, key) => {
   const v = detail?.[key];
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
@@ -130,7 +135,7 @@ const BASE_TIPS = {
   // sits against the base rails (each rail is an area, ±0.5 ATR around the
   // line). Never a ranking — the surrounding story gives a position meaning.
   position_at_ceiling: explainTip({
-    what: 'The latest tight mini-consolidation sits in the resistance area — its top within half an ATR of the rail, touching it or poking through.',
+    what: `The latest tight mini-consolidation sits in the resistance area — its top within ${POSITION_RAIL_AREA_ATR} ATR of the rail, touching it or poking through.`,
     why: 'A rest held up against resistance shows sellers failing to push price away from the breakout level.',
     use: 'Read it with what follows: a pivot back is respect, clean continuation is the departure. The chip describes position, not quality.',
   }),
@@ -140,13 +145,13 @@ const BASE_TIPS = {
     use: 'Watch which rail it engages next; the position alone carries no verdict.',
   }),
   position_on_support: explainTip({
-    what: 'The latest tight mini-consolidation holds in the support area — its bottom within half an ATR of the rail, including slight pokes below.',
+    what: `The latest tight mini-consolidation holds in the support area — its bottom within ${POSITION_RAIL_AREA_ATR} ATR of the rail, including slight pokes below.`,
     why: 'Holding at support — even slightly under it — is the line being proven as support.',
     use: 'Treat pokes that hold as respect for the area; a collapse through it is a different event entirely.',
   }),
   position_touching_both: explainTip({
-    what: 'The mini-consolidation touches both rail areas at once — the base is about a bar’s worth of height, or the rest spans it rail-to-rail.',
-    why: 'When the whole base fits inside the two rail areas, position carries no separating information — calling it "at resistance" would be an artifact.',
+    what: 'The mini-consolidation touches both rail areas at once — the base is about one bar of height, or the rest spans it rail-to-rail.',
+    why: 'When the whole base fits inside the two rail areas, position carries no separating information — an at-resistance read here would be an artifact.',
     use: 'Judge the base by its overall shape and story; this chip only says the position read does not apply here.',
   }),
 };

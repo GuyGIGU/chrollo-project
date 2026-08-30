@@ -64,6 +64,11 @@ _SEALED_FILES = tuple(
         # OPERATOR's verdicts turn into specimen ground truth — sealed in the
         # commit that creates it (EC-44).
         "story_chain_candidates_2026-08.md",
+        # The corpus deep study — the committed evidence record (EC-16) the
+        # 2026-08-28 decisions.md rows cite; joined late (EC-44 caught the
+        # gap at the 2026-08-30 pre-merge review — the class's third
+        # occurrence, same fix as its two sealed siblings above).
+        "corpus_study_2026-08-28.md",
     ))
 
 

@@ -855,10 +855,11 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
                                  if inner is not None and inner.get('reaction_bars') is not None
                                  else None),
         # The mini-consolidation POSITION (rails-are-areas ruling 2026-08-29/30:
-        # the ruled three-value closed set at the ±0.5-ATR tolerance) + the raw
-        # signed distances it was banded from (re-rulable offline, never by
-        # rescan). Measure-first: archived, consulted by nothing, off the wire
-        # until the operator signs the labels (ONE-Event-Map Task 10/11).
+        # the ruled FOUR-value closed set — touching_both joined 2026-08-30 —
+        # at the ±0.5-ATR tolerance) + the raw signed distances it was banded
+        # from (re-rulable offline, never by rescan). Labels operator-signed
+        # 2026-08-30: the position token rides the wire (output/dashboard.py)
+        # and fires the position chips; the raw distances stay archive-only.
         '_inner_position': inner.get('position') if inner is not None else None,
         '_inner_position_r_atr': (
             float(inner['position_distances']['r_atr'])

@@ -48,6 +48,12 @@ SMA50_DIP_MAX_ATR = 1.0          # close within this many ATR_10 under SMA_50
 # trend has turned. Price/volume/YoY legs still gate; geometry stays the only
 # veto. Flip = operator decision vs the miss-program A/B + fleet census.
 BOTTOMING_BASE_LANE_ENABLED = False
+# The seeding half's reclaimed-50-day clock (promoted from a hardcoded literal
+# — council review 2026-08-30, McKinney: the constant that decides who seeds
+# must live in the frozen-config contract). Mirrors the universe door's SMA_50
+# window; the HTF weekly/monthly presets pin the LANE off instead of rescaling
+# this (the ruling + fleet census cover the daily clock only).
+BOTTOMING_SMA50_BARS = 50
 
 # --- The ceiling-rest LPS exception (miss program, operator ruling 2026-08-29; DARK)
 # NOK elects his box at his exact rails and dies at ONE LPS leg: the INSIDE
@@ -891,8 +897,10 @@ STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars 
 STORY_UNREADABLE_ZONE_COVERAGE = 0.5  # touch-zone fraction of box height at which all-zero counts read ABSENT
 # ── The ONE-Event-Map manifest rotation (Task 12, 2026-08-30) ────────────────
 # Four reader-behavior constants promoted from module level into the frozen
-# manifest in ONE declared epoch — VALUES UNCHANGED (a moved constant with a
-# changed value would be a behavior change wearing a refactoring label).
+# manifest in ONE declared epoch. Three moved VALUES UNCHANGED; the fourth,
+# MINI_POSITION_TOL_ATR, moved AT its ruled new value 0.5 (was 1.0 at module
+# level) — that value change IS the declared 2026-08-30 rail-area seam, with
+# its own baseline recapture, not a refactoring passenger.
 # They decide what the archived sentences MEAN, so a future edit must rotate
 # engine_config_version; at module level it silently would not have.
 EPISODE_MAX_GAP_BARS = 2      # episode merge horizon: same-rail visits <= this many inside bars apart are ONE episode
@@ -1050,6 +1058,11 @@ HTF_WEEKLY_WINDOWS = {
     "BIN_C_HOLD_BARS": 1,
     "BIN_C_MIN_LINGER_BARS": 1,
     "PHASE_D_VTIP_RECOVERY_BARS": 2,
+    # The bottoming-base lane is DAILY-clock only: its ruling and fleet census
+    # (2026-08-29, MDT) never measured a weekly/monthly "reclaimed 50-bar mean"
+    # — the preset pins it off rather than rescaling BOTTOMING_SMA50_BARS
+    # (council review 2026-08-30, McKinney).
+    "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
 HTF_MONTHLY_WINDOWS = {
@@ -1072,6 +1085,8 @@ HTF_MONTHLY_WINDOWS = {
     "BIN_C_HOLD_BARS": 1,
     "BIN_C_MIN_LINGER_BARS": 1,
     "PHASE_D_VTIP_RECOVERY_BARS": 1,
+    # Daily-clock-only lane pinned off, as in the weekly preset above.
+    "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
 # ============================================================

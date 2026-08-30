@@ -117,8 +117,21 @@ def channel_basis(source: str, operands: dict | None) -> dict:
     and never computes with them: provenance is pass-through, measurement
     stays upstream (the Task-4 constraint). The F9 self-disagreement is
     exactly what this preserves - two episode reads on two ATRs carry two
-    distinguishable basis dicts instead of one shared word."""
-    return {**BASIS_CONSTANTS[source], **(operands or {})}
+    distinguishable basis dicts instead of one shared word.
+
+    An operand key that collides with the channel's FIXED properties is
+    refused loudly (the _require posture): the structural constants are the
+    one axis this module exists to protect, and a rich operand dict must
+    never silently overwrite them into stored provenance (council review
+    2026-08-30, Fowler)."""
+    operands = operands or {}
+    collisions = set(operands) & set(BASIS_CONSTANTS[source])
+    if collisions:
+        raise ValueError(
+            f"operand keys {sorted(collisions)} collide with the {source} "
+            "channel's fixed basis properties - declared operands may never "
+            "overwrite structural provenance")
+    return {**BASIS_CONSTANTS[source], **operands}
 
 
 def window_span(record: dict) -> list[int] | None:
@@ -221,7 +234,8 @@ def _fold_mini_consolidation(detection: dict, basis: dict,
     The input is the ELECTED inner box's own detection dict (select_inner_box's
     output, riding ``InnerBox.detection``) — an existing read, not a new
     detector; position and its raw signed distances were stamped there by the
-    ruled three-value mechanism at the ±0.5-ATR tolerance (Task 6).
+    ruled four-value mechanism at the ±0.5-ATR tolerance (Task 6; touching_both
+    joined the closed set 2026-08-30).
 
     Knowability (McKinney): a multi-bar rest is provisional while it can still
     extend. The caller DECLARES ``at_right_edge`` in the operands (it knows the

@@ -403,7 +403,8 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
       * ``knowable_bar`` — the first bar at whose close BOTH the verdict and the
         label's identity were irreversible: a failed wave at its low-zone drop
         bar; a held wave/test at the last bar of its printed hold window
-        (`_EVENT_HOLD_MIN_BARS` — the measurers' own horizon), and never before
+        (`settings.EVENT_HOLD_MIN_BARS` — the measurers' own horizon, promoted
+        to the frozen manifest at the Task-12 seam), and never before
         the wave stops being extendable (``_wave_closure_bar``) or the
         anchoring swing commits (the mechanical layer's stamp); a spring at the
         end of its fully-printed ``BIN_C_HOLD_BARS`` reclaim-hold window; the

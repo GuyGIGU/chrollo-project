@@ -56,6 +56,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SMA50_DIP_MAX_ATR",
     # The bottoming-base lane (miss program, operator ruling 2026-08-29, dark)
     "BOTTOMING_BASE_LANE_ENABLED",
+    "BOTTOMING_SMA50_BARS",
     # Phase 2 — consolidation base parameters
     "MIN_BASE_DAYS",
     "MAX_BOX_WIDTH",

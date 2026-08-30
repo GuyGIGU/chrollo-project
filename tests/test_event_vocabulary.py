@@ -148,9 +148,9 @@ def test_window_span_converts_on_declared_offset_and_refuses_without():
 #   * LPS, recovering upthrust, departure (markup), and the undetermined right
 #     edge are folded tape records TODAY — proven below.
 #   * "a mini consolidation that rests on the resistance" is named by
-#     InnerBox.position == "at_ceiling" (the ruled three-value attribute, dark)
-#     — it becomes a folded TAPE record only when Task 9's shelf event lands;
-#     until then the tape cannot carry it and says so here rather than faking.
+#     InnerBox.position == "at_ceiling" (the ruled FOUR-value attribute since
+#     the 2026-08-30 touching_both ruling) — and since Task 9 landed (below)
+#     it IS a folded tape record (word mini_consolidation, position riding).
 #   * "forming a double base" is named by the chain reader (chain.py, dark) —
 #     a STRUCTURE-level read deliberately outside this rail-event tape's axis.
 # ---------------------------------------------------------------------------
@@ -208,8 +208,9 @@ def test_context_completed_rest_on_resistance_is_the_sos_hold():
 
 
 # --- Task 9: the mini-consolidation (shelf) tape record ----------------------
-# One literal fixture per RULED position (2026-08-29/30: three values), plus
-# the knowability legs. The detection dicts mirror select_inner_box's output.
+# One literal fixture per RULED position (2026-08-29/30 rails-are-areas +
+# the 2026-08-30 touching_both ruling: FOUR values), plus the knowability
+# legs. The detection dicts mirror select_inner_box's output.
 
 def _detection(position, r_atr, s_atr):
     return {"start_bar": 10, "base_len": 6, "R": 9.6, "S": 8.9,
@@ -234,8 +235,8 @@ def test_shelf_at_ceiling_is_a_tape_record_with_position_and_distances():
     assert rec["election_dependent"] is True
 
 
-def test_shelf_mid_range_and_on_support_fold_with_their_ruled_values():
-    for pos in ("mid_range", "on_support"):
+def test_shelf_mid_range_on_support_and_touching_both_fold_with_their_ruled_values():
+    for pos in ("mid_range", "on_support", "touching_both"):
         out = unify_events(inner_box=_detection(pos, -2.0, 0.3),
                            inner_operands={"at_right_edge": False})
         assert out["events"][0]["position"] == pos
@@ -265,3 +266,26 @@ def test_every_declared_puzzle_type_folds_without_error():
                                         "anchor_bar": 0}])
         assert len(out["events"]) == 1
         assert out["events"][0]["word"]
+
+
+def test_every_declared_episode_outcome_folds_to_its_signed_verdict():
+    # The mirror loop (council review 2026-08-30, Beck): read_rail_episodes
+    # genuinely emits all four outcomes, and a mutation mapping failed->held
+    # (a breached support reading as held on the tape) or dropping the
+    # unreadable row must go red here, in the dark module's only cascade.
+    from engine_alpha.structure.event_vocabulary import VERDICT_BY_EPISODE_OUTCOME
+
+    assert set(VERDICT_BY_EPISODE_OUTCOME) == {
+        "completed", "failed", "open", "unreadable"}
+    for outcome, verdict in VERDICT_BY_EPISODE_OUTCOME.items():
+        out = unify_events(episode_read={"episodes": [
+            {"rail": "S", "outcome": outcome, "start_bar": 0, "end_bar": 3,
+             "posture": False}]})
+        assert len(out["events"]) == 1
+        rec = out["events"][0]
+        assert rec["word"] == "support_test"
+        assert rec["verdict"] == verdict
+    # The signed translations, typed out (never derived from the table under
+    # test): a failed S episode is BREACHED, unreadable stays unreadable.
+    assert VERDICT_BY_EPISODE_OUTCOME["failed"] == "breached"
+    assert VERDICT_BY_EPISODE_OUTCOME["unreadable"] == "unreadable"

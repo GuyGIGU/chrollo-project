@@ -30,12 +30,19 @@ __all__ = [
     "mini_consolidation_position",
     "select_inner_box",
     "inner_zigzag",
+    "RULED_POSITION_VALUES",
     "_detect_inner_phase_b_start",
 ]
 
 # The position tolerance moved to settings.MINI_POSITION_TOL_ATR + the frozen
 # manifest (ONE-Event-Map Task 12, 2026-08-30; value = the RULED 0.5, set at
 # the 2026-08-30 rail-area seam). Read lazily below (AP-3/AP-10).
+
+# The ONE declaration of the ruled closed set (EC-19/EC-33; council review
+# 2026-08-30, Leach): the producer, the stamping-point assertion, the archive
+# CHECK's test, and the tag rules all describe THIS tuple. A vocabulary change
+# is an operator ruling + a deliberate edit here — never a drifted copy.
+RULED_POSITION_VALUES = ("at_ceiling", "mid_range", "on_support", "touching_both")
 
 
 def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
@@ -238,6 +245,13 @@ def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n,
                                  parent_win['Low'].values)
         winner["position"] = mini_consolidation_position(
             winner["R"], winner["S"], parent_r, parent_s, atr_val)
+        # EC-19 leg 2 (write-time assertion at the single stamping point, the
+        # _pool_label shape): the live DB's ADD COLUMN path cannot carry the
+        # CHECK, so an out-of-vocabulary label must die HERE, loudly.
+        if winner["position"] is not None and winner["position"] not in RULED_POSITION_VALUES:
+            raise ValueError(
+                f"inner position {winner['position']!r} is outside the ruled "
+                f"closed set {RULED_POSITION_VALUES}")
         # The RAW signed distances ride beside the band (McKinney, PLAN Task 6):
         # the band is re-rulable offline against archived rows only if the
         # scalar it was banded from is recorded with it. Same refusal law as

@@ -25,16 +25,27 @@ numbers reproducible after the fold. Sidecar-only (EC-46); population +
 fingerprint + manifest stamped (EC-13); --json passes the sealed-output
 guard (EC-14).
 
-REPRODUCIBILITY NOTE - two census-local conventions are deliberately FROZEN
-even though later rulings superseded their design role; changing either
+REPRODUCIBILITY NOTE - four census-local conventions are deliberately FROZEN
+even though later rulings superseded their design role; changing any of them
 silently re-derives the recorded evidence:
   * ``_compatible`` is the census's own charitable semantic map (free
     passes on ambiguous/wildcard/open), not an engine artifact - the honest
     headline is the STRICT recomputation over decided pairs.
   * ``_five_way`` bands positions into five values; the operator's
     2026-08-29/30 rails-are-areas ruling collapsed the live vocabulary to
-    THREE (``inner_box.mini_consolidation_position``). The five-way stays
-    as the census's recorded measurement convention, never a live one.
+    THREE, then FOUR (``inner_box.mini_consolidation_position`` +
+    touching_both, 2026-08-30). The five-way stays as the census's recorded
+    measurement convention, never a live one.
+  * ``_PUZZLE_CLASS`` / ``_EPISODE_CLASS`` are the census's PRE-SIGNING
+    verdict translations (including "gave", and terminal-posture ``open``
+    promoted to gave) - deliberately NOT repointed at the signed
+    ``event_vocabulary`` tables, whose 2026-08-30 wording (breached) and
+    open-stays-open law would re-derive the recorded 77.7% agreement.
+  * the breach-line check's ``halfbuf`` derives from ``zone_coverage / 2``
+    (algebraically TOUCH_TOLERANCE_ATR, which coincided with the episode
+    reader's BOUNDARY_ATR_BUFFER at 0.50 when the evidence was sealed);
+    it is frozen as recorded arithmetic - if either knob ever moves, this
+    check keeps measuring the sealed convention, not the live buffer.
 
 Usage (the repo venv, from the repo root):
     python -m tools.correspondence_census [--ticker T] [--json OUT.json]
@@ -43,9 +54,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import statistics
-import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -675,6 +684,10 @@ def main():
     ap.add_argument("--ticker", help="limit to one ticker")
     ap.add_argument("--json", metavar="PATH", help="JSON sidecar path")
     args = ap.parse_args()
+    if args.json:
+        # Tripwire at the door (EC-14, sibling shape): a mistyped sealed path
+        # must fail before minutes of census work, not after.
+        refuse_sealed_output(args.json)
 
     session = database.SessionLocal()
     try:
@@ -712,7 +725,7 @@ def main():
                        settings.STORY_UNREADABLE_ZONE_COVERAGE,
                },
                "cards": cards}
-        refuse_sealed_output(args.json)
+        refuse_sealed_output(args.json)  # re-checked at the write itself
         with open(args.json, "w", encoding="utf-8") as fh:
             json.dump(doc, fh, indent=2, default=str)
         print(f"\nwrote {args.json}")

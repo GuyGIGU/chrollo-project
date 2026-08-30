@@ -1,0 +1,1909 @@
+{
+ "generated_at": "2026-08-28T21:45:05.538712+00:00",
+ "cache_last_session": "2026-08-27",
+ "engine_manifest": "654737cd5bf757d9",
+ "counts": {
+  "tickers": 5532,
+  "fires_off": 309,
+  "eval_error": 0,
+  "universe_refused_other": 2212,
+  "universe_refused_sma50": 1770,
+  "door_admitted": 291,
+  "door_fires": 152,
+  "door_rescue_fires": 5,
+  "read_refused": 1241,
+  "rescue_fires": 32
+ },
+ "conversions": [
+  {
+   "ticker": "NWBI",
+   "lane": "door",
+   "tier": "S",
+   "score": 125.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AON",
+   "lane": "door",
+   "tier": "S",
+   "score": 124.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SRI",
+   "lane": "door",
+   "tier": "S",
+   "score": 123.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BATRK",
+   "lane": "door",
+   "tier": "S",
+   "score": 123.8,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LYV",
+   "lane": "door",
+   "tier": "S",
+   "score": 123.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "DEA",
+   "lane": "door",
+   "tier": "S",
+   "score": 123.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EBC",
+   "lane": "door",
+   "tier": "S",
+   "score": 122.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "INMD",
+   "lane": "door",
+   "tier": "S",
+   "score": 122.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ASND",
+   "lane": "door",
+   "tier": "S",
+   "score": 122.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SFNC",
+   "lane": "door",
+   "tier": "S",
+   "score": 122.3,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KOD",
+   "lane": "door",
+   "tier": "S",
+   "score": 121.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BEP",
+   "lane": "door",
+   "tier": "S",
+   "score": 121.7,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "JRS",
+   "lane": "door",
+   "tier": "S",
+   "score": 121.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CWBC",
+   "lane": "door",
+   "tier": "S",
+   "score": 120.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ENIC",
+   "lane": "door",
+   "tier": "S",
+   "score": 120.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SYY",
+   "lane": "door",
+   "tier": "S",
+   "score": 120.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KFY",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 119.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TBI",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 119.5,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HOMB",
+   "lane": "door",
+   "tier": "S",
+   "score": 119.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TEO",
+   "lane": "door",
+   "tier": "S",
+   "score": 119.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ANGO",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 119.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LIVN",
+   "lane": "door",
+   "tier": "S",
+   "score": 118.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MANU",
+   "lane": "door",
+   "tier": "S",
+   "score": 118.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BIIB",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 118.2,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "GBTG",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 118.2,
+   "elected_pool": "story",
+   "profile": "contracting above resistance | S+ R+ R+ R+ R^",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "OSW",
+   "lane": "door",
+   "tier": "S",
+   "score": 118.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CNMD",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 117.9,
+   "elected_pool": "story",
+   "profile": "contracting above resistance | S+~ R^",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "VTR",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 117.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CFG",
+   "lane": "door",
+   "tier": "S",
+   "score": 117.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "VNO",
+   "lane": "door",
+   "tier": "S",
+   "score": 117.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "JCI",
+   "lane": "door",
+   "tier": "S",
+   "score": 117.6,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LGIH",
+   "lane": "door",
+   "tier": "S",
+   "score": 116.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TRMK",
+   "lane": "door",
+   "tier": "S",
+   "score": 116.4,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BBIO",
+   "lane": "door",
+   "tier": "S",
+   "score": 116.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CL",
+   "lane": "door",
+   "tier": "S",
+   "score": 116.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "RCUS",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 115.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "RFI",
+   "lane": "door",
+   "tier": "S",
+   "score": 115.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EIG",
+   "lane": "door",
+   "tier": "S",
+   "score": 115.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CIEN",
+   "lane": "door",
+   "tier": "A",
+   "score": 115.1,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SHBI",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.8,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MS",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AIR",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PLMR",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SPFI",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CHH",
+   "lane": "door",
+   "tier": "S",
+   "score": 114.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "RLI",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 114.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AUNA",
+   "lane": "door",
+   "tier": "S",
+   "score": 113.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "IRM",
+   "lane": "door",
+   "tier": "S",
+   "score": 113.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LLY",
+   "lane": "door",
+   "tier": "S",
+   "score": 113.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CXT",
+   "lane": "door",
+   "tier": "S",
+   "score": 113.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "USB",
+   "lane": "door",
+   "tier": "S",
+   "score": 113.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MTUS",
+   "lane": "door",
+   "tier": "S",
+   "score": 112.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WSFS",
+   "lane": "door",
+   "tier": "S",
+   "score": 112.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TEX",
+   "lane": "door",
+   "tier": "S",
+   "score": 111.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TRNS",
+   "lane": "door",
+   "tier": "S",
+   "score": 111.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FRST",
+   "lane": "door",
+   "tier": "S",
+   "score": 111.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ICLR",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 111.1,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "IRWD",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 111.1,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0 S0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ADPT",
+   "lane": "rescue",
+   "tier": "S",
+   "score": 110.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LYG",
+   "lane": "door",
+   "tier": "A",
+   "score": 110.5,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PAG",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 110.5,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KNSA",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 110.2,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BNL",
+   "lane": "door",
+   "tier": "A",
+   "score": 109.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TIGO",
+   "lane": "door",
+   "tier": "A",
+   "score": 109.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FRBA",
+   "lane": "door",
+   "tier": "A",
+   "score": 109.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "IRDM",
+   "lane": "door",
+   "tier": "A",
+   "score": 109.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "JLL",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 109.3,
+   "elected_pool": "story",
+   "profile": "contracting above resistance | S+ R^",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "STBA",
+   "lane": "door",
+   "tier": "A",
+   "score": 109.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BH",
+   "lane": "door+rescue",
+   "tier": "A",
+   "score": 108.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ S+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "GEO",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 108.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KFRC",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 108.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PEB",
+   "lane": "door",
+   "tier": "A",
+   "score": 108.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BOC",
+   "lane": "door",
+   "tier": "A",
+   "score": 108.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NCV",
+   "lane": "door",
+   "tier": "A",
+   "score": 108.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "UTF",
+   "lane": "door",
+   "tier": "A",
+   "score": 108.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PRLB",
+   "lane": "door",
+   "tier": "A",
+   "score": 108.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HIW",
+   "lane": "door",
+   "tier": "A",
+   "score": 107.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ONTO",
+   "lane": "door",
+   "tier": "A",
+   "score": 107.6,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "VRTS",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 107.5,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CLBK",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 107.1,
+   "elected_pool": "story",
+   "profile": "contracting above resistance | R+ S+ R^",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "DD",
+   "lane": "door",
+   "tier": "A",
+   "score": 106.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MRDN",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 106.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ R+ S+ R0 S0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BKH",
+   "lane": "door",
+   "tier": "A",
+   "score": 106.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CCNE",
+   "lane": "door",
+   "tier": "A",
+   "score": 106.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MCFT",
+   "lane": "door",
+   "tier": "A",
+   "score": 106.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SNDR",
+   "lane": "door",
+   "tier": "A",
+   "score": 106.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FTV",
+   "lane": "door",
+   "tier": "A",
+   "score": 105.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "OLP",
+   "lane": "door",
+   "tier": "A",
+   "score": 105.4,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "OSCR",
+   "lane": "door",
+   "tier": "A",
+   "score": 105.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "COFS",
+   "lane": "door",
+   "tier": "A",
+   "score": 105.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WNEB",
+   "lane": "door",
+   "tier": "A",
+   "score": 105.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ARW",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CCEP",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 104.7,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CTO",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EPR",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ARCB",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MCRI",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MTX",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "RGR",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TRT",
+   "lane": "door+rescue",
+   "tier": "A",
+   "score": 104.6,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0 S0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WEST",
+   "lane": "door+rescue",
+   "tier": "A",
+   "score": 104.5,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HTH",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EWBC",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MAX",
+   "lane": "door+rescue",
+   "tier": "A",
+   "score": 104.3,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "UNFI",
+   "lane": "door",
+   "tier": "A",
+   "score": 104.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "TER",
+   "lane": "door",
+   "tier": "A",
+   "score": 103.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ZGN",
+   "lane": "door",
+   "tier": "A",
+   "score": 103.8,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BMY",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 103.7,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SKWD",
+   "lane": "door",
+   "tier": "A",
+   "score": 103.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AVBP",
+   "lane": "door",
+   "tier": "A",
+   "score": 103.6,
+   "elected_pool": "band",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AX",
+   "lane": "door",
+   "tier": "A",
+   "score": 103.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LEE",
+   "lane": "door+rescue",
+   "tier": "A",
+   "score": 103.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "URGN",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 103.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0 S0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MSGS",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 102.9,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R+ R+ S+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PNTG",
+   "lane": "door",
+   "tier": "A",
+   "score": 102.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NWE",
+   "lane": "door",
+   "tier": "A",
+   "score": 102.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "APLE",
+   "lane": "door",
+   "tier": "A",
+   "score": 102.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "GWW",
+   "lane": "door",
+   "tier": "A",
+   "score": 101.8,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NBXG",
+   "lane": "door",
+   "tier": "A",
+   "score": 101.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NVT",
+   "lane": "door",
+   "tier": "A",
+   "score": 101.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CARS",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 101.3,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MCBS",
+   "lane": "door",
+   "tier": "A",
+   "score": 100.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WABC",
+   "lane": "door",
+   "tier": "A",
+   "score": 100.1,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HOV",
+   "lane": "door",
+   "tier": "A",
+   "score": 99.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HUM",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 99.8,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0 S0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "UTL",
+   "lane": "door",
+   "tier": "A",
+   "score": 99.7,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CVCO",
+   "lane": "door",
+   "tier": "A",
+   "score": 99.5,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "QRVO",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 99.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+~ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SHO",
+   "lane": "door",
+   "tier": "A",
+   "score": 98.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WCN",
+   "lane": "door",
+   "tier": "A",
+   "score": 98.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KOP",
+   "lane": "door",
+   "tier": "A",
+   "score": 98.3,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BPOP",
+   "lane": "door",
+   "tier": "A",
+   "score": 98.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ASG",
+   "lane": "door",
+   "tier": "A",
+   "score": 98.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FBNC",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "API",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.7,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CVBF",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ETN",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.7,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BATRA",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EFSI",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HCSG",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FBK",
+   "lane": "door",
+   "tier": "A",
+   "score": 97.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "COLD",
+   "lane": "door",
+   "tier": "A",
+   "score": 96.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "GTES",
+   "lane": "door",
+   "tier": "A",
+   "score": 96.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PLD",
+   "lane": "door",
+   "tier": "A",
+   "score": 96.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BJRI",
+   "lane": "door",
+   "tier": "A",
+   "score": 96.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AVK",
+   "lane": "door",
+   "tier": "A",
+   "score": 95.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BKR",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 95.6,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EGBN",
+   "lane": "door",
+   "tier": "A",
+   "score": 95.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MA",
+   "lane": "rescue",
+   "tier": "A",
+   "score": 95.5,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ELS",
+   "lane": "door",
+   "tier": "A",
+   "score": 95.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MTN",
+   "lane": "door",
+   "tier": "A",
+   "score": 95.0,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "MHO",
+   "lane": "door",
+   "tier": "A",
+   "score": 94.5,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CTVA",
+   "lane": "door",
+   "tier": "A",
+   "score": 94.4,
+   "elected_pool": "band",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "DIOD",
+   "lane": "door",
+   "tier": "A",
+   "score": 94.3,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ENTG",
+   "lane": "door",
+   "tier": "A",
+   "score": 94.3,
+   "elected_pool": "band",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SWX",
+   "lane": "door",
+   "tier": "A",
+   "score": 94.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HIMX",
+   "lane": "door",
+   "tier": "A",
+   "score": 93.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PSTL",
+   "lane": "door",
+   "tier": "B",
+   "score": 93.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "WST",
+   "lane": "door",
+   "tier": "B",
+   "score": 93.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PBA",
+   "lane": "door",
+   "tier": "B",
+   "score": 92.8,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HBCP",
+   "lane": "door",
+   "tier": "B",
+   "score": 92.1,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EBF",
+   "lane": "door",
+   "tier": "B",
+   "score": 91.5,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "PNFP",
+   "lane": "door",
+   "tier": "B",
+   "score": 91.4,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CATY",
+   "lane": "door",
+   "tier": "B",
+   "score": 91.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "OC",
+   "lane": "door",
+   "tier": "B",
+   "score": 90.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NVS",
+   "lane": "door",
+   "tier": "B",
+   "score": 90.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "NBN",
+   "lane": "door",
+   "tier": "B",
+   "score": 90.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "KEYS",
+   "lane": "door",
+   "tier": "B",
+   "score": 88.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BNED",
+   "lane": "door",
+   "tier": "B",
+   "score": 87.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "HLT",
+   "lane": "door",
+   "tier": "B",
+   "score": 87.3,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SMA",
+   "lane": "door",
+   "tier": "B",
+   "score": 87.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LOVE",
+   "lane": "door",
+   "tier": "B",
+   "score": 86.9,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AMCR",
+   "lane": "rescue",
+   "tier": "B",
+   "score": 86.2,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "RLJ",
+   "lane": "door",
+   "tier": "B",
+   "score": 86.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AIO",
+   "lane": "door",
+   "tier": "B",
+   "score": 84.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "F",
+   "lane": "door",
+   "tier": "B",
+   "score": 84.7,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "BOKF",
+   "lane": "door",
+   "tier": "B",
+   "score": 84.6,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "LLYVK",
+   "lane": "door",
+   "tier": "B",
+   "score": 83.8,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "IBCP",
+   "lane": "door",
+   "tier": "B",
+   "score": 83.5,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SLDE",
+   "lane": "rescue",
+   "tier": "B",
+   "score": 83.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | R+ S+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "FCPT",
+   "lane": "door",
+   "tier": "B",
+   "score": 81.3,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ZWS",
+   "lane": "door",
+   "tier": "B",
+   "score": 80.5,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ACGL",
+   "lane": "door",
+   "tier": "B",
+   "score": 80.0,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "AER",
+   "lane": "door",
+   "tier": "B",
+   "score": 78.2,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "CAL",
+   "lane": "door",
+   "tier": "B",
+   "score": 77.1,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "SNDA",
+   "lane": "door",
+   "tier": "C",
+   "score": 76.4,
+   "elected_pool": "strict",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "GRBK",
+   "lane": "door",
+   "tier": "C",
+   "score": 75.3,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "EE",
+   "lane": "rescue",
+   "tier": "C",
+   "score": 71.0,
+   "elected_pool": "story",
+   "profile": "contracting at resistance | S+ R+ R+ R0",
+   "resistance": null,
+   "support": null
+  },
+  {
+   "ticker": "ROST",
+   "lane": "door",
+   "tier": "C",
+   "score": 69.1,
+   "elected_pool": "rescued",
+   "profile": null,
+   "resistance": null,
+   "support": null
+  }
+ ]
+}

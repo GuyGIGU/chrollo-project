@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 
 import pandas as pd
@@ -103,6 +102,12 @@ def run(limit=None, json_out=None):
     t0 = time.time()
     session = None
     for i, ticker in enumerate(tickers):
+        # Heartbeat on the unconditional path — every classification leg below
+        # ends in continue, so anywhere later only fires on one leg (council
+        # review 2026-08-30, Fowler).
+        if (i + 1) % 250 == 0:
+            print(f"  ... {i + 1}/{len(tickers)} "
+                  f"({time.time() - t0:.0f}s) {counts}", flush=True)
         df = data[ticker].dropna()
         if df.empty:
             continue
@@ -149,7 +154,7 @@ def run(limit=None, json_out=None):
         if reason is not None:                      # the sma50 door leg
             counts["universe_refused_sma50"] += 1
             with flag_capture(SMA50_DIP_EXCEPTION_ENABLED=True):
-                base2, reason2 = apply_baseline_filters_with_reason(df)
+                base2, _r2 = apply_baseline_filters_with_reason(df)
                 if base2 is None:
                     continue                        # dip test / later leg refused
                 counts["door_admitted"] += 1
@@ -180,14 +185,12 @@ def run(limit=None, json_out=None):
             counts["ceiling_fires"] += 1
             conversions.append(_fire_row(ticker, ceil, "ceiling"))
 
-        if (i + 1) % 250 == 0:
-            print(f"  ... {i + 1}/{len(tickers)} "
-                  f"({time.time() - t0:.0f}s) {counts}", flush=True)
-
     report = {
         "generated_at": pd.Timestamp.now("UTC").isoformat(),
         "cache_last_session": str(session)[:10] if session is not None else None,
-        "engine_manifest": manifest_hash()[:16],
+        # FULL manifest hash in the persisted sidecar (EC-46; truncation only
+        # ever on stdout) so the flip evidence exact-matches an engine epoch.
+        "engine_manifest": manifest_hash(),
         "counts": counts,
         "fires_ceiling_drifted": drifted,
         "conversions": sorted(conversions,

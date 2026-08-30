@@ -51,8 +51,8 @@ NAMES-ONLY over two preserved geometries, with per-record basis provenance.
 | 7 | Retire `holding_shelf` as a NAME (code identifiers only) | **DONE 2026-08-30** | Smaller than planned: the stored string + signed label are FROZEN history (AP-12), so only code identifiers moved — `_holding_shelf_verdict`→`_rest_verdict` (the operator's word), the `_swing_type` param, the local flag; the retired term and its stored spelling meet at exactly ONE documented line (`_swing_type`). One test symbol substitution; no expected value touched. **Proof: `fold_parity --compare` vs the Task-1 pre-fold baseline = 37 tickers byte-identical** (the rename sits in live election code and changed nothing); reader pin PASS with NO recapture; 64 LPS-battery tests; doctrine_audit PASS. |
 | 8 | Coverage proof: the vocabulary can NAME the four above-R contexts | **DONE 2026-08-30** | Five committed tests (tests/test_event_vocabulary.py): LPS ✓ · recovering upthrust ✓ (word=upthrust, verdict=held) · departure ✓ (markup, breached) · right edge ✓ (engagement word + verdict=open, never pre-typed) · completed rest-on-R ✓ (the SOS hold). **Honest gaps stated in the test file:** the mini-consolidation-resting-on-R becomes a TAPE record only when Task 9 lands (today it is named by the dark `InnerBox.position`); "forming a double base" is the chain reader's structure-level axis, deliberately outside the rail tape. Treatment untouched — Program 2's. |
 | 9 | The positioned-shelf event (additive, measure-first, knowable-bar from first commit) | **DONE 2026-08-30** | NO new detector — the 2026-08-23 ruling already named the event: the tape record IS the elected inner box projected (`_fold_mini_consolidation`, a fourth `unify_events` channel consuming `InnerBox.detection`). Word = `mini_consolidation` (ruled; zero new jargon); position + raw distances ride from the Task-6 stamp; knowability DECLARED by the caller (`at_right_edge` → in_progress, undeclared reads in_progress — fail-closed); election_dependent=True. **Zero engine-file changes beyond the dark projection module**; the critical wrong path (emitting into `_box_events_with_meta`'s stream) was identified and avoided — it would have perturbed the narrative grades → setup_quality → behavior. 18 projection tests green; pin PASS untouched. Fire-path serialization = Task 10. |
-| 10 | The position archive family, all landing sites | **DONE 2026-08-30** | `inner_position` (closed set + model CHECK, EC-19) + `inner_position_r_atr`/`_s_atr` (the raw distances) — evaluation result keys → ORM → live writer; the seed writer auto-covers via the model-driven mapper (the column-parity AST guard proves it; no hand list grown, AP-7). **Seam audit: fold_parity diff vs the pre-fold baseline = exactly the three new keys, ZERO value drift on all 220 existing fields.** Near-miss population: N/A by structure (refusal rows carry no inner box) — stated, not skipped. Wire serving DELIBERATELY deferred until the operator signs the labels (asks.md; measure-first). EC-19/EC-22 battery committed. |
-| 11 | Display-label contract for new + retired values | **DONE 2026-08-30 (contract; frontend untouched by scope)** | The retired `holding_shelf` keeps its signed label forever (already present — AP-12). The new position words deliberately do NOT reach the wire: the label registry is an operator-SIGNED artifact; serving + labels land as one small change after signing. Two asks.md rows landed (the word table + the position labels), each with blocks + look-at pointers (EC-50). |
+| 10 | The position archive family, all landing sites | **DONE 2026-08-30** | `inner_position` (closed set + model CHECK, EC-19) + `inner_position_r_atr`/`_s_atr` (the raw distances) — evaluation result keys → ORM → live writer; the seed writer auto-covers via the model-driven mapper (the column-parity AST guard proves it; no hand list grown, AP-7). **Seam audit: fold_parity diff vs the pre-fold baseline = exactly the three new keys, ZERO value drift on all 220 existing fields.** Near-miss population: N/A by structure (refusal rows carry no inner box) — stated, not skipped. Wire serving DELIBERATELY deferred until the operator signs the labels (asks.md; measure-first) *(superseded same day — the labels were signed and serving landed; see the closing addendum)*. EC-19/EC-22 battery committed. |
+| 11 | Display-label contract for new + retired values | **DONE 2026-08-30 (contract; frontend untouched by scope)** | The retired `holding_shelf` keeps its signed label forever (already present — AP-12). The new position words deliberately do NOT reach the wire: the label registry is an operator-SIGNED artifact; serving + labels land as one small change after signing *(executed same day — see the closing addendum)*. Two asks.md rows landed (the word table + the position labels), each with blocks + look-at pointers (EC-50). |
 | 12 | ONE declared manifest rotation | **DONE 2026-08-30** | Four reader-behavior constants promoted to `config/settings.py` + the frozen manifest, VALUES UNCHANGED: `EPISODE_MAX_GAP_BARS` 2 (what an episode IS) · `EPISODE_DRIFT_MIN_BARS` 3 · `EVENT_HOLD_MIN_BARS` 6 (was import-shared across the two readers) · `MINI_POSITION_TOL_ATR` 0.5 (the ruled knob). All use sites converted to LAZY settings reads (AP-3/AP-10 — an import-time default is a copy no flag override can move). `engine_config_version` rotated `0ac88199…`→`92863be0…` as the declared epoch. RECOVERY_* / `_PRIORITY` / `_TIGHT_BOX_WIDTH` stay module-internal per the narrow rule (dark or single-module). Plus Hunt's ratchet advisory: `marks_corpus --check` now prints an epoch-differs ADVISORY (never a failure) — its FIRST run revealed the sealed baseline was frozen at `424fbfa1…`, an epoch OLDER than this branch's start: the gap had been open for weeks. Gates: pin PASS (values unchanged), fold_parity byte-identical, doctrine PASS, manifest-completeness green. |
 | 13 | The "nothing moved" verdict + concordance + doc truth-up + pointer audit | **DONE 2026-08-30** | Concordance rows in `wyckoff_canon.md` §5 (holding shelf → REST; "freshness read" → the stale-support check, retired by operator order). `strategy_alpha.md` Reading Model gains **"The rails are AREAS"** (the ruled doctrine + the one-event-language principle). This program record. Pointer audit run (its one flag = this doc while untracked; resolves at commit). The composite "nothing moved" verdict: **fold_parity 37/37 byte-identical to the pre-fold capture (modulo the three DECLARED position keys) · reader_pin 88 charts zero drift (modulo the DECLARED grid seam) · ratchet 28/33 held · shadow byte-identical · doctrine green** — every "modulo" is a named, audited, deliberate seam. |
 
@@ -79,6 +79,37 @@ far above R, the post-breakout climb), he signed it verbatim: *"ahh I see then
 yes we can use markup."* The census instrument keeps its pre-signing "gave"
 internally by its frozen-conventions docstring (it must reproduce the sealed
 evidence byte-for-byte).
+
+## Closing addendum (2026-08-30 — the signing sitting + the pre-merge review)
+
+**The signings executed (commits 259a271 + e9016fe), superseding the Task 10/11
+deferrals above:** the word table closed IN FULL the same day it was asked (the
+section above), the position closed set became FOUR values (`touching_both`
+ruled its own value — differentiate the genuine upper-vicinity read from a base
+about one bar tall; it replaced the ceiling-first tiebreak), the display labels
+were signed ("At resistance" / "Middle of the base" / "On support" / touching
+both), and serving LANDED: the `inner_position` token on the dashboard wire +
+four engine-resolved position chips via taxonomy eq-rules. Chip fire-rules are
+manifest-hashed, so the epoch rotated a SECOND declared time,
+92863be0 → 10fd83cb. Impact census: CVI is the ONE live flip
+(at_ceiling → touching_both, −0.22/+0.40 ATR); 4 fires gain exactly their one
+chip; zero score/tier/election drift.
+
+**Honest gaps recorded at the pre-merge council review (2026-08-30):**
+
+- **Task 3's proof covers the correspondence census only.** The bar-state
+  census and rail-area experiment behind the two 2026-08-30 rulings ran as
+  session scratchpad instruments and were never promoted to committed tools;
+  the owed promotion is now an asks.md row (EC-50) instead of a silent gap.
+- **The pin baseline's capture rode the working tree, not its seam commits**
+  (Beck): the baseline committed at `1152e9d` embodies Task-6 arithmetic that
+  lands two commits later, so the pin gate is RED at `1152e9d`..`2d45ced` when
+  checked out in isolation (a bisect artifact, not a live defect), and the
+  `e9016fe` recapture stamps the pre-rotation epoch `92863be0` although that
+  same commit declares `10fd83cb`. Fixed forward at the review-fix seam: one
+  recapture at the merge-ready commit (readings byte-identical; only the
+  stamp, timestamp, and the review's LF-forced write move). Rule going
+  forward: capture AT the seam commit, never from an ahead-of-history tree.
 
 ## Standing guard-rails
 

@@ -2,7 +2,10 @@
 
 The 2026-08-23 unification ruling: the ceiling shelf and the inner
 mini-consolidation are ONE event; position is a measured attribute with a
-stated banding convention (inclusive ties, ceiling evaluated first). These
+stated banding convention — inclusive ties, and a structure engaging BOTH
+bands reads touching_both (the 2026-08-30 ruling that replaced the retired
+ceiling-first tiebreak: a base about one bar tall carries no separating
+position information and must never fabricate an at-resistance read). These
 tests pin the convention so a boundary-sitting structure can never band
 differently between runs or between the live reader and the diagnostic
 mirror (both stamp at the ONE select_inner_box point).

@@ -4,10 +4,12 @@ The operator's ruling (2026-08-28, closing the Corpus Study): *"about the misses
 should tackle them. there is no reason at large for these to miss."* Six drawn
 calibration marks never fired live — MDT / SKYT / ST at the universe door,
 EGBN / PKE / NOK structural. This is the program record (EC-16): the per-miss
-diagnosis from the frozen frames, the two dark lanes built, the A/B evidence, and
-the asks the flips wait on. Nothing in this program moved live behavior: both lanes
-ship default-OFF, and no Tested-DEAD gate was loosened (respect untouched,
-occupancy floors untouched, no margin trades).
+diagnosis from the frozen frames, the FOUR dark lanes built across two waves
+(contraction rescue + 50-day dip on 2026-08-28; bottoming-base + ceiling-rest on
+2026-08-29), the A/B evidence, and the asks the flips wait on. Nothing in this
+program moved live behavior: all four lanes ship default-OFF behind four flags,
+and no Tested-DEAD gate was loosened (respect untouched, occupancy floors
+untouched, no margin trades).
 
 ## Baseline — the six refusals, reproduced from frozen frames
 
