@@ -69,6 +69,31 @@ class _EvalSkip(Enum):
 EVAL_ERROR = _EvalSkip.ERROR
 
 
+def _sma50_dip_admits(df: pd.DataFrame) -> bool:
+    """The 50-day dip exception (``SMA50_DIP_EXCEPTION_ENABLED``, dark —
+    miss program 2026-08-28). Consulted ONLY on the sma50-refusal branch:
+    admit the refusal into chart reading when the dip under the 50-day is a
+    bounded, recent event that has already recovered to the rail — the last
+    close at/above SMA_50 printed within ``SMA50_DIP_MAX_SESSIONS``, and the
+    close now sits within ``SMA50_DIP_MAX_ATR`` ATR_10 below it (the ATR is
+    the operator's ruler; a percent here would re-invent a second yardstick).
+    The SMA_200 and YoY legs still gate behind it, so a downtrend can never
+    enter through a dip. Flag off -> False, byte-identical."""
+    if not settings.SMA50_DIP_EXCEPTION_ENABLED:
+        return False
+    above = (df['Close'] >= df['SMA_50']).values
+    hits = above.nonzero()[0]
+    if not len(hits):
+        return False                      # never above the 50-day: not a dip
+    if (len(above) - 1 - int(hits[-1])) > settings.SMA50_DIP_MAX_SESSIONS:
+        return False
+    atr = calculate_atr(df, 10).iloc[-1]
+    if pd.isna(atr) or float(atr) <= 0:
+        return False
+    gap = float(df['SMA_50'].iloc[-1]) - float(df['Close'].iloc[-1])
+    return gap <= settings.SMA50_DIP_MAX_ATR * float(atr)
+
+
 def apply_baseline_filters_with_reason(
     df: pd.DataFrame,
 ) -> tuple[Optional[tuple[pd.DataFrame, float]], Optional[tuple[str, dict]]]:
@@ -109,8 +134,17 @@ def apply_baseline_filters_with_reason(
                "sma_50": latest['SMA_50'], "sma_200": latest['SMA_200'],
                "yearly_return": yearly_return}
     if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None, ("vol50", samples)
-    if latest['Close'] < latest['SMA_50']: return None, ("sma50", samples)
-    if latest['Close'] < latest['SMA_200']: return None, ("sma200", samples)
+    if latest['Close'] < latest['SMA_50'] and not _sma50_dip_admits(df):
+        return None, ("sma50", samples)
+    # The bottoming-base lane (BOTTOMING_BASE_LANE_ENABLED, dark — operator
+    # ruling 2026-08-29, MDT): an sma200 refusal enters chart reading when
+    # the 50-day is reclaimed. The lane's second half opens the anchor
+    # seeding gate under the same flag+condition (collect_root_anchors).
+    # NaN SMA_50 fails the >= closed — the exception never rides missing data.
+    if latest['Close'] < latest['SMA_200'] and not (
+            settings.BOTTOMING_BASE_LANE_ENABLED
+            and latest['Close'] >= latest['SMA_50']):
+        return None, ("sma200", samples)
     if yearly_return < settings.MIN_YEARLY_RETURN: return None, ("yoy", samples)
 
     return (df, float(yearly_return)), None
@@ -820,6 +854,19 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_inner_reaction_bars': (int(inner['reaction_bars'])
                                  if inner is not None and inner.get('reaction_bars') is not None
                                  else None),
+        # The mini-consolidation POSITION (rails-are-areas ruling 2026-08-29/30:
+        # the ruled FOUR-value closed set — touching_both joined 2026-08-30 —
+        # at the ±0.5-ATR tolerance) + the raw signed distances it was banded
+        # from (re-rulable offline, never by rescan). Labels operator-signed
+        # 2026-08-30: the position token rides the wire (output/dashboard.py)
+        # and fires the position chips; the raw distances stay archive-only.
+        '_inner_position': inner.get('position') if inner is not None else None,
+        '_inner_position_r_atr': (
+            float(inner['position_distances']['r_atr'])
+            if inner is not None and inner.get('position_distances') else None),
+        '_inner_position_s_atr': (
+            float(inner['position_distances']['s_atr'])
+            if inner is not None and inner.get('position_distances') else None),
         '_dist_52w_high_pct': (float(rel_ctx["dist_52w_high_pct"])
                                if rel_ctx["dist_52w_high_pct"] is not None else None),
         '_excess_return_6m': float(rel_ctx["excess_return_6m"]),

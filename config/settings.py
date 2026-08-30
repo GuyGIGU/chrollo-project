@@ -19,6 +19,61 @@ MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50_000          # 50-day average daily volume floor
 MIN_YEARLY_RETURN = -0.20        # Allows modest drawdowns (v1 used +0.30)
 
+# --- The 50-day dip exception (miss program 2026-08-28; DARK) ---------------
+# The universe door's sma50 leg refuses a chart whose own drawn story dragged
+# price under the 50-day — SKYT's deep spring held it below for ~4 weeks and
+# the engine elects a COMPLETE structure the day the door is held open; ST
+# lost 2 of its 10 candidate sessions the same way. The exception admits an
+# sma50 refusal into chart reading (geometry stays the only veto) when the
+# dip is a bounded, recent event that has already recovered to the rail of
+# the 50-day: the last close at/above SMA_50 printed within
+# SMA50_DIP_MAX_SESSIONS, and the close now sits within SMA50_DIP_MAX_ATR
+# ATR_10 below it. The SMA_200 and YoY legs still gate (a dip exception is
+# not a downtrend exception — MDT's bottoming base is deliberately out of
+# scope: its wall is the sma200 rule at BOTH the door and anchor seeding,
+# a species ruling for the operator). Flip = operator decision vs the
+# miss-program A/B (docs/miss_program_2026-08.md).
+SMA50_DIP_EXCEPTION_ENABLED = False
+SMA50_DIP_MAX_SESSIONS = 25      # the dip began at most this many sessions ago
+SMA50_DIP_MAX_ATR = 1.0          # close within this many ATR_10 under SMA_50
+
+# --- The bottoming-base lane (miss program, operator ruling 2026-08-29; DARK)
+# MDT is the corpus's one bottoming base and the operator ruled it a wanted
+# catch ("I don't want to miss them"). Its wall is the sma200 rule at TWO
+# layers — the universe door AND anchor seeding (collect_root_anchors refuses
+# any frame under the 200-day) — while the engine, held open diagnostically,
+# elects his drawn box to the penny (R 82.83, start 2026-06-04). The lane
+# opens BOTH layers together, under ONE condition: the 50-day is reclaimed
+# (close >= SMA_50) — a bottoming base being read only once its intermediate
+# trend has turned. Price/volume/YoY legs still gate; geometry stays the only
+# veto. Flip = operator decision vs the miss-program A/B + fleet census.
+BOTTOMING_BASE_LANE_ENABLED = False
+# The seeding half's reclaimed-50-day clock (promoted from a hardcoded literal
+# — council review 2026-08-30, McKinney: the constant that decides who seeds
+# must live in the frozen-config contract). Mirrors the universe door's SMA_50
+# window; the HTF weekly/monthly presets pin the LANE off instead of rescaling
+# this (the ruling + fleet census cover the daily clock only).
+BOTTOMING_SMA50_BARS = 50
+
+# --- The ceiling-rest LPS exception (miss program, operator ruling 2026-08-29; DARK)
+# NOK elects his box at his exact rails and dies at ONE LPS leg: the INSIDE
+# window that "launched above resistance" (the after-SOS giveback opens on the
+# extension top) is refused as a late/off-structure pullback — even when the
+# REST itself lands ON the ceiling (NOK: support low 0.24 ATR under R,
+# pos_box 0.88 — the drawn corpus's most common terminal form, the rail
+# rest). The exception sanctions the straddle ONLY when the rest sits within
+# LPS_CEILING_REST_MAX_BELOW_R_ATR ATRs under R: a launch above R with a rest
+# ON the rail is the preceding advance giving back to resistance, not a dive
+# back into the box (which stays refused). The bar is DRAWN-evidence-placed:
+# the corpus's launched-above shelves rest at 0.010/0.087/0.148/0.241 ATR
+# under R (DSGN/MATX/MSGS/NOK; YPF at 0.77 is a mid-box shape, not this form)
+# while the nearest junk (ENIC, must-not-fire) rests at 0.314 — 0.3 splits
+# the drawn cluster from the junk with ~0.06 ATR on each side, a stated
+# razor for the operator's eyeball at flip. Flip = operator decision vs the
+# miss-program A/B (shadow drift + ratchet + junk corpus measured).
+LPS_CEILING_REST_ENABLED = False
+LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
+
 MIN_BASE_DAYS = 20               # Minimum consolidation length (reject < 20 day chop)
 MAX_BOX_WIDTH = 0.18             # (R - S) / S ceiling. A range wider than this is
                                  # not a tradeable tight equilibrium — it's the
@@ -335,6 +390,20 @@ BAND_EVENT_MAX_BARS = 20
 # 05-12..05-15, then broke out truly). Ratchet resealed 26 -> 28
 # (docs/flag_ledger.md row Retired; evidence docs/event_map_program_2026-07.md).
 STORY_POOL_ENABLED = True
+
+# --- Contraction-rescue lane (miss program 2026-08-28; DARK) ----------------
+# When the WHOLE root walk elects nothing (full refusal — never after a
+# cause-before-effect abstention), read_structure re-walks ONCE with the
+# species resistance-contraction form armed inside the story pool
+# (event_map.resistance_contraction_admission — the operator ruled its
+# EGBN/PKE conversions real, 2026-08-19). Scoped to full refusals by
+# construction: it can never displace an existing election or re-frame a box,
+# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip
+# (the WCC 2.2x-wider re-election). A rescued fire stamps
+# elected_pool='story' with the self-naming contraction profile. Flip =
+# operator decision vs the miss-program A/B (docs/miss_program_2026-08.md);
+# flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
+CONTRACTION_RESCUE_ENABLED = False
 
 # --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
 # Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the
@@ -826,6 +895,18 @@ STORY_UNREADABLE_NAN_BARS = 5      # all-zero counts with >= this many NaN bars 
 # completed events vs 4.72+ above — monotone in coverage. NONZERO counts stay
 # evidence at any coverage (FXNC read 5 completed at 0.66).
 STORY_UNREADABLE_ZONE_COVERAGE = 0.5  # touch-zone fraction of box height at which all-zero counts read ABSENT
+# ── The ONE-Event-Map manifest rotation (Task 12, 2026-08-30) ────────────────
+# Four reader-behavior constants promoted from module level into the frozen
+# manifest in ONE declared epoch. Three moved VALUES UNCHANGED; the fourth,
+# MINI_POSITION_TOL_ATR, moved AT its ruled new value 0.5 (was 1.0 at module
+# level) — that value change IS the declared 2026-08-30 rail-area seam, with
+# its own baseline recapture, not a refactoring passenger.
+# They decide what the archived sentences MEAN, so a future edit must rotate
+# engine_config_version; at module level it silently would not have.
+EPISODE_MAX_GAP_BARS = 2      # episode merge horizon: same-rail visits <= this many inside bars apart are ONE episode
+EPISODE_DRIFT_MIN_BARS = 3    # an open terminal S episode at least this long reads as drift
+EVENT_HOLD_MIN_BARS = 6       # the wave/test hold-confirmation window (was box_events._EVENT_HOLD_MIN_BARS)
+MINI_POSITION_TOL_ATR = 0.5   # the mini-consolidation position band, in candidate ATRs — the RULED ±0.5-ATR rail area (decisions.md 2026-08-30)
 # Warnings are floored multiplicative discounts applied to the bounded 0-100
 # (never the raw sum); a missing warning input is factor 1.0 EXACTLY.
 # terminal_drift is the first registered warning — neutral 1.0 until the A/B.
@@ -977,6 +1058,11 @@ HTF_WEEKLY_WINDOWS = {
     "BIN_C_HOLD_BARS": 1,
     "BIN_C_MIN_LINGER_BARS": 1,
     "PHASE_D_VTIP_RECOVERY_BARS": 2,
+    # The bottoming-base lane is DAILY-clock only: its ruling and fleet census
+    # (2026-08-29, MDT) never measured a weekly/monthly "reclaimed 50-bar mean"
+    # — the preset pins it off rather than rescaling BOTTOMING_SMA50_BARS
+    # (council review 2026-08-30, McKinney).
+    "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
 HTF_MONTHLY_WINDOWS = {
@@ -999,6 +1085,8 @@ HTF_MONTHLY_WINDOWS = {
     "BIN_C_HOLD_BARS": 1,
     "BIN_C_MIN_LINGER_BARS": 1,
     "PHASE_D_VTIP_RECOVERY_BARS": 1,
+    # Daily-clock-only lane pinned off, as in the weekly preset above.
+    "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
 # ============================================================

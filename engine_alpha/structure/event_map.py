@@ -59,7 +59,6 @@ import pandas as pd
 
 from config import settings
 from engine_alpha.structure.box_events import (
-    _EVENT_HOLD_MIN_BARS,
     _box_events_with_meta,
     _staircase_empty,
     _staircase_from_pivots,
@@ -404,7 +403,8 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
       * ``knowable_bar`` — the first bar at whose close BOTH the verdict and the
         label's identity were irreversible: a failed wave at its low-zone drop
         bar; a held wave/test at the last bar of its printed hold window
-        (`_EVENT_HOLD_MIN_BARS` — the measurers' own horizon), and never before
+        (`settings.EVENT_HOLD_MIN_BARS` — the measurers' own horizon, promoted
+        to the frozen manifest at the Task-12 seam), and never before
         the wave stops being extendable (``_wave_closure_bar``) or the
         anchoring swing commits (the mechanical layer's stamp); a spring at the
         end of its fully-printed ``BIN_C_HOLD_BARS`` reclaim-hold window; the
@@ -433,7 +433,7 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
     n = len(lows)
     height = float(box.R) - float(box.S)
     low_zone_price = float(box.S) + settings.TRAVERSAL_LOW_ZONE * height
-    hold_bars = _EVENT_HOLD_MIN_BARS
+    hold_bars = settings.EVENT_HOLD_MIN_BARS
     box_swings = [s for s in tape["swings"] if s["region"] == "box"]
     high_zone_peaks = [s for s in box_swings
                        if s["kind"] == "peak" and s["zone"] == "high"]
@@ -520,13 +520,18 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
 # The rail-episode read — layer 3 (chronological completion over a rail pair)
 # ---------------------------------------------------------------------------
 
-EPISODE_MAX_GAP_BARS = 2    # inside-run merge horizon (band-rails same-side convention)
-EPISODE_DRIFT_MIN_BARS = 3  # an open terminal S episode at least this long = drift
+# EPISODE_MAX_GAP_BARS / EPISODE_DRIFT_MIN_BARS moved to config/settings.py +
+# the frozen manifest (ONE-Event-Map Task 12, 2026-08-30, values unchanged):
+# they decide what an episode IS, so edits must rotate engine_config_version.
 
 
-def _zone_visit_runs(mask, max_gap=EPISODE_MAX_GAP_BARS):
+def _zone_visit_runs(mask, max_gap=None):
     """Merged True runs as inclusive ``(start, end)`` pairs; visits separated
-    by ``<= max_gap`` inside bars merge into one run."""
+    by ``<= max_gap`` inside bars merge into one run. ``None`` reads the
+    manifest knob lazily (AP-3/AP-10 — an import-time default would freeze a
+    copy no flag override could move)."""
+    if max_gap is None:
+        max_gap = settings.EPISODE_MAX_GAP_BARS
     idx = np.flatnonzero(mask)
     if len(idx) == 0:
         return []
@@ -646,7 +651,7 @@ def read_rail_episodes_arrays(highs, lows, closes, R, S, atr_val) -> dict:
 
     tol = settings.TOUCH_TOLERANCE_ATR * atr_val
     buf = settings.BOUNDARY_ATR_BUFFER * atr_val
-    horizon = EPISODE_MAX_GAP_BARS + 1
+    horizon = settings.EPISODE_MAX_GAP_BARS + 1
 
     episodes = []
     for rail, visit in (("S", lows <= S + tol), ("R", highs >= R - tol)):
@@ -820,7 +825,7 @@ def episode_sequence_stats(read, *, as_of_bar=None) -> dict:
     s_eps = [e for e in eps if e["rail"] == "S"]
     drift = bool(
         s_eps and s_eps[-1]["outcome"] == "open"
-        and s_eps[-1]["n_bars"] >= EPISODE_DRIFT_MIN_BARS)
+        and s_eps[-1]["n_bars"] >= settings.EPISODE_DRIFT_MIN_BARS)
     posture = any(e["terminal_posture"] for e in eps)
     profile = " ".join(_profile_mark(e) for e in eps)
     return {

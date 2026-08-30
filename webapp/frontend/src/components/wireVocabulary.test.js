@@ -9,10 +9,12 @@ import assert from 'node:assert/strict';
 import {
   DISPLAY_LABELS,
   EPISODE_LABELS,
+  POSITION_LABELS,
   ROOT_OUTCOME_LABELS,
   TRACE_STAGE_LABELS,
   TREND_STATE_LABELS,
   episodeLabel,
+  positionLabel,
 } from './wireVocabulary.js';
 
 test('the four pool labels are the operator-signed words, verbatim', () => {
@@ -22,6 +24,19 @@ test('the four pool labels are the operator-signed words, verbatim', () => {
   assert.equal(DISPLAY_LABELS.rescued.label, 'Above Resistance');
   assert.equal(DISPLAY_LABELS.band.label, 'Structure Break Tolerance');
   assert.equal(DISPLAY_LABELS.story.label, 'Event Map');
+});
+
+test('the four position labels are the operator-signed words, verbatim', () => {
+  // SIGNED 2026-08-30 — "at resistance" was his pick ("since the top of the
+  // base is the Resistance line"); "middle of the base" and touching-both are
+  // his phrases from the same sitting. Changing any of these requires the
+  // operator's word, not a refactor.
+  assert.equal(POSITION_LABELS.at_ceiling.label, 'At resistance');
+  assert.equal(POSITION_LABELS.mid_range.label, 'Middle of the base');
+  assert.equal(POSITION_LABELS.on_support.label, 'On support');
+  assert.equal(POSITION_LABELS.touching_both.label, 'Touching both rails');
+  // Unknown wire values fall through verbatim — visible, never blank.
+  assert.equal(positionLabel('future_value'), 'future_value');
 });
 
 test('the Event Map is never a chip — no admission-chip entry exists', () => {
@@ -50,6 +65,9 @@ test('every episode outcome/stage/trend code resolves to a label', () => {
 test('no retired jargon and no engineer CONSTANT_CASE in any operator-facing string', () => {
   const strings = [];
   for (const entry of Object.values(DISPLAY_LABELS)) {
+    strings.push(entry.label, entry.short ?? '');
+  }
+  for (const entry of Object.values(POSITION_LABELS)) {
     strings.push(entry.label, entry.short ?? '');
   }
   strings.push(...Object.values(EPISODE_LABELS));

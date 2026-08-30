@@ -87,9 +87,27 @@ def collect_root_anchors(eval_df: "pd.DataFrame", min_days: int,
     end = len(eval_df) - 1
 
     if np.isnan(sma200[end]) or closes[end] <= sma200[end]:
-        if seeding_trace is not None:
-            seeding_trace.append({"leg": "below_trend_sma"})
-        return []
+        # The bottoming-base lane's seeding half (BOTTOMING_BASE_LANE_ENABLED,
+        # dark — operator ruling 2026-08-29, MDT): the same reclaimed-50-day
+        # condition as the universe door's sma200 leg, so the two layers of
+        # the sma200 rule open together or not at all. The lane may open ONLY
+        # the known-below leg — a NaN 200-bar mean is a trend-UNKNOWN frame,
+        # not a bottoming base, and stays hard-refused (fail-closed doctrine;
+        # council review 2026-08-30). Fail-closed likewise on a short frame or
+        # NaN 50-bar mean; flag off is byte-identical. The HTF weekly/monthly
+        # presets pin the lane OFF — the ruling and its census cover the daily
+        # clock only.
+        lane_admits = False
+        if not np.isnan(sma200[end]) and settings.BOTTOMING_BASE_LANE_ENABLED:
+            bars = settings.BOTTOMING_SMA50_BARS
+            sma50_end = (float(np.mean(closes[end - bars + 1:end + 1]))
+                         if end + 1 >= bars else float("nan"))
+            lane_admits = bool(np.isfinite(sma50_end)
+                               and closes[end] >= sma50_end)
+        if not lane_admits:
+            if seeding_trace is not None:
+                seeding_trace.append({"leg": "below_trend_sma"})
+            return []
 
     min_move = settings.TREND_MIN_GAIN_PCT
     min_move_bars = settings.TREND_MIN_MOVE_BARS

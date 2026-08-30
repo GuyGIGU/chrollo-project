@@ -254,6 +254,30 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
+**The 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark — miss program
+2026-08-28).** An `sma50` refusal is admitted into chart reading when the dip
+under the 50-day is a bounded, recent, already-recovered event
+(`_sma50_dip_admits`): the last close at/above SMA_50 printed within
+`SMA50_DIP_MAX_SESSIONS` (25), and the close sits within `SMA50_DIP_MAX_ATR`
+(1.0) ATR_10 below it. The SMA_200 and YoY legs still gate behind it — a dip
+exception is never a downtrend exception — and geometry stays the only veto
+downstream. Built for the SKYT class (the drawn spring's own drag under the
+50-day; with the door held open its 2026-04-07 session elects a complete
+strict-pool structure): evidence + flip asks in
+[miss_program_2026-08.md](miss_program_2026-08.md). Flag off = byte-identical.
+
+**The bottoming-base lane (`BOTTOMING_BASE_LANE_ENABLED`, dark — operator
+ruling 2026-08-29).** An `sma200` refusal is admitted when the 50-day is
+reclaimed (`Close >= SMA_50`) — a bottoming base is read only once its
+intermediate trend has turned. The lane's second half opens the sma200 rule's
+OTHER layer under the same flag+condition: `collect_root_anchors`' 
+`below_trend_sma` seeding refusal defers when the last close sits at/above the
+mean of its trailing 50 closes. The two door lanes can never chain a
+both-smas-under chart through (pinned): a dip-excepted frame under the 50-day
+is refused at the sma200 leg. Built for MDT (fires 2026-07-14 tier S at his
+drawn R 82.83); evidence in [miss_program_2026-08.md](miss_program_2026-08.md).
+Flag off = byte-identical.
+
 `_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
@@ -279,6 +303,22 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 6. `resolve_phase_a()` — reconnects the local climax -> AR bridge whose reaction lands at the validated box start.
 
 If any required brick fails, the reader advances to the next root swing and tries again. If no complete A -> B -> (C?) -> D/LPS narrative holds, the ticker has no setup.
+
+**The contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark — miss program
+2026-08-28).** On a FULL refusal — every root refused; never after a
+cause-before-effect abstention, which is doctrinal and final —
+`read_structure` re-walks once under the one scoped override with
+`POWER_PLAY_STORY_FORM_ENABLED` armed, so the story pool may also admit
+through the resistance-contraction form (`event_map.resistance_contraction_admission`).
+Scoped to full refusals by construction, the rescue can never displace an
+existing election (the WCC wider-box re-election that refused the global form
+flip is unreachable), and it skips itself when the form is already armed (the
+species lane's scoped read). A rescued fire elects `elected_pool='story'` with
+the self-naming contraction profile. Trace records of the second pass carry
+`pass="contraction_rescue"`. Evidence (EGBN 01-07 tier A on his rails, PKE
+02-18 tier B; junk corpus clean) + flip asks in
+[miss_program_2026-08.md](miss_program_2026-08.md). Flag off = one walk,
+byte-identical.
 
 `consolidation.detect_boxes()` / `find_outer_box()` remain for diagnostics and low-level compatibility. The live pipeline consumes the `Structure` from `read_structure()` and adapts it into the legacy parent/inner shape internally so scoring, archive, and chart payloads stay stable.
 
@@ -681,6 +721,7 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 |   | • INSIDE | `S ≤ low ≤ R` → setup `LPS` | |
 |   | • OVERSHOOT_R | `R < low ≤ R + 0.5·ATR` → setup `LPS` (backtest of breakout) | |
 |   | • UNDERCUT_S | `S - 0.5·ATR ≤ low < S` → setup `REBOUND` (spring) | |
+| 6b | **Launch gate (INSIDE only)** | an INSIDE window whose high extension above R exceeds BOTH caps (`> 0.35 × box_height` AND `> 0.75 × ATR`) is refused as "window launched above resistance" — a late/off-structure pullback, not LPS-above-R behavior. **The ceiling-rest exception (`LPS_CEILING_REST_ENABLED`, dark — operator ruling 2026-08-29, NOK):** the straddle passes when the REST lands ON the ceiling, `support_low ≥ R − LPS_CEILING_REST_MAX_BELOW_R_ATR (0.3) × ATR` — the launch above R is then the preceding advance's own top giving back to the rail (the drawn corpus's most common terminal form). The 0.3 bar is drawn-evidence-placed (DSGN 0.010 / MATX 0.087 / MSGS 0.148 / NOK 0.241 vs junk ENIC's 0.314 — a stated razor, pinned by the negative-corpus flag-on leg). A launch-above window resting deeper stays refused. Fail-closed on a bad ATR; flag off = byte-identical | `LPS_INSIDE_HIGH_EXTENSION_BOX_MAX`, `LPS_INSIDE_HIGH_EXTENSION_ATR_MAX`, `LPS_CEILING_REST_*` |
 | 7 | **Pullback depth (profile-normalized)** | `pullback_profile = (first_high - elected_low) / profile_unit`, where `profile_unit = max(base_range_threshold, 0.15 × box_height)`. INSIDE/UNDERCUT_S need `>= 0.40`; ordinary OVERSHOOT_R needs `>= 1.25`; a long shallow above-R shelf may use the normal `0.40` floor when price is still sitting low on R. All zones cap at `<= 4.50`. Flag-on, a window failing this gate may still complete as a **holding shelf** (see above) | `LPS_PROFILE_BOX_FRACTION_FLOOR`, `LPS_PULLBACK_PROFILE_*` |
 | 8 | **Terminal-low guard** | last-bar `Low` must be within `0.10 × profile_unit` of the lowest Low in the candidate window, except for a compact multi-bar rising support shelf whose early low remains inside the support side of the box. That shelf rescue is itself rejected as a markup leg when its net advance `(last Close − first Close) / box_height > LPS_RESCUE_MAX_ADVANCE_BOX` — a genuine ascending-support coil is gradual, not a steep launch off support (OHI-class). | `LPS_TERMINAL_LOW_TOL_PROFILE = 0.10`, `LPS_RESCUE_MAX_ADVANCE_BOX = 0.21` |
 | 9 | **Spread (core)** | every LPS bar's `Spread (High - Low)` must be `<= profile_unit × 1.25`; the final bar may widen over the prior bar by at most `0.35 × profile_unit` | `LPS_SPREAD_MAX_PROFILE_MULT`, `LPS_SPREAD_EXPANSION_MAX_PROFILE` |
@@ -1162,13 +1203,18 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `0eef903a8ee3f58b4b86a3469d58d9a136e212f24f4af8e7d11a379d760839da`_
+_engine_config_version: `08c981629923c30e5e475144193792f2f258bda0c3a2ddb5425ea152b7c194ce`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
 MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
+SMA50_DIP_EXCEPTION_ENABLED = False
+SMA50_DIP_MAX_SESSIONS = 25
+SMA50_DIP_MAX_ATR = 1.0
+BOTTOMING_BASE_LANE_ENABLED = False
+BOTTOMING_SMA50_BARS = 50
 MIN_BASE_DAYS = 20
 MAX_BOX_WIDTH = 0.18
 CRASH_FILTER_MULT = 0.7
@@ -1243,6 +1289,8 @@ LPS_AFTER_SPRING_ENABLED = True
 LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
+LPS_CEILING_REST_ENABLED = False
+LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 TREND_TERMINAL_BOX_GATE_ENABLED = False
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23
@@ -1250,6 +1298,7 @@ BAND_EVENT_MIN_BARS = 2
 BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
 STORY_POOL_ENABLED = True
+CONTRACTION_RESCUE_ENABLED = False
 NEAR_MISS_MAX_QUANTA = 1
 NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
@@ -1316,6 +1365,10 @@ STORY_COMPLETED_TESTS_FULL = 3
 STORY_ALTERNATIONS_FULL = 2
 STORY_UNREADABLE_NAN_BARS = 5
 STORY_UNREADABLE_ZONE_COVERAGE = 0.5
+EPISODE_MAX_GAP_BARS = 2
+EPISODE_DRIFT_MIN_BARS = 3
+EVENT_HOLD_MIN_BARS = 6
+MINI_POSITION_TOL_ATR = 0.5
 TA_WARN_TERMINAL_DRIFT = 1.0
 TA_GRADE_WARNING_FLOOR = 0.5
 LPS_SHRINK_MIN_TESTS = 3
@@ -1376,8 +1429,8 @@ HTF_CONTEXT_ENABLED = True
 DAILY_STRUCTURE_PERIOD = '2y'
 HTF_STAGE_MA = 30
 HTF_STAGE_MA_SLOPE_BARS = 4
-HTF_WEEKLY_WINDOWS = {'MIN_BASE_DAYS': 6, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 5, 'TREND_PRIOR_LOOKBACK': 26, 'LOCAL_PEAK_BARS': 8, 'ROOT_TREND_SMA': 30, 'PHASE_B_ATR_WINDOW': 8, 'AR_MAX_BARS': 4, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 3, 'PIVOT_ORDER_THRESHOLD': 12, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 2, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 4, 'BIN_C_RECOVERY_BARS_MAX': 3, 'BIN_C_LINGER_BARS_MAX': 4, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 2}
-HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 3, 'TREND_PRIOR_LOOKBACK': 12, 'LOCAL_PEAK_BARS': 4, 'ROOT_TREND_SMA': 10, 'PHASE_B_ATR_WINDOW': 6, 'AR_MAX_BARS': 3, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 2, 'PIVOT_ORDER_THRESHOLD': 8, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 1, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 2, 'BIN_C_RECOVERY_BARS_MAX': 2, 'BIN_C_LINGER_BARS_MAX': 3, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 1}
+HTF_WEEKLY_WINDOWS = {'MIN_BASE_DAYS': 6, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 5, 'TREND_PRIOR_LOOKBACK': 26, 'LOCAL_PEAK_BARS': 8, 'ROOT_TREND_SMA': 30, 'PHASE_B_ATR_WINDOW': 8, 'AR_MAX_BARS': 4, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 3, 'PIVOT_ORDER_THRESHOLD': 12, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 2, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 4, 'BIN_C_RECOVERY_BARS_MAX': 3, 'BIN_C_LINGER_BARS_MAX': 4, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 2, 'BOTTOMING_BASE_LANE_ENABLED': False}
+HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 3, 'TREND_PRIOR_LOOKBACK': 12, 'LOCAL_PEAK_BARS': 4, 'ROOT_TREND_SMA': 10, 'PHASE_B_ATR_WINDOW': 6, 'AR_MAX_BARS': 3, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 2, 'PIVOT_ORDER_THRESHOLD': 8, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 1, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 2, 'BIN_C_RECOVERY_BARS_MAX': 2, 'BIN_C_LINGER_BARS_MAX': 3, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 1, 'BOTTOMING_BASE_LANE_ENABLED': False}
 POWER_PLAY_PRESET_ENABLED = True
 POWER_PLAY_STORY_FORM_ENABLED = False
 POWER_PLAY_WINDOWS = {'MIN_BASE_DAYS': 8, 'PIP_MACRO_MIN_BASE_BARS': 8}
@@ -1425,7 +1478,7 @@ The live reader calls `find_inner_box()` ([engine_alpha/structure/bricks.py](../
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless. **Operator ruling (2026-07-20):** "nested" means found in the *vicinity* of the parent at a more advanced point of the accumulation, never bounded by the parent's original rails — the range's contraction naturally forms a new mini process with its **own** R and S, and a mini-consolidation forming ON the parent's Resistance, treating it as its new Support, is a common variation (8/17 live inners sit partly above parent R — measured 2026-07-19, all sanctioned).
 
-**Position attribute (2026-08-23, the unification ruling executed).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in [engine_alpha/structure/inner_box.py](../engine_alpha/structure/inner_box.py): `at_ceiling` / `mid_range` / `on_support`, tolerance `MINI_POSITION_TOL_ATR` (1.0) candidate-ATRs, inclusive band edges, ceiling evaluated first (the ruled higher-quality position wins a degenerate parent deterministically). Stamped ONCE inside `select_inner_box` — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Measure-only and engine-internal: nothing serializes `position` until the story-chain program's archive family lands (Task 8, blocked on the operator's naming ruling); the tolerance moves to `config/settings.py` + the frozen manifest in that same change.
+**Position attribute (2026-08-23 unification ruling; re-ruled 2026-08-29/30, the rails-are-areas + touching-both signings).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in [engine_alpha/structure/inner_box.py](../engine_alpha/structure/inner_box.py): the ruled FOUR-value closed set `at_ceiling` / `mid_range` / `on_support` / `touching_both` (the ONE declaration is `RULED_POSITION_VALUES` beside the producer), tolerance `MINI_POSITION_TOL_ATR` (0.5 — the ruled ±0.5-ATR rail area, promoted to `config/settings.py` + the frozen manifest at the Task-12 seam) in candidate-ATRs, inclusive band edges. A structure engaging BOTH bands reads `touching_both` — the 2026-08-30 honesty valve that replaced the ceiling-first tiebreak: a base about one bar tall carries no separating position information and must never fabricate an at-resistance read. Stamped ONCE inside `select_inner_box` (with an EC-19 write-time assertion against the closed set, and the raw signed ATR distances riding beside the band) — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Serialized since the ONE-Event-Map Task-10 seam: the `inner_position` (+ raw distances) archive family, the position TOKEN on the dashboard wire, and four engine-resolved position chips under the operator-signed labels (decisions.md 2026-08-30; `wireVocabulary.js POSITION_LABELS`). Two sibling instruments read this event: the dark `event_vocabulary.py` projection folds it as the `mini_consolidation` tape record, and `tools/reader_pin.py` pins the band's literal grid in its committed 88-chart baseline.
 
 The key difference between `inner_zigzag` and `phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 

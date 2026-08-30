@@ -2,7 +2,10 @@
 
 The 2026-08-23 unification ruling: the ceiling shelf and the inner
 mini-consolidation are ONE event; position is a measured attribute with a
-stated banding convention (inclusive ties, ceiling evaluated first). These
+stated banding convention — inclusive ties, and a structure engaging BOTH
+bands reads touching_both (the 2026-08-30 ruling that replaced the retired
+ceiling-first tiebreak: a base about one bar tall carries no separating
+position information and must never fabricate an at-resistance read). These
 tests pin the convention so a boundary-sitting structure can never band
 differently between runs or between the live reader and the diagnostic
 mirror (both stamp at the ONE select_inner_box point).
@@ -38,26 +41,35 @@ def _parent_box(**overrides):
     return EquilibriumBox(**values)
 
 
-# --- the pure banding convention (parent R=110, S=100, ATR=2 -> tol=2) ------
+# --- the pure banding convention (parent R=110, S=100, ATR=2 -> tol=1) ------
+# Band-edge values updated at the 2026-08-30 rail-area seam (decisions.md:
+# the area is +/-0.50 ATR, so MINI_POSITION_TOL_ATR 1.0 -> 0.5; tol here =
+# 0.5 * ATR 2.0 = 1.0). Every expectation below is derived from that ruled
+# arithmetic; the refusal tests further down are untouched — refusals never
+# move (EC-29 seam discipline).
 
 def test_ceiling_band_is_inclusive_at_the_tolerance_edge():
-    assert mini_consolidation_position(109.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
+    assert mini_consolidation_position(109.5, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
     # exactly parent_r - tol: the tie lands IN the band (stated convention)
-    assert mini_consolidation_position(108.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
+    assert mini_consolidation_position(109.0, 104.0, 110.0, 100.0, 2.0) == "at_ceiling"
     # one cent below the band edge: no longer the ceiling
-    assert mini_consolidation_position(107.99, 104.0, 110.0, 100.0, 2.0) != "at_ceiling"
+    assert mini_consolidation_position(108.99, 104.0, 110.0, 100.0, 2.0) != "at_ceiling"
 
 
 def test_support_band_is_inclusive_and_mid_range_is_the_remainder():
+    assert mini_consolidation_position(106.0, 100.5, 110.0, 100.0, 2.0) == "on_support"
     assert mini_consolidation_position(106.0, 101.0, 110.0, 100.0, 2.0) == "on_support"
-    assert mini_consolidation_position(106.0, 102.0, 110.0, 100.0, 2.0) == "on_support"
-    assert mini_consolidation_position(106.0, 102.01, 110.0, 100.0, 2.0) == "mid_range"
+    assert mini_consolidation_position(106.0, 101.01, 110.0, 100.0, 2.0) == "mid_range"
 
 
-def test_degenerate_parent_lands_at_the_ceiling_deterministically():
-    # tol=5 on a 4-point parent: BOTH bands hold; the ruled higher-quality
-    # position (ceiling first) wins, every run.
-    assert mini_consolidation_position(100.0, 100.5, 104.0, 100.0, 5.0) == "at_ceiling"
+def test_both_bands_read_touching_both_never_a_fabricated_ceiling():
+    # tol=2.5 on a 4-point parent: BOTH bands hold. Ruled 2026-08-30: this is
+    # its own value — the position carries no separating information when the
+    # base is about a bar's worth of height ("consider it as they were
+    # touching both"), so it must never read as a chosen ceiling position.
+    assert mini_consolidation_position(102.0, 101.0, 104.0, 100.0, 5.0) == "touching_both"
+    # A mini spanning a WIDE parent rail-to-rail is the same honest read.
+    assert mini_consolidation_position(109.5, 100.5, 110.0, 100.0, 2.0) == "touching_both"
 
 
 def test_unusable_inputs_refuse_to_none_never_fabricate():
@@ -79,8 +91,10 @@ def test_live_reader_stamps_position_from_the_parent_rails():
                          R=110.0, S=100.0)
     inner = find_inner_box(df, parent, 1.0)
     assert inner is not None
-    # The tight sub-range tops ~110 on a ~2-point candidate ATR: the ceiling.
-    assert inner.position == "at_ceiling"
+    # This inner spans the parent rail-to-rail (elected R/S = 110/100, both
+    # raw distances 0.0): under the 2026-08-30 ruling that is the honest
+    # touching-both read, not a chosen ceiling position.
+    assert inner.position == "touching_both"
     assert inner.detection.get("position") == inner.position
 
 

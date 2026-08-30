@@ -309,6 +309,23 @@ TAGS: tuple[TagSpec, ...] = (
     TagSpec("worked_equilibrium", "ge_setting", field="traversal_density",
             setting="TRAVERSAL_QUALITY_DENSITY_FULL",
             detail=("traversal_density",)),
+    # The mini-consolidation POSITION (rails-are-areas rulings 2026-08-29/30;
+    # display labels operator-signed 2026-08-30). Four eq-chips over ONE
+    # closed-set fact — at most one fires per row, and it is a DESCRIPTOR,
+    # never a ranking (the states ruling: none outranks another). The raw
+    # signed rail distances ride the entry for the tooltip.
+    TagSpec("position_at_ceiling",    "eq", field="inner_position",
+            value="at_ceiling",
+            detail=("inner_position_r_atr", "inner_position_s_atr")),
+    TagSpec("position_mid_range",     "eq", field="inner_position",
+            value="mid_range",
+            detail=("inner_position_r_atr", "inner_position_s_atr")),
+    TagSpec("position_on_support",    "eq", field="inner_position",
+            value="on_support",
+            detail=("inner_position_r_atr", "inner_position_s_atr")),
+    TagSpec("position_touching_both", "eq", field="inner_position",
+            value="touching_both",
+            detail=("inner_position_r_atr", "inner_position_s_atr")),
 )
 
 TAG_IDS: frozenset = frozenset(t.id for t in TAGS)

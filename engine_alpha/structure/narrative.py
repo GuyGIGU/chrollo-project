@@ -40,6 +40,12 @@ from engine_alpha.structure.phase_d import (
 # candidate swings are exhausted; this just caps a pathological loop.
 _MAX_ANCHORS = 64
 
+# The cause-before-effect veto is a doctrinal ABSTAIN ("no setup at all" —
+# operator ruling 2026-07-20), not a mere failure to elect. The walk returns
+# this sentinel so the contraction-rescue wrapper below can tell the two apart
+# without widening the public contract: a vetoed read is never re-walked.
+_CAUSE_VETOED = object()
+
 # The spine reads these fields off the (duck-typed) brick results, so it stays
 # decoupled from the exact dataclasses ``bricks`` defines:
 #   root   : .climax_bar  .ar_bar  .R  .S
@@ -337,6 +343,21 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     """Walk candidate root swings oldest-first; return the first that yields a
     complete A -> B -> (C?) -> D narrative, or ``None`` if no coherent story holds.
 
+    ``CONTRACTION_RESCUE_ENABLED`` (dark, default off — the miss program
+    2026-08-28): when the whole walk elects NOTHING (every root refused — not
+    a cause-before-effect abstention, which is doctrinal and final), the read
+    is re-walked ONCE with the species resistance-contraction form armed
+    inside the story pool (``event_map.resistance_contraction_admission``,
+    the operator-ruled judgment whose EGBN/PKE conversions he ruled real on
+    2026-08-19). Scoped to full refusals BY CONSTRUCTION, the rescue can
+    never displace an existing election, re-frame a box, or move a fire date
+    on a ticker that already reads — the WCC wider-box re-election that
+    refused the global form flip is unreachable from here. A rescued fire
+    elects through the story pool and stamps ``elected_pool='story'`` with
+    the self-naming contraction profile ("contracting at/above resistance |
+    ..."), so the cohort stays separable in the archive forever. Flag off =
+    one walk, byte-identical.
+
     ``bricks`` is the brick-validator provider; it defaults to the real
     ``engine_alpha.structure.bricks`` (the calibrated detectors). Inject a fake to
     unit-test the orchestration in isolation.
@@ -364,6 +385,37 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     ``None`` (the live flag-off default) keeps every call byte-identical —
     injected fakes without the parameter included.
     """
+    result = _walk_structure(df, atr, bricks=bricks, trace=trace,
+                             near_miss=near_miss)
+    if isinstance(result, Structure):
+        return result
+    if result is _CAUSE_VETOED:
+        return None                      # doctrinal abstention — never rescued
+    if not settings.CONTRACTION_RESCUE_ENABLED:
+        return None
+    if getattr(settings, "POWER_PLAY_STORY_FORM_ENABLED", False):
+        # The form is already armed (the species lane's scoped read, or an
+        # instrument's flag_capture) — a re-walk would be the same walk.
+        return None
+    from engine_alpha.structure.htf import window_override  # noqa: PLC0415 — rescue only
+    marker = len(trace) if trace is not None else 0
+    # near_miss deliberately None on the rescue pass: the recorder already
+    # booked this frame's refusals on the first walk over the same framings —
+    # a second pass would double-count the lane's pinned per-pool records.
+    with window_override({"POWER_PLAY_STORY_FORM_ENABLED": True}):
+        rescued = _walk_structure(df, atr, bricks=bricks, trace=trace,
+                                  near_miss=None)
+    if trace is not None:
+        for rec in trace[marker:]:
+            rec["pass"] = "contraction_rescue"
+    return rescued if isinstance(rescued, Structure) else None
+
+
+def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
+    """The one oldest-first root walk (``read_structure`` without the rescue
+    wrapper). Returns a ``Structure``, ``None`` (full refusal — every root
+    refused), or ``_CAUSE_VETOED`` (the cause-before-effect abstention, which
+    the wrapper must treat as final)."""
     if bricks is None:
         from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
@@ -513,7 +565,7 @@ def read_structure(df, atr, *, bricks=None, trace=None,
                         "box_trend": cause.box_trend,
                         "lps_tightness_ratio": cause.lps_tightness_ratio,
                     }
-                return None
+                return _CAUSE_VETOED
 
         # Phase B ends at the FIRST terminator: the spring tip if there is one,
         # else the LPS start. Phase D opens at the best right-side evidence we

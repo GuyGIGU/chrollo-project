@@ -50,6 +50,13 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "MIN_PRICE",
     "MIN_VOLUME_50D",
     "MIN_YEARLY_RETURN",
+    # The 50-day dip exception (miss program 2026-08-28, dark)
+    "SMA50_DIP_EXCEPTION_ENABLED",
+    "SMA50_DIP_MAX_SESSIONS",
+    "SMA50_DIP_MAX_ATR",
+    # The bottoming-base lane (miss program, operator ruling 2026-08-29, dark)
+    "BOTTOMING_BASE_LANE_ENABLED",
+    "BOTTOMING_SMA50_BARS",
     # Phase 2 — consolidation base parameters
     "MIN_BASE_DAYS",
     "MAX_BOX_WIDTH",
@@ -150,6 +157,9 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_HOLDING_SHELF_ENABLED",
     "LPS_SHELF_LENGTH_MIN",
     "LPS_SHELF_MIN_LOW_POS_BOX",
+    # Ceiling-rest launch-gate exception (miss program, operator ruling 2026-08-29, dark)
+    "LPS_CEILING_REST_ENABLED",
+    "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     "TREND_TERMINAL_BOX_GATE_ENABLED",
     # Deep-excursion pair events (Event Map Task 11, dark)
@@ -160,6 +170,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BAND_EVENT_MAX_BARS",
     # Story-rescue last-resort pool (Event Map program Task 8, dark)
     "STORY_POOL_ENABLED",
+    # Contraction-rescue lane at full-refusal scope (miss program 2026-08-28, dark)
+    "CONTRACTION_RESCUE_ENABLED",
     # Near-miss lane ruled-form constants (Task 6 ruling 2026-07-26 —
     # measure-only telemetry; listed with the ruling so a re-ruling rotates
     # engine_config_version from day one) + the collector flag (Task 7, dark;
@@ -255,6 +267,12 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Zero-by-geometry leg of the story-input law (2026-08-10 declared seam):
     # the coverage floor below which all-zero episode counts read ABSENT.
     "STORY_UNREADABLE_ZONE_COVERAGE",
+    # The ONE-Event-Map Task-12 rotation (2026-08-30): reader-behavior
+    # constants that decide what an archived event/sentence IS.
+    "EPISODE_MAX_GAP_BARS",
+    "EPISODE_DRIFT_MIN_BARS",
+    "EVENT_HOLD_MIN_BARS",
+    "MINI_POSITION_TOL_ATR",
     "TA_WARN_TERMINAL_DRIFT",
     "TA_GRADE_WARNING_FLOOR",
     # Wave-1 charter measurements (task-7 batch — fourth declared seam)

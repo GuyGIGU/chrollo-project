@@ -80,6 +80,62 @@ REAL trading range where buyers and sellers actually touched, stopped and pivote
 Perfection is rare — always take the next-best wrap. It is a rail-selection rule only,
 never an argument for or against multi-structure (chain) reads.
 
+### The rails are AREAS — the position vocabulary and the one event language
+
+**(Operator rulings 2026-08-29/30, decisions.md; executed by the ONE-Event-Map program,
+`docs/one_event_map_program_2026-08.md`.)**
+
+A rail is a line **treated like an area — a thin area but still**. Ruled and then
+measured on the drawn corpus: the area is **±0.50 ATR around the line, symmetric,
+identical on R and S, in ATR units** (it does not scale with the consolidation's
+height — the operator's eye and a 1.8× cross-population test agree). That is the
+incumbent `TOUCH_TOLERANCE_ATR`, which this ruling finally evidences. Hard limit:
+the width is **position vocabulary only** — rests and spikes do NOT separate by
+distance (measured 22.3% contradiction between the readers; junk actually pierces
+its rails 3.6× LESS than drawn boxes), so a 0.5-ATR allowance used as a gate,
+veto, rescue or junk filter is Tested-DEAD (twice).
+
+**Position is FOUR values, not five** — `at_ceiling` / `mid_range` / `on_support` /
+`touching_both` (`inner_box.mini_consolidation_position`, tolerance = the ruled
+area; display words operator-signed 2026-08-30: “at resistance” / “middle of the
+base” / “on support” / touching both). At resistance, high in the range, semi
+above, resting on it: ONE position. Support mirrors it — slight pokes below and
+holds a little under are inside the support area and count as respect (“holding
+AT the support essentialy proving that this line is infact a support line”),
+with a graded preference — never a penalty — for all/most bars staying inside.
+The fourth value is the honesty valve (ruled 2026-08-30): when the rest engages
+BOTH rail areas at once — the base is about a bar’s worth of height, or the
+rest spans it rail-to-rail — the position carries no separating information, so
+it reads **touching both** rather than a fabricated “at resistance”; this is
+what separates a base that genuinely holds tight in the upper vicinity from one
+where that read is an artifact of the base’s own height.
+
+**The ceiling area has three visual STATES** — resting on (whole bar above, not
+part of a bigger swing upwards) · at (touch, pivot back) · semi dwelling
+(straddling, poking through). None outranks another; **“the bars after wards
+determine the meaning”**: pivots back into the range — including from above the
+line — are respect; bars clearly continuing up are a **departure** (markup); at
+the right edge, where afterwards does not yet exist, the read is honestly
+**undetermined** — never pre-typed (no-lookahead). Measured on the drawn corpus:
+every harshness-by-position rule flags the operator's own boxes harder than junk
+(drawn boxes ENGAGE the ceiling ~2× more than junk in every state), and drawn
+whole-bar-above runs resolved up or right-edge with zero crash-backs.
+
+**One event language over two preserved geometries.** The readers keep their
+deliberately different yardsticks (the episode read: ATR-fixed zones, close-basis
+breach; the wave read: box-relative zones, extremes-basis breach — AP-8 stands);
+what unifies them is the projection layer (`event_vocabulary.py`): one folded
+tape whose records carry the shared word, the verdict axis (held / breached /
+open / unreadable — "breached" is the operator's official term for price
+crossing a boundary, ONE word for both rails; what a breach means is context's
+job), the span's declared bar ORIGIN, and the BASIS that produced the
+verdict — so two readers may still legally disagree, but never invisibly. The
+projection receives reader OUTPUT only — never bars, rails or ATR — because a
+naming layer that can measure becomes a fourth competing reader. The
+mini-consolidation (the operator's shelf — the REST pattern; the retired term
+“holding shelf” survives only as frozen stored vocabulary) rides the tape with
+its position attribute and raw rail distances.
+
 ### The event catalog — one entry per chart event
 
 The engine reads a chart as a chronological sequence of **events** — the same events the
@@ -507,6 +563,18 @@ The freshness veto is the **Stale-Support Reject** (the `descent_tail` family): 
 still descending into its low is not an LPS yet. The full gate table lives in "Phase 3 —
 LPS Detection".
 
+**The ceiling rest — the drawn corpus's most common terminal shape, sanctioned dark
+(operator ruling 2026-08-29, NOK).** The Corpus Study measured what the catalog had
+under-modeled: 30 of 36 drawn LPS windows rest at the CEILING — the after-advance
+giveback landing ON the rail, wick pokes above R included. The detector's launch gate
+refused exactly this straddle (an INSIDE window that "launched above resistance"),
+reading it as a late off-structure pullback. The dark exception sanctions it ONLY when
+the rest itself sits on the rail (within 0.3 ATR under R — the bar placed by the drawn
+class: DSGN/MATX/MSGS/NOK rest at 0.010–0.241, the nearest labeled junk at 0.314); a
+launch-above window resting any deeper stays refused as before. This is a completion-
+form refinement inside the one LPS detector, never a sibling detector; flip and the
+razor's eyeball are the operator's.
+
 **One LPS per setup (operator ruling 2026-08-09).** A setup has a SINGLE last point of
 support — the chronological terminal one, in Phase D, right of the V (see the spring
 entry's cause-before-effect rule). The earlier support-test staircase the chart used to
@@ -703,6 +771,21 @@ recovery — is the LPS, which keeps its own name and its own detection path. Th
 contraction form is PROVISIONAL until the operator's species ruling sheets calibrate it;
 the species' trend-side theory (the transition zone — trend end and base open as one
 short zone) enters with the trend-state layer, not here.
+
+**The contraction rescue — the form's one sanctioned road into the paying read
+(dark; miss program 2026-08-28).** The 2026-08-19 refusal of the global form flip
+named its own successor: converting EGBN/PKE (both conversions operator-ruled
+real) "needs its own program with a real A/B", because the global flip also
+re-elected WCC into a 2.2×-wider box and moved pinned fire dates. That program's
+answer is a SCOPE, not a threshold: the form is consulted only when the whole
+walk has already refused everything — a second walk on full refusal, never after
+a cause-before-effect abstention. At that scope a rescued fire can only ever ADD
+a read where there was none; no existing election, framing, or fire date is
+reachable. The admission stays the same thin ruled judgment outside the reader,
+and a rescued fire records itself through the story pool with the
+behavior-naming profile. Dark until the operator's flip (which re-seals the
+must-fire ratchet for EGBN/PKE); the evidence record is
+[miss_program_2026-08.md](miss_program_2026-08.md).
 
 **The RULED story-pool admission form (operator ruling 2026-07-25 — Option A of the census
 menu; THIS paragraph is the canonical spec the pool predicate must match, pinned by test):**

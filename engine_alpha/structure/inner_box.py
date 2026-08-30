@@ -30,15 +30,19 @@ __all__ = [
     "mini_consolidation_position",
     "select_inner_box",
     "inner_zigzag",
+    "RULED_POSITION_VALUES",
     "_detect_inner_phase_b_start",
 ]
 
-# Position tolerance for the mini-consolidation's rail-proximity bands, in
-# candidate-ATR units. A module constant (not a settings knob) while the
-# attribute is measure-only and unserialized; it moves to config/settings.py +
-# the frozen manifest in the change that first archives or consults it
-# (story-chain program Task 8 — the EC-8 road).
-MINI_POSITION_TOL_ATR = 1.0
+# The position tolerance moved to settings.MINI_POSITION_TOL_ATR + the frozen
+# manifest (ONE-Event-Map Task 12, 2026-08-30; value = the RULED 0.5, set at
+# the 2026-08-30 rail-area seam). Read lazily below (AP-3/AP-10).
+
+# The ONE declaration of the ruled closed set (EC-19/EC-33; council review
+# 2026-08-30, Leach): the producer, the stamping-point assertion, the archive
+# CHECK's test, and the tag rules all describe THIS tuple. A vocabulary change
+# is an operator ruling + a deliberate edit here — never a drifted copy.
+RULED_POSITION_VALUES = ("at_ceiling", "mid_range", "on_support", "touching_both")
 
 
 def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
@@ -51,26 +55,38 @@ def mini_consolidation_position(inner_r, inner_s, parent_r, parent_s, atr_val):
     This is that acknowledgment: a pure measured attribute, no points, no
     gating (measure-first; the quality nuance is graded later, if ever).
 
-    Closed set: ``"at_ceiling"`` / ``"mid_range"`` / ``"on_support"`` — names
-    PROPOSED pending the operator's naming ruling; nothing serializes them
-    until program Task 8 lands (they are engine-internal until then).
+    Closed set: ``"at_ceiling"`` / ``"mid_range"`` / ``"on_support"`` /
+    ``"touching_both"`` — RULED the position vocabulary 2026-08-29/30
+    (rails-are-areas: three values, not five) + the touching-both ruling
+    2026-08-30. Serialized to ``setup_archive.inner_position`` (+ the raw
+    signed distances) since the ONE-Event-Map Task-10 seam; display labels
+    operator-signed 2026-08-30 (wireVocabulary.js POSITION_LABELS).
 
     Stated conventions (never implicit): the tolerance is
     ``MINI_POSITION_TOL_ATR`` candidate-ATRs; band comparisons are inclusive
-    (a rail-touching tie lands IN the band); the ceiling band is evaluated
-    FIRST, so a degenerate parent that satisfies both bands lands at the
-    ceiling — the ruled higher-quality position — deterministically. Returns
-    None when any input is unusable (refused, never fabricated).
+    (a rail-touching tie lands IN the band); a structure satisfying BOTH bands
+    reads ``touching_both`` — operator ruling 2026-08-30: differentiate a base
+    that genuinely holds tight in the upper vicinity from one where the read
+    is an artifact of the consolidation being about a bar's worth of height
+    ("consider it as they were touching both") — its position carries no
+    separating information, so it gets its own honest name, never a fabricated
+    ceiling read (this replaced the ceiling-first tiebreak the same day it was
+    documented). Returns None when any input is unusable (refused, never
+    fabricated).
     """
     vals = (inner_r, inner_s, parent_r, parent_s, atr_val)
     if any(v is None for v in vals):
         return None
     if not all(math.isfinite(float(v)) for v in vals) or float(atr_val) <= 0:
         return None
-    tol = MINI_POSITION_TOL_ATR * float(atr_val)
-    if float(inner_r) >= float(parent_r) - tol:
+    tol = settings.MINI_POSITION_TOL_ATR * float(atr_val)
+    at_r = float(inner_r) >= float(parent_r) - tol
+    at_s = float(inner_s) <= float(parent_s) + tol
+    if at_r and at_s:
+        return "touching_both"
+    if at_r:
         return "at_ceiling"
-    if float(inner_s) <= float(parent_s) + tol:
+    if at_s:
         return "on_support"
     return "mid_range"
 
@@ -229,8 +245,27 @@ def select_inner_box(eval_df, parent_pbs, base_len, bw_outer, n,
                                  parent_win['Low'].values)
         winner["position"] = mini_consolidation_position(
             winner["R"], winner["S"], parent_r, parent_s, atr_val)
+        # EC-19 leg 2 (write-time assertion at the single stamping point, the
+        # _pool_label shape): the live DB's ADD COLUMN path cannot carry the
+        # CHECK, so an out-of-vocabulary label must die HERE, loudly.
+        if winner["position"] is not None and winner["position"] not in RULED_POSITION_VALUES:
+            raise ValueError(
+                f"inner position {winner['position']!r} is outside the ruled "
+                f"closed set {RULED_POSITION_VALUES}")
+        # The RAW signed distances ride beside the band (McKinney, PLAN Task 6):
+        # the band is re-rulable offline against archived rows only if the
+        # scalar it was banded from is recorded with it. Same refusal law as
+        # the band — no position, no distances, never a fabricated number.
+        if winner["position"] is not None:
+            winner["position_distances"] = {
+                "r_atr": (float(winner["R"]) - float(parent_r)) / float(atr_val),
+                "s_atr": (float(winner["S"]) - float(parent_s)) / float(atr_val),
+            }
+        else:
+            winner["position_distances"] = None
     else:
         winner["position"] = None
+        winner["position_distances"] = None
     return winner
 
 

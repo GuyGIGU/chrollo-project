@@ -45,6 +45,24 @@ export const DISPLAY_LABELS = {
   // the grading rework will grade setups BY their event maps — never a chip.)
 };
 
+// Mini-consolidation position (rails-are-areas rulings 2026-08-29/30): the
+// wire/archive enum is FROZEN — at_ceiling / mid_range / on_support /
+// touching_both. Display words operator-SIGNED 2026-08-30: "at resistance"
+// chosen by him over "top of the base" ("the top of the base is the
+// Resistance line"); "middle of the base" = clear of both rails; touching
+// both = the base is about a bar's worth of height (or the mini spans it
+// rail-to-rail), so the position carries no separating information.
+export const POSITION_LABELS = {
+  at_ceiling: { label: 'At resistance', short: 'at R' },
+  mid_range: { label: 'Middle of the base', short: 'mid-base' },
+  on_support: { label: 'On support', short: 'on S' },
+  touching_both: { label: 'Touching both rails', short: 'both rails' },
+};
+
+export function positionLabel(value) {
+  return POSITION_LABELS[value]?.label ?? value;
+}
+
 // Rail-episode outcomes (Surface the Read): the wire enum is frozen
 // (completed/failed/unreadable/open per rail); the display names are the
 // RULED forms from strategy_alpha's episode table. Keyed "RAIL:outcome"

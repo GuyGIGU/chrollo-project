@@ -209,6 +209,10 @@ def _extract_chart_data(data, results_df, tickers):
                 'inner_start_bar': inner_start_local,
                 'inner_end_bar': inner_end_local,
                 'inner_source': row.get('_inner_source'),
+                # Position vocabulary (operator-signed labels 2026-08-30;
+                # closed set, resolved engine-side — EC-28: the frontend only
+                # looks the value up in wireVocabulary's POSITION_LABELS).
+                'inner_position': row.get('_inner_position'),
                 'inner_search_start_bar': _local_bar(row.get('_inner_search_start_bar')),
                 'inner_climax_bar': _local_bar(row.get('_inner_climax_bar')),
                 'inner_reaction_bar': _local_bar(row.get('_inner_reaction_bar')),

@@ -252,7 +252,11 @@ def test_json_output_refuses_the_sealed_dirs(tmp_path):
                    # The story-chain keep/junk sheet, sealed at creation
                    # (EC-44; the operator's verdicts land in it).
                    os.path.join(str(ROOT), "docs", "story_chain_candidates_2026-08.md"),
-                   os.path.join(str(ROOT), "docs", "Story_Chain_Candidates_2026-08.MD")):
+                   os.path.join(str(ROOT), "docs", "Story_Chain_Candidates_2026-08.MD"),
+                   # The corpus deep study — the evidence record the 2026-08-28
+                   # decisions rows cite (sealed at the 2026-08-30 review).
+                   os.path.join(str(ROOT), "docs", "corpus_study_2026-08-28.md"),
+                   os.path.join(str(ROOT), "docs", "Corpus_Study_2026-08-28.MD")):
         with pytest.raises(ValueError):
             _refuse_sealed_output(ruling)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine
