@@ -118,8 +118,10 @@ whole-bar-above runs resolved up or right-edge with zero crash-backs.
 deliberately different yardsticks (the episode read: ATR-fixed zones, close-basis
 breach; the wave read: box-relative zones, extremes-basis breach — AP-8 stands);
 what unifies them is the projection layer (`event_vocabulary.py`): one folded
-tape whose records carry the shared word, the verdict axis (held / gave / open /
-unreadable), the span's declared bar ORIGIN, and the BASIS that produced the
+tape whose records carry the shared word, the verdict axis (held / breached /
+open / unreadable — "breached" is the operator's official term for price
+crossing a boundary, ONE word for both rails; what a breach means is context's
+job), the span's declared bar ORIGIN, and the BASIS that produced the
 verdict — so two readers may still legally disagree, but never invisibly. The
 projection receives reader OUTPUT only — never bars, rails or ATR — because a
 naming layer that can measure becomes a fourth competing reader. The

@@ -181,7 +181,7 @@ def test_context_departure_is_nameable_and_distinct_from_a_rest():
         {"type": "markup", "rail": "R", "zone_start": 40, "zone_end": 48,
          "anchor_bar": 44, "peak_bar": 44, "resolution": "held"}])
     rec = out["events"][0]
-    assert (rec["word"], rec["verdict"]) == ("markup", "gave")
+    assert (rec["word"], rec["verdict"]) == ("markup", "breached")
 
 
 def test_context_right_edge_is_undetermined_never_pretyped():
@@ -203,7 +203,7 @@ def test_context_completed_rest_on_resistance_is_the_sos_hold():
          "anchor_bar": 22, "peak_bar": 22, "resolution": "held",
          "consolidation": True}])
     rec = out["events"][0]
-    assert (rec["word"], rec["verdict"]) == ("sos", "gave")
+    assert (rec["word"], rec["verdict"]) == ("sos", "breached")
     assert rec["raw"]["consolidation"] is True
 
 

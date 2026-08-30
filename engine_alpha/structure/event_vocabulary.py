@@ -18,8 +18,10 @@ re-walking a bar); this module holds the same line for the whole vocabulary.
 
 What a folded record adds is NAMES, never facts: the shared ``word`` (from the
 declared tables below - operator-reworded by editing ONE dict), the shared
-``verdict`` axis (held / gave / open / unreadable / None-for-unjudged - the
-census's honest translation, ambiguity preserved), and the label layer's
+``verdict`` axis (held / breached / open / unreadable / None-for-unjudged -
+operator-signed 2026-08-30: "breached" is his official term for price crossing
+a boundary, the SAME word for both rails; what a breach MEANS is context,
+never the verdict's job), and the label layer's
 knowability stamps zipped onto the wave that earned them. Every source dict
 rides along UNMODIFIED under ``raw`` - the emitted vocabulary is stored/wire
 history (AP-12) and no cell's spelling changes here.
@@ -49,10 +51,10 @@ from __future__ import annotations
 WORD_BY_PUZZLE_TYPE: dict[str, tuple[str, str | None]] = {
     "spring":      ("spring", "held"),
     "test":        ("support_test", "held"),
-    "failed":      ("support_test", "gave"),
+    "failed":      ("support_test", "breached"),
     "lps":         ("lps", None),
-    "SOS":         ("sos", "gave"),
-    "markup":      ("markup", "gave"),
+    "SOS":         ("sos", "breached"),
+    "markup":      ("markup", "breached"),
     "upthrust":    ("upthrust", "held"),
     "rejection":   ("touch_and_pivot", "held"),
     "range":       ("range", None),
@@ -76,7 +78,7 @@ WORD_BY_EPISODE_RAIL: dict[str, str] = {
 }
 VERDICT_BY_EPISODE_OUTCOME: dict[str, str] = {
     "completed": "held",
-    "failed": "gave",
+    "failed": "breached",
     "open": "open",
     "unreadable": "unreadable",
 }
