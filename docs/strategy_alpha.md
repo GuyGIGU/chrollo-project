@@ -80,6 +80,53 @@ REAL trading range where buyers and sellers actually touched, stopped and pivote
 Perfection is rare — always take the next-best wrap. It is a rail-selection rule only,
 never an argument for or against multi-structure (chain) reads.
 
+### The rails are AREAS — the position vocabulary and the one event language
+
+**(Operator rulings 2026-08-29/30, decisions.md; executed by the ONE-Event-Map program,
+`docs/one_event_map_program_2026-08.md`.)**
+
+A rail is a line **treated like an area — a thin area but still**. Ruled and then
+measured on the drawn corpus: the area is **±0.50 ATR around the line, symmetric,
+identical on R and S, in ATR units** (it does not scale with the consolidation's
+height — the operator's eye and a 1.8× cross-population test agree). That is the
+incumbent `TOUCH_TOLERANCE_ATR`, which this ruling finally evidences. Hard limit:
+the width is **position vocabulary only** — rests and spikes do NOT separate by
+distance (measured 22.3% contradiction between the readers; junk actually pierces
+its rails 3.6× LESS than drawn boxes), so a 0.5-ATR allowance used as a gate,
+veto, rescue or junk filter is Tested-DEAD (twice).
+
+**Position is THREE values, not five** — `at_ceiling` / `mid_range` / `on_support`
+(`inner_box.mini_consolidation_position`, tolerance = the ruled area). At resistance,
+high in the range, semi above, resting on it: ONE position. Support mirrors it —
+slight pokes below and holds a little under are inside the support area and count
+as respect (“holding AT the support essentialy proving that this line is infact a
+support line”), with a graded preference — never a penalty — for all/most bars
+staying inside.
+
+**The ceiling area has three visual STATES** — resting on (whole bar above, not
+part of a bigger swing upwards) · at (touch, pivot back) · semi dwelling
+(straddling, poking through). None outranks another; **“the bars after wards
+determine the meaning”**: pivots back into the range — including from above the
+line — are respect; bars clearly continuing up are a **departure** (markup); at
+the right edge, where afterwards does not yet exist, the read is honestly
+**undetermined** — never pre-typed (no-lookahead). Measured on the drawn corpus:
+every harshness-by-position rule flags the operator's own boxes harder than junk
+(drawn boxes ENGAGE the ceiling ~2× more than junk in every state), and drawn
+whole-bar-above runs resolved up or right-edge with zero crash-backs.
+
+**One event language over two preserved geometries.** The readers keep their
+deliberately different yardsticks (the episode read: ATR-fixed zones, close-basis
+breach; the wave read: box-relative zones, extremes-basis breach — AP-8 stands);
+what unifies them is the projection layer (`event_vocabulary.py`): one folded
+tape whose records carry the shared word, the verdict axis (held / gave / open /
+unreadable), the span's declared bar ORIGIN, and the BASIS that produced the
+verdict — so two readers may still legally disagree, but never invisibly. The
+projection receives reader OUTPUT only — never bars, rails or ATR — because a
+naming layer that can measure becomes a fourth competing reader. The
+mini-consolidation (the operator's shelf — the REST pattern; the retired term
+“holding shelf” survives only as frozen stored vocabulary) rides the tape with
+its position attribute and raw rail distances.
+
 ### The event catalog — one entry per chart event
 
 The engine reads a chart as a chronological sequence of **events** — the same events the

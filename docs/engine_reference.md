@@ -1203,7 +1203,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `0ac88199221d77be6380f7288f569d08a089642c92be38c90cb33eb3d7b7d64a`_
+_engine_config_version: `92863be0e9e59e4b1ba7a0a10320268d719d14bb262c3e912a109ccf954ee631`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1364,6 +1364,10 @@ STORY_COMPLETED_TESTS_FULL = 3
 STORY_ALTERNATIONS_FULL = 2
 STORY_UNREADABLE_NAN_BARS = 5
 STORY_UNREADABLE_ZONE_COVERAGE = 0.5
+EPISODE_MAX_GAP_BARS = 2
+EPISODE_DRIFT_MIN_BARS = 3
+EVENT_HOLD_MIN_BARS = 6
+MINI_POSITION_TOL_ATR = 0.5
 TA_WARN_TERMINAL_DRIFT = 1.0
 TA_GRADE_WARNING_FLOOR = 0.5
 LPS_SHRINK_MIN_TESTS = 3
