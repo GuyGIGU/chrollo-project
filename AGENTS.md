@@ -75,6 +75,7 @@ npm --prefix webapp\frontend run build                       # build the React a
 npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
 .\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~35s; also prints the graduation-drift advisory)
+.\.venv\Scripts\python.exe -m tools.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
