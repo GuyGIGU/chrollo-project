@@ -851,8 +851,9 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
             elif bar_form and story_admission_bar_posture(stats):
                 # The bar-basis ceiling-leg variant (Task 7, dark): the
                 # record names the behavior — the right edge ENGAGED at the
-                # rail by the bar, s-test story intact. The label freezes at
-                # flip time (signing-sheet row W3); dark, nothing archives.
+                # rail by the bar, s-test story intact. Operator-signed
+                # 2026-09-01 (signing-sheet row W3); it freezes for good at
+                # this lane's flip, and is dark until then.
                 admitted_form = "engaged at resistance"
             elif species_form and resistance_contraction_admission(stats):
                 # The record names the BEHAVIOR seen, from the measured posture

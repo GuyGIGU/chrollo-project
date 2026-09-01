@@ -41,13 +41,32 @@ word and the pre-signing "gave" verdict refuse at mint time).
 | `at_ceiling` / `mid_range` / `on_support` / `touching_both` | position | four values ruled 2026-08-30 | `wireVocabulary.POSITION_LABELS` ("at resistance" / "middle of the base" / "on support" / touching both) |
 | `contracting at resistance` / `contracting above resistance` | admission record | the behavior names, operator-named 2026-08-18 | stored verbatim (AP-12) |
 
-**Signing sheet — the open decisions (one per row, what a YES flips stated):**
+**Signing sheet — SIGNED IN FULL 2026-09-01** (decisions.md signing row). The three rows below
+are kept verbatim as they were put to him, so the question he answered stays readable; the
+outcome is recorded under the table.
 
 | # | Decision | Proposal (his words only) | What a YES flips |
 |---|---|---|---|
 | W1 | The ceiling-rest LPS form's spoken phrase — when the sentence names the rest the dark `LPS_CEILING_REST_ENABLED` exception sanctions, what does it say? | **"LPS at resistance"** — composed purely of already-signed words (`lps` + the signed `at_ceiling` display "at resistance"); his 2026-08-29 ruling already folded resting-on into the ONE "at resistance" position | The named judgment's record label (Task 6) and the later panel's chip copy. No stored cell changes — stored vocabulary stays frozen (AP-12) |
 | W2 | Confirm the closure: this program mints NO new sentence words — every archived token speaks the signed table above, and any future word is a fresh signing before it serializes | **yes** (the naming doctrine applied to the language program) | **Said plainly, because the row would otherwise read as ceremony: the build ALREADY enforces this.** `assert_token` refuses an unsigned word in the stack frame that mints it, the literal closed-set battery pins the signed sets AND the signed assignment, and the vocabulary is hashed into the engine identity (`SENTENCE_VOCABULARY` in the freeze manifest) — all landed in this same changeset, before your signature. **What that hash actually guarantees, stated precisely because the first draft of this row read broader than the build was** (council review 2026-09-01 round two): it covers the MAPPING, not only the value sets — which word and which verdict each reader event means (`puzzle_type_words`, `in_progress_rail_words`, `episode_rail_words`, `episode_outcome_verdicts`, `mini_consolidation_word`), each derived from the ONE declaration per EC-33. So a re-ruling that stays entirely INSIDE the closed sets — moving `spring` from *held* to *breached*, swapping a word between two event types — rotates `engine_config_version`. It did NOT before this fix: three such re-rulings were driven through the shipped code and the manifest hash never moved. The same closure was widened once more at the round-three completeness pass: the channel BASIS block — which substrate each channel's words stand on, and the origin every archived date is measured from — rides the identity too (it was declared, it rode verbatim in every archived token, and re-declaring it rotated nothing), and the projection is now derived from a registry a guard pins against the module's own declarations, so a future table cannot slip the identity by being forgotten. One thing is deliberately NOT identity: a pure REORDERING of a declared table rotates nothing, because those tables are lookups nothing reads positionally and a spurious epoch permanently splits a cohort that could have been pooled — the same split the TA-grade block already makes between chapter ORDER (a list, ruled meaning) and the chapter MAP (a dict, registry order). Both directions are pinned. A YES makes the built state law and settles that a future word — or a re-ruling of an existing one — costs a signing plus an epoch rotation; a NO re-opens Task 1 and the Task-8 mint assert rather than confirming them |
 | W3 | The bar-posture rescue's admission-record label (Task 7 — what a fire admitted by the S-test form's bar-basis ceiling leg stores in `story_admission_profile`) | **"engaged at resistance"** (the behavior seen: the right edge engaged at the rail by the bar, close anywhere; parallel to the contraction's "contracting at resistance") | The stored record string freezes at the lane's FLIP — dark, nothing archives, so a re-wording before the flip is free. Signing this is a flip precondition on the ledger row |
+
+**The outcome (2026-09-01):** all three signed as proposed, with **one widening on W1**. He signed
+"LPS at resistance" and ruled its scope to be the whole rail vicinity — *"Below (at the ceiling)/
+Above (Resting on the resistance)/ or clipping through the line at self"* — which is his 2026-08-29
+area ruling applied to this phrase, not new doctrine.
+
+That widening was **checked against the build in the same sitting** rather than accepted as
+satisfied: `_ceiling_rest_verdict` is a one-sided floor (`support_low >= res_avg − 0.3 × ATR`)
+consulted only inside the `INSIDE` zone branch, so it already speaks for the rest **below** the
+line and the rest **clipping through** it. The **above** case never reaches it — a rest whose low
+sits above R types `OVERSHOOT_R` in `lps.detect_lps_candidates`' zone gate and is decided
+elsewhere. So the phrase is signed
+for three positions and the engine speaks it for two; the third is carried as its own ask
+(`asks.md` 2026-09-01 successor row) and is explicitly NOT a razor edit — widening 0.30 ATR to the
+±0.50 rail area is the measured-dead move that re-fires junk ENIC at tier A.
+
+W2's closure is now law, and W3 satisfies the bar-posture flip precondition on the ledger row.
 
 ---
 
