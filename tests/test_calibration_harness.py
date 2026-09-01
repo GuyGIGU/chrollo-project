@@ -256,7 +256,13 @@ def test_json_output_refuses_the_sealed_dirs(tmp_path):
                    # The corpus deep study — the evidence record the 2026-08-28
                    # decisions rows cite (sealed at the 2026-08-30 review).
                    os.path.join(str(ROOT), "docs", "corpus_study_2026-08-28.md"),
-                   os.path.join(str(ROOT), "docs", "Corpus_Study_2026-08-28.MD")):
+                   os.path.join(str(ROOT), "docs", "Corpus_Study_2026-08-28.MD"),
+                   # The consolidation-method program record — the program's
+                   # ruling artifact, sealed at creation (EC-44).
+                   os.path.join(str(ROOT), "docs",
+                                "consolidation_method_2026-09.md"),
+                   os.path.join(str(ROOT), "docs",
+                                "Consolidation_Method_2026-09.MD")):
         with pytest.raises(ValueError):
             _refuse_sealed_output(ruling)
     _refuse_sealed_output(str(tmp_path / "report.json"))  # elsewhere: fine

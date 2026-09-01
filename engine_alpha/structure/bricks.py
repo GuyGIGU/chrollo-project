@@ -229,6 +229,7 @@ def validate_equilibrium(
     trace=None,
     near_miss=None,
     terminal_floor=None,
+    forms=None,
 ) -> EquilibriumBox | None:
     """Validate a worked Phase-B range born from ``root``.
 
@@ -249,7 +250,26 @@ def validate_equilibrium(
     ``TREND_TERMINAL_BOX_GATE_ENABLED`` — a box may not open before its trend's
     climax. Computed ONCE per read (the root cascade walks up to 64 anchors) and
     handed down. ``None`` (flag off) is byte-identical.
+
+    ``forms``: the armed-form roster for the story pool (consolidation-method
+    Task 4) — handed down by the walk to name WHICH ruled admissions may
+    admit. ASSERTED HERE, at the parameter's entry (EC-55). ``None`` = the
+    baseline roster (derived from settings at call time inside the pool),
+    byte-identical to the pre-roster behavior.
     """
+    # EC-55 at the roster's ENTRY, before any frame gate: downstream the roster
+    # is only ever membership-tested, so a misspelled/empty/one-shot roster arms
+    # nothing and the read comes back looking like an honest refusal. Asserting
+    # inside the story pool instead made that check DATA-dependent — the pool is
+    # consulted only when every ordinary pool came back empty, so a typo raised
+    # on some tickers and passed on others, which reads as a flaky engine rather
+    # than the programmer error it is. A roster-less call (the ordinary walk)
+    # carries nothing to assert and pays nothing; the pool still resolves the
+    # baseline by the ONE derivation.
+    if forms is not None:
+        from engine_alpha.structure.event_map import assert_admission_roster
+
+        assert_admission_roster(forms)
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
     if not ({"High", "Low", "Close"} <= set(df.columns)):
@@ -284,6 +304,7 @@ def validate_equilibrium(
         enforce_traversal=True,
         trace=cascade,
         recorder=near_miss,
+        forms=forms,
     )
 
     # Trend-terminal legality (TREND_TERMINAL_BOX_GATE_ENABLED): a box may not

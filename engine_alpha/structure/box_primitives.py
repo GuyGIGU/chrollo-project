@@ -23,7 +23,6 @@ from config import settings
 from engine_alpha.structure.box_gates import (
     _apply_traversal_gate,
     _buffered_rails,
-    _is_boundary_respected,
     _leg_record,
     _occupancy_leg_failures,
     _respect_stats,
@@ -236,6 +235,24 @@ def _score_candidate(box_width, r_touches, s_touches, coverage):
 
 ELECTED_POOLS = ("strict", "rescued", "band", "story")
 
+# The pools whose respect refusals the STRICT pass already narrated over the
+# identical windows — silence there is a property of THE POOL, never of an
+# occupancy replacement. A future pool reusing the one ladder with its own
+# ruled judgment narrates and records its refusals normally unless it is
+# named here (consolidation-method Task 5).
+PRE_NARRATED_POOLS = frozenset({"story"})
+
+
+class Admission(NamedTuple):
+    """One ruled admission's whole visible output — the SINGLE channel the
+    occupancy-judgment seam returns. ``profile`` rides the Candidate's
+    ``story_profile`` slot; ``form`` and ``sentence`` are what the calling
+    pool narrates and logs with, returned rather than written into the
+    caller's scope."""
+    profile: str                # the evidence that rides the Candidate
+    form: str                   # WHICH named ruled form admitted
+    sentence: "str | None"      # the episode read's own profile sentence
+
 
 class Candidate(NamedTuple):
     """The ONE candidate-framing shape every pool produces and every consumer
@@ -281,7 +298,7 @@ def _pack_candidate(box_width, r_touches, s_touches, coverage, total_outside,
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
                      trace=None, rescued=False, max_width=None, pool="strict",
-                     recorder=None):
+                     recorder=None, occupancy_judgment=None):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -293,10 +310,27 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     rescued cohort stays separable all the way into the archive. ``recorder``
     is the near-miss lane's numbers-only refusal recorder (outer consultation
     seam only; None = record nothing, byte-identical).
+
+    ``occupancy_judgment``: the story pool's ruled-admission REPLACEMENT for
+    the occupancy-family judgment — the one place the pools legally diverge
+    (consolidation-method Task 5: ONE ladder for every pool; the RULED form
+    "replaces ONLY the occupancy-family judgment"). ``None`` = the occupancy
+    family judges (strict / rescued / band). When given: called once after
+    respect passes; returns an ``Admission`` record (its whole output —
+    profile, form, sentence), or ``None`` for a refusal it has already
+    narrated itself. The crash filter still runs — never waived.
+
+    Narration silence belongs to the POOL, not to the judgment: a pool named
+    in ``PRE_NARRATED_POOLS`` leaves its respect refusals UN-narrated and
+    UN-recorded, exactly as the story pool always refused them (the strict
+    pass narrated the identical windows; policy stages are never gate legs to
+    the recorder). Any other pool handing in a judgment narrates normally.
     """
     stats = _respect_stats(highs, lows, R_val, S_val, atr_val)
     respected, _r_broken, _s_broken, total_outside, share = stats[:5]
     if not respected:
+        if pool in PRE_NARRATED_POOLS:
+            return None     # silent, like width — the strict pass narrated it
         if recorder is not None:
             leg = ("respect_share" if share < settings.MIN_BOUNDARY_RESPECT_PCT
                    else "respect_run")
@@ -327,6 +361,23 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                         box_width, r_anchor_bar, s_anchor_bar, cand_start, rescued,
                         legs=legs)
         return None
+    if occupancy_judgment is not None:
+        admission = occupancy_judgment()
+        if admission is None:
+            return None                 # refused — the judgment narrated it
+        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
+            sub_df, R_val, S_val, atr_val)
+        if eq is None:
+            return None                 # crash filter — never waived
+        _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
+                    r_anchor_bar, s_anchor_bar, cand_start, rescued)
+        # The judged window is the full candidate window (strict-style — no
+        # trim, no excision); the admitting sentence rides the Candidate so
+        # the archive records the evidence that ACTUALLY admitted the fire.
+        return _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
+                               total_outside, R_val, S_val, r_anchor_bar,
+                               s_anchor_bar, cand_start, len(highs), pool,
+                               admission.profile)
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val, max_width=max_width,
     )
@@ -354,8 +405,9 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
         return None
     _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
                 r_anchor_bar, s_anchor_bar, cand_start, rescued)
-    # Slot semantics live on the Candidate type — this call site is one of
-    # the two judgment sequences, never a second shape producer.
+    # Slot semantics live on the Candidate type — this function is the ONE
+    # judgment ladder every pool runs (consolidation-method Task 5), never a
+    # second shape producer.
     return _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
                            total_outside, R_val, S_val, r_anchor_bar,
                            s_anchor_bar, cand_start, len(highs), pool)
@@ -431,7 +483,7 @@ def trend_terminal_legal_open(terminal_floor, floor_offset):
 
 def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
-                              recorder=None):
+                              recorder=None, forms=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
 
     ``trace``: optional list; when given, every pair examined is recorded with
@@ -447,6 +499,14 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     inner boxes and the diagnostic mirror never do). ``None`` = record
     nothing, byte-identical. Policy stages (rescue_unused / dethroned /
     story) are election policy, never gate legs — the recorder ignores them.
+
+    ``forms``: the armed-form roster for the story pool — WHICH named ruled
+    admissions may admit (``event_map.ADMISSION_FORMS`` tokens), handed down
+    explicitly by the walk (consolidation-method Task 4) and asserted at that
+    entry point (``bricks.validate_equilibrium``, EC-55). ``None`` (every
+    caller that means the ordinary read) = the baseline roster derived from
+    settings at call time by ``event_map.baseline_admission_roster`` —
+    byte-identical to the pre-roster behavior by construction.
     """
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
@@ -619,7 +679,8 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # run unchanged here and the traversal gate below judges the returned pool.
     if not pool and enforce_traversal and settings.STORY_POOL_ENABLED:
         pool = _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
-                                      min_candidate_days, trace=trace)
+                                      min_candidate_days, trace=trace,
+                                      forms=forms)
 
     if trace is not None and strict and rescued:
         for rec in trace:
@@ -679,7 +740,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
 
 
 def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
-                           min_candidate_days, trace=None):
+                           min_candidate_days, trace=None, forms=None):
     """Build the story-rescue candidate pool for a window (possibly empty).
 
     The RULED narrative form (operator ruling 2026-07-25 — strategy_alpha.md
@@ -694,14 +755,21 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     allowance), the window floor, boundary respect (the junk defense), the
     crash filter, and the traversal gate on the returned pool (measured
     requirement: order alone does not carry the junk occupancy deaths —
-    traversal kills 30 of 69). Trace narration covers the story-stage
-    judgment only; width/window/respect verdicts for these same pairs were
-    already narrated by the strict pass over the identical windows.
+    traversal kills 30 of 69). Respect, the admission slot, the crash filter
+    and the pack all run through the ONE shared ladder
+    (``_build_candidate``, the admission handed in as the occupancy-family
+    replacement — consolidation-method Task 5), so a gate change lands in one
+    place for every pool. Trace narration covers the story-stage judgment
+    only; width/window/respect verdicts for these same pairs were already
+    narrated by the strict pass over the identical windows.
     """
     from engine_alpha.structure.event_map import (
-        episode_sequence_stats, frame_r_engaged, frame_terminal_posture,
-        read_rail_episodes_arrays, resistance_contraction_admission,
-        resistance_contraction_label, story_admission)
+        ADMISSION_FORM_RESISTANCE_CONTRACTION, ADMISSION_FORM_S_TEST,
+        ADMISSION_FORM_S_TEST_BAR_POSTURE,
+        baseline_admission_roster, episode_sequence_stats, frame_r_engaged,
+        frame_terminal_posture, read_rail_episodes_arrays,
+        resistance_contraction_admission, resistance_contraction_label,
+        story_admission, story_admission_bar_posture)
 
     # Cost shape (Task 12 profile, reordered per Council Review 2026-07-26):
     # the branch is reached by MOST windows in a scan (38/55 fixture tickers;
@@ -717,25 +785,41 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     last_high = eq_highs[-1] if len(eq_highs) else float("nan")
     _closes = eq_df['Close'].values
     _last_close = float(_closes[-1]) if len(_closes) else float("nan")
-    # The species story form (program Task 6, dark): the species lane toggles
-    # it under the ONE scoped override (htf.window_override) around its OWN
-    # election — the paying read never sees it on, so flag-off below is
-    # byte-identical by construction.
-    species_form = bool(getattr(settings, "POWER_PLAY_STORY_FORM_ENABLED", False))
+    # WHICH ruled forms may admit — the armed-form roster (consolidation-
+    # method Task 4). ``None`` = the baseline roster, derived from settings
+    # at call time by the ONE derivation, so the species lane (which arms
+    # the contraction form under its declared preset via window_override)
+    # and the instruments' flag_capture keep working unchanged. A caller
+    # meaning anything else — today the contraction rescue's escalated
+    # walk — hands the roster down explicitly; there is no other way to
+    # arm a form here. Such a roster ARRIVES asserted (EC-55): the walk's
+    # entry point, ``bricks.validate_equilibrium``, checks it against the
+    # declared vocabulary on every read that carries one. Asserting HERE
+    # instead made the check data-dependent — this branch is reached only
+    # when every ordinary pool came back empty, so a typo raised on some
+    # tickers and passed on others.
+    if forms is None:
+        forms = baseline_admission_roster()
+    s_test_form = ADMISSION_FORM_S_TEST in forms
+    species_form = ADMISSION_FORM_RESISTANCE_CONTRACTION in forms
+    bar_form = ADMISSION_FORM_S_TEST_BAR_POSTURE in forms
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
         if box_width > settings.MAX_BOX_WIDTH:
             continue
-        # O(1) EXACT necessary condition of an enabled form's terminal leg —
-        # BOTH legs are shared event_map predicates (the S-test form's posture
-        # via frame_terminal_posture; the species contraction form's
-        # engagement half via frame_r_engaged), so the prefilter and the
-        # reader's terminal reads cannot drift apart. Refusing here
-        # (silently, like width) skips everything below for most pairs; NaN
-        # fails closed.
-        if not frame_terminal_posture(last_high, _last_close, R_val, tol) \
-                and not (species_form and frame_r_engaged(last_high, R_val, tol)):
+        # O(1) EXACT necessary condition of an ARMED form's terminal leg —
+        # each roster form contributes its own leg through shared event_map
+        # predicates (the S-test form's posture via frame_terminal_posture;
+        # the contraction form's AND the bar-posture variant's engagement
+        # half via frame_r_engaged — engagement IS the variant's terminal
+        # leg), so the prefilter and the reader's terminal reads cannot
+        # drift apart. Refusing here (silently, like width) skips everything
+        # below for most pairs; NaN fails closed.
+        if not (s_test_form
+                and frame_terminal_posture(last_high, _last_close, R_val, tol)) \
+                and not ((species_form or bar_form)
+                         and frame_r_engaged(last_high, R_val, tol)):
             continue
         cand_start = min(r_anchor_bar, s_anchor_bar)
         judged_len = n_win - cand_start
@@ -743,60 +827,69 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
             continue
         cand_highs = eq_highs[cand_start:]
         cand_lows = eq_lows[cand_start:]
-        respected, _rb, _sb, total_outside, _share = _is_boundary_respected(
-            cand_highs, cand_lows, R_val, S_val, atr_val)
-        if not respected:
-            continue        # silent, like width — the strict pass narrated it
-        read = read_rail_episodes_arrays(cand_highs, cand_lows,
-                                         _closes[cand_start:],
-                                         R_val, S_val, atr_val)
-        stats = episode_sequence_stats(read, as_of_bar=judged_len - 1)
-        # WHICH named ruled form admitted (EC-18: each form has ONE
-        # implementation, both in event_map). S-tests first — the settled
-        # live form always wins the record when both read.
-        if story_admission(stats):
-            admitted_form = "ruled form"          # the S-test form's frozen label
-        elif species_form and resistance_contraction_admission(stats):
-            # The record names the BEHAVIOR seen, from the measured posture
-            # (operator naming ruling 2026-08-18): "contracting above
-            # resistance" (close above the rail — the post-breakout stance)
-            # or "contracting at resistance" (pressing from below).
-            admitted_form = resistance_contraction_label(stats)
-        else:
-            _story_log.debug(
-                "story pool refused pair R=%.4f S=%.4f start=%d: %s",
-                R_val, S_val, cand_start, stats["profile"] or "no episodes")
-            _trace_pair(trace, "rejected", "story",
-                        f"ruled form not read: {stats['profile'] or 'no episodes'}",
-                        R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
-                        cand_start, rescued=True)
+        admitted = None
+
+        def _ruled_admission():
+            """The occupancy-family REPLACEMENT — the ruled admission over the
+            episode read, handed to the ONE shared ladder. WHICH named ruled
+            form admitted (EC-18: each form has ONE implementation, both in
+            event_map). S-tests first — the settled live form always wins the
+            record when both read. Returns ONE ``Admission`` record — the
+            admitting profile (the shelf form NAMES itself in it; the S-test
+            form's record is the bare profile, exactly as before) plus the
+            form and sentence this loop narrates with — or None having
+            narrated the refusal. The record is bound here as well because
+            the loop needs it AFTER the ladder returns; it is the same object
+            the seam returned, never a second set of outputs."""
+            nonlocal admitted
+            read = read_rail_episodes_arrays(cand_highs, cand_lows,
+                                             _closes[cand_start:],
+                                             R_val, S_val, atr_val)
+            stats = episode_sequence_stats(read, as_of_bar=judged_len - 1)
+            if s_test_form and story_admission(stats):
+                admitted_form = "ruled form"      # the S-test form's frozen label
+            elif bar_form and story_admission_bar_posture(stats):
+                # The bar-basis ceiling-leg variant (Task 7, dark): the
+                # record names the behavior — the right edge ENGAGED at the
+                # rail by the bar, s-test story intact. The label freezes at
+                # flip time (signing-sheet row W3); dark, nothing archives.
+                admitted_form = "engaged at resistance"
+            elif species_form and resistance_contraction_admission(stats):
+                # The record names the BEHAVIOR seen, from the measured posture
+                # (operator naming ruling 2026-08-18): "contracting above
+                # resistance" (close above the rail — the post-breakout stance)
+                # or "contracting at resistance" (pressing from below).
+                admitted_form = resistance_contraction_label(stats)
+            else:
+                _story_log.debug(
+                    "story pool refused pair R=%.4f S=%.4f start=%d: %s",
+                    R_val, S_val, cand_start, stats["profile"] or "no episodes")
+                _trace_pair(trace, "rejected", "story",
+                            f"ruled form not read: {stats['profile'] or 'no episodes'}",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            cand_start, rescued=True)
+                return None
+            profile = stats["profile"]
+            if admitted_form != "ruled form":
+                profile = f"{admitted_form} | {profile or 'no episodes'}"
+            admitted = Admission(profile, admitted_form, stats["profile"])
+            return admitted
+
+        tup = _build_candidate(
+            cand_highs, cand_lows, eq_df.iloc[cand_start:], R_val, S_val,
+            box_width, r_anchor_bar, s_anchor_bar, cand_start, atr_val,
+            trace=trace, rescued=True, pool="story",
+            occupancy_judgment=_ruled_admission)
+        if tup is None:
             continue
-        r_touches, s_touches, eq, _is_valid = _validate_base_quality(
-            eq_df.iloc[cand_start:], R_val, S_val, atr_val)
-        if eq is None:
-            continue                          # crash filter — never waived
-        _trace_pair(trace, "valid", None, None, R_val, S_val, box_width,
-                    r_anchor_bar, s_anchor_bar, cand_start, rescued=True)
-        # The judged window is the full candidate window (strict-style — no
-        # trim, no excision); the admitting sentence rides the Candidate so
-        # the archive records the evidence that ACTUALLY admitted the fire —
-        # the shelf form NAMES itself in the profile (flag-off byte-identical:
-        # the S-test form's record is the bare profile, exactly as before).
-        profile = stats["profile"]
-        if admitted_form != "ruled form":
-            profile = f"{admitted_form} | {profile or 'no episodes'}"
-        tup = _pack_candidate(box_width, r_touches, s_touches, eq["coverage"],
-                              total_outside, R_val, S_val, r_anchor_bar,
-                              s_anchor_bar, cand_start, judged_len,
-                              "story", profile)
         if trace is not None:
             rec = _trace_find(trace, tup)
             if rec is not None:
-                rec["detail"] = (f"story-admitted ({admitted_form}): "
-                                 f"{stats['profile']}")
+                rec["detail"] = (f"story-admitted ({admitted.form}): "
+                                 f"{admitted.sentence}")
         _story_log.debug(
             "story pool admitted pair R=%.4f S=%.4f start=%d profile=%r",
-            R_val, S_val, cand_start, stats["profile"])
+            R_val, S_val, cand_start, admitted.sentence)
         pool.append(tup)
     return pool
 

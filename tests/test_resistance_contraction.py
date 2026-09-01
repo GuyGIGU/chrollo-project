@@ -107,7 +107,27 @@ def test_failed_s_respects_the_as_of_knowability_rule():
 
 
 def test_paying_read_never_consults_the_species_form():
-    # The gate the whole design hangs on: the form flag is DARK, and the
-    # story pool reads it lazily — the species lane toggles it via
-    # window_override around its own election only.
+    # The gate the whole design hangs on, re-expressed against the roster
+    # (consolidation-method Task 4): the form flag is DARK, so the BASELINE
+    # armed-form roster — the value every ordinary walk hands the story
+    # pool — excludes the contraction form. The species lane arms it via
+    # its declared preset (window_override) around its own election only,
+    # and the rescue arms it only on an explicit escalated roster.
+    from engine_alpha.structure.event_map import (
+        ADMISSION_FORM_RESISTANCE_CONTRACTION,
+        ADMISSION_FORM_S_TEST,
+        baseline_admission_roster,
+    )
+    from engine_alpha.structure.htf import window_override
+
     assert settings.POWER_PLAY_STORY_FORM_ENABLED is False
+    baseline = baseline_admission_roster()
+    assert ADMISSION_FORM_RESISTANCE_CONTRACTION not in baseline
+    assert ADMISSION_FORM_S_TEST in baseline
+    # The species lane's declared preset arms the form through the SAME
+    # derivation (one implementation, EC-18) — never a second mechanism.
+    with window_override({"POWER_PLAY_STORY_FORM_ENABLED": True}):
+        assert ADMISSION_FORM_RESISTANCE_CONTRACTION in \
+            baseline_admission_roster()
+    assert ADMISSION_FORM_RESISTANCE_CONTRACTION not in \
+        baseline_admission_roster()

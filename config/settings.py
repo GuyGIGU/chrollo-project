@@ -405,6 +405,40 @@ STORY_POOL_ENABLED = True
 # flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
 CONTRACTION_RESCUE_ENABLED = False
 
+# --- Bar-posture rescue lane (consolidation-method Task 7; DARK) ------------
+# The measured bar-as-unit fix to the story pool's ceiling leg, landed as a
+# VERSIONED second form — never an in-place edit of frame_terminal_posture
+# (the ONE close-basis predicate the S-test prefilter and the episode reader
+# both resolve through; its promotion counts are pinned). On a full refusal
+# (same scope, same escalation walk as the contraction rescue above), the
+# story pool may also admit through the S-test form with its ceiling leg in
+# the operator's unit: the bar's HIGH engages the resistance zone
+# (event_map.story_admission_bar_posture — terminal_r_engagement instead of
+# terminal_r_posture). Banked A/B (output/consolidation_evidence_2026-08-31/
+# battery.log, chair-verified): junk corpus 18/18 silent, shadow panel
+# byte-identical on all 32 fixture fires, ratchet breaks on EXACTLY EGBN
+# (fires 2026-01-07 tier A) + PKE (2026-02-18 tier B) — both operator-ruled
+# real dates. The full-refusal scope is what makes the census's QTTB loss
+# unreachable (QTTB reads at baseline, so the rescue never runs there) while
+# all 12 census new fires stay reachable (verified 12/12 full refusals).
+# Flip = operator decision (ledger row; reseal shares EGBN/PKE with the
+# contraction rescue's).
+BAR_POSTURE_RESCUE_ENABLED = False
+
+# --- Sentence-token archive family (consolidation-method Tasks 8/9; DARK) ---
+# The folded ONE-language tape archived per fire: every reader's output
+# (puzzle waves + role stamps, rail episodes, the mini-consolidation) folded
+# through the signed vocabulary (event_vocabulary.unify_events) and
+# serialized date-anchored into the sentence_* column family — measured in
+# the ONE shared eval chain, once per elected box, so live/seed/manual rows
+# carry identical sentences by construction. Measure-only: never gates,
+# never scores, never sorts. Flag off = {} in the result row = the family
+# archives NULL (not measured); a refused read (unreadable geometry) NULLs
+# the whole family. Tokens are closed-set-asserted at mint (EC-55). Flip =
+# operator decision after the ScanTimer cost read on one nightly scan
+# (ledger row).
+SENTENCE_ARCHIVE_ENABLED = False
+
 # --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
 # Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the
 # opposite direction of the trend if we are still inside that trend." A box may

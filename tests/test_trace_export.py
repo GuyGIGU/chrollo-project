@@ -104,7 +104,7 @@ def test_terminal_verdict_unregistered_stage_surfaces_loudly():
 
 def test_leg_sentence_formats_in_the_native_quantum():
     assert leg_sentence({"leg": "respect_run", "measured": 7, "threshold": 5}) \
-        == "longest run outside the rails 7 bars vs cap 5"
+        == "longest run outside the rails 7 trading days vs cap 5"
     assert leg_sentence({"leg": "coverage", "measured": 0.55, "threshold": 0.6}) \
         == "window occupancy 0.55 vs floor 0.60"
 
@@ -127,6 +127,32 @@ def test_near_threshold_kill_never_renders_as_an_equal_pass():
     assert "0.798" in s and "0.800" in s
     same = leg_sentence({"leg": "respect_share", "measured": 0.80, "threshold": 0.80})
     assert "0.80 vs floor 0.80" in same
+
+
+def test_the_unit_beside_a_number_is_trading_days_never_bars_or_sessions():
+    """The absolute stated directly above ``_LEG_PHRASES``. Round one re-worded
+    two legs and left the third — respect_share, the 3rd rung of the ladder and
+    so a reachable single blocking sentence — still saying "bars", with the
+    absolute written above it (council review 2026-09-01, finding 3;
+    completeness pass 2026-09-01). Whole-table sweep + literals, because the
+    re-wordings were pinned by nothing and a silent revert stayed green."""
+    import re
+
+    from engine_alpha.structure.trace_export import _LEG_PHRASES
+
+    for leg, phrase in _LEG_PHRASES.items():
+        for banned in ("bar", "bars", "session", "sessions"):
+            assert not re.search(rf"\b{banned}\b", phrase, re.IGNORECASE), \
+                (leg, phrase)
+    # The three legs that carry a unit word, pinned as literals so a revert of
+    # any ONE of them fails here by name, not as a vague vocabulary sweep.
+    assert leg_sentence({"leg": "respect_share", "measured": 0.72,
+                         "threshold": 0.80}) \
+        == "share of trading days respecting the rails 0.72 vs floor 0.80"
+    assert leg_sentence({"leg": "window", "measured": 22, "threshold": 30}) \
+        == "window 22 trading days vs floor 30"
+    assert leg_sentence({"leg": "respect_run", "measured": 7, "threshold": 5}) \
+        == "longest run outside the rails 7 trading days vs cap 5"
 
 
 def test_leg_sentences_never_carry_engineer_vocabulary():

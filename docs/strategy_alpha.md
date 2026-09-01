@@ -774,6 +774,22 @@ contraction form is PROVISIONAL until the operator's species ruling sheets calib
 the species' trend-side theory (the transition zone — trend end and base open as one
 short zone) enters with the trend-state layer, not here.
 
+**The bar-unit ceiling leg — the S-test form's posture judged by the bar,
+sanctioned dark at the same scope (consolidation method, 2026-09-01).** The
+S-test form's ceiling leg reads the CLOSE (terminal resistance posture: the
+last close above the rail) — the one leg of the ruled form that violates the
+operator's thrice-stated bar-as-unit doctrine ("the HIGH and the LOW Values
+are the ones that matters most"). The measured fix — the right edge counts as
+at the ceiling when the bar's HIGH engages the rail zone, close anywhere — is
+sanctioned as a VERSIONED second form of the same admission, never an edit of
+the close-basis leg (its promotion counts are pinned, and the wholesale basis
+swap is Tested-DEAD). It is consulted only where the whole walk has already
+refused everything — the contraction rescue's scope — so it can only add a
+read where there was none: the banked A/B converts exactly EGBN and PKE on
+their operator-ruled dates with the junk corpus silent, and the fleet drift
+the wholesale swap would cause (the QTTB root-steal) is unreachable by
+construction. Flip and the record-word signing are the operator's.
+
 **The contraction rescue — the form's one sanctioned road into the paying read
 (dark; miss program 2026-08-28).** The 2026-08-19 refusal of the global form flip
 named its own successor: converting EGBN/PKE (both conversions operator-ruled
@@ -990,3 +1006,14 @@ names its chart event in the catalog's vocabulary — plain chart language where
 read, frozen keys on the wire. The catalog's third law binds here too: **a new signal
 declares its event** before it ships — it enters the catalog under its event,
 measure-first, as graded confidence. No event, no signal.
+
+**And in a phrase he reads, the unit beside a number is his own word: trading days — never
+"bars", never "sessions".** This binds wherever a refusal is RENDERED for him, which now
+includes the refusal named at his OWN drawn rails: the same fifteen legs judged on the
+framing he drew, the single blocking one spoken in that vocabulary, and the episode
+history stated in plain words ("two completed tests at resistance") rather than as the
+internal profile tape. Machine notation stays machine-side; a surface he reads carries
+only language he uses. The scope is the rendered phrase, and saying so is not a hedge — the
+engine still keys some measurements internally in units nobody displays, and a sweep that
+read this rule as covering those keys would be changing what is measured, not what is said.
+Renaming a measurement is a re-measurement with its own seam; renaming a phrase is free.

@@ -543,6 +543,136 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     }
 
 
+def _episode_summary(n_completed_r, n_completed_s):
+    """The episode read in plain trading words — the ONE rendering an operator
+    surface may serve (the raw profile tape is machine vocabulary and never
+    reaches a hover). ALWAYS a non-empty string: no completed history is the
+    closed value "no completed tests yet", never an empty string a client has
+    to fill in with a guess of its own."""
+    if n_completed_r and n_completed_s:
+        return (f"{n_completed_r} completed test"
+                f"{'' if n_completed_r == 1 else 's'} at resistance, "
+                f"{n_completed_s} at support")
+    if n_completed_r:
+        return (f"{n_completed_r} completed test"
+                f"{'' if n_completed_r == 1 else 's'} at resistance")
+    if n_completed_s:
+        return (f"{n_completed_s} completed test"
+                f"{'' if n_completed_s == 1 else 's'} at support")
+    return "no completed tests yet"
+
+
+def mark_refusal_read(win_df, R, S, atr_val):
+    """The refusal-naming read over a DRAWN framing (consolidation-method
+    Task 15 — the EGBN pattern made a served function): judge the operator's
+    own rails through the ACTUAL gate helpers and report every leg as a
+    structured record — leg id + measured + threshold, straight off the
+    ``GATE_LEGS`` registry (EC-18/EC-43: the same predicates and lazily-read
+    settings the election consults, never a re-typed twin) — plus THE single
+    blocking leg (the first refusal in the ladder's own order) rendered
+    through the one operator-language vocabulary (``leg_sentence``), and the
+    resolved SENTENCE over the drawn rails (the episode read's as-of profile
+    and counts, plus ``episode_summary`` — the SAME counts in plain trading
+    words, the only episode rendering an operator surface may serve; the raw
+    ``sentence`` tape stays for machine consumers). ONE implementation: the
+    workbench serves it, instruments delegate to it.
+
+    Measure-only — never gates, never scores. Returns ``None`` on
+    unreadable geometry (degenerate rails / ATR / empty window — the
+    three-state law: a refused read is NULL, never fabricated zeros).
+    """
+    if (win_df is None or len(win_df) == 0 or R is None or S is None
+            or not np.isfinite(float(R) - float(S)) or float(R) <= float(S)
+            or atr_val is None or not np.isfinite(atr_val) or atr_val <= 0):
+        return None
+    from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
+        GATE_LEGS,
+        _leg_record,
+        _measure_close_residence,
+        _respect_stats,
+        leg_threshold,
+    )
+    from engine_alpha.structure.event_map import (  # noqa: PLC0415
+        episode_sequence_stats,
+        read_rail_episodes,
+    )
+    from engine_alpha.structure.trace_export import leg_sentence  # noqa: PLC0415
+
+    R, S = float(R), float(S)
+    highs = win_df["High"].to_numpy(dtype=float)
+    lows = win_df["Low"].to_numpy(dtype=float)
+    n = len(win_df)
+
+    # The statistics, from the SAME helpers the election gate calls.
+    respected_stats = _respect_stats(highs, lows, R, S, atr_val)
+    _, _, _, _, share, max_consec, _, _ = respected_stats
+    eq = _measure_close_residence(win_df, R, S, atr_val)
+    trav = measure_equilibrium(win_df, R, S, atr_val)
+    nf, ns = int(trav["n_full_traversals"]), int(trav["n_swings"])
+    # The crash leg is the one gate whose statistic the registry does not hand
+    # back, so the mirror must reproduce ``_validate_base_quality``'s own
+    # arithmetic VERBATIM (box_gates: ``eq_df['Low'].min() < S * mult``):
+    # pandas ``.min()`` SKIPS NaN where ``np.min`` propagates it, and the
+    # multiplication form moves razor-edge marks the division form would flip.
+    # A re-typed twin named crash as THE blocking leg on damaged-data windows
+    # the real ladder passes (council review 2026-09-01, finding 8). The ratio
+    # below is the DISPLAY number only — the decision is the gate's.
+    crash_min_low = float(win_df["Low"].min())
+    crash_ok = not (crash_min_low < S * settings.CRASH_FILTER_MULT)
+    measured_by_leg = {
+        "width": (R - S) / S,
+        "window": n,
+        "respect_share": float(share),
+        "respect_run": int(max_consec),
+        "crash": (crash_min_low / S) if np.isfinite(crash_min_low) else None,
+        "r_touches": int(eq["r_touches"]),
+        "s_touches": int(eq["s_touches"]),
+        "r_touch_thirds": int(eq["r_touch_thirds"]),
+        "s_touch_thirds": int(eq["s_touch_thirds"]),
+        "lower_dwell": float(eq["lower_dwell"]),
+        "upper_dwell": float(eq["upper_dwell"]),
+        "mid_dwell": float(eq["mid_dwell"]),
+        "coverage": float(eq["coverage"]),
+        "traversal_count": nf,
+        "traversal_density": (nf / ns) if ns > 0 else 0.0,
+    }
+    _OPS = {">=": lambda m, t: m >= t, "<=": lambda m, t: m <= t}
+    legs = []
+    for spec in GATE_LEGS:
+        measured = measured_by_leg[spec.leg]
+        # The window floor is the leg registry's one caller-bound threshold;
+        # a drawn mark is judged at the outer election's own floor.
+        threshold = (settings.MIN_BASE_DAYS if spec.leg == "window"
+                     else leg_threshold(spec.leg))
+        rec = _leg_record(spec.leg, measured, threshold)
+        rec["ok"] = (crash_ok if spec.leg == "crash"
+                     else bool(measured is not None
+                               and _OPS[spec.op](measured, threshold)))
+        legs.append(rec)
+    refused = [rec for rec in legs if not rec["ok"]]
+    blocking = refused[0] if refused else None
+
+    # The resolved sentence at the drawn rails — the as-of read at the
+    # window's own edge (contract §1: the frame IS truncated at as_of).
+    epi = read_rail_episodes(win_df, R, S, atr_val)
+    stats = episode_sequence_stats(epi, as_of_bar=n - 1)
+    return {
+        "legs": legs,
+        "refused_legs": [rec["leg"] for rec in refused],
+        "blocking_leg": blocking,
+        "blocking_sentence": (leg_sentence(blocking)
+                              if blocking is not None else None),
+        "sentence": stats["profile"],
+        "episode_summary": _episode_summary(int(stats["n_completed_r"]),
+                                            int(stats["n_completed_s"])),
+        "completed_s": int(stats["n_completed_s"]),
+        "completed_r": int(stats["n_completed_r"]),
+        "terminal_r_posture": bool(stats["terminal_r_posture"]),
+        "terminal_r_engagement": bool(stats["terminal_r_engagement"]),
+        "terminal_s_drift": bool(stats["terminal_s_drift"]),
+    }
+
+
 def measure_dwell_balance(base_df, R, S, atr_val, rail_touches=None):
     """How genuinely *worked* is the candidate range ``[S, R]`` over its window?
 

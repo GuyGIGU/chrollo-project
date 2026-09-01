@@ -235,6 +235,39 @@ def _pullback_rest_depth_ok(
     return ok, buec_shelf
 
 
+def _ceiling_rest_verdict(support_low: float, res_avg: float, atr_val) -> bool:
+    """The ceiling-rest judgment — the operator-ruled exception (2026-08-29,
+    NOK) as its own named leaf verdict beside the other LPS form verdicts
+    (consolidation-method Task 6; a re-ruling replaces THIS function, never
+    the measurement around it). In the signed position vocabulary it IS the
+    "at resistance" judgment on a rest: an INSIDE window that launched above
+    R is sanctioned when the REST itself lands ON the ceiling —
+    ``support_low`` within ``LPS_CEILING_REST_MAX_BELOW_R_ATR`` (0.3) ATRs
+    under R — the preceding advance's own top giving back to the rail (the
+    drawn corpus's most common terminal form). A launch-above window resting
+    any deeper stays refused exactly as before. Affirmatively qualified and
+    fail-closed on a missing/non-finite ATR (EC-54).
+
+    TWO CONSTANTS, TWO ROLES — never unify (the ATR-zone allowance as a gate
+    is Tested-DEAD twice): the ruled rail AREA is ±0.5 ATR
+    (``TOUCH_TOLERANCE_ATR``, position vocabulary ONLY) while THIS admission
+    razor is 0.3 ATR, drawn-evidence-placed (DSGN 0.010 / MATX 0.087 / MSGS
+    0.148 / NOK 0.241 vs junk ENIC at 0.314 — at 0.5 ENIC fired tier A and
+    the negative-corpus guard went red). Their reconciliation is presented
+    to the operator as a RULING, never folded in code. Consulted lazily
+    (flag read at call time — the config-shadow rule); flag off = False =
+    byte-identical.
+    """
+    return bool(
+        settings.LPS_CEILING_REST_ENABLED
+        and atr_val is not None
+        and np.isfinite(float(atr_val))
+        and float(atr_val) > 0
+        and support_low >= res_avg
+        - settings.LPS_CEILING_REST_MAX_BELOW_R_ATR * float(atr_val)
+    )
+
+
 def _rest_verdict(
     length: int,
     low_descent_frac: float,
@@ -504,20 +537,10 @@ def detect_lps_candidates(
                 else 0.0
             )
             # The ceiling-rest exception (LPS_CEILING_REST_ENABLED, dark —
-            # operator ruling 2026-08-29, NOK): a straddle whose REST lands ON
-            # the ceiling (support low within LPS_CEILING_REST_MAX_BELOW_R_ATR
-            # ATRs under R) is the preceding advance's own top giving back to
-            # the rail — the drawn corpus's most common terminal form — not a
-            # dive back into the box. A launch-above window resting any deeper
-            # stays refused exactly as before. Fail-closed on a bad ATR.
-            ceiling_rest = (
-                settings.LPS_CEILING_REST_ENABLED
-                and atr_val is not None
-                and np.isfinite(float(atr_val))
-                and float(atr_val) > 0
-                and support_low >= res_avg
-                - settings.LPS_CEILING_REST_MAX_BELOW_R_ATR * float(atr_val)
-            )
+            # operator ruling 2026-08-29, NOK): the NAMED judgment beside the
+            # other form verdicts — see _ceiling_rest_verdict for the razor,
+            # its evidence, and the two-constants/two-roles law.
+            ceiling_rest = _ceiling_rest_verdict(support_low, res_avg, atr_val)
             if (
                 zone_type == "INSIDE"
                 and high_extension_box > settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX

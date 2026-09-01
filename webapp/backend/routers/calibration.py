@@ -208,7 +208,8 @@ _ENGINE_READS: dict = {}
 
 @router.get("/engine-read", dependencies=[Depends(require_same_app)])
 def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
-                            frame_digest: Optional[str] = Query(None)):
+                            frame_digest: Optional[str] = Query(None),
+                            db: Session = Depends(get_db)):
     """The engine's read of a FROZEN calibration frame, through the agreement
     harness's own lens (``tools.replay.snapped_election`` + the shared
     ``election_identity.projection``) — the same lens the harness scores, never
@@ -240,7 +241,11 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
     from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
     key = (symbol, as_of, frame_digest or "", manifest_hash())
     if key in _ENGINE_READS:
-        return _ENGINE_READS[key]
+        # The refusal-naming block attaches FRESH per request (the operator
+        # edits marks between requests; a cached diagnosis would go stale) —
+        # on a shallow copy, so the cache holds the pure engine read only.
+        return _attach_mark_refusal(dict(_ENGINE_READS[key]), symbol, as_of,
+                                    frozen, db)
 
     from engine_alpha.election_identity import projection  # noqa: PLC0415
     from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
@@ -267,6 +272,82 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
             result.update(read)
     _ENGINE_READS[key] = result
     logger.info("engine-read %s@%s elected=%s", symbol, as_of, result["elected"])
+    return _attach_mark_refusal(dict(result), symbol, as_of, frozen, db)
+
+
+def _attach_mark_refusal(result: dict, symbol: str, as_of: str, frozen, db):
+    """The refusal names its ONE blocking leg at the operator's own mark, in
+    his units (consolidation-method Task 15 — the EGBN pattern): judge his
+    drawn rails through the SAME gate predicates the election consults
+    (``metrics.mark_refusal_read``, one implementation; the window derives
+    through the ONE shared derivation, ``replay.drawn_box_window`` — EC-13)
+    and serve the resolved sentence beside the leg. The headline verdict
+    stays plain; the named leg replaces the raw detector prose in ``reason``
+    (the existing hover), and the structured block rides for any later
+    surface. A refusal on the READ itself (no drawn box mark, window
+    underivable, unreadable geometry) leaves the raw reason standing —
+    honest absence, never a fabricated diagnosis. Attached fresh per
+    request: marks are editable ground truth (EC-9), so the diagnosis may
+    never be baked into the engine-read cache.
+
+    WHICH mark, when the session holds several box marks (he draws an inner
+    and an outer box): the MOST RECENTLY EDITED one, ties broken by highest
+    id — the framing he is working on now. Declared, not incidental; the
+    bare ``.first()`` this replaced left "at your rails" describing an
+    arbitrary box (council review 2026-09-01, finding 15).
+
+    A read-only diagnostic PASSENGER on a response that is already computed
+    (cache hits included): every failure degrades to the raw reason with one
+    logged line — a locked SQLite on a scan evening may not 500 the overlay
+    the operator is reading (finding 2). Same shape as the grading-frame
+    freeze above."""
+    if result.get("elected"):
+        return result
+    if not hasattr(db, "query"):
+        # Direct unit calls pass the framework's Depends sentinel — no
+        # session, no diagnosis; the raw reason stands (honest absence).
+        return result
+    try:
+        mark = (db.query(CalibrationMark)
+                .filter(CalibrationMark.ticker == symbol,
+                        CalibrationMark.as_of_date == as_of,
+                        CalibrationMark.verdict == "box")
+                .order_by(CalibrationMark.updated_at.desc(),
+                          CalibrationMark.id.desc())
+                .first())
+        if mark is None or mark.resistance is None:
+            return result
+        from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+        win, mark_atr = replay.drawn_box_window(
+            frozen, mark.box_start_date, mark.box_end_date)
+        from engine_alpha.structure.metrics import (  # noqa: PLC0415
+            mark_refusal_read,
+        )
+        refusal = mark_refusal_read(win, mark.resistance, mark.support,
+                                    mark_atr)
+    except Exception as e:  # noqa: BLE001 — passenger: never 500 the read
+        logger.info("engine-read %s@%s: mark refusal read refused (%s: %s)",
+                    symbol, as_of, type(e).__name__, e)
+        return result
+    if refusal is None:
+        return result
+    result["drawn_mark_refusal"] = refusal
+    if refusal["blocking_sentence"] is not None:
+        # The named leg, then how many others are ALSO short (a mark three
+        # legs short invites a ruling that provably cannot admit it), then
+        # the episode read in plain words. The raw profile tape stays in the
+        # structured block — machine vocabulary never reaches the hover.
+        others = len(refusal["refused_legs"]) - 1
+        also = (f" — and {others} more leg{'' if others == 1 else 's'} short"
+                if others > 0 else "")
+        result["reason"] = (f"at your rails: {refusal['blocking_sentence']}"
+                            f"{also} — {refusal['episode_summary']}")
+    else:
+        # Every leg passes at his rails: the miss is upstream of the gate
+        # ladder — the engine never proposes this box at all.
+        result["reason"] = (
+            "every gate leg passes at your rails — the engine never proposes "
+            f"this box, so the miss is upstream — {refusal['episode_summary']}")
     return result
 
 

@@ -104,9 +104,13 @@ def test_negative_corpus_still_rejects_every_case_miss_lanes_on(monkeypatch):
     monkeypatch.setattr(settings, "SMA50_DIP_EXCEPTION_ENABLED", True)
     monkeypatch.setattr(settings, "BOTTOMING_BASE_LANE_ENABLED", True)
     monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", True)
+    # The bar-posture rescue (consolidation-method Task 7) joins the armed
+    # set: its banked A/B measured junk 18/18 silent, and this leg keeps
+    # that pinned against the committed corpus.
+    monkeypatch.setattr(settings, "BAR_POSTURE_RESCUE_ENABLED", True)
     assert negative_corpus.check_corpus() is True, (
         "Negative-corpus guard failed with the miss-program lanes ON: a "
-        "labeled must-NOT-fire chart fires through one of the four lanes. "
+        "labeled must-NOT-fire chart fires through one of the five lanes. "
         "Run `python -m tools.negative_corpus --check` with the flag(s) "
         "forced to name the case; the lane must own it before any flip."
     )
