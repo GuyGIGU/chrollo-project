@@ -59,7 +59,7 @@ finding 9):
   one risk the review would not merge past). Round three pinned five flags by
   name, stamped seven, and computed ``ambient_matches_pin`` by iterating the
   FIVE, so any flag outside them was invisible to both halves. A full ambient
-  sweep of all 29 flags in the engine's identity roster (2026-09-01, this
+  sweep of all 28 flags in the engine's identity roster (2026-09-01, this
   cache, this population) found THREE that move a count through that hole,
   every one of them writing ``ambient_matches_pin: true`` over a moved sheet:
 
@@ -255,7 +255,6 @@ _PIN_VALUES = {
     "STORY_POOL_ENABLED": True,
     "STRATEGY_READ_ENABLED": False,
     "TIGHTNESS_ADR_AWARE": True,
-    "TREND_TERMINAL_BOX_GATE_ENABLED": False,
 }
 # Used by `_escalation_appended` to isolate the escalation's OWN records: the
 # identical read with the two rescue lanes held dark is the subtrahend.
@@ -1035,7 +1034,7 @@ def run(json_out=None):
                 "CCEP (A 108.7 -> no fire), RCUS (A 106.2 strict -> B 82.0 "
                 "story) and GEO's profile"),
             "flags_measured_inert_on_this_population": (
-                "the full sweep flipped each of the 29 ambiently and "
+                "the full sweep flipped each of the 28 ambiently and "
                 "re-measured under round three's five-flag pin (2026-09-01). "
                 "Those five could not leak by construction; of the other 24, "
                 "the three named above moved a count and 21 were inert. They "

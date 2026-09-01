@@ -1438,7 +1438,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `46c2b413217bd8903a717e0c1f447c5b2e78edb5e95937da99cadd7b30afce2c`_
+_engine_config_version: `b1c1e3cc97e3dfd0b4db9c600aaf79f126056afdfe05294d0e58279768af1921`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1526,7 +1526,6 @@ LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 LPS_CEILING_REST_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
-TREND_TERMINAL_BOX_GATE_ENABLED = False
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
