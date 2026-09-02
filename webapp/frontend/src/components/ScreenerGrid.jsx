@@ -432,13 +432,16 @@ const etfNoteStyle = {
 
 const gridStyle = {
   display: 'grid',
-  // Responsive "reading room": fit as many spacious ~620px cards as the screen
-  // allows and stretch them to fill the row — 2 per row at 1536 effective, which
-  // is a 742px card and a ~687px plot, the width the 140-day reference window
-  // needs to render at 4.9px/bar. Keep this in sync with uiScale.CARD_MIN_PX and
-  // index.html's pre-paint copy; HealthBoard and .wl-card-grid must match too,
-  // or a surface sharing ScreenerMiniChart frames the same window in half the pane.
-  gridTemplateColumns: 'repeat(auto-fill, minmax(620px, 1fr))',
+  // Responsive "reading room": fit as many ~480px cards as the screen allows and
+  // stretch them to fill the row — THREE per row at 1536 effective, a 490px card
+  // and a ~435px plot. Briefly widened to 620 (two-up) on 2026-09-02 and put back
+  // the same day: two-up made the chart wide and short, so a stock's whole run was
+  // squeezed into a strip and the rest read as a sliver in the corner. The height,
+  // not the width, is where the card had room (see --card-chart-h). Keep this in
+  // sync with uiScale.CARD_MIN_PX and index.html's pre-paint copy; HealthBoard and
+  // .wl-card-grid must match too, or a surface sharing ScreenerMiniChart frames the
+  // same window in half the pane. uiScale.test.js pins all five.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
   gap: '14px',
   width: '100%',
 };

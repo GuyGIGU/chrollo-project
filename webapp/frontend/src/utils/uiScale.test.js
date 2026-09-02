@@ -14,12 +14,12 @@ import {
   computeAutoFitScale,
 } from './uiScale.js';
 
-test('screenerColumnsAt: the operator 1536px viewport shows 2 cards at 100%', () => {
-  // Two-up by design since CARD_MIN_PX went 480 -> 620 (operator 2026-09-02,
-  // "make the mini chart graph bigger"): a 742px card gives the ~687px plot the
-  // 140-trading-day reference window needs to render at ~4.9px per trading day.
-  assert.equal(screenerColumnsAt(1, 1536), 2);
-  assert.equal(screenerColumnsAt(0.9, 1536), 2);
+test('screenerColumnsAt: the operator 1536px viewport shows 3 cards at 100%', () => {
+  // THREE-up at the original 480px minimum. Briefly 620 (two-up) on 2026-09-02
+  // and put back the same day: two-up made the chart wide and short, so the whole
+  // stock was squeezed into a strip. The card's room was vertical, not horizontal.
+  assert.equal(screenerColumnsAt(1, 1536), 3);
+  assert.equal(screenerColumnsAt(0.9, 1536), 3);
 });
 
 test('screenerColumnsAt: never returns fewer than one column', () => {
@@ -33,24 +33,24 @@ test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
   }
 });
 
-test('computeAutoFitScale: stays at 100% for the 1536px monitor — 2 cards already fit', () => {
-  // No step down to 85% reaches a 3rd 620px card at this width, so auto-fit must
+test('computeAutoFitScale: stays at 100% for the 1536px monitor — 3 cards already fit', () => {
+  // No step down to 85% reaches a 4th 480px card at this width, so auto-fit must
   // not shrink his text to chase one.
   assert.equal(computeAutoFitScale(1536), 1);
 });
 
 test('computeAutoFitScale: stays at 100% when shrinking would not add a column', () => {
-  // A 1440px viewport already shows 2 cards and cannot reach a 3rd without
+  // A 1280px viewport already shows 2 cards and cannot reach a 3rd without
   // dropping below the 85% floor, so auto-fit should not shrink at all.
-  assert.equal(screenerColumnsAt(1, 1440), 2);
-  assert.equal(screenerColumnsAt(0.85, 1440), 2);
-  assert.equal(computeAutoFitScale(1440), 1);
+  assert.equal(screenerColumnsAt(1, 1280), 2);
+  assert.equal(screenerColumnsAt(0.85, 1280), 2);
+  assert.equal(computeAutoFitScale(1280), 1);
 });
 
 test('computeAutoFitScale: on a wide monitor shrinks only as far as the next column needs', () => {
-  // 1920px reaches a 3rd card at 95% — take that step, but no further down.
-  assert.equal(screenerColumnsAt(1, 1920), 2);
-  assert.equal(screenerColumnsAt(0.95, 1920), 3);
+  // 1920px reaches a 4th card at 95% — take that step, but no further down.
+  assert.equal(screenerColumnsAt(1, 1920), 3);
+  assert.equal(screenerColumnsAt(0.95, 1920), 4);
   assert.equal(computeAutoFitScale(1920), 0.95);
 });
 

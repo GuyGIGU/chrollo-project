@@ -48,26 +48,49 @@ escape hatch — *if even the most-trimmed window cannot reach the target, trim 
 ## Before → after
 
 Card plot widths are the real ones, measured in the running app at 1536×864 effective, scale 1.00:
-435px inside the old 480px-minimum card, 687px inside the new 620px-minimum one.
+**435px inside the 490px card**, three-up, before and after. (A two-up 620px minimum shipped for a
+few hours between these two measurements and was reverted the same day — see "What the first cut got
+wrong" below.)
 
 ### Mini card
 
-| | BEFORE (480px card, 435px plot) | AFTER (742px card, 687px plot) |
+| | BEFORE (490px card, 435px plot) | AFTER (490px card, 435px plot) |
 |---|---|---|
-| window, trading days | min 56 · **med 62** · p90 131 · max 300 | min 140 · **med 140** · p90 220 · max 300 |
-| px per trading day | 1.45 – **7.02** – 7.77 | 2.29 – **4.91** – 4.91 |
-| base % of card WIDTH | med **51.9** · p90 83.0 | med **26.4** · p90 43.2 |
-| cards with the base over 45% of width | **136 / 230** | **17 / 230** |
-| cards with the base over 60% of width | **97 / 230** | **3 / 230** |
-| cards under 3 px per trading day | 8 | **8** |
+| window, trading days | min 56 · **med 62** · p90 131 · max 300 | min 55 · **med 121** · p90 220 · max 300 |
+| px per trading day | 1.45 – **7.02** – 7.77 | 1.45 – **3.60** – 7.91 |
+| base % of card WIDTH | med **51.9** · p90 83.0 | med **30.6** · p90 43.2 |
+| cards with the base over 45% of width | **136 / 230** | **19 / 230** |
+| cards with the base over 60% of width | **97 / 230** | **6 / 230** |
+| cards under 3 px per trading day | 8 | 82 |
 | boxes cropped off-pane | 0 | 0 |
-| **longer rest drawn NARROWER than a shorter one** | **2,275 / 25,904 pairs = 8.8%** | **37 / 25,904 = 0.1%** |
+| **longer rest drawn NARROWER than a shorter one** | **2,275 / 25,904 pairs = 8.8%** | **6 / 25,904 = 0.0%** |
 
 The last row is the complaint as a number: roughly one side-by-side comparison in eleven actively
-lied about which consolidation had lasted longer. It is now 0.1% — and **every one of the 37
-survivors involves a base of at least 96 trading days**, i.e. the monster tail, never a
-normal-length rest. Below the cap crossover (base ≈ 44 days) every card is drawn at the same
-140-day scale, so there width *is* duration, exactly.
+lied about which consolidation had lasted longer. It is now **0.0%** — 6 pairs of 25,904, and every
+one involves a rest of **130+ trading days**, i.e. the monster tail, never a normal-length rest.
+
+The cost is bar thickness on long rests: 82 cards draw under 3 px per trading day, against 8 before.
+That is the honest price of the cap — a 90-day rest shown at a third of the pane needs a 270-day
+window, and 270 days do not fit thickly in 435px. The cards the operator actually triages are not
+among them: a 24-day rest gets 83 days at **5.24 px/day**, a 33-day rest 109 days at **3.99**.
+
+### What the first cut got wrong
+
+The first version of this change used a **fixed 140-day span for every setup** and widened the card
+to 620px (two-up). Both were reverted the same day, on the operator's ruling:
+
+> *"you made that only 2 cards are visible per row, return it back to 4 [3 at his width]. Return it
+> to the original width, I asked for a more accurate representation of the price data bars and the
+> stock rather then a streched out version … by focusing on the consolidation area and then some
+> room behind it for added context before the consolidation (this is way way too much). I'm
+> requesting for a dynamic scaling based on the found consolidation."*
+
+He is right on both counts. A fixed span makes the window a property of the **surface** instead of
+the **setup** — the same mistake as the retired trim, pointing the other way: 140 days is far too
+much room behind a 24-day rest. And two-up made the chart wide and short (3.1:1), so a stock's whole
+run was squeezed into a strip with the rest as a sliver in the corner. **The card's spare room was
+vertical, not horizontal.** Three-up at 490px with the 225px well is a **2.17:1** chart — within a
+rounding error of Finviz's own screener charts (2.1:1), which is the reference he pointed at.
 
 ### The monster tail — the ceiling yields (operator ruling, same day)
 
@@ -156,13 +179,14 @@ glass now opens beside the cursor rather than against the row's ticker cell. See
 
 | ticker | rest lasted | BEFORE | AFTER |
 |---|---|---|---|
-| **MSEX** | 33 trading days | 56-day window, base **58.9%** of card width | 140-day window, base **23.6%** |
-| **NP** | 24 trading days | 56-day window, base **42.9%** | 140-day window, base **17.1%** |
-| **TECH** | 25 trading days | 56-day window, base **44.6%** | 140-day window, base **17.9%** |
-| **SBUX** (the cap-bound case) | 82 trading days | 100-day window, base **82.0%** | 220-day window, base **37.3%** |
+| **MSEX** | 33 trading days | 56-day window, base **58.9%** of card width | **109**-day window, base **30.3%**, 3.99 px/day |
+| **NP** | 24 trading days | 56-day window, base **42.9%** | **83**-day window, base **28.9%**, 5.24 px/day |
+| **TECH** | 25 trading days | 56-day window, base **44.6%** | **86**-day window, base **28.9%**, 5.06 px/day |
+| **SBUX** (the long-rest case) | 82 trading days | 100-day window, base **82.0%** | **220**-day window, base **37.3%**, 1.98 px/day |
 
-MSEX at 23.6% and SBUX at 37.3% now differ *because their rests lasted different lengths of time*.
-That is the property that was missing.
+NP gets 83 days and MSEX 109 *because their rests lasted different lengths of time* — the window is
+the setup's, not the surface's. That is the property that was missing, and a fixed span did not have
+it either.
 
 ---
 
@@ -171,23 +195,34 @@ That is the property that was missing.
 One reference time scale per surface, stretched only by a long base:
 
 ```
-capWindow = ceil((visibleBase + rightPad) / baseWidthCap)
-window    = max(referenceBars, min(legibilityCeilingBars, capWindow))
-            // ...and the ceiling YIELDS to a base it cannot frame:
+capWindow = ceil((visibleBase + rightPad) / baseWidthCap)   // the rest sets the scale
+window    = max(minWindowBars, min(legibilityCeilingBars, capWindow))
+            // ...and the ceiling YIELDS to a rest it cannot frame:
             if (capWindow > ceiling && (visibleBase + rightPad) / window > ceilingYieldShare)
               window = max(window, min(capWindow, carriedHistory))
 from      = min(rightEdge - window + 1, baseStart - minContextBars)   // never-crop outranks both
 ```
 
-| profile | referenceBars | ceiling | baseWidthCap | ceilingYieldShare | minContextBars |
+| profile | minWindowBars | ceiling | baseWidthCap | ceilingYieldShare | minContextBars |
 |---|---|---|---|---|---|
-| `mini` | 140 (~7 months) | 220 | 0.35 | 0.60 | 18 |
-| `modal` | 252 (one trading year) | 300 | 0.35 | 0.60 | 25 |
-| `popover` | 70 (~3.3 months) | 105 | 0.35 | **1** (see the glance section) | 14 |
+| `mini` | 55 (a floor, not a span) | 220 | 0.35 | 0.75 | 18 |
+| `modal` | 252 (one trading year — here the floor IS the span) | 300 | 0.35 | 0.60 | 25 |
+| `popover` | 55 | 105 | 0.35 | **1** (see the glance section) | 14 |
+
+**`minWindowBars` is a floor, not a span.** It only binds for a rest short enough that the cap would
+leave no approach leg (under ~15 days); it is inert on all 230 live setups, and exists so a 5-day
+rest cannot produce a 43-day window.
+
+**`legibilityCeilingBars` has to sit HIGH, and that is counter-intuitive.** A low ceiling reads like
+a legibility win — hold the bars thick — but it makes the window stop growing while the rest keeps
+growing, so past the ceiling a *longer* rest starts drawing *narrower* than a shorter one. Measured
+at a 110-day ceiling: the lie returns on rests as short as **37 trading days** and the
+order-inversion rate goes to **9.7% — worse than the 8.8% this whole program exists to remove.** At
+220 it is 0.0%. Legibility on the long tail is bought with the yield, never by lowering the ceiling.
 
 `baseWidthCap` is deliberately **identical** across the three, so the card, the modal and the glance
-can never disagree about how much pane a rest owns. The cap crossover is base ≈ 44 trading days, so
-it is a tail rule: 62% of setups never touch it. Measured (live 230, `tools/chart_framing_census.mjs`):
+can never disagree about how much pane a rest owns. It is now the PRIMARY lever — it sets the window
+for every setup, not just the long ones. Measured (live 230, `tools/chart_framing_census.mjs`):
 the cap moves only the **middle** of the distribution — base % of card width p75 30.0 / 32.5 / 37.1
 at cap 0.30 / 0.35 / 0.40, with the median (26.4) and p90 (43.2) unchanged across all three, because
 p90 is owned by ceiling-bound and yielded cards whose share is cap-independent. **The tail knee is at

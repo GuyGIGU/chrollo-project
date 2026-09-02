@@ -3,10 +3,11 @@ import { addBoxRails } from './chartRails';
 import { baseChartOptions, CHART_COLORS } from './chartTheme';
 import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
 
-// ONE reference time scale for every card (~140 trading days ≈ 4.9px/bar in a
-// 742px card), so two setups side by side are at the SAME zoom and a rest that
-// lasted five months is drawn wider than one that lasted a month. Only a very
-// long base stretches its own window. This replaces the 2026-08-09 vertical
+// The CONSOLIDATION sets the window: wide enough that the rest owns ~a third of
+// the pane, with real room behind it for the move that led in (a 24-day rest
+// gets ~83 trading days, a 33-day rest ~109, at ~4-5px per day in a 490px card).
+// A rest that lasted five months is therefore drawn wider than one that lasted a
+// month, and neither is stretched. This replaces the 2026-08-09 vertical
 // proportion trim, which bought box height by deleting old bars and so re-caused
 // the 2026-07 failure it was written to prevent — a base sprawling edge-to-edge
 // reads tighter than it is (operator 2026-09-02). The whole model lives in the
