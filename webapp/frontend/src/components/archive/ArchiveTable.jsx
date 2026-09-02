@@ -138,7 +138,7 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
       style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
     >
       <Cell align="left">
-        <span data-glance-anchor="" style={{ color: tierColor(setup.tier), fontWeight: 700 }}>{setup.ticker}</span>
+        <span style={{ color: tierColor(setup.tier), fontWeight: 700 }}>{setup.ticker}</span>
       </Cell>
       <Cell align="left" muted>{setup.first_seen || setup.scan_date}</Cell>
       <Cell align="left">

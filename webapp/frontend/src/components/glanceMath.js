@@ -35,26 +35,35 @@ export function glanceAction({ current = null, next = null, open = false } = {})
 export const GLANCE_WIDTH = 380;
 export const GLANCE_HEIGHT = 250;
 const EDGE_MARGIN = 8;
-const ANCHOR_GAP = 12;
+// Far enough that the glass never sits under the pointer itself (it would still
+// be harmless — the glass is pointerEvents:none — but a chart under your own
+// cursor reads as a misplaced overlay), close enough to stay one glance away.
+const CURSOR_GAP = 16;
 
-// Where to put the glass for an anchor cell.
+// Where to put the glass: BESIDE THE CURSOR (operator 2026-09-02, "can you make
+// them appear near the location of my cursor instead of static"). It used to be
+// placed against the row's ticker cell, so on a wide table the chart opened far
+// from where the operator was actually looking — and in the same spot for every
+// row, which is the "static" he means.
 //
 // THE ZOOM TRAP: `.app-layout` carries `zoom: var(--ui-scale)` (0.85–1.30), and
-// the glass renders INSIDE that subtree. getBoundingClientRect() answers in
-// SCREEN px (already multiplied by the scale), but a position:fixed child of a
-// zoomed subtree resolves its own top/left in the subtree's PRE-ZOOM px. So
-// every screen-space input — the anchor rect and the viewport box — is divided
-// by the scale exactly once, and the result is in the units `style.top/left`
-// actually speak. At scale 1 this is the identity, which is precisely why an
-// untested version of this function would look correct on the operator's
-// machine and land in the wrong place for anyone zoomed in.
+// the glass renders INSIDE that subtree. Pointer coordinates (like
+// getBoundingClientRect) answer in SCREEN px — already multiplied by the scale —
+// but a position:fixed child of a zoomed subtree resolves its own top/left in
+// the subtree's PRE-ZOOM px. So every screen-space input — the cursor point and
+// the viewport box — is divided by the scale exactly once, and the result is in
+// the units `style.top/left` actually speak. At scale 1 this is the identity,
+// which is precisely why an untested version of this function would look
+// correct on the operator's machine and land in the wrong place for anyone
+// zoomed in.
 //
-// Preferred side is to the RIGHT of the anchor; it flips left when the glass
-// would cross the viewport edge, and if neither side fits it takes the side
-// with more room and clamps. Vertically the glass is centred on the anchor and
-// clamped into view. Pure: no DOM reads, no side effects.
+// Preferred quadrant is down-and-right of the cursor, the way a tooltip sits;
+// each axis flips independently when the glass would cross the viewport edge,
+// then clamps. Both flips are computed from the SAME point, so a cursor in the
+// bottom-right corner gets the glass up-and-left and never under itself.
+// Pure: no DOM reads, no side effects.
 export function glancePlacement({
-  anchor,
+  pointer,
   viewport,
   scale = 1,
   width = GLANCE_WIDTH,
@@ -62,24 +71,24 @@ export function glancePlacement({
 }) {
   const s = Number(scale);
   const safeScale = Number.isFinite(s) && s > 0 ? s : 1;
-  if (!anchor || !viewport) return null;
+  if (!pointer || !viewport) return null;
+
+  const x = Number(pointer.x) / safeScale;
+  const y = Number(pointer.y) / safeScale;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
 
   const viewW = viewport.width / safeScale;
   const viewH = viewport.height / safeScale;
-  const left = anchor.left / safeScale;
-  const right = anchor.right / safeScale;
-  const top = anchor.top / safeScale;
-  const bottom = anchor.bottom / safeScale;
 
-  const roomRight = viewW - right - ANCHOR_GAP - EDGE_MARGIN;
-  const roomLeft = left - ANCHOR_GAP - EDGE_MARGIN;
-  const side = roomRight >= width || roomRight >= roomLeft ? 'right' : 'left';
+  const side = x + CURSOR_GAP + width <= viewW - EDGE_MARGIN ? 'right' : 'left';
+  const vertical = y + CURSOR_GAP + height <= viewH - EDGE_MARGIN ? 'below' : 'above';
 
-  const rawX = side === 'right' ? right + ANCHOR_GAP : left - ANCHOR_GAP - width;
-  const rawY = (top + bottom) / 2 - height / 2;
+  const rawX = side === 'right' ? x + CURSOR_GAP : x - CURSOR_GAP - width;
+  const rawY = vertical === 'below' ? y + CURSOR_GAP : y - CURSOR_GAP - height;
 
   return {
     side,
+    vertical,
     left: clamp(rawX, EDGE_MARGIN, Math.max(EDGE_MARGIN, viewW - width - EDGE_MARGIN)),
     top: clamp(rawY, EDGE_MARGIN, Math.max(EDGE_MARGIN, viewH - height - EDGE_MARGIN)),
   };

@@ -106,7 +106,7 @@ function CleanCard({ ticker, card, onSelect, onRemove }) {
           </span>
         </div>
       </div>
-      <div className="screener-card-well" style={{ display: 'flex', flex: 1, minHeight: 'clamp(180px, 11vw, 240px)', position: 'relative' }}>
+      <div className="screener-card-well" style={{ display: 'flex', flex: 1, minHeight: 'var(--card-chart-h)', position: 'relative' }}>
         {candles.length ? (
           <ScreenerMiniChart ticker={ticker} data={card.data} />
         ) : (

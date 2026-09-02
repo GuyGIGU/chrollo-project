@@ -432,10 +432,13 @@ const etfNoteStyle = {
 
 const gridStyle = {
   display: 'grid',
-  // Responsive "reading room": fit as many spacious ~480px cards as the screen
-  // allows and stretch them to fill the row. ~3 per row on a wide monitor, 2 on
-  // a laptop — big, readable charts with room to visualize each setup.
-  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
+  // Responsive "reading room": fit as many spacious ~620px cards as the screen
+  // allows and stretch them to fill the row — 2 per row at 1536 effective, which
+  // is a 742px card and a ~687px plot, the width the 140-day reference window
+  // needs to render at 4.9px/bar. Keep this in sync with uiScale.CARD_MIN_PX and
+  // index.html's pre-paint copy; HealthBoard and .wl-card-grid must match too,
+  // or a surface sharing ScreenerMiniChart frames the same window in half the pane.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(620px, 1fr))',
   gap: '14px',
   width: '100%',
 };

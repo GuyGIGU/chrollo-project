@@ -388,11 +388,23 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Section labels:** 9px uppercase, faint, wide tracking.
 
 ### Signature — The Screener Card
-The dense triage unit of the product: a header row (watchlist star, "considered"
-checkbox, tier-colored ticker, setup label, score + sub-score pills), a
-mini price chart, and a tag row. Cards dim to 50% opacity when marked considered,
-so the grid reads as "what's left to review". Density is the point; it must stay
-legible at four-up.
+The triage unit of the product: a header (tier-colored ticker + tier badge +
+sector ETF + as-of date on the first line, the weekly/monthly read and the live
+price on the second, with the watchlist star and "considered" checkbox floating
+in the top-right corner), a mini price chart, and a tag row. The setup label,
+score and sub-score pills live in the click-through modal, not on the card face —
+the card is for the chart. Cards dim to 50% opacity when marked considered, so
+the grid reads as "what's left to review".
+
+**The chart is the card, and it is sized to be read, not skimmed** (operator
+2026-09-02). The target is **two-up on a 1536×864-effective monitor**: a 742px
+card carrying a 225px chart well, which is the width the shipped 140-trading-day
+framing window needs to render at ~4.9px per trading day. Density is still the
+point — but density means *honest bars per pixel*, not *more cards per row*: a
+card too narrow to show the rest against the move that led into it draws a wide
+choppy setup and a tight coil at the same width. See
+[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md); the knobs are
+`CHART_FRAMING` and `uiScale.CARD_MIN_PX`.
 
 ## 6. Do's and Don'ts
 

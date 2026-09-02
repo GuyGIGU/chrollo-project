@@ -92,16 +92,19 @@ export default function useHoverGlance(resolve, { suspended = false, swapDwellMs
     // re-zooms .app-layout by setting a CSS variable, which fires no resize
     // event — a factor cached at mount would send the glass a quarter-screen
     // away for the rest of the session.
-    const rect = readRect(element);
-    if (!rect) {
-      // The row was re-rendered out from under the pointer between the sample
-      // and this frame. Forget it rather than placing the glass off a zeroed
-      // rect; the next pointer sample re-arms on whatever is really there.
+    // Read the cursor HERE, not at sample time: `show` runs behind the intent
+    // delay, so this is the freshest point that is still on the same row.
+    const pointer = pointerRef.current;
+    if (!pointer || !anchorIsLive(element)) {
+      // Either the pointer left the window, or the row was re-rendered out from
+      // under it between the sample and this frame. Forget it rather than
+      // opening a glass with nowhere to be; the next pointer sample re-arms on
+      // whatever is really there.
       keyRef.current = null;
       return;
     }
     const gen = ++genRef.current;
-    const frame = { rect, scale: currentScale(), viewport: currentViewport() };
+    const frame = { pointer, scale: currentScale(), viewport: currentViewport() };
 
     const settle = (result) => {
       if (gen !== genRef.current) return; // the pointer moved on; this answer is stale
@@ -278,16 +281,14 @@ function stopTimer(ref) {
   }
 }
 
-// The rect the glass is placed against: the row is the TARGET (hovering
-// anywhere on it summons the chart), but a full-width row is a useless anchor —
-// "beside it" would mean the screen edge. So the row names its own datum with
-// data-glance-anchor (the ticker cell), and the glass sits beside THAT.
-function readRect(element) {
-  if (!element?.isConnected) return null;
-  const target = element.querySelector?.('[data-glance-anchor]') || element;
-  const { left, right, top, bottom } = target.getBoundingClientRect();
-  if (right - left <= 0 && bottom - top <= 0) return null;
-  return { left, right, top, bottom };
+// Is the row the pointer sampled still really on screen? The glass is placed
+// against the CURSOR now, so the row is no longer a placement datum — but it is
+// still a liveness check: a row re-rendered away between the sample and this
+// frame would otherwise open a chart for something that is no longer there.
+function anchorIsLive(element) {
+  if (!element?.isConnected) return false;
+  const { width, height } = element.getBoundingClientRect();
+  return width > 0 || height > 0;
 }
 
 function currentViewport() {

@@ -114,6 +114,22 @@
      byte-identical. Driven by the sidebar Scale control (see AppearanceControl)
      and pre-seeded by index.html's pre-paint script so there's no reload flash. */
   --ui-scale: 1;
+
+  /* The screener card's chart well — ONE token, was a three-times-copied inline
+     `clamp(180px, 11vw, 240px)` that on a 1536-wide monitor resolved to 168.96px
+     and so sat PERMANENTLY on its 180px floor: the well had never once grown,
+     and no setting the operator could change moved it (operator 2026-09-02,
+     "make the mini chart graph bigger"). Height-keyed now, so his 864px of
+     height counts, and divided by --ui-scale because `vh` is not rescaled by
+     CSS `zoom`. Scope that correction honestly: only the MIDDLE term carries it,
+     so the well is physically constant just while 200 <= 26vh/scale <= 300 — at
+     864px tall that is every step up to 1.10, and from 1.15 the 200px floor binds
+     and the well grows with the zoom (230/240/250/260px at 1.15/1.20/1.25/1.30).
+     Benign: it only ever gets bigger. Making it literally constant would mean
+     calc(clamp(200px, 26vh, 300px) / var(--ui-scale)), which at Scale 1.30 leaves
+     the well 172.8 internal px while everything around it grew 30% — the chart
+     shrinking against its own card, the opposite of the 2026-09-02 ask. */
+  --card-chart-h: clamp(200px, calc(26vh / var(--ui-scale)), 300px);
 }
 
 * {
@@ -3168,7 +3184,7 @@ td.cell-editable { overflow: hidden; }
 .wl-card-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(620px, 1fr));
   padding-bottom: 8px;
 }
 
