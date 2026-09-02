@@ -34,22 +34,30 @@ export function WatchlistButton({ active, onToggle }) {
   );
 }
 
-// "Considered" marker — records that you actually saw and weighed this setup
-// (engaged with it), NOT that you rejected it. So it reads as a neutral
-// check-off, never a stop sign.
-function PassButton({ active, onToggle }) {
+// LIKE — "this is the kind of setup I want more of" (operator 2026-09-02),
+// replacing the old neutral "considered" check-off on this surface. It is a
+// PREFERENCE signal about the engine's own fires, gathered so the good ones can
+// eventually be singled out of a scan; the "saw & skipped" negative it is paired
+// with lives on the archive table, and the two are one mutually-exclusive row
+// server-side. Nothing in the engine reads a like, and nothing may until it has
+// been measured against the archive (house rule: new signals enter measure-first).
+//
+// It reads as approval, not as a stop sign: the filled heart takes the gold the
+// app already spends on the operator's own marks, never a tier hue.
+function LikeButton({ active, onToggle }) {
   return (
     <button
       onClick={(event) => {
         event.stopPropagation();
         onToggle();
       }}
-      title={active ? 'Considered — you saw & weighed this setup (click to unmark)' : 'Mark as considered (you saw & weighed this setup)'}
+      aria-pressed={active}
+      title={active ? 'Liked — the kind of setup you want more of (click to unlike)' : 'Like this setup — the kind you want more of'}
       style={{
-        background: active ? 'var(--success-bg)' : 'rgba(20,23,33,0.7)',
-        border: '1px solid var(--border-color)',
+        background: active ? 'rgba(212,175,55,0.16)' : 'rgba(20,23,33,0.7)',
+        border: `1px solid ${active ? 'var(--accent-yellow)' : 'var(--border-color)'}`,
         borderRadius: 5,
-        color: active ? 'var(--success)' : '#6b6b7a',
+        color: active ? 'var(--accent-yellow)' : '#6b6b7a',
         cursor: 'pointer',
         fontFamily: 'inherit',
         fontSize: 11,
@@ -59,7 +67,7 @@ function PassButton({ active, onToggle }) {
         width: 20,
       }}
     >
-      {active ? '☑' : '☐'}
+      {active ? '♥' : '♡'}
     </button>
   );
 }
@@ -116,7 +124,7 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
 // plus the live price and its daily % change. Score, setup name, and the next-
 // earnings date move to the click-through detail lens, keeping the card face to
 // the chart itself.
-function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, passed, onTogglePassed }) {
+function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike }) {
   const changePct = dailyChangeFrac(data.candles);
   const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
 
@@ -136,7 +144,7 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, passed, onTo
       {/* Utility toggles float in the top-right corner, out of the reading path */}
       <div style={{ display: 'flex', gap: 4, position: 'absolute', right: 9, top: 8 }}>
         <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
-        <PassButton active={passed} onToggle={() => onTogglePassed(ticker)} />
+        <LikeButton active={liked} onToggle={() => onToggleLike(ticker)} />
       </div>
 
       {/* Row 1 — stock + tier + date (date clears the corner toggles) */}
@@ -199,19 +207,19 @@ const drillButtonStyle = {
   width: '100%',
 };
 
-const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, passed, onTogglePassed, onClick, onDrilldown }) => (
+const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown }) => (
   <div
     className="screener-card"
     role="button"
     tabIndex={0}
-    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, C to mark considered.`}
+    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, L to ${liked ? 'unlike' : 'like'}.`}
     onClick={() => onClick(ticker)}
     onKeyDown={(event) => {
       // Only act on keys aimed at the card itself, not ones bubbling up from the
       // inner toggle buttons (otherwise Enter/Space on a focused toggle would
-      // also open the card). Enter/Space open it; W/C are power-user toggles that
-      // keep the per-card engagement the "considered" mark depends on — a
-      // deliberate alternative to mass-marking a whole page at once.
+      // also open the card). Enter/Space open it; W/L are power-user toggles that
+      // keep the per-card engagement a like depends on — a deliberate
+      // alternative to mass-marking a whole page at once.
       if (event.target !== event.currentTarget) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -219,9 +227,9 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
       } else if (event.key === 'w' || event.key === 'W') {
         event.preventDefault();
         onToggleWatchlist(ticker);
-      } else if (event.key === 'c' || event.key === 'C') {
+      } else if (event.key === 'l' || event.key === 'L') {
         event.preventDefault();
-        onTogglePassed(ticker);
+        onToggleLike(ticker);
       }
     }}
     style={{
@@ -245,9 +253,9 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
   >
     <CardHeader
       data={data}
-      onTogglePassed={onTogglePassed}
+      liked={liked}
+      onToggleLike={onToggleLike}
       onToggleWatchlist={onToggleWatchlist}
-      passed={passed}
       ticker={ticker}
       watchlisted={watchlisted}
     />

@@ -243,7 +243,15 @@ class SetupReview(Base):
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String, nullable=False, index=True)
     scan_date = Column(String, nullable=False, index=True)
-    verdict = Column(String, nullable=False, default="passed")  # "passed"
+    # A CLOSED SET of two, and they are mutually exclusive by construction —
+    # the unique constraint below allows exactly one review row per setup, so
+    # liking a setup you had passed replaces the verdict rather than stacking.
+    #   "passed" — saw it and skipped it (feeds the missed-winners report)
+    #   "liked"  — saw it and it is the kind of setup you want more of
+    #              (operator 2026-09-02; a preference signal for RANKING, never
+    #              a detection threshold — it must not reach scoring until it is
+    #              measured against the archive, house rule "measure-first")
+    verdict = Column(String, nullable=False, default="passed")
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=True)
 
