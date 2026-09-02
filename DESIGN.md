@@ -390,11 +390,18 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 ### Signature — The Screener Card
 The triage unit of the product: a header (tier-colored ticker + tier badge +
 sector ETF + as-of date on the first line, the weekly/monthly read and the live
-price on the second, with the watchlist star and "considered" checkbox floating
-in the top-right corner), a mini price chart, and a tag row. The setup label,
-score and sub-score pills live in the click-through modal, not on the card face —
-the card is for the chart. Cards dim to 50% opacity when marked considered, so
-the grid reads as "what's left to review".
+price on the second, with the watchlist star and the **like** heart floating in
+the top-right corner), a mini price chart, and a tag row. The setup label, score
+and sub-score pills live in the click-through modal, not on the card face — the
+card is for the chart.
+
+**The like (♥, or `L`)** says "this is the kind of setup I want more of"
+(operator 2026-09-02). It replaced the neutral "considered" check-off, which now
+lives only on the Archive table as its "saw & skipped" pass — deliberately, since
+that pass is the negative class that makes a like mean anything. It wears the
+app's operator-mark gold, never a tier hue, because it is *his* judgement and not
+the engine's. (An earlier draft of this section claimed cards dim to 50% when
+marked; they never did — no such rule was ever written.)
 
 **The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
 The target is **three-up on a 1536×864-effective monitor**: a 490px card carrying
