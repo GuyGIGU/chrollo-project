@@ -159,7 +159,7 @@ const unreadableCardStyle = {
 
 const gridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(620px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
   gap: '14px',
   width: '100%',
 };

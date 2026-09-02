@@ -3184,7 +3184,7 @@ td.cell-editable { overflow: hidden; }
 .wl-card-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(620px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
   padding-bottom: 8px;
 }
 

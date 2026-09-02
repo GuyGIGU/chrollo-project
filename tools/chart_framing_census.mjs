@@ -31,7 +31,7 @@ const { miniFocusLogicalRange, modalFocusLogicalRange, CHART_FRAMING } = await i
 
 // The real plot widths (card/modal/glance minus the right price scale), measured
 // in the running app at the operator's 1536x864-effective viewport, scale 1.00.
-const PLOT = { mini: 687, modal: 1050, popover: 330 };
+const PLOT = { mini: 435, modal: 1050, popover: 330 };
 
 // --- the RETIRED model, transcribed (the code itself is deleted) -------------
 // CHART_FRAMING.mini/modal as shipped up to 2026-09-02, plus proportionTrimmedFrom.
@@ -202,10 +202,10 @@ console.log(`  modal windows pinned at the 81-day floor: ${beforeModal.filter((r
 console.log(`  modal futile trims: ${beforeModal.filter((r) => r.futile && r.fired).length}`);
 
 console.log('\n================ AFTER — the shipped model =================');
-console.log(`mini  referenceBars ${CHART_FRAMING.mini.referenceBars} ceiling ${CHART_FRAMING.mini.legibilityCeilingBars} baseWidthCap ${CHART_FRAMING.mini.baseWidthCap}`);
-console.log(`modal referenceBars ${CHART_FRAMING.modal.referenceBars} ceiling ${CHART_FRAMING.modal.legibilityCeilingBars} baseWidthCap ${CHART_FRAMING.modal.baseWidthCap}`);
+console.log(`mini  minWindow ${CHART_FRAMING.mini.minWindowBars} ceiling ${CHART_FRAMING.mini.legibilityCeilingBars} cap ${CHART_FRAMING.mini.baseWidthCap} yield ${CHART_FRAMING.mini.ceilingYieldShare}`);
+console.log(`modal minWindow ${CHART_FRAMING.modal.minWindowBars} ceiling ${CHART_FRAMING.modal.legibilityCeilingBars} cap ${CHART_FRAMING.modal.baseWidthCap} yield ${CHART_FRAMING.modal.ceilingYieldShare}`);
 const afterMini = measure(tickers, chart, (d) => miniFocusLogicalRange(d));
-profile('MINI CARD @742px card', afterMini, PLOT.mini);
+profile('MINI CARD @490px card', afterMini, PLOT.mini);
 const invAfter = inversions(afterMini, chart);
 console.log(`  ORDER INVERSION: ${invAfter.bad}/${invAfter.pairs} pairs = ${pct(invAfter.bad / invAfter.pairs)}%`);
 profile('MODAL @1050px', measure(tickers, chart, (d) => modalFocusLogicalRange(d)), PLOT.modal);

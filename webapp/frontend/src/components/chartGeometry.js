@@ -57,25 +57,36 @@ const barCount = (value) => {
 // NARROWER than a shorter one — the operator's "wide choppy setups read as
 // cute tight ones". RETIRED; vertical proportion is now a consequence of an
 // honest window plus a taller well, never a target.
-// THE MODEL: one reference time scale per surface (referenceBars), identical
-// for every setup, so px/bar is constant card-to-card and the base's share of
-// width is proportional to its DURATION. Only a base that would own more than
-// baseWidthCap of the pane stretches the window, bounded above by
-// legibilityCeilingBars — which YIELDS, as the reference does, to the never-
-// crop rule (2026-08-09: the box is the datum). The 2026-07 sprawl failure —
-// "~48 bars at ~10px/bar let a tight base sprawl edge-to-edge and read tighter
-// than it is" — is held off by the cap, not by a bar budget.
+// THE MODEL (revised 2026-09-02, same day): the CONSOLIDATION sets the scale.
+// The window is whatever shows the rest at baseWidthCap of the pane — "focusing
+// on the consolidation area and then some room behind it for added context
+// before the consolidation" — floored at minWindowBars so a very short rest
+// still gets context, and capped at legibilityCeilingBars so bars never get
+// too thin to read. The first cut used a FIXED 140-day slab for every setup;
+// the operator ruled that "way way too much" on a 24-day rest, and he is right:
+// a fixed span makes the window a property of the surface instead of a property
+// of the setup, which is the same mistake in the other direction. Now a 24-day
+// rest gets 83 days and a 33-day rest gets 109.
+// The ceiling YIELDS to a base it cannot frame (monster zoom-out), and every
+// bound yields to the never-crop rule (2026-08-09: the box is the datum). The
+// 2026-07 sprawl failure — "~48 bars at ~10px/bar let a tight base sprawl
+// edge-to-edge and read tighter than it is" — is held off by the cap.
 export const CHART_FRAMING = {
   mini: {
-    referenceBars: 140,          // ~7 months. 687px plot / 140 = 4.91 px/bar — dead centre
-                                 // of the 3.7-5.3 faithful band. The SHARED time scale:
-                                 // 142 of 230 cards render at exactly this width.
-    legibilityCeilingBars: 220,  // 687/220 = 3.12 px/bar — the widest window still legible.
-                                 // A CEILING, not a budget: it yields to the never-crop rule.
-    ceilingYieldShare: 0.6,      // ...and it yields to a base it cannot frame. At the 220 ceiling
-                                 // seven live bases still own 61-100% of the pane; holding bars
-                                 // wide does not make those readable, so they get the whole
-                                 // history instead (operator 2026-09-02, "simply zoom out").
+    minWindowBars: 55,           // the FLOOR, not a span: a very short rest still needs room
+                                 // behind it. Inert on the live 230 (the shortest rest already
+                                 // earns 60+ days through the cap) — it exists so a 5-day rest
+                                 // cannot produce a 43-day window.
+    legibilityCeilingBars: 220,  // 435px plot / 220 = 1.98 px/bar at the very bottom — a hard
+                                 // stop, not a target. It has to sit HIGH: a low ceiling makes
+                                 // the window stop growing while the rest keeps growing, so a
+                                 // longer rest starts drawing NARROWER than a shorter one. At
+                                 // 110 that lie returns on rests as short as 37 days and the
+                                 // order-inversion rate goes to 9.7% — worse than the 8.8% this
+                                 // whole program exists to remove. At 220 it is 0.0% (6 pairs of
+                                 // 25,904, all rests of 130+ days). Measured 2026-09-02.
+    ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
+                                 // 2026-09-02, "for monster bases simply zoom out the base").
     baseWidthCap: 0.35,          // the base + its right pad may never own more than 35% of
                                  // the pane; the leg is therefore always >= 1.86x the base.
                                  // Crossover is base_len ~44, so it is a TAIL rule (62% of
@@ -86,7 +97,9 @@ export const CHART_FRAMING = {
     volumeScaleTop: 0.86,
   },
   modal: {
-    referenceBars: 252,          // ONE TRADING YEAR. 1050px plot / 252 = 4.17 px/bar, in band.
+    minWindowBars: 252,          // ONE TRADING YEAR — here the floor IS the span, because the
+                                 // modal's job is the stock, not the rest. 1050px plot / 252 =
+                                 // 4.17 px/bar, in band.
                                  // The payload already carries a median 300 candles, so this
                                  // costs nothing and is the literal fix for "I always got to
                                  // zoom out to see the real stock" (operator 2026-09-02).
@@ -110,8 +123,8 @@ export const CHART_FRAMING = {
   // reference it would render 2.4px/bar, under the band and near the 2.3px/bar
   // the operator called indecipherable (2026-08-12).
   popover: {
-    referenceBars: 70,           // ~3.3 months. 330px plot / 70 = 4.71 px/bar, in band.
-    legibilityCeilingBars: 105,  // 330/105 = 3.14 px/bar, the same floor as the card.
+    minWindowBars: 55,           // same floor as the card; the cap does the work.
+    legibilityCeilingBars: 105,  // 330/105 = 3.14 px/bar, the same density floor as the card.
     ceilingYieldShare: 1,        // NOT the card's 0.6 — measured 2026-09-02. Against a 105-bar
                                  // ceiling that number is not a tail rule: it trips at base 59
                                  // and fires on 66 of 230 setups (29%), dropping 66 glances to
@@ -206,19 +219,20 @@ export const setupIndexes = (data) => {
   return { baseEnd, baseStart, candles, forwardBars };
 };
 
-// The window a base earns: the surface's reference time scale, stretched ONLY
-// when the base (plus its right pad) would own more than baseWidthCap of the
-// pane. The legibility ceiling normally bounds that stretch — but it YIELDS to a
-// base it cannot frame (operator 2026-09-02, "for monster bases simply zoom out
-// the base"): a rest so long that it would still own more than ceilingYieldShare
-// of the pane AT the ceiling is not made readable by holding bars wide, so the
-// window opens as far as the cap wants and the available history allows.
+// The window the consolidation earns: wide enough that the rest owns no more
+// than baseWidthCap of the pane, floored at minWindowBars so a very short rest
+// still gets room behind it, capped at legibilityCeilingBars so the bars stay
+// readable. This is the whole model — the window is a property of the SETUP, not
+// of the surface (operator 2026-09-02: "dynamic scaling based on the found
+// consolidation ... focusing on the consolidation area and then some room behind
+// it for added context").
 //
-// Deliberately a TAIL rule, not a raised ceiling. Simply moving the ceiling to
-// the full carried history fixes 4 of the 7 monsters but drags 45 medium-base
-// cards BELOW 3 px per trading day — from the ceiling's 3.12 down to 2.31-2.96,
-// 17 of them all the way to 2.29 — a legibility regression nobody asked for, on
-// cards that read fine today. Measured 2026-09-02.
+// The ceiling then YIELDS to a base it cannot frame ("for monster bases simply
+// zoom out the base"): a rest so long it would still own more than
+// ceilingYieldShare of the pane AT the ceiling is not made readable by holding
+// bars wide, so the window opens as far as the cap wants and history allows.
+// Deliberately a TAIL rule, not a raised ceiling — raising the ceiling instead
+// costs every medium-base card its legibility, measured 2026-09-02.
 //
 // `available` is how far back the payload actually goes; without it the window
 // would ask for history that does not exist and the never-crop clause would be
@@ -226,7 +240,7 @@ export const setupIndexes = (data) => {
 const baseCappedWindow = (profile, visibleBase, rightPadding, available) => {
   const capWindow = Math.ceil((visibleBase + rightPadding) / profile.baseWidthCap);
   const ceiling = profile.legibilityCeilingBars;
-  const framed = Math.max(profile.referenceBars, Math.min(ceiling, capWindow));
+  const framed = Math.max(profile.minWindowBars, Math.min(ceiling, capWindow));
   if (capWindow <= ceiling) return framed;
   // The ceiling could not satisfy the cap. Does the base still swamp the pane?
   const shareAtCeiling = (visibleBase + rightPadding) / framed;
@@ -254,7 +268,9 @@ export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
   const lastIndex = candles.length - 1;
   const baseLen = barCount(data.base_len);
   if (baseLen == null || baseLen <= 0) {
-    return { from: Math.max(0, lastIndex - profile.referenceBars + 1), to: lastIndex };
+    // No consolidation to frame (the Watchlist's clean charts, the index panes):
+    // show the widest window that is still legible on this surface.
+    return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
   }
 
   const forwardBars = barCount(data.forward_bars) ?? 0;
@@ -301,7 +317,7 @@ export const modalFocusLogicalRange = (data, profile = CHART_FRAMING.modal) => {
   const lastIndex = candles.length - 1;
   const baseLen = barCount(data.base_len);
   if (baseLen == null || baseLen <= 0) {
-    return { from: Math.max(0, lastIndex - profile.referenceBars + 1), to: lastIndex };
+    return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
   }
 
   const forwardBars = barCount(data.forward_bars) ?? 0;

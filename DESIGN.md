@@ -396,13 +396,18 @@ score and sub-score pills live in the click-through modal, not on the card face 
 the card is for the chart. Cards dim to 50% opacity when marked considered, so
 the grid reads as "what's left to review".
 
-**The chart is the card, and it is sized to be read, not skimmed** (operator
-2026-09-02). The target is **two-up on a 1536×864-effective monitor**: a 742px
-card carrying a 225px chart well, which is the width the shipped 140-trading-day
-framing window needs to render at ~4.9px per trading day. Density is still the
-point — but density means *honest bars per pixel*, not *more cards per row*: a
-card too narrow to show the rest against the move that led into it draws a wide
-choppy setup and a tight coil at the same width. See
+**The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
+The target is **three-up on a 1536×864-effective monitor**: a 490px card carrying
+a 225px chart well — a **2.17:1** chart, within a rounding error of Finviz's own
+screener charts (2.1:1), which is the reference he rules by. A two-up 620px card
+was tried the same day and reverted: it made the chart wide and short (3.1:1), so
+a stock's whole run was squeezed into a strip and the rest read as a sliver in the
+corner. Widening the card is not how this chart gets better; heightening it is.
+
+Density stays the point, and it means *honest bars per trading day*: the window is
+set by the consolidation the engine found (a 24-day rest gets ~83 days, a 33-day
+rest ~109), never by a fixed span, so a wide choppy setup and a tight coil can
+never occupy the same width. See
 [docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md); the knobs are
 `CHART_FRAMING` and `uiScale.CARD_MIN_PX`.
 
