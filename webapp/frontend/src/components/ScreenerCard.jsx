@@ -128,7 +128,7 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, passed, onTo
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
-        padding: '9px 10px',
+        padding: '6px 10px',
         pointerEvents: 'auto',
         position: 'relative',
       }}
@@ -251,7 +251,7 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, p
       ticker={ticker}
       watchlisted={watchlisted}
     />
-    <div className="screener-card-well" style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
+    <div className="screener-card-well" style={{ display: 'flex', height: 'var(--card-chart-h)', position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
     <TagRow
@@ -373,7 +373,7 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
       <StateChip state={data.state} />
     </div>
 
-    <div style={{ display: 'flex', height: 'clamp(180px, 11vw, 240px)', minHeight: 180, position: 'relative' }}>
+    <div style={{ display: 'flex', height: 'var(--card-chart-h)', position: 'relative' }}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
 

@@ -736,6 +736,32 @@ then the classification above deliberately consumes the reader AS IS.
 Gates: node --test 260/260, eslint clean, vite build green (worktree
 `npm install` performed).
 
+### RETIRED 2026-09-02 — the register is gone from Home
+
+The claim above that it *"returns null on an empty projection, so it costs the cell no
+height while both species flags are dark"* is **false in production and was never
+measured**: the live artifact carries **79 `power_play.candidates`**, and the register
+rendered every one of them. The operator, on first sight: *"home tab is full with
+'powerplay' registery, i never asked for this remove it immdeadtly it bloats up the
+screen to infinite downscroll sizes."* Two failures worth keeping on the record — a
+surface was mounted as a merge side effect rather than as an ask, and its cost was
+reasoned about (`null` on empty) instead of measured against the payload it reads.
+
+**Deleted:** `components/PowerPlayRegister.jsx`, `components/powerPlayRegister.js`,
+`components/powerPlayRegister.test.js` (and its `package.json` test token — the
+`testManifest` pin is symmetric, so both sides moved together), and the `HomeView`
+mount. **Kept:** `wireVocabulary.POWER_PLAY_STATUS_LABELS` and
+`powerPlayStatusLabel` — the server still emits these five statuses — and the
+closed-set mirror the deleted battery carried, **rehomed to
+`components/wireVocabulary.test.js`** so the two-sided contract that
+`tests/test_power_play_lane.py` names in prose stays live rather than going dark with
+every gate green. **Untouched:** the engine and backend. `core/pipeline/screener.py`
+still writes the block and `scan_job.py` still reads `power_play.counts` into every
+scan record — suppressing the emission would blank that column on all future scans
+(AP-12: the display retires, the history does not).
+
+Ruling row: [decisions.md](decisions.md) 2026-09-02.
+
 ---
 
 ## Task 2 — one home and one canonical artifact for the double-duty marks

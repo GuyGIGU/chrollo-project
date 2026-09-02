@@ -24,7 +24,7 @@ export const DEFAULT_SCALE = 1;
 // 86px app rail is gone — it became a horizontal top nav that costs height, not
 // width — so it no longer belongs in this budget.
 export const GRID_CHROME_PX = 32 + 6;
-export const CARD_MIN_PX = 480; // ScreenerGrid minmax(480px, 1fr)
+export const CARD_MIN_PX = 620; // ScreenerGrid minmax(620px, 1fr)
 export const CARD_GAP_PX = 14;  // ScreenerGrid gap
 
 // Snap an arbitrary value to the nearest allowed step (defensive against a

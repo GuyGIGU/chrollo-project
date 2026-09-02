@@ -95,7 +95,6 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
       align: 'left',
       render: (row) => (
         <span
-          data-glance-anchor=""
           style={{ color: row.in_scan ? tierColor(row.tier) : 'var(--text-muted)', fontWeight: 700 }}
         >
           {row.ticker}
@@ -169,8 +168,7 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
         sortDir={sort.dir}
         onSort={onSort}
         rowClassName={(row) => (row.in_scan ? '' : 'muted')}
-        // The whole row is the hover target; the ticker cell is only where the
-        // glass anchors itself (data-glance-anchor).
+        // The whole row is the hover target; the glass lands beside the cursor.
         rowProps={(row) => anchorProps(row.ticker, row.ticker, row.ticker)}
         ariaLabel="Watchlist"
       />

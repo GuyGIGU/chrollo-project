@@ -18,17 +18,17 @@ import { tierColor } from '../../theme';
 // the page both scroll. The genuinely shared part is a ~10-line dismissal
 // idiom, not a component; that lives in useHoverGlance.
 //
-// Positioning is fixed + measured (see glanceMath.glancePlacement for the
-// --ui-scale zoom correction). z 400 sits in the empty band above sticky table
+// Positioning is fixed + measured, beside the CURSOR (see
+// glanceMath.glancePlacement for the --ui-scale zoom correction). z 400 sits in the empty band above sticky table
 // headers (1) and the appearance popover (60), and below every scrim and modal
 // (1000+), so the glass can never paint over a dialog.
 export default function HoverGlass({ glance }) {
-  // The frame (anchor rect, zoom factor, viewport) is measured by the hook when
+  // The frame (cursor point, zoom factor, viewport) is measured by the hook when
   // the glass opens and travels WITH the glance, so the placement can never be
   // computed from a scale sampled at some earlier moment.
   const place = useMemo(
-    () => glancePlacement({ anchor: glance?.rect, viewport: glance?.viewport, scale: glance?.scale }),
-    [glance?.rect, glance?.viewport, glance?.scale],
+    () => glancePlacement({ pointer: glance?.pointer, viewport: glance?.viewport, scale: glance?.scale }),
+    [glance?.pointer, glance?.viewport, glance?.scale],
   );
   if (!glance || !place || glance.status === 'closed') return null;
 
