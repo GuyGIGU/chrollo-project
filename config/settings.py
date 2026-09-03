@@ -434,10 +434,17 @@ BAR_POSTURE_RESCUE_ENABLED = False
 # carry identical sentences by construction. Measure-only: never gates,
 # never scores, never sorts. Flag off = {} in the result row = the family
 # archives NULL (not measured); a refused read (unreadable geometry) NULLs
-# the whole family. Tokens are closed-set-asserted at mint (EC-55). Flip =
-# operator decision after the ScanTimer cost read on one nightly scan
-# (ledger row).
-SENTENCE_ARCHIVE_ENABLED = False
+# the whole family. Tokens are closed-set-asserted at mint (EC-55).
+# FLIPPED LIVE 2026-09-02 on the operator's ruling (decisions.md asks-sweep
+# row part 9): the archive is measure-only, so the flip cannot move a score,
+# a tier, an election or a sort - only the sentence_* columns gain values.
+# Pre-flip rows stay NULL forever; there is no backfill, and the epoch
+# rotation is what keeps the two eras separable. The cost bound rides ONE
+# armed nightly scan (ledger row: <= 60 s added to the evaluation phase
+# against an expectation of 1-3 s), read the next morning from
+# market_context._scan_metrics.phases_s.evaluation - a one-word revert if it
+# breaks, and the trial night's rows KEEP (they carry their own engine stamp).
+SENTENCE_ARCHIVE_ENABLED = True
 
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
 # Measurement constants for the operator-ruled near-miss predicate

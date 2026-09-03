@@ -41,11 +41,18 @@ def _vlo_fire_frame():
     return e["ticker"], sliced, float(e["spy_6m_return"])
 
 
-def test_flag_defaults_dark():
-    assert settings.SENTENCE_ARCHIVE_ENABLED is False
+def test_flag_ships_live():
+    """FLIPPED 2026-09-02 (operator ruling). Pinned in the same direction the
+    dark pin used to hold: the shipped value is a ruled fact, so a silent
+    revert has to fail here rather than in a quiet archive of NULLs."""
+    assert settings.SENTENCE_ARCHIVE_ENABLED is True
 
 
-def test_flag_off_result_carries_no_sentence_keys():
+def test_flag_off_result_carries_no_sentence_keys(monkeypatch):
+    """The NULL contract survives the flip: it is what every pre-flip row
+    still means, and what a revert would fall back to. Forced off explicitly
+    now that the shipped value is True."""
+    monkeypatch.setattr(settings, "SENTENCE_ARCHIVE_ENABLED", False)
     ticker, sliced, spy = _vlo_fire_frame()
     off = _evaluate_ticker(ticker, sliced, spy, _FROZEN_BREADTH)
     assert isinstance(off, dict)

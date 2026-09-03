@@ -1438,7 +1438,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `b1c1e3cc97e3dfd0b4db9c600aaf79f126056afdfe05294d0e58279768af1921`_
+_engine_config_version: `93655c1af40fd618d69a94ac167cb3dc5d371813c5a1b61dd551b581bbf94b11`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1534,7 +1534,7 @@ BAND_EVENT_MAX_BARS = 20
 STORY_POOL_ENABLED = True
 CONTRACTION_RESCUE_ENABLED = False
 BAR_POSTURE_RESCUE_ENABLED = False
-SENTENCE_ARCHIVE_ENABLED = False
+SENTENCE_ARCHIVE_ENABLED = True
 NEAR_MISS_MAX_QUANTA = 1
 NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
