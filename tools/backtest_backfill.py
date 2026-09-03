@@ -231,7 +231,7 @@ def _assemble_row(ticker: str, payload: dict, spy_trend: Optional[str],
     mapper) verbatim so populated columns match the live/seed path.
     """
     from services.archive_queries import archive_row_from_result
-    from core.structure.htf import htf_archive_values
+    from engine_alpha.structure.htf import htf_archive_values
 
     r = payload["result"]
     sub = r.get("sub_scores", {}) or {}
@@ -374,7 +374,7 @@ def run_backfill(db_path: str, cadence: str = "weekly",
         all_tickers = all_tickers[:limit]
 
     engine, Session = _open_scratch_db(db_path)
-    from core.freeze.manifest import manifest_hash
+    from engine_alpha.freeze.manifest import manifest_hash
     ecv = manifest_hash()
 
     done = _done_tickers(engine) if resume else set()
