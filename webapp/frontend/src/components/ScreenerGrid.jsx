@@ -24,7 +24,7 @@ const ScreenerGrid = () => {
   const drilldownEtf = searchParams.get('dd');
   const etfUniverse = isEtfUniverse(universe);
   const { watchlist, toggleWatchlist } = useWatchlist();
-  const { passed, togglePassed } = useReviews();
+  const { liked, toggleLiked } = useReviews();
   const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
   const filters = useScreenerFilters(screenerData, watchlist);
   const scan = useScanRunner(fetchScreener, universe);
@@ -227,8 +227,8 @@ const ScreenerGrid = () => {
           onCardClick={openModal}
           watchlist={watchlist}
           toggleWatchlist={handleToggleWatchlistDrilldown}
-          passed={passed}
-          togglePassed={togglePassed}
+          liked={liked}
+          toggleLiked={toggleLiked}
         />
       ) : showHealthBoard ? (
         <HealthBoard
@@ -268,8 +268,8 @@ const ScreenerGrid = () => {
                     data={screenerData.chart_data[ticker]}
                     watchlisted={watchlist.has(ticker)}
                     onToggleWatchlist={handleToggleWatchlist}
-                    passed={passed.has(ticker)}
-                    onTogglePassed={togglePassed}
+                    liked={liked.has(ticker)}
+                    onToggleLike={toggleLiked}
                     onClick={openModal}
                     onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />
@@ -316,7 +316,7 @@ function EmptyState({ message }) {
 // grid, with one quiet lineage header naming the parent ETF and a way back. The
 // hand-off is explicit (these are US-Stocks setups), and the empty states tell
 // "no curated mapping" apart from "mapped, but none fired today".
-function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, passed, togglePassed }) {
+function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, liked, toggleLiked }) {
   const members = dd.ordered_tickers || [];
   const { status, basis } = dd;
   return (
@@ -344,8 +344,8 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, pa
               data={dd.chart_data[t]}
               watchlisted={watchlist.has(t)}
               onToggleWatchlist={toggleWatchlist}
-              passed={passed.has(t)}
-              onTogglePassed={togglePassed}
+              liked={liked.has(t)}
+              onToggleLike={toggleLiked}
               onClick={onCardClick}
             />
           ))}
@@ -432,9 +432,15 @@ const etfNoteStyle = {
 
 const gridStyle = {
   display: 'grid',
-  // Responsive "reading room": fit as many spacious ~480px cards as the screen
-  // allows and stretch them to fill the row. ~3 per row on a wide monitor, 2 on
-  // a laptop — big, readable charts with room to visualize each setup.
+  // Responsive "reading room": fit as many ~480px cards as the screen allows and
+  // stretch them to fill the row — THREE per row at 1536 effective, a 490px card
+  // and a ~435px plot. Briefly widened to 620 (two-up) on 2026-09-02 and put back
+  // the same day: two-up made the chart wide and short, so a stock's whole run was
+  // squeezed into a strip and the rest read as a sliver in the corner. The height,
+  // not the width, is where the card had room (see --card-chart-h). Keep this in
+  // sync with uiScale.CARD_MIN_PX and index.html's pre-paint copy; HealthBoard and
+  // .wl-card-grid must match too, or a surface sharing ScreenerMiniChart frames the
+  // same window in half the pane. uiScale.test.js pins all five.
   gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
   gap: '14px',
   width: '100%',

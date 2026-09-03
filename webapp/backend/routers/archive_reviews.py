@@ -14,6 +14,71 @@ from services.archive_queries import _episode_context, _latest_episode_first_see
 
 router = APIRouter(tags=["archive"])
 
+# The closed verdict set for setup_reviews. "passed" = saw & skipped (the
+# missed-winners negative); "liked" = saw & wanted (the 2026-09-02 preference
+# signal). One row per setup by unique constraint, so they are mutually
+# exclusive: liking a passed setup REPLACES the verdict, which is what the
+# operator means when he changes his mind about a chart.
+SETUP_VERDICTS = ("passed", "liked")
+
+
+def _resolve_scan_date(db: Session, ticker: str, scan_date: str) -> str:
+    """An archive row's own date verbatim, or the ticker's current episode
+    first-seen for a live screener card — the same key the archive and the
+    missed-winners report use."""
+    resolved = (scan_date or "").strip()
+    if resolved:
+        return resolved
+    resolved = _latest_episode_first_seen(db, ticker)
+    if not resolved:
+        raise HTTPException(status_code=404, detail=f"No archived setup for {ticker} to mark")
+    return resolved
+
+
+def _toggle_verdict(db: Session, raw_ticker: str, scan_date: str, verdict: str) -> Dict[str, Any]:
+    """Toggle one verdict on a setup. Clicking the verdict a setup already
+    carries clears the row; clicking the OTHER verdict overwrites it. Shared by
+    the pass and like routes so the two can never drift apart."""
+    from models import SetupReview
+
+    assert verdict in SETUP_VERDICTS, verdict
+    ticker = raw_ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+    resolved = _resolve_scan_date(db, ticker, scan_date)
+
+    existing = (
+        db.query(SetupReview)
+        .filter(SetupReview.ticker == ticker, SetupReview.scan_date == resolved)
+        .first()
+    )
+    if existing is not None and existing.verdict == verdict:
+        db.delete(existing)
+        db.commit()
+        return {"ticker": ticker, "scan_date": resolved, "verdict": None}
+    if existing is not None:
+        existing.verdict = verdict
+        existing.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    else:
+        db.add(SetupReview(
+            ticker=ticker, scan_date=resolved, verdict=verdict,
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        ))
+    db.commit()
+    return {"ticker": ticker, "scan_date": resolved, "verdict": verdict}
+
+
+def _tickers_with_verdict(db: Session, verdict: str) -> Dict[str, Any]:
+    from models import SetupReview
+
+    rows = (
+        db.query(SetupReview.ticker)
+        .filter(SetupReview.verdict == verdict)
+        .distinct()
+        .all()
+    )
+    return {"tickers": sorted({r.ticker for r in rows})}
+
 
 @router.post("/reviews/toggle")
 def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -23,37 +88,10 @@ def toggle_review(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dic
     (a live screener card), in which case it resolves to the ticker's current
     episode first-seen — the same key the archive and missed-winners report use.
     Lets the missed-winners report tell 'reviewed but skipped' apart from
-    'never engaged'.
+    'never engaged'. A setup you had LIKED becomes passed (one row per setup).
     """
-    from datetime import datetime, timezone
-
-    from models import SetupReview
-
-    ticker = payload.ticker.strip().upper()
-    if not ticker:
-        raise HTTPException(status_code=400, detail="ticker required")
-    scan_date = (payload.scan_date or "").strip()
-    if not scan_date:
-        scan_date = _latest_episode_first_seen(db, ticker)
-        if not scan_date:
-            raise HTTPException(status_code=404, detail=f"No archived setup for {ticker} to mark")
-
-    existing = (
-        db.query(SetupReview)
-        .filter(SetupReview.ticker == ticker, SetupReview.scan_date == scan_date)
-        .first()
-    )
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"ticker": ticker, "scan_date": scan_date, "passed": False}
-
-    db.add(SetupReview(
-        ticker=ticker, scan_date=scan_date, verdict="passed",
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
-    ))
-    db.commit()
-    return {"ticker": ticker, "scan_date": scan_date, "passed": True}
+    result = _toggle_verdict(db, payload.ticker, payload.scan_date or "", "passed")
+    return {**result, "passed": result["verdict"] == "passed"}
 
 
 @router.post("/reviews/mark")
@@ -235,19 +273,35 @@ def get_read_verdict(
             "note": row.note if row else None}
 
 
+@router.post("/reviews/like")
+def toggle_like(payload: ReviewToggleIn, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Toggle the operator's LIKE on a setup — "this is the kind of setup I want
+    more of" (2026-09-02).
+
+    It is a PREFERENCE signal for ranking, deliberately not a detection one: the
+    engine already decided this chart fires, and the like says where it belongs
+    among the ones that did. Nothing in the engine reads it, and nothing may
+    until it has been measured against the archive (house rule: new signals
+    enter measure-first, never-gated). Its value comes from being paired with
+    the 'passed' negative — liked vs passed vs never-engaged is the three-way
+    label a study needs; likes alone cannot tell "saw it and shrugged" from
+    "never looked".
+    """
+    result = _toggle_verdict(db, payload.ticker, payload.scan_date or "", "liked")
+    return {**result, "liked": result["verdict"] == "liked"}
+
+
 @router.get("/reviews/passed")
 def list_passed_reviews(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Distinct tickers carrying a 'saw & passed' marker, so the live screener
     can show which of today's cards you've already reviewed and skipped."""
-    from models import SetupReview
+    return _tickers_with_verdict(db, "passed")
 
-    rows = (
-        db.query(SetupReview.ticker)
-        .filter(SetupReview.verdict == "passed")
-        .distinct()
-        .all()
-    )
-    return {"tickers": sorted({r.ticker for r in rows})}
+
+@router.get("/reviews/liked")
+def list_liked_reviews(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Distinct tickers carrying a LIKE, so today's cards can show it."""
+    return _tickers_with_verdict(db, "liked")
 
 
 @router.get("/missed-winners")

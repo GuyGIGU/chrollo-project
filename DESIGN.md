@@ -388,11 +388,35 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Section labels:** 9px uppercase, faint, wide tracking.
 
 ### Signature — The Screener Card
-The dense triage unit of the product: a header row (watchlist star, "considered"
-checkbox, tier-colored ticker, setup label, score + sub-score pills), a
-mini price chart, and a tag row. Cards dim to 50% opacity when marked considered,
-so the grid reads as "what's left to review". Density is the point; it must stay
-legible at four-up.
+The triage unit of the product: a header (tier-colored ticker + tier badge +
+sector ETF + as-of date on the first line, the weekly/monthly read and the live
+price on the second, with the watchlist star and the **like** heart floating in
+the top-right corner), a mini price chart, and a tag row. The setup label, score
+and sub-score pills live in the click-through modal, not on the card face — the
+card is for the chart.
+
+**The like (♥, or `L`)** says "this is the kind of setup I want more of"
+(operator 2026-09-02). It replaced the neutral "considered" check-off, which now
+lives only on the Archive table as its "saw & skipped" pass — deliberately, since
+that pass is the negative class that makes a like mean anything. It wears the
+app's operator-mark gold, never a tier hue, because it is *his* judgement and not
+the engine's. (An earlier draft of this section claimed cards dim to 50% when
+marked; they never did — no such rule was ever written.)
+
+**The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
+The target is **three-up on a 1536×864-effective monitor**: a 490px card carrying
+a 225px chart well — a **2.17:1** chart, within a rounding error of Finviz's own
+screener charts (2.1:1), which is the reference he rules by. A two-up 620px card
+was tried the same day and reverted: it made the chart wide and short (3.1:1), so
+a stock's whole run was squeezed into a strip and the rest read as a sliver in the
+corner. Widening the card is not how this chart gets better; heightening it is.
+
+Density stays the point, and it means *honest bars per trading day*: the window is
+set by the consolidation the engine found (a 24-day rest gets ~83 days, a 33-day
+rest ~109), never by a fixed span, so a wide choppy setup and a tight coil can
+never occupy the same width. See
+[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md); the knobs are
+`CHART_FRAMING` and `uiScale.CARD_MIN_PX`.
 
 ## 6. Do's and Don'ts
 

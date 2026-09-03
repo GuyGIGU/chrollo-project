@@ -1,18 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE } from '../api';
 
-// Tracks which screener tickers are marked "saw & passed". Mirrors useWatchlist:
-// optimistic toggle with rollback, loaded once on mount. The backend resolves a
-// bare ticker to its current episode's first-seen date, so the same mark shows
-// up on the archive table and in the missed-winners report.
+// The operator's two verdicts on a setup, both rows in `setup_reviews`:
+//   LIKED  — "this is the kind of setup I want more of" (the screener card's
+//            heart; a preference signal for ranking, 2026-09-02)
+//   PASSED — "saw it and skipped it" (the archive table; the missed-winners
+//            negative, and the class that makes a like INFORMATIVE — without it
+//            an unliked card cannot be told from one that was never looked at)
+// They are mutually exclusive server-side (one review row per setup), so a set
+// can never hold the same ticker twice; the two sets are kept apart here for the
+// same reason.
+//
+// Mirrors useWatchlist: optimistic toggle with rollback, loaded once on mount.
+// The backend resolves a bare ticker to its current episode's first-seen date,
+// so the same mark shows up on the archive table and in the reports.
 function useReviews() {
   const [passed, setPassed] = useState(() => new Set());
+  const [liked, setLiked] = useState(() => new Set());
 
   useEffect(() => {
-    fetch(`${API_BASE}/archive/reviews/passed`)
+    // `response.ok` is NOT proof the API answered: the backend serves the SPA
+    // from a catch-all, so an unknown route comes back 200 with index.html — a
+    // deploy that lags the frontend looks like success. json() throws on that
+    // HTML and the catch swallows it (an empty set, which is the honest
+    // "unknown"), and Array.isArray keeps any other 200-shaped body from
+    // becoming a Set of characters.
+    const load = (verdict, apply) => fetch(`${API_BASE}/archive/reviews/${verdict}`)
       .then(response => response.ok ? response.json() : { tickers: [] })
-      .then(data => setPassed(new Set(data.tickers || [])))
+      .then(data => apply(new Set(Array.isArray(data?.tickers) ? data.tickers : [])))
       .catch(() => {});
+    load('passed', setPassed);
+    load('liked', setLiked);
   }, []);
 
   // The POST fires OUTSIDE the updater — React updaters must stay pure (a
@@ -40,7 +58,44 @@ function useReviews() {
       });
   }, [passed]);
 
-  return { passed, togglePassed };
+  // The like's own toggle. It drops the ticker from `passed` on success because
+  // the server keeps ONE row per setup: liking a setup you had passed replaces
+  // the verdict, and a stale local `passed` would leave both marks lit.
+  const toggleLiked = useCallback((ticker) => {
+    const wasOn = liked.has(ticker);
+    setLiked(previous => {
+      const next = new Set(previous);
+      if (wasOn) next.delete(ticker);
+      else next.add(ticker);
+      return next;
+    });
+
+    fetch(`${API_BASE}/archive/reviews/like`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker }),
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('like toggle failed');
+        return response.json();
+      })
+      .then(result => {
+        if (result?.liked) {
+          setPassed(current => {
+            if (!current.has(ticker)) return current;
+            const next = new Set(current);
+            next.delete(ticker);
+            return next;
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Like toggle failed, reverting', error);
+        setLiked(current => rollback(current, ticker, wasOn));
+      });
+  }, [liked]);
+
+  return { passed, togglePassed, liked, toggleLiked };
 }
 
 function rollback(current, ticker, wasOn) {

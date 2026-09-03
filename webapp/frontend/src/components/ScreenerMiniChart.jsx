@@ -3,12 +3,16 @@ import { addBoxRails } from './chartRails';
 import { baseChartOptions, CHART_COLORS } from './chartTheme';
 import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
 
-// Faithful daily density: ~90-130 bars in a ~480px screener card ≈ 3.7-5.3px/bar
-// (Finviz-like), vs the old ~48 bars ≈ 10px/bar that let a tight base sprawl
-// edge-to-edge and read tighter than it is. The budget + margins live in the
-// shared CHART_FRAMING profile so proportion is retuned in ONE place; the props
-// stay overridable so the small Home tiles (~165px) can pass a lower budget
-// instead of cramming 90 bars into a sliver.
+// The CONSOLIDATION sets the window: wide enough that the rest owns ~a third of
+// the pane, with real room behind it for the move that led in (a 24-day rest
+// gets ~83 trading days, a 33-day rest ~109, at ~4-5px per day in a 490px card).
+// A rest that lasted five months is therefore drawn wider than one that lasted a
+// month, and neither is stretched. This replaces the 2026-08-09 vertical
+// proportion trim, which bought box height by deleting old bars and so re-caused
+// the 2026-07 failure it was written to prevent — a base sprawling edge-to-edge
+// reads tighter than it is (operator 2026-09-02). The whole model lives in the
+// shared CHART_FRAMING profile so proportion is retuned in ONE place; `profile`
+// stays overridable so the narrower hover glance can frame at its own span.
 const MINI = CHART_FRAMING.mini;
 
 const chartOptions = (width, height, profile) => {
@@ -23,7 +27,9 @@ const chartOptions = (width, height, profile) => {
     // Tight vertical fit (Finviz pillar #2): small margins so the visible high-low
     // fills the pane and a real consolidation reads at its true height, not flattened.
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: profile.scaleMargins, autoScale: true },
-    timeScale: { ...base.timeScale, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+    // The date axis is hidden, not just unlabelled: the card header already
+    // carries the as-of date, and the ~26px it costs is candle height.
+    timeScale: { ...base.timeScale, timeVisible: false, visible: false, fixLeftEdge: true, fixRightEdge: true },
     handleScroll: false,
     handleScale: false,
   };
@@ -31,15 +37,9 @@ const chartOptions = (width, height, profile) => {
 
 // `profile` is the whole CHART_FRAMING entry this surface frames by — the card
 // keeps `mini`, the hover glance passes `popover`. Before it existed, the bar
-// budget was overridable but the margins, volume band and TRIM floor were not,
-// so a smaller surface silently framed itself with card proportions.
-const ScreenerMiniChart = ({
-  ticker,
-  data,
-  profile = MINI,
-  maxBars = profile.maxVisibleBars,
-  minBars = profile.minVisibleBars,
-}) => {
+// budget was overridable but the margins and volume band were not, so a smaller
+// surface silently framed itself with card proportions.
+const ScreenerMiniChart = ({ ticker, data, profile = MINI }) => {
   const candles = data.candles;
   const coloredCandles = colorMiniCandles(data);
 
@@ -47,12 +47,11 @@ const ScreenerMiniChart = ({
     // The SAME rail drawer the modal uses — card and modal cannot diverge.
     addBoxRails(chart, data);
 
-    if (data.base_len > 0 && data.candles?.length > 0) {
-      const range = miniFocusLogicalRange(data, maxBars, minBars, profile);
-      if (range) chart.timeScale().setVisibleLogicalRange(range);
-    } else {
-      chart.timeScale().fitContent();
-    }
+    // A boxless payload takes the SAME path (the reference window), so there is
+    // no second, never-exercised framing leg to drift.
+    const range = miniFocusLogicalRange(data, profile);
+    if (range) chart.timeScale().setVisibleLogicalRange(range);
+    else chart.timeScale().fitContent();
   };
 
   return (
@@ -76,7 +75,16 @@ const ScreenerMiniChart = ({
         deps: [ticker, data],
       }}
       candles={candles}
-      style={{ flex: 1, minHeight: 0, position: 'relative', pointerEvents: 'none' }}
+      // minWidth AND minHeight both 0, and they travel together: this is a ROW
+      // flex item (the card's well is display:flex), and lightweight-charts
+      // stamps an inline px width on its own container, which becomes this
+      // item's min-content width. Without minWidth:0 the chart can therefore
+      // GROW with the card but never shrink back — step the Scale knob up and
+      // down across a column boundary and every card keeps the wide canvas,
+      // silently clipped by .screener-card's overflow:hidden, taking the right
+      // price scale and the newest bars with it until a reload. Found in the
+      // 2026-09-02 branch review; pre-existing, reachable on main too.
+      style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', pointerEvents: 'none' }}
       errorFallback={(
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>
           Chart failed to load

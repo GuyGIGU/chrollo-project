@@ -39,56 +39,105 @@ const barCount = (value) => {
 
 // --- framing profiles ---
 //
-// Visible-bar budget, price-scale margins and volume-band top travel together
-// per surface: they jointly decide what fraction of the pane a base occupies,
-// which IS the honest-proportion question. They used to live scattered (budgets
-// as component defaults, margins inline in two option builders, volumeScaleTop
-// per hook call), so retuning proportion meant a synchronized multi-file edit
-// and one missed site left a surface reading dishonestly. One table instead.
-// PROPORTION (the honest-fit rule, measured 2026-08-09): the shipped window was
-// chosen by bar COUNT alone, blind to the price RANGE those context bars drag
-// in — so a tall pre-base leg made autoscale compress the base into a sliver.
-// Measured over the live artifact's top 20 setups, the box owned a median 24.7%
-// of the visible price range (16/20 below the 33% floor) while density sat at
-// the 5.33px/bar ceiling: bars could not get wider, so the base could only get
-// its height back by dropping the OLDEST context bars. minBaseHeightFrac is the
-// target; trimFloorBars bounds how far that trim may go, so a base can never
-// sprawl edge-to-edge and read tighter than it is (the 2026-07 failure).
+// One reference time scale, price-scale margins and volume-band top travel
+// together per surface: they jointly decide what fraction of the pane a base
+// occupies, which IS the honest-proportion question. They used to live scattered
+// (budgets as component defaults, margins inline in two option builders,
+// volumeScaleTop per hook call), so retuning proportion meant a synchronized
+// multi-file edit and one missed site left a surface reading dishonestly.
+//
+// PROPORTION (re-ruled 2026-09-02). The 2026-08-09 design chased a VERTICAL
+// target (minBaseHeightFrac) with a HORIZONTAL knob — deleting the oldest bars
+// until the box owned 40% of the visible price range. Measured over the live
+// 230: it fired on 179 cards and on 140 of those burned a median 35 context
+// bars and STILL finished below its own target (the "return ceiling" escape
+// hatch trimmed maximally AFTER proving the target unreachable). It succeeded
+// on 39. Its price was a 56-bar collapse on 99/230 cards, a base owning a
+// median 51% of card WIDTH, and 8.8% of card pairs rendering the LONGER base
+// NARROWER than a shorter one — the operator's "wide choppy setups read as
+// cute tight ones". RETIRED; vertical proportion is now a consequence of an
+// honest window plus a taller well, never a target.
+// THE MODEL (revised 2026-09-02, same day): the CONSOLIDATION sets the scale.
+// The window is whatever shows the rest at baseWidthCap of the pane — "focusing
+// on the consolidation area and then some room behind it for added context
+// before the consolidation" — floored at minWindowBars so a very short rest
+// still gets context, and capped at legibilityCeilingBars so bars never get
+// too thin to read. The first cut used a FIXED 140-day slab for every setup;
+// the operator ruled that "way way too much" on a 24-day rest, and he is right:
+// a fixed span makes the window a property of the surface instead of a property
+// of the setup, which is the same mistake in the other direction. Now a 24-day
+// rest gets 83 days and a 33-day rest gets 109.
+// The ceiling YIELDS to a base it cannot frame (monster zoom-out), and every
+// bound yields to the never-crop rule (2026-08-09: the box is the datum). The
+// 2026-07 sprawl failure — "~48 bars at ~10px/bar let a tight base sprawl
+// edge-to-edge and read tighter than it is" — is held off by the cap.
 export const CHART_FRAMING = {
   mini: {
-    maxVisibleBars: 130,
-    minVisibleBars: 90,
-    trimFloorBars: 55,
-    minContextBars: 18,
-    minBaseHeightFrac: 0.4,
+    minWindowBars: 55,           // the FLOOR, not a span: a very short rest still needs room
+                                 // behind it. Inert on the live 230 (the shortest rest already
+                                 // earns 60+ days through the cap) — it exists so a 5-day rest
+                                 // cannot produce a 43-day window.
+    legibilityCeilingBars: 220,  // 435px plot / 220 = 1.98 px/bar at the very bottom — a hard
+                                 // stop, not a target. It has to sit HIGH: a low ceiling makes
+                                 // the window stop growing while the rest keeps growing, so a
+                                 // longer rest starts drawing NARROWER than a shorter one. At
+                                 // 110 that lie returns on rests as short as 37 days and the
+                                 // order-inversion rate goes to 9.7% — worse than the 8.8% this
+                                 // whole program exists to remove. At 220 it is 0.0% (6 pairs of
+                                 // 25,904, all rests of 130+ days). Measured 2026-09-02.
+    ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
+                                 // 2026-09-02, "for monster bases simply zoom out the base").
+    baseWidthCap: 0.35,          // the base + its right pad may never own more than 35% of
+                                 // the pane; the leg is therefore always >= 1.86x the base.
+                                 // Crossover is base_len ~44, so it is a TAIL rule (62% of
+                                 // setups never touch it). Measured knee: 0.30 buys nothing
+                                 // (median unchanged), 0.40 puts p90 back at 0.47.
+    minContextBars: 18,          // UNCHANGED — the 2026-08-09 approach-leg ruling.
     scaleMargins: { top: 0.06, bottom: 0.14 },
     volumeScaleTop: 0.86,
   },
   modal: {
-    contextBars: 90,
-    minVisibleBars: 120,
-    trimFloorBars: 80,
+    minWindowBars: 252,          // ONE TRADING YEAR — here the floor IS the span, because the
+                                 // modal's job is the stock, not the rest. 1050px plot / 252 =
+                                 // 4.17 px/bar, in band.
+                                 // The payload already carries a median 300 candles, so this
+                                 // costs nothing and is the literal fix for "I always got to
+                                 // zoom out to see the real stock" (operator 2026-09-02).
+    legibilityCeilingBars: 300,  // the whole carried history; 3.50 px/bar at the floor.
+    ceilingYieldShare: 0.6,      // inert here — the ceiling already IS the whole history — but
+                                 // declared so every box-framed profile answers the same question.
+    baseWidthCap: 0.35,          // DELIBERATELY IDENTICAL to mini — the card and the modal
+                                 // can never disagree about how much pane the base owns.
     minContextBars: 25,
-    minBaseHeightFrac: 0.4,
     scaleMargins: { top: 0.06, bottom: 0.16 },
     volumeScaleTop: 0.84,
   },
-  market: {
+  market: {                      // UNTOUCHED — already a fixed-history window, no box to cap.
     visibleBars: 100,
     smaWarmupBars: 200,
     scaleMargins: { top: 0.08, bottom: 0.22 },
     volumeScaleTop: 0.82,
   },
-  // The hover-glance glass (~380x250). The card's 90-130 bar budget in a 380px
-  // pane is ~2.5-3.8 px/bar — under the faithful band, which would make every
-  // base read TIGHTER than it is (the exact 2026-07 failure CHART_FRAMING was
-  // built to end). A shallower budget restores ~4.2-6.3 px/bar at glance size.
+  // The hover-glance glass (~380x250, ~330px plot). It shows a shallower span
+  // than the card because its pane is half the width — at the card's 140-day
+  // reference it would render 2.4px/bar, under the band and near the 2.3px/bar
+  // the operator called indecipherable (2026-08-12).
   popover: {
-    maxVisibleBars: 85,
-    minVisibleBars: 60,
-    trimFloorBars: 45,
+    minWindowBars: 55,           // same floor as the card; the cap does the work.
+    legibilityCeilingBars: 105,  // 330/105 = 3.14 px/bar, the same density floor as the card.
+    ceilingYieldShare: 1,        // NOT the card's 0.6 — measured 2026-09-02. Against a 105-bar
+                                 // ceiling that number is not a tail rule: it trips at base 59
+                                 // and fires on 66 of 230 setups (29%), dropping 66 glances to
+                                 // 1.1-1.8 px per trading day. At 1 the glance yields only when
+                                 // the rest does not FIT the pane at all, which costs nothing
+                                 // (20 glances under 3 px/day, the same as no yield at all,
+                                 // and those are the never-crop clamp's doing) and still pulls
+                                 // bases owning over 60% of the pane from 63 down to 48.
+                                 // The glance is a RECOGNITION surface (ruled 2026-09-02), and
+                                 // 1.1 px/day serves recognition worse than a wide base does.
+    baseWidthCap: 0.35,          // same cap — the glance and the card agree on base share
+                                 // even though they show different spans.
     minContextBars: 14,
-    minBaseHeightFrac: 0.4,
     scaleMargins: { top: 0.07, bottom: 0.16 },
     volumeScaleTop: 0.88,
   },
@@ -96,7 +145,8 @@ export const CHART_FRAMING = {
   // tabs keep their deep windows (160/120 bars); a ~360px preview showing that
   // many bars is ~2.3px/bar — indecipherable (operator 2026-08-12). The preview
   // exists to show the RECENT higher-timeframe posture, so it gets its own
-  // shallow budget at a readable per-bar width.
+  // shallow budget at a readable per-bar width. UNTOUCHED — fixed W/M windows,
+  // never framed around a box.
   htfPreview: {
     weeklyBars: 64,
     monthlyBars: 48,
@@ -169,136 +219,115 @@ export const setupIndexes = (data) => {
   return { baseEnd, baseStart, candles, forwardBars };
 };
 
-// Trim the OLDEST context bars until the box owns at least minBaseHeightFrac of
-// the visible price range. This is the ONLY legal lever for the vertical ratio:
-// bars are never widened past the faithful-density band and the price scale is
-// never clamped — we simply stop showing the tall pre-base leg that was eating
-// the pane. Dropping old bars can only shrink the visible range, so the ratio is
-// monotone in `from`; the leftmost index that still satisfies the target is the
-// one that keeps the MOST context. `trimFloor` is the rightmost `from` allowed
-// (callers bound it by the box's own start, so a trim can never crop the base).
-export const proportionTrimmedFrom = (candles, from, to, boxHeight, trimFloor, minFrac) => {
-  const ceiling = Math.min(trimFloor, to);
-  if (!(boxHeight > 0) || !(minFrac > 0) || ceiling <= from) return from;
-
-  let high = -Infinity;
-  let low = Infinity;
-  const widen = (index) => {
-    const candle = candles[index];
-    if (!candle) return;
-    const candleHigh = Number(candle.high);
-    const candleLow = Number(candle.low);
-    if (Number.isFinite(candleHigh) && candleHigh > high) high = candleHigh;
-    if (Number.isFinite(candleLow) && candleLow < low) low = candleLow;
-  };
-
-  for (let index = ceiling; index <= to; index += 1) widen(index);
-  if (!(high > low)) return from;
-  // Even the most-trimmed window can't reach the target (a genuinely tiny box on
-  // a volatile chart) — take the best available rather than pretending.
-  if (boxHeight / (high - low) < minFrac) return ceiling;
-
-  let best = ceiling;
-  for (let index = ceiling - 1; index >= from; index -= 1) {
-    widen(index);
-    if (boxHeight / (high - low) < minFrac) break;
-    best = index;
-  }
-  return best;
+// The window the consolidation earns: wide enough that the rest owns no more
+// than baseWidthCap of the pane, floored at minWindowBars so a very short rest
+// still gets room behind it, capped at legibilityCeilingBars so the bars stay
+// readable. This is the whole model — the window is a property of the SETUP, not
+// of the surface (operator 2026-09-02: "dynamic scaling based on the found
+// consolidation ... focusing on the consolidation area and then some room behind
+// it for added context").
+//
+// The ceiling then YIELDS to a base it cannot frame ("for monster bases simply
+// zoom out the base"): a rest so long it would still own more than
+// ceilingYieldShare of the pane AT the ceiling is not made readable by holding
+// bars wide, so the window opens as far as the cap wants and history allows.
+// Deliberately a TAIL rule, not a raised ceiling — raising the ceiling instead
+// costs every medium-base card its legibility, measured 2026-09-02.
+//
+// `available` is how far back the payload actually goes; without it the window
+// would ask for history that does not exist and the never-crop clause would be
+// the only thing stopping it. Both bounds still yield to that clause.
+const baseCappedWindow = (profile, visibleBase, rightPadding, available) => {
+  const capWindow = Math.ceil((visibleBase + rightPadding) / profile.baseWidthCap);
+  const ceiling = profile.legibilityCeilingBars;
+  const framed = Math.max(profile.minWindowBars, Math.min(ceiling, capWindow));
+  if (capWindow <= ceiling) return framed;
+  // The ceiling could not satisfy the cap. Does the base still swamp the pane?
+  const shareAtCeiling = (visibleBase + rightPadding) / framed;
+  if (shareAtCeiling <= profile.ceilingYieldShare) return framed;
+  return Math.max(framed, Math.min(capWindow, available));
 };
 
 // The focused logical range for the mini-chart (pure computation; the caller
 // applies it via chart.timeScale().setVisibleLogicalRange).
 //
-// Show the base WITH real pre-base trend context so it occupies a true FRACTION
-// of the pane and never sprawls edge-to-edge (which flattens a tight base into
-// looking even tighter). The window is nominally clamped to
-// [minVisibleBars .. maxVisibleBars], but BOTH bounds yield to the structure:
-// neither may crop the box or its approach leg, so a base wider than the budget
-// stretches the window instead of losing its left edge. The proportion trim then
-// removes old context until the box owns its share of the visible price range.
+// ONE reference time scale for every setup, so two cards side by side are at the
+// SAME zoom and the consolidation's share of the pane is proportional to how
+// long it actually lasted. A base long enough to cross baseWidthCap stretches
+// the window (never shrinks it), bounded by legibilityCeilingBars — and both
+// bounds yield to the box: neither may crop it or its approach leg.
 //
 // TOTAL by contract: the only null is "no candles". A payload with no finite
 // base_len (a boxless candle array — the hover popover and the index panes reuse
-// this same math) falls back to the last maxVisibleBars bars rather than
-// returning {from: NaN}. The min <= max relationship is enforced HERE; it used
-// to be call-site discipline, and an inverted pair silently blew the budget.
-export const miniFocusLogicalRange = (data, maxVisibleBars, minVisibleBars = 0, profile = CHART_FRAMING.mini) => {
+// this same math) falls back to the plain reference window rather than returning
+// {from: NaN}, so an unboxed chart renders at the SAME density as a boxed one.
+export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
   const candles = data?.candles || [];
   if (!candles.length) return null;
 
   const lastIndex = candles.length - 1;
-  const budget = barCount(maxVisibleBars);
-  const floor = Math.min(barCount(minVisibleBars) ?? 0, budget ?? Infinity);
   const baseLen = barCount(data.base_len);
-  const forwardBars = barCount(data.forward_bars) ?? 0;
-
   if (baseLen == null || baseLen <= 0) {
-    return { from: budget == null ? 0 : Math.max(0, lastIndex - budget), to: lastIndex };
+    // No consolidation to frame (the Watchlist's clean charts, the index panes):
+    // show the widest window that is still legible on this surface.
+    return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
   }
 
+  const forwardBars = barCount(data.forward_bars) ?? 0;
   const baseEnd = Math.max(0, lastIndex - forwardBars);
   const baseStart = Math.max(0, baseEnd - baseLen + 1);
-
   const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
   const rightEdge = Math.min(lastIndex, baseEnd + rightPadding);
 
-  const leftPadding = Math.max(40, baseLen);
-  const desiredFrom = Math.max(0, baseStart - leftPadding);
-  // The budget cap and the window floor both stop at the approach leg: a base
-  // wider than the budget STRETCHES the window rather than having its left edge
-  // cropped off-screen (ruling 2026-08-09 — the box is the datum; a box whose
-  // open is off-pane misreports where the base began, and a box with no leg in
-  // front of it can't be judged at all).
-  const contextFloor = Math.max(0, baseStart - (profile?.minContextBars ?? 0));
-  const maxFrom = Math.min(budget == null ? 0 : Math.max(0, rightEdge - budget), contextFloor);
-  const minFrom = Math.min(Math.max(0, rightEdge - floor), contextFloor);
+  // baseEnd - baseStart + 1, not base_len: a base longer than the carried
+  // history clamps at index 0 and only its visible part can own pane.
+  const window = baseCappedWindow(profile, baseEnd - baseStart + 1, rightPadding, candles.length);
 
-  // Don't exceed the max budget (>= maxFrom), then ensure at least the min
-  // window (<= minFrom). With min=0, minFrom===rightEdge so this is a no-op.
-  let from = Math.max(desiredFrom, maxFrom);
-  from = Math.min(from, minFrom);
-
-  // Then drop the oldest context bars until the box owns its share of the pane —
-  // but always keep the approach leg on screen. A base only means something
-  // relative to the move that led into it, so the trim stops minContextBars
-  // before the box opens (measured: without this bound a ~110-bar base ate the
-  // entire window and read as sprawl, the exact 2026-07 failure mode).
-  const trimBars = Math.min(profile?.trimFloorBars ?? 0, floor || Infinity);
-  const trimFloor = Math.min(contextFloor, Math.max(0, rightEdge - trimBars));
-  const boxHeight = (finiteNumber(data.R) ?? 0) - (finiteNumber(data.S) ?? 0);
-  from = proportionTrimmedFrom(candles, from, rightEdge, boxHeight, trimFloor, profile?.minBaseHeightFrac ?? 0);
-
-  return { from, to: rightEdge };
+  // The never-crop clause OUTRANKS everything, including the ceiling (ruling
+  // 2026-08-09 — a box whose open is off-pane misreports where the base began,
+  // and a box with no leg in front of it can't be judged at all).
+  //
+  // HONEST NOTE (2026-09-02): since the ceiling learned to yield, this clamp is
+  // REDUNDANT — swept over every base length x forward count x history depth on
+  // all three box-framed profiles, it never once binds, because a base long
+  // enough to threaten its own leg now earns a window ~2.9x its own width. It is
+  // kept as a one-token backstop, not as a live guard: raise ceilingYieldShare
+  // above 1 (i.e. turn the yield off) and it goes load-bearing again in the same
+  // edit. Do not read its test as proof that it fires — the invariant is proved
+  // by sweep instead (chartGeometry.test.js, "the box's open is NEVER cropped").
+  const contextFloor = Math.max(0, baseStart - profile.minContextBars);
+  return { from: Math.min(Math.max(0, rightEdge - window + 1), contextFloor), to: rightEdge };
 };
 
 // The modal's focused window, in the SAME logical-index units as the mini card's
 // (it was hand-rolled inside the modal hook, untested, re-deriving baseEnd
-// instead of reusing this module's index math). The modal shows the base with
-// substantial pre-base trend context so it renders at a faithful daily density
-// instead of a few dozen bars stretched wide, which flattened the base.
+// instead of reusing this module's index math).
+//
+// The modal opens on ONE TRADING YEAR because its job is the stock, not the
+// base's tightness: the operator was zooming out on every single chart to see
+// what he was actually looking at (2026-09-02). It shares the card's
+// baseWidthCap by construction, so the two surfaces can never disagree about
+// how much pane the base owns; it differs only in reference span and in running
+// to the last candle (the modal shows the forward tape). The card's old
+// proportion trim deliberately does NOT run here — it does not run anywhere.
 export const modalFocusLogicalRange = (data, profile = CHART_FRAMING.modal) => {
   const candles = data?.candles || [];
   if (!candles.length) return null;
 
   const lastIndex = candles.length - 1;
+  const baseLen = barCount(data.base_len);
+  if (baseLen == null || baseLen <= 0) {
+    return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
+  }
+
   const forwardBars = barCount(data.forward_bars) ?? 0;
-  const baseLen = barCount(data.base_len) ?? 0;
-  const baseEnd = lastIndex - forwardBars;
-  const context = Math.max(baseLen + profile.contextBars, profile.minVisibleBars);
-  const from = Math.max(0, baseEnd - context);
-
-  // Same honest-proportion trim as the card, bounded by the box's own start so
-  // the modal and the card cannot disagree about how much pane the base owns.
+  const baseEnd = Math.max(0, lastIndex - forwardBars);
   const baseStart = Math.max(0, baseEnd - baseLen + 1);
-  const contextFloor = Math.max(0, baseStart - (profile.minContextBars ?? 0));
-  const trimFloor = Math.min(contextFloor, Math.max(0, baseEnd - (profile.trimFloorBars ?? 0)));
-  const boxHeight = (finiteNumber(data.R) ?? 0) - (finiteNumber(data.S) ?? 0);
+  const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
 
-  return {
-    from: proportionTrimmedFrom(candles, from, lastIndex, boxHeight, trimFloor, profile.minBaseHeightFrac ?? 0),
-    to: lastIndex,
-  };
+  const window = baseCappedWindow(profile, baseEnd - baseStart + 1, rightPadding, candles.length);
+  const contextFloor = Math.max(0, baseStart - profile.minContextBars);
+  return { from: Math.min(Math.max(0, lastIndex - window + 1), contextFloor), to: lastIndex };
 };
 
 // The index panes' window: the most recent visibleBars bars. null means "the

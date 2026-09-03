@@ -10,6 +10,7 @@ import {
   DISPLAY_LABELS,
   EPISODE_LABELS,
   POSITION_LABELS,
+  POWER_PLAY_STATUS_LABELS,
   ROOT_OUTCOME_LABELS,
   TRACE_STAGE_LABELS,
   TREND_STATE_LABELS,
@@ -82,4 +83,19 @@ test('no retired jargon and no engineer CONSTANT_CASE in any operator-facing str
     // CONSTANT). Bare acronyms like LPS/ADR are legitimate operator words.
     assert.ok(!/\b[A-Z]+_[A-Z_]+\b/.test(s), `settings-constant token in "${s}"`);
   }
+});
+
+test('the Power Play status set is closed and mirrors the server exactly', () => {
+  // THE TWO-SIDED CONTRACT, rehomed. This pin used to live in
+  // powerPlayRegister.test.js, which died with the register's Home mount
+  // (operator 2026-09-02, "i never asked for this"). The engine side
+  // (tests/test_power_play_lane.py) names this frontend mirror in prose as its
+  // other half: a membership-only assertion let a server-side widening ship
+  // with every gate green and the operator's first sight of it a raw slug
+  // (2026-08-17 review, Dodds/Fowler). The DISPLAY is retired; the vocabulary
+  // and its pin are not — a new status must land a signed label here.
+  assert.deepEqual(
+    Object.keys(POWER_PLAY_STATUS_LABELS).sort(),
+    ['fired', 'not_watched_clock', 'refused_occupancy', 'refused_story', 'watched_ungraded'],
+  );
 });

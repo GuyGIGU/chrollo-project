@@ -160,7 +160,6 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
       render: (row) => (
         <span
           className="home-wlt-ident"
-          data-glance-anchor=""
           title={row.data ? undefined : `${row.t} — not in the latest scan; opens the chart saved with it`}
         >
           {/* No color of its own when the name isn't in the scan — the row's
