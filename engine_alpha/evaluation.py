@@ -34,10 +34,12 @@ from engine_alpha.scoring import taxonomy as _taxonomy
 from engine_alpha.scoring.scoring import compose_ta_grade
 from engine_alpha.structure.market_structure import measure_trend_bases
 from engine_alpha.structure.metrics import (
+    OUTSIDE_BAR_MEASURES,
     base_rail_touches,
     base_swing_skeleton,
     measure_lps_contraction,
     measure_story_richness,
+    traversals_per_20d,
 )
 from engine_alpha.structure.narrative import read_structure
 from engine_alpha.structure.phase_d import (
@@ -929,6 +931,12 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         '_eq_close_lower_dwell': gate_margins['close_lower_dwell'],
         '_eq_close_mid_dwell': gate_margins['close_mid_dwell'],
         '_eq_close_upper_dwell': gate_margins['close_upper_dwell'],
+        # The outside-bar vocabulary (engine-eyes Task 1): his four respect
+        # forms named per bar / per run on the elected box — DESCRIPTORS,
+        # archived raw, consulted by nothing. Keys derive from the ONE tuple.
+        **{f'_eq_{key}': gate_margins[key] for key in OUTSIDE_BAR_MEASURES},
+        '_eq_traversals_per_20d': traversals_per_20d(
+            equilibrium['n_full_traversals'], len(base_df)),
         '_trav_n_full_traversals': int(equilibrium['n_full_traversals']),
         '_trav_n_swings': int(equilibrium['n_swings']),
         '_trav_top_dead_space': (float(equilibrium['top_dead_space'])

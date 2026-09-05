@@ -324,6 +324,34 @@ evidence base for any future rail-PLACEMENT work (the engine's S-below-drawn-S
 bias), which is where the Guided List says the wick/close divergence actually
 bites.
 
+**The outside bars are NAMED, never judged (2026-09-05, engine-eyes Task 1).**
+The operator's respect-form taxonomy (ruled 2026-08-29: touch-and-pivot ·
+slight poke / semi-inside · resting above R · holding below S — "all of these
+counts") is now measured per bar on the elected box, from the SAME masks the
+respect gate reads, and archived as descriptors on every fire. Per bar,
+exactly one form: a whole bar above the resistance LINE (Low > R) is a *rest
+above resistance*; a whole bar below the support LINE (High < S) is a *hold
+below support*; a bounded poke that closed back inside the buffer is the
+engagement hang (*poke and close back inside*); whatever else crossed a rail
+*straddled and closed out*. The whole-bar forms are judged against the line,
+not the buffered rail (his wording), a bar that is both a hang and a rest
+counts ONCE, and a NaN extreme is inside — never a rest. Per contiguous
+outside run the engine also says how the run RESOLVED inside the window:
+pivoted back (a later bar wholly under the line), hovered (back inside the
+buffer, never under the line), reached the right edge (honestly undetermined
+— no-lookahead), or ran past the gate's run cap. What this buys is the
+VOCABULARY: on the 35 drawn boxes the 414 outside trading days are 218 pokes
+that closed back inside, 127 whole-bar rests above R, 75 whole-bar holds
+below S, 214 of them in the last third, and 23 of 30 drawn boxes end in a
+right-edge run. What it does NOT buy is admission: re-counting the forms as
+respect was benched hermetically 2026-09-04 and is DEAD as a gate in every
+disguise (5 of the 18 must-not-fire junk charts fire, SILC's pinned fire is
+lost, zero misses convert) — the respect floor and the run cap stay hard,
+nothing consults the new numbers, and the descriptors that re-measure dead
+families (rail overshoot depth = the overshoot-magnitude row; the whole-bar
+early share = the harshness-by-position row) carry their graveyard tag so a
+later "recalibrate against the archive" cannot walk a dead lever back in.
+
 **Commit-tail rescue — tested and REJECTED (2026-07-24, gap-breach Task 4).**
 The dual of the SOS worked-window trim (re-judge a failing framing on its
 window minus a bounded terminal floor-holding pullback tail — "the completing

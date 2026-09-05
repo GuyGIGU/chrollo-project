@@ -544,6 +544,21 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
      - Buffered band `[S - 0.5·ATR, R + 0.5·ATR]`; wicks count as breaches.
      - ≥ `MIN_BOUNDARY_RESPECT_PCT` (80%) of bars inside the band, no consecutive
        outside run longer than `MAX_CONSECUTIVE_OUTSIDE_DAYS` (10).
+     - **The outside bars are named (engine-eyes Task 1, 2026-09-05; measure-only).**
+       Beside the engagement hang masks, `box_gates._whole_bar_rest_masks` reads
+       the two whole-bar forms against the rail LINE (`rest_above_r` = Low > R,
+       `hold_below_s` = High < S), `_outside_bar_forms` partitions every outside
+       bar into exactly one of `OUTSIDE_BAR_FORMS` (whole-bar first, then the
+       hang as `poke_close_back`, else `straddle_close_out`), and
+       `_outside_run_census` types each contiguous run (side, trading days, form
+       counts, deepest excursion, resolution ∈ `RUN_RESOLUTIONS`: pivot_back on a
+       later bar wholly under the line / hover / right_edge / over_cap). The run
+       arithmetic is `_run_spans`, shared with the gate's own run maximum.
+       `metrics.measure_gate_margins` derives the archived `eq_*` descriptors
+       (`OUTSIDE_BAR_MEASURES` + `eq_traversals_per_20d`) once on the elected
+       box; `tools.calibration_stat_card` prints the same columns and the
+       census totals on the drawn windows. No gate consults any of it — the
+       forms-as-admission re-count is Tested-DEAD (2026-09-04 bench).
    - **Worked-equilibrium occupancy** — `_validate_base_quality()`:
      - In-base crash filter: `min(Low) >= S × CRASH_FILTER_MULT` (0.70).
      - **Constant two-sided touch:** ≥ `EQ_MIN_TOUCHES_PER_RAIL` (3) on each rail,
@@ -1208,6 +1223,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - Upserts on `(ticker, scan_date)` — re-running the same day updates rather than duplicates.
 - `autoflush=False` on the session: avoids the "database is locked" path where a per-row existence query would auto-flush pending UPDATEs while the webapp holds a read lock.
 - Attaches **market context** to every row: `spy_trend`, `vix_level`, `sector_etf`, `sector_trend` (sector ETF mapped per ticker, 50d trend pulled at scan_date). Sector lookups are cached per ticker within a run.
+- New archive columns are **model-only** registrations (AP-7): declare the `Column` on `SetupArchive`, emit the `_key` from `evaluation.py`, add the `row.get` line here — the boot pass and this writer's second pass derive the `ALTER TABLE`s from `SetupArchive.__table__`; the legacy `_NEW_COLUMNS` hand list does not grow. The `eq_*` outside-bar family (2026-09-05) travelled this route; `eq_terminal_run_form` is a closed set (`box_gates.TERMINAL_RUN_FORMS`) with a fresh-DB CHECK like `inner_position`.
 
 ### `seed_archive()` ([core/archive/seed.py](../core/archive/seed.py))
 - Bootstrap mechanism for known-winner setups defined in `SEED_SETUPS = [(ticker, trigger_date), ...]`.

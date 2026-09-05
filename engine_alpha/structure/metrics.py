@@ -481,6 +481,20 @@ def measure_touch_volume(base_df: "pd.DataFrame", res_avg: float, sup_avg: float
 # Worked-equilibrium occupancy — is this candidate range a REAL trading range?
 # ---------------------------------------------------------------------------
 
+# The outside-bar vocabulary's archive keys (engine-eyes Task 1) — ONE tuple
+# the empty dict, the evaluation emission and the tests derive from.
+OUTSIDE_BAR_MEASURES = (
+    "rest_above_r_frac", "hold_below_s_frac", "respect_forms_frac",
+    "outside_last_third_share", "terminal_run_bars", "terminal_run_form",
+    "rail_overshoot_depth_atr", "touch_spacing_evenness",
+    "whole_bar_early_share",
+)
+# The raw counts (trading days) reported beside those fractions — for the
+# stat card's census totals and the refusal narration; not archive columns.
+OUTSIDE_BAR_COUNTS = ("outside_bars", "hang_bars", "rest_above_r_bars",
+                      "hold_below_s_bars", "outside_last_third_bars")
+
+
 def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     """The elected box re-measured through the ACTUAL worked-equilibrium
     gates' own statistics — boundary respect (buffered band, wicks count) and
@@ -497,11 +511,16 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     Returns dict: respect_frac, close_lower_dwell, close_mid_dwell,
     close_upper_dwell, engagement_respect_frac (raw, unrounded, same
     masks/units as respect_frac), max_excursion_atr (deepest single-bar
-    excursion in ATRs; 0.0 when no bar is outside) — all nullable floats.
+    excursion in ATRs; 0.0 when no bar is outside) — all nullable floats —
+    plus the outside-bar vocabulary of ``_outside_bar_measures`` (the
+    operator's four respect forms named per bar and per run; engine-eyes
+    Task 1, 2026-09-05). Every numeric measure reads 0.0 on a box with no
+    outside bars — never None; None means the window itself was degenerate.
     """
     empty = {"respect_frac": None, "close_lower_dwell": None,
              "close_mid_dwell": None, "close_upper_dwell": None,
-             "engagement_respect_frac": None, "max_excursion_atr": None}
+             "engagement_respect_frac": None, "max_excursion_atr": None,
+             **{key: None for key in OUTSIDE_BAR_MEASURES}}
     if (base_df is None or len(base_df) == 0 or R is None or S is None
             or R <= S or atr_val is None or atr_val <= 0
             or not np.isfinite(atr_val)):
@@ -527,6 +546,8 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
     hang_r, hang_s = _engagement_hang_masks(
         above_r, below_s, highs, lows, all_closes, r_ceiling, s_floor, atr_val)
     eng_outside = int(((above_r & ~hang_r) | (below_s & ~hang_s)).sum())
+    if rail_touches is None:
+        rail_touches = _rail_touch_thirds(highs, lows, R, S, atr_val)
     eq = _measure_close_residence(base_df, R, S, atr_val,
                                   rail_touches=rail_touches)
     return {
@@ -540,6 +561,111 @@ def measure_gate_margins(base_df, R, S, atr_val, rail_touches=None):
         "engagement_respect_frac": 1.0 - eng_outside / len(base_df),
         "max_excursion_atr": _max_excursion_atr(
             above_r, below_s, highs, lows, r_ceiling, s_floor, atr_val),
+        **_outside_bar_measures(above_r, below_s, hang_r, hang_s, highs, lows,
+                                R, S, r_ceiling, s_floor, atr_val,
+                                rail_touches[0] | rail_touches[1]),
+    }
+
+
+def _outside_bar_measures(above_r, below_s, hang_r, hang_s, highs, lows, R, S,
+                          r_ceiling, s_floor, atr_val, touched):
+    """Name what the outside bars ARE — the operator's four respect forms per
+    bar and per contiguous run (decisions.md row 71 (2)) — as archived
+    DESCRIPTORS. Measures only: no membership, no threshold, no points; the
+    respect floor (``MIN_BOUNDARY_RESPECT_PCT``) and the run cap stay hard in
+    ``_respect_stats`` and nothing here is consulted by any gate. Counts are
+    in trading days; the ``_bars`` keys are the raw counts the fractions are
+    built from (a later narration says them in trading days).
+
+    Keys (fractions of the window's bars unless said otherwise; 0.0 when the
+    window has no bar of that kind — a real measured value, never None):
+      rest_above_r_frac        whole bars above the R line ("rest above resistance")
+      hold_below_s_frac        whole bars below the S line ("hold below support")
+      respect_forms_frac       respect re-counted with every sub-cap run that
+                               RESOLVED inside the window (pivot_back / hover)
+                               forgiven; right-edge and over-cap runs stay
+                               charged. DESCRIPTOR; Tested-DEAD as an
+                               ADMISSION rule 2026-09-04 (hermetic bench: 5 of
+                               the 18 must-not-fire junk charts fire, SILC's
+                               pinned fire is lost, zero misses convert — the
+                               ruling row lands with this build's record
+                               task; read it before any recalibration).
+      outside_last_third_share share of the OUTSIDE bars sitting in the last
+                               third of the window (the rest / departure end)
+      terminal_run_bars        length of the run reaching the last judged bar;
+                               0 when the last trading day is inside
+      terminal_run_form        that run's majority form (TERMINAL_RUN_FORMS;
+                               "inside" when there is no such run)
+      rail_overshoot_depth_atr mean excursion beyond the buffered rail, in
+                               ATR, over the outside bars that are NOT hangs.
+                               DESCRIPTOR of the overshoot-MAGNITUDE family —
+                               Tested-DEAD as a box-legitimacy test
+                               (decisions.md:25, falsified 3x: he ACCEPTS
+                               47.9% / 82% / 101% overshoots inside a base);
+                               read the row before any recalibration.
+      touch_spacing_evenness   1 − (longest stretch of trading days with no
+                               rail touch) / n; 1.0 = touched throughout,
+                               0.0 = never touched
+      whole_bar_early_share    share of the whole-bar rests/holds that sit in
+                               the first three quarters of the window.
+                               DESCRIPTOR of the harshness-by-POSITION family
+                               — Tested-DEAD as a gate (decisions.md row 68:
+                               every variant flags HIS boxes harder than
+                               junk); read the row before any recalibration.
+
+    Standing note: junk pierces its rails LESS deeply than his boxes (max
+    above R 0.349 vs 1.267 ATR), so these read HIGHER on some junk than on
+    some drawn boxes — evidence about what a bar IS, never a junk filter.
+    """
+    from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
+        _outside_bar_forms,
+        _outside_run_census,
+        _run_spans,
+        _terminal_run_form,
+        _whole_bar_rest_masks,
+    )
+    n = len(highs)
+    rest_above_r, hold_below_s = _whole_bar_rest_masks(
+        above_r, below_s, highs, lows, R, S)
+    forms = _outside_bar_forms(above_r, below_s, hang_r, hang_s,
+                               rest_above_r, hold_below_s)
+    runs = _outside_run_census(forms, above_r, below_s, highs, lows, R, S,
+                               r_ceiling, s_floor, atr_val)
+    outside = above_r | below_s
+    whole = rest_above_r | hold_below_s
+    idx = np.arange(n)
+    charged = sum(run["bars"] for run in runs
+                  if run["resolution"] in ("right_edge", "over_cap"))
+    n_outside = int(outside.sum())
+    n_whole = int(whole.sum())
+    non_hang = outside & ~(hang_r | hang_s)
+    excursion = np.maximum(np.where(above_r, highs - r_ceiling, 0.0),
+                           np.where(below_s, s_floor - lows, 0.0))
+    depth = (float(np.nanmean(excursion[non_hang])) / float(atr_val)
+             if non_hang.any() else 0.0)
+    longest_untouched = max((end - start + 1 for start, end in _run_spans(~touched)),
+                            default=0)
+    terminal = runs[-1] if runs and runs[-1]["end"] == n - 1 else None
+    return {
+        "rest_above_r_frac": int(rest_above_r.sum()) / n,
+        "hold_below_s_frac": int(hold_below_s.sum()) / n,
+        "respect_forms_frac": 1.0 - charged / n,
+        "outside_last_third_share": (
+            int((outside & (idx >= 2 * n // 3)).sum()) / n_outside
+            if n_outside else 0.0),
+        "terminal_run_bars": terminal["bars"] if terminal else 0,
+        "terminal_run_form": _terminal_run_form(runs, n),
+        "rail_overshoot_depth_atr": depth,
+        "touch_spacing_evenness": 1.0 - longest_untouched / n,
+        "whole_bar_early_share": (
+            int((whole & (idx < 3 * n // 4)).sum()) / n_whole if n_whole else 0.0),
+        # OUTSIDE_BAR_COUNTS — the raw counts behind the fractions
+        "outside_bars": n_outside,
+        "hang_bars": int((hang_r | hang_s).sum()),
+        "rest_above_r_bars": int(rest_above_r.sum()),
+        "hold_below_s_bars": int(hold_below_s.sum()),
+        "outside_last_third_bars": int((outside & (idx >= 2 * n // 3)).sum()),
+        "outside_runs": runs,
     }
 
 
@@ -775,6 +901,18 @@ def measure_equilibrium(base_df, R, S, atr_val):
         "last_support_time_pos": last_support_time_pos,
         "low_position_in_box": low_position_in_box,
     }
+
+
+def traversals_per_20d(n_full_traversals, n_bars):
+    """Rail-to-rail trips per 20 trading days — ``measure_equilibrium``'s
+    ``n_full_traversals`` re-based to a month of trading so a long box and a
+    short one read on one scale (engine-eyes Task 1 DESCRIPTOR; archived as
+    ``eq_traversals_per_20d``). Pure arithmetic on the count already measured
+    ONCE at election — never a second swing pass. 0.0 on zero trips (a real
+    measured value); None when the window has no bars."""
+    if not n_bars:
+        return None
+    return 20.0 * float(n_full_traversals) / float(n_bars)
 
 
 def descent_tail_rejects(last_support_time_pos, low_position_in_box, box_width) -> bool:

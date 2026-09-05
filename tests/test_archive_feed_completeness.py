@@ -47,6 +47,14 @@ FEED_FLOOR = (
     "_eq_engagement_respect_frac", "_eq_max_excursion_atr",
     "_eq_r_touch_thirds", "_eq_r_touches", "_eq_respect_frac",
     "_eq_s_touch_thirds", "_eq_s_touches", "_eq_upper_dwell",
+    # the outside-bar vocabulary (engine-eyes Task 1, 2026-09-05): every
+    # key reads a real value on a fired box (0.0 / "inside" when nothing is
+    # outside — None is the degenerate-window route a fire never takes)
+    "_eq_rest_above_r_frac", "_eq_hold_below_s_frac", "_eq_respect_forms_frac",
+    "_eq_outside_last_third_share", "_eq_terminal_run_bars",
+    "_eq_terminal_run_form", "_eq_rail_overshoot_depth_atr",
+    "_eq_touch_spacing_evenness", "_eq_whole_bar_early_share",
+    "_eq_traversals_per_20d",
     "_excess_return_6m", "_final_contraction_depth",
     "_last_supper_pullback_from_extension_pct", "_last_supper_reclaim_quality",
     "_lps_anchor_bar", "_lps_anchor_date", "_lps_descent_frac",

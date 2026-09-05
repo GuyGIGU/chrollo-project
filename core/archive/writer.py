@@ -529,6 +529,18 @@ def archive_scan_results(
             eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
             eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
             eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
+            # The outside-bar vocabulary (engine-eyes Task 1) — descriptors,
+            # model-only columns (AP-7: the hand list above does not grow)
+            eq_rest_above_r_frac=row.get("_eq_rest_above_r_frac"),
+            eq_hold_below_s_frac=row.get("_eq_hold_below_s_frac"),
+            eq_respect_forms_frac=row.get("_eq_respect_forms_frac"),
+            eq_outside_last_third_share=row.get("_eq_outside_last_third_share"),
+            eq_terminal_run_bars=row.get("_eq_terminal_run_bars"),
+            eq_terminal_run_form=row.get("_eq_terminal_run_form"),
+            eq_rail_overshoot_depth_atr=row.get("_eq_rail_overshoot_depth_atr"),
+            eq_touch_spacing_evenness=row.get("_eq_touch_spacing_evenness"),
+            eq_whole_bar_early_share=row.get("_eq_whole_bar_early_share"),
+            eq_traversals_per_20d=row.get("_eq_traversals_per_20d"),
             # Electing-pool provenance (strict/rescued/band/story, Task 11)
             elected_pool=row.get("_elected_pool"),
             story_admission_profile=row.get("_story_admission_profile"),
