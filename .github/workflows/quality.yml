@@ -95,6 +95,21 @@ jobs:
       - name: Operator-marks acceptance guard
         run: python -m tools.marks_corpus --check
 
+      # Reader-vocabulary pin. Offline + deterministic, HARD gate, ~6s.
+      # Replays 88 committed fixture charts (the 33 sealed marks, the 18 junk
+      # charts, and all 37 shadow charts INCLUDING the 5 that reject) through
+      # the rail readers and fails on any change to what they SAY. It is the
+      # only guard that can see that: shadow_diff freezes nine canonical fields,
+      # marks_corpus compares FIRES, and fold_parity collapses every non-firing
+      # ticker to one __REJECT__ token, so a change that rewrites every event
+      # label while keeping fires and scores identical passes all of them.
+      # AGENTS.md has named it a standing gate all along while CI ran it never
+      # (council review 2026-09-07). Also covered by tests/test_reader_pin.py -
+      # kept as an explicit step, like the two guards above, so a reading drift
+      # is unmistakable in the logs.
+      - name: Reader-vocabulary pin
+        run: python -m tools.reader_pin --check
+
       # Seed-recall guard, FRESH-DATA basis. ADVISORY-ONLY on CI, by design.
       #
       # The committed baseline (tests/baselines/seed_recall_baseline.json) is
