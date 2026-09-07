@@ -9,6 +9,7 @@ wevtutil nor a Windows event log.
 """
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -211,16 +212,112 @@ def test_every_job_kind_has_a_name_and_a_way_to_re_run_it():
     assert set(diag.JOB_NAMES) == set(diag.JOB_RERUN)
 
 
-def test_no_solution_hardcodes_the_scan_hour():
-    """The slot is a setting the operator is being asked to move (docs/asks.md),
-    and the missed-slot notice reads it live. A clock time copied into this
-    prose starts lying the moment he moves it."""
-    import re
+def _shutdown_solution():
+    return diag.describe_run(
+        {"status": "failed", "failure_kind": "interrupted_shutdown"})["solution"]
 
-    for kind in diag.FAILURE_KINDS:
-        solution = diag.describe_run(
-            {"status": "failed", "failure_kind": kind})["solution"]
-        assert not re.search(r"\d{1,2}:\d{2}", solution), kind
+
+def test_no_solution_hardcodes_the_scan_hour(monkeypatch):
+    """The slot is a setting the operator is being asked to move (docs/asks.md).
+
+    This started as "no solution may contain a clock time at all", which was
+    right about the numeral and wrong about the cure: the sentence then named
+    SCAN_SCHEDULE_HOUR_ET in config/settings.py instead, which is worse — he
+    reads this on a dashboard and does not edit Python. So the sentence DOES
+    speak a clock time now, and the proof that it is not hardcoded is that
+    moving the hour moves the sentence.
+    """
+    monkeypatch.setattr(diag, "scan_slot", lambda: (17, 0))
+    assert "17:00 New York time" in _shutdown_solution()
+
+    monkeypatch.setattr(diag, "scan_slot", lambda: (9, 30))
+    moved = _shutdown_solution()
+    assert "09:30 New York time" in moved
+    assert "17:00" not in moved
+
+
+def test_the_scan_hour_in_the_prose_is_the_one_config_actually_holds():
+    """The half the monkeypatch above cannot prove: the live read is the SAME
+    setting the scheduler builds its cron from, not a second copy that could
+    drift from it."""
+    from services.core_settings import load_core_settings
+
+    settings = load_core_settings()
+    assert diag.scan_slot() == (int(settings.SCAN_SCHEDULE_HOUR_ET),
+                                int(settings.SCAN_SCHEDULE_MINUTE_ET))
+    hour, minute = diag.scan_slot()
+    assert f"{hour:02d}:{minute:02d} New York time" in _shutdown_solution()
+
+
+# The ONE filename the operator himself runs. AGENTS.md makes it his gesture
+# ("tell them to run update_dashboard.bat"), and two other surfaces already say
+# it by name (CalibrationTab.jsx, useEngineRead.js) — a different word here
+# would only teach him a second name for one shortcut. Everything ELSE that
+# looks like code is a leak.
+OPERATOR_GESTURES = ("update_dashboard.bat",)
+
+CODE_SHAPED = (
+    (r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+", "a settings key or constant name"),
+    (r"[a-z][a-z0-9]*(?:_[a-z0-9]+)+", "a snake_case identifier"),
+    (r"[\w-]+\.(?:py|js|jsx|json|log|md|db|sqlite|bat|ps1|txt|ya?ml|csv)\b", "a filename"),
+    (r"[\w.-]+/[\w./-]+", "a repo path"),
+)
+
+# Every check webapp/backend/services/health.py actually builds, read from its
+# source rather than imported — importing it drags in the database engine.
+HEALTH_SOURCE = (BACKEND_DIR / "services" / "health.py").read_text(encoding="utf-8")
+BUILT_CHECKS = set(re.findall(r'checks\["(\w+)"\]', HEALTH_SOURCE))
+
+
+def operator_sentences():
+    """(where, sentence) for everything this module can put on his screen."""
+    for job in diag.JOB_NAMES:
+        for kind in diag.FAILURE_KINDS:
+            row = {"status": "failed", "kind": job, "failure_kind": kind}
+            yield from _sentences(f"{job}/{kind}", diag.describe_run(row))
+        for status in ("failed", "aborted", "stale_data", "expired"):
+            yield from _sentences(f"{job}/{status}",
+                                  diag.describe_run({"status": status, "kind": job}))
+    for name in sorted(BUILT_CHECKS - {"ibkr"}):
+        yield from _sentences(f"check/{name}",
+                              diag.describe_health_check(name, {"ok": False}))
+    for status in ("never", "ok", "running", "failed", "stale_data", "aborted"):
+        yield from _sentences(
+            f"last_scan/{status}",
+            diag.describe_health_check("last_scan", {"ok": False, "status": status}))
+
+
+def _sentences(where, described):
+    for field in ("label", "reason", "solution"):
+        value = described.get(field)
+        if value:
+            yield f"{where}.{field}", value
+
+
+def test_no_operator_sentence_names_a_code_identifier():
+    """He is a discretionary trader glancing at a dashboard, not someone who
+    edits Python. A constant name, a settings key, a source filename or a repo
+    path on that screen is worse than useless — it names a thing he cannot act
+    on, in a vocabulary that is not his. The ONE allowed filename is the
+    shortcut he himself double-clicks.
+    """
+    for where, sentence in operator_sentences():
+        scrubbed = sentence
+        for gesture in OPERATOR_GESTURES:
+            scrubbed = scrubbed.replace(gesture, "")
+        for pattern, what in CODE_SHAPED:
+            hit = re.search(pattern, scrubbed)
+            assert hit is None, f"{where} shows {what}: {hit.group(0)!r}"
+
+
+def test_every_health_check_the_report_builds_has_plain_words():
+    """describe_health_check's label FALLBACK is the raw check key — exactly the
+    leak the sweep above forbids. It stays unreachable only while every check
+    health.py emits has an entry, so pin that here: a new check without prose
+    fails in pytest instead of putting its key on his screen."""
+    assert BUILT_CHECKS == {"db", "last_scan", "screener_data", "scheduler", "ibkr"}
+    for name in BUILT_CHECKS - {"ibkr"}:
+        assert diag.describe_health_check(name, {"ok": False})["label"] != name
 
 
 def test_unrecognised_legacy_error_still_gets_a_remedy():

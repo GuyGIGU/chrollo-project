@@ -21,8 +21,11 @@ The PROSE is derived at the publisher from the stamped kind, never stored — so
 improving the wording is a code change with no data migration, and a stored
 sentence can never contradict a later read.
 
-``describe_run`` is PURE: no subprocess, no database, no clock. That is what
-makes it safe to call from the /health poll and from both scan-status routes.
+``describe_run`` is PURE: no subprocess, no database, no clock. Its one reach
+outside is the nightly slot's hour, read from config by the two sentences that
+speak it (measured 0.39ms a read) — a remedy that names an hour has to name the
+LIVE one. That is what makes it safe to call from the /health poll and from both
+scan-status routes.
 """
 from __future__ import annotations
 
@@ -158,17 +161,22 @@ JOB_RERUN = {
 }
 DEFAULT_JOB = "scan"
 
-# No clock time in this sentence. The hour is a SETTING, and docs/asks.md asks
-# the operator to move it — a numeral copied into prose starts lying the moment
-# he does. The live hour is spoken only by missed_slot_notice, which reads it.
+# No numeral typed into this sentence, and no setting NAMED in it either. The
+# hour is a setting, and docs/asks.md asks the operator to move it — a clock
+# time copied into prose starts lying the moment he does, and naming the setting
+# instead is worse than useless to a man who reads this on a dashboard and does
+# not edit Python. {slot} renders the LIVE hour as a time he reads on a clock.
 _LEAVE_IT_ON = (
-    "The computer has to stay awake until {job} finishes. The nightly slot is "
-    "the hour set by SCAN_SCHEDULE_HOUR_ET in config/settings.py — either leave "
-    "the computer on past it, or move it earlier. {rerun}"
+    "The computer has to stay awake until {job} finishes. The nightly scan runs "
+    "at {slot} — either leave the computer on past it, or move it earlier. "
+    "{rerun}"
 )
+# Where the log lives is the developer's business: the path is in docs/deploy.md,
+# and that file is mostly HTTP request lines anyway (decisions.md 2026-08-24), so
+# sending him to it was a wrong errand as well as a leaked path.
 _CHECK_THE_LOG = (
-    "{rerun} If it keeps happening, output/chrollo-service-error.log around the "
-    "start time shows what the dashboard was doing."
+    "{rerun} If it keeps happening, that one is for the developer — the "
+    "dashboard's own log records what it was doing at the time."
 )
 
 REASONS = {
@@ -200,6 +208,44 @@ def _job_kind(value) -> str:
     return value if value in JOB_NAMES else DEFAULT_JOB
 
 
+# The shipped slot, used ONLY when the settings file cannot be read at all —
+# the same pair services/scheduler.py falls back to when it builds the cron.
+_DEFAULT_SLOT = (18, 0)
+
+
+def scan_slot() -> tuple[int, int]:
+    """The nightly scan slot as (hour, minute) in New York, read LIVE.
+
+    ONE home for that read (EC-3): the missed-slot notice and the "leave it on"
+    remedy must not be able to name two different hours, and neither may carry
+    the number in its own text. Raises if the settings file cannot be read —
+    both callers already handle that, and the render path goes through
+    ``scan_slot_in_words``, which degrades.
+    """
+    # Local import for the same reason the rest of this module uses them: it
+    # keeps scan_diagnosis standalone-importable.
+    from services.core_settings import load_core_settings
+
+    settings = load_core_settings()
+    return (
+        int(getattr(settings, "SCAN_SCHEDULE_HOUR_ET", _DEFAULT_SLOT[0])),
+        int(getattr(settings, "SCAN_SCHEDULE_MINUTE_ET", _DEFAULT_SLOT[1])),
+    )
+
+
+def scan_slot_in_words() -> str:
+    """The slot as a clock time the operator reads: ``17:00 New York time``.
+
+    Total: this sits on the /health poll path, so an unreadable settings file
+    falls back to the shipped default rather than blanking a whole remedy.
+    """
+    try:
+        hour, minute = scan_slot()
+    except Exception:  # pragma: no cover - defensive
+        hour, minute = _DEFAULT_SLOT
+    return f"{hour:02d}:{minute:02d} New York time"
+
+
 def _in_words(template: str, job_kind: str | None) -> str:
     """Fill one prose template for one job kind.
 
@@ -209,7 +255,15 @@ def _in_words(template: str, job_kind: str | None) -> str:
     """
     kind = _job_kind(job_kind)
     job = JOB_NAMES[kind]
-    return template.format(job=job, Job=job[:1].upper() + job[1:], rerun=JOB_RERUN[kind])
+    # Only the sentences that SPEAK the slot pay for reading it (measured
+    # 0.39ms a read, and this fills every sentence on the /health poll).
+    slot = scan_slot_in_words() if "{slot}" in template else ""
+    return template.format(
+        job=job,
+        Job=job[:1].upper() + job[1:],
+        rerun=JOB_RERUN[kind],
+        slot=slot,
+    )
 
 
 # ------------------------------------------------------------ the rule ----
@@ -662,10 +716,30 @@ def _stamp_kind(bind, run_id: int, kind: str) -> int:
 def missed_slot_notice(latest_started_at, now_et, hour: int, minute: int) -> str | None:
     """One line for the night the scan never STARTED — the second failure shape.
 
-    A computer switched off a minute before the slot leaves no scan_runs row at
-    all, and the boot catch-up cannot recover it (it only ever re-runs TODAY's
-    slot, and a morning boot is always before the evening slot). Without this the
-    registry renders that night as blank space.
+    A slot that passed with NO scan_runs row at all leaves the registry nothing
+    to render: every other sentence in this module explains a row, and here
+    there is no row. This is the only place that night gets words.
+
+    Its territory is NARROWER than it once was, and the old justification here
+    ("the boot catch-up only ever re-runs TODAY's slot, and a morning boot is
+    always before the evening slot") is dead. The catch-up now resolves the
+    MOST RECENT weekday slot — stepping back a day when today's has not passed,
+    and back over the weekend — so a morning boot and a Saturday boot each
+    recover the previous weekday's night on their own. What is left for this
+    notice is the night no boot followed: the machine slept through the slot
+    and woke past APScheduler's misfire grace, so the cron dropped the run and
+    nothing restarted to notice it; the couple of minutes between a boot and
+    the catch-up scan actually starting; and a boot whose catch-up never got
+    scheduled at all (the scheduler failed to start, or its own check threw and
+    logged).
+
+    Two limits worth stating, because they are not defects to be fixed here.
+    It speaks only about the MOST RECENT slot, so the second and older of two
+    consecutive missed nights is never named — and the single catch-up cannot
+    recover one either. And ANY run at/after the slot silences it, whatever
+    that run's status: the catch-up demands a successful one, but a run that
+    exists and ended badly already has its own reason and remedy from
+    ``describe_run``, which is the more specific answer.
     """
     # Local import: services.scheduler pulls in the scan runner, and this module
     # sits on the scan-status read path. Keeping the edge inside the function
@@ -695,15 +769,14 @@ def current_missed_slot_notice() -> str | None:
         from zoneinfo import ZoneInfo
 
         from services import scan_status
-        from services.core_settings import load_core_settings
 
-        settings = load_core_settings()
+        hour, minute = scan_slot()
         latest = scan_status.latest_run(kind="scan")
         return missed_slot_notice(
             (latest or {}).get("started_at"),
             datetime.now(ZoneInfo("America/New_York")),
-            int(getattr(settings, "SCAN_SCHEDULE_HOUR_ET", 18)),
-            int(getattr(settings, "SCAN_SCHEDULE_MINUTE_ET", 0)),
+            hour,
+            minute,
         )
     except Exception as exc:  # pragma: no cover - defensive
         _log.info("missed-slot notice skipped (%s)", exc.__class__.__name__)
