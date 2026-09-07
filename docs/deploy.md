@@ -75,6 +75,20 @@ the first time the logs rotate or are truncated.
 
 Do **not** set `IBKR_LIVE_CONFIRMED` on this service — it must stay broker-free at boot so a reboot or crash-restart never auto-grabs your single IBKR session (which would fight TradingView).
 
+Do **not** set `CHROLLO_DB_PATH` on this service either. It overrides the archive location
+(`webapp/backend/database.py`), and unset is the correct production value: the path stays anchored to
+`webapp\backend\trading_journal.db` regardless of the working directory. It exists for **tests and
+by-hand verification only** — `import main` runs the whole migration battery at import scope, so
+`pytest` (via `tests/conftest.py`) and any agent doing the "import main to confirm routes register"
+check point it at a throwaway file instead of the real archive:
+
+```powershell
+$env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # this shell only — never on the service
+```
+
+Set on the service it would silently start a second, empty archive; every scan, journal row and
+forward return would land there and the dashboard would read an empty history.
+
 > **Recovering an existing service** (pointed at the wrong/broken interpreter, or after a PyManager
 > reset): don't reinstall — run `tools\recover_service_python.bat` (double-click, or right-click → Run
 > as administrator). It self-elevates, repoints the existing service at the venv, restarts it, polls

@@ -98,11 +98,18 @@ jobs:
       # Reader-vocabulary pin. Offline + deterministic, HARD gate, ~6s.
       # Replays 88 committed fixture charts (the 33 sealed marks, the 18 junk
       # charts, and all 37 shadow charts INCLUDING the 5 that reject) through
-      # the rail readers and fails on any change to what they SAY. It is the
-      # only guard that can see that: shadow_diff freezes nine canonical fields,
-      # marks_corpus compares FIRES, and fold_parity collapses every non-firing
-      # ticker to one __REJECT__ token, so a change that rewrites every event
-      # label while keeping fires and scores identical passes all of them.
+      # the rail readers and fails on any change to what they SAY about the
+      # surfaces its window actually exercises. It is the only guard that can
+      # see that: shadow_diff freezes nine canonical fields, marks_corpus
+      # compares FIRES, and fold_parity collapses every non-firing ticker to one
+      # __REJECT__ token, so a change that rewrites every event label while
+      # keeping fires and scores identical passes all of them.
+      # KNOWN BLIND SPOT, so nobody reads this gate as total coverage: the pin's
+      # mechanical window puts S at the window's own minimum low, so no bar can
+      # undercut S, find_spring never fires, and `spring` reads None on all 88
+      # charts - the entire Phase-C spring surface is unpinned. Register row 12.
+      # Widening the window means recapturing the baseline, i.e. an EC-29 seam
+      # commit, not an edit that can ride along with a passing change.
       # AGENTS.md has named it a standing gate all along while CI ran it never
       # (council review 2026-09-07). Also covered by tests/test_reader_pin.py -
       # kept as an explicit step, like the two guards above, so a reading drift

@@ -13,7 +13,16 @@ that exact string is in the operator's archive.
 These are behavioural guards, not assertions about a constant: one asks the
 bound engine which FILE it actually opens, the other refuses the live path at
 the sqlite driver and imports main the way the service does. Both go red if the
-live database becomes reachable from a test session again.
+live database becomes reachable from a test session again, and both are safe to
+FAIL — neither opens the archive on its way to the assertion.
+
+Scope, stated so nobody reads more into a green run than it proves: these pin
+``webapp/backend/database.py``, the one DB-path site that honours
+``CHROLLO_DB_PATH``. Nine other modules rebuild the same live path from their
+own ``__file__`` anchor (``core/archive/{writer,purge,seed,forward_returns,
+near_miss_outcomes,analyze,seed_recall}.py``, ``core/backtest/loader.py``,
+``tools/shadow_diff.py``); no test reaches them against the live file today, and
+folding them onto ``database.DEFAULT_DB_PATH`` is register row 11.
 """
 import os
 import subprocess
@@ -38,16 +47,29 @@ def test_the_bound_engine_opens_a_file_that_is_not_the_live_archive():
     attached to, so this survives any amount of path plumbing between the env
     var and the engine — including someone rebuilding the engine from a stale
     constant.
+
+    The engine's own URL is checked FIRST, without connecting: ``database.py``'s
+    connect listener runs ``PRAGMA journal_mode=WAL`` (a header write) on every
+    new connection, so connecting under a broken override would modify the
+    archive before this assertion could fire. Reading ``engine.url`` costs no
+    connection, so this guard — like the one below — is safe to fail.
     """
     import database
+
+    bound = database.engine.url.database
+    assert bound, "the engine has no file in its URL - cannot prove isolation"
+    assert not _same_file_path(bound, str(LIVE_DB)), (
+        f"the test session's engine is bound to the LIVE archive ({bound}); "
+        "tests/conftest.py must point CHROLLO_DB_PATH at a throwaway file"
+    )
 
     with database.engine.connect() as conn:
         rows = conn.exec_driver_sql("PRAGMA database_list").fetchall()
     opened = [r[2] for r in rows if r[1] == "main" and r[2]]
     assert opened, "the engine attached no file - cannot prove isolation"
     assert not _same_file_path(opened[0], str(LIVE_DB)), (
-        f"the test session's engine is bound to the LIVE archive ({opened[0]}); "
-        "tests/conftest.py must point CHROLLO_DB_PATH at a throwaway file"
+        f"the engine's URL says {bound} but SQLite attached the LIVE archive "
+        f"({opened[0]})"
     )
 
 
