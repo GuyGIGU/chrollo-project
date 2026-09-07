@@ -8,7 +8,10 @@ config package crashed every core/ import at boot). These tests exercise the
 service's actual import path so that class fails the build instead of the boot.
 
 Importing main does NOT run the FastAPI lifespan (no scheduler, no broker
-touch) — safe by house rules.
+touch) — safe by house rules. It DOES run initialize_database() at import
+scope, which is why tests/conftest.py points CHROLLO_DB_PATH at a throwaway
+file for the whole session; the child below inherits it, so this boot never
+migrates the operator's live archive (tests/test_db_isolation.py guards that).
 """
 import subprocess
 import sys

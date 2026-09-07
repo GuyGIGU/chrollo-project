@@ -1,17 +1,44 @@
-"""Plumbing for the reader-vocabulary pin (tools.reader_pin).
+"""The reader-vocabulary pin (tools.reader_pin), run for real plus its plumbing.
 
-The full pin is a named gate (`python -m tools.reader_pin --check`, ~5s over 88
-fixture charts) run beside the marks-corpus ratchet, NOT inside the default
-suite (Beck: gate cadence is a budget). These tests keep the cheap invariants
-in pytest: the instrument imports, the committed baseline parses and covers
-the three populations, the diff logic goes RED on drift (proven with literal
-values, not fixture runs), and the position grid's stated-literal expectations
-hold against the live function.
+The pin used to be a DARK gate: `python -m tools.reader_pin --check` was named
+in AGENTS.md and wired into nothing, so its coverage depended on a human
+remembering to type it — and it is the ONLY guard that can see a change to what
+the rail readers SAY on a chart whose canonical output fields never move
+(council review 2026-09-07, finding 11). The real check now runs here, over the
+88 committed fixture charts, and as an explicit step in .github/workflows/
+quality.yml beside the marks-corpus ratchet (the same belt-and-braces the
+shadow-output guard already gets). It is hermetic — committed parquet + baseline
+only, no network, no DB — and costs ~6s.
+
+The remaining tests keep the cheap invariants: the instrument imports, the
+committed baseline parses and covers the three populations, the diff logic goes
+RED on drift (proven with literal values, not fixture runs), and the position
+grid's stated-literal expectations hold against the live function.
 """
 import json
 import os
 
+import pytest
+
 from tools import reader_pin
+
+
+@pytest.mark.regression
+def test_reader_pin_reports_no_reading_drift():
+    """Run the REAL gate: every reader, every fixture chart, against the
+    committed baseline.
+
+    `check_baseline()` returns True iff every pinned reader surface on all 88
+    charts (33 marks + 18 junk + 37 shadow, including the 5 rejecting tickers
+    every other guard is blind to) matches the baseline exactly, and the
+    position grid still holds its stated literals.
+    """
+    assert reader_pin.check_baseline() is True, (
+        "reader-vocabulary drift: a rail reader says something different about "
+        "a fixture chart. Re-run `python -m tools.reader_pin --check` to see the "
+        "population/chart/field, then fix the regression - or, ONLY at a ruled "
+        "vocabulary seam (EC-29), re-capture with --capture in that same commit."
+    )
 
 
 def _baseline():

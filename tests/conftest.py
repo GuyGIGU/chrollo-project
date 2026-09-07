@@ -5,10 +5,41 @@ across the (now split) ``test_core_logic.py`` modules. They are exposed as
 factory fixtures: each fixture returns the builder function, so a test consumes
 it by naming the fixture in its signature and calling it exactly as before
 (e.g. ``_flat_ohlc(120)``). The builder bodies are unchanged.
+
+It also redirects the backend database away from the operator's live archive
+for the whole session — see the module-scope block below.
 """
+
+import os
+import shutil
+import sys
+import tempfile
 
 import pandas as pd
 import pytest
+
+# ── the live archive is OFF LIMITS to the suite ────────────────────────────
+# `import main` runs initialize_database() at import scope, and three test
+# modules import main in a subprocess with cwd=webapp/backend. Left alone that
+# migrates webapp/backend/trading_journal.db (12,507 archived setups) and its
+# orphaned-run reconcile rewrites any in-flight scan row to status='failed' —
+# observed in the operator's archive. Point the whole session at a throwaway
+# file instead. This runs at conftest IMPORT time, before pytest collects any
+# test module, so a module-scope `import database` already sees it; children
+# inherit it through os.environ. tests/test_db_isolation.py is the guard.
+_TEST_DB_DIR = tempfile.mkdtemp(prefix="chrollo-test-db-")
+os.environ["CHROLLO_DB_PATH"] = os.path.join(_TEST_DB_DIR, "trading_journal.db")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _discard_the_throwaway_database():
+    yield
+    # Return the pooled SQLite handles first: on Windows an open handle keeps
+    # the file undeletable and the directory would survive every run.
+    db = sys.modules.get("database")
+    if db is not None:
+        db.engine.dispose()
+    shutil.rmtree(_TEST_DB_DIR, ignore_errors=True)
 
 
 @pytest.fixture
