@@ -38,7 +38,17 @@ from routers import watchlist as watchlist_router
 from services import auto_import, scheduler
 from services.frontend import mount_frontend_assets, serve_frontend_index
 from services.health import build_health_report
+from services.log_encoding import force_utf8
 from services.startup import initialize_database
+
+# UTF-8 BEFORE the handlers are built, or the split below writes through the
+# Windows locale codec: under NSSM these two streams are files on cp1252, and a
+# record carrying a char cp1252 lacks (the "→" the scan relay repeats) is not
+# written at all — emit() raises and logging drops the line. Same defect the
+# scan child was already immunised against; see services/log_encoding.py for
+# why there is nothing to fold with it.
+force_utf8(sys.stdout)
+force_utf8(sys.stderr)
 
 # Split the streams so the NSSM *error* log actually means errors. A plain
 # basicConfig() sends every level to stderr, which is why routine INFO chatter

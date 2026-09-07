@@ -99,7 +99,7 @@ try {
     }
     if (-not $healthy) {
         Warn "no /health response after ~40s. The service is on the venv now, but check the logs:"
-        Warn "  Get-Content 'C:\Users\User\Documents\Projects\Chrollo Project\output\chrollo-service-error.log' -Tail 40"
+        Warn "  Get-Content 'C:\Users\User\Documents\Projects\Chrollo Project\output\chrollo-service-error.log' -Encoding UTF8 -Tail 40"
         Warn "Skipping the registry de-collision until the service is confirmed healthy."
     } else {
         # --- Optional registry de-collision (reversible, guarded) ---------
