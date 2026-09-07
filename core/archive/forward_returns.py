@@ -246,12 +246,26 @@ def _compute_returns(
     return result
 
 
-def _price_scale_factor(fresh_scan_close: float, stored_scan_close) -> float:
+def _price_scale_factor(fresh_scan_close: float, stored_scan_close) -> float | None:
     """Factor mapping stored scan-time absolutes onto the downloaded price scale.
 
-    1.0 whenever the scales agree (same regime, no post-scan adjustment), the
-    stored close is unusable, or the implied factor is absurd (distrust it
-    rather than rescale by garbage). Snaps float noise to exactly 1.0."""
+    THREE outcomes, because "I cannot explain this factor" is not "there was no
+    adjustment":
+      ``1.0``  the scales agree — same regime, no post-scan adjustment (also the
+               answer when there is no stored close to compare against, which
+               leaves the absolutes exactly as archived).
+      ``f``    a usable factor; the absolutes rescale by it.
+      ``None`` UNKNOWN. The implied factor is outside the plausible band, so a
+               10-for-1 split or the 1-for-10 reverse splits routine among the
+               sub-$5 names this screener scans cannot be told apart from a bad
+               stored close. Returning 1.0 here used to assert the two series
+               were on the SAME scale, and the caller then graded `triggered`,
+               `barrier_label`, `days_to_*` and the R-multiples against a trigger
+               and a stop an order of magnitude wrong — entering the edge record
+               as a clean never-triggered timeout. Callers must leave every
+               trigger- and stop-dependent column NULL on this outcome; the ratio
+               metrics use the fresh close and stay valid.
+    Snaps float noise to exactly 1.0."""
     try:
         stored = float(stored_scan_close)
     except (TypeError, ValueError):
@@ -260,20 +274,38 @@ def _price_scale_factor(fresh_scan_close: float, stored_scan_close) -> float:
         return 1.0
     factor = fresh_scan_close / stored
     if not (0.2 <= factor <= 5.0):
-        return 1.0
+        return None
     if abs(factor - 1.0) < 1e-3:
         return 1.0
     return factor
 
 
-def _rescaled(value, factor: float):
-    """``value * factor`` tolerant of None/garbage (returns the input as-is)."""
+def _rescaled(value, factor: float | None):
+    """``value * factor`` tolerant of None/garbage (returns the input as-is).
+
+    An UNKNOWN factor (``None``) returns None: an absolute that cannot be placed
+    on the fresh price scale is not knowable, and must never be passed through
+    as if it were."""
+    if factor is None:
+        return None
     if value is None or factor == 1.0:
         return value
     try:
         return float(value) * factor
     except (TypeError, ValueError):
         return value
+
+
+# Every column derived from a stored ABSOLUTE (trigger_price / s_level). On an
+# unknown price scale these are unknowable, so they are stamped NULL rather than
+# left carrying a previous pass's wrongly-scaled verdict.
+_SCALE_DEPENDENT_NULLS: dict = {
+    "triggered": None, "trigger_date": None, "days_to_trigger": None,
+    "trigger_volume_ratio": None,
+    "r_multiple_20d": None, "r_multiple_60d": None,
+    "days_to_2_5r": None, "days_to_15pct": None, "days_to_stop": None,
+    "barrier_label": None, "win_barrier": None,
+}
 
 
 # Outcome columns added after the initial schema. create_all() only creates
@@ -461,6 +493,7 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
         spy_df = pd.DataFrame()
 
     updated = 0
+    unknown_scale = 0
     for ticker, setup_list in ticker_setups.items():
         try:
             df = _ticker_frame(raw, ticker)
@@ -525,6 +558,11 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
             )
             if not returns:
                 continue
+            if scale is None:
+                # The scale is unexplainable, so every verdict that reads a
+                # stored absolute is unknowable — write NULL, never a guess.
+                returns.update(_SCALE_DEPENDENT_NULLS)
+                unknown_scale += 1
 
             for key, val in returns.items():
                 setattr(setup, key, val)
@@ -533,6 +571,11 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     session.commit()
     session.close()
     log.info(f"Updated forward returns for {updated} setups.")
+    if unknown_scale:
+        # Loud, because a recurring refusal means a whole cohort is ungraded.
+        log.warning(f"  {unknown_scale} setup(s) had an unexplainable price scale "
+                    "(stored vs downloaded scan close); their trigger-, stop- and "
+                    "R-dependent columns were left NULL rather than graded wrong.")
     return updated
 
 

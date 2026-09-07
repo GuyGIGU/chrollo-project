@@ -1227,6 +1227,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
   - **Forward returns:** `fwd_return_1d`, `5d`, `10d`, `20d`, `60d` (close-to-close from `scan_close`).
   - **MFE/MAE:** maximum favorable / adverse excursion at 20d and 60d windows.
   - **Trigger status:** `triggered = 1` if any forward `High >= trigger_price`, plus `trigger_date`.
+- **The stored absolutes are re-scaled before they are graded.** `trigger_price` and `s_level` sit on the SCAN-TIME price scale; the freshly downloaded series may not. `_price_scale_factor` recovers the factor from the stored scan close vs the re-read one, and has THREE outcomes: agree (1.0), a usable factor, and **UNKNOWN** when the implied factor lands outside `[0.2, 5.0]`. Unknown is an abstention, not a claim of "same scale" — a 10-for-1 split, or a 1-for-10 reverse split among the sub-$5 names, cannot be told from a bad stored close. On unknown, every column derived from a stored absolute (`triggered` / `trigger_date` / `days_to_*` / `trigger_volume_ratio` / `r_multiple_*` / `barrier_label` / `win_barrier`) is written NULL and the refusal is logged; the ratio metrics read only the fresh close and stay valid. `near_miss_outcomes` applies the same rule — an unknown scale never records "never triggered".
 - By default skips rows that already have `fwd_return_1d` populated; `--force` re-computes everything.
 - CLI: `python -m core.archive.forward_returns [--min-age N] [--force]`.
 

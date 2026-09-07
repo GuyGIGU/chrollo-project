@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -23,6 +24,8 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from core.pipeline import cache as cache_module
 from core.pipeline import downloads as dl
+from core.pipeline import fetch_health
+from core.pipeline import ticker_admission
 
 
 def _panel(close_by_ticker: dict[str, list], dates) -> pd.DataFrame:
@@ -279,3 +282,55 @@ def test_atomic_write_retries_transient_permission_error(tmp_path, monkeypatch):
 
     assert calls["n"] == 3
     assert json.loads(meta_file.read_text(encoding="utf-8"))["price_series"] == "as_traded"
+
+
+# ---- #5 Every JSON write in the cold path shares the ONE hardened primitive ----
+@pytest.mark.parametrize("writer,filename,payload", [
+    (cache_module._write_meta, "cache_meta.json", {"price_series": "as_traded"}),
+    (fetch_health.save_quarantine, "fetch_quarantine.json", {"AAPL": {"empty_streak": 2}}),
+    (ticker_admission.save_admission, "ticker_admission.json", {"AAPL": {"status": "active_ready"}}),
+])
+def test_every_cold_path_json_write_survives_a_transient_permission_error(
+    tmp_path, monkeypatch, writer, filename, payload
+):
+    # EC-3: the quarantine and admission sidecars are written BETWEEN the parquet
+    # write and the meta write. If either carries a bare os.replace instead of the
+    # shared retry, the Windows PermissionError a concurrent /market-data/status
+    # read raises kills a 12-17 minute cold run with the new-regime parquet on disk
+    # and price_series / last_full_refresh never stamped — byte for byte the
+    # inconsistent cache the ten-week commodities outage came from.
+    calls = {"n": 0}
+    real_replace = os.replace
+
+    def flaky_replace(src, dst):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError("target held open by a concurrent reader")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(cache_module.os, "replace", flaky_replace)
+    monkeypatch.setattr(cache_module.time, "sleep", lambda s: None)
+
+    path = tmp_path / filename
+    writer(str(path), payload)
+
+    assert calls["n"] == 3, "the write did not route through the shared retry"
+    assert json.loads(path.read_text(encoding="utf-8")) == payload
+
+
+def test_the_fold_did_not_move_the_on_disk_json_format(tmp_path):
+    # Both ledgers stay indent=2 + sort_keys; the meta stays indent=2 in
+    # insertion order. A silent format change would rewrite files the operator
+    # and /market-data/status both read.
+    store = {"ZZZ": {"empty_streak": 1}, "AAA": {"empty_streak": 2}}
+    quarantine = tmp_path / "q.json"
+    admission = tmp_path / "a.json"
+    fetch_health.save_quarantine(str(quarantine), store)
+    ticker_admission.save_admission(str(admission), store)
+    expected = json.dumps(store, indent=2, sort_keys=True)
+    assert quarantine.read_text(encoding="utf-8") == expected
+    assert admission.read_text(encoding="utf-8") == expected
+
+    meta = tmp_path / "m.json"
+    cache_module._write_meta(str(meta), {"b": 2, "a": 1})
+    assert meta.read_text(encoding="utf-8") == json.dumps({"b": 2, "a": 1}, indent=2)

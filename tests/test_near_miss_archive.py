@@ -38,10 +38,14 @@ _MARGINS = {"width": 0.17, "respect_share": 1, "respect_run": 9,
             "coverage": 1, "traversal_count": 0, "traversal_density": 0.02}
 
 
-def _row(ticker="EGBN", scan_date="2026-01-15", fired=0, r=25.0, s=22.5):
+def _row(ticker="EGBN", scan_date="2026-01-15", fired=0, r=25.0, s=22.5,
+         r_anchor="2025-12-01", s_anchor="2025-12-08"):
+    # The framing identity is the ANCHOR DATES (council review 2026-09-07
+    # finding 5), so a SECOND framing on one ticker is expressed by moving the
+    # anchors — moving only the rails names the same box.
     return {"ticker": ticker, "scan_date": scan_date, "r_level": r,
-            "s_level": s, "r_anchor_date": "2025-12-01",
-            "s_anchor_date": "2025-12-08", "window_start_date": "2025-12-01",
+            "s_level": s, "r_anchor_date": r_anchor,
+            "s_anchor_date": s_anchor, "window_start_date": "2025-12-01",
             "window_end_date": scan_date, "pool": "strict",
             "kill_stage": "occupancy", "failing_leg": "occupancy",
             "judged_n": 28, "fired_night": fired,
@@ -134,7 +138,8 @@ def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     # the same drop set as any other arrival order.
     rows = [_row(),                                           # EGBN — sorts past the global 2
             _row(ticker="BBB", r=12.0, s=11.0),
-            _row(ticker="AAA", r=13.0, s=12.0),               # AAA's 2nd framing
+            _row(ticker="AAA", r=13.0, s=12.0,                # AAA's 2nd framing
+                 r_anchor="2025-12-15", s_anchor="2025-12-22"),
             _row(ticker="AAA", r=11.0, s=10.0),
             _row(ticker="AAA", r=11.0, s=10.0)]               # exact duplicate
     counters = nmw.archive_near_miss_rows(rows, universe_type="us_equities",
@@ -147,6 +152,34 @@ def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     kept = sorted(r.ticker for r in db.query(archive_models.NearMissArchive).all())
     db.close()
     assert kept == ["AAA", "BBB"]                             # the reproducible cut
+
+
+def test_two_rails_on_one_framing_dedup_in_memory_before_the_flush(lane_db):
+    """One night, ONE framing, two rails — APH's split re-read, or plain 4dp
+    float noise. The IN-MEMORY key must drop the second row, not the constraint.
+
+    ``session.autoflush`` is off, so the existence probe cannot see the first
+    row's pending add: if the in-memory key still carried the rails, both rows
+    would be added, the UNIQUE would bite on ``commit()``, and the whole night's
+    near-miss batch would degrade to ``flush_error`` with ``inserted = 0`` —
+    precisely the EC-4 failure this identity change exists to close, on the half
+    of it the probe test does not reach. The exact-duplicate case above dedups
+    under either key and so proves nothing here."""
+    counters = nmw.archive_near_miss_rows(
+        [_row(ticker="APH", r=88.165, s=77.6801),
+         _row(ticker="APH", r=176.33, s=155.36)],
+        universe_type="us_equities", enable=True)
+    assert counters["dedup_dropped"] == 1
+    assert counters["inserted"] == 1
+    assert counters["flush_error"] == 0
+
+    db = database.SessionLocal()
+    rows = db.query(archive_models.NearMissArchive).all()
+    db.close()
+    assert len(rows) == 1
+    # The pre-dedup sort is on (ticker, anchors, rails), so WHICH of a colliding
+    # pair survives is a function of the rows alone.
+    assert rows[0].r_level == 88.165
 
 
 def test_real_deferred_rows_round_trip_through_the_writer(lane_db, monkeypatch):

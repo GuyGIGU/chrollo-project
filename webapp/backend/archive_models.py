@@ -533,8 +533,22 @@ class NearMissArchive(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # ── Identity (the Task-2 date-anchored framing key + universe) ──
+    # The anchor DATES are the identity; the rail PRICES are not, and must never
+    # be put back into it. A price is the wrong type for an identity: it carried
+    # 4dp of resolution off a float32 panel, so APH held one framing as two rows
+    # (s_level 77.68 vs 77.6801), and it is not invariant under a corporate
+    # action, so APH's 2-for-1 split re-minted every one of its framings as a
+    # brand-new episode with the forward clock reset (5 spurious rows in 1,483,
+    # from one ticker's one split; council review 2026-09-07 finding 5). The
+    # anchor dates already name the swing bars the rails are read from, so they
+    # name the same box on either side of a split.
     ticker = Column(String, nullable=False, index=True)
     universe_type = Column(String, nullable=False, server_default="us_equities")
+    # EVIDENCE, not identity: the rails as read at FIRST refusal, on that scan's
+    # price scale — the same scale as would_be_trigger / scan_close below. They
+    # are NOT re-stamped on a re-observation: the R-EPISODE ruling is counters
+    # only, never the record, and re-stamping would leave the rails on a newer
+    # price scale than the outcome substrate the maturation pass rescales from.
     r_level = Column(Float, nullable=False)            # 4dp rail convention
     s_level = Column(Float, nullable=False)
     r_anchor_date = Column(String, nullable=False)     # YYYY-MM-DD
@@ -589,7 +603,7 @@ class NearMissArchive(Base):
     abnormal_ret_to_date = Column(Float, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("ticker", "universe_type", "r_level", "s_level",
+        UniqueConstraint("ticker", "universe_type",
                          "r_anchor_date", "s_anchor_date",
                          name="uq_near_miss_framing_identity"),
         # EC-19: closed-set label columns get the universe_type treatment —
