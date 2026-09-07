@@ -263,7 +263,8 @@ def test_describe_run_is_pure(monkeypatch):
 
 def test_ok_and_running_rows_carry_no_reason():
     for status in ("ok", "running", "never"):
-        assert diag.describe_run({"status": status}) == {"reason": None, "solution": None}
+        assert diag.describe_run({"status": status}) == {
+            "verdict": None, "reason": None, "solution": None}
 
 
 # ------------------------------------------------------------ evidence ----
@@ -507,3 +508,160 @@ def test_the_last_scan_check_describes_its_own_state():
         broke = diag.describe_health_check(
             "last_scan", {"ok": False, "status": status})["reason"]
         assert "did not finish cleanly" in broke, status
+
+
+# --------------------------------------------------------------- verdict ---
+#
+# The operator's 2026-09-07 cut: "I just need to know 2 states either the Scan
+# failed because of a technical issue (meaning, I need to run the scan manually
+# and everything works), or there is a real issue that needs to be tended by
+# you!". The taxonomy above survives as the SECOND line; these pin the headline.
+
+VERDICTS = (diag.RERUNNABLE, diag.NEEDS_ATTENTION)
+
+
+def test_every_failure_kind_maps_to_exactly_one_verdict():
+    """THE COVERAGE GATE. A kind the module can stamp but cannot judge would
+    reach the operator with no headline at all — so the two sets must be EQUAL,
+    and a newly added kind fails here rather than rendering blank."""
+    assert set(diag.KIND_VERDICTS) == set(diag.FAILURE_KINDS)
+    for kind, verdict in diag.KIND_VERDICTS.items():
+        assert verdict in VERDICTS, kind
+    # And the same answer through the public door, for every job.
+    for job in diag.JOB_NAMES:
+        for kind in diag.FAILURE_KINDS:
+            described = diag.describe_run(
+                {"status": "failed", "kind": job, "failure_kind": kind})
+            assert described["verdict"] in VERDICTS, (job, kind)
+
+
+def test_every_interrupted_run_is_re_runnable():
+    """The whole point of the interruption taxonomy: shutdown, service-only,
+    unrecorded and not-yet-known all imply the same THING TO DO — the machinery
+    is fine, the run just did not reach the end, so run it again."""
+    for kind in diag.FAILURE_KINDS:
+        assert diag.KIND_VERDICTS[kind] == diag.RERUNNABLE, kind
+
+
+def test_a_needs_attention_ending_never_reports_as_re_runnable():
+    """A deliberate engine refusal (stale data) and a program error are NOT
+    fixed by pressing the button again; saying so sends him round a loop."""
+    assert set(diag.STATUS_VERDICTS) == {"aborted", "stale_data", "failed"}
+    for job in diag.JOB_NAMES:
+        for status, error in (("stale_data", "prices are 3 days behind"),
+                              ("failed", 'File "...data.py", line 573')):
+            described = diag.describe_run(
+                {"status": status, "kind": job, "error": error})
+            assert described["verdict"] == diag.NEEDS_ATTENTION, (job, status)
+            # The detail he said he did not need UP FRONT is still there.
+            assert described["reason"] and described["solution"], (job, status)
+
+
+def test_you_closing_the_page_is_re_runnable():
+    assert diag.describe_run({"status": "aborted"})["verdict"] == diag.RERUNNABLE
+
+
+def test_an_unrecognised_ending_fails_closed_to_needs_attention():
+    """Two live rows carry a string whose writer no longer exists. We cannot say
+    a re-run fixes what we cannot explain, so the default gets a human."""
+    assert diag.DEFAULT_VERDICT == diag.NEEDS_ATTENTION
+    described = diag.describe_run(
+        {"status": "expired", "error": "scan status expired before completion"})
+    assert described["verdict"] == diag.NEEDS_ATTENTION
+
+
+def test_a_clean_run_carries_no_verdict_at_all():
+    for status in ("ok", "running", "never", None):
+        assert diag.describe_run({"status": status})["verdict"] is None, status
+
+
+# ------------------------------------------------------------ escalation ---
+
+def shutdown_run(run_id, kind="scan"):
+    return {"id": run_id, "kind": kind, "status": "failed",
+            "failure_kind": "interrupted_shutdown"}
+
+
+def test_a_re_runnable_failure_that_repeats_escalates_to_needs_attention():
+    """THE ESCALATION PIN. One interrupted night is "press the button". The same
+    interruption three nights running means pressing the button is not fixing it
+    — and someone re-running the same broken thing nightly is the exact trap
+    this surface exists to prevent. Rows arrive newest-first."""
+    rows = [shutdown_run(3), shutdown_run(2), shutdown_run(1)]
+    assert diag.REPEAT_ESCALATION == 3
+
+    two = diag.describe_runs(rows[1:])
+    assert two[0]["verdict"] == diag.RERUNNABLE  # a streak of two is still noise
+
+    three = diag.describe_runs(rows)
+    assert three[0]["verdict"] == diag.NEEDS_ATTENTION
+    # The row that was only second in the streak keeps its own honest answer.
+    assert three[1]["verdict"] == diag.RERUNNABLE
+    # The reason and remedy underneath are untouched — only the headline moved.
+    assert "shut down" in three[0]["reason"]
+
+
+def test_a_different_failure_in_between_breaks_the_streak():
+    rows = [shutdown_run(4), shutdown_run(3),
+            {"id": 2, "kind": "scan", "status": "aborted"}, shutdown_run(1)]
+    assert diag.describe_runs(rows)[0]["verdict"] == diag.RERUNNABLE
+
+
+def test_another_jobs_run_in_between_does_not_break_the_streak():
+    """The registry interleaves scans, outcome backfills and downloads. A
+    backfill sitting between two interrupted scans is not a scan that worked."""
+    rows = [shutdown_run(4), shutdown_run(3),
+            {"id": 2, "kind": "maturation", "status": "ok"}, shutdown_run(1)]
+    assert diag.describe_runs(rows)[0]["verdict"] == diag.NEEDS_ATTENTION
+
+
+def test_the_streak_counts_one_job_not_the_whole_registry():
+    """Three DIFFERENT jobs each interrupted once is three separate one-offs."""
+    rows = [shutdown_run(3, "scan"), shutdown_run(2, "maturation"),
+            shutdown_run(1, "download")]
+    assert [r["verdict"] for r in diag.describe_runs(rows)] == [diag.RERUNNABLE] * 3
+
+
+def test_escalation_only_ever_hardens_a_verdict():
+    """It may promote re-runnable to needs-attention; never the reverse, or a
+    repeated real error would be softened into "just re-run it"."""
+    rows = [{"id": i, "kind": "scan", "status": "failed", "error": "boom"}
+            for i in (3, 2, 1)]
+    assert [r["verdict"] for r in diag.describe_runs(rows)] == [diag.NEEDS_ATTENTION] * 3
+
+
+# ------------------------------------------------- health-check verdicts ---
+
+def test_every_non_ibkr_health_check_carries_a_verdict():
+    for name in ("db", "last_scan", "screener_data", "scheduler", "something_new"):
+        assert diag.describe_health_check(name, {"ok": False})["verdict"] in VERDICTS, name
+
+
+def test_the_last_scan_check_verdict_follows_its_own_state():
+    """The three states where the scan itself is fine are all "run one"; the
+    fallback arm, reached only by a run with no resolved cause, fails closed."""
+    for status in ("never", "ok", "running"):
+        described = diag.describe_health_check("last_scan", {"ok": False, "status": status})
+        assert described["verdict"] == diag.RERUNNABLE, status
+    assert diag.describe_health_check(
+        "last_scan", {"ok": False, "status": "failed"})["verdict"] == diag.NEEDS_ATTENTION
+
+
+def test_a_check_a_re_run_cannot_fix_never_says_re_run_the_scan():
+    """A dead database or a stopped nightly timer is mine, not his: no number of
+    manual scans starts the timer or unlocks the file."""
+    for name in ("db", "scheduler"):
+        assert diag.describe_health_check(
+            name, {"ok": False})["verdict"] == diag.NEEDS_ATTENTION, name
+
+
+def test_the_app_verdict_is_re_runnable_only_when_every_failure_is():
+    """One thing a re-run cannot fix makes the whole app need attention, and a
+    healthy app has no verdict at all."""
+    rerun = {"verdict": diag.RERUNNABLE}
+    attention = {"verdict": diag.NEEDS_ATTENTION}
+    assert diag.overall_verdict([]) is None
+    assert diag.overall_verdict([rerun, rerun]) == diag.RERUNNABLE
+    assert diag.overall_verdict([rerun, attention]) == diag.NEEDS_ATTENTION
+    # A check that somehow carries no verdict must not be counted as harmless.
+    assert diag.overall_verdict([rerun, {}]) == diag.NEEDS_ATTENTION

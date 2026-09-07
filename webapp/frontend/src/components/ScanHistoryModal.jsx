@@ -1,16 +1,19 @@
 import Modal from './ui/Modal';
 import { failingChecks, scanStatusColor } from '../utils/appFormat';
 import { fmtInt } from '../utils/format.js';
-import { RUN_KIND_LABELS, RUN_STATUS_LABELS, RUN_TRIGGER_LABELS } from './wireVocabulary';
+import {
+  RUN_KIND_LABELS, RUN_STATUS_LABELS, RUN_TRIGGER_LABELS,
+  RUN_VERDICT_LABELS, RUN_VERDICT_TONES,
+} from './wireVocabulary';
 
 // The one scan-run diagnostics registry. Reached from the topbar status pills
 // ("why is this Degraded?") and from the Archive header's Scan History button —
 // one component, one fetch, two doors.
 //
-// Every judgment here arrives already resolved by the backend: `run.reason`,
-// `run.solution`, `check.reason`, `check.solution` and `notice` are server text
-// rendered verbatim. This file holds only tone, ordering, headings and the
-// kind -> words lookup.
+// Every judgment here arrives already resolved by the backend: `run.verdict`,
+// `run.reason`, `run.solution`, `check.*` and `notice` are server text rendered
+// verbatim. This file holds only tone, ordering, headings and the slug -> words
+// lookup — it never works out which verdict a run or the app is in (EC-28).
 export default function ScanHistoryModal({ open, runs, notice, loading, health, onClose }) {
   if (!open) return null;
 
@@ -26,9 +29,10 @@ export default function ScanHistoryModal({ open, runs, notice, loading, health, 
       <div style={sectionLabelStyle}>What is wrong right now</div>
       {checks.length ? (
         <div style={{ display: 'grid', gap: '8px', marginBottom: '14px' }}>
+          <Verdict verdict={health?.verdict} style={appVerdictStyle} />
           {checks.map(check => (
             <div key={check.key} style={checkRowStyle}>
-              <div style={{ color: 'var(--danger)', fontWeight: 600 }}>{check.label || check.key}</div>
+              <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{check.label || check.key}</div>
               <div style={{ color: 'var(--text-main)' }}>{check.reason || ''}</div>
               {check.solution && <div style={solutionStyle}>Do this: {check.solution}</div>}
             </div>
@@ -67,10 +71,18 @@ export default function ScanHistoryModal({ open, runs, notice, loading, health, 
   );
 }
 
+// The two-state headline, in the operator's words. Renders NOTHING for an
+// unknown or absent slug rather than inventing one.
+function Verdict({ verdict, style }) {
+  const label = RUN_VERDICT_LABELS[verdict];
+  if (!label) return null;
+  return <div style={{ ...style, color: RUN_VERDICT_TONES[verdict] }}>{label}</div>;
+}
+
 // A clean run stays one dense line; only a run that went wrong pays for the
 // second line, so a healthy history reads exactly as tight as it did before.
 function RunRows({ run }) {
-  const explained = run.reason || run.solution;
+  const explained = run.verdict || run.reason || run.solution;
   return (
     <>
       <tr style={{ borderBottom: explained ? 'none' : '1px solid rgba(255,255,255,0.03)' }}>
@@ -89,6 +101,9 @@ function RunRows({ run }) {
       {explained && (
         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
           <td colSpan={5} style={explainCellStyle}>
+            {/* The verdict LEADS the row; the reason and the remedy sit under
+                it. He asked for the two states up front, not the taxonomy. */}
+            <Verdict verdict={run.verdict} style={runVerdictStyle} />
             {run.reason && <div style={{ color: 'var(--text-main)' }}>{run.reason}</div>}
             {run.solution && <div style={solutionStyle}>Do this: {run.solution}</div>}
             {run.error && run.error !== run.reason && (
@@ -120,6 +135,8 @@ const sectionLabelStyle = {
   letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px',
 };
 const checkRowStyle = { fontSize: '12px', lineHeight: 1.45 };
+const appVerdictStyle = { fontSize: '15px', fontWeight: 700 };
+const runVerdictStyle = { fontWeight: 700 };
 const solutionStyle = { color: 'var(--text-muted)', lineHeight: 1.45 };
 const noticeStyle = {
   border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px',

@@ -1470,9 +1470,11 @@ def test_health_report_puts_plain_words_on_the_wire_for_every_failing_check(
     long_ago = (datetime.now(timezone.utc) - timedelta(hours=200)).isoformat()
     monkeypatch.setattr(health_service, "engine",
                         create_engine(f"sqlite:///{tmp_path / 'health.db'}"))
-    monkeypatch.setattr(health_service.scan_status, "latest_run",
-                        lambda *a, **k: {"status": "ok", "finished_at": long_ago,
-                                         "n_setups": 12, "kind": "scan"})
+    # recent_runs, not latest_run: the check reads a short WINDOW so the repeat
+    # escalation can see whether the same failure already came back.
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "ok", "finished_at": long_ago,
+                                          "n_setups": 12, "kind": "scan"}])
     monkeypatch.setattr(health_service.scheduler, "is_running", lambda: False)
 
     report = health_service.build_health_report(str(tmp_path / "missing.json"))
@@ -1502,7 +1504,7 @@ def test_one_predicate_decides_which_checks_count_as_a_failure(tmp_path, monkeyp
 
     monkeypatch.setattr(health_service, "engine",
                         create_engine(f"sqlite:///{tmp_path / 'health3.db'}"))
-    monkeypatch.setattr(health_service.scan_status, "latest_run", lambda *a, **k: None)
+    monkeypatch.setattr(health_service.scan_status, "recent_runs", lambda *a, **k: [])
     monkeypatch.setattr(health_service.scheduler, "is_running", lambda: False)
     # Everything below is failing; the predicate says none of it counts.
     monkeypatch.setattr(health_service, "_operator_relevant_failures", lambda c: {})
@@ -1521,10 +1523,10 @@ def test_health_report_lets_the_runs_own_reason_win_over_the_generic_one(
     recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     monkeypatch.setattr(health_service, "engine",
                         create_engine(f"sqlite:///{tmp_path / 'health2.db'}"))
-    monkeypatch.setattr(health_service.scan_status, "latest_run",
-                        lambda *a, **k: {"status": "failed", "finished_at": recent,
-                                         "kind": "scan",
-                                         "failure_kind": "interrupted_shutdown"})
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "failed", "finished_at": recent,
+                                          "kind": "scan",
+                                          "failure_kind": "interrupted_shutdown"}])
     monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
 
     report = health_service.build_health_report(str(tmp_path / "missing.json"))
@@ -1532,6 +1534,75 @@ def test_health_report_lets_the_runs_own_reason_win_over_the_generic_one(
 
     assert "shut down" in last_scan["reason"]
     assert "did not finish cleanly" not in last_scan["reason"]
+
+
+def test_health_puts_the_binary_verdict_on_the_wire(tmp_path, monkeypatch):
+    """EC-28. The operator decides ONE thing from the pill — press re-scan, or
+    ping me — so that word crosses the wire already resolved. A scan killed by
+    the nightly shutdown, with the screener file missing because of it, is
+    entirely re-runnable; a stopped nightly timer is not, and it drags the whole
+    app to needs-attention because a re-run cannot start a timer."""
+    from sqlalchemy import create_engine
+
+    diag = health_service.scan_diagnosis
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health4.db'}"))
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "failed", "finished_at": recent,
+                                          "kind": "scan",
+                                          "failure_kind": "interrupted_shutdown"}])
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+    assert report["verdict"] == diag.RERUNNABLE
+    assert {c["verdict"] for c in report["failing"]} == {diag.RERUNNABLE}
+
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: False)
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+    assert report["verdict"] == diag.NEEDS_ATTENTION
+
+
+def test_a_healthy_app_carries_no_verdict(tmp_path, monkeypatch):
+    fresh = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "ok", "finished_at": fresh,
+                                          "n_setups": 12, "kind": "scan"}])
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+    screener_json = tmp_path / "screener_data.json"
+    screener_json.write_text("{}", encoding="utf-8")
+
+    report = health_service.build_health_report(str(screener_json))
+    assert report["status"] == "ok"
+    assert report["verdict"] is None
+
+
+def test_the_pill_sees_the_repeat_escalation_the_registry_sees(tmp_path, monkeypatch):
+    """THE ESCALATION REACHES THE GLANCE SURFACE. The same interruption three
+    nights running is not "press the button" any more — and the health check
+    reads a window rather than one row precisely so the pill and the registry
+    cannot disagree about the newest run."""
+    from sqlalchemy import create_engine
+
+    diag = health_service.scan_diagnosis
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    killed = {"status": "failed", "finished_at": recent, "kind": "scan",
+              "failure_kind": "interrupted_shutdown"}
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health5.db'}"))
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+    monkeypatch.setattr(health_service, "_scan_age_allowance_hours", lambda: 999)
+    screener_json = tmp_path / "screener_data.json"
+    screener_json.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [dict(killed)] * 2)
+    assert health_service.build_health_report(str(screener_json))["verdict"] == diag.RERUNNABLE
+
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [dict(killed)] * diag.REPEAT_ESCALATION)
+    assert health_service.build_health_report(
+        str(screener_json))["verdict"] == diag.NEEDS_ATTENTION
 
 
 # ---- scan-runner alert decision (fetch-health degradation early warning) ----

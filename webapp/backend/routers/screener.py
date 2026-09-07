@@ -222,9 +222,10 @@ def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
 def get_latest_scan_status():
     # Both scan-status routes resolve every row through scan_diagnosis.describe_runs,
     # so the topbar's status line and the diagnostics registry carry byte-identical
-    # reason/solution text for the same run.
-    row = scan_status.latest_run() or scan_status.never_run()
-    return scan_diagnosis.describe_runs([row])[0]
+    # verdict/reason/solution text for the same run. A short WINDOW rather than one
+    # row, because the repeat escalation reads the runs behind the newest one.
+    runs = scan_status.recent_runs(scan_diagnosis.REPEAT_ESCALATION)
+    return scan_diagnosis.describe_runs(runs or [scan_status.never_run()])[0]
 
 
 @router.get("/scan-status/history")

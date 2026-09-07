@@ -33,6 +33,10 @@ def build_health_report(screener_json_path: str) -> dict:
         # (EC-28): membership is a judgment, and it is made here once, not
         # re-derived from `checks` in frontend JS.
         "failing": failing,
+        # The BINARY headline the operator actually decides on — re-run it, or
+        # ping me. Resolved server-side for the same reason: the frontend renders
+        # this word, it may never work it out (EC-28).
+        "verdict": scan_diagnosis.overall_verdict(failing),
     }
 
 
@@ -47,28 +51,34 @@ def _add_db_check(checks: dict) -> None:
 
 def _add_scan_check(checks: dict) -> None:
     try:
-        latest = scan_status.latest_run()
+        # A short WINDOW, not one row: the repeat escalation has to see whether
+        # this same failure already came back, and the pill must reach the same
+        # verdict the registry shows for that run.
+        recent = scan_status.recent_runs(scan_diagnosis.REPEAT_ESCALATION)
     except Exception:
-        latest = None
+        recent = []
+    # The run's own resolved verdict/reason, through the SAME function both
+    # scan-status routes use, so the pill's tooltip and the diagnostics registry
+    # cannot tell the operator two different stories.
+    latest = scan_diagnosis.describe_runs(recent)[0] if recent else {}
 
     scan_ok, age_hours, detail = _scan_freshness(latest)
     checks["last_scan"] = {
         "ok": scan_ok,
-        "status": (latest or {}).get("status", "never"),
-        "finished_at": (latest or {}).get("finished_at"),
-        "n_setups": (latest or {}).get("n_setups"),
+        "status": latest.get("status", "never"),
+        "finished_at": latest.get("finished_at"),
+        "n_setups": latest.get("n_setups"),
         "age_hours": round(age_hours, 1) if age_hours is not None else None,
         "detail": detail,
-        # The run's own resolved reason, through the SAME function both
-        # scan-status routes use, so the pill's tooltip and the diagnostics
-        # registry cannot tell the operator two different stories.
-        **scan_diagnosis.describe_run(latest or {}),
+        "verdict": latest.get("verdict"),
+        "reason": latest.get("reason"),
+        "solution": latest.get("solution"),
     }
 
 
 def _describe_failing_checks(checks: dict) -> list[dict]:
-    """Give every failing non-ibkr check a plain-words label, reason and
-    proposed solution, resolved HERE so no frontend has to derive one.
+    """Give every failing non-ibkr check a verdict plus a plain-words label,
+    reason and proposed solution, resolved HERE so no frontend has to derive one.
 
     Returns the same checks as an ordered list for the wire.
     """
@@ -76,14 +86,17 @@ def _describe_failing_checks(checks: dict) -> list[dict]:
     for name, check in _operator_relevant_failures(checks).items():
         described = scan_diagnosis.describe_health_check(name, check)
         # A run-level reason already resolved above is more specific than the
-        # generic check reason, so it wins.
+        # generic check reason, so it wins — and it brings its verdict with it,
+        # or an escalated repeat would be softened back by the generic table.
         if check.get("reason"):
             described.pop("reason")
             described.pop("solution", None)
+            described.pop("verdict", None)
         check.update(described)
         failing.append({
             "key": name,
             "label": check.get("label", name),
+            "verdict": check.get("verdict"),
             "reason": check.get("reason") or check.get("detail"),
             "solution": check.get("solution"),
         })

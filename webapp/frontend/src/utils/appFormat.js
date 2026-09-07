@@ -1,6 +1,6 @@
 // Extension-explicit: this module is in the node --test battery, and Node's ESM
 // resolver (unlike Vite) does not guess one.
-import { RUN_STATUS_LABELS } from '../components/wireVocabulary.js';
+import { RUN_STATUS_LABELS, RUN_VERDICT_LABELS, RUN_VERDICT_TONES } from '../components/wireVocabulary.js';
 import { dateTimeShort, finiteOrNull, fmtInt } from './format.js';
 
 export const fmtScanTime = (value) => {
@@ -30,15 +30,20 @@ export const failingChecks = (health) =>
 
 export const buildHealthPill = (health) => {
   if (!health) return null;
-  // label/reason arrive already resolved from the backend; the fallbacks only
-  // cover an older backend that has not been restarted yet.
+  // verdict/label/reason arrive already resolved from the backend; the fallbacks
+  // only cover an older backend that has not been restarted yet.
   const failing = failingChecks(health)
     .map(check => `${check.label || check.key}: ${check.reason || 'failing'}`);
   const degraded = health.status !== 'ok';
+  // The one word the operator decides on. READ off the wire, never worked out
+  // here (EC-28) — which of the two states he is in is a judgment, and the
+  // engine has already made it.
+  const label = degraded ? (RUN_VERDICT_LABELS[health.verdict] || 'Degraded') : 'Healthy';
+  const color = degraded ? (RUN_VERDICT_TONES[health.verdict] || 'var(--danger)') : 'var(--success)';
   return {
-    color: degraded ? 'var(--danger)' : 'var(--success)',
-    label: degraded ? 'Degraded' : 'Healthy',
-    title: failing.length ? `Degraded - ${failing.join('; ')}` : 'All systems OK',
+    color,
+    label,
+    title: failing.length ? `${label} - ${failing.join('; ')}` : 'All systems OK',
   };
 };
 

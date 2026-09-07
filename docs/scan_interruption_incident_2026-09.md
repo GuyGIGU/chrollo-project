@@ -118,6 +118,51 @@ only fire when the machine came back within minutes. `interrupted_unrecorded` no
 "Windows has no record of the computer going down while it was running", which is exactly what
 was searched for.
 
+## The operator cut the report to TWO states — 2026-09-07
+
+He read the feature description and ruled: *"I don't need that much of a detailed report, I just
+need to know 2 states either the Scan failed because of a technical issue (meaning, I need to run
+the scan manually and everything works), or there is a real issue that needs to be tended by you!"*
+
+So the headline is a **binary verdict named for the ACTION it implies**, never for the cause. The
+taxonomy above did not go away — it became the second line.
+
+| On screen | Wire slug | What it means he does |
+|---|---|---|
+| **Re-run the scan** | `rerunnable` | The machinery is fine; the run simply did not reach the end. |
+| **Needs attention** | `needs_attention` | A re-run will not help. Ping the developer. |
+
+The mapping has ONE home, `services/scan_diagnosis.py` (EC-3), and a test fails if a failure kind
+the module can stamp has no row in it:
+
+| Ending | Verdict | Why |
+|---|---|---|
+| `interrupted_shutdown` | Re-run the scan | The computer went down mid-run. Nothing is broken. |
+| `interrupted_service_only` | Re-run the scan | The dashboard restarted mid-run. |
+| `interrupted_unrecorded` | Re-run the scan | It stopped early and Windows recorded no machine-down. |
+| `interrupted_unknown` | Re-run the scan | Interrupted, cause not yet resolved. |
+| status `aborted` | Re-run the scan | You closed the page mid-run. |
+| status `stale_data` | Needs attention | A deliberate engine refusal — the prices on disk were behind, and the same run meets the same refusal. |
+| status `failed` (no interruption kind) | Needs attention | A program error / non-zero exit. |
+| anything unrecognised | Needs attention | Fails **closed**: we cannot promise a re-run fixes what we cannot explain. |
+
+### The repeat escalation, and its threshold
+
+**A re-runnable failure that has come back on three consecutive runs of the same job escalates to
+Needs attention** (`REPEAT_ESCALATION = 3`, server-side). One interrupted night is "press the
+button"; two can be two nights of the same habit — the table above shows he powers the PC off most
+nights; three means pressing the button is not fixing it, and someone re-running the same broken
+thing nightly is the trap this whole surface exists to prevent.
+
+The streak is per job and per failure signature (`status` + resolved `failure_kind`): a different
+failure in between breaks it, another job's run in between does not (the registry interleaves all
+three job kinds). It only ever HARDENS a verdict — a repeated program error can never be softened
+into "just re-run it".
+
+Because of that, both the health pill and `/scan-status/latest` read a short WINDOW of recent runs
+rather than one row: otherwise the pill would say "re-run it" about the very run the registry three
+inches below had already escalated.
+
 ## Why the answer is stamped rather than re-derived
 
 The System log is **circular**, capped at 20 MB, currently full and holding ~38,600 records

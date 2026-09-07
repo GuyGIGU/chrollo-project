@@ -183,6 +183,23 @@ export const PHASE_NAMES = {
   lps: 'LPS',
 };
 
+// The BINARY scan verdict — the operator's own two states, named for the ACTION
+// each implies. RESOLVED SERVER-SIDE (services/scan_diagnosis.py): the wire
+// carries the verdict, never the rule (EC-28), so nothing in this app may work
+// out which of the two it is — from the failure kind, the status, the number of
+// failing checks, or anything else. These are its words and its tone, nothing
+// more, and an unknown slug falls through to the old "Degraded" wording rather
+// than blank (an older backend that has not been restarted yet).
+export const RUN_VERDICT_LABELS = {
+  rerunnable: 'Re-run the scan',
+  needs_attention: 'Needs attention',
+};
+
+export const RUN_VERDICT_TONES = {
+  rerunnable: 'var(--warning)',
+  needs_attention: 'var(--danger)',
+};
+
 // Background-job kinds (the frozen scan_runs.kind enum) in plain trading words,
 // for the scan-run diagnostics registry. Labels only — the registry never
 // derives a verdict from the kind.

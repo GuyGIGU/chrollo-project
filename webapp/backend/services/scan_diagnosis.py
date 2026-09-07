@@ -58,6 +58,50 @@ FAILURE_KINDS = (
 # What the reconcile stamps: "interrupted, cause not yet determined".
 PENDING_KIND = "interrupted_unknown"
 
+# ------------------------------------------------------------- verdict ----
+
+# THE headline, and the only decision this surface exists to support: do I press
+# re-scan, or do I ping the developer? Operator's ruling 2026-09-07 — "I just
+# need to know 2 states either the Scan failed because of a technical issue
+# (meaning, I need to run the scan manually and everything works), or there is a
+# real issue that needs to be tended by you!". So a verdict is named for the
+# ACTION it implies, never for the cause. The cause did not go away: it is the
+# second line now, not the headline.
+RERUNNABLE = "rerunnable"
+NEEDS_ATTENTION = "needs_attention"
+
+# ONE home for the mapping (EC-3). An interrupted run is keyed on its stamped
+# failure_kind; every other ending on its run status. A kind or a status with no
+# row here fails a test rather than reaching the operator with no headline.
+KIND_VERDICTS = {
+    # Every interruption kind is re-runnable by construction: the machinery is
+    # fine, the run simply did not get to the end. A manual scan is the whole fix.
+    "interrupted_unknown": RERUNNABLE,
+    "interrupted_shutdown": RERUNNABLE,
+    "interrupted_service_only": RERUNNABLE,
+    "interrupted_unrecorded": RERUNNABLE,
+}
+STATUS_VERDICTS = {
+    # You closed the page mid-run. Nothing is broken.
+    "aborted": RERUNNABLE,
+    # A deliberate engine refusal — the prices on disk were behind, so it stopped
+    # rather than scan stale data. Running the same scan again meets the same
+    # refusal, so this one is mine to look at.
+    "stale_data": NEEDS_ATTENTION,
+    # A program error / non-zero exit.
+    "failed": NEEDS_ATTENTION,
+}
+# Anything unrecognised fails CLOSED, to the side that gets a human to look:
+# quietly telling him to re-run something we cannot explain is the exact trap.
+DEFAULT_VERDICT = NEEDS_ATTENTION
+
+# A re-runnable failure that keeps coming back is not re-runnable. THREE
+# consecutive runs of one job ending the same way is a pattern, not an accident:
+# one is noise, two can be two nights of the same habit (he powers the PC off
+# most nights), three means re-running it nightly is not fixing it. Server-side,
+# like every other judgment on this wire (EC-28).
+REPEAT_ESCALATION = 3
+
 # A run left 'running' this long was already hung by any measure, so a machine
 # shutdown later than this cannot honestly be blamed for killing it. THE one
 # home for that judgment: services/scan_watchdog.py and services/health.py
@@ -149,6 +193,13 @@ SOLUTIONS = {
 }
 
 
+def _job_kind(value) -> str:
+    """Which job a row belongs to, defaulted. ONE home: the prose filler and the
+    repeat streak must agree on which job a row is, or a streak counts runs the
+    sentences call by different names."""
+    return value if value in JOB_NAMES else DEFAULT_JOB
+
+
 def _in_words(template: str, job_kind: str | None) -> str:
     """Fill one prose template for one job kind.
 
@@ -156,7 +207,7 @@ def _in_words(template: str, job_kind: str | None) -> str:
     kind can never reach the operator with the wrong noun or with a remedy that
     does not run it.
     """
-    kind = job_kind if job_kind in JOB_NAMES else DEFAULT_JOB
+    kind = _job_kind(job_kind)
     job = JOB_NAMES[kind]
     return template.format(job=job, Job=job[:1].upper() + job[1:], rerun=JOB_RERUN[kind])
 
@@ -231,30 +282,68 @@ def evidence_window_end(start: datetime, detected: datetime | None) -> datetime:
 # -------------------------------------------------------------- prose out --
 
 def describe_run(row: dict) -> dict:
-    """The operator-facing reason + proposed solution for one scan_runs row.
+    """The verdict, reason and proposed solution for one scan_runs row.
 
-    PURE and total: any surprise degrades to no reason rather than raising, so a
+    PURE and total: any surprise degrades to no verdict rather than raising, so a
     diagnostics passenger can never break the surface it rides on.
     """
     try:
         return _describe_run(row)
     except Exception:  # pragma: no cover - defensive
         _log.warning("run diagnosis skipped for row %s", (row or {}).get("id"))
-        return {"reason": None, "solution": None}
+        return {"verdict": None, "reason": None, "solution": None}
 
 
 def describe_runs(rows: list[dict]) -> list[dict]:
-    """Both scan-status routes resolve every row through this ONE function, so
-    the topbar's status line and the diagnostics registry cannot disagree."""
-    return [{**row, **describe_run(row)} for row in rows]
+    """Both scan-status routes and /health resolve every row through this ONE
+    function, so the topbar's status line, the health pill and the diagnostics
+    registry cannot disagree about the same run.
+
+    Rows arrive NEWEST-FIRST. The repeat escalation reads the runs behind each
+    row, so callers give this a short window rather than a single row.
+    """
+    described = [{**row, **describe_run(row)} for row in rows]
+    return [_escalate_repeat(described, i) for i in range(len(described))]
+
+
+def _escalate_repeat(rows: list[dict], index: int) -> dict:
+    """A re-runnable failure that has come back REPEAT_ESCALATION runs in a row
+    is no longer re-runnable — re-running the same broken thing every night is
+    the trap this whole surface exists to prevent."""
+    row = rows[index]
+    if row.get("verdict") != RERUNNABLE:
+        return row
+    job = _job_kind(row.get("kind"))
+    signature = _failure_signature(row)
+    repeats = 1
+    for older in rows[index + 1:]:
+        if _job_kind(older.get("kind")) != job:
+            continue  # another job's run in between does not break the streak
+        if _failure_signature(older) != signature:
+            break
+        repeats += 1
+    if repeats < REPEAT_ESCALATION:
+        return row
+    return {**row, "verdict": NEEDS_ATTENTION}
+
+
+def _failure_signature(row: dict) -> tuple:
+    """What makes two endings 'the same failure, again'."""
+    return (row.get("status"), _interruption_kind(row))
 
 
 def _describe_run(row: dict) -> dict:
     row = row or {}
     status = row.get("status")
     if status in (None, "ok", "running", "never"):
-        return {"reason": None, "solution": None}
+        return {"verdict": None, "reason": None, "solution": None}
+    kind = _interruption_kind(row)
+    verdict = (KIND_VERDICTS.get(kind, DEFAULT_VERDICT) if kind
+               else STATUS_VERDICTS.get(status, DEFAULT_VERDICT))
+    return {**_explain(row, status, kind), "verdict": verdict}
 
+
+def _explain(row: dict, status: str, kind: str | None) -> dict:
     # Which JOB this row is: the registry lists scans, outcome backfills and
     # market-data downloads side by side, and each needs its own noun and its
     # own way to be run again.
@@ -276,7 +365,6 @@ def _describe_run(row: dict) -> dict:
             "solution": _in_words("The prices on disk were behind. {rerun}", job),
         }
 
-    kind = _interruption_kind(row)
     if kind:
         return _prose(REASONS[kind], SOLUTIONS[kind], job)
 
@@ -315,24 +403,30 @@ def _interruption_kind(row: dict) -> str | None:
 
 # -------------------------------------------------------- health checks ----
 
+# (label, reason, solution, VERDICT) — the same two-state headline the runs
+# carry, decided in the same module, so a failing check and a failed run cannot
+# tell the operator to do two different things.
 _HEALTH_CHECKS = {
     "db": (
         "Database",
         "Chrollo could not read its own database file.",
         "Restart the dashboard with update_dashboard.bat. If it still fails, the "
         "database file may be locked by another copy of the app.",
+        NEEDS_ATTENTION,
     ),
     "screener_data": (
         "Screener results file",
         "{Job} never wrote its results file, so the Screener page has nothing "
         "fresh to show.",
         "{rerun}",
+        RERUNNABLE,
     ),
     "scheduler": (
         "Nightly scan timer",
         "The timer that starts the nightly scan is not running, so tonight's scan "
         "would not start on its own.",
         "Restart the dashboard with update_dashboard.bat.",
+        NEEDS_ATTENTION,
     ),
 }
 
@@ -347,46 +441,63 @@ _LAST_SCAN_STATES = {
     "never": (
         "No scan has ever been recorded.",
         "{rerun}",
+        RERUNNABLE,
     ),
     "ok": (
         "The last scan finished cleanly, but no scan has run since, so this "
         "list is out of date.",
         _LEAVE_IT_ON,
+        RERUNNABLE,
     ),
     "running": (
         "A scan has been running for hours, so it has almost certainly hung.",
         "Restart the dashboard with update_dashboard.bat — the restart marks a "
         "stuck run as finished. Then {rerun}",
+        RERUNNABLE,
     ),
 }
 # failed / stale_data / aborted: the run itself really did end badly, and its
-# own resolved reason (describe_run) is what the caller shows in its place.
-_LAST_SCAN_FAILED = ("The most recent scan did not finish cleanly.", "{rerun}")
+# own resolved reason and verdict (describe_run) are what the caller shows in
+# their place — so this arm is the defensive fallback, and it fails closed.
+_LAST_SCAN_FAILED = (
+    "The most recent scan did not finish cleanly.", "{rerun}", NEEDS_ATTENTION)
 
 
 def describe_health_check(name: str, check: dict) -> dict:
-    """label + reason + solution for one failing /health check, in plain words.
+    """verdict + label + reason + solution for one failing /health check.
 
     Every non-ibkr check has an entry, so the pill tooltip and the registry never
-    show a raw check key (``last_scan``) or an empty remedy.
+    show a raw check key (``last_scan``), an empty remedy or no headline.
     """
     check = check or {}
     if name == "last_scan":
         label = "Last scan"
-        reason, solution = _LAST_SCAN_STATES.get(
+        reason, solution, verdict = _LAST_SCAN_STATES.get(
             check.get("status") or "never", _LAST_SCAN_FAILED
         )
     else:
-        label, reason, solution = _HEALTH_CHECKS.get(
-            name, (name, "This check is failing.", _CHECK_THE_LOG)
+        label, reason, solution, verdict = _HEALTH_CHECKS.get(
+            name, (name, "This check is failing.", _CHECK_THE_LOG, DEFAULT_VERDICT)
         )
     reason = _in_words(reason, DEFAULT_JOB)
     detail = check.get("detail") or check.get("error")
     return {
         "label": label,
+        "verdict": verdict,
         "reason": f"{reason} ({detail})" if detail else reason,
         "solution": _in_words(solution, DEFAULT_JOB),
     }
+
+
+def overall_verdict(failing: list[dict]) -> str | None:
+    """The pill's one word, for the whole app. A healthy app has no verdict at
+    all; re-runnable is claimed only when EVERY failing check is re-runnable,
+    because one thing a re-run cannot fix is one thing I have to look at."""
+    if not failing:
+        return None
+    if all(check.get("verdict") == RERUNNABLE for check in failing):
+        return RERUNNABLE
+    return NEEDS_ATTENTION
 
 
 # ------------------------------------------------------------- evidence ----
