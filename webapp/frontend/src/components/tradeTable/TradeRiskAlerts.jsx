@@ -1,19 +1,26 @@
-import { useMemo, useState } from 'react';
-
-const SNOOZE_MS = 30 * 60 * 1000;
+import { useEffect, useMemo, useState } from 'react';
+import { pruneDismissed, selectActiveAlerts, SNOOZE_MS } from '../../utils/alertMuting';
 
 export default function TradeRiskAlerts({ alerts = [], onDetailClick, trades = [] }) {
-  const [dismissed, setDismissed] = useState(() => new Set());
+  // { alertId: dismissedAtMs } — a STAMP, not a set membership: alert ids recur,
+  // so a permanent id-keyed dismissal muted the next genuine breach too.
+  const [dismissed, setDismissed] = useState(() => ({}));
   const [snoozedUntil, setSnoozedUntil] = useState({});
   const tradesById = useMemo(() => {
     const map = new Map();
     for (const trade of trades) map.set(trade.id, trade);
     return map;
   }, [trades]);
+
+  // Bind each dismissal to the firing episode: once its alert stops firing (or
+  // the backstop expires) the dismissal is dropped, so a re-breach shows again.
+  // pruneDismissed returns the same object when nothing changed, so this cannot loop.
+  useEffect(() => {
+    setDismissed(previous => pruneDismissed(previous, alerts, Date.now()));
+  }, [alerts]);
+
   const now = Date.now();
-  const activeAlerts = alerts.filter(alert => (
-    !dismissed.has(alert.id) && (!snoozedUntil[alert.id] || snoozedUntil[alert.id] <= now)
-  ));
+  const activeAlerts = selectActiveAlerts(alerts, dismissed, snoozedUntil, now);
 
   if (activeAlerts.length === 0) return null;
 
@@ -21,7 +28,7 @@ export default function TradeRiskAlerts({ alerts = [], onDetailClick, trades = [
   const hiddenCount = activeAlerts.length - visibleAlerts.length;
 
   const dismiss = (alert) => {
-    setDismissed(previous => new Set([...previous, alert.id]));
+    setDismissed(previous => ({ ...previous, [alert.id]: Date.now() }));
   };
 
   const snooze = (alert) => {

@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { scanStatusColor } from '../utils/appFormat';
+import { confirmLeaveWithDialog, shouldInterceptNavClick } from '../utils/leaveGuard';
 import IbkrModeControls from './IbkrModeControls';
 import AppearanceControl from './AppearanceControl';
 import {
@@ -29,11 +30,26 @@ const NAV_GROUPS = [
   ],
 ];
 
+// The top nav is one of the app's exits out of a route (the + New trade button
+// is the other), so it asks before discarding unsaved work. Untouched unless a
+// surface has armed the leave guard (calibration marks today), untouched for
+// modified/middle clicks so open-in-new-tab still works, and untouched for the
+// tab you are already on — that click discards nothing.
 function NavTab({ to, end, label, Icon }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const handleClick = (event) => {
+    if (!shouldInterceptNavClick(event, to, pathname)) return;
+    event.preventDefault();
+    confirmLeaveWithDialog().then(ok => { if (ok) navigate(to); });
+  };
+
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={handleClick}
       className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}
     >
       <Icon className="topnav-icon" />

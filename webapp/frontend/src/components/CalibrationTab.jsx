@@ -18,6 +18,7 @@ import { attachAsOfDivider } from './calibrationAsOfLine';
 import {
   chartTimeToIso,
   draftComplete,
+  draftHasUnsavedWork,
   draftStarted,
   effectiveSpan,
   frameKeyOf,
@@ -31,6 +32,7 @@ import {
   trimDraftForAsOf,
 } from '../utils/calibrationMarking';
 import { fx } from '../utils/format';
+import { armLeaveGuard, disarmLeaveGuard } from '../utils/leaveGuard';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -97,7 +99,11 @@ function CalibrationTab() {
       const cached = draftsRef.current.get(key);
       dispatchMarking({ type: 'load', frameKey: key,
                         draft: carried?.draft ?? cached?.draft ?? null,
-                        editingId: carried ? null : (cached?.editingId ?? null) });
+                        editingId: carried ? null : (cached?.editingId ?? null),
+                        // A carried draft is work in hand; a cached one resumes
+                        // whatever it was, so the unsaved-work guard survives a
+                        // frame hop and back.
+                        pristine: carried ? false : (cached?.pristine ?? true) });
       if (carried) {
         setLabel(carried.label ?? '');
         setNote(carried.note ?? '');
@@ -120,9 +126,9 @@ function CalibrationTab() {
   useEffect(() => {
     if (marking.frameKey) {
       draftsRef.current.set(marking.frameKey,
-        { draft: marking.draft, editingId: marking.editingId });
+        { draft: marking.draft, editingId: marking.editingId, pristine: marking.pristine });
     }
-  }, [marking.frameKey, marking.draft, marking.editingId]);
+  }, [marking.frameKey, marking.draft, marking.editingId, marking.pristine]);
 
   // A parked "Update existing" holds the geometry AS IT WAS when it collided;
   // the moment the operator redraws, that snapshot is stale — drop the
@@ -303,6 +309,10 @@ function CalibrationTab() {
     const armed = markingRef.current.tool === 'trigger';
     const assisted = d.triggerSource === 'assisted';
     if (!armed && !assisted) return;
+    // `auto` when the operator did not ask for this: arming the trigger tool is
+    // his gesture, but a re-derive on a mark he merely OPENED is the app moving
+    // the draft, and must not arm the unsaved-work guard (review A9).
+    const auto = !armed;
     const snap = snapTrigger(d, chartData?.candles);
     if (!snap) {
       // No breakout in the frame: an armed re-derive clears a now-stale
@@ -314,19 +324,31 @@ function CalibrationTab() {
     }
     if (snap.date !== d.triggerDate || snap.price !== d.triggerPrice) {
       dispatchMarking({ type: 'set-trigger', date: snap.date, price: snap.price,
-                        source: 'assisted' });
+                        source: 'assisted', auto });
     }
   }, [marking.tool, lastLpsEnd, chartData]);
 
-  // In-progress geometry lives only in memory (draftsRef); guard a reload/close
-  // that would silently drop a complete, unsaved box. Armed only when there is
-  // real drawn work to lose, so it never nags on an empty page.
+  // In-progress geometry lives only in memory (draftsRef), so ANY exit from this
+  // page drops it. Guard all three exits with one armed flag: a reload/close via
+  // beforeunload, and an in-app route change via the shared leave guard the top
+  // nav consults (council review 2026-09-07, finding 8 — the top nav used to be
+  // an unguarded, silent delete of hand-drawn ground truth).
+  //
+  // Armed on draftHasUnsavedWork, not draftComplete: a placed rail with the LPS
+  // still pending is drawn work too, and the old guard let it go without a word.
+  // It still never nags on a pristine page — including the very common case of a
+  // saved mark auto-loaded for correction and not yet touched.
+  const hasUnsavedDraft = !!chartData && draftHasUnsavedWork(marking);
   useEffect(() => {
-    if (!canSave) return undefined;
+    if (!hasUnsavedDraft) return undefined;
     const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [canSave]);
+    armLeaveGuard('This setup has marks you have not saved. Leaving the page discards them.');
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      disarmLeaveGuard();
+    };
+  }, [hasUnsavedDraft]);
 
   const save = async () => {
     if (!canSave || saving) return;

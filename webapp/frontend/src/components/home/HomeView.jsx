@@ -20,19 +20,28 @@ import { revalidateScreenerUniverse } from '../../hooks/screenerStore';
 // moved into the Action Center header.) Each panel owns its own status +
 // ErrorBoundary so one dead source degrades only itself.
 export default function HomeView({ trades, stats, riskFor, riskStatus, scanStatus }) {
-  const { screenerData } = useScreenerData();
+  const { screenerData, status: screenerStatus } = useScreenerData();
   // Cheap 5-minute freshness tick: polls the slim /screener-summary and only
   // re-downloads the full 13MB artifact when a new scan actually landed.
   usePollingInterval(revalidateScreenerUniverse, 300000, { immediate: false });
   // ONE watchlist live-price poll for the whole Home surface; both the Action
   // Center and the Watchlist zone read this same map (was a duplicate poller each).
-  const { prices, priceErr } = useLivePrices();
+  const { prices, priceErr, priceStatus } = useLivePrices();
   const marketContext = screenerData?.market_context;
 
   return (
     <div className="home-view">
       <ErrorBoundary>
-        <ActionCenter screenerData={screenerData} trades={trades} riskFor={riskFor} prices={prices} scanStatus={scanStatus} />
+        <ActionCenter
+          screenerData={screenerData}
+          trades={trades}
+          riskFor={riskFor}
+          prices={prices}
+          scanStatus={scanStatus}
+          riskStatus={riskStatus}
+          priceStatus={priceStatus}
+          screenerStatus={screenerStatus}
+        />
       </ErrorBoundary>
 
       <div className="home-grid">

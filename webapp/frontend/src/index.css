@@ -2403,7 +2403,11 @@ td.cell-editable { overflow: hidden; }
   font-weight: 700;
   letter-spacing: 0.05em;
   cursor: pointer;
-  color: #fff;
+  /* Dark ink, not white: --success and --danger are both LIGHT fills. White on
+     them measures 1.94:1 and 3.18:1 — under any legibility floor, on the one
+     control that records real fills. --myth-ink is the app's ink-on-fill token
+     and takes both to 8.67:1 / 5.31:1. Pinned by utils/inkContrast.test.js. */
+  color: var(--myth-ink);
 }
 .fills-panel .fill-side-btn.buy  { background: var(--success); }
 .fills-panel .fill-side-btn.sell { background: var(--danger); }
@@ -2854,6 +2858,11 @@ td.cell-editable { overflow: hidden; }
 /* The scan-freshness statement (re-homed from the deleted Fresh Setups zone):
    right-aligned so the header reads title · count ......... freshness. */
 .ac-fresh { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The partial-read note rides WITH the count, so `margin-left: auto` stays on
+   exactly one item in this row — two of them split the free space and neither
+   ends up right-aligned. It is the only shrinkable thing here, so it is what
+   truncates when the header runs out of width. */
+.ac-note { font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-clear { color: var(--text-muted); font-size: 13px; }
 .ac-groups { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
 .ac-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }

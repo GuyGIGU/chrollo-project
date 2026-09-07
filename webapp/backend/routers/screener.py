@@ -18,7 +18,7 @@ from core.pipeline.universe import (
 )
 from services import scan_diagnosis, scan_runner, scan_status
 from services.earnings import days_until, get_next_earnings_batch
-from services.screener_data import invalidate_screener_cache, read_screener_data
+from services.screener_data import read_screener_data
 
 router = APIRouter(prefix="", tags=["screener"])
 
@@ -256,28 +256,49 @@ def screener_earnings(payload: EarningsBatchIn):
     }
 
 
+# The three job streams are READERS of a job the service runs on its own thread
+# (services/scan_runner.LiveJob). Closing one of these responses — the operator
+# clicking another tab — no longer terminates the child; the run continues and
+# /scan-stream/attach/ re-attaches to it. The screener-cache invalidation moved
+# with the child, into the job's own completion, because it must fire when the
+# artifact is rewritten and not when a client goes away.
 @router.get("/run-scan-stream/")
 def run_screener_scan_stream():
-    def execute_and_yield():
-        try:
-            yield from scan_runner.stream_manual_scan()
-        finally:
-            invalidate_screener_cache()
-
-    return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
+    return StreamingResponse(scan_runner.stream_manual_scan(), media_type="text/event-stream")
 
 
 @router.get("/run-evaluation-stream/")
 def run_cached_evaluation_stream():
-    def execute_and_yield():
-        try:
-            yield from scan_runner.stream_cached_evaluation()
-        finally:
-            invalidate_screener_cache()
-
-    return StreamingResponse(execute_and_yield(), media_type="text/event-stream")
+    return StreamingResponse(scan_runner.stream_cached_evaluation(), media_type="text/event-stream")
 
 
 @router.get("/download-data-stream/")
 def download_market_data_stream():
     return StreamingResponse(scan_runner.stream_data_download(), media_type="text/event-stream")
+
+
+@router.get("/scan-stream/active")
+def get_active_scan_stream():
+    """Is a manual job running right now, and which one? A client that navigated
+    away (or a page reloaded mid-run) asks this on mount and re-attaches instead
+    of the operator silently losing a 12-17 minute scan."""
+    active = scan_runner.active_job()
+    return {
+        "active": active is not None,
+        "job": active["job"] if active else None,
+        "run_id": active["run_id"] if active else None,
+    }
+
+
+@router.get("/scan-stream/attach/")
+def attach_scan_stream():
+    """Re-attach to the running job: replays its output so far, then follows."""
+    return StreamingResponse(scan_runner.follow_active_job(), media_type="text/event-stream")
+
+
+@router.post("/scan-stream/cancel")
+def cancel_scan_stream():
+    """Stop the manual job that is running. Now that a job outlives its reader,
+    this is the only way to free a wedged child and the SCAN_LOCK it holds
+    without restarting the service (council review 2026-09-07, A3)."""
+    return {"stopped": scan_runner.cancel_active_job()}

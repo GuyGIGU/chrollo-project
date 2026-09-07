@@ -214,6 +214,7 @@ const ScreenerGrid = () => {
         scanProgress={scan.scanProgress}
         scanPhase={scan.scanPhase}
         scanLogs={scan.scanLogs}
+        onStop={scan.handleStopJob}
       />
 
       {scan.scanError && !scan.isScanning && (

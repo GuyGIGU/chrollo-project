@@ -1,16 +1,23 @@
-function ScreenerScanProgress({ isScanning, scanProgress, scanPhase, scanLogs }) {
+function ScreenerScanProgress({ isScanning, scanProgress, scanPhase, scanLogs, onStop }) {
   if (!isScanning) return null;
 
   return (
     <div style={panelStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
         <span style={phaseStyle(scanProgress)}>
           {scanProgress < 100 && <span className="scan-pulse-dot" style={pulseDotStyle} />}
           {scanProgress >= 100 && 'Done '}
           {scanPhase || 'Initializing pipeline...'}
         </span>
-        <span style={percentStyle(scanProgress)}>
-          {Math.min(100, Math.round(scanProgress))}%
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* The only in-app way to stop a run: the job outlives its reader now,
+              so navigating away no longer ends it and a wedged child would hold
+              SCAN_LOCK until the service restarts (council review A3). Sits in
+              the row that already exists — no new band. */}
+          {onStop && <button type="button" style={stopStyle} onClick={onStop}>Stop</button>}
+          <span style={percentStyle(scanProgress)}>
+            {Math.min(100, Math.round(scanProgress))}%
+          </span>
         </span>
       </div>
       <ProgressBar scanProgress={scanProgress} />
@@ -56,6 +63,17 @@ const pulseDotStyle = {
   height: '8px',
   borderRadius: '50%',
   background: 'var(--myth)',
+};
+const stopStyle = {
+  background: 'transparent',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 'var(--radius-sm)',
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  fontSize: '11px',
+  fontWeight: 600,
+  padding: '2px 9px',
 };
 const percentStyle = (progress) => ({
   fontSize: '13px',

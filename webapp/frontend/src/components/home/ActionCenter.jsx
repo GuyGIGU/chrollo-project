@@ -7,6 +7,12 @@ import { tierColor } from '../../theme';
 import { formatScore } from '../../utils/scoreFormat';
 import { fmtScanTime, scanStatusColor } from '../../utils/appFormat';
 import { nearTriggerFrac, triggerFired } from '../../utils/triggerProximity.js';
+import {
+  actionCenterReadiness,
+  countLabel,
+  emptyStateLine,
+  partialReadNote,
+} from '../../utils/actionCenterState.js';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
 // urgent items out of the three zones below into one strip, ordered by urgency:
@@ -69,7 +75,10 @@ function scanFreshness(scanStatus, screenerData, ordered) {
   };
 }
 
-export default function ActionCenter({ screenerData, trades, riskFor, prices = {}, scanStatus }) {
+export default function ActionCenter({
+  screenerData, trades, riskFor, prices = {}, scanStatus,
+  riskStatus, priceStatus, screenerStatus,
+}) {
   const { watchlist } = useWatchlist();
   const [peek, setPeek] = useState(null);
 
@@ -115,6 +124,16 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
 
   const total = atRisk.length + triggered.length + near.length + freshS.length;
 
+  // The empty state is a CLAIM about the world, so it needs every source to have
+  // answered first — an unanswered source contributes an empty list that is
+  // indistinguishable from "nothing here" (finding 9). Statuses only; no
+  // judgment is recomputed here.
+  const readiness = actionCenterReadiness({
+    risk: riskStatus, prices: priceStatus, screener: screenerStatus,
+  });
+  const emptyLine = emptyStateLine(readiness);
+  const partialNote = partialReadNote(readiness);
+
   const openPeek = (t) => { if (chartData[t]) setPeek(t); };
   const freshness = scanFreshness(scanStatus, screenerData, ordered);
 
@@ -122,14 +141,25 @@ export default function ActionCenter({ screenerData, trades, riskFor, prices = {
     <section className="home-action">
       <div className="ac-head">
         <span className="ac-title">Action Center</span>
-        <span className="ac-count">{total ? `${total} need${total === 1 ? 's' : ''} a look` : 'all clear'}</span>
+        <span className="ac-count">{countLabel(total, readiness)}</span>
+        {/* The note sits with the count, BEFORE the freshness statement: a
+            second `margin-left: auto` in one flex row splits the free space
+            between the two and the freshness stops being right-aligned
+            (council review 2026-09-07, A5). */}
+        {total > 0 && partialNote && (
+          <span className="ac-note" style={{ color: readiness.failed.length ? 'var(--danger)' : 'var(--text-faint)' }}>
+            {partialNote}
+          </span>
+        )}
         {freshness && (
           <span className="ac-fresh" style={{ color: freshness.color }}>{freshness.text}</span>
         )}
       </div>
 
       {total === 0 ? (
-        <div className="ac-clear">✓ Nothing needs action right now — no open risk, triggers, or fresh S-tier setups.</div>
+        <div className="ac-clear" style={emptyLine.color ? { color: emptyLine.color } : undefined}>
+          {emptyLine.text}
+        </div>
       ) : (
         <div className="ac-groups">
           {atRisk.length > 0 && (
