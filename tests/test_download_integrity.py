@@ -85,6 +85,93 @@ def test_cold_fetch_never_persists_bars_after_expected_session(tmp_path, monkeyp
     assert meta["price_series"] == dl._price_regime()       # success path was taken
 
 
+# ---- #3 the index-less universe (commodities_etf declares index_symbols=()) ----
+def test_cold_fetch_persists_an_index_less_universe_at_full_coverage(tmp_path, monkeypatch):
+    # The live defect: has_all_closes_on read an EMPTY index set as "the index
+    # closes are missing", so every cold fetch for commodities_etf reached 100%
+    # coverage and was discarded anyway -- no parquet, no price_series, and a
+    # regime mismatch that then refused evaluation and archiving.
+    expected = pd.Timestamp("2026-06-18")
+    # Deliberately >100 rows so the deep-history chokepoint AFTER the coverage
+    # gate is genuinely exercised. A 2-row fixture would skip it (a short panel
+    # can't be judged shallow) and pass for the wrong reason.
+    dates = pd.bdate_range("2026-01-01", expected)
+    assert len(dates) > settings.MARKET_DATA_MIN_HISTORY_BARS  # precondition
+    panel = _panel(
+        {t: [10.0 + i] * len(dates) for i, t in enumerate(["GLD", "SLV", "USO"])},
+        dates,
+    )
+    monkeypatch.setattr(dl, "_full_refetch", lambda symbols: panel.copy())
+    monkeypatch.setattr(dl.settings, "QUARANTINE_ENABLED", False, raising=False)
+    monkeypatch.setattr(dl.settings, "TICKER_ADMISSION_ENABLED", False, raising=False)
+
+    cache_file = tmp_path / "cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    out = dl._cold_fetch(
+        str(cache_file), str(meta_file), {}, None,
+        _scope(tmp_path, ["GLD", "SLV", "USO"], []),   # <-- no index symbols
+        expected, 0.9, time.time(),
+    )
+
+    assert not out.empty
+    assert cache_file.exists()                              # the panel was persisted
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["price_series"] == dl._price_regime()       # success path was taken
+    assert "last_cold_failure" not in meta
+
+
+def test_cold_fetch_still_refuses_a_universe_whose_index_close_is_missing(tmp_path, monkeypatch):
+    # The other half of the fix: loosening the EMPTY set must not loosen a named
+    # one. Coverage here is 2/3 = 66.7%, comfortably above the 50% floor, so the
+    # index term is the only term that can refuse the write.
+    expected = pd.Timestamp("2026-06-18")
+    dates = ["2026-06-17", expected]
+    panel = _panel(
+        {"AAA": [10.0, 11.0], "BBB": [20.0, 21.0], "SPY": [100.0, float("nan")]},
+        dates,
+    )
+    monkeypatch.setattr(dl, "_full_refetch", lambda symbols: panel.copy())
+    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a, **k: data)
+    monkeypatch.setattr(dl.settings, "QUARANTINE_ENABLED", False, raising=False)
+    monkeypatch.setattr(dl.settings, "TICKER_ADMISSION_ENABLED", False, raising=False)
+
+    cache_file = tmp_path / "cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    dl._cold_fetch(
+        str(cache_file), str(meta_file), {}, None,
+        _scope(tmp_path, ["AAA", "BBB", "SPY"], ["SPY"]),
+        expected, 0.5, time.time(),
+    )
+
+    assert not cache_file.exists()                          # nothing persisted
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert "price_series" not in meta
+    assert meta["last_cold_failure"]["kind"] == "coverage"
+
+
+def test_incremental_fetch_serves_an_index_less_universe(tmp_path, monkeypatch):
+    # The reason the fix belongs in the shared predicate and not at the cold-fetch
+    # call site: BOTH _incremental_fetch legs (fresh and merged) read the same
+    # empty index set. A call-site-only fix produces a parquet on night one and
+    # then bounces every incremental update back to a full cold refetch forever.
+    d0, expected = pd.Timestamp("2026-06-17"), pd.Timestamp("2026-06-18")
+    cached = _panel({t: [10.0] for t in ["GLD", "USO"]}, [d0])
+    fresh = _panel({t: [11.0] for t in ["GLD", "USO"]}, [expected])
+
+    monkeypatch.setattr(dl, "latest_completed_session", lambda: expected)
+    monkeypatch.setattr(dl.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(dl, "_batched_download", lambda *a, **k: fresh)
+    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a, **k: data)
+    monkeypatch.setattr(dl, "_detect_splits", lambda *a, **k: (False, []))
+    monkeypatch.setattr(dl, "_recover_missing_data", lambda data, *a, **k: data)
+
+    out = dl._incremental_fetch(cached, ["GLD", "USO"], 1, [])   # <-- no index symbols
+
+    assert out is not None                                  # neither leg bounced it
+    assert expected in out.index
+    assert out[("GLD", "Close")].loc[expected] == 11.0       # the fresh bar merged
+
+
 def test_incremental_recovery_never_merges_forming_bars(tmp_path, monkeypatch):
     # The windowed incremental fetch is capped by its end date, but the
     # per-ticker recovery for new listings is PERIOD-based and can drag today's

@@ -204,19 +204,23 @@ local folder (a cloud-synced one like OneDrive is fine — the sync client uploa
 ## 4b. Schedule Forward-Return Maturation (backend-independent tick)
 
 The scheduled scan runs *inside* the ChrolloDashboard service (in-process APScheduler,
-weekdays 18:00 ET) and backfills forward returns in the same job. That is fine while the
-service is up — but if the service is down or the PC is off at 18:00 ET, that day's
+weekdays 17:00 ET) and backfills forward returns in the same job. That is fine while the
+service is up — but if the service is down or the PC is off at 17:00 ET, that day's
 maturation never ticks, and archived setups stall one bar short of maturing.
 
-> **The 18:00 ET slot is 01:00 local time in Israel, and a full scan needs about 17 minutes.**
-> Shutting the PC down between 01:00 and 01:20 kills that night's scan mid-run; shutting it
-> down just before 01:00 means the scan never starts at all, and nothing re-runs a missed slot
-> (`_missed_todays_slot` only ever recovers TODAY's slot, and a morning boot is always before
-> the evening one). Both shapes are now explained in plain words by the topbar status pills —
-> click either one for the scan-run registry, which names the reason and a proposed solution.
-> To move the slot instead, edit `SCAN_SCHEDULE_HOUR_ET` / `SCAN_SCHEDULE_MINUTE_ET` in
-> `config/settings.py` and restart with `update_dashboard.bat`. Keep it after the US close.
-> Evidence for the collision: [scan_interruption_incident_2026-09.md](scan_interruption_incident_2026-09.md). Because the
+> **The 17:00 ET slot is 00:00 local time in Israel, and a full scan needs about 17 minutes.**
+> It was moved there on 2026-09-07: at the old 18:00 ET (01:00 local) it collided nightly with
+> the operator's 01:00–02:00 shutdown, and the ETF universes — which run LAST — had never once
+> survived to write. **Do not move it earlier than 16:30 ET**: the US close is 16:00 and
+> `SESSION_FINALIZATION_MARGIN_MINUTES` (30) makes 16:30 the FIRST instant today's bar counts as
+> final, so an earlier slot silently scans YESTERDAY's session with no error. A night that is
+> still cut short is recovered by the **boot catch-up**, which re-runs the most recent weekday
+> slot that has no *successful* run — so a weekend boot picks up Friday's, and a scan that
+> started and died counts as missed. Both failure shapes are explained in plain words by the
+> topbar status pills — click either one for the scan-run registry, which names the reason and a
+> proposed solution. To move the slot, edit `SCAN_SCHEDULE_HOUR_ET` / `SCAN_SCHEDULE_MINUTE_ET`
+> in `config/settings.py` and restart with `update_dashboard.bat`. Evidence for the collision:
+> [scan_interruption_incident_2026-09.md](scan_interruption_incident_2026-09.md). Because the
 maturation record is what proves the engine's edge, add a **second, backend-independent**
 nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
 its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it, and — with
@@ -290,6 +294,39 @@ Real restore, after data loss:
 5. Confirm the header shows the latest scan time, setup count, and `ok`.
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.
+
+### 5a. Missed-slot catch-up at boot
+
+The 18:00 ET slot is 01:00 local, and a full scan takes ~17 minutes — so powering the PC
+off around 01:00 lands squarely on the scan. Two mechanisms cover a lost night, and neither
+needs a click:
+
+- **Misfire grace (4 hours).** APScheduler's default grace is 1 second, so a machine asleep
+  or a service mid-restart at 18:00 ET silently dropped the run. With hours of grace, a late
+  tick still fires the job. This covers "process alive but couldn't fire on time".
+- **Boot catch-up.** A process that was fully DOWN at slot time has no job to misfire, so at
+  every service boot the scheduler looks at the **most recent weekday slot** — today's if it
+  has already passed, otherwise the previous weekday's. Booting on a Saturday or Sunday
+  therefore looks back at **Friday's** slot; a weekday morning boot looks back at last night's.
+  If that slot has no **successful** scan run, one catch-up scan is scheduled ~2 minutes
+  after boot.
+
+**A scan that started but died counts as missed.** Boot reconciliation rewrites a killed
+`running` row to `failed`, and only status `ok` vouches for a slot — `failed`, `aborted`,
+`stale_data` and "no run at all" all trigger the catch-up. (Before 2026-09, any row stamped
+at/after the slot counted as served, so a scan killed 27 seconds in looked done, and a
+weekend boot skipped the check entirely: one power-off cost the Friday scan the whole
+weekend, with the dashboard stuck on *Degraded / last scan failed* until Monday 18:00 ET.)
+
+The catch-up uses a single fixed job id and is only ever scheduled at boot, so there is **at
+most one catch-up per boot** — a slot that keeps failing (say a genuine provider outage
+recorded as `stale_data`) is retried once at the next boot, never in a loop. Confirm it in
+the service log:
+
+```powershell
+Select-String -Path "C:\Users\User\Documents\Projects\Chrollo Project\output\chrollo-service*.log" `
+  -Pattern "boot catch-up" | Select-Object -Last 5
+```
 
 ## 6. Self-Hosted CI Runner (GitHub Actions)
 

@@ -86,8 +86,30 @@ def symbols_missing_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Ti
 
 
 def has_all_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp) -> bool:
+    """True when EVERY symbol in ``symbols`` carries a non-NaN Close on ``day``.
+
+    Returns True when there is nothing to judge (no symbols) — the same
+    vacuous-truth convention ``deep_history_ratio`` states below. An index-less
+    universe (``commodities_etf`` declares ``index_symbols=()``, borrowing the
+    broad market's regime rather than re-pulling SPY/QQQ) names no reference
+    symbol, and "every named index closed" is COMPLETE, not unevaluable, when
+    nothing is named. A universe that DOES name index symbols is unaffected:
+    ``total > 0`` there and every one of them must still carry a Close.
+
+    Judged here and not at the call sites (EC-3, "fold twin code paths"): the
+    same empty set reaches three gates in ``downloads`` plus
+    ``last_complete_reference_date`` below, and a per-site carve-out already
+    escaped one sweep (``market_data_health`` was fixed, the downloader was not).
+
+    Note ``close_coverage_on`` normalises through ``unique_symbols``, which drops
+    falsy entries — so ``total == 0`` also means "nothing survived normalisation"
+    (e.g. ``[""]``). ``tests/test_universe_descriptor.py`` pins the literal index
+    sets so a typo'd ``settings.INDEX_SYMBOLS`` cannot reach here silently.
+    """
     coverage = close_coverage_on(data, symbols, day)
-    return coverage.total > 0 and coverage.present == coverage.total
+    if coverage.total == 0:
+        return True
+    return coverage.present == coverage.total
 
 
 def deep_history_ratio(data: pd.DataFrame, symbols: list[str], min_bars: int) -> float:

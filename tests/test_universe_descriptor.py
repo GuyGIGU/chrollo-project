@@ -38,6 +38,22 @@ def test_default_universe_matches_current_literals():
     assert _norm(u.ticker_csv) == _norm(tickers_mod._default_ticker_csv_path())
 
 
+def test_index_bearing_universes_declare_a_non_empty_index_set():
+    # has_all_closes_on now reads an EMPTY symbol set as vacuously complete, so
+    # an emptied or typo'd settings.INDEX_SYMBOLS would SILENTLY drop the SPY/QQQ
+    # requirement for the 5,889-ticker universe instead of failing loudly. This
+    # pins the literals so it cannot.
+    #
+    # Deliberately NOT a settings round-trip: the assertion above
+    # (tuple(u.index_symbols) == tuple(settings.INDEX_SYMBOLS)) is TAUTOLOGICAL
+    # under exactly that mutation -- empty the setting and both sides become ().
+    assert resolve_universe("us_stocks").index_symbols == ("SPY", "QQQ")
+    assert resolve_universe("us_sectors").index_symbols == ("SPY", "QQQ")
+    # ...and the one universe that legitimately names none stays that way, so a
+    # "fix" that hands it SPY/QQQ (which its parquet does not carry) is caught too.
+    assert resolve_universe("commodities_etf").index_symbols == ()
+
+
 def test_cache_paths_default_unchanged():
     # The historical hardcoded tuple: project root + the two settings filenames.
     legacy_root = _norm(

@@ -747,8 +747,6 @@ def missed_slot_notice(latest_started_at, now_et, hour: int, minute: int) -> str
     from services.scheduler import last_weekday_slot
 
     slot = last_weekday_slot(now_et, hour, minute)
-    if slot is None:
-        return None
     started = _parse_iso(latest_started_at)
     if started is not None and started >= slot.astimezone(timezone.utc):
         return None
