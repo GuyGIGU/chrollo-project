@@ -180,6 +180,44 @@ Deliberately **not** changed: the gate still keys on Close, OHLV-only bars are s
 refused, and a Close is never synthesised from `regularMarketPrice` (a live quote, not a
 settled close). Only what happens *after* the gate fails was touched.
 
+#### The index-close gate, and the universe that names no index
+
+Every freshness gate above asks two questions: *did enough of the universe close*, and
+*did the market-regime reference symbols close*. The second half is
+`has_all_closes_on(panel, index_symbols, session)` in
+[core/pipeline/data_freshness.py](../core/pipeline/data_freshness.py) — the check that
+stops a cold write whose SPY/QQQ bar is missing. It is applied at three places (the
+cold-fetch success gate and both `_incremental_fetch` legs) and a fourth transitively,
+since `last_complete_reference_date` is a loop over it.
+
+`commodities_etf` names **no** index symbols (`index_symbols=()`): the broad-market regime
+for the small ETF universes is sourced separately, so no SPY/QQQ rides in that parquet to
+anchor on. The predicate read `coverage.total > 0 and coverage.present == coverage.total`,
+so *nothing named* came back **False** — "the index closes are missing" — and every gate
+fired on a universe that had nothing to miss. Measured: every scheduled scan in the
+retained log (8 nights, 2026-08-26 → 2026-09-04) reached **29/29 (100.0%)** and was
+discarded anyway. `_write_unhealthy_cold_result` persists no panel, so the parquet was
+never written; `price_series` is stamped only by the two success writers, so the meta never
+acquired it; and a missing `price_series` defaults to `div_adjusted`, so the regime guard
+then refused evaluation *and* archiving. The universe has never written a row to
+`setup_archive` **or** `near_miss_archive` since it was registered 2026-06-29. The
+`absent_sessions` brake above cannot bound this loop — it arms only on essentially-zero
+coverage, and this failure ran at 100%.
+
+The fix is in the predicate, not at the call sites: **an empty symbol set is vacuously
+complete** — the convention `deep_history_ratio` already states one function above. A
+universe that names index symbols is untouched: `total > 0` there, and every named symbol
+must still carry a non-NaN Close. Judged in the helper because the same empty set reaches
+four call sites and a carve-out repairs one — `conventions.md` **EC-3** ("fold twin code
+paths, never copy") names depth/coverage/scope predicates explicitly, and this class had
+already escaped one sweep: `compute_market_data_health()` got its index-less branch in
+2026-06-30 while the four downloader sites did not. Note `_has_all_symbols` already read
+the same empty set as vacuously TRUE four lines above the `is not None` that read it as
+FALSE. An index-less universe is now anchored on its own last complete session. The
+`if not scope.index_symbols` branch in `compute_market_data_health()` is **kept**: it still
+supplies a reference date when the helper returns `None` for a non-MultiIndex panel. An
+empty *panel* is a different question and still answers `None`.
+
 #### Cache health — `compute_market_data_health()` ([core/pipeline/market_data_health.py](../core/pipeline/market_data_health.py))
 
 `_classify()` returns `can_evaluate` / `can_archive` / `can_download` for the cached panel.
