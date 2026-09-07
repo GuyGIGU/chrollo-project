@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api';
+import {
+  activeStreamUrl,
+  attachStreamUrl,
+  reattachTarget,
+  startStreamUrl,
+} from '../utils/scanStream.js';
 
 function useScanRunner(fetchScreener, universe) {
   const [activeJob, setActiveJob] = useState(null);
@@ -28,9 +34,12 @@ function useScanRunner(fetchScreener, universe) {
     fetchMarketDataStatus();
   }, [fetchMarketDataStatus]);
 
+  // Closing the stream on unmount is the house rule — and since the backend job
+  // now outlives its reader (council review 2026-09-07, finding 4), closing it
+  // no longer kills the scan. Navigating away pauses the readout, not the work.
   useEffect(() => () => closeScanSource(scanSourceRef), []);
 
-  const startJob = useCallback((job) => {
+  const openStream = useCallback((job, url) => {
     lastJobRef.current = job;
     closeScanSource(scanSourceRef);
     setActiveJob(job);
@@ -39,7 +48,7 @@ function useScanRunner(fetchScreener, universe) {
     setScanProgress(0);
     setScanPhase(job === 'download' ? 'Preparing data refresh...' : 'Preparing cached evaluation...');
 
-    const eventSource = new EventSource(`${API_BASE}/${job === 'download' ? 'download-data-stream' : 'run-evaluation-stream'}/`);
+    const eventSource = new EventSource(url);
     scanSourceRef.current = eventSource;
     let resultsRevealed = false;
     let jobFinished = false;
@@ -106,6 +115,29 @@ function useScanRunner(fetchScreener, universe) {
       }
     };
   }, [fetchMarketDataStatus, fetchScreener, universe]);
+
+  const startJob = useCallback(
+    (job) => openStream(job, startStreamUrl(API_BASE, job)),
+    [openStream],
+  );
+
+  // Re-attach on mount to a job that is still running server-side. Without this,
+  // one click on the top nav ended the operator's only view of a 12-17 minute
+  // scan — and used to end the scan itself. Read through a ref so the check runs
+  // exactly once per mount, not on every `universe` change.
+  const openStreamRef = useRef(openStream);
+  openStreamRef.current = openStream;
+  useEffect(() => {
+    let cancelled = false;
+    fetch(activeStreamUrl(API_BASE))
+      .then(response => (response.ok ? response.json() : Promise.reject(new Error('scan-stream/active'))))
+      .then(state => {
+        const job = cancelled ? null : reattachTarget(state, Boolean(scanSourceRef.current));
+        if (job) openStreamRef.current(job, attachStreamUrl(API_BASE));
+      })
+      .catch(error => console.error('Failed to check for a running scan', error));
+    return () => { cancelled = true; };
+  }, []);
 
   const handleEvaluateCached = useCallback(() => startJob('evaluation'), [startJob]);
   const handleDownloadData = useCallback(() => startJob('download'), [startJob]);

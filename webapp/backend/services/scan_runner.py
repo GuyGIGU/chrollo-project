@@ -8,7 +8,7 @@ import subprocess
 import sys
 import threading
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator
 
 log = logging.getLogger("chrollo.scan")
@@ -241,69 +241,167 @@ def _terminate_child(process: subprocess.Popen | None) -> None:
             pass
 
 
-def _stream_process(trigger: str, args: list[str] | None = None,
-                    kind: str = "scan") -> Iterator[str]:
-    """Run a manual subprocess job and stream its stdout as server-sent events."""
+@dataclass
+class LiveJob:
+    """One manual job, owned by a background thread rather than by an SSE client.
+
+    The child process, the run record and SCAN_LOCK all belong to the thread; an
+    SSE response is only a READER of ``events``. That separation is the whole
+    point: a client that goes away — one click on the top nav — must not kill the
+    12-17 minutes of work the server is already doing (council review
+    2026-09-07, finding 4; archive row 271 is a real scan lost this way).
+    """
+    trigger: str
+    kind: str                      # the scan_runs row's kind: 'scan' | 'download'
+    job: str                       # the label a client re-attaches by: 'evaluation' | 'download'
+    events: list[str] = field(default_factory=list)   # SSE payloads, in order, replayable
+    run_id: int | None = None
+    done: bool = False
+    process: subprocess.Popen | None = None
+
+
+# Guards _LIVE_JOB and every LiveJob's events/done. Readers wait on it for new
+# output instead of polling.
+_LIVE_COND = threading.Condition()
+_LIVE_JOB: LiveJob | None = None
+
+# A reader re-checks this often even without a notify, so a missed notification
+# can never wedge a stream open forever.
+_FOLLOW_POLL_SECONDS = 1.0
+
+
+def _emit(job: LiveJob, event: str) -> None:
+    with _LIVE_COND:
+        job.events.append(event)
+        _LIVE_COND.notify_all()
+
+
+def _pump_job(job: LiveJob, args: list[str] | None) -> None:
+    """Run the child to completion, record the run, release SCAN_LOCK.
+
+    Runs on its own thread and never yields, so no client action can interrupt
+    it. It still owns everything the old generator owned — terminate the child on
+    a failure, always finish the run row, always release the lock — which is what
+    keeps a disconnect from leaving an unsupervised child or a 'running' row.
+    """
     from services import scan_status
 
-    if not SCAN_LOCK.acquire(blocking=False):
-        yield "data: ERROR: another scan or data job is already running\n\n"
-        yield "data: [DONE]\n\n"
-        return
-
-    run_id = None
-    run_recorded = False
-    process = None
     lines: list[str] = []
     try:
-        run_id = scan_status.start_run(trigger, kind=kind)
-        process = _create_process(args)
-        assert process.stdout is not None
-        for line in process.stdout:
+        job.run_id = scan_status.start_run(job.trigger, kind=job.kind)
+        job.process = _create_process(args)
+        assert job.process.stdout is not None
+        for line in job.process.stdout:
             lines.append(line)
-            yield f"data: {line}\n\n"
+            _emit(job, f"data: {line}\n\n")
 
-        process.stdout.close()
-        process.wait()
+        job.process.stdout.close()
+        job.process.wait()
         output = "".join(lines)
         n_setups, n_errored = _parse_scan_result(output)
         result = ScanProcessResult(
-            returncode=process.returncode,
+            returncode=job.process.returncode,
             output=output,
             n_setups=n_setups,
             n_errored=n_errored,
         )
         status = _result_status(result)
         error = _tail_error(output) if status != "ok" else None
-        scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-        run_recorded = True
-        alert_if_needed(trigger, status, result.n_setups, error, result.n_errored)
-        if process.returncode != 0:
-            yield f"data: ERROR: scan exited with code {process.returncode}\n\n"
-        yield "data: [DONE]\n\n"
-    except GeneratorExit:
-        # The browser disconnected mid-stream: Starlette closes this generator,
-        # which raises GeneratorExit at the current yield. It is a BaseException,
-        # so the `except Exception` below never sees it — without this handler
-        # the child kept running unsupervised past the lock release and the
-        # scan_runs row stayed 'running' forever. No yields allowed here.
-        # run_recorded guards a disconnect at the trailing yields: a run whose
-        # outcome is already written must not be relabeled 'aborted'.
-        log.warning("scan stream aborted by client disconnect (%s); terminating child", trigger)
-        _terminate_child(process)
-        if run_id is not None and not run_recorded:
-            scan_status.finish_run(run_id, status="aborted",
-                                   error="client disconnected mid-stream; child terminated")
-        raise
+        scan_status.finish_run(job.run_id, status=status, n_setups=result.n_setups, error=error)
+        alert_if_needed(job.trigger, status, result.n_setups, error, result.n_errored)
+        if job.process.returncode != 0:
+            _emit(job, f"data: ERROR: scan exited with code {job.process.returncode}\n\n")
     except Exception as exc:
-        _terminate_child(process)
-        if run_id is not None and not run_recorded:
-            scan_status.finish_run(run_id, status="failed", error=str(exc))
-        alert_if_needed(trigger, "failed", None, str(exc))
-        yield f"data: ERROR: {exc}\n\n"
-        yield "data: [DONE]\n\n"
+        _terminate_child(job.process)
+        if job.run_id is not None:
+            scan_status.finish_run(job.run_id, status="failed", error=str(exc))
+        alert_if_needed(job.trigger, "failed", None, str(exc))
+        _emit(job, f"data: ERROR: {exc}\n\n")
     finally:
+        # The route wrappers used to invalidate the screener cache in their own
+        # `finally`, which fired when the CLIENT went away rather than when the
+        # artifact was rewritten. It belongs to the job, so it lives here.
+        if job.kind == "scan":
+            _invalidate_screener_cache()
         SCAN_LOCK.release()
+        # Released BEFORE [DONE], so a reader that has seen the terminal event
+        # can rely on the lock already being free.
+        with _LIVE_COND:
+            job.events.append("data: [DONE]\n\n")
+            job.done = True
+            _LIVE_COND.notify_all()
+
+
+def _invalidate_screener_cache() -> None:
+    try:
+        from services.screener_data import invalidate_screener_cache
+
+        invalidate_screener_cache()
+    except Exception:
+        log.exception("failed to invalidate the screener cache after a scan")
+
+
+def _follow(job: LiveJob) -> Iterator[str]:
+    """Stream a live job's events to ONE client, from the beginning.
+
+    Closing this generator — the browser navigating away — does nothing to the
+    job. Replaying from index 0 is what makes re-attach work: the client derives
+    its progress readout from the lines it has seen, so a fresh reader catches up
+    to the current phase by replaying them.
+    """
+    index = 0
+    while True:
+        with _LIVE_COND:
+            while index >= len(job.events) and not job.done:
+                _LIVE_COND.wait(timeout=_FOLLOW_POLL_SECONDS)
+            batch = job.events[index:]
+            index += len(batch)
+            finished = job.done and index >= len(job.events)
+        for event in batch:
+            yield event
+        if finished:
+            return
+
+
+def _stream_process(trigger: str, args: list[str] | None = None,
+                    kind: str = "scan", job: str = "evaluation") -> Iterator[str]:
+    """Start a manual subprocess job and stream its stdout as server-sent events."""
+    global _LIVE_JOB
+
+    if not SCAN_LOCK.acquire(blocking=False):
+        yield "data: ERROR: another scan or data job is already running\n\n"
+        yield "data: [DONE]\n\n"
+        return
+
+    live = LiveJob(trigger=trigger, kind=kind, job=job)
+    with _LIVE_COND:
+        _LIVE_JOB = live
+    threading.Thread(target=_pump_job, args=(live, args),
+                     name=f"chrollo-scan-{job}", daemon=True).start()
+    yield from _follow(live)
+
+
+def active_job() -> dict | None:
+    """The manual job running right now, or None. This is the verdict a client
+    needs in order to re-attach; it never re-derives that from a status row."""
+    with _LIVE_COND:
+        live = _LIVE_JOB
+        if live is None or live.done:
+            return None
+        return {"job": live.job, "kind": live.kind, "run_id": live.run_id,
+                "trigger": live.trigger}
+
+
+def follow_active_job() -> Iterator[str]:
+    """Re-attach a client to the job already running: replay what it has printed
+    so far, then follow it live. Serves a single [DONE] when nothing is running."""
+    with _LIVE_COND:
+        live = _LIVE_JOB
+        running = live is not None and not live.done
+    if not running:
+        yield "data: [DONE]\n\n"
+        return
+    yield from _follow(live)
 
 
 def stream_manual_scan() -> Iterator[str]:
@@ -318,7 +416,8 @@ def stream_cached_evaluation() -> Iterator[str]:
 
 def stream_data_download() -> Iterator[str]:
     """Refresh market-data cache only and stream stdout as SSE."""
-    yield from _stream_process("manual_download", ["--download-only"], kind="download")
+    yield from _stream_process("manual_download", ["--download-only"],
+                               kind="download", job="download")
 
 
 def run_scheduled_scan_and_forward_returns() -> None:

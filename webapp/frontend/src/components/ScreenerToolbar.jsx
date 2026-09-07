@@ -294,18 +294,16 @@ const scanButtonStyle = (disabled) => ({
   fontSize: '12px', whiteSpace: 'nowrap', flex: '0 0 auto',
 });
 
-// Fills light enough that white ink fails contrast — these take the dark ink instead.
-const DARK_INK_FILLS = new Set(['var(--accent-active)', 'var(--warning)']);
-
 const downloadButtonStyle = (disabled, status, severity) => {
   const bg = downloadColor(status, severity);
   return {
     background: disabled ? 'var(--bg-hover)' : bg,
-    // Dark ink on the LIGHT fills (mythril, warning amber); white stays on the
-    // pink/red repair + blocked states where it reads correctly. White on
-    // --warning (#E2B255) is about 1.8:1 — unreadable — so the amber fill must
-    // take the dark treatment, not inherit the white default.
-    color: disabled ? 'var(--text-muted)' : DARK_INK_FILLS.has(bg) ? 'var(--myth-ink)' : '#fff',
+    // Dark ink on EVERY fill downloadColor can return. The old split kept white
+    // on the pink/red states "where it reads correctly" — measured, it does not:
+    // white is 2.81:1 on --accent-pink and 3.18:1 on --danger, next to 1.96:1 on
+    // --warning and 1.90:1 on --accent-active. --myth-ink clears all four
+    // (5.99 / 5.31 / 8.62 / 8.88). Pinned by utils/inkContrast.test.js.
+    color: disabled ? 'var(--text-muted)' : 'var(--myth-ink)',
     border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
     cursor: disabled ? 'not-allowed' : 'pointer',
     fontWeight: bg === 'var(--accent-active)' ? '700' : '600', transition: 'all 0.2s', fontFamily: 'inherit',

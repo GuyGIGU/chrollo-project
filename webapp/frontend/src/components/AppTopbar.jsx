@@ -1,6 +1,8 @@
 import { Fragment } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { scanStatusColor } from '../utils/appFormat';
+import { confirmLeave, shouldInterceptNavClick } from '../utils/leaveGuard';
+import { confirmDialog } from './ui/feedback';
 import IbkrModeControls from './IbkrModeControls';
 import AppearanceControl from './AppearanceControl';
 import {
@@ -29,11 +31,30 @@ const NAV_GROUPS = [
   ],
 ];
 
+// The top nav is the one funnel out of a route, so it is where the app asks
+// before discarding unsaved work. Untouched unless a surface has armed the leave
+// guard (calibration marks today), and untouched for modified/middle clicks so
+// open-in-new-tab still works.
 function NavTab({ to, end, label, Icon }) {
+  const navigate = useNavigate();
+
+  const handleClick = (event) => {
+    if (!shouldInterceptNavClick(event)) return;
+    event.preventDefault();
+    confirmLeave(message => confirmDialog({
+      title: 'Unsaved marks',
+      message,
+      confirmLabel: 'Leave and discard',
+      cancelLabel: 'Stay',
+      danger: true,
+    })).then(ok => { if (ok) navigate(to); });
+  };
+
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={handleClick}
       className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}
     >
       <Icon className="topnav-icon" />

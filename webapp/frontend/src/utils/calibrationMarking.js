@@ -47,12 +47,28 @@ export function emptyDraft() {
   };
 }
 
-export function initialMarkingState(draft = null, frameKey = null, editingId = null) {
+export function initialMarkingState(draft = null, frameKey = null, editingId = null,
+                                    pristine = true) {
   // bandAnchorPrice rides ALONGSIDE spanAnchor (which stays a bare date for
   // every tool) so a band's first corner keeps its price without making the
   // anchor polymorphic for the draw layer.
+  // `pristine` = nothing has been drawn since this draft was seated. It is what
+  // separates "unsaved work" from "a saved mark auto-loaded for correction",
+  // which carries a fully populated draft the operator has not touched — the
+  // unsaved-work guard must nag on the first and never on the second (council
+  // review 2026-09-07, finding 8).
   return { frameKey, tool: 'idle', spanAnchor: null, bandAnchorPrice: null,
-           draft: draft ?? emptyDraft(), editingId };
+           draft: draft ?? emptyDraft(), editingId, pristine };
+}
+
+// Is there work on this draft that leaving the page would destroy? Drawn
+// geometry, or a chosen negative verdict — but only once the operator has
+// actually touched the seated draft. This is the ONE condition the calibration
+// page arms its unsaved-work guard on (reload/close AND in-app navigation), so
+// the two exits can never protect different things.
+export function draftHasUnsavedWork(state) {
+  if (!state || state.pristine) return false;
+  return draftStarted(state.draft) || state.draft.verdict !== 'box';
 }
 
 // Rails snap to the clicked BAR's extreme — the operator measures wick to
@@ -288,10 +304,27 @@ function applyClick(state, { date, price, bar }) {
   return state;
 }
 
+// The reducer proper is wrapped so `pristine` is DERIVED from whether the draft
+// object actually moved, rather than remembered branch by branch — a new action
+// cannot forget to mark the draft dirty.
 export function markingReducer(state, action) {
+  const next = reduceMarking(state, action);
+  if (next === state) return state;
+  if (RESEATS.has(action.type)) return next;      // seats its own pristine
+  return next.draft === state.draft ? next : { ...next, pristine: false };
+}
+
+// Actions that SEAT a draft rather than edit the current one; each decides its
+// own pristine ('load' carries the stashed frame's, the other two start clean).
+const RESEATS = new Set(['load', 'edit-mark', 'clear']);
+
+function reduceMarking(state, action) {
   switch (action.type) {
     case 'load':
-      return initialMarkingState(action.draft, action.frameKey, action.editingId ?? null);
+      // `pristine` rides with the stashed draft: returning to a frame whose
+      // cached draft already had drawn work must resume as unsaved work.
+      return initialMarkingState(action.draft, action.frameKey, action.editingId ?? null,
+                                 action.pristine ?? true);
     case 'edit-mark':
       // A saved mark loaded for correction (EC-9: editable ground truth) —
       // the draft becomes the mark's geometry and Save turns into a PUT.

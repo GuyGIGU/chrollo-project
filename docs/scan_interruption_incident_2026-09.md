@@ -141,7 +141,7 @@ the module can stamp has no row in it:
 | `interrupted_service_only` | Re-run the scan | The dashboard restarted mid-run. |
 | `interrupted_unrecorded` | Re-run the scan | It stopped early and Windows recorded no machine-down. |
 | `interrupted_unknown` | Re-run the scan | Interrupted, cause not yet resolved. |
-| status `aborted` | Re-run the scan | You closed the page mid-run. |
+| status `aborted` | Re-run the scan | It was stopped before it finished. **Historic rows only since 2026-09-07:** closing the page used to terminate the child; a manual job now runs on its own thread and the page re-attaches to it (council review finding 4). |
 | status `stale_data` | Needs attention | A deliberate engine refusal — the prices on disk were behind, and the same run meets the same refusal. |
 | status `failed` (no interruption kind) | Needs attention | A program error / non-zero exit. |
 | anything unrecognised | Needs attention | Fails **closed**: we cannot promise a re-run fixes what we cannot explain. |
