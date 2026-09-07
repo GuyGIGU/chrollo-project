@@ -301,6 +301,20 @@ is *emergent* — the same pair wins from nearly every scan origin — so the ca
 the election converge on the same anchors. The worked example (AGCO 2026) and the
 box-start divergence record live under cascade step 4 below.
 
+**Two of those legs are read in TIME, not in bars-as-a-set (council review
+2026-09-07).** "Touches spread across the window, not clustered" and "a run of
+consecutive days outside the rails is a departure, not a poke" are both statements about
+*where on the chart* something sat and *how many trading days in a row* it lasted. When a
+framing's judgment excises bars — the deep-excursion read lifts a qualified terminal
+shakeout out of the window and judges what remains — the surviving bars keep their real
+dates: two outside days a fortnight apart are not a two-day run because the fortnight
+between them was removed from the measurement, and the window's thirds stay the thirds of
+the *chart*, not of the shortened list. Everything the same test asks as a SET (what
+share of bars respected the rails, how many touches each rail took, how the dwell and the
+coverage sit) is a question about the judged bars alone and is unaffected. The distinction
+is not cosmetic: it is the difference between a rail proven across a base and a rail
+touched once and re-read by an accident of arithmetic.
+
 **Engagement respect — tested and REJECTED as a gate; kept as a measure
 (2026-07-24, gap-breach Task 3).** The operator reads rail respect as
 *engagement* — a bar poking a bounded distance past a rail and closing back

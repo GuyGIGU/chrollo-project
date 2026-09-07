@@ -281,7 +281,7 @@ def _pack_candidate(box_width, r_touches, s_touches, coverage, total_outside,
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
                      trace=None, rescued=False, max_width=None, pool="strict",
-                     recorder=None):
+                     recorder=None, judged_mask=None):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -293,8 +293,17 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     rescued cohort stays separable all the way into the archive. ``recorder``
     is the near-miss lane's numbers-only refusal recorder (outer consultation
     seam only; None = record nothing, byte-identical).
+
+    ``judged_mask`` is supplied ONLY by the band pool, whose judged window is
+    COMPACTED (qualified excursion bars excised): the boolean mask over the
+    original window that produced these arrays. The two ADJACENCY gates —
+    the respect run and the touch thirds — measure against it, so they read
+    real trading-day neighbourhood instead of a time axis with the gaps
+    removed (council review 2026-09-07, finding 6). Strict, rescued and story
+    windows are contiguous slices and leave it None.
     """
-    stats = _respect_stats(highs, lows, R_val, S_val, atr_val)
+    stats = _respect_stats(highs, lows, R_val, S_val, atr_val,
+                           judged_mask=judged_mask)
     respected, _r_broken, _s_broken, total_outside, share = stats[:5]
     if not respected:
         if recorder is not None:
@@ -329,6 +338,7 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
         return None
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val, max_width=max_width,
+        judged_mask=judged_mask,
     )
     if not is_valid:
         if recorder is not None:
@@ -598,7 +608,9 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # that reverses CMPR's operator-accepted band election.)
     # Rails at the max-dwell close band;
     # qualified excursions (reclaim/fail-back + hold) are excised from the
-    # judged window; every gate below runs UNCHANGED on the judged bars.
+    # judged window; every gate below runs UNCHANGED on the judged bars — the
+    # two adjacency gates (respect run, touch thirds) against the judged bars'
+    # REAL positions, never the compacted array's.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace, recorder=recorder)
@@ -645,6 +657,13 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
     measurement convention — except that a pair carrying a qualified deep
     event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
     allowance; it exists only when the event does).
+
+    The excision mask rides along as ``judged_mask`` so the two gates that are
+    ADJACENCY statistics — the respect RUN cap and the touch THIRDS spread —
+    keep measuring real trading-day neighbourhood rather than the compacted
+    array's (council review 2026-09-07, finding 6). Every set statistic
+    (respect share, touch counts, dwell, coverage, crash, width) reads the
+    judged bars exactly as before.
     """
     from engine_alpha.structure.rail_qualification import qualify_pair_events
 
@@ -664,7 +683,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
             trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
-            pool="band", recorder=recorder,
+            pool="band", recorder=recorder, judged_mask=mask,
         )
         if tup is None:
             continue

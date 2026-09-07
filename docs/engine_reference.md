@@ -318,6 +318,8 @@ Flag off = byte-identical.
 
 `_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
+**The smoothing's NaN contract (council review 2026-09-07, finding 14).** `_fast_ewm` masks *every* NaN sample — leading pad or interior hole — out of the recursive filter, runs it over the valid subsequence, and scatters the results back: an unreadable bar yields an unreadable ATR at that bar and nothing more. Until 2026-09-07 only a LEADING run was masked (the `shift(1)`/`diff()` pad the docstring named); one interior NaN entered `lfilter`'s state and propagated to every later sample, so a single bad OHLC cell anywhere in a two-year frame silently deleted that ticker's whole chart read from that bar onward — every brick's `_finite(atr)` guard refused, with no counted refusal reason and a docstring that made the failure look impossible. Masking is a strict superset of the old handling (no NaN, or a leading run only, reads byte-identically), and the live pipeline's `dropna` means it moved nothing on the 248-setup payload at the fix. Known bounded residual, deliberately left: `calculate_adx`'s `np.insert(..., np.nan)` pad makes an unreadable bar's directional movement compare False and land on `0.0` — Wilder's correct convention for bar 0, a mild fabrication for an interior hole; re-typing it would move ADX on every ticker for a case the pipeline already drops.
+
 ### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
 
 Before per-ticker workers fan out, the orchestrator computes two scalars once and pickles them into every worker:
@@ -643,7 +645,32 @@ keyed on overshoot magnitude.
      qualified DEEP below-rail event (multi-bar, beyond S − 2×buffer) may
      measure up to `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance
      exists only with the event, so it can never act as a general width
-     loosening. The respect gate is untouched. The qualified deep event also
+     loosening. **The judged bars keep their REAL positions (council review
+     2026-09-07, finding 6).** The excision mask rides into `_build_candidate`
+     as `judged_mask`, because two of those gates are ADJACENCY statistics
+     rather than set statistics: the respect RUN cap ("N consecutive trading
+     days outside the buffered rails" — the DEPARTURE defence) and the touch
+     THIRDS spread ("touches spread across the window, not clustered"). Judged
+     on the compacted array they read a time axis with the excursion gaps
+     removed — bars weeks apart become neighbours, and the thirds boundaries
+     stop falling on the window's own calendar thirds. Both now measure
+     against the original window: an excised excursion ENDS an outside run
+     instead of welding two together, and the thirds are cut on the full span.
+     Every SET statistic (respect share, touch counts, dwell, coverage, crash,
+     width) still reads the judged bars exactly as before, and every
+     contiguous-window pool (strict / rescued / story) passes no mask and is
+     byte-identical. The near-miss margin mirror
+     (`gate_margins.complete_leg_vector`) threads the same mask so it cannot
+     report a leg the gate never measured. *Measured at the fix over the live
+     248-setup payload:* 247 setups read byte-identically (rail immobility
+     0 violations, every Reading-Model invariant held), the marks ratchet held
+     28/33 with every expected miss still missing, and the reader pin was
+     zero-diff. ONE election moved — **LIVN** (band framing 83.98/77.71, a
+     50-bar window with 4 bars excised): its R-rail touches all sit inside the
+     window's real FIRST third, and only compaction had spread them across two
+     (`r_touch_thirds` 2 → 1 against the floor of 2), so the framing now dies
+     at the anti-clustering leg and LIVN reads no structure. The other seven
+     band elections are unchanged. The respect gate is untouched. The qualified deep event also
      feeds Phase C as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated
      spring detector finds nothing (see the Phase C bin note). Harness proof
      at the marks (2026-07-16, flag-on variant): BODI fires tier A at the

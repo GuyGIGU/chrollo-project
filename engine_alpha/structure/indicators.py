@@ -7,18 +7,31 @@ from scipy.signal import lfilter
 
 
 def _fast_ewm(x, period):
-    """Extremely fast Exponential Weighted Moving Average using IIR filter."""
+    """Extremely fast Exponential Weighted Moving Average using IIR filter.
+
+    NaN contract: every NaN sample — leading pad or interior hole — is masked
+    OUT of the recursive filter, which runs over the valid subsequence and
+    scatters its results back onto those positions. A NaN input bar therefore
+    yields a NaN output bar (honest: no measurement where there is no data)
+    and NOTHING else. It does NOT leak forward.
+
+    Before 2026-09-07 only a LEADING NaN run was masked (the ``diff()`` pad the
+    docstring named); one interior NaN entered ``lfilter``'s state and poisoned
+    every later sample, so a single bad OHLC cell anywhere in a two-year frame
+    silently deleted that ticker's whole chart read from that bar onward — the
+    downstream ``_finite(atr)`` brick guards then refused everything with no
+    counted reason (council review 2026-09-07, finding 14). Masking is a strict
+    superset of the old handling: with no NaN, or a leading run only, the valid
+    subsequence IS the old slice and the output is byte-identical.
+    """
     x_arr = np.asarray(x, dtype=float)
     isnan = np.isnan(x_arr)
     if isnan.any():
-        # Handle nan padding from pandas (like diff() prepending nans)
-        # Find first valid index
-        valid_idx = np.where(~isnan)[0]
+        valid_idx = np.flatnonzero(~isnan)
         if len(valid_idx) == 0:
             return x_arr
-        first_valid = valid_idx[0]
         y = np.full_like(x_arr, np.nan)
-        y[first_valid:] = _fast_ewm_valid(x_arr[first_valid:], period)
+        y[valid_idx] = _fast_ewm_valid(x_arr[valid_idx], period)
         return y
     return _fast_ewm_valid(x_arr, period)
 
@@ -43,7 +56,14 @@ def _true_range(df):
 
 
 def calculate_atr(df, period=14):
-    """Average True Range using Wilder's exponential smoothing."""
+    """Average True Range using Wilder's exponential smoothing.
+
+    A missing OHLC cell makes True Range NaN at that bar (and at the next, via
+    the shifted Close), and ``_fast_ewm``'s mask keeps the NaN THERE: the ATR
+    series resumes on the next readable bar instead of dying to the right edge
+    (council review 2026-09-07, finding 14). Callers keep their own
+    ``_finite(atr)`` guards — a NaN ATR is still a refusal, just a local one.
+    """
     tr = _true_range(df)
     atr = _fast_ewm(tr, period)
     return pd.Series(atr, index=df.index)
@@ -176,7 +196,18 @@ def trend_template(df, *, dist_52w_high_pct=None) -> dict:
 
 
 def calculate_adx(df, period=14):
-    """Average Directional Index using Wilder's smoothing."""
+    """Average Directional Index using Wilder's smoothing.
+
+    Shares ``_fast_ewm``, so it inherits the same NaN contract: a missing OHLC
+    cell reads NaN in ATR, then in +DI/-DI, then in DX, and the final smoothing
+    masks that bar out rather than carrying the NaN to the right edge (council
+    review 2026-09-07, finding 14). Known bounded residual, deliberately NOT
+    changed here: the ``np.insert(..., np.nan)`` pad makes the directional
+    movement of an unreadable bar compare False and land on 0.0 — Wilder's
+    correct convention for bar 0 ("no previous bar"), a mild fabrication for an
+    interior hole. Re-typing it would move ADX on every ticker, and the live
+    pipeline drops incomplete rows before evaluation.
+    """
     high = df['High'].values
     low = df['Low'].values
 

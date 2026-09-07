@@ -189,12 +189,23 @@ def _max_excursion_atr(above_r, below_s, highs, lows, r_ceiling, s_floor,
     return worst / float(atr_val)
 
 
-def _respect_stats(highs, lows, R_val, S_val, atr_val):
+def _respect_stats(highs, lows, R_val, S_val, atr_val, judged_mask=None):
     """The respect gate's full statistics in ONE pass — the legacy verdict
     tuple plus the consecutive-run maxima it always computed and used to
     discard (near-miss lane Task 3: the run maximum is the respect_run leg's
     measured statistic; margin telemetry reads it from here instead of a
     second O(n) pass).
+
+    ``judged_mask`` carries the band pool's real TIME AXIS: a boolean mask over
+    the candidate's ORIGINAL window whose True positions are, in order, the rows
+    of the excision-compacted ``highs``/``lows`` handed in. The consecutive-run
+    maxima are ADJACENCY statistics — the DEPARTURE defence reads "N consecutive
+    trading days outside the rails" — so a run may only span bars that really
+    were neighbours; an excised excursion between two outside bars ENDS the run
+    rather than welding them together (council review 2026-09-07, finding 6).
+    The outside COUNT and the respect share are set statistics over the judged
+    bars and do not move. Left None — every non-band caller — the axis is the
+    array itself, byte-identical to the pre-2026-09-07 read.
 
     Returns:
         (respected, r_broken, s_broken, total_outside_days, respect_share,
@@ -220,9 +231,17 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
         ends = np.flatnonzero(d == -1)
         return int((ends - starts).max()) if len(starts) > 0 else 0
 
-    max_consec = _max_consecutive(outside)
-    r_consec_max = _max_consecutive(above_r)
-    s_consec_max = _max_consecutive(below_s)
+    def _on_time_axis(mask):
+        """The mask re-scattered onto the original window (excised bars False)."""
+        if judged_mask is None:
+            return mask
+        full = np.zeros(len(judged_mask), dtype=bool)
+        full[judged_mask] = mask
+        return full
+
+    max_consec = _max_consecutive(_on_time_axis(outside))
+    r_consec_max = _max_consecutive(_on_time_axis(above_r))
+    s_consec_max = _max_consecutive(_on_time_axis(below_s))
 
     respect_pct = 1.0 - (total_outside / n)
     max_outside = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
@@ -294,7 +313,8 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
     return n
 
 
-def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
+def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None,
+                             judged_mask=None):
     """Legacy close-residence occupancy for box-of-record selection.
 
     Public ``measure_dwell_balance`` now reports High/Low range occupancy for
@@ -306,6 +326,12 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     ``_rail_touch_thirds`` result for this exact (window, rails, ATR) — the
     measurement-side caller (``measure_gate_margins``) shares it with its
     sibling reads; every election-side caller leaves it None.
+
+    ``judged_mask`` is the band pool's real time axis, forwarded to
+    ``_rail_touch_thirds`` so the touch-THIRDS (an adjacency statistic) are cut
+    on the original window rather than the compacted one — see that function.
+    The dwell trio and the coverage read are set statistics over the judged
+    bars and are unaffected either way.
     """
     empty = {
         "r_touches": 0, "s_touches": 0,
@@ -327,7 +353,8 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     n = len(closes)
 
     if rail_touches is None:
-        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val)
+        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val,
+                                          judged_mask=judged_mask)
     r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
 
     # Counts are the ground truth; the judged fractions derive from them
@@ -403,7 +430,8 @@ def _dwell_bar_basis(eq_df, R_val, S_val):
             round(float(np.mean(eng_u)), 4))
 
 
-def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
+def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None,
+                           judged_mask=None):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
     REAL trading range only if price respects, touches, and zigzags through BOTH
@@ -425,6 +453,10 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     widest BC->AR framing win (a wide box mechanically racks up crosses while a
     one-time AR low leaves dead space beneath the real range).
 
+    ``judged_mask`` is the band pool's real time axis, forwarded to the
+    close-residence read so the touch-THIRDS leg is cut on the original window
+    (see ``_rail_touch_thirds``); every other leg here is a set statistic.
+
     Returns:
         (r_touches, s_touches, eq, is_valid)  where eq is the close-residence
         dict (None when rejected on width/crash before measuring).
@@ -440,7 +472,8 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
         return 0, 0, None, False
 
-    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
+    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val,
+                                  judged_mask=judged_mask)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
     is_valid = (
