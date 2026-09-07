@@ -1363,7 +1363,13 @@ DASHBOARD_CHART_MONTHS = 60          # Max monthly candles per higher-timeframe 
 # ============================================================
 # The backend scheduler runs in America/New_York time, after the regular US
 # close so yfinance has time to publish the completed daily bar.
-SCAN_SCHEDULE_HOUR_ET = 18
+# 17:00 ET is 00:00 in the operator's local time (Israel), chosen 2026-09-07 so the
+# ~17-minute run finishes well before his habitual 01:00-02:00 local power-off, which
+# had been killing the scan mid-flight. Do NOT move this earlier than 16:30 ET without
+# first measuring the provider: the close is 16:00 ET and SESSION_FINALIZATION_MARGIN_MINUTES
+# (30) means 16:30 is the FIRST instant today's bar counts as final, so 16:30 has zero
+# slack and a minute earlier silently scans YESTERDAY's session instead.
+SCAN_SCHEDULE_HOUR_ET = 17
 SCAN_SCHEDULE_MINUTE_ET = 0
 FORWARD_RETURNS_MIN_AGE_DAYS = 5
 ALERT_WEBHOOK_URL_ENV = "ALERT_WEBHOOK_URL"

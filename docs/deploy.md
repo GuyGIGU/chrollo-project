@@ -204,8 +204,8 @@ local folder (a cloud-synced one like OneDrive is fine — the sync client uploa
 ## 4b. Schedule Forward-Return Maturation (backend-independent tick)
 
 The scheduled scan runs *inside* the ChrolloDashboard service (in-process APScheduler,
-weekdays 18:00 ET) and backfills forward returns in the same job. That is fine while the
-service is up — but if the service is down or the PC is off at 18:00 ET, that day's
+weekdays 17:00 ET) and backfills forward returns in the same job. That is fine while the
+service is up — but if the service is down or the PC is off at 17:00 ET, that day's
 maturation never ticks, and archived setups stall one bar short of maturing. Because the
 maturation record is what proves the engine's edge, add a **second, backend-independent**
 nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
