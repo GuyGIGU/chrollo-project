@@ -192,3 +192,69 @@ def test_atomic_write_retries_transient_permission_error(tmp_path, monkeypatch):
 
     assert calls["n"] == 3
     assert json.loads(meta_file.read_text(encoding="utf-8"))["price_series"] == "as_traded"
+
+
+# ---- #5 index-less universe (commodities_etf declares no regime symbols) ----
+def test_cold_fetch_persists_index_less_universe_at_full_coverage(tmp_path, monkeypatch):
+    # commodities_etf carries index_symbols=(). "Every named index closed" is vacuously
+    # true when nothing is named, but has_all_closes_on keys on total > 0, so the empty
+    # list read as MISSING index closes and the cold write was refused on 24 consecutive
+    # nights from 2026-08-26 — each one reaching 29/29 (100.0%) coverage. Nothing
+    # persisted also means price_series is never stamped, so the regime guard then
+    # refused evaluation and archiving on the meta the failure left behind.
+    expected = pd.Timestamp("2026-06-18")
+    panel = _panel(
+        {"GLD": [180.0, 181.0], "SLV": [30.0, 30.4], "USO": [70.0, 70.9]},
+        ["2026-06-17", expected],
+    )
+    monkeypatch.setattr(dl, "_full_refetch", lambda symbols: panel.copy())
+    monkeypatch.setattr(dl.settings, "QUARANTINE_ENABLED", False, raising=False)
+    monkeypatch.setattr(dl.settings, "TICKER_ADMISSION_ENABLED", False, raising=False)
+
+    cache_file = tmp_path / "cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    out = dl._cold_fetch(
+        str(cache_file), str(meta_file), {}, None,
+        _scope(tmp_path, ["GLD", "SLV", "USO"], []),   # <- no regime symbols
+        expected, 0.95, time.time(),
+    )
+
+    assert not out.empty
+    assert cache_file.exists()                              # panel actually persisted
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["price_series"] == dl._price_regime()       # regime stamped -> eval allowed
+    assert "last_cold_failure" not in meta                  # success path, not the refusal
+
+
+def test_cold_fetch_still_refuses_when_a_declared_index_close_is_missing(tmp_path, monkeypatch):
+    # The other half of the fix: a universe that DOES declare a regime symbol must still
+    # fail when that symbol has no close on the expected session. min_latest_coverage is
+    # deliberately slack (0.5) so the whole-universe ratio (4/5 = 80%) passes on its own
+    # and the index-close branch is the only thing that can refuse this run.
+    expected = pd.Timestamp("2026-06-18")
+    panel = _panel(
+        {
+            "AAA": [10.0, 11.0],
+            "BBB": [20.0, 21.0],
+            "CCC": [30.0, 31.0],
+            "DDD": [40.0, 41.0],
+            "SPY": [100.0, float("nan")],   # index missing the expected session's close
+        },
+        ["2026-06-17", expected],
+    )
+    monkeypatch.setattr(dl, "_full_refetch", lambda symbols: panel.copy())
+    monkeypatch.setattr(dl.settings, "QUARANTINE_ENABLED", False, raising=False)
+    monkeypatch.setattr(dl.settings, "TICKER_ADMISSION_ENABLED", False, raising=False)
+
+    cache_file = tmp_path / "cache.parquet"
+    meta_file = tmp_path / "cache_meta.json"
+    dl._cold_fetch(
+        str(cache_file), str(meta_file), {}, None,
+        _scope(tmp_path, ["AAA", "BBB", "CCC", "DDD", "SPY"], ["SPY"]),
+        expected, 0.5, time.time(),
+    )
+
+    assert not cache_file.exists()                          # panel NOT persisted
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert "price_series" not in meta                       # regime never stamped
+    assert meta["last_cold_failure"]["kind"] == "coverage"  # refusal recorded

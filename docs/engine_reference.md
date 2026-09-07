@@ -160,6 +160,38 @@ were pathological, and each is now bounded:
   strand itself, and a human asking for data outranks the ledger: the download-only job
   clears it **immediately before contacting the provider**, not at the top of the request,
   so the override is not spent by the three branches that return without fetching.
+
+  **The same loop, from the opposite cause: an index-less universe.** `_cold_fetch`'s gate
+  is *index closes present* **and** *coverage ≥ `MARKET_DATA_MIN_LATEST_COVERAGE`*, and
+  `has_all_closes_on()` answers `present == total and total > 0`. `commodities_etf` declares
+  `index_symbols=()` — there is no SPY/QQQ to anchor a commodity/thematic panel — so the
+  empty list made `total == 0` read as *index closes missing*, and the run was refused at
+  **100 % coverage**: measured 24 consecutive nights from 2026-08-26, each logging
+  `29/29 (100.0%) … keeping existing cache if possible`. The absent-session ledger cannot
+  brake this one, because coverage was perfect, not zero. And because
+  `_write_unhealthy_cold_result` persists nothing, `price_series` — stamped only by
+  `_write_successful_cold_result` / `_write_incremental_result` — never appeared in
+  `cache_meta_commodities_etf.json`, so the **regime guard** then read the default
+  `div_adjusted` against an `as_traded` setting and refused evaluation *and* archiving from
+  a cache that had never been written at all. One universe, permanently un-scannable, on a
+  clean run.
+  The gate now treats an empty index set as **vacuously satisfied** — the convention
+  `deep_history_ratio()` already documents next door ("returns 1.0 when there is nothing to
+  judge"). Judged at the `_cold_fetch` call site, deliberately **not** by loosening
+  `has_all_closes_on()`: that helper also backs `last_complete_reference_date()` ("the last
+  session on which the *reference set* was complete"), where `None` is a truthful can't-judge
+  its callers already handle explicitly — with an `or cached.index.max()` fallback in
+  `_cache_status` / `_incremental_fetch`, and with the index-less carve-out in
+  `compute_market_data_health()` that solved this identical problem on the health side. A
+  universe that *does* declare index symbols still fails when one of them lacks the close;
+  both halves are mutation-proved in `tests/test_download_integrity.py`.
+  No migration is needed: the first healthy cold write stamps `price_series` and rebuilds
+  `meta` from scratch, dropping `last_cold_failure` and the absent-session ledger with it.
+
+  Still index-blind by the same `total > 0` reading, and left alone as out of scope:
+  `_incremental_fetch`'s two coverage gates and `_try_fresh_cache`'s reference-date check.
+  For an index-less universe those only cost a fall-through to the (now-working) cold path
+  on a 29-symbol download — a wart, not a block.
 - **The latest-session repair ran anyway.** `_repair_latest_session()` saw every symbol
   missing and chunked ~5,500 of them into 55 serial batches. When more than
   `LATEST_REPAIR_MAX_MISSING_FRACTION` of symbols lack the close the cause is the session,

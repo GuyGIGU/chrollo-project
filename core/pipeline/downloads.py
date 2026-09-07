@@ -1129,8 +1129,20 @@ def _cold_fetch(
         dropout_guard=True,
     )
     coverage = close_coverage_on(data, scope.tickers_with_indexes, expected_session)
-    if (not has_all_closes_on(data, scope.index_symbols, expected_session)
-            or coverage.ratio < min_latest_coverage):
+    # Index-less universe (commodities_etf declares no regime symbols): "every named
+    # index closed" is vacuously true when nothing is named. has_all_closes_on keys on
+    # present == total AND total > 0, so an empty list reads as MISSING index closes and
+    # the cold write is refused forever — measured 24 consecutive nights from 2026-08-26,
+    # each reaching 29/29 (100.0%) coverage and still discarded. Because the panel is
+    # never persisted, price_series is never stamped either, so the regime guard then
+    # refuses evaluation and archiving on the meta the failure left behind. Judged HERE
+    # rather than by loosening has_all_closes_on: that helper also backs
+    # last_complete_reference_date ("the last day the reference set was complete"), where
+    # None is a truthful can't-judge its callers already handle explicitly — see the
+    # index-less carve-out in market_data_health.compute_market_data_health.
+    index_closes_ok = (not scope.index_symbols
+                       or has_all_closes_on(data, scope.index_symbols, expected_session))
+    if not index_closes_ok or coverage.ratio < min_latest_coverage:
         return _write_unhealthy_cold_result(
             data, cached, meta_file, meta, scope, coverage, expected_session,
             min_latest_coverage, started_at
