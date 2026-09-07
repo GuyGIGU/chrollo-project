@@ -20,7 +20,8 @@ _scheduler: BackgroundScheduler | None = None
 # service mid-restart) at the slot time silently LOSES that run. With hours of
 # grace, a wake/late tick still fires the missed job. This covers "process
 # alive but couldn't fire on time"; a process that was fully DOWN at slot time
-# has no job memory at all — that case is covered by the boot catch-up below.
+# has no job memory at all, and a scan killed mid-flight leaves only a 'failed'
+# row — both of those are covered by the boot catch-up below.
 MISFIRE_GRACE_SECONDS = 4 * 3600
 
 
@@ -29,40 +30,62 @@ def is_running() -> bool:
     return bool(_scheduler and _scheduler.running)
 
 
-def _missed_todays_slot(now: datetime, latest_started_at: str | None,
-                        hour: int, minute: int) -> bool:
-    """True when today's weekday scan slot has already passed and no scan run
-    was recorded at/after it — i.e. the service was down (or the machine off)
-    at slot time and the night's scan was lost. Pure (no I/O) for testability;
-    ``now`` must be timezone-aware in the scheduler's America/New_York tz."""
-    if now.weekday() >= 5:  # Sat/Sun: no slot today (cron is mon-fri)
-        return False
+def _last_weekday_slot(now: datetime, hour: int, minute: int) -> datetime:
+    """The most recent weekday scan slot at/before ``now``: today's if it has
+    already passed, otherwise the previous weekday's. The cron is mon-fri, so a
+    weekend boot looks back at Friday's slot. Pure; ``now`` must be
+    timezone-aware in the scheduler's America/New_York tz."""
     slot = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if now < slot:
-        return False  # today's slot is still ahead; the cron will handle it
-    if not latest_started_at:
-        return True
+    if slot > now:
+        slot -= timedelta(days=1)
+    while slot.weekday() >= 5:  # Sat/Sun have no slot — step back to Friday
+        slot -= timedelta(days=1)
+    return slot
+
+
+def _started_at_or_after(started_at: str | None, slot: datetime) -> bool:
+    """True when a run's ``started_at`` (UTC ISO, as scan_status writes it) is
+    at/after ``slot``. An absent or unparseable stamp cannot vouch for the slot."""
+    if not started_at:
+        return False
     try:
-        started = datetime.fromisoformat(latest_started_at)
-    except ValueError:
-        return True
-    if started.tzinfo is None:
+        started = datetime.fromisoformat(started_at)
+    except (TypeError, ValueError):
+        return False
+    if started.tzinfo is None:  # legacy rows may lack tzinfo; they were UTC
         started = started.replace(tzinfo=timezone.utc)
-    return started < slot
+    return started >= slot
+
+
+def _missed_last_weekday_slot(now: datetime, runs: list[dict],
+                              hour: int, minute: int) -> bool:
+    """True when the most recent weekday scan slot has no SUCCESSFUL scan run
+    at/after it — the service was down (or the machine off) at slot time, or a
+    scan started and died mid-flight. Only status 'ok' vouches for the slot;
+    'failed', 'aborted', 'stale_data' and a total absence of runs all count as
+    missed. ``runs`` is scan_status.recent_runs(kind='scan') — the newest rows
+    are enough because only runs at/after the slot can vouch for it. Pure (no
+    I/O) for testability; ``now`` must be timezone-aware in America/New_York."""
+    slot = _last_weekday_slot(now, hour, minute)
+    return not any(
+        run.get("status") == "ok" and _started_at_or_after(run.get("started_at"), slot)
+        for run in runs
+    )
 
 
 def _schedule_boot_catchup(scheduler: BackgroundScheduler, hour: int, minute: int,
                            tz: ZoneInfo) -> None:
-    """If the service boots after today's slot with no run recorded, run the
-    missed scan once, shortly after boot. Never blocks scheduler start."""
+    """If the service boots with the last weekday slot unserved, run the missed
+    scan once, shortly after boot. Never blocks scheduler start."""
     try:
-        latest = scan_status.latest_run(kind="scan")
-        started_at = latest.get("started_at") if latest else None
-        if not _missed_todays_slot(datetime.now(tz), started_at, hour, minute):
+        now = datetime.now(tz)
+        runs = scan_status.recent_runs(limit=20, kind="scan")
+        if not _missed_last_weekday_slot(now, runs, hour, minute):
             return
         log.warning(
-            "boot catch-up: today's %02d:%02d ET scan slot passed with no run "
-            "recorded — scheduling the missed scan", hour, minute,
+            "boot catch-up: the %s %02d:%02d ET scan slot has no successful run "
+            "— scheduling the missed scan",
+            _last_weekday_slot(now, hour, minute).date().isoformat(), hour, minute,
         )
         scheduler.add_job(
             run_scheduled_scan_and_forward_returns,
