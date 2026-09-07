@@ -100,7 +100,7 @@ test('the scan verdict set is closed, two-valued, and wears operator words', () 
     Object.keys(RUN_VERDICT_LABELS).sort());
   // Each state is named for the ACTION it implies, and neither leaks its slug.
   assert.equal(RUN_VERDICT_LABELS.rerunnable, 'Re-run the scan');
-  assert.equal(RUN_VERDICT_LABELS.needs_attention, 'Needs attention');
+  assert.equal(RUN_VERDICT_LABELS.needs_attention, 'Needs Claude');
   for (const [slug, label] of Object.entries(RUN_VERDICT_LABELS)) {
     assert.ok(!label.includes('_'), `wire slug leaked into "${label}"`);
     assert.ok(!label.toLowerCase().includes(slug));

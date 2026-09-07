@@ -192,7 +192,7 @@ export const PHASE_NAMES = {
 // than blank (an older backend that has not been restarted yet).
 export const RUN_VERDICT_LABELS = {
   rerunnable: 'Re-run the scan',
-  needs_attention: 'Needs attention',
+  needs_attention: 'Needs Claude',
 };
 
 export const RUN_VERDICT_TONES = {
