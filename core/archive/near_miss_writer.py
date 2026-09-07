@@ -115,7 +115,11 @@ def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
     seen: set = set()
     deduped: list[dict] = []
     for row in rows:
-        key = (row["ticker"], universe_type, row["r_level"], row["s_level"],
+        # The framing identity is the ANCHOR DATES, never the rail prices —
+        # a price splits one framing into two rows on 4dp float noise and on
+        # every corporate action (council review 2026-09-07 finding 5). The
+        # sort above makes which of a colliding pair survives deterministic.
+        key = (row["ticker"], universe_type,
                row["r_anchor_date"], row["s_anchor_date"])
         if key in seen:
             counters["dedup_dropped"] += 1
@@ -157,9 +161,9 @@ def archive_near_miss_rows(rows: list[dict], *, universe_type: str,
     session.autoflush = False
     try:
         for row in capped:
+            # EC-4: the existence probe uses the SAME key as the constraint.
             existing = session.query(NearMissArchive).filter_by(
                 ticker=row["ticker"], universe_type=universe_type,
-                r_level=row["r_level"], s_level=row["s_level"],
                 r_anchor_date=row["r_anchor_date"],
                 s_anchor_date=row["s_anchor_date"],
             ).one_or_none()

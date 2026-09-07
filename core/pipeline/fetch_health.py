@@ -30,6 +30,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 
 from config import settings
+from core.pipeline.cache import atomic_write_json
 
 
 def _now() -> datetime:
@@ -61,13 +62,13 @@ def load_quarantine(path: str) -> dict:
 
 
 def save_quarantine(path: str, store: dict) -> None:
-    # PID-suffixed temp (matches cache._write_meta): the ledger is shared by all
-    # three universes, and two writers sharing one fixed '.tmp' can tear the
-    # JSON — load then fails open to {}, silently resetting quarantine state.
-    tmp = f"{path}.{os.getpid()}.tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(store, f, indent=2, sort_keys=True)
-    os.replace(tmp, path)
+    # The shared atomic-JSON primitive (EC-3), NOT a hand-rolled copy of it: the
+    # ledger is shared by all three universes, two writers sharing one fixed
+    # '.tmp' can tear the JSON (load then fails open to {}, silently resetting
+    # quarantine state), and this write sits between the parquet write and the
+    # meta write, so a bare os.replace losing the Windows PermissionError retry
+    # aborts a cold run with the cache and its metadata already disagreeing.
+    atomic_write_json(path, store, sort_keys=True)
 
 
 # ------------------------------------------------------------------

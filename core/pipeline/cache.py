@@ -54,14 +54,28 @@ def _replace_with_retry(tmp: str, path: str, attempts: int = 25, wait_s: float =
             time.sleep(wait_s)
 
 
-def _write_meta(meta_path: str, meta: dict) -> None:
-    # PID-suffixed temp so two processes writing the same meta can't share one
-    # .tmp and tear each other's write (the cross-process cache_lock serializes
-    # the real window; this is belt-and-suspenders for the os.replace target).
-    tmp = f'{meta_path}.{os.getpid()}.tmp'
+def atomic_write_json(path: str, payload, *, sort_keys: bool = False,
+                      allow_nan: bool = True) -> None:
+    """The ONE atomic JSON write for the fetch path (EC-3).
+
+    PID-suffixed temp so two processes writing the same file can't share one
+    .tmp and tear each other's write (the cross-process cache_lock serializes
+    the real window; this is belt-and-suspenders for the os.replace target),
+    then :func:`_replace_with_retry` so the Windows PermissionError a concurrent
+    reader raises cannot abort a multi-minute download at its final step. The
+    cache meta and both ledger sidecars route through here, so every JSON write
+    in the fetch path carries the same hardening — the retry used to live on the
+    meta write alone, and the two sidecars that sit between the parquet write
+    and the meta write had a bare ``os.replace``.
+    """
+    tmp = f'{path}.{os.getpid()}.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(to_json_safe(meta), f, indent=2, allow_nan=False)
-    _replace_with_retry(tmp, meta_path)
+        json.dump(payload, f, indent=2, sort_keys=sort_keys, allow_nan=allow_nan)
+    _replace_with_retry(tmp, path)
+
+
+def _write_meta(meta_path: str, meta: dict) -> None:
+    atomic_write_json(meta_path, to_json_safe(meta), allow_nan=False)
 
 
 def _now_iso() -> str:

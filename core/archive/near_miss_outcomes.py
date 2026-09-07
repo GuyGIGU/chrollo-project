@@ -112,6 +112,7 @@ def update_near_miss_outcomes(min_age_days: int = 5,
             spy_df = pd.DataFrame()
 
         updated = 0
+        unknown_scale = 0
         for ticker, ticker_rows in by_ticker.items():
             try:
                 df = _ticker_frame(raw, ticker)
@@ -154,7 +155,16 @@ def update_near_miss_outcomes(min_age_days: int = 5,
                 n = min(len(highs), HORIZON_BARS)
                 hit = next((i for i in range(n) if highs[i] >= trigger), None) \
                     if trigger is not None else None
-                if hit is not None:
+                if scale is None:
+                    # UNKNOWN price scale: the stored would-be trigger cannot be
+                    # placed on the fresh series, so the touch is unknowable. It
+                    # must NOT fall through to the matured branch below — that
+                    # would record an affirmative "never triggered" for a row
+                    # whose trigger may be an order of magnitude off.
+                    unknown_scale += 1
+                    row.triggered = None
+                    row.trigger_date = None
+                elif hit is not None:
                     row.triggered = 1
                     row.trigger_date = str(fwd.index[hit])[:10]
                 elif (elapsed.get("bars_to_date") or 0) >= HORIZON_BARS:
@@ -167,6 +177,10 @@ def update_near_miss_outcomes(min_age_days: int = 5,
 
         session.commit()
         log.info("Updated near-miss outcomes for %d rows.", updated)
+        if unknown_scale:
+            log.warning("  %d near-miss row(s) had an unexplainable price scale; "
+                        "their trigger columns were left NULL rather than recorded "
+                        "as never-triggered.", unknown_scale)
         return updated
     finally:
         session.close()

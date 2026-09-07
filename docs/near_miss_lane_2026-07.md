@@ -374,3 +374,36 @@ First live cohort: the next scheduled scan. Review surface:
 had its 5 sessions). The §6 cost levers (TOP_K cut, early-exit completion
 sized at 335-of-431) stay on the shelf — pull only if the live scan wall
 actually hurts.
+
+## §9 The archive identity loses its rail prices — 2026-09-07 (council finding 5)
+
+The R-EPISODE ruling of §5 axis 3 — *one row per framing identity, re-observations
+bump the counters and never the record* — was implemented with a key that could
+not hold it: `uq_near_miss_framing_identity` was `(ticker, universe_type,
+r_level, s_level, r_anchor_date, s_anchor_date)`, both rails FLOAT at 4dp. A
+price is the wrong TYPE for an identity twice over.
+
+**Measured on the live archive, 2026-09-07 (1,483 rows):** 4 duplicate groups,
+every one of them APH. One is the pure float-noise split — `s_level` 77.68 versus
+77.6801, one drawn structure minted as two episodes. All four are exact 2× rail
+pairs: APH's 2-for-1 split re-minted **every** one of its framings as a brand-new
+episode, with `first_seen` jumping forward and the forward-return clock restarting
+from zero. Zero legitimately distinct framings shared a pair of anchor dates.
+
+**The key is now `(ticker, universe_type, r_anchor_date, s_anchor_date)`.** That
+is safe because the anchors *determine* the rails: `box_primitives._oriented_pairs`
+yields each rail together with the zigzag pivot bar it is read from, so within a
+panel two framings sharing both anchor bars are the same box — and unlike the
+price, a date survives a re-scaling of the panel. `r_level` / `s_level` stay as
+first-refusal EVIDENCE and are **not** re-stamped on a re-observation: that is the
+ruling's "never the record", and re-stamping would leave the rails on a newer
+price scale than `would_be_trigger` / `scan_close`, which the maturation pass
+rescales from.
+
+Landed as `services/startup.migrate_near_miss_framing_identity` — the
+`migrate_universe_type` recipe (WAL checkpoint + file backup → transactional
+rename/create/copy/drop, idempotent, fail-closed). The copy dedupes to the new
+key, keeping each group's EARLIEST-`first_seen` row whole and folding only
+`last_seen` (max), `nights_seen` (sum) and `fired_any_night` (max) across it, so
+the forward clock lands back on the first refusal where §5 put it. The writer's
+existence probe was narrowed to the same key in the same change (EC-4).

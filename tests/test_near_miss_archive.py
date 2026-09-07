@@ -38,10 +38,14 @@ _MARGINS = {"width": 0.17, "respect_share": 1, "respect_run": 9,
             "coverage": 1, "traversal_count": 0, "traversal_density": 0.02}
 
 
-def _row(ticker="EGBN", scan_date="2026-01-15", fired=0, r=25.0, s=22.5):
+def _row(ticker="EGBN", scan_date="2026-01-15", fired=0, r=25.0, s=22.5,
+         r_anchor="2025-12-01", s_anchor="2025-12-08"):
+    # The framing identity is the ANCHOR DATES (council review 2026-09-07
+    # finding 5), so a SECOND framing on one ticker is expressed by moving the
+    # anchors — moving only the rails names the same box.
     return {"ticker": ticker, "scan_date": scan_date, "r_level": r,
-            "s_level": s, "r_anchor_date": "2025-12-01",
-            "s_anchor_date": "2025-12-08", "window_start_date": "2025-12-01",
+            "s_level": s, "r_anchor_date": r_anchor,
+            "s_anchor_date": s_anchor, "window_start_date": "2025-12-01",
             "window_end_date": scan_date, "pool": "strict",
             "kill_stage": "occupancy", "failing_leg": "occupancy",
             "judged_n": 28, "fired_night": fired,
@@ -134,7 +138,8 @@ def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     # the same drop set as any other arrival order.
     rows = [_row(),                                           # EGBN — sorts past the global 2
             _row(ticker="BBB", r=12.0, s=11.0),
-            _row(ticker="AAA", r=13.0, s=12.0),               # AAA's 2nd framing
+            _row(ticker="AAA", r=13.0, s=12.0,                # AAA's 2nd framing
+                 r_anchor="2025-12-15", s_anchor="2025-12-22"),
             _row(ticker="AAA", r=11.0, s=10.0),
             _row(ticker="AAA", r=11.0, s=10.0)]               # exact duplicate
     counters = nmw.archive_near_miss_rows(rows, universe_type="us_equities",

@@ -282,6 +282,9 @@ def initialize_database() -> None:
     migrate_universe_type(engine)
     # Non-additive one-off: watchlist ticker-PK -> dated event ledger (rebuild).
     migrate_watchlist_ledger(engine)
+    # Non-additive one-off: take the rail PRICES out of the near-miss episode
+    # identity (rebuild + dedupe to the date-anchored framing key).
+    migrate_near_miss_framing_identity(engine)
     # Non-additive, self-renewing: widen the drawn-event vocabulary / add its
     # columns (the calibration tables are not in _MIGRATED_ARCHIVE_MODELS, so the
     # ADD-only pass below can never reach them).
@@ -575,6 +578,172 @@ def migrate_watchlist_ledger(bind) -> bool:
         _log.exception(
             "watchlist ledger migration failed; rolling back. Restore from %s if needed.",
             backup)
+        import contextlib
+        with contextlib.suppress(sqlite3.OperationalError):
+            raw.execute("ROLLBACK")
+        raise
+    finally:
+        raw.execute("PRAGMA foreign_keys=ON")
+        raw.close()
+
+
+_NEAR_MISS_IDENTITY = ("ticker", "universe_type", "r_anchor_date", "s_anchor_date")
+
+
+def _has_near_miss_framing_identity(bind) -> bool:
+    """True iff ``near_miss_archive`` carries the DATE-anchored framing identity
+    (ticker, universe_type, r_anchor_date, s_anchor_date) as its UNIQUE key —
+    i.e. the rail PRICES have been taken out of it. Read via PRAGMA, the reliable
+    SQLite unique-index reflection."""
+    target = set(_NEAR_MISS_IDENTITY)
+    with bind.connect() as conn:
+        for row in conn.exec_driver_sql(
+                "PRAGMA index_list('near_miss_archive')").fetchall():
+            name, unique = row[1], row[2]
+            if not unique:
+                continue
+            cols = {r[2] for r in conn.exec_driver_sql(
+                f"PRAGMA index_info('{name}')").fetchall()}
+            if cols == target:
+                return True
+    return False
+
+
+def migrate_near_miss_framing_identity(bind) -> bool:
+    """One-off: take the rail PRICES out of the near-miss episode identity.
+
+    ``uq_near_miss_framing_identity`` was (ticker, universe_type, r_level,
+    s_level, r_anchor_date, s_anchor_date) with both rails FLOAT. A price is the
+    wrong type for an identity twice over: it carried 4dp off a float32 panel, so
+    APH held one framing as two rows (s_level 77.68 vs 77.6801); and it is not
+    invariant under a corporate action, so APH's 2-for-1 split re-minted every one
+    of its framings as a NEW episode with ``first_seen`` and the forward clock
+    reset. Measured on the live archive 2026-09-07: 4 duplicate groups, all APH,
+    every one an exact 2x rail pair — 5 spurious rows in 1,483, and zero
+    legitimately distinct framings sharing a pair of anchor dates. The anchor
+    dates name the zigzag pivot bars the rails are read from
+    (``box_primitives._oriented_pairs`` yields the rail and its anchor as one
+    pair), so they name the same box on either side of a split.
+
+    SQLite cannot ALTER a UNIQUE constraint in place, so this rebuilds the table
+    under the ``migrate_universe_type`` recipe: WAL checkpoint + file backup ->
+    rename old -> create new from the model -> INSERT…SELECT -> row-count
+    assertion -> drop old, all in ONE transaction so any failure rolls back to
+    the original table.
+
+    The copy DEDUPES to the new identity, keeping the EARLIEST ``first_seen`` row
+    of each group whole — that row is the first-refusal record the schema
+    documents, and its rails / ``would_be_trigger`` / ``scan_close`` are mutually
+    consistent on one price scale. Only the three recurrence counters are folded
+    across the group: ``last_seen`` = max, ``nights_seen`` = sum (the duplicates
+    counted disjoint nights of the same framing), ``fired_any_night`` = max.
+    Ties on ``first_seen`` break on the lowest id, so the result is deterministic.
+
+    Idempotent: a no-op on a fresh DB (create_all built the new key) and on every
+    later boot. Fails CLOSED — an unexpected row count, or any error at all,
+    rolls the whole rebuild back and re-raises with the backup named.
+    Returns True if it rebuilt, False if already migrated.
+    """
+    import shutil
+    import sqlite3
+
+    from sqlalchemy.dialects import sqlite as sqlite_dialect
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    inspector = inspect(bind)
+    if "near_miss_archive" not in inspector.get_table_names():
+        return False  # the lane has never written here — nothing to rebuild
+    if _has_near_miss_framing_identity(bind):
+        return False  # already on the date-anchored identity
+
+    table = archive_models.NearMissArchive.__table__
+    model_cols = {c.name for c in table.columns}
+    old_cols = [col["name"] for col in inspector.get_columns("near_miss_archive")]
+    missing = model_cols - set(old_cols)
+    if missing:
+        # Fail closed rather than rebuild into NOT NULL columns we cannot fill.
+        # (_ensure_table / _apply_model_add_columns own adding them first.)
+        raise RuntimeError(
+            f"near_miss_archive is missing model column(s) {sorted(missing)}; "
+            "refusing to rebuild the framing identity on an out-of-date table")
+    folded = {"last_seen", "nights_seen", "fired_any_night"}
+    copy_cols = [c for c in old_cols if c in model_cols and c not in folded]
+    col_sql = ", ".join(f'"{c}"' for c in copy_cols)
+    o_col_sql = ", ".join(f'o."{c}"' for c in copy_cols)
+    key_sql = ", ".join(f'"{c}"' for c in _NEAR_MISS_IDENTITY)
+    key_join = " AND ".join(f'g."{c}" = o."{c}"' for c in _NEAR_MISS_IDENTITY)
+    key_self = " AND ".join(f'x."{c}" = o."{c}"' for c in _NEAR_MISS_IDENTITY)
+
+    dialect = sqlite_dialect.dialect()
+    create_table_sql = str(CreateTable(table).compile(dialect=dialect))
+    create_index_sqls = [
+        str(CreateIndex(ix).compile(dialect=dialect)) for ix in table.indexes
+    ]
+
+    db_path = bind.url.database
+    # Fold WAL into the main file, then back it up before any structural change.
+    with bind.connect() as conn:
+        conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+    backup = db_path + ".prenearmissidentity.bak"
+    shutil.copy2(db_path, backup)
+    _log.info("near-miss identity migration: backed up %s -> %s", db_path, backup)
+
+    raw = sqlite3.connect(db_path, timeout=30)
+    raw.isolation_level = None  # manage the transaction ourselves -> transactional DDL
+    try:
+        raw.execute("PRAGMA foreign_keys=OFF")
+        raw.execute("BEGIN")
+        pre = raw.execute("SELECT COUNT(*) FROM near_miss_archive").fetchone()[0]
+        expected = raw.execute(
+            f"SELECT COUNT(*) FROM (SELECT 1 FROM near_miss_archive "
+            f"GROUP BY {key_sql})").fetchone()[0]
+        raw.execute("ALTER TABLE near_miss_archive RENAME TO near_miss_archive_old")
+        # SQLite keeps an index's NAME when its table is renamed, so the old
+        # table's explicit ix_* indexes would collide with the new table's.
+        stale_indexes = [
+            row[0] for row in raw.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' "
+                "AND tbl_name='near_miss_archive_old' AND sql IS NOT NULL"
+            ).fetchall()
+        ]
+        for name in stale_indexes:
+            raw.execute(f'DROP INDEX "{name}"')
+        raw.execute(create_table_sql)
+        for ix_sql in create_index_sqls:
+            raw.execute(ix_sql)
+        raw.execute(
+            f'INSERT INTO near_miss_archive ({col_sql}, "last_seen", '
+            f'"nights_seen", "fired_any_night") '
+            f'SELECT {o_col_sql}, g.folded_last_seen, g.folded_nights, '
+            f'g.folded_fired_any '
+            f'FROM near_miss_archive_old o '
+            f'JOIN (SELECT {key_sql}, MIN(first_seen) AS anchor_first, '
+            f'             MAX(last_seen) AS folded_last_seen, '
+            f'             SUM(nights_seen) AS folded_nights, '
+            f'             MAX(fired_any_night) AS folded_fired_any '
+            f'      FROM near_miss_archive_old GROUP BY {key_sql}) g '
+            f'  ON {key_join} '
+            f'WHERE o.id = (SELECT MIN(x.id) FROM near_miss_archive_old x '
+            f'              WHERE {key_self} AND x.first_seen = g.anchor_first)'
+        )
+        post = raw.execute("SELECT COUNT(*) FROM near_miss_archive").fetchone()[0]
+        if post != expected:
+            raise RuntimeError(
+                f"dedupe drift during rebuild: {pre} rows -> {post}, "
+                f"expected {expected} distinct framings")
+        raw.execute("DROP TABLE near_miss_archive_old")
+        raw.execute("COMMIT")
+        _log.info("near-miss identity migration: rebuilt near_miss_archive "
+                  "(%d rows -> %d episodes, %d duplicate framing(s) folded; the "
+                  "rail prices are no longer identity); backup at %s",
+                  pre, post, pre - post, backup)
+        return True
+    except Exception:
+        # Log FIRST: on SQLITE_FULL/IOERR sqlite already auto-rolled-back and the
+        # explicit ROLLBACK raises 'no transaction is active', which would eat the
+        # only line naming the backup file.
+        _log.exception("near-miss identity migration failed; rolling back. "
+                       "Restore from %s if needed.", backup)
         import contextlib
         with contextlib.suppress(sqlite3.OperationalError):
             raw.execute("ROLLBACK")
