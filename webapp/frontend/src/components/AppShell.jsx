@@ -14,6 +14,7 @@ import useScanHistory from '../hooks/useScanHistory';
 import { API_BASE } from '../api';
 import logoUrl from '../assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 import { buildHealthPill, buildScanStatusText } from '../utils/appFormat';
+import { confirmLeaveWithDialog } from '../utils/leaveGuard';
 import { deriveTradeAlerts } from '../utils/tradeTableUtils';
 import { isOptionSymbol } from '../utils/tradeUtils';
 
@@ -88,8 +89,16 @@ function AppShell() {
     [riskFor, trades],
   );
 
-  const startNewTrade = () => {
-    if (activeTab !== 'dashboard') navigate('/dashboard');
+  // "+ New trade" navigates, so it is an exit out of the current route and must
+  // ask the same question the top nav asks — it sits inches from the nav tabs on
+  // every page, calibration included, and shipped as a silent discard of
+  // hand-drawn marks (council review 2026-09-07, A2). Asked only when it really
+  // does navigate: from the journal itself it just opens a draft row.
+  const startNewTrade = async () => {
+    if (activeTab !== 'dashboard') {
+      if (!(await confirmLeaveWithDialog())) return;
+      navigate('/dashboard');
+    }
     setDraftRow({
       opening_date: new Date().toISOString().split('T')[0],
       direction: 'LONG',

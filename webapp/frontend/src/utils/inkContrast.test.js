@@ -44,9 +44,15 @@ function contrastRatio(a, b) {
 // Reading the shipped CSS (rather than hard-coding the hexes) is what makes this
 // a guard: retune a token or put white ink back and the assertion moves.
 function token(name) {
-  const match = CSS.match(new RegExp(`^\\s*--${name}:\\s*([^;]+);`, 'm'));
-  assert.ok(match, `token --${name} not found in index.css`);
-  return match[1].trim();
+  const matches = [...CSS.matchAll(new RegExp(`^\\s*--${name}:\\s*([^;]+);`, 'gm'))];
+  assert.ok(matches.length > 0, `token --${name} not found in index.css`);
+  // Measuring the FIRST definition is only honest while there is one. The day a
+  // theme block redefines a fill, the second value is what the operator sees on
+  // that theme and this file has to be taught to measure both — so fail here
+  // rather than keep reporting the light-theme number (review A8).
+  assert.equal(matches.length, 1,
+    `--${name} is defined ${matches.length}x — this guard measures one value per token`);
+  return matches[0][1].trim();
 }
 
 // Resolve a CSS color expression to a hex, following one level of var() alias.
@@ -79,19 +85,44 @@ test('the fill-entry BUY/SELL chips clear AA against their semantic fills', () =
   }
 });
 
+// The body of a top-level `const NAME = ... };` in the toolbar source, comments
+// stripped — so a colour named inside a comment can never be measured.
+function toolbarBlock(name) {
+  const block = TOOLBAR.match(new RegExp(`const ${name} = [\\s\\S]*?\\n};`));
+  assert.ok(block, `${name} not found in ScreenerToolbar.jsx`);
+  return block[0].replace(/\/\/[^\n]*/g, '');
+}
+
+// The ink the data-refresh button actually wears when it is ENABLED — i.e. when
+// it is sitting on one of downloadColor()'s semantic fills.
+function toolbarEnabledInk() {
+  const decl = toolbarBlock('downloadButtonStyle').match(/\n\s*color:\s*(.+?),\s*\n/);
+  assert.ok(decl, 'no color declaration in downloadButtonStyle');
+  // `disabled ? <disabled ink> : <enabled ink>` — the enabled arm is the one on
+  // a fill. A plain expression is taken as-is.
+  const expr = decl[1].includes('?') ? decl[1].split(':').slice(1).join(':') : decl[1];
+  return resolveColor(expr.replace(/['"]/g, '').trim());
+}
+
+// Every fill downloadColor() can return, derived rather than re-typed: a fifth
+// state added there must be measured too, without anyone remembering to.
+function toolbarFills() {
+  const fills = [...toolbarBlock('downloadColor').matchAll(/return\s+'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(fills.length >= 4, `downloadColor returned ${fills.length} fills, expected its four+`);
+  return fills;
+}
+
 test('the data-refresh button takes dark ink on every fill it can wear', () => {
-  // downloadColor() returns exactly these four; the ink must clear AA on all of
-  // them, and no `#fff` literal may survive in the style that consumes them.
-  assert.ok(
-    !/color:\s*disabled[^,]*'#fff'/.test(TOOLBAR),
-    'ScreenerToolbar still falls back to white ink on a semantic fill',
-  );
-  const ink = resolveColor(token('myth-ink'));
-  for (const fill of ['accent-active', 'warning', 'danger', 'accent-pink']) {
-    const ratio = contrastRatio(ink, resolveColor(token(fill)));
+  // This RESOLVES what the file says, rather than sniffing for one banned
+  // literal: the old assertion only refused `'#fff'`, so swapping in
+  // `var(--text-muted)` — about 2:1 on --accent-active — would have passed it
+  // (council review 2026-09-07, A8).
+  const ink = toolbarEnabledInk();
+  for (const fill of toolbarFills()) {
+    const ratio = contrastRatio(ink, resolveColor(fill));
     assert.ok(
       ratio >= AA_NORMAL,
-      `--myth-ink on --${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
+      `toolbar ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
     );
   }
 });

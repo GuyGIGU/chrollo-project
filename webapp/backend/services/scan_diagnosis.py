@@ -403,10 +403,12 @@ def _explain(row: dict, status: str, kind: str | None) -> dict:
     # own way to be run again.
     job = row.get("kind")
     if status == "aborted":
-        # HISTORIC rows only. Closing the page used to terminate the child
-        # (council review 2026-09-07, finding 4); a manual job now runs on its
-        # own thread and a client that goes away can re-attach, so nothing
-        # writes this status any more. The row still has to read correctly.
+        # Two populations read the same row: HISTORIC rows where closing the
+        # page terminated the child (council review 2026-09-07, finding 4), and
+        # rows the operator's own Stop button writes now that a job outlives its
+        # reader (review A3). Both are "it was stopped", neither is broken, so
+        # one line covers them — and the parenthetical corrects the old advice
+        # ("leave the tab open") that the historic rows were written under.
         return _prose(
             "{job} was stopped before it finished.",
             "Nothing is broken — start it again. (Leaving the page no longer "

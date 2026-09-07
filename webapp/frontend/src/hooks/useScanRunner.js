@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api';
+import { confirmDialog, toast } from '../components/ui/feedback';
 import {
   activeStreamUrl,
   attachStreamUrl,
+  cancelStreamUrl,
   reattachTarget,
   startStreamUrl,
 } from '../utils/scanStream.js';
@@ -139,6 +141,28 @@ function useScanRunner(fetchScreener, universe) {
     return () => { cancelled = true; };
   }, []);
 
+  // Stop the run. Closing the page used to be this lever by accident; now that
+  // the job outlives its reader (finding 4) it needs a real one, or a wedged
+  // child holds SCAN_LOCK until the service restarts (council review A3). The
+  // server decides whether anything was actually stopped — the client only asks.
+  const handleStopJob = useCallback(async () => {
+    const ok = await confirmDialog({
+      title: 'Stop the run?',
+      message: 'The work done so far is discarded and the run is recorded as stopped.',
+      confirmLabel: 'Stop it',
+      cancelLabel: 'Keep running',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const response = await fetch(cancelStreamUrl(API_BASE), { method: 'POST' });
+      if (!response.ok) throw new Error(`scan-stream/cancel ${response.status}`);
+    } catch (error) {
+      console.error('Failed to stop the running job', error);
+      toast('Could not stop the run — it is still going.', { tone: 'danger' });
+    }
+  }, []);
+
   const handleEvaluateCached = useCallback(() => startJob('evaluation'), [startJob]);
   const handleDownloadData = useCallback(() => startJob('download'), [startJob]);
   const handleRetryLastJob = useCallback(() => startJob(lastJobRef.current), [startJob]);
@@ -157,6 +181,7 @@ function useScanRunner(fetchScreener, universe) {
     handleEvaluateCached,
     handleDownloadData,
     handleRetryLastJob,
+    handleStopJob,
   };
 }
 

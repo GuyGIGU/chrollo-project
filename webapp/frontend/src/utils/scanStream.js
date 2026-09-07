@@ -11,6 +11,10 @@
 // client only maps that name to a URL, and refuses a name it cannot map rather
 // than building a URL out of it.
 
+// Only the jobs a surface can START live here. The full-scan route the backend
+// labels 'scan' is deliberately absent: nothing in the app starts it, so a
+// re-attach has no readout to offer it and refuses the name rather than
+// inventing a URL (council review 2026-09-07, A6).
 export const SCAN_STREAM_PATH = {
   evaluation: 'run-evaluation-stream',
   download: 'download-data-stream',
@@ -18,10 +22,12 @@ export const SCAN_STREAM_PATH = {
 
 export const ATTACH_STREAM_PATH = 'scan-stream/attach';
 export const ACTIVE_STREAM_PATH = 'scan-stream/active';
+export const CANCEL_STREAM_PATH = 'scan-stream/cancel';
 
 export const startStreamUrl = (base, job) => `${base}/${SCAN_STREAM_PATH[job]}/`;
 export const attachStreamUrl = (base) => `${base}/${ATTACH_STREAM_PATH}/`;
 export const activeStreamUrl = (base) => `${base}/${ACTIVE_STREAM_PATH}`;
+export const cancelStreamUrl = (base) => `${base}/${CANCEL_STREAM_PATH}`;
 
 // The job this mount should re-attach to, or null. `alreadyStreaming` keeps a
 // late /scan-stream/active answer from stomping a stream the operator just

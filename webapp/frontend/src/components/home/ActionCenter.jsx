@@ -142,13 +142,17 @@ export default function ActionCenter({
       <div className="ac-head">
         <span className="ac-title">Action Center</span>
         <span className="ac-count">{countLabel(total, readiness)}</span>
-        {freshness && (
-          <span className="ac-fresh" style={{ color: freshness.color }}>{freshness.text}</span>
-        )}
+        {/* The note sits with the count, BEFORE the freshness statement: a
+            second `margin-left: auto` in one flex row splits the free space
+            between the two and the freshness stops being right-aligned
+            (council review 2026-09-07, A5). */}
         {total > 0 && partialNote && (
-          <span className="ac-fresh" style={{ color: readiness.failed.length ? 'var(--danger)' : 'var(--text-faint)' }}>
+          <span className="ac-note" style={{ color: readiness.failed.length ? 'var(--danger)' : 'var(--text-faint)' }}>
             {partialNote}
           </span>
+        )}
+        {freshness && (
+          <span className="ac-fresh" style={{ color: freshness.color }}>{freshness.text}</span>
         )}
       </div>
 

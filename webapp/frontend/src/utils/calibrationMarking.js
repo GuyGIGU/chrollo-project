@@ -311,6 +311,11 @@ export function markingReducer(state, action) {
   const next = reduceMarking(state, action);
   if (next === state) return state;
   if (RESEATS.has(action.type)) return next;      // seats its own pristine
+  // `auto`: the APP moved the draft, not the operator — the assisted trigger
+  // re-deriving its snap on a mark that was merely opened. That must not arm
+  // the unsaved-work guard on a mark he has not touched (council review
+  // 2026-09-07, A9). It cannot make a dirty draft clean again.
+  if (action.auto) return next;
   return next.draft === state.draft ? next : { ...next, pristine: false };
 }
 

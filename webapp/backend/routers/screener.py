@@ -294,3 +294,11 @@ def get_active_scan_stream():
 def attach_scan_stream():
     """Re-attach to the running job: replays its output so far, then follows."""
     return StreamingResponse(scan_runner.follow_active_job(), media_type="text/event-stream")
+
+
+@router.post("/scan-stream/cancel")
+def cancel_scan_stream():
+    """Stop the manual job that is running. Now that a job outlives its reader,
+    this is the only way to free a wedged child and the SCAN_LOCK it holds
+    without restarting the service (council review 2026-09-07, A3)."""
+    return {"stopped": scan_runner.cancel_active_job()}

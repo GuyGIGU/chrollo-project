@@ -309,6 +309,10 @@ function CalibrationTab() {
     const armed = markingRef.current.tool === 'trigger';
     const assisted = d.triggerSource === 'assisted';
     if (!armed && !assisted) return;
+    // `auto` when the operator did not ask for this: arming the trigger tool is
+    // his gesture, but a re-derive on a mark he merely OPENED is the app moving
+    // the draft, and must not arm the unsaved-work guard (review A9).
+    const auto = !armed;
     const snap = snapTrigger(d, chartData?.candles);
     if (!snap) {
       // No breakout in the frame: an armed re-derive clears a now-stale
@@ -320,7 +324,7 @@ function CalibrationTab() {
     }
     if (snap.date !== d.triggerDate || snap.price !== d.triggerPrice) {
       dispatchMarking({ type: 'set-trigger', date: snap.date, price: snap.price,
-                        source: 'assisted' });
+                        source: 'assisted', auto });
     }
   }, [marking.tool, lastLpsEnd, chartData]);
 

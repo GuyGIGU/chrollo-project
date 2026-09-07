@@ -2858,6 +2858,11 @@ td.cell-editable { overflow: hidden; }
 /* The scan-freshness statement (re-homed from the deleted Fresh Setups zone):
    right-aligned so the header reads title · count ......... freshness. */
 .ac-fresh { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The partial-read note rides WITH the count, so `margin-left: auto` stays on
+   exactly one item in this row — two of them split the free space and neither
+   ends up right-aligned. It is the only shrinkable thing here, so it is what
+   truncates when the header runs out of width. */
+.ac-note { font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-clear { color: var(--text-muted); font-size: 13px; }
 .ac-groups { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
 .ac-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }

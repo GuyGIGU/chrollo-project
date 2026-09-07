@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   activeStreamUrl,
   attachStreamUrl,
+  cancelStreamUrl,
   reattachTarget,
   startStreamUrl,
 } from './scanStream.js';
@@ -27,15 +28,20 @@ test('a mount with nothing running attaches to nothing', () => {
 test('a job name the client cannot map is refused, never turned into a URL', () => {
   assert.equal(reattachTarget({ active: true, job: 'maturation' }), null);
   assert.equal(reattachTarget({ active: true, job: '../../etc' }), null);
+  // The full-scan route is labelled 'scan' at the source (review A6). No surface
+  // starts it, so the client has no readout for it and refuses it rather than
+  // re-attaching as a cached evaluation — the wrong job under the Retry button.
+  assert.equal(reattachTarget({ active: true, job: 'scan' }), null);
 });
 
 test('a stream the operator just started is not stomped by a late answer', () => {
   assert.equal(reattachTarget({ active: true, job: 'evaluation' }, true), null);
 });
 
-test('the three stream URLs', () => {
+test('the stream URLs', () => {
   assert.equal(startStreamUrl('', 'evaluation'), '/run-evaluation-stream/');
   assert.equal(startStreamUrl('', 'download'), '/download-data-stream/');
   assert.equal(attachStreamUrl(''), '/scan-stream/attach/');
   assert.equal(activeStreamUrl('http://x'), 'http://x/scan-stream/active');
+  assert.equal(cancelStreamUrl('http://x'), 'http://x/scan-stream/cancel');
 });

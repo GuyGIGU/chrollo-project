@@ -1,8 +1,7 @@
 import { Fragment } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { scanStatusColor } from '../utils/appFormat';
-import { confirmLeave, shouldInterceptNavClick } from '../utils/leaveGuard';
-import { confirmDialog } from './ui/feedback';
+import { confirmLeaveWithDialog, shouldInterceptNavClick } from '../utils/leaveGuard';
 import IbkrModeControls from './IbkrModeControls';
 import AppearanceControl from './AppearanceControl';
 import {
@@ -31,23 +30,19 @@ const NAV_GROUPS = [
   ],
 ];
 
-// The top nav is the one funnel out of a route, so it is where the app asks
-// before discarding unsaved work. Untouched unless a surface has armed the leave
-// guard (calibration marks today), and untouched for modified/middle clicks so
-// open-in-new-tab still works.
+// The top nav is one of the app's exits out of a route (the + New trade button
+// is the other), so it asks before discarding unsaved work. Untouched unless a
+// surface has armed the leave guard (calibration marks today), untouched for
+// modified/middle clicks so open-in-new-tab still works, and untouched for the
+// tab you are already on — that click discards nothing.
 function NavTab({ to, end, label, Icon }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const handleClick = (event) => {
-    if (!shouldInterceptNavClick(event)) return;
+    if (!shouldInterceptNavClick(event, to, pathname)) return;
     event.preventDefault();
-    confirmLeave(message => confirmDialog({
-      title: 'Unsaved marks',
-      message,
-      confirmLabel: 'Leave and discard',
-      cancelLabel: 'Stay',
-      danger: true,
-    })).then(ok => { if (ok) navigate(to); });
+    confirmLeaveWithDialog().then(ok => { if (ok) navigate(to); });
   };
 
   return (
