@@ -378,12 +378,15 @@ def test_forward_returns_matures_straggler_past_old_120d_window(monkeypatch):
 def test_reconcile_orphaned_running_marks_failed(tmp_path):
     from sqlalchemy import create_engine, text
 
+    from services import scan_diagnosis
+
     eng = create_engine(f"sqlite:///{tmp_path / 'runs.db'}")
     with eng.begin() as conn:
         conn.execute(text(
             "CREATE TABLE scan_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, "
             "started_at VARCHAR, finished_at VARCHAR, status VARCHAR, "
-            "n_setups INTEGER, error TEXT, trigger VARCHAR, kind VARCHAR)"
+            "n_setups INTEGER, error TEXT, trigger VARCHAR, kind VARCHAR, "
+            "failure_kind VARCHAR)"
         ))
         conn.execute(text(
             "INSERT INTO scan_runs (started_at, status, trigger, kind) "
@@ -398,15 +401,20 @@ def test_reconcile_orphaned_running_marks_failed(tmp_path):
 
     with eng.connect() as conn:
         rows = conn.execute(text(
-            "SELECT status, finished_at, error FROM scan_runs ORDER BY id"
+            "SELECT status, finished_at, error, failure_kind FROM scan_runs ORDER BY id"
         )).fetchall()
 
     # the orphaned 'running' row -> failed, with finished_at + reason stamped
     assert rows[0][0] == "failed"
     assert rows[0][1] is not None
-    assert "died before completion" in (rows[0][2] or "")
+    # The reconcile records a FACT and claims no cause: the plain-words marker
+    # plus the pending kind the lazy resolver later replaces.
+    assert rows[0][2] == scan_diagnosis.RECONCILE_MARKER
+    assert rows[0][3] == scan_diagnosis.PENDING_KIND
+    assert "computer" not in rows[0][2]
     # the genuinely-completed row is untouched
     assert rows[1][0] == "ok"
+    assert rows[1][3] is None
     eng.dispose()
 
 

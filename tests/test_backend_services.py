@@ -529,6 +529,53 @@ def test_scan_run_kind_column_is_migrated():
     assert "ALTER TABLE scan_runs ADD COLUMN kind " in migration_sql
 
 
+def test_scan_run_failure_kind_column_is_migrated():
+    """Both forms are load-bearing: the CREATE covers a fresh db (and every test
+    fixture built from it), the idempotent ALTER covers an existing one."""
+    migration_sql = "\n".join(startup._MIGRATIONS)
+
+    assert "failure_kind VARCHAR" in migration_sql
+    assert "ALTER TABLE scan_runs ADD COLUMN failure_kind VARCHAR" in migration_sql
+
+
+def test_legacy_reconciled_rows_are_backfilled_to_the_pending_kind(tmp_path):
+    """The backfill predicate and the string the old reconcile wrote are the
+    SAME constant, so a one-character edit cannot silently orphan ten live rows.
+    Idempotent: applying the backfill twice changes nothing, and a row that has
+    already been given a real cause is never dragged back to pending."""
+    from sqlalchemy import create_engine, text
+
+    from services import scan_diagnosis
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
+    create = next(stmt for stmt in startup._MIGRATIONS
+                  if "CREATE TABLE IF NOT EXISTS scan_runs" in stmt)
+    backfill = next(stmt for stmt in startup._MIGRATIONS
+                    if stmt.startswith("UPDATE scan_runs SET failure_kind"))
+    assert scan_diagnosis.LEGACY_RECONCILE_PREFIX in backfill
+
+    with eng.begin() as conn:
+        conn.execute(text(create))
+        conn.execute(text(
+            "INSERT INTO scan_runs (started_at, status, trigger, kind, error) VALUES "
+            "('t0', 'failed', 'scheduled', 'scan', "
+            "'process died before completion (reconciled at boot)')"))
+        conn.execute(text(
+            "INSERT INTO scan_runs (started_at, status, trigger, kind, failure_kind, "
+            "error) VALUES ('t0', 'failed', 'scheduled', 'scan', "
+            "'interrupted_shutdown', 'process died before completion (x)')"))
+
+    for _ in range(2):
+        with eng.begin() as conn:
+            conn.execute(text(backfill))
+
+    with eng.connect() as conn:
+        kinds = [r[0] for r in conn.execute(
+            text("SELECT failure_kind FROM scan_runs ORDER BY id")).fetchall()]
+    assert kinds == [scan_diagnosis.PENDING_KIND, "interrupted_shutdown"]
+    eng.dispose()
+
+
 def test_portfolio_stream_listens_to_snapshot_changing_channels():
     assert portfolio_streams._PORTFOLIO_CHANNELS == (
         "portfolio",

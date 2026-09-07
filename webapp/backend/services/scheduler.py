@@ -29,17 +29,34 @@ def is_running() -> bool:
     return bool(_scheduler and _scheduler.running)
 
 
+def last_weekday_slot(now: datetime, hour: int, minute: int) -> datetime | None:
+    """The most recent weekday scan slot at or before ``now``, or None if none
+    falls in the past week. Pure; ``now`` must be timezone-aware in the
+    scheduler's America/New_York tz.
+
+    One home for "when should a scan have started", shared by the boot catch-up
+    below and by the diagnostics registry's missed-slot notice."""
+    for days_back in range(0, 8):
+        day = now - timedelta(days=days_back)
+        if day.weekday() >= 5:  # Sat/Sun: the cron is mon-fri
+            continue
+        slot = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if slot <= now:
+            return slot
+    return None
+
+
 def _missed_todays_slot(now: datetime, latest_started_at: str | None,
                         hour: int, minute: int) -> bool:
     """True when today's weekday scan slot has already passed and no scan run
     was recorded at/after it — i.e. the service was down (or the machine off)
     at slot time and the night's scan was lost. Pure (no I/O) for testability;
     ``now`` must be timezone-aware in the scheduler's America/New_York tz."""
-    if now.weekday() >= 5:  # Sat/Sun: no slot today (cron is mon-fri)
+    slot = last_weekday_slot(now, hour, minute)
+    # A slot on an earlier date means today's has not passed (or today is a
+    # weekend): either way the cron, not the catch-up, owns what comes next.
+    if slot is None or slot.date() != now.date():
         return False
-    slot = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if now < slot:
-        return False  # today's slot is still ahead; the cron will handle it
     if not latest_started_at:
         return True
     try:

@@ -183,6 +183,15 @@ export const PHASE_NAMES = {
   lps: 'LPS',
 };
 
+// Background-job kinds (the frozen scan_runs.kind enum) in plain trading words,
+// for the scan-run diagnostics registry. Labels only — the registry never
+// derives a verdict from the kind.
+export const RUN_KIND_LABELS = {
+  scan: 'Screener scan',
+  maturation: 'Outcome backfill',
+  download: 'Market-data download',
+};
+
 export function displayLabel(id) {
   return DISPLAY_LABELS[id]?.label ?? id;
 }

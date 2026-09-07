@@ -50,6 +50,7 @@ function AppTopbar({
   ibkrActions,
   logoUrl,
   onOpenCalculator,
+  onOpenScanRegistry,
   onNewTrade,
   csvInputRef,
   importingCsv,
@@ -71,19 +72,33 @@ function AppTopbar({
       </nav>
 
       <div className="topnav-right">
+        {/* Both pills open the same scan-run registry: the failure text has always
+            lived on the SECOND one, so wiring only the "Degraded" pill would leave
+            the operator clicking the wrong half of what he calls the Degraded area.
+            The status hue stays --danger; mythril appears only on hover/focus. */}
         {healthPill && (
-          <span title={healthPill.title} className="topnav-status" style={{ color: healthPill.color }}>
+          <button
+            type="button"
+            title={healthPill.title}
+            aria-label={`${healthPill.label} — open recent scan runs`}
+            className="topnav-status topnav-status-button"
+            style={{ color: healthPill.color }}
+            onClick={onOpenScanRegistry}
+          >
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: healthPill.color }} />
             {healthPill.label}
-          </span>
+          </button>
         )}
-        <span
-          title={scanStatus?.error || ''}
-          className="topnav-status"
+        <button
+          type="button"
+          title={scanStatus?.reason || scanStatus?.error || 'Open recent scan runs'}
+          aria-label="Open recent scan runs"
+          className="topnav-status topnav-status-button"
           style={{ color: scanStatusColor(scanStatus?.status) }}
+          onClick={onOpenScanRegistry}
         >
           {scanStatusText}
-        </span>
+        </button>
 
         {ibkrActions && (
           <IbkrModeControls

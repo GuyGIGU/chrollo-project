@@ -16,7 +16,7 @@ from core.pipeline.universe import (
     resolve_universe,
     universe_keys,
 )
-from services import scan_runner, scan_status
+from services import scan_diagnosis, scan_runner, scan_status
 from services.earnings import days_until, get_next_earnings_batch
 from services.screener_data import invalidate_screener_cache, read_screener_data
 
@@ -220,20 +220,28 @@ def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
 
 @router.get("/scan-status/latest")
 def get_latest_scan_status():
-    return scan_status.latest_run() or {
-        "id": None,
-        "started_at": None,
-        "finished_at": None,
-        "status": "never",
-        "n_setups": None,
-        "error": None,
-        "trigger": None,
-    }
+    # Both scan-status routes resolve every row through scan_diagnosis.describe_runs,
+    # so the topbar's status line and the diagnostics registry carry byte-identical
+    # reason/solution text for the same run.
+    row = scan_status.latest_run() or scan_status.never_run()
+    return scan_diagnosis.describe_runs([row])[0]
 
 
 @router.get("/scan-status/history")
-def get_scan_status_history(limit: int = Query(20, ge=1, le=100)):
-    return {"runs": scan_status.recent_runs(limit)}
+def get_scan_status_history(
+    limit: int = Query(20, ge=1, le=100),
+    kind: str = Query("scan"),
+):
+    """Recent runs with a resolved failure reason and proposed solution.
+
+    ``kind=all`` widens to the maturation (outcome backfill) and market-data
+    download jobs, whose failures have never been visible on any surface.
+    """
+    runs = scan_status.recent_runs(limit, kind=None if kind == "all" else kind)
+    return {
+        "runs": scan_diagnosis.describe_runs(runs),
+        "notice": scan_diagnosis.current_missed_slot_notice(),
+    }
 
 
 @router.post("/screener-data/earnings")

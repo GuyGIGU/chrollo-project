@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 from database import engine
 from ibkr import get_ibkr_service
-from services import scan_status, scheduler
+from services import scan_diagnosis, scan_status, scheduler
 
 
 def build_health_report(screener_json_path: str) -> dict:
@@ -21,6 +21,7 @@ def build_health_report(screener_json_path: str) -> dict:
     _add_screener_data_check(checks, screener_json_path)
     _add_scheduler_check(checks)
     _add_ibkr_check(checks)
+    _describe_failing_checks(checks)
 
     return {
         "status": "ok" if _checks_are_ok(checks) else "degraded",
@@ -53,7 +54,26 @@ def _add_scan_check(checks: dict) -> None:
         "n_setups": (latest or {}).get("n_setups"),
         "age_hours": round(age_hours, 1) if age_hours is not None else None,
         "detail": detail,
+        # The run's own resolved reason, through the SAME function both
+        # scan-status routes use, so the pill's tooltip and the diagnostics
+        # registry cannot tell the operator two different stories.
+        **scan_diagnosis.describe_run(latest or {}),
     }
+
+
+def _describe_failing_checks(checks: dict) -> None:
+    """Give every failing non-ibkr check a plain-words label, reason and
+    proposed solution, resolved HERE so no frontend has to derive one."""
+    for name, check in checks.items():
+        if name == "ibkr" or check.get("ok", True):
+            continue
+        described = scan_diagnosis.describe_health_check(name, check)
+        # A run-level reason already resolved above is more specific than the
+        # generic check reason, so it wins.
+        if check.get("reason"):
+            described.pop("reason")
+            described.pop("solution", None)
+        check.update(described)
 
 
 def _add_screener_data_check(checks: dict, screener_json_path: str) -> None:

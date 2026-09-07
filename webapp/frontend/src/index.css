@@ -262,6 +262,29 @@ body {
   cursor: default;
 }
 
+/* The status pills open the scan-run registry. They keep their STATUS hue
+   (--danger / --success); per the one-accent rule mythril is only the
+   hover/focus response, never the resting fill. */
+.topnav-status-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.topnav-status-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.topnav-status-button:focus-visible {
+  outline: 1px solid var(--myth-soft);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 /* Utility actions collapse to icon-only (label → tooltip) to save width. */
 .topnav-actions {
   display: flex;

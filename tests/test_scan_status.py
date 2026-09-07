@@ -66,3 +66,48 @@ def test_explicit_null_kind_row_still_reads_as_scan(status_engine):
     latest = scan_status_mod.latest_run(kind="scan")
     assert latest is not None
     assert latest["kind"] == "scan"
+
+
+# ── the wire: one resolver for both routes (EC-39) ────────────────────────────
+def test_latest_and_history_agree_on_reason_and_solution(status_engine, monkeypatch):
+    """The single-item route and its list sibling resolve every row through the
+    SAME function, so the topbar pill and the diagnostics registry cannot tell
+    the operator two different stories about one run."""
+    import routers.screener as screener_router
+
+    run_id = scan_status_mod.start_run("scheduled")
+    scan_status_mod.finish_run(run_id, "aborted", error="client disconnected mid-stream")
+    monkeypatch.setattr(screener_router.scan_diagnosis, "current_missed_slot_notice",
+                        lambda: None)
+
+    latest = screener_router.get_latest_scan_status()
+    history = screener_router.get_scan_status_history(limit=5, kind="scan")["runs"][0]
+
+    assert latest["id"] == history["id"] == run_id
+    assert latest["reason"] == history["reason"]
+    assert latest["solution"] == history["solution"]
+    assert latest["reason"]
+
+
+def test_the_never_row_still_carries_the_resolved_fields(status_engine):
+    """A fresh install must not serve a row shaped differently from every other
+    row — the 'never' fallback goes through the same enrichment."""
+    import routers.screener as screener_router
+
+    payload = screener_router.get_latest_scan_status()
+
+    assert payload["status"] == "never"
+    for key in ("reason", "solution", "kind", "failure_kind"):
+        assert key in payload
+
+
+def test_failure_kind_travels_on_both_read_paths(status_engine):
+    with status_engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO scan_runs (started_at, status, trigger, kind, failure_kind) "
+            "VALUES ('2026-09-04T22:00:01+00:00', 'failed', 'scheduled', 'scan', "
+            "'interrupted_shutdown')"
+        ))
+
+    assert scan_status_mod.latest_run()["failure_kind"] == "interrupted_shutdown"
+    assert scan_status_mod.recent_runs()[0]["failure_kind"] == "interrupted_shutdown"
