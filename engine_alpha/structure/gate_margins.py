@@ -111,10 +111,12 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
     law manufactures a phantom failing leg), and ``traversal_df`` overrides
     the traversal pair's window (the live band gate judges traversal on the
     CONTIGUOUS slice, not the masked build window). ``judged_mask`` carries the
-    band pool's real time axis so the two ADJACENCY legs (respect run, touch
-    thirds) mirror the gate's own read of them rather than the compacted
-    array's (council review 2026-09-07, finding 6). Defaults reproduce the
-    strict law on ``judged_df`` byte-identically.
+    band pool's excision mask so the touch-THIRDS leg is cut on the original
+    span, mirroring the gate's own read of it rather than the compacted
+    array's (council review 2026-09-07, finding 6); the respect-run leg needs
+    no mask because the gate itself counts that run on the compacted array
+    (``box_gates._respect_stats`` carries the reasoning and the measurement).
+    Defaults reproduce the strict law on ``judged_df`` byte-identically.
     """
     if (judged_df is None or len(judged_df) == 0 or R is None or S is None
             or R <= S or S <= 0 or atr_val is None or atr_val <= 0
@@ -142,8 +144,7 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
     # respect — share margin in OUTSIDE BARS (the native numerator), run
     # margin in bars, both from the gate's single pass.
     (_respected, _rb, _sb, total_outside, share,
-     max_consec, _rmax, _smax) = _respect_stats(highs, lows, R, S, atr_val,
-                                                judged_mask=judged_mask)
+     max_consec, _rmax, _smax) = _respect_stats(highs, lows, R, S, atr_val)
     share_min = leg_threshold("respect_share")
     rows["respect_share"] = _leg_row(
         "respect_share", int(total_outside),

@@ -296,14 +296,15 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
 
     ``judged_mask`` is supplied ONLY by the band pool, whose judged window is
     COMPACTED (qualified excursion bars excised): the boolean mask over the
-    original window that produced these arrays. The two ADJACENCY gates —
-    the respect run and the touch thirds — measure against it, so they read
-    real trading-day neighbourhood instead of a time axis with the gaps
-    removed (council review 2026-09-07, finding 6). Strict, rescued and story
-    windows are contiguous slices and leave it None.
+    original window that produced these arrays. It puts the touch THIRDS — an
+    ADJACENCY statistic, "touches spread across the window, not clustered" —
+    back on the original span, where an excised bar is simply no touch
+    (council review 2026-09-07, finding 6). The departure RUN deliberately
+    does NOT take it: see ``_respect_stats`` for the two readings that were
+    measured and rejected. Strict, rescued and story windows are contiguous
+    slices and leave it None.
     """
-    stats = _respect_stats(highs, lows, R_val, S_val, atr_val,
-                           judged_mask=judged_mask)
+    stats = _respect_stats(highs, lows, R_val, S_val, atr_val)
     respected, _r_broken, _s_broken, total_outside, share = stats[:5]
     if not respected:
         if recorder is not None:
@@ -608,9 +609,8 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # that reverses CMPR's operator-accepted band election.)
     # Rails at the max-dwell close band;
     # qualified excursions (reclaim/fail-back + hold) are excised from the
-    # judged window; every gate below runs UNCHANGED on the judged bars — the
-    # two adjacency gates (respect run, touch thirds) against the judged bars'
-    # REAL positions, never the compacted array's.
+    # judged window; every gate below runs UNCHANGED on the judged bars — with
+    # the touch thirds cut on the ORIGINAL span, never the compacted array's.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace, recorder=recorder)
@@ -658,10 +658,13 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
     event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
     allowance; it exists only when the event does).
 
-    The excision mask rides along as ``judged_mask`` so the two gates that are
-    ADJACENCY statistics — the respect RUN cap and the touch THIRDS spread —
-    keep measuring real trading-day neighbourhood rather than the compacted
-    array's (council review 2026-09-07, finding 6). Every set statistic
+    The excision mask rides along as ``judged_mask`` so the touch THIRDS — an
+    ADJACENCY statistic — are cut on the ORIGINAL span rather than on the
+    compacted array, where bars weeks apart had become neighbours (council
+    review 2026-09-07, finding 6). The departure RUN stays on the compacted
+    array on purpose: the excised bars are the EVENT's business, judged by its
+    stricter rules, and charging them to a cap half their legal length deletes
+    the class (``_respect_stats`` carries the measurement). Every set statistic
     (respect share, touch counts, dwell, coverage, crash, width) reads the
     judged bars exactly as before.
     """

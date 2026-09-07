@@ -645,32 +645,43 @@ keyed on overshoot magnitude.
      qualified DEEP below-rail event (multi-bar, beyond S − 2×buffer) may
      measure up to `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance
      exists only with the event, so it can never act as a general width
-     loosening. **The judged bars keep their REAL positions (council review
-     2026-09-07, finding 6).** The excision mask rides into `_build_candidate`
-     as `judged_mask`, because two of those gates are ADJACENCY statistics
-     rather than set statistics: the respect RUN cap ("N consecutive trading
-     days outside the buffered rails" — the DEPARTURE defence) and the touch
-     THIRDS spread ("touches spread across the window, not clustered"). Judged
-     on the compacted array they read a time axis with the excursion gaps
-     removed — bars weeks apart become neighbours, and the thirds boundaries
-     stop falling on the window's own calendar thirds. Both now measure
-     against the original window: an excised excursion ENDS an outside run
-     instead of welding two together, and the thirds are cut on the full span.
-     Every SET statistic (respect share, touch counts, dwell, coverage, crash,
-     width) still reads the judged bars exactly as before, and every
-     contiguous-window pool (strict / rescued / story) passes no mask and is
-     byte-identical. The near-miss margin mirror
+     loosening. **The touch THIRDS are cut on the window's REAL span (council
+     review 2026-09-07, finding 6).** The excision mask rides into
+     `_build_candidate` as `judged_mask` and on into `_rail_touch_thirds`,
+     because that leg is an ADJACENCY statistic rather than a set statistic
+     ("touches spread across the window, not clustered"): on the compacted
+     array the boundaries stop falling on the window's own calendar thirds, so
+     touches confined to the real first third can read as two. An excised bar
+     is simply no touch, so the mask scatters the touch masks back with those
+     positions empty. Every SET statistic (respect share, touch counts, dwell,
+     coverage, crash, width) still reads the judged bars exactly as before, and
+     every contiguous-window pool (strict / rescued / story) passes no mask and
+     is byte-identical. The near-miss margin mirror
      (`gate_margins.complete_leg_vector`) threads the same mask so it cannot
-     report a leg the gate never measured. *Measured at the fix over the live
-     248-setup payload:* 247 setups read byte-identically (rail immobility
-     0 violations, every Reading-Model invariant held), the marks ratchet held
-     28/33 with every expected miss still missing, and the reader pin was
-     zero-diff. ONE election moved — **LIVN** (band framing 83.98/77.71, a
-     50-bar window with 4 bars excised): its R-rail touches all sit inside the
-     window's real FIRST third, and only compaction had spread them across two
-     (`r_touch_thirds` 2 → 1 against the floor of 2), so the framing now dies
-     at the anti-clustering leg and LIVN reads no structure. The other seven
-     band elections are unchanged. The respect gate is untouched. The qualified deep event also
+     report a leg the gate never measured. **The respect RUN cap is
+     deliberately NOT put on that axis** — the two alternatives were built and
+     measured on 2026-09-07 and both are recorded Tested-DEAD: filling the
+     excised positions "inside" severs a real departure (a 17-day stay below
+     support reads 7 and the junk framing is ADMITTED — shipped in `ceb0a27`,
+     removed the same day), and classifying the original window bar by bar
+     charges the event's own days to a cap half their legal length, which
+     deletes the class (BODI's operator-ruled framing 12.33/10.18 — 76 bars,
+     30 excised — goes from a run of 2 to 19 and stops firing, dropping the
+     sealed marks ratchet to 27/33 and reddening two committed guards). The
+     gate counts the outside days it OWNS, running straight across event time:
+     an excursion neither breaks a departure nor charges its days to it, and
+     the excursion bars answer to the event rules instead, exactly as this
+     pool's contract says. `tests/test_band_time_axis.py` pins all three
+     numbers. *Measured over the live 248-setup payload:* 247 setups read
+     byte-identically (rail immobility 0 violations, every Reading-Model
+     invariant held), the marks ratchet held 28/33 with every expected miss
+     still missing, and the reader pin was zero-diff. ONE election moved —
+     **LIVN** (band framing 83.98/77.71, a 50-bar window with 4 bars excised):
+     its R-rail touches all sit inside the window's real FIRST third, and only
+     compaction had spread them across two (`r_touch_thirds` 2 → 1 against the
+     floor of 2), so the framing now dies at the anti-clustering leg and LIVN
+     reads no structure. The other seven band elections are unchanged. The
+     respect gate is untouched. The qualified deep event also
      feeds Phase C as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated
      spring detector finds nothing (see the Phase C bin note). Harness proof
      at the marks (2026-07-16, flag-on variant): BODI fires tier A at the

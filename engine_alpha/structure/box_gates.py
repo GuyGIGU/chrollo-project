@@ -189,23 +189,37 @@ def _max_excursion_atr(above_r, below_s, highs, lows, r_ceiling, s_floor,
     return worst / float(atr_val)
 
 
-def _respect_stats(highs, lows, R_val, S_val, atr_val, judged_mask=None):
+def _respect_stats(highs, lows, R_val, S_val, atr_val):
     """The respect gate's full statistics in ONE pass — the legacy verdict
     tuple plus the consecutive-run maxima it always computed and used to
     discard (near-miss lane Task 3: the run maximum is the respect_run leg's
     measured statistic; margin telemetry reads it from here instead of a
     second O(n) pass).
 
-    ``judged_mask`` carries the band pool's real TIME AXIS: a boolean mask over
-    the candidate's ORIGINAL window whose True positions are, in order, the rows
-    of the excision-compacted ``highs``/``lows`` handed in. The consecutive-run
-    maxima are ADJACENCY statistics — the DEPARTURE defence reads "N consecutive
-    trading days outside the rails" — so a run may only span bars that really
-    were neighbours; an excised excursion between two outside bars ENDS the run
-    rather than welding them together (council review 2026-09-07, finding 6).
-    The outside COUNT and the respect share are set statistics over the judged
-    bars and do not move. Left None — every non-band caller — the axis is the
-    array itself, byte-identical to the pre-2026-09-07 read.
+    **The consecutive-run maxima are counted over the bars HANDED IN, and for
+    the band pool that array is excision-compacted on purpose** (council review
+    2026-09-07, finding 6 — read this before "fixing" the axis again;
+    ``tests/test_band_time_axis.py`` pins all three readings). The band pool
+    lifts a qualified excursion out of the judged window, and those bars answer
+    to the event's own stricter rules (reclaim, hold, bounded depth, at most
+    ``BAND_EVENT_MAX_BARS``) instead of to this gate. So the departure defence
+    counts the outside days IT owns, running straight across event time:
+    a run is not broken by an excursion — price did not come back inside, it
+    went further out — and the event's own days are not charged to a cap that
+    is half their legal length. The two rejected alternatives, both measured
+    2026-09-07 on the same fixture (17 real outside days, cap 10):
+
+    * scatter the judged verdicts back and fill the excised positions False
+      ("price returned inside") — reads **7** and ADMITS the framing. The
+      permissive error the finding was raised to prevent; shipped in ceb0a27,
+      removed the same day.
+    * classify the ORIGINAL window bar by bar so the event's days count —
+      reads **17** and refuses, but a qualified event may legally run 20 bars
+      against a cap of 10, so it deletes the class: BODI's operator-ruled
+      framing (12.33/10.18, 76 bars, 30 excised) goes from a run of 2 to a run
+      of **19** and stops firing, dropping the sealed marks ratchet to 27/33.
+
+    The read kept here gives **13** on that fixture — refused — and 2 on BODI.
 
     Returns:
         (respected, r_broken, s_broken, total_outside_days, respect_share,
@@ -231,17 +245,9 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val, judged_mask=None):
         ends = np.flatnonzero(d == -1)
         return int((ends - starts).max()) if len(starts) > 0 else 0
 
-    def _on_time_axis(mask):
-        """The mask re-scattered onto the original window (excised bars False)."""
-        if judged_mask is None:
-            return mask
-        full = np.zeros(len(judged_mask), dtype=bool)
-        full[judged_mask] = mask
-        return full
-
-    max_consec = _max_consecutive(_on_time_axis(outside))
-    r_consec_max = _max_consecutive(_on_time_axis(above_r))
-    s_consec_max = _max_consecutive(_on_time_axis(below_s))
+    max_consec = _max_consecutive(outside)
+    r_consec_max = _max_consecutive(above_r)
+    s_consec_max = _max_consecutive(below_s)
 
     respect_pct = 1.0 - (total_outside / n)
     max_outside = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS

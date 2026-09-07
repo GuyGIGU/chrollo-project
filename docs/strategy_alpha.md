@@ -304,16 +304,32 @@ box-start divergence record live under cascade step 4 below.
 **Two of those legs are read in TIME, not in bars-as-a-set (council review
 2026-09-07).** "Touches spread across the window, not clustered" and "a run of
 consecutive days outside the rails is a departure, not a poke" are both statements about
-*where on the chart* something sat and *how many trading days in a row* it lasted. When a
-framing's judgment excises bars — the deep-excursion read lifts a qualified terminal
-shakeout out of the window and judges what remains — the surviving bars keep their real
-dates: two outside days a fortnight apart are not a two-day run because the fortnight
-between them was removed from the measurement, and the window's thirds stay the thirds of
-the *chart*, not of the shortened list. Everything the same test asks as a SET (what
-share of bars respected the rails, how many touches each rail took, how the dwell and the
-coverage sit) is a question about the judged bars alone and is unaffected. The distinction
-is not cosmetic: it is the difference between a rail proven across a base and a rail
-touched once and re-read by an accident of arithmetic.
+*where on the chart* something sat and *how many trading days in a row* it lasted. That
+matters when a framing's judgment excises bars — the deep-excursion read lifts a qualified
+terminal shakeout out of the window and judges what remains.
+
+**The window's thirds stay the thirds of the *chart*.** Three touches all taken in the
+first fortnight of a ten-week base are clustered, and no arithmetic on a shortened list
+makes them spread. The excised days are simply days the rail was not touched, which is
+true, so the anti-clustering leg cuts its thirds on the real span.
+
+**The departure run keeps its own jurisdiction.** A lifted-out excursion is not neutral
+time and it is not a return inside: price left the rail, which is *why* it was lifted out —
+but it left under the excursion's own, stricter promise (it must reclaim, hold, stay
+inside a bounded depth, and last no longer than a bounded number of days). Those days
+answer to that promise. The departure defence counts the outside days IT owns and runs
+straight through event time: an excursion never breaks one departure into two short pokes,
+and its own days are never charged to a cap set for ordinary outside days. Both errors
+were measured and rejected the day they were proposed — reading the excursion as a return
+turns a seventeen-day stay below support into seven and admits the junk framing; charging
+its days to the ordinary cap refuses every terminal-shakeout base there is, including the
+ones the operator drew himself.
+
+Everything the same test asks as a SET (what share of bars respected the rails, how many
+touches each rail took, how the dwell and the coverage sit) is a question about the judged
+bars alone and is unaffected. The distinction is not cosmetic: it is the difference
+between a rail proven across a base and a rail touched once and re-read by an accident of
+arithmetic.
 
 **Engagement respect — tested and REJECTED as a gate; kept as a measure
 (2026-07-24, gap-breach Task 3).** The operator reads rail respect as
