@@ -764,6 +764,20 @@ with no assertion at the `select_inner_box` stamping point); operator-delegated 
 **Principle:** `conventions.md` EC-19/EC-22/EC-33 — those three assume a stamping point exists; this
 requires it.
 
+### EC-56: The same-app guard is DEFAULT-ON at the middleware, with no exemption list
+**Convention:** Cross-origin containment has two layers. `require_same_app` stays the opt-in header
+guard a route declares. Underneath it, `middleware/same_app.SameAppOriginGuard` runs for **every**
+request and refuses anything a browser attests came from another page (`Sec-Fetch-Site` / `Origin`,
+which page JS cannot forge). Do NOT add a per-path exemption to that middleware, and do NOT reach for
+the header dependency as the *only* protection on a new route — `EventSource` cannot send a header,
+so an SSE route can never carry it. A new mutating or streaming route is guarded the moment it is
+registered; `tests/test_service_boot.py` walks every registered route and proves it.
+**Origin:** Hunt × Ramírez — Council Review 2026-09-07 (finding 3: the opt-in guard had reached 15 of
+85 routes; 28 mutating or streaming routes were open, including all four IBKR control routes)
+**Rationale:** An opt-in guard is only ever on the routes someone remembered, and the one it could
+never reach was the most expensive endpoint in the app. Default-on has no rot surface; an exemption
+list is that rot surface reintroduced.
+
 ---
 
 ### AP-11: The species story-form dark lane is the protocol working — not a version smell

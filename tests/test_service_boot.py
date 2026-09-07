@@ -61,6 +61,76 @@ def test_backend_boots_from_service_cwd_and_registers_routes():
     )
 
 
+def test_boot_installs_the_default_origin_guard_over_every_registered_route():
+    """The default-on half of the same-app posture rule is only worth anything
+    if it is actually mounted and has no per-route escape hatch (council
+    2026-09-07, finding 3: the opt-in header guard reached 15 of 85 routes).
+
+    So: assert the middleware is in the real app's stack, then walk every
+    registered mutating route and drive the guard at that exact path with what
+    a hostile page sends. The guard is driven around a STUB app — a route's own
+    handler is never invoked, so a broken guard fails this test instead of
+    starting a 17-minute scan. A route added tomorrow is walked by this test
+    the day it is added, and an exemption list would fail it here."""
+    code = (
+        "import asyncio\n"
+        "import main\n"
+        "from starlette.routing import Mount\n"
+        "from middleware.same_app import SameAppOriginGuard\n"
+        "installed = [m.cls for m in main.app.user_middleware]\n"
+        "assert SameAppOriginGuard in installed, "
+        "f'guard not mounted; stack={installed}'\n"
+        "def leaves(routes):\n"
+        "    out = []\n"
+        "    for r in routes:\n"
+        "        orig = getattr(r, 'original_router', None)\n"
+        "        sub = orig.routes if orig is not None else (r.routes if isinstance(r, Mount) else None)\n"
+        "        out += leaves(sub) if sub else [(getattr(r, 'path', ''), getattr(r, 'methods', None) or set())]\n"
+        "    return out\n"
+        "async def inner(scope, receive, send):\n"
+        "    raise AssertionError('handler reached: ' + scope['path'])\n"
+        "def refused(path, method, extra):\n"
+        "    seen = {}\n"
+        "    async def send(message):\n"
+        "        if message['type'] == 'http.response.start':\n"
+        "            seen['status'] = message['status']\n"
+        "    scope = {'type': 'http', 'method': method, 'path': path, 'scheme': 'http',\n"
+        "             'headers': [(b'host', b'localhost:8000'),\n"
+        "                         (b'sec-fetch-site', b'cross-site')] + extra}\n"
+        "    asyncio.run(SameAppOriginGuard(inner)(scope, None, send))\n"
+        "    return seen.get('status')\n"
+        # Both shapes a hostile page takes: a fetch/form POST, which carries an
+        # Origin, and an EventSource/<img> GET, which carries none. Only the
+        # Sec-Fetch-Site leg catches the second, and that is the leg the SSE
+        # scan streams depend on entirely.
+        "shapes = {'with Origin': [(b'origin', b'https://evil.example')],\n"
+        "          'no Origin': []}\n"
+        "mutating = [(p, sorted(m & {'POST', 'PUT', 'PATCH', 'DELETE'})[0])\n"
+        "            for p, m in leaves(main.app.routes)\n"
+        "            if m & {'POST', 'PUT', 'PATCH', 'DELETE'}]\n"
+        "assert len(mutating) > 20, f'only {len(mutating)} mutating routes walked'\n"
+        "streams = [p for p, m in leaves(main.app.routes)\n"
+        "           if 'GET' in m and ('stream' in p or 'download-data' in p)]\n"
+        "assert len(streams) >= 4, f'only {len(streams)} streaming GETs walked: {streams}'\n"
+        "for path, method in mutating + [(p, 'GET') for p in streams]:\n"
+        "    for label, extra in shapes.items():\n"
+        "        status = refused(path, method, extra)\n"
+        "        assert status == 403, (\n"
+        "            f'{method} {path} answered {status} to a cross-site page ({label})')\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=str(BACKEND_DIR),
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert proc.returncode == 0, (
+        f"origin-guard boot pin failed (exit {proc.returncode}):\n"
+        f"{proc.stdout}\n{proc.stderr}"
+    )
+
+
 def test_backend_does_not_shadow_root_config():
     """webapp/backend must never grow a config.py (or config/ package): with
     the service's cwd it would shadow the repo-root config package and crash

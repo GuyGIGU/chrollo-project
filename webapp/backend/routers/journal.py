@@ -178,7 +178,7 @@ def list_attachments(trade_id: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/trades/{trade_id}/attachments")
-async def upload_attachment(
+def upload_attachment(
     trade_id: int,
     request: Request,
     file: UploadFile = File(...),
@@ -190,7 +190,10 @@ async def upload_attachment(
         raise HTTPException(status_code=400, detail=f"Only {sorted(ALLOWED_MIMES)} allowed")
 
     # Stream into a hasher + temp file so we fail fast on oversized uploads
-    # instead of pulling the whole body into memory first.
+    # instead of pulling the whole body into memory first. Sync def (house
+    # rule) so the hashing and the disk writes run in the threadpool, not on
+    # the event loop — the same shape as the IBKR CSV import, milder because
+    # the work is chunked, still the loop's to block (council 2026-09-07, F12).
     ext = MIME_EXT.get(mime, "bin")
     trade_dir = os.path.join(UPLOAD_ROOT, str(trade_id))
     if not _is_under_upload_root(trade_dir):
@@ -203,7 +206,7 @@ async def upload_attachment(
     try:
         with open(tmp_path, "wb") as fh:
             while True:
-                chunk = await file.read(_CHUNK)
+                chunk = file.file.read(_CHUNK)
                 if not chunk:
                     break
                 total += len(chunk)

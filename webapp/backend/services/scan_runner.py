@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterator
 
@@ -26,6 +27,30 @@ if ROOT_DIR not in sys.path:
 # a SUBSET of setups silently drops real winners on an otherwise-green (exit 0)
 # build, so this is the tripwire that makes that visible.
 ERRORED_TICKERS_ALERT_THRESHOLD = 0
+
+
+@contextmanager
+def scan_lock() -> Iterator[bool]:
+    """THE one-child-at-a-time gate, in ONE shape (EC-3).
+
+    Yields whether the lock was taken; releases it on every exit path,
+    including one taken by an exception raised *between* the acquire and the
+    first line of work. That gap is not hypothetical: the scheduled job used
+    to write its run record on the bare line after ``acquire()``, outside the
+    ``try`` whose ``finally`` released — and ``scan_status.start_run`` does a
+    SQLite INSERT, which raises on a busy database, the exact condition the
+    30-second busy timeout exists to survive. One raise there orphaned the
+    lock for the life of the process, and every later scan, scheduled or
+    manual, logged "skipped because another scan is already running" and did
+    nothing until someone restarted the service (council 2026-09-07, F1).
+    Acquiring through this context manager is what makes that unwritable.
+    """
+    acquired = SCAN_LOCK.acquire(blocking=False)
+    try:
+        yield acquired
+    finally:
+        if acquired:
+            SCAN_LOCK.release()
 
 
 @dataclass
@@ -244,12 +269,20 @@ def _terminate_child(process: subprocess.Popen | None) -> None:
 def _stream_process(trigger: str, args: list[str] | None = None,
                     kind: str = "scan") -> Iterator[str]:
     """Run a manual subprocess job and stream its stdout as server-sent events."""
-    from services import scan_status
+    with scan_lock() as acquired:
+        if not acquired:
+            yield "data: ERROR: another scan or data job is already running\n\n"
+            yield "data: [DONE]\n\n"
+            return
 
-    if not SCAN_LOCK.acquire(blocking=False):
-        yield "data: ERROR: another scan or data job is already running\n\n"
-        yield "data: [DONE]\n\n"
-        return
+        yield from _stream_locked_process(trigger, args, kind)
+
+
+def _stream_locked_process(trigger: str, args: list[str] | None,
+                           kind: str) -> Iterator[str]:
+    """The streamed job itself. Runs only with SCAN_LOCK held; the caller owns
+    the release, so nothing in here can orphan it."""
+    from services import scan_status
 
     run_id = None
     run_recorded = False
@@ -302,8 +335,6 @@ def _stream_process(trigger: str, args: list[str] | None = None,
         alert_if_needed(trigger, "failed", None, str(exc))
         yield f"data: ERROR: {exc}\n\n"
         yield "data: [DONE]\n\n"
-    finally:
-        SCAN_LOCK.release()
 
 
 def stream_manual_scan() -> Iterator[str]:
@@ -332,12 +363,12 @@ def run_scheduled_scan_and_forward_returns() -> None:
     from core.archive.forward_returns import update_forward_returns
     from services import scan_status
 
-    if not SCAN_LOCK.acquire(blocking=False):
-        log.warning("scheduled scan skipped because another scan is already running")
-        return
+    with scan_lock() as acquired:
+        if not acquired:
+            log.warning("scheduled scan skipped because another scan is already running")
+            return
 
-    run_id = scan_status.start_run("scheduled")
-    try:
+        run_id = scan_status.start_run("scheduled")
         try:
             # The daily run covers every universe (US-Stocks first); the parsed
             # n_setups reflects the primary US-Stocks run. ETF universes generate
@@ -375,5 +406,3 @@ def run_scheduled_scan_and_forward_returns() -> None:
                 scan_status.finish_run(mat_run_id, status="failed", error=str(exc))
                 alert_if_needed("scheduled-maturation", "failed", None, str(exc))
                 log.exception("scheduled forward-return update failed")
-    finally:
-        SCAN_LOCK.release()
