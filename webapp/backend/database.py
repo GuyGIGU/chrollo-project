@@ -6,7 +6,17 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 # Anchor the DB path to this file's directory so the location is deterministic
 # regardless of the working directory used to start uvicorn.
 _DB_DIR = os.path.dirname(os.path.abspath(__file__))
-_DB_PATH = os.path.join(_DB_DIR, "trading_journal.db")
+DEFAULT_DB_PATH = os.path.join(_DB_DIR, "trading_journal.db")
+
+# ...unless CHROLLO_DB_PATH names another file. The ONE reason this override
+# exists: `import main` runs the whole migration battery at import scope
+# (main.py's initialize_database()), and three test modules import main in a
+# subprocess with cwd=webapp/backend. Without an override a plain `pytest` run
+# migrates the operator's live archive and — through _reconcile_orphaned_runs —
+# stamps an in-flight scan 'failed'. tests/conftest.py sets this to a throwaway
+# file for the whole session (guarded by tests/test_db_isolation.py). Nothing in
+# the service sets it, so production keeps the anchored path.
+_DB_PATH = os.environ.get("CHROLLO_DB_PATH") or DEFAULT_DB_PATH
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{_DB_PATH}"
 
 

@@ -19,7 +19,8 @@ books — it never places trades.**
   auto-grab the single IBKR session (it would fight TradingView for the one allowed login).
 - **Do not boot the backend** (no `uvicorn`, no `start_dashboard.bat`) — the lifespan handler starts the
   scheduler and would let a connect path touch the broker. *Importing* `main` for a verification check is
-  fine (it does not run lifespan).
+  fine (it does not run lifespan) — but it **does** run the DB migrations, so set `CHROLLO_DB_PATH` first
+  (see *Verification an agent may run*).
 - **Do not install/register** the NSSM service or OS scheduled tasks — those need elevation; hand the
   user the command instead.
 
@@ -80,7 +81,15 @@ npm --prefix webapp\frontend run lint                        # eslint
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
   backend files; `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to
-  confirm routes register.
+  confirm routes register — **but point the DB somewhere throwaway first**:
+  ```powershell
+  $env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # then import main
+  ```
+  `import main` runs `initialize_database()` at *import* scope: `create_all`, the ALTER list, three
+  rebuild migrations that copy a 44 MB backup, and `_reconcile_orphaned_runs`, which rewrites any
+  `scan_runs` row still `running` to `failed` — that string is in the operator's archive because a
+  bare `pytest` used to do exactly this (council review 2026-09-07). `pytest` now sets the same
+  variable for itself in `tests/conftest.py`; the **service must never set it** (`docs/deploy.md` §2).
 - **After MOVING, ARCHIVING or DELETING any file, run `tools.pointer_audit --check`.** A citation
   rots when some *other* file moves, so the commit that breaks it never touches the file that
   carries it — no diff review can catch this. It is also in pytest, so a normal run covers it; the

@@ -41,9 +41,16 @@ def executions(db: Session = Depends(get_db), limit: int = 100) -> List[Dict[str
 
 
 @router.post("/ibkr/import-csv")
-async def import_ibkr_csv(file: UploadFile = File(...)) -> Dict[str, Any]:
-    """Bulk import an IBKR Activity Statement CSV."""
-    raw = await file.read()
+def import_ibkr_csv(file: UploadFile = File(...)) -> Dict[str, Any]:
+    """Bulk import an IBKR Activity Statement CSV.
+
+    Sync ``def`` ON PURPOSE, like every other handler here: FastAPI runs it in
+    the threadpool. As an ``async def`` the statement parse and the whole
+    trade-log rebuild ran ON the event loop, so for the duration of an import
+    every other request in the process stalled — the portfolio pane, the health
+    tick, the broker-status pill (council 2026-09-07, F12).
+    """
+    raw = file.file.read()
     if len(raw) > _MAX_CSV_BYTES:
         size_mb = _MAX_CSV_BYTES // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"CSV too large (>{size_mb} MB)")

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Iterator
 
@@ -26,6 +27,36 @@ if ROOT_DIR not in sys.path:
 # a SUBSET of setups silently drops real winners on an otherwise-green (exit 0)
 # build, so this is the tripwire that makes that visible.
 ERRORED_TICKERS_ALERT_THRESHOLD = 0
+
+
+@contextmanager
+def scan_lock() -> Iterator[bool]:
+    """THE one-child-at-a-time gate, for every job the CALLER outlives.
+
+    Yields whether the lock was taken; releases it on every exit path,
+    including one taken by an exception raised *between* the acquire and the
+    first line of work. That gap is not hypothetical: the scheduled job used
+    to write its run record on the bare line after ``acquire()``, outside the
+    ``try`` whose ``finally`` released — and ``scan_status.start_run`` does a
+    SQLite INSERT, which raises on a busy database, the exact condition the
+    30-second busy timeout exists to survive. One raise there orphaned the
+    lock for the life of the process, and every later scan, scheduled or
+    manual, logged "skipped because another scan is already running" and did
+    nothing until someone restarted the service (council 2026-09-07, F1).
+    Acquiring through this context manager is what makes that unwritable.
+
+    The manual SSE path cannot use it — there the job deliberately OUTLIVES
+    the caller (an SSE generator is only a reader; see ``LiveJob``), so the
+    lock is handed to the pump thread and released in ``_pump_job``'s own
+    ``finally``. Same discipline, one owner each: the release is never left
+    to reaching the end of a function.
+    """
+    acquired = SCAN_LOCK.acquire(blocking=False)
+    try:
+        yield acquired
+    finally:
+        if acquired:
+            SCAN_LOCK.release()
 
 
 @dataclass
@@ -291,13 +322,21 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
     it. It still owns everything the old generator owned — terminate the child on
     a failure, always finish the run row, always release the lock — which is what
     keeps a disconnect from leaving an unsupervised child or a 'running' row.
+
+    This thread is the manual path's LOCK OWNER, so the F1 discipline lives
+    here: SCAN_LOCK is released in the ``finally`` below, and NOTHING — not the
+    import, not ``start_run``'s SQLite INSERT on a busy database, not a
+    terminate that closes the pipe under the read — runs outside the ``try``
+    that finally guards. A raise before it would hold the lock for the life of
+    the process AND leave every reader waiting on a job that never finishes.
     """
     global _LIVE_JOB
-    from services import scan_status
 
     lines: list[str] = []
     recorded = False
     try:
+        from services import scan_status
+
         job.run_id = scan_status.start_run(job.trigger, kind=job.kind)
         job.process = _create_process(args)
         if job.cancelled:
@@ -358,12 +397,18 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
             alert_if_needed(job.trigger, "failed", None, str(exc))
             _emit(job, f"data: ERROR: {exc}\n\n")
     finally:
-        # The route wrappers used to invalidate the screener cache in their own
-        # `finally`, which fired when the CLIENT went away rather than when the
-        # artifact was rewritten. It belongs to the job, so it lives here.
-        if job.kind == "scan":
-            _invalidate_screener_cache()
-        SCAN_LOCK.release()
+        # The cache bust is nested in its own try so the release below cannot be
+        # skipped by anything ahead of it — the lock's freedom may not depend on
+        # another call returning (F1).
+        try:
+            # The route wrappers used to invalidate the screener cache in their
+            # own `finally`, which fired when the CLIENT went away rather than
+            # when the artifact was rewritten. It belongs to the job, so it
+            # lives here.
+            if job.kind == "scan":
+                _invalidate_screener_cache()
+        finally:
+            SCAN_LOCK.release()
         # Released BEFORE [DONE], so a reader that has seen the terminal event
         # can rely on the lock already being free.
         with _LIVE_COND:
@@ -421,11 +466,25 @@ def _stream_process(trigger: str, args: list[str] | None = None,
         yield "data: [DONE]\n\n"
         return
 
+    # The lock is acquired here but OWNED by the pump thread, whose try/finally
+    # releases it on every exit path — it has to outlive this generator (that is
+    # finding 4: a client going away must not end the job), so it cannot be a
+    # `with scan_lock()` here. The handover itself is the one step that can still
+    # fail before that thread's finally exists, so it releases on that path too
+    # rather than leaving the lock held for the life of the process (F1).
     live = LiveJob(trigger=trigger, kind=kind, job=job)
-    with _LIVE_COND:
-        _LIVE_JOB = live
-    threading.Thread(target=_pump_job, args=(live, args),
-                     name=f"chrollo-scan-{job}", daemon=True).start()
+    try:
+        with _LIVE_COND:
+            _LIVE_JOB = live
+        threading.Thread(target=_pump_job, args=(live, args),
+                         name=f"chrollo-scan-{job}", daemon=True).start()
+    except BaseException:
+        with _LIVE_COND:
+            if _LIVE_JOB is live:
+                _LIVE_JOB = None
+            _LIVE_COND.notify_all()
+        SCAN_LOCK.release()
+        raise
     yield from _follow(live)
 
 
@@ -514,12 +573,12 @@ def run_scheduled_scan_and_forward_returns() -> None:
     from core.archive.forward_returns import update_forward_returns
     from services import scan_status
 
-    if not SCAN_LOCK.acquire(blocking=False):
-        log.warning("scheduled scan skipped because another scan is already running")
-        return
+    with scan_lock() as acquired:
+        if not acquired:
+            log.warning("scheduled scan skipped because another scan is already running")
+            return
 
-    run_id = scan_status.start_run("scheduled")
-    try:
+        run_id = scan_status.start_run("scheduled")
         try:
             # The daily run covers every universe (US-Stocks first); the parsed
             # n_setups reflects the primary US-Stocks run. ETF universes generate
@@ -557,5 +616,3 @@ def run_scheduled_scan_and_forward_returns() -> None:
                 scan_status.finish_run(mat_run_id, status="failed", error=str(exc))
                 alert_if_needed("scheduled-maturation", "failed", None, str(exc))
                 log.exception("scheduled forward-return update failed")
-    finally:
-        SCAN_LOCK.release()

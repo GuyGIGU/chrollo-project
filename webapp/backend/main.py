@@ -20,6 +20,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from broker_config import settings
 from ibkr import get_ibkr_service
 from middleware.request_id import RequestIDMiddleware
+from middleware.same_app import DEV_ORIGINS, SameAppOriginGuard
 from routers import analytics as analytics_router
 from routers import archive as archive_router
 from routers import calibration as calibration_router
@@ -131,6 +132,13 @@ def _stop_services(svc) -> None:
 
 app = FastAPI(title="Chrollo API", lifespan=lifespan)
 
+# INNERMOST, so a refusal still returns THROUGH RequestIDMiddleware: the guard's
+# own warning line carries no request id, but the access line paired with it
+# does, and the 403 answers with an x-request-id header. The default-on half of
+# the same-app posture rule: every request, not the 15 routes someone remembered
+# to decorate, and the only mechanism that reaches the SSE streams (EventSource
+# cannot send the header). See middleware/same_app.py.
+app.add_middleware(SameAppOriginGuard)
 app.add_middleware(RequestIDMiddleware)
 # Host allowlist BEFORE the browser-enforced defenses: CORS and the same-app
 # header only bind cross-origin pages, so a DNS-rebound page (its domain
@@ -145,7 +153,7 @@ app.add_middleware(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=list(DEV_ORIGINS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
