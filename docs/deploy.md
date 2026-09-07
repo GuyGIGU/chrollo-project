@@ -281,6 +281,39 @@ Real restore, after data loss:
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.
 
+### 5a. Missed-slot catch-up at boot
+
+The 18:00 ET slot is 01:00 local, and a full scan takes ~17 minutes — so powering the PC
+off around 01:00 lands squarely on the scan. Two mechanisms cover a lost night, and neither
+needs a click:
+
+- **Misfire grace (4 hours).** APScheduler's default grace is 1 second, so a machine asleep
+  or a service mid-restart at 18:00 ET silently dropped the run. With hours of grace, a late
+  tick still fires the job. This covers "process alive but couldn't fire on time".
+- **Boot catch-up.** A process that was fully DOWN at slot time has no job to misfire, so at
+  every service boot the scheduler looks at the **most recent weekday slot** — today's if it
+  has already passed, otherwise the previous weekday's. Booting on a Saturday or Sunday
+  therefore looks back at **Friday's** slot; a weekday morning boot looks back at last night's.
+  If that slot has no **successful** scan run, one catch-up scan is scheduled ~2 minutes
+  after boot.
+
+**A scan that started but died counts as missed.** Boot reconciliation rewrites a killed
+`running` row to `failed`, and only status `ok` vouches for a slot — `failed`, `aborted`,
+`stale_data` and "no run at all" all trigger the catch-up. (Before 2026-09, any row stamped
+at/after the slot counted as served, so a scan killed 27 seconds in looked done, and a
+weekend boot skipped the check entirely: one power-off cost the Friday scan the whole
+weekend, with the dashboard stuck on *Degraded / last scan failed* until Monday 18:00 ET.)
+
+The catch-up uses a single fixed job id and is only ever scheduled at boot, so there is **at
+most one catch-up per boot** — a slot that keeps failing (say a genuine provider outage
+recorded as `stale_data`) is retried once at the next boot, never in a loop. Confirm it in
+the service log:
+
+```powershell
+Select-String -Path "C:\Users\User\Documents\Projects\Chrollo Project\output\chrollo-service*.log" `
+  -Pattern "boot catch-up" | Select-Object -Last 5
+```
+
 ## 6. Self-Hosted CI Runner (GitHub Actions)
 
 The `verify-windows` job in `.github/workflows/quality.yml` runs on a **self-hosted runner
