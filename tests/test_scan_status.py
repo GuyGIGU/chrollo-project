@@ -89,6 +89,30 @@ def test_latest_and_history_agree_on_reason_and_solution(status_engine, monkeypa
     assert latest["reason"]
 
 
+def test_history_widens_to_the_other_jobs_only_when_asked(status_engine, monkeypatch):
+    """`kind=all` is what surfaces the outcome-backfill and download failures no
+    surface had ever shown; the Archive header's Scan History button opens it.
+    Pinning the route back to scans alone must not pass silently."""
+    import routers.screener as screener_router
+
+    monkeypatch.setattr(screener_router.scan_diagnosis, "current_missed_slot_notice",
+                        lambda: None)
+    scan_id = scan_status_mod.start_run("scheduled")
+    scan_status_mod.finish_run(scan_id, "failed", error="boom")
+    mat_id = scan_status_mod.start_run("os_task", kind="maturation")
+    scan_status_mod.finish_run(mat_id, "failed", error="boom")
+
+    everything = screener_router.get_scan_status_history(limit=5, kind="all")["runs"]
+    scans_only = screener_router.get_scan_status_history(limit=5, kind="scan")["runs"]
+
+    assert {r["id"] for r in everything} == {scan_id, mat_id}
+    assert {r["id"] for r in scans_only} == {scan_id}
+    # And the backfill row is described as a backfill, not as "the scan".
+    backfill = next(r for r in everything if r["id"] == mat_id)
+    assert "the outcome backfill" in backfill["reason"].lower()
+    assert "Evaluate" not in backfill["solution"]
+
+
 def test_the_never_row_still_carries_the_resolved_fields(status_engine):
     """A fresh install must not serve a row shaped differently from every other
     row — the 'never' fallback goes through the same enrichment."""

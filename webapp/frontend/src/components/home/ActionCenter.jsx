@@ -5,7 +5,7 @@ import BridgeOut from './BridgeOut';
 import useWatchlist from '../../hooks/useWatchlist';
 import { tierColor } from '../../theme';
 import { formatScore } from '../../utils/scoreFormat';
-import { fmtScanTime } from '../../utils/appFormat';
+import { fmtScanTime, scanStatusColor } from '../../utils/appFormat';
 import { nearTriggerFrac, triggerFired } from '../../utils/triggerProximity.js';
 
 // "What needs me right now" — the cockpit's attention digest, promoting the
@@ -55,7 +55,10 @@ function scanFreshness(scanStatus, screenerData, ordered) {
   if (RUN_FAILED[status]) {
     return {
       text: `${RUN_FAILED[status]} ${fmtScanTime(scanStatus.finished_at)}`,
-      color: 'var(--danger)',
+      // The tone comes from the one status->colour map; RUN_FAILED stays the
+      // copy map. The two sets became identical when 'aborted' joined
+      // scanStatusColor, and two copies of one set drift (EC-3).
+      color: scanStatusColor(status),
     };
   }
   const stale = ranOnPriorDay(screenerData?.scanned_at);

@@ -1,6 +1,7 @@
 import Modal from './ui/Modal';
 import { failingChecks, scanStatusColor } from '../utils/appFormat';
-import { RUN_KIND_LABELS } from './wireVocabulary';
+import { fmtInt } from '../utils/format.js';
+import { RUN_KIND_LABELS, RUN_STATUS_LABELS, RUN_TRIGGER_LABELS } from './wireVocabulary';
 
 // The one scan-run diagnostics registry. Reached from the topbar status pills
 // ("why is this Degraded?") and from the Archive header's Scan History button —
@@ -28,7 +29,7 @@ export default function ScanHistoryModal({ open, runs, notice, loading, health, 
           {checks.map(check => (
             <div key={check.key} style={checkRowStyle}>
               <div style={{ color: 'var(--danger)', fontWeight: 600 }}>{check.label || check.key}</div>
-              <div style={{ color: 'var(--text-main)' }}>{check.reason || check.detail || ''}</div>
+              <div style={{ color: 'var(--text-main)' }}>{check.reason || ''}</div>
               {check.solution && <div style={solutionStyle}>Do this: {check.solution}</div>}
             </div>
           ))}
@@ -77,9 +78,13 @@ function RunRows({ run }) {
           {formatRunTime(run)}
         </td>
         <td style={leftCellStyle}>{RUN_KIND_LABELS[run.kind] || run.kind || '—'}</td>
-        <td style={leftCellStyle}>{run.trigger || '—'}</td>
-        <td style={rightCellStyle}>{run.n_setups ?? 'unknown'}</td>
-        <td style={{ ...leftCellStyle, color: scanStatusColor(run.status) }}>{run.status}</td>
+        <td style={leftCellStyle}>{RUN_TRIGGER_LABELS[run.trigger] || run.trigger || '—'}</td>
+        {/* Only a screener scan produces setups; a backfill or a download has no
+            count to be unknown about, so its cell stays empty. */}
+        <td style={rightCellStyle}>{run.kind === 'scan' ? fmtInt(run.n_setups, 'unknown') : '—'}</td>
+        <td style={{ ...leftCellStyle, color: scanStatusColor(run.status) }}>
+          {RUN_STATUS_LABELS[run.status] || run.status}
+        </td>
       </tr>
       {explained && (
         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>

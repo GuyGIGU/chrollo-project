@@ -192,6 +192,29 @@ export const RUN_KIND_LABELS = {
   download: 'Market-data download',
 };
 
+// The run statuses (the frozen scan_runs.status enum) in the operator's words.
+// One map for BOTH surfaces that name a run — the topbar pill and the registry
+// row — so a stale-data run cannot read "stale" on one and `stale_data` on the
+// other. Labels only.
+export const RUN_STATUS_LABELS = {
+  ok: 'ok',
+  running: 'running',
+  failed: 'failed',
+  aborted: 'stopped by you',
+  stale_data: 'stale',
+  never: 'never run',
+};
+
+// How a run was started. `os_task` (the Windows scheduled task that ticks the
+// outcome backfill) reaches the operator for the first time in the registry.
+export const RUN_TRIGGER_LABELS = {
+  scheduled: 'nightly timer',
+  manual: 'you',
+  manual_evaluation: 'you (Evaluate)',
+  manual_download: 'you (Download)',
+  os_task: 'Windows task',
+};
+
 export function displayLabel(id) {
   return DISPLAY_LABELS[id]?.label ?? id;
 }

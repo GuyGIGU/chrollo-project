@@ -91,6 +91,33 @@ Three traps in that command, all measured:
   and stamped 2026-07-01T16:41:44). An uncapped window would borrow an unrelated evening's
   shutdown.
 
+## The bound was not enough — measured again in review, 2026-09-07
+
+A window running from `started_at` to `min(detected_at, started_at + 2h) + 90s` still blames
+this machine's *habit*. Every recent power-off lands inside the 18:00 scan's own two-hour cap:
+
+| `User32` 1074 (UTC) | 2026-08-30 22:57 · 08-31 23:58 · 09-01 22:26 · 09-02 23:03 · 09-03 22:51 · 09-04 22:00 · 09-05 21:59 · 09-06 22:42 |
+|---|---|
+| Inside the scan's window | **8 of 8** |
+
+So a scan that dies alone at 22:05 for an unrelated reason, on a night the dashboard survives
+(the orphan is then detected at next morning's boot, and the cap collapses to `start + 2h`),
+was stamped *"the computer was shut down while the scan was still running"* — a confident
+wrong cause, with a remedy ("leave the computer on past the scan") that would not have helped.
+
+**The claim is now anchored on `detected_at`**, the one instant we can *prove* the run was
+still alive, because the reconcile found the row still marked `running`. A 1074 must sit
+within `DETECTION_GRACE_SECONDS` of it (the existing cap still applies). Row 277 still
+classifies — its 1074 is 4.95 s before the reconcile — and the late-detection case falls to
+`interrupted_unrecorded`, which claims nothing.
+
+**6008 / Kernel-Power 41 were dropped rather than re-windowed.** Windows writes both at the
+NEXT boot, so their `TimeCreated` is the reboot moment, not the crash: an overnight power cut
+stamps them the following morning, hours outside any window anchored on the run. The arm could
+only fire when the machine came back within minutes. `interrupted_unrecorded` now says
+"Windows has no record of the computer going down while it was running", which is exactly what
+was searched for.
+
 ## Why the answer is stamped rather than re-derived
 
 The System log is **circular**, capped at 20 MB, currently full and holding ~38,600 records

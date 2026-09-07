@@ -1437,6 +1437,103 @@ def test_scan_freshness_degrades_on_aborted():
         assert status in detail
 
 
+def test_the_hang_threshold_has_exactly_one_home():
+    """EC-3. "A run left running this long was already hung" is one judgment,
+    load-bearing in three places: the watchdog alerts on it, /health calls the
+    scan hung by it, and it caps how late a machine shutdown may still be blamed
+    for killing a run. Tuning one copy used to leave the others behind."""
+    from webapp.backend.services import scan_watchdog
+
+    # health_service.scan_diagnosis is the module the backend itself imports.
+    assert scan_watchdog.HUNG_RUNNING_HOURS is health_service.scan_diagnosis.HUNG_RUNNING_HOURS
+
+
+def test_health_calls_a_scan_hung_by_the_shared_threshold(monkeypatch):
+    """The third copy: /health used a bare 2. Moving the shared constant must
+    move this arm with it."""
+    three_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+    running = {"status": "running", "finished_at": three_hours_ago}
+
+    assert health_service._scan_freshness(running)[0] is False
+    monkeypatch.setattr(health_service.scan_diagnosis, "HUNG_RUNNING_HOURS", 6.0)
+    assert health_service._scan_freshness(running)[0] is True
+
+
+def test_health_report_puts_plain_words_on_the_wire_for_every_failing_check(
+        tmp_path, monkeypatch):
+    """The seam nothing crossed: /health must SERIALIZE which checks are wrong
+    (EC-28 — the frontend may not re-derive membership) with a label, a reason
+    and a remedy on each. And the ok-but-stale scan — the morning after a night
+    the machine was off — may not be described as a scan that did not finish."""
+    from sqlalchemy import create_engine
+
+    long_ago = (datetime.now(timezone.utc) - timedelta(hours=200)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health.db'}"))
+    monkeypatch.setattr(health_service.scan_status, "latest_run",
+                        lambda *a, **k: {"status": "ok", "finished_at": long_ago,
+                                         "n_setups": 12, "kind": "scan"})
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: False)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+
+    assert report["status"] == "degraded"
+    failing = {check["key"]: check for check in report["failing"]}
+    assert set(failing) == {"last_scan", "screener_data", "scheduler"}
+    for key, check in failing.items():
+        assert check["label"] and check["label"] != key, key
+        assert check["reason"] and check["solution"], key
+    # The scan it is describing finished cleanly and wrote 12 setups.
+    assert "did not finish cleanly" not in failing["last_scan"]["reason"]
+    assert "no scan has run since" in failing["last_scan"]["reason"]
+    assert health_service.scan_diagnosis.JOB_RERUN["scan"] in failing["last_scan"]["solution"]
+
+
+def test_one_predicate_decides_which_checks_count_as_a_failure(tmp_path, monkeypatch):
+    """EC-3. "Which checks are an operator-facing failure" was written twice in
+    one file — once to decide degraded, once to attach the plain words. Miss one
+    when exempting a check and /health reports degraded for a check that carries
+    no reason. Both must resolve through the SAME predicate, so replacing it
+    moves the verdict and the list together."""
+    from sqlalchemy import create_engine
+
+    checks = {"ibkr": {"ok": False}, "db": {"ok": False}, "scheduler": {"ok": True}}
+    assert set(health_service._operator_relevant_failures(checks)) == {"db"}
+
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health3.db'}"))
+    monkeypatch.setattr(health_service.scan_status, "latest_run", lambda *a, **k: None)
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: False)
+    # Everything below is failing; the predicate says none of it counts.
+    monkeypatch.setattr(health_service, "_operator_relevant_failures", lambda c: {})
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+    assert report["failing"] == []
+    assert report["status"] == "ok"
+
+
+def test_health_report_lets_the_runs_own_reason_win_over_the_generic_one(
+        tmp_path, monkeypatch):
+    """A run that really did die carries a resolved cause; the check must show
+    THAT, not "the most recent scan did not finish cleanly"."""
+    from sqlalchemy import create_engine
+
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health2.db'}"))
+    monkeypatch.setattr(health_service.scan_status, "latest_run",
+                        lambda *a, **k: {"status": "failed", "finished_at": recent,
+                                         "kind": "scan",
+                                         "failure_kind": "interrupted_shutdown"})
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+    last_scan = next(c for c in report["failing"] if c["key"] == "last_scan")
+
+    assert "shut down" in last_scan["reason"]
+    assert "did not finish cleanly" not in last_scan["reason"]
+
+
 # ---- scan-runner alert decision (fetch-health degradation early warning) ----
 def test_alert_decision_failed_and_stale_always_alert():
     assert scan_runner._alert_decision("failed", 5, None, True, True) == "failed"

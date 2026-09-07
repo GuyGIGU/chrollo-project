@@ -21,13 +21,18 @@ def build_health_report(screener_json_path: str) -> dict:
     _add_screener_data_check(checks, screener_json_path)
     _add_scheduler_check(checks)
     _add_ibkr_check(checks)
-    _describe_failing_checks(checks)
+    failing = _describe_failing_checks(checks)
 
     return {
-        "status": "ok" if _checks_are_ok(checks) else "degraded",
+        "status": "ok" if not failing else "degraded",
         "app": "Chrollo API",
         "time": datetime.now(timezone.utc).isoformat(),
         "checks": checks,
+        # WHICH checks are wrong, in order, already in plain words. The topbar
+        # pill's tooltip and the diagnostics registry render this list verbatim
+        # (EC-28): membership is a judgment, and it is made here once, not
+        # re-derived from `checks` in frontend JS.
+        "failing": failing,
     }
 
 
@@ -61,12 +66,14 @@ def _add_scan_check(checks: dict) -> None:
     }
 
 
-def _describe_failing_checks(checks: dict) -> None:
+def _describe_failing_checks(checks: dict) -> list[dict]:
     """Give every failing non-ibkr check a plain-words label, reason and
-    proposed solution, resolved HERE so no frontend has to derive one."""
-    for name, check in checks.items():
-        if name == "ibkr" or check.get("ok", True):
-            continue
+    proposed solution, resolved HERE so no frontend has to derive one.
+
+    Returns the same checks as an ordered list for the wire.
+    """
+    failing = []
+    for name, check in _operator_relevant_failures(checks).items():
         described = scan_diagnosis.describe_health_check(name, check)
         # A run-level reason already resolved above is more specific than the
         # generic check reason, so it wins.
@@ -74,6 +81,13 @@ def _describe_failing_checks(checks: dict) -> None:
             described.pop("reason")
             described.pop("solution", None)
         check.update(described)
+        failing.append({
+            "key": name,
+            "label": check.get("label", name),
+            "reason": check.get("reason") or check.get("detail"),
+            "solution": check.get("solution"),
+        })
+    return failing
 
 
 def _add_screener_data_check(checks: dict, screener_json_path: str) -> None:
@@ -109,7 +123,8 @@ def _scan_freshness(latest: dict | None) -> tuple[bool, float | None, str]:
     if status in ("failed", "stale_data", "aborted"):
         return False, age_hours, f"last scan {status}"
     if status == "running":
-        if age_hours is not None and age_hours > 2:
+        # The watchdog's hang threshold, imported — not a third copy of "2".
+        if age_hours is not None and age_hours > scan_diagnosis.HUNG_RUNNING_HOURS:
             return False, age_hours, "scan running too long (likely hung)"
         return True, age_hours, "scan running"
     if age_hours is not None and age_hours > _scan_age_allowance_hours():
@@ -141,5 +156,16 @@ def _scan_age_allowance_hours() -> int:
     return 26
 
 
-def _checks_are_ok(checks: dict) -> bool:
-    return all(check.get("ok", True) for name, check in checks.items() if name != "ibkr")
+def _operator_relevant_failures(checks: dict) -> dict:
+    """The failing checks that make the app Degraded — the ONE place that rule
+    is written. ibkr is exempt: the broker link is manual and read-only, so a
+    disconnected session is a normal state, not a fault.
+
+    Both the degraded verdict and the plain-words descriptions resolve through
+    this, so a newly exempted check cannot end up degrading the app while
+    carrying no reason, or carrying prose while degrading nothing.
+    """
+    return {
+        name: check for name, check in checks.items()
+        if name != "ibkr" and not check.get("ok", True)
+    }

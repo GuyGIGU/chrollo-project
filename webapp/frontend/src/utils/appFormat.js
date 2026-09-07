@@ -1,3 +1,6 @@
+// Extension-explicit: this module is in the node --test battery, and Node's ESM
+// resolver (unlike Vite) does not guess one.
+import { RUN_STATUS_LABELS } from '../components/wireVocabulary.js';
 import { dateTimeShort, finiteOrNull, fmtInt } from './format.js';
 
 export const fmtScanTime = (value) => {
@@ -16,20 +19,21 @@ export const scanStatusColor = (status) => {
   return 'var(--text-muted)';
 };
 
-// The failing, operator-relevant health checks. One extraction shared by the
-// topbar pill's tooltip and the diagnostics registry's "What is wrong right now"
-// block, so the two can never disagree about what is red.
+// The failing, operator-relevant health checks — a PASS-THROUGH of the verdict
+// the backend already resolved (`/health` -> `failing`), shared by the topbar
+// pill's tooltip and the registry's "What is wrong right now" block. Which
+// checks count as a failure is chapter membership, so it is decided server-side
+// and never re-derived here (EC-28); this used to filter `health.checks` in JS,
+// which meant exempting a check server-side still left it listed here.
 export const failingChecks = (health) =>
-  Object.entries((health && health.checks) || {})
-    .filter(([key, value]) => key !== 'ibkr' && value && value.ok === false)
-    .map(([key, value]) => ({ key, ...value }));
+  (health && Array.isArray(health.failing) ? health.failing : []);
 
 export const buildHealthPill = (health) => {
   if (!health) return null;
   // label/reason arrive already resolved from the backend; the fallbacks only
   // cover an older backend that has not been restarted yet.
   const failing = failingChecks(health)
-    .map(check => `${check.label || check.key}: ${check.reason || check.detail || 'failing'}`);
+    .map(check => `${check.label || check.key}: ${check.reason || 'failing'}`);
   const degraded = health.status !== 'ok';
   return {
     color: degraded ? 'var(--danger)' : 'var(--success)',
@@ -48,6 +52,9 @@ export const buildScanStatusText = (scanStatus) => {
   // real zero still says "0 setups" and only an unknown says unknown.
   const n = finiteOrNull(scanStatus.n_setups);
   const count = n == null ? 'setup count unknown' : `${fmtInt(n)} setups`;
-  const label = scanStatus.status === 'stale_data' ? 'stale' : scanStatus.status;
+  // The one status vocabulary, shared with the registry's Status column — the
+  // pill used to translate stale_data here while the registry three inches
+  // below printed the raw wire word.
+  const label = RUN_STATUS_LABELS[scanStatus.status] || scanStatus.status;
   return `Last scan: ${when} | ${count} | ${label}`;
 };

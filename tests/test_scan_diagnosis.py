@@ -117,22 +117,57 @@ def test_shutdown_outside_the_bounded_window_is_ignored():
     assert kind != "interrupted_shutdown"
 
 
-def test_power_loss_events_are_not_reported_as_a_deliberate_shutdown():
+def test_a_shutdown_far_from_the_detection_stamp_is_not_blamed_for_the_death():
+    """THE OVER-CLAIM PIN, from this machine's real habit (review 2026-09-07).
+
+    All eight of the operator's recent power-offs land inside the 18:00 scan's
+    own two-hour cap, so a window anchored on started_at alone blamed the
+    nightly shutdown for ANY orphan detected late. Here the scan dies alone at
+    22:05, the dashboard stays up, the operator powers off at 22:42 as he does
+    every night, and the orphan is only detected at next morning's boot. The
+    shutdown is real, but it is not what killed the run, and the remedy ("leave
+    the computer on past the scan") would not have helped.
+    """
+    start = datetime(2026, 9, 6, 22, 0, 1, tzinfo=UTC)
+    detected = datetime(2026, 9, 7, 6, 10, tzinfo=UTC)  # next boot's reconcile
+    habitual_power_off = datetime(2026, 9, 6, 22, 42, 27, tzinfo=UTC)
+
+    kind = diag.classify_interrupted(
+        start.isoformat(), detected.isoformat(),
+        [ev(1074, habitual_power_off)],
+        datetime(2026, 9, 7, 6, 9, tzinfo=UTC),  # rebooted since: cannot say it stayed on
+        detected + timedelta(hours=1),
+    )
+    assert kind == "interrupted_unrecorded"
+    reason = diag.describe_run({"status": "failed", "failure_kind": kind})["reason"]
+    assert "shut down" not in reason
+
+
+def test_a_machine_down_record_is_never_called_a_deliberate_shutdown_on_its_own():
+    """6008 / Kernel-Power 41 are stamped at the NEXT boot, so their timestamp is
+    the reboot moment, not the crash. They are no longer read at all — and they
+    must never be announced as "the computer was shut down"."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
     for event_id in (6008, 41):
         kind = diag.classify_interrupted(
             start.isoformat(), (start + timedelta(seconds=30)).isoformat(),
             [ev(event_id, start + timedelta(seconds=20))], None, start + timedelta(hours=1),
         )
-        assert kind == "interrupted_power_loss", event_id
+        assert kind != "interrupted_shutdown", event_id
+        reason = diag.describe_run({"status": "failed", "failure_kind": kind})["reason"]
+        assert "shut down" not in reason, event_id
 
 
-def test_evidence_horizon_closes_an_old_row_without_asking_windows():
-    calls = []
+def test_a_run_past_the_evidence_horizon_is_closed_out_as_unrecorded():
+    """The System log is circular, so an old row is closed out rather than
+    re-asked against a decaying log. The shutdown record below is squarely
+    inside the run's own window: the HORIZON is the only thing that may
+    suppress the claim."""
     start = datetime(2025, 1, 1, tzinfo=UTC)
+    detected = start + timedelta(seconds=30)
     kind = diag.classify_interrupted(
-        start.isoformat(), (start + timedelta(seconds=30)).isoformat(),
-        calls, None, start + timedelta(days=400),
+        start.isoformat(), detected.isoformat(),
+        [ev(1074, start + timedelta(seconds=20))], None, start + timedelta(days=400),
     )
     assert kind == "interrupted_unrecorded"
 
@@ -158,11 +193,34 @@ def test_window_grants_grace_past_the_detection_stamp_but_caps_a_late_one():
 
 # --------------------------------------------------------------- prose ----
 
-def test_every_failure_kind_has_a_reason_and_a_solution():
+def test_every_failure_kind_has_a_reason_and_a_solution_for_every_job():
+    """Crossed on BOTH axes. The boot reconcile stamps outcome-backfill and
+    download rows exactly as it stamps scans, and the registry lists all three —
+    so each row must name ITS job and carry the instruction that re-runs THAT
+    job, not "press Evaluate" under a row headed Outcome backfill."""
+    for job in diag.JOB_NAMES:
+        for kind in diag.FAILURE_KINDS:
+            described = diag.describe_run(
+                {"status": "failed", "kind": job, "failure_kind": kind})
+            assert described["reason"] and described["solution"], (job, kind)
+            assert diag.JOB_NAMES[job] in described["reason"].lower(), (job, kind)
+            assert diag.JOB_RERUN[job] in described["solution"], (job, kind)
+
+
+def test_every_job_kind_has_a_name_and_a_way_to_re_run_it():
+    assert set(diag.JOB_NAMES) == set(diag.JOB_RERUN)
+
+
+def test_no_solution_hardcodes_the_scan_hour():
+    """The slot is a setting the operator is being asked to move (docs/asks.md),
+    and the missed-slot notice reads it live. A clock time copied into this
+    prose starts lying the moment he moves it."""
+    import re
+
     for kind in diag.FAILURE_KINDS:
-        described = diag.describe_run({"status": "failed", "failure_kind": kind})
-        assert described["reason"], kind
-        assert described["solution"], kind
+        solution = diag.describe_run(
+            {"status": "failed", "failure_kind": kind})["solution"]
+        assert not re.search(r"\d{1,2}:\d{2}", solution), kind
 
 
 def test_unrecognised_legacy_error_still_gets_a_remedy():
@@ -184,7 +242,8 @@ def test_legacy_reconcile_text_bridges_to_the_pending_kind():
     described = diag.describe_run(
         {"status": "failed",
          "error": "process died before completion (reconciled at boot)"})
-    assert described["reason"] == diag.REASONS[diag.PENDING_KIND]
+    assert described["reason"].startswith("The scan stopped before it finished")
+    assert "has not worked out why yet" in described["reason"]
 
 
 def test_describe_run_is_pure(monkeypatch):
@@ -238,6 +297,37 @@ def test_collector_degrades_when_wevtutil_is_missing(monkeypatch):
         lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("wevtutil")))
     now = datetime.now(UTC)
     assert diag.collect_machine_down_events(now, now) is None
+
+
+def test_collector_refuses_when_wevtutil_exits_non_zero(monkeypatch):
+    """THE ANTI-LIE GUARD AT THE COLLECTOR. wevtutil writes its failure to
+    STDERR, so a failed read leaves stdout EMPTY — and empty stdout parses
+    cleanly to [], the value that means "we looked and the machine stayed up".
+    The return code is the only thing between those two facts, and its removal
+    makes the feature's one negative claim fire on a read that never happened:
+    the Event Log service is measured to be already stopped in exactly the
+    dying-session path resolve_pending runs in."""
+    import subprocess
+
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(
+            a[0] if a else [], 1, "", "Failed to open log System. Access is denied."))
+    now = datetime.now(UTC)
+    assert diag.collect_machine_down_events(now, now) is None
+
+
+def test_empty_wevtutil_output_means_found_nothing_not_unreadable(monkeypatch):
+    """The other half of that pair, pinned explicitly: a successful read with no
+    matching record is [], never None."""
+    import subprocess
+
+    assert diag.parse_events("") == []
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0] if a else [], 0, "", ""))
+    now = datetime.now(UTC)
+    assert diag.collect_machine_down_events(now, now) == []
 
 
 def test_collector_degrades_on_timeout(monkeypatch):
@@ -385,3 +475,35 @@ def test_every_non_ibkr_health_check_has_plain_words():
         described = diag.describe_health_check(name, {"ok": False})
         assert described["label"] and described["label"] != name
         assert described["reason"] and described["solution"]
+
+
+def test_the_last_scan_check_describes_its_own_state():
+    """THE FALSE-SENTENCE PIN. The last-scan check fails in four shapes and in
+    three of them the scan itself finished perfectly. The worst is the
+    morning-after state of the operator's own incident: the machine was off, so
+    NO scan ran, and the newest row is yesterday's clean scan aged past its
+    allowance. Saying "the most recent scan did not finish cleanly" there
+    describes a run that wrote 12 setups."""
+    stale = diag.describe_health_check(
+        "last_scan", {"ok": False, "status": "ok",
+                      "detail": "last successful scan 39h ago"})["reason"]
+    assert "did not finish cleanly" not in stale
+    assert "finished cleanly" in stale and "no scan has run since" in stale
+    assert "39h ago" in stale  # the measured detail still travels
+
+    never = diag.describe_health_check(
+        "last_scan", {"ok": False, "status": "never", "detail": "no scan recorded"})["reason"]
+    assert "did not finish cleanly" not in never
+    assert "No scan has ever been recorded" in never
+
+    hung = diag.describe_health_check(
+        "last_scan", {"ok": False, "status": "running",
+                      "detail": "scan running too long (likely hung)"})["reason"]
+    assert "did not finish cleanly" not in hung
+    assert "hung" in hung
+
+    # The one state where the sentence is TRUE keeps it.
+    for status in ("failed", "stale_data", "aborted"):
+        broke = diag.describe_health_check(
+            "last_scan", {"ok": False, "status": status})["reason"]
+        assert "did not finish cleanly" in broke, status

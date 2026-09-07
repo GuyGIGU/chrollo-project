@@ -52,7 +52,6 @@ LEGACY_RECONCILE_PREFIX = "process died before completion"
 FAILURE_KINDS = (
     "interrupted_unknown",
     "interrupted_shutdown",
-    "interrupted_power_loss",
     "interrupted_service_only",
     "interrupted_unrecorded",
 )
@@ -60,8 +59,11 @@ FAILURE_KINDS = (
 PENDING_KIND = "interrupted_unknown"
 
 # A run left 'running' this long was already hung by any measure, so a machine
-# shutdown later than this cannot honestly be blamed for killing it. Same
-# constant the watchdog uses to call a run hung (services/scan_watchdog.py).
+# shutdown later than this cannot honestly be blamed for killing it. THE one
+# home for that judgment: services/scan_watchdog.py and services/health.py
+# import it from here (this module is dependency-free, so importing it costs
+# them nothing), and a test pins that they share the object. Tuning it in one
+# place used to leave the other two on the old number.
 HUNG_RUNNING_HOURS = 2.0
 # Grace past the moment the orphan was DETECTED: on the 2026-09-05 incident the
 # "operating system is shutting down" record landed 1.03s after the reconcile
@@ -76,57 +78,87 @@ EVIDENCE_HORIZON_DAYS = 30
 # stalls the caller when the Event Log service is dying.
 WEVTUTIL_TIMEOUT_SECONDS = 3
 
-# User32 1074 = a shutdown/restart was initiated. EventLog 6008 = the previous
-# shutdown was unexpected. Kernel-Power 41 = the system rebooted without a clean
-# shutdown. Only the event id and its timestamp are ever read: the 1074 payload
+# User32 1074 = a shutdown/restart was initiated. It is the ONLY record read.
+# EventLog 6008 / Kernel-Power 41 ("the last shutdown was unexpected") were
+# dropped after review: Windows stamps both at the NEXT boot, so their timestamp
+# is the reboot moment and an overnight power cut lands them hours outside any
+# window anchored on the run — the arm was near-dead, and its absence is covered
+# honestly by "Windows has no record of the computer going down while it was
+# running". Only the event id and its timestamp are ever read: the 1074 payload
 # embeds a process path, a user name and a free-text comment field, and none of
 # that is ever spliced into text the operator reads.
 _SHUTDOWN_EVENT_ID = 1074
-_POWER_LOSS_EVENT_IDS = (6008, 41)
-_WATCHED_EVENT_IDS = (_SHUTDOWN_EVENT_ID,) + _POWER_LOSS_EVENT_IDS
+_WATCHED_EVENT_IDS = (_SHUTDOWN_EVENT_ID,)
 
 
 # ---------------------------------------------------------------- prose ----
 
-_RE_RUN_IT = (
-    "To rebuild today's list now: open the Screener page, open the Data menu "
-    "and press the download button, then press Evaluate."
-)
+# Every sentence below is a TEMPLATE keyed on the job as well as on the failure.
+# The boot reconcile stamps maturation and download rows exactly as it stamps
+# scans (the ten live reconciled rows split scan 4 / maturation 5 / download 1),
+# and the registry lists all three — so "the scan hit a program error" with a
+# "press Evaluate" remedy was being printed under a row headed "Outcome
+# backfill", where that remedy cannot help (review 2026-09-07).
+JOB_NAMES = {
+    "scan": "the scan",
+    "maturation": "the outcome backfill",
+    "download": "the market-data download",
+}
+# The ONE instruction that re-runs each job.
+JOB_RERUN = {
+    "scan": "To rebuild today's list now: open the Screener page, open the Data "
+            "menu and press the download button, then press Evaluate.",
+    "maturation": "To run it now: open the Archive tab and press Update returns.",
+    "download": "To run it now: open the Screener page, open the Data menu and "
+                "press the download button.",
+}
+DEFAULT_JOB = "scan"
+
+# No clock time in this sentence. The hour is a SETTING, and docs/asks.md asks
+# the operator to move it — a numeral copied into prose starts lying the moment
+# he does. The live hour is spoken only by missed_slot_notice, which reads it.
 _LEAVE_IT_ON = (
-    "The nightly scan starts at 18:00 New York time (SCAN_SCHEDULE_HOUR_ET in "
-    "config/settings.py sets that hour) and needs the computer awake until it "
-    "finishes. Either leave the computer on past the scan, or move that hour "
-    "earlier. "
-) + _RE_RUN_IT
+    "The computer has to stay awake until {job} finishes. The nightly slot is "
+    "the hour set by SCAN_SCHEDULE_HOUR_ET in config/settings.py — either leave "
+    "the computer on past it, or move it earlier. {rerun}"
+)
 _CHECK_THE_LOG = (
-    _RE_RUN_IT
-    + " If it keeps happening, output/chrollo-service-error.log around the "
+    "{rerun} If it keeps happening, output/chrollo-service-error.log around the "
     "start time shows what the dashboard was doing."
 )
 
 REASONS = {
     "interrupted_unknown":
-        "The scan stopped before it finished. Chrollo has not worked out why yet.",
+        "{Job} stopped before it finished. Chrollo has not worked out why yet.",
     "interrupted_shutdown":
-        "The computer was shut down while the scan was still running, so the "
-        "scan never finished.",
-    "interrupted_power_loss":
-        "The computer went down unexpectedly — a power cut or a hard reset — "
-        "while the scan was still running.",
+        "The computer was shut down while {job} was still running, so {job} "
+        "never finished.",
     "interrupted_service_only":
-        "The Chrollo dashboard restarted while the scan was running. The "
+        "The Chrollo dashboard restarted while {job} was running. The "
         "computer stayed on, as far as Windows recorded.",
     "interrupted_unrecorded":
-        "The scan stopped before it finished, and Windows has no record of why.",
+        "{Job} stopped before it finished, and Windows has no record of the "
+        "computer going down while it was running.",
 }
 
 SOLUTIONS = {
     "interrupted_unknown": _CHECK_THE_LOG,
     "interrupted_shutdown": _LEAVE_IT_ON,
-    "interrupted_power_loss": _LEAVE_IT_ON,
     "interrupted_service_only": _CHECK_THE_LOG,
     "interrupted_unrecorded": _CHECK_THE_LOG,
 }
+
+
+def _in_words(template: str, job_kind: str | None) -> str:
+    """Fill one prose template for one job kind.
+
+    Every operator-facing sentence in this module goes through here, so a job
+    kind can never reach the operator with the wrong noun or with a remedy that
+    does not run it.
+    """
+    kind = job_kind if job_kind in JOB_NAMES else DEFAULT_JOB
+    job = JOB_NAMES[kind]
+    return template.format(job=job, Job=job[:1].upper() + job[1:], rerun=JOB_RERUN[kind])
 
 
 # ------------------------------------------------------------ the rule ----
@@ -142,6 +174,9 @@ def classify_interrupted(started_at, detected_at, events, boot_time, now) -> str
     ``boot_time`` is when the machine last started, and it may only REFUSE a
     claim, never grant one: "the computer stayed on" is asserted only when the
     machine has not rebooted since the run began.
+
+    ``detected_at`` is the anchor for the shutdown claim, not merely its upper
+    bound — see the comment on the window below.
     """
     start = _parse_iso(started_at)
     if start is None:
@@ -153,11 +188,22 @@ def classify_interrupted(started_at, detected_at, events, boot_time, now) -> str
 
     detected = _parse_iso(detected_at)
     window_end = evidence_window_end(start, detected)
-    in_window = [e for e in events if start <= e["time"] <= window_end]
-    if any(e["event_id"] == _SHUTDOWN_EVENT_ID for e in in_window):
+    # The shutdown claim is anchored on detected_at — the one moment we can
+    # PROVE the run was still alive, because the reconcile found the row still
+    # marked running. Anchoring anywhere after started_at was measured to
+    # swallow this machine's habitual nightly power-off: all eight recent 1074s
+    # sit inside the 18:00 scan's own two-hour cap, so a scan that died at 22:05
+    # for an unrelated reason, with the usual power-off at 22:42 and the orphan
+    # detected at next boot, was stamped "the computer was shut down while the
+    # scan was still running" — a confident wrong cause with a remedy that would
+    # not have helped (review 2026-09-07).
+    grace = timedelta(seconds=DETECTION_GRACE_SECONDS)
+    blamable = [] if detected is None else [
+        e for e in events
+        if start <= e["time"] <= window_end and abs(e["time"] - detected) <= grace
+    ]
+    if any(e["event_id"] == _SHUTDOWN_EVENT_ID for e in blamable):
         return "interrupted_shutdown"
-    if any(e["event_id"] in _POWER_LOSS_EVENT_IDS for e in in_window):
-        return "interrupted_power_loss"
 
     stayed_up = boot_time is not None and boot_time < start
     detected_promptly = (
@@ -204,40 +250,55 @@ def describe_runs(rows: list[dict]) -> list[dict]:
 
 
 def _describe_run(row: dict) -> dict:
-    status = (row or {}).get("status")
+    row = row or {}
+    status = row.get("status")
     if status in (None, "ok", "running", "never"):
         return {"reason": None, "solution": None}
 
+    # Which JOB this row is: the registry lists scans, outcome backfills and
+    # market-data downloads side by side, and each needs its own noun and its
+    # own way to be run again.
+    job = row.get("kind")
     if status == "aborted":
-        return {
-            "reason": "You closed the page while the scan was running, so it was stopped.",
-            "solution": "Nothing is broken — start it again and leave the tab open "
-                        "until it finishes.",
-        }
+        return _prose(
+            "You closed the page while {job} was running, so it was stopped.",
+            "Nothing is broken — start it again and leave the tab open until it "
+            "finishes.",
+            job,
+        )
     if status == "stale_data":
+        # The recorded detail is rendered verbatim — never through the template
+        # filler, whose braces it does not obey.
+        recorded = (row.get("error") or "").strip()
         return {
-            "reason": (row.get("error") or "").strip()
-            or "The market data was not current, so the scan stopped.",
-            "solution": "The prices on disk were behind. Open the Screener page, open "
-                        "the Data menu and press the download button, then press "
-                        "Evaluate.",
+            "reason": recorded or _in_words(
+                "The market data was not current, so {job} stopped.", job),
+            "solution": _in_words("The prices on disk were behind. {rerun}", job),
         }
 
     kind = _interruption_kind(row)
     if kind:
-        return {"reason": REASONS[kind], "solution": SOLUTIONS[kind]}
+        return _prose(REASONS[kind], SOLUTIONS[kind], job)
 
     if status == "failed":
-        return {
-            "reason": "The scan hit a program error and stopped.",
-            "solution": "Re-run it from the Screener page. If it fails again, the "
-                        "developer detail below is the clue.",
-        }
+        return _prose(
+            "{Job} hit a program error and stopped.",
+            "{rerun} If it fails again, the developer detail below is the clue.",
+            job,
+        )
     # Unrecognised historical text (two live rows carry a string whose writer no
     # longer exists in the codebase) still gets a remedy, never a blank cell.
     return {
-        "reason": f"The scan did not finish. Recorded detail: {row.get('error') or 'none'}",
-        "solution": _CHECK_THE_LOG,
+        "reason": _in_words("{Job} did not finish. Recorded detail: ", job)
+        + (row.get("error") or "none"),
+        "solution": _in_words(_CHECK_THE_LOG, job),
+    }
+
+
+def _prose(reason: str, solution: str, job_kind: str | None) -> dict:
+    return {
+        "reason": _in_words(reason, job_kind),
+        "solution": _in_words(solution, job_kind),
     }
 
 
@@ -261,16 +322,11 @@ _HEALTH_CHECKS = {
         "Restart the dashboard with update_dashboard.bat. If it still fails, the "
         "database file may be locked by another copy of the app.",
     ),
-    "last_scan": (
-        "Last scan",
-        "The most recent scan did not finish cleanly.",
-        _RE_RUN_IT,
-    ),
     "screener_data": (
         "Screener results file",
-        "The scan never wrote its results file, so the Screener page has nothing "
+        "{Job} never wrote its results file, so the Screener page has nothing "
         "fresh to show.",
-        _RE_RUN_IT,
+        "{rerun}",
     ),
     "scheduler": (
         "Nightly scan timer",
@@ -280,6 +336,33 @@ _HEALTH_CHECKS = {
     ),
 }
 
+# The last-scan check fails in FOUR shapes, and in three of them the scan itself
+# finished perfectly — so one fixed "the most recent scan did not finish
+# cleanly" was false in three states, including the morning after this
+# operator's own incident: the machine was off, no scan ran, and the newest row
+# is yesterday's clean scan aged past its allowance (review 2026-09-07). Keyed
+# on the status the freshness check already worked out, and kept HERE so the
+# topbar pill and the diagnostics registry stay one sentence.
+_LAST_SCAN_STATES = {
+    "never": (
+        "No scan has ever been recorded.",
+        "{rerun}",
+    ),
+    "ok": (
+        "The last scan finished cleanly, but no scan has run since, so this "
+        "list is out of date.",
+        _LEAVE_IT_ON,
+    ),
+    "running": (
+        "A scan has been running for hours, so it has almost certainly hung.",
+        "Restart the dashboard with update_dashboard.bat — the restart marks a "
+        "stuck run as finished. Then {rerun}",
+    ),
+}
+# failed / stale_data / aborted: the run itself really did end badly, and its
+# own resolved reason (describe_run) is what the caller shows in its place.
+_LAST_SCAN_FAILED = ("The most recent scan did not finish cleanly.", "{rerun}")
+
 
 def describe_health_check(name: str, check: dict) -> dict:
     """label + reason + solution for one failing /health check, in plain words.
@@ -287,14 +370,22 @@ def describe_health_check(name: str, check: dict) -> dict:
     Every non-ibkr check has an entry, so the pill tooltip and the registry never
     show a raw check key (``last_scan``) or an empty remedy.
     """
-    label, reason, solution = _HEALTH_CHECKS.get(
-        name, (name, "This check is failing.", _CHECK_THE_LOG)
-    )
-    detail = (check or {}).get("detail") or (check or {}).get("error")
+    check = check or {}
+    if name == "last_scan":
+        label = "Last scan"
+        reason, solution = _LAST_SCAN_STATES.get(
+            check.get("status") or "never", _LAST_SCAN_FAILED
+        )
+    else:
+        label, reason, solution = _HEALTH_CHECKS.get(
+            name, (name, "This check is failing.", _CHECK_THE_LOG)
+        )
+    reason = _in_words(reason, DEFAULT_JOB)
+    detail = check.get("detail") or check.get("error")
     return {
         "label": label,
         "reason": f"{reason} ({detail})" if detail else reason,
-        "solution": solution,
+        "solution": _in_words(solution, DEFAULT_JOB),
     }
 
 
@@ -479,7 +570,8 @@ def missed_slot_notice(latest_started_at, now_et, hour: int, minute: int) -> str
     return (
         f"No scan ran for the {slot.strftime('%A %d %b')} "
         f"{hour:02d}:{minute:02d} New York slot — the computer was most likely "
-        "off at that time. Nothing re-runs a missed slot on its own. " + _RE_RUN_IT
+        "off at that time. Nothing re-runs a missed slot on its own. "
+        + JOB_RERUN["scan"]
     )
 
 
