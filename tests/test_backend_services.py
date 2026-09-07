@@ -1411,6 +1411,35 @@ def test_stream_disconnect_at_final_yield_keeps_recorded_status(monkeypatch):
     assert not scan_runner.SCAN_LOCK.locked()
 
 
+def test_scheduled_scan_releases_lock_when_status_start_fails(monkeypatch):
+    """The orphaned-lock defect (council 2026-09-07, F1). The scheduled job
+    wrote its run record on the bare line after ``SCAN_LOCK.acquire()``, before
+    the ``try`` whose ``finally`` released — and ``start_run`` does a SQLite
+    INSERT, which raises on a busy database. One raise there held the lock for
+    the LIFE OF THE PROCESS: every later scan, scheduled or manual, logged
+    "skipped because another scan is already running" and silently did nothing
+    until someone restarted the service, with only a status pill to notice by.
+
+    The manual stream path has had this pin since the WP-D review; the
+    scheduled path is the one that was still exposed. Both now take the lock
+    through the same context manager (EC-3)."""
+    import services.scan_status as scan_status_mod
+
+    def boom(*a, **k):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(scan_status_mod, "start_run", boom)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+
+    with pytest.raises(RuntimeError, match="database is locked"):
+        scan_runner.run_scheduled_scan_and_forward_returns()
+
+    assert not scan_runner.SCAN_LOCK.locked(), (
+        "the run-record INSERT raised and orphaned SCAN_LOCK — every later "
+        "scan in this process is now a silent no-op"
+    )
+
+
 def test_manual_job_stream_releases_lock_when_status_start_fails(monkeypatch):
     import services.scan_status as scan_status_mod
 

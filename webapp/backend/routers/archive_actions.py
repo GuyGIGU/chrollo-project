@@ -14,7 +14,7 @@ from database import get_db
 from routers.archive_schemas import ManualSetupIn, SetupOut
 from routers.calibration import require_same_app
 from services.archive_queries import archive_row_from_result
-from services.scan_runner import SCAN_LOCK
+from services.scan_runner import scan_lock
 
 router = APIRouter(tags=["archive"])
 
@@ -308,36 +308,37 @@ def get_archive_analysis(
 def trigger_update_returns():
     """Trigger forward return computation for all pending setups."""
     # forward_returns writes the archive DB — same one-child-at-a-time
-    # guarantee as the scan jobs (services/scan_runner.py).
-    if not SCAN_LOCK.acquire(blocking=False):
-        raise HTTPException(
-            status_code=409,
-            detail="another scan or data job is already running",
-        )
-    try:
-        script = os.path.join(_ROOT_DIR, "core", "archive", "forward_returns.py")
-        env = os.environ.copy()
-        env["PYTHONUTF8"] = "1"
-        env["PYTHONIOENCODING"] = "utf-8"
-        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        result = subprocess.run(
-            [sys.executable, script],
-            cwd=_ROOT_DIR,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=300,
-            creationflags=flags,
-            env=env,
-        )
-        return {
-            "status": "ok" if result.returncode == 0 else "error",
-            "stdout": result.stdout[-2000:] if result.stdout else "",
-            "stderr": result.stderr[-500:] if result.stderr else "",
-            "returncode": result.returncode,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        SCAN_LOCK.release()
+    # guarantee as the scan jobs, taken through the SAME shape (EC-3): the
+    # context manager owns the release, so no line between the acquire and
+    # the work can orphan the lock (services/scan_runner.py).
+    with scan_lock() as acquired:
+        if not acquired:
+            raise HTTPException(
+                status_code=409,
+                detail="another scan or data job is already running",
+            )
+        try:
+            script = os.path.join(_ROOT_DIR, "core", "archive", "forward_returns.py")
+            env = os.environ.copy()
+            env["PYTHONUTF8"] = "1"
+            env["PYTHONIOENCODING"] = "utf-8"
+            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            result = subprocess.run(
+                [sys.executable, script],
+                cwd=_ROOT_DIR,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
+                creationflags=flags,
+                env=env,
+            )
+            return {
+                "status": "ok" if result.returncode == 0 else "error",
+                "stdout": result.stdout[-2000:] if result.stdout else "",
+                "stderr": result.stderr[-500:] if result.stderr else "",
+                "returncode": result.returncode,
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
