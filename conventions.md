@@ -764,7 +764,7 @@ with no assertion at the `select_inner_box` stamping point); operator-delegated 
 **Principle:** `conventions.md` EC-19/EC-22/EC-33 — those three assume a stamping point exists; this
 requires it.
 
-### EC-56: The same-app guard is DEFAULT-ON at the middleware, with no exemption list
+### EC-56: The same-app guard is DEFAULT-ON at the middleware, with no PATH exemption
 **Convention:** Cross-origin containment has two layers. `require_same_app` stays the opt-in header
 guard a route declares. Underneath it, `middleware/same_app.SameAppOriginGuard` runs for **every**
 request and refuses anything a browser attests came from another page (`Sec-Fetch-Site` / `Origin`,
@@ -772,11 +772,21 @@ which page JS cannot forge). Do NOT add a per-path exemption to that middleware,
 the header dependency as the *only* protection on a new route — `EventSource` cannot send a header,
 so an SSE route can never carry it. A new mutating or streaming route is guarded the moment it is
 registered; `tests/test_service_boot.py` walks every registered route and proves it.
+The guard has exactly **one** carve-out and it is keyed on the method, never on a path: the CORS
+preflight (`OPTIONS`), which is what makes the cross-origin dev flow work at all, and which
+`CORSMiddleware` — mounted outside the guard — answers or rejects before a route sees it.
+**Corollary (the price of default-on):** the app must never hand the browser a **cross-origin
+subresource URL**. A no-cors load (`<img>`, `<link>`, `<video>`) sends no `Origin`, so the dev
+allowlist cannot recognise it and the guard refuses it as `same-site` under `npm run dev`. Serve such
+a URL **relative** and proxy it in `vite.config.js` (the journal attachment thumbnails, the app's only
+one). Never buy it back by trusting `same-site` — that reopens the guard to every page on localhost.
 **Origin:** Hunt × Ramírez — Council Review 2026-09-07 (finding 3: the opt-in guard had reached 15 of
-85 routes; 28 mutating or streaming routes were open, including all four IBKR control routes)
+85 routes; 28 mutating or streaming routes were open, including all four IBKR control routes); the
+carve-out wording and the subresource corollary from that review's fix review (findings 1 and 3)
 **Rationale:** An opt-in guard is only ever on the routes someone remembered, and the one it could
 never reach was the most expensive endpoint in the app. Default-on has no rot surface; an exemption
-list is that rot surface reintroduced.
+list is that rot surface reintroduced. A default-on guard does change what the *app* may ask the
+browser to do, and "no exemption list" is only honest if the one carve-out is named.
 
 ---
 

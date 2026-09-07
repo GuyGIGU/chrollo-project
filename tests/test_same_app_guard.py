@@ -142,8 +142,42 @@ def test_the_cors_preflight_is_never_refused():
     assert status == 200
 
 
-# ── the policy as a pure function (no exemption may be keyed on method) ───
+# ── the policy as a pure function ─────────────────────────────────────────
 
-def test_no_method_is_exempt_from_the_policy():
+def test_the_cors_preflight_is_the_only_exempt_method():
+    """EC-56 says "no PATH exemption", not "no exemption at all" — OPTIONS is
+    the one carve-out and it is keyed on the method. Every method that can
+    carry a side effect or a body must still be judged."""
+    assert refusal_class("OPTIONS", _CROSS_SITE, _APP_ORIGIN) is None
     for method in ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"):
         assert refusal_class(method, _CROSS_SITE, _APP_ORIGIN) is not None, method
+
+
+def test_a_no_cors_subresource_from_another_localhost_port_is_refused():
+    """The dev carve-out keys on Origin, and a no-cors subresource (<img>,
+    <link>, <video>) sends none — only Sec-Fetch-Site, which reads `same-site`
+    across :5173 -> :8000. So it is refused, and that is deliberate: trusting
+    `same-site` would reopen the guard to every other page on localhost.
+
+    The consequence is a rule for the APP, not a hole in the guard: never hand
+    the browser a cross-origin subresource URL. The one such URL Chrollo has —
+    the journal attachment thumbnail — is relative, and its two halves are
+    pinned in tests/test_upload_handlers.py."""
+    status, reached = _drive("GET", "/attachments/1/file",
+                             {"sec-fetch-site": "same-site",
+                              "sec-fetch-dest": "image",
+                              "sec-fetch-mode": "no-cors"})
+    assert (status, reached) == (403, False)
+
+
+def test_a_cross_site_link_to_the_dashboard_is_refused():
+    """Documented, not accidental: a top-level navigation gets no exemption
+    because this app has state-changing plain GETs (/run-scan-stream/ starts a
+    12-17 minute subprocess), so a `Sec-Fetch-Dest: document` carve-out would
+    hand a hostile page exactly the attack the guard exists to stop. The
+    address bar, a bookmark and start_dashboard.bat all report `none`."""
+    status, reached = _drive("GET", "/",
+                             {"sec-fetch-site": "cross-site",
+                              "sec-fetch-dest": "document",
+                              "sec-fetch-mode": "navigate"})
+    assert (status, reached) == (403, False)

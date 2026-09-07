@@ -132,10 +132,12 @@ def _stop_services(svc) -> None:
 
 app = FastAPI(title="Chrollo API", lifespan=lifespan)
 
-# INNERMOST, so a refusal is still logged with its request id. The default-on
-# half of the same-app posture rule: every request, not the 15 routes someone
-# remembered to decorate, and the only mechanism that reaches the SSE streams
-# (EventSource cannot send the header). See middleware/same_app.py.
+# INNERMOST, so a refusal still returns THROUGH RequestIDMiddleware: the guard's
+# own warning line carries no request id, but the access line paired with it
+# does, and the 403 answers with an x-request-id header. The default-on half of
+# the same-app posture rule: every request, not the 15 routes someone remembered
+# to decorate, and the only mechanism that reaches the SSE streams (EventSource
+# cannot send the header). See middleware/same_app.py.
 app.add_middleware(SameAppOriginGuard)
 app.add_middleware(RequestIDMiddleware)
 # Host allowlist BEFORE the browser-enforced defenses: CORS and the same-app

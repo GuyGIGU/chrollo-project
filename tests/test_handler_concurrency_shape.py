@@ -66,10 +66,16 @@ def test_the_ibkr_statement_import_is_a_threadpool_handler():
 
 
 def test_the_allowlist_still_describes_real_handlers():
-    """A stale exemption is how this guard would quietly stop guarding."""
+    """A stale exemption is how this guard would quietly stop guarding.
+
+    ``AsyncFunctionDef`` ONLY: an allowlist entry that has since been converted
+    to sync ``def`` is exactly the drift this test is named for, and matching
+    plain ``FunctionDef`` too would let it pass (fix review 2026-09-07,
+    finding 5)."""
     for entry in sorted(_ALLOWED_ASYNC):
         module = ROUTERS / entry[0]
         assert module.exists(), f"allowlisted module is gone: {entry[0]}"
         names = {n.name for n in ast.walk(ast.parse(module.read_text(encoding="utf-8")))
-                 if isinstance(n, (ast.AsyncFunctionDef, ast.FunctionDef))}
-        assert entry[1] in names, f"allowlisted handler is gone: {entry}"
+                 if isinstance(n, ast.AsyncFunctionDef)}
+        assert entry[1] in names, (
+            f"allowlisted handler is gone or is no longer async: {entry}")

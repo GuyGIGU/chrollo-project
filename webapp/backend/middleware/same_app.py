@@ -27,6 +27,33 @@ A caller that sends NEITHER header is not a browser (curl on the operator's own
 box, the TestClient, a local script) and is allowed through: the threat closed
 here is a *page*, and localhost-only + `TrustedHostMiddleware` already bound
 who can reach the port at all.
+
+Three consequences worth knowing before you debug a 403 here (council review
+2026-09-07 follow-up, findings 1-3):
+
+*A cross-site LINK to the dashboard is refused.* Typing the URL, a bookmark and
+`start_dashboard.bat` all report `Sec-Fetch-Site: none` and pass; clicking a
+link to `http://localhost:8000` from a chat window, an IDE or a rendered README
+reports `cross-site` and gets this JSON 403, not the dashboard. Deliberate:
+this app has state-changing plain GETs (`/run-scan-stream/` starts a 12-17
+minute subprocess that rewrites the live archive), so exempting top-level
+navigations — `Sec-Fetch-Dest: document` — would hand a hostile page exactly
+the attack this guard exists to stop. Reach the dashboard from the address bar.
+
+*The dev carve-out keys on `Origin`, so it cannot cover a no-cors subresource.*
+An `<img>`/`<link>`/`<video>` load sends no `Origin` at all, only
+`Sec-Fetch-Site: same-site` across `:5173 -> :8000`, which is refused. So the
+app must never hand the browser a cross-origin subresource URL: the journal
+attachment URL is relative and `vite.config.js` proxies `/attachments` in dev
+(`routers/journal._attachment_dict`). Do NOT fix a case like that by trusting
+`same-site` — that reopens the guard to every other page on localhost, which is
+most of what it buys.
+
+*`OPTIONS` is the one carve-out, and it is keyed on the method, never a path.*
+The CORS preflight is what makes the cross-origin dev flow work at all;
+`CORSMiddleware` sits outside this guard and answers or rejects it first, and a
+preflight that reaches a route gets a 405. There is no path exemption, and
+adding one is the thing EC-56 forbids.
 """
 from __future__ import annotations
 

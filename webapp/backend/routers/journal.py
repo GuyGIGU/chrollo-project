@@ -12,7 +12,7 @@ from typing import Optional
 def uuid_hex() -> str:
     return uuid.uuid4().hex
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -148,11 +148,7 @@ def set_note(trade_id: int, payload: NotePayload, db: Session = Depends(get_db))
 
 
 # ── Attachments ──────────────────────────────────────────────────
-def _attachment_dict(a: models.TradeAttachment, request: Optional[Request] = None) -> dict:
-    if request is not None:
-        base = str(request.base_url).rstrip("/")
-    else:
-        base = "http://localhost:8000"
+def _attachment_dict(a: models.TradeAttachment) -> dict:
     return {
         "id": a.id,
         "trade_log_id": a.trade_log_id,
@@ -161,12 +157,20 @@ def _attachment_dict(a: models.TradeAttachment, request: Optional[Request] = Non
         "mime": a.mime,
         "size_bytes": a.size_bytes,
         "uploaded_at": _iso(a.uploaded_at),
-        "url": f"{base}/attachments/{a.id}/file",
+        # RELATIVE on purpose. The browser loads this as an <img> src and as a
+        # link target — a no-cors subresource, which carries NO Origin header,
+        # only Sec-Fetch-Site. An absolute API-origin URL is same-origin in
+        # production but cross-origin under `npm run dev` (page :5173, API
+        # :8000), where the same-app guard sees `same-site` with no Origin to
+        # match the dev allowlist against, and refuses it. Relative keeps the
+        # load same-origin in BOTH modes; vite.config.js proxies /attachments
+        # to the API in dev. (Council review 2026-09-07 follow-up, finding 1.)
+        "url": f"/attachments/{a.id}/file",
     }
 
 
 @router.get("/trades/{trade_id}/attachments")
-def list_attachments(trade_id: int, request: Request, db: Session = Depends(get_db)):
+def list_attachments(trade_id: int, db: Session = Depends(get_db)):
     get_trade_or_404(db, trade_id)
     rows = (
         db.query(models.TradeAttachment)
@@ -174,13 +178,12 @@ def list_attachments(trade_id: int, request: Request, db: Session = Depends(get_
         .order_by(models.TradeAttachment.uploaded_at.desc(), models.TradeAttachment.id.desc())
         .all()
     )
-    return [_attachment_dict(a, request) for a in rows]
+    return [_attachment_dict(a) for a in rows]
 
 
 @router.post("/trades/{trade_id}/attachments")
 def upload_attachment(
     trade_id: int,
-    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -251,7 +254,7 @@ def upload_attachment(
     db.add(att)
     db.commit()
     db.refresh(att)
-    return _attachment_dict(att, request)
+    return _attachment_dict(att)
 
 
 @router.get("/attachments/{attachment_id}/file")
