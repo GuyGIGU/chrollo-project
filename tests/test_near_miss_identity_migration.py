@@ -14,8 +14,12 @@ the anchors determine the rails within a panel and survive a re-scaling of it.
 
 These pin the new key, the rebuild that installs it, and the writer that upserts
 against it. The legacy schema is generated from the model's own DDL with the old
-6-column UNIQUE substituted back in, so the fixture cannot drift from the real
-pre-migration shape.
+6-column UNIQUE substituted back in AND the four explicit indexes replayed, so
+the fixture cannot drift from the real pre-migration shape — verified column for
+column and index for index against the operator's archive (read-only) on
+2026-09-07. The indexes are load-bearing: without them the rebuild's
+rename-collision path is unexercised, and that path is the difference between a
+boot and no boot (council review 2026-09-07, fix review F1).
 """
 from __future__ import annotations
 
@@ -26,7 +30,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy.dialects import sqlite as sqlite_dialect
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.schema import CreateTable
+from sqlalchemy.schema import CreateIndex, CreateTable
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
@@ -55,6 +59,35 @@ def _legacy_ddl() -> str:
     return flat.replace(_NEW_UNIQUE, _OLD_UNIQUE)
 
 
+# The four explicit indexes the LIVE table carries, read off the operator's
+# archive read-only on 2026-09-07. SQLAlchemy emits ``Index`` objects as
+# SEPARATE ``CREATE INDEX`` statements, so a fixture built from ``CreateTable``
+# alone has NO indexes — and the migration's rename-collision path (SQLite keeps
+# an index's NAME when its table is renamed, so all four follow the old table and
+# then collide with the new one's) goes entirely unexercised. Pinned by name so a
+# future edit cannot quietly hollow the fixture back out.
+_LIVE_INDEXES = {"ix_near_miss_archive_first_seen", "ix_near_miss_archive_id",
+                 "ix_near_miss_archive_ticker", "ix_near_miss_identity"}
+
+
+def _legacy_index_ddl() -> list[str]:
+    """The CREATE INDEX statements the live pre-migration table carries."""
+    indexes = archive_models.NearMissArchive.__table__.indexes
+    assert {ix.name for ix in indexes} == _LIVE_INDEXES, (
+        "the fixture no longer builds the live table's index set — the "
+        "migration's rename-collision path would go unexercised"
+    )
+    return [str(CreateIndex(ix).compile(dialect=sqlite_dialect.dialect()))
+            for ix in indexes]
+
+
+def _explicit_indexes(con) -> set:
+    """Index names on ``near_miss_archive`` (autoindexes have NULL sql)."""
+    return {r[0] for r in con.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' "
+        "AND tbl_name='near_miss_archive' AND sql IS NOT NULL").fetchall()}
+
+
 _REQUIRED = {
     "fired_first_night": 0, "pool": "strict", "kill_stage": "occupancy",
     "failing_leg": "occupancy", "lane_ruleset": "2026-07-26.A",
@@ -76,10 +109,12 @@ def _row(**over) -> dict:
     return row
 
 
-def _legacy_db(path: str, rows: list[dict]) -> None:
+def _legacy_db(path: str, rows: list[dict], ddl: str | None = None) -> None:
     con = sqlite3.connect(path)
     try:
-        con.execute(_legacy_ddl())
+        con.execute(ddl or _legacy_ddl())
+        for stmt in _legacy_index_ddl():
+            con.execute(stmt)
         for row in rows:
             cols = ", ".join(row)
             marks = ", ".join("?" for _ in row)
@@ -195,14 +230,53 @@ def test_migration_folds_the_live_aph_duplicates_into_one_episode_each(tmp_path)
         con.close()
 
 
-def test_migration_fails_closed_on_a_table_missing_a_model_column(tmp_path):
-    """A rebuild into NOT NULL columns the source cannot fill must refuse, not
+def test_the_rebuild_drops_the_renamed_tables_indexes_before_replaying_them(tmp_path):
+    """The single most dangerous line in this migration, on the real shape.
+
+    SQLite keeps an index's NAME when its table is renamed, so the live table's
+    four explicit indexes follow it to ``near_miss_archive_old`` and the new
+    table's own ``CREATE INDEX`` then hits 'index ... already exists'. Because
+    the failure re-raises out of ``migrate_near_miss_framing_identity`` ->
+    ``initialize_database()`` -> ``main.py`` import scope, a regression here is
+    not a bad row — it is a backend that does not boot at all, on a 44 MB
+    archive. So the DROP loop is proven, and the indexes are proven back."""
+    db = str(tmp_path / "indexed.db")
+    _legacy_db(db, [
+        _row(id=1, ticker="APH", r_level=176.33, s_level=155.36,
+             r_anchor_date="2026-08-06", s_anchor_date="2026-08-03",
+             first_seen="2026-08-27", last_seen="2026-08-28", nights_seen=2),
+        _row(id=2, ticker="APH", r_level=88.165, s_level=77.68,
+             r_anchor_date="2026-08-06", s_anchor_date="2026-08-03",
+             first_seen="2026-09-04", last_seen="2026-09-04", nights_seen=1),
+    ])
+
+    con = sqlite3.connect(db)
+    try:  # the fixture really is the live shape, not a bare CreateTable
+        assert _explicit_indexes(con) == _LIVE_INDEXES
+    finally:
+        con.close()
+
+    assert migrate_near_miss_framing_identity(make_sqlite_engine(db)) is True
+
+    con = sqlite3.connect(db)
+    try:
+        # Every index is back, on the REBUILT table, and the old one is gone —
+        # the drop was a rename artifact, never a loss of the live table's plan.
+        assert _explicit_indexes(con) == _LIVE_INDEXES
+        assert {r[0] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name NOT LIKE 'sqlite_%'").fetchall()} == {"near_miss_archive"}
+        assert con.execute(
+            "SELECT COUNT(*) FROM near_miss_archive").fetchone()[0] == 1
+    finally:
+        con.close()
+
+
+def test_migration_fails_closed_on_a_missing_not_null_model_column(tmp_path):
+    """A rebuild into a NOT NULL column the source cannot fill must refuse, not
     half-write the operator's archive."""
     db = str(tmp_path / "shortcolumns.db")
-    con = sqlite3.connect(db)
-    con.execute(_legacy_ddl().replace("scan_close FLOAT NOT NULL, ", ""))
-    con.commit()
-    con.close()
+    _legacy_db(db, [], ddl=_legacy_ddl().replace("scan_close FLOAT NOT NULL, ", ""))
 
     with pytest.raises(RuntimeError, match="missing model column"):
         migrate_near_miss_framing_identity(make_sqlite_engine(db))
@@ -212,6 +286,38 @@ def test_migration_fails_closed_on_a_table_missing_a_model_column(tmp_path):
         names = {r[0] for r in con.execute(
             "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         assert names == {"near_miss_archive"}
+    finally:
+        con.close()
+
+
+def test_migration_rebuilds_a_table_missing_a_NULLABLE_model_column(tmp_path):
+    """The other half of failing closed: refusing must be reserved for what the
+    rebuild genuinely cannot fill.
+
+    Every column this table has gained since birth is nullable outcome
+    substrate, and the ADD-only pass that would supply one runs AFTER this
+    migration — so a blanket 'any model/DB column gap refuses' turns the next
+    such release into a dead backend for anyone booting a DB restored from an
+    older backup, which this file's own comments say happens. A missing NULLABLE
+    column is copied as NULL, which is exactly what the model permits."""
+    db = str(tmp_path / "nullablegap.db")
+    _legacy_db(db, [
+        _row(id=1, ticker="APH", r_level=176.33, s_level=155.36,
+             r_anchor_date="2026-08-06", s_anchor_date="2026-08-03",
+             first_seen="2026-08-27", last_seen="2026-08-28", nights_seen=2),
+        _row(id=2, ticker="APH", r_level=88.165, s_level=77.68,
+             r_anchor_date="2026-08-06", s_anchor_date="2026-08-03",
+             first_seen="2026-09-04", last_seen="2026-09-04", nights_seen=1),
+    ], ddl=_legacy_ddl().replace("abnormal_ret_to_date FLOAT, ", ""))
+
+    assert migrate_near_miss_framing_identity(make_sqlite_engine(db)) is True
+
+    con = sqlite3.connect(db)
+    try:
+        row = con.execute(
+            "SELECT id, first_seen, nights_seen, abnormal_ret_to_date "
+            "FROM near_miss_archive").fetchall()
+        assert row == [(1, "2026-08-27", 3, None)]
     finally:
         con.close()
 

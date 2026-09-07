@@ -154,6 +154,34 @@ def test_writer_caps_and_dedup_are_counted(lane_db, monkeypatch):
     assert kept == ["AAA", "BBB"]                             # the reproducible cut
 
 
+def test_two_rails_on_one_framing_dedup_in_memory_before_the_flush(lane_db):
+    """One night, ONE framing, two rails — APH's split re-read, or plain 4dp
+    float noise. The IN-MEMORY key must drop the second row, not the constraint.
+
+    ``session.autoflush`` is off, so the existence probe cannot see the first
+    row's pending add: if the in-memory key still carried the rails, both rows
+    would be added, the UNIQUE would bite on ``commit()``, and the whole night's
+    near-miss batch would degrade to ``flush_error`` with ``inserted = 0`` —
+    precisely the EC-4 failure this identity change exists to close, on the half
+    of it the probe test does not reach. The exact-duplicate case above dedups
+    under either key and so proves nothing here."""
+    counters = nmw.archive_near_miss_rows(
+        [_row(ticker="APH", r=88.165, s=77.6801),
+         _row(ticker="APH", r=176.33, s=155.36)],
+        universe_type="us_equities", enable=True)
+    assert counters["dedup_dropped"] == 1
+    assert counters["inserted"] == 1
+    assert counters["flush_error"] == 0
+
+    db = database.SessionLocal()
+    rows = db.query(archive_models.NearMissArchive).all()
+    db.close()
+    assert len(rows) == 1
+    # The pre-dedup sort is on (ticker, anchors, rails), so WHICH of a colliding
+    # pair survives is a function of the rows alone.
+    assert rows[0].r_level == 88.165
+
+
 def test_real_deferred_rows_round_trip_through_the_writer(lane_db, monkeypatch):
     """The producer→writer contract proven on REAL deferred_rows output, not
     hand-typed fixture twins (review 2026-07-26 finding 10): a renamed margin

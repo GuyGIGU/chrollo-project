@@ -641,7 +641,10 @@ def migrate_near_miss_framing_identity(bind) -> bool:
 
     Idempotent: a no-op on a fresh DB (create_all built the new key) and on every
     later boot. Fails CLOSED — an unexpected row count, or any error at all,
-    rolls the whole rebuild back and re-raises with the backup named.
+    rolls the whole rebuild back and re-raises with the backup named, and it
+    refuses outright rather than rebuild a table missing a NOT NULL model column
+    it could not fill (a missing NULLABLE one is copied as NULL, which is what
+    the model permits).
     Returns True if it rebuilt, False if already migrated.
     """
     import shutil
@@ -659,13 +662,24 @@ def migrate_near_miss_framing_identity(bind) -> bool:
     table = archive_models.NearMissArchive.__table__
     model_cols = {c.name for c in table.columns}
     old_cols = [col["name"] for col in inspector.get_columns("near_miss_archive")]
-    missing = model_cols - set(old_cols)
-    if missing:
-        # Fail closed rather than rebuild into NOT NULL columns we cannot fill.
-        # (_ensure_table / _apply_model_add_columns own adding them first.)
+    # Fail closed on a column the rebuild could not fill — but only on those.
+    # A missing NULLABLE column is simply absent from copy_cols, so the INSERT
+    # omits it and it lands NULL, which is what the model already permits; every
+    # column the SELECT names by hand (the identity legs, first_seen/id for the
+    # tie-break, the three folded counters) is NOT NULL, so this covers them.
+    # Refusing on ANY gap instead would brick boot on the first future release
+    # that adds a plain nullable outcome column against a DB restored from an
+    # older backup — and reordering behind _apply_model_add_columns is no fix,
+    # since that pass adds a column WITHOUT its NOT NULL or its DEFAULT, so a
+    # NOT NULL column it "closed" would arrive full of NULLs and fail inside the
+    # rebuild instead (council review 2026-09-07, fix review F4).
+    unfillable = sorted(c.name for c in table.columns
+                        if c.name not in old_cols and not c.nullable)
+    if unfillable:
         raise RuntimeError(
-            f"near_miss_archive is missing model column(s) {sorted(missing)}; "
-            "refusing to rebuild the framing identity on an out-of-date table")
+            f"near_miss_archive is missing model column(s) {unfillable} that "
+            "the rebuild cannot fill; refusing to rebuild the framing identity "
+            "on an out-of-date table")
     folded = {"last_seen", "nights_seen", "fired_any_night"}
     copy_cols = [c for c in old_cols if c in model_cols and c not in folded]
     col_sql = ", ".join(f'"{c}"' for c in copy_cols)

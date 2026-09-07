@@ -407,3 +407,20 @@ key, keeping each group's EARLIEST-`first_seen` row whole and folding only
 `last_seen` (max), `nights_seen` (sum) and `fired_any_night` (max) across it, so
 the forward clock lands back on the first refusal where §5 put it. The writer's
 existence probe was narrowed to the same key in the same change (EC-4).
+
+**Rehearsed on a read-only snapshot of the live archive before it ships**
+(fix review of the same council run). The migration runs ONCE, on the next
+service restart, and on this archive it moves 1,483 rows → 1,478 episodes: the
+APH group above collapses onto its earliest-`first_seen` row (2026-08-27), which
+keeps its own rails and its own clock while `last_seen` folds to 2026-09-04 and
+`nights_seen` to 5. Before it touches anything it checkpoints the WAL and copies
+the whole file to `trading_journal.db.prenearmissidentity.bak` — 44 MB, the
+pre-migration state, and a second boot does **not** overwrite it (the migration
+returns early once the new key is in place, so the recovery copy survives). A
+failure at any point — proven by injecting an I/O error at the final
+`DROP TABLE` — rolls the rebuild back whole: the original table, its 1,483 rows,
+its legacy key and all four of its indexes are still there, with no
+half-migrated `near_miss_archive_old` left behind and the backup named in the
+log. It refuses outright only on a NOT NULL model column the source cannot fill;
+a missing NULLABLE column is copied as NULL, so a future release that adds
+outcome substrate cannot brick boot on a DB restored from an older backup.
