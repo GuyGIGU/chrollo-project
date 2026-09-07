@@ -58,6 +58,21 @@ nssm set ChrolloDashboard AppEnvironmentExtra IBKR_AUTO_CONNECT=false
 nssm start ChrolloDashboard
 ```
 
+**The two service logs are UTF-8** (since 2026-09-07). The backend reconfigures its own stdout/stderr
+to UTF-8 before it builds the log handlers, because NSSM hands it files on the Windows locale codec
+(cp1252) and a record carrying e.g. the scan relay's `→` was not written *at all* — logging raised
+inside `emit()`, dumped a `--- Logging error ---` traceback, and dropped the line. Consequence for
+reading them by hand: `Select-String` reads UTF-8 correctly with no flag, but **`Get-Content` needs
+`-Encoding UTF8`** in Windows PowerShell 5.1 or non-ASCII renders as mojibake (`â†’`):
+
+```powershell
+Get-Content "C:\Users\User\Documents\Projects\Chrollo Project\output\chrollo-service-error.log" -Encoding UTF8 -Tail 40
+```
+
+Lines written *before* that change are cp1252, so the pre-2026-09-07 tail of the existing files shows
+a replacement glyph on its em dashes under a UTF-8 reader (58 bytes in all). It clears itself
+the first time the logs rotate or are truncated.
+
 Do **not** set `IBKR_LIVE_CONFIRMED` on this service — it must stay broker-free at boot so a reboot or crash-restart never auto-grabs your single IBKR session (which would fight TradingView).
 
 > **Recovering an existing service** (pointed at the wrong/broken interpreter, or after a PyManager
