@@ -30,11 +30,15 @@ def is_running() -> bool:
     return bool(_scheduler and _scheduler.running)
 
 
-def _last_weekday_slot(now: datetime, hour: int, minute: int) -> datetime:
+def last_weekday_slot(now: datetime, hour: int, minute: int) -> datetime:
     """The most recent weekday scan slot at/before ``now``: today's if it has
     already passed, otherwise the previous weekday's. The cron is mon-fri, so a
     weekend boot looks back at Friday's slot. Pure; ``now`` must be
-    timezone-aware in the scheduler's America/New_York tz."""
+    timezone-aware in the scheduler's America/New_York tz.
+
+    PUBLIC because it is the one home for "when should a scan have started"
+    (EC-3): the boot catch-up below and the diagnostics registry's missed-slot
+    notice must agree, and they answered it separately before this merge."""
     slot = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if slot > now:
         slot -= timedelta(days=1)
@@ -66,7 +70,7 @@ def _missed_last_weekday_slot(now: datetime, runs: list[dict],
     missed. ``runs`` is scan_status.recent_runs(kind='scan') — the newest rows
     are enough because only runs at/after the slot can vouch for it. Pure (no
     I/O) for testability; ``now`` must be timezone-aware in America/New_York."""
-    slot = _last_weekday_slot(now, hour, minute)
+    slot = last_weekday_slot(now, hour, minute)
     return not any(
         run.get("status") == "ok" and _started_at_or_after(run.get("started_at"), slot)
         for run in runs
@@ -85,7 +89,7 @@ def _schedule_boot_catchup(scheduler: BackgroundScheduler, hour: int, minute: in
         log.warning(
             "boot catch-up: the %s %02d:%02d ET scan slot has no successful run "
             "— scheduling the missed scan",
-            _last_weekday_slot(now, hour, minute).date().isoformat(), hour, minute,
+            last_weekday_slot(now, hour, minute).date().isoformat(), hour, minute,
         )
         scheduler.add_job(
             run_scheduled_scan_and_forward_returns,

@@ -3,6 +3,7 @@ Chrollo API - FastAPI backend for Trading Journal & Wyckoff Screener.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -35,7 +36,7 @@ from routers import tags as tags_router
 from routers import trade_risk as trade_risk_router
 from routers import trades as trades_router
 from routers import watchlist as watchlist_router
-from services import auto_import, scheduler
+from services import auto_import, scan_diagnosis, scheduler
 from services.frontend import mount_frontend_assets, serve_frontend_index
 from services.health import build_health_report
 from services.log_encoding import force_utf8
@@ -95,6 +96,12 @@ screener_router.configure_screener_routes(_SCREENER_JSON)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start/stop background services around the app lifecycle."""
+    # Work out WHY any interrupted scan run died, off the event loop. It reads
+    # the Windows event log, which is only up at a real service start — never at
+    # the import-time boot migrations, where the reconcile itself can run inside
+    # a dying Windows session. Best-effort by construction: an unresolved row
+    # simply stays pending for the next start, so startup never waits on it.
+    asyncio.get_running_loop().run_in_executor(None, scan_diagnosis.resolve_pending)
     auto_import.start_writer()
     scheduler.start_scheduler()
     svc = get_ibkr_service()

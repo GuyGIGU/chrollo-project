@@ -62,7 +62,7 @@ def latest_run(kind: str | None = "scan") -> dict | None:
             text(
                 f"""
                 SELECT id, started_at, finished_at, status, n_setups, error, trigger,
-                       COALESCE(kind, 'scan') AS kind
+                       COALESCE(kind, 'scan') AS kind, failure_kind
                 FROM scan_runs
                 {where}
                 ORDER BY id DESC
@@ -86,7 +86,7 @@ def recent_runs(limit: int = 20, kind: str | None = "scan") -> list[dict]:
             text(
                 f"""
                 SELECT id, started_at, finished_at, status, n_setups, error, trigger,
-                       COALESCE(kind, 'scan') AS kind
+                       COALESCE(kind, 'scan') AS kind, failure_kind
                 FROM scan_runs
                 {where}
                 ORDER BY id DESC
@@ -96,3 +96,23 @@ def recent_runs(limit: int = 20, kind: str | None = "scan") -> list[dict]:
             params,
         ).mappings().all()
         return [dict(r) for r in rows]
+
+
+def never_run(kind: str = "scan") -> dict:
+    """The shape a fresh install serves when no run has ever been recorded.
+
+    Lives here rather than being hand-typed in the route so the 'never' row goes
+    through exactly the same enrichment as a real row and can never be missing a
+    field every other row carries.
+    """
+    return {
+        "id": None,
+        "started_at": None,
+        "finished_at": None,
+        "status": "never",
+        "n_setups": None,
+        "error": None,
+        "trigger": None,
+        "kind": kind,
+        "failure_kind": None,
+    }

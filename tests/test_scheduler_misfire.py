@@ -44,27 +44,27 @@ def run(started_at, status="ok"):
     return {"started_at": started_at, "status": status}
 
 
-# ---- _last_weekday_slot (pure) ----
+# ---- last_weekday_slot (pure) ----
 def test_last_slot_is_today_once_todays_slot_has_passed():
-    slot = scheduler_mod._last_weekday_slot(AFTER_SLOT, 18, 0)
+    slot = scheduler_mod.last_weekday_slot(AFTER_SLOT, 18, 0)
     assert slot == datetime(2026, 7, 2, 18, 0, tzinfo=NY)
 
 
 def test_last_slot_is_yesterday_before_todays_slot():
-    slot = scheduler_mod._last_weekday_slot(BEFORE_SLOT, 18, 0)
+    slot = scheduler_mod.last_weekday_slot(BEFORE_SLOT, 18, 0)
     assert slot == datetime(2026, 7, 1, 18, 0, tzinfo=NY)
 
 
 def test_last_slot_from_a_weekend_boot_is_friday():
     # The cron is mon-fri: Saturday and Sunday both look back at Friday.
-    assert scheduler_mod._last_weekday_slot(SATURDAY, 18, 0) == datetime(
+    assert scheduler_mod.last_weekday_slot(SATURDAY, 18, 0) == datetime(
         2026, 7, 3, 18, 0, tzinfo=NY)
-    assert scheduler_mod._last_weekday_slot(SUNDAY, 18, 0) == datetime(
+    assert scheduler_mod.last_weekday_slot(SUNDAY, 18, 0) == datetime(
         2026, 7, 3, 18, 0, tzinfo=NY)
 
 
 def test_last_slot_from_a_monday_morning_boot_is_friday():
-    assert scheduler_mod._last_weekday_slot(MONDAY_MORNING, 18, 0) == datetime(
+    assert scheduler_mod.last_weekday_slot(MONDAY_MORNING, 18, 0) == datetime(
         2026, 7, 3, 18, 0, tzinfo=NY)
 
 

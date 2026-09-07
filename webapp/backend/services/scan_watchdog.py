@@ -4,13 +4,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from services import scan_status
+from services.scan_diagnosis import HUNG_RUNNING_HOURS
 from services.scan_runner import alert_if_needed
 
 # A run left 'running' longer than this almost certainly means the process was
 # killed between start_run and finish_run (crash / OOM / power loss). Scans and
 # maturation both complete in minutes, so surface a hang promptly instead of
 # letting the generic staleness path mislabel it as stale_data ~a day later.
-HUNG_RUNNING_HOURS = 2.0
+#
+# IMPORTED, not re-declared: services/scan_diagnosis.py is its one home, because
+# the same number also bounds how late a machine shutdown may still be blamed
+# for killing a run, and services/health.py calls a run hung by it. Tuning one
+# copy used to leave the other two on the old number (EC-3).
+
 # A kind is "stale" once its newest run is older than this. Both the scan and the
 # maturation tick are expected at least once per weekday; 26h spans a normal
 # overnight gap without false alarms.

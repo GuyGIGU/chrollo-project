@@ -221,7 +221,21 @@ local folder (a cloud-synced one like OneDrive is fine — the sync client uploa
 The scheduled scan runs *inside* the ChrolloDashboard service (in-process APScheduler,
 weekdays 17:00 ET) and backfills forward returns in the same job. That is fine while the
 service is up — but if the service is down or the PC is off at 17:00 ET, that day's
-maturation never ticks, and archived setups stall one bar short of maturing. Because the
+maturation never ticks, and archived setups stall one bar short of maturing.
+
+> **The 17:00 ET slot is 00:00 local time in Israel, and a full scan needs about 17 minutes.**
+> It was moved there on 2026-09-07: at the old 18:00 ET (01:00 local) it collided nightly with
+> the operator's 01:00–02:00 shutdown, and the ETF universes — which run LAST — had never once
+> survived to write. **Do not move it earlier than 16:30 ET**: the US close is 16:00 and
+> `SESSION_FINALIZATION_MARGIN_MINUTES` (30) makes 16:30 the FIRST instant today's bar counts as
+> final, so an earlier slot silently scans YESTERDAY's session with no error. A night that is
+> still cut short is recovered by the **boot catch-up**, which re-runs the most recent weekday
+> slot that has no *successful* run — so a weekend boot picks up Friday's, and a scan that
+> started and died counts as missed. Both failure shapes are explained in plain words by the
+> topbar status pills — click either one for the scan-run registry, which names the reason and a
+> proposed solution. To move the slot, edit `SCAN_SCHEDULE_HOUR_ET` / `SCAN_SCHEDULE_MINUTE_ET`
+> in `config/settings.py` and restart with `update_dashboard.bat`. Evidence for the collision:
+> [scan_interruption_incident_2026-09.md](scan_interruption_incident_2026-09.md). Because the
 maturation record is what proves the engine's edge, add a **second, backend-independent**
 nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
 its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it, and — with

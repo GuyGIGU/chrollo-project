@@ -9,6 +9,11 @@ from sqlalchemy import inspect, text
 import archive_models
 import models
 from database import engine
+from services.scan_diagnosis import (
+    LEGACY_RECONCILE_PREFIX,
+    PENDING_KIND,
+    RECONCILE_MARKER,
+)
 
 _MIGRATIONS = [
     """
@@ -20,10 +25,21 @@ _MIGRATIONS = [
         n_setups INTEGER,
         error TEXT,
         trigger VARCHAR NOT NULL,
-        kind VARCHAR DEFAULT 'scan'
+        kind VARCHAR DEFAULT 'scan',
+        failure_kind VARCHAR
     )
     """,
     "ALTER TABLE scan_runs ADD COLUMN kind VARCHAR DEFAULT 'scan'",
+    # Why a run that was killed mid-flight died (services/scan_diagnosis.py owns
+    # the closed set). Both forms are needed: the CREATE covers a fresh db, the
+    # idempotent ALTER covers an existing one.
+    "ALTER TABLE scan_runs ADD COLUMN failure_kind VARCHAR",
+    # Rows reconciled before 2026-09-07 carry only the old generic message and no
+    # kind. Tag them pending so the lazy resolver can still explain the recent
+    # ones (the old ones age out to "not recorded"). Idempotent by construction.
+    f"UPDATE scan_runs SET failure_kind = '{PENDING_KIND}' "
+    "WHERE failure_kind IS NULL AND status = 'failed' "
+    f"AND error LIKE '{LEGACY_RECONCILE_PREFIX}%'",
     "ALTER TABLE trade_logs ADD COLUMN actions_json TEXT",
     "ALTER TABLE trade_logs ADD COLUMN source VARCHAR DEFAULT 'manual'",
     "ALTER TABLE trade_logs ADD COLUMN ibkr_account VARCHAR",
@@ -306,6 +322,16 @@ def _reconcile_orphaned_runs(bind) -> None:
     and no scan/maturation is in flight yet, so every 'running' row here is genuinely
     orphaned. Idempotent and best-effort — a missing table or transient error must
     never block backend boot.
+
+    This RECORDS A FACT and claims no cause. The row is tagged with the pending
+    failure kind; services/scan_diagnosis.resolve_pending works out WHY later,
+    from the backend's lifespan startup, when the Windows Event Log service is
+    actually up. Measured 2026-09-05: this reconcile can run seconds INTO a
+    shutdown (NSSM restarts uvicorn as Windows stops the service), one second
+    after the Event Log service has already stopped — so no evidence read and no
+    boot-time comparison belongs on this path. ``finished_at`` is stamped as the
+    moment the orphan was DETECTED, which is what makes the later diagnosis
+    possible; it is not a completion time.
     """
     from datetime import datetime, timezone
 
@@ -316,15 +342,18 @@ def _reconcile_orphaned_runs(bind) -> None:
                 text(
                     "UPDATE scan_runs SET status = 'failed', "
                     "finished_at = COALESCE(finished_at, :now), "
-                    "error = COALESCE(error, 'process died before completion "
-                    "(reconciled at boot)') "
+                    "error = COALESCE(error, :marker), "
+                    "failure_kind = COALESCE(failure_kind, :pending) "
                     "WHERE status = 'running'"
                 ),
-                {"now": now_iso},
+                {"now": now_iso, "marker": RECONCILE_MARKER, "pending": PENDING_KIND},
             )
             n = result.rowcount
         if n:
-            _log.warning("reconciled %d orphaned 'running' scan_runs row(s) at boot", n)
+            _log.warning(
+                "reconciled %d orphaned 'running' scan_runs row(s) at boot "
+                "(cause pending: %s)", n, PENDING_KIND,
+            )
     except Exception as exc:  # pragma: no cover - defensive; boot must not fail
         _log.warning("orphaned scan_runs reconcile skipped (%s)", exc.__class__.__name__)
 

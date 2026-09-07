@@ -12,6 +12,8 @@ import {
   POSITION_LABELS,
   POWER_PLAY_STATUS_LABELS,
   ROOT_OUTCOME_LABELS,
+  RUN_VERDICT_LABELS,
+  RUN_VERDICT_TONES,
   TRACE_STAGE_LABELS,
   TREND_STATE_LABELS,
   episodeLabel,
@@ -82,6 +84,26 @@ test('no retired jargon and no engineer CONSTANT_CASE in any operator-facing str
     // Settings-constant leakage (MAX_BOX_WIDTH style — an underscore-joined
     // CONSTANT). Bare acronyms like LPS/ADR are legitimate operator words.
     assert.ok(!/\b[A-Z]+_[A-Z_]+\b/.test(s), `settings-constant token in "${s}"`);
+  }
+});
+
+test('the scan verdict set is closed, two-valued, and wears operator words', () => {
+  // THE OTHER HALF of the server's coverage gate
+  // (tests/test_scan_diagnosis.py::test_every_failure_kind_maps_to_exactly_one_verdict).
+  // The operator asked for exactly TWO states — "either the Scan failed because
+  // of a technical issue ... or there is a real issue that needs to be tended by
+  // you" — so a third arriving on the wire, or a slug reaching him unlabelled,
+  // must go red here rather than render as raw snake_case.
+  assert.deepEqual(Object.keys(RUN_VERDICT_LABELS).sort(),
+    ['needs_attention', 'rerunnable']);
+  assert.deepEqual(Object.keys(RUN_VERDICT_TONES).sort(),
+    Object.keys(RUN_VERDICT_LABELS).sort());
+  // Each state is named for the ACTION it implies, and neither leaks its slug.
+  assert.equal(RUN_VERDICT_LABELS.rerunnable, 'Re-run the scan');
+  assert.equal(RUN_VERDICT_LABELS.needs_attention, 'Needs attention');
+  for (const [slug, label] of Object.entries(RUN_VERDICT_LABELS)) {
+    assert.ok(!label.includes('_'), `wire slug leaked into "${label}"`);
+    assert.ok(!label.toLowerCase().includes(slug));
   }
 });
 

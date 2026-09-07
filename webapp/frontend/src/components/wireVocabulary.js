@@ -183,6 +183,55 @@ export const PHASE_NAMES = {
   lps: 'LPS',
 };
 
+// The BINARY scan verdict — the operator's own two states, named for the ACTION
+// each implies. RESOLVED SERVER-SIDE (services/scan_diagnosis.py): the wire
+// carries the verdict, never the rule (EC-28), so nothing in this app may work
+// out which of the two it is — from the failure kind, the status, the number of
+// failing checks, or anything else. These are its words and its tone, nothing
+// more, and an unknown slug falls through to the old "Degraded" wording rather
+// than blank (an older backend that has not been restarted yet).
+export const RUN_VERDICT_LABELS = {
+  rerunnable: 'Re-run the scan',
+  needs_attention: 'Needs attention',
+};
+
+export const RUN_VERDICT_TONES = {
+  rerunnable: 'var(--warning)',
+  needs_attention: 'var(--danger)',
+};
+
+// Background-job kinds (the frozen scan_runs.kind enum) in plain trading words,
+// for the scan-run diagnostics registry. Labels only — the registry never
+// derives a verdict from the kind.
+export const RUN_KIND_LABELS = {
+  scan: 'Screener scan',
+  maturation: 'Outcome backfill',
+  download: 'Market-data download',
+};
+
+// The run statuses (the frozen scan_runs.status enum) in the operator's words.
+// One map for BOTH surfaces that name a run — the topbar pill and the registry
+// row — so a stale-data run cannot read "stale" on one and `stale_data` on the
+// other. Labels only.
+export const RUN_STATUS_LABELS = {
+  ok: 'ok',
+  running: 'running',
+  failed: 'failed',
+  aborted: 'stopped by you',
+  stale_data: 'stale',
+  never: 'never run',
+};
+
+// How a run was started. `os_task` (the Windows scheduled task that ticks the
+// outcome backfill) reaches the operator for the first time in the registry.
+export const RUN_TRIGGER_LABELS = {
+  scheduled: 'nightly timer',
+  manual: 'you',
+  manual_evaluation: 'you (Evaluate)',
+  manual_download: 'you (Download)',
+  os_task: 'Windows task',
+};
+
 export function displayLabel(id) {
   return DISPLAY_LABELS[id]?.label ?? id;
 }

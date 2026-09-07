@@ -10,6 +10,7 @@ import useIBKRStatus from '../hooks/useIBKRStatus';
 import useIbkrActions from '../hooks/useIbkrActions';
 import useLiveRisk from '../hooks/useLiveRisk';
 import usePortfolioSnapshot from '../hooks/usePortfolioSnapshot';
+import useScanHistory from '../hooks/useScanHistory';
 import { API_BASE } from '../api';
 import logoUrl from '../assets/4114b5469d3aaf9d583d8ad081a8d178.jpg';
 import { buildHealthPill, buildScanStatusText } from '../utils/appFormat';
@@ -18,6 +19,7 @@ import { isOptionSymbol } from '../utils/tradeUtils';
 
 const CalculatorModal = lazy(() => import('./CalculatorModal'));
 const TradeDetailDrawer = lazy(() => import('./TradeDetailDrawer'));
+const ScanHistoryModal = lazy(() => import('./ScanHistoryModal'));
 
 const ModalFallback = () => null;
 
@@ -47,6 +49,10 @@ function AppShell() {
   const ibkrStatus = useIBKRStatus(10000);
   const ibkrActions = useIbkrActions(ibkrStatus);
   const { trades, stats, scanStatus, health, fetchDashboardData } = useDashboardData();
+  // One scan-run diagnostics registry for the whole app: the topbar status
+  // pills open it, and the Archive header's Scan History button opens the same
+  // instance through outlet context.
+  const scanHistory = useScanHistory();
 
   const [tradeFilter, setTradeFilter] = useState(null);
   const [isCalcModalOpen, setCalcModalOpen] = useState(false);
@@ -147,6 +153,7 @@ function AppShell() {
     // the whole app; routes read these instead of mounting their own poller.
     ibkrStatus,
     ibkrActions,
+    onOpenScanRegistry: scanHistory.openHistory,
   };
 
   return (
@@ -159,6 +166,7 @@ function AppShell() {
         ibkrActions={ibkrActions}
         logoUrl={logoUrl}
         onOpenCalculator={() => setCalcModalOpen(true)}
+        onOpenScanRegistry={scanHistory.openHistory}
         onNewTrade={startNewTrade}
         csvInputRef={csvInputRef}
         importingCsv={importingCsv}
@@ -179,6 +187,16 @@ function AppShell() {
       <ErrorBoundary>
         <Suspense fallback={<ModalFallback />}>
           {isCalcModalOpen && <CalculatorModal onClose={() => setCalcModalOpen(false)} />}
+          {scanHistory.open && (
+            <ScanHistoryModal
+              health={health}
+              loading={scanHistory.loading}
+              notice={scanHistory.notice}
+              onClose={scanHistory.closeHistory}
+              open={scanHistory.open}
+              runs={scanHistory.runs}
+            />
+          )}
           {detailTrade && (
             <TradeDetailDrawer
               key={detailTrade.id}

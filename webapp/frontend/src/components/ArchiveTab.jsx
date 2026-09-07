@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import useArchiveAddSetup from '../hooks/useArchiveAddSetup';
 import useArchiveChart from '../hooks/useArchiveChart';
 import useArchiveData from '../hooks/useArchiveData';
@@ -13,11 +14,15 @@ import ArchiveReweightingStrip from './archive/ArchiveReweightingStrip';
 import ArchiveSummary from './archive/ArchiveSummary';
 import ArchiveTable from './archive/ArchiveTable';
 import ArchiveTierCards from './archive/ArchiveTierCards';
-import { ArchiveAnalysisModal, ScanHistoryModal } from './ArchiveMaintenanceModals';
+import { ArchiveAnalysisModal } from './ArchiveMaintenanceModals';
 import { NARRATIVE_WIRE_FIELDS } from './narrativeRead';
 import ScreenerModal from './ScreenerModal';
 
 export default function ArchiveTab() {
+  // The scan-run registry lives in AppShell (the topbar's Degraded pill opens
+  // the same instance), so this button calls the shell's opener rather than
+  // owning a second modal and a second fetch.
+  const { onOpenScanRegistry } = useOutletContext();
   const [tierFilter, setTierFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [sourceFilter, setSourceFilter] = useState('curated');
@@ -68,7 +73,7 @@ export default function ArchiveTab() {
         health={data.health}
         onAddSetup={addSetup.openModal}
         onOpenAnalysis={maintenance.openAnalysis}
-        onOpenHistory={maintenance.openHistory}
+        onOpenHistory={onOpenScanRegistry}
         onUpdateReturns={data.updateReturns}
         stats={data.stats}
         updateMsg={data.updateMsg}
@@ -163,12 +168,6 @@ function ChartViewer({ chart }) {
 function ArchiveModals({ addSetup, maintenance }) {
   return (
     <>
-      <ScanHistoryModal
-        loading={maintenance.historyLoading}
-        onClose={maintenance.closeHistory}
-        open={maintenance.historyOpen}
-        runs={maintenance.historyRuns}
-      />
       <ArchiveAnalysisModal
         error={maintenance.analysisError}
         loading={maintenance.analysisLoading}
