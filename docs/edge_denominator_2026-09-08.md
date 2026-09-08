@@ -78,6 +78,52 @@ either direction, and it is not quoted here as evidence for anything except its 
 insufficiency. **The corrected denominator makes the tile honest; it does not by itself
 overturn the 2026-09-03 verdict.**
 
+## The other three claims, now verified
+
+The tail analysis flagged four claims as unverified. The `barrier_label` one is above.
+All three others were checked against the live archive; **all three hold in direction, two
+need a number corrected, and one needs a control that changes what it means.**
+
+**R measured from the trigger he actually buys at.** The archive's `r_multiple_20d`
+measures risk from the *scan close*; he enters at the breakout. Recomputing from the
+trigger (my recompute reproduces the stored column at corr 1.0000, so the frame is sound):
+6,435 triggered matured rows, **median haircut 25.5%** — the claim said ~28%. It is
+strikingly uniform across tiers in the median (24.8 / 26.0 / 25.6 / 26.7) but *not* row by
+row: the IQR runs 12.5–44.0%, so "uniform" is a statement about tier medians only.
+**The median tier-S setup does not reach 1R in 20 days** — median R from the trigger is
+**0.69**, and only 35.4% of triggered tier-S setups ever touch 1R. Note the ordering,
+though: R from the trigger is monotonic across tiers (0.69 / 0.54 / 0.43 / 0.35; 1R reached
+by 35.4 / 25.1 / 18.9 / 12.9%). It is a third statistic that ranks the tiers correctly.
+
+**ADR as a ceiling.** This is the sharpest of the three. By ADR quintile, P(MFE≥25%) runs
+**0.00 / 0.64 / 2.44 / 6.59 / 17.41%** and P(≥40%) **0.00 / 0.00 / 0.36 / 1.65 / 4.87%**.
+In the two slowest quintiles — 2,792 rows, 40% of the archive — **not one setup reached
+40%**, and nine reached 25%. And the score ordering survives *only* among the fastest:
+comparing the top score quintile against the bottom within the same scan day, Mann-Whitney
+p = **0.0173** in ADR-Q5 and p > 0.87 in every other quintile, where the low-scored names
+in fact carry the higher median MFE. (The claim cited p=0.0073; my binning gives 0.0173 —
+same conclusion, different cut.)
+
+**But the control matters, and it cuts the other way.** Expressed per unit of the stock's
+own volatility (20 × ADR), the advantage inverts: median MFE runs **0.134 / 0.135 / 0.130 /
+0.108 / 0.103** of a 20-day range — the *slowest* quintile is the most efficient mover —
+and MFE/|MAE| runs 1.48 / 1.86 / 1.63 / 1.17 / **1.25**, so the fastest names have a worse
+reward-to-drawdown profile than quintiles 1–3. Median 20-day forward return is
+near-zero and non-monotonic throughout (0.44 / 1.64 / 2.05 / **−0.28** / 0.41).
+**So ADR is a reachability filter, not a quality signal**: a slow stock cannot deliver the
+move the strategy is built on, but a fast one is not thereby a better setup — the tail is
+bought with a wider stop. Recorded as evidence, not as a knob request; `decisions.md`
+already notes ADR-rebasing of `atr_squeeze` is not applicable and asks for exactly this
+kind of edge read.
+
+**Liquidity at the top of the list.** Spearman(score, log 50-day median dollar volume) =
+**−0.0956** against the claimed −0.094 — essentially exact, highly significant
+(p=1.6e-26, n=12,374) and very small. The headline figure needs correcting: **27.6%** of
+the daily top-10 by score trades under $5M/day, not 33%, against 21.5% for the whole board
+— thinner, by about six points. Under $1M/day it is 7.8% of the top-10 against 5.2%. By
+tier: S median $23.8M and 24.1% under $5M, C median $63.8M and 13.7%. Real, directionally
+as claimed, and modest.
+
 ## What shipped
 
 Reporting only — no engine change, no scoring change, no threshold moved.
