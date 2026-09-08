@@ -42,12 +42,13 @@ _PROJECT_ROOT = configure_path()
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
+from core.archive.db_path import archive_db_path
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
 _FIXTURE_PARQUET = os.path.join(_BASELINE_DIR, "shadow_fixture.parquet")
 _FIXTURE_SCALARS = os.path.join(_BASELINE_DIR, "shadow_fixture_scalars.json")
 _BASELINE_PATH = os.path.join(_BASELINE_DIR, "shadow_baseline.json")
-_DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
+_DB_PATH = archive_db_path()
 _CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 
 # The screener outputs frozen by the guard. New diagnostic fields are NOT here,

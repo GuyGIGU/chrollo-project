@@ -46,6 +46,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from core.archive.db_path import archive_db_path
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
 from core.archive.outcomes import HORIZON_BARS
 from core.backtest.edge_report import TAIL_MFE_COL, TAIL_THRESHOLDS
@@ -56,7 +57,7 @@ from engine_alpha.scoring import taxonomy
 # Paths & loading
 # ------------------------------------------------------------------
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-_DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
+_DB_PATH = archive_db_path()
 
 # Structural features (the "picture" - produced by the Visual Structure Engine).
 STRUCTURAL_FEATURES = [

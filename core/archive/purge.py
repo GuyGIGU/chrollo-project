@@ -28,6 +28,8 @@ _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
+from core.archive.db_path import archive_db_path  # noqa: E402  (needs the path above)
+
 
 # Sources that are NEVER deleted by default. 'screener' is the live unbiased
 # edge-measurement record; removing it discards accruing forward returns and
@@ -42,7 +44,7 @@ def purge(apply: bool = False, include_live: bool = False) -> dict[str, int]:
     from archive_models import SetupArchive
     from database import make_sqlite_engine
 
-    db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
+    db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()

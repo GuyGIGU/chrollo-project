@@ -46,6 +46,7 @@ def _ticker_frame(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
 # the harness REPORTS are computed in exactly one place (no divergent
 # re-derivation). compute_barrier_events is re-exported here for back-compat with
 # any caller / test that imported it from this module.
+from core.archive.db_path import archive_db_path
 from core.archive.outcomes import (  # noqa: E402
     HORIZON_BARS as FORWARD_RETURN_HORIZON_BARS,
     STOP_TOLERANCE,
@@ -399,7 +400,7 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     from archive_models import SetupArchive
     from database import make_sqlite_engine
 
-    db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
+    db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
     SetupArchive.metadata.create_all(bind=engine)
     # Ensure the FULL model schema before querying — not just the outcome subset.
