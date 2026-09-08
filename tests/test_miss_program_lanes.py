@@ -13,10 +13,11 @@ that elect nothing. These guards pin that scope behaviorally:
 * an electing frame        -> ONE walk even with the flag on (never displaces);
 * a cause-before-effect veto is doctrinal and FINAL — never rescued;
 * the species lane's own scoped read (form already armed) is never re-walked;
-* end-to-end on the sealed corpus: the rescue converts exactly the two
-  operator-ruled conversions (EGBN/PKE, "BOTH have setups on these days so
-  yeah", 2026-08-19), stamped ``elected_pool='story'`` with the self-naming
-  contraction profile.
+* end-to-end on the corpus: the rescue converts EGBN, stamped
+  ``elected_pool='story'`` with the self-naming contraction profile. The
+  operator ruled TWO conversions ("BOTH have setups on these days so yeah",
+  2026-08-19); the second, PKE:2026-02-24, left when he deleted that drawing and
+  redrew the setup at 2026-04-07, which now fires at baseline (2026-09-08).
 
 Lane 2 — the 50-day dip exception (``SMA50_DIP_EXCEPTION_ENABLED``): an sma50
 universe refusal enters chart reading when the dip under the 50-day is
@@ -193,8 +194,16 @@ def test_contraction_rescue_converts_the_ruled_misses_end_to_end(monkeypatch):
     (docs/miss_program_2026-08.md); tiers match the 2026-08-19 record."""
     frames, baseline = _load_marks_fixture()
     by_key = {e["key"]: e for e in baseline["setups"]}
-    for key, fire_day, tier in [("EGBN:2026-01-15", "2026-01-07", "A"),
-                                ("PKE:2026-02-24", "2026-02-18", "B")]:
+    # PKE:2026-02-24 was the second ruled conversion. The operator DELETED that
+    # drawing and redrew the setup at 2026-04-07, which the engine now fires at
+    # BASELINE (tier B, first fire 2026-03-26) — so PKE no longer needs rescuing
+    # and its half of this guard retired with the mark on 2026-09-08, when the
+    # standard began following his current drawings.
+    # RECORDED, because it is a real loss and not housekeeping: the
+    # contraction-rescue flag is still dark awaiting his ruling (docs/asks.md),
+    # and the ruling he gave it — "BOTH have setups on these days so yeah",
+    # 2026-08-19 — cited both specimens. Half its end-to-end evidence is gone.
+    for key, fire_day, tier in [("EGBN:2026-01-15", "2026-01-07", "A")]:
         e = by_key[key]
         assert e["status"] == "miss", (
             f"{key} is no longer a sealed expected-miss — this guard and the "

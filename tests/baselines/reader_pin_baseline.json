@@ -234,6 +234,550 @@
      "lps": null
     }
    },
+   "ANRO:2026-08-12": {
+    "window_digest": "9b4645d38f563bcb48f90cab6a7bb516804c730bfb88024fbe870e3cb1b65919",
+    "basis": {
+     "window_start": "2026-02-20",
+     "window_end": "2026-08-12",
+     "bars": 120,
+     "R": 29.700000762939453,
+     "S": 17.079999923706055,
+     "atr": 1.8506484869954607
+    },
+    "reading": {
+     "episodes": {
+      "episodes": [
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 0,
+        "end_bar": 2,
+        "n_bars": 3,
+        "describes": [
+         0,
+         2
+        ],
+        "knowable_bar": 5,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 73,
+        "end_bar": 75,
+        "n_bars": 3,
+        "describes": [
+         73,
+         75
+        ],
+        "knowable_bar": 78,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "R",
+        "outcome": "completed",
+        "start_bar": 98,
+        "end_bar": 101,
+        "n_bars": 4,
+        "describes": [
+         98,
+         101
+        ],
+        "knowable_bar": 104,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "R",
+        "outcome": "completed",
+        "start_bar": 111,
+        "end_bar": 111,
+        "n_bars": 1,
+        "describes": [
+         111,
+         111
+        ],
+        "knowable_bar": 114,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "R",
+        "outcome": "open",
+        "start_bar": 115,
+        "end_bar": 119,
+        "n_bars": 5,
+        "describes": [
+         115,
+         119
+        ],
+        "knowable_bar": null,
+        "in_progress": true,
+        "terminal_posture": false
+       }
+      ],
+      "n_episodes": 5,
+      "nan_bars": 0,
+      "n_bars": 120
+     },
+     "episode_stats": {
+      "n_completed_s": 2,
+      "n_completed_r": 2,
+      "n_failed_s": 0,
+      "terminal_r_engagement": true,
+      "alternations": 1,
+      "terminal_s_drift": false,
+      "terminal_r_posture": false,
+      "profile": "S+ S+ R+ R+ R0",
+      "n_episodes": 5
+     },
+     "box_events": [
+      {
+       "type": "test",
+       "valley_bar": 7,
+       "zone_start": 7,
+       "zone_end": 13,
+       "valley_price": 18.56,
+       "valley_box_pos": 0.1173,
+       "recovery_box": 0.3962,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 7
+      },
+      {
+       "type": "test",
+       "valley_bar": 9,
+       "zone_start": 9,
+       "zone_end": 15,
+       "valley_price": 19.28,
+       "valley_box_pos": 0.1743,
+       "recovery_box": 0.3391,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 9
+      },
+      {
+       "type": "test",
+       "valley_bar": 13,
+       "zone_start": 13,
+       "zone_end": 19,
+       "valley_price": 20.63,
+       "valley_box_pos": 0.2813,
+       "recovery_box": 0.3597,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 13
+      },
+      {
+       "type": "test",
+       "valley_bar": 22,
+       "zone_start": 22,
+       "zone_end": 28,
+       "valley_price": 19.413,
+       "valley_box_pos": 0.1849,
+       "recovery_box": 0.3532,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 22
+      },
+      {
+       "type": "test",
+       "valley_bar": 29,
+       "zone_start": 29,
+       "zone_end": 35,
+       "valley_price": 19.49,
+       "valley_box_pos": 0.191,
+       "recovery_box": 0.5079,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 29
+      },
+      {
+       "type": "range",
+       "phase": "B",
+       "peak_bar": 42,
+       "zone_start": 29,
+       "zone_end": 44,
+       "peak_price": 28.441,
+       "peak_box_pos": 0.9002,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.3637,
+       "linger_bars": 7,
+       "strength_box": 0.7093,
+       "resolution": "held",
+       "wave_bars": 7,
+       "rail": "R",
+       "anchor_bar": 42
+      },
+      {
+       "type": "range",
+       "phase": "B",
+       "peak_bar": 51,
+       "zone_start": 48,
+       "zone_end": 52,
+       "peak_price": 26.778,
+       "peak_box_pos": 0.7685,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2987,
+       "linger_bars": 3,
+       "strength_box": 0.2772,
+       "resolution": "held",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 51
+      },
+      {
+       "type": "rejection",
+       "phase": "B",
+       "peak_bar": 55,
+       "zone_start": 53,
+       "zone_end": 55,
+       "peak_price": 26.05,
+       "peak_box_pos": 0.7108,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.3756,
+       "linger_bars": 1,
+       "strength_box": 0.2155,
+       "resolution": "failed",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 55
+      },
+      {
+       "type": "test",
+       "valley_bar": 62,
+       "zone_start": 62,
+       "zone_end": 68,
+       "valley_price": 20.09,
+       "valley_box_pos": 0.2385,
+       "recovery_box": 0.1513,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 62
+      },
+      {
+       "type": "test",
+       "valley_bar": 74,
+       "zone_start": 74,
+       "zone_end": 80,
+       "valley_price": 17.9,
+       "valley_box_pos": 0.065,
+       "recovery_box": 0.3875,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 74
+      },
+      {
+       "type": "test",
+       "valley_bar": 80,
+       "zone_start": 80,
+       "zone_end": 86,
+       "valley_price": 20.67,
+       "valley_box_pos": 0.2845,
+       "recovery_box": 0.4675,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 80
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 89,
+       "zone_start": 80,
+       "zone_end": 119,
+       "peak_price": 28.3,
+       "peak_box_pos": 0.8891,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2797,
+       "linger_bars": 35,
+       "strength_box": 0.6046,
+       "resolution": "held",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 89
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 98,
+       "zone_start": 91,
+       "zone_end": 119,
+       "peak_price": 28.85,
+       "peak_box_pos": 0.9326,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2504,
+       "linger_bars": 35,
+       "strength_box": 0.3534,
+       "resolution": "held",
+       "wave_bars": 7,
+       "rail": "R",
+       "anchor_bar": 98
+      },
+      {
+       "type": "in_progress",
+       "phase": "D",
+       "peak_bar": 115,
+       "zone_start": 102,
+       "zone_end": 119,
+       "peak_price": 29.49,
+       "peak_box_pos": 0.9834,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1823,
+       "linger_bars": 35,
+       "strength_box": 0.3035,
+       "resolution": "in_progress",
+       "wave_bars": 5,
+       "rail": "R",
+       "anchor_bar": 115
+      },
+      {
+       "type": "lps",
+       "rail": "S",
+       "phase": "D",
+       "zone_start": 115,
+       "zone_end": 117,
+       "anchor_bar": 116,
+       "swing_type": "terminal_valley"
+      }
+     ],
+     "role_labels": {
+      "labels": [
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         7,
+         13
+        ],
+        "anchor_bar": 7,
+        "resolution": "held",
+        "knowable_bar": 13,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         9,
+         15
+        ],
+        "anchor_bar": 9,
+        "resolution": "held",
+        "knowable_bar": 15,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         13,
+         19
+        ],
+        "anchor_bar": 13,
+        "resolution": "held",
+        "knowable_bar": 19,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         22,
+         28
+        ],
+        "anchor_bar": 22,
+        "resolution": "held",
+        "knowable_bar": 28,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         29,
+         35
+        ],
+        "anchor_bar": 29,
+        "resolution": "held",
+        "knowable_bar": 37,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "range",
+        "rail": "R",
+        "phase": "B",
+        "describes": [
+         29,
+         44
+        ],
+        "anchor_bar": 42,
+        "resolution": "held",
+        "knowable_bar": 54,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "range",
+        "rail": "R",
+        "phase": "B",
+        "describes": [
+         48,
+         52
+        ],
+        "anchor_bar": 51,
+        "resolution": "held",
+        "knowable_bar": 59,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "rejection",
+        "rail": "R",
+        "phase": "B",
+        "describes": [
+         53,
+         55
+        ],
+        "anchor_bar": 55,
+        "resolution": "failed",
+        "knowable_bar": 61,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         62,
+         68
+        ],
+        "anchor_bar": 62,
+        "resolution": "held",
+        "knowable_bar": 68,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         74,
+         80
+        ],
+        "anchor_bar": 74,
+        "resolution": "held",
+        "knowable_bar": 80,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         80,
+         86
+        ],
+        "anchor_bar": 80,
+        "resolution": "held",
+        "knowable_bar": 86,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         80,
+         119
+        ],
+        "anchor_bar": 89,
+        "resolution": "held",
+        "knowable_bar": 95,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         91,
+         119
+        ],
+        "anchor_bar": 98,
+        "resolution": "held",
+        "knowable_bar": 113,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "in_progress",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         102,
+         119
+        ],
+        "anchor_bar": 115,
+        "resolution": "in_progress",
+        "knowable_bar": null,
+        "in_progress": true,
+        "election_dependent": false
+       },
+       {
+        "role": "lps",
+        "rail": "S",
+        "phase": "D",
+        "describes": [
+         115,
+         117
+        ],
+        "anchor_bar": 116,
+        "resolution": "held",
+        "knowable_bar": 119,
+        "in_progress": false,
+        "election_dependent": true
+       }
+      ],
+      "n_labels": 15
+     },
+     "spring": null,
+     "lps": {
+      "start_bar": 115,
+      "end_bar": 117,
+      "low_bar": 116,
+      "swing_type": "terminal_valley"
+     }
+    }
+   },
    "AVT:2026-04-08": {
     "window_digest": "765e9f955934d2fd09d03ff2dceb6af847d80676c7822abf992f8b40b60e20c8",
     "basis": {
@@ -815,166 +1359,6 @@
        }
       ],
       "n_labels": 2
-     },
-     "spring": null,
-     "lps": null
-    }
-   },
-   "CTOS:2026-07-23": {
-    "window_digest": "33c324257b1081c38ee1836f4c3f82dd6ac46c0315138577887c928abe29660d",
-    "basis": {
-     "window_start": "2026-01-30",
-     "window_end": "2026-07-23",
-     "bars": 120,
-     "R": 12.229999542236328,
-     "S": 5.5,
-     "atr": 0.5125584917489424
-    },
-    "reading": {
-     "episodes": {
-      "episodes": [
-       {
-        "rail": "S",
-        "outcome": "completed",
-        "start_bar": 26,
-        "end_bar": 29,
-        "n_bars": 4,
-        "describes": [
-         26,
-         29
-        ],
-        "knowable_bar": 32,
-        "in_progress": false,
-        "terminal_posture": false
-       },
-       {
-        "rail": "R",
-        "outcome": "completed",
-        "start_bar": 100,
-        "end_bar": 103,
-        "n_bars": 4,
-        "describes": [
-         100,
-         103
-        ],
-        "knowable_bar": 106,
-        "in_progress": false,
-        "terminal_posture": false
-       }
-      ],
-      "n_episodes": 2,
-      "nan_bars": 0,
-      "n_bars": 120
-     },
-     "episode_stats": {
-      "n_completed_s": 1,
-      "n_completed_r": 1,
-      "n_failed_s": 0,
-      "terminal_r_engagement": false,
-      "alternations": 1,
-      "terminal_s_drift": false,
-      "terminal_r_posture": false,
-      "profile": "S+ R+",
-      "n_episodes": 2
-     },
-     "box_events": [
-      {
-       "type": "test",
-       "valley_bar": 27,
-       "zone_start": 27,
-       "zone_end": 33,
-       "valley_price": 5.5,
-       "valley_box_pos": 0.0,
-       "recovery_box": 0.1278,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 27
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 100,
-       "zone_start": 27,
-       "zone_end": 106,
-       "peak_price": 12.23,
-       "peak_box_pos": 1.0,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.3314,
-       "linger_bars": 19,
-       "strength_box": 1.0,
-       "resolution": "held",
-       "wave_bars": 29,
-       "rail": "R",
-       "anchor_bar": 100
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 112,
-       "zone_start": 107,
-       "zone_end": 119,
-       "peak_price": 11.035,
-       "peak_box_pos": 0.8224,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.0906,
-       "linger_bars": 11,
-       "strength_box": 0.2474,
-       "resolution": "held",
-       "wave_bars": 1,
-       "rail": "R",
-       "anchor_bar": 112
-      }
-     ],
-     "role_labels": {
-      "labels": [
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         27,
-         33
-        ],
-        "anchor_bar": 27,
-        "resolution": "held",
-        "knowable_bar": 38,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         27,
-         106
-        ],
-        "anchor_bar": 100,
-        "resolution": "held",
-        "knowable_bar": null,
-        "in_progress": true,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         107,
-         119
-        ],
-        "anchor_bar": 112,
-        "resolution": "held",
-        "knowable_bar": null,
-        "in_progress": true,
-        "election_dependent": false
-       }
-      ],
-      "n_labels": 3
      },
      "spring": null,
      "lps": null
@@ -2955,6 +3339,637 @@
      },
      "spring": null,
      "lps": null
+    }
+   },
+   "MDT:2026-07-24": {
+    "window_digest": "fe9b82b89984e26e57242a73b42f293efd45754d0b270d1c3172a739ee4aad04",
+    "basis": {
+     "window_start": "2026-02-02",
+     "window_end": "2026-07-24",
+     "bars": 120,
+     "R": 105.5,
+     "S": 73.30999755859375,
+     "atr": 2.4932542236925515
+    },
+    "reading": {
+     "episodes": {
+      "episodes": [
+       {
+        "rail": "R",
+        "outcome": "completed",
+        "start_bar": 1,
+        "end_bar": 3,
+        "n_bars": 3,
+        "describes": [
+         1,
+         3
+        ],
+        "knowable_bar": 6,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 68,
+        "end_bar": 68,
+        "n_bars": 1,
+        "describes": [
+         68,
+         68
+        ],
+        "knowable_bar": 71,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 81,
+        "end_bar": 83,
+        "n_bars": 3,
+        "describes": [
+         81,
+         83
+        ],
+        "knowable_bar": 86,
+        "in_progress": false,
+        "terminal_posture": false
+       }
+      ],
+      "n_episodes": 3,
+      "nan_bars": 0,
+      "n_bars": 120
+     },
+     "episode_stats": {
+      "n_completed_s": 2,
+      "n_completed_r": 1,
+      "n_failed_s": 0,
+      "terminal_r_engagement": false,
+      "alternations": 1,
+      "terminal_s_drift": false,
+      "terminal_r_posture": false,
+      "profile": "R+ S+ S+",
+      "n_episodes": 3
+     },
+     "box_events": [
+      {
+       "type": "range",
+       "phase": "B",
+       "peak_bar": 2,
+       "zone_start": 0,
+       "zone_end": 21,
+       "peak_price": 105.5,
+       "peak_box_pos": 1.0,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1827,
+       "linger_bars": 22,
+       "strength_box": null,
+       "resolution": "held",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 2
+      },
+      {
+       "type": "test",
+       "valley_bar": 68,
+       "zone_start": 68,
+       "zone_end": 74,
+       "valley_price": 74.4,
+       "valley_box_pos": 0.0339,
+       "recovery_box": 0.1426,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 68
+      },
+      {
+       "type": "test",
+       "valley_bar": 83,
+       "zone_start": 83,
+       "zone_end": 89,
+       "valley_price": 73.31,
+       "valley_box_pos": 0.0,
+       "recovery_box": 0.2957,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 83
+      },
+      {
+       "type": "test",
+       "valley_bar": 94,
+       "zone_start": 94,
+       "zone_end": 100,
+       "valley_price": 77.62,
+       "valley_box_pos": 0.1339,
+       "recovery_box": 0.151,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 94
+      },
+      {
+       "type": "test",
+       "valley_bar": 111,
+       "zone_start": 111,
+       "zone_end": 117,
+       "valley_price": 78.97,
+       "valley_box_pos": 0.1758,
+       "recovery_box": 0.1808,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 111
+      },
+      {
+       "type": "lps",
+       "rail": "S",
+       "phase": "D",
+       "zone_start": 114,
+       "zone_end": 119,
+       "anchor_bar": 116,
+       "swing_type": "rising_support_shelf"
+      }
+     ],
+     "role_labels": {
+      "labels": [
+       {
+        "role": "range",
+        "rail": "R",
+        "phase": "B",
+        "describes": [
+         0,
+         21
+        ],
+        "anchor_bar": 2,
+        "resolution": "held",
+        "knowable_bar": 54,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         68,
+         74
+        ],
+        "anchor_bar": 68,
+        "resolution": "held",
+        "knowable_bar": 78,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         83,
+         89
+        ],
+        "anchor_bar": 83,
+        "resolution": "held",
+        "knowable_bar": 89,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         94,
+         100
+        ],
+        "anchor_bar": 94,
+        "resolution": "held",
+        "knowable_bar": 100,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         111,
+         117
+        ],
+        "anchor_bar": 111,
+        "resolution": "held",
+        "knowable_bar": 117,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "lps",
+        "rail": "S",
+        "phase": "D",
+        "describes": [
+         114,
+         119
+        ],
+        "anchor_bar": 116,
+        "resolution": "held",
+        "knowable_bar": 119,
+        "in_progress": false,
+        "election_dependent": true
+       }
+      ],
+      "n_labels": 6
+     },
+     "spring": null,
+     "lps": {
+      "start_bar": 114,
+      "end_bar": 120,
+      "low_bar": 116,
+      "swing_type": "rising_support_shelf"
+     }
+    }
+   },
+   "MRK:2026-08-10": {
+    "window_digest": "e40adfe283241e983162425c7b0afc9d6e325e7ac504908920947ac7a4c95822",
+    "basis": {
+     "window_start": "2026-02-18",
+     "window_end": "2026-08-10",
+     "bars": 120,
+     "R": 135.0500030517578,
+     "S": 107.9000015258789,
+     "atr": 3.3860453983304857
+    },
+    "reading": {
+     "episodes": {
+      "episodes": [
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 49,
+        "end_bar": 50,
+        "n_bars": 2,
+        "describes": [
+         49,
+         50
+        ],
+        "knowable_bar": 53,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "R",
+        "outcome": "completed",
+        "start_bar": 110,
+        "end_bar": 110,
+        "n_bars": 1,
+        "describes": [
+         110,
+         110
+        ],
+        "knowable_bar": 113,
+        "in_progress": false,
+        "terminal_posture": false
+       }
+      ],
+      "n_episodes": 2,
+      "nan_bars": 0,
+      "n_bars": 120
+     },
+     "episode_stats": {
+      "n_completed_s": 1,
+      "n_completed_r": 1,
+      "n_failed_s": 0,
+      "terminal_r_engagement": false,
+      "alternations": 1,
+      "terminal_s_drift": false,
+      "terminal_r_posture": false,
+      "profile": "S+ R+",
+      "n_episodes": 2
+     },
+     "box_events": [
+      {
+       "type": "test",
+       "valley_bar": 12,
+       "zone_start": 12,
+       "zone_end": 18,
+       "valley_price": 113.82,
+       "valley_box_pos": 0.218,
+       "recovery_box": 0.1908,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 12
+      },
+      {
+       "type": "test",
+       "valley_bar": 22,
+       "zone_start": 22,
+       "zone_end": 28,
+       "valley_price": 112.72,
+       "valley_box_pos": 0.1775,
+       "recovery_box": 0.3285,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 22
+      },
+      {
+       "type": "failed",
+       "valley_bar": 40,
+       "zone_start": 40,
+       "zone_end": 46,
+       "valley_price": 114.71,
+       "valley_box_pos": 0.2508,
+       "recovery_box": 0.1713,
+       "resolution": "failed",
+       "rail": "S",
+       "anchor_bar": 40
+      },
+      {
+       "type": "test",
+       "valley_bar": 49,
+       "zone_start": 49,
+       "zone_end": 55,
+       "valley_price": 107.9,
+       "valley_box_pos": -0.0,
+       "recovery_box": 0.2475,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 49
+      },
+      {
+       "type": "test",
+       "valley_bar": 71,
+       "zone_start": 71,
+       "zone_end": 77,
+       "valley_price": 114.36,
+       "valley_box_pos": 0.2379,
+       "recovery_box": 0.3352,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 71
+      },
+      {
+       "type": "test",
+       "valley_bar": 84,
+       "zone_start": 84,
+       "zone_end": 90,
+       "valley_price": 111.57,
+       "valley_box_pos": 0.1352,
+       "recovery_box": 0.6777,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 84
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 91,
+       "zone_start": 84,
+       "zone_end": 97,
+       "peak_price": 130.29,
+       "peak_box_pos": 0.8247,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2044,
+       "linger_bars": 9,
+       "strength_box": 0.6895,
+       "resolution": "held",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 91
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 110,
+       "zone_start": 92,
+       "zone_end": 119,
+       "peak_price": 135.05,
+       "peak_box_pos": 1.0,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2383,
+       "linger_bars": 14,
+       "strength_box": 0.3808,
+       "resolution": "held",
+       "wave_bars": 17,
+       "rail": "R",
+       "anchor_bar": 110
+      },
+      {
+       "type": "in_progress",
+       "phase": "D",
+       "peak_bar": 114,
+       "zone_start": 112,
+       "zone_end": 119,
+       "peak_price": 131.47,
+       "peak_box_pos": 0.8681,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1794,
+       "linger_bars": 14,
+       "strength_box": 0.1554,
+       "resolution": "in_progress",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 114
+      },
+      {
+       "type": "in_progress",
+       "phase": "D",
+       "peak_bar": 116,
+       "zone_start": 115,
+       "zone_end": 119,
+       "peak_price": 131.09,
+       "peak_box_pos": 0.8541,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1621,
+       "linger_bars": 14,
+       "strength_box": 0.1794,
+       "resolution": "in_progress",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 116
+      },
+      {
+       "type": "lps",
+       "rail": "S",
+       "phase": "D",
+       "zone_start": 116,
+       "zone_end": 118,
+       "anchor_bar": 117,
+       "swing_type": "terminal_valley"
+      }
+     ],
+     "role_labels": {
+      "labels": [
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         12,
+         18
+        ],
+        "anchor_bar": 12,
+        "resolution": "held",
+        "knowable_bar": 18,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         22,
+         28
+        ],
+        "anchor_bar": 22,
+        "resolution": "held",
+        "knowable_bar": 28,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "failed",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         40,
+         46
+        ],
+        "anchor_bar": 40,
+        "resolution": "failed",
+        "knowable_bar": 43,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         49,
+         55
+        ],
+        "anchor_bar": 49,
+        "resolution": "held",
+        "knowable_bar": 55,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         71,
+         77
+        ],
+        "anchor_bar": 71,
+        "resolution": "held",
+        "knowable_bar": 77,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         84,
+         90
+        ],
+        "anchor_bar": 84,
+        "resolution": "held",
+        "knowable_bar": 92,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         84,
+         97
+        ],
+        "anchor_bar": 91,
+        "resolution": "held",
+        "knowable_bar": 101,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         92,
+         119
+        ],
+        "anchor_bar": 110,
+        "resolution": "held",
+        "knowable_bar": 116,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "in_progress",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         112,
+         119
+        ],
+        "anchor_bar": 114,
+        "resolution": "in_progress",
+        "knowable_bar": null,
+        "in_progress": true,
+        "election_dependent": false
+       },
+       {
+        "role": "in_progress",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         115,
+         119
+        ],
+        "anchor_bar": 116,
+        "resolution": "in_progress",
+        "knowable_bar": null,
+        "in_progress": true,
+        "election_dependent": false
+       },
+       {
+        "role": "lps",
+        "rail": "S",
+        "phase": "D",
+        "describes": [
+         116,
+         118
+        ],
+        "anchor_bar": 117,
+        "resolution": "held",
+        "knowable_bar": 119,
+        "in_progress": false,
+        "election_dependent": true
+       }
+      ],
+      "n_labels": 11
+     },
+     "spring": null,
+     "lps": {
+      "start_bar": 116,
+      "end_bar": 118,
+      "low_bar": 117,
+      "swing_type": "terminal_valley"
+     }
     }
    },
    "MS:2026-06-04": {
@@ -5105,277 +6120,6 @@
      "lps": null
     }
    },
-   "ORMP:2026-05-08": {
-    "window_digest": "d95aed7b0543cbb9af76bd9c4ccd5100f5a2b516e764afe5e773a56df8dc622f",
-    "basis": {
-     "window_start": "2025-11-14",
-     "window_end": "2026-05-08",
-     "bars": 120,
-     "R": 4.21999979019165,
-     "S": 2.25,
-     "atr": 0.16592583073395037
-    },
-    "reading": {
-     "episodes": {
-      "episodes": [
-       {
-        "rail": "S",
-        "outcome": "completed",
-        "start_bar": 0,
-        "end_bar": 2,
-        "n_bars": 3,
-        "describes": [
-         0,
-         2
-        ],
-        "knowable_bar": 5,
-        "in_progress": false,
-        "terminal_posture": false
-       },
-       {
-        "rail": "R",
-        "outcome": "completed",
-        "start_bar": 110,
-        "end_bar": 111,
-        "n_bars": 2,
-        "describes": [
-         110,
-         111
-        ],
-        "knowable_bar": 114,
-        "in_progress": false,
-        "terminal_posture": false
-       }
-      ],
-      "n_episodes": 2,
-      "nan_bars": 0,
-      "n_bars": 120
-     },
-     "episode_stats": {
-      "n_completed_s": 1,
-      "n_completed_r": 1,
-      "n_failed_s": 0,
-      "terminal_r_engagement": false,
-      "alternations": 1,
-      "terminal_s_drift": false,
-      "terminal_r_posture": false,
-      "profile": "S+ R+",
-      "n_episodes": 2
-     },
-     "box_events": [
-      {
-       "type": "test",
-       "valley_bar": 1,
-       "zone_start": 1,
-       "zone_end": 7,
-       "valley_price": 2.25,
-       "valley_box_pos": 0.0,
-       "recovery_box": 0.3756,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 1
-      },
-      {
-       "type": "test",
-       "valley_bar": 15,
-       "zone_start": 15,
-       "zone_end": 21,
-       "valley_price": 2.66,
-       "valley_box_pos": 0.2081,
-       "recovery_box": 0.2741,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 15
-      },
-      {
-       "type": "test",
-       "valley_bar": 24,
-       "zone_start": 24,
-       "zone_end": 30,
-       "valley_price": 2.83,
-       "valley_box_pos": 0.2944,
-       "recovery_box": 0.2081,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 24
-      },
-      {
-       "type": "test",
-       "valley_bar": 31,
-       "zone_start": 31,
-       "zone_end": 37,
-       "valley_price": 2.75,
-       "valley_box_pos": 0.2538,
-       "recovery_box": 0.401,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 31
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 42,
-       "zone_start": 31,
-       "zone_end": 42,
-       "peak_price": 3.71,
-       "peak_box_pos": 0.7411,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.1726,
-       "linger_bars": 4,
-       "strength_box": 0.4873,
-       "resolution": "held",
-       "wave_bars": 1,
-       "rail": "R",
-       "anchor_bar": 42
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 68,
-       "zone_start": 43,
-       "zone_end": 69,
-       "peak_price": 3.76,
-       "peak_box_pos": 0.7665,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.2487,
-       "linger_bars": 2,
-       "strength_box": 0.2081,
-       "resolution": "held",
-       "wave_bars": 25,
-       "rail": "R",
-       "anchor_bar": 68
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 111,
-       "zone_start": 72,
-       "zone_end": 119,
-       "peak_price": 4.22,
-       "peak_box_pos": 1.0,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.1015,
-       "linger_bars": 20,
-       "strength_box": 0.4924,
-       "resolution": "held",
-       "wave_bars": 39,
-       "rail": "R",
-       "anchor_bar": 111
-      }
-     ],
-     "role_labels": {
-      "labels": [
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         1,
-         7
-        ],
-        "anchor_bar": 1,
-        "resolution": "held",
-        "knowable_bar": 7,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         15,
-         21
-        ],
-        "anchor_bar": 15,
-        "resolution": "held",
-        "knowable_bar": 21,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         24,
-         30
-        ],
-        "anchor_bar": 24,
-        "resolution": "held",
-        "knowable_bar": 30,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         31,
-         37
-        ],
-        "anchor_bar": 31,
-        "resolution": "held",
-        "knowable_bar": 38,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         31,
-         42
-        ],
-        "anchor_bar": 42,
-        "resolution": "held",
-        "knowable_bar": 48,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         43,
-         69
-        ],
-        "anchor_bar": 68,
-        "resolution": "held",
-        "knowable_bar": 77,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         72,
-         119
-        ],
-        "anchor_bar": 111,
-        "resolution": "held",
-        "knowable_bar": null,
-        "in_progress": true,
-        "election_dependent": false
-       }
-      ],
-      "n_labels": 7
-     },
-     "spring": null,
-     "lps": null
-    }
-   },
    "PBT:2026-05-11": {
     "window_digest": "4a9126be458a705921a1a229275cf5820b446da590af06e69678c6248fb7faaf",
     "basis": {
@@ -5555,15 +6299,15 @@
      "lps": null
     }
    },
-   "PKE:2026-02-24": {
-    "window_digest": "58a5d7b353cc1357de19a24e6a988e698e2dac4563d6a52c72d5dc31c2b78bdf",
+   "PKE:2026-04-07": {
+    "window_digest": "8b5a552019334e1450f36637633022978e3d46948a21b6eead115b54dd22c937",
     "basis": {
-     "window_start": "2025-09-03",
-     "window_end": "2026-02-24",
+     "window_start": "2025-10-14",
+     "window_end": "2026-04-07",
      "bars": 120,
-     "R": 27.809999465942383,
-     "S": 18.190000534057617,
-     "atr": 1.0483568509360075
+     "R": 29.850000381469727,
+     "S": 18.25,
+     "atr": 1.3346469704427304
     },
     "reading": {
      "episodes": {
@@ -5571,70 +6315,56 @@
        {
         "rail": "S",
         "outcome": "completed",
-        "start_bar": 0,
-        "end_bar": 0,
+        "start_bar": 11,
+        "end_bar": 14,
+        "n_bars": 4,
+        "describes": [
+         11,
+         14
+        ],
+        "knowable_bar": 17,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 18,
+        "end_bar": 18,
         "n_bars": 1,
         "describes": [
-         0,
-         0
+         18,
+         18
         ],
-        "knowable_bar": 3,
+        "knowable_bar": 21,
         "in_progress": false,
         "terminal_posture": false
        },
        {
         "rail": "S",
         "outcome": "completed",
-        "start_bar": 4,
-        "end_bar": 13,
-        "n_bars": 10,
+        "start_bar": 23,
+        "end_bar": 34,
+        "n_bars": 12,
         "describes": [
-         4,
-         13
+         23,
+         34
         ],
-        "knowable_bar": 16,
+        "knowable_bar": 37,
         "in_progress": false,
         "terminal_posture": false
        },
        {
-        "rail": "S",
+        "rail": "R",
         "outcome": "completed",
-        "start_bar": 41,
-        "end_bar": 41,
-        "n_bars": 1,
+        "start_bar": 95,
+        "end_bar": 96,
+        "n_bars": 2,
         "describes": [
-         41,
-         41
+         95,
+         96
         ],
-        "knowable_bar": 44,
-        "in_progress": false,
-        "terminal_posture": false
-       },
-       {
-        "rail": "S",
-        "outcome": "completed",
-        "start_bar": 47,
-        "end_bar": 47,
-        "n_bars": 1,
-        "describes": [
-         47,
-         47
-        ],
-        "knowable_bar": 50,
-        "in_progress": false,
-        "terminal_posture": false
-       },
-       {
-        "rail": "S",
-        "outcome": "completed",
-        "start_bar": 53,
-        "end_bar": 63,
-        "n_bars": 11,
-        "describes": [
-         53,
-         63
-        ],
-        "knowable_bar": 66,
+        "knowable_bar": 99,
         "in_progress": false,
         "terminal_posture": false
        },
@@ -5653,169 +6383,90 @@
         "terminal_posture": false
        }
       ],
-      "n_episodes": 6,
+      "n_episodes": 5,
       "nan_bars": 0,
       "n_bars": 120
      },
      "episode_stats": {
-      "n_completed_s": 5,
-      "n_completed_r": 0,
+      "n_completed_s": 3,
+      "n_completed_r": 1,
       "n_failed_s": 0,
       "terminal_r_engagement": true,
-      "alternations": 0,
+      "alternations": 1,
       "terminal_s_drift": false,
       "terminal_r_posture": false,
-      "profile": "S+ S+ S+ S+ S+ R0",
-      "n_episodes": 6
+      "profile": "S+ S+ S+ R+ R0",
+      "n_episodes": 5
      },
      "box_events": [
       {
        "type": "test",
-       "valley_bar": 8,
-       "zone_start": 8,
-       "zone_end": 14,
-       "valley_price": 18.19,
-       "valley_box_pos": -0.0,
-       "recovery_box": 0.1715,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 8
-      },
-      {
-       "type": "test",
-       "valley_bar": 24,
-       "zone_start": 24,
-       "zone_end": 30,
-       "valley_price": 19.51,
-       "valley_box_pos": 0.1372,
-       "recovery_box": 0.2089,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 24
-      },
-      {
-       "type": "test",
-       "valley_bar": 27,
-       "zone_start": 27,
-       "zone_end": 33,
-       "valley_price": 19.52,
-       "valley_box_pos": 0.1383,
-       "recovery_box": 0.2079,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 27
-      },
-      {
-       "type": "test",
-       "valley_bar": 47,
-       "zone_start": 47,
-       "zone_end": 53,
-       "valley_price": 18.5,
-       "valley_box_pos": 0.0322,
-       "recovery_box": 0.1601,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 47
-      },
-      {
-       "type": "test",
-       "valley_bar": 54,
-       "zone_start": 54,
-       "zone_end": 60,
+       "valley_bar": 25,
+       "zone_start": 25,
+       "zone_end": 31,
        "valley_price": 18.25,
-       "valley_box_pos": 0.0062,
-       "recovery_box": 0.1715,
+       "valley_box_pos": 0.0,
+       "recovery_box": 0.1422,
        "resolution": "held",
        "rail": "S",
-       "anchor_bar": 54
-      },
-      {
-       "type": "test",
-       "valley_bar": 84,
-       "zone_start": 84,
-       "zone_end": 90,
-       "valley_price": 20.81,
-       "valley_box_pos": 0.2723,
-       "recovery_box": 0.4012,
-       "resolution": "held",
-       "rail": "S",
-       "anchor_bar": 84
+       "anchor_bar": 25
       },
       {
        "type": "SOS",
        "phase": "D",
-       "peak_bar": 93,
-       "zone_start": 91,
-       "zone_end": 99,
-       "peak_price": 26.12,
-       "peak_box_pos": 0.8243,
+       "peak_bar": 95,
+       "zone_start": 85,
+       "zone_end": 119,
+       "peak_price": 29.6,
+       "peak_box_pos": 0.9784,
        "breached": false,
        "near_r": true,
        "consolidation": true,
-       "hold_range_box": 0.2308,
-       "linger_bars": 9,
-       "strength_box": 0.3888,
-       "resolution": "held",
-       "wave_bars": 1,
-       "rail": "R",
-       "anchor_bar": 93
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 97,
-       "zone_start": 95,
-       "zone_end": 99,
-       "peak_price": 26.0,
-       "peak_box_pos": 0.8119,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.2266,
-       "linger_bars": 9,
-       "strength_box": 0.1923,
-       "resolution": "held",
-       "wave_bars": 1,
-       "rail": "R",
-       "anchor_bar": 97
-      },
-      {
-       "type": "SOS",
-       "phase": "D",
-       "peak_bar": 109,
-       "zone_start": 101,
-       "zone_end": 110,
-       "peak_price": 25.52,
-       "peak_box_pos": 0.762,
-       "breached": false,
-       "near_r": true,
-       "consolidation": true,
-       "hold_range_box": 0.2006,
-       "linger_bars": 3,
-       "strength_box": 0.2318,
+       "hold_range_box": 0.2862,
+       "linger_bars": 30,
+       "strength_box": 0.5448,
        "resolution": "held",
        "wave_bars": 5,
        "rail": "R",
-       "anchor_bar": 109
+       "anchor_bar": 95
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 111,
+       "zone_start": 99,
+       "zone_end": 119,
+       "peak_price": 29.12,
+       "peak_box_pos": 0.9371,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.2638,
+       "linger_bars": 30,
+       "strength_box": 0.2517,
+       "resolution": "held",
+       "wave_bars": 12,
+       "rail": "R",
+       "anchor_bar": 111
       },
       {
        "type": "in_progress",
        "phase": "D",
-       "peak_bar": 117,
-       "zone_start": 111,
+       "peak_bar": 116,
+       "zone_start": 115,
        "zone_end": 119,
-       "peak_price": 26.0,
-       "peak_box_pos": 0.8119,
+       "peak_price": 28.76,
+       "peak_box_pos": 0.906,
        "breached": false,
        "near_r": true,
        "consolidation": true,
-       "hold_range_box": 0.3295,
-       "linger_bars": 4,
-       "strength_box": 0.236,
+       "hold_range_box": 0.2095,
+       "linger_bars": 30,
+       "strength_box": 0.2638,
        "resolution": "in_progress",
-       "wave_bars": 6,
+       "wave_bars": 1,
        "rail": "R",
-       "anchor_bar": 117
+       "anchor_bar": 116
       }
      ],
      "role_labels": {
@@ -5825,82 +6476,12 @@
         "rail": "S",
         "phase": null,
         "describes": [
-         8,
-         14
+         25,
+         31
         ],
-        "anchor_bar": 8,
+        "anchor_bar": 25,
         "resolution": "held",
-        "knowable_bar": 14,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         24,
-         30
-        ],
-        "anchor_bar": 24,
-        "resolution": "held",
-        "knowable_bar": 30,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         27,
-         33
-        ],
-        "anchor_bar": 27,
-        "resolution": "held",
-        "knowable_bar": 33,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         47,
-         53
-        ],
-        "anchor_bar": 47,
-        "resolution": "held",
-        "knowable_bar": 53,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         54,
-         60
-        ],
-        "anchor_bar": 54,
-        "resolution": "held",
-        "knowable_bar": 61,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "test",
-        "rail": "S",
-        "phase": null,
-        "describes": [
-         84,
-         90
-        ],
-        "anchor_bar": 84,
-        "resolution": "held",
-        "knowable_bar": 90,
+        "knowable_bar": 40,
         "in_progress": false,
         "election_dependent": false
        },
@@ -5909,12 +6490,12 @@
         "rail": "R",
         "phase": "D",
         "describes": [
-         91,
-         99
+         85,
+         119
         ],
-        "anchor_bar": 93,
+        "anchor_bar": 95,
         "resolution": "held",
-        "knowable_bar": 102,
+        "knowable_bar": 104,
         "in_progress": false,
         "election_dependent": false
        },
@@ -5923,27 +6504,13 @@
         "rail": "R",
         "phase": "D",
         "describes": [
-         95,
-         99
+         99,
+         119
         ],
-        "anchor_bar": 97,
+        "anchor_bar": 111,
         "resolution": "held",
-        "knowable_bar": 108,
-        "in_progress": false,
-        "election_dependent": false
-       },
-       {
-        "role": "SOS",
-        "rail": "R",
-        "phase": "D",
-        "describes": [
-         101,
-         110
-        ],
-        "anchor_bar": 109,
-        "resolution": "held",
-        "knowable_bar": 115,
-        "in_progress": false,
+        "knowable_bar": null,
+        "in_progress": true,
         "election_dependent": false
        },
        {
@@ -5951,17 +6518,17 @@
         "rail": "R",
         "phase": "D",
         "describes": [
-         111,
+         115,
          119
         ],
-        "anchor_bar": 117,
+        "anchor_bar": 116,
         "resolution": "in_progress",
         "knowable_bar": null,
         "in_progress": true,
         "election_dependent": false
        }
       ],
-      "n_labels": 10
+      "n_labels": 4
      },
      "spring": null,
      "lps": null
@@ -7566,6 +8133,227 @@
      },
      "spring": null,
      "lps": null
+    }
+   },
+   "UNF:2026-07-10": {
+    "window_digest": "93de8614b96bd6290e2f26fb1edf829865cfccb23f79c0b247bd500169ac4f5f",
+    "basis": {
+     "window_start": "2026-01-16",
+     "window_end": "2026-07-10",
+     "bars": 120,
+     "R": 283.7699890136719,
+     "S": 198.10000610351562,
+     "atr": 5.939288674948068
+    },
+    "reading": {
+     "episodes": {
+      "episodes": [
+       {
+        "rail": "S",
+        "outcome": "completed",
+        "start_bar": 14,
+        "end_bar": 15,
+        "n_bars": 2,
+        "describes": [
+         14,
+         15
+        ],
+        "knowable_bar": 18,
+        "in_progress": false,
+        "terminal_posture": false
+       },
+       {
+        "rail": "R",
+        "outcome": "completed",
+        "start_bar": 36,
+        "end_bar": 36,
+        "n_bars": 1,
+        "describes": [
+         36,
+         36
+        ],
+        "knowable_bar": 39,
+        "in_progress": false,
+        "terminal_posture": false
+       }
+      ],
+      "n_episodes": 2,
+      "nan_bars": 0,
+      "n_bars": 120
+     },
+     "episode_stats": {
+      "n_completed_s": 1,
+      "n_completed_r": 1,
+      "n_failed_s": 0,
+      "terminal_r_engagement": false,
+      "alternations": 1,
+      "terminal_s_drift": false,
+      "terminal_r_posture": false,
+      "profile": "S+ R+",
+      "n_episodes": 2
+     },
+     "box_events": [
+      {
+       "type": "test",
+       "valley_bar": 15,
+       "zone_start": 15,
+       "zone_end": 21,
+       "valley_price": 198.1,
+       "valley_box_pos": -0.0,
+       "recovery_box": 0.5127,
+       "resolution": "held",
+       "rail": "S",
+       "anchor_bar": 15
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 36,
+       "zone_start": 30,
+       "zone_end": 47,
+       "peak_price": 283.77,
+       "peak_box_pos": 1.0,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1742,
+       "linger_bars": 16,
+       "strength_box": 0.6288,
+       "resolution": "held",
+       "wave_bars": 5,
+       "rail": "R",
+       "anchor_bar": 36
+      },
+      {
+       "type": "SOS",
+       "phase": "D",
+       "peak_bar": 100,
+       "zone_start": 50,
+       "zone_end": 119,
+       "peak_price": 280.5,
+       "peak_box_pos": 0.9618,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.1407,
+       "linger_bars": 41,
+       "strength_box": 0.3852,
+       "resolution": "held",
+       "wave_bars": 39,
+       "rail": "R",
+       "anchor_bar": 100
+      },
+      {
+       "type": "in_progress",
+       "phase": "D",
+       "peak_bar": 115,
+       "zone_start": 105,
+       "zone_end": 119,
+       "peak_price": 276.49,
+       "peak_box_pos": 0.915,
+       "breached": false,
+       "near_r": true,
+       "consolidation": true,
+       "hold_range_box": 0.0731,
+       "linger_bars": 41,
+       "strength_box": 0.2138,
+       "resolution": "in_progress",
+       "wave_bars": 1,
+       "rail": "R",
+       "anchor_bar": 115
+      },
+      {
+       "type": "lps",
+       "rail": "S",
+       "phase": "D",
+       "zone_start": 115,
+       "zone_end": 119,
+       "anchor_bar": 119,
+       "swing_type": "terminal_valley"
+      }
+     ],
+     "role_labels": {
+      "labels": [
+       {
+        "role": "test",
+        "rail": "S",
+        "phase": null,
+        "describes": [
+         15,
+         21
+        ],
+        "anchor_bar": 15,
+        "resolution": "held",
+        "knowable_bar": 21,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         30,
+         47
+        ],
+        "anchor_bar": 36,
+        "resolution": "held",
+        "knowable_bar": 74,
+        "in_progress": false,
+        "election_dependent": false
+       },
+       {
+        "role": "SOS",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         50,
+         119
+        ],
+        "anchor_bar": 100,
+        "resolution": "held",
+        "knowable_bar": null,
+        "in_progress": true,
+        "election_dependent": false
+       },
+       {
+        "role": "in_progress",
+        "rail": "R",
+        "phase": "D",
+        "describes": [
+         105,
+         119
+        ],
+        "anchor_bar": 115,
+        "resolution": "in_progress",
+        "knowable_bar": null,
+        "in_progress": true,
+        "election_dependent": false
+       },
+       {
+        "role": "lps",
+        "rail": "S",
+        "phase": "D",
+        "describes": [
+         115,
+         119
+        ],
+        "anchor_bar": 119,
+        "resolution": "held",
+        "knowable_bar": 119,
+        "in_progress": false,
+        "election_dependent": true
+       }
+      ],
+      "n_labels": 5
+     },
+     "spring": null,
+     "lps": {
+      "start_bar": 115,
+      "end_bar": 120,
+      "low_bar": 119,
+      "swing_type": "terminal_valley"
+     }
     }
    },
    "VIK:2026-06-11": {
@@ -28728,7 +29516,7 @@
    "position": null
   }
  ],
- "captured_at": "2026-08-30T20:21:44+00:00",
- "engine_config_version": "08c981629923c30e5e475144193792f2f258bda0c3a2ddb5425ea152b7c194ce",
+ "captured_at": "2026-09-08T11:25:24+00:00",
+ "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
  "pin_window_bars": 120
 }
