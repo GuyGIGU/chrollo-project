@@ -92,9 +92,96 @@ place.
    names that hold a tight stop, the original demotion is defensible on its own terms and
    this doc changes nothing.
 
-## The proposed A/B, if he wants it
+## THE A/B RAN — 2026-09-08, same day. Verdict: leave the weights at zero.
 
-Reproduce the 2026-07-22 read faithfully on the original variables; re-run it against a
-label-free target (P(MFE≥25%) / ≥40%); then a frozen-frame A/B at the old weights (15 / 15)
-measuring the marks ratchet, the reader pin, the junk corpus, and the S-tier share, with
-the Guided-List must-fire floor as the gate. No weight moves before that returns.
+The operator said go. All three legs ran. **Nothing was flipped, and the recommendation is
+that nothing should be.**
+
+### Leg 1 — the faithful reproduction
+
+The pre-demotion cohort still carries real archived `score_rs_bonus` / `score_uptrend_bonus`
+(mean 5.10 / 4.54, max 15.0 on 5,076 rows over 30 scan days). Deduped to episodes that is
+**2,078** — against the original's cited 1,977. So their variable, their cohort:
+
+| | vs `durable_win` (their target) | vs P(MFE≥25%), same rows |
+|---|---|---|
+| `score_rs_bonus` | **−0.1411** (p=1.1e-07) | **+0.0905** (p=3.8e-05) |
+| `score_uptrend_bonus` | **−0.0906** (p=0.00069) | **+0.1497** (p=7.7e-12) |
+
+**The sign reversal reproduces on their own data.** The original cited −0.22 / −0.19; I get
+−0.141 / −0.091 — same sign and same verdict, about two-thirds the magnitude.
+
+**And a finding that matters more than the reversal:** the tool's own noise floor on this
+cohort is **0.150**, and −0.141 / −0.091 both sit *inside* it. Under `signal_edge`'s own
+adequacy rule the correct verdict on the deduped pre-demotion cohort is **INERT, in both
+directions** — the "actively harmful" call does not survive dedup. (The dedup docstring
+already recorded that dedup moves rs from ~−0.20 to −0.18; on this cohort it moves further.)
+
+### Leg 2 — does the restored ordering rank better?
+
+The divisor is a constant within an ordering, so it cannot affect rank; this is a clean
+head-to-head on 2,768 matured episodes, re-earning the two terms through the engine's own
+`_ramp` at cap 15.
+
+| ordering | top-decile P(MFE≥25%) | spread vs bottom | top-decile P(≥40%) | spread | ρ vs mfe_20d |
+|---|---|---|---|---|---|
+| current | 9.06% | 2.04x | 2.79% | 4.10x | +0.1208 |
+| restored | **10.80%** | **2.63x** | **3.48%** | **5.12x** | **+0.1471** |
+
+Better on every cut. **But a cluster bootstrap over scan days (2,000 resamples, days as the
+cluster because rows within a day are not independent) does not establish it:**
+
+- top-decile P(MFE≥25%): **+1.84pp, 95% CI [−0.35, +4.35]**, P(improves) 92.2%
+- top-decile P(MFE≥40%): **+0.68pp, 95% CI [−0.66, +2.11]**, P(improves) 77.8%
+
+Both intervals cross zero. The point estimate favours restoring every time; the evidence
+does not clear the bar.
+
+### Leg 3 — the cost, and a correction
+
+At the top decile, restoring buys the extra reach with real drawdown:
+
+| | med MFE | med MAE | MFE/\|MAE\| | med fwd 20d | win-of-labelled |
+|---|---|---|---|---|---|
+| current | 7.35% | −7.29% | 1.01 | −0.18% | 36.2% |
+| restored | 8.15% | **−8.52%** | **0.96** | −0.30% | 37.7% |
+
+Same trade the ADR read found this morning: **the tail is bought with a wider stop.**
+
+**Correction to this document's earlier claim.** It said restoring "roughly doubles S-tier"
+on the strength of the 51% → 29% figure in the Tested-DEAD row. **That figure is from the
+old raw-sum ladder and does not predict today's behaviour.** Tier now derives from
+`ta_grade`, whose divisor is `taxonomy.structural_cap_sum()` — computed live from the caps,
+currently **171.0**. Restoring 15 + 15 moves it to **201.0**, so a setup must earn
+Δ ≥ 0.175 × its current points *just to hold its grade*. Restoring at the current cuts
+(62/52/42) would **lower most grades and shrink S-tier**, not double it. Any real flip would
+have to re-choose the tier cuts the way the 2026-08-09 flip did.
+
+### What shipped instead — the measuring stick, not the weights
+
+The defect worth fixing is not the two weights. It is that `EDGE_TARGETS` puts two
+path-sensitive targets first and every sub-score verdict inherits them silently. So
+`core/archive/analyze.py` now also carries the magnitude target (`mfe_tail`, threshold
+imported from `edge_report.TAIL_THRESHOLDS` — one home, EC-3), judged on **its own** noise
+floor because it keeps the rows the barrier gate drops. **The primary is deliberately
+unchanged** — swapping it would silently rewrite every standing verdict. Each row now
+reports both verdicts and a **`verdict_disagrees` flag**, and the report prints a loud block
+telling the reader not to act on the shortlist for those terms.
+
+It fires on the live archive, and on two terms nobody was looking at:
+
+| term | vs `durable_win` | vs P(MFE≥25%) |
+|---|---|---|
+| `score_adr` | +0.042 inert | **+0.269 beneficial** — the strongest association in the table |
+| `score_high_proximity` | −0.068 inert | **−0.157 harmful** |
+| `score_base_age` | **+0.193 beneficial** | +0.010 inert — the only term currently graded beneficial, and it does not survive the cross-check |
+
+Seven guards, each mutation-proven.
+
+### Recommendation
+
+**Leave `SCORE_RS_BONUS` and `SCORE_UPTREND_BONUS` at zero.** The evidence for restoring
+does not clear a bootstrap, the measured cost is a deeper drawdown at the top of the list,
+and a real flip would drag the tier ladder with it. The Tested-DEAD row stands — with this
+appended as the counter-evidence, and with the honest note that its "actively harmful"
+verdict reads INERT once the cohort is deduped and judged at the tool's own floor.

@@ -48,6 +48,7 @@ import pandas as pd
 
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
 from core.archive.outcomes import HORIZON_BARS
+from core.backtest.edge_report import TAIL_MFE_COL, TAIL_THRESHOLDS
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring import taxonomy
 
@@ -151,12 +152,33 @@ CASH_GRAB_MAX_BARS = 5
 EDGE_MIN_N = 25          # minimum labelled pairs
 EDGE_MIN_MINORITY = 8    # minimum of the minority class (e.g. losers) for a binary outcome
 
+# The magnitude target: did the setup ever OFFER this much, regardless of the
+# path it took getting there. Threshold and column both imported from the one
+# home (EC-3) so this can never drift from what the edge report publishes.
+MAGNITUDE_THRESHOLD = TAIL_THRESHOLDS[0]
+MAGNITUDE_TARGET = "mfe_tail"
+
 # Edge targets for the Stage-1 signal-edge / subtraction analysis, in priority
 # order. The first one with enough non-null rows is the "primary" the verdicts
 # are based on. durable_win (a win that HELD, not a cash-grab) is the truest
 # success outcome; barrier_win (any win vs loss/timeout) is the looser fallback,
 # then realized R, then the raw 20d return.
-EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d"]
+EDGE_TARGETS = ["durable_win", "barrier_win", "r_multiple_20d", "fwd_return_20d",
+                MAGNITUDE_TARGET]
+
+# The MAGNITUDE cross-check. Every target above is PATH-sensitive: durable_win and
+# barrier_win resolve on whichever barrier is touched first, so a name that dips
+# through a stop 3% under support and then runs is scored a failure; fwd_return_20d
+# asks only where it closed on day 20. The operator manages exits by eye and sells
+# into strength, so a verdict returned against those alone can be right about the
+# path and wrong about him. Measured 2026-09-08 on the pre-demotion cohort, the two
+# families DISAGREE IN SIGN on identical rows for the two terms that were zeroed on
+# this analysis: score_rs_bonus reads -0.141 against durable_win and +0.091 against
+# P(MFE>=25%); score_uptrend_bonus -0.091 and +0.150.
+# The primary is deliberately UNCHANGED — swapping it would silently rewrite every
+# standing verdict. Instead the disagreement is surfaced per row, because the
+# disagreement IS the finding: it means "this signal offers more and holds it less."
+# Threshold imported, never re-declared (EC-3) — see docs/rs_uptrend_reopen_2026-09-08.md.
 
 # Tightness features specifically - the prime directive.
 TIGHTNESS_FEATURES = ["box_width", "atr_ratio", "tightness_ratio",
@@ -805,7 +827,30 @@ def derive_outcomes(df: pd.DataFrame,
     durable[norm.isin(["win", "loss", "timeout"])] = 0.0
     durable[is_win & ~cash_grab] = 1.0
     df["durable_win"] = durable
+
+    # The magnitude cross-check: 1.0 if the setup ever offered the threshold move
+    # inside the fixed window, 0.0 if it matured and did not, NaN if not yet
+    # matured. Needs NO label, so it keeps the rows the barrier gate drops — and
+    # it is blind to path, which is exactly what makes it disagree with the
+    # barrier targets and worth reporting beside them.
+    if TAIL_MFE_COL in df.columns:
+        mfe = _num_col(df, TAIL_MFE_COL)
+        df[MAGNITUDE_TARGET] = (mfe >= MAGNITUDE_THRESHOLD).astype(float).where(mfe.notna())
+    else:
+        df[MAGNITUDE_TARGET] = pd.Series(np.nan, index=df.index)
     return df
+
+
+def _verdict(corr: Optional[float], noise: Optional[float]) -> str:
+    """The one verdict rule, shared by the primary and the magnitude cross-check
+    so the two can never be judged on different arithmetic (EC-3)."""
+    if corr is None or noise is None:
+        return "unknown"
+    if corr <= -noise:
+        return "harmful"
+    if corr >= noise:
+        return "beneficial"
+    return "inert"
 
 
 def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
@@ -869,17 +914,27 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
             if t in df.columns:
                 corr_by[t] = safe_rank_corr(df[feat], df[t], min_n=min_n)
         pc = corr_by.get(primary) if primary else None
-        if pc is None or noise is None:
-            verdict = "unknown"
-        elif pc <= -noise:
-            verdict = "harmful"
-        elif pc >= noise:
-            verdict = "beneficial"
-        else:
-            verdict = "inert"
+        verdict = _verdict(pc, noise)
+        # The magnitude cross-check, judged on its OWN noise floor (its n differs
+        # from the primary's — it keeps the rows the barrier gate drops).
+        mc = corr_by.get(MAGNITUDE_TARGET)
+        m_n = (int((feat_vals.notna() & pd.to_numeric(
+            df[MAGNITUDE_TARGET], errors="coerce").notna()).sum())
+            if MAGNITUDE_TARGET in df.columns else 0)
+        m_noise = max(0.15, 1.0 / np.sqrt(m_n - 3)) if m_n > 4 else None
+        m_verdict = _verdict(mc, m_noise)
+        # Flag whenever the two targets would lead to DIFFERENT ACTION — a sign
+        # flip, or one clearing its noise floor while the other does not. Both
+        # cases mean the shortlist's recommendation depends on which target was
+        # picked, which is the whole thing this column exists to expose.
+        # ("unknown" is absence of evidence, not disagreement.)
+        disagrees = ("unknown" not in (verdict, m_verdict)
+                     and verdict != m_verdict)
         rows.append({
             "feature": feat, "n": nn, "corr_by_target": corr_by,
             "primary_corr": pc, "verdict": verdict,
+            "magnitude_corr": mc, "magnitude_n": m_n,
+            "magnitude_verdict": m_verdict, "verdict_disagrees": disagrees,
         })
 
     # Most-harmful first (most negative primary_corr); unknowns sink to the end.
@@ -938,16 +993,36 @@ def section_signal_edge(df: pd.DataFrame, valid: bool) -> None:
         return
 
     emit()
-    emit(f"{'sub-score':<26}{'n':>4}{'rank_r':>9}  verdict")
-    emit("-" * 56)
+    pct = int(round(MAGNITUDE_THRESHOLD * 100))
+    emit(f"{'sub-score':<26}{'n':>4}{'rank_r':>9}  {'verdict':<11}"
+         f"{'mag_r':>8}  {f'vs P(MFE>={pct}%)':<12}")
+    emit("-" * 76)
     for r in edge["rows"]:
-        emit(f"{r['feature']:<26}{r['n']:>4}{fmt(r['primary_corr']):>9}  {r['verdict']}")
+        mark = "  <-- DISAGREE" if r.get("verdict_disagrees") else ""
+        emit(f"{r['feature']:<26}{r['n']:>4}{fmt(r['primary_corr']):>9}  {r['verdict']:<11}"
+             f"{fmt(r.get('magnitude_corr')):>8}  {r.get('magnitude_verdict',''):<12}{mark}")
 
     harmful = [r["feature"] for r in edge["rows"] if r["verdict"] == "harmful"]
     inert = [r["feature"] for r in edge["rows"] if r["verdict"] == "inert"]
     subhdr("Subtraction shortlist")
     emit(f"  HARMFUL (down-weight / zero): {', '.join(harmful) if harmful else '(none)'}")
     emit(f"  INERT   (candidate to trim):  {', '.join(inert) if inert else '(none)'}")
+
+    # The primary target is PATH-sensitive; the magnitude column is not. Where they
+    # disagree in sign the shortlist above is not a finding on its own — the signal
+    # offers more and holds it less, and which of those the operator is paid for is
+    # HIS call, not this tool's. Printed loudly because acting on half of it is
+    # exactly how rs/uptrend went to zero (docs/rs_uptrend_reopen_2026-09-08.md).
+    split = [r["feature"] for r in edge["rows"] if r.get("verdict_disagrees")]
+    if split:
+        subhdr("!  TARGET DISAGREEMENT — do not act on the shortlist for these")
+        emit(f"  {', '.join(split)}")
+        emit(f"  '{edge['primary_target']}' resolves on whichever barrier is hit FIRST")
+        emit(f"  (a stop 3% under support); P(MFE>={pct}%) asks only what the setup")
+        emit("  ever OFFERED, and needs no label so it keeps the rows the barrier")
+        emit("  gate drops. Where they split, the signal reaches further and holds")
+        emit("  it worse — or one target sees value the other cannot. Rule which")
+        emit("  one you are paid for BEFORE down-weighting anything above.")
 
 
 # ------------------------------------------------------------------
