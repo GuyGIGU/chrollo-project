@@ -24,7 +24,14 @@ pytestmark = pytest.mark.regression
 # engagement-respect, commit-the-cause, and lps-envelope in turn — every
 # chart-readable miss converged on rail-placement (the named next program);
 # SKYT is a universe-gate exclusion, not a chart-reading gap.
-_KNOWN_STAGES = {"rail-placement", "universe-gate"}
+# The hand-curated stages, each naming the build-order work expected to convert
+# that miss — plus the ONE stage the build assigns itself: a chart the operator
+# has just drawn or redrawn that the engine cannot read. That one is not an
+# explanation, it is an open question addressed to him (his 2026-09-08 ruling:
+# drawing a mark must never break his gate before he has looked at it), and
+# `test_a_freshly_drawn_mark_never_needs_a_hand_written_stage` keeps the two
+# populations from blurring.
+_KNOWN_STAGES = {"rail-placement", "universe-gate", marks_corpus.NEW_MARK_STAGE}
 
 
 def _load_baseline() -> dict:
@@ -259,4 +266,121 @@ def test_gate_bites_when_an_expected_miss_converts(monkeypatch):
     assert marks_corpus.check_corpus() is False, (
         "check_corpus returned True while expected misses fired — unexpected "
         "conversions must break the ratchet loudly, not pass silently."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The population follows the operator (his ruling, 2026-09-08). These pin the
+# half that had to SURVIVE that: the standard tracks his drawings, but a verdict
+# is still about one specific drawing and still cannot move silently.
+# ─────────────────────────────────────────────────────────────────────────────
+def _setup(**over):
+    base = {"ticker": "AAA", "as_of": "2026-04-01",
+            "rails_drawn": {"R": 10.0, "S": 9.0},
+            "lps": ["2026-03-20", "2026-03-25"], "trigger": "2026-04-01",
+            "frame_digest": "deadbeef"}
+    base.update(over)
+    return base
+
+
+def test_setup_digest_moves_when_the_DRAWING_moves():
+    """The digest is the identity a pinned verdict belongs to. Every field the
+    operator can redraw must change it, or a verdict about an old chart would be
+    carried onto a new one."""
+    base = marks_corpus.setup_digest(_setup())
+    assert base == marks_corpus.setup_digest(_setup()), "digest is not deterministic"
+    for field, moved in (
+        ("rails_drawn", {"R": 10.5, "S": 9.0}),        # he moved R
+        ("rails_drawn", {"R": 10.0, "S": 9.2}),        # he moved S
+        ("lps", ["2026-03-21", "2026-03-25"]),         # he re-dated the shelf
+        ("trigger", "2026-04-02"),                     # he moved his buy
+        ("as_of", "2026-04-02"),
+        ("frame_digest", "cafef00d"),                  # different bars
+    ):
+        assert marks_corpus.setup_digest(_setup(**{field: moved})) != base, (
+            f"redrawing {field} left the digest unchanged — a stale verdict would carry"
+        )
+
+
+def test_setup_digest_ignores_fields_that_are_not_the_drawing():
+    """Notes and free text are not the chart; churning them must not void a
+    hard-won pinned verdict."""
+    assert marks_corpus.setup_digest(_setup(notes="typo fixed")) == \
+        marks_corpus.setup_digest(_setup())
+
+
+def test_population_currency_passes_when_there_is_no_marks_db(monkeypatch):
+    """CI and any hermetic checkout have no calibration DB. They grade the
+    committed fixture; only a machine holding his drawings can judge currency.
+    An absent DB must never be reported as drift."""
+    import database
+    monkeypatch.setattr(database, "_DB_PATH", "/nonexistent/chrollo/marks.db")
+    ok, note = marks_corpus.population_is_current("whatever")
+    assert ok is True
+    assert "not checked" in note
+
+
+def test_population_currency_fails_on_a_stale_corpus(monkeypatch):
+    """The heart of his ruling: a corpus built from drawings he has since
+    changed must FAIL, not advise. It sat advisory for six weeks while the
+    standard demanded three marks he had deleted."""
+    monkeypatch.setattr(marks_corpus, "population_is_current",
+                        lambda fp: (False, "THE CORPUS IS STALE: pretend drift"))
+    assert marks_corpus.check_corpus() is False, (
+        "check_corpus passed against a stale corpus — the population no longer "
+        "tracks the operator and the gate did not say so"
+    )
+
+
+def test_a_freshly_drawn_mark_never_needs_a_hand_written_stage():
+    """Drawing a chart must not break his gate. A mark absent from the previous
+    baseline that the engine cannot read enters MEASURED — pinned so it cannot
+    start firing unannounced, but never blocking the rebuild on someone
+    hand-writing a STAGE_TAGS entry first."""
+    assert marks_corpus.NEW_MARK_STAGE not in marks_corpus.STAGE_TAGS.values(), (
+        "the new-mark stage leaked into the hand-curated tags — it must only ever "
+        "be assigned automatically"
+    )
+    committed = _load_baseline()
+    unreviewed = [s for s in committed["setups"]
+                  if s.get("stage") == marks_corpus.NEW_MARK_STAGE]
+    reviewed = [s for s in committed["setups"]
+                if s["status"] == "miss" and s.get("stage") != marks_corpus.NEW_MARK_STAGE]
+    # Both populations exist in the committed artifact, so the split is real and
+    # not a code path nothing reaches.
+    assert unreviewed, "no unreviewed new marks in the baseline — the path is dark"
+    assert reviewed, "no reviewed misses in the baseline — the split is meaningless"
+    for s in reviewed:
+        assert s["stage"] in marks_corpus.STAGE_TAGS.values(), (
+            f"{s['key']} carries stage {s['stage']!r}, which no STAGE_TAGS entry names"
+        )
+
+
+def test_every_pinned_verdict_records_the_drawing_it_is_about():
+    """Without this the ratchet cannot tell 'the engine regressed' from 'he
+    redrew the chart', which is the failure the 2026-09-08 rebuild fixed."""
+    for s in _load_baseline()["setups"]:
+        assert s.get("setup_digest"), f"{s['key']} pins a verdict with no drawing digest"
+
+
+def test_deleted_marks_are_gone_from_the_stage_tags():
+    """Two of the five 'expected misses' were charts he had DELETED, so the
+    engine was permanently excused for missing ground truth that no longer
+    existed. Every tag must name a mark that is still in the corpus."""
+    keys = {marks_corpus.setup_key(s) for s in marks_corpus.load_corpus()}
+    orphans = sorted(set(marks_corpus.STAGE_TAGS) - keys)
+    assert not orphans, (
+        f"STAGE_TAGS still excuses marks the operator no longer draws: {orphans}"
+    )
+
+
+def test_an_empty_marks_db_is_not_read_as_the_operator_deleting_everything():
+    """The pytest session points CHROLLO_DB_PATH at a throwaway file whose
+    migrations create an EMPTY calibration_marks table. Reading that as "he
+    deleted every drawing" is drift, and it wedged the whole suite red until it
+    was fixed. A DB with no marks in it simply is not his."""
+    ok, note = marks_corpus.population_is_current("a-fingerprint-nothing-will-match")
+    assert ok is True, (
+        "the currency check judged a database with no drawings in it — under "
+        f"pytest that is the throwaway DB, not the operator's archive ({note})"
     )

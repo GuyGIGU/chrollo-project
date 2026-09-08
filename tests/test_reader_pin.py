@@ -53,12 +53,21 @@ def test_baseline_parses_and_covers_all_three_populations():
     baseline = _baseline()
     pops = baseline["populations"]
     assert set(pops) == {"marks", "junk", "shadow"}
-    # Chart counts pinned: the sealed marks corpus (33), the negative corpus
-    # (18), the shadow fixture (37, including its 5 rejecting tickers - the
-    # population every other guard is blind to).
-    assert len(pops["marks"]) == 33
+    # The junk corpus (18) and the shadow fixture (37, including its 5 rejecting
+    # tickers - the population every other guard is blind to) are FIXED
+    # populations, so their counts stay pinned here.
     assert len(pops["junk"]) == 18
     assert len(pops["shadow"]) == 37
+    # The marks population is NOT fixed: it follows the operator's drawings by
+    # his 2026-09-08 ruling, so a literal here would break this guard every time
+    # he draws a chart. Bind it to the corpus it is supposed to cover instead —
+    # which is the stronger check anyway: the old literal would have passed with
+    # the pin covering 33 charts that were not the 33 in the corpus.
+    from tools.marks_corpus import load_corpus, setup_key
+    corpus_keys = {setup_key(s) for s in load_corpus()}
+    assert set(pops["marks"]) == corpus_keys, (
+        "the reader pin does not cover exactly the current marks corpus — "
+        "re-capture at the seam that moved the population (EC-29)")
     assert baseline["pin_window_bars"] == reader_pin.PIN_WINDOW_BARS
     assert baseline["engine_config_version"]
     # Every chart derived a basis and a reading - no silent underivable holes.

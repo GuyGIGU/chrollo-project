@@ -25,12 +25,29 @@ List legacy window machinery was deleted with its population (council review
 but does not gate. These semantics FREEZE with the baseline: changing them is
 an EC-7 event, not a tuning knob.
 
-The baseline is a RATCHET, verified at freeze time:
-  * every HIT is pinned forever - a pinned setup that stops firing FAILS;
-  * every MISS carries the build-order stage expected to convert it
-    (``STAGE_TAGS``) - an expected miss that starts firing also FAILS, loudly,
-    until the baseline is deliberately re-frozen (strict-xfail semantics: a
-    silent behavior change is never good news until a human looks).
+**The population TRACKS the operator's drawings (his ruling, 2026-09-08).** It used
+to be a sealed snapshot behind a human-gated export, and the measured result was a
+standard demanding three marks he had DELETED (two as permanent expected-misses)
+while five he had drawn were tested by nothing. ``--check`` now FAILS, not advises,
+when the corpus no longer matches his live marks DB — on a machine that has one; an
+absent DB is not drift, since CI grades the committed fixture.
+
+The baseline is still a RATCHET, and a verdict belongs to ONE drawing
+(``setup_digest``: rails, LPS spans, trigger, knowable-from, frame):
+  * an UNCHANGED drawing keeps its verdict - a pinned hit that stops firing
+    FAILS, and an expected miss that starts firing also FAILS, loudly (strict-
+    xfail: a silent behavior change is never good news until a human looks);
+  * a REDRAWN or newly DRAWN mark voids its old verdict, because that verdict was
+    about a chart that no longer exists. Re-measured; if the engine cannot read
+    it, it enters ``NEW_MARK_STAGE`` - pinned against silent conversion, reported
+    separately as awaiting his review, and never blocking the rebuild. Drawing a
+    chart must not turn his gate red before he has looked at it;
+  * a DELETED mark leaves, and its ``STAGE_TAGS`` excuse leaves with it.
+
+What did NOT change: nobody may make a red gate green by moving the target (EC-7).
+He may redraw; an agent may not edit a mark to pass a test — and since a redrawn
+mark's verdict is voided rather than carried, editing one cannot launder a
+regression into a pass.
 
 The FULL replay walks every window session (~150 evals, minutes) - too slow for
 the default suite, so it is the dedicated CI / per-stage acceptance step
@@ -132,12 +149,24 @@ STAGE_TAGS: dict[str, str] = {
     # eyeball passed; docs/event_map_program_2026-07.md) — tags removed at
     # the deliberate 26 -> 28 reseal. EGBN stays rail-placement: its ADMISSION
     # is certain but its wick-anchored candidate rails die upstream.
+    # 2026-09-08: ORMP:2026-05-08 and PKE:2026-02-24 were DELETED from this dict
+    # with the marks themselves. The operator had deleted both drawings from his
+    # calibration DB, but the sealed corpus still carried them — so the engine
+    # was being permanently EXCUSED for missing two charts that were no longer
+    # ground truth. That is the concrete thing his "always test against the
+    # updated marks" ruling fixed. A tag whose mark has left is now simply
+    # unused; it does not need pruning to keep the build honest, but leaving one
+    # here would re-assert a claim about a chart nobody stands behind.
     "EGBN:2026-01-15": "rail-placement",
     "NOK:2026-02-17": "rail-placement",
-    "ORMP:2026-05-08": "rail-placement",
-    "PKE:2026-02-24": "rail-placement",
     "SKYT:2026-04-13": "universe-gate",
 }
+
+# The stage a mark carries when the operator has just drawn it and the engine
+# cannot read it yet. It is NOT an accepted miss: it is pinned so it cannot start
+# firing unannounced, and reported separately so it never inflates the
+# "expected misses" count into looking like a settled question.
+NEW_MARK_STAGE = "unreviewed-new-mark"
 
 # Corpus schema: every key a graduated setup may carry (the EC-9 export's
 # exact output shape). An unrecognized key FAILS the load (a typo'd mark
@@ -334,29 +363,33 @@ def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
     return {**out, "status": "miss"}
 
 
-def _graduation_drift_advisory(sealed_count: int) -> None:
-    """ADVISORY, never a failure (council 2026-08-22, Friedman F2): the one
-    legal graduation channel (``tools.guided_list_export``, EC-9) refuses by
-    design when the live calibration-marks DB drifts past the operator-approved
-    pin — but that refusal was discoverable only by running the export, so the
-    channel can sit sealed shut invisibly for weeks. Report the drift where
-    eyes already are. The live DB is read via sqlite3 URI ``mode=ro`` only; an
-    absent DB (hermetic checkout, CI) prints nothing, and no failure in here
-    may ever touch the gate's verdict."""
+def population_is_current(corpus_fingerprint: str | None) -> tuple[bool, str]:
+    """Does the corpus still describe the operator's CURRENT drawings?
+
+    **This is a FAILURE, not an advisory, since his 2026-09-08 ruling** — "the
+    engine always Tests against the updated marks as a rule". It used to print an
+    advisory nobody could act on without a re-pin ceremony, so it sat drifted for
+    six weeks while the standard demanded three marks he had deleted (two of them
+    as permanent expected-misses) and ignored five he had drawn.
+
+    Returns ``(ok, message)``. The live DB is read ``mode=ro`` only. **An absent
+    DB is OK, not a failure** — CI and any hermetic checkout have no marks DB, and
+    the committed fixture is what they grade against; only a machine that HAS the
+    operator's drawings can judge whether the corpus still matches them.
+    """
     try:
         import sqlite3
         from urllib.request import pathname2url
 
-        import database  # backend module: the ONE __file__-anchored DB path
+        import database  # backend module: the ONE archive-path home
         if not os.path.exists(database._DB_PATH):
-            return
+            return True, "no calibration-marks DB here — corpus currency not checked"
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
-        # EC-13: the ONE validated loader + fingerprint recipe (the export's
-        # own), and the export's own pin — never a re-typed twin of either.
+        # EC-13: the ONE validated loader + fingerprint recipe (the export's own),
+        # never a re-typed twin.
         from tools.calibration_harness import load_box_marks
-        from tools.guided_list_export import OPERATOR_APPROVED_FINGERPRINT
 
         uri = "file:" + pathname2url(database._DB_PATH) + "?mode=ro"
         ro_engine = create_engine(
@@ -367,14 +400,30 @@ def _graduation_drift_advisory(sealed_count: int) -> None:
         finally:
             session.close()
             ro_engine.dispose()
-        if fingerprint == OPERATOR_APPROVED_FINGERPRINT:
-            return
-        print(f"\nADVISORY: the live calibration-marks DB ({len(rows)} box marks, "
-              f"{len(rows) - sealed_count:+d} vs the {sealed_count} sealed) has "
-              "drifted past the graduation pin - a graduation event is owed "
-              "(tools.guided_list_export refuses until the operator re-pins).")
-    except Exception:
-        return  # advisory only: the graduation report never fails the gate
+    except Exception as exc:  # noqa: BLE001 — a broken read must not masquerade as drift
+        return True, f"could not read the marks DB ({exc.__class__.__name__}) — currency not checked"
+
+    if not rows:
+        # A database with no drawings in it is not the operator's. The pytest
+        # session points CHROLLO_DB_PATH at a throwaway file whose migrations
+        # create an EMPTY calibration_marks table, and reading that as "he
+        # deleted everything" wedged the gate red for the whole suite. Only a DB
+        # that actually holds marks can judge whether the corpus still matches
+        # them.
+        return True, "the marks DB here holds no drawings — corpus currency not checked"
+    if fingerprint == corpus_fingerprint:
+        return True, f"corpus matches the live marks DB ({len(rows)} box marks)"
+    return False, (
+        f"THE CORPUS IS STALE: the live calibration-marks DB holds {len(rows)} box marks "
+        f"whose fingerprint is {fingerprint[:16]}…, the corpus was built from "
+        f"{(corpus_fingerprint or '(none)')[:16]}…\n"
+        "  The operator drew, edited or deleted a mark since this standard was built, so the\n"
+        "  gate is grading against drawings he no longer stands behind. Refresh it:\n"
+        "      python -m tools.guided_list_export\n"
+        "      python -m tools.marks_corpus --build-fixture\n"
+        "  Pinned verdicts survive the refresh by mark identity — a mark that fires must\n"
+        "  still keep firing. Only the POPULATION follows him (his ruling, 2026-09-08)."
+    )
 
 
 def check_corpus() -> bool:
@@ -472,17 +521,33 @@ def check_corpus() -> bool:
               f"frozen at {frozen_engine[:16]}…, current {manifest_hash()[:16]}…; "
               "the verdict below grades TODAY'S engine against the sealed fires "
               "(re-freeze deliberately at the next flip/seam commit, EC-29).")
+    # Is the standard still HIS standard? A failure since his 2026-09-08 ruling.
+    current, currency_note = population_is_current(baseline.get("marks_fingerprint"))
+    if not current:
+        ok = False
+        lines.append("  " + currency_note)
+
     if ok:
         hits = sum(1 for s in baseline["setups"] if s["status"] == "hit")
+        unreviewed = [s["key"] for s in baseline["setups"]
+                      if s["status"] == "miss" and s.get("stage") == NEW_MARK_STAGE]
+        reviewed_misses = len(baseline["setups"]) - hits - len(unreviewed)
         print(f"ratchet held: {hits}/{len(baseline['setups'])} pinned hits still fire; "
-              "every expected miss still misses.")
+              f"all {reviewed_misses} reviewed misses still miss.")
+        if unreviewed:
+            # Never folded into the miss count: these are charts he drew that the
+            # engine cannot read yet and he has not looked at. They are pinned so
+            # they cannot start firing unannounced, but calling them "expected"
+            # would launder an open question into a settled one.
+            print(f"AWAITING YOUR REVIEW: {len(unreviewed)} newly-drawn mark(s) the engine "
+                  f"does not fire — {', '.join(sorted(unreviewed))}")
+        print(f"({currency_note})")
         print("PASS")
     else:
         for line in lines:
             print(line)
         print()
         print("FAIL - the marks ratchet broke (see above).")
-    _graduation_drift_advisory(len(setups))
     return ok
 
 
@@ -496,6 +561,44 @@ def _frozen_frame(ticker: str, as_of: str, digest: str):
     return load_frame(ticker, as_of, digest=digest)
 
 
+def setup_digest(setup: dict) -> str:
+    """A digest of what the operator actually DREW for this setup — the rails,
+    the LPS window(s), the trigger, the knowable-from override, the frame.
+
+    This is the identity a pinned verdict belongs to. A verdict says "the engine
+    fires THIS drawing"; if he moves the rails or re-dates the LPS, that sentence
+    is about a chart that no longer exists and must not be carried forward as
+    either a pass or a regression. Measured 2026-09-08: **ten of the thirty marks
+    that survived the July seal had been edited** — LPS windows, triggers and
+    rails — and the fingerprint could say only that *something* moved.
+
+    Deliberately NOT the frame digest alone: the same bars can carry a completely
+    redrawn box.
+    """
+    payload = {k: setup.get(k) for k in
+               ("as_of", "rails_drawn", "lps", "lps2", "trigger",
+                "knowable_from", "frame_digest")}
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def _previously_pinned() -> dict[str, str]:
+    """``{setup key: setup_digest}`` from the LAST freeze — what drawing each
+    pinned verdict was actually about.
+
+    A key that is absent is a mark he has just DRAWN. A key whose digest differs
+    is one he has REDRAWN. Both get a fresh verdict; only an unchanged drawing
+    keeps its pin, which is what makes "a pinned hit must keep firing" mean
+    something. Missing / unreadable baseline -> empty, so a first build treats
+    every mark as new-to-the-standard.
+    """
+    try:
+        with open(_BASELINE_JSON, encoding="utf-8") as f:
+            return {s["key"]: s.get("setup_digest", "") for s in json.load(f).get("setups", [])}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
 def build_fixture() -> dict:
     """Freeze frames + the ratchet baseline.
 
@@ -507,9 +610,20 @@ def build_fixture() -> dict:
     Refuses to freeze when the replayed miss-set differs from STAGE_TAGS -
     every frozen miss must carry the build-order stage expected to convert it,
     and a pinned hit that does not actually fire is a broken freeze, not a
-    baseline.
+    baseline. **One exception, added on the operator's 2026-09-08 ruling:** a
+    mark he has drawn SINCE the last freeze is not yet subject to that rule. It
+    enters tagged ``NEW_MARK_STAGE`` and is reported separately, because
+    refusing the rebuild until someone hand-writes a stage for every new drawing
+    is the ceremony that ruling removed.
+
+    Marks he has DELETED simply do not appear in ``load_corpus()`` any more, so
+    they leave here with no ceremony at all — which is the whole point.
     """
     setups = load_corpus()
+    # What the PREVIOUS freeze knew, so "new" means new to the standard rather
+    # than new to this run. Absent on a first build: then nothing is new.
+    previously_pinned = _previously_pinned()
+    fresh: list[tuple[str, str]] = []
     frames: dict[str, pd.DataFrame] = {}
     baseline_setups: list[dict] = []
     problems: list[str] = []
@@ -533,15 +647,55 @@ def build_fixture() -> dict:
             problems.append(f"{key}: {got['reason']}")
             continue
         stage = STAGE_TAGS.get(key)
+        digest = setup_digest(setup)
+        prior = previously_pinned.get(key)
+        # Three states, and the third is the honest one:
+        #   drawn    - no prior entry: he drew this since the last freeze.
+        #   redrawn  - prior digest recorded AND different: he moved this drawing.
+        #   unknown  - prior entry exists but recorded NO digest. Baselines frozen
+        #              before 2026-09-08 did not carry one, so on the first build
+        #              after that ruling we genuinely CANNOT tell an untouched mark
+        #              from an edited one. Say so rather than claiming either.
+        # 'drawn' and 'redrawn' void the old verdict; 'unknown' is treated the same
+        # way for THIS build only, because assuming continuity is the direction that
+        # silently carries a verdict about a chart that may no longer exist.
+        if prior is None:
+            provenance = "drawn"
+        elif not prior:
+            provenance = "unknown"
+        elif prior != digest:
+            provenance = "redrawn"
+        else:
+            provenance = "unchanged"
+        is_fresh = provenance != "unchanged"
+        if is_fresh:
+            fresh.append((key, provenance))
         if got["status"] == "miss" and stage is None:
-            problems.append(f"{key}: replays as a MISS but has no STAGE_TAGS entry - "
-                            "every frozen miss must name its converting stage")
-            continue
+            if is_fresh:
+                # A chart he has just drawn or redrawn that the engine cannot read.
+                # It enters MEASURED, not required: refusing the whole rebuild here
+                # would mean every drawing breaks his gate until someone hand-writes
+                # a stage tag — the ceremony his 2026-09-08 ruling removed. Still
+                # PINNED as a miss, so it cannot start firing unannounced.
+                stage = NEW_MARK_STAGE
+            else:
+                problems.append(f"{key}: replays as a MISS but has no STAGE_TAGS entry - "
+                                "every frozen miss must name its converting stage")
+                continue
         if got["status"] == "hit" and stage is not None:
-            problems.append(f"{key}: replays as a HIT but STAGE_TAGS expects a miss - "
-                            "remove the stale tag deliberately")
-            continue
+            if is_fresh:
+                # He redrew it and now it fires. Good news, and the stale tag is
+                # about the old drawing — drop it, but never silently.
+                print(f"  {key}: the redrawn mark now FIRES — dropping its stale "
+                      f"'{stage}' tag", flush=True)
+                stage = None
+            else:
+                problems.append(f"{key}: replays as a HIT but STAGE_TAGS expects a miss - "
+                                "remove the stale tag deliberately")
+                continue
         entry = {"key": key, "ticker": ticker, "status": got["status"],
+                 # The drawing this verdict is about — see setup_digest().
+                 "setup_digest": digest,
                  "windows": [got["window"]],
                  "spy_6m_return": _FROZEN_SPY_6M, "bars": len(df)}
         if got.get("clamp_note"):
@@ -595,8 +749,28 @@ def build_fixture() -> dict:
         json.dump(baseline, f, indent=2)
 
     hits = sum(1 for s in baseline_setups if s["status"] == "hit")
+    new_misses = [s["key"] for s in baseline_setups
+                  if s["status"] == "miss" and s.get("stage") == NEW_MARK_STAGE]
     print(f"Built marks corpus: {hits} pinned hits / "
-          f"{len(baseline_setups) - hits} staged misses -> {_FIXTURE_PARQUET}")
+          f"{len(baseline_setups) - hits} misses -> {_FIXTURE_PARQUET}")
+    if fresh:
+        # Named, because this is the whole point of the 2026-09-08 ruling: the
+        # standard followed him, and he must be able to see exactly where.
+        drawn = sorted(k for k, why in fresh if why == "drawn")
+        redrawn = sorted(k for k, why in fresh if why == "redrawn")
+        unknown = [k for k, why in fresh if why == "unknown"]
+        if drawn:
+            print(f"  newly DRAWN since the last freeze ({len(drawn)}): {', '.join(drawn)}")
+        if redrawn:
+            print(f"  REDRAWN since the last freeze ({len(redrawn)}) - their old verdicts were "
+                  f"void and did not carry: {', '.join(redrawn)}")
+        if unknown:
+            print(f"  provenance UNKNOWN ({len(unknown)}): the previous baseline predates the "
+                  "per-drawing digest, so whether these were edited cannot be proven from it. "
+                  "Treated as fresh for this build only; from now on the distinction is exact.")
+    if new_misses:
+        print(f"  AWAITING YOUR REVIEW ({len(new_misses)}) - drawn/redrawn and the engine does "
+              f"NOT fire them: {', '.join(sorted(new_misses))}")
     return baseline
 
 

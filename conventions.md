@@ -117,12 +117,19 @@ Programmer errors may still surface (do not blanket-swallow); operational failur
 **Origin:** Leach / Ramírez / Hunt — Council Review 2026-06-30-1338
 **Principle:** `references/quality-backend.md` → P1 (operational vs programmer errors)
 
-### EC-7: Operator-marks corpus files are immutable test specs
-**Convention:** Files under `docs/marks/` are operator ground truth and acceptance specs: grow them
-append-only; corrections land only as explicit operator source-upgrades (extraction→operator), never
-silent in-place edits; a failing corpus case is fixed in the ENGINE — never by editing a mark, widening
-a matcher's date window, or reinterpreting trigger rules. Harnesses consuming a corpus must validate it
-loudly (malformed/unrecognized marks fail the run, never skip) and detect unsanctioned edits.
+### EC-7: A failing case is fixed in the ENGINE, never by editing the mark
+**Convention:** Files under `docs/marks/` are operator ground truth and acceptance specs. **The
+load-bearing half:** a failing corpus case is fixed in the ENGINE — never by editing a mark, widening
+a matcher's date window, or reinterpreting trigger rules. Nobody may make a red gate green by moving
+the target. Harnesses consuming a corpus must validate it loudly (malformed/unrecognized marks fail
+the run, never skip).
+
+**NARROWED 2026-09-08 (see EC-9):** "immutable, append-only, never in-place" described the FILE, and
+that clause is retired — `docs/marks/` is now regenerated from the calibration DB, so the operator
+correcting his own drawing is expected rather than an "unsanctioned edit". The prohibition above is
+unchanged and is the part that ever mattered: **he** may redraw a chart; an agent may never edit a
+mark to make a test pass. The two are told apart mechanically — a redrawn mark's pinned verdict is
+voided and re-measured, so editing a mark can never launder a regression into a pass.
 **Origin:** Beck / Leach — Council Plan 2026-07-09-2200 (whole-chart event read); operator-confirmed 2026-07-10
 **Principle:** `references/quality-testing.md` → P10 (the test spec is the constraint); `references/quality-postgres.md` → P1
 
@@ -137,17 +144,40 @@ flips it live. Flag-off must be byte-identical and compute-free.
 
 ---
 
-### EC-9: Two mark populations, one-way human-gated graduation
-**Convention:** The calibration-marks DB (`calibration_marks`, operator-owned) is EDITABLE ground truth —
-the operator corrects/hard-deletes his own marks and every edit bumps `revision`; the `docs/marks/`
-corpus stays sealed under EC-7. Movement between them is ONLY an explicit, per-mark, operator-confirmed
-export (calibration → corpus, carrying provenance) — never a sync, batch export, or startup step; no
-tool gets a write path to either population that circumvents this. Every harness report names which
-population it scored and stamps a fingerprint of the exact marks set.
+### EC-9: The population follows the operator; the VERDICTS are what stay pinned
+**AMENDED 2026-09-08 by operator ruling** — verbatim: *"lets make sure that from now on, the engine
+always Tests against the updated marks as a rule, to check for the latest thing… no need to hold on
+to an old drawing if the Operator deleted it or changed it."* The original convention below required
+an explicit, per-mark, human-gated export before a drawing could reach the gate. What that produced,
+measured the day it was amended: the standard still demanded **three marks he had DELETED** — two of
+them recorded as permanent expected-misses, so the engine was excused forever for missing charts that
+were no longer ground truth — while **five he had drawn since were tested by nothing**, and **ten of
+the thirty survivors had been edited** (rails, LPS windows, triggers) with only a fingerprint saying
+*something* moved. A standard that cannot follow its own ground truth stops being a standard.
+
+**Convention:** The calibration-marks DB (`calibration_marks`, operator-owned) is EDITABLE ground
+truth and is THE population. `docs/marks/` is a REGENERATED projection of it, not a sealed island:
+`tools.guided_list_export` overwrites, and `tools.marks_corpus --check` FAILS (never advises) when the
+corpus no longer matches the live DB on a machine that has one. An absent DB is not drift — CI grades
+the committed fixture.
+
+**What replaces the human gate, so the ratchet keeps its teeth.** A pinned verdict belongs to ONE
+drawing, identified by `marks_corpus.setup_digest` (rails, LPS spans, trigger, knowable-from, frame).
+- unchanged drawing → its verdict is pinned: **a hit that stops firing FAILS**, an expected miss that
+  starts firing FAILS. Unchanged from the original convention, and the guard's whole purpose.
+- redrawn or newly drawn → the old verdict was about a chart that no longer exists and does NOT
+  carry. It is re-measured. If the engine cannot read it, it enters as `NEW_MARK_STAGE` —
+  **measured, pinned against silent conversion, and reported separately as awaiting his review** —
+  so drawing a chart can never turn his gate red before he has looked at it.
+- deleted → it leaves, and its `STAGE_TAGS` excuse leaves with it.
+
+Every harness report still names which population it scored and stamps a fingerprint of the exact
+marks set. No tool gets a write path to the calibration DB.
 **Origin:** Hunt / Leach / Beck / Fowler — Council Plan 2026-07-10-2329 (Calibration at Scale);
-operator-confirmed 2026-07-10
+operator-confirmed 2026-07-10. **Amended on the operator's 2026-09-08 ruling** (decisions.md).
 **Principle:** `references/security.md` → P9 (assume breach); `references/quality-postgres.md` → P5;
-`references/quality-testing.md` → P10
+`references/quality-testing.md` → P10 (the test spec is the constraint — and the spec is HIS current
+drawing, not a snapshot of what he used to think)
 
 ---
 

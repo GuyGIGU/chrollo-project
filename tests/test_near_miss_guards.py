@@ -46,7 +46,15 @@ pytestmark = pytest.mark.regression
 def test_lane_flag_on_keeps_every_hit_election_identical(monkeypatch):
     frames, baseline = _load_marks_fixture()
     hits = [e for e in baseline["setups"] if e["status"] == "hit"]
-    assert len(hits) == 28, "the Guided List ratchet floor moved under this guard"
+    # NOT a hard-coded floor. The Guided List follows the operator's drawings
+    # (his 2026-09-08 ruling), so a literal here breaks this guard every time he
+    # draws a chart, for a reason that has nothing to do with what it tests. The
+    # floor itself is pinned once, in the committed baseline, by
+    # tests/test_marks_corpus.py. What THIS guard must never do is silently
+    # compare nothing.
+    assert len(hits) >= 20, (
+        f"only {len(hits)} pinned hits to compare — the fixture is thin or empty "
+        "and this guard would pass without exercising an election")
 
     for e in hits:
         ticker = e["ticker"]

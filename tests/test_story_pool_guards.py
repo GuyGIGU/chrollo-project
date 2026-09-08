@@ -46,13 +46,33 @@ from tools.replay import fixture_frame
 pytestmark = pytest.mark.regression
 
 
-_STORY_CAUSED_HITS = ["NKTR:2026-04-10", "YPF:2026-05-18"]
+# Hits that fire ONLY through the story pool — silent with the flag off.
+#
+# ANRO:2026-08-12 joined on 2026-09-08, and the distinction matters: it is one of
+# the five marks the operator had DRAWN but which the sealed standard had never
+# tested, so its story-causation is a DISCOVERY about a new chart, not an
+# ordinary pool regressing into silence. That is exactly the difference this
+# guard exists to police, and it is checkable: ANRO was absent from the previous
+# baseline entirely, so there was no prior election of it to regress from.
+#
+# A future addition here must clear the same bar. If a mark that was ALREADY in
+# the standard turns up off-silent, an ordinary pool HAS regressed and the fix is
+# in the engine, never in this list.
+_STORY_CAUSED_HITS = ["ANRO:2026-08-12", "NKTR:2026-04-10", "YPF:2026-05-18"]
 
 
 def test_story_flag_on_keeps_every_hit_election_identical(monkeypatch):
     frames, baseline = _load_marks_fixture()
     hits = [e for e in baseline["setups"] if e["status"] == "hit"]
-    assert len(hits) == 28, "the Guided List ratchet floor moved under this guard"
+    # NOT a hard-coded floor. The Guided List follows the operator's drawings
+    # (his 2026-09-08 ruling), so a literal here breaks this guard every time he
+    # draws a chart, for a reason that has nothing to do with what it tests. The
+    # floor itself is pinned once, in the committed baseline, by
+    # tests/test_marks_corpus.py. What THIS guard must never do is silently
+    # compare nothing.
+    assert len(hits) >= 20, (
+        f"only {len(hits)} pinned hits to compare — the fixture is thin or empty "
+        "and this guard would pass without exercising an election")
 
     story_only = []
     for e in hits:
