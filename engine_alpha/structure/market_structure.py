@@ -371,7 +371,7 @@ def segment_trends(points) -> list:
     higher-low before the climax (mirror: the last lower-high before a selling
     climax) — i.e. the launch of the final push into the climax. (The automatic
     reaction is measured against the FULL leg — ``start_bar`` → climax, via
-    ``elected_trend_leg_base`` — not this sub-leg; see ``first_reaction_after``.)
+    ``elected_trend_leg_base`` — not this sub-leg.)
 
     Pure / measure-only: it reads the labels the substrate already assigned and
     assigns no points, moves no rails, and gates nothing. Returns one dict per
@@ -682,8 +682,12 @@ def elected_trend_leg_base(df, terminal_bar, direction, *,
     (``direction=+1``) / the peak a selling climax fell from (``-1``). This is the
     entire move the reaction reverses, NOT the terminal impulse sub-leg — so a
     normal reaction into the base support clears the retrace threshold in one piece
-    (not split at a mid-decline pause), while a shallow wobble on the way up does
-    not (see ``first_reaction_after``).
+    (not split at a mid-decline pause), while a shallow wobble on the way up does not.
+
+    Its engine consumer (``first_reaction_after``) retired 2026-09-08 with
+    ``AR_FIRST_REACTION_ENABLED``; this survives because
+    ``tools/full_package_render.py`` draws the full leg, and the climax-anchor
+    program that renderer serves is still open.
 
     Returns ``(start_bar, start_price)`` in df positions, or ``None`` when no
     confirmed trend segment tops near the climax (the caller then falls back to the
@@ -715,90 +719,3 @@ def _full_leg_base(df, highs, lows, terminal_bar, direction, lookback):
     if direction > 0:
         return float(np.min(lows[lo:terminal_bar + 1]))
     return float(np.max(highs[lo:terminal_bar + 1]))
-
-
-def first_reaction_after(df, terminal_bar, *, direction, atr,
-                         retrace_frac, up_leg_lookback,
-                         bounce_atr_mult, bounce_drop_frac,
-                         end_bar: Optional[int] = None):
-    """The AUTOMATIC REACTION extreme after a trend's terminal swing.
-
-    Phase-A election, form 3 of 3 (bar-level AR refinement, CLIMAX-GIVEN —
-    it never elects the climax); forms 1 and 2 are
-    ``segmentation._find_root_swing`` and ``phase_a._validated_bridge``.
-
-    Derived from the HH/HL trend model: the terminal swing (a buying-climax peak
-    for ``direction=+1``, a selling-climax valley for ``-1``) tops the trend, and
-    the automatic reaction is the FIRST continuous counter-move off it. The
-    reaction is the running extreme that only "counts" once it retraces
-    ``retrace_frac`` of the trend's FULL leg — the whole advance the climax ended,
-    from the elected trend segment's start (``_full_leg_base``), NOT the terminal
-    impulse sub-leg — and it is closed at the first BIG confirmed bounce off that
-    extreme: a counter-rally of >= ``max(bounce_atr_mult*ATR, bounce_drop_frac*
-    drop)`` (mirror: a give-back for a selling climax). The full-leg basis plus the
-    big-bounce close are what stop it over-tightening at a mid-decline pause: a
-    genuine reaction runs to the support that anchors the base, and a shallow poke
-    on the way up neither clears the retrace nor produces a big bounce (the
-    operator's dated reading, 2026-07-05).
-
-    Returns the reaction extreme bar (a low for +1, a high for -1) in
-    ``(terminal_bar, end_bar]`` (``end_bar`` defaults to the last bar), or
-    ``None`` when no counter-move reaches the retrace threshold inside the window
-    (a one-way run that only stops at the base edge). Measure-only: it reads the
-    reaction, it does not decide what to draw — the overlay caller owns the
-    tighten-only / span contract.
-    """
-    if df is None or not ({"High", "Low"} <= set(df.columns)):
-        return None
-    try:
-        atr = float(atr)
-    except (TypeError, ValueError):
-        return None
-    if not (atr > 0) or not np.isfinite(atr):
-        return None
-    highs = df["High"].values.astype(float)
-    lows = df["Low"].values.astype(float)
-    n = len(highs)
-    terminal_bar = int(terminal_bar)
-    last = n - 1 if end_bar is None else min(int(end_bar), n - 1)
-    if not (0 <= terminal_bar < last):
-        return None
-    lookback = int(up_leg_lookback)
-    retrace = float(retrace_frac)
-    b_mult = float(bounce_atr_mult)
-    b_frac = float(bounce_drop_frac)
-
-    if direction > 0:
-        peak = highs[terminal_bar]
-        up_leg = peak - _full_leg_base(df, highs, lows, terminal_bar, 1, lookback)
-        if up_leg <= 0:
-            return None
-        threshold = peak - retrace * up_leg
-        run_low, run_low_bar, reached = peak, terminal_bar, False
-        for b in range(terminal_bar + 1, last + 1):
-            if lows[b] < run_low:
-                run_low, run_low_bar = lows[b], b
-            if run_low <= threshold:
-                reached = True
-            if reached:
-                bounce = max(b_mult * atr, b_frac * (peak - run_low))
-                if highs[b] >= run_low + bounce:        # first BIG confirmed bounce
-                    break
-        return run_low_bar if (reached and terminal_bar < run_low_bar <= last) else None
-
-    trough = lows[terminal_bar]
-    dn_leg = _full_leg_base(df, highs, lows, terminal_bar, -1, lookback) - trough
-    if dn_leg <= 0:
-        return None
-    threshold = trough + retrace * dn_leg
-    run_hi, run_hi_bar, reached = trough, terminal_bar, False
-    for b in range(terminal_bar + 1, last + 1):
-        if highs[b] > run_hi:
-            run_hi, run_hi_bar = highs[b], b
-        if run_hi >= threshold:
-            reached = True
-        if reached:
-            give_back = max(b_mult * atr, b_frac * (run_hi - trough))
-            if lows[b] <= run_hi - give_back:           # first BIG confirmed give-back
-                break
-    return run_hi_bar if (reached and terminal_bar < run_hi_bar <= last) else None

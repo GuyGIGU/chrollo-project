@@ -1,21 +1,25 @@
 """Operator trend-end / AR marks vs what the engine actually reads.
 
 The instrument behind the 2026-08-14 ruling on ``AR_FIRST_REACTION_ENABLED``
-(docs/anchor_marks_ruling_2026-08-14.md). Reads the append-only marks corpus
+(docs/anchor_marks_ruling_2026-08-14.md). That flag was RULED DELETED 2026-09-08,
+so the flip half of this tool retired with it and what remains is the ANCHOR half
+— which is the live instrument for the climax-anchor program, still open. Reads
+the append-only marks corpus
 ``docs/trend_end_marks_2026-08.json`` and puts each operator mark next to the
 engine's own Phase-A anchor and its ``segment_trends`` terminals, in DATES, on
 the faithful live frame.
 
-FAITHFULNESS: reuses ``ar_first_reaction_diff._prep_live`` (baseline filter ->
+FAITHFULNESS: ``_prep_live`` below (baseline filter ->
 _trim_to_period to DAILY_STRUCTURE_PERIOD (2y) -> ATR_10/50 -> atr =
 ATR_10.iloc[-6]) and ``read_structure`` on that SAME frame, captured with
-``AR_FIRST_REACTION_ENABLED`` off and on, flag always restored. Read-only: no
-network, no backend, no renders, nothing live imports it.
+the live engine. Read-only: no network, no backend, no renders, nothing live
+imports it.
 
-Two things the summary measures, because the ruling rests on them:
-  * distance from the operator's AR under flag OFF vs flag ON (the flip question);
+What the summary measures:
+  * distance from the operator's own AR (context, no longer a flip question);
   * whether ``segment_trends`` holds a terminal at his trend end at all, and
-    whether the resolved climax is early or late (the anchor question).
+    whether the resolved climax is early or late — THE anchor question, and the
+    reason this tool survived the flag's deletion.
 
 Elections are not stable day to day: a name that fired when the marks were taken
 may not fire today. Those fall back to the dates RECORDED in the corpus and are
@@ -42,16 +46,44 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.downloads import _trim_to_period
+from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure.indicators import calculate_atr
 from engine_alpha.structure.market_structure import (
     read_market_structure, segment_trends)
 from engine_alpha.structure.narrative import read_structure
 from tools._bootstrap import refuse_sealed_output
-from tools.ar_first_reaction_diff import _load_cache, _prep_live
 from tools.marks_json import load_marks_json, marks_json_fingerprint
 
 _DEFAULT_MARKS = os.path.join(_ROOT, "docs", "trend_end_marks_2026-08.json")
 _TERMINAL_TOL = 3          # bars: "segment_trends found his trend end"
+
+
+def _load_cache():
+    d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
+    return d, set(d.columns.get_level_values(0))
+
+
+def _prep_live(raw: pd.DataFrame):
+    """The exact daily frame the screener reads: baseline filter, trim to
+    DAILY_STRUCTURE_PERIOD, ATR cols. Mirrors evaluation._evaluate_ticker.
+    Returns (df, atr) or (None, reason).
+
+    Moved here verbatim 2026-09-08 from ``tools/ar_first_reaction_diff.py`` when
+    that module was deleted with ``AR_FIRST_REACTION_ENABLED``. It is frame prep,
+    not AR machinery, and this tool's surviving half needs it."""
+    base = apply_baseline_filters(raw.copy())
+    if base is None:
+        return None, "rejected at baseline filters"
+    df, _ = base
+    df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
+    if len(df) < settings.STRUCTURE_ATR_SAMPLE_OFFSET:
+        return None, "too few bars after trim"
+    df["ATR_10"] = calculate_atr(df, 10)
+    df["ATR_50"] = calculate_atr(df, 50)
+    atr = float(df["ATR_10"].iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET])
+    if not (atr > 0):
+        return None, "non-positive ATR snapshot"
+    return df, atr
 
 
 def _ungated_frame(raw):
@@ -62,15 +94,6 @@ def _ungated_frame(raw):
     df["ATR_10"] = calculate_atr(df, 10)
     df["ATR_50"] = calculate_atr(df, 50)
     return df, float(df["ATR_10"].iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET])
-
-
-def _read_under(df, atr, flag):
-    prev = settings.AR_FIRST_REACTION_ENABLED
-    try:
-        settings.AR_FIRST_REACTION_ENABLED = flag
-        return read_structure(df, atr)
-    finally:
-        settings.AR_FIRST_REACTION_ENABLED = prev
 
 
 def _bar_of(df, iso):
@@ -97,20 +120,18 @@ def measure(mark, cache_col):
         df, atr = _ungated_frame(raw)
         gated = True
 
-    off = _read_under(df, atr, False)
-    on = _read_under(df, atr, True)
+    off = read_structure(df, atr)
     rec = mark.get("engine_2026_08_14", {})
 
     if off is not None:
         source = "live"
         cx = int(off.climax_bar)
-        ar_off, ar_on = int(off.ar_bar), (int(on.ar_bar) if on else None)
+        ar_off = int(off.ar_bar)
         box_start = int(off.box.start_bar)
     else:
         source = "recorded"
         cx = _bar_of(df, rec.get("climax"))
         ar_off = _bar_of(df, rec.get("ar_off"))
-        ar_on = _bar_of(df, rec.get("ar_on"))
         box_start = _bar_of(df, rec.get("box_start"))
 
     op_cx = _bar_of(df, mark.get("trend_end"))
@@ -126,10 +147,9 @@ def measure(mark, cache_col):
         "op_trend_end": mark.get("trend_end"), "op_ar": mark.get("ar"),
         "derived": mark.get("trend_end_source") == "derived",
         "climax": _date_of(df, cx), "ar_off": _date_of(df, ar_off),
-        "ar_on": _date_of(df, ar_on), "box_start": _date_of(df, box_start),
+        "box_start": _date_of(df, box_start),
         "d_climax": None if (cx is None or op_cx is None) else cx - op_cx,
         "d_ar_off": None if (ar_off is None or op_ar is None) else ar_off - op_ar,
-        "d_ar_on": None if (ar_on is None or op_ar is None) else ar_on - op_ar,
         "ar_is_box_open": (ar_off is not None and ar_off == box_start),
         "terminal_at_trend_end": found,
     }
@@ -152,26 +172,13 @@ def report(rows):
     for r in rows:
         print(f"  {r['ticker']:<7} {r['source']:<9} {s(r['op_trend_end']):<11} "
               f"{s(r['op_ar']):<11} {s(r['climax']):<11} {n(r['d_climax']):>5}  "
-              f"{s(r['ar_off']):<11} {n(r['d_ar_off']):>5}  "
-              f"{s(r['ar_on']):<11} {n(r['d_ar_on']):>5}")
+              f"{s(r['ar_off']):<11} {n(r['d_ar_off']):>5}")
 
-    both = [r for r in rows if r["d_ar_off"] is not None and r["d_ar_on"] is not None]
-    off_e = [abs(r["d_ar_off"]) for r in both]
-    on_e = [abs(r["d_ar_on"]) for r in both]
-    print(f"\n  THE FLIP QUESTION — distance from the operator's own AR ({len(both)} names)")
-    if both:
-        # Ties are their own column: on a name where the flag does not move the
-        # anchor both reads are identical, and folding those into either side
-        # reads as a win the flag never earned (they were counted for ON until
-        # 2026-08-31, printing "ON closer on 5 of 7" for a 2-2 head-to-head).
-        wins_off = sum(1 for r in both if abs(r["d_ar_off"]) < abs(r["d_ar_on"]))
-        wins_on = sum(1 for r in both if abs(r["d_ar_on"]) < abs(r["d_ar_off"]))
-        ties = len(both) - wins_off - wins_on
-        print(f"    flag OFF total |error| : {sum(off_e):>4} bars   "
-              f"closer on {wins_off} of {len(both)}")
-        print(f"    flag ON  total |error| : {sum(on_e):>4} bars   "
-              f"closer on {wins_on} of {len(both)}")
-        print(f"    ties (flag moves nothing): {ties} of {len(both)}")
+    ar = [abs(r["d_ar_off"]) for r in rows if r["d_ar_off"] is not None]
+    if ar:
+        print("")
+        print("  DISTANCE FROM HIS OWN AR (%d names)" % len(ar))
+        print(f"    total |error| : {sum(ar):>4} bars   median {_median(ar):.4g}")
 
     # Derived trend ends were read back off an engine dot (ar_off == box.start_bar),
     # so scoring the engine against them measures the engine against itself. They

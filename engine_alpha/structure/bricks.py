@@ -23,7 +23,6 @@ from engine_alpha.structure.box_primitives import (
 )
 from engine_alpha.structure.inner_box import select_inner_box
 from engine_alpha.structure.lps import detect_lps, lps_range_threshold
-from engine_alpha.structure.market_structure import first_reaction_after
 from engine_alpha.structure.metrics import measure_equilibrium
 from engine_alpha.structure.segmentation import segment_swings
 
@@ -672,61 +671,6 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
     return lo + int(np.argmin(window)), pbs
 
 
-def _first_impulse_ar_end(df, climax_bar, ar_bar, atr):
-    """Tighten the overlay AR to the trend model's FIRST reaction off the climax.
-
-    Operator model (2026-07-05): the automatic reaction is the first CONTINUOUS
-    counter-move after the trend's TERMINAL swing (the climax) -- read from the
-    HH/HL trend model, not a raw fixed-bar retrace. The reaction runs to the low
-    that anchors the base: significance is measured against the trend's FULL leg
-    (the whole advance the climax ended), and it is closed only at the first BIG
-    confirmed bounce off that low -- not a mid-decline pause (which over-tightened
-    the earlier terminal-sub-leg + stall read) and not the eventual base-edge low
-    the raw resolver can drag past (a later second leg down). Mirror-symmetric
-    across BC and SC roots.
-
-    This is a thin overlay adapter: the read lives in
-    ``market_structure.first_reaction_after`` (structure measures); here we only
-    enforce the drawn-overlay contract. Overlay-only and TIGHTEN-ONLY: the search
-    is bounded to the drawn span ``[climax_bar, ar_bar]`` and can only move the AR
-    EARLIER, so the chronological invariant ``climax_bar <= ar_bar <=
-    phase_b_start_bar`` is preserved by construction. Returns a bar in
-    ``(climax_bar, ar_bar]``, or ``ar_bar`` unchanged when no clean first reaction
-    resolves inside the span (a genuinely one-way descent that only stops at the
-    base edge). No-op with the flag off, so both states are byte-identical on the
-    scoring/tier/canonical-shadow surface. NOTE: a flip is NOT byte-identical on
-    the ARCHIVED ``bin_a_*`` columns (``ar_bar`` feeds ``measure_phases`` →
-    ``writer``, read by ``analyze``); no freeze gate covers that seam, so a live
-    flip needs a ``bin_a_*`` guard / ``engine_config_version`` partition first.
-    """
-    if not settings.AR_FIRST_REACTION_ENABLED:
-        return ar_bar
-    if not _finite(atr) or float(atr) <= 0:
-        return ar_bar
-    n = len(df)
-    if not (0 <= climax_bar < ar_bar < n):
-        return ar_bar
-
-    # Direction from the drawn swing (post BC-down enforcement): a buying-climax
-    # tops into a lower reaction (+1); a selling-climax troughs into a higher
-    # one (-1).
-    highs = df["High"].values
-    direction = 1 if float(highs[climax_bar]) >= float(highs[ar_bar]) else -1
-    reaction_bar = first_reaction_after(
-        df, climax_bar,
-        direction=direction,
-        atr=float(atr),
-        retrace_frac=float(settings.AR_RETRACE_FRAC),
-        up_leg_lookback=int(settings.AR_UP_LEG_LOOKBACK),
-        bounce_atr_mult=float(settings.AR_BOUNCE_ATR_MULT),
-        bounce_drop_frac=float(settings.AR_BOUNCE_DROP_FRAC),
-        end_bar=int(ar_bar),
-    )
-    if reaction_bar is not None and climax_bar < reaction_bar <= ar_bar:
-        return int(reaction_bar)
-    return ar_bar
-
-
 def resolve_phase_a(
     df: "pd.DataFrame",
     root: RootSwing,
@@ -739,14 +683,15 @@ def resolve_phase_a(
     Resolves the raw anchor, enforces the BC-down invariant so a buying climax
     never paints as an up-swing (see _enforce_bc_downswing), enforces climax
     terminality so a mid-trend pause never paints as the trend end (see
-    _enforce_climax_terminality), then tightens the AR to the first impulsive
-    reaction so the overlay stops dragging to the base edge (see
-    _first_impulse_ar_end; flag-gated, no-op when off)."""
+    _enforce_climax_terminality).
+
+    A third step used to sit here: a flag-gated tighten of the AR to the first
+    impulsive reaction. The operator ruled it DELETED 2026-09-08 after it lost
+    twice against his own drawn marks; see decisions.md."""
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
     climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
     climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
                                                      terminal_floor)
-    ar_bar = _first_impulse_ar_end(df, climax_bar, ar_bar, atr)
     return climax_bar, ar_bar
 
 

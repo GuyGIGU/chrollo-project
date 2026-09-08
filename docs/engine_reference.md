@@ -26,7 +26,7 @@ Companions: [`strategy_alpha.md`](strategy_alpha.md) (theory) ·
 
 | Reading step | Implementation |
 |---|---|
-| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "Trend & Change of Character") — **flag-gated: reached only via `first_reaction_after()` under `AR_FIRST_REACTION_ENABLED` (OFF in engine-α, so the trend model is inactive in the frozen base)**; `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); the drawn AR tightens to the trend model's first reaction via `first_reaction_after()` (`AR_FIRST_REACTION_ENABLED`) |
+| Trend / trend end (Phase A) | `label_market_structure()` + `segment_trends()` read the HH/HL trend model (start / climax / CHoCH — see "Trend & Change of Character"), consumed live by `bricks._cause_is_up` via `trend_terminal_floor` (its `first_reaction_after()` consumer retired 2026-09-08 with `AR_FIRST_REACTION_ENABLED`); `collect_root_anchors()` (the calibrated climax→AR anchor scan) for the root walk; `segment_swings()` (order-N pivot zigzag) for the drawn Phase-A bridge, upgraded first by the always-on macro-PIP read (`macro_bridge_zigzag`, folded 2026-07-18; abstains unless a True-Root bridge validates — see "Phase A — Macro bridge read"); |
 | The cascade / Root Swing | `read_structure()` root backtracking × `collect_zigzag_candidates()` earliest-valid election (+ the always-on `backext_shared_rail` start refinement, folded 2026-07-18). The elected box is *emergent* — the same pair wins from nearly every scan origin — so the cascade and the election converge on the same anchors |
 | "Works both rails" test | `_is_boundary_respected()` + `_validate_base_quality()` (worked-equilibrium occupancy) + the traversal gate |
 | Phase C spring | `find_spring()` (bounded-excursion model: penetration → reclaim → significance → hold) |
@@ -424,16 +424,40 @@ covering_segment_not_the_seed` + the no-cover fallback twin. Full diagnosis:
 
 This affects Phase-A scoping diagnostics (`_bars_since_BC`, `_descent_length`, chart-region labels, and Bin A). It does **not** feed R/S selection, LPS detection, scoring, tiering, or filtering.
 
-### Phase A — First-reaction AR anchor (flag-gated, default off)
+### Phase A — First-reaction AR anchor — RETIRED 2026-09-08
 
-The locality resolution above answers *which* climax→reaction pair the box belongs to, but its fallbacks can pin the reaction low all the way at the box open (`phase_b_start_bar`). When the descent from the climax to the base is not a single continuous plunge — a quick reaction, a bounce/pause, then a *later* leg down to the base — that pins the drawn AR on the final leg, so the climax→AR stripe smears across half the chart even though the true automatic reaction ended much earlier.
+**Deleted on the operator's ruling** ("Lets DELETE the first two"), one week before its
+2026-09-15 kill-by. Never live: dark from 2026-07-04 to deletion, so nothing the engine
+reads changed.
 
-`_first_impulse_ar_end()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)), gated by `AR_FIRST_REACTION_ENABLED` (default off), tightens the AR to the operator's reading of it: **the low of the first continuous reaction after the trend's terminal swing.** It is a thin overlay adapter over `first_reaction_after()` ([engine_alpha/structure/market_structure.py](../engine_alpha/structure/market_structure.py)) — the AR is read from [the trend model](#the-trend-model--hhhl-runs-with-a-start-a-climax-and-a-choch) rather than a raw fixed-bar retrace. Walking forward inside the already-drawn `[climax_bar, ar_bar]` span (never beyond it):
+It tightened the drawn AR to *the low of the first continuous reaction after the trend's
+terminal swing* — the right Wyckoff move, and its SHAPE was vindicated (spans of 1–7 bars
+against his own 1–5; on HTH its AR landed on his trend end to the bar). **Its ANCHOR was
+wrong**, and that is why it died: the engine's climax is not the trend end. Measured against
+his own dated marks on the cohort deliberately chosen to flatter it — the twelve largest
+tighteners in the universe — flag-OFF was closer on 4 of 6, total |error| 133 bars against
+266. Re-measured 2026-08-31 against the repaired climax polarity it moved FURTHER away, not
+closer: it now touches fewer charts (101 of 335, was 100 of 291) and disagrees by more on
+the ones it touches (tighten median 19 → 35 bars). On his own marks it is a no-op on 3 of 4
+live reads and loses the fourth badly.
 
-1. **Retrace basis = the trend's FULL leg.** The reaction is measured against the whole advance the climax ended — from the elected trend segment's **start** pivot up to the terminal higher-high (`elected_trend_leg_base`; mirror: the segment start down to a selling climax), falling back to the blind `AR_UP_LEG_LOOKBACK` (40) extreme only when no confirmed segment tops at/near the climax (within `tol` bars). The reaction only "counts" once it retraces `AR_RETRACE_FRAC` (0.5) of that full leg — small wobbles while price is still rising into the top are ignored. (An earlier build measured against only the *terminal impulse sub-leg*, whose short span let the threshold trip almost immediately and anchored the AR mid-decline; the full leg is what makes "reached" mean *near the true support*.)
-2. **Termination = the first big confirmed bounce.** Once the retrace threshold is met, the AR is the running reaction low, closed at the first **bounce** off it of ≥ `max(AR_BOUNCE_ATR_MULT·ATR, AR_BOUNCE_DROP_FRAC·drop)` (1.5·ATR or half the drop, whichever is larger). This is what distinguishes the *automatic reaction* from a later second leg: a real bounce off the reaction low locks the AR there (so a subsequent, deeper markdown is not mistaken for it — the AAP case), while a mid-decline pause is too small to close it (so a continuous plunge runs to the support that anchors the base — the TOL/PH case). A genuinely one-way descent with no big bounce inside the span is left anchored at the base edge (no tighten). The twitchy 4-bar *stall* terminator of the earlier build is gone — a stall is a pause, not a reaction end.
+The mechanism matters more than the verdict, and it is why deleting this costs nothing:
+flag-OFF pins `ar_bar` to `box.start_bar`, and **the operator's AR IS the box open by his
+own repeated definition** (*"AR at 17/06 which also serves as the root swing for the
+consolidation"*, on IRMD, IART and CYRX). Flag-off satisfies his identity by construction.
+The retarget broke that identity to re-attach the AR to a reaction off `climax_bar` — correct
+if `climax_bar` were the trend end, which it is not. **That defect is a live open program**
+([`climax_anchor_diagnosis_2026-08-19.md`](climax_anchor_diagnosis_2026-08-19.md)): the
+climax is reconstructed backward over a FIXED 60-day window, so box placement determines the
+anchor error entirely. Fixing that is the work; this flag was never going to.
 
-The rule is **mirror-symmetric** — a selling-climax paints the first up-reaction off its trough (retrace of the full down-leg; close on the first big give-back) — so the overlay is non-biasing across BC and SC roots. It is **tighten-only and overlay-only**: the search is bounded to the existing span and can only move the AR *earlier*, so the chronological invariant `climax_bar <= ar_bar <= phase_b_start_bar` holds by construction, and — like the locality resolution above — it feeds **no R/S, LPS, scoring, tiering, or filtering**. (It is byte-identical on the scoring/tier/canonical-shadow surface, but a flip is *not* byte-identical on the ARCHIVED `bin_a_*` Phase-A measurement columns — `ar_bar` → `measure_phases` → the winner-fingerprint archive — which no freeze gate covers; a live flip needs an archive-seam guard first. See the flag ledger.) The retarget was driven by the operator's dated BC/AR marks on PH/TOL/AVNT/AAP/AGCO/TFX (2026-07-05): raw is exact on the clean reactions (TOL/AVNT), and the flag now surgically corrects only the second-leg overshoots (AAP-class). Scan tool: `python -m tools.ar_first_reaction_diff` shows which fires re-anchor and by how much.
+**What survived:** `market_structure.elected_trend_leg_base` (the full-leg base), because
+[`tools/full_package_render.py`](../tools/full_package_render.py) draws it and the
+climax-anchor program it serves is open; and the anchor half of
+[`tools/operator_marks_diff.py`](../tools/operator_marks_diff.py), whose flip half retired
+with the flag. **What went with it:** `bricks._first_impulse_ar_end`,
+`market_structure.first_reaction_after`, the flag plus its four `AR_*` tuning constants,
+their five manifest rows, and `tools/ar_first_reaction_diff.py`.
 
 ### Phase A — Macro bridge read (live; folded 2026-07-18)
 
@@ -1058,19 +1082,22 @@ surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 `bin_a_bars` / `bin_a_range_pct` / `bin_a_volume_ratio` / `bars_since_bc` /
 `descent_length` all measure the **climax→AR span**, so their value is a function
 of where the reader puts the automatic reaction — not only of what the chart did.
-Two mechanisms move that anchor with no chart changing: the always-on
-climax-terminality repair, and the dark `AR_FIRST_REACTION_ENABLED` tighten
-(19/140 overlays re-anchor). Pooled across an `engine_config_version` seam they
-are an average of two different measurements of the same word.
+The always-on climax-terminality repair moves that anchor with no chart changing
+— and it has been re-keyed since (2026-08-19). Pooled across an
+`engine_config_version` seam, rows either side are an average of two different
+measurements of the same word. (A second mover, the dark
+`AR_FIRST_REACTION_ENABLED` tighten, was RULED DELETED 2026-09-08; the partition
+below outlives it because the climax repair alone still needs it.)
 
 `analyze.py` now takes that partition (`PHASE_A_ANCHOR_FEATURES`): on a
 multi-epoch population the family is **withheld** from the pooled fingerprint and
 from the outcome correlations, and reported separately scoped to the **current**
 epoch — the one holding the latest `scan_date`, since config hashes carry no
 ordering and the largest epoch here is the oldest. On a single-epoch population
-nothing changes. This is the precondition [`flag_ledger.md`](flag_ledger.md)
-names for flipping `AR_FIRST_REACTION_ENABLED`: without it, a flip silently pools
-two AR-mode populations into one fingerprint and the blend reads as a signal.
+nothing changes. It was built as the precondition for flipping
+`AR_FIRST_REACTION_ENABLED`, which never happened — but it STANDS on its own: the
+climax-terminality re-key is itself an AR-mode seam, and without the partition a
+blend across it reads as a signal.
 Gate: `tests/test_analyze_anchor_seam.py`.
 
 ---
@@ -1211,7 +1238,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `018f590094631750c2b1e2dbc57c9d8adc27ce81cdc9370c6e26f94a9d8badc9`_
+_engine_config_version: `0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1236,11 +1263,6 @@ PIP_MACRO_MIN_BASE_BARS = 20
 PIP_MACRO_EQ_FLOOR_FRAC = 0.5
 PIP_MACRO_EQ_OSC_FRAC = 0.3
 PHASE_A_CLIMAX_TERMINALITY_EXCESS = 0.25
-AR_FIRST_REACTION_ENABLED = False
-AR_RETRACE_FRAC = 0.5
-AR_UP_LEG_LOOKBACK = 40
-AR_BOUNCE_ATR_MULT = 1.5
-AR_BOUNCE_DROP_FRAC = 0.5
 CAUSE_BEFORE_EFFECT_VETO_ENABLED = True
 CAUSE_LPS_LOOSE_MAX = 0.9
 BOUNDARY_ATR_BUFFER = 0.5

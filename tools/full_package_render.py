@@ -18,7 +18,7 @@ AND the root-swing / box election together:
     tighten, and the one-line election trace.
 
 FAITHFULNESS (non-negotiable — see docs/strategy_alpha.md + the sibling tools): it
-reuses ``ar_first_reaction_diff._prep_live`` (baseline filter -> trim to
+reuses ``operator_marks_diff._prep_live`` (baseline filter -> trim to
 DAILY_STRUCTURE_PERIOD (2y) -> ATR_10/50 -> atr = ATR_10.iloc[-6]) and
 ``read_structure`` on that SAME frame — NEVER the untrimmed 5y frame that
 ``structure_case_audit._prep`` uses (that resolves an
@@ -61,7 +61,7 @@ from engine_alpha.structure.market_structure import (
 from engine_alpha.structure.metrics import read_box_events
 from engine_alpha.structure.narrative import read_structure
 # Reuse the ONE faithful frame + AR-capture path (single source of truth).
-from tools.ar_first_reaction_diff import _prep_live, capture_overlays
+from tools.operator_marks_diff import _prep_live
 
 _OUT_DIR = os.path.join(_THIS, "fidelity", "full_package")
 
@@ -74,12 +74,28 @@ _ZONE_STYLE = {
 _ZONE_SKIP = {"rejection", "range"}
 
 # Trend-model direction colors (HH/HL = up, LH/LL = down).
+# Blind fallback bound for the full-leg base when no confirmed trend segment tops
+# at the climax. Was settings.AR_UP_LEG_LOOKBACK until 2026-09-08, when the AR
+# flag it belonged to was ruled DELETED; the value is unchanged and it is a
+# RENDER constant now — nothing the engine reads consults it.
+_LEG_BASE_LOOKBACK = 40
+
+def _overlay(df, atr):
+    """The (climax_bar, ar_bar, box_start_bar) the pipeline would archive for
+    ``df`` right now, or None when no structure fires. Inlined here 2026-09-08
+    from the deleted ``tools/ar_first_reaction_diff.py``; the off/on pair it used
+    to sit beside went with ``AR_FIRST_REACTION_ENABLED``."""
+    s = read_structure(df, atr)
+    if s is None:
+        return None
+    return int(s.climax_bar), int(s.ar_bar), int(s.box.start_bar)
+
+
 _UP = "#16a34a"
 _DOWN = "#dc2626"
 _RANGE = "#9aa0aa"
 _ROOT_COLOR = "#1f2937"      # the elected root swing — the boldest line on the chart
-_AR_OFF = "#8b5cf6"          # raw base-edge AR
-_AR_ON = "#16a34a"           # first-reaction (trend-derived) AR
+_AR_OFF = "#8b5cf6"          # the automatic reaction the engine reads
 
 
 def _draw_bars(ax, o, h, low, c):
@@ -194,7 +210,7 @@ def _draw_trend_model(ax, df, base_off, n_win, climax_bar, climax_price,
                             textcoords="offset points", xytext=(2, 0),
                             fontsize=6.5, color=col, va="center", alpha=0.8)
 
-    # The FULL trend leg (the AR's retrace basis) — the whole advance the climax
+    # The FULL trend leg — the whole advance the climax
     # ended, from the elected trend segment's start; the same basis
     # first_reaction_after measures against. Window-extreme fallback (with its bar)
     # when no fine-skeleton segment tops at the macro climax.
@@ -203,7 +219,7 @@ def _draw_trend_model(ax, df, base_off, n_win, climax_bar, climax_price,
     if base is not None:
         bbar, bprice = int(base[0]), float(base[1])
     else:
-        lo = max(0, int(climax_bar) - int(settings.AR_UP_LEG_LOOKBACK))
+        lo = max(0, int(climax_bar) - _LEG_BASE_LOOKBACK)
         rng = range(lo, int(climax_bar) + 1)
         bbar = (min(rng, key=lambda i: lows[i]) if direction > 0
                 else max(rng, key=lambda i: highs[i]))
@@ -260,15 +276,9 @@ def _panel_text(ticker, s, ovs, segs, elected, rec):
     L.append(f"lps_low_bar={s.lps.low_bar}  trig={s.lps.trigger:.2f}")
     L.append(f"lps_in_inner={s.lps_in_inner}")
     L.append("")
-    L.append("AUTOMATIC REACTION (flag tune)")
-    off, on = ovs.get("off"), ovs.get("on")
-    live = "ON" if settings.AR_FIRST_REACTION_ENABLED else "OFF"
-    if off:
-        L.append(f"raw (off): cx {off[0]} -> AR {off[1]}  span {off[1] - off[0]}")
-    if on:
-        L.append(f"first-react (on): cx {on[0]} -> AR {on[1]}  span {on[1] - on[0]}")
-    if off and on:
-        L.append(f"dAR = {on[1] - off[1]} (<=0 tighten)   LIVE={live}")
+    L.append("AUTOMATIC REACTION")
+    if ovs:
+        L.append(f"cx {ovs[0]} -> AR {ovs[1]}  span {ovs[1] - ovs[0]}")
     L.append("")
     L.append("ELECTION TRACE")
     for chunk in _wrap(_cascade_summary(rec), 30):
@@ -376,18 +386,16 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
     if len(seg_x) == 2:
         ax.plot(seg_x, seg_y, color=_ROOT_COLOR, lw=2.4, alpha=0.95, zorder=6)
 
-    # --- P4: raw AR vs first-reaction AR (the flag tune) ---------------------
-    ovs = capture_overlays(df, atr)
-    off, on = ovs.get("off"), ovs.get("on")
-    for mode, col in ((off, _AR_OFF), (on, _AR_ON)):
-        if mode is None:
-            continue
-        arb = int(mode[1])
+    # --- P4: the automatic reaction the engine actually reads -----------------
+    # Was a raw-vs-first-reaction PAIR until 2026-09-08, when the operator ruled
+    # AR_FIRST_REACTION_ENABLED deleted; there is one AR now, so one dot.
+    ovs = _overlay(df, atr)
+    if ovs is not None:
+        arb = int(ovs[1])
         axx = _x(arb)
         if 0 <= axx < win:
-            filled = col == _AR_ON
             ax.scatter([axx], [lows[arb] if bc else highs[arb]], marker="o", s=95,
-                       facecolor=col if filled else "none", edgecolor=col,
+                       facecolor="none", edgecolor=_AR_OFF,
                        linewidth=1.6, zorder=8)
 
     # --- P5: spring (Phase C) -------------------------------------------------
@@ -466,9 +474,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
         Line2D([0], [0], color=_ROOT_COLOR, lw=2.4, marker="*", markersize=11,
                label="root swing (elected Phase A)"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor="none",
-               markeredgecolor=_AR_OFF, markersize=9, label="AR raw (off)"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor=_AR_ON,
-               markersize=9, label="AR first-reaction (on)"),
+               markeredgecolor=_AR_OFF, markersize=9, label="automatic reaction"),
         Line2D([0], [0], color=_UP, lw=2, label="up trend seg / HH·HL"),
         Line2D([0], [0], color=_DOWN, lw=2, label="down trend seg / LH·LL"),
         Patch(facecolor="#8b5cf6", alpha=0.2, label="equilibrium box"),

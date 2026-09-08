@@ -6,7 +6,6 @@ import pandas as pd
 from engine_alpha.structure.market_structure import (
     classify_window_descent,
     elected_trend_leg_base,
-    first_reaction_after,
     label_market_structure,
     read_market_structure,
     segment_trends,
@@ -184,7 +183,7 @@ def test_l1_insufficient_window():
     assert out["classification"] == "insufficient"
 
 
-# --- The trend model: segment_trends + first_reaction_after --------------------
+# --- The trend model: segment_trends + elected_trend_leg_base --------------------
 
 def test_trend_model_clean_uptrend_is_one_running_segment():
     # HL valleys + HH peaks: one confirmed uptrend, still running at the edge.
@@ -226,10 +225,6 @@ def test_trend_model_empty_without_a_confirmed_trend():
     assert segment_trends([]) == []
 
 
-_AR_KW = dict(atr=1.0, retrace_frac=0.5, up_leg_lookback=40,
-              bounce_atr_mult=1.5, bounce_drop_frac=0.5)
-
-
 def test_elected_trend_leg_base_is_the_full_leg_start():
     # A rising staircase (HL valleys + HH peaks) confirms one uptrend segment; the
     # full-leg base is that segment's START pivot (the launch valley), located by
@@ -243,61 +238,6 @@ def test_elected_trend_leg_base_is_the_full_leg_start():
         (up["start_bar"], up["start_price"])
     assert elected_trend_leg_base(stair, up["terminal_bar"], -1) is None
     assert elected_trend_leg_base(stair, 0, 1) is None
-
-
-def test_first_reaction_locks_at_the_first_reaction_low_before_a_big_bounce():
-    # The AAP case: climax at bar 4 (high 30), a first reaction to bar 5 (low 19,
-    # past the 0.5 retrace of the 30->10 full leg), then a BIG bounce at bar 6
-    # (high 28) -> the AR locks at bar 5. The LATER, deeper second leg (bars 7-8,
-    # lows 17/16) is NOT the automatic reaction and is correctly ignored.
-    df = pd.DataFrame({
-        "High": [12, 16, 20, 24, 30, 21, 28, 22, 18, 26],
-        "Low":  [10, 14, 18, 22, 28, 19, 26, 17, 16, 24]})
-    assert first_reaction_after(df, 4, direction=1, end_bar=9, **_AR_KW) == 5
-
-
-def test_first_reaction_runs_to_the_base_on_a_one_way_reaction():
-    # A single continuous plunge with no early big bounce runs to the base-edge low
-    # (bar 7 @ 16) -- it does NOT over-tighten to a shallow mid-decline bar.
-    df = pd.DataFrame({
-        "High": [12, 16, 20, 24, 30, 26, 22, 18],
-        "Low":  [10, 14, 18, 22, 28, 24, 20, 16]})
-    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) == 7
-
-
-def test_first_reaction_none_when_counter_move_is_insignificant():
-    # The reaction only dips to 26 (< 0.5 retrace of the 30->10 full leg, whose
-    # threshold is 20) -> no automatic reaction resolves -> None (no tighten).
-    df = pd.DataFrame({
-        "High": [12, 16, 20, 24, 30, 28, 29, 28],
-        "Low":  [10, 14, 18, 22, 28, 26, 27, 26]})
-    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) is None
-
-
-def test_first_reaction_is_mirror_symmetric_for_a_selling_climax():
-    # The AAP frame flipped: a selling climax at bar 4 (low 10), a first up-reaction
-    # to bar 5 (high 23, past the 0.5 retrace), a BIG give-back at bar 6 -> the AR
-    # locks at bar 5; the later higher highs (bars 7-8) are ignored.
-    df = pd.DataFrame({
-        "High": [30, 26, 22, 18, 12, 23, 14, 26, 28, 16],
-        "Low":  [28, 24, 20, 16, 10, 21, 12, 24, 26, 14]})
-    assert first_reaction_after(df, 4, direction=-1, end_bar=9, **_AR_KW) == 5
-
-
-def test_first_reaction_end_bar_clamps_the_scan_to_the_drawn_span():
-    # Tighten-only contract: the AR scan must not run PAST end_bar (the drawn
-    # ar_bar / box open) to a later, deeper second-leg low. A one-way plunge with
-    # no confirming bounce keeps making new lows through bar 9, so end_bar is the
-    # only thing bounding how far the running reaction low may travel.
-    df = pd.DataFrame({
-        "High": [12, 16, 20, 24, 30, 26, 22, 18, 15, 14],
-        "Low":  [10, 14, 18, 22, 28, 24, 20, 16, 13, 11]})
-    # Clamped at bar 7: the running reaction low is bar 7 (low 16), NOT the deeper
-    # later lows at bars 8-9.
-    assert first_reaction_after(df, 4, direction=1, end_bar=7, **_AR_KW) == 7
-    # Unclamped (whole frame): the same one-way plunge runs on to the deepest low
-    # at bar 9 -- so it is end_bar, not the frame end, that stopped the clamped scan.
-    assert first_reaction_after(df, 4, direction=1, end_bar=None, **_AR_KW) == 9
 
 
 # --- Layer 2: the labeled in-box staircase (read_box_staircase) ----------------

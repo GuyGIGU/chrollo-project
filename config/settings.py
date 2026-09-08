@@ -105,28 +105,6 @@ ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
 AR_MAX_BARS = 15                 # ...within this many bars of the climax
 
-# First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
-# The raw Phase-A resolver can drag the drawn automatic reaction all the way to
-# the base edge, so the climax->AR stripe smears across half the chart. When on,
-# resolve_phase_a() TIGHTENS the AR to the trend model's first reaction after the
-# terminal swing (market_structure.first_reaction_after) -- the reaction low of the
-# first continuous counter-move that retraces >= AR_RETRACE_FRAC of the trend's
-# FULL leg (the whole advance the climax ended, from the elected trend segment's
-# start), closed at the first BIG confirmed bounce off that low (a rally of
-# >= max(AR_BOUNCE_ATR_MULT*ATR, AR_BOUNCE_DROP_FRAC*drop)). The full-leg basis and
-# the big-bounce close are what keep it from over-tightening at a mid-decline pause
-# (the earlier terminal-sub-leg + twitchy-stall read stopped short of the true
-# reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
-# retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
-# Tighten-only + overlay-only: it can move the AR earlier but never past the box
-# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_alpha.md "The
-# trend model" + "Phase A -- First-reaction AR anchor").
-AR_FIRST_REACTION_ENABLED = False
-AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg
-AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend segment tops at the climax
-AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
-AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
-
 # Cause-before-effect election precondition (engine_alpha/structure/bricks.cause_maturity,
 # consulted in narrative.read_structure). A box may not be elected over a live trend that
 # never matured a cause: the MIDD class, where price trends UP through both rails into a
