@@ -1,22 +1,33 @@
 import os
+import sys
+
+# The repo root, so ``core`` is importable however this module was reached.
+# main.py does the same three lines before its own first import; this module is
+# also imported directly (by tests, and by tools that add only the backend dir),
+# so it cannot assume someone else ran that bootstrap first.
+_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT_DIR not in sys.path:
+    sys.path.append(_ROOT_DIR)
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-# Anchor the DB path to this file's directory so the location is deterministic
-# regardless of the working directory used to start uvicorn.
-_DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_DB_PATH = os.path.join(_DB_DIR, "trading_journal.db")
+from core.archive.db_path import DEFAULT_DB_PATH, archive_db_path
 
-# ...unless CHROLLO_DB_PATH names another file. The ONE reason this override
-# exists: `import main` runs the whole migration battery at import scope
-# (main.py's initialize_database()), and three test modules import main in a
-# subprocess with cwd=webapp/backend. Without an override a plain `pytest` run
-# migrates the operator's live archive and — through _reconcile_orphaned_runs —
-# stamps an in-flight scan 'failed'. tests/conftest.py sets this to a throwaway
-# file for the whole session (guarded by tests/test_db_isolation.py). Nothing in
-# the service sets it, so production keeps the anchored path.
-_DB_PATH = os.environ.get("CHROLLO_DB_PATH") or DEFAULT_DB_PATH
+# The path and the CHROLLO_DB_PATH override both live in core/archive/db_path.py
+# — ONE home for ten front doors (register row 11, EC-3). ``DEFAULT_DB_PATH`` is
+# re-exported here because that is the name the isolation guards and the rest of
+# the backend already import.
+#
+# Why the override exists: `import main` runs the whole migration battery at
+# import scope (main.py's initialize_database()), and three test modules import
+# main in a subprocess with cwd=webapp/backend. Without an override a plain
+# `pytest` run migrates the operator's live archive and — through
+# _reconcile_orphaned_runs — stamps an in-flight scan 'failed'. tests/conftest.py
+# sets it to a throwaway file for the whole session (guarded by
+# tests/test_db_isolation.py). Nothing in the service sets it, so production
+# keeps the anchored path.
+_DB_PATH = archive_db_path()
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{_DB_PATH}"
 
 

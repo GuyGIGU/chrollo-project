@@ -33,9 +33,10 @@ import sys
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Mapping, Optional
+from core.archive.db_path import archive_db_path
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-_DB_PATH = os.path.join(_PROJECT_ROOT, "webapp", "backend", "trading_journal.db")
+_DB_PATH = archive_db_path()
 _BASELINE_PATH = os.path.join(_PROJECT_ROOT, "tests", "baselines", "seed_recall_baseline.json")
 
 # Hermetic offline guard: a committed OHLCV fixture (frozen seed-winner frames +

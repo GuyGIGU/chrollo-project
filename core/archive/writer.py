@@ -58,6 +58,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # creates missing tables, not missing columns, so we ALTER TABLE on demand.
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
+from core.archive.db_path import archive_db_path
 from engine_alpha.structure.htf import HTF_COLUMN_SQL, htf_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
@@ -347,7 +348,7 @@ def archive_scan_results(
     # Connect to the same DB the webapp uses. WAL + busy_timeout (set inside
     # make_sqlite_engine) keep us from blowing up if the backend holds a
     # short read lock while the scan tries to flush.
-    db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
+    db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
 
     # Ensure the table exists

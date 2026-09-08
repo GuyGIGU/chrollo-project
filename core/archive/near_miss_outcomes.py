@@ -32,6 +32,7 @@ _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
+from core.archive.db_path import archive_db_path
 from core.archive.outcomes import HORIZON_BARS, compute_elapsed_outcome
 
 log = logging.getLogger("chrollo.archive.near_miss")
@@ -63,7 +64,7 @@ def update_near_miss_outcomes(min_age_days: int = 5,
     from core.archive.near_miss_writer import _ensure_table
     from database import make_sqlite_engine
 
-    db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
+    db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
     _ensure_table(engine)
     Session = sessionmaker(bind=engine, autoflush=False)

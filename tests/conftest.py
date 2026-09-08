@@ -30,6 +30,18 @@ import pytest
 _TEST_DB_DIR = tempfile.mkdtemp(prefix="chrollo-test-db-")
 os.environ["CHROLLO_DB_PATH"] = os.path.join(_TEST_DB_DIR, "trading_journal.db")
 
+# ...and the STRUCTURAL half. The line above only protects call sites that READ
+# the override; this refuses the live path at the sqlite driver itself, so it
+# covers all ten front doors at once — including any new one somebody adds. It
+# refuses rather than redirects: a test that reaches the archive is a defect to
+# surface, not to paper over. Proven against a decoy path in
+# tests/test_db_isolation.py, never against the real one (register row 11).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from live_archive_guard import install as _install_live_archive_guard  # noqa: E402
+from core.archive.db_path import DEFAULT_DB_PATH as _LIVE_DB_PATH  # noqa: E402
+
+_install_live_archive_guard(_LIVE_DB_PATH)
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _discard_the_throwaway_database():

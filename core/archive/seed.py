@@ -28,6 +28,7 @@ _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.append(_BACKEND_DIR)
 
+from core.archive.db_path import archive_db_path
 from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
 from engine_alpha.evaluation import _run_eval_chain
@@ -236,7 +237,7 @@ def seed_archive(
         log.warning("No seed setups defined. Add entries to SEED_SETUPS in core/archive/seed.py.")
         return 0
 
-    db_path = os.path.join(_BACKEND_DIR, "trading_journal.db")
+    db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
     SetupArchive.metadata.create_all(bind=engine)
     # Bring schema up to date with any post-initial columns.
