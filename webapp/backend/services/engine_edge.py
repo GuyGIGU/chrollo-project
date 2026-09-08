@@ -39,6 +39,19 @@ def _finite(x):
     return xf if math.isfinite(xf) else None
 
 
+def _tail_view(block: dict) -> dict:
+    """Project a tail_rates block, coercing every rate through the finite guard."""
+    tail = block.get("tail", {}) or {}
+    return {
+        "n": int(tail.get("n", 0)),
+        "col": tail.get("col"),
+        "bands": [
+            {"threshold": _finite(b.get("threshold")), "rate": _finite(b.get("rate"))}
+            for b in (tail.get("bands") or [])
+        ],
+    }
+
+
 def _tier_view(block: dict) -> dict:
     """Project an edge_block down to the few fields the pulse tile renders."""
     barrier = block.get("barrier", {}) or {}
@@ -48,6 +61,11 @@ def _tier_view(block: dict) -> dict:
         "mfe_n": int(block.get("headline_mfe_n", 0)),
         "win_rate": _finite(barrier.get("win_rate")),
         "n_labelled": int(barrier.get("n_labelled", 0)),
+        # The win rate is conditional on resolution and the resolution rate is
+        # itself tier-dependent (62% for S, 16% for C) — it ships alongside so the
+        # tile can never show one without the other.
+        "resolution_rate": _finite(barrier.get("resolution_rate")),
+        "tail": _tail_view(block),
     }
 
 
@@ -60,6 +78,7 @@ def _empty() -> dict:
         "headline_mfe_median": None,
         "headline_mfe_n": 0,
         "abnormal_median": None,
+        "tail": {"n": 0, "col": None, "bands": []},
         "by_tier": {},
     }
 
@@ -96,6 +115,7 @@ def _compute() -> dict:
         "headline_mfe_median": _finite(headline.get("headline_mfe_median")),
         "headline_mfe_n": int(headline.get("headline_mfe_n", 0)),
         "abnormal_median": _finite(abnormal.get("median")),
+        "tail": _tail_view(headline),
         "by_tier": by_tier,
     }
 
