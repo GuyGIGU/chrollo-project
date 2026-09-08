@@ -71,10 +71,12 @@ config/tickers.csv
 
 # Personal trading data — NEVER commit
 *.db
-*.db.pre-*
-*.db.premigration.bak
-*.db.prewatchlistledger.bak
-*.db.precalibevents.bak
+# Migration backups. ONE pattern, not a name per migration: this list used to
+# enumerate them (premigration / prewatchlistledger / precalibevents) and every
+# new migration had to remember to add itself. `prenearmissidentity` did not, so
+# a 44 MB archive copy sat untracked-but-not-ignored and a `git add -A` swept it
+# into a commit on 2026-09-08.
+*.db.pre*
 *.db-wal
 *.db-shm
 # A read of any .bak can mint its own sidecars — same data, same rule.
