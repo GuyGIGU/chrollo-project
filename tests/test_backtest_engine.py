@@ -206,6 +206,70 @@ def test_barrier_distribution(fixture_df):
     assert bar["n_labelled"] == 4
     assert bar["n_unlabelled"] == 1
     assert bar["win_rate"] == pytest.approx(0.5)
+    # The win rate is CONDITIONAL on resolution, so the denominator ships with it:
+    # 4 of the 5 episodes resolved. Without this the shares silently compare groups
+    # on denominators that differ several-fold.
+    assert bar["resolution_rate"] == pytest.approx(4 / 5)
+
+
+def test_barrier_resolution_rate_is_none_on_an_empty_frame():
+    bar = edge_report.barrier_distribution(pd.DataFrame({"barrier_label": []}))
+    assert bar["resolution_rate"] is None
+    # Absent column degrades to the same shape, never a KeyError.
+    assert edge_report.barrier_distribution(pd.DataFrame({"x": [1]}))["resolution_rate"] is None
+
+
+def test_tail_rates_measure_the_right_tail_on_the_fixed_window(fixture_df):
+    ep = collapse_to_episodes(fixture_df)
+    tail = edge_report.tail_rates(ep[edge_report.TAIL_MFE_COL])
+    # Measured on mfe_20d, so the still-maturing EEE row is excluded: 4 of 5.
+    assert tail["n"] == 4
+    assert tail["col"] == "mfe_20d"
+    # mfe_20d = [0.20 (AAA), 0.02 (BBB), 0.05 (CCC), 0.25 (DDD)]
+    # The threshold is INCLUSIVE, so DDD's exact 0.25 counts.
+    bands = {b["threshold"]: b["rate"] for b in tail["bands"]}
+    assert bands[0.25] == pytest.approx(1 / 4)
+    assert bands[0.40] == pytest.approx(0.0)
+    # The band carries the threshold it was measured against, so the frontend can
+    # label it without re-declaring the number (EC-28).
+    assert [b["threshold"] for b in tail["bands"]] == [0.25, 0.40]
+
+
+def test_tail_rate_is_none_not_zero_when_nothing_has_matured():
+    """'No data' and 'nothing reached it' are different answers — a 0.0 here would
+    render as a real measured zero on the tile."""
+    tail = edge_report.tail_rates(pd.Series(dtype=float))
+    assert tail["n"] == 0
+    assert all(b["rate"] is None for b in tail["bands"])
+
+
+def test_tail_rate_separates_groups_where_the_median_cannot():
+    """The reason this statistic exists. Two groups with an IDENTICAL median MFE,
+    one of which carries every big winner. The median reads them as the same book;
+    the exceedance rate reads the difference. Guards against a revert to a
+    median-only headline."""
+    has_tail = pd.Series([0.05, 0.05, 0.05, 0.05, 0.05, 0.50])
+    no_tail = pd.Series([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+    assert has_tail.median() == pytest.approx(no_tail.median())
+    rate = lambda s: edge_report.tail_rates(s)["bands"][0]["rate"]  # noqa: E731
+    assert rate(has_tail) > rate(no_tail)
+    assert rate(no_tail) == pytest.approx(0.0)
+
+
+def test_edge_block_and_headline_carry_the_tail(fixture_df):
+    ep = collapse_to_episodes(fixture_df)
+    block = edge_report.edge_block(ep)
+    assert block["tail"]["n"] == 4
+    assert block["tail"]["bands"][0]["rate"] == pytest.approx(1 / 4)
+    # And it survives the bias-safe headline projection the Home tile reads.
+    head = edge_report.headline_edge(ep)
+    assert head["tail"]["bands"][0]["rate"] == pytest.approx(1 / 4)
+
+
+def test_edge_block_tail_degrades_without_the_column():
+    block = edge_report.edge_block(pd.DataFrame({"tier": ["S", "A"]}))
+    assert block["tail"]["n"] == 0
+    assert all(b["rate"] is None for b in block["tail"]["bands"])
 
 
 def test_slice_by_tier_and_type(fixture_df):

@@ -11,9 +11,17 @@ I/O. Computes the standalone-edge summary the harness reports:
     written by ``core.archive.forward_returns.compute_barrier_events``.
   * Forward-return distributions at every stored horizon (1/5/10/20/60d).
 
+  * TAIL RATES — P(MFE >= 25%) and P(MFE >= 40%) on the fixed 20-bar window. The
+    median answers "what does a typical setup do"; this answers "how often does one
+    pay", which for a VCP / Qullamaggie book is the whole question.
+
 Every distribution can be sliced by **tier**, **setup_type**, and **horizon**.
-All stats are NaN-safe and use the MEDIAN (not the mean) as the headline, because
-MFE is heavy-tailed in a thin archive (one 8R excursion shouldn't dominate).
+All stats are NaN-safe and use the MEDIAN (not the mean) as the distribution
+headline, because MFE is heavy-tailed in a thin archive (one 8R excursion
+shouldn't dominate). That robustness has a cost the tail rates exist to pay back:
+the median is BLIND to the tail by construction, and measured 2026-09-08 it is
+flat across within-day score deciles where the exceedance rates separate them
+several-fold. Read them together — never the median alone.
 """
 from __future__ import annotations
 
@@ -47,6 +55,17 @@ ABNORMAL_COL = "abnormal_ret_to_date"
 # winners gallery and re-scans carry survivorship bias.
 UNBIASED_SOURCE = "screener"
 BARRIER_LABELS = ["win", "loss", "timeout"]
+# TAIL RATES — the statistic this strategy is actually paid in.
+# The median is deliberately tail-blind (see the module docstring), and measured
+# 2026-09-08 it is flat and non-monotonic across within-day score deciles
+# (7.63% top -> 6.31% bottom) while P(MFE>=40%) separates them 20.9x. A
+# threshold-exceedance RATE keeps the outlier-robustness the median was chosen
+# for — it is a bounded proportion, so one 8R excursion cannot move it — while
+# reading the only region a VCP/Qullamaggie setup pays in.
+# Measured on the FIXED 20-bar window: an exceedance rate is only comparable
+# across rows when the window is the same, and the elapsed window grows per row.
+TAIL_MFE_COL = "mfe_20d"
+TAIL_THRESHOLDS = (0.25, 0.40)
 
 
 def _num(s: pd.Series) -> pd.Series:
@@ -70,15 +89,45 @@ def describe(series: pd.Series) -> dict:
     }
 
 
+def tail_rates(series: pd.Series, thresholds=TAIL_THRESHOLDS) -> dict:
+    """Share of matured rows whose MFE reached each threshold. NaN-safe.
+
+    Returns ``{"n", "col", "bands": [{"threshold", "rate"}, ...]}`` — an ordered
+    list, not a dict, so the caller renders the bands in the order measured and
+    never has to know the thresholds itself (EC-28: the wire carries the
+    resolved rate AND the threshold it was resolved against).
+    ``rate`` is None when nothing has matured, never 0.0 — "no data" and "no
+    setup reached it" are different answers.
+    """
+    vals = _num(series).dropna()
+    n = int(vals.shape[0])
+    return {
+        "n": n,
+        "col": TAIL_MFE_COL,
+        "bands": [
+            {"threshold": float(t), "rate": (float((vals >= t).mean()) if n else None)}
+            for t in thresholds
+        ],
+    }
+
+
 def barrier_distribution(df: pd.DataFrame) -> dict:
     """win/loss/timeout counts + shares from the stored ``barrier_label`` column.
 
     Timeout is a non-win (the setup did not deliver inside the 60-bar horizon).
     A row whose label is None is unresolved (still maturing) and excluded from the
     shares but reported as ``n_unlabelled``.
+
+    ``resolution_rate`` (labelled / all) is part of the return because the shares
+    are CONDITIONAL on resolution and the resolution rate is itself tier-dependent:
+    measured 2026-09-08 it runs 62.1% for tier S down to 15.8% for tier C, and the
+    gradient survives a control for scan age. Quoting a win rate without it
+    compares tiers on denominators that differ by 4x — which is how tier C came to
+    read as the best tier in the Home edge tile on twelve resolved rows.
     """
     if "barrier_label" not in df.columns:
-        return {"n_labelled": 0, "n_unlabelled": len(df), "counts": {}, "shares": {}}
+        return {"n_labelled": 0, "n_unlabelled": len(df), "counts": {}, "shares": {},
+                "resolution_rate": None}
     norm = df["barrier_label"].map(
         lambda v: v.strip().lower() if isinstance(v, str) else None
     )
@@ -92,6 +141,7 @@ def barrier_distribution(df: pd.DataFrame) -> dict:
         "counts": counts,
         "shares": shares,
         "win_rate": (counts["win"] / n if n else None),
+        "resolution_rate": (n / len(df) if len(df) else None),
     }
 
 
@@ -108,6 +158,8 @@ def edge_block(df: pd.DataFrame) -> dict:
         c: describe(df[c]) for c in FWD_RETURN_COLS if c in df.columns
     }
     block["barrier"] = barrier_distribution(df)
+    block["tail"] = tail_rates(df[TAIL_MFE_COL] if TAIL_MFE_COL in df.columns
+                               else pd.Series(dtype=float))
     headline = block["mfe"].get(HEADLINE_MFE_COL, {})
     block["headline_mfe_median"] = headline.get("median")
     block["headline_mfe_n"] = headline.get("n", 0)
@@ -187,6 +239,7 @@ def headline_edge(df: pd.DataFrame, source_basis: str = UNBIASED_SOURCE) -> dict
                           if c in block.get("mfe", {})},
         "bars_to_date": block.get("bars_to_date"),
         "abnormal": block.get("abnormal"),
+        "tail": block.get("tail"),
     }
 
 
