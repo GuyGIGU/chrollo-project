@@ -484,13 +484,12 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     terminal ``bar``, its ``price``, and its ``direction``. ``bar`` is ``-1``
     where no segment covers (no trend to still be inside of).
 
-    **Only ``bar`` feeds the legality test.** ``direction`` is load-bearing
-    on the live path since the 2026-08-19 polarity re-key —
-    ``bricks._cause_is_up`` reads it to decide which end of the lead-in the
-    climax-terminality repair takes; ``price`` alone stays diagnostics-only.
-    The legality test lives in ``box_primitives.trend_terminal_legal_open``
-    and is **post-climax MATURITY**: a box opening before this terminal
-    survives iff ``MIN_BASE_DAYS`` bars have printed since it.
+    **``direction`` is the live consumer.** Since the 2026-08-19 polarity
+    re-key, ``bricks._cause_is_up`` reads it to decide which end of the
+    lead-in the climax-terminality repair takes — that is now this array's
+    ONLY caller. ``bar`` fed the trend-terminal box gate's legality test,
+    which the operator RULED DELETED 2026-09-08; ``bar`` and ``price`` are
+    diagnostics-only until something reads them again.
 
     **Do NOT rebuild a price test off these arrays — it is Tested-DEAD.**
     Refusing a box on how far the trend ran past its own rail (the removed

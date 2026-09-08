@@ -19,7 +19,6 @@ from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
-    trend_terminal_legal_open,
     select_phase_b_candidate,
 )
 from engine_alpha.structure.inner_box import select_inner_box
@@ -228,7 +227,6 @@ def validate_equilibrium(
     atr,
     trace=None,
     near_miss=None,
-    terminal_floor=None,
 ) -> EquilibriumBox | None:
     """Validate a worked Phase-B range born from ``root``.
 
@@ -244,11 +242,6 @@ def validate_equilibrium(
     inner boxes and the diagnostic mirror never pass one). ``None`` (the live
     flag-off default) records nothing and changes nothing.
 
-    ``terminal_floor``: the df-positional trend-terminal array
-    (``market_structure.trend_terminal_floor``) under
-    ``TREND_TERMINAL_BOX_GATE_ENABLED`` — a box may not open before its trend's
-    climax. Computed ONCE per read (the root cascade walks up to 64 anchors) and
-    handed down. ``None`` (flag off) is byte-identical.
     """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
@@ -286,39 +279,6 @@ def validate_equilibrium(
         recorder=near_miss,
     )
 
-    # Trend-terminal legality (TREND_TERMINAL_BOX_GATE_ENABLED): a box may not
-    # OPEN before the trend running into it printed its climax. Judged on each
-    # candidate's BACK-EXTENDED start — the bar that actually becomes
-    # box.start_bar — because the raw cand_start can sit one bar the far side of
-    # a trend handover (the MATX case). Filtering here rather than inside the
-    # pair enumeration keeps every pool's judgment untouched and still lets a
-    # later legal framing win this root instead of losing the whole story.
-    if terminal_floor is not None and candidates:
-        legal_open = trend_terminal_legal_open(terminal_floor, int(root.ar_bar))
-        kept = []
-        for c in candidates:
-            judged_open = backext_shared_rail(eq_df, float(c[1]), float(c[2]),
-                                              int(c[9]), float(atr))
-            if legal_open(judged_open):
-                kept.append(c)
-            elif cascade is not None:
-                # The trace must not keep calling a terminally-killed framing
-                # "valid" — n_valid, the elected record's "beat N" count and
-                # the earliest-of-valid claim all read the verdict stamps
-                # (EC-17: a dark flag's flip decision needs honest cascade
-                # evidence).
-                key = (int(c[7]), int(c[8]), int(c[9]))
-                for rec in cascade:
-                    if (rec["verdict"] == "valid"
-                            and (rec["r_anchor_bar"], rec["s_anchor_bar"],
-                                 rec["cand_start"]) == key):
-                        rec["verdict"] = "rejected"
-                        rec["stage"] = "trend_terminal"
-                        rec["detail"] = (
-                            f"back-extended open (bar {int(judged_open)}) "
-                            "predates the cause trend's climax")
-                        break
-        candidates = kept
 
     if not candidates:
         if trace is not None:

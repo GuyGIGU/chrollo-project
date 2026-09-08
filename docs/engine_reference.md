@@ -409,8 +409,9 @@ the box's cause"), and the same row prescribes the remedy the fix takes: the dir
 now comes from the **confirmed segment covering the box-open bar**, read off
 `market_structure.trend_terminal_floor`'s `direction` array (cause-wins overlap
 resolution — previously carried for diagnostics only, now load-bearing). The floor is
-threaded from `read_structure` when the trend-terminal gate is on and computed lazily
-inside the guard otherwise, so only reads that complete a story pay for it. The seed
+computed lazily inside the guard, so only reads that complete a story pay for it — since
+the trend-terminal gate retired (2026-09-08) that is the only path, and this guard is the
+floor's ONLY consumer. The seed
 label survives **only** where no confirmed segment covers the open, so a frame with no
 readable trend keeps its previous repair. Evidence: the seed label contradicted the
 drawn pair on 4 of 4 live marked names (seeds 255–417 bars away); CNI's raw resolver had
@@ -470,67 +471,35 @@ election veto (flipped 2026-07-20), so a guard change here can move elections; R
 LPS, scoring, tiering read nothing else from this wire. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
 `python -m tools.phase_a_pip_diff --jobs N`.
 
-### Phase B — trend-terminal box gate (flag-gated, default off)
+### Phase B — trend-terminal box gate — RETIRED 2026-09-08
 
-**Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the opposite
-direction of the trend if we are still inside that trend."** A base cannot begin
-before the trend that birthed it has ended, so **a box may not OPEN before the
-terminal pivot — the buying/selling climax — of the confirmed trend segment running
-into it.** A box that opens earlier is describing a still-running trend leg as an
-equilibrium, and every read anchored to it (rails, Phase C, LPS, tier) inherits that.
+**Deleted on the operator's ruling** ("Lets DELETE the first two"), one week before its
+2026-09-15 kill-by, which was its second and last. It was never live: dark from the day it
+was built 2026-07-27 to the day it was removed, so nothing the engine reads changed.
 
-The engine already reads this correctly and then ignores it: `segment_trends()` defines
-`terminal_bar` as the climax, and on LIVN it put the uptrend's terminal at 2026-07-06
-while the box opened 2026-06-18 — anchoring the climax on a bar it had itself labelled
-`HH/up` and the AR on a bar labelled `HL/up`. *A higher low cannot be the reaction that
-ends a trend.* The 2026-07-19 `_enforce_climax_terminality` cannot catch this: it tests
-only climax → box open, so a trend topping INSIDE the box is invisible to it, and it
-moves the **overlay** only — the overlay feeds no rails/LPS/score, so it could never
-fix the box. **This gate is the first anchor fix that moves boxes, rails and tiers.**
+The rule it enforced — *a box may not OPEN before the trend running into it printed its
+climax, and if that climax lands inside the box at least `MIN_BASE_DAYS` must have printed
+since* — came from a real operator ruling on LIVN and that **DOCTRINE stands**, recorded
+append-only in [`decisions.md`](decisions.md) (2026-07-27, 2026-08-14). What was deleted is
+an implementation of it that could never be ruled on its own merits: across three A/Bs the
+loss cohort turned over **completely** each time (the intersection of any two of the three
+loss sets is empty), so its evidence could never bank, and the class-B losses kept their
+claimed climax *above the box's own R* — 9 of 9 in August, 5 of 5 in the final read — which
+is the fingerprint of `segment_trends` box-blindness, not of a box that opened too early.
+The full measured recommendation is
+[`trend_terminal_killby_2026-08-31.md`](trend_terminal_killby_2026-08-31.md).
 
-`market_structure.trend_terminal_floor()` gives the per-bar covering terminal
-(bar / price / direction). Three details are load-bearing, each paid for in a pinned
-Guided-List hit:
+**`market_structure.trend_terminal_floor` SURVIVES and is unconditionally live** — it feeds
+Phase A's climax polarity re-key (`bricks._cause_is_up`, above), which is the expensive and
+hard-won half. Only the *legality test* built on top of it retired. Re-implementing the gate
+later is a fresh A/B against a fixed `segment_trends`, not a revert of this change.
 
-- **First-write-wins overlap.** Segments overlap by one leg (an uptrend runs to its
-  CHoCH, which IS the next downtrend's start), so the EARLIER — *cause* — segment owns
-  the shared bars. Letting the later one win lets a base's own automatic reaction
-  (BC → AR) veto the box open at the very top where it belongs (broke AVT/CTOS/MATX/
-  NGL/SYRE/VIK). Deliberately **not** keyed to the root's BC/SC kind: the root is only
-  a scan origin, not the box's cause (LIVN's winning root is an SC 420 bars away).
-- **Confirmed segments only.** A segment still RUNNING at the right edge has an
-  unconfirmed extreme — "the right edge is now, never an AR", the macro bridge's own
-  True-Root rule — so it never vetoes (VIK 2026-06: a provisional terminal 3 bars from
-  the edge).
-- **Judged on the BACK-EXTENDED start.** The floor is not monotonic: a trend-handover
-  bar carries the OLD (printed) terminal while the next bar carries the NEW leg's, so the
-  raw `cand_start` can be illegal where the real box open is legal (MATX opens on exactly
-  such a bar).
-- **When the terminal lands INSIDE the box, the test is post-climax MATURITY, not
-  distance.** The box survives iff `MIN_BASE_DAYS` (20) bars have printed since that
-  terminal — the operator's own objection verbatim: LIVN's correction was *"way too
-  young"* at **13 bars** past its climax, while PXS has **53** and is the box he draws.
-
-> **Overshoot magnitude is NOT the test — falsified three times (2026-07-27).** The
-> operator ACCEPTS boxes whose trend ran **47.9%** (PXS), **82%** (VIK) and **101%**
-> (MATX) of a box height past R, and REJECTS LIVN at **20.57%**. Those large overshoots
-> are upthrusts *inside* an established base — on PXS he deliberately draws R at 4.66
-> beneath the 4.92 spike. A `TREND_TERMINAL_OVERSHOOT_BOX` knob was built, measured, and
-> removed. Do not re-propose it.
-
-Applied in `validate_equilibrium` as a filter over the elected candidate list (not
-inside the pair enumeration), so every pool's judgment is untouched and a later legal
-framing can still win the root instead of losing the whole story.
-
-**Measured 2026-07-27.** The operator's own 33 marks obey the rule 31/33 (93.9%). Sealed
-marks ratchet with the gate ON: **28/33 PASS**, no regressed hit, no converted miss.
-Live A/B over the 332-row payload: **293 identical · 39 lost · 0 moved** — the gate never
-re-frames a box, it keeps or refuses it. Losses concentrate exactly where the doctrine
-says they should: 35 of the 39 open in June/July 2026, i.e. young bases whose trend has
-only just topped, and only 4 of the 190 boxes whose climax was already printed are
-touched. Nulls, do not re-run: box high above R (274/332), later high exceeds climax high
-(median +7.5%; LIVN only 39th pct), box-high depth in box (LIVN 23rd pct), and any form
-keyed on overshoot magnitude.
+> **Overshoot magnitude is still NOT the test — falsified three times (2026-07-27), and it
+> stays Tested-DEAD independently of this deletion.** The operator ACCEPTS boxes whose trend
+> ran **47.9%** (PXS), **82%** (VIK) and **101%** (MATX) of a box height past R, and REJECTS
+> LIVN at **20.57%**. Those large overshoots are upthrusts *inside* an established base — on
+> PXS he deliberately draws R at 4.66 beneath the 4.92 spike. A `TREND_TERMINAL_OVERSHOOT_BOX`
+> knob was built, measured, and removed. Do not re-propose it.
 
 ### Phase B — Zigzag S/R Anchoring
 
@@ -1242,7 +1211,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `08c981629923c30e5e475144193792f2f258bda0c3a2ddb5425ea152b7c194ce`_
+_engine_config_version: `018f590094631750c2b1e2dbc57c9d8adc27ce81cdc9370c6e26f94a9d8badc9`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1330,7 +1299,6 @@ LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 LPS_CEILING_REST_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
-TREND_TERMINAL_BOX_GATE_ENABLED = False
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23
 BAND_EVENT_MIN_BARS = 2
