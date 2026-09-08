@@ -275,6 +275,120 @@ def test_signal_edge_classifies_harmful_inert_beneficial():
     assert out["rows"][0]["feature"] == "score_touch_density"
 
 
+def test_magnitude_threshold_is_imported_not_redeclared():
+    """EC-3: the tail threshold has ONE home. A literal 0.25 here would drift the
+    day the edge report's bands move."""
+    from core.archive import analyze
+    from core.backtest.edge_report import TAIL_MFE_COL, TAIL_THRESHOLDS
+    assert analyze.MAGNITUDE_THRESHOLD is TAIL_THRESHOLDS[0]
+    assert analyze.TAIL_MFE_COL is TAIL_MFE_COL
+
+
+def test_derive_outcomes_adds_a_label_free_magnitude_target():
+    from core.archive.analyze import MAGNITUDE_TARGET, MAGNITUDE_THRESHOLD
+    df = pd.DataFrame({
+        "barrier_label": [None, None, "loss", None],   # deliberately unlabelled
+        "mfe_20d": [MAGNITUDE_THRESHOLD, MAGNITUDE_THRESHOLD - 1e-9, 0.9, None],
+    })
+    out = derive_outcomes(df)
+    got = out[MAGNITUDE_TARGET].tolist()
+    assert got[0] == 1.0          # the threshold is INCLUSIVE
+    assert got[1] == 0.0          # just under it, and matured, is a measured miss
+    assert got[2] == 1.0          # a row the barrier calls a LOSS still counts here
+    assert math.isnan(got[3])     # not matured is unknown, never 0.0
+    # The whole point: it needs no label, so it keeps rows barrier_win drops.
+    assert out["barrier_win"].isna().sum() == 3 and out[MAGNITUDE_TARGET].notna().sum() == 3
+
+
+def test_adding_the_magnitude_target_does_not_move_the_primary():
+    """Swapping the primary would silently rewrite every standing verdict."""
+    from core.archive.analyze import EDGE_TARGETS, MAGNITUDE_TARGET
+    assert EDGE_TARGETS[0] == "durable_win"
+    assert EDGE_TARGETS[-1] == MAGNITUDE_TARGET
+    n = 40
+    win = [1.0, 0.0] * (n // 2)
+    df = pd.DataFrame({"durable_win": win, MAGNITUDE_TARGET: [1.0 - w for w in win],
+                       "score_box_tightness": win})
+    out = signal_edge(df)
+    assert out["primary_target"] == "durable_win"
+
+
+def test_signal_edge_flags_a_sign_split_between_the_two_targets():
+    """The motivating case: a term the path target calls harmful and the magnitude
+    target calls beneficial. Acting on half of that is how rs/uptrend went to zero."""
+    from core.archive.analyze import MAGNITUDE_TARGET
+    n = 40
+    win = [1.0, 0.0] * (n // 2)
+    df = pd.DataFrame({
+        "durable_win": win,
+        MAGNITUDE_TARGET: [1.0 - w for w in win],   # exactly opposite outcome
+        "score_rs_bonus": [1.0 - w for w in win],   # harmful vs primary, good vs magnitude
+    })
+    out = signal_edge(df)
+    row = next(r for r in out["rows"] if r["feature"] == "score_rs_bonus")
+    assert row["verdict"] == "harmful"
+    assert row["magnitude_verdict"] == "beneficial"
+    assert row["verdict_disagrees"] is True
+
+
+def test_signal_edge_flags_clears_the_floor_versus_does_not():
+    """score_adr live: inert on the barrier target, beneficial on magnitude. The
+    two targets lead to different action, which is what the flag is for."""
+    from core.archive.analyze import MAGNITUDE_TARGET
+    n = 40
+    win = [1.0, 0.0] * (n // 2)
+    df = pd.DataFrame({
+        "durable_win": win,
+        MAGNITUDE_TARGET: win,
+        "score_adr": list(range(n)),        # ~0 vs alternating -> inert on primary
+        "score_box_tightness": win,         # perfect vs magnitude -> beneficial
+    })
+    out = signal_edge(df)
+    adr = next(r for r in out["rows"] if r["feature"] == "score_adr")
+    assert adr["verdict"] == "inert" and adr["magnitude_verdict"] == "inert"
+    assert adr["verdict_disagrees"] is False    # agreeing inert is NOT a disagreement
+
+
+def test_magnitude_is_judged_on_its_own_noise_floor_not_the_primarys():
+    """The magnitude target needs no label, so it keeps rows the barrier gate
+    drops and its n is LARGER — which means a LOWER noise floor. Judging it on
+    the primary's floor would call a real magnitude signal inert purely because
+    the barrier target had less data. Constructed so the correlation lands
+    BETWEEN the two floors: 0.15 (magnitude, n=60) < rho < 0.2425 (primary, n=20).
+    """
+    from core.archive.analyze import MAGNITUDE_TARGET
+    n_mag, n_pri = 60, 20
+    feat = np.arange(n_mag, dtype=float)
+    mag = feat + np.random.default_rng(6).normal(0, 45, n_mag)
+    primary = [1.0, 0.0] * (n_pri // 2) + [float("nan")] * (n_mag - n_pri)
+    df = pd.DataFrame({"durable_win": primary, MAGNITUDE_TARGET: mag,
+                       "score_adr": feat})
+    out = signal_edge(df)
+    assert out["n_primary"] == n_pri
+    row = next(r for r in out["rows"] if r["feature"] == "score_adr")
+    assert row["magnitude_n"] == n_mag
+    # rho sits above the magnitude floor (0.15) and below the primary's (0.2425).
+    assert 0.15 < row["magnitude_corr"] < max(0.15, 1.0 / math.sqrt(n_pri - 3))
+    assert row["magnitude_verdict"] == "beneficial"
+
+
+def test_signal_edge_never_flags_absence_of_evidence_as_disagreement():
+    """'unknown' means we could not measure, not that the targets conflict."""
+    from core.archive.analyze import MAGNITUDE_TARGET
+    n = 40
+    win = [1.0, 0.0] * (n // 2)
+    df = pd.DataFrame({
+        "durable_win": win,
+        MAGNITUDE_TARGET: [float("nan")] * n,   # nothing matured -> unknown
+        "score_touch_density": [1.0 - w for w in win],
+    })
+    out = signal_edge(df)
+    row = next(r for r in out["rows"] if r["feature"] == "score_touch_density")
+    assert row["verdict"] == "harmful"
+    assert row["magnitude_verdict"] == "unknown"
+    assert row["verdict_disagrees"] is False
+
+
 def test_signal_edge_no_outcome_column_returns_no_primary():
     df = pd.DataFrame({"score_box_tightness": [1, 2, 3, 4, 5, 6, 7, 8]})
     out = signal_edge(df)
