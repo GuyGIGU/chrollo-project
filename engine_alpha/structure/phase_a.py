@@ -178,10 +178,11 @@ def _validated_bridge(zigzag: list, last_bar: int,
     """The CONFIRMED, VALIDATED macro climax->AR bridge in this skeleton —
     ``(climax_i, ar_i)`` zigzag indices, or ``None``.
 
-    Phase-A election, form 2 of 3 (the guarded MACRO candidate walk); form 1
-    is ``segmentation._find_root_swing`` (canonical), form 3 is
-    ``market_structure.first_reaction_after`` (bar-level AR refinement). The
-    sorted() candidate order below is a dossier-pinned stable tie-break.
+    Phase-A election, form 2 of 2 (the guarded MACRO candidate walk); form 1
+    is ``segmentation._find_root_swing`` (canonical). A third form,
+    ``market_structure.first_reaction_after`` (bar-level AR refinement), retired
+    2026-09-08 with ``AR_FIRST_REACTION_ENABLED``. The sorted() candidate order
+    below is a dossier-pinned stable tie-break.
 
     Mirrors ``segmentation._find_root_swing``'s conventions: dominant direction
     from the zigzag's net displacement; climax = the extreme pivot in that

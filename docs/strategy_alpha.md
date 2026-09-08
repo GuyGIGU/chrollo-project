@@ -166,7 +166,7 @@ lows:
 3. **End (CHoCH)** — a trend *ends* at the opposite structural break: an uptrend ends when a **lower-low takes out the last higher-low** (the first LL = the CHoCH that opens the next, opposite trend); mirror for a downtrend. A segment still making trend-consistent structure at the right edge has no end yet (it is still running).
 4. **Full leg** — the whole advance the climax ended: from the segment's **start** pivot up to the terminal higher-high (mirror for a selling climax). This is the retrace basis the automatic reaction is measured against. (The **terminal impulse leg** — the last higher-low into the climax — is exposed too as `impulse_start_bar`, but it is *not* the AR basis: measuring against only the final sub-leg let the reaction anchor short of the true support.)
 
-**The automatic reaction derives from this model.** Once the trend has topped at its climax, the **AR is the low of the first *continuous* reaction after the terminal swing** — the running counter-move that retraces a meaningful fraction of the *full leg* and is closed at the first **big confirmed bounce** off that low (`first_reaction_after()`). That is exactly what the drawn Phase-A overlay tightens to under `AR_FIRST_REACTION_ENABLED` (see [Phase A — First-reaction AR anchor](#phase-a--first-reaction-ar-anchor-flag-gated-default-off)).
+**The automatic reaction derives from this model — in theory.** Once the trend has topped at its climax, the **AR is the low of the first *continuous* reaction after the terminal swing** — the running counter-move that retraces a meaningful fraction of the *full leg*, closed at the first **big confirmed bounce** off that low. That reading is still what the AR *means*. An implementation of it was built and RULED DELETED 2026-09-08: measured against the operator's own dated marks it read FURTHER from his AR than the plain resolver, because the engine's climax is not yet his trend end. The drawn AR therefore sits where the plain Phase-A resolution puts it — in practice the box open, which is where he draws it too. Repairing the climax anchor is the open work; see [Phase A — First-reaction AR anchor — RETIRED](engine_reference.md).
 
 > **Known gap between this model and the operator's eye (measured 2026-08-14).**
 > Definition (2) above — the climax is the segment's *extreme pivot* — is not what
@@ -196,10 +196,9 @@ the main trend. The owning read is `collect_root_anchors()` (the calibrated clim
 anchor scan feeding the root walk). The **drawn** Phase-A overlay tells the same event
 in labeled forms, never separate detectors: the canonical anchor scan; the always-on
 **macro-validated bridge** (`macro_bridge_zigzag`, folded 2026-07-18 — abstains unless a
-True-Root bridge validates; see "Phase A — Macro bridge read"); and the dark
-**first-reaction AR refinement** (`first_reaction_after()` under
-`AR_FIRST_REACTION_ENABLED`), which tightens the drawn AR to the trend model's first
-continuous reaction.
+True-Root bridge validates; see "Phase A — Macro bridge read"). A third form, the
+**first-reaction AR refinement**, was built dark and RULED DELETED 2026-09-08 — its
+shape was right and its anchor was not.
 
 **Climax terminality is law on every resolution path** (2026-07-19). The trend model
 defines the climax as the trend's *extreme pivot*; a "climax" that price out-runs

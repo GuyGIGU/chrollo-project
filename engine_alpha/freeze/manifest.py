@@ -78,11 +78,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # version from day one — a flip re-anchors the drawn AR on 101 of 335 firing
     # overlays, re-measured 2026-08-31 against the re-keyed climax; the 19/140
     # figure this line used to quote was the 2026-07-05 raw-bar scan)
-    "AR_FIRST_REACTION_ENABLED",
-    "AR_RETRACE_FRAC",
-    "AR_UP_LEG_LOOKBACK",
-    "AR_BOUNCE_ATR_MULT",
-    "AR_BOUNCE_DROP_FRAC",
     # Cause-before-effect election precondition (2026-07-20 — a box may not be
     # elected over a live trend that never matured a cause; the MIDD class).
     # Default-off; listed BEFORE any read so the flip bumps engine_config_version
@@ -163,7 +158,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_CEILING_REST_ENABLED",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
-    "TREND_TERMINAL_BOX_GATE_ENABLED",
     # Deep-excursion pair events (Event Map Task 11, dark)
     "BAND_RAILS_ENABLED",
     "BAND_MAX_BOX_WIDTH",

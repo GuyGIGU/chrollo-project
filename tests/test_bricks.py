@@ -711,38 +711,6 @@ def test_enforce_climax_terminality_passes_unknown_root_kind():
     assert _enforce_climax_terminality(df, root, box, 90, 100, 1.0) == (90, 100)
 
 
-def test_first_impulse_ar_end_is_a_noop_when_flag_off(monkeypatch):
-    # Flag off -> the AR is returned unchanged, byte-identical. (Forced off
-    # explicitly so this still guards the off-path after the live default flip.)
-    from config import settings
-    from engine_alpha.structure.bricks import _first_impulse_ar_end
-    monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", False)
-    closes = [100.0] * 140
-    for i, b in enumerate(range(80, 91)):
-        closes[b] = 100.0 + 2 * i          # rally into a climax of 120 at bar 90
-    for i, b in enumerate(range(91, 101)):
-        closes[b] = 118.0 - 2 * i          # reaction back to 100 by bar 100
-    df = _ohlc_from_closes(closes)
-    assert _first_impulse_ar_end(df, 90, 130, 2.0) == 130      # dragged AR untouched
-
-
-def test_first_impulse_ar_end_tightens_to_the_trend_reaction_when_on(monkeypatch):
-    # Flag on -> the dragged AR (bar 130, the box open) pulls back to the trend
-    # model's first reaction low (bar 100). Tighten-only: climax fixed, AR earlier.
-    from config import settings
-    from engine_alpha.structure.bricks import _first_impulse_ar_end
-    monkeypatch.setattr(settings, "AR_FIRST_REACTION_ENABLED", True)
-    closes = [100.0] * 140
-    for i, b in enumerate(range(80, 91)):
-        closes[b] = 100.0 + 2 * i
-    for i, b in enumerate(range(91, 101)):
-        closes[b] = 118.0 - 2 * i
-    df = _ohlc_from_closes(closes)
-    ar = _first_impulse_ar_end(df, 90, 130, 2.0)
-    assert 90 < ar <= 130                  # stayed inside the drawn span (tighten-only)
-    assert ar == 100                       # anchored at the reaction low
-
-
 def test_resolve_phase_a_last_resort_uses_raw_anchor():
     df = _ohlc_from_closes([100.0] * 80)
     raw_root = RootSwing("BC", 20, 25, 105.0, 100.0, 0.05, 5)

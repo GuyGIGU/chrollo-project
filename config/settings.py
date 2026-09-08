@@ -105,28 +105,6 @@ ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
 AR_MAX_BARS = 15                 # ...within this many bars of the climax
 
-# First-reaction AR anchor (Phase-A OVERLAY only; flag-gated, default off).
-# The raw Phase-A resolver can drag the drawn automatic reaction all the way to
-# the base edge, so the climax->AR stripe smears across half the chart. When on,
-# resolve_phase_a() TIGHTENS the AR to the trend model's first reaction after the
-# terminal swing (market_structure.first_reaction_after) -- the reaction low of the
-# first continuous counter-move that retraces >= AR_RETRACE_FRAC of the trend's
-# FULL leg (the whole advance the climax ended, from the elected trend segment's
-# start), closed at the first BIG confirmed bounce off that low (a rally of
-# >= max(AR_BOUNCE_ATR_MULT*ATR, AR_BOUNCE_DROP_FRAC*drop)). The full-leg basis and
-# the big-bounce close are what keep it from over-tightening at a mid-decline pause
-# (the earlier terminal-sub-leg + twitchy-stall read stopped short of the true
-# reaction low; the operator's dated marks on PH/TOL/AVNT/AAP/AGCO/TFX drove the
-# retarget, 2026-07-05). Mirror-symmetric for a selling-climax up-reaction.
-# Tighten-only + overlay-only: it can move the AR earlier but never past the box
-# open, and it feeds NO R/S, LPS, score, or tier (see docs/strategy_alpha.md "The
-# trend model" + "Phase A -- First-reaction AR anchor").
-AR_FIRST_REACTION_ENABLED = False
-AR_RETRACE_FRAC = 0.5            # counter-move must retrace >= this fraction of the FULL trend leg
-AR_UP_LEG_LOOKBACK = 40          # fallback bound for the leg base when no trend segment tops at the climax
-AR_BOUNCE_ATR_MULT = 1.5         # reaction closes on a bounce off its low of >= this * ATR ...
-AR_BOUNCE_DROP_FRAC = 0.5        # ... or >= this fraction of the drop, whichever is larger
-
 # Cause-before-effect election precondition (engine_alpha/structure/bricks.cause_maturity,
 # consulted in narrative.read_structure). A box may not be elected over a live trend that
 # never matured a cause: the MIDD class, where price trends UP through both rails into a
@@ -404,28 +382,6 @@ STORY_POOL_ENABLED = True
 # operator decision vs the miss-program A/B (docs/miss_program_2026-08.md);
 # flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
 CONTRACTION_RESCUE_ENABLED = False
-
-# --- Trend-terminal box gate (anchor polarity; A/B lever) -------------------
-# Operator ruling 2026-07-27 (LIVN): "We can't start the anchor from the
-# opposite direction of the trend if we are still inside that trend." A box may
-# not OPEN before the terminal pivot — the buying/selling climax — of the trend
-# segment containing that open (market_structure.trend_terminal_floor). The
-# engine already reads this correctly and then ignores it: on LIVN its own
-# segment_trends put the uptrend's terminal at 2026-07-06 while the box opened
-# 2026-06-18, anchoring the climax on a bar labelled HH/up and the AR on a bar
-# labelled HL/up — a higher low cannot be the reaction that ends a trend.
-# The shipped _enforce_climax_terminality only tests climax -> box open, so a
-# trend topping INSIDE the box is invisible to it (and it moves the overlay
-# only — the overlay feeds no rails/LPS/score, so it could never fix the box).
-# Measured 2026-07-27: 142/332 live boxes (42.8%, incl. rank-0 XMAX) open before
-# their trend topped, vs the operator's own 33 marks at 31/33 = 93.9% obeying
-# the rule. Applies to every pool (strict / rescued / band / story), enforced
-# as a POST-COLLECTION filter at the bricks election (validate_equilibrium,
-# judged on each candidate's back-extended open) — deliberately NOT inside the
-# pair enumeration, so every pool's judgment stays untouched. The near-miss
-# lane still does not see the refusals (its recorder attaches inside
-# collect_zigzag_candidates, one seam earlier) — flag ON is a census seam.
-TREND_TERMINAL_BOX_GATE_ENABLED = False
 
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
 # Measurement constants for the operator-ruled near-miss predicate

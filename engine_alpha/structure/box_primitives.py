@@ -45,7 +45,6 @@ __all__ = [
     "backext_shared_rail",
     "collect_root_anchors",
     "collect_zigzag_candidates",
-    "trend_terminal_legal_open",
     "select_phase_b_candidate",
     "phase_b_zigzag",
 ]
@@ -381,52 +380,6 @@ def _oriented_pairs(zigzag):
         if R_val <= S_val:
             continue
         yield R_val, S_val, r_anchor_bar, s_anchor_bar
-
-
-def trend_terminal_legal_open(terminal_floor, floor_offset):
-    """Build the trend-terminal legality test for a box's OPENING bar.
-
-    ``terminal_floor`` is the df-positional ``market_structure.TrendFloor``;
-    box bars are window-relative, so ``floor_offset`` rebases them. Bars outside
-    the array, and bars no trend segment covers (``bar < 0``), are legal — there
-    is no trend there to still be inside of.
-
-    **Judge the FINAL, back-extended open, never the raw ``cand_start``.** The
-    floor is deliberately not monotonic: the bar where one trend hands over to
-    the next carries the OLD trend's terminal (already printed = legal), while
-    the very next bar carries the NEW leg's terminal (not yet printed). MATX
-    opens exactly on such a handover bar (468, floor 467 = legal) while its
-    anchor pair sits at 469+ inside the following advance — gating the raw
-    anchor cost a pinned Guided-List hit for a box that is in fact honest.
-
-    When the terminal DOES land inside the box, the question is not how far the
-    trend ran — it is whether what followed the climax is itself a base. The box
-    is legal iff at least ``MIN_BASE_DAYS`` bars have printed since that terminal.
-    This is the operator's own objection, verbatim: LIVN's correction was "way
-    too young" at **13 bars** past its climax, while PXS has **53** and is the
-    box he drew.
-
-    **Overshoot magnitude is NOT the test — it was falsified three times.** The
-    operator accepts boxes whose trend ran 47.9% (PXS), 82% (VIK) and 101%
-    (MATX) of a box height past R — those are upthrusts *inside* an established
-    base, and PXS's R is deliberately drawn beneath its 4.92 spike — while
-    rejecting LIVN at 20.57%. Only post-climax maturity separates them.
-    """
-    bars = terminal_floor.bar
-    n = len(bars)
-    floor_offset = int(floor_offset)
-    min_base = int(settings.MIN_BASE_DAYS)
-
-    def _legal(open_bar):
-        bar = int(open_bar) + floor_offset
-        if not (0 <= bar < n):
-            return True
-        term = int(bars[bar])
-        if term < 0 or bar >= term:
-            return True                      # trend already printed its extreme
-        return (n - term) >= min_base        # ... else the base since it must be real
-
-    return _legal
 
 
 def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,

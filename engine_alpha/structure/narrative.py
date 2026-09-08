@@ -419,19 +419,6 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
     if bricks is None:
         from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
-    # Trend-terminal box gate: read the trend ONCE for the whole cascade (the
-    # walk below visits up to _MAX_ANCHORS roots, each electing over the same
-    # frame). None when the flag is off — the gate itself stays byte-identical.
-    # Phase A's climax polarity ALSO reads this floor (2026-08-19); when the
-    # gate is dark it is computed lazily inside the guard instead, so only the
-    # reads that actually complete a story pay for it rather than all of them.
-    terminal_floor = None
-    if settings.TREND_TERMINAL_BOX_GATE_ENABLED:
-        from engine_alpha.structure.market_structure import (  # noqa: PLC0415
-            trend_terminal_floor,
-        )
-        terminal_floor = trend_terminal_floor(df)
-
     search_from = 0
     for i in range(_MAX_ANCHORS):
         # Phase A: the next root swing at/after the cursor (oldest-first = longest cause).
@@ -459,8 +446,6 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         # the pair election narrates its cascade — every candidate R/S pair
         # examined, the gate that rejected it, and why the winner was elected.
         nm_kw = {"near_miss": near_miss} if near_miss is not None else {}
-        if terminal_floor is not None:
-            nm_kw["terminal_floor"] = terminal_floor
         if rec is not None:
             cascade: list = []
             box = bricks.validate_equilibrium(df, root, atr, trace=cascade,
@@ -531,7 +516,10 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         # whose reaction low lands at the box start, not the distant trend anchor
         # that merely seeded the search. Legacy patched this after the fact with
         # _resolve_phase_a_swing; in the narrative it's part of the story.
-        climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr, terminal_floor)
+        # Phase A's climax polarity reads the trend floor; it computes it lazily
+        # inside the guard, so only the reads that actually complete a story pay
+        # for it rather than every anchor the walk visits.
+        climax_bar, ar_bar = bricks.resolve_phase_a(df, root, box, atr)
         if rec is not None:
             # The trace's fired root carries BOTH pairs: the seed swing (the
             # walk's honest history, kept in climax_bar/ar_bar above) and the

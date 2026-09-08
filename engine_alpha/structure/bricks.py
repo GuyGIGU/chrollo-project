@@ -19,12 +19,10 @@ from engine_alpha.structure.box_primitives import (
     backext_shared_rail,
     collect_root_anchors,
     collect_zigzag_candidates,
-    trend_terminal_legal_open,
     select_phase_b_candidate,
 )
 from engine_alpha.structure.inner_box import select_inner_box
 from engine_alpha.structure.lps import detect_lps, lps_range_threshold
-from engine_alpha.structure.market_structure import first_reaction_after
 from engine_alpha.structure.metrics import measure_equilibrium
 from engine_alpha.structure.segmentation import segment_swings
 
@@ -228,7 +226,6 @@ def validate_equilibrium(
     atr,
     trace=None,
     near_miss=None,
-    terminal_floor=None,
 ) -> EquilibriumBox | None:
     """Validate a worked Phase-B range born from ``root``.
 
@@ -244,11 +241,6 @@ def validate_equilibrium(
     inner boxes and the diagnostic mirror never pass one). ``None`` (the live
     flag-off default) records nothing and changes nothing.
 
-    ``terminal_floor``: the df-positional trend-terminal array
-    (``market_structure.trend_terminal_floor``) under
-    ``TREND_TERMINAL_BOX_GATE_ENABLED`` — a box may not open before its trend's
-    climax. Computed ONCE per read (the root cascade walks up to 64 anchors) and
-    handed down. ``None`` (flag off) is byte-identical.
     """
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:
         return None
@@ -286,39 +278,6 @@ def validate_equilibrium(
         recorder=near_miss,
     )
 
-    # Trend-terminal legality (TREND_TERMINAL_BOX_GATE_ENABLED): a box may not
-    # OPEN before the trend running into it printed its climax. Judged on each
-    # candidate's BACK-EXTENDED start — the bar that actually becomes
-    # box.start_bar — because the raw cand_start can sit one bar the far side of
-    # a trend handover (the MATX case). Filtering here rather than inside the
-    # pair enumeration keeps every pool's judgment untouched and still lets a
-    # later legal framing win this root instead of losing the whole story.
-    if terminal_floor is not None and candidates:
-        legal_open = trend_terminal_legal_open(terminal_floor, int(root.ar_bar))
-        kept = []
-        for c in candidates:
-            judged_open = backext_shared_rail(eq_df, float(c[1]), float(c[2]),
-                                              int(c[9]), float(atr))
-            if legal_open(judged_open):
-                kept.append(c)
-            elif cascade is not None:
-                # The trace must not keep calling a terminally-killed framing
-                # "valid" — n_valid, the elected record's "beat N" count and
-                # the earliest-of-valid claim all read the verdict stamps
-                # (EC-17: a dark flag's flip decision needs honest cascade
-                # evidence).
-                key = (int(c[7]), int(c[8]), int(c[9]))
-                for rec in cascade:
-                    if (rec["verdict"] == "valid"
-                            and (rec["r_anchor_bar"], rec["s_anchor_bar"],
-                                 rec["cand_start"]) == key):
-                        rec["verdict"] = "rejected"
-                        rec["stage"] = "trend_terminal"
-                        rec["detail"] = (
-                            f"back-extended open (bar {int(judged_open)}) "
-                            "predates the cause trend's climax")
-                        break
-        candidates = kept
 
     if not candidates:
         if trace is not None:
@@ -712,61 +671,6 @@ def _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
     return lo + int(np.argmin(window)), pbs
 
 
-def _first_impulse_ar_end(df, climax_bar, ar_bar, atr):
-    """Tighten the overlay AR to the trend model's FIRST reaction off the climax.
-
-    Operator model (2026-07-05): the automatic reaction is the first CONTINUOUS
-    counter-move after the trend's TERMINAL swing (the climax) -- read from the
-    HH/HL trend model, not a raw fixed-bar retrace. The reaction runs to the low
-    that anchors the base: significance is measured against the trend's FULL leg
-    (the whole advance the climax ended), and it is closed only at the first BIG
-    confirmed bounce off that low -- not a mid-decline pause (which over-tightened
-    the earlier terminal-sub-leg + stall read) and not the eventual base-edge low
-    the raw resolver can drag past (a later second leg down). Mirror-symmetric
-    across BC and SC roots.
-
-    This is a thin overlay adapter: the read lives in
-    ``market_structure.first_reaction_after`` (structure measures); here we only
-    enforce the drawn-overlay contract. Overlay-only and TIGHTEN-ONLY: the search
-    is bounded to the drawn span ``[climax_bar, ar_bar]`` and can only move the AR
-    EARLIER, so the chronological invariant ``climax_bar <= ar_bar <=
-    phase_b_start_bar`` is preserved by construction. Returns a bar in
-    ``(climax_bar, ar_bar]``, or ``ar_bar`` unchanged when no clean first reaction
-    resolves inside the span (a genuinely one-way descent that only stops at the
-    base edge). No-op with the flag off, so both states are byte-identical on the
-    scoring/tier/canonical-shadow surface. NOTE: a flip is NOT byte-identical on
-    the ARCHIVED ``bin_a_*`` columns (``ar_bar`` feeds ``measure_phases`` →
-    ``writer``, read by ``analyze``); no freeze gate covers that seam, so a live
-    flip needs a ``bin_a_*`` guard / ``engine_config_version`` partition first.
-    """
-    if not settings.AR_FIRST_REACTION_ENABLED:
-        return ar_bar
-    if not _finite(atr) or float(atr) <= 0:
-        return ar_bar
-    n = len(df)
-    if not (0 <= climax_bar < ar_bar < n):
-        return ar_bar
-
-    # Direction from the drawn swing (post BC-down enforcement): a buying-climax
-    # tops into a lower reaction (+1); a selling-climax troughs into a higher
-    # one (-1).
-    highs = df["High"].values
-    direction = 1 if float(highs[climax_bar]) >= float(highs[ar_bar]) else -1
-    reaction_bar = first_reaction_after(
-        df, climax_bar,
-        direction=direction,
-        atr=float(atr),
-        retrace_frac=float(settings.AR_RETRACE_FRAC),
-        up_leg_lookback=int(settings.AR_UP_LEG_LOOKBACK),
-        bounce_atr_mult=float(settings.AR_BOUNCE_ATR_MULT),
-        bounce_drop_frac=float(settings.AR_BOUNCE_DROP_FRAC),
-        end_bar=int(ar_bar),
-    )
-    if reaction_bar is not None and climax_bar < reaction_bar <= ar_bar:
-        return int(reaction_bar)
-    return ar_bar
-
-
 def resolve_phase_a(
     df: "pd.DataFrame",
     root: RootSwing,
@@ -779,14 +683,15 @@ def resolve_phase_a(
     Resolves the raw anchor, enforces the BC-down invariant so a buying climax
     never paints as an up-swing (see _enforce_bc_downswing), enforces climax
     terminality so a mid-trend pause never paints as the trend end (see
-    _enforce_climax_terminality), then tightens the AR to the first impulsive
-    reaction so the overlay stops dragging to the base edge (see
-    _first_impulse_ar_end; flag-gated, no-op when off)."""
+    _enforce_climax_terminality).
+
+    A third step used to sit here: a flag-gated tighten of the AR to the first
+    impulsive reaction. The operator ruled it DELETED 2026-09-08 after it lost
+    twice against his own drawn marks; see decisions.md."""
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
     climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
     climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
                                                      terminal_floor)
-    ar_bar = _first_impulse_ar_end(df, climax_bar, ar_bar, atr)
     return climax_bar, ar_bar
 
 
