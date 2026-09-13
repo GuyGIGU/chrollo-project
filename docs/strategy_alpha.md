@@ -49,6 +49,60 @@ The rest of the doc mirrors the implementation; *this section states the intent 
 implementation serves.* When a detector and this model disagree, the model wins and the
 detector is the bug (or the model gets amended here, explicitly — never silently).
 
+### The final method (ruled Sun 13/09/2026; the engine is being rebuilt to it, one step at a time)
+
+The operator's own summary of what the screener is: *"we just draw 2 lines around a tight
+area of a chop in a stock and display it to me so I can see it and figure out if I want to
+trade it or not."* The method that serves it has four stages, and the order is the point:
+the lines come first, the events are read on them, the grade is read from the events, and
+the display says which of those states a chart is in. Nothing in the read is a gate that
+can reject a good setup; the only hard things are the universe door, the fifteen-trading-day
+age floor, and the definition of a fire (a box, an LPS, a trigger).
+
+1. **The line.** One zigzag on the whole chart at one sensitivity: a turn is confirmed when
+   price backs off its running extreme by 0.75 daily ranges, wick to wick. The first bar and
+   the last bar are turns by their shape; an outside bar may carry both a peak and a valley;
+   a named event (an LPS low, a trigger cross) is a turn by law. A run of higher highs and
+   higher lows is a trend; the climax is the run's highest turn; the automatic reaction is
+   the first valley after it. The line is not the root swing and not the LPS window.
+2. **The rails.** From the climax, candidate pairs are walked forward in time: the climax
+   and its reaction first, else one swing to the right until a pair wraps the range the
+   swings then answer to (the first pair whose two rails each receive a later turn within
+   the rail area). First in time wins; tightest only breaks a same-day tie. The box opens on
+   the earlier anchor, each rail from its own anchor, never extended left, and has no drawn
+   end. The rail area and every later test use the daily range of the election day, frozen
+   with the rails. An earlier, wider pair is acceptable when the operator's LPS reads
+   against it; the yardstick is concordance, never rail replication.
+3. **The events**, forward in time against the rails: turns at a rail are respect; a dip
+   beyond the support area is a Phase C candidate until the swing after its tip recovers
+   it (a high back in the area, then a higher low) or fails it (a lower low first); one
+   Phase C per box, the deepest that recovered; a dip inside the area is a turn at support.
+   Every thrust over the resistance area is typed by the swing after it, in one order: an
+   LPS above resistance if the pullback recedes with the trigger overhead and holds the
+   area; an upthrust if the next valley takes out the thrust's launch low by more than the
+   area before any LPS; otherwise an SOS, with "last supper" written only in hindsight; a
+   child-box candidate is a flag until a later turn at the child's anchors confirms it; at
+   the right edge, open. A mini consolidation is a band with its own two rails, one event on
+   the parent's map. Phase D opens at the first right-side evidence: the round trip after a
+   spring, a staircase of rising swing lows at resistance, the first SOS, or the first LPS.
+   The LPS window is the last run of receding days (a lower high or a lower low than the
+   day before), the day before the run is its top, the trigger is the last day's high, the
+   buy is the cross of that high; a cross inside the pullback is a buy too. Every LPS-like
+   pullback is an event; one is highlighted, the freshest.
+4. **The grade** reads three families and nothing gates: tightness (height in daily ranges,
+   the spread profile inside the box and inside the window), the event map (the LPS's
+   traits, turns per rail, the SOS's ground covered, the story's pieces and order), and
+   context (the run into the climax, position in the box, volume as a number). A named
+   event's swing is never docked; an unnamed lunge beyond a rail is. Base age carries no
+   weight. Volume never refuses, never elects, and carries no points.
+5. **The display** gives every chart one state word: fired, crossed, lines with no LPS yet,
+   forming, root candidate unconfirmed, beyond resistance undetermined, under support
+   undetermined, broke down, not scanned, no lines. Fired charts on the board, the rest in
+   a watch lane; nothing on the board on the buy day.
+
+Until a step lands in the engine, the sections below describe the reading as it is built
+today; the rulings and every measurement behind this method are in the decisions record.
+
 ### The legend (strict vocabulary)
 
 | Term | Meaning | Reserved for |
