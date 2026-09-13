@@ -15,6 +15,142 @@ def _pivot_order(n_bars):
     return settings.PIVOT_ORDER_SHORT
 
 
+# ---------------------------------------------------------------------------
+# The one turn line (final method point 1, build step 4) — flag-gated at its
+# call sites, never here: this is a pure primitive.
+# ---------------------------------------------------------------------------
+
+def turn_line_floors(df, atr_val, mult=None):
+    """The per-bar floor for :func:`turn_line`: ``mult`` daily ranges measured in the range of each bar's OWN
+    day, falling back to the one scalar range the caller already holds wherever the frame carries no ATR
+    column (the unit tests' bare OHLC frames, and any bar before the ATR warms up).
+
+    His unit is "the daily range", and over a two-year frame that is not one number: measured on his 35 drawn
+    marks, the line lands on 186 of his 186 named turns with the per-bar range and 183 with a single range
+    taken from the read day (build step 4, 2026-09-13)."""
+    mult = settings.TURN_LINE_FLOOR_ATR if mult is None else float(mult)
+    scalar = float(atr_val) if atr_val is not None and np.isfinite(atr_val) and float(atr_val) > 0 else np.nan
+    n = len(df) if df is not None else 0
+    if n == 0:
+        return np.zeros(0, dtype=float)
+    # Duck-typed on purpose: this module is a leaf primitive and must not grow a pandas import.
+    cols = getattr(df, "columns", None)
+    if cols is not None and "ATR_10" in cols:
+        col = np.asarray(df["ATR_10"].values, dtype=float)
+    else:
+        col = np.full(n, np.nan, dtype=float)
+    floors = mult * np.where(np.isfinite(col) & (col > 0), col, scalar)
+    return floors
+
+
+def _opening_direction(highs, lows, floors):
+    """Which way the line leaves its first bar: True = it rose first (bar 0 is a valley), False = it fell first
+    (bar 0 is a peak), None = the chart never covers the floor, so no leg is committed anywhere.
+
+    Read it as "which move covered the floor first": a rise of one floor above the running low means the line
+    opened UPWARD off that low; a fall of one floor below the running high means it opened DOWNWARD off that
+    high. When one bar resolves both, the OLDER extreme owns the opening leg."""
+    run_hi, run_lo = float(highs[0]), float(lows[0])
+    for i in range(1, len(highs)):
+        # The running extremes track EVERY bar; only the floor test needs a readable floor, or a frame whose
+        # range column is still warming up would open its line off a stale bar-0 extreme.
+        run_hi = max(run_hi, float(highs[i]))
+        run_lo = min(run_lo, float(lows[i]))
+        f = float(floors[i])
+        if not np.isfinite(f) or f <= 0:
+            continue
+        rose = float(highs[i]) - run_lo >= f
+        fell = run_hi - float(lows[i]) >= f
+        if rose and fell:
+            return int(np.argmin(lows[: i + 1])) <= int(np.argmax(highs[: i + 1]))
+        if rose:
+            return True
+        if fell:
+            return False
+    return None
+
+
+def turn_line(highs, lows, floors):
+    """THE turn line (operator ruling, final method point 1): one line over the whole chart, one floor, wick to
+    wick, no retracement ratio.
+
+    A turn COMMITS on the bar where price backs off the running extreme by that bar's floor; the confirming bar
+    carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley.
+    Bar 0 is a turn by its shape and the running extreme at the right edge rides as a FORMING turn — the line
+    has no edge mask, which is what the order-1 walk's ``peak_mask[n - order:]`` reserve costs it (his 25 of 37
+    pullbacks bottom within two days of the edge).
+
+    Returns ``[(bar, kind, price, knowable_bar)]``, oldest first and strictly alternating. ``knowable_bar`` is
+    the bar at whose close the turn was irreversibly committed (the causality contract's stamp, which the line
+    knows by construction instead of reconstructing); it is ``None`` for the forming turn at the right edge.
+    """
+    highs = np.asarray(highs, dtype=float)
+    lows = np.asarray(lows, dtype=float)
+    n = len(highs)
+    if n == 0 or n != len(lows):
+        return []
+    floors = np.asarray(floors, dtype=float)
+    if floors.ndim == 0:
+        floors = np.full(n, float(floors))
+    if len(floors) != n or not np.any(np.isfinite(floors) & (floors > 0)):
+        return []
+
+    up = _opening_direction(highs, lows, floors) if n > 1 else None
+    if up is None:
+        # The chart never covers the floor: the opening turn and one forming extreme, no committed leg.
+        i_hi, i_lo = int(np.argmax(highs)), int(np.argmin(lows))
+        rose_first = i_hi >= i_lo
+        out = [(0, "valley" if rose_first else "peak", float(lows[0] if rose_first else highs[0]), 0)]
+        tail = ((i_hi, "peak", float(highs[i_hi])) if rose_first else (i_lo, "valley", float(lows[i_lo])))
+        if (tail[0], tail[1]) != (out[0][0], out[0][1]):
+            out.append((tail[0], tail[1], tail[2], None))
+        return out
+
+    turns = [(0, "valley" if up else "peak", float(lows[0] if up else highs[0]), 0)]
+    ext_i = 0
+    ext_p = float(highs[0]) if up else float(lows[0])
+    for i in range(1, n):
+        f = float(floors[i])
+        readable = bool(np.isfinite(f)) and f > 0
+        # The extreme tracks every bar; only the COMMIT test needs a readable floor.
+        if up:
+            if float(highs[i]) > ext_p:
+                ext_p, ext_i = float(highs[i]), i
+            if readable and ext_p - float(lows[i]) >= f:
+                turns.append((ext_i, "peak", ext_p, i))
+                up = False
+                ext_p, ext_i = float(lows[i]), i
+        else:
+            if float(lows[i]) < ext_p:
+                ext_p, ext_i = float(lows[i]), i
+            if readable and float(highs[i]) - ext_p >= f:
+                turns.append((ext_i, "valley", ext_p, i))
+                up = True
+                ext_p, ext_i = float(highs[i]), i
+    kind = "peak" if up else "valley"
+    if (turns[-1][0], turns[-1][1]) != (ext_i, kind):
+        turns.append((ext_i, kind, ext_p, None))
+    return turns
+
+
+def turn_line_views(turns, start):
+    """The line split at the box-start seam exactly where today's pivot walk splits — every turn at or left of
+    ``start`` is the pre-box view, every turn right of it is the in-box view, re-based to ``start`` — plus the
+    commit stamp keyed ``(bar, kind)``.
+
+    The line is handed on as ``(bar, kind, price)`` triples for the staircase to LABEL, never as pivot indices
+    to rebuild: ``_build_zigzag`` concatenates every peak before every valley and stable-sorts by bar, so a bar
+    carrying BOTH a peak and a valley (his ruling: a bar whose own range covers the floor) would come back
+    inverted, alternation would break, and the same-type merge would eat the neighbours — measured, a six-turn
+    line down to four. A contiguous slice of an alternating list is alternating, so each view needs no rebuild
+    and no second collapse: the floor has already been applied, once, by the line."""
+    start = int(start)
+    pre = [(int(b), k, float(p)) for (b, k, p, _) in turns if int(b) <= start]
+    box = [(int(b) - start, k, float(p)) for (b, k, p, _) in turns if int(b) >= start + 1]
+    commits = {(int(b), k): know for (b, k, _, know) in turns}
+    return pre, box, commits
+
+
 def _find_pivots(highs, lows, order):
     """Detect pivot peaks and valleys using a rolling window of given order.
 

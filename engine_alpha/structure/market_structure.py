@@ -31,6 +31,7 @@ from typing import NamedTuple, Optional
 
 import numpy as np
 
+from config import settings
 from engine_alpha.structure.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
@@ -130,6 +131,18 @@ def read_market_structure(df, *, order: Optional[int] = None) -> dict:
         lows = df["Low"].values.astype(float)
     except (KeyError, TypeError, ValueError):
         return _empty()
+
+    if settings.TURN_LINE_TREND_ENABLED and order is None:
+        # Build step 4 (dark): the trend labels read the one turn line. The line is measured in daily ranges,
+        # so a frame carrying no range column (a bare OHLC fixture, or a caller pinning an explicit order)
+        # falls back to today's skeleton rather than inventing a unit.
+        from engine_alpha.structure.pivots import turn_line, turn_line_floors
+        floors = turn_line_floors(df, None)
+        if np.any(np.isfinite(floors) & (floors > 0)):
+            line = turn_line(highs, lows, floors)
+            if len(line) < 2:
+                return _empty()
+            return label_market_structure([(int(b), k, float(p)) for (b, k, p, _) in line])
 
     if order is None:
         order = _pivot_order(n)

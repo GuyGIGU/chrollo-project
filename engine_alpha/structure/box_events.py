@@ -30,20 +30,28 @@ def _staircase_empty():
             "trend_state": "range", "rail_to_rail": False, "is_zigzag": False}
 
 
-def _staircase_from_pivots(peaks, valleys, highs, lows, R, S, atr_val, min_amp):
+def _staircase_from_pivots(peaks, valleys, highs, lows, R, S, atr_val, min_amp, *, swings=None):
     """Zigzag → amplitude collapse → L0 labels → box annotation over a GIVEN
     order-1 pivot subset: the single staircase machinery behind
     ``read_box_staircase`` (which detects pivots on its own window) and the
     Event Map's windowed views (``engine_alpha.structure.event_map``, which filter ONE
     whole-frame pivot walk down to a window). Bars in the result index into
-    ``highs``/``lows``; the pivot indices must index those same arrays."""
+    ``highs``/``lows``; the pivot indices must index those same arrays.
+
+    ``swings`` (final method build step 4) is the ONE widening of this input contract: an alternating
+    ``(bar, kind, price)`` list that has ALREADY had its amplitude floor applied — the turn line — which is
+    labelled and annotated as-is, skipping the zigzag rebuild and the collapse. It exists because rebuilding
+    the line through ``_build_zigzag`` destroys it: every peak is concatenated before every valley and the
+    sort is stable, so a bar carrying both turns comes back inverted and the same-type merge eats its
+    neighbours. Callers that pass nothing keep the pivot path byte-identical."""
     box = float(R) - float(S)
-    if not peaks or not valleys:
-        return _staircase_empty()
-    zz = _build_zigzag(peaks, valleys, highs, lows)
-    if len(zz) < 3:
-        return _staircase_empty()
-    swings = _collapse_swings(zz, min_amp)
+    if swings is None:
+        if not peaks or not valleys:
+            return _staircase_empty()
+        zz = _build_zigzag(peaks, valleys, highs, lows)
+        if len(zz) < 3:
+            return _staircase_empty()
+        swings = _collapse_swings(zz, min_amp)
     if len(swings) < 2:
         return _staircase_empty()
 

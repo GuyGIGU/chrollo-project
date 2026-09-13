@@ -757,6 +757,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 3 (Sun 13/09/2026): LPS refusals to grades, DARK.** One default-off flag, `LPS_REFUSALS_TO_GRADES_ENABLED` (on the engine manifest), carries his points 18, 19 and 20 of the final method inside `detect_lps_candidates`. 18: the support side of the zone gate never refuses (the ceiling above R stays, R12); the zone word on the support side is typed by the window's CLOSES, never its lowest wick (a window whose closes all hold above S is INSIDE whatever its wicks did, his JAZZ reading; one whose lowest close sits under S is UNDERCUT_S, an LPS on a spring candidate), and `_zone_tolerance` drops the tight-box widening (a percent-of-price rescue for the floor it served). 19: the three post-window checks go (the latest close under `LPS_HOLD_TOLERANCE` of the LPS low, the post-window low test, the post-window spread test; under one window per read day there is no post-window day to check), and `_depth_in_base_envelope` drops the `LPS_PULLBACK_PROFILE_MAX` cap (the window height in ranges is the one "too deep" refusal left; a NaN dig still refuses). 20: volume never refuses (the `volume baseline invalid`, `volume not drying up` and `pullback volume above baseline` refusals stop) and never elects (quality is volume-free; `vol_contraction` stays a fact on the card). Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged); flag-on mechanics are pinned on fakes in `tests/test_final_method_step3.py`, every branch mutation-proved. The scoreboard (alone, with the step-2 stack, with everything) is in the decisions record (2026-09-13, build step 3).
 
+**The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK.** `engine_alpha/structure/pivots.py` grows the operator's line as a pure primitive: `turn_line(highs, lows, floors)` walks the whole frame and commits a turn on the bar where price backs off the running extreme by that bar's floor, wick to wick, with no retracement ratio; the confirming bar carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley; bar 0 is a turn by its shape and the terminal running extreme rides as a FORMING turn, so the line has neither the order-1 walk's edge mask nor the five-day right-edge reserve. Each turn carries its own `knowable_bar` — the causality contract's commit stamp, which the line knows by construction rather than reconstructing. `turn_line_floors(df, atr_val)` builds the per-bar floor: `TURN_LINE_FLOOR_ATR` (0.75) of each bar's OWN `ATR_10`, falling back to the caller's one scalar range where the frame carries no range column; the per-bar unit is what lands the line on all 186 of his named turns (one range from the read day lands 183). `turn_line_views(turns, start)` splits the line at the box-start seam and is the ONLY way it reaches the staircase: rebuilding it through `_build_zigzag` inverts a bar that carries both turns and the same-type merge then eats its neighbours, so `box_events._staircase_from_pivots` grew one `swings=` keyword that LABELS a finished alternating list instead (every other caller passes nothing and is byte-identical). Two default-off flags carry it, one per site: `TURN_LINE_ENABLED` under `event_map.read_swing_map`, `TURN_LINE_TREND_ENABLED` under `market_structure.read_market_structure`. The box election is deliberately NOT a site — it stays on today's skeleton until build step 10. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged, and the event map's own byte-identity battery is untouched); flag-on, the measured result is that no fire moves anywhere and the reader pin's only drift is the commit stamps. The scoreboard is in the decisions record (2026-09-14, build step 4).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1258,7 +1260,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `f01e0ee5f095dfbe3d167556e4caf9e66d829f808afd2de7208e6fffa6ec920c`_
+_engine_config_version: `e72be377c3576763a6f94e27b466b9cd7b2d19f4616944ee9a0a4bab816c0df5`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1357,6 +1359,9 @@ LPS_WINDOW_RECEDING_ENABLED = False
 LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.1
 LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_REFUSALS_TO_GRADES_ENABLED = False
+TURN_LINE_ENABLED = False
+TURN_LINE_TREND_ENABLED = False
+TURN_LINE_FLOOR_ATR = 0.75
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

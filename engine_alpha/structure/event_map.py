@@ -63,7 +63,12 @@ from engine_alpha.structure.box_events import (
     _staircase_empty,
     _staircase_from_pivots,
 )
-from engine_alpha.structure.pivots import _find_pivots
+from engine_alpha.structure.pivots import (
+    _find_pivots,
+    turn_line,
+    turn_line_floors,
+    turn_line_views,
+)
 
 
 def _empty_map() -> dict:
@@ -77,8 +82,13 @@ def _empty_map() -> dict:
     }
 
 
-def _stamp_causality(swings, highs, lows, min_amp):
+def _stamp_causality(swings, highs, lows, min_amp, commits=None):
     """Dual bar stamps (contract §1–§2), in place.
+
+    ``commits`` (final method build step 4, dark) is the turn line's OWN commit stamp, keyed by
+    ``(bar, kind)``: the line commits a turn on the bar where price backs off it by that bar's floor, so when
+    the line is the substrate the stamp is READ rather than reconstructed, and the reconstruction below is
+    skipped. A turn absent from the map (the forming one at the right edge) stays ``in_progress``.
 
     A swing is committed at the bar that pivot-confirms the first opposite
     extreme lying ``min_amp`` beyond it: for a peak, the first valley-form bar
@@ -94,6 +104,11 @@ def _stamp_causality(swings, highs, lows, min_amp):
         bar = int(s["bar"])
         s["describes_bar"] = bar
         know = None
+        if commits is not None:
+            know = commits.get((bar, s["kind"]))
+            s["knowable_bar"] = know
+            s["in_progress"] = know is None
+            continue
         if s["kind"] == "peak":
             top = highs[bar]
             for v in range(bar + 1, n - 1):
@@ -166,27 +181,37 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
                else settings.TRAVERSAL_NOISE_FRAC) * height
 
     # THE one bar-level swing walk for the whole frame.
-    peaks, valleys = _find_pivots(highs, lows, 1) if n >= 3 else ([], [])
+    commits = None
+    pre_swings = box_swings = None
+    if settings.TURN_LINE_ENABLED:
+        # Build step 4 (dark): the one turn line IS the walk. It has already applied its floor, once, so each
+        # view is handed to the staircase as a finished alternating list to LABEL — never as pivot indices to
+        # rebuild, which would destroy a bar carrying both turns (see ``turn_line_views``).
+        _line = turn_line(highs, lows, turn_line_floors(df, atr_val))
+        pre_swings, box_swings, commits = turn_line_views(_line, start)
+        peaks = valleys = ()
+    else:
+        peaks, valleys = _find_pivots(highs, lows, 1) if n >= 3 else ([], [])
 
     # In-box view: full-frame pivots right of the box start, re-based and run
     # through the same machinery the box staircase uses.
     box_view = _staircase_from_pivots(
         [p - start for p in peaks if p >= start + 1],
         [v - start for v in valleys if v >= start + 1],
-        highs[start:], lows[start:], R, S, atr_val, min_amp,
+        highs[start:], lows[start:], R, S, atr_val, min_amp, swings=box_swings,
     ) if len(highs) - start >= 3 else _staircase_empty()
 
     # Pre-box view: pivots at/left of the box start, same machinery, absolute bars.
     pre_view = _staircase_from_pivots(
         [p for p in peaks if p <= start],
         [v for v in valleys if v <= start],
-        highs, lows, R, S, atr_val, min_amp,
+        highs, lows, R, S, atr_val, min_amp, swings=pre_swings,
     )
 
     swings = [{**s, "region": "pre_box"} for s in pre_view["swings"]]
     swings += [{**s, "bar": int(s["bar"]) + start, "region": "box"}
                for s in box_view["swings"]]
-    _stamp_causality(swings, highs, lows, min_amp)
+    _stamp_causality(swings, highs, lows, min_amp, commits=commits)
 
     return {
         "swings": swings,

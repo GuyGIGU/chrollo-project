@@ -1077,3 +1077,51 @@ Measured (control 20/37 windows, ratchet 30/35, junk 8/16, fleet 34):
     stays and MRK fires (tier C, window re-elected).
 Recommended: step 3 flips with the step-2 stack (with it, no fire moves; alone, two junk charts for the grade to carry).
 His flip owed. Next: step 4, the one line.
+
+## BUILD STEP 4 (Sun 13/09/2026) — THE ONE TURN LINE, TWO FLAGS, DARK
+
+TURN_LINE_ENABLED (the event map's swing layer) + TURN_LINE_TREND_ENABLED (the HH/HL/LH/LL labels), floor
+TURN_LINE_FLOOR_ATR = 0.75. One line over the whole chart, wick to wick, no ratio; a turn commits on the bar
+that backs off the running extreme by that bar's floor, the confirming bar carries the next extreme (so one bar
+can hold both turns), bar 0 is a turn by its shape and the right-edge extreme rides as FORMING. No edge mask,
+no five-day reserve. The line stamps its own knowable_bar. The box election is NOT a site (step 10).
+
+THE UNIT, measured on his 35 marks / 186 named turns (recall within one trading day, same kind):
+  today's order-1 walk + box-height collapse    112/186,  0/35 marks complete, 2.4 extra turns per 10 days
+  the line at 0.75, ONE range from the read day 183/186, 32/35,                6.0
+  the line at 0.75, each day's OWN range        186/186, 35/35,                6.2
+The three the read-day unit misses are S anchors two years back (FOSL, NOK, UNF) — over a two-year frame the
+daily range is not one number. Floor sweep 0.60..0.90 on the per-bar unit: recall falls monotonically above
+0.75 and buys only 0.4 fewer extra turns. 0.75 is his number and it is where the curve sits.
+
+WHAT MOVES: nothing. Under TURN_LINE_ENABLED, under TURN_LINE_TREND_ENABLED and under both: his 37 windows
+20 read / 20 concordant (control 20), ratchet 30/35 with all 5 reviewed misses still missing, junk the identical
+8/16 with identical days and scores, fleet the identical 34/37 tickers. MEASURED, not assumed: bricks
+cause_maturity reads read_swing_map's two trend states as Operand B of the cause-before-effect veto, which is
+LIVE, so the line can reach a fire in principle; on these populations it does not.
+
+WHAT THE READING SAYS (reader pin, 88 charts, flag on): 87/88 charts read differently and EVERY difference is
+role_labels.knowable_bar (257) or role_labels.in_progress (49). Zero word changes — not one role, rail, phase,
+resolution or anchor_bar. Episodes, episode stats, box events, spring and LPS surfaces byte-identical. The line
+changes WHEN the engine may know a thing, never WHAT it says.
+
+TWO DEFECTS FOUND IN REVIEW, both reproduced before fixing:
+  * the shared _build_zigzag DESTROYS the line (peaks concatenated before valleys, stable sort -> a bar carrying
+    both turns comes back inverted, the same-type merge eats the neighbours; a 6-turn line measured down to 4).
+    Fixed by widening _staircase_from_pivots with a swings= keyword: the line is LABELLED, never rebuilt.
+  * a bar with an unreadable floor was skipped entirely, running extreme included. Fixed: the extreme tracks
+    every bar, only the commit test needs a readable floor.
+Ten branch mutations each red then green.
+
+A CORRECTION TO THE METHOD DOC: the question-1 section claims the rail share separates his boxes (58 percent)
+from the junk (24-29). Re-measured: his 35 boxes median 0.31 (0.12-0.50), the 9 junk boxes the engine draws
+median 0.20 (0.10-0.39); at a 0.35-range tolerance 0.38 vs 0.23. The ordering holds, the magnitude is a third of
+the claim, and the ranges overlap. The earlier figure rested on 3 junk boxes, one of them CHCT — since ruled a
+VALID setup. The rail share is a weak graded trait, measure-first with no points.
+
+NOT DONE ON PURPOSE: the reader pin is NOT re-captured (flag-off zero-diff; EC-29 permits a recapture only in
+the flip/seam commit and EC-51 requires its diff stated there — the flip will carry exactly the 306 commit
+stamps above). The line's statistics (retraced share per swing, rail share) are not archived yet: they belong in
+the event map's column family with the flip that makes them non-NULL.
+
+Next: step 5, the words on the line (10, 11, 12, 13, 14, 15) under the one precedence table.

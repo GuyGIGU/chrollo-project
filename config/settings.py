@@ -722,6 +722,30 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 # stays a fact on the card. No points is the grade ledger's job (step 12).
 LPS_REFUSALS_TO_GRADES_ENABLED = False
 
+# ── The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK. ──
+# His points 1 and 2 (docs/final_method_2026-09.md): one line over the WHOLE
+# chart, ONE floor of TURN_LINE_FLOOR_ATR daily ranges, wick to wick, no
+# retracement ratio; the first bar is a turn by its shape and the running
+# extreme at the right edge is a FORMING turn, so the line carries no edge
+# mask and no five-day right-edge reserve. Named events stay turns by law
+# (the LPS valley, the trigger cross) wherever a caller asks for them.
+#
+# MEASURED on his 35 drawn marks (186 named turns: both rail anchors, every
+# LPS peak and low, every spring and spring-test tip, every SOS peak):
+#   today's order-1 walk + the 15 percent collapse   112 of 186,   0 of 35 marks complete
+#   the line at 0.75, one range from the read day    183 of 186,  32 of 35
+#   the line at 0.75, each day's OWN range           186 of 186,  35 of 35
+# The three the read-day unit misses are S anchors two years back, where one
+# range from the read day is the wrong unit; hence the per-bar floor. Extra
+# turns inside his boxes: about 8 per 10 trading days (today's walk: 3).
+#
+# One flag per SITE so each can be measured and flipped alone. The box
+# election is deliberately NOT a site: it stays on today's skeleton until
+# build step 10.
+TURN_LINE_ENABLED = False          # the event map's swing layer reads the line
+TURN_LINE_TREND_ENABLED = False    # the HH/HL/LH/LL trend labels read the line
+TURN_LINE_FLOOR_ATR = 0.75         # his floor, in daily ranges, wick to wick
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

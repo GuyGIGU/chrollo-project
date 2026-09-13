@@ -113,7 +113,12 @@ waiting on the operator's flip. Step 3 landed DARK (Sun 13/09/2026): the LPS ref
 support side, after the window and on volume became facts behind one more flag (the support side never
 refuses and the zone word there is read from the window's closes, never its lowest wick; the three
 post-window checks and the depth cap in profile units are gone; volume never refuses and never elects),
-measured the same way and waiting on the same flip. Flags off, the engine reads exactly as it did.
+measured the same way and waiting on the same flip. Step 4 landed DARK (Sun 13/09/2026): the one turn line,
+one floor of 0.75 of each day's own range over the whole chart, now sits behind two more flags, feeding the
+event map's swing layer and the trend labels while the box election stays on today's skeleton. It reads all
+186 of the turns he has drawn, where the engine's own walk reads 112, and on every population measured it
+moves no fire at all: what it changes is WHEN the engine may commit to a turn, never what it calls one.
+Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)
 
