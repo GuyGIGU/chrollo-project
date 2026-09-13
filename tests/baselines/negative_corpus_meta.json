@@ -57,15 +57,6 @@
       "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI/AEF/NVT/SPCB drop set)"
     },
     {
-      "ticker": "NVT",
-      "as_of": "2026-06-26",
-      "bars": 1251,
-      "spy_6m_return": 0.05964004993438721,
-      "baseline_pass_at_freeze": true,
-      "label": "rescue-markup run-up",
-      "evidence": "settings.LPS_RESCUE_MAX_ADVANCE_BOX comment (OHI/AEF/NVT/SPCB drop set)"
-    },
-    {
       "ticker": "SPCB",
       "as_of": "2026-07-02",
       "bars": 1255,

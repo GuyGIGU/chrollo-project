@@ -13,9 +13,18 @@ NEW diagnostic field a future change adds is ignored, so measure-first additions
 never trip the guard. A drift in any canonical field is reported with the exact
 ticker and field so an unintended change is impossible to miss.
 
+Each ticker is graded on the SAME fired-policy WINDOW the marks ratchet grades
+(``tools.replay.fired_window_walk``: the last ``FIRED_WINDOW_SESSIONS`` trading
+days ending at the frozen day, every clamp named), not on the frozen day alone:
+a ticker with no fire anywhere in the window is dropped; one that fires records
+the canonical fields of its LAST fire (the most recent night the pick appeared)
+plus ``first_fire`` / ``last_fire`` / ``fire_days``, so a fire that moves a day
+earlier or later reads as drift (final method, build step 1, 2026-09-13).
+
 Hermetic: reads the frozen fixture parquet, never the network. The fixture is
-self-curating - ``--build-fixture`` keeps exactly the tickers that currently fire
-among the candidates, so a ticker that later stops firing shows up as a drop.
+self-curating - ``--build-fixture`` keeps exactly the tickers that fire on some
+day of their fired-policy window among the candidates, so a ticker that later
+stops firing shows up as a drop.
 
 Usage:
     python -m tools.shadow_diff --build-fixture   # one-time, after a real scan
@@ -40,9 +49,9 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.screener import _evaluate_ticker
 from core.archive.db_path import archive_db_path
+from tools.replay import fired_window_walk
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
 _FIXTURE_PARQUET = os.path.join(_BASELINE_DIR, "shadow_fixture.parquet")
@@ -57,6 +66,10 @@ CANONICAL_FIELDS = (
     "Setup", "Score", "Tier", "Base Len", "Box Width", "LPS Length",
     "_R", "_S", "_trigger_price",
 )
+# The fired-policy window record per ticker (ISO first/last fire day, count of
+# fire days) - frozen alongside the canonical fields: a fire that moves a day is
+# drift even when every canonical value of the last fire is unchanged.
+WINDOW_FIELDS = ("first_fire", "last_fire", "fire_days")
 
 
 # ------------------------------------------------------------------
@@ -76,13 +89,31 @@ def canonical_fields(result: dict) -> dict:
     return out
 
 
+def frozen_day_view(snapshot: dict, frames: dict) -> dict:
+    """The frozen-day view of a window snapshot: the tickers whose LAST fire
+    is their frame's final day, canonical fields only, the ranking restricted
+    in place. The flag-ON twins in other test modules replay the frozen day
+    alone (they also read per-result provenance) and compare against THIS, so
+    a ticker the window admits on an earlier day (HESM, BBVA) never reads as
+    DROPPED there."""
+    fields = {}
+    for ticker, rec in snapshot.get("fields", {}).items():
+        df = frames.get(ticker)
+        if df is None or rec.get("last_fire") != df.index[-1].date().isoformat():
+            continue
+        fields[ticker] = {key: rec.get(key) for key in CANONICAL_FIELDS}
+    return {"fields": fields,
+            "ranking": [t for t in snapshot.get("ranking", []) if t in fields]}
+
+
 def diff_against_baseline(current: dict, baseline: dict) -> tuple[bool, list[str]]:
     """Compare a fresh fixture run against a captured baseline.
 
     Returns ``(ok, lines)``. Fails on any canonical drift: a ticker that stopped
     firing (DROPPED), a ticker that newly fires (NEW - possibly intended, but
-    surfaced so it can't change silently), a changed canonical field, or a
-    changed ranking. New diagnostic fields are invisible here by construction.
+    surfaced so it can't change silently), a changed canonical field, a moved
+    window record (first/last fire day, fire-day count), or a changed ranking.
+    New diagnostic fields are invisible here by construction.
     """
     lines: list[str] = []
     ok = True
@@ -103,7 +134,7 @@ def diff_against_baseline(current: dict, baseline: dict) -> tuple[bool, list[str
 
     field_drift = 0
     for ticker in sorted(cur_t & base_t):
-        for key in CANONICAL_FIELDS:
+        for key in CANONICAL_FIELDS + WINDOW_FIELDS:
             a, b = base_f[ticker].get(key), cur_f[ticker].get(key)
             if a != b:
                 ok = False
@@ -144,11 +175,15 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
 
 
 def run_fixture() -> dict:
-    """Run the real per-ticker pipeline over the frozen fixture.
+    """Run the real per-ticker pipeline over the frozen fixture, every ticker
+    walked on its fired-policy window (``tools.replay.fired_window_walk``).
 
-    Returns ``{"fields": {ticker: canonical}, "ranking": [ticker, ...]}``.
-    Ranking is a total order (score desc, ticker asc) so it is deterministic
-    across runs regardless of dict/iteration order.
+    Returns ``{"fields": {ticker: canonical + window record}, "ranking":
+    [ticker, ...]}``. A ticker with no fire in the window is dropped; a firing
+    ticker records the canonical fields of its LAST fire (the most recent
+    night the pick appeared) plus ``first_fire`` / ``last_fire`` /
+    ``fire_days``. Ranking is a total order (last fire's score desc, ticker
+    asc) so it is deterministic across runs regardless of dict/iteration order.
     """
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
@@ -161,16 +196,21 @@ def run_fixture() -> dict:
         df = frames.get(ticker)
         if df is None:
             continue
-        result = _evaluate_ticker(ticker, df, spy_6m, breadth)
-        # EVAL_ERROR (a swallowed eval crash) is DROPPED exactly like None (a
-        # structural reject): the guard measures output STABILITY, and a ticker
-        # the engine can no longer evaluate is a dropped ticker, not a canonical
-        # dict. Passing EVAL_ERROR (an Enum, no ``.get``) into canonical_fields
-        # would raise AttributeError and crash the CI drift guard.
-        if result is None or result is EVAL_ERROR:
+        # An EVAL_ERROR day (a swallowed eval crash) is never a fire: the walk
+        # files it under ``errors``, so a ticker the engine can no longer
+        # evaluate on any window day is a dropped ticker, not a canonical dict
+        # - the guard measures output STABILITY.
+        walk = fired_window_walk(ticker, df, spy_6m, breadth, evaluate=_evaluate_ticker)
+        if not walk["fires"]:
             continue
-        fields[ticker] = canonical_fields(result)
-        scored.append((ticker, float(result["Score"])))
+        last = walk["fires"][-1]
+        fields[ticker] = {
+            **canonical_fields(last["result"]),
+            "first_fire": walk["fires"][0]["day"],
+            "last_fire": last["day"],
+            "fire_days": len(walk["fires"]),
+        }
+        scored.append((ticker, float(last["result"]["Score"])))
 
     ranking = [t for t, _ in sorted(scored, key=lambda x: (-x[1], x[0]))]
     return {"fields": fields, "ranking": ranking}
@@ -251,8 +291,10 @@ def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
                     breadth_count += 1
     breadth_pct = (breadth_count / breadth_total) if breadth_total else None
 
+    # The same window the checker grades: a ticker that fires on ANY day of its
+    # fired-policy window is kept, so the fixture and the check agree on who fires.
     firing = [t for t, df in cand_frames.items()
-              if _evaluate_ticker(t, df, spy_6m, breadth_pct) is not None]
+              if fired_window_walk(t, df, spy_6m, breadth_pct, evaluate=_evaluate_ticker)["fires"]]
     if not firing:
         raise RuntimeError(
             f"None of the {len(candidates)} candidate tickers fire under the "
@@ -290,6 +332,10 @@ def capture_baseline() -> dict:
         json.dump(snapshot, f, indent=2)
     print(f"Captured shadow baseline -> {_BASELINE_PATH}")
     print(f"  {len(snapshot['fields'])} firing tickers, ranking of {len(snapshot['ranking'])}.")
+    for ticker in snapshot["ranking"]:
+        rec = snapshot["fields"][ticker]
+        print(f"  {ticker}: first_fire={rec['first_fire']} last_fire={rec['last_fire']} "
+              f"fire_days={rec['fire_days']} score={rec['Score']} tier={rec['Tier']}")
     return snapshot
 
 

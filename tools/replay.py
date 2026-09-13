@@ -16,7 +16,9 @@ turn a number into an argument about tooling:
   rule-variant batches; a leaked flag mid-batch silently poisons every
   subsequent measurement in the run.
 * ``fired_window_sessions`` + the ``FIRED_*`` policy and frozen scalars —
-  the ONE pops-up-live acceptance window the gate and the harness both grade.
+  the ONE pops-up-live acceptance window the gate and the harness both grade;
+  ``fired_window_walk`` — every fire in that window on one frozen frame, the
+  walk the junk corpus and the fleet fixture grade (build step 1, 2026-09-13).
 * ``load_sealed_fixture`` / ``fixture_frame`` — the sealed-corpus basis and
   its one lookup rule.
 
@@ -45,7 +47,8 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.pipeline.downloads import _trim_to_period
-from engine_alpha.evaluation import _prepare_eval_frame_with_reason
+from core.pipeline.screener import _evaluate_ticker
+from engine_alpha.evaluation import EVAL_ERROR, _prepare_eval_frame_with_reason
 from engine_alpha.structure.gate_margins import (
     count_allowed,
     count_needed,
@@ -343,3 +346,47 @@ def fired_window_sessions(frozen: pd.DataFrame, as_of, lps_spans,
                      f"of {len(faithful)} sessions")
         faithful = faithful[:FIRED_WALK_MAX_SESSIONS]
     return faithful, ("; ".join(notes) or None)
+
+
+def fired_window_walk(ticker: str, frozen: pd.DataFrame, spy_6m: float,
+                      breadth, as_of=None, *, evaluate=None) -> dict:
+    """Every fire in the fired-policy window of one frozen frame — the ONE
+    window walk the junk corpus (``tools.negative_corpus``) and the fleet
+    fixture (``tools.shadow_diff``) grade, so neither reads one day per
+    frame while the marks ratchet reads the window (final method, build
+    step 1, 2026-09-13). Unlike the ratchet's ``_replay_setup`` this does
+    NOT stop at the first fire: a precision guard needs every fire day, and
+    the fleet guard pins the first and the last.
+
+    Walks ``fired_window_sessions(frozen, as_of, [])`` — the last
+    ``FIRED_WINDOW_SESSIONS`` frame sessions ending at ``as_of`` (default:
+    the frame's last session), clamped to the faithful-basis zone with the
+    clamp NAMED — oldest first, slicing ``frozen.loc[:ts]`` and skipping
+    slices under 200 rows. Returns ``{"window": [first, last] (ISO),
+    "clamp_note": str|None, "fires": [{"day": ISO, "result": dict}],
+    "errors": [{"day": ISO}], "evaluated": int}`` (``evaluated`` counts the
+    days actually run, so a report can never claim a window it skipped);
+    consumers project the raw result
+    themselves (Score/Tier, the shadow guard's canonical fields).
+
+    ``evaluate`` defaults to the pipeline's ``_evaluate_ticker``; a consumer
+    passes its own module-bound name so its tests can monkeypatch that
+    binding exactly as they always have."""
+    evaluate = evaluate or _evaluate_ticker
+    as_of = frozen.index[-1] if as_of is None else as_of
+    sessions, note = fired_window_sessions(frozen, as_of, [])
+    out = {"window": [sessions[0].date().isoformat(), sessions[-1].date().isoformat()]
+           if sessions else [],
+           "clamp_note": note, "fires": [], "errors": [], "evaluated": 0}
+    for ts in sessions:
+        sliced = frozen.loc[:ts]
+        if len(sliced) < 200:
+            continue
+        out["evaluated"] += 1
+        result = evaluate(ticker, sliced, spy_6m, breadth)
+        day = ts.date().isoformat()
+        if result is EVAL_ERROR:
+            out["errors"].append({"day": day})
+        elif result is not None:
+            out["fires"].append({"day": day, "result": result})
+    return out

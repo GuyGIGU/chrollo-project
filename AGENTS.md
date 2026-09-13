@@ -75,7 +75,9 @@ documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
 npm --prefix webapp\frontend run build                       # build the React app
 npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
-.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~35s; also prints the graduation-drift advisory)
+.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~1.5 min; also prints the graduation-drift advisory)
+.\.venv\Scripts\python.exe -m tools.negative_corpus --check   # labeled junk must NOT fire on any day of the 10-day fired window (~1.5 min: 17 cases x 10 days)
+.\.venv\Scripts\python.exe -m tools.shadow_diff --check       # fleet canonical output + first/last fire day on the same window (~2.5 min: 37 tickers x 10 days)
 .\.venv\Scripts\python.exe -m tools.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
 ```

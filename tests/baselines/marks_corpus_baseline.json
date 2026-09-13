@@ -1,9 +1,9 @@
 {
-  "captured_at": "2026-09-08T11:05:37+00:00",
+  "captured_at": "2026-09-13T17:01:02+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "6e4c85b09f8bfeb5ba83035de230d244c098d981590ca0da66d005732ce27a60",
+  "corpus_sha256": "d9f2eb2f3ac0901609b5925cd62a18260da9b555352b7b7295ad4ded82d668c7",
   "population": "guided-list",
-  "marks_fingerprint": "02e1d21c8c79d0af398deec47b33b960e8a9be196e5a012e0a3b32f1868de121",
+  "marks_fingerprint": "88db0fcfa4e4f3eac6cd24aafb34a8a3bba67097a3b55a42004407c47335b28d",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
   "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
   "fired_policy": {
@@ -216,7 +216,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "stage": "unreviewed-new-mark"
+      "stage": "universe-gate"
     },
     {
       "key": "MRK:2026-08-10",
@@ -469,22 +469,22 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "unreviewed-new-mark"
+      "stage": "lps-ceiling"
     },
     {
-      "key": "SYRE:2026-02-12",
+      "key": "SYRE:2026-02-19",
       "ticker": "SYRE",
       "status": "hit",
-      "setup_digest": "68a58afc657584ad954545fad517c49a9a2ff7ea3e7bf3d5913d2268bbdf8929",
+      "setup_digest": "2cc97c1927bce3464972c869152c8f56a7d6c8f5df94fe92a53db16292bc3fb6",
       "windows": [
         [
-          "2026-01-30",
-          "2026-02-12"
+          "2026-02-05",
+          "2026-02-19"
         ]
       ],
       "spy_6m_return": 0.0,
-      "bars": 618,
-      "first_fire": "2026-02-03",
+      "bars": 617,
+      "first_fire": "2026-02-11",
       "tier": "B"
     },
     {

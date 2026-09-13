@@ -9,7 +9,24 @@
       "LPS Length": 4,
       "_R": 3.23,
       "_S": 2.76,
-      "_trigger_price": 3.15
+      "_trigger_price": 3.15,
+      "first_fire": "2026-05-22",
+      "last_fire": "2026-06-05",
+      "fire_days": 5
+    },
+    "BBVA": {
+      "Setup": "LPS",
+      "Score": 87.3,
+      "Tier": "B",
+      "Base Len": 42,
+      "Box Width": 0.098572,
+      "LPS Length": 2,
+      "_R": 23.128076,
+      "_S": 21.052852,
+      "_trigger_price": 23.02,
+      "first_fire": "2026-06-04",
+      "last_fire": "2026-06-04",
+      "fire_days": 1
     },
     "BC": {
       "Setup": "LPS",
@@ -20,7 +37,10 @@
       "LPS Length": 2,
       "_R": 82.747834,
       "_S": 73.769064,
-      "_trigger_price": 82.760002
+      "_trigger_price": 82.760002,
+      "first_fire": "2026-06-04",
+      "last_fire": "2026-06-05",
+      "fire_days": 2
     },
     "CHRW": {
       "Setup": "LPS",
@@ -31,7 +51,10 @@
       "LPS Length": 2,
       "_R": 186.451465,
       "_S": 159.414069,
-      "_trigger_price": 186.610001
+      "_trigger_price": 186.610001,
+      "first_fire": "2026-05-22",
+      "last_fire": "2026-06-05",
+      "fire_days": 7
     },
     "COLM": {
       "Setup": "LPS",
@@ -42,7 +65,10 @@
       "LPS Length": 4,
       "_R": 64.806611,
       "_S": 55.911002,
-      "_trigger_price": 65.129997
+      "_trigger_price": 65.129997,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "CVI": {
       "Setup": "LPS",
@@ -53,7 +79,10 @@
       "LPS Length": 2,
       "_R": 35.613531,
       "_S": 31.216676,
-      "_trigger_price": 34.330002
+      "_trigger_price": 34.330002,
+      "first_fire": "2026-05-28",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "CWEN": {
       "Setup": "LPS",
@@ -64,7 +93,10 @@
       "LPS Length": 2,
       "_R": 40.545263,
       "_S": 36.065212,
-      "_trigger_price": 40.310001
+      "_trigger_price": 40.310001,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "EC": {
       "Setup": "LPS",
@@ -75,7 +107,10 @@
       "LPS Length": 4,
       "_R": 14.880929,
       "_S": 12.718337,
-      "_trigger_price": 15.52
+      "_trigger_price": 15.52,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "ET": {
       "Setup": "LPS",
@@ -86,7 +121,10 @@
       "LPS Length": 3,
       "_R": 20.319273,
       "_S": 19.139999,
-      "_trigger_price": 19.68
+      "_trigger_price": 19.68,
+      "first_fire": "2026-05-22",
+      "last_fire": "2026-06-05",
+      "fire_days": 7
     },
     "FOF": {
       "Setup": "LPS",
@@ -97,7 +135,10 @@
       "LPS Length": 2,
       "_R": 13.627276,
       "_S": 12.570668,
-      "_trigger_price": 13.89
+      "_trigger_price": 13.89,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "GF": {
       "Setup": "LPS",
@@ -108,7 +149,24 @@
       "LPS Length": 7,
       "_R": 12.15894,
       "_S": 10.382472,
-      "_trigger_price": 11.95
+      "_trigger_price": 11.95,
+      "first_fire": "2026-06-02",
+      "last_fire": "2026-06-05",
+      "fire_days": 2
+    },
+    "HESM": {
+      "Setup": "LPS",
+      "Score": 89.7,
+      "Tier": "B",
+      "Base Len": 64,
+      "Box Width": 0.068559,
+      "LPS Length": 3,
+      "_R": 39.08676,
+      "_S": 36.578936,
+      "_trigger_price": 40.369999,
+      "first_fire": "2026-05-26",
+      "last_fire": "2026-05-27",
+      "fire_days": 2
     },
     "HOG": {
       "Setup": "LPS",
@@ -119,7 +177,10 @@
       "LPS Length": 2,
       "_R": 25.780001,
       "_S": 23.01,
-      "_trigger_price": 24.77
+      "_trigger_price": 24.77,
+      "first_fire": "2026-05-28",
+      "last_fire": "2026-06-05",
+      "fire_days": 5
     },
     "HVT": {
       "Setup": "LPS",
@@ -130,7 +191,10 @@
       "LPS Length": 2,
       "_R": 23.3726,
       "_S": 19.981553,
-      "_trigger_price": 22.85
+      "_trigger_price": 22.85,
+      "first_fire": "2026-06-02",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "IRS": {
       "Setup": "LPS",
@@ -141,7 +205,10 @@
       "LPS Length": 2,
       "_R": 15.24,
       "_S": 13.46,
-      "_trigger_price": 15.19
+      "_trigger_price": 15.19,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "JAKK": {
       "Setup": "LPS",
@@ -152,7 +219,10 @@
       "LPS Length": 4,
       "_R": 22.74869,
       "_S": 21.017812,
-      "_trigger_price": 21.809999
+      "_trigger_price": 21.809999,
+      "first_fire": "2026-06-01",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "LUV": {
       "Setup": "LPS",
@@ -163,7 +233,10 @@
       "LPS Length": 2,
       "_R": 43.43,
       "_S": 38.200001,
-      "_trigger_price": 41.860001
+      "_trigger_price": 41.860001,
+      "first_fire": "2026-06-01",
+      "last_fire": "2026-06-05",
+      "fire_days": 5
     },
     "MEGI": {
       "Setup": "LPS",
@@ -174,7 +247,10 @@
       "LPS Length": 2,
       "_R": 15.496026,
       "_S": 14.179496,
-      "_trigger_price": 15.18
+      "_trigger_price": 15.18,
+      "first_fire": "2026-05-28",
+      "last_fire": "2026-06-05",
+      "fire_days": 7
     },
     "NDSN": {
       "Setup": "LPS",
@@ -185,7 +261,10 @@
       "LPS Length": 3,
       "_R": 289.48999,
       "_S": 271.109985,
-      "_trigger_price": 285.730011
+      "_trigger_price": 285.730011,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "NMM": {
       "Setup": "LPS",
@@ -196,7 +275,10 @@
       "LPS Length": 4,
       "_R": 72.491943,
       "_S": 68.085465,
-      "_trigger_price": 72.290001
+      "_trigger_price": 72.290001,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "OPRA": {
       "Setup": "LPS",
@@ -207,7 +289,10 @@
       "LPS Length": 2,
       "_R": 18.780001,
       "_S": 17.0,
-      "_trigger_price": 18.76
+      "_trigger_price": 18.76,
+      "first_fire": "2026-05-22",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "PBF": {
       "Setup": "LPS",
@@ -218,7 +303,10 @@
       "LPS Length": 2,
       "_R": 43.277262,
       "_S": 38.499577,
-      "_trigger_price": 42.84
+      "_trigger_price": 42.84,
+      "first_fire": "2026-06-04",
+      "last_fire": "2026-06-05",
+      "fire_days": 2
     },
     "PII": {
       "Setup": "LPS",
@@ -229,7 +317,10 @@
       "LPS Length": 2,
       "_R": 68.760987,
       "_S": 61.630363,
-      "_trigger_price": 68.540001
+      "_trigger_price": 68.540001,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "PLPC": {
       "Setup": "LPS",
@@ -240,7 +331,10 @@
       "LPS Length": 2,
       "_R": 371.799988,
       "_S": 334.720001,
-      "_trigger_price": 379.529999
+      "_trigger_price": 379.529999,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "SCL": {
       "Setup": "LPS",
@@ -251,7 +345,10 @@
       "LPS Length": 3,
       "_R": 52.335896,
       "_S": 48.13751,
-      "_trigger_price": 51.919998
+      "_trigger_price": 51.919998,
+      "first_fire": "2026-05-29",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "SN": {
       "Setup": "LPS",
@@ -262,7 +359,10 @@
       "LPS Length": 2,
       "_R": 121.279999,
       "_S": 102.830002,
-      "_trigger_price": 123.93
+      "_trigger_price": 123.93,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "SWK": {
       "Setup": "LPS",
@@ -273,7 +373,10 @@
       "LPS Length": 2,
       "_R": 81.279999,
       "_S": 74.839996,
-      "_trigger_price": 79.230003
+      "_trigger_price": 79.230003,
+      "first_fire": "2026-05-28",
+      "last_fire": "2026-06-05",
+      "fire_days": 7
     },
     "TKO": {
       "Setup": "LPS",
@@ -284,7 +387,10 @@
       "LPS Length": 2,
       "_R": 210.84613,
       "_S": 182.553418,
-      "_trigger_price": 208.190002
+      "_trigger_price": 208.190002,
+      "first_fire": "2026-06-05",
+      "last_fire": "2026-06-05",
+      "fire_days": 1
     },
     "TNC": {
       "Setup": "LPS",
@@ -295,7 +401,10 @@
       "LPS Length": 2,
       "_R": 88.545146,
       "_S": 79.746433,
-      "_trigger_price": 85.0
+      "_trigger_price": 85.0,
+      "first_fire": "2026-06-04",
+      "last_fire": "2026-06-05",
+      "fire_days": 2
     },
     "TRS": {
       "Setup": "LPS",
@@ -306,7 +415,10 @@
       "LPS Length": 6,
       "_R": 41.915456,
       "_S": 35.53832,
-      "_trigger_price": 40.259998
+      "_trigger_price": 40.259998,
+      "first_fire": "2026-06-02",
+      "last_fire": "2026-06-05",
+      "fire_days": 4
     },
     "URBN": {
       "Setup": "LPS",
@@ -317,7 +429,10 @@
       "LPS Length": 2,
       "_R": 77.0,
       "_S": 67.510002,
-      "_trigger_price": 74.019997
+      "_trigger_price": 74.019997,
+      "first_fire": "2026-06-04",
+      "last_fire": "2026-06-05",
+      "fire_days": 2
     },
     "VIK": {
       "Setup": "LPS",
@@ -328,7 +443,10 @@
       "LPS Length": 3,
       "_R": 92.0,
       "_S": 79.597,
-      "_trigger_price": 90.32
+      "_trigger_price": 90.32,
+      "first_fire": "2026-06-03",
+      "last_fire": "2026-06-05",
+      "fire_days": 3
     },
     "VLO": {
       "Setup": "LPS",
@@ -339,7 +457,10 @@
       "LPS Length": 3,
       "_R": 257.207966,
       "_S": 230.106724,
-      "_trigger_price": 262.850006
+      "_trigger_price": 262.850006,
+      "first_fire": "2026-05-28",
+      "last_fire": "2026-06-05",
+      "fire_days": 5
     },
     "WCC": {
       "Setup": "LPS",
@@ -350,7 +471,10 @@
       "LPS Length": 2,
       "_R": 368.899994,
       "_S": 347.769989,
-      "_trigger_price": 362.200012
+      "_trigger_price": 362.200012,
+      "first_fire": "2026-05-27",
+      "last_fire": "2026-06-05",
+      "fire_days": 8
     }
   },
   "ranking": [
@@ -381,11 +505,13 @@
     "SN",
     "ABEV",
     "VLO",
+    "HESM",
     "NDSN",
     "PLPC",
     "URBN",
+    "BBVA",
     "TKO",
     "TRS"
   ],
-  "captured_at": "2026-08-26T08:08:30+00:00"
+  "captured_at": "2026-09-13T10:57:07+00:00"
 }

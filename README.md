@@ -196,7 +196,15 @@ Full runbook: [`docs/deploy.md`](docs/deploy.md).
 Use the smallest guard that proves the change, then widen only when the touched surface warrants it:
 
 - Local edits: run focused tests for the touched module, then `.\.venv\Scripts\python.exe -m pytest -q` before merge.
-- Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.shadow_diff --check` to catch canonical drift.
+- Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.shadow_diff --check` (fleet canonical
+  drift, ~2.5 min) and `.\.venv\Scripts\python.exe -m tools.negative_corpus --check` (labeled junk must not fire, ~1.5 min).
+  Both grade the marks ratchet's fired window (`tools.replay.fired_window_walk`: the last 10 trading days ending at each
+  frozen day, every clamp named), not the frozen day alone. A junk case that fires on ANY window day fails, with every fire
+  day, score and tier named. A fleet ticker with no fire in the window is dropped; one that fires records the canonical fields
+  of its LAST fire plus `first_fire` / `last_fire` / `fire_days`, so a fire that moves a day earlier reads as drift
+  (final method build step 1, operator ruling 2026-09-13). Early-window junk fires the engine already produced at that
+  seam are pinned as KNOWN in `tests/baselines/negative_corpus_baseline.json` (`--pin-known-fires`, a declared seam
+  recorded in `docs/decisions.md`): the check prints them and reds only on a NEW fire day.
 - Structure-reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
   The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
