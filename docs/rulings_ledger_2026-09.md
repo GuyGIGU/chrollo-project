@@ -1030,3 +1030,29 @@ Applied:
   * Review fleet (wf_5ccb0bd2, 25 agents): 8 confirmed findings, all documentary, all fixed before the commit (his nested
     quotes restored as typed, 'The setups is valid' quoted as typed, the seam claim narrowed, the gate-comment claim
     corrected, 17 -> 16 in two missed lines, the empty-KEY CLI hole closed); mutation proofs D1-D3 red/restored/green.
+
+## BUILD STEP 2 (Sun 13/09/2026, after the CHCT ruling) — THE RULED STACK BEHIND FLAGS, DARK
+
+Eight default-off flags, one per ruling site, each as measured in process (rulings_ab2..ab8): RESPECT_WHOLE_BAR (R1),
+DWELL_GRADED (R13), BOX_HANDOVER_RANGES 1.5 (R11), SPRING_BOUNDS_LIFTED (R17), LPS_RANGES_YARDSTICK 2.5/2.5/1.5 + ceiling
+1.35 (R8+R12), LPS_GRADED_TRAITS + the story-position floors dig 0.70 / last high +0.25 / high first (R9/R9b+R15),
+LPS_WINDOW_RECEDING = one window per read day, the last receding run with its top, ending on the frame's last receding
+day, no breakout-day end (R18 + 16th sitting), LPS_BUY_DAY_READS_HIGH (Q9 default). Flag-off byte-identical (all guards
+PASS). Control: 20/37 windows concordant, ratchet 30/35, junk 8/16, fleet 34. Stack: 34/37 concordant (36 read;
+BWA/EGBN longer runs, ORMP split by its 08/04 bounce day yet its pinned fire holds 02/04 S), ratchet 33/35 (EGBN 02/01 C,
+NOK 05/02 B, ST 13/04 S convert; 0 regressions), fleet 36 (+JRSH +PKOH), junk 15/16 (only GOOD clean). All eight:
+fleet 35 (-TKO: its only fire day is a crossed trigger), junk 15/16.
+Each flag alone (junk / fleet vs 8 / 34):
+  * RESPECT_WHOLE_BAR_ENABLED: junk 11 (+COLM +DBD +DGII +FLG -OHI), fleet 31 (-BC -EC -SN)
+  * DWELL_GRADED_ENABLED: junk 9 (+FLG), fleet 34 (unchanged)
+  * BOX_HANDOVER_RANGES_ENABLED: junk 8 (+BBVA -FRPH), fleet 34 (unchanged)
+  * SPRING_BOUNDS_LIFTED_ENABLED: junk 8 (unchanged), fleet 34 (unchanged)
+  * LPS_RANGES_YARDSTICK_ENABLED: junk 12 (+BBVA +COLM +DGII +RLGT), fleet 35 (+PKOH)
+  * LPS_GRADED_TRAITS_ENABLED: junk 12 (+COLM +FLG +KWR +RLGT), fleet 37 (+JRSH +MAN +PKOH)
+  * LPS_WINDOW_RECEDING_ENABLED: junk 3 (-BBVA@2026-06-05 -BMRN -ENIC -FRPH -OHI), fleet 26 (-BBVA -CWEN -EC -HESM -IRS -PLPC -TKO -VIK)
+  * LPS_BUY_DAY_READS_HIGH_ENABLED: junk 8 (unchanged), fleet 32 (-HESM -IRS)
+Reading: one stack, not eight knobs. Alone the window rule hands today's gates a fixed run they refuse (fleet 26, junk 3);
+the buy-day clause drops fires whose only day is a crossed trigger (HESM, IRS; TKO in the stack); with the graded traits
+beside them the window rule moves WHEN, not whether (0 regressions). Gate-to-grade admits junk by construction (the grade
+and the display state separate it, step 12). Recommended: hand-over + spring bounds may flip at his word (fleet-neutral);
+the other six flip together with step 12, never one at a time. His flip owed.

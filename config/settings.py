@@ -645,6 +645,67 @@ LPS_DRAW_MIN_DESCENT_FRAC = 0.40
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
 
+# ── The final method, build step 2 (Sun 13/09/2026): the ruled stack behind ──
+# ── flags, DARK (every flag default OFF; flag-off is byte-identical).       ──
+# The operator's rulings R1 and R7 to R18 (docs/decisions.md, 2026-09-05 to
+# 2026-09-12), each as it was MEASURED in process on his 37 LPS windows, the
+# junk corpus and the fleet fixture (rulings ledger, rulings_ab2 to ab8). One
+# flag per ruling SITE so each can be measured and flipped alone; the values
+# are placed from his drawings, never tuned. Every name here rides the engine
+# manifest so a flip rotates engine_config_version from day one.
+#
+# R1 (respect): a bar is OUTSIDE the box only when the WHOLE bar sits beyond
+# the rail area (low above R + area, or high under S - area); a poke or a
+# straddle is respect. Today a wick beyond the area counts as outside.
+RESPECT_WHOLE_BAR_ENABLED = False
+# R13 (the bar is the unit of dwell; graded): the two close-dwell legs of the
+# occupancy exam never refuse a box (their values stay measured facts).
+DWELL_GRADED_ENABLED = False
+# R11 (hand-over): the break-above-R rescue keeps an old box only while the
+# last close sits within this many daily ranges above its R (today: within
+# 15% of PRICE, EXTENSION_FILTER_MULT). Measured: PBT's exact box, EWTX's
+# January box, at no fleet cost.
+BOX_HANDOVER_RANGES_ENABLED = False
+BOX_HANDOVER_MAX_ABOVE_R_ATR = 1.5
+# R17 (Phase C): a noticeable dip under support that recovers shortly. The
+# box-height depth cap (BIN_C_UNDERCUT_BOX_MAX) and the late-half rule
+# (BIN_C_LATE_BOX_FRACTION) both refused his own SYRE spring and are lifted;
+# depth stays bounded by BIN_C_UNDERCUT_ATR_MAX (3.0 ranges).
+SPRING_BOUNDS_LIFTED_ENABLED = False
+# R8 + R12 (the LPS in daily ranges): the three box-height clauses of the LPS
+# read re-cut to daily ranges, placed from his 36 windows (max height 2.43,
+# above-R launch max 2.40), and the zone's R-side ceiling at 1.35 ranges (his
+# farthest above-R LPS low: ST at 1.30; "Lets go with that ceiling 1.35").
+LPS_RANGES_YARDSTICK_ENABLED = False
+LPS_WINDOW_SPAN_ATR_MAX = 2.5        # window height, wick to wick (was 0.85 box heights)
+LPS_LAUNCH_ABOVE_R_ATR_MAX = 2.5     # an INSIDE window's poke above R (was 0.35 box AND 0.75 ranges)
+LPS_SHELF_ABOVE_R_ATR_MAX = 1.5      # the resistance shelf's close lift above R (was 0.35 box)
+LPS_ZONE_CEILING_ATR = 1.35          # the LPS zone's ceiling above R, in ranges (floor: the zone tolerance)
+# R9/R9b + R15 (the LPS is defined by graded traits): rest-on-its-low, the
+# markup-leg test, the depth minimum, the bar-spread cap, the final-spread
+# expansion cap and every volume ask stop refusing (their values stay facts;
+# quality is volume-free). What stays a refusal is the story position, "it
+# must be a PULLBACK": the window's high comes before its low, the dig from
+# the first high to the window low is at least 0.70 ranges (his minimum
+# 0.71), and the last day's high is not back at the first high (R15: read on
+# the HIGH; his 36 windows: last high <= first high + 0.25 ranges, WTS 0.21).
+LPS_GRADED_TRAITS_ENABLED = False
+LPS_CORRECTION_DIG_MIN_ATR = 0.70
+LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR = 0.25
+# R18 + the sixteenth sitting (one window per read day): a receding day makes
+# a lower high OR a lower low than the day before (his 37 of 37); the window
+# is the last run of receding days with the day before the run as its top,
+# it ends ON the last receding day of the frame, the trigger is that day's
+# high, and a window may not end on a breakout day (a close more than 0.10
+# ranges above the prior day's high; his 36: at most +0.06). The 2..7 length
+# enumeration goes; length is archived. One-day runs are legal.
+LPS_WINDOW_RECEDING_ENABLED = False
+LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.10
+# The narrow buy-day clause (his Q9 default): the "still live" test reads the
+# HIGH. Once a later day's high crossed the trigger the setup was bought and
+# shows nothing, even when that day closed back under the trigger.
+LPS_BUY_DAY_READS_HIGH_ENABLED = False
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

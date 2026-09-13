@@ -156,6 +156,24 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_SHELF_MIN_LOW_POS_BOX",
     # Ceiling-rest launch-gate exception (miss program, operator ruling 2026-08-29, dark)
     "LPS_CEILING_REST_ENABLED",
+    # The final method, build step 2 (Sun 13/09/2026): the ruled stack R1..R18
+    # behind flags, dark; listed from birth so any flip rotates the version.
+    "RESPECT_WHOLE_BAR_ENABLED",
+    "DWELL_GRADED_ENABLED",
+    "BOX_HANDOVER_RANGES_ENABLED",
+    "BOX_HANDOVER_MAX_ABOVE_R_ATR",
+    "SPRING_BOUNDS_LIFTED_ENABLED",
+    "LPS_RANGES_YARDSTICK_ENABLED",
+    "LPS_WINDOW_SPAN_ATR_MAX",
+    "LPS_LAUNCH_ABOVE_R_ATR_MAX",
+    "LPS_SHELF_ABOVE_R_ATR_MAX",
+    "LPS_ZONE_CEILING_ATR",
+    "LPS_GRADED_TRAITS_ENABLED",
+    "LPS_CORRECTION_DIG_MIN_ATR",
+    "LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR",
+    "LPS_WINDOW_RECEDING_ENABLED",
+    "LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR",
+    "LPS_BUY_DAY_READS_HIGH_ENABLED",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)

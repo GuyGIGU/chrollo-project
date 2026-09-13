@@ -753,6 +753,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
+**The final method, build step 2 (Sun 13/09/2026): the ruled stack behind flags, DARK.** Eight default-off flags carry the operator's rulings R1 and R7 to R18 exactly as they were measured in process (rulings ledger, `rulings_ab2` to `ab8`), one flag per ruling site so each can be measured and flipped alone; every name rides the engine manifest. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards prove it); flag-on mechanics are pinned on fakes in `tests/test_final_method_step2.py`. Inside this detector: `LPS_RANGES_YARDSTICK_ENABLED` (R8 + R12) reads the window height (`LPS_WINDOW_SPAN_ATR_MAX` 2.5), the launch above R (`LPS_LAUNCH_ABOVE_R_ATR_MAX` 2.5) and the resistance shelf's lift (`LPS_SHELF_ABOVE_R_ATR_MAX` 1.5) in daily ranges instead of box heights, and lifts the zone's R-side ceiling to `LPS_ZONE_CEILING_ATR` 1.35 ranges; `LPS_GRADED_TRAITS_ENABLED` (R9/R9b + R15) turns the terminal-low guard, the markup-leg test, the depth minimum, both spread caps and every volume ask into measured facts (quality becomes volume-free), while the story position stays a refusal (the window's high before its low, a dig of at least `LPS_CORRECTION_DIG_MIN_ATR` 0.70 ranges, the last high at most `LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR` 0.25 ranges over the first); `LPS_WINDOW_RECEDING_ENABLED` (R18 + the sixteenth sitting) replaces the 2..7 length enumeration with ONE window per read day, the last run of receding days (a lower high or a lower low than the day before) with the day before the run as its top, ending ON the frame's last receding day, and refuses a window that ends on a breakout day (a close over the prior high by more than `LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR` 0.10 ranges); `LPS_BUY_DAY_READS_HIGH_ENABLED` makes the election's "still live" test read the HIGH: a candidate whose trigger a later day's high crossed was bought and shows nothing (the measure-only staircase keeps every window). Outside this detector: `RESPECT_WHOLE_BAR_ENABLED` (R1) counts a bar as outside the box only when the WHOLE bar sits beyond the rail area (`box_gates._respect_stats`); `DWELL_GRADED_ENABLED` (R13) stops the two close-dwell legs of the occupancy exam from refusing (`box_gates._validate_base_quality`); `BOX_HANDOVER_RANGES_ENABLED` (R11) keeps a rescued box only while the last close sits within `BOX_HANDOVER_MAX_ABOVE_R_ATR` 1.5 ranges above its R instead of 15 percent of price (`box_primitives`); `SPRING_BOUNDS_LIFTED_ENABLED` (R17) lets a spring sit anywhere in the box with its depth bounded by the ATR cap alone (`phase_features._phase_c_candidate`). The measured scoreboard of each flag and of the whole stack is in the decisions record (2026-09-13, build step 2).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1254,7 +1256,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42`_
+_engine_config_version: `c6661e470ba83e27dd36bcfd9c010b2ce40afc2b9b0d21325b726699ae997649`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1336,6 +1338,22 @@ LPS_HOLDING_SHELF_ENABLED = True
 LPS_SHELF_LENGTH_MIN = 3
 LPS_SHELF_MIN_LOW_POS_BOX = 0.5
 LPS_CEILING_REST_ENABLED = False
+RESPECT_WHOLE_BAR_ENABLED = False
+DWELL_GRADED_ENABLED = False
+BOX_HANDOVER_RANGES_ENABLED = False
+BOX_HANDOVER_MAX_ABOVE_R_ATR = 1.5
+SPRING_BOUNDS_LIFTED_ENABLED = False
+LPS_RANGES_YARDSTICK_ENABLED = False
+LPS_WINDOW_SPAN_ATR_MAX = 2.5
+LPS_LAUNCH_ABOVE_R_ATR_MAX = 2.5
+LPS_SHELF_ABOVE_R_ATR_MAX = 1.5
+LPS_ZONE_CEILING_ATR = 1.35
+LPS_GRADED_TRAITS_ENABLED = False
+LPS_CORRECTION_DIG_MIN_ATR = 0.7
+LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR = 0.25
+LPS_WINDOW_RECEDING_ENABLED = False
+LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.1
+LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

@@ -103,6 +103,14 @@ age floor, and the definition of a fire (a box, an LPS, a trigger).
 Until a step lands in the engine, the sections below describe the reading as it is built
 today; the rulings and every measurement behind this method are in the decisions record.
 
+Build status: step 1 landed (the guards grade the fired window); step 2 landed DARK (Sun
+13/09/2026): the ruled stack sits behind eight default-off flags, one per ruling site (the
+whole-bar respect, the graded dwell, the hand-over in ranges, the lifted spring bounds, the
+LPS in daily ranges with the 1.35-range ceiling, the graded LPS traits with the story-position
+floors, the one window per read day ending on the last receding day, and the buy-day clause
+that reads the high), measured against the 35 marks, the 16 junk charts and the fleet, and
+waiting on the operator's flip. Flags off, the engine reads exactly as it did.
+
 ### The legend (strict vocabulary)
 
 | Term | Meaning | Reserved for |

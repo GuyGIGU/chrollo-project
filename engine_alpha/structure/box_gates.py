@@ -358,8 +358,15 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
     if n == 0:
         return False, False, False, 0, 0.0, 0, 0, 0
 
-    above_r, below_s, _r_ceiling, _s_floor = _rail_outside_masks(
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
         highs, lows, R_val, S_val, atr_val)
+    if settings.RESPECT_WHOLE_BAR_ENABLED:
+        # R1 (operator, Sat 05/09/2026; final method step 2, dark): a bar is
+        # outside only when the WHOLE bar sits beyond the rail area - a poke
+        # or a straddle is respect. The per-bar masks above stay the one
+        # classification every other reader derives from.
+        above_r = lows > r_ceiling
+        below_s = highs < s_floor
     outside = above_r | below_s
     total_outside = int(outside.sum())
 
@@ -591,13 +598,16 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
+    # R13 (final method step 2, dark): the close-dwell legs are graded, never
+    # a refusal; their values stay measured facts.
+    dwell_floor = 0.0 if settings.DWELL_GRADED_ENABLED else settings.EQ_MIN_HALF_DWELL
     is_valid = (
         r_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and s_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and eq["r_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
         and eq["s_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
-        and eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
-        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["lower_dwell"] >= dwell_floor
+        and eq["upper_dwell"] >= dwell_floor
         and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
         and eq["coverage"] >= settings.EQ_MIN_COVERAGE
     )
