@@ -109,7 +109,11 @@ whole-bar respect, the graded dwell, the hand-over in ranges, the lifted spring 
 LPS in daily ranges with the 1.35-range ceiling, the graded LPS traits with the story-position
 floors, the one window per read day ending on the last receding day, and the buy-day clause
 that reads the high), measured against the 35 marks, the 16 junk charts and the fleet, and
-waiting on the operator's flip. Flags off, the engine reads exactly as it did.
+waiting on the operator's flip. Step 3 landed DARK (Sun 13/09/2026): the LPS refusals that remained on the
+support side, after the window and on volume became facts behind one more flag (the support side never
+refuses and the zone word there is read from the window's closes, never its lowest wick; the three
+post-window checks and the depth cap in profile units are gone; volume never refuses and never elects),
+measured the same way and waiting on the same flip. Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)
 

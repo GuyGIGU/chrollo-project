@@ -187,11 +187,14 @@ def _depth_in_base_envelope(pullback_profile: float, min_pullback: float) -> boo
     the holding shelf passes the plain floor). The chained comparison is the
     NaN route (NaN -> False) — keep the form; the MAX is read at call time so
     settings overrides propagate."""
-    if settings.LPS_GRADED_TRAITS_ENABLED:
-        # R9 (final method step 2, dark): the dig's MINIMUM is a grade; the
-        # staleness cap stays (the spans cap in ranges bounds the height).
-        return pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
-    return min_pullback <= pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
+    if not _finite(pullback_profile):
+        return False   # NaN refused, as the chained comparison always did
+    # R9 (final method step 2, dark): the dig's MINIMUM is a grade.
+    min_ok = settings.LPS_GRADED_TRAITS_ENABLED or min_pullback <= pullback_profile
+    # Final method step 3 (dark): the depth cap in profile units goes too; the
+    # window height in ranges is the one "too deep" refusal that remains (19).
+    max_ok = settings.LPS_REFUSALS_TO_GRADES_ENABLED or pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
+    return bool(min_ok and max_ok)
 
 
 def _vol_dry_refused(avg_pullback_vol: float, vol_50_at_lps: float,
@@ -361,6 +364,13 @@ def detect_lps_candidates(
         # R12 (final method step 2, dark): the LPS stays close to the box -
         # the zone's ceiling above R is LPS_ZONE_CEILING_ATR daily ranges.
         r_ceiling = res_avg + max(zone_tol, settings.LPS_ZONE_CEILING_ATR * float(atr_val))
+        if settings.LPS_REFUSALS_TO_GRADES_ENABLED:
+            # Final method step 3 (dark): the tight-box widening (a percent-of-
+            # price rescue, 18) leaves the ceiling once the ceiling is read in
+            # ranges: exactly LPS_ZONE_CEILING_ATR (R12). Alone, step 3 keeps
+            # today's ceiling: on MRK's tight box the widening IS the ceiling
+            # that admits his above-R LPS (measured Sun 13/09/2026).
+            r_ceiling = res_avg + settings.LPS_ZONE_CEILING_ATR * float(atr_val)
     s_floor = sup_avg - zone_tol
     box_width = box_height / sup_avg if sup_avg > 0 else 1.0
 
@@ -503,12 +513,22 @@ def detect_lps_candidates(
                 low_index = start + window_low_rel
 
             # Zone gate: the elected LPS low must sit in one of the valid
-            # support zones.
-            if support_low < s_floor or support_low > r_ceiling:
+            # support zones. Final method step 3 (dark): the support side never
+            # refuses (18: JAZZ's low sits 0.67 ranges under S and the next day
+            # is the buy); the ceiling above R stays (R12).
+            refusals_graded = settings.LPS_REFUSALS_TO_GRADES_ENABLED
+            if support_low > r_ceiling or (support_low < s_floor and not refusals_graded):
                 if diagnose:
                     rejects["low outside the support zones"] += 1
                 continue
-            if support_low < sup_avg:
+            # The zone word on the support side: under step 3 it is typed by the
+            # window's CLOSES, never its lowest wick ("JAZZ's LPS is ON support:
+            # closes above S, only wicks poke under"; his Sun 13/09/2026 answer).
+            if refusals_graded:
+                under_s = float(np.nanmin(pullback_period["Close"].values.astype(float))) < sup_avg
+            else:
+                under_s = support_low < sup_avg
+            if under_s:
                 zone_type = "UNDERCUT_S"
             elif support_low > res_avg:
                 zone_type = "OVERSHOOT_R"
@@ -636,6 +656,8 @@ def detect_lps_candidates(
             spread_max_allowed = profile_unit * settings.LPS_SPREAD_MAX_PROFILE_MULT
             max_spread = float(spreads.max())
             graded_traits = settings.LPS_GRADED_TRAITS_ENABLED
+            # Final method step 3 (dark): volume never refuses and never elects (20).
+            volume_is_data = graded_traits or refusals_graded
             if max_spread > spread_max_allowed and not graded_traits:
                 if diagnose:
                     rejects["bar spread too wide"] += 1
@@ -667,7 +689,7 @@ def detect_lps_candidates(
             # refusal: neither completion form may ride a broken denominator.
             vol_ok = bool(np.isfinite(vol_50_at_lps) and vol_50_at_lps > 0)
             if not vol_ok:
-                if not graded_traits:
+                if not volume_is_data:
                     if diagnose:
                         rejects["volume baseline invalid"] += 1
                     continue
@@ -675,8 +697,8 @@ def detect_lps_candidates(
                 # reads as a zero contraction fact, never a refusal.
                 vol_50_at_lps = 1.0
             avg_pullback_vol = pullback_period["Volume"].mean() if vol_ok else 1.0
-            if not graded_traits and _vol_dry_refused(avg_pullback_vol, vol_50_at_lps,
-                                                      settings.LPS_VOL_CONTRACTION_MAX):
+            if not volume_is_data and _vol_dry_refused(avg_pullback_vol, vol_50_at_lps,
+                                                       settings.LPS_VOL_CONTRACTION_MAX):
                 # The dry-up is the pullback form's judgment; the shelf form is
                 # geometry-only (grades-not-vetoes: volume never gates it).
                 if not rest:
@@ -687,14 +709,16 @@ def detect_lps_candidates(
                     continue
                 shelf_saved = True
 
-            if latest["Close"] < (support_low * settings.LPS_HOLD_TOLERANCE):
+            # Final method step 3 (dark): the three post-window checks go (19);
+            # under one window per read day there is no post-window day to check.
+            if not refusals_graded and latest["Close"] < (support_low * settings.LPS_HOLD_TOLERANCE):
                 if diagnose:
                     rejects["support hold broken"] += 1
                 continue
 
             # Bars after the LPS evaluation bar must hold above the elected LPS
             # low and stay profile-tight, or the "LPS" has become another down-leg.
-            if offset > 0:
+            if offset > 0 and not refusals_graded:
                 post_lps = df.iloc[end:n]
                 if post_lps["Low"].min() < support_low * settings.LPS_HOLD_TOLERANCE:
                     if diagnose:
@@ -708,7 +732,7 @@ def detect_lps_candidates(
             vol_contraction = (vol_50_at_lps - avg_pullback_vol) / vol_50_at_lps
             # Same gate at the hard ceiling: vol_contraction <= 0 is exactly
             # avg >= vol50 * 1.0 (vol50 > 0 is guaranteed by the refusal above).
-            if not graded_traits and _vol_dry_refused(avg_pullback_vol, vol_50_at_lps, 1.0):
+            if not volume_is_data and _vol_dry_refused(avg_pullback_vol, vol_50_at_lps, 1.0):
                 if not rest:
                     if diagnose:
                         rejects["pullback volume above baseline"] += 1
@@ -717,7 +741,7 @@ def detect_lps_candidates(
                     continue
                 shelf_saved = True
             tightness_ratio = tight_spread / profile_unit
-            if shelf_saved or graded_traits:
+            if shelf_saved or volume_is_data:
                 # Volume-free quality: the shelf form never rewards or punishes
                 # volume; only within-form qualities are ever compared (the
                 # election ties break on the integer form rank first). Under

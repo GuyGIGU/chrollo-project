@@ -174,6 +174,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_WINDOW_RECEDING_ENABLED",
     "LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR",
     "LPS_BUY_DAY_READS_HIGH_ENABLED",
+    "LPS_REFUSALS_TO_GRADES_ENABLED",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)

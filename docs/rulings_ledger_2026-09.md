@@ -1056,3 +1056,24 @@ the buy-day clause drops fires whose only day is a crossed trigger (HESM, IRS; T
 beside them the window rule moves WHEN, not whether (0 regressions). Gate-to-grade admits junk by construction (the grade
 and the display state separate it, step 12). Recommended: hand-over + spring bounds may flip at his word (fleet-neutral);
 the other six flip together with step 12, never one at a time. His flip owed.
+
+## BUILD STEP 3 (Sun 13/09/2026) — LPS REFUSALS TO GRADES, ONE FLAG, DARK
+
+LPS_REFUSALS_TO_GRADES_ENABLED = his points 18, 19, 20: (18) the support side never refuses; the zone word there is
+typed by the window's CLOSES, never its lowest wick (his answer 8 on JAZZ); the ceiling above R stays (R12). (19) The
+three post-window checks go (close 5% under the LPS low, post-window low, post-window spread) and the depth cap in
+profile units with them (the window height in ranges is the one "too deep" refusal left). (20) Volume never refuses,
+never elects (quality volume-free); the ratio stays a fact; "no points" lands with the grade ledger (step 12).
+Flag-off byte-identical (all five guards PASS). Eight branch mutations red/restored/green.
+Measured (control 20/37 windows, ratchet 30/35, junk 8/16, fleet 34):
+  * alone: windows 23/37 (+BWA 01/05..04/05, +PBT 28/04..01/05, +RGR 10/03..12/03, all three held back only by the
+    volume ask), ratchet 31/35 (NOK 05/02 B converts, 0 regressions), junk 10/16 (+COLM +FLG), fleet 36 (+JRSH +PKOH)
+  * with the step-2 stack: the stack's board exactly (34/37, ratchet 33/35, junk 15/16, fleet 36; all flags: fleet 35):
+    zero fire change, as the build order expected; EGBN's zone word UNDERCUT_S -> INSIDE (its closes hold above S)
+  * cut taken back: dropping the tight-box widening from the zone area under the flag alone silenced MRK:2026-08-10
+    (pinned 04/08): on its 8.4% box the widening (4.73 over R, half the box) IS the ceiling that admits his above-R
+    LPS; the ATR-only ceiling (R + 0.5 ranges) refused it. Now the widening leaves the ceiling only under the yardstick
+    (exactly 1.35 ranges, no max with the widened area; measured identical with the stack); alone, today's ceiling
+    stays and MRK fires (tier C, window re-elected).
+Recommended: step 3 flips with the step-2 stack (with it, no fire moves; alone, two junk charts for the grade to carry).
+His flip owed. Next: step 4, the one line.

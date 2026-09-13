@@ -706,6 +706,22 @@ LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.10
 # shows nothing, even when that day closed back under the trigger.
 LPS_BUY_DAY_READS_HIGH_ENABLED = False
 
+# ── The final method, build step 3 (Sun 13/09/2026): LPS refusals to grades, ──
+# ── DARK. His points 18, 19 and 20 in ONE flag (docs/final_method_2026-09.md). ──
+# 18: no refusal on the support side. The LPS low's position is a fact (JAZZ's
+# low sits 0.67 ranges under S and the next day is the buy); the zone word on
+# the support side is typed by the window's CLOSES ("JAZZ's LPS is ON support:
+# closes above S, only wicks poke under ... typed by the window's bars, never
+# its lowest wick"), and the tight-box widening in percent of price goes with
+# the floor it served. The ceiling above R stays (R12).
+# 19: the three post-window checks go (the close 5 percent under the LPS low,
+# the post-window low test, the post-window spread test): under one window per
+# read day there is no post-window day to check. The depth cap in profile units
+# goes with them; the window height in ranges is the one "too deep" refusal left.
+# 20: volume never refuses and never elects (quality is volume-free); the ratio
+# stays a fact on the card. No points is the grade ledger's job (step 12).
+LPS_REFUSALS_TO_GRADES_ENABLED = False
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
