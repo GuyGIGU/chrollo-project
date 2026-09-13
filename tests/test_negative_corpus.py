@@ -27,8 +27,10 @@ Fully OFFLINE and deterministic - reads only the committed
 """
 from __future__ import annotations
 
+import json
 import os
 
+import pandas as pd
 import pytest
 
 from tools import negative_corpus
@@ -67,8 +69,8 @@ FLAG_STATES: dict[str, dict[str, bool]] = {
 @pytest.fixture(scope="module")
 def window_verdicts() -> dict[str, bool]:
     """The REAL replay of the whole corpus: the fired-policy WINDOW for the
-    live engine (flags off; 17 cases x 10 days, about a minute and a half),
-    the frozen day alone for each dark flag-ON state (17 evaluations each).
+    live engine (flags off; 16 cases x 10 days, about a minute and a half),
+    the frozen day alone for each dark flag-ON state (16 evaluations each).
 
     Module-scoped so the suite pays the window cost exactly once, not once
     per test.
@@ -193,21 +195,82 @@ def test_meta_cases_all_have_frames():
     )
 
 
-def test_population_is_the_ruled_seventeen_without_nvt():
-    """The junk population after the operator's ruling of Thu 10/09/2026:
-    NVT left ("correct but would grade low" - a correct low-grade fire is not
-    junk), COLM stays (ruled junk the same day). 17 cases in the meta, 17
-    frames in the parquet, and NVT in neither - a stale NVT row would make
-    the guard grade a chart he no longer calls junk."""
+def test_population_is_the_ruled_sixteen():
+    """The junk population after the operator's rulings: NVT left on Thu
+    10/09/2026 ("correct but would grade low" - a correct low-grade fire is
+    not junk), CHCT left on Sun 13/09/2026 ("The setups is valid", ruled on
+    its pinned Thu 18/06/2026 window fire), COLM and DGII stay. 16 cases in
+    the meta, 16 frames in the parquet, no pin for a case that left, and
+    neither NVT nor CHCT anywhere - a stale row would make the guard grade a
+    chart he no longer calls junk."""
     frames, meta = negative_corpus._load_fixture()
     keys = [c.get("key", c["ticker"]) for c in meta["cases"]]
-    assert len(keys) == 17, f"meta lists {len(keys)} cases, the ruled population is 17"
-    assert len(frames) == 17, f"parquet holds {len(frames)} frames, the ruled population is 17"
-    assert "NVT" not in keys and "NVT" not in frames, "NVT left the junk list on 2026-09-10"
+    assert len(keys) == 16, f"meta lists {len(keys)} cases, the ruled population is 16"
+    assert len(frames) == 16, f"parquet holds {len(frames)} frames, the ruled population is 16"
+    for gone in ("NVT", "CHCT"):
+        assert gone not in keys and gone not in frames, f"{gone} left the junk list on his ruling"
+        assert all(c["ticker"] != gone for c in negative_corpus.CASES), (
+            f"{gone} is still in the build recipe (tools.negative_corpus.CASES)")
+        assert gone not in negative_corpus.load_known_fires(), f"{gone} still carries a pinned fire day"
     assert "COLM" in keys, "COLM was ruled junk on 2026-09-10 and stays"
-    assert all(c["ticker"] != "NVT" for c in negative_corpus.CASES), (
-        "NVT is still in the build recipe (tools.negative_corpus.CASES)"
-    )
+    assert "DGII" in keys, "DGII was not ruled on and stays"
+
+
+def _fake_frame(seed: float) -> pd.DataFrame:
+    idx = pd.bdate_range("2026-01-05", periods=6)
+    base = pd.Series(range(6), index=idx, dtype=float) + seed
+    return pd.DataFrame({"Open": base, "High": base + 1, "Low": base - 1,
+                         "Close": base + 0.5, "Volume": 1000.0}, index=idx)
+
+
+@pytest.fixture
+def sealed_fake_fixture(tmp_path, monkeypatch):
+    """A two-case sealed fixture (parquet + meta + one pinned fire day each)
+    written under tmp_path, with the module's paths pointed at it and the
+    recipe holding only BBB - so AAA is droppable and BBB is not."""
+    parquet = tmp_path / "negative_corpus.parquet"
+    meta_path = tmp_path / "negative_corpus_meta.json"
+    pins_path = tmp_path / "negative_corpus_baseline.json"
+    pd.concat({"AAA": _fake_frame(10.0), "BBB": _fake_frame(20.0)}, axis=1).to_parquet(
+        parquet, engine=negative_corpus.settings.PARQUET_ENGINE)
+    meta_path.write_text(json.dumps({"captured_at": "x", "breadth_pct": 0.5, "cases": [
+        {"ticker": "AAA", "as_of": "2026-01-12", "label": "l", "evidence": "e"},
+        {"ticker": "BBB", "as_of": "2026-01-12", "label": "l", "evidence": "e"}]}), encoding="utf-8")
+    pins_path.write_text(json.dumps({"note": "n", "known_fires": {
+        "AAA": ["2026-01-08"], "BBB": ["2026-01-09"]}}), encoding="utf-8")
+    monkeypatch.setattr(negative_corpus, "_FIXTURE_PARQUET", str(parquet))
+    monkeypatch.setattr(negative_corpus, "_FIXTURE_META", str(meta_path))
+    monkeypatch.setattr(negative_corpus, "_BASELINE_JSON", str(pins_path))
+    monkeypatch.setattr(negative_corpus, "CASES", (
+        {"ticker": "BBB", "as_of": None, "label": "l", "evidence": "e"},))
+    return parquet, meta_path, pins_path
+
+
+def test_drop_case_removes_the_frame_the_meta_row_and_the_pins_together(sealed_fake_fixture):
+    parquet, meta_path, pins_path = sealed_fake_fixture
+    out = negative_corpus.drop_case("AAA")
+    assert out == {"dropped": "AAA", "cases": 1, "pins_dropped": ["2026-01-08"]}
+    data = pd.read_parquet(parquet, engine=negative_corpus.settings.PARQUET_ENGINE)
+    assert set(data.columns.get_level_values(0)) == {"BBB"}, "the dropped frame's columns must leave the parquet"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert [c["ticker"] for c in meta["cases"]] == ["BBB"]
+    assert meta["captured_at"] == "x", "dropping a case is not a re-seal"
+    pins = json.loads(pins_path.read_text(encoding="utf-8"))
+    assert pins["known_fires"] == {"BBB": ["2026-01-09"]}, "only the dropped case's pins leave"
+    frames, meta2 = negative_corpus._load_fixture()
+    assert set(frames) == {"BBB"} and len(meta2["cases"]) == 1
+
+
+def test_drop_case_refuses_a_key_still_in_the_recipe_or_absent_from_the_seal(sealed_fake_fixture):
+    parquet, meta_path, pins_path = sealed_fake_fixture
+    with pytest.raises(RuntimeError, match="still in the build recipe"):
+        negative_corpus.drop_case("BBB")
+    with pytest.raises(RuntimeError, match="not in the sealed fixture"):
+        negative_corpus.drop_case("ZZZ")
+    data = pd.read_parquet(parquet, engine=negative_corpus.settings.PARQUET_ENGINE)
+    assert set(data.columns.get_level_values(0)) == {"AAA", "BBB"}, "a refusal must not touch the seal"
+    assert json.loads(pins_path.read_text(encoding="utf-8"))["known_fires"] == {
+        "AAA": ["2026-01-08"], "BBB": ["2026-01-09"]}
 
 
 def test_negative_gate_bites_when_a_case_fires(no_pins, monkeypatch):

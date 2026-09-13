@@ -35,6 +35,7 @@ Usage:
     python -m tools.negative_corpus --build-fixture   # one-time, from the live data cache
     python -m tools.negative_corpus --check           # fail (exit 1) if any case fires on an unpinned window day
     python -m tools.negative_corpus --pin-known-fires # a declared seam: pin today's early-window fires as KNOWN
+    python -m tools.negative_corpus --drop-case KEY   # a declared seam: a case leaves on the operator's ruling
 """
 from __future__ import annotations
 
@@ -86,9 +87,10 @@ _FROZEN_BREADTH = 0.5
 CASES: tuple[dict, ...] = (
     # Descent-tail dead-space: support rail abandoned early, coil in dead space
     # above it (config/settings.py DESCENT_TAIL_* rationale, validated 2026-06-19).
-    {"ticker": "CHCT", "as_of": None,
-     "label": "descent-tail dead-space",
-     "evidence": "settings.DESCENT_TAIL_GATE_ENABLED comment; operator dissection 2026-06-19"},
+    # CHCT left this list on the operator's ruling of Sun 13/09/2026 ("The setups
+    # is valid"), given on the pinned Thu 18/06/2026 window fire; the label was
+    # the descent-tail gate's own name for it, never his words. Dropped through
+    # ``--drop-case CHCT`` (see ``drop_case``).
     {"ticker": "DGII", "as_of": None,
      "label": "descent-tail dead-space",
      "evidence": "settings.DESCENT_TAIL_GATE_ENABLED comment; operator dissection 2026-06-19"},
@@ -192,7 +194,7 @@ def _window_line(walk: dict) -> str:
 def load_known_fires() -> dict:
     """The pinned early-window fires - ``{case key: [ISO days]}`` - captured at
     a DECLARED seam by ``--pin-known-fires`` (first pinned Sun 13/09/2026, build
-    step 1 of the final method: 9 of 17 cases fired on an earlier day of their
+    step 1 of the final method: 9 of the then 17 cases fired on an earlier day of their
     window under the engine of that day, none on the frozen day; those days are
     the operator's-eye queue, recorded in ``docs/decisions.md``). A fire on a
     pinned day is reported as KNOWN and does not fail the gate; a fire on any
@@ -347,6 +349,46 @@ def pin_known_fires() -> dict:
     return out
 
 
+def drop_case(key: str) -> dict:
+    """A case leaves the sealed fixture on the operator's ruling that the chart
+    is NOT junk - the declared seam for a population change (``--drop-case``,
+    first used for CHCT on Sun 13/09/2026: "The setups is valid", ruled on its
+    pinned Thu 18/06/2026 window fire). ``build_fixture`` cannot re-seal while
+    other cases fire on pinned window days, and a hand edit of the parquet
+    leaves no trail, so this drops the frame's columns, the meta row and any
+    pinned fire days TOGETHER and prints what left. Refuses when the key is
+    still in ``CASES`` (the recipe and the fixture must agree: remove it from
+    the recipe first, naming the ruling) or is not in the sealed meta."""
+    if any(c.get("key", c["ticker"]) == key for c in CASES):
+        raise RuntimeError(f"Refusing to drop {key}: still in the build recipe (CASES) - "
+                           "remove it there first, naming the ruling")
+    if not os.path.exists(_FIXTURE_PARQUET) or not os.path.exists(_FIXTURE_META):
+        raise FileNotFoundError("No negative-corpus fixture to drop a case from")
+    with open(_FIXTURE_META, "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    keys = [c.get("key", c["ticker"]) for c in meta["cases"]]
+    if key not in keys:
+        raise RuntimeError(f"Refusing to drop {key}: not in the sealed fixture ({len(keys)} cases)")
+    data = pd.read_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
+    if key in set(data.columns.get_level_values(0)):
+        data = data.drop(columns=key, level=0)
+    data.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
+    meta["cases"] = [c for c in meta["cases"] if c.get("key", c["ticker"]) != key]
+    with open(_FIXTURE_META, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+    pins_dropped: list = []
+    if os.path.exists(_BASELINE_JSON):
+        with open(_BASELINE_JSON, "r", encoding="utf-8") as f:
+            pins = json.load(f)
+        if key in pins.get("known_fires", {}):
+            pins_dropped = pins["known_fires"].pop(key)
+            with open(_BASELINE_JSON, "w", encoding="utf-8") as f:
+                json.dump(pins, f, indent=2)
+    print(f"Dropped {key} from the negative corpus: {len(meta['cases'])} cases remain; "
+          f"pinned fire days removed: {pins_dropped or 'none'}. Record the ruling in docs/decisions.md.")
+    return {"dropped": key, "cases": len(meta["cases"]), "pins_dropped": pins_dropped}
+
+
 # ------------------------------------------------------------------
 # Fixture build (one-time; reads the live data cache, writes frozen files)
 # ------------------------------------------------------------------
@@ -468,6 +510,9 @@ def main() -> None:
                        help="Fail (exit 1) if any frozen case fires on an unpinned window day or crashes")
     group.add_argument("--pin-known-fires", action="store_true",
                        help="Pin the current early-window fires as KNOWN (a declared seam; record it in decisions.md)")
+    group.add_argument("--drop-case", metavar="KEY",
+                       help="Drop one case from the sealed fixture on the operator's ruling (a declared seam; "
+                            "remove it from CASES first and record the ruling in decisions.md)")
     ap.add_argument("--cache", default=_CACHE_PATH,
                     help="Path to the market data cache parquet (build only)")
     args = ap.parse_args()
@@ -479,6 +524,8 @@ def main() -> None:
             sys.exit(0 if check_corpus() else 1)
         elif args.pin_known_fires:
             pin_known_fires()
+        elif args.drop_case is not None:
+            drop_case(args.drop_case)
     except (FileNotFoundError, RuntimeError) as e:
         print(str(e))
         sys.exit(2)

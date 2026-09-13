@@ -93,7 +93,7 @@ What I would do: one line on the whole chart, one floor, 0.75 daily ranges, wick
 - The count of lower-low SOS launches is 3 or 15 of 26 depending on the line, unsettled until the 0.75 line is the line.
 - My "to the cent" targets for the lines steps broke your own rule that calibration success is concordance, not rail replication.
 
-## The build order (one flag each, measured alone against the 35 marks and the 17 junk charts (NVT left the corpus on his Thu 10/09/2026 ruling))
+## The build order (one flag each, measured alone against the 35 marks and the 16 junk charts (NVT left the corpus on his Thu 10/09/2026 ruling, CHCT on his Sun 13/09/2026 ruling))
 
 1. Guards only: the junk and fleet fixtures grade the fired window like the marks ratchet; the junk population re-frozen (NVT out, COLM in); map rows kept apart from fires in the archive. Nothing in the engine moves.
 2. The ruled stack R7 to R18 behind flags as measured in process, plus one window per read day (peak + 1 to the last receding day, one-day windows legal) and the narrow buy-day clause: ratchet 37 of 37, junk 8, fleet 34 with HESM and MAN named as door costs.

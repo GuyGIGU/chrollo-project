@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-13T16:37:21+00:00",
+  "captured_at": "2026-09-13T17:44:21+00:00",
   "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
   "fired_policy": {
     "window_sessions": 10,
@@ -7,9 +7,6 @@
   },
   "note": "Early-window fires of labeled junk under the engine of the capture day, pinned so the gate reds only on NEW fire days; each pinned day awaits the operator's eye.",
   "known_fires": {
-    "CHCT": [
-      "2026-06-18"
-    ],
     "BMRN": [
       "2026-06-22"
     ],

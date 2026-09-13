@@ -959,3 +959,74 @@ RULING (sixteenth sitting, Sun 13/09/2026) — his answers to the 12 ranked ques
   164.44), every high 0.5 to 0.8 ranges above S, only the lows poke under (-0.07, -0.19, -0.31, -0.74) -> "on support" =
   the window's closes (the bodies) sit above S and only wicks poke under; the zone is typed by the window's bars, never
   by its lowest wick alone.
+HIS PBT DRAWINGS (sixteenth sitting, after "Go!"): four TradingView images of PBT, his words verbatim: "Drew some images
+  that might help decipher my intent better I hope that this promt dosen't hinder you in anyway. they depict the phases
+  that the engine needs to go through: they take the raw bar data turn it into a simplified Pivot turn based swing system
+  and find the correct anchor to place the Rails at and then tells the event map from that". Image 1: the raw bars with
+  two blue rails (R at the late-March top, S at the late-March low) from late March to early May. Image 2: a red zigzag
+  through the box's swings, from the Wed 25/03/2026 top down through the Wed 01/04 dip to 20.03 and on through every
+  swing to the Mon 11/05 breakout; ~16 turns over ~33 trading days, its smallest swing about 0.9 daily ranges (ATR 0.75).
+  Image 3: pink circles on every turn at a rail (5 at R, 6 at S), red lines = the rails, cyan lines = the rail AREA
+  above and below each rail. Image 4: R, S, "LPS" (the Tue 28/04 .. Fri 01/05 pullback) and "Last Supper" (the Mon
+  04/05 .. Tue 05/05 pop over R that returns to R) labelled, then the breakout. Checked against his mark (PBT:2026-05-11):
+  R 22.65 = the Wed 25/03/2026 high (the climax), S 21.58 = the Thu 26/03/2026 low (the automatic reaction, the very next
+  day): the climax -> reaction pair IS the root swing (his Option A), 1.43 ranges tall. The later lows sit UNDER his S:
+  Wed 01/04 20.03 (-2.07 ranges, back in the area the next day), Thu 02/04 20.79 (-1.06), Wed 08/04 20.94 (-0.86), Fri
+  10/04 20.80 (-1.04), Mon 13/04 .. Wed 15/04 21.11 to 21.13 (-0.6), Fri 17/04 21.00 (-0.78): his rail hugs where the
+  bars mostly are and the deeper lows are pokes and one spring-like dip; no bar is wholly beyond the area (R1 holds).
+  The method would name the 01/04 dip the box's Phase C (the deepest recovered dip beyond the area); he drew none on
+  PBT (his events: lps, sos, lps): for his eye, never a gate. The images confirm the stage order (bars -> line -> turns
+  and rail areas -> anchors -> event map) and inform build step 4 (the line) and step 10 (the root walk).
+
+BUILD STEP 1 (the guards; Sun 13/09/2026, after his "Go!"): commit b4d5887 landed the docs first (decisions.md 11 ruling
+  rows R1..R18 + the 26 + 12 answers, 6 Tested-DEAD rows; strategy_alpha.md "The final method"; the answer sheet, his
+  answers, the questions and this ledger copied under docs/). Then workflow wf_7bf08d48-c5b (implementer -> reviewer ->
+  prover): the implementer built tools.replay.fired_window_walk (every fire in the fired-policy window, the marks
+  ratchet's own window: the last 10 faithful trading days ending at the frozen day) and made negative_corpus and
+  shadow_diff grade it; NVT removed from the junk corpus (his Thu 10/09/2026 ruling); the shadow baseline recaptured
+  at the seam (34 firers: the old 32 + HESM (Tue 26/05 .. Wed 27/05/2026, never on the frozen day) + BBVA (Thu 04/06));
+  MAN, JRSH, PKOH fire on no window day; TKO fires on the frozen day only under today's engine. The reviewer: ship
+  after fixes (reader pin red on NVT missing; the suite +9.5 min from four window walks; build_fixture selected on one
+  day; last_fire drift untested). THE FINDING: under TODAY's engine 9 of 17 junk cases FIRE on an earlier day of their
+  window (none on the frozen day): CHCT Thu 18/06/2026 (109.1 A), BMRN Mon 22/06 (90.8 B), FRPH Thu 18/06 + Mon 22/06
+  (B), OHI Tue 30/06 + Wed 01/07 (A), AEF Thu 04/06 (C), SPCB Wed 24/06 .. Mon 29/06 (four days, A), ABEV Wed 03/06 ..
+  Wed 10/06 (five days, C to B), ENIC Fri 26/06 (109.2 A), BBVA@2026-06-05 Thu 04/06 (88.1 B); clean on every day:
+  DGII, KWR, DBD, RLGT, FLG, BBVA, COLM, GOOD. The one-day fixture was blind to all of it. Decision (engineering, his eye
+  owed): the known early-window fires are PINNED (tests/baselines/negative_corpus_baseline.json, --pin-known-fires, a
+  declared seam) so the gate reds only on a NEW fire day and prints the pinned ones as KNOWN; the dark flag-ON replays
+  grade the frozen day as before (the suite pays the window once). The prover agent died on an expired login token
+  and LEFT ITS MUTATION M1 IN THE TREE (check_corpus cut to the final day); caught by grep "MUTATION" before anything
+  ran; lesson: after any failed prover, grep the tree for its markers and diff against the implementer's state. My
+  proofs: P1 (pins ignored) and P2 (frozen-day switch ignored) red, restored byte-identical (sha256), green. Reader pin
+  recaptured (17 junk) PASS; shadow PASS; junk check PASS with 9 KNOWN. Marks corpus: the sealed corpus was STALE (his
+  SYRE mark 76 of Sat 12/09/2026 replaced the 02-12 card); re-sealed via tools.guided_list_export + --build-fixture with
+  MDT tagged universe-gate (the 200-day leg, 3.77 ranges under) and ST tagged lps-ceiling (R12 1.35; build step 3).
+
+## RULING 2026-09-13 (seventeenth sitting) — CHCT LEAVES THE JUNK LIST; THE TRIGGER LAW ON CHCT; OHLC BARS ONLY (verbatim)
+
+Shown the engine's CHCT fire (Thu 18/06/2026, 109.1 A, rails 17.88/17.09, the engine's window Fri 12/06 .. Tue 16/06,
+trigger 17.81, close 17.43 under it), on a candle render with his blue line drawn down to the Thu 18/06 low and a short
+level at Mon 22/06:
+  "The setups is valid, don't remember stating "Decent-tail dead-space" when both "Decent tail" and "Dead space" mean
+  different things that don't relate to each other. Though the trigger should be where I marked at 22/06 (also Remember
+  to only Render in OHLC bars not candels!!! the distinction is important since We Use HIGH and LOW values and instead of
+  WICKS we treat them as whole units to measure!)"
+Applied:
+  * CHCT out of the junk corpus through a NEW declared seam `--drop-case KEY` (tools.negative_corpus.drop_case: parquet
+    columns + meta row + pinned fire days leave together; refuses a key still in CASES or absent from the seal). 16 cases
+    remain; 8 pinned early-window fires still owed his eye (BMRN, FRPH, OHI, AEF, SPCB, ABEV, ENIC, BBVA@2026-06-05).
+    The "descent-tail dead-space" label was the descent-tail gate's own name (settings DESCENT_TAIL_*, Fri 19/06/2026),
+    never his; DGII keeps it and stays until ruled.
+  * His Mon 22/06 mark = the ruled window rule exactly (step 2): on Thu 18/06 every high from Fri 12/06 is under the day
+    before (top Thu 11/06, 18.29), window Fri 12/06 .. Thu 18/06, trigger = Thu 18/06 high 17.67, Mon 22/06 high 17.69
+    crosses it = the buy. Today's engine stops the window at Tue 16/06 (trigger 17.81). CHCT = a step-2 acceptance
+    specimen: trigger 17.81 -> 17.67, buy day Mon 22/06/2026.
+  * OHLC bars only for every render (memory feedback_ohlc_bars_only.md); the app already draws BarSeries.
+  * Counts: junk 17 -> 16 in every current-state sentence (AGENTS.md, reader_pin.py, test_negative_corpus.py,
+    test_reader_pin.py, final_method_2026-09.md build-order header); reader pin recaptured (population only); re-pinned
+    known fires (8 cases). tools.event_map_census --check LEFT RED, untouched: its pins predate his re-draws (33 vs 35
+    marks, fingerprint moved), junk candidates 95 -> 82 (NVT, CHCT gone), and EGBN:2026-01-15's headline evidence no
+    longer reproduces (R+ S+ R^ vs the pinned S+ S+ S+ R^) - a re-pin sitting of its own, never a count edit here.
+  * Review fleet (wf_5ccb0bd2, 25 agents): 8 confirmed findings, all documentary, all fixed before the commit (his nested
+    quotes restored as typed, 'The setups is valid' quoted as typed, the seam claim narrowed, the gate-comment claim
+    corrected, 17 -> 16 in two missed lines, the empty-KEY CLI hole closed); mutation proofs D1-D3 red/restored/green.

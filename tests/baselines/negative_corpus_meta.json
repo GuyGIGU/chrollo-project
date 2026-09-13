@@ -3,15 +3,6 @@
   "breadth_pct": 0.5,
   "cases": [
     {
-      "ticker": "CHCT",
-      "as_of": "2026-07-02",
-      "bars": 1255,
-      "spy_6m_return": 0.09087204933166504,
-      "baseline_pass_at_freeze": true,
-      "label": "descent-tail dead-space",
-      "evidence": "settings.DESCENT_TAIL_GATE_ENABLED comment; operator dissection 2026-06-19"
-    },
-    {
       "ticker": "DGII",
       "as_of": "2026-07-02",
       "bars": 1255,
