@@ -669,6 +669,14 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         )
         line_words_fields = {"_line_words_json": line_words.emitted(_words)}
 
+    # The box's age from its first rail anchor (final method build step 6, measure-only, dark): carried only
+    # with the 15-day floor on, so the young fires can be listed; nothing reads it. Flag-off {} -> byte-identical.
+    base_age_fields = {}
+    if settings.BASE_AGE_FROM_ANCHOR_ENABLED:
+        _box = structure_ctx["structure"].box
+        base_age_fields = {"_base_age_from_anchor":
+                           int(len(df) - min(int(_box.r_anchor_bar), int(_box.s_anchor_bar)))}
+
     # The Technical Analysis Grade: the chapter composite over the SAME scored
     # terms plus the story scalars measured just above — computed HERE, in the
     # one shared eval chain, so live, seed, and the manual route produce
@@ -789,6 +797,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "setup_fields": setup_fields,
         "event_map_fields": event_map_fields,
         "line_words_fields": line_words_fields,
+        "base_age_fields": base_age_fields,
         "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
         "trace_fields": trace_fields,
@@ -1039,6 +1048,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
         **score_ctx.get("line_words_fields", {}),  # words on the line: empty flag-off -> byte-identical
+        **score_ctx.get("base_age_fields", {}),  # the age from the first anchor: empty flag-off -> byte-identical
     }
     # Fired tags: the chip verdicts resolved ONCE over the finished canonical
     # row — the SAME row both twins and all three writers consume, so
@@ -1291,6 +1301,7 @@ def species_watch(df):
     trace: list = []
     override = dict(settings.POWER_PLAY_WINDOWS)
     override["POWER_PLAY_STORY_FORM_ENABLED"] = True
+    override["BASE_AGE_FROM_ANCHOR_ENABLED"] = False   # the species keeps its own clock (step 12 retires the lane)
     with window_override(override):
         structure = read_structure(pdf, atr, trace=trace)
 

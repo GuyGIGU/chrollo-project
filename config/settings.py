@@ -782,6 +782,19 @@ LINE_WORD_SOS_MIN_GROUND_ATR = 1.70    # his smallest SOS, launch low to top, on
 LINE_WORD_SUPPER_DIG_ATR = 1.5         # a last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust
 LINE_WORD_SUPPER_MAX_DAYS = 4          # his longest last supper, in trading days
 
+# ── The final method, build step 6 (Mon 14/09/2026): the 15-day floor from the first anchor, DARK ──
+# His answers: "Lets go with 15 days" (Q9 of the 26) and "15 for a base minimum yes" (the twelve
+# follow-ups). Point 9 of docs/final_method_2026-09.md: the floor applies to the box's AGE, counted from
+# its FIRST RAIL ANCHOR as day 1, not from the root's reaction bar, where MIN_BASE_DAYS counts today (the
+# seed clock of bricks.find_root_swing and validate_equilibrium). Flag-on the seed clock yields to
+# BASE_AGE_MIN_DAYS less the edge reserve (never above MIN_BASE_DAYS, so the weekly, monthly and Power
+# Play presets keep their own), and the root walk refuses a box whose first anchor is younger than
+# BASE_AGE_MIN_DAYS: that box is "forming, N of 15" in the walk trace, never elected, graded or fired.
+# MIN_BASE_DAYS keeps every other use (the matured-cause 2x floors, the richness denominator, the age
+# points, the mini, the transition zone, the live cause veto's import-time copy). Flag-off byte-identical.
+BASE_AGE_FROM_ANCHOR_ENABLED = False
+BASE_AGE_MIN_DAYS = 15                 # his number
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

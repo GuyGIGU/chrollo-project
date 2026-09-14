@@ -125,6 +125,8 @@ the last supper, one Phase C per box and its spring test, where the right side o
 a reader nothing else consults. They land where his own drawings put them on most of his events, and they
 read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
 SOS and which dip is the Phase C are his questions still open.
+Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box
+younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

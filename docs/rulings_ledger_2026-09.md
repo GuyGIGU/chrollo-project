@@ -1223,3 +1223,12 @@ sits before the middle of his box). Junk: BMRN, FRPH, OHI, AEF stay junk. AEF's 
 and AEF's LPS (the pullback increasing with sellers, cut off from a bigger swing down to support = the fatal
 character change, Q19) are the fundamentals to fix. Still owed from him: SPCB, ABEV, ENIC, the June BBVA, DGII, and
 questions 5 to 18.
+
+## BUILD STEP 6 (Mon 14/09/2026): THE 15-DAY FLOOR FROM THE FIRST ANCHOR, ONE FLAG, DARK
+
+BASE_AGE_FROM_ANCHOR_ENABLED (+ BASE_AGE_MIN_DAYS 15), his "Lets go with 15 days" and "15 for a base minimum
+yes": the age counts from the box's first rail anchor as day 1; the seed clock yields to 15 less the 5-day edge
+reserve (bricks._seed_clock); the root walk refuses a younger box ('forming, N of 15' in the trace). Power Play
+keeps its own clock. MEASURED: alone his 37 windows read 20 concordant exactly as today, the ratchet holds 30 of 35 with all five reviewed misses still missing, and the reader pin passes; junk identical 8/16; fleet 34/37 (a fire day moves on ET, SCL,
+WCC; 12 fire days on 15-19 day boxes: ET, HOG, SCL, VIK, WCC). With everything on: with steps 2 to 5 on: windows 35, ratchet 33, junk 15 (identical days and scores), fleet 34 (WCC loses one fire day). Flag-off
+every guard byte-identical; 12 mutations red then green.

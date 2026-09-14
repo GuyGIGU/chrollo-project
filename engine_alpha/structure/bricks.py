@@ -179,7 +179,7 @@ def find_root_swing(
     # valid full-df indices; the LPS/spring bricks still read the full df.
     skip = settings.STRUCTURE_EDGE_SKIP_BARS
     eval_df = df.iloc[:-skip] if len(df) > skip else df
-    anchors = collect_root_anchors(eval_df, settings.MIN_BASE_DAYS)
+    anchors = collect_root_anchors(eval_df, _seed_clock())
     for kind, climax_bar, ar_bar, R, S in reversed(anchors):
         if climax_bar < start:
             continue
@@ -195,6 +195,16 @@ def find_root_swing(
             reaction_bars=int(ar_bar - climax_bar),
         )
     return None
+
+
+def _seed_clock() -> int:
+    """How many bars a root's reaction must sit before the edge reserve. Today MIN_BASE_DAYS: the base age
+    counted from the reaction bar. Under the step-6 floor (BASE_AGE_FROM_ANCHOR_ENABLED) the age counts from
+    the box's first rail anchor instead (narrative._walk_structure), so the seed yields to that floor less the
+    edge reserve, never above MIN_BASE_DAYS, which keeps every window preset's own clock."""
+    if not settings.BASE_AGE_FROM_ANCHOR_ENABLED:
+        return settings.MIN_BASE_DAYS
+    return min(settings.MIN_BASE_DAYS, settings.BASE_AGE_MIN_DAYS - settings.STRUCTURE_EDGE_SKIP_BARS)
 
 
 def _rebase_pair_trace(trace, from_idx, offset):
@@ -256,7 +266,7 @@ def validate_equilibrium(
     if root.ar_bar >= len(eval_df):
         return None
     eq_df = eval_df.iloc[root.ar_bar:]
-    if len(eq_df) < settings.MIN_BASE_DAYS:
+    if len(eq_df) < _seed_clock():
         return None
 
     # Scope the cascade to THIS call: collect + the traversal gate match records

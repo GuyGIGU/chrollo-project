@@ -461,6 +461,17 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
             rec["box"] = _box_brief(box)
             rec["tape"] = _tape_brief(df, box, atr)
 
+        # The 15-day floor from the first anchor (final method build step 6, dark): the box's AGE counts from its
+        # first rail anchor as day 1, his "15 for a base minimum". A younger box is forming: never elected,
+        # graded or fired; the walk moves on as after every refusal (a later root only finds a younger box).
+        if settings.BASE_AGE_FROM_ANCHOR_ENABLED:
+            age = len(df) - min(int(box.r_anchor_bar), int(box.s_anchor_bar))
+            if age < settings.BASE_AGE_MIN_DAYS:
+                if rec is not None:
+                    rec["outcome"] = "forming"
+                    rec["forming"] = {"age": int(age), "of": int(settings.BASE_AGE_MIN_DAYS)}
+                continue
+
         # Phase C (optional) and the nested Phase-D mini-range (tighter trigger).
         spring = bricks.find_spring(df, box, atr)          # don't force it; may be None
         inner = bricks.find_inner_box(df, box, atr)

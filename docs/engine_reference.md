@@ -761,6 +761,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK.** `engine_alpha/structure/line_words.py` is a measure-only reader over the step-4 line. `read_line_words(df, box, unit, lps=, inner=)` builds the line over the whole frame (whatever `TURN_LINE_ENABLED` says) and returns every word as a pure function of it: `thrusts` (a clean up-leg walked back through pauses smaller than a last supper's dig, `LINE_WORD_SUPPER_DIG_ATR` 1.5 ranges; ground at least `LINE_WORD_SOS_MIN_GROUND_ATR` 1.70; its top in the R area, `LINE_WORD_AREA_ATR` 0.5, or over the swing high before the push began), `pick_the_sos` (the last thrust topping at or before the LPS low, launched after the Phase C tip), `last_suppers` (hindsight: the deepest low within `LINE_WORD_SUPPER_MAX_DAYS` 4 trading days off a thrust's top, sought only before the LPS window opens), `dips` and `phase_c` (every valley beyond the support area read forward swing by swing: recovered once a peak reaches the support area and the next valley commits higher than the tip, recovering while that valley forms, failed on an equal or lower low; the Phase C is the deepest recovered), `spring_tests` (the first valley back inside the support area after it), `phase_d` (the earliest of the round trip, the staircase after the Phase C, THE SOS's launch, the LPS window's first day, counting only an opening after the middle of the box: a must, his ruling Mon 14/09/2026; an earlier one is listed in `before_middle` and opens nothing) and `mini` (today's elected inner box). Five default-off flags, one per word, only choose what `emitted` lets out: the evaluation's score context reads the words only when a flag is on and spreads ONE key, `_line_words_json` (a compact JSON string), onto the result; no archive writer, wire key, tag or grade reads it, and with every flag off the hook reads five settings and computes nothing. `tools/word_recall.py` is the committed measuring stick (read-only on the marks DB; his rails fed his drawn LPS windows, and the engine's own election on his fire day; the exact day, one trading day and a shifted-day chance beside every rate). The scoreboard is in the decisions record (2026-09-14, build step 5).
 
+**The final method, build step 6 (Mon 14/09/2026): the 15-day floor from the first anchor, DARK.** One default-off switch, `BASE_AGE_FROM_ANCHOR_ENABLED` (+ `BASE_AGE_MIN_DAYS` 15): his "15 for a base minimum", counted as the box's AGE from its first rail anchor (the anchor bar is day 1) instead of the seed clock, which counts `MIN_BASE_DAYS` from the root's reaction bar on `df[:-5]`. `bricks._seed_clock()` is the one clock both seed sites read (`find_root_swing`'s `collect_root_anchors` and `validate_equilibrium`'s window check): `MIN_BASE_DAYS` flag-off; flag-on `min(MIN_BASE_DAYS, BASE_AGE_MIN_DAYS - STRUCTURE_EDGE_SKIP_BARS)`, so a box whose first anchor is 15 days old can be seeded and the window presets (weekly 6, monthly 4, Power Play 8) keep their own. The floor sits in `narrative._walk_structure` right after the box is recorded: `len(df) - min(r_anchor_bar, s_anchor_bar)` under 15 refuses the root (trace outcome `forming` with `{"age", "of"}`), keyed on the parent box, never the mini; a later root only finds a younger box. The Power Play species read pins the switch off in its own override. A fire carries `_base_age_from_anchor` only with the switch on; nothing reads it. The scoreboard is in the decisions record (2026-09-14, build step 6).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1262,7 +1264,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `1f45155f67fc4db505617e63cb33b438d17b70dae9ce32c1a8be17cfa2514bbb`_
+_engine_config_version: `b5dfe84cd6f78d0457ea62cf9c6e0bbb588bf61017aa0538832f52fe7906b191`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1373,6 +1375,8 @@ LINE_WORD_AREA_ATR = 0.5
 LINE_WORD_SOS_MIN_GROUND_ATR = 1.7
 LINE_WORD_SUPPER_DIG_ATR = 1.5
 LINE_WORD_SUPPER_MAX_DAYS = 4
+BASE_AGE_FROM_ANCHOR_ENABLED = False
+BASE_AGE_MIN_DAYS = 15
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23
