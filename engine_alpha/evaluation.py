@@ -32,6 +32,7 @@ from engine_alpha.structure import (
 )
 from engine_alpha.scoring import taxonomy as _taxonomy
 from engine_alpha.scoring.scoring import compose_ta_grade
+from engine_alpha.structure import line_words
 from engine_alpha.structure.market_structure import measure_trend_bases
 from engine_alpha.structure.metrics import (
     OUTSIDE_BAR_MEASURES,
@@ -654,6 +655,20 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
                                        structure_ctx["atr_for_zone"]),
         }
 
+    # The words on the line (final method build step 5, measure-only, dark): the
+    # turn line's words over the elected box, carried as ONE JSON string and only
+    # when a word flag is on. Nothing reads it: not the grade below, not the
+    # archive writer, not the wire. Flag-off it reads five settings, computes
+    # nothing and spreads {} -> byte-identical.
+    line_words_fields = {}
+    if line_words.any_word_enabled():
+        _struct = structure_ctx["structure"]
+        _words = line_words.read_line_words(
+            df, _struct.box, structure_ctx["atr_for_zone"],
+            lps=_struct.lps, inner=_struct.inner,
+        )
+        line_words_fields = {"_line_words_json": line_words.emitted(_words)}
+
     # The Technical Analysis Grade: the chapter composite over the SAME scored
     # terms plus the story scalars measured just above — computed HERE, in the
     # one shared eval chain, so live, seed, and the manual route produce
@@ -773,6 +788,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "htf_ctx": htf_ctx,
         "setup_fields": setup_fields,
         "event_map_fields": event_map_fields,
+        "line_words_fields": line_words_fields,
         "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
         "trace_fields": trace_fields,
@@ -1022,6 +1038,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
+        **score_ctx.get("line_words_fields", {}),  # words on the line: empty flag-off -> byte-identical
     }
     # Fired tags: the chip verdicts resolved ONCE over the finished canonical
     # row — the SAME row both twins and all three writers consume, so

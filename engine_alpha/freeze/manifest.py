@@ -178,6 +178,15 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "TURN_LINE_ENABLED",
     "TURN_LINE_TREND_ENABLED",
     "TURN_LINE_FLOOR_ATR",
+    "LINE_WORD_SOS_ENABLED",
+    "LINE_WORD_LAST_SUPPER_ENABLED",
+    "LINE_WORD_PHASE_C_ENABLED",
+    "LINE_WORD_PHASE_D_ENABLED",
+    "LINE_WORD_MINI_ENABLED",
+    "LINE_WORD_AREA_ATR",
+    "LINE_WORD_SOS_MIN_GROUND_ATR",
+    "LINE_WORD_SUPPER_DIG_ATR",
+    "LINE_WORD_SUPPER_MAX_DAYS",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)

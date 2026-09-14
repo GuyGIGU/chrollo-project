@@ -118,6 +118,11 @@ one floor of 0.75 of each day's own range over the whole chart, now sits behind 
 event map's swing layer and the trend labels while the box election stays on today's skeleton. It reads all
 186 of the turns he has drawn, where the engine's own walk reads 112, and on every population measured it
 moves no fire at all: what it changes is WHEN the engine may commit to a turn, never what it calls one.
+Step 5 landed DARK (Mon 14/09/2026): the words on that line (every push that could be an SOS and THE SOS,
+the last supper, one Phase C per box and its spring test, where the right side opens, the mini) are read by
+a reader nothing else consults. They land where his own drawings put them on most of his events, and they
+read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
+SOS and which dip is the Phase C are his questions still open.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

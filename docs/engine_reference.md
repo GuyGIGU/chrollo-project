@@ -759,6 +759,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK.** `engine_alpha/structure/pivots.py` grows the operator's line as a pure primitive: `turn_line(highs, lows, floors)` walks the whole frame and commits a turn on the bar where price backs off the running extreme by that bar's floor, wick to wick, with no retracement ratio; the confirming bar carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley; bar 0 is a turn by its shape and the terminal running extreme rides as a FORMING turn, so the line has neither the order-1 walk's edge mask nor the five-day right-edge reserve. Each turn carries its own `knowable_bar` — the causality contract's commit stamp, which the line knows by construction rather than reconstructing. `turn_line_floors(df, atr_val)` builds the per-bar floor: `TURN_LINE_FLOOR_ATR` (0.75) of each bar's OWN `ATR_10`, falling back to the caller's one scalar range where the frame carries no range column; the per-bar unit is what lands the line on all 186 of his named turns (one range from the read day lands 183). `turn_line_views(turns, start)` splits the line at the box-start seam and is the ONLY way it reaches the staircase: rebuilding it through `_build_zigzag` inverts a bar that carries both turns and the same-type merge then eats its neighbours, so `box_events._staircase_from_pivots` grew one `swings=` keyword that LABELS a finished alternating list instead (every other caller passes nothing and is byte-identical). Two default-off flags carry it, one per site: `TURN_LINE_ENABLED` under `event_map.read_swing_map`, `TURN_LINE_TREND_ENABLED` under `market_structure.read_market_structure`. The box election is deliberately NOT a site — it stays on today's skeleton until build step 10. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged, and the event map's own byte-identity battery is untouched); flag-on, the measured result is that no fire moves anywhere and the reader pin's only drift is the commit stamps. The scoreboard is in the decisions record (2026-09-14, build step 4).
 
+**The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK.** `engine_alpha/structure/line_words.py` is a measure-only reader over the step-4 line. `read_line_words(df, box, unit, lps=, inner=)` builds the line over the whole frame (whatever `TURN_LINE_ENABLED` says) and returns every word as a pure function of it: `thrusts` (a clean up-leg walked back through pauses smaller than a last supper's dig, `LINE_WORD_SUPPER_DIG_ATR` 1.5 ranges; ground at least `LINE_WORD_SOS_MIN_GROUND_ATR` 1.70; its top in the R area, `LINE_WORD_AREA_ATR` 0.5, or over the swing high before the push began), `pick_the_sos` (the last thrust topping at or before the LPS low, launched after the Phase C tip), `last_suppers` (hindsight: the deepest low within `LINE_WORD_SUPPER_MAX_DAYS` 4 trading days off a thrust's top, sought only before the LPS window opens), `dips` and `phase_c` (every valley beyond the support area read forward swing by swing: recovered once a peak reaches the support area and the next valley commits higher than the tip, recovering while that valley forms, failed on an equal or lower low; the Phase C is the deepest recovered), `spring_tests` (the first valley back inside the support area after it), `phase_d` (the earliest of the round trip, the staircase after the Phase C, THE SOS's launch, the LPS window's first day) and `mini` (today's elected inner box). Five default-off flags, one per word, only choose what `emitted` lets out: the evaluation's score context reads the words only when a flag is on and spreads ONE key, `_line_words_json` (a compact JSON string), onto the result; no archive writer, wire key, tag or grade reads it, and with every flag off the hook reads five settings and computes nothing. `tools/word_recall.py` is the committed measuring stick (read-only on the marks DB; his rails fed his drawn LPS windows, and the engine's own election on his fire day; the exact day, one trading day and a shifted-day chance beside every rate). The scoreboard is in the decisions record (2026-09-14, build step 5).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1260,7 +1262,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `e72be377c3576763a6f94e27b466b9cd7b2d19f4616944ee9a0a4bab816c0df5`_
+_engine_config_version: `52b88c043ffbc92f45dc7c14196dc936ce86c7be04daa648e7bdebd755b63321`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1362,6 +1364,15 @@ LPS_REFUSALS_TO_GRADES_ENABLED = False
 TURN_LINE_ENABLED = False
 TURN_LINE_TREND_ENABLED = False
 TURN_LINE_FLOOR_ATR = 0.75
+LINE_WORD_SOS_ENABLED = False
+LINE_WORD_LAST_SUPPER_ENABLED = False
+LINE_WORD_PHASE_C_ENABLED = False
+LINE_WORD_PHASE_D_ENABLED = False
+LINE_WORD_MINI_ENABLED = False
+LINE_WORD_AREA_ATR = 0.5
+LINE_WORD_SOS_MIN_GROUND_ATR = 1.7
+LINE_WORD_SUPPER_DIG_ATR = 1.5
+LINE_WORD_SUPPER_MAX_DAYS = 4
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

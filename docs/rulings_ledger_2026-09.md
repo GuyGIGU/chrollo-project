@@ -1125,3 +1125,37 @@ stamps above). The line's statistics (retraced share per swing, rail share) are 
 the event map's column family with the flip that makes them non-NULL.
 
 Next: step 5, the words on the line (10, 11, 12, 13, 14, 15) under the one precedence table.
+
+## BUILD STEP 5 (Mon 14/09/2026): THE WORDS ON THE LINE, FIVE FLAGS, DARK
+
+A measure-only reader (engine_alpha/structure/line_words.py) over the step-4 line, the elected rails, the elected LPS
+and the mini. One flag per word: LINE_WORD_SOS_ENABLED, LINE_WORD_LAST_SUPPER_ENABLED, LINE_WORD_PHASE_C_ENABLED,
+LINE_WORD_PHASE_D_ENABLED, LINE_WORD_MINI_ENABLED; each only lets its word out into _line_words_json on a fire,
+which nothing reads. Numbers: rail area 0.5 (ruled), thrust ground 1.70 (his smallest SOS), last supper dig 1.5 in
+at most 4 trading days (his ten: 1.75 to 3.76 in 1 to 4), the same 1.5 as the pause that ends a thrust.
+HIS words: Q11 (SOS never gates, sharp, reaches local significant highs, in Phase D after the V tip), Q14 + the
+sixteenth sitting (one Phase C per box for now, a dip inside the area never qualifies, recovery by the swing), Q15
+(last supper just another event), the sixteenth-sitting Phase D answer, Q13 (the mini has its own rails).
+MY DEFAULTS, his word owed: THE SOS = the last thrust topping at or before the LPS low, launched after the Phase C
+tip; Phase C = the deepest recovered dip; spring test = the first valley back inside the area after it; last supper
+sought only before the later LPS window opens; Phase D's SOS opening only once an LPS follows; mini = today's inner.
+
+MEASURED (tools.word_recall; his rails fed his drawn LPS windows; hit within one trading day; chance = his day
+moved three trading days):
+  thrust at his SOS top 25/26 (exact 22, chance 12; with his launch 17, chance 4.5; miss BODI Tue 14/04/2026)
+  THE SOS 15/25 LPS windows (chance 1.5; 11 with the launch)    last supper 10/10 (exact 8, chance 1)
+  Phase C 8/10 (exact 7, chance 0; misses NKTR, ORMP), 15 undrawn    spring test 3/6 (chance 1)    mini 0/5
+  engine's own election at his fire day (19/35 boxes): thrust 12/13, THE SOS 4/12, last supper 7/8, Phase C 2/3
+  Phase D as emitted: after the middle 22/35 (earliest 0.17); fed his drawn events 30/35, never before 0.35
+  control (today's typer on his rails): 6 of his 94 drawn events
+WHAT MOVES: nothing. All five flags, and with the line flags: ratchet 30/35, junk the identical 8/16 (days, scores,
+tiers), fleet PASS; reader pin PASS (with the line flags: the step-4 stamps only). Junk fire days (17): every one
+carries a thrust, THE SOS and a last supper, 14 a Phase C: the words describe, never separate.
+
+THE REVIEW (six reviewers + six adversarial checkers, Mon 14/09/2026) forced five corrections before landing: the
+vacuous reach test (a multi-step push cleared its own pause); THE SOS bounded by the window's first day (NDSN); THE
+SOS and Phase D before the Phase C (his Q11); the spring test naming every valley near support (5/6 at chance, now
+3/6 against 1); the recovery read over one swing only (BODI now recovers). The step-5 table sent to him compared
+unlike measurements; the fair figures are above. 29 branch mutations red then green.
+NOT BUILT: the upthrust (10), the shakeout (parked), the dead-space pardon (21).
+Next: the review's fixes to steps 2 to 4, then step 6 (the 15-day floor) once his answers land.

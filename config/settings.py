@@ -746,6 +746,36 @@ TURN_LINE_ENABLED = False          # the event map's swing layer reads the line
 TURN_LINE_TREND_ENABLED = False    # the HH/HL/LH/LL trend labels read the line
 TURN_LINE_FLOOR_ATR = 0.75         # his floor, in daily ranges, wick to wick
 
+# ── The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK. ──
+# His points 11 to 15 (docs/final_method_2026-09.md): a MEASURE-ONLY reader
+# (engine_alpha/structure/line_words.py) over the one turn line, the elected
+# rails, the elected LPS and the mini. Nothing that elects, vetoes, grades or
+# displays reads it; each flag only adds its own word to ONE JSON diagnostic
+# on a fire (_line_words_json). The words read the line whatever
+# TURN_LINE_ENABLED says, so they flip with or after it. Not built: the
+# upthrust (10: its collapse test is unplaced, he has drawn none), the
+# shakeout (parked by him), the dead-space pardon keyed to a named leg (21:
+# a grade change, his question still open).
+#
+# MEASURED on his 35 marks, his rails, fed his drawn LPS windows
+# (python -m tools.word_recall; a hit is within one trading day; CHANCE is
+# the same score with his day moved three trading days either way):
+#   a thrust at his SOS top   25 of 26 (chance 12)   THE SOS  15 of 25 (chance 1.5)
+#   last supper               10 of 10 (chance 1)    Phase C   8 of 10 (chance 0)
+#   spring test                3 of 6  (chance 1)    mini      0 of 5
+# Under all five flags nothing moves: ratchet 30 of 35, junk the identical
+# 8 of 16, fleet and reader pin PASS. The rules' defaults that are mine (his
+# word owed) are listed in line_words.py and the decisions record.
+LINE_WORD_SOS_ENABLED = False          # 11: every thrust, and THE SOS by the LPS after it
+LINE_WORD_LAST_SUPPER_ENABLED = False  # 15: the last supper, in hindsight only
+LINE_WORD_PHASE_C_ENABLED = False      # 14: one Phase C per box, and its spring test
+LINE_WORD_PHASE_D_ENABLED = False      # 12: where the right side opens
+LINE_WORD_MINI_ENABLED = False         # 13: today's elected mini, as facts
+LINE_WORD_AREA_ATR = 0.5               # the ruled rail area, in daily ranges (as TOUCH_TOLERANCE_ATR, MINI_POSITION_TOL_ATR)
+LINE_WORD_SOS_MIN_GROUND_ATR = 1.70    # his smallest SOS, launch low to top, on his own spans
+LINE_WORD_SUPPER_DIG_ATR = 1.5         # a last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust
+LINE_WORD_SUPPER_MAX_DAYS = 4          # his longest last supper, in trading days
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
