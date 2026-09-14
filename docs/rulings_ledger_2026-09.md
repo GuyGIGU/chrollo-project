@@ -1250,3 +1250,10 @@ bigger than the whole range of the day before, refuses the LPS (the election onl
 wf_f7a04788-5dd). MEASURED: alone, his 37 windows read 20 concordant as today, the ratchet holds 30 of 35 with all five reviewed misses still missing, the fleet fires on the identical 34 tickers and the reader pin passes; the junk goes from 8 to 7 charts firing: AEF's only fire day, Thu 04/06/2026 (72.8 C), is refused; with steps 2 to 5, his 37 windows 35 concordant, the ratchet 33 of 35 (EGBN, NOK and ST convert, 0 regressions) and the fleet the identical 34 firing tickers, all as without the switch; in the junk only AEF's Thu 04/06/2026 fire day (72.8 C) goes, and AEF still fires on Wed 03/06/2026 (81.0 B), so the junk stays 15 of 16. LIMITS: one specimen (AEF);
 with steps 2 to 5 AEF still fires Wed 03/06/2026 on its first falling day; the second clause (part of a bigger
 swing that reaches support) cannot be a rule, even in hindsight.
+
+## HIS ANCHOR DOCTRINE AS A BARE VETO (Mon 14/09/2026): MEASURED, NOT BUILT
+
+T5 on the line (refuse a pair whose opening leg goes past every top since price last stood under its first
+anchor) built dark and measured: his 35 pairs 0 WITH, but as a veto it regresses his pinned PBT and VIK under the
+ruled stack, and BMRN, COLM, ENIC and FLG re-anchor with HIGHER grades. Not committed; recorded Tested-DEAD as a
+veto. Alone: alone, the junk goes from 8 to 4 charts firing (ABEV, AEF, OHI and SPCB silent), but three of his pinned hits go silent in their marked windows (NGL April, fired Thu 16/04/2026; NTCT, Mon 02/03/2026; SILC, Fri 10/04/2026) and the fleet loses 8 of its 34 firing tickers (COLM, FOF, HOG, JAKK, NDSN, SN, TKO, TRS). The doctrine stands: step 10 re-opens the box at the climax, T5 as the test.
