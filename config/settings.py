@@ -725,6 +725,13 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 # 20: volume never refuses and never elects (quality is volume-free); the ratio
 # stays a fact on the card. No points is the grade ledger's job (step 12).
 LPS_REFUSALS_TO_GRADES_ENABLED = False
+# 19, his answer on AEF (Mon 14/09/2026), DARK: "3 bars with huge increases in both spread and price
+# changes meaning the pull back is increasing with sellers" (R9: an LPS is broken when seller strength
+# rises). FATAL in the election, never the measure-only staircase: the window's last three days each wider
+# than the day before and each falling further (a day's fall is the mean of its high's and its low's drop),
+# and the last fall bigger than the whole range of the day before (the prior bar is the yardstick: his 37
+# windows reach 0.66 of it, AEF Thu 04/06/2026 1.29, the nearest fleet fire JAKK 0.85).
+LPS_SELLERS_RISING_FATAL_ENABLED = False
 
 # ── The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK. ──
 # His points 1 and 2 (docs/final_method_2026-09.md): one line over the WHOLE

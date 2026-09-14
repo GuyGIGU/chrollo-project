@@ -1242,3 +1242,11 @@ recovered dip after which the range did not run on before the right side opened 
 it, after the middle; else the LPS window). Phase C 10/10 (exact 9, chance 0), spring test 4/6, engine election 3/3.
 H5 (the same low again) refuted on fidelity (ORMP by one tick). Known weakness: the middle moves with the read day
 (ORMP Mon 06/04 and Tue 07/04/2026 name the February dip). Five mutations red then green.
+
+## HIS FATAL CHARACTER CHANGE (Mon 14/09/2026, AEF), ONE FLAG, DARK
+
+LPS_SELLERS_RISING_FATAL_ENABLED: the window's last three days each wider and each falling further, the last fall
+bigger than the whole range of the day before, refuses the LPS (the election only). Chosen from 16 forms (workflow
+wf_f7a04788-5dd). MEASURED: alone, his 37 windows read 20 concordant as today, the ratchet holds 30 of 35 with all five reviewed misses still missing, the fleet fires on the identical 34 tickers and the reader pin passes; the junk goes from 8 to 7 charts firing: AEF's only fire day, Thu 04/06/2026 (72.8 C), is refused; with steps 2 to 5, his 37 windows 35 concordant, the ratchet 33 of 35 (EGBN, NOK and ST convert, 0 regressions) and the fleet the identical 34 firing tickers, all as without the switch; in the junk only AEF's Thu 04/06/2026 fire day (72.8 C) goes, and AEF still fires on Wed 03/06/2026 (81.0 B), so the junk stays 15 of 16. LIMITS: one specimen (AEF);
+with steps 2 to 5 AEF still fires Wed 03/06/2026 on its first falling day; the second clause (part of a bigger
+swing that reaches support) cannot be a rule, even in hindsight.

@@ -147,3 +147,50 @@ def test_volume_never_elects(monkeypatch, _three_day, _lps_behavior_frame):
     (b,), _ = detect_lps_candidates(quiet, quiet.iloc[-1], diagnose=True, **KW)
     assert a["vol_contraction"] != b["vol_contraction"]
     assert a["_quality"] == b["_quality"] > 0, "the election weight is volume-free"
+
+
+# ── point 19, his answer on AEF (Mon 14/09/2026): the pullback increasing with sellers is fatal ─────────────────
+# Four bars: the day before the window, then the three-day window. Box 100..110, daily range 2 (KW above).
+
+FATAL = "LPS_SELLERS_RISING_FATAL_ENABLED"
+_PRIOR = (104.5, 103.5)
+
+
+def _four(lows_highs):
+    highs = [_PRIOR[0]] + [h for h, _ in lows_highs]
+    lows = [_PRIOR[1]] + [lo for _, lo in lows_highs]
+    return highs, lows
+
+
+def test_the_sellers_rising_switch_is_dark_and_rides_the_manifest():
+    assert getattr(settings, FATAL) is False and FATAL in ENGINE_SETTINGS_KEYS
+
+
+def test_three_days_each_wider_and_each_falling_further_is_no_lps(monkeypatch, _three_day, _lps_behavior_frame):
+    """AEF Tue 02/06 to Thu 04/06/2026 in miniature: spreads 1.0, 1.5, 2.0; falls -0.5, 1.05, 1.95; the last fall
+    bigger than the whole 1.5 range of the day before."""
+    df = _lps_behavior_frame(*_four([(105.0, 104.0), (104.2, 102.7), (102.5, 100.5)]))
+    assert detect_lps(df, df.iloc[-1], **KW) is not None, "flag-off today's read takes it"
+    monkeypatch.setattr(settings, FATAL, True)
+    res, rejects = detect_lps(df, df.iloc[-1], diagnose=True, **KW)
+    assert res is None and rejects["the pullback grows with sellers"] == 1
+
+
+@pytest.mark.parametrize("bars, why", [
+    ([(105.0, 104.0), (104.4, 102.9), (103.6, 101.6)], "grows, but the last fall (1.05) is under the day before's 1.5"),
+    ([(105.0, 103.0), (104.2, 102.7), (102.5, 101.3)], "a big last fall, but the spreads shrink"),
+    ([(106.0, 104.0), (105.0, 103.4), (104.2, 102.7)], "his BMRN shape: final bars shallow and in decline"),
+    ([(105.0, 104.0), (103.6, 102.2), (102.3, 100.5)], "wider and a big last fall, but the fall before was bigger"),
+])
+def test_only_both_halves_together_refuse(monkeypatch, _three_day, _lps_behavior_frame, bars, why):
+    df = _lps_behavior_frame(*_four(bars))
+    assert detect_lps(df, df.iloc[-1], **KW) is not None, why
+    monkeypatch.setattr(settings, FATAL, True)
+    assert detect_lps(df, df.iloc[-1], **KW) is not None, why
+
+
+def test_the_measure_only_staircase_keeps_the_window(monkeypatch, _three_day, _lps_behavior_frame):
+    df = _lps_behavior_frame(*_four([(105.0, 104.0), (104.2, 102.7), (102.5, 100.5)]))
+    monkeypatch.setattr(settings, FATAL, True)
+    cands, _ = detect_lps_candidates(df, df.iloc[-1], staircase=True, **KW)
+    assert cands, "the support-test staircase reads every window; the refusal is the election's"

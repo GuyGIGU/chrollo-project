@@ -497,6 +497,19 @@ def detect_lps_candidates(
                     if diagnose:
                         rejects["ends on a breakout day"] += 1
                     continue
+            # The pullback increasing with sellers is fatal (his AEF answer, Mon 14/09/2026, point 19; R9):
+            # the last three days each wider and each falling further than the day before, the last fall bigger
+            # than the whole range of the day before. The election only, never the measure-only staircase.
+            if settings.LPS_SELLERS_RISING_FATAL_ENABLED and not staircase and length >= 3 and end >= 4:
+                _h = df["High"].to_numpy(dtype=float)[end - 4:end]
+                _l = df["Low"].to_numpy(dtype=float)[end - 4:end]
+                _spread = _h[1:] - _l[1:]
+                _fall = ((_h[:-1] - _h[1:]) + (_l[:-1] - _l[1:])) / 2.0
+                if (_spread[0] < _spread[1] < _spread[2] and _fall[0] < _fall[1] < _fall[2]
+                        and _fall[2] > _spread[1]):
+                    if diagnose:
+                        rejects["the pullback grows with sellers"] += 1
+                    continue
 
             # A support test should be a reaction into support, not a rising
             # sequence that happens to contain one acceptable low.

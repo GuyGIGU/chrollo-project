@@ -126,6 +126,8 @@ a reader nothing else consults. They land where his own drawings put them on mos
 read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
 SOS is his question still open (parked for its own sitting); the Phase C is read with his context going forward
 (a deep dip after which the box went back to resistance and under support again was still Phase B).
+His fatal character change landed DARK (Mon 14/09/2026): an LPS whose last three days grow wider and fall further,
+day after day, is broken (the pullback increasing with sellers), never merely graded down.
 Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box
 younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
 Flags off, the engine reads exactly as it did.
