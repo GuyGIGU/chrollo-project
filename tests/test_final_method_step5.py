@@ -258,7 +258,7 @@ _RT_PC = {"tip_bar": 2, "tip_price": 8.5}
 
 def test_phase_d_opens_on_the_round_trip_after_the_phase_c():
     pdr = W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, None, None, 10)
-    assert (pdr["open_bar"], pdr["opener"], pdr["position"], pdr["after_middle"]) == (6, "round trip", 0.6, True)
+    assert (pdr["open_bar"], pdr["opener"], pdr["position"], pdr["before_middle"]) == (6, "round trip", 0.6, [])
     broke = [t if t[0] != 6 else (6, V, 9.2, 7) for t in _RT_LINE]
     assert W.phase_d(broke, 0, 14.0, 10.0, 1.0, _RT_PC, None, None, 10) is None, \
         "the valley after the recovery breaks the support area: no round trip"
@@ -289,14 +289,37 @@ def test_the_staircase_counts_only_after_the_phase_c():
     assert pdr["openings"] == {"round trip": 14, "staircase": 18}, "the staircase before the Phase C is Phase B"
 
 
-def test_phase_d_opens_at_the_earliest_of_its_openings():
-    sos = {"launch_bar": 3, "in_progress": False}
-    pdr = W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, sos, 9, 10)
-    assert (pdr["open_bar"], pdr["opener"]) == (3, "SOS")
-    assert pdr["openings"] == {"round trip": 6, "SOS": 3, "LPS": 9}
+def test_phase_d_opens_at_the_earliest_of_its_openings_after_the_middle():
+    line = _RT_LINE[:4] + [(8, P, 12.5, None)]
+    sos = {"launch_bar": 5, "in_progress": False}
+    pdr = W.phase_d(line, 0, 14.0, 10.0, 1.0, _RT_PC, sos, 7, 8)
+    assert (pdr["open_bar"], pdr["opener"], pdr["position"]) == (5, "SOS", 0.625)
+    assert pdr["openings"] == {"round trip": 6, "SOS": 5, "LPS": 7}
     live = {"launch_bar": 3, "in_progress": True}
     assert W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, None, live, 9, 10)["openings"] == {"LPS": 9}, \
         "an SOS with no LPS after it opens nothing; the LPS is the fail-safe"
+
+
+def test_phase_d_must_open_after_the_middle_of_the_box():
+    """His ruling Mon 14/09/2026 on 'after the middle': "Yes its a must". An opening at or before the middle stays
+    listed and opens nothing."""
+    sos = {"launch_bar": 3, "in_progress": False}
+    pdr = W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, sos, 9, 10)
+    assert (pdr["open_bar"], pdr["opener"], pdr["before_middle"]) == (6, "round trip", ["SOS"]), \
+        "the SOS launches at 3 of 10: before the middle"
+    assert W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, None, None, 14) is None, "the round trip at 6 of 14"
+    pdr = W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, None, 9, 14)
+    assert (pdr["open_bar"], pdr["opener"], pdr["before_middle"]) == (9, "LPS", ["round trip"])
+    assert W.phase_d(_RT_LINE, 0, 14.0, 10.0, 1.0, _RT_PC, None, None, 12) is None, \
+        "exactly the middle is not after it"
+
+
+def test_the_staircase_that_opens_phase_d_is_the_first_after_the_middle():
+    line = [(0, P, 14.0, 1), (2, V, 12.5, 3), (4, P, 13.7, 5), (6, V, 12.8, 7), (8, P, 13.9, 9),
+            (10, V, 12.9, 11), (12, P, 13.8, 13), (14, V, 13.1, 15), (16, P, 14.2, None)]
+    pdr = W.phase_d(line, 0, 14.0, 10.0, 1.0, None, None, None, 16)
+    assert (pdr["open_bar"], pdr["opener"], pdr["position"]) == (10, "staircase", 0.625), \
+        "the staircases complete on 6, 10 and 14; the middle is 8"
 
 
 # ── the mini (point 13) ──────────────────────────────────────────────────────

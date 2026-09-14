@@ -83,8 +83,10 @@ age floor, and the definition of a fire (a box, an LPS, a trigger).
    area before any LPS; otherwise an SOS, with "last supper" written only in hindsight; a
    child-box candidate is a flag until a later turn at the child's anchors confirms it; at
    the right edge, open. A mini consolidation is a band with its own two rails, one event on
-   the parent's map. Phase D opens at the first right-side evidence: the round trip after a
-   spring, a staircase of rising swing lows at resistance, the first SOS, or the first LPS.
+   the parent's map. Phase D opens at the first right-side evidence after the middle of the
+   base (a must, his ruling Mon 14/09/2026: an opening at or before the middle opens nothing):
+   the round trip after a spring, a staircase of rising swing lows at resistance, the first
+   SOS, or the first LPS.
    The LPS window is the last run of receding days (a lower high or a lower low than the
    day before), the day before the run is its top, the trigger is the last day's high, the
    buy is the cross of that high; a cross inside the pullback is a buy too. Every LPS-like

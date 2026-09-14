@@ -19,9 +19,10 @@ scores as well there as on his day, and then the hit rate says nothing):
   Phase C      the one Phase C sits on his tip
   spring test  the one spring test sits on his tip
   mini         the mini overlaps his span with both band edges inside the rail area of his
-Phase D opens at or before his first right-side event (his first SOS or his first LPS). It is scored as the reader
-emits it, and fed HIS drawn Phase C, first SOS and first LPS (what the sixteenth sitting measured), so the rule
-and its inputs can be told apart.
+Phase D opens at or before his first right-side event (his first SOS or his first LPS), and after the middle of the
+box (a must, his ruling Mon 14/09/2026). It is scored as the reader emits it, and fed HIS drawn Phase C, first SOS
+and first LPS (what the sixteenth sitting measured), so the rule and its inputs can be told apart; the report names
+the marks with no Phase D (every opening at or before the middle) and those opening well after his first event.
 
 usage: python -m tools.word_recall [--json PATH]
 """
@@ -185,6 +186,7 @@ def read_mark(mk):
         facts["phase_d"] = {name: {"open": day(p["open_bar"]), "opener": p["opener"],
                                    "position": p["position"], "lead_days": his_first - p["open_bar"]}
                             for name, p in variants.items() if p is not None}
+        facts["phase_d_none"] = [name for name, p in variants.items() if p is None]
     return rows, eng_rows, facts
 
 
@@ -233,9 +235,13 @@ def main(argv=None):
         pos = [g["position"] for g in got]
         early = [f"{f['mark']} {f['phase_d'][name]['lead_days']}" for f in pd_rows
                  if name in f["phase_d"] and f["phase_d"][name]["lead_days"] > 15]
+        late = [f"{f['mark']} {-f['phase_d'][name]['lead_days']}" for f in pd_rows
+                if name in f["phase_d"] and f["phase_d"][name]["lead_days"] < -15]
+        none = [f["mark"] for f in pd_rows if name in f.get("phase_d_none", [])]
         print(f"  Phase D {name:16s}: {len(got)} marks, position median {median(pos):.2f}, after the middle "
               f"{sum(p > 0.5 for p in pos)}, earliest {min(pos):.2f}, more than 15 trading days before his first "
-              f"right-side event {early}")
+              f"right-side event {early}, more than 15 after it {late}, none (every opening at or before the "
+              f"middle) {none}")
     if args.json:
         with open(args.json, "w", encoding="utf-8") as fh:
             json.dump({"fingerprint": fp, "his_rails": rows, "engine": eng_rows, "facts": facts}, fh, indent=1)

@@ -32,7 +32,8 @@ DEFAULTS that are mine, placed or measured on his 35 marks, his word owed (docs/
   Phase D      the earliest of: the round trip after the Phase C (its recovery reaches the R area, then the next
                valley holds in the support area), the staircase near R after the Phase C (two consecutive line
                valleys, the second higher, both above the box midpoint, the peak between them in the R area),
-               THE SOS's launch once an LPS follows it, the LPS window's first day.
+               THE SOS's launch once an LPS follows it, the LPS window's first day; only an opening AFTER THE
+               MIDDLE of the box counts (HIS: "Yes its a must", Mon 14/09/2026).
   mini         today's elected inner box, as facts; the LPS reads against it when its low sits inside the band or
                within the rail area of it.
 
@@ -180,11 +181,14 @@ def spring_tests(line, pc, S, unit):
 
 
 def phase_d(line, start, R, S, unit, pc, sos, lps_start, read_bar):
-    """Where the right side opens: the earliest of the round trip after the Phase C (its recovery reaches the R
-    area, then the next valley holds in the support area), the staircase near R after the Phase C (two consecutive
-    line valleys, the second higher, both above the box midpoint, the peak between them in the R area), THE SOS's
-    launch once an LPS follows it, and the LPS window's first day."""
+    """Where the right side opens: the earliest opening AFTER THE MIDDLE of the box, a must (his ruling Mon
+    14/09/2026), among the round trip after the Phase C (its recovery reaches the R area, then the next valley holds
+    in the support area), the first staircase near R after the Phase C and after the middle (two consecutive line
+    valleys, the second higher, both above the box midpoint, the peak between them in the R area), THE SOS's launch
+    once an LPS follows it, and the LPS window's first day. An opening at or before the middle stays listed and opens
+    nothing; with no opening after the middle there is no Phase D yet."""
     area, mid = _area(unit), (R + S) / 2.0
+    half = start + max(1, read_bar - start) / 2.0
     openings = {}
     after = start
     if pc is not None:
@@ -193,21 +197,22 @@ def phase_d(line, start, R, S, unit, pc, sos, lps_start, read_bar):
         j = next((k for k in range(i + 1, len(line)) if line[k][1] == "peak" and line[k][2] >= R - area), None)
         if j is not None and j + 1 < len(line) and line[j + 1][2] >= S - area:
             openings["round trip"] = int(line[j + 1][0])
-    for k in range(len(line) - 2):
-        v1, p, v2 = line[k], line[k + 1], line[k + 2]
-        if (v1[1] == "valley" and v1[0] >= after and v2[2] > v1[2] > mid and p[2] >= R - area):
-            openings["staircase"] = int(v2[0])
-            break
+    stairs = [int(line[k + 2][0]) for k in range(len(line) - 2)
+              if line[k][1] == "valley" and line[k][0] >= after
+              and line[k + 2][2] > line[k][2] > mid and line[k + 1][2] >= R - area]
+    if stairs:
+        openings["staircase"] = next((bar for bar in stairs if bar > half), stairs[0])
     if sos is not None and not sos["in_progress"]:
         openings["SOS"] = int(sos["launch_bar"])
     if lps_start is not None:
         openings["LPS"] = int(lps_start)
-    if not openings:
+    later = {name: bar for name, bar in openings.items() if bar > half}
+    if not later:
         return None
-    opener = min(openings, key=lambda name: openings[name])
-    position = (openings[opener] - start) / max(1, read_bar - start)
-    return {"open_bar": openings[opener], "opener": opener, "position": round(float(position), 3),
-            "after_middle": bool(position > 0.5), "openings": openings}
+    opener = min(later, key=lambda name: later[name])
+    position = (later[opener] - start) / max(1, read_bar - start)
+    return {"open_bar": later[opener], "opener": opener, "position": round(float(position), 3),
+            "openings": openings, "before_middle": sorted(set(openings) - set(later))}
 
 
 def mini(inner, lps, unit, read_bar):

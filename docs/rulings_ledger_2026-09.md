@@ -1181,3 +1181,45 @@ CORRECTED: step 4's 186/186 is density (his day moved three trading days: 173.5;
 window counts its top day (his question); a cross inside the window restarts it; ST's sixteenth-sitting staircase
 (25/02) sits before his Phase C (09/03) and no longer counts; the spring-bounds switch lifts junk grades alone.
 Open, noted: the fleet guard counts fire days; commit trailers vs AGENTS.md.
+
+## HIS ANSWERS (Mon 14/09/2026), VERBATIM, ON THE EIGHT JUNK CHARTS AND QUESTIONS 1 TO 4
+
+On the annotated BMRN and AEF renders (OHLC bars):
+"Phase C = Spring btw.
+Look at BMRN I thInk that the engine could Mark that better with the Resistance and Support lines I marked in RED.
+and this next part is important, the entire Yellow area can be considered the last supper because it fits the
+definition:  it's a deep correction after the breach of support in phase D, the blue part can be considered an LPS
+entry because of the moves final bars being pretty shallow and in decline, other then that the chart is still junk,
+it got really huge spread meaning it's volatile, barely any clean zigzag between the rails I would not trade.
+Same with FRPH but much worse, cant even decipher the consolidation when looking at the graph in trading view got
+the nastiest spread I've ever seen
+OHI suffers from both bad anchoring and huge spread also junk, lps is fine though
+AEF also Extremely Wide, but a clear consolidation does exist there, anchoring is wrong though, and I think I already
+mentioned a couple of times before. we cannot start the anchor in the same direction the price is going. not to
+mention the LPS is the biggest offender here, 3 bars with huge increases in both spread and price changes meaning
+the pull back is increasing with sellers, not to mention you cut the move off and it's a part of a bigger swing
+downwards that reaches support, we cannot ignore that, that is a fatal flaw of our chart reading fundementals.
+1. we will go live after we built everything and I approve, measuring a bunch of bs is Irrelevant to me I want the
+setups to work the way I said
+2. Lets hold on SOS for a separate tackle because you are only half right and I feel laser focusing on it will help
+3. Yes, Usually good examples of Phase C's Spring are Deep dip's, Place also matters a lot and context going forward
+also plays a major part.... can you see what for yourself?
+4. Yes its a must. (will answer more later, lets do these now)"
+
+His drawings, read off the screenshots: BMRN red R about 57.75 from about Tue 07/04/2026, red S about 53.9 from
+about Fri 10/04/2026 (the engine: 57.44 / 52.46 from Wed 01/04/2026); 'C' at the dip to about 49.3 around Mon
+18/05/2026, 'T' at about 52.2 around Thu 28/05/2026; 'LS' = the whole yellow area (the engine's LPS window Tue 09/06
+to Wed 17/06/2026); cyan 'LPS' = the last shallow declining bars into the fire at Mon 22/06/2026. AEF: the rising leg
+from S 8.87 (Tue 28/04/2026) to about 9.97 crossed out with an arrow showing it runs with the trend; 'BC' at about 10.0
+around Mon 11/05/2026 and 'AR' at about 8.9 around Tue 19/05 to Wed 20/05/2026; a red swing from about 10.1 down
+through the engine's LPS window to about 8.85 (Mon 08/06/2026).
+
+READ: (1) nothing goes live before the whole method is built and he approves; the forward-return read is not his
+condition. (2) THE SOS parked for its own sitting. (3) Phase C = the spring; showing undrawn ones is fine; place and
+context going forward to be found from his drawings (workflow wf_f7a04788-5dd). (4) BUILT: Phase D opens only after
+the middle of the box (line_words.phase_d); no mark loses its Phase D, early openings (more than 15 trading days
+before his first right-side event) 8 -> 3 as emitted, 3 -> 2 fed his events; DSGN conflicts (his SOS Fri 23/01/2026
+sits before the middle of his box). Junk: BMRN, FRPH, OHI, AEF stay junk. AEF's anchoring (anchor-polarity, R10/R16)
+and AEF's LPS (the pullback increasing with sellers, cut off from a bigger swing down to support = the fatal
+character change, Q19) are the fundamentals to fix. Still owed from him: SPCB, ABEV, ENIC, the June BBVA, DGII, and
+questions 5 to 18.
