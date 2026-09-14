@@ -186,20 +186,22 @@ def test_phase_c_is_the_deepest_dip_recovered_by_the_swing(u):
     line = _s([(0, P, 11.0, 1), (1, V, 9.0, 2), (2, P, 10.2, 3), (3, V, 9.5, 4),   # 1.0 under S, recovered
                (4, P, 10.6, 5), (5, V, 8.0, 6), (6, P, 10.1, 7), (7, V, 9.2, 8),   # 2.0 under S, recovered
                (8, P, 11.0, None)], u)
-    pc = W.phase_c(line, HI * u, 0, 10.0 * u, unit=u)
+    pc = W.phase_c(line, HI * u, 0, 10.0 * u, unit=u, R=12.0 * u, lps_start=None, read_bar=8)
     assert (pc["tip_bar"], pc["depth_ranges"], pc["state"], pc["start_bar"]) == (5, 2.0, "recovered", 4)
 
 
 def test_a_deeper_dip_that_has_not_recovered_is_not_the_phase_c():
     line = [(0, P, 11.0, 1), (1, V, 9.0, 2), (2, P, 10.2, 3), (3, V, 9.5, 4),
             (4, P, 10.6, 5), (5, V, 7.0, 6), (6, P, 9.0, None)]            # 3.0 under, short of S - 0.5
-    assert W.phase_c(line, HI, 0, 10.0, unit=1.0)["tip_bar"] == 1, "the deepest RECOVERED dip"
+    assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=12.0, lps_start=None, read_bar=6)["tip_bar"] == 1, \
+        "the deepest RECOVERED dip"
 
 
 def test_a_deeper_dip_whose_answer_is_still_forming_is_not_the_phase_c():
     line = [(0, P, 11.0, 1), (1, V, 9.0, 2), (2, P, 10.2, 3), (3, V, 9.5, 4),
             (4, P, 10.6, 5), (5, V, 7.0, 6), (6, P, 9.8, 7), (7, V, 8.0, None)]  # its higher low is still forming
-    assert W.phase_c(line, HI, 0, 10.0, unit=1.0)["tip_bar"] == 1, "recovering is not recovered"
+    assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=12.0, lps_start=None, read_bar=7)["tip_bar"] == 1, \
+        "recovering is not recovered"
 
 
 @UNITS
@@ -211,8 +213,42 @@ def test_a_dip_inside_the_support_area_is_never_a_phase_c_candidate(u):
 def test_a_dip_before_the_box_is_not_the_box_s_phase_c():
     line = [(0, P, 11.0, 1), (1, V, 8.0, 2), (2, P, 10.2, 3), (3, V, 9.0, 4),
             (4, P, 10.6, 5), (5, V, 9.2, 6), (6, P, 11.0, None)]
-    assert W.phase_c(line, HI, 0, 10.0, unit=1.0)["tip_bar"] == 1
-    assert W.phase_c(line, HI, 2, 10.0, unit=1.0)["tip_bar"] == 3, "the box opens on bar 2"
+    kw = dict(unit=1.0, R=12.0, lps_start=None, read_bar=6)
+    assert W.phase_c(line, HI, 0, 10.0, **kw)["tip_bar"] == 1
+    assert W.phase_c(line, HI, 2, 10.0, **kw)["tip_bar"] == 3, "the box opens on bar 2"
+
+
+# His context going forward (Mon 14/09/2026): "Place also matters a lot and context going forward also plays a
+# major part". A dip after which the box went back to R and under the support area again before the right side
+# opened was still Phase B (NKTR, ORMP). R 14, S 10, the rail area 0.5, the box midpoint 12.
+
+def test_a_deep_dip_the_range_ran_on_from_is_phase_b_and_the_later_dip_is_the_phase_c():
+    line = [(0, P, 14.0, 1), (2, V, 8.0, 3), (4, P, 13.8, 5), (6, V, 9.2, 7), (8, P, 13.6, 9), (10, V, 12.6, 11),
+            (12, P, 14.2, None)]
+    assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=14.0, lps_start=None, read_bar=12)["tip_bar"] == 6, \
+        "back at R on 4, under the support area on 6: the deeper dip on 2 was Phase B"
+
+
+def test_a_return_after_the_right_side_opened_leaves_the_phase_c_alone():
+    line = [(0, P, 14.0, 1), (2, V, 8.0, 3), (4, P, 13.8, 5), (6, V, 10.2, 7), (8, P, 13.7, 9), (10, V, 9.0, 11),
+            (11, P, 13.0, None)]
+    kw = dict(unit=1.0, R=14.0, lps_start=None)
+    assert W.phase_c(line, HI, 0, 10.0, read_bar=11, **kw)["tip_bar"] == 2, \
+        "the round trip on 6 sits after the middle of an 11-day box: the right side opened before the return"
+    assert W.phase_c(line, HI, 0, 10.0, read_bar=14, **kw) is None, \
+        "on a 14-day box that round trip sits before the middle and opens nothing, so the return voids the dip"
+
+
+def test_a_staircase_before_the_middle_opens_nothing_so_a_later_return_still_voids_the_dip():
+    line = [(0, P, 14.0, 1), (2, V, 8.0, 3), (4, P, 13.8, 5), (6, V, 12.5, 7), (8, P, 13.7, 9), (10, V, 12.8, 11),
+            (12, P, 13.9, 13), (14, V, 9.0, 15), (16, P, 13.6, 17), (18, V, 12.9, 19), (20, P, 14.0, None)]
+    assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=14.0, lps_start=None, read_bar=22)["tip_bar"] == 14,         "the staircase on 10 sits before the middle of a 22-day box, so the return (13.9, then 9.0) voids the dip on 2"
+
+
+def test_a_test_right_after_the_dip_before_the_box_gets_back_to_r_never_replaces_it():
+    line = [(0, P, 14.0, 1), (2, V, 8.0, 3), (4, P, 10.2, 5), (6, V, 9.0, 7), (8, P, 13.8, 9), (10, V, 12.8, 11),
+            (12, P, 14.2, None)]
+    assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=14.0, lps_start=None, read_bar=12)["tip_bar"] == 2
 
 
 @pytest.mark.parametrize("tail, state", [

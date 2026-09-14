@@ -14,7 +14,8 @@ breaches local Significant Highs like the Resistance" and "most be in Phase D ..
 Phase C)" (Q11); one Phase C per box "for now", a dip inside the support area never qualifies, recovery is judged
 by the swing (Q14, sixteenth sitting); the last supper is "just another event" after an up-move (Q15); Phase D
 opens after the spring and its recovery on SYRE and on the staircase near resistance on PBT (sixteenth sitting);
-the mini always has its own rail set (Q13).
+the mini always has its own rail set (Q13); "Phase C = Spring", deep dips, and "Place also matters a lot and
+context going forward also plays a major part" (Mon 14/09/2026).
 
 DEFAULTS that are mine, placed or measured on his 35 marks, his word owed (docs/decisions.md, build step 5):
   thrust       a clean up-leg on the line: walk back from a line peak while the earlier peaks stay below it and
@@ -27,7 +28,11 @@ DEFAULTS that are mine, placed or measured on his 35 marks, his word owed (docs/
                digs at least LINE_WORD_SUPPER_DIG_ATR, sought only on the days before a later LPS window opens.
   Phase C      the deepest dip more than the rail area under S that recovered by the swing: before any lower low
                than its tip, a line peak reaches the support area (a high at or above S minus the area) and the
-               valley after it has committed higher than the tip.
+               valley after it has committed higher than the tip. Context going forward (his, Mon 14/09/2026):
+               a dip after which the box went back up to the R area and then down under the support area
+               again before the right side opened (the round trip or the staircase after it, after the middle,
+               else the LPS window's first day) was still Phase B, and the next deepest takes the word
+               (NKTR, ORMP).
   spring test  the first line valley after the Phase C back inside the support area, higher than the tip.
   Phase D      the earliest of: the round trip after the Phase C (its recovery reaches the R area, then the next
                valley holds in the support area), the staircase near R after the Phase C (two consecutive line
@@ -163,10 +168,53 @@ def dips(line, highs, start, S, unit):
     return out
 
 
-def phase_c(line, highs, start, S, unit):
-    """One Phase C per box: the deepest dip that recovered by the swing."""
-    recovered = [d for d in dips(line, highs, start, S, unit) if d["state"] == "recovered"]
-    return max(recovered, key=lambda d: d["depth_ranges"]) if recovered else None
+def _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar):
+    """Where the right side would open after the dip at line[i]: the round trip after it (its recovery reaches the
+    R area with no lower low first, then the next valley holds the support area) or the first staircase near R
+    after it, each only after the middle of the box (his must), else the LPS window's first day."""
+    area, mid = _area(unit), (R + S) / 2.0
+    half = start + max(1, read_bar - start) / 2.0
+    opens = []
+    j = next((k for k in range(i + 1, len(line)) if line[k][1] == "peak" and line[k][2] >= R - area), None)
+    if j is not None and j + 1 < len(line):
+        lower_first = any(t[1] == "valley" and t[2] < line[i][2] for t in line[i + 1:j])
+        if not lower_first and line[j + 1][2] >= S - area and line[j + 1][0] > half:
+            opens.append(int(line[j + 1][0]))
+    for k in range(i, len(line) - 2):
+        v1, p, v2 = line[k], line[k + 1], line[k + 2]
+        if v1[1] == "valley" and v2[2] > v1[2] > mid and p[2] >= R - area and v2[0] > half:
+            opens.append(int(v2[0]))
+            break
+    if lps_start is not None:
+        opens.append(int(lps_start))
+    return min(opens) if opens else None
+
+
+def _range_ran_on(line, i, R, S, unit, open_bar):
+    """After the dip at line[i] the box went back up to the R area and then down under the support area again
+    before the right side opened: the range was still running, so the dip was Phase B."""
+    area, back_at_r = _area(unit), False
+    for b, kind, p, _ in line[i + 1:]:
+        if open_bar is not None and b >= open_bar:
+            return False
+        if kind == "peak" and p >= R - area:
+            back_at_r = True
+        elif kind == "valley" and back_at_r and p < S - area:
+            return True
+    return False
+
+
+def phase_c(line, highs, start, S, unit, R, lps_start, read_bar):
+    """One Phase C per box, the spring: the deepest dip that recovered by the swing and after which the range
+    did not run on (back to the R area, then under the support area again, before the right side opened)."""
+    at = {(t[0], t[1]): k for k, t in enumerate(line)}
+    recovered = sorted((d for d in dips(line, highs, start, S, unit) if d["state"] == "recovered"),
+                       key=lambda d: -d["depth_ranges"])
+    for d in recovered:
+        i = at[(d["tip_bar"], "valley")]
+        if not _range_ran_on(line, i, R, S, unit, _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar)):
+            return d
+    return None
 
 
 def spring_tests(line, pc, S, unit):
@@ -252,7 +300,7 @@ def read_line_words(df, box, unit, *, lps=None, inner=None):
     lps_start = int(lps.start_bar) if lps is not None else None
     lps_low_bar = int(lps.low_bar) if lps is not None else None
     th = thrusts(line, start, R, unit)
-    pc = phase_c(line, highs, start, S, unit)
+    pc = phase_c(line, highs, start, S, unit, R, lps_start, n - 1)
     sos = pick_the_sos(th, lps_low_bar, after=pc["tip_bar"] if pc is not None else None)
     rec.update(thrusts=th, the_sos=sos, last_suppers=last_suppers(th, lows, unit, lps_start), phase_c=pc,
                spring_tests=spring_tests(line, pc, S, unit),

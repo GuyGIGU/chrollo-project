@@ -1232,3 +1232,13 @@ reserve (bricks._seed_clock); the root walk refuses a younger box ('forming, N o
 keeps its own clock. MEASURED: alone his 37 windows read 20 concordant exactly as today, the ratchet holds 30 of 35 with all five reviewed misses still missing, and the reader pin passes; junk identical 8/16; fleet 34/37 (a fire day moves on ET, SCL,
 WCC; 12 fire days on 15-19 day boxes: ET, HOG, SCL, VIK, WCC). With everything on: with steps 2 to 5 on: windows 35, ratchet 33, junk 15 (identical days and scores), fleet 34 (WCC loses one fire day). Flag-off
 every guard byte-identical; 12 mutations red then green.
+
+## THE PHASE C WITH HIS CONTEXT GOING FORWARD (Mon 14/09/2026), BUILT IN THE DARK READER
+
+His answer: deep dips, place and context going forward, "can you see what for yourself?". Seen on NKTR and ORMP:
+after the deeper dip the box went back to R and came down under the support area again before the right side
+opened, so the deeper dip was Phase B. BUILT (line_words.phase_c, rule H6 of workflow wf_f7a04788-5dd): the deepest
+recovered dip after which the range did not run on before the right side opened (the round trip or staircase after
+it, after the middle; else the LPS window). Phase C 10/10 (exact 9, chance 0), spring test 4/6, engine election 3/3.
+H5 (the same low again) refuted on fidelity (ORMP by one tick). Known weakness: the middle moves with the read day
+(ORMP Mon 06/04 and Tue 07/04/2026 name the February dip). Five mutations red then green.
