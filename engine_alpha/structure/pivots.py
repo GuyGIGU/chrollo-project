@@ -27,7 +27,9 @@ def turn_line_floors(df, atr_val, mult=None):
 
     His unit is "the daily range", and over a two-year frame that is not one number: measured on his 35 drawn
     marks, the line lands on 186 of his 186 named turns with the per-bar range and 183 with a single range
-    taken from the read day (build step 4, 2026-09-13)."""
+    taken from the read day (build step 4, 2026-09-13). At the line's density that one-day recall is mostly
+    chance (his day moved three trading days still lands 173 of 186), so it places the floor and does not prove
+    the line (review, Mon 14/09/2026)."""
     mult = settings.TURN_LINE_FLOOR_ATR if mult is None else float(mult)
     scalar = float(atr_val) if atr_val is not None and np.isfinite(atr_val) and float(atr_val) > 0 else np.nan
     n = len(df) if df is not None else 0
@@ -44,29 +46,27 @@ def turn_line_floors(df, atr_val, mult=None):
 
 
 def _opening_direction(highs, lows, floors):
-    """Which way the line leaves its first bar: True = it rose first (bar 0 is a valley), False = it fell first
-    (bar 0 is a peak), None = the chart never covers the floor, so no leg is committed anywhere.
+    """How the line leaves the start of the chart, or None when the chart never covers the floor (no leg is
+    committed anywhere). Returns ``(up, bar, low_bar, high_bar)``: ``up`` True when it rose first, the bar on which
+    the first leg covered its floor, and the bars of the running low and high at that moment.
 
-    Read it as "which move covered the floor first": a rise of one floor above the running low means the line
-    opened UPWARD off that low; a fall of one floor below the running high means it opened DOWNWARD off that
-    high. When one bar resolves both, the OLDER extreme owns the opening leg."""
+    Read it as "which move covered the floor first": the running high and low track EVERY bar, and on the first
+    bar with a readable floor where they sit a floor apart, the OLDER of the two owns the opening leg and is the
+    opening turn (a tie on one bar opens upward). The opening turn is bar 0 only when bar 0 is that extreme: the
+    line used to open on bar 0 whatever followed, and a rise whose top printed on a bar with no readable floor
+    went unseen (review findings F3 and TG-8, Mon 14/09/2026)."""
     run_hi, run_lo = float(highs[0]), float(lows[0])
+    i_hi = i_lo = 0
     for i in range(1, len(highs)):
-        # The running extremes track EVERY bar; only the floor test needs a readable floor, or a frame whose
-        # range column is still warming up would open its line off a stale bar-0 extreme.
-        run_hi = max(run_hi, float(highs[i]))
-        run_lo = min(run_lo, float(lows[i]))
+        if float(highs[i]) > run_hi:
+            run_hi, i_hi = float(highs[i]), i
+        if float(lows[i]) < run_lo:
+            run_lo, i_lo = float(lows[i]), i
         f = float(floors[i])
         if not np.isfinite(f) or f <= 0:
             continue
-        rose = float(highs[i]) - run_lo >= f
-        fell = run_hi - float(lows[i]) >= f
-        if rose and fell:
-            return int(np.argmin(lows[: i + 1])) <= int(np.argmax(highs[: i + 1]))
-        if rose:
-            return True
-        if fell:
-            return False
+        if run_hi - run_lo >= f:
+            return i_lo <= i_hi, i, i_lo, i_hi
     return None
 
 
@@ -76,8 +76,9 @@ def turn_line(highs, lows, floors):
 
     A turn COMMITS on the bar where price backs off the running extreme by that bar's floor; the confirming bar
     carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley.
-    Bar 0 is a turn by its shape and the running extreme at the right edge rides as a FORMING turn — the line
-    has no edge mask, which is what the order-1 walk's ``peak_mask[n - order:]`` reserve costs it (his 25 of 37
+    The opening turn is the older running extreme when the first leg covers its floor (bar 0 when bar 0 is it, a
+    turn by its shape), and the running extreme at the right edge rides as a FORMING turn: the line has no edge
+    mask, which is what the order-1 walk's ``peak_mask[n - order:]`` reserve costs it (his 25 of 37
     pullbacks bottom within two days of the edge).
 
     Returns ``[(bar, kind, price, knowable_bar)]``, oldest first and strictly alternating. ``knowable_bar`` is
@@ -95,8 +96,8 @@ def turn_line(highs, lows, floors):
     if len(floors) != n or not np.any(np.isfinite(floors) & (floors > 0)):
         return []
 
-    up = _opening_direction(highs, lows, floors) if n > 1 else None
-    if up is None:
+    opening = _opening_direction(highs, lows, floors) if n > 1 else None
+    if opening is None:
         # The chart never covers the floor: the opening turn and one forming extreme, no committed leg.
         i_hi, i_lo = int(np.argmax(highs)), int(np.argmin(lows))
         rose_first = i_hi >= i_lo
@@ -106,10 +107,16 @@ def turn_line(highs, lows, floors):
             out.append((tail[0], tail[1], tail[2], None))
         return out
 
-    turns = [(0, "valley" if up else "peak", float(lows[0] if up else highs[0]), 0)]
-    ext_i = 0
-    ext_p = float(highs[0]) if up else float(lows[0])
-    for i in range(1, n):
+    # The opening turn is the older running extreme (bar 0 when bar 0 is it, a turn by its shape); the first leg's
+    # own extreme so far is the other one. Nothing commits before the bar on which that leg covered its floor.
+    up, first, i_lo, i_hi = opening
+    if up:
+        turns = [(i_lo, "valley", float(lows[i_lo]), 0 if i_lo == 0 else first)]
+        ext_i, ext_p = i_hi, float(highs[i_hi])
+    else:
+        turns = [(i_hi, "peak", float(highs[i_hi]), 0 if i_hi == 0 else first)]
+        ext_i, ext_p = i_lo, float(lows[i_lo])
+    for i in range(first, n):
         f = float(floors[i])
         readable = bool(np.isfinite(f)) and f > 0
         # The extreme tracks every bar; only the COMMIT test needs a readable floor.

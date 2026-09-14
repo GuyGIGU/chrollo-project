@@ -598,18 +598,23 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
-    # R13 (final method step 2, dark): the close-dwell legs are graded, never
-    # a refusal; their values stay measured facts.
-    dwell_floor = 0.0 if settings.DWELL_GRADED_ENABLED else settings.EQ_MIN_HALF_DWELL
+    # R13 (final method step 2, dark): the whole occupancy exam is graded,
+    # never a refusal. All four close-residence legs (the two end-third
+    # dwells, the mid churn, the coverage) stay measured facts; his ruling
+    # reads them on whole bars, which the grade does at step 12 (review
+    # finding RF-5, Mon 14/09/2026: the first build graded two of the four).
+    occupancy_ok = settings.DWELL_GRADED_ENABLED or (
+        eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
+        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
+    )
     is_valid = (
         r_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and s_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and eq["r_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
         and eq["s_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
-        and eq["lower_dwell"] >= dwell_floor
-        and eq["upper_dwell"] >= dwell_floor
-        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
-        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
+        and occupancy_ok
     )
     return r_touches, s_touches, eq, is_valid
 

@@ -148,6 +148,18 @@ def test_graded_traits_keep_the_story_position_as_a_refusal(monkeypatch, _lps_be
     assert rejects["not a correction: the low comes before the high"] > 0
 
 
+@pytest.mark.parametrize("last_low, refused", [(108.62, False), (108.68, True)])
+def test_the_correction_floor_is_his_smallest_dig_under_the_r18_window(monkeypatch, _lps_behavior_frame, last_low, refused):
+    """Review finding RF-13: under R18's last-run window his smallest dig is ORMP's 0.68 ranges (Thu 09/04/2026);
+    the first build placed 0.70 on his windows as drawn (0.71). Digs of 0.69 and 0.66 ranges here."""
+    monkeypatch.setattr(settings, "LPS_GRADED_TRAITS_ENABLED", True)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    df = _lps_behavior_frame(highs=[110, 109.8, 109.6], lows=[109.2, 109.0, last_low])
+    _cands, rejects = detect_lps_candidates(df, df.iloc[-1], diagnose=True, **KW)
+    assert (rejects["no real pullback (dig under the correction floor)"] > 0) is refused
+
+
 # ── R8 / R12: the LPS in daily ranges ───────────────────────────────────────
 def test_ranges_yardstick_lifts_the_zone_ceiling_to_the_ruled_ranges(monkeypatch, _lps_behavior_frame):
     # the window low sits 1.0 range above R: outside today's 0.5-range zone,
@@ -200,6 +212,21 @@ def test_dwell_graded_never_refuses_on_the_close_dwell_legs(monkeypatch):
     assert box_gates._validate_base_quality(eq_df, 110.0, 100.0, 2.0)[3] is True
 
 
+@pytest.mark.parametrize("leg, value", [("mid_dwell", 0.9), ("coverage", 0.1)])
+def test_dwell_graded_covers_the_whole_occupancy_exam(monkeypatch, leg, value):
+    """R13 was the whole occupancy exam graded, not two of its four legs (review finding RF-5): the mid churn and
+    the coverage stop refusing too; the touch legs stay."""
+    eq = {"r_touches": 5, "s_touches": 5, "r_touch_thirds": 3, "s_touch_thirds": 3,
+          "lower_dwell": 0.3, "upper_dwell": 0.3, "mid_dwell": 0.2, "coverage": 1.0, leg: value}
+    monkeypatch.setattr(box_gates, "_measure_close_residence", lambda *a, **k: dict(eq))
+    eq_df = pd.DataFrame({"High": [109.0] * 30, "Low": [101.0] * 30, "Close": [105.0] * 30})
+    assert box_gates._validate_base_quality(eq_df, 110.0, 100.0, 2.0)[3] is False
+    monkeypatch.setattr(settings, "DWELL_GRADED_ENABLED", True)
+    assert box_gates._validate_base_quality(eq_df, 110.0, 100.0, 2.0)[3] is True
+    eq["r_touches"] = 1
+    assert box_gates._validate_base_quality(eq_df, 110.0, 100.0, 2.0)[3] is False, "the touch legs still refuse"
+
+
 # ── R17: the spring bounds lifted ───────────────────────────────────────────
 def test_spring_bounds_lifted_admit_an_early_deep_spring(monkeypatch):
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", False)   # no shakeout fallback in this test
@@ -215,3 +242,67 @@ def test_spring_bounds_lifted_admit_an_early_deep_spring(monkeypatch):
     monkeypatch.setattr(settings, "SPRING_BOUNDS_LIFTED_ENABLED", True)
     on = _phase_c_candidate(df, df.iloc[box_start:], **kw)
     assert on["bin_c_present"] is True and on["bin_c_event_bar"] == 18
+
+
+# ── review findings (Mon 14/09/2026): the four branches no test reached, and F1 ──
+def test_the_one_window_rule_never_thins_the_support_test_staircase(monkeypatch, _lps_behavior_frame):
+    """One window per read day is an ELECTION rule. The measure-only staircase keeps every historical window;
+    under the rule it held one at most, and the Phase D evidence that needs two right-half tests vanished."""
+    from engine_alpha.structure.lps import detect_lps_tests
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 2)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 2)
+    df = _lps_behavior_frame(highs=[118, 117, 108, 106, 116, 115, 107, 105],
+                             lows=[116, 115, 102, 100, 114, 113, 101, 100],
+                             closes=[117, 116, 104, 103, 115, 114, 103, 103])
+    df.index = pd.date_range("2026-01-01", periods=len(df), freq="D")
+    kw = dict(latest=df.iloc[-1], **KW)
+    spans = lambda tests: [(t["start_index"], t["end_index"]) for t in tests]
+    off = spans(detect_lps_tests(df=df, **kw))
+    assert len(off) >= 2, "two support tests on the base"
+    monkeypatch.setattr(settings, "LPS_WINDOW_RECEDING_ENABLED", True)
+    assert spans(detect_lps_tests(df=df, **kw)) == off
+
+
+def test_the_hand_over_reads_the_close_in_ranges_above_r(monkeypatch):
+    from engine_alpha.structure.box_primitives import _still_backing_up
+    # R 100, one daily range 2: a close at 104 sits 2 ranges (4 percent of price) over R.
+    assert _still_backing_up(104.0, 100.0, 2.0) is True, "today: within 15 percent of price, still backing up"
+    monkeypatch.setattr(settings, "BOX_HANDOVER_RANGES_ENABLED", True)
+    assert _still_backing_up(104.0, 100.0, 2.0) is False, "more than 1.5 ranges over R: the box hands over"
+    assert _still_backing_up(103.0, 100.0, 2.0) is True
+
+
+def test_ranges_yardstick_reads_the_shelf_lift_above_r_in_ranges(monkeypatch):
+    from engine_alpha.structure.lps import _pullback_rest_depth_ok
+    # A 5-day shelf above R 110 on a box 10 tall; the last close 114 sits 0.4 box heights over R.
+    shelf = (0.05, "OVERSHOOT_R", 114.0, 110.0, 10.0, 5, 111.0)
+    assert _pullback_rest_depth_ok(*shelf, atr_val=4.0)[1] is False, "today: over the 0.35 box-height cap"
+    monkeypatch.setattr(settings, "LPS_RANGES_YARDSTICK_ENABLED", True)
+    assert _pullback_rest_depth_ok(*shelf, atr_val=4.0)[1] is True, "1.0 range over R, under the ruled 1.5"
+    assert _pullback_rest_depth_ok(*shelf, atr_val=2.0)[1] is False, "2.0 ranges over R, over the ruled 1.5"
+
+
+def test_ranges_yardstick_reads_the_launch_above_r_in_ranges(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 3)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 3)
+    # A window whose low 109 is back inside the box after launching from 114: 4 over R = 0.4 box heights and
+    # 2.0 ranges. Today that is "launched above resistance"; the ruled cap is 2.5 ranges.
+    df = _lps_behavior_frame(highs=[114, 112, 111], lows=[110.5, 109.5, 109])
+    _off, rejects = detect_lps_candidates(df, df.iloc[-1], diagnose=True, **KW)
+    assert rejects["window launched above resistance"] == 1
+    monkeypatch.setattr(settings, "LPS_RANGES_YARDSTICK_ENABLED", True)
+    _on, rejects = detect_lps_candidates(df, df.iloc[-1], diagnose=True, **KW)
+    assert rejects["window launched above resistance"] == 0
+
+
+def test_graded_traits_turn_the_spread_expansion_into_a_grade(monkeypatch, _lps_behavior_frame):
+    monkeypatch.setattr(settings, "LPS_LENGTH_MIN", 4)
+    monkeypatch.setattr(settings, "LPS_LENGTH_MAX", 4)
+    kw = dict(KW, base_range_threshold=4)          # profile unit 4: spread cap 5, expansion cap 1.4
+    # spreads 3.5, 3.5, 3.0, 4.5: all under the cap, the last widens 1.5 over the one before
+    df = _lps_behavior_frame(highs=[110, 109, 108, 107.5], lows=[106.5, 105.5, 105, 103])
+    off, rejects = detect_lps(df, df.iloc[-1], diagnose=True, **kw)
+    assert off is None and rejects["final bar spread expands"] == 1
+    monkeypatch.setattr(settings, "LPS_GRADED_TRAITS_ENABLED", True)
+    on, rejects = detect_lps(df, df.iloc[-1], diagnose=True, **kw)
+    assert on is not None and rejects["final bar spread expands"] == 0, "the expansion is a fact, not a refusal"

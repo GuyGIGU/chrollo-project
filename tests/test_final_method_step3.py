@@ -3,9 +3,11 @@ DARK, behind ONE flag. Flag off the path is byte-identical (the fleet, junk,
 marks and reader-pin guards prove that at scale); these tests prove the flag's
 mechanics on fakes, so a branch that silently stopped biting would go red here.
 
-His points (docs/final_method_2026-09.md): 18 no refusal on the support side
-(the zone word typed by the window's closes; the tight-box widening leaves the
-ceiling once the ceiling is read in ranges); 19
+His points (docs/final_method_2026-09.md): 18 the support side read on whole
+bars (his Q18 "not below the support area" and his JAZZ answer: a poke never
+refuses, a window mostly under the area does, one mostly under S is typed
+UNDERCUT_S; the tight-box widening leaves the ceiling once the ceiling is read
+in ranges); 19
 the three post-window checks go, and the depth cap in profile units with them;
 20 volume never refuses and never elects.
 """
@@ -36,20 +38,36 @@ def test_the_step3_flag_is_dark_and_rides_the_manifest():
     assert FLAG in ENGINE_SETTINGS_KEYS
 
 
-def test_support_side_never_refuses_and_the_zone_is_typed_by_the_closes(monkeypatch, _three_day, _lps_behavior_frame):
-    # The last day's low pokes a full range under the support floor; every close holds above S (JAZZ).
+def test_a_poke_under_the_support_area_never_refuses_and_the_zone_is_typed_by_the_bars(monkeypatch, _three_day, _lps_behavior_frame):
+    # His JAZZ answer: on support "since most of the move is above it and only small parts of it poke out down".
+    # The last day's low pokes a full range under the support floor; most of the window's travel sits above S.
     df = _lps_behavior_frame(highs=[104, 102, 100.5], lows=[101, 99.5, 97], closes=[102, 100.5, 100])
     off, rejects = detect_lps(df, df.iloc[-1], diagnose=True, **KW)
     assert off is None and rejects["low outside the support zones"] == 1
     monkeypatch.setattr(settings, FLAG, True)
     on = detect_lps(df, df.iloc[-1], **KW)
     assert on is not None and on["low"] == 97, "the low is the wick low, a fact, never a refusal"
-    assert on["zone_type"] == "INSIDE" and on["setup_type"] == "LPS", "closes above S: the LPS is ON support"
+    assert on["zone_type"] == "INSIDE" and on["setup_type"] == "LPS", "most of the move above S: ON support"
+    closing_under = _lps_behavior_frame(highs=[104, 102, 100.5], lows=[101, 99.5, 97], closes=[102, 100.5, 98])
+    c = detect_lps(closing_under, closing_under.iloc[-1], **KW)
+    assert c is not None and c["zone_type"] == "INSIDE", "a close under S changes nothing: the bars decide"
 
-    # The same window closing under S is an LPS on a spring candidate.
-    under = _lps_behavior_frame(highs=[104, 102, 100.5], lows=[101, 99.5, 97], closes=[102, 100.5, 98])
-    c = detect_lps(under, under.iloc[-1], **KW)
-    assert c is not None and c["zone_type"] == "UNDERCUT_S" and c["setup_type"] == "REBOUND"
+
+def test_a_window_whose_move_sits_mostly_under_s_is_an_lps_on_a_spring_candidate(monkeypatch, _three_day, _lps_behavior_frame):
+    # 5.5 of the window's 7.2 of travel sits under S = 100, while every close prints above S.
+    df = _lps_behavior_frame(highs=[101, 100.4, 100.3], lows=[99.0, 98.0, 97.5], closes=[100.5, 100.2, 100.1])
+    monkeypatch.setattr(settings, FLAG, True)
+    c = detect_lps(df, df.iloc[-1], **KW)
+    assert c is not None and c["zone_type"] == "UNDERCUT_S" and c["setup_type"] == "REBOUND", \
+        "closes above S do not make it ON support; most of the move is under it"
+
+
+def test_a_window_below_the_support_area_is_refused_as_he_ruled(monkeypatch, _three_day, _lps_behavior_frame):
+    """His Q18: "not below the support area". Every bar of this window sits under S - 0.5 ranges (99)."""
+    df = _lps_behavior_frame(highs=[98.8, 97.8, 97.2], lows=[96.6, 95.8, 95.4], closes=[97.0, 96.2, 95.8])
+    monkeypatch.setattr(settings, FLAG, True)
+    res, rejects = detect_lps(df, df.iloc[-1], diagnose=True, **KW)
+    assert res is None and rejects["low outside the support zones"] == 1
 
 
 def test_a_low_inside_the_area_with_closes_above_s_is_retyped_from_the_wick_to_the_bars(monkeypatch, _three_day, _lps_behavior_frame):

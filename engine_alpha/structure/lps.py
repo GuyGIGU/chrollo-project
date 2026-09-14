@@ -45,6 +45,17 @@ def _zone_tolerance(sup_avg: float, res_avg: float, atr_val: float) -> float:
     return settings.LPS_ZONE_ATR_MULT * atr_val
 
 
+def _share_below(highs, lows, level: float) -> float:
+    """The share of a window's high-to-low travel that lies below ``level``: whole bars, never a close. A
+    window of zero travel counts as wholly below when its highs sit at or under the level."""
+    highs = np.asarray(highs, dtype=float)
+    lows = np.asarray(lows, dtype=float)
+    total = float(np.sum(np.maximum(highs - lows, 0.0)))
+    if total <= 0:
+        return float(np.all(highs <= level))
+    return float(np.sum(np.clip(np.minimum(highs, level) - lows, 0.0, None))) / total
+
+
 def _date_at(df: pd.DataFrame, idx: int) -> Optional[str]:
     if idx < 0 or idx >= len(df):
         return None
@@ -184,15 +195,16 @@ def _pullback_rest_low_verdict(
 def _depth_in_base_envelope(pullback_profile: float, min_pullback: float) -> bool:
     """Is the dig inside the BASE depth envelope? One judgment shared by both
     LPS completion forms (pullback-and-rest passes its zone-escalated floor,
-    the holding shelf passes the plain floor). The chained comparison is the
-    NaN route (NaN -> False) — keep the form; the MAX is read at call time so
-    settings overrides propagate."""
+    the holding shelf passes the plain floor). A NaN dig refuses explicitly;
+    the minimum is a grade under LPS_GRADED_TRAITS_ENABLED and the maximum
+    under LPS_REFUSALS_TO_GRADES_ENABLED, both read at call time."""
     if not _finite(pullback_profile):
         return False   # NaN refused, as the chained comparison always did
     # R9 (final method step 2, dark): the dig's MINIMUM is a grade.
     min_ok = settings.LPS_GRADED_TRAITS_ENABLED or min_pullback <= pullback_profile
-    # Final method step 3 (dark): the depth cap in profile units goes too; the
-    # window height in ranges is the one "too deep" refusal that remains (19).
+    # Final method step 3 (dark): the depth cap in profile units goes too (19);
+    # with LPS_RANGES_YARDSTICK_ENABLED the window height in ranges is the one
+    # "too deep" refusal left, without it the box-height cap still refuses.
     max_ok = settings.LPS_REFUSALS_TO_GRADES_ENABLED or pullback_profile <= settings.LPS_PULLBACK_PROFILE_MAX
     return bool(min_ok and max_ok)
 
@@ -316,6 +328,7 @@ def detect_lps_candidates(
     offset_max: Optional[int] = None,
     diagnose: bool = False,
     start_floor_bar: Optional[int] = None,
+    staircase: bool = False,
 ) -> tuple[list[dict], Counter]:
     """Collect every valid LPS/Test footprint before active-setup election.
 
@@ -331,6 +344,13 @@ def detect_lps_candidates(
     (``detect_lps_tests``) enumerates the whole base and never passes one —
     only the Phase-D evidence classifier applies a right-half filter to its
     output (``phase_d.support_test_evidence_starts``).
+
+    ``staircase=True`` is that measure-only enumeration: it keeps every
+    historical window, so the one-window-per-read-day rule (R18, an ELECTION
+    rule, ``LPS_WINDOW_RECEDING_ENABLED``) never applies to it. Under that rule
+    the staircase would hold one window at most and the Phase D evidence
+    that needs two right-half tests could never appear (review finding F1,
+    Mon 14/09/2026).
     """
     candidates: list[dict] = []
     rejects: Counter = Counter()
@@ -380,7 +400,8 @@ def detect_lps_candidates(
     # top, and it ends ON the frame's last receding day.
     receding = None
     last_receding = None
-    if settings.LPS_WINDOW_RECEDING_ENABLED:
+    one_window = settings.LPS_WINDOW_RECEDING_ENABLED and not staircase
+    if one_window:
         _h = df["High"].values.astype(float)
         _l = df["Low"].values.astype(float)
         receding = np.zeros(n, dtype=bool)
@@ -470,7 +491,7 @@ def detect_lps_candidates(
                     if diagnose:
                         rejects["its last high is back at its first high, not a correction"] += 1
                     continue
-            if settings.LPS_WINDOW_RECEDING_ENABLED and length >= 2:
+            if one_window and length >= 2:
                 prior_high = float(pullback_period["High"].iloc[-2])
                 if float(end_lps["Close"]) > prior_high + settings.LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR * float(atr_val):
                     if diagnose:
@@ -513,19 +534,31 @@ def detect_lps_candidates(
                 low_index = start + window_low_rel
 
             # Zone gate: the elected LPS low must sit in one of the valid
-            # support zones. Final method step 3 (dark): the support side never
-            # refuses (18: JAZZ's low sits 0.67 ranges under S and the next day
-            # is the buy); the ceiling above R stays (R12).
+            # support zones. Final method step 3 (dark): the support side is
+            # read on WHOLE BARS (his Q18, "not below the support area"; his
+            # JAZZ answer, on support "since most of the move is above it and
+            # only small parts of it poke out down"): a window refuses only
+            # when more than half of its high-to-low travel sits under the
+            # support area, so JAZZ's poking wicks never refuse it (review
+            # findings RF-1 and RF-2, Mon 14/09/2026). The ceiling above R
+            # stays (R12).
             refusals_graded = settings.LPS_REFUSALS_TO_GRADES_ENABLED
-            if support_low > r_ceiling or (support_low < s_floor and not refusals_graded):
+            if refusals_graded:
+                _win_h = pullback_period["High"].values
+                _win_l = pullback_period["Low"].values
+                below_area = _share_below(
+                    _win_h, _win_l, sup_avg - settings.LPS_ZONE_ATR_MULT * float(atr_val)) > 0.5
+            else:
+                below_area = support_low < s_floor
+            if support_low > r_ceiling or below_area:
                 if diagnose:
                     rejects["low outside the support zones"] += 1
                 continue
-            # The zone word on the support side: under step 3 it is typed by the
-            # window's CLOSES, never its lowest wick ("JAZZ's LPS is ON support:
-            # closes above S, only wicks poke under"; his Sun 13/09/2026 answer).
+            # The zone word on the support side: under step 3 it is typed on
+            # the same whole bars: UNDERCUT_S (an LPS on a spring candidate)
+            # only when most of the window's travel sits under S.
             if refusals_graded:
-                under_s = float(np.nanmin(pullback_period["Close"].values.astype(float))) < sup_avg
+                under_s = _share_below(_win_h, _win_l, sup_avg) > 0.5
             else:
                 under_s = support_low < sup_avg
             if under_s:
@@ -959,6 +992,7 @@ def detect_lps_tests(
         swing_complete_idx,
         offset_max,
         diagnose=False,
+        staircase=True,
     )
     if not candidates:
         return []

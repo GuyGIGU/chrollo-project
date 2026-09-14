@@ -1159,3 +1159,25 @@ SOS and Phase D before the Phase C (his Q11); the spring test naming every valle
 unlike measurements; the fair figures are above. 29 branch mutations red then green.
 NOT BUILT: the upthrust (10), the shakeout (parked), the dead-space pardon (21).
 Next: the review's fixes to steps 2 to 4, then step 6 (the 15-day floor) once his answers land.
+
+## REVIEW OF BUILD STEPS 1 TO 5 (Mon 14/09/2026): SIX REVIEWERS, SIX CHECKERS, EVERY ENGINEERING FINDING FIXED
+
+50 findings raised, 5 knocked down, 45 stood: none touched the live screener (every change is dark), 2 serious.
+FIXED (17 mutations, each red then green): F1 the one-window rule thinned the measure-only support-test staircase
+-> an election rule only; RF-4 the step-4 line flags reached the live cause veto (8/32 fleet fires) and the Phase A
+climax repair (11/32) -> both keep today's skeleton until step 10; RF-1/RF-2 step 3's support side read on WHOLE
+BARS (more than half of the window's travel under the support area refuses: his Q18 floor restored; more than half
+under S types UNDERCUT_S: his JAZZ answer), no longer the lowest close; RF-5 R13 grades the whole occupancy exam;
+RF-13 the correction floor 0.70 -> 0.68 (ORMP's dig under R18's window); TG-4 four untested step-2 branches tested;
+F3/TG-8 the line opens on the older running extreme.
+RE-MEASURED (windows concordant / ratchet / junk firing / fleet): control 20 / 30 / 8 / 34; step 3 alone 23 / 31
+(NOK) / 10 / 36 (as before); dwell alone 20 / MATX REGRESSES, EGBN NOK convert / 10 (+DGII +FLG) / 34 (the
+Tested-DEAD bar-dwell signature: never alone); seven-flag stack 35 (ORMP now reads) / 33 (EGBN NOK ST) / 15 / 36;
+with step 3 the same; all eight + step 3: 35 / 33 / 15 / 34 (TKO, and VIK through the whole-exam grade); + line +
+words: identical. Strict step-4 recall and the word recall unchanged. Flag-off: every guard byte-identical.
+CORRECTED: step 4's 186/186 is density (his day moved three trading days: 173.5; exact 175); the per-bar sweep
+0.60-0.90; the read-day misses are box-start anchors 26-35 trading days back; the hand-over switch reads a close
+(early flip withdrawn, hold to step 11); a forward-return read owed before the stack flips (RF-6); the receding
+window counts its top day (his question); a cross inside the window restarts it; ST's sixteenth-sitting staircase
+(25/02) sits before his Phase C (09/03) and no longer counts; the spring-bounds switch lifts junk grades alone.
+Open, noted: the fleet guard counts fire days; commit trailers vs AGENTS.md.

@@ -13,8 +13,9 @@ final method build step 1, 2026-09-13). Any case that fires on ANY window day
 fails the default pytest run (and CI).
 
 The real WINDOW replay is paid ONCE (flags off, the live engine) through a
-module-scoped fixture; the three dark flag-ON states (holding shelf, story
-pool, miss lanes) are replayed on the frozen day alone, as before build step 1,
+module-scoped fixture; the three flag-ON states are replayed on the frozen day
+alone, as before build step 1 (the flat-shelf LPS form and the story pool are
+live, so those two replay the control; the miss lanes are dark),
 so the suite pays the window cost once, not four times. Early-window fires the
 engine already produced at the seam are PINNED as known (``tests/baselines/
 negative_corpus_baseline.json``, ``--pin-known-fires``, Sun 13/09/2026): the

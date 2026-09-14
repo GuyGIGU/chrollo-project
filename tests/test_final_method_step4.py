@@ -222,3 +222,64 @@ def test_the_trend_labels_fall_back_when_the_frame_carries_no_daily_range(monkey
     pinned = read_market_structure(df, order=2)
     monkeypatch.setattr(settings, "TURN_LINE_TREND_ENABLED", False)
     assert read_market_structure(df, order=2) == pinned, "a caller pinning an order keeps its own walk"
+
+
+# ── the step-10 sites keep today's skeleton (review finding RF-4, Mon 14/09/2026) ──
+
+def test_the_live_cause_veto_reads_today_s_walk_whatever_the_line_flag_says(monkeypatch):
+    """Operand B of the LIVE cause-before-effect veto reads the swing map's trend states. The line is the event
+    map's site; the veto folds into a graded trend fact at build step 10, so it keeps today's walk until then."""
+    import engine_alpha.structure.event_map as em
+    import engine_alpha.structure.phase_a as pa
+    from engine_alpha.structure.bricks import cause_maturity
+
+    df, box = _wave_frame()
+    monkeypatch.setattr(pa, "macro_bridge_zigzag", lambda *a, **k: [])      # the bridge abstains: Operand B runs
+    real, seen = em.read_swing_map, []
+    monkeypatch.setattr(em, "read_swing_map", lambda *a, **k: seen.append(k.get("line")) or real(*a, **k))
+    off = cause_maturity(df, box, 1.0)
+    monkeypatch.setattr(settings, "TURN_LINE_ENABLED", True)
+    on = cause_maturity(df, box, 1.0)
+    assert seen == [False, False], "Operand B pins today's walk"
+    assert (on.pre_box_trend, on.box_trend) == (off.pre_box_trend, off.box_trend)
+
+
+def test_the_phase_a_climax_repair_reads_today_s_skeleton_whatever_the_trend_flag_says(monkeypatch):
+    from engine_alpha.structure.market_structure import segment_trends, trend_terminal_floor
+
+    df, _ = _wave_frame()
+    off = trend_terminal_floor(df)
+    monkeypatch.setattr(settings, "TURN_LINE_TREND_ENABLED", True)
+    unpinned = trend_terminal_floor(df, segments=segment_trends(read_market_structure(df)["points"]))
+    assert not all(np.array_equal(a, b, equal_nan=True) for a, b in zip(off, unpinned)), \
+        "on this frame the line's trend segments differ from the skeleton's"
+    on = trend_terminal_floor(df)
+    assert all(np.array_equal(a, b, equal_nan=True) for a, b in zip(off, on)), \
+        "the painter's trend floor keeps today's skeleton until build step 10"
+
+
+def test_a_caller_may_pin_either_reader_s_walk(monkeypatch):
+    df, box = _wave_frame()
+    walk_map, walk_labels = read_swing_map(df, box, 1.0), read_market_structure(df)
+    line_map, line_labels = read_swing_map(df, box, 1.0, line=True), read_market_structure(df, line=True)
+    assert walk_map != line_map and walk_labels != line_labels, "the two substrates differ on this frame"
+    monkeypatch.setattr(settings, "TURN_LINE_ENABLED", True)
+    monkeypatch.setattr(settings, "TURN_LINE_TREND_ENABLED", True)
+    assert read_swing_map(df, box, 1.0) == line_map and read_market_structure(df) == line_labels
+    assert read_swing_map(df, box, 1.0, line=False) == walk_map, "line=False keeps today's walk under the flag"
+    assert read_market_structure(df, line=False) == walk_labels, "line=False keeps today's skeleton under the flag"
+
+
+# ── the opening turn (review findings F3 and TG-8, Mon 14/09/2026) ──
+
+def test_the_line_opens_on_the_older_running_extreme_not_on_bar_0():
+    """Price dips 0.4 under bar 0 before its first leg covers the floor: the opening valley is that lower low,
+    known on the bar where the leg covered its floor."""
+    line = turn_line([9.2, 8.9, 9.9, 9.4], [9.0, 8.6, 9.7, 9.1], 1.0)
+    assert line == [(1, "valley", 8.6, 2), (2, "peak", 9.9, None)]
+
+
+def test_a_rise_that_tops_on_a_bar_with_no_readable_floor_still_opens_the_line_upward():
+    line = turn_line([10, 11, 10.3, 10.9], [9.8, 10.1, 10.2, 10.5], [np.nan, np.nan, 0.75, 0.75])
+    assert line == [(0, "valley", 9.8, 0), (1, "peak", 11.0, 2), (2, "valley", 10.2, None)], \
+        "the 11.0 top on the unreadable bar is the extreme the first fall is measured from"

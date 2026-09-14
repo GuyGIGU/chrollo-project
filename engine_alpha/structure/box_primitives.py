@@ -382,6 +382,15 @@ def _oriented_pairs(zigzag):
         yield R_val, S_val, r_anchor_bar, s_anchor_bar
 
 
+def _still_backing_up(last_close, R_val, atr_val) -> bool:
+    """Is price still backing up to a broken-out box, so its rescue may keep it? R11 (final method step 2, dark):
+    the box hands over to the next framing once the close sits more than BOX_HANDOVER_MAX_ABOVE_R_ATR daily
+    ranges above its R; the percent-of-price form stays the flag-off path."""
+    if settings.BOX_HANDOVER_RANGES_ENABLED:
+        return bool(last_close <= R_val + settings.BOX_HANDOVER_MAX_ABOVE_R_ATR * atr_val)
+    return bool(last_close <= R_val * settings.EXTENSION_FILTER_MULT)
+
+
 def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
                               recorder=None):
@@ -471,14 +480,7 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
         if enforce_traversal:
             work_end = _worked_window_end(cand_highs, cand_lows, R_val, S_val, atr_val)
             last_close = float(cand_eq_df['Close'].iloc[-1])
-            # R11 (final method step 2, dark): a stale box hands over to the
-            # next framing once the close sits more than
-            # BOX_HANDOVER_MAX_ABOVE_R_ATR daily ranges above its R; the
-            # percent-of-price form stays the flag-off path.
-            if settings.BOX_HANDOVER_RANGES_ENABLED:
-                still_backing_up = last_close <= R_val + settings.BOX_HANDOVER_MAX_ABOVE_R_ATR * atr_val
-            else:
-                still_backing_up = last_close <= R_val * settings.EXTENSION_FILTER_MULT
+            still_backing_up = _still_backing_up(last_close, R_val, atr_val)
             if work_end < len(cand_highs) and still_backing_up:
                 tup = _build_candidate(
                     cand_highs[:work_end], cand_lows[:work_end],

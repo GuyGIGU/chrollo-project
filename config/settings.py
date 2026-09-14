@@ -650,7 +650,7 @@ LPS_ZONE_ATR_MULT = 0.5
 # The operator's rulings R1 and R7 to R18 (docs/decisions.md, 2026-09-05 to
 # 2026-09-12), each as it was MEASURED in process on his 37 LPS windows, the
 # junk corpus and the fleet fixture (rulings ledger, rulings_ab2 to ab8). One
-# flag per ruling SITE so each can be measured and flipped alone; the values
+# flag per ruling SITE so each can be measured alone (six flip only together); the values
 # are placed from his drawings, never tuned. Every name here rides the engine
 # manifest so a flip rotates engine_config_version from day one.
 #
@@ -658,8 +658,9 @@ LPS_ZONE_ATR_MULT = 0.5
 # the rail area (low above R + area, or high under S - area); a poke or a
 # straddle is respect. Today a wick beyond the area counts as outside.
 RESPECT_WHOLE_BAR_ENABLED = False
-# R13 (the bar is the unit of dwell; graded): the two close-dwell legs of the
-# occupancy exam never refuse a box (their values stay measured facts).
+# R13 (the bar is the unit of dwell; graded): the whole occupancy exam never
+# refuses a box (both end-third dwells, the mid churn, the coverage; their
+# values stay facts). Alone it regresses MATX: live only with the stack.
 DWELL_GRADED_ENABLED = False
 # R11 (hand-over): the break-above-R rescue keeps an old box only while the
 # last close sits within this many daily ranges above its R (today: within
@@ -686,11 +687,13 @@ LPS_ZONE_CEILING_ATR = 1.35          # the LPS zone's ceiling above R, in ranges
 # expansion cap and every volume ask stop refusing (their values stay facts;
 # quality is volume-free). What stays a refusal is the story position, "it
 # must be a PULLBACK": the window's high comes before its low, the dig from
-# the first high to the window low is at least 0.70 ranges (his minimum
-# 0.71), and the last day's high is not back at the first high (R15: read on
-# the HIGH; his 36 windows: last high <= first high + 0.25 ranges, WTS 0.21).
+# the first high to the window low is at least 0.68 ranges (his minimum under
+# R18's last-run window, ORMP Thu 09/04/2026; 0.71 on his windows as drawn,
+# where the first build placed 0.70: review finding RF-13, Mon 14/09/2026),
+# and the last day's high is not back at the first high (R15: read on the
+# HIGH; his 36 windows: last high <= first high + 0.25 ranges, WTS 0.21).
 LPS_GRADED_TRAITS_ENABLED = False
-LPS_CORRECTION_DIG_MIN_ATR = 0.70
+LPS_CORRECTION_DIG_MIN_ATR = 0.68
 LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR = 0.25
 # R18 + the sixteenth sitting (one window per read day): a receding day makes
 # a lower high OR a lower low than the day before (his 37 of 37); the window
@@ -710,10 +713,11 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 # ── DARK. His points 18, 19 and 20 in ONE flag (docs/final_method_2026-09.md). ──
 # 18: no refusal on the support side. The LPS low's position is a fact (JAZZ's
 # low sits 0.67 ranges under S and the next day is the buy); the zone word on
-# the support side is typed by the window's CLOSES ("JAZZ's LPS is ON support:
-# closes above S, only wicks poke under ... typed by the window's bars, never
-# its lowest wick"), and the tight-box widening in percent of price goes with
-# the floor it served. The ceiling above R stays (R12).
+# the support side is read on WHOLE BARS: more than half of the window's
+# high-to-low travel under the support area refuses (his Q18, "not below the
+# support area"), more than half under S types it UNDERCUT_S, so a poke never
+# refuses (his JAZZ answer: on support "since most of the move is above it").
+# The ceiling above R stays (R12).
 # 19: the three post-window checks go (the close 5 percent under the LPS low,
 # the post-window low test, the post-window spread test): under one window per
 # read day there is no post-window day to check. The depth cap in profile units
@@ -727,24 +731,26 @@ LPS_REFUSALS_TO_GRADES_ENABLED = False
 # chart, ONE floor of TURN_LINE_FLOOR_ATR daily ranges, wick to wick, no
 # retracement ratio; the first bar is a turn by its shape and the running
 # extreme at the right edge is a FORMING turn, so the line carries no edge
-# mask and no five-day right-edge reserve. Named events stay turns by law
-# (the LPS valley, the trigger cross) wherever a caller asks for them.
+# mask and no five-day right-edge reserve. Not built: named events as turns
+# by law (the LPS valley, the trigger cross), final method point 1.
 #
 # MEASURED on his 35 drawn marks (186 named turns: both rail anchors, every
 # LPS peak and low, every spring and spring-test tip, every SOS peak):
 #   today's order-1 walk + the 15 percent collapse   112 of 186,   0 of 35 marks complete
 #   the line at 0.75, one range from the read day    183 of 186,  32 of 35
 #   the line at 0.75, each day's OWN range           186 of 186,  35 of 35
-# The three the read-day unit misses are S anchors two years back, where one
-# range from the read day is the wrong unit; hence the per-bar floor. Extra
-# turns inside his boxes: about 8 per 10 trading days (today's walk: 3).
+# The three the read-day unit misses are support anchors on the box's first
+# days, 26 to 35 trading days back, each 2 trading days off (corrected Mon
+# 14/09/2026: not "two years back"). Extra turns inside his boxes: about 6.2
+# per 10 trading days (today's walk: 2.4). The recall is density, not proof:
+# his day moved three trading days still lands 173 of 186 (exact day: 175).
 #
-# One flag per SITE so each can be measured and flipped alone. The box
+# One flag per SITE so each can be measured alone. The box
 # election is deliberately NOT a site: it stays on today's skeleton until
 # build step 10.
 TURN_LINE_ENABLED = False          # the event map's swing layer reads the line
 TURN_LINE_TREND_ENABLED = False    # the HH/HL/LH/LL trend labels read the line
-TURN_LINE_FLOOR_ATR = 0.75         # his floor, in daily ranges, wick to wick
+TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q1 asked for a search)
 
 # ── The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK. ──
 # His points 11 to 15 (docs/final_method_2026-09.md): a MEASURE-ONLY reader

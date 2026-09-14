@@ -891,7 +891,9 @@ def cause_maturity(df, box, atr, lps=None) -> CauseVerdict:
     # Operand B — only on abstention: is the box a live up-staircase?
     from engine_alpha.structure.event_map import read_swing_map
 
-    tape = read_swing_map(df, box, atr)
+    # Operand B keeps today's order-1 walk whatever TURN_LINE_ENABLED says: the step-4 line is the event map's
+    # site, and the veto folds into a graded trend fact at build step 10 (review finding RF-4, Mon 14/09/2026).
+    tape = read_swing_map(df, box, atr, line=False)
     pre_trend = tape["pre_box"]["trend_state"]
     box_trend = tape["box"]["trend_state"]
     live_up_run = (pre_trend == "up" and box_trend == "up")

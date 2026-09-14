@@ -133,7 +133,7 @@ def _stamp_causality(swings, highs, lows, min_amp, commits=None):
         swings[0]["edge_uncertain"] = True
 
 
-def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
+def read_swing_map(df, box, atr_val, *, noise_frac=None, line=None) -> dict:
     """The whole-frame mechanical swing map around an elected equilibrium box.
 
     One order-1 pivot walk over the full frame, sliced into two windowed views
@@ -160,6 +160,9 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
         start_bar / n_bars / nan_bars
 
     Measure-only; live on the fire path since 2026-07-25 (EVENT_MAP_ENABLED).
+
+    ``line`` pins the walk: None follows ``TURN_LINE_ENABLED`` (build step 4, the event map's site); the live
+    cause veto passes False, because folding the veto into a graded trend fact is build step 10's.
     """
     if df is None or len(df) == 0 or box is None:
         return _empty_map()
@@ -183,7 +186,7 @@ def read_swing_map(df, box, atr_val, *, noise_frac=None) -> dict:
     # THE one bar-level swing walk for the whole frame.
     commits = None
     pre_swings = box_swings = None
-    if settings.TURN_LINE_ENABLED:
+    if settings.TURN_LINE_ENABLED if line is None else line:
         # Build step 4 (dark): the one turn line IS the walk. It has already applied its floor, once, so each
         # view is handed to the staircase as a finished alternating list to LABEL — never as pivot indices to
         # rebuild, which would destroy a bar carrying both turns (see ``turn_line_views``).
