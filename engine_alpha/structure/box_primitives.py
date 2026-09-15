@@ -28,6 +28,7 @@ from engine_alpha.structure.box_gates import (
     _occupancy_leg_failures,
     _respect_stats,
     _validate_base_quality,
+    _width_refuses,
     _worked_window_end,
     leg_threshold,
 )
@@ -429,7 +430,7 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     strict, rescued = [], []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.MAX_BOX_WIDTH):
             if recorder is not None:
                 cs = min(r_anchor_bar, s_anchor_bar)
                 recorder.refusal("width", "strict", r_anchor_bar, s_anchor_bar,
@@ -613,7 +614,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.BAND_MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.BAND_MAX_BOX_WIDTH):
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
@@ -687,7 +688,7 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.MAX_BOX_WIDTH):
             continue
         # O(1) EXACT necessary condition of an enabled form's terminal leg —
         # BOTH legs are shared event_map predicates (the S-test form's posture

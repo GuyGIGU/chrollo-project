@@ -130,6 +130,12 @@ His fatal character change landed DARK (Mon 14/09/2026): an LPS whose last three
 day after day, is broken (the pullback increasing with sellers), never merely graded down.
 Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box
 younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
+Step 7 is landing DARK one switch per point (Tue 15/09/2026). First: no width in percent of price refuses a box
+or holds a grade letter back, as his Q7 said ("a box is a box because of its consolidating Zig zag behavior not
+it's height"); the height stays a fact for the grade. Measured, it shows what the width cap had been standing in
+for: with no cap, the walk that still starts from the oldest root reaches an older, wider range as the parent of
+the box he drew, which survives as its mini. Walking forward from the climax (step 10) and the hand-over by
+swings (step 11) are what settle that, so this switch goes live with them.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

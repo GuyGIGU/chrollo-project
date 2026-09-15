@@ -1257,3 +1257,21 @@ T5 on the line (refuse a pair whose opening leg goes past every top since price 
 anchor) built dark and measured: his 35 pairs 0 WITH, but as a veto it regresses his pinned PBT and VIK under the
 ruled stack, and BMRN, COLM, ENIC and FLG re-anchor with HIGHER grades. Not committed; recorded Tested-DEAD as a
 veto. Alone: alone, the junk goes from 8 to 4 charts firing (ABEV, AEF, OHI and SPCB silent), but three of his pinned hits go silent in their marked windows (NGL April, fired Thu 16/04/2026; NTCT, Mon 02/03/2026; SILC, Fri 10/04/2026) and the fleet loses 8 of its 34 firing tickers (COLM, FOF, HOG, JAKK, NDSN, SN, TKO, TRS). The doctrine stands: step 10 re-opens the box at the climax, T5 as the test.
+
+## BUILD STEP 7, FIRST SWITCH (Tue 15/09/2026): THE PERCENT WIDTH CAPS TO GRADES, DARK
+
+BOX_WIDTH_CAPS_GRADED_ENABLED, his Q7 ("a box is a box because of its consolidating Zig zag behavior not it's
+height ... as long as we can understand the Price action within the box and it acts like a consolidation then we
+should be able to scan it") and point 7 (no height gate in any unit): the 18 percent cap (the strict, rescued and
+story pools, the occupancy judge, the inner search), the band pool's 23 percent and the 15 percent tier-S ceiling
+stop refusing and demoting. At his rails they touch only BODI (21 percent of price) and ANRO (16 percent).
+MEASURED (his windows concordant / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 30 /
+9 (+DBD) / 34 (6 fleet charts on earlier, wider boxes: BC, HOG, IRS, JAKK, PBF, URBN); with steps 2 to 6 35 / 33 /
+15 / 34 (4 wider: BC, JAKK, PBF, SN). THE ELECTION DISPLACEMENT on his marks: alone 4 of 35 (ALB, ANRO, BODI, FOSL),
+with steps 2 to 6 5 of 35 (ANRO, BODI, FOSL, SILC, SYRE); MATX, PKE and ROIV hold both ways. Read day by day, one
+mechanism: the oldest-first walk reaches an older, wider range as the PARENT and his box survives as the mini,
+where the LPS reads with the same trigger (ANRO Tue 11/08/2026: a March box R 25.17 / S 18.56, 36 percent of
+price, over the July box 28.85 / 25.66, tier S to A; BODI Thu 16/04/2026: R 12.33, his R to the cent, S 8.98;
+SILC: a June 2025 parent, two of its three fire days lost, still fires Fri 10/04/2026). The width cap was
+standing in for the climax-first walk (step 10) and the hand-over (step 11); this switch goes live with them.
+Flag-off every guard byte-identical; 7 mutations red then green.

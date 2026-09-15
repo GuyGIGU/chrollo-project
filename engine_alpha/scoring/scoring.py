@@ -645,7 +645,10 @@ def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) ->
     else:
         tier = 'D'
 
-    if tier == 'S' and box_width is not None and box_width > settings.S_MAX_BOX_WIDTH:
+    # Point 7 of the final method (step 7, dark): a percent-of-price width
+    # never demotes; a ceiling in daily ranges is step 12's grade ledger.
+    if tier == 'S' and box_width is not None and box_width > settings.S_MAX_BOX_WIDTH \
+            and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED:
         tier = 'A'
     return tier
 

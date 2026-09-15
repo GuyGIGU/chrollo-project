@@ -765,6 +765,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 6 (Mon 14/09/2026): the 15-day floor from the first anchor, DARK.** One default-off switch, `BASE_AGE_FROM_ANCHOR_ENABLED` (+ `BASE_AGE_MIN_DAYS` 15): his "15 for a base minimum", counted as the box's AGE from its first rail anchor (the anchor bar is day 1) instead of the seed clock, which counts `MIN_BASE_DAYS` from the root's reaction bar on `df[:-5]`. `bricks._seed_clock()` is the one clock both seed sites read (`find_root_swing`'s `collect_root_anchors` and `validate_equilibrium`'s window check): `MIN_BASE_DAYS` flag-off; flag-on `min(MIN_BASE_DAYS, BASE_AGE_MIN_DAYS - STRUCTURE_EDGE_SKIP_BARS)`, so a box whose first anchor is 15 days old can be seeded and the window presets (weekly 6, monthly 4, Power Play 8) keep their own. The floor sits in `narrative._walk_structure` right after the box is recorded: `len(df) - min(r_anchor_bar, s_anchor_bar)` under 15 refuses the root (trace outcome `forming` with `{"age", "of"}`), keyed on the parent box, never the mini; a later root only finds a younger box. The Power Play species read pins the switch off in its own override. A fire carries `_base_age_from_anchor` only with the switch on; nothing reads it. The scoreboard is in the decisions record (2026-09-14, build step 6).
 
+**The final method, build step 7 (Tue 15/09/2026): box gates to grades, DARK, one default-off switch per point.** Point 7, `BOX_WIDTH_CAPS_GRADED_ENABLED`: `box_gates._width_refuses(box_width, cap)` is the one width judgment, read by the strict and rescued pools in `collect_zigzag_candidates` (and so by the inner search), by the band pool against `BAND_MAX_BOX_WIDTH`, by the story pool and by `_validate_base_quality`; under the switch it refuses nothing, and `scoring._apply_tier_ladder` stops demoting tier S on `S_MAX_BOX_WIDTH`. The width stays a fact (`box_width`) and a grade (the ADR tightness term reads it; `_score_candidate` still breaks same-day ties on it). Measured, the cap was standing in for two missing pieces: with no cap the oldest-first root walk reaches an older, wider range as the parent and the later, tighter box survives as the mini, where the LPS reads (5 of his 35 marks with every earlier switch on); walking forward from the climax (step 10) and the hand-over by swings (step 11) are what settle it. The scoreboard is in the decisions record (2026-09-15, build step 7).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1266,7 +1268,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `d1ad77bab26b74e64b8ee3fa5329f14d37de70da915c2d37b10a9d4c1aa196b6`_
+_engine_config_version: `26f1cb859aaf426068f71d612f3c0d2ded7208a5f1a36c9f136afe57e172c85d`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1380,6 +1382,7 @@ LINE_WORD_SUPPER_DIG_ATR = 1.5
 LINE_WORD_SUPPER_MAX_DAYS = 4
 BASE_AGE_FROM_ANCHOR_ENABLED = False
 BASE_AGE_MIN_DAYS = 15
+BOX_WIDTH_CAPS_GRADED_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

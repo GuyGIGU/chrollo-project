@@ -43,6 +43,7 @@ __all__ = [
     "_worked_window_end",
     "_measure_close_residence",
     "_dwell_bar_basis",
+    "_width_refuses",
     "_validate_base_quality",
     "_occupancy_leg_failures",
     "_occupancy_failures",
@@ -558,6 +559,15 @@ def _dwell_bar_basis(eq_df, R_val, S_val):
             round(float(np.mean(eng_u)), 4))
 
 
+def _width_refuses(box_width, cap):
+    """Does a percent-of-price width cap refuse this pair? The ONE width
+    judgment every pool reads (the strict, rescued, band and story pools and
+    the occupancy judge). Point 7 of the final method (step 7, dark,
+    ``BOX_WIDTH_CAPS_GRADED_ENABLED``): no height gate in any unit; the width
+    stays a fact and a grade."""
+    return box_width > cap and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED
+
+
 def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
@@ -588,7 +598,7 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     # ``max_width`` widens the cap ONLY for the deep-event pool (a pair
     # carrying a qualified terminal-shakeout event, BAND_MAX_BOX_WIDTH);
     # every ordinary caller leaves it None = the unchanged MAX_BOX_WIDTH.
-    if box_width > (settings.MAX_BOX_WIDTH if max_width is None else max_width) \
+    if _width_refuses(box_width, settings.MAX_BOX_WIDTH if max_width is None else max_width) \
             or box_width <= 0:
         return 0, 0, None, False
 

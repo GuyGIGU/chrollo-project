@@ -802,6 +802,18 @@ LINE_WORD_SUPPER_MAX_DAYS = 4          # his longest last supper, in trading day
 BASE_AGE_FROM_ANCHOR_ENABLED = False
 BASE_AGE_MIN_DAYS = 15                 # his number
 
+# ── The final method, build step 7 (Tue 15/09/2026): box gates to grades, DARK ──
+# Point 7 of docs/final_method_2026-09.md, his Q7: "a box is a box because of its consolidating Zig zag
+# behavior not it's height ... as long as we can understand the Price action within the box and it acts like
+# a consolidation then we should be able to scan it". No height gate in any unit: the three percent-of-price
+# width caps stop refusing a box and stop demoting a tier, MAX_BOX_WIDTH (18 percent: the strict, rescued
+# and story pools and the occupancy judge, the inner search included), BAND_MAX_BOX_WIDTH (23 percent: the
+# band pool) and S_MAX_BOX_WIDTH (15 percent: the tier-S ceiling). The width stays a fact and a grade (the
+# ADR tightness term reads it); whether tier S keeps a ceiling in daily ranges is step 12's grade ledger.
+# At his own rails the 18 percent cap refuses BODI (21 percent of price, 2.1 daily ranges) and the 15 percent
+# ceiling holds ANRO (16 percent) out of tier S.
+BOX_WIDTH_CAPS_GRADED_ENABLED = False
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
