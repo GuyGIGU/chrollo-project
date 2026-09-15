@@ -145,8 +145,8 @@ def _qualify_band(closes, lows, highs, S_val, R_val, buf,
         # (DBD negative-corpus regression at the 2026-07-16 flip: a 15-bar,
         # 4.1-ATR rally above R rode the uncapped above loop into a tier-S
         # dead-space election.)
-        if (end - start) > settings.MAX_CONSECUTIVE_OUTSIDE_DAYS:
-            return None
+        if (end - start) > settings.MAX_CONSECUTIVE_OUTSIDE_DAYS and not settings.RESPECT_GRADED_ENABLED:
+            return None            # point 6 (step 7, dark): a run beyond a rail refuses nothing
         extreme = float(highs[start:end].max())
         # FAIL-BACK: the poke high is never exceeded after the return.
         if float(highs[end:].max()) > extreme:

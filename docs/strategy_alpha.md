@@ -138,6 +138,10 @@ the box he drew, which survives as its mini. Walking forward from the climax (st
 swings (step 11) are what settle that, so this switch goes live with them.
 Second: no depth number decides that a dip is too deep to be a spring or that a box has crashed, his Q8 ("It's
 hard to gate using a raw number"); the depth stays a fact. With every other switch on it moves none of his marks.
+Third: respect refuses nothing, his Q6; a run beyond a rail is read from what follows it. Measured, respect had been
+doing the other half of that same answer, "if the price continues to Rise/Fall with out recovering ... the
+consolidating structure we measured ended": without it and before the box's end is built (step 11), the walk
+elects ranges price left long ago. Step 7 is complete; its three switches go live with steps 10 and 11.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

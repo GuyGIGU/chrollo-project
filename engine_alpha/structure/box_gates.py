@@ -382,8 +382,10 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
 
     respect_pct = 1.0 - (total_outside / n)
     max_outside = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
-    respected = (max_consec <= max_outside and
-                 respect_pct >= settings.MIN_BOUNDARY_RESPECT_PCT)
+    # Point 6 of the final method (step 7, dark): respect refuses nothing; the
+    # share and the runs stay facts, and what a run was is read from what follows.
+    respected = settings.RESPECT_GRADED_ENABLED or (
+        max_consec <= max_outside and respect_pct >= settings.MIN_BOUNDARY_RESPECT_PCT)
     r_broken = r_consec_max > max_outside
     s_broken = s_consec_max > max_outside
 

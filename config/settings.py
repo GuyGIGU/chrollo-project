@@ -822,6 +822,14 @@ BOX_WIDTH_CAPS_GRADED_ENABLED = False
 # depth stays a fact. The spring's box-height cap is R17's switch (SPRING_BOUNDS_LIFTED_ENABLED); its day
 # counts (reclaim, linger, hold) give way to recovery by the swing (point 14), not here.
 DEPTH_CAPS_GRADED_ENABLED = False
+# Point 6, his Q6: "a whole lone bar beyond the rail area isn't respecting it but if we come to learn that price
+# action before that bar and after that bar DO then it changes the way we treat it, a Long run of bars beyond the
+# rail could mean a long Spring or UP thrust as well". Respect refuses nothing: the respect share
+# (MIN_BOUNDARY_RESPECT_PCT, 80 percent of days inside the rail area) and the run cap (MAX_CONSECUTIVE_OUTSIDE_DAYS,
+# 10 trading days beyond a rail) stop refusing a pair, and the band pool stops refusing a stay above R longer than
+# that cap; the outside share, the longest run and the deepest excursion stay facts. What a run beyond a rail was
+# (a spring, an upthrust, the end of the box) is read from what follows it (the words, steps 5 and 11).
+RESPECT_GRADED_ENABLED = False
 
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.

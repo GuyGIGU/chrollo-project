@@ -10,6 +10,9 @@ percent) stop refusing a box and stop demoting a tier under BOX_WIDTH_CAPS_GRADE
 Point 8, his Q8: "It's hard to gate using a raw number". The crash floors (the box's lowest low, the read day's
 close), the spring's 3.0-range depth cap and the band pool's depth and length caps stop refusing under
 DEPTH_CAPS_GRADED_ENABLED.
+
+Point 6, his Q6: respect depends on context. The respect share and the run cap (and the band pool's cap on a
+stay above R) stop refusing under RESPECT_GRADED_ENABLED; the share and the runs stay facts.
 """
 from __future__ import annotations
 
@@ -207,3 +210,55 @@ def test_the_band_pool_no_longer_caps_an_event_by_depth(monkeypatch):
     monkeypatch.setattr(settings, DEPTH, True)
     rail_qualification.qualify_pair_events(df, 99.5, 110.5, 2.0)
     assert seen == [settings.BAND_EVENT_MAX_DEPTH_ATR * 2.0, None]
+
+
+# ── point 6: respect refuses nothing (RESPECT_GRADED_ENABLED) ────────────────
+# His Q6: "a whole lone bar beyond the rail area isn't respecting it but if we come to learn that price action
+# before that bar and after that bar DO then it changes the way we treat it, a Long run of bars beyond the rail
+# could mean a long Spring or UP thrust as well". Point 6: respect refuses nothing; the outside share, the longest
+# run and the deepest excursion stay facts; what a run beyond a rail was is read from what follows it.
+RESPECT = "RESPECT_GRADED_ENABLED"
+
+
+def test_the_respect_switch_is_dark_and_rides_the_manifest():
+    assert getattr(settings, RESPECT) is False
+    assert RESPECT in ENGINE_SETTINGS_KEYS
+
+
+def _outside_frame(n=40, outside=()):
+    """Bars inside 100..110 (a daily range of 2.0, so the area is 1.0) except the given days, wholly above 112."""
+    highs, lows = np.full(n, 108.0), np.full(n, 102.0)
+    for i in outside:
+        highs[i], lows[i] = 115.0, 112.5
+    return highs, lows
+
+
+def test_a_low_respect_share_no_longer_refuses(monkeypatch):
+    highs, lows = _outside_frame(outside=range(0, 40, 3))           # 14 of 40 days outside: share 0.65
+    stats = box_gates._respect_stats(highs, lows, 110.0, 100.0, 2.0)
+    assert stats[0] is False and stats[4] == pytest.approx(26 / 40)
+    monkeypatch.setattr(settings, RESPECT, True)
+    stats = box_gates._respect_stats(highs, lows, 110.0, 100.0, 2.0)
+    assert stats[0] is True and stats[4] == pytest.approx(26 / 40), "the share stays a fact"
+
+
+def test_a_long_run_beyond_a_rail_no_longer_refuses(monkeypatch):
+    highs, lows = _outside_frame(n=80, outside=range(30, 41))       # one 11-day run; share 0.86
+    stats = box_gates._respect_stats(highs, lows, 110.0, 100.0, 2.0)
+    assert stats[0] is False and stats[5] == 11, "flag-off the run cap (10) refuses"
+    monkeypatch.setattr(settings, RESPECT, True)
+    stats = box_gates._respect_stats(highs, lows, 110.0, 100.0, 2.0)
+    assert stats[0] is True and stats[5] == 11, "the run stays a fact"
+
+
+def test_the_band_pool_no_longer_caps_a_run_above_resistance(monkeypatch):
+    from engine_alpha.structure.rail_qualification import _qualify_band
+
+    n = 80
+    close, low, high = np.full(n, 105.0), np.full(n, 104.0), np.full(n, 106.0)
+    close[30:42], high[30:42] = 111.5, 112.0                 # 12 trading days above the resistance area
+    args = (close, low, high, 100.0, 110.0, 0.5)
+    assert _qualify_band(*args) is None, "flag-off a 12-day stay above R is a departure"
+    monkeypatch.setattr(settings, RESPECT, True)
+    read = _qualify_band(*args)
+    assert read is not None and read["excursions"][0]["kind"] == "above"

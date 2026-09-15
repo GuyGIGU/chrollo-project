@@ -1290,3 +1290,22 @@ band-pool election (ANRO R 28.11 / S 24.84 against his 28.30 / 24.39, fires on 1
 days and grades) / 34; his marks' box moves 0 of 35; OPRA loses Thu 04/06/2026. Goes live with the stack, never
 alone. BODI's drawn box still does not elect: its 17 trading days under his S break the respect run cap (the
 third switch). Flag-off every guard byte-identical; 6 mutations red then green.
+
+## BUILD STEP 7, THIRD SWITCH (Tue 15/09/2026): RESPECT REFUSES NOTHING, DARK; STEP 7 COMPLETE
+
+RESPECT_GRADED_ENABLED, his Q6 ("a whole lone bar beyond the rail area isn't respecting it but if we come to learn
+that price action before that bar and after that bar DO then it changes the way we treat it, a Long run of bars
+beyond the rail could mean a long Spring or UP thrust as well, if the price continues to Rise/Fall with out
+recovering we can deduce that either that the consolidating structure we measured ended and the price began to
+trend") and point 6: the respect share (80 percent) and the run cap (10 trading days) stop refusing, and so does
+the band pool's cap on a stay above R; the share and the runs stay facts.
+MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 27 of 35 (DLX,
+JAZZ, MS, SILC silent; EGBN converts) / 11 (+COLM +DBD +DGII) / 30 (BC, EC, JAKK, VLO silent), reader pin PASS; with every earlier switch on 35 / 21 of 35 (12 pinned hits silent; EGBN, NOK, ST convert) / 12 (AEF,
+DGII, FLG silent) / 27 (CHRW, CVI, IRS, LUV, NMM, PBF, PLPC silent). THE DISPLACEMENT on his marks:
+alone 25 of 35 move and DLX, JAZZ, MS and SILC lose every fire; with the stack 31 of 35 move, mostly to 2024
+ranges, and 12 lose every fire (NGL April: his box to the cent becomes the mini under a July 2024 parent, R 4.97,
+and the read day's extension check drops the chart). Junk with the stack: 15 of 16 move, AEF, DGII and FLG go
+silent, most of the rest grade higher on old thin bands. Respect was doing the second half of his Q6 sentence
+(the structure ended when price never came back); steps 10 and 11 must replace it before this goes live.
+Step 7 in one line, every switch through step 7 on: 35 / 21 / 12 / 27; without the respect switch 35 / 33 / 15 / 34. Flag-off every guard byte-identical; 5
+mutations red then green (the first share mutation was a dud behind the switch's short-circuit, replaced by two).

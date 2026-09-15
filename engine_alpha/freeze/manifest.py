@@ -192,6 +192,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "BASE_AGE_MIN_DAYS",
     "BOX_WIDTH_CAPS_GRADED_ENABLED",
     "DEPTH_CAPS_GRADED_ENABLED",
+    "RESPECT_GRADED_ENABLED",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)
