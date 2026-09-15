@@ -1257,3 +1257,12 @@ T5 on the line (refuse a pair whose opening leg goes past every top since price 
 anchor) built dark and measured: his 35 pairs 0 WITH, but as a veto it regresses his pinned PBT and VIK under the
 ruled stack, and BMRN, COLM, ENIC and FLG re-anchor with HIGHER grades. Not committed; recorded Tested-DEAD as a
 veto. Alone: alone, the junk goes from 8 to 4 charts firing (ABEV, AEF, OHI and SPCB silent), but three of his pinned hits go silent in their marked windows (NGL April, fired Thu 16/04/2026; NTCT, Mon 02/03/2026; SILC, Fri 10/04/2026) and the fleet loses 8 of its 34 firing tickers (COLM, FOF, HOG, JAKK, NDSN, SN, TKO, TRS). The doctrine stands: step 10 re-opens the box at the climax, T5 as the test.
+
+## CORRECTION (Tue 15/09/2026): HIS PBT DATE AND THE SIXTEENTH SITTING'S PHASE D FIGURES
+
+The sixteenth-sitting notes above write his PBT Phase D date as "Fri 23/04/2026" (his answer 12) and "his Fri 23/04"
+(the MEASURED Q12 paragraph). 23/04/2026 is a THURSDAY (he wrote "23/04/26"), and the engine's Tue 28/04/2026 opening is
+3 trading days after it, not the five the Sun 13/09/2026 message said. The same paragraph's figures were the sitting's
+probe; the committed reader (Mon 14/09/2026, before his "must") measured median position 0.72, after the middle 29 of
+35 (not 31), and ST opening 34 trading days before his first right-side event (not 28). Corrected in
+final_method_2026-09.md (point 12 of the sixteenth sitting) and by a correction row in decisions.md.
