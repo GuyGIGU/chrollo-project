@@ -6,8 +6,14 @@ prove that at scale); these tests prove each switch's mechanics on synthetic fra
 Point 7, his Q7: "a box is a box because of its consolidating Zig zag behavior not it's height". The three
 percent-of-price width caps (MAX_BOX_WIDTH 18 percent, BAND_MAX_BOX_WIDTH 23 percent, S_MAX_BOX_WIDTH 15
 percent) stop refusing a box and stop demoting a tier under BOX_WIDTH_CAPS_GRADED_ENABLED.
+
+Point 8, his Q8: "It's hard to gate using a raw number". The crash floors (the box's lowest low, the read day's
+close), the spring's 3.0-range depth cap and the band pool's depth and length caps stop refusing under
+DEPTH_CAPS_GRADED_ENABLED.
 """
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -22,11 +28,11 @@ WIDTH = "BOX_WIDTH_CAPS_GRADED_ENABLED"
 LO, HI = 100.0, 125.0          # a clean zigzag 26 percent of price wide, wick to wick
 
 
-def _zigzag_frame(n=80, half=8):
-    """A triangle wave between LO and HI: valleys every 2*half days from day 0, peaks between them."""
+def _zigzag_frame(n=80, half=8, lo=LO, hi=HI):
+    """A triangle wave between lo and hi: valleys every 2*half days from day 0, peaks between them."""
     t = np.arange(n)
     phase = (t % (2 * half)) / half
-    mid = np.where(phase <= 1, LO + (HI - LO) * phase, HI - (HI - LO) * (phase - 1))
+    mid = np.where(phase <= 1, lo + (hi - lo) * phase, hi - (hi - lo) * (phase - 1))
     idx = pd.bdate_range("2025-06-02", periods=n)
     return pd.DataFrame({"Open": mid, "High": mid + 0.5, "Low": mid - 0.5, "Close": mid,
                          "Volume": 1e6}, index=idx)
@@ -116,3 +122,88 @@ def test_a_wide_box_keeps_tier_s_under_the_switch(monkeypatch):
     monkeypatch.setattr(settings, WIDTH, True)
     assert calculate_structure_tier(top, box_width=settings.S_MAX_BOX_WIDTH + 0.01) == "S"
     assert calculate_structure_tier(top - 1, box_width=0.30) == "A", "the grade still decides the letter"
+
+
+# ── point 8: no depth number (DEPTH_CAPS_GRADED_ENABLED) ─────────────────────
+# His Q8, asked on BODI's drawn Phase C against the 3-range cap: "It's hard to gate using a raw number in case we
+# reject a valid setups because of a small neumeric gap".
+DEPTH = "DEPTH_CAPS_GRADED_ENABLED"
+
+
+def test_the_depth_switch_is_dark_and_rides_the_manifest():
+    assert getattr(settings, DEPTH) is False
+    assert DEPTH in ENGINE_SETTINGS_KEYS
+
+
+def test_the_box_crash_floor_stops_refusing(monkeypatch):
+    df = _zigzag_frame(lo=100.0, hi=110.0)
+    df.iloc[50, df.columns.get_loc("Low")] = 60.0          # one low 40 percent under S
+    R, S = 110.5, 99.5
+    assert box_gates._validate_base_quality(df, R, S, 2.0)[2] is None, "flag-off the crash floor refuses"
+    monkeypatch.setattr(settings, DEPTH, True)
+    assert box_gates._validate_base_quality(df, R, S, 2.0)[2] is not None, "the deepest low is a fact"
+
+
+def test_the_read_day_crash_floor_stops_dropping_the_chart(monkeypatch):
+    from engine_alpha import evaluation
+
+    n = 40
+    df = pd.DataFrame({"High": 106.0, "Low": 104.0, "Close": 105.0, "ATR_10": 2.0, "ATR_50": 2.0},
+                      index=pd.bdate_range("2026-01-05", periods=n))
+    monkeypatch.setattr(evaluation, "read_structure", lambda *a, **k: SimpleNamespace())
+    monkeypatch.setattr(evaluation, "_structure_to_boxes", lambda s, n: {
+        "parent": (20, 110.0, 100.0, 0.10, 3, 3, 0, 1, 2, 0, n - 20, False), "inner": None})
+    latest = pd.Series({"Close": 60.0})                    # a close 40 percent under S
+    assert evaluation._resolve_structure_context(df, latest) is None, "flag-off the chart is dropped"
+    monkeypatch.setattr(settings, DEPTH, True)
+    ctx = evaluation._resolve_structure_context(df, latest)
+    assert ctx is not None and ctx["sup_avg"] == 100.0
+
+
+def _spring_frame(depth):
+    """A 60-day box (S 100, R 110, a daily range of 1.0) with one dip ``depth`` ranges under S on day 40 that
+    closes back above S the next day and holds three days."""
+    n = 60
+    close, low, high = np.full(n, 105.0), np.full(n, 104.0), np.full(n, 106.0)
+    low[40], close[40] = 100.0 - depth, 99.0
+    low[41], close[41] = 100.5, 101.0
+    close[42:45] = 103.0
+    return pd.DataFrame({"Open": close, "High": high, "Low": low, "Close": close, "Volume": 1e6},
+                        index=pd.bdate_range("2026-01-05", periods=n))
+
+
+def test_a_spring_deeper_than_three_ranges_is_read_under_the_switch(monkeypatch):
+    from engine_alpha.structure.phase_features import _phase_c_candidate
+
+    kw = dict(box_start=0, base_len=60, R=110.0, S=100.0, atr_val=1.0)
+    deep, shallow = _spring_frame(4.0), _spring_frame(2.5)
+    assert _phase_c_candidate(shallow, shallow, **kw)["bin_c_type"] == "SPRING", "inside the 3-range cap"
+    assert _phase_c_candidate(deep, deep, **kw)["bin_c_present"] is False, "flag-off 4 ranges is past the cap"
+    monkeypatch.setattr(settings, DEPTH, True)
+    got = _phase_c_candidate(deep, deep, **kw)
+    assert got["bin_c_type"] == "SPRING" and got["bin_c_undercut_atr"] == pytest.approx(4.0)
+
+
+def test_the_band_pool_no_longer_caps_an_event_by_length(monkeypatch):
+    from engine_alpha.structure.rail_qualification import _qualify_band
+
+    n = 80
+    close, low, high = np.full(n, 105.0), np.full(n, 104.0), np.full(n, 106.0)
+    close[30:55], low[30:55] = 98.0, 97.0                  # 25 trading days under the support area
+    args = (close, low, high, 100.0, 110.0, 0.5)
+    assert _qualify_band(*args) is None, "flag-off a 25-day event is a markdown leg"
+    monkeypatch.setattr(settings, DEPTH, True)
+    read = _qualify_band(*args)
+    assert read is not None and (read["excursions"][0]["start"], read["excursions"][0]["end"]) == (30, 55)
+
+
+def test_the_band_pool_no_longer_caps_an_event_by_depth(monkeypatch):
+    from engine_alpha.structure import rail_qualification
+
+    seen = []
+    monkeypatch.setattr(rail_qualification, "_qualify_band", lambda *a, **k: seen.append(k["max_depth"]) or None)
+    df = _zigzag_frame(lo=100.0, hi=110.0)
+    rail_qualification.qualify_pair_events(df, 99.5, 110.5, 2.0)
+    monkeypatch.setattr(settings, DEPTH, True)
+    rail_qualification.qualify_pair_events(df, 99.5, 110.5, 2.0)
+    assert seen == [settings.BAND_EVENT_MAX_DEPTH_ATR * 2.0, None]

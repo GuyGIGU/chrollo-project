@@ -813,6 +813,15 @@ BASE_AGE_MIN_DAYS = 15                 # his number
 # At his own rails the 18 percent cap refuses BODI (21 percent of price, 2.1 daily ranges) and the 15 percent
 # ceiling holds ANRO (16 percent) out of tier S.
 BOX_WIDTH_CAPS_GRADED_ENABLED = False
+# Point 8, his Q8, asked on BODI's drawn Phase C against the 3-range spring cap: "It's hard to gate using a
+# raw number in case we reject a valid setups because of a small neumeric gap". No depth number decides that a
+# dip is too deep to be a spring: the box's crash floor (a low under CRASH_FILTER_MULT of S refuses the pair;
+# at his rails it touches only BODI), the read day's crash floor (a close under it drops the chart), the
+# spring's 3.0-range depth cap (BIN_C_UNDERCUT_ATR_MAX) and the band pool's two caps on a below-rail event
+# (BAND_EVENT_MAX_DEPTH_ATR 5.0 ranges deep, BAND_EVENT_MAX_BARS 20 trading days long) stop refusing; the
+# depth stays a fact. The spring's box-height cap is R17's switch (SPRING_BOUNDS_LIFTED_ENABLED); its day
+# counts (reclaim, linger, hold) give way to recovery by the swing (point 14), not here.
+DEPTH_CAPS_GRADED_ENABLED = False
 
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.

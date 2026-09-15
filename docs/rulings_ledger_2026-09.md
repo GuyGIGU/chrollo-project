@@ -1275,3 +1275,18 @@ price, over the July box 28.85 / 25.66, tier S to A; BODI Thu 16/04/2026: R 12.3
 SILC: a June 2025 parent, two of its three fire days lost, still fires Fri 10/04/2026). The width cap was
 standing in for the climax-first walk (step 10) and the hand-over (step 11); this switch goes live with them.
 Flag-off every guard byte-identical; 7 mutations red then green.
+
+## BUILD STEP 7, SECOND SWITCH (Tue 15/09/2026): NO DEPTH NUMBER, DARK
+
+DEPTH_CAPS_GRADED_ENABLED, his Q8 ("It's hard to gate using a raw number in case we reject a valid setups because
+of a small neumeric gap", asked Sat 12/09/2026 on BODI's Phase C against the 3-range cap: the ruling the build
+brief still listed as owed; the questions ledger already read it as "the cap is deleted at step 7") and point 8:
+the two crash floors (a low or a close under 0.70 of S), the spring's 3.0-range cap and the band pool's two event
+caps (5.0 ranges deep, 20 trading days long) stop refusing. The spring's box-height cap is R17's; its day counts
+wait for recovery by the swing (point 14).
+MEASURED (control 20 / 30 / 8 / 34): alone 20 / 30 plus EGBN converting / 8 / 34; ANRO, EGBN and MS gain a
+band-pool election (ANRO R 28.11 / S 24.84 against his 28.30 / 24.39, fires on 10 days; EGBN on the stale April
+2025 framing the two band caps were set against). With steps 2 to 6 and the width switch: 35 / 33 / 15 (identical
+days and grades) / 34; his marks' box moves 0 of 35; OPRA loses Thu 04/06/2026. Goes live with the stack, never
+alone. BODI's drawn box still does not elect: its 17 trading days under his S break the respect run cap (the
+third switch). Flag-off every guard byte-identical; 6 mutations red then green.

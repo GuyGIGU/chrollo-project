@@ -602,7 +602,10 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
             or box_width <= 0:
         return 0, 0, None, False
 
-    if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
+    # Point 8 of the final method (step 7, dark): no depth number refuses a
+    # box; the deepest low stays a fact.
+    if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT \
+            and not settings.DEPTH_CAPS_GRADED_ENABLED:
         return 0, 0, None, False
 
     eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)

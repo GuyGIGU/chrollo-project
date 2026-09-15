@@ -136,6 +136,8 @@ it's height"); the height stays a fact for the grade. Measured, it shows what th
 for: with no cap, the walk that still starts from the oldest root reaches an older, wider range as the parent of
 the box he drew, which survives as its mini. Walking forward from the climax (step 10) and the hand-over by
 swings (step 11) are what settle that, so this switch goes live with them.
+Second: no depth number decides that a dip is too deep to be a spring or that a box has crashed, his Q8 ("It's
+hard to gate using a raw number"); the depth stays a fact. With every other switch on it moves none of his marks.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

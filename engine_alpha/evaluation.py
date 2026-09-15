@@ -323,7 +323,8 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
 
     atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
 
-    if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT):
+    if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT) \
+            and not settings.DEPTH_CAPS_GRADED_ENABLED:    # point 8 (step 7, dark)
         return None
     if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
         return None
