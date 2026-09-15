@@ -1266,3 +1266,75 @@ The sixteenth-sitting notes above write his PBT Phase D date as "Fri 23/04/2026"
 probe; the committed reader (Mon 14/09/2026, before his "must") measured median position 0.72, after the middle 29 of
 35 (not 31), and ST opening 34 trading days before his first right-side event (not 28). Corrected in
 final_method_2026-09.md (point 12 of the sixteenth sitting) and by a correction row in decisions.md.
+
+## HIS SOS ANSWERS (Tue 15/09/2026), VERBATIM
+
+Shown the eight OHLC renders where the engine's SOS pick missed his (ALB, NTCT, ST, VLO, SILC, WTS, DSGN, BODI) and
+asked five numbered questions (the reading "the last push in Phase D that clears every high since the spring by more
+than half a daily range", the 12 LPS windows with no SOS drawn, DSGN's SOS before the middle, BMRN's "breach of
+support", upthrust specimens):
+"Okay maybe we can Ignore the DSGN SOS markings but it's intention is still the same, its a push that's like a
+paradigm shift it signals local buyer strength and seeing an LPS afterwards makes the Setup more higher quality.
+1. "It runs your push on to a later top that only just clears yours after a small pause (ALB, NTCT, ST, VLO: 0.13 to
+0.31 of a daily range higher). That later top is where your last supper or your LPS starts." - these are also fine, I
+just marked the SOS as a single Swing with out dips, but from what I see the engine prefers to roll with a higher high
+after a small correction and that's fine as long as we don't get some wonky stuff goin on ignoring when a run
+actually breaks, the other reason is fine because nothing else worth of note happends in between so that extension is
+harmless.
+2. ANRO: because it was like the last Clear Up swing before the LPS (updated it), in BWA it was a single strong bar it
+lifted the price high even the highest in the structure making the LPS after really easy to spot near the resistance
+which also a good thing, Same with MDT, the SOS is a decisive upswing that also breaches support then the next pullback
+is a shallow declining LPS - confirming both Strength of buyers and weakness of sellers, Same explanation with YPF.
+3. in essence that push is an SOS, a decisive swing in up -> then the pullback/price contracts resulting in a
+prolonged mini consolidation that leads to an LPS. that is how I would read it.
+4. I made a mistake I meant Resistance
+5. so UP Thrust is an Event that belongs in Phase B, it is kind of a "Reverse" Spring where price climbs quickly out of
+the structure then crashes back into the trading range, usually in study Theory it's an event in wyckoff that happends
+in distribution processes which our engine has no sense of yet (Perhaps a future Beta "β" engine), but I noticed it
+also sometimes happends in setups for LONG position.
+6. Look at this UNF picture I sent with detailed Marks."
+
+His UNF picture (TradingView, daily bars; the app cannot record an upthrust, its calibration event types stop at six):
+blue rails about 267.8 and 262 (his UNF:2026-07-10 mark: R 267.80, S 262.00); red "UT" over the push from Tue 09/06/2026
+(low 262.11) to Thu 11/06/2026 (high 280.50, 2.14 daily ranges over R, on 758,300 shares, the heaviest day in the box),
+back to 263.53 on Fri 12/06/2026; red "C" at the low about Thu 18/06/2026 (258.17); green "SOS" from about Wed
+01/07/2026 (262.73) to Mon 06/07/2026 (276.49); red "LPS" the pullback from that top into about Thu 09/07/2026. His
+mark in the app carries only the SOS and the LPS.
+
+His redraws the same day (the live marks, fingerprint 99621e940f6e; the sealed copy is 88db0fcfa4e4): ANRO:2026-08-12
+(the mini consolidation removed; the LPS moved from Thu 06/08 .. Tue 11/08 to Fri 07/08 .. Tue 11/08/2026, the day after
+his SOS top) and YPF:2026-05-18 (the SOS from Mon 11/05 .. Tue 12/05 to Fri 08/05 .. Tue 12/05/2026; the LPS from Tue
+12/05 .. Thu 14/05 to Wed 13/05 .. Fri 15/05/2026). The build session re-stages and re-seals; this session copies the
+staged DB from it afterwards and meanwhile measures his live marks read-only.
+
+## THE SOS SITTING, BUILT DARK AND VERIFIED (Tue 15/09/2026)
+
+THE SOS (his words above, and Q11): the last push after the middle of the box, launched after the spring, that breaks
+clear of every high since the spring by more than the rail area; else the last push after the middle; none when no push
+tops after the middle. His push is picked on 23 of 25 LPS windows (sealed and live marks; the old pick 15; the fair
+baselines 13.3 for a random push after the middle and 15 for the last one). Misses: BODI (no push reaches his top) and
+DSGN (before the middle, set aside by him). The clearance, the local highs, the fallback and the pause that stands for
+"when a run actually breaks" are my defaults, his word owed.
+THE UPTHRUST (his word above): a push out of the structure (a top clear of the resistance area) whose next swing low
+crashes back under it, in Phase B (before the spring, else by the middle). His UNF Thu 11/06/2026 is named; 12 on 9 of
+his boxes. Owed from him: UNF Fri 05/06/2026, JAZZ Mon 05/01 and Tue 06/01/2026 (one spike read as two), NOK Tue
+27/01/2026 (runs into his Phase C), and VIK Thu 14/05/2026 (his July note says upthrust; the rule misses it because the
+reader calls Wed 29/04/2026 a spring he never drew). The app cannot record an upthrust (six event types).
+THE LAST SUPPER (his BMRN words, "I meant Resistance"): off a push whose top clears the resistance area, after the spring
+and after the middle, the old dig. 10 of his 10 kept; 22 named on 15 of his boxes (111 before). On BMRN the push tops
+only 0.29 of a range over his R, inside the rail area, so none is named there: his word owed on a breach inside the
+area. His BMRN reading also makes the LPS only the last shallow declining days of a deep correction: that is the
+build session's (lps.py).
+PHASE D now opens at THE SOS's last swing, never its launch (a launch can sit on the spring's own low): spring-low
+openings 4 to 1 of 25, THE SOS outside Phase D 2 to 0, ROIV on his day exactly, SYRE and PBT still exact; more than 15
+trading days early: BODI 19, MSGS 22, ST 16.
+VERIFIED by workflow wf_46628ac8-ce7 (five checkers, a mutation prover, a critic): every headline number reproduced;
+fixed before commit: the empty local high (a push off the spring's own day "cleared" a high that did not exist),
+Phase D on the spring low, three end-to-end tests that could not fail on a wiring swap, the flag-ledger row and the
+settings reference, my defaults labelled as his rulings, and three wrong claims in my draft rows (ALB was already
+missed on the engine basis; NOK's upthrust runs into his Phase C; BMRN's last supper is blocked by the rail-area clause,
+not the LPS window). A second prover run: 41 of 41 mutations red. With all six word switches on, the marks ratchet
+holds 30 of 35 and the junk stays clean on every unpinned day.
+FOR THE BUILD SESSION: the SOS graded when several are named is THE SOS, one per LPS window; the precedence rows 2
+(upthrust, Phase B) and 3 (SOS, Phase D, its deep correction a last supper in hindsight) exist as words; Phase D is
+re-measured above; the last supper rule separates "last supper" from the chip that measures the LPS's stretch above R.

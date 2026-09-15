@@ -77,16 +77,22 @@ age floor, and the definition of a fire (a box, an LPS, a trigger).
    beyond the support area is a Phase C candidate until the swing after its tip recovers
    it (a high back in the area, then a higher low) or fails it (a lower low first); one
    Phase C per box, the deepest that recovered; a dip inside the area is a turn at support.
-   Every thrust over the resistance area is typed by the swing after it, in one order: an
-   LPS above resistance if the pullback recedes with the trigger overhead and holds the
-   area; an upthrust if the next valley takes out the thrust's launch low by more than the
-   area before any LPS; otherwise an SOS, with "last supper" written only in hindsight; a
-   child-box candidate is a flag until a later turn at the child's anchors confirms it; at
-   the right edge, open. A mini consolidation is a band with its own two rails, one event on
+   Every thrust over the resistance area is typed by the swing after it and by its phase, in
+   one order: an LPS above resistance if the pullback recedes with the trigger overhead and
+   holds the area; an upthrust if it comes in Phase B (before the spring; with no spring, by
+   the middle of the box), as his "reverse spring": price climbs quickly out of the structure,
+   then crashes back into the range; in Phase D it is a push that may be THE SOS, "a push
+   that's like a paradigm shift it signals local buyer strength": by default the last push
+   after the middle that breaks clear of the local high (every high since the spring, by more
+   than the rail area), else the last push after the middle, none when no push tops after the
+   middle; a deep correction after that breach of resistance, in Phase D, is the last supper,
+   written only in hindsight (his words Tue 15/09/2026; the defaults are mine, recorded in the
+   decisions record); a child-box candidate is a flag until a later turn at the child's anchors
+   confirms it; at the right edge, open. A mini consolidation is a band with its own two rails, one event on
    the parent's map. Phase D opens at the first right-side evidence after the middle of the
    base (a must, his ruling Mon 14/09/2026: an opening at or before the middle opens nothing):
    the round trip after a spring, a staircase of rising swing lows at resistance, the first
-   SOS, or the first LPS.
+   SOS (from its last swing, never the spring's own low), or the first LPS.
    The LPS window is the last run of receding days (a lower high or a lower low than the
    day before), the day before the run is its top, the trigger is the last day's high, the
    buy is the cross of that high; a cross inside the pullback is a buy too. Every LPS-like
@@ -124,12 +130,17 @@ Step 5 landed DARK (Mon 14/09/2026): the words on that line (every push that cou
 the last supper, one Phase C per box and its spring test, where the right side opens, the mini) are read by
 a reader nothing else consults. They land where his own drawings put them on most of his events, and they
 read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
-SOS is his question still open (parked for its own sitting); the Phase C is read with his context going forward
+SOS he settled at its own sitting (below); the Phase C is read with his context going forward
 (a deep dip after which the box went back to resistance and under support again was still Phase B).
 His fatal character change landed DARK (Mon 14/09/2026): an LPS whose last three days grow wider and fall further,
 day after day, is broken (the pullback increasing with sellers), never merely graded down.
 Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box
 younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
+The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
+he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
+push after the middle; the upthrust is his reverse spring in Phase B, a push out of the structure that crashes back
+into the range; the last supper is a deep correction after a breach of resistance in Phase D; and the SOS opens
+Phase D from its last swing, never from the spring's own low.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

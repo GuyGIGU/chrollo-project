@@ -658,7 +658,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # The words on the line (final method build step 5, measure-only, dark): the
     # turn line's words over the elected box, carried as ONE JSON string and only
     # when a word flag is on. Nothing reads it: not the grade below, not the
-    # archive writer, not the wire. Flag-off it reads five settings, computes
+    # archive writer, not the wire. Flag-off it reads six settings, computes
     # nothing and spreads {} -> byte-identical.
     line_words_fields = {}
     if line_words.any_word_enabled():
