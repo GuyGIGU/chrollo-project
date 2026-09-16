@@ -10,7 +10,8 @@ cascade.
 His words behind the rules: docs/final_method_2026-09.md (Q11, Q13, Q14, Q15 and the sixteenth-sitting answers).
 The rules themselves are my defaults, placed or measured on his 35 marks and recorded as such in
 docs/decisions.md (build step 5); THE SOS, the upthrust and the last supper follow his words at the SOS sitting
-(Tue 15/09/2026) and the defaults placed on his drawings then, recorded as such in docs/decisions.md.
+(Tue 15/09/2026) and his upthrust tweaks of Wed 16/09/2026, on the defaults placed on his drawings then, recorded
+as such in docs/decisions.md.
 """
 from __future__ import annotations
 
@@ -30,8 +31,9 @@ V, P = "valley", "peak"
 STEP5_FLAGS = ("LINE_WORD_SOS_ENABLED", "LINE_WORD_UPTHRUST_ENABLED", "LINE_WORD_LAST_SUPPER_ENABLED",
                "LINE_WORD_PHASE_C_ENABLED", "LINE_WORD_PHASE_D_ENABLED", "LINE_WORD_MINI_ENABLED")
 STEP5_NUMBERS = {"LINE_WORD_AREA_ATR": 0.5, "LINE_WORD_SOS_MIN_GROUND_ATR": 1.70,
-                 "LINE_WORD_SUPPER_DIG_ATR": 1.5, "LINE_WORD_SUPPER_MAX_DAYS": 4}
-RECORD_KEYS = {"basis", "thrusts", "the_sos", "upthrusts", "last_suppers", "phase_c", "spring_tests", "phase_d",
+                 "LINE_WORD_SUPPER_DIG_ATR": 1.5, "LINE_WORD_SUPPER_MAX_DAYS": 4,
+                 "LINE_WORD_UPTHRUST_MIN_POKE_ATR": 1.25}
+RECORD_KEYS = {"basis", "thrusts", "the_sos", "the_upthrust", "last_suppers", "phase_c", "spring_tests", "phase_d",
                "mini"}
 HI = np.full(40, 1000.0)         # highs for Phase C lines whose reach bar the test does not read
 UNITS = pytest.mark.parametrize("u", [1.0, 2.5])
@@ -225,57 +227,92 @@ def test_with_no_lps_the_sos_is_read_the_same_way_in_progress():
     assert _pick([], lps_low=None) is None
 
 
-# ── the upthrust (his words, Tue 15/09/2026) ─────────────────────────────────
+# ── THE upthrust (his words, Tue 15/09 and his tweaks, Wed 16/09/2026) ───────
 # "an Event that belongs in Phase B, it is kind of a 'Reverse' Spring where price climbs quickly out of the
-# structure then crashes back into the trading range". R 14, S 10, the rail area 0.5: out of the structure is a top
-# over 14.5, back in the range is a valley under 13.5.
+# structure then crashes back into the trading range", and: "not every small false breach of Resistance is one or a
+# candidate for one. and only the swinged that actually breached gets to be marked (just like a spring) not the
+# entire run up from support with all of the Dips combined, and usually only one UT is present. and it's the most
+# major/devolped one rather then tiny hiccups in resistance."
+# R 14, S 10, the rail area 0.5, the poke floor 1.25: out of the structure is a top over 15.25, back in the range
+# is a valley under 13.5.
 
 def _ut_line(top=16.0, back=11.0):
     return [(0, V, 10.0, 1), (3, P, top, 4), (4, V, back, 5), (8, P, 12.0, None)]
 
 
-def _uts(line, u=1.0, pc=None, read_bar=20):
-    return W.upthrusts(W.thrusts(line, 0, 14.0 * u, u), line, 14.0 * u, u, pc, 0, read_bar)
+def _ut(line, u=1.0, pc=None, read_bar=20):
+    return W.the_upthrust(W.thrusts(line, 0, 14.0 * u, u), line, 14.0 * u, u, pc, 0, read_bar)
 
 
 @UNITS
 def test_an_upthrust_climbs_out_of_the_box_and_crashes_back_into_the_range(u):
-    (ut,) = _uts(_s(_ut_line(), u), u)
-    assert (ut["launch_bar"], ut["top_bar"], ut["back_bar"], ut["days"]) == (0, 3, 4, 1)
-    assert (ut["top_price"], ut["back_price"]) == (16.0 * u, 11.0 * u)
+    ut = _ut(_s(_ut_line(), u), u)
+    assert (ut["swing_bar"], ut["top_bar"], ut["back_bar"], ut["days"]) == (0, 3, 4, 1)
+    assert (ut["top_price"], ut["back_price"], ut["poke_ranges"]) == (16.0 * u, 11.0 * u, 2.0)
 
 
 @UNITS
 @pytest.mark.parametrize("back, named", [(13.6, False), (13.5, False), (13.4, True)])
 def test_a_fall_that_holds_the_resistance_area_is_no_upthrust(back, named, u):
-    assert bool(_uts(_s(_ut_line(back=back), u), u)) is named, "it must crash back under the R area"
+    assert (_ut(_s(_ut_line(back=back), u), u) is not None) is named, "it must crash back under the R area"
 
 
 @UNITS
-@pytest.mark.parametrize("top, named", [(14.4, False), (14.5, False), (14.6, True)])
-def test_a_push_that_stays_in_the_resistance_area_is_no_upthrust(top, named, u):
-    assert bool(_uts(_s(_ut_line(top=top), u), u)) is named, "it must climb out of the structure"
+@pytest.mark.parametrize("top, named", [(15.2, False), (15.25, False), (15.3, True)])
+def test_a_small_false_breach_of_resistance_is_no_upthrust(top, named, u):
+    """HIS, Wed 16/09/2026: "not every small false breach of Resistance is one or a candidate for one ... rather
+    then tiny hiccups in resistance." The poke floor, not the rail area: a top 0.6 of a range over R crashing back
+    is a hiccup (the breach he crossed out on his UNF, Fri 05/06/2026, was 0.94 over his resistance)."""
+    assert (_ut(_s(_ut_line(top=top), u), u) is not None) is named, "it must climb well out of the structure"
+
+
+@UNITS
+def test_only_the_swing_that_breached_is_marked_never_the_whole_run(u):
+    """HIS, Wed 16/09/2026: "only the swinged that actually breached gets to be marked (just like a spring) not the
+    entire run up from support with all of the Dips combined." The push runs from 10.0 on bar 0 through a 1.2-range
+    pause on bar 3, so the thrust launches on bar 0; the upthrust is marked from the pause it broke out of."""
+    line = _s([(0, V, 10.0, 1), (2, P, 13.0, 3), (3, V, 11.8, 4), (6, P, 16.0, 7), (7, V, 11.0, 8),
+               (10, P, 12.0, None)], u)
+    (t,) = [x for x in W.thrusts(line, 0, 14.0 * u, u) if x["top_bar"] == 6]
+    assert t["launch_bar"] == 0, "the run itself begins at support"
+    ut = _ut(line, u)
+    assert (ut["swing_bar"], ut["swing_price"]) == (3, 11.8 * u), "marked from the last swing, not the launch"
+    assert (ut["launch_bar"], ut["launch_price"]) == (0, 10.0 * u), "the run it broke out of stays as data"
+    assert (ut["top_bar"], ut["back_bar"], ut["candidates"]) == (6, 7, 1)
+
+
+@UNITS
+@pytest.mark.parametrize("tops, named", [((15.6, 16.5), 7), ((16.5, 15.6), 3), ((16.0, 16.0), 3)])
+def test_only_the_most_developed_upthrust_is_named(tops, named, u):
+    """HIS, Wed 16/09/2026: "usually only one UT is present. and it's the most major/devolped one." Two pushes
+    climb out of the box in Phase B and crash back; the one that climbed furthest out is named, first or last, and
+    the earlier one when the two climb the same (my default, his word owed). Both are counted."""
+    first, second = tops
+    line = _s([(0, V, 10.0, 1), (3, P, first, 4), (4, V, 11.0, 5), (7, P, second, 8), (8, V, 11.0, 9),
+               (12, P, 12.0, None)], u)
+    ut = _ut(line, u)
+    assert (ut["top_bar"], ut["candidates"]) == (named, 2)
 
 
 def test_the_upthrust_belongs_in_phase_b():
     """Before the Phase C tip when the box has one; else at or before the middle of the box."""
     line = _ut_line()
-    assert _uts(line, pc={"tip_bar": 4}), "the spring comes after it"
-    assert _uts(line, pc={"tip_bar": 3}) == [], "a push topping on or after the spring tip is no upthrust"
-    assert _uts(line, read_bar=6), "no spring: the top on bar 3 is at the middle of a 6-day box"
-    assert _uts(line, read_bar=5) == [], "no spring: the top on bar 3 is past the middle of a 5-day box"
+    assert _ut(line, pc={"tip_bar": 4}), "the spring comes after it"
+    assert _ut(line, pc={"tip_bar": 3}) is None, "a push topping on or after the spring tip is no upthrust"
+    assert _ut(line, read_bar=6), "no spring: the top on bar 3 is at the middle of a 6-day box"
+    assert _ut(line, read_bar=5) is None, "no spring: the top on bar 3 is past the middle of a 5-day box"
 
 
 def test_the_upthrust_needs_the_fall_to_have_printed():
     line = _ut_line()[:2]
-    assert _uts(line) == [], "the top is the last turn: nothing has crashed back yet"
+    assert _ut(line) is None, "the top is the last turn: nothing has crashed back yet"
 
 
 def test_an_upthrust_can_crash_back_on_its_own_top_day():
     """One wide day carries the top and the fall back into the range (the line puts the peak first, then the
     valley): the word is dated on that day and becomes knowable when that valley commits."""
     line = [(0, V, 10.0, 1), (3, P, 16.0, 3), (3, V, 11.0, 4), (6, P, 12.0, None)]
-    (ut,) = _uts(line)
+    ut = _ut(line)
     assert (ut["top_bar"], ut["back_bar"], ut["days"], ut["knowable_bar"]) == (3, 3, 0, 4)
 
 
@@ -548,7 +585,7 @@ def test_the_reader_end_to_end_on_a_real_line():
     assert [(t["launch_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(30, 36), (42, 48)]
     assert (rec["the_sos"]["top_bar"], rec["the_sos"]["in_progress"]) == (48, False), "the push the LPS hangs from"
     assert rec["last_suppers"] == [], "the bar-36 top (15.7) never clears the R area (16.0), and sits before the middle"
-    assert rec["upthrusts"] == [], "the same top: it never climbs out of the structure"
+    assert rec["the_upthrust"] is None, "the same top: it never climbs out of the structure"
     assert (rec["phase_c"]["tip_bar"], rec["phase_c"]["state"], rec["phase_c"]["depth_ranges"]) == (30, "recovered", 0.7)
     assert [t["tip_bar"] for t in rec["spring_tests"]] == [42]
     assert rec["phase_d"]["openings"] == {"round trip": 42, "SOS": 42, "LPS": 47}
@@ -571,7 +608,7 @@ def test_the_reader_names_no_sos_that_launched_before_the_phase_c():
     assert rec["phase_c"]["tip_bar"] == 17
     assert [(t["launch_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(4, 15), (21, 24)]
     assert (rec["the_sos"]["launch_bar"], rec["the_sos"]["top_bar"]) == (21, 24), "the push before the tip is out"
-    assert [(x["top_bar"], x["back_bar"]) for x in rec["upthrusts"]] == [(15, 17)]
+    assert (rec["the_upthrust"]["top_bar"], rec["the_upthrust"]["back_bar"]) == (15, 17)
     assert rec["last_suppers"] == [], "its crash is the spring: before the tip, no last supper"
 
 
@@ -591,37 +628,42 @@ def test_the_reader_names_the_push_before_the_last_supper_the_sos():
         "the push out of the supper carries on through the LPS to the forming top on bar 27"
     assert (rec["the_sos"]["launch_bar"], rec["the_sos"]["top_bar"]) == (11, 16), "not the push out of the supper"
     assert [(s["top_bar"], s["low_bar"]) for s in rec["last_suppers"]] == [(16, 18)]
-    assert rec["upthrusts"] == [], "both pushes come after the spring: Phase D, no upthrust"
+    assert rec["the_upthrust"] is None, "both pushes come after the spring: Phase D, no upthrust"
 
 
 def test_the_reader_names_his_upthrust_before_the_spring():
-    """His UNF, end to end. Bars 0.4 ranges wide, box from bar 0, R 14, S 10.5, read on bar 22 (the middle is 11).
-    Hand-read: a push from 9.8 on bar 0 climbs out of the box to 16.2 on bar 4 and crashes back to 10.8 on bar 6;
-    after a bounce to 12.7 on bar 7 the spring digs to 8.3 on bar 10 and recovers (12.7 on bar 14, a higher low 11.3
-    on bar 18); the last push climbs to 15.2 on bar 22, after the spring."""
-    path = np.interp(np.arange(23), [0, 4, 6, 7, 10, 14, 18, 22], [10.0, 16.0, 11.0, 12.5, 8.5, 12.5, 11.5, 15.0])
+    """His UNF, end to end, with the run he crossed out. Bars 0.4 ranges wide, box from bar 0, R 14, S 10.5, read on
+    bar 26 (the middle is 13). Hand-read: a run leaves support (9.8 on bar 0), pauses at 13.2 on bar 4 and dips to
+    11.8 on bar 6 (1.4 ranges, a pause the thrust walks through), then the swing that breaches climbs to 16.2 on bar
+    9 and crashes back to 10.8 on bar 11; after a bounce to 12.7 on bar 12 the spring digs to 8.3 on bar 15 and
+    recovers (12.9 on bar 19, itself a push off the tip, then a higher low 11.1 on bar 22); the last push climbs to
+    15.2 on bar 26, after the spring. The upthrust is marked from the dip on bar 6, not from the run's own start on bar 0."""
+    path = np.interp(np.arange(27), [0, 4, 6, 9, 11, 12, 15, 19, 22, 26],
+                     [10.0, 13.0, 12.0, 16.0, 11.0, 12.5, 8.5, 12.7, 11.3, 15.0])
     rec = W.read_line_words(_frame(path + 0.2, path - 0.2), _Box(start_bar=0, R=14.0, S=10.5), 1.0)
-    assert rec["phase_c"]["tip_bar"] == 10
-    assert [(t["launch_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(0, 4), (10, 22)]
-    assert [(x["top_bar"], x["back_bar"], x["days"]) for x in rec["upthrusts"]] == [(4, 6, 2)]
+    assert rec["phase_c"]["tip_bar"] == 15
+    assert [(t["launch_bar"], t["swing_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(0, 6, 9), (15, 15, 19), (22, 22, 26)]
+    ut = rec["the_upthrust"]
+    assert (ut["swing_bar"], ut["top_bar"], ut["back_bar"], ut["days"]) == (6, 9, 11, 2),         "the swing that breached, never the run from support with its dips"
+    assert ut["poke_ranges"] == 2.2
 
 
 def test_the_reader_passes_each_word_its_own_box_day_and_range():
     """Wiring, end to end: a box that opens on bar 6, no Phase C, a daily range of 2. In ranges, R 14, S 10, read on
-    bar 39 (the middle is 22.5): a push from bar 6 (10.4) climbs out of the box to 14.8 on bar 21 and crashes back to
-    10.8 on bar 23 (his upthrust shape, just in the first half, 0.3 of a range clear of the R area); the SOS climbs
-    from bar 23 to 15.6 on bar 27, 0.3 of a range clear of that high's area; the last supper digs to 13.2 on bar 29
-    (2.4 ranges); a push out of it tops at 15.0 on bar 32, and the LPS recedes to 13.3 on bar 34 (its window opens on
-    bar 33). A reader handed the wrong box start, read day or daily range names a different set."""
+    bar 39 (the middle is 22.5): a push from bar 6 (10.4) climbs out of the box to 15.6 on bar 21 and crashes back to
+    10.8 on bar 23 (his upthrust shape, just in the first half, 1.6 ranges clear of R); the SOS climbs from bar 23 to
+    16.4 on bar 27, 0.3 of a range clear of that high's area; the last supper digs to 13.2 on bar 29 (3.2 ranges); a
+    push out of it tops at 15.0 on bar 32, and the LPS recedes to 13.3 on bar 34 (its window opens on bar 33). A
+    reader handed the wrong box start, read day or daily range names a different set."""
     u = 2.0
     path = np.interp(np.arange(40), [0, 3, 6, 21, 23, 27, 29, 32, 34, 39],
-                     [12.0, 15.0, 10.6, 14.6, 11.0, 15.4, 13.4, 14.8, 13.5, 14.6]) * u
+                     [12.0, 15.0, 10.6, 15.4, 11.0, 16.2, 13.4, 14.8, 13.5, 14.6]) * u
     rec = W.read_line_words(_frame(path + 0.2 * u, path - 0.2 * u, atr=u),
                             _Box(start_bar=6, R=14.0 * u, S=10.0 * u), u,
                             lps=SimpleNamespace(start_bar=33, low_bar=34, low=13.3 * u))
     assert rec["phase_c"] is None
     assert [(t["launch_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(6, 21), (23, 27), (29, 32)]
-    assert [(x["top_bar"], x["back_bar"]) for x in rec["upthrusts"]] == [(21, 23)]
+    assert (rec["the_upthrust"]["top_bar"], rec["the_upthrust"]["back_bar"]) == (21, 23)
     assert (rec["the_sos"]["swing_bar"], rec["the_sos"]["top_bar"]) == (23, 27)
     assert [(s["top_bar"], s["low_bar"]) for s in rec["last_suppers"]] == [(27, 29)]
     assert (rec["phase_d"]["opener"], rec["phase_d"]["open_bar"]) == ("SOS", 23)

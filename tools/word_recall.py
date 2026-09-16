@@ -20,9 +20,11 @@ SOS, it only asks whether the pick lands two to four days off, so it is near zer
   Phase C      the one Phase C sits on his tip
   spring test  the one spring test sits on his tip
   mini         the mini overlaps his span with both band edges inside the rail area of his
-The upthrust is listed, never scored: the app cannot record one yet (its calibration event types are phase_c, lps,
-spring_test, sos, mini_consolidation and last_supper), so his only upthrust is the UNF picture of Tue 15/09/2026
-(the push to Thu 11/06/2026).
+THE upthrust (one per box) is listed, never scored: the app cannot record one yet (its calibration event types are
+phase_c, lps, spring_test, sos, mini_consolidation and last_supper), so his only drawn upthrusts are the UNF
+picture of Tue 15/09/2026 (the push to Thu 11/06/2026) with the smaller breach to Fri 05/06/2026 crossed out on the
+engine's own render a day later, and his VIK note of July (Thu 14/05/2026, which the reader still misses: it tops
+after the spring it draws).
 Phase D opens at or before his first right-side event (his first SOS or his first LPS), and after the middle of the
 box (a must, his ruling Mon 14/09/2026). It is scored as the reader emits it, and fed HIS drawn Phase C, first SOS
 and first LPS (what the sixteenth sitting measured), so the rule and its inputs can be told apart; the report names
@@ -186,7 +188,9 @@ def read_mark(mk):
     facts = {"mark": key, "days": b - a + 1, "thrusts": len(rec["thrusts"]),
              "last_suppers": len(rec["last_suppers"]), "spring_tests": len(rec["spring_tests"]),
              "phase_c_undrawn": rec["phase_c"] is not None and not any(e.event_type == "phase_c" for e in evs),
-             "upthrusts": [day(x["top_bar"]) for x in rec["upthrusts"]],
+             "upthrust": (None if rec["the_upthrust"] is None else
+                          f"{day(rec['the_upthrust']['swing_bar'])} -> {day(rec['the_upthrust']['top_bar'])} "
+                          f"+{rec['the_upthrust']['poke_ranges']:.2f} over R"),
              "engine_box": structure is not None}
     if lps_windows:
         his_first = min([lps_windows[0][0]] + [s0 for (s0, _) in sos_windows])
@@ -246,9 +250,9 @@ def main(argv=None):
           f"{sum(f['last_suppers'] for f in facts)} on {sum(f['last_suppers'] > 0 for f in facts)} of his boxes; "
           f"spring tests per box {median(f['spring_tests'] for f in facts):.0f}")
     print(f"  a Phase C named on {sum(f['phase_c_undrawn'] for f in facts)} of his boxes where he drew none")
-    uts = [f"{f['mark']} {d}" for f in facts for d in f["upthrusts"]]
-    print(f"  upthrusts named on his rails (never scored, the app cannot record one): {len(uts)} on "
-          f"{sum(bool(f['upthrusts']) for f in facts)} boxes {uts}")
+    uts = [f"{f['mark']} {f['upthrust']}" for f in facts if f["upthrust"]]
+    print(f"  THE upthrust named on {len(uts)} of his boxes (one per box, never scored, the app cannot record "
+          f"one): {uts}")
     pd_rows = [f for f in facts if "phase_d" in f]
     for name in ("as emitted", "fed his words", "engine election"):
         got = [f["phase_d"][name] for f in pd_rows if name in f["phase_d"]]

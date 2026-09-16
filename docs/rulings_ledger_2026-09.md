@@ -1338,3 +1338,74 @@ holds 30 of 35 and the junk stays clean on every unpinned day.
 FOR THE BUILD SESSION: the SOS graded when several are named is THE SOS, one per LPS window; the precedence rows 2
 (upthrust, Phase B) and 3 (SOS, Phase D, its deep correction a last supper in hindsight) exist as words; Phase D is
 re-measured above; the last supper rule separates "last supper" from the chip that measures the LPS's stretch above R.
+
+## HIS UPTHRUST TWEAKS (Wed 16/09/2026), VERBATIM
+
+On the four upthrust renders (UNF, JAZZ, NOK, VIK), with his own marks drawn over the UNF one: a red X through the
+engine's UT of Fri 05/06/2026 and a check over its UT of Thu 11/06/2026.
+
+> Okay few tweaks about UT. not every small false breach of Resistance is one or a candidate for one. and only the
+> swinged that actually breached gets to be marked (just like a spring) not the entire run up from support with all
+> of the Dips combined, and usually only one UT is present. and it's the most major/devolped one rather then tiny
+> hiccups in resistance.
+
+## THE UPTHRUST REBUILT, DARK AND VERIFIED (Wed 16/09/2026)
+
+ONE per box (`line_words.the_upthrust`; the record key is now `the_upthrust`, one word or none, like `the_sos`):
+
+A FLOOR UNDER THE BREACH. The top must climb more than `LINE_WORD_UPTHRUST_MIN_POKE_ATR` (1.25) daily ranges over
+his resistance, not merely clear the rail area. Placed from his own two specimens: the breach he crossed out (his
+UNF, Fri 05/06/2026) tops 0.94 ranges over his R, and the smallest he has ever named (his VIK July note, Thu
+14/05/2026) tops 1.55 over his R, so 1.25 is the middle of the only window his marks leave. Of the 38 pushes on his
+35 boxes that clear the resistance area and crash back, 8 survive 1.0, 6 survive 1.25, 3 survive 1.5.
+
+THE MARKED SWING. The word is now marked from the line valley right before the top (`swing_bar`, the same field his
+SOS is marked from), so the drawing is the swing that breached, never the run up from support with its dips; the run
+itself stays in the record as `launch_bar`, data and never the mark. On the UNF push he checked nothing moves - it
+launched on Tue 09/06/2026 and breached from the same day - and on the one he crossed out the mark shortens from Fri
+22/05 .. Fri 05/06/2026 (the run from support, with dips: the orange line he crossed) to Wed 03/06 .. Fri 05/06/2026.
+On his 35 boxes the clause shortens 6 of the 12 marks that clear the rail area.
+
+ONE PER BOX, THE MOST DEVELOPED. Of the candidates in Phase B, the one that climbed furthest over the resistance
+(the earlier one when two climb the same).
+
+MEASURED: THE upthrust is named on 2 of his 35 boxes - his UNF Thu 11/06/2026 (2.14 ranges over his R) and FOSL Tue
+27/01/2026 (1.57) - where 12 on 9 boxes were named before; on the junk, 1 of the 17 fire days (was 5). No other word
+moves (THE SOS 23 of 25, the last supper 10 of 10, Phase C 10 of 10, Phase D unchanged).
+
+STILL OWED FROM HIM, and asked in the report of Wed 16/09/2026:
+- FOSL Tue 27/01/2026, the one name he has never seen: a single day 2.86 ranges tall that climbs 1.57 over his R and
+  closes back under it, so the climb out and the crash back share one bar (`days` 0, knowable the next day). An
+  upthrust, or a wide bar? His answer decides whether the rule is two for two on his own eye or one for two.
+- The huddle between his X and the floor, asked together rather than as JAZZ alone: his UNF Fri 05/06/2026 (0.945,
+  crossed out), EWTX Wed 25/02/2026 (0.986) and JAZZ Mon 05/01/2026 (1.031). Is SIZE what separates a hiccup from an
+  upthrust at all, or is it the speed, the single bar, or where in the box it sits? If size is not his separator the
+  floor is the wrong shape, and it is dark, so now is the time.
+- NOK Tue 27/01/2026 (0.612) is a PHASE question, not a size one: it crashes back on Wed 28/01/2026, the first day of
+  his own drawn Phase C. An upthrust landing on his spring, or the swing into it? That answer belongs to the
+  precedence table the build session reads at its step 8.
+- VIK is a SPRING question: his July note's spike of Thu 14/05/2026 tops 1.551 over his R, so it clears the floor and
+  is refused only by a Phase C the reader draws on Wed 29/04/2026 that he never drew. Two honest caveats: that
+  specimen is the floor's own upper anchor, so the floor is bounded above by a chart the rule cannot yet read; and
+  his note calls it "an upthrust OUTSIDE the box", while the word built here only names one inside Phase B - whether
+  an outside-the-box upthrust counts at all is his call.
+Not asked, deliberately: whether a box may carry two. No box on his 35 marks, none of the 17 junk boxes and none of
+the 117 boxes on the fleet fixture has two pushes that survive the floor, so there is no specimen to rule on; the
+record now counts `candidates` so the question can be asked the day one appears.
+The app still cannot record an upthrust (six calibration event types), so `tools.word_recall` lists it and scores
+nothing.
+
+ONE ASYMMETRY HE SHOULD KNOW ABOUT, since he said "just like a spring": the spring is gated on shape (penetration,
+reclaim, hold) and uses its depth only to rank the dips, because an ATR arm test on it is Tested-DEAD. The upthrust
+now uses its climb as BOTH the gate and the ranking. His words asked for the gate ("or a candidate for one"), so the
+gate is his; the mirror with the spring is not exact.
+
+FOR THE BUILD SESSION (branch claude/method-steps-7-12), on top of the SOS sitting's list: point 6's precedence table
+types EVERY up-swing over the resistance area, per swing, while this word now names AT MOST ONE per box. Step 8 must
+settle whether the map writes "upthrust" on every Phase B swing that crashes back or only on THE upthrust; his
+"usually only one" points at the one. Merge notes: the manifest gains `LINE_WORD_UPTHRUST_MIN_POKE_ATR` after
+`LINE_WORD_AREA_ATR` (the sibling inserts three keys a few lines below, so expect a conflict and keep BOTH, the
+tuple's order decides the hash); `docs/engine_reference.md` must be regenerated with `python -m
+tools.settings_reference --write` after the merge or `test_docs_sync` fails; and the build-step-5 comment block in
+`config/settings.py` must come from this branch - the sibling still carries the pre-SOS text "Not built: the
+upthrust".

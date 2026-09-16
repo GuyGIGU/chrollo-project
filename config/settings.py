@@ -766,8 +766,8 @@ TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q
 # displays reads it; each flag only adds its own word to ONE JSON diagnostic
 # on a fire (_line_words_json). The words read the line whatever
 # TURN_LINE_ENABLED says, so they flip with or after it. THE SOS, the
-# upthrust and the last supper follow his SOS answers of Tue 15/09/2026, on
-# defaults of mine (docs/decisions.md). Not built: the shakeout (parked by
+# upthrust and the last supper follow his SOS answers of Tue 15/09/2026 and
+# his upthrust tweaks of Wed 16/09/2026, on defaults of mine (docs/decisions.md). Not built: the shakeout (parked by
 # him), the dead-space pardon keyed to a named leg (21: a grade change, his
 # question still open).
 #
@@ -777,7 +777,9 @@ TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q
 #   a thrust at his SOS top   25 of 26 (chance 12)   THE SOS  23 of 25 (chance 0)
 #   last supper               10 of 10 (chance 0.5)  Phase C  10 of 10 (chance 0)
 #   spring test                4 of 6  (chance 1)    mini      0 of 5
-#   upthrust: his UNF named (listed, not scored: the app cannot record one)
+#   upthrust: his UNF named, ONE per box (listed, not scored: the app cannot
+#             record one). On his tweaks of Wed 16/09/2026, 2 named on his 35
+#             boxes: his UNF Thu 11/06/2026 and FOSL Tue 27/01/2026.
 # Under all six flags nothing moves: ratchet 30 of 35, junk clean on every
 # unpinned day, fleet and reader pin PASS. The rules' defaults that are mine
 # (his word owed) are listed in line_words.py and the decisions record.
@@ -786,8 +788,9 @@ LINE_WORD_LAST_SUPPER_ENABLED = False  # 15: the last supper, in hindsight only
 LINE_WORD_PHASE_C_ENABLED = False      # 14: one Phase C per box, and its spring test
 LINE_WORD_PHASE_D_ENABLED = False      # 12: where the right side opens
 LINE_WORD_MINI_ENABLED = False         # 13: today's elected mini, as facts
-LINE_WORD_UPTHRUST_ENABLED = False     # 10: his upthrust (Tue 15/09/2026): a Phase B push out of the box that crashes back
+LINE_WORD_UPTHRUST_ENABLED = False     # 10: his upthrust, ONE per box (Tue 15/09 + Wed 16/09/2026)
 LINE_WORD_AREA_ATR = 0.5               # the ruled rail area, in daily ranges (as TOUCH_TOLERANCE_ATR, MINI_POSITION_TOL_ATR)
+LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25  # an upthrust climbs this far over R: between the breach he crossed out (his UNF, 0.94) and his smallest (his VIK note, 1.55)
 LINE_WORD_SOS_MIN_GROUND_ATR = 1.70    # his smallest SOS, launch low to top, on his own spans
 LINE_WORD_SUPPER_DIG_ATR = 1.5         # a last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust
 LINE_WORD_SUPPER_MAX_DAYS = 4          # his longest last supper, in trading days

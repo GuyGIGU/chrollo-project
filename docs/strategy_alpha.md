@@ -79,14 +79,15 @@ age floor, and the definition of a fire (a box, an LPS, a trigger).
    Phase C per box, the deepest that recovered; a dip inside the area is a turn at support.
    Every thrust over the resistance area is typed by the swing after it and by its phase, in
    one order: an LPS above resistance if the pullback recedes with the trigger overhead and
-   holds the area; an upthrust if it comes in Phase B (before the spring; with no spring, by
-   the middle of the box), as his "reverse spring": price climbs quickly out of the structure,
-   then crashes back into the range; in Phase D it is a push that may be THE SOS, "a push
+   holds the area; THE upthrust, one per box, if it comes in Phase B (before the spring; with
+   no spring, by the middle of the box), as his "reverse spring": price climbs quickly out of
+   the structure, then crashes back into the range, where only a real breach counts and only
+   the swing that breached is marked; in Phase D it is a push that may be THE SOS, "a push
    that's like a paradigm shift it signals local buyer strength": by default the last push
    after the middle that breaks clear of the local high (every high since the spring, by more
    than the rail area), else the last push after the middle, none when no push tops after the
    middle; a deep correction after that breach of resistance, in Phase D, is the last supper,
-   written only in hindsight (his words Tue 15/09/2026; the defaults are mine, recorded in the
+   written only in hindsight (his words Tue 15/09/2026 and, for the upthrust, Wed 16/09/2026; the defaults are mine, recorded in the
    decisions record); a child-box candidate is a flag until a later turn at the child's anchors
    confirms it; at the right edge, open. A mini consolidation is a band with its own two rails, one event on
    the parent's map. Phase D opens at the first right-side evidence after the middle of the
@@ -138,8 +139,8 @@ Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the b
 younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
 The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
 he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
-push after the middle; the upthrust is his reverse spring in Phase B, a push out of the structure that crashes back
-into the range; the last supper is a deep correction after a breach of resistance in Phase D; and the SOS opens
+push after the middle; the upthrust is his reverse spring in Phase B, one per box, the most developed push out of the
+structure that crashes back into the range, marked on the swing that breached (his tweaks, Wed 16/09/2026); the last supper is a deep correction after a breach of resistance in Phase D; and the SOS opens
 Phase D from its last swing, never from the spring's own low.
 Flags off, the engine reads exactly as it did.
 
