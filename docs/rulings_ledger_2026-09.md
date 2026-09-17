@@ -1409,3 +1409,22 @@ tuple's order decides the hash); `docs/engine_reference.md` must be regenerated 
 tools.settings_reference --write` after the merge or `test_docs_sync` fails; and the build-step-5 comment block in
 `config/settings.py` must come from this branch - the sibling still carries the pre-SOS text "Not built: the
 upthrust".
+
+## HIS EYE ON THE THREE EMPTY UPTHRUST CHARTS (Thu 17/09/2026), VERBATIM
+
+On the five renders of Wed 16/09/2026 (UNF, FOSL, EWTX, JAZZ, NOK, in that order); the last three are the ones where
+the rebuilt word names nothing.
+
+> on the last 3 charts you sent that were empty I can agree that no UP thrust is also valid,
+
+SETTLED: the empty reading stands on EWTX (Wed 25/02/2026, 0.986 over his R; Tue 10/02/2026, 0.635), JAZZ (Mon
+05/01/2026, 1.031; Tue 06/01/2026, 0.623) and NOK (Tue 27/01/2026, 0.612, crashing back on the first day of his drawn
+Phase C). The highest climb his eye now lets pass unnamed is 1.031 (was 0.945). The floor stays at 1.25, my default:
+it sits between 1.031 and his smallest named upthrust (VIK, 1.551), and of the pushes on his 35 boxes that top in
+Phase B and crash back none climbs between 1.031 and 1.575, so any value there names the same two (his UNF and FOSL).
+For the build session's step 8: NOK's push into his Phase C is not an upthrust.
+
+STILL OWED: FOSL Tue 27/01/2026 (the single wide day, the one name he has not seen); whether size is his separator at
+all ("also valid" accepts the empty outcome without ruling on the measure); VIK (is Wed 29/04/2026 a spring, and does
+an upthrust outside the box count). Still open from Tue 15/09/2026: the 12 LPS windows with no SOS drawn, BMRN's
+breach inside the rail area, and the three event words to sign.
