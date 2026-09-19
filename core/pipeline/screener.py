@@ -18,6 +18,7 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
 
 import pandas as pd
 
@@ -30,6 +31,7 @@ from engine_alpha.evaluation import (
     apply_baseline_filters,
     evaluate_ticker_with_near_miss,
     evaluate_ticker_with_power_play,
+    evaluate_ticker_with_watch,
 )
 from core.pipeline.market_data_health import (
     compute_market_data_health,
@@ -75,7 +77,8 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
                      near_miss_sink: dict | None = None,
-                     power_play_sink: dict | None = None) -> tuple[list[dict], int]:
+                     power_play_sink: dict | None = None,
+                     watch_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
     ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector for
@@ -83,6 +86,10 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     lazily at call time), workers run the lane-carrying evaluation twin and
     the deduped ruled rows + counters accumulate here; otherwise the exact
     legacy submission runs (flag-off stays byte-identical and sink-empty).
+
+    ``watch_sink``: the watch lane's ``{"rows": [], "stats": {}}`` (build step
+    8, ``LPS_LEAVES_ELECTION_ENABLED``): its twin wraps whatever rung the ladder
+    picked, so the state word is typed off the one paying read.
 
     Returns ``(results, errored)`` where ``errored`` is the number of tickers
     whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
@@ -105,6 +112,9 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
         worker_fn = evaluate_ticker_with_near_miss
     else:
         worker_fn = _evaluate_ticker
+    watch_on = watch_sink is not None and settings.LPS_LEAVES_ELECTION_ENABLED
+    if watch_on:
+        worker_fn = partial(evaluate_ticker_with_watch, inner=worker_fn)
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {
@@ -123,6 +133,13 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
+            if watch_on:
+                result, watch_row, watch_stats = result
+                if watch_row is not None:
+                    watch_sink["rows"].append(watch_row)
+                wstats = watch_sink.setdefault("stats", {})
+                for k, v in watch_stats.items():
+                    wstats[k] = wstats.get(k, 0) + v
             if pp_on:
                 result, pp_row, pp_stats = result
                 if pp_row is not None:
@@ -271,14 +288,28 @@ def run_screener(mode: str = "download",
     # half of the family travels on firing result rows via the Task 7 producer.
     power_play_sink = ({"rows": [], "stats": {}}
                        if settings.POWER_PLAY_PRESET_ENABLED else None)
+    # The watch lane's sink (build step 8): rows and counts ride the payload
+    # through market_context["watch"]; absent flag-off (byte-identical).
+    watch_sink = ({"rows": [], "stats": {}}
+                  if settings.LPS_LEAVES_ELECTION_ENABLED else None)
     with timer.phase("evaluation"):
         # Number of tickers whose eval chain THREW and was swallowed (distinct from
         # a structural reject) is returned in-band alongside the results, so there
         # is no cross-call stale-read hazard.
+        # The watch sink rides as a kwarg only when it exists (flag-on), so an
+        # injected fake without the parameter keeps working flag-off (the
+        # near-miss floor's own rule).
+        watch_kw = {"watch_sink": watch_sink} if watch_sink is not None else {}
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
                                                     near_miss_sink=near_miss_sink,
-                                                    power_play_sink=power_play_sink)
+                                                    power_play_sink=power_play_sink,
+                                                    **watch_kw)
+    if watch_sink is not None:
+        market_context["watch"] = {
+            "candidates": sorted(watch_sink["rows"], key=lambda r: r["ticker"]),
+            "counts": {k: int(v) for k, v in sorted(watch_sink["stats"].items())},
+        }
     if power_play_sink is not None:
         pp_stats = dict(power_play_sink.get("stats") or {})
         # The lane's OWN cost attribution (EC-8's bound cites this production

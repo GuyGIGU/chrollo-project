@@ -296,7 +296,7 @@ def structure_atr_row(df: pd.DataFrame):
 
 
 def _resolve_structure_context(df: pd.DataFrame, latest,
-                               near_miss=None) -> Optional[dict]:
+                               near_miss=None, watch=None) -> Optional[dict]:
     # Parent (outer) is the base of record; inner is the nested companion. One
     # chronological A->B->(C?)->D narrative is the structure source of truth.
     # ONE ATR sample serves the walk, atr_ratio, and atr_for_zone below — the
@@ -306,9 +306,17 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     # Election-trace capture (flag-dark): the trace rides the ONE walk that
     # elects the published box — same-run by construction, never a re-run.
     # None keeps the call byte-identical (the trace plumbing's no-op contract).
-    trace = [] if settings.ELECTION_TRACE_EXPORT_ENABLED else None
+    # The watch recorder (build step 8, flag-dark) types its state word off the SAME walk's trace; the
+    # export keeps its own flag below, so a watched fire never carries a trace it did not ask for.
+    trace = [] if (settings.ELECTION_TRACE_EXPORT_ENABLED or watch is not None) else None
     structure = read_structure(df, float(atr_eval['ATR_10']),
                                near_miss=near_miss, trace=trace)
+    if watch is not None:
+        watch.update(unit=float(atr_eval['ATR_10']), trace=trace)
+        if structure is None:
+            watch.update(_walk_refused_state(trace))
+        else:
+            watch["structure"] = structure
     if structure is None:
         return None
 
@@ -319,14 +327,20 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     inner = boxes["inner"]
 
     if base_len == 0:
+        if watch is not None:
+            watch.update(state="no lines", why="empty box")
         return None
 
     atr_ratio = atr_eval['ATR_10'] / atr_eval['ATR_50']
 
     if latest['Close'] < (sup_avg * settings.CRASH_FILTER_MULT) \
             and not settings.DEPTH_CAPS_GRADED_ENABLED:    # point 8 (step 7, dark)
+        if watch is not None:
+            watch.update(_chart_state(df, structure, watch["unit"], trace, why="crash floor"))
         return None
     if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
+        if watch is not None:
+            watch.update(_chart_state(df, structure, watch["unit"], trace, why="extension veto"))
         return None
 
     base_df = df.iloc[-base_len:]
@@ -340,7 +354,7 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
 
     return {
         "structure": structure,
-        "election_trace": trace,
+        "election_trace": trace if settings.ELECTION_TRACE_EXPORT_ENABLED else None,
         "base_len": base_len,
         "res_avg": res_avg,
         "sup_avg": sup_avg,
@@ -363,10 +377,17 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
     }
 
 
-def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict) -> Optional[dict]:
-    # A returned Structure is a COMPLETE story, so structure.lps always exists;
-    # the walk already ran the inner-first-then-parent election.
+def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict,
+                         watch=None) -> Optional[dict]:
+    # The walk already ran the inner-first-then-parent election. Flag-off a
+    # returned Structure is a COMPLETE story and structure.lps always exists.
     structure = structure_ctx["structure"]
+    if structure.lps is None:
+        # Build step 8 (point 22, dark): the walk may return a box with no LPS yet. It never fires; its
+        # state word (lines, no LPS yet / the open right edge / crossed) rides the watch lane.
+        if watch is not None:
+            watch.update(_chart_state(df, structure, structure_ctx["atr_for_zone"], watch.get("trace")))
+        return None
     lps_result = _lps_result_from_brick(structure.lps)
     lps_in_inner = structure.lps_in_inner
 
@@ -388,6 +409,8 @@ def _resolve_lps_context(df: pd.DataFrame, latest, structure_ctx: dict) -> Optio
     current_price = latest['Close']
     distance_to_trigger = (trigger_price - current_price) / current_price
     if distance_to_trigger <= 0:
+        if watch is not None:
+            watch.update(state="crossed")            # the trigger is behind: the buy day, or later
         return None
 
     lps_tests = detect_lps_tests(
@@ -1064,7 +1087,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
 def _run_eval_chain(ticker: str, df: pd.DataFrame,
                     spy_6m_return: float = 0.0,
                     breadth_pct: Optional[float] = None,
-                    near_miss=None) -> Optional[dict]:
+                    near_miss=None, watch=None) -> Optional[dict]:
     """The single numeric evaluation chain shared by the live screener
     (`_evaluate_ticker`) and the seed/replay path
     (`core.archive.seed._evaluate_at_date`).
@@ -1079,18 +1102,30 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
     there — it must survive a structural reject (a refused evaluation is the
     lane's whole subject), which is why it is not constructed here. The plain
     entry and the seed/replay path pass nothing.
+
+    ``watch``: the watch lane's recorder (build step 8, ``LPS_LEAVES_ELECTION_ENABLED``), a dict the chain
+    fills at the exit it takes with the chart's ONE state word (``WATCH_WIRE_STATES``) and the facts the lane
+    row needs; owned by ``evaluate_ticker_with_watch``. None (every flag-off caller) = byte-identical.
     """
-    prepared = _prepare_eval_frame(df)
+    if watch is None:
+        prepared = _prepare_eval_frame(df)
+    else:
+        prepared, reason = _prepare_eval_frame_with_reason(df)
+        if prepared is None:
+            watch.update(state="not scanned", why=reason[0])     # the door's leg, named (point 24)
     if prepared is None:
         return None
 
     eval_df = prepared["df"]
+    if watch is not None:
+        watch["df"] = eval_df                    # the frame the walk's bars index (the lane row reads it)
     structure_ctx = _resolve_structure_context(eval_df, prepared["latest"],
-                                               near_miss=near_miss)
+                                               near_miss=near_miss, watch=watch)
     if structure_ctx is None:
         return None
 
-    lps_ctx = _resolve_lps_context(eval_df, prepared["latest"], structure_ctx)
+    lps_ctx = _resolve_lps_context(eval_df, prepared["latest"], structure_ctx,
+                                   watch=watch)
     if lps_ctx is None:
         return None
 
@@ -1113,6 +1148,8 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
         lps_ctx["lps_in_inner"],
         structure_ctx["atr_for_zone"],
     ):
+        if watch is not None:
+            watch.update(state="no lines", why="descent tail")   # a comment on the fire from step 12 on
         return None
 
     phase_ctx = _phase_d_context(eval_df, structure_ctx, lps_ctx)
@@ -1128,7 +1165,8 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
 
 def _evaluate_ticker(ticker: str, df: pd.DataFrame,
                      spy_6m_return: float = 0.0,
-                     breadth_pct: Optional[float] = None) -> Optional[dict]:
+                     breadth_pct: Optional[float] = None,
+                     watch=None) -> Optional[dict]:
     """
     Evaluate a single ticker through all screening phases.
     Returns a result dict if the ticker passes, or None if filtered out.
@@ -1137,15 +1175,17 @@ def _evaluate_ticker(ticker: str, df: pd.DataFrame,
     # The lane records ONLY through evaluate_ticker_with_near_miss (the one
     # caller that harvests the map — review 2026-07-26 finding 14): the plain
     # entry never pays recorder work, in either flag state.
-    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, None)
+    return _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, None,
+                              watch=watch)
 
 
-def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
+def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None,
+                       watch=None):
     """The chain under the standard skip-guard — folded once (EC-3) so the
     plain evaluation and the lane-carrying scan twin cannot drift."""
     try:
         result = _run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
-                                 near_miss=near_miss)
+                                 near_miss=near_miss, watch=watch)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
         print(f"  [skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         # Return the error sentinel — NOT None — so the caller can distinguish a
@@ -1161,7 +1201,8 @@ def _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct, near_miss=None):
 
 def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
                                    spy_6m_return: float = 0.0,
-                                   breadth_pct: Optional[float] = None):
+                                   breadth_pct: Optional[float] = None,
+                                   watch=None):
     """The scan-path twin of ``_evaluate_ticker`` used when the near-miss
     lane flag is on: returns ``(result, near_miss_rows, lane_stats)`` so the
     refusal cohort can cross the worker-pool boundary alongside the fire
@@ -1169,12 +1210,13 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
     output — the screener only submits it under the flag, but the degrade
     keeps a mid-scan flag flip harmless. Top-level for pickling."""
     if not settings.NEAR_MISS_LANE_ENABLED:
-        return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct), [], {}
+        return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
+                                watch=watch), [], {}
     from engine_alpha.structure.near_miss import (  # noqa: PLC0415 — inside the flag
         NearMissRecorder, deferred_rows)
     recorder = NearMissRecorder()
     result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
-                                recorder)
+                                recorder, watch=watch)
     if result is EVAL_ERROR:
         # An aborted walk's refusal map is incomplete evidence — no lane rows
         # from a crashed evaluation (review 2026-07-26 findings 2/14); the
@@ -1372,7 +1414,8 @@ def species_watch(df):
 
 def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
                                     spy_6m_return: float = 0.0,
-                                    breadth_pct: Optional[float] = None):
+                                    breadth_pct: Optional[float] = None,
+                                    watch=None):
     """The species-lane twin (Power-Play program Task 8): COMPOSES with the
     near-miss twin instead of replacing it — the base submission is exactly
     what the near-miss-aware path would have returned, and the species watch
@@ -1392,10 +1435,11 @@ def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
 
     if settings.NEAR_MISS_LANE_ENABLED:
         base = evaluate_ticker_with_near_miss(ticker, df, spy_6m_return,
-                                              breadth_pct)
+                                              breadth_pct, watch=watch)
         result = base[0]
     else:
-        base = _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct)
+        base = _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
+                                watch=watch)
         result = base
     if not settings.POWER_PLAY_PRESET_ENABLED:
         return base, None, {}
@@ -1427,4 +1471,158 @@ def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
         stats["pp_errored"] = 1
         row = None                      # a half-built row must not publish
     stats["pp_eval_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+    return base, row, stats
+
+
+# ── The watch lane (the final method, build step 8: the LPS leaves the election) ──
+# Point 22: every chart the door admits carries ONE state word from ONE table; the "no LPS yet" charts sit in
+# a watch lane apart from the leaderboard, behind a display floor that touches no fire. The words are his
+# (the state table of docs/final_method_2026-09.md point 22, and precedence row 5 of point 6 for the open
+# right edge); the wire carries them verbatim, never a slug the frontend must translate. Two are step 11's
+# ("root candidate, unconfirmed", "broke down"): on the table, never typed before the hand-over exists.
+WATCH_WIRE_STATES = ("fired", "crossed", "lines, no LPS yet", "forming N of 15",
+                     "root candidate, unconfirmed", "beyond R, undetermined",
+                     "under S, undetermined", "broke down", "not scanned", "no lines")
+# The states whose chart the lane shows: lines and no fire.
+WATCH_LANE_STATES = ("lines, no LPS yet", "forming N of 15", "beyond R, undetermined",
+                     "under S, undetermined")
+
+
+def _right_edge_run(df, R, S, area):
+    """Precedence row 5 of point 6 (the open right edge): the run of WHOLE bars beyond a rail's area, counted
+    back from today (his whole-bar respect, R7). ``("beyond R", n)``, ``("under S", n)`` or ``None``."""
+    lows = df["Low"].to_numpy(dtype=float)
+    highs = df["High"].to_numpy(dtype=float)
+    n = 0
+    for low in lows[::-1]:
+        if not low > R + area:
+            break
+        n += 1
+    if n:
+        return "beyond R", n
+    n = 0
+    for high in highs[::-1]:
+        if not high < S - area:
+            break
+        n += 1
+    if n:
+        return "under S", n
+    return None
+
+
+def _lps_was_bought(trace) -> bool:
+    """Did the elected root's LPS detector refuse its window as bought (a later high crossed the trigger, the
+    buy-day clause of R18)? Read off the walk's own trace record for that root, never a second detection."""
+    if not trace:
+        return False
+    rejects = trace[-1].get("lps_rejects") or {}
+    return any("bought" in reason for pool in rejects.values() for reason in pool)
+
+
+def _chart_state(df, structure, unit, trace, why=None) -> dict:
+    """ONE state word for a chart with lines and no fire (build step 8, point 22). The right edge first (row
+    5: a run of whole bars beyond a rail's area is "beyond R, undetermined" / "under S, undetermined" with
+    its length in trading days); then a box with no LPS reads "crossed" when the walk's own LPS rejects say
+    the window was bought and "lines, no LPS yet" otherwise; a box with an LPS the chain refused to read
+    reads "crossed" (the extension veto: the close far over R, the trigger behind it) or "under S,
+    undetermined" (the crash floor). ``why`` names a refusal a later step retires (steps 10 to 12)."""
+    area = float(settings.LINE_WORD_AREA_ATR) * float(unit)
+    out = {"why": why} if why else {}
+    edge = _right_edge_run(df, float(structure.R), float(structure.S), area)
+    if edge is not None:
+        out.update(state=f"{edge[0]}, undetermined", days=int(edge[1]))
+    elif structure.lps is None:
+        out["state"] = "crossed" if _lps_was_bought(trace) else "lines, no LPS yet"
+    else:
+        out["state"] = "under S, undetermined" if why == "crash floor" else "crossed"
+    return out
+
+
+def _walk_refused_state(trace) -> dict:
+    """The state word of a chart the walk refused, read off its own trace: "forming N of 15" when a box was
+    too young (the oldest such box: its age and its rails ride along), else "no lines" with the last root's
+    outcome as the why (no_box; cause_absent until step 10 folds the veto into a trend fact)."""
+    forming = [r for r in (trace or []) if r.get("outcome") == "forming"]
+    if forming:
+        rec = max(forming, key=lambda r: int(r["forming"]["age"]))
+        return {"state": "forming N of 15", "forming": dict(rec["forming"]), "box": dict(rec["box"])}
+    why = trace[-1].get("outcome") if trace else "no root"
+    return {"state": "no lines", "why": why}
+
+
+def watch_verdict(watch: dict, fired: bool) -> str:
+    """The chart's one state word, resolved at the publisher: a fire is "fired"; otherwise the word the chain
+    recorded at its exit. Validates its own output against the closed table, loudly (as ``wire_status``)."""
+    state = "fired" if fired else (watch.get("state") or "no lines")
+    if state not in WATCH_WIRE_STATES:
+        raise ValueError(
+            f"chart state {state!r} is not on the table ({' / '.join(WATCH_WIRE_STATES)})")
+    return state
+
+
+def _lane_row(ticker: str, watch: dict, state: str) -> Optional[dict]:
+    """The watch lane's row for a chart with lines and no fire, or None below the display floor:
+    ``WATCH_LANE_MIN_TURNS_PER_RAIL`` committed turns of the line inside each rail's area, from the box start
+    (point 22: two at each rail). The floor touches no fire; it only decides what the lane shows."""
+    from engine_alpha.structure.pivots import (  # noqa: PLC0415 — inside the flag
+        turn_line, turn_line_floors, turns_at_rails)
+    df = watch["df"]
+    n = len(df)
+    unit = float(watch["unit"])
+    structure = watch.get("structure")
+    if structure is not None:
+        box = structure.box
+        R, S, start = float(structure.R), float(structure.S), int(box.start_bar)
+        age = n - min(int(box.r_anchor_bar), int(box.s_anchor_bar))
+    else:                                        # forming: the walk's trace brief of the young box
+        brief = watch["box"]
+        R, S, start = float(brief["R"]), float(brief["S"]), int(brief["start_bar"])
+        age = int(watch["forming"]["age"])
+    line = turn_line(df["High"].to_numpy(dtype=float), df["Low"].to_numpy(dtype=float),
+                     turn_line_floors(df, unit))
+    at_r, at_s = turns_at_rails(line, start, R, S, float(settings.LINE_WORD_AREA_ATR) * unit)
+    floor = int(settings.WATCH_LANE_MIN_TURNS_PER_RAIL)
+    if at_r < floor or at_s < floor:
+        return None
+    row = {"ticker": ticker, "state": state, "R": round(R, 4), "S": round(S, 4),
+           "open": str(df.index[start].date()), "age": int(age),
+           "turns_at_r": int(at_r), "turns_at_s": int(at_s),
+           "close": round(float(df["Close"].iloc[-1]), 4)}
+    for key in ("days", "forming", "why"):
+        if key in watch:
+            row[key] = watch[key]
+    return row
+
+
+def evaluate_ticker_with_watch(ticker: str, df: pd.DataFrame,
+                               spy_6m_return: float = 0.0,
+                               breadth_pct: Optional[float] = None,
+                               *, inner=None):
+    """Build step 8's outer twin (point 22). ``inner`` is the ladder's own worker (the plain evaluation, the
+    near-miss twin or the species twin); the recorder rides that ONE paying read and the chart's state word
+    is typed after it, never by a second walk. Returns ``(base, row, stats)``: ``base`` exactly what ``inner``
+    returned, ``row`` the watch lane's row or None, ``stats`` the counts keyed by the state word itself.
+    Flag-off degrades to the inner call with no recorder (byte-identical). Every lane failure is swallowed
+    and counted, never converting a result into a drop (EC-20). Top-level for pickling (the screener binds
+    ``inner`` with ``functools.partial``)."""
+    inner = inner or _evaluate_ticker
+    if not settings.LPS_LEAVES_ELECTION_ENABLED:
+        return inner(ticker, df, spy_6m_return, breadth_pct), None, {}
+    watch: dict = {}
+    base = inner(ticker, df, spy_6m_return, breadth_pct, watch=watch)
+    result = base[0] if isinstance(base, tuple) else base
+    if result is EVAL_ERROR:
+        return base, None, {"base errored": 1}   # an aborted read has no state word
+    row, stats = None, {}
+    try:
+        state = watch_verdict(watch, fired=isinstance(result, dict))
+        stats[state] = 1
+        if state in WATCH_LANE_STATES:
+            row = _lane_row(ticker, watch, state)
+            if row is None:
+                stats["below the floor"] = 1
+    except Exception as e:  # noqa: BLE001 — the lane never touches the scan
+        print(f"  [watch skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
+        stats["errored"] = 1
+        row = None
     return base, row, stats

@@ -831,6 +831,22 @@ DEPTH_CAPS_GRADED_ENABLED = False
 # (a spring, an upthrust, the end of the box) is read from what follows it (the words, steps 5 and 11).
 RESPECT_GRADED_ENABLED = False
 
+# ── The final method, build step 8 (Sat 19/09/2026): the LPS leaves the election, DARK ──
+# Point 22 of docs/final_method_2026-09.md: "The LPS stops being a brick of the box election (today no LPS means
+# the walk skips to the next root and the chart returns nothing; 72 of the study's 224 day-reads had lines but no
+# window and showed nothing). The 'no LPS yet' charts sit in a watch lane apart from the leaderboard, with a
+# display floor of two turns at each rail on the line (all 35 of yours clear it) that touches no fire." Under the
+# switch the root walk (narrative._walk_structure) returns the first valid box with or without an LPS (a
+# Structure whose lps is None: lines, no LPS yet); a structure without an LPS never fires; and every chart the
+# door admits carries ONE state word from the closed table (evaluation.WATCH_WIRE_STATES) into
+# market_context["watch"]: fired, crossed, lines no LPS yet, forming N of 15, beyond R undetermined, under S
+# undetermined (point 6's precedence row 5, the open right edge), not scanned (the door's leg named, point 24),
+# no lines; "root candidate, unconfirmed" and "broke down" are step 11's words, on the table and never typed
+# before it. The lane's rows are the charts with lines and no fire that clear the display floor below; the floor
+# touches no fire. Flag-off byte-identical: no recorder, no trace, no block on the wire. Display is step 12.
+LPS_LEAVES_ELECTION_ENABLED = False
+WATCH_LANE_MIN_TURNS_PER_RAIL = 2      # his display floor (point 22): committed turns of the line inside each rail's area
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

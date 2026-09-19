@@ -1309,3 +1309,55 @@ silent, most of the rest grade higher on old thin bands. Respect was doing the s
 (the structure ended when price never came back); steps 10 and 11 must replace it before this goes live.
 Step 7 in one line, every switch through step 7 on: 35 / 21 / 12 / 27; without the respect switch 35 / 33 / 15 / 34. Flag-off every guard byte-identical; 5
 mutations red then green (the first share mutation was a dud behind the switch's short-circuit, replaced by two).
+
+## MY DEFAULTS (Sat 19/09/2026): THE SIX QUESTIONS OF TUE 15/09/2026, CLOSED
+
+His rule of Sat 19/09/2026, given to the SOS session and binding here: "Listen I think you are overthinking it and
+adding unnecessary stuff and over fidgeting about huge specific that don't matter and that don't take us any closer
+to our goal ... we've been developing for already 5 months and every session just ends up being another huge rabbit
+hole where I just Chase you question after question, tweak after tweak like when does it end?" and "we just got to
+nail down our core for detecting consolidations and an LPS. the rest is a nice little bonus." So the six questions
+sent with the step-7 report are closed by my defaults, recorded in the decisions record (row 2026-09-19): OHI's
+climax for step 10 is the top of the April to May rise (Wed 20/05/2026, 49.33) with its reaction (Fri 22/05/2026,
+47.36), BMRN's the selling climax Tue 24/03/2026 with its rally to Wed 08/04/2026; the ten chart states of point 22
+go on the wire as written; PR #11 stays open until the approval sitting; commits are signed by the model that wrote
+them; the census check retires at step 12; the app's dates land with step 12's display work. What still reaches him:
+only what changes which setups fire, at the end of a finished piece, one or two things.
+
+## BUILD STEP 8 (Sat 19/09/2026): THE LPS LEAVES THE ELECTION, DARK
+
+LPS_LEAVES_ELECTION_ENABLED with WATCH_LANE_MIN_TURNS_PER_RAIL (2), his point 22: "The LPS stops being a brick of the box
+election (today no LPS means the walk skips to the next root and the chart returns nothing; 72 of the study's 224
+day-reads had lines but no window and showed nothing). The 'no LPS yet' charts sit in a watch lane apart from the
+leaderboard, with a display floor of two turns at each rail on the line (all 35 of yours clear it) that touches no
+fire." Built as one switch: the walk keeps the first valid box with or without an LPS; a box without an LPS never
+fires; the ten state words of point 22 ride the wire in market_context["watch"] with the counts and the lane's rows;
+the open right edge is precedence row 5 of point 6 ("beyond R for N trading days, undetermined", whole bars beyond the
+rail area); "root candidate, unconfirmed" and "broke down" wait for step 11; the display is step 12.
+MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 29 of 35 (YPF
+silent: on Mon 11/05/2026 the walk stops at a box from Fri 14/11/2025, R 39.80 / S 34.42, with no LPS, where his
+44.37 / 42.02 fired before) / 7 (BBVA silent) / 32 (BBVA, SN silent), reader pin PASS; with every switch through step 7
+on 35 / 5 of 35 (27 pinned hits silent; EGBN and ST convert) / 5 (ABEV, BBVA, BMRN, DBD, ENIC, OHI, RLGT silent) / 12, the reader pin failing on those fires. THE LANE on his marks, the day before his first LPS window opens: his rails clear the two-turn floor 35 of
+35 (the fewest turns: YPF 2 at R, 3 at S); alone the engine reads fired 6, lines no LPS yet 14, beyond R 8, no lines 4,
+not scanned 3, the lane holds 22 of 35 and 7 of those are his box to the rail area (BODI, BWA, FOSL, MATX, NGL April,
+NOK, ROIV); with steps 2 to 6 on, 10 read "crossed" (an earlier pullback's trigger crossed under the buy-day rule, his
+window the second LPS), the lane holds 15, 4 his; with the whole stack the lane holds 2024 ranges on 29 of 35 (ST is
+the one on his box): with no LPS to ask for, the oldest-first walk stops at the oldest valid box. Like step 7's three,
+this switch goes live only with steps 10 and 11. Defaults that are mine: committed turns only, the right edge before
+the bought window, turns counted from the box start, the run beyond a rail in whole bars. Flag-off every guard
+byte-identical; 21 mutations red then green.
+
+## HIS RULE (Sat 19/09/2026): BC AND AR BEFORE THE ROOT SWING; DEAD SPACE ON BMRN AND OHI
+
+On the step-7 report, verbatim: "Also the swings for BC and AR are needed to be decided before the Root Swing, because
+said root swing can either be them, or a swing later." So step 10 walks in this order: the climax (the trend's end) and
+its automatic reaction are decided first; the root candidates are then read in time order starting with that very
+pair, and the first pair that wraps the respected range is the root (his answer 2 of the sixteenth sitting, and the
+Option A / Option B walk). He drew on the two renders (OHLC bars, every switch through step 7 on, the purple box the
+walk elects first in time): BMRN, "DEAD SPACE" across the purple box (R 60.93 from Tue 15/04/2025, S 58.00), where
+price sits under it from Jun 2025 to Feb 2026, and again over the space between his R 57.76 and the purple rails at
+the right edge; two red curves the length of the chart at about 62 and 52, the wide range the fifteen months actually
+trade in, his box 57.76 / 53.89 inside it. OHI, "DEAD SPACE" twice inside the purple box (R 44.88 from Tue 30/12/2025,
+S 42.90), under the Feb to Jun 2026 price that runs 45 to 49. Reading: a box price left and never came back to is dead
+space and no candidate; the walk from the climax (step 10) and the box's end (step 11) remove them, the same two
+pieces the step-7 and step-8 measurements found missing. Recorded; built at step 10.

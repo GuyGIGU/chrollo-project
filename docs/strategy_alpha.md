@@ -142,6 +142,13 @@ Third: respect refuses nothing, his Q6; a run beyond a rail is read from what fo
 doing the other half of that same answer, "if the price continues to Rise/Fall with out recovering ... the
 consolidating structure we measured ended": without it and before the box's end is built (step 11), the walk
 elects ranges price left long ago. Step 7 is complete; its three switches go live with steps 10 and 11.
+Step 8 landed DARK (Sat 19/09/2026): the LPS is no longer a brick of the box election. The first box the walk finds is
+the chart's structure whether or not a pullback has formed on it; a box with no LPS never fires; and every chart the door
+admits carries one state word from one table (fired; crossed; lines, no LPS yet; forming N of 15; root candidate,
+unconfirmed; beyond R, undetermined; under S, undetermined; broke down; not scanned; no lines), the charts with lines and
+no fire in a watch lane behind his display floor of two turns at each rail, which all 35 of his marks clear at his rails.
+Measured, it shows what step 7 showed: with nothing left to ask of the oldest root, the walk stops at the oldest range, so
+this switch too goes live with steps 10 and 11.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

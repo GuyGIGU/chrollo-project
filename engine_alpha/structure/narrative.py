@@ -206,10 +206,12 @@ def _support_evidence_starts(df, atr, box, *, inner_present: bool):
 
 
 def _phase_d_boundary(df, atr, box, inner, spring, lps):
+    # A structure may carry no LPS yet (build step 8): Phase D then opens on the right-side evidence alone.
+    lps_start = int(lps.start_bar) if lps is not None else None
     evidence_starts = {"support_tests": None, "sos_reclaim": None,
                       "rising_support": None}
     if df is None or len(df) == 0:
-        last = max(int(lps.start_bar), int(getattr(box, "start_bar", 0)))
+        last = max(lps_start if lps_start is not None else 0, int(getattr(box, "start_bar", 0)))
         v_tip = None
     else:
         last = len(df) - 1
@@ -223,8 +225,8 @@ def _phase_d_boundary(df, atr, box, inner, spring, lps):
 
     return resolve_phase_d_boundary(
         last=last,
-        has_lps_window=True,
-        lps_start=int(lps.start_bar),
+        has_lps_window=lps_start is not None,
+        lps_start=lps_start,
         b=int(box.start_bar),
         phase_c_recovery_bar=(int(spring.recovery_bar) if spring is not None else None),
         phase_d_start_bar=(int(inner.start_bar) if inner is not None else None),
@@ -517,8 +519,12 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
                                                                 inner, atr):
                     rec["outcome"] = "lps_before_spring"
                     rec["lps_floor_bar"] = int(lps_floor)
-            continue                                      # no Phase-D minimum -> not a setup
-        if rec is not None:
+            if not settings.LPS_LEAVES_ELECTION_ENABLED:
+                continue                                  # no Phase-D minimum -> not a setup
+            # Point 22 of the final method (build step 8, dark): the LPS is not a brick of the election. The
+            # first valid box IS the structure, with or without a window (lines, no LPS yet); a structure
+            # without an LPS never fires (evaluation refuses it) and rides the watch lane instead.
+        elif rec is not None:
             rec["lps"] = _lps_brief(lps, lps_in_inner)
             rec["outcome"] = "complete"
             rec["roles"] = _roles_brief(df, box, atr, spring, lps)
@@ -572,11 +578,15 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         if spring is not None:
             phase_b_end = int(spring.tip_bar)
             terminator = "spring"
-        else:
+        elif lps is not None:
             phase_b_end = int(lps.start_bar)
             terminator = "lps"
+        else:
+            phase_b_end = len(df) - 1                     # no terminator yet: Phase B runs to the right edge
+            terminator = "none"
         phase_d = _phase_d_boundary(df, atr, box, inner, spring, lps)
-        phase_d_start = int(phase_d.start_bar)
+        # Without an LPS the resolver may find no right-side evidence: Phase D has not opened (one past the edge).
+        phase_d_start = int(phase_d.start_bar) if phase_d.start_bar is not None else len(df)
 
         return Structure(
             climax_bar=int(climax_bar),

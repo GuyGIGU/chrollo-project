@@ -158,6 +158,23 @@ def turn_line_views(turns, start):
     return pre, box, commits
 
 
+def turns_at_rails(turns, start, R, S, area):
+    """How many COMMITTED turns of the line, at or after ``start``, sit inside each rail's area: peaks within
+    ``area`` of ``R`` and valleys within ``area`` of ``S``. His display floor for the watch lane (final method
+    point 22, build step 8: two turns at each rail). A peak beyond R plus the area is a thrust, not a turn at R,
+    and counts for neither rail; the forming turn at the right edge (``knowable_bar`` None) is not yet a turn.
+    Returns ``(at_r, at_s)``."""
+    at_r = at_s = 0
+    for bar, kind, price, know in turns:
+        if know is None or int(bar) < int(start):
+            continue
+        if kind == "peak" and abs(float(price) - float(R)) <= area:
+            at_r += 1
+        elif kind == "valley" and abs(float(price) - float(S)) <= area:
+            at_s += 1
+    return at_r, at_s
+
+
 def _find_pivots(highs, lows, order):
     """Detect pivot peaks and valleys using a rolling window of given order.
 
