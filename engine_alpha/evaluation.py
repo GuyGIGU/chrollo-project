@@ -700,6 +700,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         _box = structure_ctx["structure"].box
         base_age_fields = {"_base_age_from_anchor":
                            int(len(df) - min(int(_box.r_anchor_bar), int(_box.s_anchor_bar)))}
+    base_age_fields.update(_trend_run_fields(structure_ctx["structure"]))
 
     # The Technical Analysis Grade: the chapter composite over the SAME scored
     # terms plus the story scalars measured just above — computed HERE, in the
@@ -827,6 +828,15 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "trace_fields": trace_fields,
         "strategy_fields": strategy_fields,
     }
+
+
+def _trend_run_fields(structure) -> dict:
+    """Build step 10 (dark): the run the climax ended, as inert facts on the fire row (the trend-context grade
+    is step 12's). Flag-off {} -> byte-identical."""
+    if not settings.CLIMAX_FIRST_WALK_ENABLED:
+        return {}
+    run = getattr(structure, "trend", None) or {}
+    return {"_trend_run_ranges": run.get("ranges"), "_trend_run_days": run.get("days")}
 
 
 def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,

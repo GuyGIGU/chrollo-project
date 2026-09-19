@@ -42,6 +42,9 @@ class RootSwing:
     S: float
     reaction_pct: float
     reaction_bars: int
+    # Build step 10 (dark): the run the climax ended, as facts for the trend-context grade (launch_bar,
+    # ranges, days, end_bar); None on today's percent-recipe seed.
+    run: Optional[dict] = None
 
 
 @dataclass
@@ -179,6 +182,8 @@ def find_root_swing(
     # valid full-df indices; the LPS/spring bricks still read the full df.
     skip = settings.STRUCTURE_EDGE_SKIP_BARS
     eval_df = df.iloc[:-skip] if len(df) > skip else df
+    if settings.CLIMAX_FIRST_WALK_ENABLED:
+        return _root_from_the_line(eval_df, start, atr)     # build step 10: the climax first, on the line
     anchors = collect_root_anchors(eval_df, _seed_clock())
     for kind, climax_bar, ar_bar, R, S in reversed(anchors):
         if climax_bar < start:
@@ -195,6 +200,69 @@ def find_root_swing(
             reaction_bars=int(ar_bar - climax_bar),
         )
     return None
+
+
+def _root_from_the_line(eval_df, start, atr):
+    """Build step 10 (point 3, his rule of Sat 19/09/2026): the climax and its reaction are decided first, on
+    the ONE turn line, and the next root at or after ``start`` is the oldest run whose climax sits there. No
+    percent recipe, no 200-day gate and no age wall on the reaction (the one clock is the box's age from its
+    first anchor, point 9; the window from the climax still has to be as long as the seed clock): the run's
+    size and length ride on the root (``run``) as facts."""
+    from engine_alpha.structure.climax import runs_on_the_line  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    unit = float(atr) if (_finite(atr) and float(atr) > 0) else None
+    turns = turn_line(eval_df["High"].to_numpy(dtype=float), eval_df["Low"].to_numpy(dtype=float),
+                      turn_line_floors(eval_df, unit))
+    for run in runs_on_the_line(turns):
+        if run["climax_bar"] < start:
+            continue
+        if run["kind"] == "BC":
+            R, S = run["climax_price"], run["ar_price"]
+        else:
+            R, S = run["ar_price"], run["climax_price"]
+        denom = R if run["kind"] == "BC" else S
+        size = abs(run["climax_price"] - run["launch_price"])
+        return RootSwing(
+            kind=run["kind"], climax_bar=int(run["climax_bar"]), ar_bar=int(run["ar_bar"]),
+            R=float(R), S=float(S),
+            reaction_pct=round(float((R - S) / denom), 4) if denom > 0 else 0.0,
+            reaction_bars=int(run["ar_bar"] - run["climax_bar"]),
+            run={"launch_bar": int(run["launch_bar"]), "end_bar": int(run["end_bar"]),
+                 "days": int(run["climax_bar"] - run["launch_bar"]),
+                 "ranges": (round(size / unit, 3) if unit else None)},
+        )
+    return None
+
+
+def _line_window_kwargs(eval_df, root, win0, atr):
+    """Build step 10: the candidate pairs of THIS root are the line's own committed turns from its climax up to
+    the next run's climax (each run owns its pairs, so the walk over the runs examines every pair of the line
+    once and the box's Phase A is the run that ends right before it); the climax and its reaction are the FIRST
+    pair (added explicitly when the reaction low is not the turn right after the climax); and a pair must be
+    answered on the whole line after it (``collect_zigzag_candidates``'s answering stage, the rail area in daily
+    ranges). The line is read on the whole chart (point 2), then windowed."""
+    from engine_alpha.structure.climax import runs_on_the_line  # noqa: PLC0415
+    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    unit = float(atr)
+    turns = turn_line(eval_df["High"].to_numpy(dtype=float), eval_df["Low"].to_numpy(dtype=float),
+                      turn_line_floors(eval_df, unit))
+    line = [(int(b) - win0, k, float(p)) for (b, k, p, know) in turns
+            if int(b) >= win0 and know is not None]
+    later = [r["climax_bar"] - win0 for r in runs_on_the_line(turns) if r["climax_bar"] > int(root.climax_bar)]
+    stop = min(later) if later else None
+    # This run's turns: up to and including the first turn at or after the next climax, so the run's last
+    # pair has its second anchor; pairs opening on a later run's turns are that run's.
+    zigzag = line if stop is None else [t for i, t in enumerate(line)
+                                        if t[0] < stop or (i > 0 and line[i - 1][0] < stop)]
+    c_kind, a_kind = ("peak", "valley") if root.kind == "BC" else ("valley", "peak")
+    pos = {(b, k): i for i, (b, k, _p) in enumerate(line)}
+    c, a = pos.get((int(root.climax_bar) - win0, c_kind)), pos.get((int(root.ar_bar) - win0, a_kind))
+    extra = []
+    if c is not None and a is not None and a != c + 1 and float(root.R) > float(root.S):
+        r_bar, s_bar = ((line[c][0], line[a][0]) if root.kind == "BC" else (line[a][0], line[c][0]))
+        extra = [(float(root.R), float(root.S), int(r_bar), int(s_bar))]
+    return {"zigzag": zigzag, "extra_pairs": extra, "answer_line": line,
+            "answer_area": float(settings.LINE_WORD_AREA_ATR) * unit}
 
 
 def _seed_clock() -> int:
@@ -265,7 +333,11 @@ def validate_equilibrium(
     eval_df = df.iloc[:-skip] if len(df) > skip else df
     if root.ar_bar >= len(eval_df):
         return None
-    eq_df = eval_df.iloc[root.ar_bar:]
+    # Build step 10 (dark): the window opens AT the climax, so the climax and its reaction can be the first
+    # pair; today it opens at the reaction.
+    climax_first = settings.CLIMAX_FIRST_WALK_ENABLED
+    win0 = int(root.climax_bar) if climax_first else int(root.ar_bar)
+    eq_df = eval_df.iloc[win0:]
     if len(eq_df) < _seed_clock():
         return None
 
@@ -277,21 +349,23 @@ def validate_equilibrium(
         # the recorder's identity keys must survive across consultations. The
         # enumeration frame + eval ATR ride along as the deferred phase's
         # judged-window basis (references, not copies).
-        near_miss.begin_consultation(int(root.ar_bar), frame=eval_df,
+        near_miss.begin_consultation(win0, frame=eval_df,
                                      atr=float(atr))
     cascade = [] if trace is not None else None
+    line_kw = _line_window_kwargs(eval_df, root, win0, atr) if climax_first else {}
     candidates = collect_zigzag_candidates(
         eq_df,
         float(atr),
         enforce_traversal=True,
         trace=cascade,
         recorder=near_miss,
+        **line_kw,
     )
 
 
     if not candidates:
         if trace is not None:
-            _rebase_pair_trace(cascade, 0, root.ar_bar)
+            _rebase_pair_trace(cascade, 0, win0)
             trace.extend(cascade)
         return None
 
@@ -329,10 +403,10 @@ def validate_equilibrium(
                 winner["detail"] += (
                     f"; start back-extended {int(cand_start - ext_start)} bar(s) "
                     "to a shared-rail pivot (BOX_BACKEXT)")
-        _rebase_pair_trace(cascade, 0, root.ar_bar)
+        _rebase_pair_trace(cascade, 0, win0)
         trace.extend(cascade)
 
-    start_bar = int(root.ar_bar + ext_start)
+    start_bar = int(win0 + ext_start)
     base_len = int(len(df) - start_bar)
     box_df = df.iloc[start_bar:]
     equilibrium = measure_equilibrium(box_df, float(R), float(S), float(atr))
@@ -350,8 +424,8 @@ def validate_equilibrium(
         r_touches=int(r_touches),
         s_touches=int(s_touches),
         breach_days=int(breach_days),
-        r_anchor_bar=int(root.ar_bar + r_anchor),
-        s_anchor_bar=int(root.ar_bar + s_anchor),
+        r_anchor_bar=int(win0 + r_anchor),
+        s_anchor_bar=int(win0 + s_anchor),
         n_full_traversals=n_full,
         traversal_density=float(density),
         equilibrium=equilibrium,
@@ -698,6 +772,10 @@ def resolve_phase_a(
     A third step used to sit here: a flag-gated tighten of the AR to the first
     impulsive reaction. The operator ruled it DELETED 2026-09-08 after it lost
     twice against his own drawn marks; see decisions.md."""
+    if settings.CLIMAX_FIRST_WALK_ENABLED:
+        # Build step 10: the climax was decided first, on the line, and the box was walked from it: the
+        # bridge, the painter and both repairs retire; the root's own pair is Phase A.
+        return int(root.climax_bar), int(root.ar_bar)
     climax_bar, ar_bar = _resolve_phase_a_raw(df, root, box, atr)
     climax_bar, ar_bar = _enforce_bc_downswing(df, root, box, climax_bar, ar_bar)
     climax_bar, ar_bar = _enforce_climax_terminality(df, root, box, climax_bar, ar_bar, atr,
@@ -903,7 +981,8 @@ def cause_maturity(df, box, atr, lps=None) -> CauseVerdict:
 
     # Operand B keeps today's order-1 walk whatever TURN_LINE_ENABLED says: the step-4 line is the event map's
     # site, and the veto folds into a graded trend fact at build step 10 (review finding RF-4, Mon 14/09/2026).
-    tape = read_swing_map(df, box, atr, line=False)
+    tape = read_swing_map(df, box, atr,
+                          line=(None if settings.CLIMAX_FIRST_WALK_ENABLED else False))
     pre_trend = tape["pre_box"]["trend_state"]
     box_trend = tape["box"]["trend_state"]
     live_up_run = (pre_trend == "up" and box_trend == "up")

@@ -525,8 +525,10 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     if n == 0:
         return floor
     if segments is None:
-        # The Phase A climax repair keeps today's skeleton until build step 10 (review finding RF-4).
-        segments = segment_trends(read_market_structure(df, line=False).get("points", []))
+        # The Phase A climax repair kept today's skeleton until build step 10 (review finding RF-4); under the
+        # climax-first walk the trend floor reads the line like everything else.
+        segments = segment_trends(read_market_structure(
+            df, line=(None if settings.CLIMAX_FIRST_WALK_ENABLED else False)).get("points", []))
     for seg in segments:
         end = seg["end_bar"]
         if end is None:

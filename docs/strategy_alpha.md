@@ -153,6 +153,14 @@ Step 9 landed DARK (Sat 19/09/2026): the box opens on the earlier anchor day and
 walk had been opening 15 of his 35 boxes before their anchors, on an earlier touch of a rail. The rails do not move;
 the box is shorter, and two of his marks (MATX, VIK) then fall to the dead-space-on-the-right gate, which becomes a
 comment at step 12, so this switch goes live with the whole method.
+Step 10 landed DARK (Sat 19/09/2026): the climax and its reaction are decided first, on the line, as he said the
+same day ("the swings for BC and AR are needed to be decided before the Root Swing, because said root swing can
+either be them, or a swing later"); each run's pairs are walked forward from its climax with the climax and its
+reaction as the first candidate, and a pair is elected once the swings after it answer to its rails. The percent
+recipe for a climax, the painter that repainted Phase A after the election, and the cause veto are gone under the
+switch; the run into the climax rides as a fact for the grade. Measured, the walk puts his pair first and today's
+respect gate refuses it; with the gates off it elects ranges price left long ago until the box's end exists, so
+this switch goes live with step 11.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)

@@ -857,6 +857,25 @@ WATCH_LANE_MIN_TURNS_PER_RAIL = 2      # his display floor (point 22): committed
 # days on ROIV; the early openings are older roots, steps 10 and 11's.
 BOX_OPENS_ON_ANCHORS_ENABLED = False
 
+# ── The final method, build step 10 (Sat 19/09/2026): the climax first, and the walk from it, DARK ──
+# Points 3 and 4 of docs/final_method_2026-09.md and his rule of Sat 19/09/2026: "the swings for BC and AR are
+# needed to be decided before the Root Swing, because said root swing can either be them, or a swing later".
+# Under the switch the roots are the runs the ONE turn line prints (higher highs and higher lows, or the mirror;
+# a run ends at the first swing that fails to continue it), each run's climax and its reaction low (the lowest low
+# of the reaction before the first higher low, point 4's reaction-low rule) decided FIRST
+# (engine_alpha/structure/climax.py, bricks.find_root_swing); the window opens AT the climax and the candidate
+# pairs are the line's own turns walked forward from it, the climax and its reaction the first pair; a pair is a
+# candidate once the following swings answer to its rails (a later committed turn of the line inside each
+# rail's area, LINE_WORD_AREA_ATR); first in time wins as before (R4). Retired under the switch: the seed's
+# percent recipe (TREND_MIN_GAIN_PCT 15 percent in TREND_MIN_MOVE_BARS 20 days, AR_MIN_DROP_PCT, AR_MAX_BARS,
+# LOCAL_PEAK_BARS, TREND_PRIOR_LOOKBACK) and its ROOT_TREND_SMA gate; the Phase A painter and the macro bridge
+# (resolve_phase_a returns the root's own pair; PIP_MACRO_MIN_BASE_BARS then has no reader); the
+# cause-before-effect veto (no abstention any more: the run's size in ranges and its length ride on the fire as
+# facts, _trend_run_ranges / _trend_run_days, for step 12's trend-context grade); the two RF-4 sites read the
+# line. T5, the opening leg's direction on the line, is the test of the anchoring, never a veto (Tested-DEAD).
+# Flag-off byte-identical.
+CLIMAX_FIRST_WALK_ENABLED = False
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

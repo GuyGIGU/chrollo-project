@@ -771,6 +771,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 9 (Sat 19/09/2026): the box opens on the anchors, DARK.** One default-off switch, `BOX_OPENS_ON_ANCHORS_ENABLED`, on the manifest. `box_primitives.backext_shared_rail` (the shared-rail back-extension of an elected framing's start, unconditional since the 2026-07-18 fold: it walked the start left to the earliest rail-touching pivot with every intervening bar inside the buffered band) returns `cand_start`, the anchor pair's own start, under the switch; `bricks.validate_equilibrium` (the live walk) and `phase_b_zigzag` (the diagnostic mirror) both call that one function, so `box.start_bar` becomes `root.ar_bar + min(r_anchor, s_anchor)` and the trace's `backext_bars` never appears. Rails, anchors and the election are untouched; every read anchored to the start re-measures on the shorter base (base age, traversal, dwell, the descent tail, the spring, inner-box and LPS windows). Measured alone, the start moves later on 15 of his 35 marks and the descent-tail gate refuses MATX and VIK on the shorter base; that gate becomes a comment at step 12. The scoreboard is in the decisions record (2026-09-19, build step 9).
 
+**The final method, build step 10 (Sat 19/09/2026): the climax first, on the line, and the walk from it, DARK.** One default-off switch, `CLIMAX_FIRST_WALK_ENABLED`, on the manifest. `engine_alpha/structure/climax.py` (`runs_on_the_line`) is a pure function of the turn line: every run (two peaks and two valleys rising, or the mirror), ended by the first swing that fails to continue it; its climax (the run's extreme), its launch, and its reaction by the reaction-low rule (the lowest low before the first committed higher low; a forming turn decides nothing). `bricks.find_root_swing` returns those runs as `RootSwing`s oldest first under the switch (`_root_from_the_line`: `collect_root_anchors` and its percent recipe, 200-day gate and reaction-age wall are not consulted; the run rides as `RootSwing.run`). `bricks.validate_equilibrium` opens the window at `root.climax_bar` (`win0`, the reaction bar flag-off), rebases every anchor and trace to it, and passes `_line_window_kwargs` to `collect_zigzag_candidates`: `zigzag` = this run's committed turns (from the climax up to and including the first turn at or after the next run's climax, so each run owns its pairs), `extra_pairs` = the climax and its reaction when they are not consecutive limbs, `answer_line` = the whole window's committed turns, `answer_area` = `LINE_WORD_AREA_ATR` times the zone ATR. `box_primitives.collect_zigzag_candidates` takes those four kwargs (None = today's skeleton, byte-identical): the pairs are the extra pairs then `_oriented_pairs(zigzag)`, and the answering stage (`_answered` on the answer line: a later committed turn inside each rail's area) refuses in the strict pool at stage "answering", trace only; the band and story pools read the same zigzag. `narrative._walk_structure` visits every run under the switch (the loop bound is the frame's length, the 64-root cap stays the percent seed's), skips the cause veto and carries the run as `Structure.trend`; `resolve_phase_a` returns the root's own pair; `evaluation._trend_run_fields` puts `_trend_run_ranges` / `_trend_run_days` on the fire row, inert. The two RF-4 sites (`cause_maturity`'s `read_swing_map` and `trend_terminal_floor`'s `read_market_structure`) pass `line=None` under the switch. The scoreboard is in the decisions record (2026-09-19, build step 10).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1272,7 +1274,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `4842c016dd967e0fabc81374e8813846a9f1b77ecb8bc534278111592c4f7b61`_
+_engine_config_version: `6ef465f5cd7eb2fd6db807d1675d1c58144b211cb4cab3a176e7da33c07ed0c7`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1392,6 +1394,7 @@ RESPECT_GRADED_ENABLED = False
 LPS_LEAVES_ELECTION_ENABLED = False
 WATCH_LANE_MIN_TURNS_PER_RAIL = 2
 BOX_OPENS_ON_ANCHORS_ENABLED = False
+CLIMAX_FIRST_WALK_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

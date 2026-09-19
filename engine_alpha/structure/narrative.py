@@ -105,6 +105,9 @@ class Structure:
     phase_d_source: str
     phase_d_evidence: dict
     terminator: str              # "spring" | "lps" — what ended Phase B (provenance)
+    # Build step 10 (dark): the run the climax ended (launch_bar, ranges, days, end_bar), the trend-context fact
+    # that replaces the cause veto; None flag-off.
+    trend: Optional[dict] = None
 
     @property
     def has_spring(self) -> bool:
@@ -422,7 +425,9 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         from engine_alpha.structure import bricks  # noqa: PLC0415 — lazy: real validators
 
     search_from = 0
-    for i in range(_MAX_ANCHORS):
+    # Build step 10 (dark): the roots are the line's runs, finite and each visited once; the loop cap stays
+    # the percent-recipe seed's guard flag-off.
+    for i in range(len(df) if settings.CLIMAX_FIRST_WALK_ENABLED else _MAX_ANCHORS):
         # Phase A: the next root swing at/after the cursor (oldest-first = longest cause).
         root = bricks.find_root_swing(df, search_from_bar=search_from, atr=atr)
         if root is None:
@@ -559,7 +564,8 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         # re-elect the identical causeless geometry — abstaining is the
         # operator's "no setup at all". Flag-gated: OFF -> the block is dead, no
         # call, zero cost, byte-identical.
-        if settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED:
+        # Build step 10 (dark): the veto folds into a graded trend fact (the root's run, below); no abstention.
+        if settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED and not settings.CLIMAX_FIRST_WALK_ENABLED:
             cause = bricks.cause_maturity(df, box, atr, lps)
             if not cause.matured:
                 if rec is not None:
@@ -605,6 +611,7 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
             phase_d_source=phase_d.source,
             phase_d_evidence=phase_d.evidence,
             terminator=terminator,
+            trend=getattr(root, "run", None),
         )
 
     return None

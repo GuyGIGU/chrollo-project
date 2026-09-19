@@ -1375,3 +1375,20 @@ last support touch against a base 11 and 6 trading days shorter (the step-8 reco
 tail"). That gate becomes a comment at step 12, so the switch goes live with the whole method. The critics' count of
 Sun 13/09/2026 ("0 days on 10 of 11, ROIV 4") counted fired-window days, not the shift, and only the eleven boxes that
 open before his climax. Flag-off every guard byte-identical; 4 mutations red then green.
+
+## BUILD STEP 10 (Sat 19/09/2026): THE CLIMAX FIRST, ON THE LINE, AND THE WALK FROM IT, DARK
+
+CLIMAX_FIRST_WALK_ENABLED, his points 3 and 4 and his rule of Sat 19/09/2026 ("the swings for BC and AR are needed to be
+decided before the Root Swing, because said root swing can either be them, or a swing later"). Built as one switch:
+the runs on the line (climax.py), the root from the run (bricks), the window from the climax with each run owning
+its pairs, the climax pair first, the answering stage on the whole line (box_primitives), the painter and the veto
+retired, the run as a fact, every run visited. The first cut let every root re-walk every later pair: it churned
+through the 64-root cap by mid-2025 on SYRE and NGL and painted a 2024 climax on MATX's 2026 box; replaced the same
+day. An age wall on the reaction (today's seed's) was dropped the same day: it blocked every young structure.
+MEASURED on the frozen fire day of his 35 marks: control fires 30, the engine's rails his on 14, box and open his on 10, the opening leg WITH the price on 10 (T5); the switch alone fires 22, rails his 9, box and open his 5 (ANRO, BODI, EWTX, JAZZ, MATX to the cent), WITH 6; with the respect switch too fires 21, rails his 5, box and open his 1, WITH 6, and 8 charts on ranges price left long ago; with every switch through step 9 on except the no-LPS one fires 7, rails his 0, 16 on old ranges; with every switch through step 9 on fires 0, 31 read beyond R on 2024 ranges. Scoreboard (his windows / ratchet / junk firing / fleet
+firing; control 20 / 30 / 8 / 34): alone 20 / 28 of 35 plus EGBN and NOK converting (PBT and SYRE silent) / 11 (AEF silent; BBVA, COLM, DGII and FLG fire) / 32 (EC and SN silent; the box moves on most of the rest), reader pin PASS; every switch through step 9 on except the no-LPS one 35 / 19 of 35 (14 pinned hits silent; EGBN, NOK and ST convert) / 12 / 27, the reader pin failing on those fires (step 7's shape again: ranges price left long ago win once respect refuses nothing); every
+switch through step 9 on 35 / 2 of 35 (28 pinned hits silent) / 2 / 6, the reader pin failing on those fires: with no LPS to ask for and no gate the walk stops at the oldest run's box. SYRE is the specimen: the run ending Thu 11/12/2025 puts his exact pair (R 35.31 /
+S 32.26, anchors Thu 11/12 and Tue 16/12/2025) first, and today's respect gate refuses it (0.73 under 0.80); with the
+gates off the walk elects ranges price left long ago until the box's end exists (step 11). The line prints a run
+every two or three turns (80 to 90 roots on a two-year frame, most one to three ranges tall): the run's size is a
+fact for the grade, never a gate (his rule). Flag-off every guard byte-identical; 23 mutations red then green.

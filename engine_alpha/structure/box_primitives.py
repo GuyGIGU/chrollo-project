@@ -392,9 +392,24 @@ def _still_backing_up(last_close, R_val, atr_val) -> bool:
     return bool(last_close <= R_val * settings.EXTENSION_FILTER_MULT)
 
 
+def _answered(zigzag, R_val, S_val, second_anchor_bar, area) -> bool:
+    """Point 4 of the final method (build step 10): a pair is a candidate once the swings after it answer to
+    its rails, a later committed turn of the line inside R's area and one inside S's area."""
+    at_r = at_s = False
+    for bar, kind, price in zigzag:
+        if bar <= second_anchor_bar:
+            continue
+        if kind == "peak" and abs(price - R_val) <= area:
+            at_r = True
+        elif kind == "valley" and abs(price - S_val) <= area:
+            at_s = True
+    return at_r and at_s
+
+
 def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
-                              recorder=None):
+                              recorder=None, zigzag=None, extra_pairs=None,
+                              answer_area=None, answer_line=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
 
     ``trace``: optional list; when given, every pair examined is recorded with
@@ -410,16 +425,25 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     inner boxes and the diagnostic mirror never do). ``None`` = record
     nothing, byte-identical. Policy stages (rescue_unused / dethroned /
     story) are election policy, never gate legs — the recorder ignores them.
+
+    Build step 10 (``CLIMAX_FIRST_WALK_ENABLED``, all three None flag-off = byte-identical): ``zigzag`` is
+    the line's own committed turns over this window in place of the order-N skeleton; ``extra_pairs`` are
+    pairs examined BEFORE the consecutive limbs (the climax and its reaction, his first candidate);
+    ``answer_area`` arms the answering stage, point 4's "the first pair whose rails the following swings
+    answer to": a pair not yet answered (``_answered``) is refused at stage "answering", trace only; the
+    answer is read on ``answer_line`` (the whole line after the pair) when given, else on ``zigzag``.
     """
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
-    peaks_idx, valleys_idx, zigzag = _swing_skeleton(
-        eq_highs, eq_lows, _pivot_order(len(eq_df)), _find_pivots)
-    if not peaks_idx or not valleys_idx:
-        return []
+    if zigzag is None:
+        peaks_idx, valleys_idx, zigzag = _swing_skeleton(
+            eq_highs, eq_lows, _pivot_order(len(eq_df)), _find_pivots)
+        if not peaks_idx or not valleys_idx:
+            return []
     if len(zigzag) < 2:
         return []
+    pairs = list(extra_pairs or []) + list(_oriented_pairs(zigzag))
 
     # Two pools: STRICT framings pass respect + occupancy over the full window
     # (the legacy rule, byte-identical); RESCUED framings only pass once a
@@ -428,7 +452,7 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # in-range setup is never re-framed — the trim can only save a box that would
     # otherwise be rejected outright (NMM's break above R, then a rest on it).
     strict, rescued = [], []
-    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in pairs:
         box_width = (R_val - S_val) / S_val
         if _width_refuses(box_width, settings.MAX_BOX_WIDTH):
             if recorder is not None:
@@ -445,6 +469,15 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                             R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
                             min(r_anchor_bar, s_anchor_bar),
                             legs=[_leg_record("width", float(box_width), width_max)])
+            continue
+        if answer_area is not None and not _answered(answer_line if answer_line is not None else zigzag,
+                                                     R_val, S_val, max(r_anchor_bar, s_anchor_bar),
+                                                     answer_area):
+            if trace is not None:
+                _trace_pair(trace, "rejected", "answering",
+                            "no later turn of the line inside each rail's area yet",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            min(r_anchor_bar, s_anchor_bar))
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
