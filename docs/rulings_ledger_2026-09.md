@@ -1450,3 +1450,16 @@ change for 1 (FOSL stays) and 3 (the SOS fallback stays). For the build session'
 out of the top is "upthrust"; the other proposed words are dropped. Measured on his live marks: Phase C 10 of 10,
 THE upthrust on 3 boxes (UNF, FOSL, VIK), the last supper 10 of 10, THE SOS 23 of 25. Nothing is owed from him on the
 words.
+
+## HIS VIK READ (Sat 19/09/2026), VERBATIM
+
+On his own VIK picture: purple UT, green SOS, red LS and LPS, his two rails.
+
+> Did you understand VIK though? Purple mark: Up Thrust - big quick hard breach of support that then crashes/recovers back into the structure in the middle of the consolidation (Phase B = is the consolidation stage that represents the general chop, price moves between the boundaries (Resistance & Support) randomly with out any notable events) in nature the Up thrust can be similar to a Spring but in reverse being a Resistance based event swing rather then support. but it's not classified as its own phase. then after said Recovery the big Green Mark is the SOS a strong push in buyers that happens later in the structure but the thing that confirms it is the 2 weak DIPS afterwards (can also be classified as a single straight pullback) where the LPS develops + its resting on the resistance -> turning it to a classic Long Position setups
+
+The dark reader reads it so on his rails: THE upthrust Tue 12/05 to Thu 14/05/2026, no spring, THE SOS Wed 20/05 to
+Thu 28/05/2026, the last supper Thu 28/05 to Wed 03/06/2026, his LPS Fri 05/06 to Mon 08/06 on his R.
+FOR THE BUILD SESSION (the core, its steps 10 and 11): the engine's own box on his fire day puts R at 92.00, the top
+of his upthrust, where his R is 87.00, and opens on Mon 04/05 where his opens on Tue 21/04. It finds the same SOS,
+last supper and LPS days, but the upthrust has become the ceiling, so his LPS "resting on the resistance" reads as a
+dip inside the box. By his words the upthrust is a Phase B event inside the structure, never a rail.
