@@ -1361,3 +1361,17 @@ trade in, his box 57.76 / 53.89 inside it. OHI, "DEAD SPACE" twice inside the pu
 S 42.90), under the Feb to Jun 2026 price that runs 45 to 49. Reading: a box price left and never came back to is dead
 space and no candidate; the walk from the climax (step 10) and the box's end (step 11) remove them, the same two
 pieces the step-7 and step-8 measurements found missing. Recorded; built at step 10.
+
+## BUILD STEP 9 (Sat 19/09/2026): THE BOX OPENS ON THE ANCHORS, DARK
+
+BOX_OPENS_ON_ANCHORS_ENABLED, his ruling ("No, Box opens on the anchors of each of the Boundary rail (Resistance &
+Support)") and point 5 ("the box opens on the earlier anchor day, each rail from its own anchor, and never extends
+left"). Built as one switch inside box_primitives.backext_shared_rail, the one function both callers read: the
+elected start stays the anchor pair's own instead of walking left to an earlier rail-touching pivot.
+MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone windows 20, ratchet 29 of 35 (MATX silent; VIK keeps one of its fire days), junk the same 8 (BMRN and OHI score higher), fleet the same 34 (base lengths shorter; EC and HVT A to B, TRS C to B, VLO B to A; GF one fire day fewer, VIK's first fire two days later), reader pin PASS. On his 35
+marks the rails are identical everywhere and the box start moves later on 15 (1 to 19 trading days: WTS 19, NGL April 15, NTCT 12, MATX 11, MRK 10);
+the tier moves on 6 fire days and the score on most of the rest; MATX loses both fire days and VIK five of six, both to the descent-tail gate reading the
+last support touch against a base 11 and 6 trading days shorter (the step-8 recorder names it: "no lines, descent
+tail"). That gate becomes a comment at step 12, so the switch goes live with the whole method. The critics' count of
+Sun 13/09/2026 ("0 days on 10 of 11, ROIV 4") counted fired-window days, not the shift, and only the eleven boxes that
+open before his climax. Flag-off every guard byte-identical; 4 mutations red then green.

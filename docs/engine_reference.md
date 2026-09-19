@@ -769,6 +769,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 8 (Sat 19/09/2026): the LPS leaves the election, DARK.** One default-off switch, `LPS_LEAVES_ELECTION_ENABLED`, and his display floor `WATCH_LANE_MIN_TURNS_PER_RAIL` (2), both on the manifest. `narrative._walk_structure` returns the first valid box with or without an LPS: with none, the `Structure` carries `lps=None`, `terminator="none"`, Phase B to the right edge and Phase D from `_phase_d_boundary` with `has_lps_window=False` (the right-side evidence alone, else `len(df)`: not opened); the trace record keeps outcome `no_lps` with its rejects; the cause read runs with `lps=None` (its shelf operand reads 0.0, never a veto). `evaluation._resolve_lps_context` refuses a structure without an LPS: no fire. The state word: `_run_eval_chain` takes a `watch` recorder (a dict; None on every flag-off caller, byte-identical) that the chain fills at the exit it takes. The door's reasoned twin names its leg ("not scanned"); `_resolve_structure_context` runs the walk with a trace whenever it watches (the export keeps its own flag) and types a refused walk with `_walk_refused_state` ("forming N of 15" from the oldest `forming` record, else "no lines" with the outcome); `_chart_state` types a chart with lines and no fire: `_right_edge_run` first (precedence row 5: whole bars beyond a rail's area, `LINE_WORD_AREA_ATR` times the zone ATR, counted back from today), then a no-LPS box as "crossed" when `_lps_was_bought` finds the walk's own "bought" reject and "lines, no LPS yet" otherwise; a trigger behind the close is "crossed"; the descent tail rides as "no lines" with a `why` until step 12. `WATCH_WIRE_STATES` is the closed table (his ten words verbatim; "root candidate, unconfirmed" and "broke down" wait for step 11), `watch_verdict` validates at the publisher, `WATCH_LANE_STATES` names the four the lane shows; `_lane_row` reads the line (`pivots.turn_line` on the prepared frame) and `pivots.turns_at_rails` (committed turns inside each rail's area from the box start) against the floor and carries R, S, open, age, the turn counts, the close, the run length, the forming clock and the why. `evaluate_ticker_with_watch` is an OUTER twin: the screener binds the ladder's own rung as `inner` (`functools.partial`), the recorder rides that one read, the stats are keyed by the word itself, and `market_context["watch"] = {"candidates", "counts"}` rides the payload (absent flag-off). Measured, the switch shows the walk's shape once more: with no LPS to ask for, the oldest-first walk stops at the oldest valid box, so it goes live only with steps 10 and 11. The scoreboard is in the decisions record (2026-09-19, build step 8).
 
+**The final method, build step 9 (Sat 19/09/2026): the box opens on the anchors, DARK.** One default-off switch, `BOX_OPENS_ON_ANCHORS_ENABLED`, on the manifest. `box_primitives.backext_shared_rail` (the shared-rail back-extension of an elected framing's start, unconditional since the 2026-07-18 fold: it walked the start left to the earliest rail-touching pivot with every intervening bar inside the buffered band) returns `cand_start`, the anchor pair's own start, under the switch; `bricks.validate_equilibrium` (the live walk) and `phase_b_zigzag` (the diagnostic mirror) both call that one function, so `box.start_bar` becomes `root.ar_bar + min(r_anchor, s_anchor)` and the trace's `backext_bars` never appears. Rails, anchors and the election are untouched; every read anchored to the start re-measures on the shorter base (base age, traversal, dwell, the descent tail, the spring, inner-box and LPS windows). Measured alone, the start moves later on 15 of his 35 marks and the descent-tail gate refuses MATX and VIK on the shorter base; that gate becomes a comment at step 12. The scoreboard is in the decisions record (2026-09-19, build step 9).
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1270,7 +1272,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `6ebd98cb019f3d1ac8d03b41bd5abc87c408d6d62377945988eeed9583b59602`_
+_engine_config_version: `4842c016dd967e0fabc81374e8813846a9f1b77ecb8bc534278111592c4f7b61`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1389,6 +1391,7 @@ DEPTH_CAPS_GRADED_ENABLED = False
 RESPECT_GRADED_ENABLED = False
 LPS_LEAVES_ELECTION_ENABLED = False
 WATCH_LANE_MIN_TURNS_PER_RAIL = 2
+BOX_OPENS_ON_ANCHORS_ENABLED = False
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

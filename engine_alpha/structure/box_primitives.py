@@ -802,8 +802,11 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     (base-age, traversal, contractions, support slope, dwell, touch-volume,
     bar compression), the spring / inner-box / LPS windows, bin evidence,
     the event story. Returns the (possibly unchanged) window-relative start.
+
+    Point 5 of the final method (build step 9, dark, ``BOX_OPENS_ON_ANCHORS_ENABLED``): the box opens on the
+    earlier anchor day and never extends left, so under the switch the start is the anchor pair's own.
     """
-    if cand_start <= 0:
+    if cand_start <= 0 or settings.BOX_OPENS_ON_ANCHORS_ENABLED:
         return cand_start
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values

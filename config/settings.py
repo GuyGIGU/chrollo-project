@@ -847,6 +847,16 @@ RESPECT_GRADED_ENABLED = False
 LPS_LEAVES_ELECTION_ENABLED = False
 WATCH_LANE_MIN_TURNS_PER_RAIL = 2      # his display floor (point 22): committed turns of the line inside each rail's area
 
+# ── The final method, build step 9 (Sat 19/09/2026): the box opens on the anchors, DARK ──
+# Point 5 of docs/final_method_2026-09.md, his ruling of Sat 12/09/2026: "No, Box opens on the anchors of each of the
+# Boundary rail (Resistance & Support)". The box opens on the earlier anchor day, each rail from its own anchor, and
+# never extends left: the shared-rail back-extension (box_primitives.backext_shared_rail, folded unconditional on
+# 2026-07-18) stops moving the elected start to an earlier rail-touching pivot. Both its callers read the one
+# function (bricks.validate_equilibrium, the live walk; find_outer_box's diagnostic mirror). Measured before the
+# build (the critics' count, Sun 13/09/2026): the extension moves 0 days on 10 of the 11 early-opening boxes and 4
+# days on ROIV; the early openings are older roots, steps 10 and 11's.
+BOX_OPENS_ON_ANCHORS_ENABLED = False
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.

@@ -149,6 +149,10 @@ unconfirmed; beyond R, undetermined; under S, undetermined; broke down; not scan
 no fire in a watch lane behind his display floor of two turns at each rail, which all 35 of his marks clear at his rails.
 Measured, it shows what step 7 showed: with nothing left to ask of the oldest root, the walk stops at the oldest range, so
 this switch too goes live with steps 10 and 11.
+Step 9 landed DARK (Sat 19/09/2026): the box opens on the earlier anchor day and never extends left, his ruling; the
+walk had been opening 15 of his 35 boxes before their anchors, on an earlier touch of a rail. The rails do not move;
+the box is shorter, and two of his marks (MATX, VIK) then fall to the dead-space-on-the-right gate, which becomes a
+comment at step 12, so this switch goes live with the whole method.
 Flags off, the engine reads exactly as it did.
 
 ### The legend (strict vocabulary)
