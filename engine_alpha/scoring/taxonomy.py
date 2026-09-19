@@ -48,8 +48,18 @@ class TermSpec:
     chapter: Optional[str] = None     # story chapter (CHAPTER_ORDER); None on the regime layer
 
     def cap(self) -> float:
-        """The term's point cap, resolved lazily from settings at call time."""
-        return float(getattr(settings, self.cap_setting))
+        """The term's point cap, resolved lazily at call time (``cap_of``)."""
+        return cap_of(self.cap_setting)
+
+
+def cap_of(name: str) -> float:
+    """A term's point cap by its settings NAME: the grade ledger's value under ``GRADE_LEDGER_ENABLED`` (the
+    final method, build step 12, point 21: the caps the ledger moves sit in ``GRADE_LEDGER_CAPS``; every other
+    cap stays as set), else the setting itself. The ONE resolver the scorer, the divisor and the chapters share,
+    so a weight can never move in one place and not the other. Flag-off byte-identical."""
+    if settings.GRADE_LEDGER_ENABLED and name in settings.GRADE_LEDGER_CAPS:
+        return float(settings.GRADE_LEDGER_CAPS[name])
+    return float(getattr(settings, name))
 
 
 

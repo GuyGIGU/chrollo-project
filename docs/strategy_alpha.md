@@ -182,6 +182,15 @@ Step 12, part one (Sat 19/09/2026): the Power Play species lane is deleted, no s
 clock: the 15-day floor from the first anchor (step 6) is the one length floor, a Power Play is a fired setup
 whose trend fact reads pole, and box length is archived with no points. His marks and verdict corpora stay
 sealed; the resistance-contraction story form stays, dark, as the contraction rescue's form.
+Step 12, part two, landed DARK (Sat 19/09/2026): the grade ledger. Under one switch the grade reads three
+things: the box's height in daily ranges, the spread profile (the LPS window's mean bar spread in ranges, the
+box's bar texture as the multiplier it is) and the event map (the committed turns at each rail on the line in
+place of touch bars; the story's completeness). Base age, the volume dry-up, the ATR squeeze, the VCP
+contractions, ascending support, ADR and the 52-week proximity go to zero weight and stay archived. A named
+leg on the map is never dead space; an unnamed lunge is docked, spring or no spring. Tier S needs a height of
+2.5 ranges or under, and the letter's cuts move one tier up on the re-based scale. THE SOS's ground and the
+LPS traits stay data. Every number is placed from his marks and he sees the weights before they move
+(docs/grade_ledger_2026-09.md).
 The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
 he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
 push after the middle; the upthrust is his reverse spring in Phase B, one per box, the most developed push out of the

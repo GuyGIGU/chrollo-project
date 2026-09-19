@@ -43,6 +43,7 @@ from engine_alpha.structure.metrics import (
     traversals_per_20d,
 )
 from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.pivots import turn_line, turn_line_floors, turns_at_rails
 from engine_alpha.structure.phase_d import (
     final_v_tip_bar,
     support_test_evidence_starts,
@@ -228,6 +229,64 @@ def descent_tail_drops(frame, parent_equilibrium, box_width, inner, lps_in_inner
         gate_width = box_width
     return descent_tail_rejects(gate_eq.get("last_support_time_pos"),
                                 gate_eq.get("low_position_in_box"), gate_width)
+
+
+def _named_legs(words: dict) -> list:
+    """(first bar, last bar) of every named leg on the map (point 21): the spring's dip and its recovery to the
+    support area, the upthrust's climb and its crash back, THE SOS's leg, each last supper's dig."""
+    legs = []
+    pc = words.get("phase_c")
+    if pc:
+        legs.append((pc.get("start_bar"), pc.get("reach_bar") or pc.get("tip_bar")))
+    up = words.get("the_upthrust")
+    if up:
+        legs.append((up.get("swing_bar"), up.get("back_bar") or up.get("top_bar")))
+    sos = words.get("the_sos")
+    if sos:
+        legs.append((sos.get("launch_bar"), sos.get("top_bar")))
+    for supper in words.get("last_suppers") or []:
+        legs.append((supper.get("top_bar"), supper.get("low_bar")))
+    return [(int(a), int(b)) for a, b in legs if a is not None and b is not None]
+
+
+def _largest_limb(line, start, R, S):
+    """The largest swing between consecutive committed turns of the line at or after ``start``, as a fraction
+    of the box's height, with its two bars: ``(fraction, first bar, last bar)``; None with fewer than two turns."""
+    turns = [(int(b), float(p)) for (b, k, p, know) in line if know is not None and int(b) >= int(start)]
+    best = None
+    for (b0, p0), (b1, p1) in zip(turns, turns[1:]):
+        frac = abs(p1 - p0) / (float(R) - float(S))
+        if best is None or frac > best[0]:
+            best = (frac, b0, b1)
+    return best
+
+
+def _ledger_reads(df: pd.DataFrame, structure_ctx: dict, words) -> dict:
+    """The grade ledger's reads (the final method, build step 12, point 21), on the elected box and the ONE
+    turn line: the box's height in daily ranges, the committed turns at each rail, the LPS window's mean bar
+    spread in ranges, the box's largest limb on the line and whether it is a named leg on the map (``words``,
+    the line words' record, or None when no word is read: then nothing is named). The unit is the box's
+    frozen one when the box's end froze it (step 11), else the read day's ATR_10."""
+    structure = structure_ctx["structure"]
+    box = structure.box
+    unit = float(getattr(structure, "unit", None) or structure_ctx["atr_for_zone"])
+    R, S = float(structure_ctx["res_avg"]), float(structure_ctx["sup_avg"])
+    highs, lows = df["High"].to_numpy(dtype=float), df["Low"].to_numpy(dtype=float)
+    line = turn_line(highs, lows, turn_line_floors(df, unit))
+    turns = turns_at_rails(line, int(box.start_bar), R, S, settings.LINE_WORD_AREA_ATR * unit)
+    window = None
+    lps = structure.lps
+    if lps is not None and int(lps.end_bar) > int(lps.start_bar):
+        a, b = int(lps.start_bar), int(lps.end_bar)                  # end exclusive
+        window = float((highs[a:b] - lows[a:b]).mean() / unit)
+    out = {"height_ranges": (R - S) / unit, "turns": turns, "window_spread_ranges": window,
+           "largest_limb_named": None}
+    limb = _largest_limb(line, box.start_bar, R, S)
+    if limb is not None:
+        out["max_swing_frac"] = float(limb[0])
+        if words is not None:
+            out["largest_limb_named"] = any(not (limb[2] < a or limb[1] > b) for a, b in _named_legs(words))
+    return out
 
 
 def score_equilibrium_args(equilibrium, dwell_balance, bins) -> dict:
@@ -600,6 +659,26 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         spring=_struct.spring, lps=_struct.lps,
     )
 
+    # The words on the line (final method build step 5, measure-only, dark): the
+    # turn line's words over the elected box, carried as ONE JSON string and only
+    # when a word flag is on. Nothing reads it but the grade ledger's pardon below
+    # (build step 12, dark): not the archive writer, not the wire. Flag-off it reads
+    # six settings, computes nothing and spreads {} -> byte-identical.
+    line_words_fields, _words = {}, None
+    if line_words.any_word_enabled():
+        _words = line_words.read_line_words(
+            df, _struct.box, structure_ctx["atr_for_zone"],
+            lps=_struct.lps, inner=_struct.inner,
+        )
+        line_words_fields = {"_line_words_json": line_words.emitted(_words)}
+
+    # The grade ledger's reads (final method build step 12, dark): flag-off {} -> byte-identical.
+    ledger_kw = _ledger_reads(df, structure_ctx, _words) if settings.GRADE_LEDGER_ENABLED else {}
+    equilibrium_kw = score_equilibrium_args(
+        measurements["equilibrium"], measurements["dwell_balance"], bins
+    )
+    equilibrium_kw.update(ledger_kw)
+
     score_result = score_setup(
         structure_ctx["box_width"],
         structure_ctx["r_touches"],
@@ -618,9 +697,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         adr_value=adr_value,
         bar_compression=measurements["bar_compression"],
         narrative=narrative,
-        **score_equilibrium_args(
-            measurements["equilibrium"], measurements["dwell_balance"], bins
-        ),
+        **equilibrium_kw,
     )
     score = score_result['total']
 
@@ -680,20 +757,6 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
                                        structure_ctx["atr_for_zone"]),
         }
 
-    # The words on the line (final method build step 5, measure-only, dark): the
-    # turn line's words over the elected box, carried as ONE JSON string and only
-    # when a word flag is on. Nothing reads it: not the grade below, not the
-    # archive writer, not the wire. Flag-off it reads six settings, computes
-    # nothing and spreads {} -> byte-identical.
-    line_words_fields = {}
-    if line_words.any_word_enabled():
-        _struct = structure_ctx["structure"]
-        _words = line_words.read_line_words(
-            df, _struct.box, structure_ctx["atr_for_zone"],
-            lps=_struct.lps, inner=_struct.inner,
-        )
-        line_words_fields = {"_line_words_json": line_words.emitted(_words)}
-
     # The box's age from its first rail anchor (final method build step 6, measure-only, dark): carried only
     # with the 15-day floor on, so the young fires can be listed; nothing reads it. Flag-off {} -> byte-identical.
     base_age_fields = {}
@@ -702,6 +765,15 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         base_age_fields = {"_base_age_from_anchor":
                            int(len(df) - min(int(_box.r_anchor_bar), int(_box.s_anchor_bar)))}
     base_age_fields.update(_trend_run_fields(structure_ctx["structure"]))
+
+    # The grade ledger's reads on the wire (build step 12, dark): flag-off {} -> byte-identical.
+    turns = ledger_kw.get("turns")
+    ledger_fields = ({"_height_ranges": ledger_kw.get("height_ranges"),
+                      "_turns_at_r": (int(turns[0]) if turns else None),
+                      "_turns_at_s": (int(turns[1]) if turns else None),
+                      "_window_spread_ranges": ledger_kw.get("window_spread_ranges"),
+                      "_largest_limb_named": ledger_kw.get("largest_limb_named")}
+                     if ledger_kw else {})
 
     # The Technical Analysis Grade: the chapter composite over the SAME scored
     # terms plus the story scalars measured just above — computed HERE, in the
@@ -716,6 +788,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         event_map=_em_scalars or None,
         htf=htf_ctx or None,
         box_width=structure_ctx["box_width"],
+        height_ranges=ledger_kw.get("height_ranges"),
     )
     # Archive-ready field names, mapped in this ONE place: the grade
     # family keeps its own names (_ta_grade*); per-term v2 points take
@@ -824,6 +897,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "event_map_fields": event_map_fields,
         "line_words_fields": line_words_fields,
         "base_age_fields": base_age_fields,
+        "ledger_fields": ledger_fields,
         "ta_grade_fields": ta_grade_fields,
         "stability_fields": stability_fields,
         "trace_fields": trace_fields,
@@ -1084,6 +1158,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("strategy_fields", {}),   # strategy read: empty flag-off -> byte-identical
         **score_ctx.get("line_words_fields", {}),  # words on the line: empty flag-off -> byte-identical
         **score_ctx.get("base_age_fields", {}),  # the age from the first anchor: empty flag-off -> byte-identical
+        **score_ctx.get("ledger_fields", {}),  # the grade ledger's reads: empty flag-off -> byte-identical
     }
     # Fired tags: the chip verdicts resolved ONCE over the finished canonical
     # row — the SAME row both twins and all three writers consume, so

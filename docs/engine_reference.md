@@ -777,6 +777,8 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 **The final method, build step 12, part one (Sat 19/09/2026): the Power Play species lane DELETED (point 25).** No switch: a deletion. `engine_alpha/structure/power_play.py` (the `pp_*` archive family's producer `power_play_archive_values`, `first_legal_look`, `ticker_episodes`, `power_play_fields`), the lane's twin in `evaluation.py` (`evaluate_ticker_with_power_play`, `species_watch`, `wire_status`, `PP_WIRE_STATUS`), the screener's `power_play_sink` and `market_context["power_play"]`, `ScanExportResult.power_play_counts` and the `power_play` key of `SCAN_RESULT_JSON`, the three writers' family splat, the settings block (`POWER_PLAY_PRESET_ENABLED`, `POWER_PLAY_WINDOWS`, `POWER_PLAY_POLE_MIN_GAIN`, `POWER_PLAY_POLE_WINDOW_BARS`, `POWER_PLAY_BREAKOUT_DEPARTURE_ATR`; five manifest keys, one epoch rotation), `tools/power_play_census.py`, `tools/power_play_fixture.py`, `tools/power_play_sheets.py` (`tools/story_chain_candidates.py` keeps its own `load_panel`), seven test files and `tests/baselines/power_play_*`, and the frontend's `POWER_PLAY_STATUS_LABELS`. Kept: `POWER_PLAY_STORY_FORM_ENABLED` (the resistance-contraction form; its remaining consumer is the dark contraction rescue in `narrative.read_structure`), the `pp_*` columns on the archive model (NULL from here on; the seed mapper's auto-map of them is on the parity guard's allowlist), the `PHASE_A_ANCHOR_FEATURES` partition of `pp_clock` / `pp_pole_gain` in `core/archive/analyze.py` for the rows that carry them, and his two sealed corpora under `docs/`. The worker ladder in `screener._evaluate_frames` is back to two rungs (the near-miss twin or the plain eval), with the watch lane's `partial` wrapping either.
 
+**The final method, build step 12, part two (Sat 19/09/2026): the grade ledger, DARK.** One default-off switch, `GRADE_LEDGER_ENABLED`, its caps dict `GRADE_LEDGER_CAPS` and six placed numbers, all on the manifest. `taxonomy.cap_of(name)` is the ONE cap resolver (the ledger's value under the switch when the name is in the dict, else the setting); `TermSpec.cap()` and every `SCORE_*` read in `scoring.py` go through it, so the scorer, `structural_cap_sum()` and the chapter fractions move together. `score_setup` takes four optional reads, consulted only under the switch: `height_ranges` (the tightness term: `(BOX_HEIGHT_ZERO_RANGES - h) / (ZERO - FULL)` times the readability multiplier), `turns` (the touch term: `(at_r + at_s) * TURNS_POINT_RATE` up to the base points, the bonus reading the same counts), `window_spread_ranges` (the LPS term: `(LPS_SPREAD_ZERO_RANGES - w) / (ZERO - FULL)` times the cap) and `largest_limb_named` (the overshoot dock is zero when True, else `max(0, max_swing_frac - 1)` with no spring or width exemption). `_apply_tier_ladder` takes `height_ranges`: under the switch tier S needs `height_ranges <= TIER_S_MAX_HEIGHT_RANGES` and the percent cap is not consulted; `compose_ta_grade` and `calculate_structure_tier` carry it, and `calculate_structure_tier` reads the letter's cuts from `GRADE_LEDGER_TIER_CUTS` under the switch. `evaluation._ledger_reads(df, structure_ctx, words)` computes the four reads once in the shared chain on the ONE turn line (`turn_line` over the eval frame with the box's frozen unit, else `atr_for_zone`): `turns_at_rails` from the box start, the LPS window's mean `(High - Low) / unit` over `[start_bar, end_bar)`, `_largest_limb` (the largest swing between consecutive committed turns from the box start, as a fraction of R - S, which also replaces `max_swing_frac`) and `_named_legs(words)` (the spring's `start_bar..reach_bar`, the upthrust's `swing_bar..back_bar`, THE SOS's `launch_bar..top_bar`, each supper's `top_bar..low_bar`); the line-words block moved above the scorer, unchanged, so the pardon can read it. Flag-off `ledger_kw` is `{}` and every cap reads its setting: byte-identical. The ledger itself is `docs/grade_ledger_2026-09.md`.
+
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
 | # | Gate | Rule | Setting / source |
@@ -1278,7 +1280,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `a8ec99d90a701506c54f1f58543ce031cb533e0e609cb974afaff7a687067e1a`_
+_engine_config_version: `94a9f7a97c49c694457994e69c1acfcd8f1103b6829bcf6e0e66e81b39ec722c`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1403,6 +1405,15 @@ BOX_OPENS_ON_ANCHORS_ENABLED = False
 CLIMAX_FIRST_WALK_ENABLED = False
 BOX_END_ENABLED = False
 BOX_END_BREAKOUT_ATR = 0.1
+GRADE_LEDGER_ENABLED = False
+GRADE_LEDGER_CAPS = {'SCORE_BASE_AGE': 0, 'SCORE_VOL_CONTRACTION': 0, 'SCORE_ATR_SQUEEZE': 0, 'SCORE_CONTRACTION': 0, 'SCORE_ASCENDING_SUPPORT': 0, 'SCORE_ADR': 0, 'SCORE_52W_HIGH_PROXIMITY': 0}
+BOX_HEIGHT_FULL_RANGES = 1.0
+BOX_HEIGHT_ZERO_RANGES = 4.0
+TURNS_POINT_RATE = 1.5
+LPS_SPREAD_FULL_RANGES = 0.6
+LPS_SPREAD_ZERO_RANGES = 1.6
+TIER_S_MAX_HEIGHT_RANGES = 2.5
+GRADE_LEDGER_TIER_CUTS = (72, 62, 52, 42)
 LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
 BAND_RAILS_ENABLED = True
 BAND_MAX_BOX_WIDTH = 0.23

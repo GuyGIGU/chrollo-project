@@ -20,6 +20,7 @@ from typing import Optional
 import pandas as pd
 
 from config import settings
+from engine_alpha.scoring.taxonomy import cap_of as _cap
 
 
 def _clamp(value: float, cap: float) -> float:
@@ -137,7 +138,11 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
                 dwell_asymmetry: float = 0.0,
                 has_spring: bool = False,
                 bar_compression: Optional[dict] = None,
-                narrative: Optional[dict] = None) -> dict:
+                narrative: Optional[dict] = None,
+                height_ranges: Optional[float] = None,
+                turns: Optional[tuple] = None,
+                window_spread_ranges: Optional[float] = None,
+                largest_limb_named: Optional[bool] = None) -> dict:
     """
     Calculate a composite quality score from structural metrics.
 
@@ -152,7 +157,13 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     traversal_density / max_swing_frac / dwell_asymmetry: box-relative swing facts
     (measure_equilibrium + measure_dwell_balance) grading genuine two-sided rail-working
     vs dead space; drives the traversal-quality term that replaced oscillation.
+    height_ranges / turns / window_spread_ranges / largest_limb_named: the grade
+    ledger's reads (the final method, build step 12), consulted only under
+    GRADE_LEDGER_ENABLED: the box's height in daily ranges, the committed turns at
+    (R, S) on the line, the LPS window's mean bar spread in ranges, and whether the
+    box's largest limb is a named leg on the map. None = not read (flag-off).
     """
+    ledger = settings.GRADE_LEDGER_ENABLED
     touches = r_touches + s_touches
 
     # Box tightness — flat linear scale, removing exponential penalty for wider boxes.
@@ -162,7 +173,12 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # (R-S)/S, so *100 -> %, /adr_value -> ADR-widths. A box wider than MAX_BOX_WIDTH_ADR ADRs
     # earns no tightness (the _clamp floors the negative ratio at 0). The absolute MAX_BOX_WIDTH
     # validity gate upstream is unchanged — this only re-bases the SCORE.
-    if settings.TIGHTNESS_ADR_AWARE and adr_value and adr_value > 0:
+    if ledger and height_ranges is not None:
+        # Build step 12 (point 21): the tightness term reads the box's height in daily
+        # ranges, full at BOX_HEIGHT_FULL_RANGES, zero at BOX_HEIGHT_ZERO_RANGES.
+        box_tightness_ratio = ((settings.BOX_HEIGHT_ZERO_RANGES - height_ranges)
+                               / (settings.BOX_HEIGHT_ZERO_RANGES - settings.BOX_HEIGHT_FULL_RANGES))
+    elif settings.TIGHTNESS_ADR_AWARE and adr_value and adr_value > 0:
         box_width_adr = (box_width * 100.0) / adr_value
         box_tightness_ratio = ((settings.MAX_BOX_WIDTH_ADR - box_width_adr)
                                / settings.MAX_BOX_WIDTH_ADR)
@@ -173,12 +189,18 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # absolute bar-width threshold). Multiplicative in [floor, 1] (grades-not-vetoes);
     # missing texture grades neutral 1.0, leaving box_tightness_ratio untouched.
     box_tightness_ratio *= _candle_readability(bar_compression)
-    s_box = _clamp(box_tightness_ratio * settings.SCORE_BOX_TIGHTNESS,
-                    settings.SCORE_BOX_TIGHTNESS)
+    s_box = _clamp(box_tightness_ratio * _cap("SCORE_BOX_TIGHTNESS"),
+                    _cap("SCORE_BOX_TIGHTNESS"))
 
-    # Touch density
-    base_touch_max = settings.SCORE_TOUCH_DENSITY - settings.TOUCH_BONUS_POINTS
-    touch_score = _clamp(touches * settings.TOUCH_POINT_RATE, base_touch_max)
+    # Touch density. Build step 12 (point 21): under the ledger the committed turns at each
+    # rail on the line replace the touch bars, at TURNS_POINT_RATE a turn; the bonus's
+    # per-rail and total floors read the same counts.
+    rate = settings.TOUCH_POINT_RATE
+    if ledger and turns is not None:
+        r_touches, s_touches = int(turns[0]), int(turns[1])
+        touches, rate = r_touches + s_touches, settings.TURNS_POINT_RATE
+    base_touch_max = _cap("SCORE_TOUCH_DENSITY") - settings.TOUCH_BONUS_POINTS
+    touch_score = _clamp(touches * rate, base_touch_max)
     if (r_touches >= settings.TOUCH_BONUS_INDIVIDUAL and s_touches >= settings.TOUCH_BONUS_INDIVIDUAL) \
        or (touches >= settings.TOUCH_BONUS_TOTAL):
         touch_score += settings.TOUCH_BONUS_POINTS
@@ -192,33 +214,45 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # reward toward 0 — it is never negative, so a dead-space box simply earns
     # nothing here rather than being penalized below its other merits.
     density_reward = _clamp(
-        (traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL) * settings.SCORE_TRAVERSAL_QUALITY,
-        settings.SCORE_TRAVERSAL_QUALITY,
+        (traversal_density / settings.TRAVERSAL_QUALITY_DENSITY_FULL) * _cap("SCORE_TRAVERSAL_QUALITY"),
+        _cap("SCORE_TRAVERSAL_QUALITY"),
     )
     # A single limb dwarfing the box is a dead-space spike ONLY in a wide box with
     # no spring. In a tight box overshoot is inevitable (any real swing dwarfs the
     # tiny range, e.g. PRA), and a confirmed spring's undercut is a bullish leg, not
     # dead space — exempt the overshoot in both; the dwell-asymmetry tell remains.
-    overshoot = (0.0 if (box_width <= settings.BASE_AGE_DEADSPACE_WIDTH or has_spring)
-                 else max(0.0, max_swing_frac - 1.0))
+    if ledger:
+        # Build step 12 (point 21): a swing that is a named event on the map (the spring's own
+        # leg, an upthrust, THE SOS, a last supper) is never dead space and never docked; an
+        # unnamed lunge beyond a rail is docked as today, spring or no spring, tight box or not.
+        overshoot = 0.0 if largest_limb_named else max(0.0, max_swing_frac - 1.0)
+    else:
+        overshoot = (0.0 if (box_width <= settings.BASE_AGE_DEADSPACE_WIDTH or has_spring)
+                     else max(0.0, max_swing_frac - 1.0))
     dead_space = overshoot + dwell_asymmetry
     dead_space_penalty = _clamp(dead_space * settings.TRAVERSAL_QUALITY_DWELL_PENALTY,
                                 settings.TRAVERSAL_QUALITY_DWELL_PENALTY)
     s_traversal = max(0.0, density_reward - dead_space_penalty)
 
     # ATR squeeze
-    s_atr = _clamp((1.0 - atr_ratio) * settings.SCORE_ATR_SQUEEZE,
-                    settings.SCORE_ATR_SQUEEZE)
+    s_atr = _clamp((1.0 - atr_ratio) * _cap("SCORE_ATR_SQUEEZE"),
+                    _cap("SCORE_ATR_SQUEEZE"))
 
-    # LPS candle tightness
-    s_lps = _clamp((1 - tightness_ratio) * (settings.SCORE_LPS_TIGHTNESS
-                                            * settings.LPS_TIGHTNESS_SLOPE),
-                    settings.SCORE_LPS_TIGHTNESS)
+    # LPS candle tightness. Build step 12 (point 21): under the ledger the window's mean bar
+    # spread in daily ranges, full at LPS_SPREAD_FULL_RANGES, zero at LPS_SPREAD_ZERO_RANGES.
+    if ledger and window_spread_ranges is not None:
+        s_lps = _clamp((settings.LPS_SPREAD_ZERO_RANGES - window_spread_ranges)
+                       / (settings.LPS_SPREAD_ZERO_RANGES - settings.LPS_SPREAD_FULL_RANGES)
+                       * _cap("SCORE_LPS_TIGHTNESS"), _cap("SCORE_LPS_TIGHTNESS"))
+    else:
+        s_lps = _clamp((1 - tightness_ratio) * (_cap("SCORE_LPS_TIGHTNESS")
+                                                * settings.LPS_TIGHTNESS_SLOPE),
+                       _cap("SCORE_LPS_TIGHTNESS"))
 
     # Volume contraction
-    s_vol = _clamp(vol_contraction * (settings.SCORE_VOL_CONTRACTION
+    s_vol = _clamp(vol_contraction * (_cap("SCORE_VOL_CONTRACTION")
                                       * settings.VOL_CONTRACTION_SLOPE),
-                    settings.SCORE_VOL_CONTRACTION)
+                    _cap("SCORE_VOL_CONTRACTION"))
 
     # Base age — Wyckoff "cause" reward. Sqrt-scaled so very long bases still
     # earn incremental credit past the saturation point without dominating the
@@ -226,7 +260,7 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     s_age = 0.0
     if base_len > settings.MIN_BASE_DAYS:
         age_factor = math.sqrt(base_len / settings.BASE_AGE_CAP_DAYS)
-        s_age = _clamp(age_factor * settings.SCORE_BASE_AGE, settings.SCORE_BASE_AGE)
+        s_age = _clamp(age_factor * _cap("SCORE_BASE_AGE"), _cap("SCORE_BASE_AGE"))
         # Dead-space dock: "cause" only counts if a long base actually worked
         # rail-to-rail. A WIDE base with low traversal density is dead space, not
         # cause, so scale its age credit by the density shortfall. Tight boxes are
@@ -239,44 +273,44 @@ def score_setup(box_width: float, r_touches: int, s_touches: int,
     # Strong-uptrend bonus — re-accumulation in an established uptrend breaks out
     # more reliably than the same structure on a flat YoY chart. Ramp MIN→MAX return.
     s_uptrend = _ramp(yearly_return, settings.MIN_STRONG_YEARLY_RETURN,
-                      settings.MAX_STRONG_YEARLY_RETURN, settings.SCORE_UPTREND_BONUS)
+                      settings.MAX_STRONG_YEARLY_RETURN, _cap("SCORE_UPTREND_BONUS"))
 
     # Soft RS bonus — additive points for outperforming SPY over 6 months. No
     # filter, just leadership reward; ramps from 0 up to RS_MAX_EXCESS_RETURN.
-    s_rs = _ramp(excess_return, 0.0, settings.RS_MAX_EXCESS_RETURN, settings.SCORE_RS_BONUS)
+    s_rs = _ramp(excess_return, 0.0, settings.RS_MAX_EXCESS_RETURN, _cap("SCORE_RS_BONUS"))
 
     # 52-week high proximity — bases near recent highs hold breakouts more
     # reliably. Ramp ZERO→FULL pct; null distance (no history) contributes zero.
     s_high = _ramp(dist_52w_high_pct, settings.HIGH_PROXIMITY_ZERO_PCT,
-                   settings.HIGH_PROXIMITY_FULL_PCT, settings.SCORE_52W_HIGH_PROXIMITY)
+                   settings.HIGH_PROXIMITY_FULL_PCT, _cap("SCORE_52W_HIGH_PROXIMITY"))
 
     # Market-breadth bonus — ramp on % of universe above SMA_50. Same value for
     # every setup in a run; rewards a friendly tape regardless of the ticker.
     s_breadth = _ramp(breadth_pct, settings.BREADTH_ZERO_PCT,
-                      settings.BREADTH_FULL_PCT, settings.SCORE_BREADTH_BONUS)
+                      settings.BREADTH_FULL_PCT, _cap("SCORE_BREADTH_BONUS"))
 
     # VCP progressive-contraction footprint — the *process* of tightening
     # (count + progressive-shrink + tight final contraction), as opposed to
     # box_tightness/atr_squeeze which only see static tightness. quality is
     # already a [0,1] composite from measure_contractions().
-    s_contraction = _clamp(contraction_quality * settings.SCORE_CONTRACTION,
-                           settings.SCORE_CONTRACTION)
+    s_contraction = _clamp(contraction_quality * _cap("SCORE_CONTRACTION"),
+                           _cap("SCORE_CONTRACTION"))
 
     # Ascending support / higher lows — rewards a base whose swing lows are
     # stair-stepping up (rising demand). Bonus-only; flat/sagging floor = 0.
-    s_ascending = _clamp(support_quality * settings.SCORE_ASCENDING_SUPPORT,
-                         settings.SCORE_ASCENDING_SUPPORT)
+    s_ascending = _clamp(support_quality * _cap("SCORE_ASCENDING_SUPPORT"),
+                         _cap("SCORE_ASCENDING_SUPPORT"))
 
     # ADR% absolute volatility — rewards stocks that move enough each day to
     # be worth trading. Bonus-only; quiet names simply earn zero here.
-    s_adr = _clamp(adr_quality * settings.SCORE_ADR, settings.SCORE_ADR)
+    s_adr = _clamp(adr_quality * _cap("SCORE_ADR"), _cap("SCORE_ADR"))
 
     # Setup-quality bonus (E3) — the L2 assembled Wyckoff story as an additive,
     # bonus-only term. A missing/None/malformed narrative grades a neutral 0.0
     # (the containment lives in _setup_quality). Grades-not-vetoes: >=0 and
     # clamped to the cap, it can only raise a score.
-    s_setup_quality = _clamp(_setup_quality(narrative) * settings.SCORE_SETUP_QUALITY,
-                      settings.SCORE_SETUP_QUALITY)
+    s_setup_quality = _clamp(_setup_quality(narrative) * _cap("SCORE_SETUP_QUALITY"),
+                      _cap("SCORE_SETUP_QUALITY"))
 
     total = round(s_box + s_touch + s_traversal + s_atr + s_lps + s_vol + s_age
                   + s_uptrend + s_rs + s_high + s_breadth + s_contraction
@@ -359,14 +393,14 @@ def _story_points(event_map: Optional[dict]) -> dict:
     tests_full = float(settings.STORY_COMPLETED_TESTS_FULL)
     return {
         "story_s_tests": _ramp(s, 0.0, tests_full,
-                               settings.SCORE_STORY_S_TESTS),
+                               _cap("SCORE_STORY_S_TESTS")),
         "story_r_rejections": _ramp(r, 0.0, tests_full,
-                                    settings.SCORE_STORY_R_REJECTIONS),
+                                    _cap("SCORE_STORY_R_REJECTIONS")),
         "story_alternations": _ramp(alt, 0.0,
                                     float(settings.STORY_ALTERNATIONS_FULL),
-                                    settings.SCORE_STORY_ALTERNATIONS),
+                                    _cap("SCORE_STORY_ALTERNATIONS")),
         "story_terminal_posture": (
-            float(settings.SCORE_STORY_TERMINAL_POSTURE)
+            float(_cap("SCORE_STORY_TERMINAL_POSTURE"))
             if _finite(posture) == 1.0 else 0.0),
     }
 
@@ -384,7 +418,7 @@ def _ta_v2_terms(*, has_spring: bool = False,
         # the cap is 0 PERMANENTLY (2026-08-12 marker ruling — no A/B is
         # coming): the term rides the marker layer and cannot reach the
         # grade; the arithmetic gate lives in ta_layer_terms.
-        'spring': float(settings.SCORE_SPRING) if has_spring else 0.0,
+        'spring': float(_cap("SCORE_SPRING")) if has_spring else 0.0,
     }
     terms.update(_story_points(event_map))
     return terms
@@ -414,7 +448,8 @@ def _ta_grade_warnings(event_map: Optional[dict],
 def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
                      event_map: Optional[dict] = None,
                      htf: Optional[dict] = None,
-                     box_width: Optional[float] = None) -> dict:
+                     box_width: Optional[float] = None,
+                     height_ranges: Optional[float] = None) -> dict:
     """The Technical Analysis Grade — ONE fixed-divisor affine sum, displayed
     as story chapters (operator rulings 2026-08-06; build task 4).
 
@@ -472,7 +507,7 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
         # (the EC-28 rule that the display never re-computes what the engine
         # already decided). Derived from the POST-warning grade: the letter
         # must agree with the number shown beside it.
-        'structure_tier': calculate_structure_tier(grade, box_width),
+        'structure_tier': calculate_structure_tier(grade, box_width, height_ranges),
         'ta_grade_chapters': {ch: chapters[ch] * scale
                               for ch in taxonomy.CHAPTER_ORDER},
         'ta_grade_chapter_fractions': {
@@ -629,7 +664,8 @@ def ta_grade_archive_values(get, *, prefixed: bool) -> dict:
     return out
 
 
-def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) -> str:
+def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float],
+                       height_ranges: Optional[float] = None) -> str:
     """Map a value to S/A/B/C/D against a 4-cut descending ladder, then apply
     the S width cap. (Sole caller is the live 0-100 ladder since the legacy
     raw-sum ladder retired at the 2026-08-22 consolidation.)"""
@@ -646,23 +682,29 @@ def _apply_tier_ladder(value: float, cuts: tuple, box_width: Optional[float]) ->
         tier = 'D'
 
     # Point 7 of the final method (step 7, dark): a percent-of-price width
-    # never demotes; a ceiling in daily ranges is step 12's grade ledger.
-    if tier == 'S' and box_width is not None and box_width > settings.S_MAX_BOX_WIDTH \
-            and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED:
-        tier = 'A'
+    # never demotes; the ceiling in daily ranges is step 12's grade ledger
+    # (TIER_S_MAX_HEIGHT_RANGES, the one ceiling under GRADE_LEDGER_ENABLED).
+    if tier == 'S':
+        if settings.GRADE_LEDGER_ENABLED:
+            if height_ranges is not None and height_ranges > settings.TIER_S_MAX_HEIGHT_RANGES:
+                tier = 'A'
+        elif box_width is not None and box_width > settings.S_MAX_BOX_WIDTH \
+                and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED:
+            tier = 'A'
     return tier
 
 
 def calculate_structure_tier(ta_grade: float,
-                             box_width: Optional[float] = None) -> str:
+                             box_width: Optional[float] = None,
+                             height_ranges: Optional[float] = None) -> str:
     """The letter on the TA-grade's 0-100 scale (flip 2026-08-09; the legacy
     raw-sum ladder retired 2026-08-22). The ``S_MAX_BOX_WIDTH`` cap is the
     operator's rule that a wide base is never elite: on the flip A/B it held
     22 of 111 A-tier names out of S on width alone.
     """
-    return _apply_tier_ladder(
-        ta_grade,
-        (settings.TIER_S_STRUCT, settings.TIER_A_STRUCT,
-         settings.TIER_B_STRUCT, settings.TIER_C_STRUCT),
-        box_width,
-    )
+    cuts = (settings.TIER_S_STRUCT, settings.TIER_A_STRUCT,
+            settings.TIER_B_STRUCT, settings.TIER_C_STRUCT)
+    if settings.GRADE_LEDGER_ENABLED:
+        # Build step 12: the letter's cuts on the ledger's re-based scale (85 points).
+        cuts = tuple(float(c) for c in settings.GRADE_LEDGER_TIER_CUTS)
+    return _apply_tier_ladder(ta_grade, cuts, box_width, height_ranges)

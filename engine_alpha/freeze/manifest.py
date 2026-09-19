@@ -201,6 +201,16 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "CLIMAX_FIRST_WALK_ENABLED",
     "BOX_END_ENABLED",
     "BOX_END_BREAKOUT_ATR",
+    # The final method, build step 12: the grade ledger (dark)
+    "GRADE_LEDGER_ENABLED",
+    "GRADE_LEDGER_CAPS",
+    "BOX_HEIGHT_FULL_RANGES",
+    "BOX_HEIGHT_ZERO_RANGES",
+    "TURNS_POINT_RATE",
+    "LPS_SPREAD_FULL_RANGES",
+    "LPS_SPREAD_ZERO_RANGES",
+    "TIER_S_MAX_HEIGHT_RANGES",
+    "GRADE_LEDGER_TIER_CUTS",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)

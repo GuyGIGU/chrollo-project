@@ -1644,3 +1644,25 @@ files with two baselines, the screener's sink and payload block, the scan line's
 Kept: his two sealed corpora and the program record; the pp_* archive columns (NULL from here on); the
 resistance-contraction story form flag, because the dark contraction rescue lane is its remaining consumer. One
 epoch rotation (five manifest keys gone). Nothing in the paying read moved: flag-off every guard byte-identical.
+
+## BUILD STEP 12, PART TWO (Sat 19/09/2026): THE GRADE LEDGER, DARK
+
+GRADE_LEDGER_ENABLED (point 21; his answer 10, "Volume: no hard gates, no points"; his Wed 12/08/2026 ruling that
+a setup is more complete with a clear Phase C). The ledger, docs/grade_ledger_2026-09.md, gives every one of
+today's 171 points a fate. Graded, re-based: the box's height in daily ranges (full at 1.0, zero at 4.0), the
+committed turns at each rail on the line (1.5 points a turn, today's bonus), the LPS window's mean bar spread in
+ranges (full at 0.6, zero at 1.6), the dead-space dock with its pardon keyed to a named leg; kept: the story's
+completeness (8) and the bar-texture multiplier. Zero weight, archived: base age, the volume dry-up, the ATR
+squeeze, the VCP contractions, ascending support, ADR, the 52-week proximity (171 to 85 points, so every grade
+climbs and the letter's cuts move one tier up with the ledger: 72 / 62 / 52 / 42; at today's cuts his 20 fires
+would grade S 15 / A 5 and 2 of the 3 junk fires S). Tier S at a height of 2.5 ranges or under. Not graded, my
+defaults: THE SOS's ground (the junk's legs
+run longer), the LPS traits of step 3, the box's bar spread (no separation).
+PLACED on his 35 marks (his rails, box start and LPS window on his last day) and MEASURED on the 16 junk (the
+engine's box on the frozen fire day; 8 fire): height in ranges his 1.00 / 1.56 / 1.77 / 2.08 / 3.14 (min / q25 /
+median / q75 / max) to the junk's 1.63 / 3.50 / 4.74 (min / median / max); turns at R his 2 / 4.5 / 7 / 10 / 16,
+at S 3 / 6 / 9 / 10.5 / 17, the junk's medians 5 / 5; the window's mean spread his 0.55 / 0.71 / 0.83 / 0.90 /
+1.38 to the junk's 0.63 / 0.78 / 1.15; the box's mean spread his median 0.92 to the junk's 0.86; THE SOS's ground
+his median 2.77 to the junk's 4.21; the largest limb his median 1.77 box heights; every one of his 35 carries a
+named leg. ON THE FIRE DAYS under the whole method (prior + steps 7 to 11): his marks S 10 / A 8 / B 2 today, S 11 / A 8 / B 1 under the ledger and its cuts (S 15 / A 5 at today's cuts); the junk fires A 2 / B 1 today, A 3 under the ledger and its cuts (S 2 / A 1 at today's cuts).
+No fire moves (the grade never gates); flag-off every guard byte-identical; 22 mutations red then green.
