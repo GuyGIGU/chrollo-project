@@ -48,7 +48,8 @@ SOS sitting):
                valley's commit. The floor is mine, placed between the breach he crossed out (his UNF, Fri
                05/06/2026: 0.94 ranges over his resistance) and the smallest he has named (his VIK July note, Thu
                14/05/2026: 1.55).
-  last supper  in hindsight, off a thrust whose top clears the resistance area (the breach), after the Phase C tip
+  last supper  in hindsight, off a thrust whose top pokes over the resistance (the breach, any poke: HIS, Sat
+               19/09/2026), after the Phase C tip
                and after the middle of the box (the Phase D test here, not the Phase D word), the deepest low within
                LINE_WORD_SUPPER_MAX_DAYS trading days digs at least LINE_WORD_SUPPER_DIG_ATR, sought only on the
                days before a later LPS window opens.
@@ -56,7 +57,8 @@ SOS sitting):
                than its tip, a line peak reaches the support area (a high at or above S minus the area) and the
                valley after it has committed higher than the tip. Context going forward (his, Mon 14/09/2026):
                a dip after which the box went back up to the R area and then down under the support area
-               again before the right side opened (the round trip or the staircase after it, after the middle,
+               again, or printed an upthrust (HIS VIK, Sat 19/09/2026), before the right side opened (the
+               round trip or the staircase after it, after the middle,
                else the LPS window's first day) was still Phase B, and the next deepest takes the word
                (NKTR, ORMP).
   spring test  the first line valley after the Phase C back inside the support area, higher than the tip.
@@ -213,18 +215,19 @@ def the_upthrust(th, line, R, unit, pc, start, read_bar):
 
 
 def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
-    """The last suppers, in hindsight: off a thrust whose top breaches resistance (clears the resistance area),
+    """The last suppers, in hindsight: off a thrust whose top breaches resistance (any poke over R, his words Sat
+    19/09/2026: "every poke over resistance is a breach even small ones count"),
     after the Phase C tip when there is one and after the middle of the box (the Phase D test here is those two
     clauses, not the Phase D word). The drop is sought only on the days before a later LPS window opens, so a last
     supper and that LPS never share a day (MRK: his drop ends Thu 30/07/2026, price digs on into his LPS window's
     first day, Mon 03/08). A drop straight into the LPS window is that LPS, not a last supper."""
     if lps_start is None:
         return []
-    area, half = _area(unit), _middle(start, read_bar)
+    half = _middle(start, read_bar)
     out = []
     for t in th:
         p = t["top_bar"]
-        if t["top_price"] <= R + area or p <= half or (pc is not None and p <= pc["tip_bar"]):
+        if t["top_price"] <= R or p <= half or (pc is not None and p <= pc["tip_bar"]):
             continue
         end = min(len(lows) - 1, p + settings.LINE_WORD_SUPPER_MAX_DAYS, lps_start - 1)
         if end <= p:
@@ -295,15 +298,22 @@ def _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar):
     return min(opens) if opens else None
 
 
-def _range_ran_on(line, i, R, S, unit, open_bar):
-    """After the dip at line[i] the box went back up to the R area and then down under the support area again
-    before the right side opened: the range was still running, so the dip was Phase B."""
+def _range_ran_on(line, i, R, S, unit, open_bar, half):
+    """After the dip at line[i], before the right side opened, the box went back up to the R area and then down
+    under the support area again, or an upthrust printed (a top at or before the middle of the box, more than
+    LINE_WORD_UPTHRUST_MIN_POKE_ATR over R, whose next line valley is back under the R area; a later one is a push in
+    Phase D): the range was still running, so the dip was Phase B. His VIK (Sat
+    19/09/2026): the dip of Wed 29/04/2026 is "No" spring, his upthrust of Thu 14/05/2026 came after it."""
     area, back_at_r = _area(unit), False
-    for b, kind, p, _ in line[i + 1:]:
+    for k in range(i + 1, len(line)):
+        b, kind, p, _ = line[k]
         if open_bar is not None and b >= open_bar:
             return False
         if kind == "peak" and p >= R - area:
             back_at_r = True
+            if b <= half and (p - R) / unit > settings.LINE_WORD_UPTHRUST_MIN_POKE_ATR and k + 1 < len(line) \
+                    and line[k + 1][2] < R - area:
+                return True
         elif kind == "valley" and back_at_r and p < S - area:
             return True
     return False
@@ -315,9 +325,11 @@ def phase_c(line, highs, start, S, unit, R, lps_start, read_bar):
     at = {(t[0], t[1]): k for k, t in enumerate(line)}
     recovered = sorted((d for d in dips(line, highs, start, S, unit) if d["state"] == "recovered"),
                        key=lambda d: -d["depth_ranges"])
+    half = _middle(start, read_bar)
     for d in recovered:
         i = at[(d["tip_bar"], "valley")]
-        if not _range_ran_on(line, i, R, S, unit, _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar)):
+        opens = _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar)
+        if not _range_ran_on(line, i, R, S, unit, opens, half):
             return d
     return None
 

@@ -1428,3 +1428,25 @@ STILL OWED: FOSL Tue 27/01/2026 (the single wide day, the one name he has not se
 all ("also valid" accepts the empty outcome without ruling on the measure); VIK (is Wed 29/04/2026 a spring, and does
 an upthrust outside the box count). Still open from Tue 15/09/2026: the 12 LPS windows with no SOS drawn, BMRN's
 breach inside the rail area, and the three event words to sign.
+
+## HIS FIVE ANSWERS (Sat 19/09/2026), VERBATIM
+
+With a VIK picture: his box, "NO" under the dip of Wed 29/04/2026, his red line through the upthrust to Thu
+14/05/2026 and the SOS and LPS after it.
+
+> 1. it can be a UT.
+> 2. No for the spring, and also no but it isn't out side the box
+> 3. no, it should name an LPS when it deems a push to be one, if that last push is a decisive up swing -> LPS then yes
+> 4. yes every poke over resistance is a breach even small ones count but that shouldn't worry us at all since its still in the resistance area
+> 5. "Thrust above resistance" is Up thrust all the others aren't needed
+
+And, the same day:
+
+> Listen The up thrust isn't even all that important, we just got to nail down our core for detecting consolidations and an LPS. the rest is a nice little bonus. but generally speaking, an up thrust in accumulation & Re accumilation process (the one our alpha engine seeks to find and understand) is an event that happens in Phase B.  Phase C is Reserved for the Spring (if it happens). and the main difference between an SOS and an Up Thrust is Context of where did it happen in the setup and what happened after said event.
+
+BUILT, dark: a dip followed by an upthrust in the first half of the box, before the right side opens, was still Phase
+B (VIK: no spring, his upthrust named Tue 12/05 to Thu 14/05/2026); the last supper's breach is any poke over R. No
+change for 1 (FOSL stays) and 3 (the SOS fallback stays). For the build session's step 8: the only word for a push
+out of the top is "upthrust"; the other proposed words are dropped. Measured on his live marks: Phase C 10 of 10,
+THE upthrust on 3 boxes (UNF, FOSL, VIK), the last supper 10 of 10, THE SOS 23 of 25. Nothing is owed from him on the
+words.

@@ -132,7 +132,8 @@ the last supper, one Phase C per box and its spring test, where the right side o
 a reader nothing else consults. They land where his own drawings put them on most of his events, and they
 read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
 SOS he settled at its own sitting (below); the Phase C is read with his context going forward
-(a deep dip after which the box went back to resistance and under support again was still Phase B).
+(a deep dip after which the box went back to resistance and under support again, or printed an upthrust,
+was still Phase B).
 His fatal character change landed DARK (Mon 14/09/2026): an LPS whose last three days grow wider and fall further,
 day after day, is broken (the pullback increasing with sellers), never merely graded down.
 Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box

@@ -348,11 +348,13 @@ def test_a_last_supper_is_hindsight_and_never_shares_a_day_with_the_lps():
 
 
 @UNITS
-@pytest.mark.parametrize("R, named", [(14.1, False), (14.0, False), (13.9, True)])
+@pytest.mark.parametrize("R, named", [(14.6, False), (14.5, False), (14.4, True)])
 def test_a_last_supper_follows_a_breach_of_resistance(R, named, u):
+    """HIS, Sat 19/09/2026: "every poke over resistance is a breach even small ones count" (his BMRN push tops 0.29 of
+    a range over his R, inside the rail area): a top 0.1 of a range over R is a breach."""
     th = [{"top_bar": 5, "launch_bar": 0, "top_price": 14.5 * u}]
     assert bool(_suppers(th, (_SUPPER_HIGHS - 0.4) * u, u, lps_start=11, R=R)) is named, \
-        "the top must clear the resistance area"
+        "the top must poke over the resistance"
 
 
 def test_a_last_supper_sits_in_phase_d():
@@ -411,6 +413,19 @@ def test_a_deep_dip_the_range_ran_on_from_is_phase_b_and_the_later_dip_is_the_ph
             (12, P, 14.2, None)]
     assert W.phase_c(line, HI, 0, 10.0, unit=1.0, R=14.0, lps_start=None, read_bar=12)["tip_bar"] == 6, \
         "back at R on 4, under the support area on 6: the deeper dip on 2 was Phase B"
+
+
+@pytest.mark.parametrize("top, back, read_bar, spring",
+                         [(15.6, 11.0, 10, None), (15.2, 11.0, 10, 2), (15.6, 11.0, 6, 2), (15.6, 13.8, 10, 2)])
+def test_a_dip_before_an_upthrust_is_phase_b(top, back, read_bar, spring):
+    """HIS VIK (Sat 19/09/2026): "No for the spring" on the dip of Wed 29/04/2026, before his upthrust of Thu
+    14/05/2026, which "belongs in Phase B". The dip on 2 recovers; the top on 4 climbs 1.6 over R and crashes back
+    under the R area before the right side opens (on 6): the range was still running. A 1.2 climb is no upthrust,
+    a top past the middle of the box (read on bar 6, the middle is 3) is a push in Phase D, and a top whose next
+    low holds the R area (13.8) never crashed back: neither is an upthrust."""
+    line = [(0, P, 14.0, 1), (2, V, 9.0, 3), (4, P, top, 5), (6, V, back, 7), (8, P, 13.0, None)]
+    pc = W.phase_c(line, HI, 0, 10.0, unit=1.0, R=14.0, lps_start=None, read_bar=read_bar)
+    assert (pc["tip_bar"] if pc else None) == spring
 
 
 def test_a_return_after_the_right_side_opened_leaves_the_phase_c_alone():
@@ -584,7 +599,7 @@ def test_the_reader_end_to_end_on_a_real_line():
     rec = W.read_line_words(df, box, 1.0, lps=lps, inner=inner)
     assert [(t["launch_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(30, 36), (42, 48)]
     assert (rec["the_sos"]["top_bar"], rec["the_sos"]["in_progress"]) == (48, False), "the push the LPS hangs from"
-    assert rec["last_suppers"] == [], "the bar-36 top (15.7) never clears the R area (16.0), and sits before the middle"
+    assert rec["last_suppers"] == [], "the bar-36 top (15.7) breaches R (15.5) but sits before the middle"
     assert rec["the_upthrust"] is None, "the same top: it never climbs out of the structure"
     assert (rec["phase_c"]["tip_bar"], rec["phase_c"]["state"], rec["phase_c"]["depth_ranges"]) == (30, "recovered", 0.7)
     assert [t["tip_bar"] for t in rec["spring_tests"]] == [42]

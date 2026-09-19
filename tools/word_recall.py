@@ -23,8 +23,8 @@ SOS, it only asks whether the pick lands two to four days off, so it is near zer
 THE upthrust (one per box) is listed, never scored: the app cannot record one yet (its calibration event types are
 phase_c, lps, spring_test, sos, mini_consolidation and last_supper), so his only drawn upthrusts are the UNF
 picture of Tue 15/09/2026 (the push to Thu 11/06/2026) with the smaller breach to Fri 05/06/2026 crossed out on the
-engine's own render a day later, and his VIK note of July (Thu 14/05/2026, which the reader still misses: it tops
-after the spring it draws).
+engine's own render a day later, and his VIK note of July (Thu 14/05/2026, named since the dip before it is no spring, his
+word of Sat 19/09/2026).
 Phase D opens at or before his first right-side event (his first SOS or his first LPS), and after the middle of the
 box (a must, his ruling Mon 14/09/2026). It is scored as the reader emits it, and fed HIS drawn Phase C, first SOS
 and first LPS (what the sixteenth sitting measured), so the rule and its inputs can be told apart; the report names

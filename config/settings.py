@@ -778,8 +778,8 @@ TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q
 #   last supper               10 of 10 (chance 0.5)  Phase C  10 of 10 (chance 0)
 #   spring test                4 of 6  (chance 1)    mini      0 of 5
 #   upthrust: his UNF named, ONE per box (listed, not scored: the app cannot
-#             record one). On his tweaks of Wed 16/09/2026, 2 named on his 35
-#             boxes: his UNF Thu 11/06/2026 and FOSL Tue 27/01/2026.
+#             record one). On his words to Sat 19/09/2026, 3 named on his
+#             35 boxes: his UNF, FOSL and his VIK.
 # Under all six flags nothing moves: ratchet 30 of 35, junk clean on every
 # unpinned day, fleet and reader pin PASS. The rules' defaults that are mine
 # (his word owed) are listed in line_words.py and the decisions record.
