@@ -215,9 +215,11 @@ def _lps_result_from_brick(lps) -> dict:
 
 
 def descent_tail_drops(frame, parent_equilibrium, box_width, inner, lps_in_inner, atr):
-    """Width-aware descent-tail gate on the ACTIVE box — the inner box's own
+    """Width-aware descent-tail read on the ACTIVE box — the inner box's own
     equilibrium read when the LPS re-anchored there (so a clean promotable
-    inner survives, e.g. QUAD), else the parent's (drops CHCT/DGII). Folded so
+    inner survives, e.g. QUAD), else the parent's (drops DGII; it also dropped
+    CHCT, which he ruled a valid setup on Sun 13/09/2026: under the final method
+    the tail is a comment on the fire, build step 12). Folded so
     the live + seed paths gate identically. ``parent_equilibrium`` is the
     already computed parent ``measure_equilibrium`` result."""
     if lps_in_inner and inner is not None:
@@ -1159,6 +1161,8 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **score_ctx.get("line_words_fields", {}),  # words on the line: empty flag-off -> byte-identical
         **score_ctx.get("base_age_fields", {}),  # the age from the first anchor: empty flag-off -> byte-identical
         **score_ctx.get("ledger_fields", {}),  # the grade ledger's reads: empty flag-off -> byte-identical
+        **({"_descent_tail": measurements["descent_tail"]} if measurements.get("descent_tail") is not None
+           else {}),  # the descent tail as a comment (build step 12): absent flag-off -> byte-identical
     }
     # Fired tags: the chip verdicts resolved ONCE over the finished canonical
     # row — the SAME row both twins and all three writers consume, so
@@ -1226,17 +1230,23 @@ def _run_eval_chain(ticker: str, df: pd.DataFrame,
         structure_ctx["structure"].box.equilibrium,
     )
 
-    if descent_tail_drops(
+    descent_tail = descent_tail_drops(
         eval_df,
         measurements["equilibrium"],
         structure_ctx["box_width"],
         structure_ctx["inner"],
         lps_ctx["lps_in_inner"],
         structure_ctx["atr_for_zone"],
-    ):
+    )
+    if descent_tail and not settings.LPS_LEAVES_ELECTION_ENABLED:
         if watch is not None:
-            watch.update(state="no lines", why="descent tail")   # a comment on the fire from step 12 on
+            watch.update(state="no lines", why="descent tail")
         return None
+    # Build step 12 (point 22, under the states switch): the descent tail is a COMMENT on the fire, never a
+    # refusal. The gate was validated on 2026-06-19 against a box recipe the method replaced, and its named
+    # specimen CHCT was ruled a valid setup on his eye (Sun 13/09/2026, the decisions record); the fact rides
+    # the row as ``_descent_tail`` so the chip can say it. Flag-off the refusal stands and the key is absent.
+    measurements["descent_tail"] = bool(descent_tail) if settings.LPS_LEAVES_ELECTION_ENABLED else None
 
     phase_ctx = _phase_d_context(eval_df, structure_ctx, lps_ctx)
     score_ctx = _score_eval_context(
@@ -1424,10 +1434,12 @@ def watch_verdict(watch: dict, fired: bool) -> str:
     return state
 
 
-def _lane_row(ticker: str, watch: dict, state: str) -> Optional[dict]:
+def _lane_row(ticker: str, watch: dict, state: str, floor: Optional[int] = None) -> Optional[dict]:
     """The watch lane's row for a chart with lines and no fire, or None below the display floor:
     ``WATCH_LANE_MIN_TURNS_PER_RAIL`` committed turns of the line inside each rail's area, from the box start
-    (point 22: two at each rail). The floor touches no fire; it only decides what the lane shows."""
+    (point 22: two at each rail). The floor touches no fire; it only decides what the lane shows. ``floor``
+    overrides the setting (the ticker page's state read passes 0: one chart he asked about shows its facts
+    however few turns it has, build step 12)."""
     from engine_alpha.structure.pivots import (  # noqa: PLC0415 — inside the flag
         turn_line, turn_line_floors, turns_at_rails)
     df = watch["df"]
@@ -1445,7 +1457,7 @@ def _lane_row(ticker: str, watch: dict, state: str) -> Optional[dict]:
     line = turn_line(df["High"].to_numpy(dtype=float), df["Low"].to_numpy(dtype=float),
                      turn_line_floors(df, unit))
     at_r, at_s = turns_at_rails(line, start, R, S, float(settings.LINE_WORD_AREA_ATR) * unit)
-    floor = int(settings.WATCH_LANE_MIN_TURNS_PER_RAIL)
+    floor = int(settings.WATCH_LANE_MIN_TURNS_PER_RAIL) if floor is None else int(floor)
     if at_r < floor or at_s < floor:
         return None
     row = {"ticker": ticker, "state": state, "R": round(R, 4), "S": round(S, 4),

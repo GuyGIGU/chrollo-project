@@ -272,7 +272,9 @@ TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be r
 # left the low rail (last_support_time_pos <= LSF_MAX, the time-position 0..1 of the
 # last support touch) then coiled in DEAD SPACE above it (low_position_in_box >= CFP_MIN,
 # the box-position of the lowest Low after that touch) — is a mis-anchored /
-# dead-space framing (CHCT, DGII). Read on the ACTIVE box (the inner box when the
+# dead-space framing (DGII; CHCT too, which he ruled a valid setup on Sun 13/09/2026,
+# so under the final method, LPS_LEAVES_ELECTION_ENABLED, the tail is a COMMENT on
+# the fire and refuses nothing: build step 12). Read on the ACTIVE box (the inner box when the
 # LPS re-anchored there, else the parent), so a setup with a clean PROMOTABLE inner
 # survives (QUAD). TIGHT boxes (box_width <= BASE_AGE_DEADSPACE_WIDTH) are EXEMPT —
 # their dead band is small in absolute terms so the tell is a false positive

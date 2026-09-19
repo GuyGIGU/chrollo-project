@@ -191,6 +191,12 @@ leg on the map is never dead space; an unnamed lunge is docked, spring or no spr
 2.5 ranges or under, and the letter's cuts move one tier up on the re-based scale. THE SOS's ground and the
 LPS traits stay data. Every number is placed from his marks and he sees the weights before they move
 (docs/grade_ledger_2026-09.md).
+Step 12, part three (Sun 20/09/2026): the ten state words of point 22 reach the screen (the watch lane apart
+from the leaderboard; one chart's word on demand for a name the scan did not list, "not scanned" with the
+door's leg named and the distance in ranges; the ticker page's "fired ..., crossed ..." from the archive's
+own dates). The descent tail, a gate validated on the old box recipe whose named specimen CHCT he ruled valid,
+becomes a comment on the fire under the states switch. With this the method of Sat 12/09/2026 is BUILT, every
+switch dark; the approval sitting decides the flip, all switches together.
 The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
 he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
 push after the middle; the upthrust is his reverse spring in Phase B, one per box, the most developed push out of the

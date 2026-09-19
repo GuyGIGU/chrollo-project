@@ -18,7 +18,7 @@ import {
   displayLabel,
 } from './wireVocabulary';
 import { API_BASE } from '../api';
-import { fx, fmtDateShort } from '../utils/format';
+import { fx, fmtDateShort, fmtDay } from '../utils/format';
 import { triggerDistanceFrac } from '../utils/triggerProximity.js';
 
 const pct = (value, digits = 1) => {
@@ -431,6 +431,34 @@ function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, tick
   );
 }
 
+// "fired Wed 11/02/2026, crossed Thu 12/02/2026" (the final method, point 23): a
+// lookup of the two dates the archive already stores for this ticker's latest
+// fire (scan_date, trigger_date), never a new pick. Silent until it arrives or
+// when the ticker was never archived; a backend hiccup logs and shows nothing.
+function FiredCrossedLine({ ticker }) {
+  const [row, setRow] = useState(null);
+  useEffect(() => {
+    setRow(null);
+    if (!ticker) return undefined;
+    let live = true;
+    const params = new URLSearchParams({
+      ticker, universe_type: 'all', limit: '1', sort_by: 'scan_date', sort_dir: 'desc',
+    });
+    fetch(`${API_BASE}/archive/setups?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => { if (live) setRow(Array.isArray(body) && body.length ? body[0] : null); })
+      .catch((err) => { console.warn('fired/crossed', ticker, err); });
+    return () => { live = false; };
+  }, [ticker]);
+  if (!row) return null;
+  const crossed = row.trigger_date ? `crossed ${fmtDay(row.trigger_date)}` : 'not crossed yet';
+  return (
+    <div className="stock-lens-fired" style={{ color: 'var(--text-faint)', fontSize: 11, padding: '0 2px 4px' }}>
+      fired {fmtDay(row.scan_date)}, {crossed}
+    </div>
+  );
+}
+
 export default function ScreenerStockLens({ activeRegion, data, earnings, interval = 'D', onRegionChange, scanIdentity = null, ticker = null }) {
   const showDailyStructure = interval === 'D';
   // The phase spans belong to the DAILY read — on a weekly/monthly pane there is
@@ -448,6 +476,7 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
         onRegionChange={onRegionChange}
         regions={regions}
       />
+      {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
       <div className="stock-lens-bottom">
         <TechnicalReadGrid data={data} earnings={earnings} />
         {showDailyStructure ? (

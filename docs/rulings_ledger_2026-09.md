@@ -1666,3 +1666,22 @@ at S 3 / 6 / 9 / 10.5 / 17, the junk's medians 5 / 5; the window's mean spread h
 his median 2.77 to the junk's 4.21; the largest limb his median 1.77 box heights; every one of his 35 carries a
 named leg. ON THE FIRE DAYS under the whole method (prior + steps 7 to 11): his marks S 10 / A 8 / B 2 today, S 11 / A 8 / B 1 under the ledger and its cuts (S 15 / A 5 at today's cuts); the junk fires A 2 / B 1 today, A 3 under the ledger and its cuts (S 2 / A 1 at today's cuts).
 No fire moves (the grade never gates); flag-off every guard byte-identical; 22 mutations red then green.
+
+## BUILD STEP 12, PART THREE (Sun 20/09/2026): THE DISPLAY STATES; THE METHOD IS BUILT
+
+Points 22, 23 and 24 on the screen: the watch lane panel on the screener page (apart from the leaderboard; it
+renders only once the payload carries the lane, after the flip); one chart's state word on demand for a ticker
+the payload does not list (the same evaluation chain off the cached frame; "not scanned" with the door's leg in
+his words and the distance in ranges; the lines' facts otherwise, without the lane's display floor), on the
+watchlist's off-scan cards; the ticker page's "fired Wed 11/02/2026, crossed Thu 12/02/2026" from the archive's
+own two dates, never a new pick; the operator's date (weekday dd/mm/yyyy) on everything new. The descent tail
+(the 2026-06-19 gate whose named specimen CHCT he ruled a valid setup on Sun 13/09/2026) becomes a comment on
+the fire under LPS_LEAVES_ELECTION_ENABLED, a refusal flag-off. The event-map census's pinned check retires (its
+pins predated his re-draws; the reader pin and the marks ratchet are the gates). Not done, my defaults: PR #11's
+word list and columns come with its merge; his 01/09 and 02/09 rulings are already here; the older dates keep
+their format; no fixture re-pinned (flag-off byte-identical throughout: the one re-pin is the flip commit's).
+MEASURED on the whole method (his windows / ratchet / junk firing / fleet firing): before 35 / 33 of 35 / 10 / 32 (the step-11 row wrote 33 for the fleet; the fleet re-measured today at that very commit, at part one's and at part two's reads 32 with the same 32 tickers each time: a slip in my count, nothing moved in parts one and two); after
+35 / 33 of 35 / 10 / 32 (no ticker gained or lost; two fire days added inside existing windows, the days the tail had refused: NMM Tue 26/05/2026 and VIK Thu 04/06/2026). Flag-off every guard byte-identical; 12 mutations red then green.
+
+THE METHOD IS BUILT. Every switch of steps 1 to 12 is dark; they flip together at his word, at the approval
+sitting (the kill-bys of Mon 30/11/2026). What reaches him: the report, and one question at most.

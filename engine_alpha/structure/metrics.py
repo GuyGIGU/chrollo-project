@@ -917,7 +917,9 @@ def traversals_per_20d(n_full_traversals, n_bars):
 
 def descent_tail_rejects(last_support_time_pos, low_position_in_box, box_width) -> bool:
     """True = the box ABANDONED its support rail EARLY into dead space — a
-    mis-anchored / dead-space framing the descent-tail gate drops (CHCT, DGII).
+    mis-anchored / dead-space framing the descent-tail gate drops (DGII; CHCT too,
+    which he ruled a valid setup on Sun 13/09/2026, so under the final method the
+    tail is a comment on the fire, never a refusal: build step 12).
 
     ``last_support_time_pos`` (time-position 0..1 of the last support touch) is
     ``<= DESCENT_TAIL_LSF_MAX`` AND ``low_position_in_box`` (box-position of the lowest

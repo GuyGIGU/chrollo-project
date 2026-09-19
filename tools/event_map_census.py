@@ -15,16 +15,10 @@ drift) is reported as the recorded baseline only — admission-form research
 is the census layer on top (PLAN Task 5), and the ruled form will be a
 separate predicate, never baked into the reader.
 
-``--check`` is the promotion regression AND a standing gate (run it before
-any merge/flip that touches the episode reader): the headline evidence the
-program was approved on (EGBN's three completed support tests + terminal
-resistance posture; the drift-junk zeros DGII 0/11, CHCT 0/7, COLM 0/10,
-FLG 0/2; 15/33 marks under v1; 17 parse-passing junk of 95) must reproduce
-exactly, AND the marks fingerprint must equal the recorded pin — the
-outcome pins alone cannot see the drawn windows being re-drawn under them
-(the calibration DB is editable ground truth by design, EC-9; a legitimate
-re-draw moves the fingerprint and the pin fails LOUDLY, which is the point:
-re-pin deliberately, never drift silently). Exit 1, named diffs.
+The pinned promotion regression this tool once carried (``--check``) RETIRED at the final method's build
+step 12 (Sat 19/09/2026): its pins predated the operator's re-draws (33 marks against 35, the fingerprint
+moved, the junk population re-frozen twice) and had sat red since; the reader pin (``tools.reader_pin``)
+and the marks ratchet (``tools.marks_corpus``) are the standing gates on the episode reader.
 
 Deterministic + stamped (EC-13): marks load through the ONE validated
 loader; frames come from the committed sealed-fixture parquets (git-tracked;
@@ -35,7 +29,6 @@ Read-only against the DB.
 
 Usage (ChrolloDashboard venv python, from repo root):
     python -m tools.event_map_census            # full report
-    python -m tools.event_map_census --check    # pinned promotion regression
     python -m tools.event_map_census --json OUT # report rows as JSON
     python -m tools.event_map_census --ticker T # one mark's as-of drill-down
 (modes run alone — combined flags are refused loudly, never dropped)
@@ -460,69 +453,8 @@ def _drill(mark_asof_rows, ticker: str) -> None:
                   f"  ({e['n_bars']} bars)  knowable {know}{post}")
 
 
-# The promotion regression: the exact evidence the program was approved on
-# (probe capture 2026-07-25; committed record: docs/event_map_program_2026-07.md).
-# The fingerprint pins the GROUND-TRUTH IDENTITY — the exact drawn marks the
-# outcome pins were computed on. The calibration DB is editable by design
-# (EC-9): a re-drawn window moves the fingerprint and fails this check BY
-# NAME, so evidence is re-pinned deliberately, never re-based silently.
-# Re-pinned 2026-08-10 (docs/event_map_program_2026-07.md §6): the fingerprint
-# covers EVERY box-verdict mark in the editable DB, and ONE new mark
-# (UNF@2026-07-10 'classic', drawn 2026-07-27) rotated it. The 33 Guided List
-# marks are graduation-identical — their subset still hashes the promotion-time
-# b671e056… — and every outcome pin reproduced unchanged: bookkeeping, not
-# evidence drift.
-_PINNED_MARKS_FINGERPRINT = (
-    "3cee17e01aaf1bc310047f00965b92a22534a152eb2b411727cc623a2ae947d4")
-_PINNED_MARKS_PARSE_V1 = 15
-_PINNED_MARKS_TOTAL = 33
-_PINNED_JUNK_TOTAL = 95
-_PINNED_JUNK_PARSE_V1 = 17
-_PINNED_CASES = {
-    "EGBN:2026-01-15": {"n_completed_s": 3, "n_completed_r": 0,
-                        "terminal_r_posture": True,
-                        "profile": "S+ S+ S+ R^"},
-}
-_PINNED_JUNK_ZEROS = {"DGII": 11, "CHCT": 7, "COLM": 10, "FLG": 2}
-
-
-def check(mark_rows, junk_rows, fingerprint) -> list[str]:
-    """Exact-match assertions on the headline evidence; returns named diffs."""
-    diffs = []
-
-    def _pin(name, got, want):
-        if got != want:
-            diffs.append(f"{name}: got {got!r}, pinned {want!r}")
-
-    _pin("marks fingerprint (ground-truth identity)", fingerprint,
-         _PINNED_MARKS_FINGERPRINT)
-    _pin("marks total", len(mark_rows), _PINNED_MARKS_TOTAL)
-    _pin("marks parse (v1)", sum(r["parses_v1"] for r in mark_rows),
-         _PINNED_MARKS_PARSE_V1)
-    _pin("junk candidates", len(junk_rows), _PINNED_JUNK_TOTAL)
-    _pin("junk parse-pass (v1)", sum(r["parses_v1"] for r in junk_rows),
-         _PINNED_JUNK_PARSE_V1)
-
-    by_key = {r["key"]: r for r in mark_rows}
-    for key, want in _PINNED_CASES.items():
-        row = by_key.get(key)
-        if row is None:
-            diffs.append(f"{key}: missing from mark rows")
-            continue
-        for field, val in want.items():
-            _pin(f"{key}.{field}", row[field], val)
-
-    for key, total in _PINNED_JUNK_ZEROS.items():
-        rows = [r for r in junk_rows if r["key"] == key]
-        _pin(f"{key} candidates", len(rows), total)
-        _pin(f"{key} parse-pass", sum(r["parses_v1"] for r in rows), 0)
-    return diffs
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true",
-                    help="pinned promotion regression (exit 1 on drift)")
     ap.add_argument("--json", help="write report rows as JSON to this path")
     ap.add_argument("--ticker", help="per-episode drill-down for one mark")
     args = ap.parse_args()
@@ -531,26 +463,8 @@ def main() -> int:
     # leaves a stale artifact at the target path masquerading as fresh
     # evidence; a silently dropped --ticker hides the drill the operator
     # asked for.
-    if args.check and (args.json or args.ticker):
-        ap.error("--check runs alone; combine with no other flag")
     if args.ticker and args.json:
         ap.error("--ticker is a read-only drill-down; it writes no JSON")
-
-    if args.check:
-        mark_rows, fingerprint = read_mark_sentences()
-        junk_rows = read_junk_sentences()
-        diffs = check(mark_rows, junk_rows, fingerprint)
-        if diffs:
-            print("EVENT MAP CENSUS CHECK: DRIFT — the instrument no longer "
-                  "reproduces the recorded evidence:")
-            for d in diffs:
-                print(f"  {d}")
-            return 1
-        print(f"EVENT MAP CENSUS CHECK: OK — headline evidence reproduces "
-              f"(marks {_PINNED_MARKS_PARSE_V1}/{_PINNED_MARKS_TOTAL} v1, "
-              f"junk {_PINNED_JUNK_PARSE_V1}/{_PINNED_JUNK_TOTAL}; "
-              f"fingerprint {fingerprint}, engine {manifest_hash()[:16]})")
-        return 0
 
     if args.ticker:
         # The drill needs ONLY the as-of rows — never the junk-corpus engine

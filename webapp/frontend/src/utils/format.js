@@ -100,3 +100,16 @@ export const fmtDateShort = (value, empty = EMPTY) => {
   if (!match) return value;
   return `${MONTHS[Number(match[2]) - 1]} ${Number(match[3])}`;
 };
+
+// The operator's date: "Wed 11/02/2026" (weekday dd/mm/yyyy) from an
+// ISO-date-prefixed string; the weekday is read in UTC so a date never shifts
+// a day across the browser's zone. Non-date strings pass through.
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const fmtDay = (value, empty = EMPTY) => {
+  if (!value) return empty;
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return value;
+  const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${weekday} ${match[3]}/${match[2]}/${match[1]}`;
+};

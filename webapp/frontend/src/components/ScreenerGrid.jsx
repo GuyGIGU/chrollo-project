@@ -7,6 +7,7 @@ import ScreenerPager from './ScreenerPager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from './ScreenerWatchlistPanel';
+import WatchLanePanel from './WatchLanePanel';
 import { universeLabel, isEtfUniverse } from './universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../hooks/useReviews';
@@ -282,6 +283,11 @@ const ScreenerGrid = () => {
                 onPageChange={filters.setCurrentPage}
               />
             </>
+          )}
+          {/* The watch lane (point 22): apart from the leaderboard, present on
+              the wire only once the method flips; nothing renders before. */}
+          {(status === 'ready' || status === 'empty') && (
+            <WatchLanePanel watch={screenerData?.market_context?.watch} />
           )}
         </>
       ))}
