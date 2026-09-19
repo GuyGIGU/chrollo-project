@@ -24,14 +24,16 @@ New here? Read this file top-to-bottom, then:
 
 ## What it does, end to end
 
-1. **Pulls market data** for the US common-stock universe from yfinance into a 5-year parquet cache
-   (incremental daily refresh; weekly cold refetch). The daily read trims to 2 years, while the
-   deeper cache feeds weekly/monthly context. SPY rides along for market context.
+1. **Pulls market data** from yfinance into a 5-year parquet cache (`DOWNLOAD_PERIOD = "5y"`,
+   incremental daily refresh, a cold refetch at least weekly). The daily structure read trims back
+   to 2 years (`DAILY_STRUCTURE_PERIOD`), while the deeper cache feeds weekly/monthly context.
+   SPY and QQQ ride along as market context (`INDEX_SYMBOLS`). Three universes run off the same
+   engine, each with its own cache and artifact: **US Stocks** (the NASDAQ common-stock default),
+   **US Sectors + Market**, and **Commodities + ETFs**.
 2. **Screens** every ticker through a 4-phase pipeline: baseline filters → consolidation/box
    detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_alpha.md`.
-3. **Renders** the survivors in a React dashboard: candlestick charts with the detected box/LPS
-   drawn on, "why-ranked" tag chips, Visual/Market score pills, filtering, sorting, and a
-   star-able watchlist.
+3. **Renders** the survivors in a React dashboard: OHLC bar charts with the detected box/LPS
+   drawn on, the tier, "why-ranked" tag chips, filtering, sorting, and a star-able watchlist.
 4. **Archives** every scan to SQLite and **backfills forward returns** over the following days, so
    the structural fingerprint of each setup can later be regressed against what actually happened.
 5. **Optionally** connects to IBKR (manual, on-demand) to show a live portfolio snapshot. The user
@@ -64,11 +66,11 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
         │  webapp/backend  — FastAPI                                      │
         │   • serves the screener JSON + archive + watchlist + trade log  │
         │   • serves the built React app (one origin, no Vite in prod)    │
-        │   • APScheduler: daily scan + forward-returns (18:00 ET, Mon–Fri)│
+        │   • APScheduler: daily scan + forward-returns (17:00 ET, Mon–Fri)│
         │   • IBKR service (manual connect; portfolio snapshots only)     │
         └─────────────────────────────────┬──────────────────────────────┘
                                           │ HTTP / SSE
-                          webapp/frontend  — React + Vite (lightweight-charts)
+                          webapp/frontend  — React 19 + Vite (lightweight-charts)
 ```
 
 **Two engines + a conductor** is the core design principle: `engine_alpha/structure/` *measures*
@@ -94,15 +96,17 @@ absolute volatility) were all added this way.
 engine_alpha/          The frozen reading engine (see core/MAP.md)
   structure/           Visual Structure Engine — geometry: box/LPS detection, contractions,
                          ADR (no opinion)
-  scoring/             Scoring Engine — score_setup, calculate_tier (opinion; weights live
-                         in config/settings.py)
+  scoring/             Scoring Engine — score_setup, compose_ta_grade, calculate_structure_tier
+                         (opinion; weights live in config/settings.py)
   evaluation.py        Per-ticker evaluation: baseline filter → structure → LPS → scoring
 core/
   pipeline/            Conductor — data.py public API; tickers.py, downloads.py,
                          market_context.py, cache.py; screener.py (run_screener);
                          scan_job.py (scan → dashboard → archive)
   archive/             writer.py, forward_returns.py, analyze.py, seed.py, purge.py
-config/                settings.py (all tunables), tickers.csv (cached universe)
+config/                settings.py (all tunables), tickers.csv (cached NASDAQ universe),
+                         tickers_us_sectors.csv / tickers_commodities_etf.csv (the curated ETF
+                         universes), commodity_equity_map.json (ETF → related-equity drill-down)
 output/                Generated screener_data.json, watchlists, logs (data files gitignored)
 webapp/
   backend/             FastAPI app — main.py, routers/, services/ (scan_runner, scheduler,
@@ -125,10 +129,11 @@ start_dashboard.bat    Manual launcher: one uvicorn process serving UI + API at 
 A single FastAPI process serves both the JSON API and the **built** React app from
 `http://127.0.0.1:8000` (no separate dev server in production). Key surfaces:
 
-- **Screener grid** — one card per surviving setup: a candlestick chart with the detected box (R/S)
-  and LPS window drawn on, the tier + score, "why-ranked" **tag chips** (e.g. 🌀 VCP Coil,
-  📈 Ascending Support, ⚡ High ADR, 🤫 No Supply, ⚠️ Heavy Resistance), **Visual / Market
-  score pills**, distance-to-trigger, plus tier/setup/tag filters and sorting.
+- **Screener grid** — one card per surviving setup, kept to the chart itself: an OHLC bar chart with
+  the detected box (R/S) and LPS window drawn on, the tier badge, the weekly/monthly read, live price
+  and daily change, and "why-ranked" **tag chips** (e.g. 🌀 VCP Coil, 📈 Ascending Support,
+  ⚡ High ADR, 🤫 No Supply, ⚠️ Heavy Resistance), plus tier/setup/tag filters and sorting. The
+  score, setup name, sub-scores and distance-to-trigger live in the click-through detail lens.
 - **Watchlist** — a user-curated star toggle persisted to SQLite; bridges the grid to manual
   review in TWS / TradingView.
 - **Archive view** — historical setups with their forward outcomes (the regression dataset).
@@ -146,9 +151,9 @@ groups and tones, never a threshold.
 ## The archive (regression dataset)
 
 Every scan upserts each setup to the `setup_archive` table in
-`webapp/backend/trading_journal.db` (keyed on `ticker + scan_date`), capturing the full structural
+`webapp/backend/trading_journal.db` (keyed on `ticker + scan_date + universe_type`), capturing the full structural
 fingerprint (box width, touches, LPS shape, contraction/support/ADR sub-scores, market context).
-A few days later, `update_forward_returns` backfills `fwd_return_{1,5,10,20,60}d`, MFE/MAE, and
+A few days later, `core.archive.forward_returns` backfills `fwd_return_{1,5,10,20,60}d`, MFE/MAE, and
 whether/when the breakout trigger fired. `core/archive/analyze.py` turns this into a winner
 fingerprint. This is the feedback loop that will eventually justify (or reject) scoring-weight
 changes — see the measure-first note above.
@@ -166,7 +171,7 @@ trading session, so unattended scans never archive setups computed on stale data
 
 ### One-time setup
 ```powershell
-.\setup.bat          # installs Python + frontend deps, builds the React app into webapp/frontend/dist
+.\setup.bat          # creates the repo venv if missing, installs the pinned Python deps into it + the frontend deps, builds the React app into webapp/frontend/dist
 ```
 
 ### A single CLI scan (no web app)
@@ -181,8 +186,10 @@ trading session, so unattended scans never archive setups computed on stale data
 
 ### The app, unattended (recommended)
 Run the backend as an always-on local Windows service (NSSM) with start-on-boot + auto-restart;
-APScheduler then runs the scan + forward-returns daily at **18:00 ET, Mon–Fri**, tracks run health
-(`/scan-status/latest`, surfaced in the header), and a scheduled task backs up the DB + cache.
+APScheduler then runs the scan + forward-returns daily at **17:00 ET, Mon–Fri**
+(`SCAN_SCHEDULE_HOUR_ET`), tracks run health (`/scan-status/latest`, surfaced in the header), and a
+scheduled task backs up the DB + cache. Code changes go live with `update_dashboard.bat`, which
+**refuses to deploy while a scan is running** (`-Force` overrides).
 Full runbook: [`docs/deploy.md`](docs/deploy.md).
 
 ### Archive maintenance (CLI)
@@ -199,8 +206,12 @@ Use the smallest guard that proves the change, then widen only when the touched 
 - Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.shadow_diff --check` to catch canonical drift.
 - Structure-reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
   The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
+- Engine reading changes: also run `-m tools.marks_corpus --check` (the operator-marks ratchet),
+  `-m tools.reader_pin --check`, and, once the change has landed in the main checkout,
+  `-m tools.doctrine_audit --check` (`docs/decisions.md`, "How a change to this engine should go").
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
-  and `npm --prefix webapp\frontend run build`.
+  and `npm --prefix webapp\frontend run build` — the build in a worktree only, since the live service
+  serves the main checkout's `webapp/frontend/dist` (`update_dashboard.bat` rebuilds it safely).
 
 ---
 
@@ -229,4 +240,5 @@ This matters for any human or agent touching the code:
 ## Tech stack
 
 Python (pandas, numpy, scipy, yfinance, ib_async, APScheduler) · FastAPI + Uvicorn · SQLAlchemy +
-SQLite (WAL) · React + Vite + lightweight-charts · runs locally on Windows, localhost-only.
+SQLite (WAL) · React 19 + Vite, lightweight-charts + recharts, plain JS/JSX (no TypeScript) · runs
+locally on Windows, localhost-only.

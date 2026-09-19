@@ -210,7 +210,7 @@ def _job_kind(value) -> str:
 
 # The shipped slot, used ONLY when the settings file cannot be read at all —
 # the same pair services/scheduler.py falls back to when it builds the cron.
-_DEFAULT_SLOT = (18, 0)
+_DEFAULT_SLOT = (17, 0)
 
 
 def scan_slot() -> tuple[int, int]:

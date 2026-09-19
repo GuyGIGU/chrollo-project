@@ -12,12 +12,15 @@
 #     powershell -File update_dashboard.ps1 -Rollback
 # (Backend code comes from git — rollback only swaps the frontend bundle.)
 #
+# It REFUSES to run while a scan is in progress (see Assert-NoRunningScan);
+# -Force overrides that check.
+#
 # SAFETY: this script NEVER sets IBKR_LIVE_CONFIRMED and never changes the
 # service's broker-free configuration. It only rebuilds dist/ and bounces the
 # service, so the dashboard stays broker-free at boot exactly as before.
 # (The import-main smoke does not run the app lifespan — no scheduler, no broker.)
 
-param([switch]$Rollback)
+param([switch]$Rollback, [switch]$Force)
 
 $ErrorActionPreference = 'Stop'
 
@@ -30,6 +33,9 @@ if (-not $isAdmin) {
     Write-Host "Requesting administrator rights (needed to restart the service)..."
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
     if ($Rollback) { $argList += '-Rollback' }
+    # Forward -Force too: the elevated child is the process that runs the
+    # checks, so a switch dropped here would silently re-arm them.
+    if ($Force) { $argList += '-Force' }
     Start-Process powershell -Verb RunAs -ArgumentList $argList
     exit
 }
@@ -38,6 +44,9 @@ $repo = $PSScriptRoot
 Set-Location $repo
 $dist = Join-Path $repo 'webapp\frontend\dist'
 $distPrevious = Join-Path $repo 'webapp\frontend\dist_previous'
+# One address for the running service: the running-scan check below and the
+# post-restart health poll must ask the same process the same question.
+$healthUrl = 'http://127.0.0.1:8000/health'
 
 function Fail([string]$message) {
     Write-Host $message -ForegroundColor Red
@@ -100,7 +109,7 @@ function Restart-ServiceAndVerify {
     for ($i = 0; $i -lt 20; $i++) {
         Start-Sleep -Seconds 1
         try {
-            $resp = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/health' -TimeoutSec 3
+            $resp = Invoke-RestMethod -Uri $healthUrl -TimeoutSec 3
             $status = if ($resp.status) { $resp.status } else { 'ok' }
             Write-Host "Service is up. /health => $status" -ForegroundColor Green
             $resp | ConvertTo-Json -Depth 4 | Write-Host
@@ -128,6 +137,42 @@ function Close-OnResult([bool]$healthOk) {
     exit 1
 }
 
+# A deploy during a scan costs twice over: the restart kills the scan child
+# mid-run (12-17 minutes of work, and the archive row it never writes), and the
+# backend preflight below imports main against the LIVE database, whose boot
+# reconcile rewrites the still-'running' row to 'failed' — the exact string the
+# operator then finds in his archive. The service is the one process that knows,
+# so ask it: the scheduler and every manual job live inside it, so a service that
+# does not answer /health cannot be scanning.
+function Assert-NoRunningScan {
+    if ($Force) {
+        Write-Host "`n-Force: skipping the running-scan check." -ForegroundColor Yellow
+        return
+    }
+    Write-Host "`nChecking for a running scan..." -ForegroundColor Cyan
+    try {
+        $scan = (Invoke-RestMethod -Uri $healthUrl -TimeoutSec 5).checks.last_scan
+    } catch {
+        Write-Host "Service is not answering /health, so nothing can be scanning. Continuing." -ForegroundColor Yellow
+        return
+    }
+    if ($scan.status -ne 'running') {
+        Write-Host "No scan in progress (last scan: $($scan.status))." -ForegroundColor Green
+        return
+    }
+    $age = if ($null -ne $scan.age_hours) { ", started {0:N0} min ago" -f ($scan.age_hours * 60) } else { "" }
+    Fail (@(
+        "A scan is RUNNING$age - refusing to deploy. Nothing was changed.",
+        "/health says: $($scan.detail)",
+        "Restarting now would kill it mid-run, and the backend preflight would",
+        "rewrite its run record to 'failed'.",
+        "Wait for it to finish (a full scan takes 12-17 minutes), or stop it from",
+        "the dashboard's scan panel, then run this again.",
+        "To deploy anyway: powershell -File update_dashboard.ps1 -Force"
+    ) -join [Environment]::NewLine)
+}
+Assert-NoRunningScan
+
 # --- rollback: swap the previous frontend bundle back in ------------------------
 if ($Rollback) {
     if (-not (Test-Path $distPrevious)) {
@@ -144,7 +189,7 @@ if ($Rollback) {
 
 # --- 1. backend preflight -------------------------------------------------------
 Write-Host "`n[1/4] Backend preflight (compile + boot-import smoke)..." -ForegroundColor Cyan
-& $python -m compileall -q core webapp\backend
+& $python -m compileall -q core engine_alpha webapp\backend
 if ($LASTEXITCODE -ne 0) {
     Fail "Backend compile FAILED (exit $LASTEXITCODE). Service NOT restarted."
 }

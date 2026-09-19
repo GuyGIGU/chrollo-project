@@ -55,8 +55,11 @@ draw the consolidation accurately and measure its tightness faithfully.**
 | `trace_export.py` | Election-trace export (dark, `ELECTION_TRACE_EXPORT_ENABLED`): summarizes the walk's own same-run narration into one compact, date-anchored story; the raw trace never leaves the engine, and operator-facing sentences render from the structured gate-leg records, never internal prose. |
 | `market_structure.py` | The chart in Highs & Lows: labels the swing skeleton HH/HL/LH/LL and marks mechanical breaks (BOS / reversal). Layer 0 of the event reader. |
 | `box_events.py` | The Wyckoff event reader (L2): calibrated SOS / spring / test / LPS / markup pieces + `assemble_box_narrative`, which orders them into a scored, traceable story. |
-| `event_map.py` | The Event Map: (1) the mechanical swing layer — ONE whole-frame pivot walk sliced into a pre-box trend view + the (byte-identical) in-box staircase, every swing stamped with when it *became knowable*; (2) the narrative-role layer — the L2 event zones re-emitted as stamped, tri-stated role labels fed the engine's ELECTED spring/LPS (never re-detecting). Measure-only; staged on the fire path behind `EVENT_MAP_ENABLED` (dark); owns the `event_map_*` archive column family. |
+| `event_map.py` | The Event Map: (1) the mechanical swing layer — ONE whole-frame pivot walk sliced into a pre-box trend view + the (byte-identical) in-box staircase, every swing stamped with when it *became knowable*; (2) the narrative-role layer — the L2 event zones re-emitted as stamped, tri-stated role labels fed the engine's ELECTED spring/LPS (never re-detecting). Measure-only; on the fire path and live (`EVENT_MAP_ENABLED`); owns the `event_map_*` archive column family. |
+| `event_vocabulary.py` | The ONE event vocabulary: folds what the three rail readers say (the typed waves, the role labels, the rail visits) into one chronological stream in one set of words. It adds names, never facts, and never touches a price bar. |
 | `power_play.py` | The Power-Play species archive family: the family's declaration, its one writer-facing extraction, the species lane's fields builder, and the shared episode mechanics. Never gates, never scores; the lane orchestration itself lives with the composed twin in `engine_alpha/evaluation.py`. |
+| `displacement.py` | How a structure resolves: a close beyond the ceiling (breakout) or a violent break under the floor (shakeout), measured by the one ruled breakout-wall arithmetic that the Power-Play lane and the story chains share. |
+| `chain.py` | The story-chain coordinator: reads a second structure after a resolved one (a story with a sequel) through the same reader, with the first one frozen. Not wired into the scan yet; only its tests call it. |
 | `phase_features.py` | Measures the named phase regions of a detected base (`measure_phases`): Phase A/B/D windows, the Phase-C spring candidate, LPS position, and the Last-Supper stretch — pure measurement, archived as the `bin_*` column family. |
 | `phase_d.py` | Phase-D boundary resolution: where the right side of the base actually starts. |
 | `strategy_read.py` | The strategy read (dark, `STRATEGY_READ_ENABLED`): two campaign-context measures per fire — how deep the correction cut below the resolved climax, and whether the base floor held the automatic reaction's low. Archived raw, measure-first; never gates, never scores. |
@@ -74,11 +77,22 @@ them into a number and a letter grade (S / A / B / C / D).
 
 | File | What it does |
 |------|--------------|
-| `scoring.py` | `score_setup` adds up 14 ingredients (box tightness, touches, volume dry-up, contraction footprint, ADR%, 52-week-high proximity, market breadth, ...) into a total. `calculate_tier` maps that total to a letter. |
+| `scoring.py` | `score_setup` measures the ingredients (box tightness, touches, volume dry-up, contraction footprint, ADR%, 52-week-high proximity, market breadth, ...) as sub-scores. `compose_ta_grade` sums them into the one Technical Analysis grade (0–100, shown as story chapters), and `calculate_structure_tier` turns that grade into the letter (a wide base is never S). |
 | `taxonomy.py` | The single registry of every sub-score term (its key, archive column, point cap, layer, flag) — the one place consumers derive their lists from instead of re-declaring literals. |
+| `tags.py` | Decides every chip (VCP Coil, No Supply, ...) once, engine-side, from the registry in `taxonomy.py`. The dashboard shows the verdict and never re-decides it. |
 
 **Want to change how much a factor is *worth*?** Edit the numbers in `config/settings.py`
 (the `SCORE_*` and `TIER_*` constants) — never the measurement code.
+
+### Also in `engine_alpha/`
+
+| File | What it does |
+|------|--------------|
+| `evaluation.py` | The ONE per-ticker chain that live scans and seed replays share (see section 3). |
+| `frames.py` | The engine's own 2-year daily window rule — what the reader sees — kept here so the engine never imports the download code. |
+| `freeze/manifest.py` | The engine's identity: an explicit list of every setting that can change a decision, hashed, so two runs can prove they used the same engine. |
+| `stability.py` | Measure-only and dark (`ELECTION_STABILITY_ENABLED`): does the elected reading survive moving the evaluation day back? Real structures persist; junk flickers. |
+| `election_identity.py` | The one test of whether two elected structures are the SAME reading, shared by the operator-agreement harness and the stability read. |
 
 ## 3. `core/pipeline/` — the Conductor ("runs the screen")
 
@@ -99,6 +113,15 @@ it is, and assembles the ranked list.
 | `cache.py` | Small filesystem, metadata, and market-clock helpers used by the data modules. |
 | `evaluation.py` (lives in `engine_alpha/`) | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly — extracted with the reading engine it composes. |
 | `screener.py` | `run_screener`: loads data, prepares ticker frames, broadcasts market context, runs workers, and ranks results. |
+| `scan_job.py` | The whole nightly job: scan → dashboard payload → freshness check → archive; also the download-only refresh. |
+| `universe.py` | Which market a scan covers (US stocks, US sectors, commodities and ETFs) and where each one's cache and output files live — the single source of truth. |
+| `rate_limit.py` | The throttle on every Yahoo request, so the fetch stays under the provider's limit. |
+| `file_lock.py` | The cross-process lock on each universe's price cache, so the scheduler, a manual job and a CLI run can't corrupt it by writing at once. |
+| `candles.py` | The one builder of chart bars for the wire (scan payload, health board, watchlist), so every chart gets identical data. |
+| `data_freshness.py`, `market_calendar.py` | Is the price data current to the latest completed trading day (NYSE sessions)? Behind the stale-data guard. |
+| `cache_status.py`, `market_data_health.py` | Cache coverage, health and repair state, for the dashboard. |
+| `health_board.py` | The Market & Sector Health Board: a looser position-in-cycle read of every sector and ETF member, separate from the setup engine. |
+| `json_safety.py` | Makes scan payloads safe for plain JSON (NaN, dates, numpy numbers). |
 
 ## 4. `core/archive/` — the Measuring Stick ("learn from outcomes")
 
@@ -106,18 +129,29 @@ it is, and assembles the ranked list.
 actually happened afterward, and lets us study which setups won. This is how we earn
 the right to re-tune the scoring.
 
+Run these with the repo venv, `.\.venv\Scripts\python.exe -m core.archive.<name>` — bare `python`
+is a trap on this machine (`docs/deploy.md` §2).
+
 | File | Run it with | What it does |
 |------|-------------|--------------|
 | `writer.py` | (automatic) | Saves each scan's results into the archive database. |
-| `seed.py` | `python -m core.archive.seed` | Bootstraps the archive with known historical setups. |
-| `forward_returns.py` | `python -m core.archive.forward_returns` | Fills in real outcomes once setups are old enough. |
-| `analyze.py` | `python -m core.archive.analyze` | The report card: winner fingerprint, what predicted returns, bias warnings. |
-| `purge.py` | `python -m core.archive.purge` | Cleans uncurated rows out of the archive. |
+| `seed.py` | `-m core.archive.seed` | Bootstraps the archive with known historical setups. |
+| `forward_returns.py` | `-m core.archive.forward_returns` | Fills in real outcomes once setups are old enough. |
+| `analyze.py` | `-m core.archive.analyze` | The report card: winner fingerprint, what predicted returns, bias warnings. |
+| `purge.py` | `-m core.archive.purge` | Cleans uncurated rows out of the archive. |
+| `seed_recall.py` | `-m core.archive.seed_recall --hermetic-check` | Does the engine still re-find every known seed winner? The hermetic form replays committed data offline. |
+| `near_miss_writer.py` | (automatic) | Records the setups the engine narrowly refused (the near-miss lane). Measure-only. |
+| `near_miss_outcomes.py` | (automatic) | Fills in what happened after each near-miss, with the same outcome math. |
+| `outcomes.py` | (shared) | The ONE home of outcome math (returns, MFE/MAE, trigger), used by the updater and the backtest alike. |
+| `episodes.py` | (shared) | Collapses a base re-flagged day after day into one episode, so it counts once in any win rate. |
+| `missed_winners.py` | (dashboard) | Did the engine flag winners the operator never engaged with? Its standalone edge against his discretion. |
+| `result_adapter.py` | (shared) | Maps the live evaluation result onto the archive writer's column names. |
+| `db_path.py` | (shared) | The one place that decides which database file the archive opens (`CHROLLO_DB_PATH`, else the live journal DB). |
 
 ---
 
 ## The one-line flow
 
-`python run_screener.py` → **pipeline** loads **data**, and for each stock asks
+`.\.venv\Scripts\python.exe run_screener.py` → **pipeline** loads **data**, and for each stock asks
 **structure** "what's here?" then **scoring** "how good?", ranks them, shows the
 dashboard, and (if enabled) hands the results to **archive** to remember.

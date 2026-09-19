@@ -135,7 +135,7 @@ voided and re-measured, so editing a mark can never launder a regression into a 
 
 ### EC-8: Every new engine flag ships with the full flag protocol in one change
 **Convention:** A new engine behavior flag must land in the SAME change as: registration in the frozen
-settings manifest (`core/freeze`) AND the dark-flag ledger (`tests/test_invariants.py`); a unit-level
+settings manifest (`engine_alpha/freeze/manifest.py`) AND the dark-flag ledger (`docs/flag_ledger.md`, enforced by `tests/test_invariants.py`); a unit-level
 inert test in its home module; one flag-off frozen-fixture pipeline replay asserting equality with the
 shadow baseline; and an agreed scan-metrics evaluation-phase cost bound measured before the operator
 flips it live. Flag-off must be byte-identical and compute-free.

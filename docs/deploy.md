@@ -11,7 +11,7 @@ cd "C:\Users\User\Documents\Projects\Chrollo Project"
 .\setup.bat
 ```
 
-This installs Python packages, installs frontend packages, and builds the browser UI into `webapp\frontend\dist`.
+This creates the repo venv (`.venv`) if it is missing, installs the pinned Python packages into it (`constraints.txt`), installs frontend packages, and builds the browser UI into `webapp\frontend\dist`.
 
 To reproduce the exact known-good dependency set (e.g. on a fresh machine or after a bad
 upgrade), install with the committed constraints file — `requirements.txt` stays loose on
@@ -19,7 +19,7 @@ purpose so upgrades are deliberate; `constraints.txt` pins what the service was 
 against:
 
 ```powershell
-pip install -r requirements.txt -c constraints.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 ```
 
 After a deliberate upgrade, regenerate it: `pip freeze` → replace the pin lines in
@@ -326,12 +326,12 @@ Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unatte
 
 ### 5a. Missed-slot catch-up at boot
 
-The 18:00 ET slot is 01:00 local, and a full scan takes ~17 minutes — so powering the PC
-off around 01:00 lands squarely on the scan. Two mechanisms cover a lost night, and neither
+The 17:00 ET slot is 00:00 local, and a full scan takes ~17 minutes — so a power-off soon after
+midnight still lands on the scan (§4b has the history). Two mechanisms cover a lost night, and neither
 needs a click:
 
 - **Misfire grace (4 hours).** APScheduler's default grace is 1 second, so a machine asleep
-  or a service mid-restart at 18:00 ET silently dropped the run. With hours of grace, a late
+  or a service mid-restart at the slot silently dropped the run. With hours of grace, a late
   tick still fires the job. This covers "process alive but couldn't fire on time".
 - **Boot catch-up.** A process that was fully DOWN at slot time has no job to misfire, so at
   every service boot the scheduler looks at the **most recent weekday slot** — today's if it
@@ -463,11 +463,16 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
 `update_dashboard.ps1`). It:
 
 1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
-2. Preflights the backend: `compileall` plus an import-`main` smoke from the service's own
+2. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
+   restart would kill the scan child mid-run, and the import-`main` smoke in step 3 would rewrite
+   its still-`running` row to `failed`. Wait for it, or stop it from the dashboard's scan panel.
+   `-Force` skips this check; a service that does not answer `/health` cannot be scanning, so the
+   deploy continues.
+3. Preflights the backend: `compileall` plus an import-`main` smoke from the service's own
    working directory (import does **not** run the lifespan — nothing starts, nothing touches
    the broker). A backend that would die on boot is caught **before** the running service is killed.
-3. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
-4. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
+4. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
+5. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
 
 If a deploy looks wrong in the browser, roll the frontend back in one command (backend code
 comes from git, so rollback only swaps the frontend bundle):

@@ -66,26 +66,30 @@ books — it never places trades.**
 
 ## Setup, run, verify (exact commands)
 Interpreter: the repo venv, `.\.venv\Scripts\python.exe` — this machine's bare `python` is a
-documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
+documented trap (two colliding 3.14 installs; `docs/deploy.md` §2). A linked worktree has no `.venv`
+of its own; use the main checkout's: `& "$(git rev-parse --git-common-dir)\..\.venv\Scripts\python.exe"`.
 ```powershell
 .\setup.bat                                                  # one-time: install deps + build frontend
 .\.venv\Scripts\python.exe run_screener.py                   # one CLI scan → output/screener_data.json → archive
 .\.venv\Scripts\python.exe -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
 .\.venv\Scripts\python.exe -m core.archive.analyze           # winner-fingerprint report card
-npm --prefix webapp\frontend run build                       # build the React app
+npm --prefix webapp\frontend run build                       # build the React app (a worktree only; see below)
 npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
-.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~35s; also prints the graduation-drift advisory)
+.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the operator-marks ratchet (~2 min): fails on a lost pinned hit, and as STALE once the operator redraws (refresh: tools.guided_list_export, then --build-fixture)
 .\.venv\Scripts\python.exe -m tools.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
-.\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
+.\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC; refuses while a scan is running)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
-  backend files; `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to
-  confirm routes register — **but point the DB somewhere throwaway first**:
+  backend files; `npm --prefix webapp\frontend run build` **in a worktree only**. The live service
+  serves `webapp\frontend\dist` from the main checkout, and a bare build there swaps its bundle with
+  no rollback copy (`update_dashboard.bat` keeps one). To build from the main checkout, use Git Bash:
+  `npm --prefix webapp/frontend run build -- --outDir "$TEMP/chrollo-build" --emptyOutDir`. Also
+  importing `main` in a subprocess to confirm routes register — **but point the DB somewhere throwaway first**:
   ```powershell
   $env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # then import main
   ```
-  `import main` runs `initialize_database()` at *import* scope: `create_all`, the ALTER list, three
+  `import main` runs `initialize_database()` at *import* scope: `create_all`, the ALTER list, four
   rebuild migrations that copy a 44 MB backup, and `_reconcile_orphaned_runs`, which rewrites any
   `scan_runs` row still `running` to `failed` — that string is in the operator's archive because a
   bare `pytest` used to do exactly this (council review 2026-09-07). `pytest` now sets the same
@@ -99,7 +103,8 @@ npm --prefix webapp\frontend run lint                        # eslint
 
 ## Repository layout
 - `engine_alpha/structure/` — geometry: box/LPS detection, contractions, ADR (no opinion).
-- `engine_alpha/scoring/` — `score_setup`, `calculate_tier` (opinion; weights live in `config/settings.py`).
+- `engine_alpha/scoring/` — `score_setup` (sub-scores), `compose_ta_grade` (the TA grade),
+  `calculate_structure_tier` (its letter), `tags.py` (chip verdicts) — opinion; weights live in `config/settings.py`.
 - `core/pipeline/` — conductor: `data.py`, `screener.py`, `scan_job.py`.
 - `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py`, `seed.py`, `purge.py`.
 - `webapp/backend/` — `main.py`, `routers/`, `services/` (`scan_runner`, `scheduler`, `scan_status`,
@@ -155,4 +160,6 @@ npm --prefix webapp\frontend run lint                        # eslint
 - State the plan briefly before larger changes. Flag anything that feels overcomplicated and offer the
   simpler option.
 - **Commit/push only when asked.** If on the default branch, create a feature branch first.
-- End commit messages with `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
+- End commit messages with a `Co-Authored-By:` line naming the **latest Claude Opus release**:
+  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` as of 2026-09. When a newer Opus ships, use
+  its name; never pin an older version.

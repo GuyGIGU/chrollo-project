@@ -44,7 +44,7 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt -c constraints.txt
 
       - name: Compile Python
-        run: python -m compileall core webapp/backend
+        run: python -m compileall core engine_alpha webapp/backend
 
       - name: Run Python tests
         run: python -m pytest
@@ -206,7 +206,7 @@ jobs:
           .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt -c constraints.txt
 
       - name: Compile Python
-        run: .\.venv\Scripts\python.exe -m compileall core webapp/backend
+        run: .\.venv\Scripts\python.exe -m compileall core engine_alpha webapp/backend
 
       - name: Run Python tests
         run: .\.venv\Scripts\python.exe -m pytest

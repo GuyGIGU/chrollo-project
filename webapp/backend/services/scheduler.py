@@ -111,7 +111,7 @@ def start_scheduler() -> None:
         return
 
     settings = load_core_settings()
-    hour = int(getattr(settings, "SCAN_SCHEDULE_HOUR_ET", 18))
+    hour = int(getattr(settings, "SCAN_SCHEDULE_HOUR_ET", 17))
     minute = int(getattr(settings, "SCAN_SCHEDULE_MINUTE_ET", 0))
     tz = ZoneInfo("America/New_York")
 
