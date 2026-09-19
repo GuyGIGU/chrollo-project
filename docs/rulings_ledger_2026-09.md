@@ -1597,3 +1597,22 @@ FOR THE BUILD SESSION (the core, its steps 10 and 11): the engine's own box on h
 of his upthrust, where his R is 87.00, and opens on Mon 04/05 where his opens on Tue 21/04. It finds the same SOS,
 last supper and LPS days, but the upthrust has become the ceiling, so his LPS "resting on the resistance" reads as a
 dip inside the box. By his words the upthrust is a Phase B event inside the structure, never a rail.
+
+## BUILD STEP 11 (Sat 19/09/2026): THE BOX'S END AND THE HAND-OVER BY SWINGS, DARK
+
+BOX_END_ENABLED with BOX_END_BREAKOUT_ATR (0.10, R15's margin), his points 6, 8 and 26, his Q6 ("if the price
+continues to Rise/Fall with out recovering we can deduce that either that the consolidating structure we measured
+ended and the price began to trend") and his dead-space drawings on the BMRN and OHI renders (Sat 19/09/2026). Built
+as one switch (engine_alpha/structure/box_end.py, bricks.read_box_end, the walk): the hand-over by swings (every swing
+holding the R area after the breakout day a child root candidate, the parent ended the day a later swing turns at one
+of a candidate's anchors, the walk then moving on to the next run) and the breakdown (a dip under the support area
+whose recovery swing reached the area and then failed under the tip; the box ended at its last turn before the dip;
+a dip that only deepens is undetermined); the unit
+frozen at the election day; the unconfirmed child as the chart's state; the extension veto, the stale-box rescue's
+percent test, the dethrone pass and the mini-that-is-a-child retired. A close-dated hand-over stays Tested-DEAD. The
+first cut took only the first swing after the breakout as the candidate and jumped the walk to the breakout day: on
+his marks it left 9 parents waiting on a candidate never revisited and 10 hand-overs with no box after them; replaced
+the same day by candidates that accumulate and a walk that simply moves on to the next run.
+MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 21 of 35 (BODI, JAZZ, MATX, MRK, MSGS, NGL April, NTCT, SILC and VLO silent: boxes today's walk keeps that the end rule ends by the fire day) / 5 (BBVA, ENIC, FRPH silent) / 25, reader pin PASS; with every
+switch through step 10 on 35 / 30 of 35 (FOSL, MATX and NTCT silent; EGBN, NOK and ST convert) / 9 / 29, the reader pin failing on those fires (the vocabulary re-pin is step 12's). On the frozen fire day of his 35 marks (control fires 30, rails his 14, box and
+open his 10, T5 WITH 10): every switch through step 11 on: fires 16, rails his on 10 of the 24 boxes read, box and open his on 7 (ANRO, BWA, EWTX, MS, NKTR, RGR, VIK), WITH 4, no chart left on a 2024 range (the states: crossed 5, lines no LPS yet 3, broke down 2 (FOSL, JAZZ), forming 1, handed over with no child box yet 7: MSGS, NGL April, NOK, NTCT, SILC, SKYT, ST); without the no-LPS switch fires 16, rails his 6, box and open his 5, broke down 3; the first cut (the first swing after the breakout as the only candidate, the walk jumping to the breakout day) read fires 11 with 9 parents waiting on a candidate never revisited and 10 hand-overs with no box after them. Flag-off every guard byte-identical; 23 mutations red then green.

@@ -387,9 +387,17 @@ def _still_backing_up(last_close, R_val, atr_val) -> bool:
     """Is price still backing up to a broken-out box, so its rescue may keep it? R11 (final method step 2, dark):
     the box hands over to the next framing once the close sits more than BOX_HANDOVER_MAX_ABOVE_R_ATR daily
     ranges above its R; the percent-of-price form stays the flag-off path."""
+    if settings.BOX_END_ENABLED:
+        return True           # build step 11: the box's end decides staleness, never a close level
     if settings.BOX_HANDOVER_RANGES_ENABLED:
         return bool(last_close <= R_val + settings.BOX_HANDOVER_MAX_ABOVE_R_ATR * atr_val)
     return bool(last_close <= R_val * settings.EXTENSION_FILTER_MULT)
+
+
+def _dethrone_armed(n_pool: int) -> bool:
+    """The dethrone pass runs on a pool of two or more, flag-on, and never under the box's end (build step 11:
+    an ended box is not in the walk's way any more)."""
+    return bool(settings.ELECTION_DETHRONE_ENABLED and not settings.BOX_END_ENABLED and n_pool > 1)
 
 
 def _answered(zigzag, R_val, S_val, second_anchor_bar, area) -> bool:
@@ -557,7 +565,7 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # shelf). Dethroned only IN FAVOR OF a later valid framing — never into
     # an emptier read. One trailing pass over the already-loaded window;
     # pure function of the frame, no cross-session state.
-    if settings.ELECTION_DETHRONE_ENABLED and len(pool) > 1:
+    if _dethrone_armed(len(pool)):
         buf = settings.BOUNDARY_ATR_BUFFER * atr_val
         k = settings.ELECTION_DETHRONE_SESSIONS
         rescued_ids = {id(c) for c in rescued}

@@ -265,6 +265,27 @@ def _line_window_kwargs(eval_df, root, win0, atr):
             "answer_area": float(settings.LINE_WORD_AREA_ATR) * unit}
 
 
+def read_box_end(df, box, atr):
+    """Build step 11 (dark): has this box ended? The line on the whole frame, the unit frozen at the election
+    day (the ATR of the day the answering completed, when the frame carries ATR_10; else the walk's ATR), then
+    ``box_end.box_end``. Returns ``(end, child_candidate, unit)``."""
+    from engine_alpha.structure.box_end import box_end, election_bar  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    unit = float(atr)
+    highs = df["High"].to_numpy(dtype=float)
+    lows = df["Low"].to_numpy(dtype=float)
+    line = turn_line(highs, lows, turn_line_floors(df, unit))
+    area = float(settings.LINE_WORD_AREA_ATR) * unit
+    day = election_bar(line, float(box.R), float(box.S), max(int(box.r_anchor_bar), int(box.s_anchor_bar)), area)
+    if day is not None and "ATR_10" in getattr(df, "columns", ()):
+        frozen = float(df["ATR_10"].iloc[min(int(day), len(df) - 1)])
+        if _finite(frozen) and frozen > 0:
+            unit = frozen
+    end, child = box_end(line, df["Close"].to_numpy(dtype=float), float(box.R), float(box.S),
+                         int(box.r_anchor_bar), int(box.s_anchor_bar), unit)
+    return end, child, unit
+
+
 def _seed_clock() -> int:
     """How many bars a root's reaction must sit before the edge reserve. Today MIN_BASE_DAYS: the base age
     counted from the reaction bar. Under the step-6 floor (BASE_AGE_FROM_ANCHOR_ENABLED) the age counts from
@@ -457,6 +478,8 @@ def find_inner_box(
                                 parent_r=box.R, parent_s=box.S)
     if selected is None:
         return None
+    if settings.BOX_END_ENABLED and float(selected["S"]) >= float(box.R) - float(settings.LINE_WORD_AREA_ATR) * float(atr):
+        return None       # build step 11, point 26's seam: a band whose bottom holds the R area is the child, not a mini
     start_bar = int(selected["start_bar"])
     return InnerBox(
         S=float(selected["S"]),

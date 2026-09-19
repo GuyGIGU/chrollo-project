@@ -338,7 +338,8 @@ def _resolve_structure_context(df: pd.DataFrame, latest,
         if watch is not None:
             watch.update(_chart_state(df, structure, watch["unit"], trace, why="crash floor"))
         return None
-    if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT):
+    if latest['Close'] >= (res_avg * settings.EXTENSION_FILTER_MULT) \
+            and not settings.BOX_END_ENABLED:            # build step 11: the box's end decides, dark
         if watch is not None:
             watch.update(_chart_state(df, structure, watch["unit"], trace, why="extension veto"))
         return None
@@ -1538,6 +1539,12 @@ def _chart_state(df, structure, unit, trace, why=None) -> dict:
     undetermined" (the crash floor). ``why`` names a refusal a later step retires (steps 10 to 12)."""
     area = float(settings.LINE_WORD_AREA_ATR) * float(unit)
     out = {"why": why} if why else {}
+    child = getattr(structure, "child", None)
+    if child:
+        # Build step 11, precedence row 4: a child root candidate after the breakout, not yet confirmed by a
+        # later turn at its anchors; the parent stays the operative box.
+        out.update(state="root candidate, unconfirmed", child=dict(child))
+        return out
     edge = _right_edge_run(df, float(structure.R), float(structure.S), area)
     if edge is not None:
         out.update(state=f"{edge[0]}, undetermined", days=int(edge[1]))
@@ -1552,6 +1559,13 @@ def _walk_refused_state(trace) -> dict:
     """The state word of a chart the walk refused, read off its own trace: "forming N of 15" when a box was
     too young (the oldest such box: its age and its rails ride along), else "no lines" with the last root's
     outcome as the why (no_box; cause_absent until step 10 folds the veto into a trend fact)."""
+    ended = [r for r in (trace or []) if r.get("outcome") == "ended"]
+    if ended and ended[-1] is next((r for r in reversed(trace) if r.get("box")), None):
+        # Build step 11: the last box the walk found had ended; a breakdown with nothing after it is "broke
+        # down", a hand-over with no child box yet is no lines with the reason named.
+        kind = (ended[-1].get("end") or {}).get("kind")
+        return ({"state": "broke down", "end": dict(ended[-1]["end"])} if kind == "breakdown"
+                else {"state": "no lines", "why": "handed over", "end": dict(ended[-1]["end"])})
     forming = [r for r in (trace or []) if r.get("outcome") == "forming"]
     if forming:
         rec = max(forming, key=lambda r: int(r["forming"]["age"]))

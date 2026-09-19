@@ -199,6 +199,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "WATCH_LANE_MIN_TURNS_PER_RAIL",
     "BOX_OPENS_ON_ANCHORS_ENABLED",
     "CLIMAX_FIRST_WALK_ENABLED",
+    "BOX_END_ENABLED",
+    "BOX_END_BREAKOUT_ATR",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)

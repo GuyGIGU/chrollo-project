@@ -108,6 +108,10 @@ class Structure:
     # Build step 10 (dark): the run the climax ended (launch_bar, ranges, days, end_bar), the trend-context fact
     # that replaces the cause veto; None flag-off.
     trend: Optional[dict] = None
+    # Build step 11 (dark): the unconfirmed child's anchors after a breakout (the chart's "root candidate,
+    # unconfirmed") and the frozen unit (the election day's ATR); None flag-off.
+    child: Optional[dict] = None
+    unit: Optional[float] = None
 
     @property
     def has_spring(self) -> bool:
@@ -479,6 +483,19 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
                     rec["forming"] = {"age": int(age), "of": int(settings.BASE_AGE_MIN_DAYS)}
                 continue
 
+        # Build step 11 (dark): has the box ENDED before today (the hand-over confirmed, or a breakdown)? An
+        # ended box is never the structure: the walk moves on to the next run (the child's own run owns the
+        # child's pairs, step 10). A live box carries its unconfirmed child and its frozen unit. Injected fakes
+        # without the read keep working (no method = no read).
+        child = unit = None
+        if settings.BOX_END_ENABLED and getattr(bricks, "read_box_end", None) is not None:
+            end, child, unit = bricks.read_box_end(df, box, atr)
+            if end is not None:
+                if rec is not None:
+                    rec["outcome"] = "ended"
+                    rec["end"] = dict(end)
+                continue
+
         # Phase C (optional) and the nested Phase-D mini-range (tighter trigger).
         spring = bricks.find_spring(df, box, atr)          # don't force it; may be None
         inner = bricks.find_inner_box(df, box, atr)
@@ -612,6 +629,8 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
             phase_d_evidence=phase_d.evidence,
             terminator=terminator,
             trend=getattr(root, "run", None),
+            child=child,
+            unit=unit,
         )
 
     return None
