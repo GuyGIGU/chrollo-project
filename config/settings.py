@@ -887,12 +887,14 @@ CLIMAX_FIRST_WALK_ENABLED = False
 # recovering we can deduce that either that the consolidating structure we measured ended and the price began to
 # trend") and his dead-space drawings of Sat 19/09/2026. Under the switch an elected box is read for its END on the
 # line (engine_alpha/structure/box_end.py): upward, the hand-over by swings (after the breakout day, R15's one use
-# of the close, the first swing whose valley holds in or above the parent's R area is the child's root candidate,
-# and the parent ends the day a later swing turns at one of the child's own anchors; a run that comes back into
-# the box hands nothing over; no close level ends a box, a close-dated hand-over is Tested-DEAD); downward, the
-# breakdown (a dip under the support area that fails to recover by the swing, a lower low printing first, ends
-# the box at its last turn before the dip). An ended box is never the structure: the walk moves on to the next
-# run. The unit of the area and the end tests is FROZEN with the rails: the ATR of the election day (the day the
+# of the close, every swing whose valley holds in or above the parent's R area is a child root candidate, and the
+# parent ends when a child's own answering completes, a later turn of the line inside the area of EACH of its
+# anchors: one turn at one anchor is the parent's own LPS above R, row 1 of point 6's table, and the parent goes on
+# and fires; a run that comes back into the box hands nothing over; no close level ends a box, a close-dated
+# hand-over is Tested-DEAD); downward, the mirror (after the breakdown day, a swing whose peak holds in or below
+# the S area is a child candidate below, confirmed by its own answering; a dip that confirms no child below is
+# under S, undetermined). The parent freezes at its last turn before price left. An ended box is never the
+# structure: the walk moves on to the next run. The unit of the area and the end tests is FROZEN with the rails: the ATR of the election day (the day the
 # answering completed). An unconfirmed child rides as the chart's state, "root candidate, unconfirmed" (point 6's
 # precedence row 4, a flag never a word); a breakdown with nothing after it reads "broke down". Retired under the
 # switch: the read day's extension veto (a close 15 percent over R), the stale-box rescue's percent test, the

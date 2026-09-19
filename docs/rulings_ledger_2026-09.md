@@ -1616,3 +1616,19 @@ the same day by candidates that accumulate and a walk that simply moves on to th
 MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 21 of 35 (BODI, JAZZ, MATX, MRK, MSGS, NGL April, NTCT, SILC and VLO silent: boxes today's walk keeps that the end rule ends by the fire day) / 5 (BBVA, ENIC, FRPH silent) / 25, reader pin PASS; with every
 switch through step 10 on 35 / 30 of 35 (FOSL, MATX and NTCT silent; EGBN, NOK and ST convert) / 9 / 29, the reader pin failing on those fires (the vocabulary re-pin is step 12's). On the frozen fire day of his 35 marks (control fires 30, rails his 14, box and
 open his 10, T5 WITH 10): every switch through step 11 on: fires 16, rails his on 10 of the 24 boxes read, box and open his on 7 (ANRO, BWA, EWTX, MS, NKTR, RGR, VIK), WITH 4, no chart left on a 2024 range (the states: crossed 5, lines no LPS yet 3, broke down 2 (FOSL, JAZZ), forming 1, handed over with no child box yet 7: MSGS, NGL April, NOK, NTCT, SILC, SKYT, ST); without the no-LPS switch fires 16, rails his 6, box and open his 5, broke down 3; the first cut (the first swing after the breakout as the only candidate, the walk jumping to the breakout day) read fires 11 with 9 parents waiting on a candidate never revisited and 10 hand-overs with no box after them. Flag-off every guard byte-identical; 23 mutations red then green.
+
+## BUILD STEP 11, CORRECTED (Sat 19/09/2026): THE CHILD IS CONFIRMED BY ITS OWN ANSWERING, BOTH WAYS
+
+The step-11 build as first measured (the section above) confirmed a child on one later turn at one of its anchors and
+read a breakdown as a recovery swing that failed. On his marks that ended his own boxes from inside: NTCT's box to the
+cent (R 28.20 / S 26.83, open Thu 11/12/2025) was handed over on Fri 20/02/2026 to a "child" that was its LPS above R
+(the pullback to 29.04 off the SOS top 30.23, re-touched once) and his fire day Mon 02/03/2026 was lost; SILC, ST and
+MSGS the same way; MSGS's and JAZZ's boxes broke down on a dip he kept inside the box. Point 6's precedence table
+settles it (row 1, an LPS above R fires, before row 4, the child flag; "a fire already given to the parent is never
+reassigned"): a child is confirmed when its own answering completes, a later committed turn inside the area of EACH
+of its anchors (point 9's law applied to the child); the breakdown is the mirror of the hand-over (a child below the
+S area, confirmed the same way; a dip that confirms no child below is under S, undetermined, point 8); the parent
+freezes at its last turn before price left.
+MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 26 of 35 (BODI, MATX, MRK and MSGS silent: boxes today's walk keeps that a confirmed child ends by the fire day) / 5 (BBVA, ENIC, FRPH silent) / 30, reader pin PASS; with every
+switch through step 10 on 35 / 33 of 35 (no pinned fire lost; EGBN, NOK and ST convert) / 10 / 33, the reader pin failing on those fires (the vocabulary re-pin is step 12's). On the frozen fire day of his 35 marks (control fires 30, rails his 14, box and
+open his 10, T5 WITH 10): every switch through step 11 on: fires 20, rails his on 12 of the 30 boxes read, box and open his on 9 (ANRO, DSGN, EWTX, FOSL, NGL April, NKTR, PBT, VIK and one more), WITH 3, no chart on a 2024 range and none broke down (the states: crossed 4, lines no LPS yet 3, root candidate unconfirmed 2 (EGBN, SKYT), forming 1, handed over with no child box yet 3: MSGS, NOK, ST); without the no-LPS switch fires 20, rails his 8, box and open his 7; the one-turn confirmation of the first measurement read fires 16, rails his 10, box and open his 7, with NTCT, SILC, ST handed over from inside their own boxes and FOSL, JAZZ broken down on a dip he kept. Flag-off every guard byte-identical; 22 mutations red then green.

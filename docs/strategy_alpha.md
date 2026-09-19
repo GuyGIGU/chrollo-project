@@ -170,11 +170,11 @@ switch; the run into the climax rides as a fact for the grade. Measured, the wal
 respect gate refuses it; with the gates off it elects ranges price left long ago until the box's end exists, so
 this switch goes live with step 11.
 Step 11 landed DARK (Sat 19/09/2026): a box ends. Upward, by the hand-over: after the breakout day every swing
-whose low holds in or above the box's resistance area is a child root candidate, and the parent ends the day a
-later swing turns at one of a candidate's own anchors (a run that comes back into the box hands nothing over; no
-close level ends a box). Downward, by the breakdown: a dip under the support area whose recovery swing reached the
-area and then failed under the tip ends the box at its last turn before the dip; a dip that only deepens is
-undetermined. An ended box is never the structure: the walk
+whose low holds in or above the box's resistance area is a child root candidate, and the parent ends when a
+child's own answering completes, a later turn at each of its anchors; one turn at one anchor is the parent's own
+LPS above resistance and ends nothing (a run that comes back into the box hands nothing over; no close level ends
+a box). Downward, the mirror: a child below the support area confirmed the same way; a dip that confirms no child
+is undetermined. An ended box is never the structure: the walk
 moves on to the next run, which is what carries it past the ranges price left long ago (his dead space). The
 unit of the areas is frozen with the rails at the election day; an unconfirmed child is the chart's state. The
 extension veto, the stale-box rescue and the dethrone pass retire under this switch; steps 7 to 10 go live with it.

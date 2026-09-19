@@ -6,13 +6,23 @@ run that never came back, and the box ends ONLY when the child is confirmed (26)
 parent then frozen back to its breakout day" (point 6); "After the parent's breakout, the first swing whose valley
 holds in or above the parent's R area (frozen unit) is the child's root candidate; the child is confirmed the day a
 later swing turns at one of the child's own anchors. Until that turn the parent stays the operative box ... The close
-is used once, for the breakout day (R15); no close level ends a box" (point 26); and the mirror under support: "A dip
+is used once, for the breakout day (R15); no close level ends a box" (point 26); "a fire already given to the parent
+is never reassigned" and row 1 of point 6's precedence table (a pullback above R that recedes with the trigger
+overhead is the parent's LPS and fires) come before row 4 (the child flag); and the mirror under support: "A dip
 under the support area ... becomes a spring under 14's swing rule, a breakdown when that swing fails, and then the box
 ended at its last turn before the dip" (point 8). A close-dated hand-over is Tested-DEAD.
 
-Pure functions of the line, the bars and the elected box; they read no setting but the rail area and R15's breakout
-margin, gate nothing and grade nothing. ``narrative._walk_structure`` moves on past an ended box under
-``BOX_END_ENABLED``; the unconfirmed child rides as the chart's state ("root candidate, unconfirmed").
+The child is confirmed when it is a consolidation of its own: point 9's law applied to it, the election committing
+when the answering completes, a later committed turn inside the area of EACH of its anchors (with the anchors, his
+two turns at each rail). One later turn at one anchor is the parent's own LPS above R (row 1), measured on his marks
+(NTCT, SILC, ST, MSGS, Sat 19/09/2026): the parent goes on and fires. The breakdown is the mirror, read the same way:
+after the breakdown day (the one use of the close under S) a swing whose peak holds in or below the parent's S area
+is a child candidate below, confirmed by its own answering; the parent ended at its last turn before the run left.
+A dip that never confirms a child below is "under S, undetermined" (point 8), not an end.
+
+Pure functions of the line, the bars and the elected box; they read no setting but the rail area and R15's margin,
+gate nothing and grade nothing. ``narrative._walk_structure`` moves on past an ended box under ``BOX_END_ENABLED``;
+the unconfirmed child rides as the chart's state ("root candidate, unconfirmed").
 """
 from __future__ import annotations
 
@@ -42,91 +52,80 @@ def election_bar(line, R, S, second_anchor_bar, area):
     return None
 
 
-def _breakout_bar(closes, R, unit, after_bar):
-    """R15's one use of the close: the first day after ``after_bar`` closing more than BOX_END_BREAKOUT_ATR ranges
-    over R. None while price has not left the box upward."""
-    margin = float(settings.BOX_END_BREAKOUT_ATR) * unit
+def _leave_bar(closes, level, margin, after_bar, up):
+    """R15's one use of the close: the first day after ``after_bar`` closing more than ``margin`` beyond ``level``
+    (over R going up, under S going down). None while price has not left the box that way."""
     for i in range(int(after_bar) + 1, len(closes)):
-        if float(closes[i]) > R + margin:
+        c = float(closes[i])
+        if (c > level + margin) if up else (c < level - margin):
             return i
     return None
 
 
-def _hand_over(line, closes, R, area, unit, after_bar):
-    """The upward end. After the breakout day, every committed swing whose valley holds in or above the parent's R
-    area is a child root candidate (its peak and that valley are the child's anchors; the first one is the
-    chart's "root candidate, unconfirmed"); the day a later committed turn sits inside the area of one candidate's
-    anchor, that child is confirmed and the parent ends on that turn. A valley back under the R area before any
-    confirmation means the run came back: the box goes on, and a later breakout starts the read again. Returns
+def _child_end(line, closes, level, area, margin, after_bar, up):
+    """One direction of the end, the same read both ways. After the day price left the box (``_leave_bar``), every
+    committed swing whose near anchor holds in or beyond the parent's rail area (a valley in or above R going up; a
+    peak in or below S going down) is a child root candidate, its two turns the child's anchors; the child is
+    confirmed, and the parent ended, when the child's own answering completes: a later committed turn inside the
+    area of EACH of its anchors (dated on the later of the two, known on its commit). A near anchor back inside the
+    box before that means the run came back: the box goes on, and a later leaving starts the read again. Returns
     ``(end, candidate)``: the end dict when confirmed, else the first unconfirmed candidate or None."""
     turns = _committed(line)
-    breakout = _breakout_bar(closes, R, unit, after_bar)
-    while breakout is not None:
+    near_kind, far_kind = ("valley", "peak") if up else ("peak", "valley")
+    left = _leave_bar(closes, level, margin, after_bar, up)
+    while left is not None:
         candidates = []
         came_back = None
         for i, (bar, kind, price, know) in enumerate(turns):
-            if bar <= breakout:
+            if bar <= left:
                 continue
-            for c in candidates:                             # a later turn at one of a child's own anchors
-                if bar > c["ar_bar"] and ((kind == "valley" and abs(price - c["ar_price"]) <= area)
-                                          or (kind == "peak" and abs(price - c["climax_price"]) <= area)):
-                    return ({"kind": "hand-over", "end_bar": int(bar), "known_bar": int(know),
-                             "breakout_bar": int(breakout), "child": c}, None)
-            if kind != "valley":
+            for c in candidates:                             # every turn here sits after the candidate
+                if kind == far_kind and abs(price - c["far_price"]) <= area and c["far_answered"] is None:
+                    c["far_answered"] = int(know)
+                elif kind == near_kind and abs(price - c["near_price"]) <= area and c["near_answered"] is None:
+                    c["near_answered"] = int(know)
+                if c["far_answered"] is not None and c["near_answered"] is not None:
+                    child = ({"climax_bar": c["far_bar"], "climax_price": c["far_price"], "ar_bar": c["near_bar"],
+                              "ar_price": c["near_price"]})
+                    return ({"kind": "hand-over" if up else "breakdown", "end_bar": int(bar),
+                             "known_bar": int(max(c["far_answered"], c["near_answered"])),
+                             "left_bar": int(left), "child": child}, None)
+            if kind != near_kind:
                 continue
-            if price < R - area:
+            inside = price < level - area if up else price > level + area
+            if inside:
                 came_back = bar                              # the run came back into the box
                 break
-            peak = next((t for t in reversed(turns[:i]) if t[1] == "peak"), None)
-            if peak is not None:
-                candidates.append({"climax_bar": peak[0], "climax_price": peak[2], "ar_bar": bar,
-                                   "ar_price": price, "breakout_bar": int(breakout)})
+            far = next((t for t in reversed(turns[:i]) if t[1] == far_kind), None)
+            if far is not None:
+                candidates.append({"far_bar": far[0], "far_price": far[2], "near_bar": bar, "near_price": price,
+                                   "far_answered": None, "near_answered": None})
         if came_back is None:
-            return None, (candidates[0] if candidates else None)
-        breakout = _breakout_bar(closes, R, unit, came_back)
+            first = candidates[0] if candidates else None
+            candidate = ({"climax_bar": first["far_bar"], "climax_price": first["far_price"],
+                          "ar_bar": first["near_bar"], "ar_price": first["near_price"], "left_bar": int(left)}
+                         if first else None)
+            return None, candidate
+        left = _leave_bar(closes, level, margin, came_back, up)
     return None, None
 
 
-def _breakdown(line, S, area, after_bar):
-    """The downward end (the mirror). A committed valley more than the area under S after ``after_bar`` is a dip;
-    its tip is its lowest low so far. It recovers by the swing (point 14: a later peak reaches the support area
-    and the valley after it commits higher than the tip) and is then a spring, not an end; it fails when that
-    swing fails: a peak reached the support area and the valley after it printed under the tip. The box then
-    ended at its last turn before the dip, known on that valley's commit. A lower low with no such attempt before
-    it only deepens the dip: still open, undetermined, no end. Returns the end dict or None."""
-    turns = _committed(line)
-    for i, (bar, kind, price, know) in enumerate(turns):
-        if bar <= after_bar or kind != "valley" or price >= S - area:
-            continue
-        tip, attempted = price, False
-        for j in range(i + 1, len(turns)):
-            b2, k2, p2, know2 = turns[j]
-            if k2 == "peak":
-                if p2 >= S - area:
-                    attempted = True                          # the recovery swing reached the support area
-                continue
-            if p2 > tip and attempted:
-                break                                         # recovered by the swing: a spring, not an end
-            if p2 < tip:
-                if attempted:
-                    last_turn_before = turns[i - 1][0] if i > 0 else bar
-                    return {"kind": "breakdown", "end_bar": int(last_turn_before), "known_bar": int(know2),
-                            "dip_bar": int(bar), "lower_low_bar": int(b2)}
-                tip = p2                                      # the dip deepens; not decided yet
-        else:
-            return None                                       # the dip is still open: undetermined, no end yet
-    return None
-
-
 def box_end(line, closes, R, S, r_anchor_bar, s_anchor_bar, unit):
-    """Has this box ended before the read day? The hand-over (upward) and the breakdown (downward), whichever is
-    known first. Returns ``(end, child_candidate)``: ``end`` is None while the box is live; ``child_candidate`` is
-    the unconfirmed child's anchors when a breakout printed one (the chart's "root candidate, unconfirmed")."""
+    """Has this box ended before the read day? The hand-over above (a child confirmed after the breakout day) and
+    the breakdown below (a child confirmed after the breakdown day), whichever is known first. Returns
+    ``(end, child_candidate)``: ``end`` is None while the box is live; ``child_candidate`` is the first unconfirmed
+    child above when the breakout printed one (the chart's "root candidate, unconfirmed"). The end's ``end_bar`` is
+    the parent's last turn before price left (where the parent freezes, point 26 / point 8)."""
     area = float(settings.LINE_WORD_AREA_ATR) * float(unit)
+    margin = float(settings.BOX_END_BREAKOUT_ATR) * float(unit)
     after = max(int(r_anchor_bar), int(s_anchor_bar))
-    up, candidate = _hand_over(line, closes, float(R), area, float(unit), after)
-    down = _breakdown(line, float(S), area, after)
+    up, candidate = _child_end(line, closes, float(R), area, margin, after, True)
+    down, _below = _child_end(line, closes, float(S), area, margin, after, False)
     ends = [e for e in (up, down) if e is not None]
     if not ends:
         return None, candidate
-    return min(ends, key=lambda e: e["known_bar"]), candidate
+    end = min(ends, key=lambda e: e["known_bar"])
+    turns = _committed(line)
+    before = [t[0] for t in turns if t[0] < end["left_bar"]]
+    end["end_bar"] = int(before[-1]) if before else int(end["left_bar"])
+    return end, candidate

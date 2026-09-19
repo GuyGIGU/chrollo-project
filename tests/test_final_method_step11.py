@@ -20,7 +20,7 @@ from config import settings
 from engine_alpha import evaluation
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.structure import box_primitives, bricks
-from engine_alpha.structure.box_end import _breakdown, _breakout_bar, _hand_over, box_end, election_bar
+from engine_alpha.structure.box_end import _child_end, _leave_bar, box_end, election_bar
 from engine_alpha.structure.narrative import Structure, read_structure
 
 SWITCH = "BOX_END_ENABLED"
@@ -65,90 +65,89 @@ def test_the_election_commits_when_both_rails_are_answered():
 
 def test_the_breakout_day_is_the_first_close_over_r_by_the_margin():
     closes = _closes(30, b20=110.05, b22=110.2)
-    assert _breakout_bar(closes, R, UNIT, 4) == 22, "110.05 is inside the margin (0.10 ranges); 110.20 is not"
-    assert _breakout_bar(_closes(30), R, UNIT, 4) is None
+    assert _leave_bar(closes, R, 0.10, 4, True) == 22, "110.05 is inside the margin (0.10 ranges); 110.20 is not"
+    assert _leave_bar(_closes(30), R, 0.10, 4, True) is None
+    assert _leave_bar(_closes(30, b18=99.8, b24=99.95), S, 0.10, 4, False) == 18, "the mirror: the first close under S by the margin"
 
 
 # ── the hand-over by swings ──────────────────────────────────────────────────
 
-def test_the_first_valley_holding_the_r_area_is_the_child_and_a_later_turn_at_its_anchors_confirms_it():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 111),
-            (20, "valley", 104), (24, "peak", 118), (28, "valley", 110.2), (32, "peak", 116), (36, "valley", 110.4),
-            (40, "peak", 120)]
-    closes = _closes(44, b22=112.0)
-    end, candidate = _hand_over(_turns(spec), closes, R, 0.5, UNIT, 12)
+CHILD = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 111),
+         (20, "valley", 104), (24, "peak", 118), (28, "valley", 110.2), (32, "peak", 118.3), (36, "valley", 110.4)]
+
+
+def test_a_child_is_confirmed_when_both_its_anchors_are_answered():
+    end, candidate = _child_end(_turns(CHILD), _closes(40, b22=112.0), R, 0.5, 0.10, 12, True)
     assert candidate is None and end is not None
-    assert end["kind"] == "hand-over" and end["breakout_bar"] == 22
+    assert end["kind"] == "hand-over" and end["left_bar"] == 22
     assert (end["child"]["climax_bar"], end["child"]["ar_bar"]) == (24, 28), "the swing off the breakout run's top, holding in the R area"
-    assert (end["end_bar"], end["known_bar"]) == (36, 37), "confirmed by the valley on day 36 turning at the child's low, known on its commit"
+    assert (end["end_bar"], end["known_bar"]) == (36, 37), "the later of the two answering turns, known on its commit"
 
 
-def test_a_candidate_without_its_confirming_turn_stays_a_candidate():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 111),
-            (20, "valley", 104), (24, "peak", 118), (28, "valley", 110.2), (32, "peak", 116)]
-    end, candidate = _hand_over(_turns(spec), _closes(36, b22=112.0), R, 0.5, UNIT, 12)
-    assert end is None and (candidate["climax_bar"], candidate["ar_bar"]) == (24, 28)
-    # a later PEAK at the child's own top confirms it too
-    spec2 = spec + [(36, "valley", 113.0), (40, "peak", 118.3)]
-    end, candidate = _hand_over(_turns(spec2), _closes(44, b22=112.0), R, 0.5, UNIT, 12)
-    assert end is not None and end["end_bar"] == 40 and candidate is None
+def test_one_turn_at_one_anchor_is_the_parents_lps_above_r_not_a_child():
+    one_turn = CHILD[:9] + [(36, "valley", 113.0), (40, "peak", 125.0)]
+    end, candidate = _child_end(_turns(one_turn), _closes(44, b22=112.0), R, 0.5, 0.10, 12, True)
+    assert end is None and (candidate["climax_bar"], candidate["ar_bar"]) == (24, 28), \
+        "the top was answered, the low was not: the parent goes on (row 1 before row 4)"
+    one_low = CHILD[:8] + [(32, "peak", 125.0), (36, "valley", 110.4), (40, "peak", 130.0)]
+    end, candidate = _child_end(_turns(one_low), _closes(44, b22=112.0), R, 0.5, 0.10, 12, True)
+    assert end is None and candidate["ar_bar"] == 28, "the low was answered, the top was not"
 
 
 def test_a_run_that_comes_back_into_the_box_hands_nothing_over():
     spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 114),
             (20, "valley", 106), (24, "peak", 112), (28, "valley", 101), (32, "peak", 109)]
-    end, candidate = _hand_over(_turns(spec), _closes(36, b14=111.0), R, 0.5, UNIT, 12)
+    end, candidate = _child_end(_turns(spec), _closes(36, b14=111.0), R, 0.5, 0.10, 12, True)
     assert end is None and candidate is None, "the first valley after the breakout sits under the R area: the box goes on"
-    # a second breakout later starts the read again
-    spec2 = spec + [(36, "valley", 103), (40, "peak", 120), (44, "valley", 112), (48, "peak", 118), (52, "valley", 112.3)]
-    end, candidate = _hand_over(_turns(spec2), _closes(56, b14=111.0, b38=113.0), R, 0.5, UNIT, 12)
-    assert end is not None and end["breakout_bar"] == 38 and end["child"]["ar_bar"] == 44 and end["end_bar"] == 52
+    spec2 = spec + [(36, "valley", 103), (40, "peak", 120), (44, "valley", 112), (48, "peak", 120.2), (52, "valley", 112.3)]
+    end, candidate = _child_end(_turns(spec2), _closes(56, b14=111.0, b38=113.0), R, 0.5, 0.10, 12, True)
+    assert end is not None and end["left_bar"] == 38 and end["child"]["ar_bar"] == 44 and end["end_bar"] == 52
+
+
+def test_candidates_accumulate_and_the_first_one_answered_ends_the_parent():
+    spec = CHILD[:8] + [(32, "peak", 125), (36, "valley", 118.5), (40, "peak", 124.8), (44, "valley", 118.7)]
+    end, candidate = _child_end(_turns(spec), _closes(48, b22=112.0), R, 0.5, 0.10, 12, True)
+    assert end is not None and end["end_bar"] == 44, "the higher swing's two anchors were both revisited"
+    assert (end["child"]["climax_bar"], end["child"]["ar_bar"]) == (32, 36)
+    end, candidate = _child_end(_turns(spec[:11]), _closes(44, b22=112.0), R, 0.5, 0.10, 12, True)
+    assert end is None and candidate["ar_bar"] == 28, "unconfirmed: the first candidate is the chart's state"
 
 
 def test_no_breakout_means_no_hand_over_and_no_close_level_ends_a_box():
     spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 110.4)]
-    end, candidate = _hand_over(_turns(spec), _closes(20), R, 0.5, UNIT, 12)
+    end, candidate = _child_end(_turns(spec), _closes(20), R, 0.5, 0.10, 12, True)
     assert end is None and candidate is None
 
 
-# ── the breakdown ────────────────────────────────────────────────────────────
+# ── the breakdown, the mirror ────────────────────────────────────────────────
 
-def test_a_recovery_swing_that_reached_the_area_and_then_failed_is_a_breakdown():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
-            (20, "valley", 98.0), (24, "peak", 100.0), (28, "valley", 96.0)]
-    end = _breakdown(_turns(spec), S, 0.5, 12)
-    assert end is not None and end["kind"] == "breakdown"
-    assert (end["end_bar"], end["dip_bar"], end["lower_low_bar"], end["known_bar"]) == (16, 20, 28, 29), \
-        "the box ended at its last turn before the dip, known when the valley under the tip committed"
-    deeper = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
-              (20, "valley", 98.0), (24, "peak", 99.0), (28, "valley", 96.0)]
-    assert _breakdown(_turns(deeper), S, 0.5, 12) is None, "no swing reached the area yet: the dip only deepened"
-    deeper_then_spring = deeper + [(32, "peak", 101.0), (36, "valley", 97.0), (40, "peak", 109)]
-    assert _breakdown(_turns(deeper_then_spring), S, 0.5, 12) is None, "recovered from the deeper tip: a spring"
-    deeper_then_fail = deeper + [(32, "peak", 101.0), (36, "valley", 95.0)]
-    end = _breakdown(_turns(deeper_then_fail), S, 0.5, 12)
-    assert end is not None and (end["dip_bar"], end["lower_low_bar"], end["end_bar"]) == (20, 36, 16)
+BELOW = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
+         (20, "valley", 92.0), (24, "peak", 99.6), (28, "valley", 91.8), (32, "peak", 99.4), (36, "valley", 92.2)]
 
 
-def test_a_dip_that_recovers_by_the_swing_is_a_spring_not_an_end():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
-            (20, "valley", 98.0), (24, "peak", 104.0), (28, "valley", 101.0), (32, "peak", 109)]
-    assert _breakdown(_turns(spec), S, 0.5, 12) is None
-    still_open = spec[:7]
-    assert _breakdown(_turns(still_open), S, 0.5, 12) is None, "an open dip is undetermined, not an end"
-    inside = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 99.6), (16, "peak", 108), (20, "valley", 99.7)]
-    assert _breakdown(_turns(inside), S, 0.5, 12) is None, "a valley inside the support area is a turn at S"
-    inside2 = inside + [(24, "peak", 108), (28, "valley", 99.5)]
-    assert _breakdown(_turns(inside2), S, 0.5, 12) is None, "turns inside the area never open a dip, however they order"
-    later_dip = spec + [(36, "valley", 97.5)]
-    assert _breakdown(_turns(later_dip), S, 0.5, 12) is None, "the recovered dip is closed; a later dip is its own, still open"
+def test_a_child_below_confirmed_by_its_answering_is_the_breakdown():
+    end, _ = _child_end(_turns(BELOW), _closes(40, b18=99.8), S, 0.5, 0.10, 12, False)
+    assert end is not None and end["kind"] == "breakdown" and end["left_bar"] == 18
+    assert (end["child"]["climax_bar"], end["child"]["ar_bar"]) == (20, 24), "the swing off the decline's low, its peak in the S area"
+    assert (end["end_bar"], end["known_bar"]) == (32, 33), "the second pair answers both anchors of the child below"
+    end, candidate = box_end(_turns(BELOW), _closes(40, b18=99.8), R, S, 0, 4, UNIT)
+    assert end["kind"] == "breakdown" and end["end_bar"] == 16, "the parent froze at its last turn before price left"
+
+
+def test_a_dip_that_recovers_or_confirms_no_child_below_is_not_an_end():
+    spring = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
+              (20, "valley", 98.0), (24, "peak", 104.0), (28, "valley", 101.0), (32, "peak", 109)]
+    assert _child_end(_turns(spring), _closes(36, b18=99.8), S, 0.5, 0.10, 12, False) == (None, None), \
+        "the first peak after the dip sits back inside the box: the run came back"
+    open_dip = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
+                (20, "valley", 92.0), (24, "peak", 99.0), (28, "valley", 90.0)]
+    end, candidate = _child_end(_turns(open_dip), _closes(32, b18=99.8), S, 0.5, 0.10, 12, False)
+    assert end is None and candidate["ar_bar"] == 24, "a candidate below, unanswered: under S, undetermined"
 
 
 def test_the_earliest_known_end_wins():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 108),
-            (20, "valley", 98.0), (24, "peak", 100.0), (28, "valley", 96.0), (32, "peak", 118), (36, "valley", 110.5),
-            (40, "peak", 117), (44, "valley", 110.6)]
-    end, candidate = box_end(_turns(spec), _closes(48, b30=112.0), R, S, 0, 4, UNIT)
+    spec = BELOW + [(40, "peak", 118), (44, "valley", 110.5), (48, "peak", 118.2), (52, "valley", 110.6)]
+    end, candidate = box_end(_turns(spec), _closes(56, b18=99.8, b38=112.0), R, S, 0, 4, UNIT)
     assert end["kind"] == "breakdown" and candidate is None
 
 
@@ -202,7 +201,7 @@ def _frame(n=80):
 
 
 def test_an_ended_box_is_never_the_structure_and_the_walk_resumes_after_it(monkeypatch):
-    hand_over = {"kind": "hand-over", "end_bar": 36, "known_bar": 37, "breakout_bar": 30, "child": {"climax_bar": 32, "ar_bar": 34}}
+    hand_over = {"kind": "hand-over", "end_bar": 36, "known_bar": 37, "left_bar": 30, "child": {"climax_bar": 32, "ar_bar": 34}}
     b = _Bricks({110.0: (hand_over, None, 1.2), 120.0: (None, {"climax_bar": 60, "ar_bar": 64}, 1.4)})
     df = _frame()
     off = read_structure(df, 1.0, bricks=b)
@@ -221,7 +220,7 @@ def test_an_ended_box_is_never_the_structure_and_the_walk_resumes_after_it(monke
 
 
 def test_after_a_breakdown_the_walk_moves_on_to_the_next_run(monkeypatch):
-    breakdown = {"kind": "breakdown", "end_bar": 30, "known_bar": 39, "dip_bar": 34, "lower_low_bar": 38}
+    breakdown = {"kind": "breakdown", "end_bar": 30, "known_bar": 39, "left_bar": 33, "child": {"climax_bar": 34, "ar_bar": 36}}
     b = _Bricks({110.0: (breakdown, None, 1.0), 120.0: (None, None, 1.0)})
     monkeypatch.setattr(settings, SWITCH, True)
     seen = []
@@ -229,17 +228,6 @@ def test_after_a_breakdown_the_walk_moves_on_to_the_next_run(monkeypatch):
     b.find_root_swing = lambda df, search_from_bar, atr: seen.append(search_from_bar) or real(df, search_from_bar, atr)
     on = read_structure(_frame(), 1.0, bricks=b)
     assert on.R == 120.0 and seen == [0, 11], "the ended box is skipped and the next run is asked for, no jump"
-
-
-def test_candidates_accumulate_and_any_one_confirmed_ends_the_parent():
-    spec = [(0, "peak", 110), (4, "valley", 100), (8, "peak", 110), (12, "valley", 100), (16, "peak", 111),
-            (20, "valley", 104), (24, "peak", 118), (28, "valley", 110.2), (32, "peak", 125), (36, "valley", 118.5),
-            (40, "peak", 124), (44, "valley", 118.7)]
-    end, candidate = _hand_over(_turns(spec), _closes(48, b22=112.0), R, 0.5, UNIT, 12)
-    assert end is not None and end["end_bar"] == 44, "the higher swing's low was revisited: that child is confirmed"
-    assert (end["child"]["climax_bar"], end["child"]["ar_bar"]) == (32, 36)
-    end, candidate = _hand_over(_turns(spec[:11]), _closes(44, b22=112.0), R, 0.5, UNIT, 12)
-    assert end is None and candidate["ar_bar"] == 28, "unconfirmed: the first candidate is the chart's state"
 
 
 def test_fakes_without_the_end_read_keep_working(switch_on):
@@ -307,7 +295,7 @@ def test_a_breakdown_with_nothing_after_it_reads_broke_down():
     trace = [{"outcome": "no_box"}, {"outcome": "ended", "end": end, "box": {"R": 110.0, "S": 100.0, "start_bar": 12}},
              {"outcome": "no_box"}]
     assert evaluation._walk_refused_state(trace) == {"state": "broke down", "end": end}
-    handed = {"kind": "hand-over", "end_bar": 36, "known_bar": 37, "breakout_bar": 30, "child": {}}
+    handed = {"kind": "hand-over", "end_bar": 36, "known_bar": 37, "left_bar": 30, "child": {}}
     trace[1]["end"] = handed
     assert evaluation._walk_refused_state(trace) == {"state": "no lines", "why": "handed over", "end": handed}
     later = trace + [{"outcome": "no_lps", "box": {"R": 1, "S": 0, "start_bar": 50}}]
