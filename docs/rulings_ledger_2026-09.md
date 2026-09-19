@@ -1392,3 +1392,208 @@ S 32.26, anchors Thu 11/12 and Tue 16/12/2025) first, and today's respect gate r
 gates off the walk elects ranges price left long ago until the box's end exists (step 11). The line prints a run
 every two or three turns (80 to 90 roots on a two-year frame, most one to three ranges tall): the run's size is a
 fact for the grade, never a gate (his rule). Flag-off every guard byte-identical; 23 mutations red then green.
+## CORRECTION (Tue 15/09/2026): HIS PBT DATE AND THE SIXTEENTH SITTING'S PHASE D FIGURES
+
+The sixteenth-sitting notes above write his PBT Phase D date as "Fri 23/04/2026" (his answer 12) and "his Fri 23/04"
+(the MEASURED Q12 paragraph). 23/04/2026 is a THURSDAY (he wrote "23/04/26"), and the engine's Tue 28/04/2026 opening is
+3 trading days after it, not the five the Sun 13/09/2026 message said. The same paragraph's figures were the sitting's
+probe; the committed reader (Mon 14/09/2026, before his "must") measured median position 0.72, after the middle 29 of
+35 (not 31), and ST opening 34 trading days before his first right-side event (not 28). Corrected in
+final_method_2026-09.md (point 12 of the sixteenth sitting) and by a correction row in decisions.md.
+
+## HIS SOS ANSWERS (Tue 15/09/2026), VERBATIM
+
+Shown the eight OHLC renders where the engine's SOS pick missed his (ALB, NTCT, ST, VLO, SILC, WTS, DSGN, BODI) and
+asked five numbered questions (the reading "the last push in Phase D that clears every high since the spring by more
+than half a daily range", the 12 LPS windows with no SOS drawn, DSGN's SOS before the middle, BMRN's "breach of
+support", upthrust specimens):
+"Okay maybe we can Ignore the DSGN SOS markings but it's intention is still the same, its a push that's like a
+paradigm shift it signals local buyer strength and seeing an LPS afterwards makes the Setup more higher quality.
+1. "It runs your push on to a later top that only just clears yours after a small pause (ALB, NTCT, ST, VLO: 0.13 to
+0.31 of a daily range higher). That later top is where your last supper or your LPS starts." - these are also fine, I
+just marked the SOS as a single Swing with out dips, but from what I see the engine prefers to roll with a higher high
+after a small correction and that's fine as long as we don't get some wonky stuff goin on ignoring when a run
+actually breaks, the other reason is fine because nothing else worth of note happends in between so that extension is
+harmless.
+2. ANRO: because it was like the last Clear Up swing before the LPS (updated it), in BWA it was a single strong bar it
+lifted the price high even the highest in the structure making the LPS after really easy to spot near the resistance
+which also a good thing, Same with MDT, the SOS is a decisive upswing that also breaches support then the next pullback
+is a shallow declining LPS - confirming both Strength of buyers and weakness of sellers, Same explanation with YPF.
+3. in essence that push is an SOS, a decisive swing in up -> then the pullback/price contracts resulting in a
+prolonged mini consolidation that leads to an LPS. that is how I would read it.
+4. I made a mistake I meant Resistance
+5. so UP Thrust is an Event that belongs in Phase B, it is kind of a "Reverse" Spring where price climbs quickly out of
+the structure then crashes back into the trading range, usually in study Theory it's an event in wyckoff that happends
+in distribution processes which our engine has no sense of yet (Perhaps a future Beta "β" engine), but I noticed it
+also sometimes happends in setups for LONG position.
+6. Look at this UNF picture I sent with detailed Marks."
+
+His UNF picture (TradingView, daily bars; the app cannot record an upthrust, its calibration event types stop at six):
+blue rails about 267.8 and 262 (his UNF:2026-07-10 mark: R 267.80, S 262.00); red "UT" over the push from Tue 09/06/2026
+(low 262.11) to Thu 11/06/2026 (high 280.50, 2.14 daily ranges over R, on 758,300 shares, the heaviest day in the box),
+back to 263.53 on Fri 12/06/2026; red "C" at the low about Thu 18/06/2026 (258.17); green "SOS" from about Wed
+01/07/2026 (262.73) to Mon 06/07/2026 (276.49); red "LPS" the pullback from that top into about Thu 09/07/2026. His
+mark in the app carries only the SOS and the LPS.
+
+His redraws the same day (the live marks, fingerprint 99621e940f6e; the sealed copy is 88db0fcfa4e4): ANRO:2026-08-12
+(the mini consolidation removed; the LPS moved from Thu 06/08 .. Tue 11/08 to Fri 07/08 .. Tue 11/08/2026, the day after
+his SOS top) and YPF:2026-05-18 (the SOS from Mon 11/05 .. Tue 12/05 to Fri 08/05 .. Tue 12/05/2026; the LPS from Tue
+12/05 .. Thu 14/05 to Wed 13/05 .. Fri 15/05/2026). The build session re-stages and re-seals; this session copies the
+staged DB from it afterwards and meanwhile measures his live marks read-only.
+
+## THE SOS SITTING, BUILT DARK AND VERIFIED (Tue 15/09/2026)
+
+THE SOS (his words above, and Q11): the last push after the middle of the box, launched after the spring, that breaks
+clear of every high since the spring by more than the rail area; else the last push after the middle; none when no push
+tops after the middle. His push is picked on 23 of 25 LPS windows (sealed and live marks; the old pick 15; the fair
+baselines 13.3 for a random push after the middle and 15 for the last one). Misses: BODI (no push reaches his top) and
+DSGN (before the middle, set aside by him). The clearance, the local highs, the fallback and the pause that stands for
+"when a run actually breaks" are my defaults, his word owed.
+THE UPTHRUST (his word above): a push out of the structure (a top clear of the resistance area) whose next swing low
+crashes back under it, in Phase B (before the spring, else by the middle). His UNF Thu 11/06/2026 is named; 12 on 9 of
+his boxes. Owed from him: UNF Fri 05/06/2026, JAZZ Mon 05/01 and Tue 06/01/2026 (one spike read as two), NOK Tue
+27/01/2026 (runs into his Phase C), and VIK Thu 14/05/2026 (his July note says upthrust; the rule misses it because the
+reader calls Wed 29/04/2026 a spring he never drew). The app cannot record an upthrust (six event types).
+THE LAST SUPPER (his BMRN words, "I meant Resistance"): off a push whose top clears the resistance area, after the spring
+and after the middle, the old dig. 10 of his 10 kept; 22 named on 15 of his boxes (111 before). On BMRN the push tops
+only 0.29 of a range over his R, inside the rail area, so none is named there: his word owed on a breach inside the
+area. His BMRN reading also makes the LPS only the last shallow declining days of a deep correction: that is the
+build session's (lps.py).
+PHASE D now opens at THE SOS's last swing, never its launch (a launch can sit on the spring's own low): spring-low
+openings 4 to 1 of 25, THE SOS outside Phase D 2 to 0, ROIV on his day exactly, SYRE and PBT still exact; more than 15
+trading days early: BODI 19, MSGS 22, ST 16.
+VERIFIED by workflow wf_46628ac8-ce7 (five checkers, a mutation prover, a critic): every headline number reproduced;
+fixed before commit: the empty local high (a push off the spring's own day "cleared" a high that did not exist),
+Phase D on the spring low, three end-to-end tests that could not fail on a wiring swap, the flag-ledger row and the
+settings reference, my defaults labelled as his rulings, and three wrong claims in my draft rows (ALB was already
+missed on the engine basis; NOK's upthrust runs into his Phase C; BMRN's last supper is blocked by the rail-area clause,
+not the LPS window). A second prover run: 41 of 41 mutations red. With all six word switches on, the marks ratchet
+holds 30 of 35 and the junk stays clean on every unpinned day.
+FOR THE BUILD SESSION: the SOS graded when several are named is THE SOS, one per LPS window; the precedence rows 2
+(upthrust, Phase B) and 3 (SOS, Phase D, its deep correction a last supper in hindsight) exist as words; Phase D is
+re-measured above; the last supper rule separates "last supper" from the chip that measures the LPS's stretch above R.
+
+## HIS UPTHRUST TWEAKS (Wed 16/09/2026), VERBATIM
+
+On the four upthrust renders (UNF, JAZZ, NOK, VIK), with his own marks drawn over the UNF one: a red X through the
+engine's UT of Fri 05/06/2026 and a check over its UT of Thu 11/06/2026.
+
+> Okay few tweaks about UT. not every small false breach of Resistance is one or a candidate for one. and only the
+> swinged that actually breached gets to be marked (just like a spring) not the entire run up from support with all
+> of the Dips combined, and usually only one UT is present. and it's the most major/devolped one rather then tiny
+> hiccups in resistance.
+
+## THE UPTHRUST REBUILT, DARK AND VERIFIED (Wed 16/09/2026)
+
+ONE per box (`line_words.the_upthrust`; the record key is now `the_upthrust`, one word or none, like `the_sos`):
+
+A FLOOR UNDER THE BREACH. The top must climb more than `LINE_WORD_UPTHRUST_MIN_POKE_ATR` (1.25) daily ranges over
+his resistance, not merely clear the rail area. Placed from his own two specimens: the breach he crossed out (his
+UNF, Fri 05/06/2026) tops 0.94 ranges over his R, and the smallest he has ever named (his VIK July note, Thu
+14/05/2026) tops 1.55 over his R, so 1.25 is the middle of the only window his marks leave. Of the 38 pushes on his
+35 boxes that clear the resistance area and crash back, 8 survive 1.0, 6 survive 1.25, 3 survive 1.5.
+
+THE MARKED SWING. The word is now marked from the line valley right before the top (`swing_bar`, the same field his
+SOS is marked from), so the drawing is the swing that breached, never the run up from support with its dips; the run
+itself stays in the record as `launch_bar`, data and never the mark. On the UNF push he checked nothing moves - it
+launched on Tue 09/06/2026 and breached from the same day - and on the one he crossed out the mark shortens from Fri
+22/05 .. Fri 05/06/2026 (the run from support, with dips: the orange line he crossed) to Wed 03/06 .. Fri 05/06/2026.
+On his 35 boxes the clause shortens 6 of the 12 marks that clear the rail area.
+
+ONE PER BOX, THE MOST DEVELOPED. Of the candidates in Phase B, the one that climbed furthest over the resistance
+(the earlier one when two climb the same).
+
+MEASURED: THE upthrust is named on 2 of his 35 boxes - his UNF Thu 11/06/2026 (2.14 ranges over his R) and FOSL Tue
+27/01/2026 (1.57) - where 12 on 9 boxes were named before; on the junk, 1 of the 17 fire days (was 5). No other word
+moves (THE SOS 23 of 25, the last supper 10 of 10, Phase C 10 of 10, Phase D unchanged).
+
+STILL OWED FROM HIM, and asked in the report of Wed 16/09/2026:
+- FOSL Tue 27/01/2026, the one name he has never seen: a single day 2.86 ranges tall that climbs 1.57 over his R and
+  closes back under it, so the climb out and the crash back share one bar (`days` 0, knowable the next day). An
+  upthrust, or a wide bar? His answer decides whether the rule is two for two on his own eye or one for two.
+- The huddle between his X and the floor, asked together rather than as JAZZ alone: his UNF Fri 05/06/2026 (0.945,
+  crossed out), EWTX Wed 25/02/2026 (0.986) and JAZZ Mon 05/01/2026 (1.031). Is SIZE what separates a hiccup from an
+  upthrust at all, or is it the speed, the single bar, or where in the box it sits? If size is not his separator the
+  floor is the wrong shape, and it is dark, so now is the time.
+- NOK Tue 27/01/2026 (0.612) is a PHASE question, not a size one: it crashes back on Wed 28/01/2026, the first day of
+  his own drawn Phase C. An upthrust landing on his spring, or the swing into it? That answer belongs to the
+  precedence table the build session reads at its step 8.
+- VIK is a SPRING question: his July note's spike of Thu 14/05/2026 tops 1.551 over his R, so it clears the floor and
+  is refused only by a Phase C the reader draws on Wed 29/04/2026 that he never drew. Two honest caveats: that
+  specimen is the floor's own upper anchor, so the floor is bounded above by a chart the rule cannot yet read; and
+  his note calls it "an upthrust OUTSIDE the box", while the word built here only names one inside Phase B - whether
+  an outside-the-box upthrust counts at all is his call.
+Not asked, deliberately: whether a box may carry two. No box on his 35 marks, none of the 17 junk boxes and none of
+the 117 boxes on the fleet fixture has two pushes that survive the floor, so there is no specimen to rule on; the
+record now counts `candidates` so the question can be asked the day one appears.
+The app still cannot record an upthrust (six calibration event types), so `tools.word_recall` lists it and scores
+nothing.
+
+ONE ASYMMETRY HE SHOULD KNOW ABOUT, since he said "just like a spring": the spring is gated on shape (penetration,
+reclaim, hold) and uses its depth only to rank the dips, because an ATR arm test on it is Tested-DEAD. The upthrust
+now uses its climb as BOTH the gate and the ranking. His words asked for the gate ("or a candidate for one"), so the
+gate is his; the mirror with the spring is not exact.
+
+FOR THE BUILD SESSION (branch claude/method-steps-7-12), on top of the SOS sitting's list: point 6's precedence table
+types EVERY up-swing over the resistance area, per swing, while this word now names AT MOST ONE per box. Step 8 must
+settle whether the map writes "upthrust" on every Phase B swing that crashes back or only on THE upthrust; his
+"usually only one" points at the one. Merge notes: the manifest gains `LINE_WORD_UPTHRUST_MIN_POKE_ATR` after
+`LINE_WORD_AREA_ATR` (the sibling inserts three keys a few lines below, so expect a conflict and keep BOTH, the
+tuple's order decides the hash); `docs/engine_reference.md` must be regenerated with `python -m
+tools.settings_reference --write` after the merge or `test_docs_sync` fails; and the build-step-5 comment block in
+`config/settings.py` must come from this branch - the sibling still carries the pre-SOS text "Not built: the
+upthrust".
+
+## HIS EYE ON THE THREE EMPTY UPTHRUST CHARTS (Thu 17/09/2026), VERBATIM
+
+On the five renders of Wed 16/09/2026 (UNF, FOSL, EWTX, JAZZ, NOK, in that order); the last three are the ones where
+the rebuilt word names nothing.
+
+> on the last 3 charts you sent that were empty I can agree that no UP thrust is also valid,
+
+SETTLED: the empty reading stands on EWTX (Wed 25/02/2026, 0.986 over his R; Tue 10/02/2026, 0.635), JAZZ (Mon
+05/01/2026, 1.031; Tue 06/01/2026, 0.623) and NOK (Tue 27/01/2026, 0.612, crashing back on the first day of his drawn
+Phase C). The highest climb his eye now lets pass unnamed is 1.031 (was 0.945). The floor stays at 1.25, my default:
+it sits between 1.031 and his smallest named upthrust (VIK, 1.551), and of the pushes on his 35 boxes that top in
+Phase B and crash back none climbs between 1.031 and 1.575, so any value there names the same two (his UNF and FOSL).
+For the build session's step 8: NOK's push into his Phase C is not an upthrust.
+
+STILL OWED: FOSL Tue 27/01/2026 (the single wide day, the one name he has not seen); whether size is his separator at
+all ("also valid" accepts the empty outcome without ruling on the measure); VIK (is Wed 29/04/2026 a spring, and does
+an upthrust outside the box count). Still open from Tue 15/09/2026: the 12 LPS windows with no SOS drawn, BMRN's
+breach inside the rail area, and the three event words to sign.
+
+## HIS FIVE ANSWERS (Sat 19/09/2026), VERBATIM
+
+With a VIK picture: his box, "NO" under the dip of Wed 29/04/2026, his red line through the upthrust to Thu
+14/05/2026 and the SOS and LPS after it.
+
+> 1. it can be a UT.
+> 2. No for the spring, and also no but it isn't out side the box
+> 3. no, it should name an LPS when it deems a push to be one, if that last push is a decisive up swing -> LPS then yes
+> 4. yes every poke over resistance is a breach even small ones count but that shouldn't worry us at all since its still in the resistance area
+> 5. "Thrust above resistance" is Up thrust all the others aren't needed
+
+And, the same day:
+
+> Listen The up thrust isn't even all that important, we just got to nail down our core for detecting consolidations and an LPS. the rest is a nice little bonus. but generally speaking, an up thrust in accumulation & Re accumilation process (the one our alpha engine seeks to find and understand) is an event that happens in Phase B.  Phase C is Reserved for the Spring (if it happens). and the main difference between an SOS and an Up Thrust is Context of where did it happen in the setup and what happened after said event.
+
+BUILT, dark: a dip followed by an upthrust in the first half of the box, before the right side opens, was still Phase
+B (VIK: no spring, his upthrust named Tue 12/05 to Thu 14/05/2026); the last supper's breach is any poke over R. No
+change for 1 (FOSL stays) and 3 (the SOS fallback stays). For the build session's step 8: the only word for a push
+out of the top is "upthrust"; the other proposed words are dropped. Measured on his live marks: Phase C 10 of 10,
+THE upthrust on 3 boxes (UNF, FOSL, VIK), the last supper 10 of 10, THE SOS 23 of 25. Nothing is owed from him on the
+words.
+
+## HIS VIK READ (Sat 19/09/2026), VERBATIM
+
+On his own VIK picture: purple UT, green SOS, red LS and LPS, his two rails.
+
+> Did you understand VIK though? Purple mark: Up Thrust - big quick hard breach of support that then crashes/recovers back into the structure in the middle of the consolidation (Phase B = is the consolidation stage that represents the general chop, price moves between the boundaries (Resistance & Support) randomly with out any notable events) in nature the Up thrust can be similar to a Spring but in reverse being a Resistance based event swing rather then support. but it's not classified as its own phase. then after said Recovery the big Green Mark is the SOS a strong push in buyers that happens later in the structure but the thing that confirms it is the 2 weak DIPS afterwards (can also be classified as a single straight pullback) where the LPS develops + its resting on the resistance -> turning it to a classic Long Position setups
+
+The dark reader reads it so on his rails: THE upthrust Tue 12/05 to Thu 14/05/2026, no spring, THE SOS Wed 20/05 to
+Thu 28/05/2026, the last supper Thu 28/05 to Wed 03/06/2026, his LPS Fri 05/06 to Mon 08/06 on his R.
+FOR THE BUILD SESSION (the core, its steps 10 and 11): the engine's own box on his fire day puts R at 92.00, the top
+of his upthrust, where his R is 87.00, and opens on Mon 04/05 where his opens on Tue 21/04. It finds the same SOS,
+last supper and LPS days, but the upthrust has become the ceiling, so his LPS "resting on the resistance" reads as a
+dip inside the box. By his words the upthrust is a Phase B event inside the structure, never a rail.
